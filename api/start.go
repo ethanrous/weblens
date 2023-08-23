@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/EthRousseau/weblens/ui"
+	"github.com/ethrousseau/weblens/ui"
 )
 
 func Start() {

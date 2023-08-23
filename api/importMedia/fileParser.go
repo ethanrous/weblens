@@ -114,7 +114,7 @@ func extractExif(filepath string) (time.Time, error) {
 
 }
 
-func handleNewImage(imagesDir, filename string) (*interfaces.Image, error) {
+func handleNewImage(imagesDir, filename string) (*interfaces.Media, error) {
 	filepath := (imagesDir + "/" + filename)
 
 	i, err := readFile(filepath)

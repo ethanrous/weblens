@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/EthRousseau/weblens/api/interfaces"
+	"github.com/ethrousseau/weblens/api/interfaces"
 )
 
 const uri = "mongodb://localhost:27017"
