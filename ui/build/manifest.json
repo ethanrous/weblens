@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Weblens",
+  "name": "Weblens customizable media gallery",
   "icons": [
     {
       "src": "favicon.ico",

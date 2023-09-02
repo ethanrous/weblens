@@ -1,11 +1,25 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
 
-func addRoutes(r *gin.Engine) {
+	"github.com/gin-gonic/gin"
+)
+
+func uiRedirect(ctx *gin.Context) {
+	ctx.Redirect(301, "/ui/")
+}
+
+func AddApiRoutes(r *gin.Engine) {
 	api := r.Group("/api")
-	api.GET("/photos", func(ctx *gin.Context) { listPhotos(ctx) })
+	api.GET("/media", func(ctx *gin.Context) { getPagedMedia(ctx) })
 	api.GET("/thumbnail", func(ctx *gin.Context) { getPhotoThumb(ctx) })
+	api.GET("/fullres", func(ctx *gin.Context) { getFillresMedia(ctx) })
 	api.POST("/upload", func(ctx *gin.Context) { uploadPhoto(ctx) })
 	api.POST("/scan", func(ctx *gin.Context) { scan(ctx) })
+}
+
+func AddUiRoutes(r *gin.Engine) {
+	r.GET("/", func(ctx *gin.Context) { uiRedirect(ctx) })
+	r.StaticFS("/ui/", http.Dir("../ui/build"))
 }
