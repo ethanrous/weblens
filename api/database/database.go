@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/interfaces"
@@ -48,17 +47,25 @@ func New() (Weblensdb) {
 	}
 }
 
-func (db Weblensdb) GetImage(fileHash string) (interfaces.Media) {
+func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (interfaces.Media) {
 	conn := db.redis.Get(fileHash)
 	val, err := conn.Result()
 	if err != nil {
 		log.Debug.Print("Redis cache miss")
+
+		var opts *options.FindOneOptions
+
+		if !includeThumbnail {
+			opts = options.FindOne().SetProjection(bson.D{{Key: "thumbnail", Value: util.IntFromBool(includeThumbnail)}})
+		}
+
 		filter := bson.D{{Key: "_id", Value: fileHash}}
-		findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter)
+		findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter, opts)
 
 		var i interfaces.Media
 		findRet.Decode(&i)
 		return i
+
 	} else {
 		//fmt.Println("Redis cache hit")
 		var i interfaces.Media
@@ -91,33 +98,22 @@ func getImageThumb(filehash string) (string) {
 }
 */
 
-func (db Weblensdb) GetPagedMedia(sort, group string, skip, limit int) ([]interfaces.Media) {
-	start := time.Now()
-	redisKey := fmt.Sprintf("%s -- %d -- %d", sort, skip, limit)
-	val, err := db.redis.Get(redisKey).Result()
-	if err == nil {
-		var res []interfaces.Media
-		json.Unmarshal([]byte(val), &res)
-		return res
-	}
-
+func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails bool) ([]interfaces.Media, bool) {
 	pipeline := mongo.Pipeline{}
 
-	//unsetStage := bson.D{{Key: "$unset", Value: bson.A{"thumbnail"}}}
-	//pipeline = append(pipeline, unsetStage)
+	if !thumbnails {
+		unsetStage := bson.D{{Key: "$unset", Value: bson.A{"thumbnail"}}}
+		pipeline = append(pipeline, unsetStage)
+	}
+
 
 	sortStage := bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: -1}}}}
 	pipeline = append(pipeline, sortStage)
 
-	/*
-	if group == "true" {
-		groupStage := bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: bson.D{{Key: "$dateTrunc", Value: bson.D{{Key: "date", Value: "$createDate"}, {Key: "unit", Value: "day"}}}}}, {Key: "media", Value: bson.D{{Key: "$push", Value: "$$ROOT"}}}}}}
-		pipeline = append(pipeline, groupStage)
-
-		sortStage = bson.D{{Key: "$sort", Value: bson.D{{Key: "_id", Value: -1}}}}
-		pipeline = append(pipeline, sortStage)
+	if !raw {
+		matchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "mediaType.israw", Value: raw}}}}
+		pipeline = append(pipeline, matchStage)
 	}
-	*/
 
 	skipStage := bson.D{{Key: "$skip", Value: skip}}
 	pipeline = append(pipeline, skipStage)
@@ -140,19 +136,11 @@ func (db Weblensdb) GetPagedMedia(sort, group string, skip, limit int) ([]interf
 		panic(err)
 	}
 
-	//_, err = db.redis.Set(redisKey, res, time.Duration(60000000000)).Result()
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	for _, val := range res {
-		go db.redisCacheThumbBytes(val)
+	for i, val := range res {
+		db.redisCacheThumbBytes(val)
+		res[i].Thumbnail64 = ""
 	}
-
-	elapsed := time.Since(start)
-	log.Debug.Printf("Took: %v", elapsed)
-
-	return res
+	return res, len(res) == limit
 
 }
 

@@ -1,58 +1,58 @@
-import { useState } from 'react';
+import IconButton from "@mui/material/IconButton"
+import UploadIcon from '@mui/icons-material/Upload'
+import Stack from "@mui/material/Stack"
 
-const FileUploadPage = () => {
-    const [selectedFile, setSelectedFile] = useState();
-    const [isFilePicked, setIsFilePicked] = useState(false);
-
-    const changeHandler = (event) => {
-        setSelectedFile(event.target.files[0]);
-        setIsFilePicked(true);
-    };
-
-    const handleSubmission = () => {
-        const formData = new FormData();
-
-        formData.append('uploadMedia', selectedFile);
-
-        fetch(
-            '/api/upload',
-            {
-                method: 'POST',
-                body: formData,
-            }
-        )
-            .then((response) => response.json())
-            .then((result) => {
-                console.log('Success:', result);
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
-    };
-    return (1)
-    /*
-        return (
-            <div>
-                <input type="file" name="file" onChange={changeHandler} />
-                {isFilePicked ? (
-                    <div>
-                        <p>Filename: {selectedFile.name}</p>
-                        <p>Filetype: {selectedFile.type}</p>
-                        <p>Size in bytes: {selectedFile.size}</p>
-                        <p>
-                            lastModifiedDate:{' '}
-                            {selectedFile.lastModifiedDate.toLocaleDateString()}
-                        </p>
-                    </div>
-                ) : (
-                    <p>Select a file to show details</p>
-                )}
-                <div>
-                    <button onClick={handleSubmission}>Submit</button>
-                </div>
-            </div>
-        )
-        */
+const PostFile = (file, item64) => {
+    console.log("UPLOADING")
+    var url = new URL("http:localhost:3000/api/item")
+    fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+            filename: file.name,
+            item64: item64
+        }),
+        headers: {
+            "Content-type": "application/json; charset=UTF-8"
+        }
+    })
+    console.log("done")
 }
 
-export default FileUploadPage
+const FileUpload = () => {
+    const HandleFileUpload = (event) => {
+        const file = event.target.files[0]
+        const reader = new FileReader()
+
+        reader.onloadend = () => {
+            PostFile(file, reader.result)
+        }
+
+        console.log(file)
+
+        reader.readAsDataURL(file)
+    }
+
+    return (
+
+        <Stack >
+            <IconButton
+                color="inherit"
+                aria-label="upload picture"
+                component="label"
+            >
+                <input
+                    id="upload-image"
+                    hidden
+                    accept="image/*"
+                    type="file"
+                    onChange={HandleFileUpload}
+                />
+                <UploadIcon style={{ paddingRight: "10px" }} />
+                {"Upload"}
+            </IconButton>
+        </Stack>
+
+    )
+}
+
+export default FileUpload

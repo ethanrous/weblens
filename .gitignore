@@ -27,3 +27,5 @@ yarn-error.log*
 /weblens
 /images
 /thumbs
+
+__debug*

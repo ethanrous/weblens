@@ -2,18 +2,19 @@ package routes
 
 import (
 	b64 "encoding/base64"
-	"fmt"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	_ "image/png"
 
 	"github.com/ethrousseau/weblens/api/database"
 	"github.com/ethrousseau/weblens/api/importMedia"
 	"github.com/ethrousseau/weblens/api/interfaces"
-	log "github.com/ethrousseau/weblens/api/utils"
+	util "github.com/ethrousseau/weblens/api/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,14 +23,6 @@ func getPagedMedia(ctx *gin.Context) {
 	sort := ctx.Query("sort")
 	if sort == "" {
 		sort = "createDate"
-	}
-
-	group := ctx.Query("group")
-	if group == "" {
-		group = "false"
-	}
-	if group != "true" && group != "false" {
-		ctx.JSON(http.StatusBadRequest, "group, if passed, must be a boolean: true | false")
 	}
 
 	var err error
@@ -56,65 +49,94 @@ func getPagedMedia(ctx *gin.Context) {
 		limit = 0
 	}
 
-	db := database.New()
-	media := db.GetPagedMedia(sort, group, skip, limit)
+	var raw bool
+	if ctx.Query("raw") == "" || ctx.Query("raw") == "false" {
+		raw = false
+	} else {
+		raw = true
+	}
 
-	ctx.JSON(http.StatusOK, media)
+	db := database.New()
+	media, moreMedia := db.GetPagedMedia(sort, skip, limit, raw, true)
+
+	res := struct{
+		Media []interfaces.Media
+		MoreMedia bool
+	} {
+		media,
+		moreMedia,
+	}
+	ctx.JSON(http.StatusOK, res)
+}
+
+func getMediaItem(ctx *gin.Context) {
+	fileHash := ctx.Param("filehash")
+	includeMeta := util.BoolFromString(ctx.Query("meta"), true)
+	includeThumbnail := util.BoolFromString(ctx.Query("thumbnail"), true)
+	includeFullres := util.BoolFromString(ctx.Query("fullres"), true)
+
+	if !(includeMeta || includeThumbnail || includeFullres) {
+		// At least one option must be selected
+		ctx.AbortWithStatus(http.StatusBadRequest)
+	} else if includeFullres && (includeMeta || includeThumbnail) {
+		// Full res must be the only option if selected
+		ctx.AbortWithStatus(http.StatusBadRequest)
+	}
+
+	db := database.New()
+	data := db.GetMedia(fileHash, includeThumbnail)
+
+	if includeFullres {
+		fullResBytes := data.ReadFullres()
+		ctx.Writer.Write(fullResBytes)
+	} else if !includeMeta && includeThumbnail {
+		thumbBytes, err := b64.StdEncoding.DecodeString(data.Thumbnail64)
+		if err != nil {
+			panic(err)
+		}
+		ctx.Writer.Write(thumbBytes)
+	} else {
+		ctx.JSON(http.StatusOK, data)
+	}
 }
 
 func scan(ctx *gin.Context) {
 	importMedia.ScanAllMedia()
 }
 
-func getPhotoThumb(ctx *gin.Context) {
-	db := database.New()
-
-	i := db.GetImage(ctx.Query("filehash"))
-	bytes, err := b64.StdEncoding.DecodeString(i.Thumbnail64)
-	if err != nil {
-		panic(err)
-	}
-	ctx.Writer.Write(bytes)
-
+type fileUpload struct{
+	Filename string `json:"filename"`
+	Item64 string `json:"item64"`
 }
 
-func uploadPhoto(ctx *gin.Context) () {
-	inFile, fileHeader, err := ctx.Request.FormFile("uploadMedia")
+func uploadItem(ctx *gin.Context) () {
+	requestString, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		panic(err)
 	}
-	defer inFile.Close()
+	item := fileUpload{}
+	json.Unmarshal(requestString, &item)
 
-	imgPath := "/Users/ethan/repos/weblens/images"
-	outFile, err := os.Create(fmt.Sprintf("%s/%s", imgPath, fileHeader.Filename))
+	imgPath := "/Users/ethan/repos/weblens/images/upload" + item.Filename
+	outFile, err := os.Create(imgPath)
 	if err != nil {
 		panic(err)
 	}
 	defer outFile.Close()
 
-	_, err = io.Copy(outFile, inFile)
-    if err != nil {
-        panic(err)
-    }
-
-	ctx.Writer.Header().Set("Content-Type", "application/json")
-	ctx.Writer.WriteHeader(http.StatusCreated)
-
-	m := new(interfaces.Media)
-	db := database.New()
-
-	importMedia.HandleNewImage(imgPath, m, db)
-
-}
-
-func getFillresMedia(ctx *gin.Context) {
-	db := database.New()
-	m := db.GetImage(ctx.Param("filehash"))
-	fileBytes, err := os.ReadFile(m.Filepath)
+	index := strings.Index(item.Item64, ",")
+	itemBytes, err := b64.StdEncoding.DecodeString(item.Item64[index + 1:])
 	if err != nil {
-		log.Error.Printf("Trying to open full res image %v\n", err)
-		return
+		panic(err)
 	}
 
-	ctx.Writer.Write(fileBytes)
+	_, err = outFile.Write(itemBytes)
+	if err != nil {
+		panic(err)
+	}
+
+	db := database.New()
+
+	importMedia.HandleNewImage(imgPath, db)
+
 }

@@ -1,14 +1,14 @@
 
-import * as React from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
-import UploadIcon from '@mui/icons-material/Upload';
+import FileUpload from './Upload'
 import SyncIcon from '@mui/icons-material/Sync';
 import Box from '@mui/material/Box';
 import { useNavigate } from "react-router-dom";
+
 
 
 const HeaderBar = (props) => {
@@ -28,7 +28,7 @@ const HeaderBar = (props) => {
     }
 
     return (
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1 }} zIndex={1}>
             <AppBar
                 position="static"
                 color='transparent'
@@ -43,9 +43,7 @@ const HeaderBar = (props) => {
                     <IconButton onClick={syncDatabase} edge="end" color="inherit" aria-label="upload" sx={{ mr: 2 }}>
                         <SyncIcon />
                     </IconButton>
-                    <IconButton onClick={routeChange} edge="end" color="inherit" aria-label="upload" sx={{ mr: 2 }}>
-                        <UploadIcon />
-                    </IconButton>
+                    <FileUpload />
                 </Toolbar>
             </AppBar>
         </Box>

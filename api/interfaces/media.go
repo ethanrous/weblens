@@ -7,24 +7,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/jpeg"
 	"io"
 	"math"
 	"os"
 	"os/exec"
 	"time"
 
-	log "github.com/ethrousseau/weblens/api/utils"
-
 	"github.com/barasher/go-exiftool"
 	"github.com/buckket/go-blurhash"
 	"github.com/disintegration/imaging"
+	"github.com/kolesa-team/go-webp/encoder"
+	"github.com/kolesa-team/go-webp/webp"
+
+	log "github.com/ethrousseau/weblens/api/utils"
 )
 
 type Media struct {
 	FileHash		string				`bson:"_id"`
 	Filepath 		string 				`bson:"filepath"`
-	ThumbFilepath 	string 				`bson:"thumbFilepath"`
 	MediaType		mediaType			`bson:"mediaType"`
 	BlurHash 		string 				`bson:"blurHash"`
 	Thumbnail64 	string		 		`bson:"thumbnail"`
@@ -67,42 +67,58 @@ func (m *Media) ExtractExif() {
 		panic(fmt.Errorf("refusing to parse file without MIMEType"))
 	}
 	m.MediaType = ParseMediaType(mimeType)
-	log.Debug.Printf("MediaType: %v\n", m.MediaType)
 
 }
 
-func (m *Media) handleRawThumbnail() () {
-	thumbsDir := "/Users/ethan/repos/weblens/thumbs/"
-
+func (m *Media) makeTempReadableRaw() (string) {
 	cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/simple_dcraw", "-e", m.Filepath)
 	err := cmd.Run()
 	if err != nil {
 		panic(err)
 	}
 
-	thumbPath := (thumbsDir + m.FileHash + ".thumb.jpg")
-
-	err = os.Rename(m.Filepath + ".thumb.jpg",  thumbPath)
-	if err != nil {
-		panic(err)
-	}
-
-	m.ThumbFilepath = thumbPath
-
-	et, err := exiftool.NewExiftool()
-	if err != nil {
-		panic(err)
-	}
-	defer et.Close()
+	return (m.Filepath + ".thumb.jpg")
 
 }
 
+func (m *Media) ReadFullres() ([]byte) {
+	var readableFilepath string
+	if m.MediaType.IsRaw {
+		readableFilepath = m.makeTempReadableRaw()
+		defer os.Remove(readableFilepath)
+	} else {
+		readableFilepath = m.Filepath
+	}
+
+	mediaBytes, err := os.ReadFile(readableFilepath)
+	if err != nil {
+		panic(err)
+	}
+
+	return mediaBytes
+}
+
 func (m *Media) ReadFile() (image.Image) {
-	file, err := os.Open(m.Filepath)
+	var readableFilepath string
+	if m.MediaType.IsRaw {
+		readableFilepath = m.makeTempReadableRaw()
+		defer os.Remove(readableFilepath)
+	} else {
+		readableFilepath = m.Filepath
+	}
+
+	file, err := os.Open(readableFilepath)
 	if err != nil {
 		panic(nil)
 	}
 	defer file.Close()
+
+	i, err := imaging.Decode(file, imaging.AutoOrientation(true))
+	if err != nil {
+		panic(err)
+	}
+
+	file.Seek(0, 0)
 
 	h := sha256.New()
 	_, err = io.Copy(h, file)
@@ -111,19 +127,6 @@ func (m *Media) ReadFile() (image.Image) {
 	}
 
 	m.FileHash = base64.URLEncoding.EncodeToString(h.Sum(nil))
-
-	var thumbFilePath string
-	if m.MediaType.IsRaw {
-		m.handleRawThumbnail()
-		thumbFilePath = m.ThumbFilepath
-	} else {
-		thumbFilePath = m.Filepath
-	}
-
-	i, err := imaging.Open(thumbFilePath, imaging.AutoOrientation(true))
-	if err != nil {
-		panic(err)
-	}
 
 	return i
 
@@ -137,7 +140,7 @@ func (m *Media) calculateThumbSize(i image.Image) {
 
 	var newWidth, newHeight float64
 
-	var bindSize = 500.0
+	var bindSize = 800.0
 	if aspectRatio > 1 {
 		newWidth = bindSize
 		newHeight = math.Floor(bindSize / aspectRatio)
@@ -162,8 +165,13 @@ func (m *Media) GenerateThumbnail(i image.Image) (*image.NRGBA) {
 	m.calculateThumbSize(i)
 	thumb := imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.CatmullRom)
 
+	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
+	if err != nil {
+		log.Error.Fatal(err)
+	}
+
 	thumbBytesBuf := new(bytes.Buffer)
-	jpeg.Encode(thumbBytesBuf, thumb, nil)
+	webp.Encode(thumbBytesBuf, thumb, options)
 
 	m.Thumbnail64 = base64.StdEncoding.EncodeToString(thumbBytesBuf.Bytes())
 

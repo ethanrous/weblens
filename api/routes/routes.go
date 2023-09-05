@@ -13,9 +13,9 @@ func uiRedirect(ctx *gin.Context) {
 func AddApiRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.GET("/media", func(ctx *gin.Context) { getPagedMedia(ctx) })
-	api.GET("/thumbnail", func(ctx *gin.Context) { getPhotoThumb(ctx) })
-	api.GET("/fullres", func(ctx *gin.Context) { getFillresMedia(ctx) })
-	api.POST("/upload", func(ctx *gin.Context) { uploadPhoto(ctx) })
+	api.GET("/item/:filehash", func(ctx *gin.Context) { getMediaItem(ctx) })
+	api.POST("/item", func(ctx *gin.Context) { uploadItem(ctx) })
+
 	api.POST("/scan", func(ctx *gin.Context) { scan(ctx) })
 }
 
