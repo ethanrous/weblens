@@ -1,23 +1,28 @@
 import { useEffect, useReducer, useState, useMemo } from 'react'
+import { useNavigate } from "react-router-dom"
 import InfiniteScroll from 'react-infinite-scroll-component'
+import useWebSocket from 'react-use-websocket'
+
+import Container from '@mui/material/Container'
+
+import HeaderBar from "./HeaderBar"
+import PhotoContainer from './PhotoContainer'
+import Presentation from './Presentation'
+
+import styled from '@emotion/styled'
 
 import Button from '@mui/material/Button'
 import Grid from '@mui/material/Grid'
 import Box from '@mui/material/Box'
-import Container from '@mui/material/Container'
-import { useNavigate } from "react-router-dom"
-
-import PhotoContainer from './PhotoContainer'
-import styled from '@emotion/styled'
-
-import RawOnIcon from '@mui/icons-material/RawOn'
-import IconButton from '@mui/material/IconButton'
-import Toolbar from '@mui/material/Toolbar'
 import AppBar from '@mui/material/AppBar'
+import Toolbar from '@mui/material/Toolbar'
 import CircularProgress from '@mui/material/CircularProgress'
+import { LinearProgress } from '@mui/material'
 import ToggleButton from '@mui/material/ToggleButton'
+import RawOnIcon from '@mui/icons-material/RawOn'
 import InfoIcon from '@mui/icons-material/Info'
-import CloseIcon from '@mui/icons-material/Close'
+import { useSnackbar } from 'notistack';
+
 
 const computeDateString = (dateTime) => {
     let dateObj = new Date(dateTime)
@@ -96,6 +101,12 @@ const mediaReducer = (state, action) => {
                 hasMoreMedia: action.hasMoreMedia,
             }
         }
+        case 'set_loading': {
+            return {
+                ...state,
+                loading: action.loading
+            }
+        }
         case 'toggle_info': {
             return {
                 ...state,
@@ -158,10 +169,7 @@ const mediaReducer = (state, action) => {
     }
 }
 
-const fetchData = async (mediaState, setIsLoading, setError) => {
-    setIsLoading(true)
-    setError(null)
-
+const fetchData = async (mediaState) => {
     try {
         let mediaList = [...mediaState.mediaList]
         let mediaIdMap = { ...mediaState.mediaIdMap }
@@ -215,13 +223,10 @@ const fetchData = async (mediaState, setIsLoading, setError) => {
             moreMedia = false
         }
 
-        setIsLoading(false)
         return [mediaList, mediaIdMap, moreMedia]
 
     } catch (error) {
-        setIsLoading(false)
         console.log(error)
-        setError(error)
         throw new Error("Error fetching data")
     }
 }
@@ -292,87 +297,7 @@ type MediaData = {
     Thumbnail64: string
 }
 
-const StyledPhoto = styled("img")({
-    width: "calc(100% - 20px)",
-    height: "calc(100% - 20px)",
-    position: "inherit",
-    objectFit: "contain",
-    objectPosition: "center",
-    zIndex: 100,
-})
 
-const Presentation = ({ fileHash, dispatch }) => {
-    const [fullResLoaded, setFullResLoaded] = useState(false)
-    useEffect(() => {
-        setFullResLoaded(false)
-    }, [fileHash])
-
-    useEffect(() => {
-        const keyDownHandler = event => {
-            if (event.key === 'Escape') {
-                event.preventDefault()
-                dispatch({ type: 'stop_presenting' })
-            }
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault()
-                dispatch({ type: 'presentation_previous' })
-            }
-            if (event.key === 'ArrowRight') {
-                event.preventDefault()
-                dispatch({ type: 'presentation_next' })
-            }
-        }
-        document.addEventListener('keydown', keyDownHandler)
-        return () => {
-            document.removeEventListener('keydown', keyDownHandler)
-        }
-    }, [])
-
-    //if (mediaMeta == null) {
-    //    return
-    //}
-
-    var thumburl = new URL(`http:localhost:3000/api/item/${fileHash}`)
-    thumburl.searchParams.append('thumbnail', 'true')
-
-    var fullresurl = new URL(`http:localhost:3000/api/item/${fileHash}`)
-    fullresurl.searchParams.append('fullres', 'true')
-
-    return (
-        <Box
-            position={"fixed"}
-            color={"white"}
-            top={0}
-            left={0}
-            padding={"10px"}
-            height={"calc(100vh - 20px)"}
-            width={"calc(100vw - 20px)"}
-            zIndex={3}
-            onClick={() => dispatch({ type: 'stop_presenting' })}
-            bgcolor={"rgb(0, 0, 0, 0.92)"}
-        >
-
-            {!fullResLoaded && (
-                <StyledPhoto
-                    src={thumburl.toString()}
-                />
-            )}
-            <StyledPhoto
-                src={fullresurl.toString()}
-                onLoad={() => setFullResLoaded(true)}
-                style={{ opacity: fullResLoaded ? "100%" : "0%" }}
-            />
-
-            <IconButton
-                onClick={() => dispatch({ type: 'stop_presenting' })}
-                color={"inherit"}
-                sx={{ display: "block", position: "absolute", top: "1em", left: "1em", cursor: "pointer", zIndex: 100 }}
-            >
-                <CloseIcon />
-            </IconButton>
-        </Box>
-    )
-}
 
 function StartKeybaordListener(dispatch) {
     useEffect(() => {
@@ -394,10 +319,14 @@ function StartKeybaordListener(dispatch) {
 }
 
 const Gallery = () => {
-    document.documentElement.style.scrollBehavior = "smooth"
+    const WS_URL = 'ws://localhost:4000/api/ws';
+    const { sendMessage, lastMessage, readyState } = useWebSocket(WS_URL, {
+        onOpen: () => {
+            console.log('WebSocket connection established.')
+        }
+    })
 
-    const [isLoading, setIsLoading] = useState(true)
-    const [error, setError] = useState(null)
+    const { enqueueSnackbar } = useSnackbar()
 
     const [mediaState, dispatch] = useReducer(mediaReducer, {
         mediaList: [],
@@ -406,14 +335,15 @@ const Gallery = () => {
         presentingHash: "",
         includeRaw: false,
         showIcons: false,
-        hasMoreMedia: true
+        hasMoreMedia: true,
+        loading: false
     })
 
     StartKeybaordListener(dispatch)
 
     const moar_data = () => {
-
-        fetchData(mediaState, setIsLoading, setError)
+        dispatch({ type: "set_loading", loading: true })
+        fetchData(mediaState)
             .then(
                 ([mediaList, mediaIdMap, hasMoreMedia]) => {
                     dispatch({
@@ -426,7 +356,38 @@ const Gallery = () => {
                 },
                 () => { }
             )
+        dispatch({ type: "set_loading", loading: false })
     }
+
+    useEffect(() => {
+        if (lastMessage) {
+            let msgData = JSON.parse(lastMessage.data)
+
+            switch (msgData["type"]) {
+                case "new_items": {
+                    dispatch({ type: "append_items", items: msgData["content"] })
+                    return
+                }
+                case "finished": {
+                    dispatch({ type: "set_loading", loading: false })
+                    return
+                }
+                case "refresh": {
+                    //GetDirectoryData(path, dispatch)
+                    return
+                }
+                case "error": {
+                    enqueueSnackbar(msgData["error"], { variant: "error" })
+                    return
+                }
+                default: {
+                    console.log("I dunno man")
+                    console.log(msgData)
+                    return
+                }
+            }
+        }
+    }, [lastMessage])
 
     useEffect(() => moar_data(), [mediaState.includeRaw])
 
@@ -447,7 +408,7 @@ const Gallery = () => {
         ))
     }
 
-    if ((mediaState.mediaCount == 0) && !isLoading) {
+    if ((mediaState.mediaCount == 0) && !mediaState.loading) {
         return (
             <Container maxWidth={false} >
                 <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />
@@ -457,23 +418,36 @@ const Gallery = () => {
     }
 
     return (
-        <Container maxWidth={false} style={{ display: 'inherit', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
-            {mediaState.presentingHash != "" && (
-                <Presentation fileHash={mediaState.presentingHash} dispatch={dispatch} />
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: 'column',
+            }}
+        >
+            <HeaderBar dispatch={dispatch} sendMessage={sendMessage} page={"gallery"} />
+            {mediaState.loading && (
+                <Box sx={{ width: '100%' }}>
+                    <LinearProgress />
+                </Box>
             )}
-            <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />
+            <Container maxWidth={false} style={{ display: 'inherit', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
+                {mediaState.presentingHash != "" && (
+                    <Presentation fileHash={mediaState.presentingHash} dispatch={dispatch} />
+                )}
 
-            <InfiniteScroll
-                dataLength={mediaState.mediaCount}
-                next={moar_data}
-                children={dateGroups}
-                hasMore={mediaState.hasMoreMedia}
-                loader={<Box justifyContent={"center"} display={"flex"} padding={"50px"}><CircularProgress /></Box>}
-                endMessage={<h1 style={{ fontSize: "10px", padding: "50px", textAlign: "center" }}>You did it, you reached the end :)</h1>}
-                style={{ width: "80vw" }}
-            />
+                <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />
 
-        </Container>
+                <InfiniteScroll
+                    dataLength={mediaState.mediaCount}
+                    next={moar_data}
+                    children={dateGroups}
+                    hasMore={mediaState.hasMoreMedia}
+                    loader={<Box justifyContent={"center"} display={"flex"} padding={"50px"}><CircularProgress /></Box>}
+                    endMessage={<h1 style={{ fontSize: "10px", padding: "50px", textAlign: "center" }}>You did it, you reached the end :)</h1>}
+                    style={{ width: "80vw" }}
+                />
+            </Container>
+        </Box>
     )
 }
 

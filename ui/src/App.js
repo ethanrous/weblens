@@ -1,7 +1,8 @@
 import HomePage from "./components/HomePage"
-import Upload from "./components/Upload";
+import FileBrowser from "./components/FileBrowser";
 import Test from "./components/Test";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { SnackbarProvider } from 'notistack';
 
 function App() {
   return (
@@ -11,15 +12,19 @@ function App() {
           path="/"
           element={
             <div className="container">
-              <HomePage />
+              <SnackbarProvider maxSnack={3} autoHideDuration={5000}>
+                <HomePage />
+              </SnackbarProvider>
             </div>
           }
         />
         <Route
-          path="/upload"
+          path="/files/*"
           element={
             <div className="container">
-              <Upload />
+              <SnackbarProvider maxSnack={3} autoHideDuration={5000}>
+                <FileBrowser />
+              </SnackbarProvider>
             </div>
           }
         />
@@ -31,6 +36,7 @@ function App() {
             </div>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

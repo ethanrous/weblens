@@ -4,18 +4,18 @@ import (
 	"sync/atomic"
 )
 
-type workerPool struct {
+type WorkerPool struct {
 	maxWorker int
 	queuedTasks chan func()
 	busyCount int64
 }
 
-func NewWorkerPool(workerCount int) (workerPool) {
-	newWp := workerPool{workerCount, make(chan func(), workerCount * 2), int64(0)}
+func NewWorkerPool(workerCount int) (WorkerPool) {
+	newWp := WorkerPool{workerCount, make(chan func(), workerCount * 2), int64(0)}
 	return newWp
 }
 
-func (wp *workerPool) Run() {
+func (wp *WorkerPool) Run() {
 	for i := 0; i < wp.maxWorker; i++ {
 		go func(workerID int) {
 			for task := range wp.queuedTasks {
@@ -27,11 +27,11 @@ func (wp *workerPool) Run() {
 	}
 }
 
-func (wp *workerPool) AddTask(f func()) {
+func (wp *WorkerPool) AddTask(f func()) {
 	wp.queuedTasks <- f
 }
 
-func (wp *workerPool) IsBusy() (bool, int, int) {
+func (wp *WorkerPool) IsBusy() (bool, int, int) {
 	var busy bool
 	if wp.busyCount == 0 && len(wp.queuedTasks) == 0 {
 		busy = false

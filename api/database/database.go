@@ -3,10 +3,10 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/interfaces"
-	log "github.com/ethrousseau/weblens/api/utils"
 	util "github.com/ethrousseau/weblens/api/utils"
 	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,7 +25,7 @@ var redisc *redis.Client
 
 func New() (Weblensdb) {
 	if mongoc == nil {
-		var uri = util.EnvReadString("MONGODB_URI")
+		var uri = util.GetMongoURI()
 		clientOptions := options.Client().ApplyURI(uri)
 		var err error
 		mongoc, err = mongo.Connect(mongo_ctx, clientOptions)
@@ -51,7 +51,7 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (interfaces
 	conn := db.redis.Get(fileHash)
 	val, err := conn.Result()
 	if err != nil {
-		log.Debug.Print("Redis cache miss")
+		//util.Debug.Print("Redis cache miss")
 
 		var opts *options.FindOneOptions
 
@@ -75,9 +75,10 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (interfaces
 }
 
 // Returns image if found and bool for if image exists in db
-func (db Weblensdb) GetImageByFilename(filepath string) (interfaces.Media, bool) {
+func (db Weblensdb) GetMediaByFilepath(filepath string) (interfaces.Media, bool) {
 	filter := bson.D{{Key: "filepath", Value: filepath}}
-	findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter)
+	opts := options.FindOne().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
+	findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter, opts)
 
 	if findRet.Err() != nil {
 		return interfaces.Media{}, false
@@ -87,16 +88,23 @@ func (db Weblensdb) GetImageByFilename(filepath string) (interfaces.Media, bool)
 	return i, true
 }
 
-/*
-func getImageThumb(filehash string) (string) {
-	filter := bson.D{{Key: "fileHash", Value: filehash}}
-	findRet := db.Collection("thumbnails").FindOne(mongo_ctx, filter)
+// Returns ids of all media in directory with depth 1
+func (db Weblensdb) GetMediaInDirectory(filepath string) ([]interfaces.Media) {
+	re := fmt.Sprintf("^%s\\/?[^\\/]+$", filepath)
 
-	var t Thumbnail
-	findRet.Decode(&t)
-	return t.Thumbnail64
+	filter := bson.M{"filepath": bson.M{"$regex": re, "$options": "i"}}
+	opts := options.Find().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
+
+	findRet, err := db.mongo.Collection("images").Find(mongo_ctx, filter, opts)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var i []interfaces.Media
+	findRet.All(mongo_ctx, &i)
+	return i
 }
-*/
 
 func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails bool) ([]interfaces.Media, bool) {
 	pipeline := mongo.Pipeline{}
@@ -155,6 +163,14 @@ func (db Weblensdb) DbAddMedia(media *interfaces.Media) {
 	filter := bson.D{{Key: "_id", Value: media.FileHash}}
 	set := bson.D{{Key: "$set", Value: *media}}
 	_, err := db.mongo.Collection("images").UpdateOne(mongo_ctx, filter, set, options.Update().SetUpsert(true))
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (db Weblensdb) RemoveMediaByFilepath(filepath string) {
+	filter := bson.D{{Key: "filepath", Value: filepath}}
+	_, err := db.mongo.Collection("images").DeleteOne(mongo_ctx, filter)
 	if err != nil {
 		panic(err)
 	}

@@ -5,11 +5,11 @@ import (
 	"os"
 )
 
-func EnvReadString(s string) (string) {
+func envReadString(s string) (string) {
 	val := os.Getenv(string(s))
 	return val
 }
-func EnvReadBool(s string) (bool) {
+func envReadBool(s string) (bool) {
 	val := os.Getenv(string(s))
 	if val == "true" || val == "1" {
 		return true
@@ -18,4 +18,12 @@ func EnvReadBool(s string) (bool) {
 	} else {
 		panic(fmt.Errorf("failed to make boolean out of value: %s", val))
 	}
+}
+
+func GetMediaRoot() (string) {
+	return envReadString("MEDIA_ROOT_PATH")
+}
+
+func GetMongoURI() (string) {
+	return envReadString("MONGODB_URI")
 }

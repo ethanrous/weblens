@@ -11,6 +11,8 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/barasher/go-exiftool"
@@ -19,7 +21,7 @@ import (
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
 
-	log "github.com/ethrousseau/weblens/api/utils"
+	util "github.com/ethrousseau/weblens/api/utils"
 )
 
 type Media struct {
@@ -28,8 +30,10 @@ type Media struct {
 	MediaType		mediaType			`bson:"mediaType"`
 	BlurHash 		string 				`bson:"blurHash"`
 	Thumbnail64 	string		 		`bson:"thumbnail"`
-	ThumbWidth 		int					`bson:"width"`
-	ThumbHeight 	int 				`bson:"height"`
+	MediaWidth 		int					`bson:"width"`
+	MediaHeight 	int 				`bson:"height"`
+	ThumbWidth 		int					`bson:"thumbWidth"`
+	ThumbHeight 	int 				`bson:"thumbHeight"`
 	CreateDate		time.Time			`bson:"createDate"`
 }
 
@@ -47,7 +51,7 @@ func (m *Media) ExtractExif() {
 
 	fileInfos := et.ExtractMetadata(m.Filepath)
 	if fileInfos[0].Err != nil {
-		panic(fileInfos[0].Err)
+		util.Debug.Panicf("Cound not extract metadata for %s: %s", m.Filepath, fileInfos[0].Err)
 	}
 
 	exifData := fileInfos[0].Fields
@@ -68,9 +72,19 @@ func (m *Media) ExtractExif() {
 	}
 	m.MediaType = ParseMediaType(mimeType)
 
+	var dimentions string
+	if m.MediaType.IsVideo {
+		dimentions = exifData["VideoSize"].(string)
+		} else {
+		dimentions = exifData["ImageSize"].(string)
+	}
+	dimentionsList := strings.Split(dimentions, "x")
+	m.MediaHeight, _ = strconv.Atoi(dimentionsList[0])
+	m.MediaWidth, _ = strconv.Atoi(dimentionsList[1])
+
 }
 
-func (m *Media) makeTempReadableRaw() (string) {
+func (m *Media) tempThumbFileRaw() (string) {
 	cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/simple_dcraw", "-e", m.Filepath)
 	err := cmd.Run()
 	if err != nil {
@@ -81,10 +95,29 @@ func (m *Media) makeTempReadableRaw() (string) {
 
 }
 
+func (m *Media) tempThumbFileVideo() (string) {
+	outFile := m.Filepath + ".thumb.jpeg"
+
+	_, err := os.Stat(outFile)
+	if err == nil {
+		return outFile
+	}
+
+	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", m.Filepath, "-ss", "00:00:02.000", "-frames:v", "1", outFile)
+	util.Debug.Printf("CMD: %s", cmd)
+	err = cmd.Run()
+	if err != nil {
+		panic(err)
+	}
+
+	return outFile
+
+}
+
 func (m *Media) ReadFullres() ([]byte) {
 	var readableFilepath string
 	if m.MediaType.IsRaw {
-		readableFilepath = m.makeTempReadableRaw()
+		readableFilepath = m.tempThumbFileRaw()
 		defer os.Remove(readableFilepath)
 	} else {
 		readableFilepath = m.Filepath
@@ -92,7 +125,7 @@ func (m *Media) ReadFullres() ([]byte) {
 
 	mediaBytes, err := os.ReadFile(readableFilepath)
 	if err != nil {
-		panic(err)
+		util.Debug.Panicf("could not open full-res file: %s", readableFilepath)
 	}
 
 	return mediaBytes
@@ -101,15 +134,18 @@ func (m *Media) ReadFullres() ([]byte) {
 func (m *Media) ReadFile() (image.Image) {
 	var readableFilepath string
 	if m.MediaType.IsRaw {
-		readableFilepath = m.makeTempReadableRaw()
+		readableFilepath = m.tempThumbFileRaw()
 		defer os.Remove(readableFilepath)
+	} else if m.MediaType.IsVideo {
+		readableFilepath = m.tempThumbFileVideo()
+		//defer os.Remove(readableFilepath)
 	} else {
 		readableFilepath = m.Filepath
 	}
 
 	file, err := os.Open(readableFilepath)
 	if err != nil {
-		panic(nil)
+		panic(err)
 	}
 	defer file.Close()
 
@@ -167,7 +203,7 @@ func (m *Media) GenerateThumbnail(i image.Image) (*image.NRGBA) {
 
 	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
 	if err != nil {
-		log.Error.Fatal(err)
+		util.Error.Fatal(err)
 	}
 
 	thumbBytesBuf := new(bytes.Buffer)

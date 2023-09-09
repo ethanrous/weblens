@@ -23,3 +23,8 @@ func IntFromBool( input bool ) int {
 		return 0
 	}
 }
+
+func SliceRemove(s []any, i int) []any {
+    s[i] = s[len(s)-1]
+    return s[:len(s)-1]
+}

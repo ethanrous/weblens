@@ -9,19 +9,14 @@ import Grid from '@mui/material/Grid';
 import RawOnIcon from '@mui/icons-material/RawOn';
 import RawOffIcon from '@mui/icons-material/RawOff';
 
-const ImageComponent = ({
+export const MediaComponent = ({
     fileHash,
     blurhash,
-    dispatch,
-    ctxMenu,
     ...props
 }) => {
     const [imageLoaded, setImageLoaded] = useState(false)
-
-
     var url = new URL(`http:localhost:3000/api/item/${fileHash}`)
     url.searchParams.append('thumbnail', 'true')
-    //let img_data = `data:image/webp;base64,${src}`
 
     return (
         <Box
@@ -36,13 +31,10 @@ const ImageComponent = ({
         >
             <img
                 {...props}
-                width="100%"
-
                 src={url.toString()}
                 //loading="lazy" // WHY DONT THIS WORK
                 style={{ display: imageLoaded ? "block" : "none", opacity: 1 }}
                 onLoad={() => setImageLoaded(true)}
-                onClick={() => dispatch({ type: 'set_presentation', presentingHash: fileHash })}
             />
             {blurhash && !imageLoaded && (
                 <Blurhash
@@ -57,7 +49,7 @@ const ImageComponent = ({
     )
 }
 
-const StyledLazyThumb = styled(ImageComponent)({
+export const StyledLazyThumb = styled(MediaComponent)({
     position: "relative",
 
     objectFit: "cover",
@@ -125,13 +117,11 @@ const PhotoContainer = ({ mediaData, showIcons, dispatch }) => {
             flexBasis={0}
             margin={0.3}
             minWidth={`clamp(150px, ${minWidth}px, 100% - 8px)`}
-            //maxWidth={maxWidth}
 
             height={height}
             width={width}
-
         >
-            <StyledLazyThumb fileHash={mediaData.FileHash} blurhash={mediaData.BlurHash} dispatch={dispatch} ctxMenu={handleContextMenu} />
+            <StyledLazyThumb fileHash={mediaData.FileHash} blurhash={mediaData.BlurHash} onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })} width={"100%"} />
             <RawIcon />
             <Menu
                 open={contextMenu !== null}
