@@ -1,13 +1,13 @@
-import { useEffect, useReducer, useState, useMemo } from 'react'
+import { useEffect, useReducer, useMemo, memo } from 'react'
 import { useNavigate } from "react-router-dom"
 import InfiniteScroll from 'react-infinite-scroll-component'
-import useWebSocket from 'react-use-websocket'
 
 import Container from '@mui/material/Container'
 
 import HeaderBar from "./HeaderBar"
 import PhotoContainer from './PhotoContainer'
 import Presentation from './Presentation'
+import GetWebsocket from './Websocket'
 
 import styled from '@emotion/styled'
 
@@ -22,11 +22,12 @@ import ToggleButton from '@mui/material/ToggleButton'
 import RawOnIcon from '@mui/icons-material/RawOn'
 import InfoIcon from '@mui/icons-material/Info'
 import { useSnackbar } from 'notistack';
+import Tooltip from '@mui/material/Tooltip';
 
 
 const computeDateString = (dateTime) => {
-    let dateObj = new Date(dateTime)
-    let dateStr = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
+    const dateObj = new Date(dateTime)
+    const dateStr = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
     return dateStr
 }
 
@@ -53,7 +54,7 @@ const BlankCard = styled("div")({
 
 
 const BucketCards = ({ medias, showIcons, dispatch }) => {
-    let mediaCards = medias.map((mediaData) => (
+    const mediaCards = medias.map((mediaData) => (
         <PhotoContainer
             key={mediaData.FileHash}
             mediaData={mediaData}
@@ -75,12 +76,19 @@ const BucketCards = ({ medias, showIcons, dispatch }) => {
     )
 }
 
-const GalleryBucket = ({
+type GalleryBucketProps = {
+    date: string
+    bucketData: []
+    showIcons: boolean
+    dispatch: React.Dispatch<any>
+}
+
+const GalleryBucket = memo(function GalleryBucket({
     date,
     bucketData,
     showIcons,
     dispatch
-}) => {
+}: GalleryBucketProps) {
     return (
         <Grid item >
             <DateWrapper dateTime={date} />
@@ -88,17 +96,29 @@ const GalleryBucket = ({
         </Grid >
 
     )
-}
+})
 
 const mediaReducer = (state, action) => {
     switch (action.type) {
         case 'add_media': {
+
+            const datemap = {}
+            for (const item of action.mediaList) {
+                const [date, _] = item.CreateDate.split("T")
+                if (datemap[date] == null) {
+                    datemap[date] = [item]
+                } else {
+                    datemap[date].push(item)
+                }
+            }
+
             return {
                 ...state,
                 mediaList: action.mediaList,
                 mediaIdMap: action.mediaIdMap,
                 mediaCount: action.mediaCount,
                 hasMoreMedia: action.hasMoreMedia,
+                dateMap: datemap
             }
         }
         case 'set_loading': {
@@ -123,6 +143,7 @@ const mediaReducer = (state, action) => {
                 ...state,
                 mediaList: [],
                 mediaIdMap: {},
+                datemap: {},
                 mediaCount: 0,
                 includeRaw: !state.includeRaw
             }
@@ -136,27 +157,15 @@ const mediaReducer = (state, action) => {
             }
         }
         case 'presentation_next': {
-            let changeTo
-            if (state.mediaIdMap[state.presentingHash].next) {
-                changeTo = state.mediaIdMap[state.presentingHash].next
-            } else {
-                changeTo = state.presentingHash
-            }
             return {
                 ...state,
-                presentingHash: changeTo
+                presentingHash: state.mediaIdMap[state.presentingHash].next ? state.mediaIdMap[state.presentingHash].next : state.presentingHash
             }
         }
         case 'presentation_previous': {
-            let changeTo
-            if (state.mediaIdMap[state.presentingHash].previous) {
-                changeTo = state.mediaIdMap[state.presentingHash].previous
-            } else {
-                changeTo = state.presentingHash
-            }
             return {
                 ...state,
-                presentingHash: changeTo
+                presentingHash: state.mediaIdMap[state.presentingHash].previous ? state.mediaIdMap[state.presentingHash].previous : state.presentingHash
             }
         }
         case 'stop_presenting': {
@@ -169,15 +178,15 @@ const mediaReducer = (state, action) => {
     }
 }
 
-const fetchData = async (mediaState) => {
+const fetchData = async (mediaList, mediaIdMap, mediaCount, includeRaw) => {
     try {
-        let mediaList = [...mediaState.mediaList]
-        let mediaIdMap = { ...mediaState.mediaIdMap }
+        //let mediaList = [...mediaState.mediaList]
+        //let mediaIdMap = { ...mediaState.mediaIdMap }
 
-        var url = new URL("http:localhost:3000/api/media")
+        const url = new URL("http:localhost:3000/api/media")
         url.searchParams.append('limit', '100')
-        url.searchParams.append('skip', mediaState.mediaCount)
-        url.searchParams.append('raw', mediaState.includeRaw.toString())
+        url.searchParams.append('skip', mediaCount)
+        url.searchParams.append('raw', includeRaw.toString())
         const response = await fetch(url.toString())
         const data = await response.json()
 
@@ -185,12 +194,7 @@ const fetchData = async (mediaState) => {
         if (data.Media != null) {
             moreMedia = data.MoreMedia
 
-            let prevousLast
-            if (mediaList.length > 0) {
-                prevousLast = mediaList[mediaList.length - 1]
-            } else {
-                prevousLast = null
-            }
+            const prevousLast = mediaList.length > 0 ? mediaList[mediaList.length - 1] : null
             mediaList.push(...data.Media)
             for (const [index, value] of data.Media.entries()) {
 
@@ -232,23 +236,17 @@ const fetchData = async (mediaState) => {
 }
 
 const NoMediaDisplay = () => {
-    let navigate = useNavigate()
-    const routeChange = () => {
-        let path = `/upload`
-        navigate(path)
-    }
-
     return (
         <Box
             display="flex"
             flexWrap="wrap"
             flexDirection="column"
-            pt="50px"
+            mt="50px"
             alignContent="center"
             gap="25px"
         >
             {"No media to display"}
-            <Button onClick={routeChange}>
+            <Button >
                 Upload Media
             </Button>
         </Box>
@@ -270,63 +268,64 @@ const GalleryOptions = ({ rawSelected, showIcons, dispatch }) => {
             }}
         >
             <Toolbar style={{ padding: 0, flexDirection: 'column' }}>
+                <Tooltip title={"Toggle RAW Images"} placement={"right"}>
                 <ToggleButton value="RAW" selected={rawSelected} onChange={() => { dispatch({ type: 'toggle_raw' }) }} style={{ backgroundColor: "white" }}>
                     <RawOnIcon />
                 </ToggleButton>
+                </Tooltip>
+                <Tooltip title={"Toggle Media Info"} placement={"right"}>
+
                 <ToggleButton value="INFO" selected={showIcons} onChange={() => { dispatch({ type: 'toggle_info' }) }} style={{ backgroundColor: "white" }}>
                     <InfoIcon />
                 </ToggleButton>
+                </Tooltip>
             </Toolbar>
         </AppBar>
     )
 }
 
-type MediaData = {
-    BlurHash: string
-    CreateDate: string
-    FileHash: string
-    Filepath: string
-    MediaType: {
-        FileExtension: []
-        FriendlyName: string
-        IsRaw: boolean
+function StartKeybaordListener(dispatch) {
+
+    const keyDownHandler = event => {
+        if (event.key === 'i') {
+            event.preventDefault()
+            dispatch({
+                type: 'toggle_info'
+            })
+        }
     }
-    ThumbFilepath: string
-    ThumbWidth: number
-    ThumbHeight: number
-    Thumbnail64: string
+
+    document.addEventListener('keydown', keyDownHandler)
+    //return () => {
+    //    document.removeEventListener('keydown', keyDownHandler)
+    //}
 }
 
-
-
-function StartKeybaordListener(dispatch) {
-    useEffect(() => {
-        const keyDownHandler = event => {
-            if (event.key === 'i') {
-                event.preventDefault()
+const moreData = (mediaState, dispatch) => {
+    //if (mediaState.loading) {
+    //    return
+    //}
+    dispatch({ type: "set_loading", loading: true })
+    fetchData(mediaState.mediaList, mediaState.mediaIdMap, mediaState.mediaCount, mediaState.includeRaw)
+        .then(
+            ([mediaList, mediaIdMap, hasMoreMedia]) => {
                 dispatch({
-                    type: 'toggle_info'
+                    type: 'add_media',
+                    mediaList: mediaList,
+                    mediaIdMap: mediaIdMap,
+                    mediaCount: mediaList.length,
+                    hasMoreMedia: hasMoreMedia
                 })
-            }
-        }
-
-        document.addEventListener('keydown', keyDownHandler)
-
-        return () => {
-            document.removeEventListener('keydown', keyDownHandler)
-        }
-    }, [])
+                dispatch({ type: "set_loading", loading: false })
+            },
+            () => { }
+        )
 }
 
 const Gallery = () => {
-    const WS_URL = 'ws://localhost:4000/api/ws';
-    const { sendMessage, lastMessage, readyState } = useWebSocket(WS_URL, {
-        onOpen: () => {
-            console.log('WebSocket connection established.')
-        }
-    })
-
     const { enqueueSnackbar } = useSnackbar()
+
+    const { sendMessage, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
 
     const [mediaState, dispatch] = useReducer(mediaReducer, {
         mediaList: [],
@@ -339,30 +338,14 @@ const Gallery = () => {
         loading: false
     })
 
-    StartKeybaordListener(dispatch)
-
-    const moar_data = () => {
-        dispatch({ type: "set_loading", loading: true })
-        fetchData(mediaState)
-            .then(
-                ([mediaList, mediaIdMap, hasMoreMedia]) => {
-                    dispatch({
-                        type: 'add_media',
-                        mediaList: mediaList,
-                        mediaIdMap: mediaIdMap,
-                        mediaCount: mediaList.length,
-                        hasMoreMedia: hasMoreMedia
-                    })
-                },
-                () => { }
-            )
-        dispatch({ type: "set_loading", loading: false })
-    }
+    useEffect(() => {
+        StartKeybaordListener(dispatch)
+        window.addEventListener('scroll', handleScroll, true)
+    }, [])
 
     useEffect(() => {
         if (lastMessage) {
-            let msgData = JSON.parse(lastMessage.data)
-
+            const msgData = JSON.parse(lastMessage.data)
             switch (msgData["type"]) {
                 case "new_items": {
                     dispatch({ type: "append_items", items: msgData["content"] })
@@ -389,32 +372,26 @@ const Gallery = () => {
         }
     }, [lastMessage])
 
-    useEffect(() => moar_data(), [mediaState.includeRaw])
+    useEffect(() => { console.log("HERE"); moreData(mediaState, dispatch) }, [mediaState.includeRaw])
 
-    let mediaBuckets = {}
-    for (const item of mediaState.mediaList) {
-        var [date, _] = item.CreateDate.split("T")
-        if (mediaBuckets[date] == null) {
-            mediaBuckets[date] = [item]
-        } else {
-            mediaBuckets[date].push(item)
+    const dateGroups = useMemo(() => {
+        if (!mediaState.dateMap) {
+            return []
         }
-    }
-
-    let dateGroups
-    if (mediaBuckets) {
-        dateGroups = Object.keys(mediaBuckets).map((value, i) => (
-            <GalleryBucket date={value} bucketData={mediaBuckets[value]} showIcons={mediaState.showIcons} dispatch={dispatch} key={value} />
+        const buckets = Object.keys(mediaState.dateMap).map((value, i) => (
+            <GalleryBucket date={value} bucketData={mediaState.dateMap[value]} showIcons={mediaState.showIcons} dispatch={dispatch} key={value} />
         ))
-    }
+        return buckets
+    }, [mediaState.dateMap, mediaState.showIcons])
 
-    if ((mediaState.mediaCount == 0) && !mediaState.loading) {
-        return (
-            <Container maxWidth={false} >
-                <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />
-                <NoMediaDisplay />
-            </Container>
-        )
+    console.log(mediaState.mediaCount)
+
+    const handleScroll = (e) => {
+
+        if (!mediaState.loading && document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 300 && mediaState.hasMoreMedia) {
+            console.log("ERE")
+            moreData(mediaState, dispatch)
+        }
     }
 
     return (
@@ -426,26 +403,27 @@ const Gallery = () => {
         >
             <HeaderBar dispatch={dispatch} sendMessage={sendMessage} page={"gallery"} />
             {mediaState.loading && (
-                <Box sx={{ width: '100%' }}>
+                <Box sx={{ width: '100%' }} position={"absolute"}>
                     <LinearProgress />
                 </Box>
             )}
-            <Container maxWidth={false} style={{ display: 'inherit', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
+            <Container maxWidth={false} style={{ display: 'flex', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
                 {mediaState.presentingHash != "" && (
                     <Presentation fileHash={mediaState.presentingHash} dispatch={dispatch} />
                 )}
 
                 <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />
 
-                <InfiniteScroll
-                    dataLength={mediaState.mediaCount}
-                    next={moar_data}
-                    children={dateGroups}
-                    hasMore={mediaState.hasMoreMedia}
-                    loader={<Box justifyContent={"center"} display={"flex"} padding={"50px"}><CircularProgress /></Box>}
-                    endMessage={<h1 style={{ fontSize: "10px", padding: "50px", textAlign: "center" }}>You did it, you reached the end :)</h1>}
-                    style={{ width: "80vw" }}
-                />
+                <Box flexDirection={"column"} pb={10} width={"90vw"}>
+                    {dateGroups}
+                    {mediaState.mediaCount == 0 && !mediaState.loading && (
+                        <NoMediaDisplay />
+                    )}
+                    {!mediaState.loading && mediaState.mediaCount != 0 && (
+                        <p style={{ textAlign: "center", paddingTop: "90px" }}>Wow, you scrolled this whole way?</p>
+                    )}
+                </Box>
+
             </Container>
         </Box>
     )

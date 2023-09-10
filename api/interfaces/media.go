@@ -57,8 +57,14 @@ func (m *Media) ExtractExif() {
 	exifData := fileInfos[0].Fields
 
 	r, ok := exifData["SubSecCreateDate"]
+	if !ok {
+		r, ok = exifData["MediaCreateDate"]
+	}
 	if ok {
 		m.CreateDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
+		if err != nil {
+			m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
+		}
 	} else {
 		m.CreateDate, err = time.Now(), nil
 	}
@@ -138,7 +144,7 @@ func (m *Media) ReadFile() (image.Image) {
 		defer os.Remove(readableFilepath)
 	} else if m.MediaType.IsVideo {
 		readableFilepath = m.tempThumbFileVideo()
-		//defer os.Remove(readableFilepath)
+		defer os.Remove(readableFilepath)
 	} else {
 		readableFilepath = m.Filepath
 	}
@@ -161,6 +167,8 @@ func (m *Media) ReadFile() (image.Image) {
 	if err != nil {
 		panic(err)
 	}
+
+	h.Write([]byte(m.Filepath)) // Make exact same files in different locations have unique id's
 
 	m.FileHash = base64.URLEncoding.EncodeToString(h.Sum(nil))
 

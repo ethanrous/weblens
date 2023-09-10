@@ -60,7 +60,7 @@ func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db database.Webl
 	if d.IsDir() {
 		return nil
 	}
-	if strings.HasSuffix(path, ".DS_Store") {
+	if strings.HasSuffix(path, ".DS_Store") || strings.HasSuffix(path, ".thumb.jpeg") {
 		return nil
 	}
 

@@ -7,7 +7,8 @@ import Box from '@mui/material/Box';
 import { styled } from "@mui/system";
 import Grid from '@mui/material/Grid';
 import RawOnIcon from '@mui/icons-material/RawOn';
-import RawOffIcon from '@mui/icons-material/RawOff';
+import ImageIcon from '@mui/icons-material/Image';
+import TheatersIcon from '@mui/icons-material/Theaters';
 
 export const MediaComponent = ({
     fileHash,
@@ -87,7 +88,7 @@ const PhotoContainer = ({ mediaData, showIcons, dispatch }) => {
         setContextMenu(null);
     };
 
-    const RawIcon = () => {
+    const MediaInfoDisplay = () => {
         if (!showIcons) {
             return
         }
@@ -97,10 +98,17 @@ const PhotoContainer = ({ mediaData, showIcons, dispatch }) => {
                     <RawOnIcon />
                 </Box>
             )
+        } else if (mediaData.MediaType.IsVideo) {
+            return (
+
+                <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(2px, -26px)" }}>
+                    <TheatersIcon />
+                </Box>
+            )
         } else {
             return (
                 <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(2px, -26px)" }}>
-                    <RawOffIcon />
+                    <ImageIcon />
                 </Box>
             )
         }
@@ -117,12 +125,13 @@ const PhotoContainer = ({ mediaData, showIcons, dispatch }) => {
             flexBasis={0}
             margin={0.3}
             minWidth={`clamp(150px, ${minWidth}px, 100% - 8px)`}
+            maxWidth={maxWidth}
 
             height={height}
             width={width}
         >
             <StyledLazyThumb fileHash={mediaData.FileHash} blurhash={mediaData.BlurHash} onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })} width={"100%"} />
-            <RawIcon />
+            <MediaInfoDisplay />
             <Menu
                 open={contextMenu !== null}
                 onClose={handleClose}

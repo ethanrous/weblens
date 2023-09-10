@@ -10,6 +10,7 @@ import SyncIcon from '@mui/icons-material/Sync';
 import Box from '@mui/material/Box';
 import FolderIcon from '@mui/icons-material/Folder'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
+import Tooltip from '@mui/material/Tooltip';
 
 import { useParams } from 'react-router-dom'
 
@@ -46,32 +47,37 @@ const HeaderBar = memo(function HeaderBar({ dispatch, sendMessage, page }: Heade
             >
                 <Toolbar style={{ paddingLeft: "25px" }}>
                     {page == "gallery" && (
-                        <IconButton href={"/files/"} edge="start" color="inherit" aria-label="files" style={{ marginRight: 15, flexDirection: "column", fontSize: 20, minWidth: "80px" }}>
-                            <FolderIcon />
-                            Files
-                        </IconButton>
+                        <Tooltip title={"Files"}>
+                            <IconButton href={"/files/"} edge="start" color="inherit" aria-label="files" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                                <FolderIcon />
+                            </IconButton>
+                        </Tooltip>
                     )}
                     {page == "files" && (
-                        <IconButton href={"/"} edge="start" color="inherit" aria-label="files" style={{ marginRight: 15, flexDirection: "column", fontSize: 20, minWidth: "80px" }}>
-                            <PhotoLibraryIcon />
-                            Gallery
-                        </IconButton>
+                        <Tooltip title={"Gallery"}>
+                            <IconButton href={"/"} edge="start" color="inherit" aria-label="files" style={{ margin: 15, flexDirection: "column", fontSize: 20 }}>
+                                <PhotoLibraryIcon />
+                            </IconButton>
+                        </Tooltip>
                     )}
-                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); syncDatabase(path, sendMessage) }} edge="start" color="inherit" aria-label="upload" style={{ marginRight: 15, flexDirection: "column", fontSize: 20 }}>
-                        <SyncIcon />
-                        Sync
+                    <Tooltip title={"Sync"}>
+                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); syncDatabase(path, sendMessage) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                            <SyncIcon />
                     </IconButton>
-                    <IconButton edge="start" color="inherit" aria-label="upload" style={{ marginRight: 15, flexDirection: "column", fontSize: 20 }}>
+                    </Tooltip>
+                    <Tooltip title={"Upload"}>
+                        <IconButton edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
                         <input
                             id="upload-image"
                             hidden
                             accept="image/*"
                             type="file"
                             onChange={(e) => HandleFileUpload(e.target.files[0], "/", null)}
-                        />
+                            />
                         <UploadIcon />
-                        Upload
+
                     </IconButton>
+                    </Tooltip>
                 </Toolbar>
             </AppBar>
         </Box>

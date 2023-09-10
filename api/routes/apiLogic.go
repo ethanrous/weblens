@@ -285,7 +285,10 @@ func getDirInfo(ctx *gin.Context) () {
 	db := database.New()
 	var filteredDirInfo []fileInfo
 	for _, value := range dirInfo {
-		info, _ := value.Info()
+		info, err := value.Info()
+		if err != nil {
+			panic(err)
+		}
 		if !slices.Contains(dirIgnore, value.Name()) {
 			mediaData, exists := db.GetMediaByFilepath(filepath.Join(absolutePath, value.Name()))
 			filteredDirInfo = append(filteredDirInfo, fileInfo{Imported: exists, IsDir: value.IsDir(), ModTime: info.ModTime(), Filepath: filepath.Join(relativePath, value.Name()), MediaData: mediaData})

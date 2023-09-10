@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { MediaData } from './Types'
+
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
@@ -24,25 +26,6 @@ const StyledVideo = styled("video")({
     objectPosition: "center",
     zIndex: 100,
 })
-
-type MediaData = {
-    BlurHash: string
-    CreateDate: string
-    FileHash: string
-    Filepath: string
-    MediaType: {
-        FileExtension: []
-        FriendlyName: string
-        IsRaw: boolean
-        IsVideo: boolean
-    }
-    ThumbFilepath: string
-    MediaWidth: number
-    MediaHeight: number
-    ThumbWidth: number
-    ThumbHeight: number
-    Thumbnail64: string
-}
 
 const fetchMetadata = (fileHash, setMediaData) => {
     var url = new URL(`http:localhost:3000/api/item/${fileHash}`)

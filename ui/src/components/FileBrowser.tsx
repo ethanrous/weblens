@@ -1,4 +1,4 @@
-import { useState, useEffect, useReducer, memo } from 'react'
+import { useState, useEffect, useReducer, useMemo, memo } from 'react'
 import FolderIcon from '@mui/icons-material/Folder'
 import Box from '@mui/material/Box'
 import Breadcrumbs from '@mui/material/Breadcrumbs'
@@ -6,70 +6,107 @@ import CachedIcon from '@mui/icons-material/Cached'
 import Chip from '@mui/material/Chip'
 import { emphasize, styled } from '@mui/material/styles'
 
-import { useNavigate, useParams } from 'react-router-dom'
+import { NavigateFunction, useNavigate, useParams } from 'react-router-dom'
 import useWebSocket from 'react-use-websocket'
 
 import { StyledLazyThumb } from './PhotoContainer'
 import Presentation from './Presentation'
 import HeaderBar from "./HeaderBar"
 import HandleFileUpload from "./Upload"
-import { LinearProgress } from '@mui/material'
-import { useSnackbar } from 'notistack';
+import GetWebsocket from './Websocket'
+import { MediaData } from './Types'
 
+import { LinearProgress } from '@mui/material'
+import Skeleton from '@mui/material/Skeleton'
+import { useSnackbar } from 'notistack'
+
+interface dirMap {
+    [key: string]: itemData
+}
+
+const mapToList = (dirMap: dirMap) => {
+    const newList = Object.keys(dirMap).map((key) => {
+        return dirMap[key]
+    })
+
+    newList.sort((a, b) => {
+        if (a.modTime > b.modTime) {
+            return -1
+        } else if (a.modTime < b.modTime) {
+            return 1
+        } else {
+            return 0
+        }
+    })
+
+    return newList
+}
 
 const fileBrowserReducer = (state, action) => {
     switch (action.type) {
-        case 'set_dir_info': {
+        case 'update_items': {
+            let existingMap: dirMap = { ...state.dirMap }
+            for (const item of action.items) {
+                existingMap[item.filepath] = item
+            }
+            const newList: itemData[] = mapToList(existingMap)
             return {
                 ...state,
-                dirInfo: action.data,
+                dirMap: existingMap,
+                dirItems: newList,
             }
         }
-        case 'append_items': {
-            let existing = [...state.dirInfo]
 
-            existing.push(...action.items)
-
-            existing.sort((a, b) => {
-                if (a.modTime > b.modTime) {
-                    return -1
-                } else if (a.modTime < b.modTime) {
-                    return 1
-                } else {
-                    return 0
-                }
-            })
+        case 'add_template_items': {
+            let existingMap = { ...state.dirMap }
+            for (const item of action.files) {
+                existingMap[state.path + item.name] = {}
+            }
+            const newList = mapToList(existingMap)
             return {
                 ...state,
-                dirInfo: existing,
+                dirMap: existingMap,
+                dirItems: newList
             }
         }
+
         case 'set_path': {
+            const newPath = action.path.replace(/\/\/+/g, '/')
+            let newMap
+            if (newPath != state.path) {
+                newMap = {}
+            } else {
+                newMap = { ...state.dirMap }
+            }
             return {
                 ...state,
-                path: action.path.replace(/\/\/+/g, '/'),
+                path: newPath,
+                dirMap: newMap
             }
         }
+
         case 'set_loading': {
             return {
                 ...state,
                 loading: action.loading
             }
         }
+
         case 'set_dragging': {
             return {
                 ...state,
                 dragging: action.dragging
             }
         }
+
         case 'set_presentation': {
             document.documentElement.style.overflow = "hidden"
-
             return {
                 ...state,
                 presentingHash: action.presentingHash
             }
         }
+
         case 'presentation_next': {
             return { ...state }
             let changeTo
@@ -83,6 +120,7 @@ const fileBrowserReducer = (state, action) => {
                 presentingHash: changeTo
             }
         }
+
         case 'presentation_previous': {
             return { ...state }
             let changeTo
@@ -96,6 +134,7 @@ const fileBrowserReducer = (state, action) => {
                 presentingHash: changeTo
             }
         }
+
         case 'stop_presenting': {
             document.documentElement.style.overflow = "visible"
             return {
@@ -103,18 +142,12 @@ const fileBrowserReducer = (state, action) => {
                 presentingHash: ""
             }
         }
-    }
-}
 
-const dispatchSync = (itemPath) => {
-    var url = new URL("http://localhost:3000/api/scan")
-    url.searchParams.append('path', itemPath)
-    fetch(
-        url.toString(),
-        {
-            method: 'POST',
+        default: {
+            console.error("Got unexpected dispatch type: ", action.type)
+            return { ...state }
         }
-    )
+    }
 }
 
 const GetDirectoryData = (path, dispatch) => {
@@ -122,7 +155,7 @@ const GetDirectoryData = (path, dispatch) => {
     url.searchParams.append('path', ('/' + path).replace(/\/\/+/g, '/'))
     fetch(url.toString()).then((res) => res.json()).then((data) => {
         dispatch({
-            type: 'set_dir_info', data: data == null ? [] : data
+            type: 'update_items', items: data == null ? [] : data
         })
     })
 }
@@ -147,8 +180,7 @@ const StyledBreadcrumb = styled(Chip)(({ theme }) => {
     }
 }) as typeof Chip
 
-const Crumbs = (path) => {
-    let navigate = useNavigate()
+const Crumbs = (path: string, navigate) => {
     let parts = path.split('/')
     while (parts[parts.length - 1] == '') {
         parts.pop()
@@ -177,32 +209,48 @@ const Crumbs = (path) => {
 }
 
 export type fileBrowserAction =
-    | { type: 'set_dir_info'; data: [] }
     | { type: 'set_path'; path: string }
-    | { type: 'append_items'; item: [{}] }
+    | { type: 'update_items'; item: [{}] }
     | { type: 'set_loading'; loading: boolean }
     | { type: 'set_dragging'; dragging: boolean }
     | { type: 'set_presentation'; presentingHash: string }
     | { type: 'stop_presenting' }
 
-type ItemProps = {
-    itemPath: string
-    fileHash: string
-    blurhash: string
+export type itemData = {
+    filepath: string
     isDir: boolean
-    isImported: boolean
-    dispatch: React.Dispatch<fileBrowserAction>
+    imported: boolean
+    modTime: string
+    mediaData: MediaData
 }
 
-const Item = memo(function Item({ itemPath, fileHash, blurhash, isDir, isImported, dispatch }: ItemProps) {
-    let navigate = useNavigate()
+type ItemProps = {
+    itemData: itemData
+    dispatch: React.Dispatch<fileBrowserAction>
+    navigate: NavigateFunction
+}
+
+const dispatchSync = (itemPath) => {
+    var url = new URL("http://localhost:3000/api/scan")
+    url.searchParams.append('path', itemPath)
+    fetch(
+        url.toString(),
+        {
+            method: 'POST',
+        }
+    )
+}
+
+const Item = memo(function Item({ itemData, dispatch, navigate }: ItemProps) {
     let itemVisual
-    if (isDir) {
-        itemVisual = <FolderIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} onClick={() => navigate(("/files/" + itemPath).replace(/\/\/+/g, '/'))} sx={{ cursor: "pointer" }} />
-    } else if (isImported) {
-        itemVisual = <StyledLazyThumb draggable={false} fileHash={fileHash} blurhash={blurhash} width={"200px"} height={"200px"} onClick={() => dispatch({ type: 'set_presentation', presentingHash: fileHash })} sx={{ cursor: "pointer" }} />
+    if (itemData.isDir) {
+        itemVisual = <FolderIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} onClick={() => navigate(("/files/" + itemData.filepath).replace(/\/\/+/g, '/'))} sx={{ cursor: "pointer" }} />
+    } else if (itemData.imported) {
+        itemVisual = <StyledLazyThumb draggable={false} fileHash={itemData.mediaData.FileHash} blurhash={itemData.mediaData.BlurHash} width={"200px"} height={"200px"} onClick={() => dispatch({ type: 'set_presentation', presentingHash: itemData.mediaData.FileHash })} sx={{ cursor: "pointer" }} />
+    } else if (itemData.filepath) {
+        itemVisual = <CachedIcon style={{ width: "50%", height: "50%" }} onClick={() => dispatchSync(itemData.filepath)} sx={{ cursor: "pointer" }} />
     } else {
-        itemVisual = <CachedIcon style={{ width: "50%", height: "50%" }} onClick={() => dispatchSync(itemPath)} sx={{ cursor: "pointer" }} />
+        return (<Skeleton animation="wave" height={"100%"} width={"100%"} variant="rectangular" />)
     }
 
     return (
@@ -217,13 +265,12 @@ const Item = memo(function Item({ itemPath, fileHash, blurhash, isDir, isImporte
                 {itemVisual}
             </Box>
             <Box position={"relative"} display={"flex"} justifyContent={"center"} alignItems={"center"} bgcolor={"rgb(0, 0, 0, 0.50)"} width={"100%"} height={"20%"} textAlign={"center"} >
-                <p style={{ overflowWrap: "break-word", maxWidth: "90%", margin: 0, color: "white" }}>{itemPath.substring(itemPath.lastIndexOf('/') + 1)}</p>
+                <p style={{ overflowWrap: "break-word", maxWidth: "90%", margin: 0, color: "white" }}>{itemData.filepath.substring(itemData.filepath.lastIndexOf('/') + 1)}</p>
             </Box>
 
         </Box>
     )
-}
-)
+})
 
 const HandleDrag = (event, dispatch, dragging) => {
     event.preventDefault()
@@ -240,34 +287,18 @@ const HandleDrop = (event, path, dispatch, sendMessage) => {
     event.stopPropagation()
     dispatch({ type: "set_dragging", dragging: false })
     dispatch({ type: "set_loading", loading: true })
+    dispatch({ type: "add_template_items", files: event.dataTransfer.files })
     if (event.dataTransfer.files.length != 0) {
         HandleFileUpload(event.dataTransfer.files, path, sendMessage)
     }
 }
 
-
 const FileBrowser = () => {
-    const WS_URL = 'ws://localhost:4000/api/ws';
-    const { sendMessage, lastMessage, readyState } = useWebSocket(WS_URL, {
-        onOpen: () => {
-            console.log('WebSocket connection established.')
-        }
-    })
 
     const { enqueueSnackbar } = useSnackbar()
+    const { sendMessage, lastMessage } = GetWebsocket(enqueueSnackbar)
 
-    const [dcTimeout, setDcTimeout] = useState(null)
-
-    useEffect(() => {
-        if (readyState != 1) {
-            setDcTimeout(setTimeout(() => {
-                enqueueSnackbar("Websocket connection lost, refresh? ¯\\_(ツ)_/¯", { variant: "error", persist: true })
-            }, 2000))
-        } else {
-            clearTimeout(dcTimeout)
-        }
-
-    }, [readyState])
+    let navigate = useNavigate()
 
     useEffect(() => {
         if (lastMessage) {
@@ -275,7 +306,7 @@ const FileBrowser = () => {
 
             switch (msgData["type"]) {
                 case "new_items": {
-                    dispatch({ type: "append_items", items: msgData["content"] })
+                    dispatch({ type: "update_items", items: msgData["content"] })
                     return
                 }
                 case "finished": {
@@ -291,8 +322,7 @@ const FileBrowser = () => {
                     return
                 }
                 default: {
-                    console.log("I dunno man")
-                    console.log(msgData)
+                    console.error("Got unexpected websocket message type: ", msgData["type"])
                     return
                 }
             }
@@ -302,7 +332,8 @@ const FileBrowser = () => {
     const path = (useParams()["*"] + "/").replace(/\/\/+/g, '/')
 
     const [filebrowserState, dispatch] = useReducer(fileBrowserReducer, {
-        dirInfo: [],
+        dirItems: [],
+        dirMap: [],
         path: path,
         dragging: false,
         loading: false,
@@ -314,15 +345,21 @@ const FileBrowser = () => {
         GetDirectoryData(path, dispatch)
     }, [path])
 
-    const crumbs = Crumbs(filebrowserState.path)
+    const crumbs = useMemo(() => {
+        const crumbs = Crumbs(filebrowserState.path, navigate)
+        return crumbs
+    }, [filebrowserState.path])
 
-    const dirItems = filebrowserState.dirInfo.map((entry) => {
-        return (
-            <Box key={entry.filepath} draggable>
-                <Item itemPath={entry.filepath} fileHash={entry.mediaData.FileHash} blurhash={entry.mediaData.BlurHash} isDir={entry.isDir} isImported={entry.imported} dispatch={dispatch} />
-            </Box>
-        )
-    })
+    const dirItems = useMemo(() => {
+        const items = filebrowserState.dirItems.map((entry: itemData) => {
+            return (
+                <Box key={entry.filepath} draggable>
+                    <Item itemData={entry} dispatch={dispatch} navigate={navigate} />
+                </Box>
+            )
+        })
+        return items
+    }, [filebrowserState.dirItems])
 
     return (
         <Box

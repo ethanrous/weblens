@@ -1,4 +1,4 @@
-import HomePage from "./components/HomePage"
+import Gallery from "./components/Gallery"
 import FileBrowser from "./components/FileBrowser";
 import Test from "./components/Test";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -13,7 +13,7 @@ function App() {
           element={
             <div className="container">
               <SnackbarProvider maxSnack={3} autoHideDuration={5000}>
-                <HomePage />
+                <Gallery />
               </SnackbarProvider>
             </div>
           }
