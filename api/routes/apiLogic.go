@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -49,7 +48,6 @@ func wsConnect(ctx *gin.Context) {
 	for {
 		var msg wsMsg
         err := conn.ReadJSON(&msg)
-		util.Debug.Println("Read thing")
         if err != nil {
 			util.Error.Println(err)
             break
@@ -80,7 +78,7 @@ func handleWsRequest(msg wsMsg, conn *websocket.Conn) {
 					m, err := uploadItem(path, file["name"].(string), file["item64"].(string))
 					util.Debug.Printf("m: %v\nErr: %s", m, err)
 					if err != nil {
-						errMsg := fmt.Sprintf("%s already exists in this directory", file["name"].(string))
+						errMsg := fmt.Sprintf("Upload error: %s", err)
 						errorArr = append(errorArr, wsMsg{Type: "error", Error: errMsg})
 						return
 					}
@@ -90,7 +88,7 @@ func handleWsRequest(msg wsMsg, conn *websocket.Conn) {
 					newItem := fileInfo{
 						Imported: true,
 						IsDir: false,
-						Filepath: util.AbsoluteToRelativePath(m.Filepath),
+						Filepath: util.GuaranteeRelativePath(m.Filepath),
 						MediaData: *m,
 						ModTime: f.ModTime(),
 					}
@@ -126,7 +124,15 @@ func handleWsRequest(msg wsMsg, conn *websocket.Conn) {
 			}
 		}
 		case "scan_directory": {
-			scan(msg.Content["path"].(string))
+			wp := scan(msg.Content["path"].(string), msg.Content["recursive"].(bool))
+
+			_, remainingTasks, totalTasks := wp.Status()
+			for remainingTasks > 0 {
+				_, remainingTasks, _ = wp.Status()
+				status := struct {Type string `json:"type"`; RemainingTasks int `json:"remainingTasks"`; TotalTasks int `json:"totalTasks"`} {Type: "scan_directory_progress", RemainingTasks: remainingTasks, TotalTasks: totalTasks}
+				conn.WriteJSON(status)
+				time.Sleep(time.Second)
+			}
 			res := struct {Type string `json:"type"`} {Type: "refresh"}
 			conn.WriteJSON(res)
 		}
@@ -203,67 +209,57 @@ func getMediaItem(ctx *gin.Context) {
 	if includeFullres {
 		fullResBytes := data.ReadFullres()
 		ctx.Writer.Write(fullResBytes)
+
 	} else if !includeMeta && includeThumbnail {
 		thumbBytes, err := b64.StdEncoding.DecodeString(data.Thumbnail64)
-		if err != nil {
-			panic(err)
-		}
+		util.FailOnError(err, "Failed to decode thumb64 to bytes")
+
 		ctx.Writer.Write(thumbBytes)
 	} else {
 		ctx.JSON(http.StatusOK, data)
 	}
 }
 
-func scan(path string) {
-	scanPath := util.RelativeToAbsolutePath(path)
+func scan(path string, recursive bool) (util.WorkerPool) {
+	util.Debug.Println("HERE IN SCAN")
+	scanPath := util.GuaranteeAbsolutePath(path)
 
-	fileInfo, err := os.Stat(scanPath)
-	if err != nil {
-		panic(err)
-	}
-	if fileInfo.IsDir() {
-		var recursive bool
-		if path == "/" {
-			recursive = true
-		} else {
-			recursive = false
-		}
-		importMedia.ScanAllMedia(scanPath, recursive)
-	} else {
-		db := database.New()
-		importMedia.HandleNewImage(scanPath, db)
-	}
+	_, err := os.Stat(scanPath)
+	util.FailOnError(err, "Scan path does not exist")
+
+	util.Debug.Println("RIGHT BEFORE SACN")
+	wp := importMedia.ScanDirectory(scanPath, recursive)
+
+	return wp
 }
 
 func uploadItem(relParentDir, filename, item64 string) (*interfaces.Media, error) {
-	absoluteParent := util.RelativeToAbsolutePath(relParentDir)
+	absoluteParent := util.GuaranteeAbsolutePath(relParentDir)
 	imgPath := filepath.Join(absoluteParent, filename)
 
 	_, err := os.Stat(imgPath)
 	if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("File already exists: %s", filename)
+		return nil, fmt.Errorf("file (%s) already exists", filename)
 	}
 
 	outFile, err := os.Create(imgPath)
-	if err != nil {
-		panic(err)
-	}
+	util.FailOnError(err, "Failed to create file for uploaded media")
+
 	defer outFile.Close()
 
 	index := strings.Index(item64, ",")
 	itemBytes, err := b64.StdEncoding.DecodeString(item64[index + 1:])
-	if err != nil {
-		panic(err)
-	}
+	util.FailOnError(err, "Failed to decode uploaded media 64 to bytes")
 
 	_, err = outFile.Write(itemBytes)
-	if err != nil {
-		panic(err)
-	}
+	util.FailOnError(err, "Failed to write uploaded bytes to new file")
 
 	db := database.New()
 
-	m := importMedia.HandleNewImage(imgPath, db)
+	m, err := importMedia.HandleNewImage(imgPath, db)
+	if err != nil {
+		return nil, err
+	}
 
 	return m, nil
 
@@ -275,7 +271,9 @@ var dirIgnore = []string{
 
 func getDirInfo(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
-	absolutePath := util.RelativeToAbsolutePath(relativePath)
+	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+
+	//go importMedia.ScanDirectory(relativePath, false)
 
 	dirInfo, err := os.ReadDir(absolutePath)
 	if err != nil {
@@ -286,23 +284,35 @@ func getDirInfo(ctx *gin.Context) () {
 	var filteredDirInfo []fileInfo
 	for _, value := range dirInfo {
 		info, err := value.Info()
-		if err != nil {
-			panic(err)
-		}
+		util.FailOnError(err, "Failed to get file info")
 		if !slices.Contains(dirIgnore, value.Name()) {
 			mediaData, exists := db.GetMediaByFilepath(filepath.Join(absolutePath, value.Name()))
 			filteredDirInfo = append(filteredDirInfo, fileInfo{Imported: exists, IsDir: value.IsDir(), ModTime: info.ModTime(), Filepath: filepath.Join(relativePath, value.Name()), MediaData: mediaData})
 		}
 	}
 
-	sort.SliceStable(filteredDirInfo, func(i, j int) bool {
-		cmp := filteredDirInfo[i].ModTime.Compare(filteredDirInfo[j].ModTime)
-		if cmp == 1 {
-			return true
-		} else {
-			return false
-		}
-	})
+	// sort.SliceStable(filteredDirInfo, func(i, j int) bool {
+	// 	cmp := filteredDirInfo[i].ModTime.Compare(filteredDirInfo[j].ModTime)
+	// 	if cmp == 1 {
+	// 		return true
+	// 	} else {
+	// 		return false
+	// 	}
+	// })
 
 	ctx.JSON(http.StatusOK, filteredDirInfo)
+}
+
+func deleteFile(ctx *gin.Context) {
+	relativePath := ctx.Query("path")
+	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+
+	_, err := os.Stat(absolutePath)
+	util.FailOnError(err, "Failed to delete file that does not exist")
+
+	os.Remove(absolutePath)
+
+	db := database.New()
+	db.RemoveMediaByFilepath(absolutePath)
+
 }

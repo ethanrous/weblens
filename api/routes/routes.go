@@ -24,6 +24,7 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/media", func(ctx *gin.Context) { getPagedMedia(ctx) })
 	api.GET("/item/:filehash", func(ctx *gin.Context) { getMediaItem(ctx) })
 	api.GET("/dirinfo", func(ctx *gin.Context) { getDirInfo(ctx) })
+	api.DELETE("/file", func(ctx *gin.Context) { deleteFile(ctx) })
 
 	//api.POST("/item", func(ctx *gin.Context) { uploadItem(ctx) })
 	//api.POST("/scan", func(ctx *gin.Context) { scan(ctx) })

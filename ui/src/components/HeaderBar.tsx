@@ -15,16 +15,9 @@ import Tooltip from '@mui/material/Tooltip';
 import { useParams } from 'react-router-dom'
 
 import HandleFileUpload from './Upload'
-import { SendMessage } from 'react-use-websocket';
+import { dispatchSync } from './Websocket'
 
-const syncDatabase = (path, sendMessage) => {
-    sendMessage(JSON.stringify({
-        type: 'scan_directory',
-        content: {
-            path: path
-        },
-    }))
-}
+import { SendMessage } from 'react-use-websocket';
 
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>
@@ -61,7 +54,7 @@ const HeaderBar = memo(function HeaderBar({ dispatch, sendMessage, page }: Heade
                         </Tooltip>
                     )}
                     <Tooltip title={"Sync"}>
-                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); syncDatabase(path, sendMessage) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, sendMessage, true) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
                             <SyncIcon />
                     </IconButton>
                     </Tooltip>

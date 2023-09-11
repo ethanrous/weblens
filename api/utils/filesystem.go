@@ -5,14 +5,21 @@ import (
 	"strings"
 )
 
-func AbsoluteToRelativePath(absolutePath string) (string) {
+func GuaranteeRelativePath(absolutePath string) (string) {
 	absolutePrefix := GetMediaRoot()
-	relativePath := strings.Replace(absolutePath, absolutePrefix, "", -1)
+	relativePath := strings.TrimPrefix(absolutePath, absolutePrefix)
 	return relativePath
 }
 
-func RelativeToAbsolutePath(relativePath string) (string) {
+func GuaranteeAbsolutePath(relativePath string) (string) {
+	if isAbsolutePath(relativePath) {
+		return relativePath
+	}
 	absolutePrefix := GetMediaRoot()
 	absolutePath := filepath.Join(absolutePrefix, relativePath)
 	return absolutePath
+}
+
+func isAbsolutePath(mysteryPath string) (bool) {
+	return strings.HasPrefix(mysteryPath, GetMediaRoot())
 }

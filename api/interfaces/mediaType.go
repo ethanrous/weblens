@@ -16,10 +16,10 @@ var mediaTypeMap = map[string]mediaType {
 	"video/mp4": {"MP4", []string{"MP4"}, false, true},
 }
 
-func ParseMediaType(mimeType string) (mediaType) {
+func ParseMediaType(mimeType string) (mediaType, error) {
 	mediaType, ok := mediaTypeMap[mimeType]
 	if !ok {
-		panic(fmt.Errorf("unsupported mimeTYPE: %s", mimeType))
+		return mediaType, fmt.Errorf("unsupported mimeTYPE: %s", mimeType)
 	}
-	return mediaType
+	return mediaType, nil
 }

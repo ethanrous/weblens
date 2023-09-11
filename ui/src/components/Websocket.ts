@@ -11,7 +11,6 @@ export default function GetWebsocket(snacky: EnqueueSnackbar) {
         onOpen: () => {
             clearTimeout(dcTimeout)
             if (dcSnack) {
-                console.log("HERE")
                 closeSnackbar(dcSnack)
                 snacky("Websocket reconnected", { variant: "success" })
                 setDcSnack(null)
@@ -40,3 +39,13 @@ export default function GetWebsocket(snacky: EnqueueSnackbar) {
     return { sendMessage, lastMessage, readyState }
 }
 
+export function dispatchSync(path, sendMessage, recursive) {
+    console.log("Doing sync")
+    sendMessage(JSON.stringify({
+        type: 'scan_directory',
+        content: {
+            path: path,
+            recursive: recursive
+        },
+    }))
+}

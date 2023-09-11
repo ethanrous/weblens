@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"image/jpeg"
 	"io"
 	"math"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
+	"golang.org/x/image/tiff"
 
 	util "github.com/ethrousseau/weblens/api/utils"
 )
@@ -42,7 +44,7 @@ func (m Media) MarshalBinary() ([]byte, error) {
 }
 
 
-func (m *Media) ExtractExif() {
+func (m *Media) ExtractExif() (error) {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		panic(err)
@@ -76,7 +78,10 @@ func (m *Media) ExtractExif() {
 	if !ok {
 		panic(fmt.Errorf("refusing to parse file without MIMEType"))
 	}
-	m.MediaType = ParseMediaType(mimeType)
+	m.MediaType, err = ParseMediaType(mimeType)
+	if err != nil {
+		return err
+	}
 
 	var dimentions string
 	if m.MediaType.IsVideo {
@@ -88,82 +93,103 @@ func (m *Media) ExtractExif() {
 	m.MediaHeight, _ = strconv.Atoi(dimentionsList[0])
 	m.MediaWidth, _ = strconv.Atoi(dimentionsList[1])
 
+	return nil
 }
 
-func (m *Media) tempThumbFileRaw() (string) {
-	cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/simple_dcraw", "-e", m.Filepath)
+func (m *Media) rawImageReader() (io.Reader, error) {
+	absolutePath := util.GuaranteeAbsolutePath(m.Filepath)
+	cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/dcraw_emu", "-mem", "-T", "-Z", "-", absolutePath)
+	//cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/dcraw_emu", "-mem", "-T", absolutePath)
+
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		util.Debug.Panicf("could not get tiff stdout: %s", err)
+	}
+	err = cmd.Start()
+	if err != nil {
+		util.Debug.Panicf("could not start tiff build cmd: %s", err)
+	}
+	buf := new (bytes.Buffer)
+	_, err = buf.ReadFrom(stdout)
+	if err != nil {
+		return nil, err
+	}
+	cmd.Wait()
+
+	i, err := tiff.Decode(buf)
+	if err != nil {
+		util.Debug.Panicf("could not read dcraw tiff output into go image: %s", err)
+	}
+
+
+
+	buf = new(bytes.Buffer)
+	err = jpeg.Encode(buf, i, nil)
+	if err != nil {
+		util.Debug.Panicf("could not convert image to jpeg: %s", err)
+	}
+
+	return buf, nil
+
+}
+
+func (m *Media) videoFileThumbBytes() (io.Reader) {
+
+	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", m.Filepath, "-ss", "00:00:02.000", "-frames:v", "1", "-")
+	stdout, _ := cmd.StdoutPipe()
 	err := cmd.Run()
+
 	if err != nil {
 		panic(err)
 	}
 
-	return (m.Filepath + ".thumb.jpg")
-
-}
-
-func (m *Media) tempThumbFileVideo() (string) {
-	outFile := m.Filepath + ".thumb.jpeg"
-
-	_, err := os.Stat(outFile)
-	if err == nil {
-		return outFile
-	}
-
-	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", m.Filepath, "-ss", "00:00:02.000", "-frames:v", "1", outFile)
-	util.Debug.Printf("CMD: %s", cmd)
-	err = cmd.Run()
-	if err != nil {
-		panic(err)
-	}
-
-	return outFile
+	return stdout
 
 }
 
 func (m *Media) ReadFullres() ([]byte) {
-	var readableFilepath string
+	var readable io.Reader
 	if m.MediaType.IsRaw {
-		readableFilepath = m.tempThumbFileRaw()
-		defer os.Remove(readableFilepath)
+		readable, _ = m.rawImageReader()
 	} else {
-		readableFilepath = m.Filepath
+		var err error
+		readable, err = os.Open(m.Filepath)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	mediaBytes, err := os.ReadFile(readableFilepath)
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(readable)
 	if err != nil {
-		util.Debug.Panicf("could not open full-res file: %s", readableFilepath)
+		util.Debug.Panicf("could not open full-res file: %s", m.Filepath)
 	}
 
-	return mediaBytes
+	return buf.Bytes()
 }
 
 func (m *Media) ReadFile() (image.Image) {
-	var readableFilepath string
+	var readable io.Reader
 	if m.MediaType.IsRaw {
-		readableFilepath = m.tempThumbFileRaw()
-		defer os.Remove(readableFilepath)
+		readable, _ = m.rawImageReader()
 	} else if m.MediaType.IsVideo {
-		readableFilepath = m.tempThumbFileVideo()
-		defer os.Remove(readableFilepath)
+		readable = m.videoFileThumbBytes()
 	} else {
-		readableFilepath = m.Filepath
+		var err error
+		readable, err = os.Open(m.Filepath)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	file, err := os.Open(readableFilepath)
+	i, err := imaging.Decode(readable, imaging.AutoOrientation(true))
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
-
-	i, err := imaging.Decode(file, imaging.AutoOrientation(true))
-	if err != nil {
-		panic(err)
-	}
-
-	file.Seek(0, 0)
 
 	h := sha256.New()
-	_, err = io.Copy(h, file)
+	_, err = io.Copy(h, readable)
 	if err != nil {
 		panic(err)
 	}

@@ -28,3 +28,9 @@ func SliceRemove(s []any, i int) []any {
     s[i] = s[len(s)-1]
     return s[:len(s)-1]
 }
+
+func FailOnError(err error, msg string) {
+	if err != nil {
+			Debug.Panicf("%s: %s", msg, err)
+	}
+}

@@ -76,6 +76,8 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (interfaces
 
 // Returns image if found and bool for if image exists in db
 func (db Weblensdb) GetMediaByFilepath(filepath string) (interfaces.Media, bool) {
+	filepath = util.GuaranteeRelativePath(filepath)
+
 	filter := bson.D{{Key: "filepath", Value: filepath}}
 	opts := options.FindOne().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
 	findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter, opts)
@@ -160,6 +162,9 @@ func (db Weblensdb) redisCacheThumbBytes(media interfaces.Media) {
 }
 
 func (db Weblensdb) DbAddMedia(media *interfaces.Media) {
+
+	media.Filepath = util.GuaranteeRelativePath(media.Filepath)
+
 	filter := bson.D{{Key: "_id", Value: media.FileHash}}
 	set := bson.D{{Key: "$set", Value: *media}}
 	_, err := db.mongo.Collection("images").UpdateOne(mongo_ctx, filter, set, options.Update().SetUpsert(true))

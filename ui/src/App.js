@@ -12,7 +12,7 @@ function App() {
           path="/"
           element={
             <div className="container">
-              <SnackbarProvider maxSnack={3} autoHideDuration={5000}>
+              <SnackbarProvider maxSnack={10} autoHideDuration={5000}>
                 <Gallery />
               </SnackbarProvider>
             </div>
@@ -22,7 +22,7 @@ function App() {
           path="/files/*"
           element={
             <div className="container">
-              <SnackbarProvider maxSnack={3} autoHideDuration={5000}>
+              <SnackbarProvider maxSnack={10} autoHideDuration={5000}>
                 <FileBrowser />
               </SnackbarProvider>
             </div>

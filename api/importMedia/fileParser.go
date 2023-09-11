@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/interfaces"
 	util "github.com/ethrousseau/weblens/api/utils"
@@ -14,30 +13,29 @@ import (
 	"github.com/ethrousseau/weblens/api/database"
 )
 
-func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media) {
+func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			util.Error.Printf("Panic recovered parsing new file (%s):\n%s\n\n%s\n", filepath, err, string(debug.Stack()))
 		}
 	}()
 
-	start := time.Now()
-
 	m, exists := db.GetMediaByFilepath(filepath)
 
 	var parseAnyway bool = false
 	if exists && !parseAnyway {
-		return &m
+		return &m, nil
 	}
-
-	util.Debug.Printf("Starting file scan for %s", filepath)
 
 	if m.Filepath == "" {
 		m.Filepath = filepath
 	}
 
 	if m.MediaType.FriendlyName == "" {
-		m.ExtractExif()
+		err := m.ExtractExif()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	i := m.ReadFile()
@@ -51,9 +49,7 @@ func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media) 
 
 	db.DbAddMedia(&m)
 
-	util.Debug.Printf("File synced with database in %dms (%s)", time.Since(start).Milliseconds(), filepath)
-
-	return &m
+	return &m, nil
 }
 
 func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db database.Weblensdb) error {
@@ -71,8 +67,10 @@ func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db database.Webl
 	return nil
 }
 
-func ScanAllMedia(scanDir string, recursive bool) {
-	util.Debug.Print("Beginning file scan\n")
+func ScanDirectory(scanDir string, recursive bool) (util.WorkerPool) {
+	scanDir = util.GuaranteeAbsolutePath(scanDir)
+	util.Debug.Printf("Beginning directory scan: %s\n", scanDir)
+	//start := time.Now()
 
 	db := database.New()
 
@@ -106,6 +104,9 @@ func ScanAllMedia(scanDir string, recursive bool) {
 		}
 	}
 
-	util.Debug.Print("Finished file scan\n")
+	return wp
+
+	// util.Debug.Printf("Finished file scan in %fs", time.Since(start).Seconds())
+
 
 }
