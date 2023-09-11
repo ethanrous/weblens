@@ -181,6 +181,10 @@ const fileBrowserReducer = (state, action) => {
             for (const val of Object.values(existingMap)) {
                 if (!val.selected) {
                     newMap[val.filepath] = val
+                } else {
+                    var url = new URL("http:localhost:3000/api/file")
+                    url.searchParams.append('path', val.filepath)
+                    fetch(url.toString(), { method: "DELETE" })
                 }
             }
             return {
@@ -249,7 +253,7 @@ const fileBrowserReducer = (state, action) => {
 }
 
 const GetDirectoryData = (path, dispatch) => {
-    var url = new URL("http:localhost:3000/api/dirinfo")
+    var url = new URL("http:localhost:3000/api/directory")
     url.searchParams.append('path', ('/' + path).replace(/\/\/+/g, '/'))
     fetch(url.toString()).then((res) => res.json()).then((data) => {
         dispatch({
@@ -279,6 +283,7 @@ const StyledBreadcrumb = styled(Chip)(({ theme }) => {
 }) as typeof Chip
 
 const Crumbs = (path: string, navigate) => {
+    path = path.slice(1)
     let parts = path.split('/')
     while (parts[parts.length - 1] == '') {
         parts.pop()
@@ -386,6 +391,7 @@ const HandleDrop = (event, path, dirMap, dispatch, sendMessage, enqueueSnackbar)
     dispatch({ type: "set_dragging", dragging: false })
 
     let filteredFiles = []
+    console.log(path)
     for (const file of event.dataTransfer.files) {
         if (dirMap[path + file.name]) {
             enqueueSnackbar(file.name + " already exists in this directory", { variant: "error" })
@@ -434,7 +440,7 @@ function StartKeybaordListener(dispatch) {
 
 const FileBrowser = () => {
 
-    const path = (useParams()["*"] + "/").replace(/\/\/+/g, '/')
+    const path = ("/" + useParams()["*"] + "/").replace(/\/\/+/g, '/')
 
     const [filebrowserState, dispatch] = useReducer(fileBrowserReducer, {
         dirMap: new Map<string, itemData>(),
@@ -561,7 +567,7 @@ const FileBrowser = () => {
                         {scanProgress != 0 && (
                             <Box sx={{ width: '100%' }}>
                                 <LinearProgress variant="determinate" value={scanProgress} />
-                                <p style={{ position: "absolute", left: "6vw" }}>Files are loading into datbase...</p>
+                                <p style={{ position: "absolute", left: "6vw" }}>Syncing filesystem with database...</p>
                             </Box>
                         )}
                     </Box>

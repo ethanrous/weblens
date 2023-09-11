@@ -73,17 +73,15 @@ func handleWsRequest(msg wsMsg, conn *websocket.Conn) {
 				wg.Add(1)
 				go func(file map[string]interface{}, index int) {
 					defer wg.Done()
-
-
 					m, err := uploadItem(path, file["name"].(string), file["item64"].(string))
-					util.Debug.Printf("m: %v\nErr: %s", m, err)
 					if err != nil {
 						errMsg := fmt.Sprintf("Upload error: %s", err)
 						errorArr = append(errorArr, wsMsg{Type: "error", Error: errMsg})
 						return
 					}
 
-					f, _ := os.Stat(m.Filepath)
+					f, err := os.Stat(util.GuaranteeAbsolutePath(m.Filepath))
+					util.FailOnError(err, "Failed to get stats of uploaded file")
 
 					newItem := fileInfo{
 						Imported: true,
@@ -221,13 +219,11 @@ func getMediaItem(ctx *gin.Context) {
 }
 
 func scan(path string, recursive bool) (util.WorkerPool) {
-	util.Debug.Println("HERE IN SCAN")
 	scanPath := util.GuaranteeAbsolutePath(path)
 
 	_, err := os.Stat(scanPath)
 	util.FailOnError(err, "Scan path does not exist")
 
-	util.Debug.Println("RIGHT BEFORE SACN")
 	wp := importMedia.ScanDirectory(scanPath, recursive)
 
 	return wp
@@ -267,6 +263,14 @@ func uploadItem(relParentDir, filename, item64 string) (*interfaces.Media, error
 
 var dirIgnore = []string{
 	".DS_Store",
+}
+
+func makeDir(ctx *gin.Context) () {
+	relativePath := ctx.Query("path")
+	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+
+	err := os.Mkdir(absolutePath, os.FileMode(0777))
+	util.FailOnError(err, "Failed to create new directory")
 }
 
 func getDirInfo(ctx *gin.Context) () {
@@ -313,6 +317,6 @@ func deleteFile(ctx *gin.Context) {
 	os.Remove(absolutePath)
 
 	db := database.New()
-	db.RemoveMediaByFilepath(absolutePath)
+	db.RemoveMediaByFilepath(relativePath)
 
 }

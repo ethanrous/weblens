@@ -154,10 +154,8 @@ func (m *Media) ReadFullres() ([]byte) {
 		readable, _ = m.rawImageReader()
 	} else {
 		var err error
-		readable, err = os.Open(m.Filepath)
-		if err != nil {
-			panic(err)
-		}
+		readable, err = os.Open(util.GuaranteeAbsolutePath(m.Filepath))
+		util.FailOnError(err, "Failed to open fullres file")
 	}
 
 	buf := new(bytes.Buffer)
