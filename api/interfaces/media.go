@@ -23,7 +23,7 @@ import (
 	"github.com/kolesa-team/go-webp/webp"
 	"golang.org/x/image/tiff"
 
-	util "github.com/ethrousseau/weblens/api/utils"
+	"github.com/ethrousseau/weblens/api/util"
 )
 
 type Media struct {
@@ -43,6 +43,47 @@ func (m Media) MarshalBinary() ([]byte, error) {
     return json.Marshal(m)
 }
 
+func (m *Media) IsFilledOut(skipThumbnail bool) (bool) {
+	if m.FileHash == "" {
+		return false
+	}
+	if m.Filepath == "" {
+		return false
+	}
+	if m.MediaType.FriendlyName == "" {
+		return false
+	}
+
+	// Visual media specific properties
+	if m.MediaType.FriendlyName != "File" {
+
+		if m.BlurHash == "" {
+			return false
+		}
+		if !skipThumbnail && m.Thumbnail64 == "" {
+			return false
+		}
+		if m.MediaWidth == 0 {
+			return false
+		}
+		if m.MediaHeight == 0 {
+			return false
+		}
+		if m.ThumbWidth == 0 {
+			return false
+		}
+		if m.ThumbHeight == 0 {
+			return false
+		}
+	}
+
+	if m.CreateDate.IsZero() {
+		return false
+	}
+
+	return true
+
+}
 
 func (m *Media) ExtractExif() (error) {
 	et, err := exiftool.NewExiftool()
@@ -78,15 +119,19 @@ func (m *Media) ExtractExif() (error) {
 	if !ok {
 		panic(fmt.Errorf("refusing to parse file without MIMEType"))
 	}
-	m.MediaType, err = ParseMediaType(mimeType)
-	if err != nil {
-		return err
+	m.MediaType, _ = ParseMediaType(mimeType)
+	// if err != nil {
+	// 	return err
+	// }
+
+	if m.MediaType.FriendlyName == "File" {
+		return nil
 	}
 
 	var dimentions string
 	if m.MediaType.IsVideo {
 		dimentions = exifData["VideoSize"].(string)
-		} else {
+	} else {
 		dimentions = exifData["ImageSize"].(string)
 	}
 	dimentionsList := strings.Split(dimentions, "x")
@@ -99,17 +144,13 @@ func (m *Media) ExtractExif() (error) {
 func (m *Media) rawImageReader() (io.Reader, error) {
 	absolutePath := util.GuaranteeAbsolutePath(m.Filepath)
 	cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/dcraw_emu", "-mem", "-T", "-Z", "-", absolutePath)
-	//cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/dcraw_emu", "-mem", "-T", absolutePath)
-
 
 	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		util.Debug.Panicf("could not get tiff stdout: %s", err)
-	}
+	util.FailOnError(err, "Failed to get dcraw stdout pipe")
+
 	err = cmd.Start()
-	if err != nil {
-		util.Debug.Panicf("could not start tiff build cmd: %s", err)
-	}
+	util.FailOnError(err, "Failed to start tiff build cmd")
+
 	buf := new (bytes.Buffer)
 	_, err = buf.ReadFrom(stdout)
 	if err != nil {
@@ -118,86 +159,101 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 	cmd.Wait()
 
 	i, err := tiff.Decode(buf)
-	if err != nil {
-		util.Debug.Panicf("could not read dcraw tiff output into go image: %s", err)
-	}
-
-
+	util.FailOnError(err, "Failed to read dcraw tiff output into image")
 
 	buf = new(bytes.Buffer)
 	err = jpeg.Encode(buf, i, nil)
-	if err != nil {
-		util.Debug.Panicf("could not convert image to jpeg: %s", err)
-	}
+	util.FailOnError(err, "Failed to convert image to jpeg")
 
 	return buf, nil
 
 }
 
-func (m *Media) videoFileThumbBytes() (io.Reader) {
+func (m *Media) videoThumbnailReader() (io.Reader, error) {
 
-	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", m.Filepath, "-ss", "00:00:02.000", "-frames:v", "1", "-")
-	stdout, _ := cmd.StdoutPipe()
-	err := cmd.Run()
+	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", util.GuaranteeAbsolutePath(m.Filepath), "-ss", "00:00:02.000", "-frames:v", "1", "-f", "mjpeg", "pipe:1")
+	stdout, err := cmd.StdoutPipe()
+	util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
 
+	err = cmd.Start()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	buf := new (bytes.Buffer)
+	_, err = buf.ReadFrom(stdout)
 
-	return stdout
+	cmd.Wait()
+
+	util.FailOnError(err, "Failed to run ffmpeg to get video thumbnail")
+
+	return buf, nil
 
 }
 
-func (m *Media) ReadFullres() ([]byte) {
+func (m *Media) ReadFullres() ([]byte, error) {
 	var readable io.Reader
 	if m.MediaType.IsRaw {
-		readable, _ = m.rawImageReader()
+		var err error
+		readable, err = m.rawImageReader()
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		var err error
 		readable, err = os.Open(util.GuaranteeAbsolutePath(m.Filepath))
-		util.FailOnError(err, "Failed to open fullres file")
-	}
-
-	buf := new(bytes.Buffer)
-	_, err := buf.ReadFrom(readable)
-	if err != nil {
-		util.Debug.Panicf("could not open full-res file: %s", m.Filepath)
-	}
-
-	return buf.Bytes()
-}
-
-func (m *Media) ReadFile() (image.Image) {
-	var readable io.Reader
-	if m.MediaType.IsRaw {
-		readable, _ = m.rawImageReader()
-	} else if m.MediaType.IsVideo {
-		readable = m.videoFileThumbBytes()
-	} else {
-		var err error
-		readable, err = os.Open(m.Filepath)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	i, err := imaging.Decode(readable, imaging.AutoOrientation(true))
+	buf := new(bytes.Buffer)
+	read, err := buf.ReadFrom(readable)
 	if err != nil {
-		panic(err)
+		return nil, err
+	}
+	util.Debug.Println("Read ", read, " bytes")
+
+	return buf.Bytes(), nil
+}
+
+func (m *Media) getReadable() (io.Reader) {
+	var readable io.Reader
+	if m.MediaType.IsRaw {
+		var err error
+		readable, err = m.rawImageReader()
+		util.FailOnError(err, "Failed to get readable raw proxy image")
+	} else if m.MediaType.IsVideo {
+		var err error
+		readable, err = m.videoThumbnailReader()
+		util.FailOnError(err, "Failed to get readable video proxy image")
+	} else {
+		var err error
+		readable, err = os.Open(util.GuaranteeAbsolutePath(m.Filepath))
+		util.FailOnError(err, "Failed to open generic image file")
 	}
 
+	return readable
+}
+
+func (m *Media) readFileIntoImage() (image.Image) {
+	readable := m.getReadable()
+
+	i, err := imaging.Decode(readable, imaging.AutoOrientation(true))
+	util.FailOnError(err, "Failed to decode readable proxy image buffer")
+
+	return i
+}
+
+func (m *Media) GenerateFileHash() {
+	readable := m.getReadable()
+
 	h := sha256.New()
-	_, err = io.Copy(h, readable)
-	if err != nil {
-		panic(err)
-	}
+	_, err := io.Copy(h, readable)
+	util.FailOnError(err, "Failed to copy readable image into hash")
 
 	h.Write([]byte(m.Filepath)) // Make exact same files in different locations have unique id's
 
 	m.FileHash = base64.URLEncoding.EncodeToString(h.Sum(nil))
-
-	return i
-
 }
 
 func (m *Media) calculateThumbSize(i image.Image) {
@@ -229,8 +285,11 @@ func (m *Media) GenerateBlurhash(thumb *image.NRGBA) {
 	m.BlurHash, _ = blurhash.Encode(4, 3, thumb)
 }
 
-func (m *Media) GenerateThumbnail(i image.Image) (*image.NRGBA) {
+func (m *Media) GenerateThumbnail() (*image.NRGBA) {
+	i := m.readFileIntoImage()
+
 	m.calculateThumbSize(i)
+
 	thumb := imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.CatmullRom)
 
 	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)

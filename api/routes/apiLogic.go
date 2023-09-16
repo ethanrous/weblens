@@ -2,7 +2,10 @@ package routes
 
 import (
 	b64 "encoding/base64"
+	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,7 +21,7 @@ import (
 	"github.com/ethrousseau/weblens/api/database"
 	"github.com/ethrousseau/weblens/api/importMedia"
 	"github.com/ethrousseau/weblens/api/interfaces"
-	util "github.com/ethrousseau/weblens/api/utils"
+	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gorilla/websocket"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +36,7 @@ type wsMsg struct {
 type fileInfo struct{
 	Imported bool `json:"imported"` // If the item has been loaded into the database, dictates if MediaData is set or not
 	IsDir bool `json:"isDir"`
+	Size int `json:"size"`
 	ModTime time.Time `json:"modTime"`
 	Filepath string `json:"filepath"`
 	MediaData interfaces.Media `json:"mediaData"`
@@ -76,7 +80,8 @@ func handleWsRequest(msg wsMsg, conn *websocket.Conn) {
 					m, err := uploadItem(path, file["name"].(string), file["item64"].(string))
 					if err != nil {
 						errMsg := fmt.Sprintf("Upload error: %s", err)
-						errorArr = append(errorArr, wsMsg{Type: "error", Error: errMsg})
+						errContent := map[string]any{"Message": errMsg, "File": util.GuaranteeRelativePath(filepath.Join(path, file["name"].(string)))}
+						errorArr = append(errorArr, wsMsg{Type: "error", Content: errContent, Error: "upload_error"})
 						return
 					}
 
@@ -189,33 +194,117 @@ func getPagedMedia(ctx *gin.Context) {
 
 func getMediaItem(ctx *gin.Context) {
 	fileHash := ctx.Param("filehash")
+	_, err := b64.URLEncoding.DecodeString(fileHash)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		util.FailOnError(err, "Given filehash (" + fileHash + ") is not base64 encoded")
+	}
+
 	includeMeta := util.BoolFromString(ctx.Query("meta"), true)
 	includeThumbnail := util.BoolFromString(ctx.Query("thumbnail"), true)
 	includeFullres := util.BoolFromString(ctx.Query("fullres"), true)
 
 	if !(includeMeta || includeThumbnail || includeFullres) {
-		// At least one option must be selected
 		ctx.AbortWithStatus(http.StatusBadRequest)
+		util.FailOnError(errors.New("at least one of meta, thumbnail, or fullres must be selected"), "Failed to handle get media request (trying to get: " + fileHash + ")")
+		// At least one option must be selected
 	} else if includeFullres && (includeMeta || includeThumbnail) {
 		// Full res must be the only option if selected
 		ctx.AbortWithStatus(http.StatusBadRequest)
+		util.FailOnError(errors.New("fullres should be the only option if selected"), "Failed to handle get media request (trying to get: " + fileHash + ")")
 	}
 
 	db := database.New()
-	data := db.GetMedia(fileHash, includeThumbnail)
+	m := db.GetMedia(fileHash, includeThumbnail)
+
+	if !m.IsFilledOut(!includeThumbnail) {
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		util.FailOnError(errors.New("media struct not propperly filled out"), "Failed to get media from Database (trying to get: " + fileHash + ")")
+	}
 
 	if includeFullres {
-		fullResBytes := data.ReadFullres()
-		ctx.Writer.Write(fullResBytes)
+		redisKey := "Fullres " + m.FileHash
+		data64, err := db.RedisCacheGet(redisKey)
+		if err == nil {
+			util.Debug.Println("Redis hit")
+			fullResBytes, _ := b64.StdEncoding.DecodeString(data64)
+			ctx.Writer.Write(fullResBytes)
+			return
+		} else {
+			util.Debug.Println("Redis miss")
+			fullResBytes, err := m.ReadFullres()
+
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					ctx.Writer.WriteHeader(http.StatusNotFound)
+					return
+				} else {
+					util.FailOnError(err, "Failed to read full res file")
+				}
+			}
+			ctx.Writer.Write(fullResBytes)
+			fullres64 := b64.StdEncoding.EncodeToString(fullResBytes)
+			db.RedisCacheSet(redisKey, fullres64)
+			return
+		}
 
 	} else if !includeMeta && includeThumbnail {
-		thumbBytes, err := b64.StdEncoding.DecodeString(data.Thumbnail64)
+
+		thumbBytes, err := b64.StdEncoding.DecodeString(m.Thumbnail64)
 		util.FailOnError(err, "Failed to decode thumb64 to bytes")
 
 		ctx.Writer.Write(thumbBytes)
 	} else {
-		ctx.JSON(http.StatusOK, data)
+		ctx.JSON(http.StatusOK, m)
 	}
+
+}
+
+func streamVideo(ctx *gin.Context) {
+	fileHash := ctx.Param("filehash")
+	_, err := b64.URLEncoding.DecodeString(fileHash)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+		util.FailOnError(err, "Given filehash (" + fileHash + ") is not base64 encoded")
+	}
+
+	includeThumbnail := false
+
+	db := database.New()
+	m := db.GetMedia(fileHash, includeThumbnail)
+
+	if !m.IsFilledOut(!includeThumbnail) {
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		util.FailOnError(errors.New("media struct not propperly filled out"), "Failed to get media from Database (trying to get: " + fileHash + ")")
+	}
+
+	// cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", util.GuaranteeAbsolutePath(m.Filepath), "-c:v", "h264_videotoolbox", "-f", "h264", "pipe:1")
+	// stdout, err := cmd.StdoutPipe()
+	// util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
+
+	// util.Debug.Println(cmd.String())
+
+	// err = cmd.Start()
+	// if err != nil {
+	// 	util.FailOnError(err, "Failed to start ffmpeg")
+	// }
+	// // buf := new (bytes.Buffer)
+	// // _, err = buf.ReadFrom(stdout)
+
+	//	util.FailOnError(err, "Failed to run ffmpeg to get video thumbnail")
+	file, err := os.Open(util.GuaranteeAbsolutePath(m.Filepath))
+
+	util.FailOnError(err, "Failed to open fullres stream file")
+
+	ctx.Writer.Header().Add("Connection", "keep-alive")
+
+	//util.Debug.Println(buf)
+
+	//writtenBytes, err := io.Copy(ctx.Writer, stdout)
+	writtenBytes, err := io.Copy(ctx.Writer, file)
+	util.FailOnError(err, fmt.Sprintf("Failed to write video stream to response writer (wrote %d bytes)", writtenBytes))
+
+	//cmd.Wait()
 }
 
 func scan(path string, recursive bool) (util.WorkerPool) {
@@ -231,14 +320,14 @@ func scan(path string, recursive bool) (util.WorkerPool) {
 
 func uploadItem(relParentDir, filename, item64 string) (*interfaces.Media, error) {
 	absoluteParent := util.GuaranteeAbsolutePath(relParentDir)
-	imgPath := filepath.Join(absoluteParent, filename)
+	filepath := filepath.Join(absoluteParent, filename)
 
-	_, err := os.Stat(imgPath)
+	_, err := os.Stat(filepath)
 	if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("file (%s) already exists", filename)
 	}
 
-	outFile, err := os.Create(imgPath)
+	outFile, err := os.Create(filepath)
 	util.FailOnError(err, "Failed to create file for uploaded media")
 
 	defer outFile.Close()
@@ -252,8 +341,9 @@ func uploadItem(relParentDir, filename, item64 string) (*interfaces.Media, error
 
 	db := database.New()
 
-	m, err := importMedia.HandleNewImage(imgPath, db)
+	m, err := importMedia.HandleNewImage(filepath, db)
 	if err != nil {
+		os.Remove(filepath)
 		return nil, err
 	}
 
@@ -267,17 +357,45 @@ var dirIgnore = []string{
 
 func makeDir(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
-	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+	absolutePath := filepath.Join(util.GuaranteeAbsolutePath(relativePath), "newDir")
 
-	err := os.Mkdir(absolutePath, os.FileMode(0777))
+	_, err := os.Stat(absolutePath)
+	if !os.IsNotExist(err) {
+		util.Error.Panicf("Directory (%s) already exists", relativePath)
+	}
+
+	err = os.Mkdir(absolutePath, os.FileMode(0777))
 	util.FailOnError(err, "Failed to create new directory")
+}
+
+func formatFileInfo(file fs.FileInfo, parentDir string, db database.Weblensdb) (fileInfo, bool) {
+	var absolutePath string = util.GuaranteeAbsolutePath(parentDir)
+	var relativePath string = util.GuaranteeRelativePath(parentDir)
+
+	var formattedInfo fileInfo
+	var include bool = false
+
+	if !slices.Contains(dirIgnore, file.Name()) {
+		include = true
+		mediaData := db.GetMediaByFilepath(filepath.Join(absolutePath, file.Name()), true)
+		filled := mediaData.IsFilledOut(false)
+		mediaData.Thumbnail64 = ""
+
+		var fileSize int64
+		if file.IsDir() {
+			fileSize, _ = util.DirSize(filepath.Join(absolutePath, file.Name()))
+		} else {
+			fileSize = file.Size()
+		}
+
+		formattedInfo = fileInfo{Imported: filled, IsDir: file.IsDir(), Size: int(fileSize), ModTime: file.ModTime(), Filepath: filepath.Join(relativePath, file.Name()), MediaData: mediaData}
+	}
+	return formattedInfo, include
 }
 
 func getDirInfo(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
 	absolutePath := util.GuaranteeAbsolutePath(relativePath)
-
-	//go importMedia.ScanDirectory(relativePath, false)
 
 	dirInfo, err := os.ReadDir(absolutePath)
 	if err != nil {
@@ -286,37 +404,76 @@ func getDirInfo(ctx *gin.Context) () {
 
 	db := database.New()
 	var filteredDirInfo []fileInfo
-	for _, value := range dirInfo {
-		info, err := value.Info()
-		util.FailOnError(err, "Failed to get file info")
-		if !slices.Contains(dirIgnore, value.Name()) {
-			mediaData, exists := db.GetMediaByFilepath(filepath.Join(absolutePath, value.Name()))
-			filteredDirInfo = append(filteredDirInfo, fileInfo{Imported: exists, IsDir: value.IsDir(), ModTime: info.ModTime(), Filepath: filepath.Join(relativePath, value.Name()), MediaData: mediaData})
-		}
+	for _, file := range dirInfo {
+			info, err := file.Info()
+			util.FailOnError(err, "Failed to get file info")
+			formattedInfo, include := formatFileInfo(info, absolutePath, db)
+			if include {
+				filteredDirInfo = append(filteredDirInfo, formattedInfo)
+			}
 	}
-
-	// sort.SliceStable(filteredDirInfo, func(i, j int) bool {
-	// 	cmp := filteredDirInfo[i].ModTime.Compare(filteredDirInfo[j].ModTime)
-	// 	if cmp == 1 {
-	// 		return true
-	// 	} else {
-	// 		return false
-	// 	}
-	// })
 
 	ctx.JSON(http.StatusOK, filteredDirInfo)
 }
 
-func deleteFile(ctx *gin.Context) {
+func getFile(ctx *gin.Context) {
+	relativePath := ctx.Query("path")
+	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+
+	parentDir := filepath.Dir(absolutePath)
+
+	file, _ := os.Stat(absolutePath)
+	db := database.New()
+	formattedInfo, include := formatFileInfo(file, parentDir, db)
+
+	if include {
+		ctx.JSON(http.StatusOK, formattedInfo)
+	} else {
+		ctx.AbortWithStatus(http.StatusBadRequest)
+	}
+
+}
+
+func updateFile(ctx *gin.Context) {
+	existingFilepath := util.GuaranteeAbsolutePath(ctx.Query("existingFilepath"))
+	newFilepath := util.GuaranteeAbsolutePath(ctx.Query("newFilepath"))
+
+	_, err := os.Stat(existingFilepath)
+	util.FailOnError(err, "Cannot rename file that does not exist")
+
+	_, err = os.Stat(newFilepath)
+	util.FailOnNoError(err, "Cannot overwrite file that already exists")
+
+	err = os.Rename(existingFilepath, newFilepath)
+	util.FailOnError(err, "Failed to rename file")
+
+	db := database.New()
+	m := db.GetMediaByFilepath(existingFilepath, true)
+
+	if !m.IsFilledOut(false) {
+		util.Error.Panic("Database does not have expected information on existing file")
+	}
+
+	m.Filepath = newFilepath
+	m.GenerateFileHash()
+
+	db.MoveMedia(existingFilepath, m)
+
+}
+
+func moveFileToTrash(ctx *gin.Context) {
 	relativePath := ctx.Query("path")
 	absolutePath := util.GuaranteeAbsolutePath(relativePath)
 
 	_, err := os.Stat(absolutePath)
-	util.FailOnError(err, "Failed to delete file that does not exist")
+	util.FailOnError(err, "Failed to move file to trash that does not exist")
 
-	os.Remove(absolutePath)
+	trashPath := filepath.Join(util.GetTrashDir(),filepath.Base(absolutePath))
+
+	os.Rename(absolutePath,  trashPath)
+	//os.Remove(absolutePath)
 
 	db := database.New()
-	db.RemoveMediaByFilepath(relativePath)
+	db.CreateTrashEntry(relativePath, trashPath)
 
 }

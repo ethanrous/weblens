@@ -1,153 +1,161 @@
-import { Blurhash, BlurhashCanvas } from "react-blurhash";
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Blurhash } from "react-blurhash";
+import ReactPlayer from 'react-player'
+
 import Box from '@mui/material/Box';
+import { CircularProgress } from '@mui/material'
+import styled from "@emotion/styled";
 
-import { styled } from "@mui/system";
-import Grid from '@mui/material/Grid';
-import RawOnIcon from '@mui/icons-material/RawOn';
-import ImageIcon from '@mui/icons-material/Image';
-import TheatersIcon from '@mui/icons-material/Theaters';
+import { MediaData } from '../types/Generic'
+import { fetchThumb64 } from '../api/ApiFetch'
 
-export const MediaComponent = ({
+export const MediaFullresComponent = ({ mediaData }: { mediaData: MediaData }) => {
+    const [fullResLoaded, setFullResLoaded] = useState(false)
+    const [fullRes64, setFullRes64] = useState("")
+    const [fullresUrlObj, setFullresUrlObj] = useState("")
+
+    const vidRef = useRef(null)
+    const hashRef = useRef(mediaData.FileHash)
+
+    useEffect(() => {
+        const baseUrl = "http://localhost:3000/api" //item/${mediaData.FileHash}`
+        setFullResLoaded(false)
+        setFullRes64("")
+        hashRef.current = mediaData.FileHash
+
+        if (mediaData.MediaType.IsVideo) {
+            let fullresUrlObj = new URL(`${baseUrl}/stream/${mediaData.FileHash}`)
+            setFullresUrlObj(fullresUrlObj.toString())
+
+        } else {
+            let fullresUrlObj = new URL(`${baseUrl}/item/${mediaData.FileHash}`)
+            fullresUrlObj.searchParams.append('fullres', 'true')
+
+            fetch(fullresUrlObj.toString()).then(res => res.blob()).then(blob => new Promise((resolve, reject) => {
+                const reader = new FileReader()
+                reader.onloadend = () => resolve(reader.result)
+                reader.onerror = reject
+                reader.readAsDataURL(blob)
+            })).then((str: string) => { if (hashRef.current != mediaData.FileHash) { return }; setFullRes64(str) })
+
+        }
+
+    }, [mediaData.FileHash])
+
+    return (
+        <Box display={"flex"} alignItems={"center"} position={"relative"} justifyContent={"center"} height={"100%"} width={"100%"}>
+            {!fullResLoaded && mediaData && ( //!mediaData.MediaType.IsVideo && (
+                <MediaThumbComponent fileHash={mediaData.FileHash} blurhash={""} />
+                // <img
+                //     src={thumb64}
+                //     height={"100%"}
+                //     width={"100%"}
+                //     style={{ objectFit: "contain", position: "static", display: fullResLoaded ? "none" : "block", objectPosition: "center" }}
+                // />
+            )}
+            {!fullResLoaded && (
+                <CircularProgress size={20} color={"inherit"} style={{ bottom: 10, right: 10, position: "absolute", alignSelf: "right", zIndex: 101 }} />
+            )}
+            {!mediaData.MediaType.IsVideo && (
+                <img
+                    src={fullRes64}
+                    height={"100%"}
+                    width={"100%"}
+                    onLoad={() => { setFullResLoaded(true) }}
+                    style={{ objectFit: "contain", position: "absolute", display: fullResLoaded ? "block" : "none" }}
+                />
+            )}
+            {mediaData.MediaType.IsVideo && (
+                <Box position={"absolute"} height={"100%"} width={"100%"}>
+                    <ReactPlayer
+                        height={"100%"}
+                        width={"100%"}
+                        onReady={() => console.log("IM READY")}
+                        style={{ position: "absolute" }}
+                        volume={0}
+                        ref={vidRef}
+                        onPlay={() => setFullResLoaded(true)}
+                        url={fullresUrlObj}
+                        playing={true}
+                        onSeek={(e) => console.log(e)}
+                        onBuffer={() => console.log("Bufferin")}
+                    />
+                </Box>
+            )}
+        </Box>
+    )
+}
+
+const ThumbnailContainer = styled(Box)({
+    height: "100%",
+    width: "100%",
+    display: "flex",
+    justifyContent: "center",
+    overflow: "hidden",
+    objectFit: "contain"
+})
+
+export function useIsVisible(ref) {
+    const [isIntersecting, setIntersecting] = useState(false);
+
+    useEffect(() => {
+        let options = {
+            rootMargin: "1000px"
+        }
+        const observer = new IntersectionObserver(([entry]) => {
+            setIntersecting(entry.isIntersecting)
+        }, options)
+
+        observer.observe(ref.current);
+        return () => {
+            observer.disconnect();
+        };
+    }, [ref]);
+
+    return isIntersecting;
+}
+
+const StyledImg = styled('img')({
+    height: "100%",
+    width: "100%",
+    loading: "lazy",
+    objectFit: "contain"
+})
+
+export const MediaThumbComponent = ({
     fileHash,
     blurhash,
     ...props
 }) => {
     const [imageLoaded, setImageLoaded] = useState(false)
-    var url = new URL(`http:localhost:3000/api/item/${fileHash}`)
-    url.searchParams.append('thumbnail', 'true')
+    const [imageData, setImageData] = useState("")
+    const ref = useRef()
+    const isVisible = useIsVisible(ref)
+    useEffect(() => {
+        if (isVisible && imageData == "") {
+            fetchThumb64(fileHash, setImageData)
+        }
+    }, [isVisible])
 
     return (
-        <Box
-            height="100%"
-            width="100%"
-            display="grid"
-            justifyItems="center"
-            alignItems="center"
-            alignContent="center"
-            justifyContent="center"
-            overflow="hidden"
-        >
-            <img
+        <ThumbnailContainer ref={ref} >
+            <StyledImg
                 {...props}
-                src={url.toString()}
+                src={imageData}
+                style={{ position: "absolute", display: imageData ? "block" : "none" }}
+
                 //loading="lazy" // WHY DONT THIS WORK
-                style={{ display: imageLoaded ? "block" : "none", opacity: 1 }}
-                onLoad={() => setImageLoaded(true)}
+                onLoad={() => { setImageLoaded(true) }}
             />
             {blurhash && !imageLoaded && (
                 <Blurhash
+                    style={{ position: "absolute", display: isVisible ? "block" : "none" }}
                     height={250}
                     width={475}
                     hash={blurhash}
                 />
 
             )}
-        </Box>
-
+        </ThumbnailContainer>
     )
 }
-
-export const StyledLazyThumb = styled(MediaComponent)({
-    position: "relative",
-
-    objectFit: "cover",
-    cursor: "pointer",
-    overflow: "hidden",
-
-
-    transitionDuration: "200ms",
-    transitionProperty: "transform, box-shadow",
-    transform: "scale3d(1.00, 1.00, 1)",
-    "&:hover": {
-        transitionProperty: "transform, box-shadow",
-        transitionDuration: "200ms",
-        transform: "scale3d(1.03, 1.03, 1)",
-    }
-});
-
-const PhotoContainer = ({ mediaData, showIcons, dispatch }) => {
-
-    const [contextMenu, setContextMenu] = useState<any>(null);
-
-    const handleContextMenu = (event) => {
-        event.preventDefault();
-        setContextMenu(
-            contextMenu === null
-                ? {
-                    mouseX: event.clientX + 2,
-                    mouseY: event.clientY - 6,
-                }
-                : null,
-        );
-    };
-
-    const handleClose = () => {
-        setContextMenu(null);
-    };
-
-    const MediaInfoDisplay = () => {
-        if (!showIcons) {
-            return
-        }
-        if (mediaData.MediaType.IsRaw) {
-            return (
-                <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(1px, -20px)" }}>
-                    <RawOnIcon />
-                </Box>
-            )
-        } else if (mediaData.MediaType.IsVideo) {
-            return (
-
-                <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(2px, -26px)" }}>
-                    <TheatersIcon />
-                </Box>
-            )
-        } else {
-            return (
-                <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(2px, -26px)" }}>
-                    <ImageIcon />
-                </Box>
-            )
-        }
-    }
-
-    let height = 250
-    let width = mediaData.ThumbWidth * (height / mediaData.ThumbHeight)
-    let minWidth = (mediaData.ThumbWidth / mediaData.ThumbHeight) * height
-    let maxWidth = mediaData.ThumbWidth - 33
-
-    return (
-        <Grid item
-            flexGrow={1}
-            flexBasis={0}
-            margin={0.3}
-            minWidth={`clamp(150px, ${minWidth}px, 100% - 8px)`}
-            maxWidth={maxWidth}
-
-            height={height}
-            width={width}
-        >
-            <StyledLazyThumb fileHash={mediaData.FileHash} blurhash={mediaData.BlurHash} onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })} width={"100%"} />
-            <MediaInfoDisplay />
-            <Menu
-                open={contextMenu !== null}
-                onClose={handleClose}
-                anchorReference="anchorPosition"
-                anchorPosition={
-                    contextMenu !== null
-                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
-                        : undefined
-                }
-            >
-                <MenuItem onClick={handleClose}>Share</MenuItem>
-                <MenuItem onClick={handleClose}>Hide</MenuItem>
-                <MenuItem onClick={handleClose}>Favorite</MenuItem>
-            </Menu>
-        </Grid>
-    )
-}
-
-export default PhotoContainer

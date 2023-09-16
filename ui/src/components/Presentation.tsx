@@ -1,50 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
-
-import { MediaData } from './Types'
+import { useEffect, useRef, useState, useMemo } from 'react'
 
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import styled from '@emotion/styled'
-import CircularProgress from '@mui/material/CircularProgress'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
+import Typography from '@mui/material/Typography'
 
-const StyledPhoto = styled("img")({
-    width: "calc(100% - 50px)",
-    height: "calc(100% - 50px)",
-    position: "inherit",
-    objectFit: "contain",
-    objectPosition: "center",
-    zIndex: 100,
+import { fetchMetadata } from '../api/ApiFetch'
+import { MediaData } from '../types/Generic'
+import { MediaFullresComponent } from './PhotoContainer'
+
+const PresentationContainer = styled(Box)({
+    position: "fixed",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    color: "white",
+    top: 0,
+    left: 0,
+    padding: "25px",
+    height: "calc(100vh - 50px)",
+    width: "calc(100vw - 50px)",
+    zIndex: 3,
+    backgroundColor: "rgb(0, 0, 0, 0.92)",
 })
-
-const StyledVideo = styled("video")({
-    width: "calc(100% - 50px)",
-    height: "calc(100% - 50px)",
-    position: "inherit",
-    objectFit: "contain",
-    objectPosition: "center",
-    zIndex: 100,
-})
-
-const fetchMetadata = (fileHash, setMediaData) => {
-    var url = new URL(`http:localhost:3000/api/item/${fileHash}`)
-    url.searchParams.append('meta', 'true')
-    // url.searchParams.append('thumbnail', 'true') // Dont include thumbnail because chances are it's already cached in the browser
-
-    fetch(url.toString()).then((res) => res.json()).then((data) => setMediaData(data))
-}
 
 const Presentation = ({ fileHash, dispatch }) => {
-    const [fullResLoaded, setFullResLoaded] = useState(false)
+    console.log(fileHash)
     const [mediaData, setMediaData] = useState({} as MediaData)
-    const [videoPlaying, setVideoPlaying] = useState(false)
-    const vidRef = useRef(null)
-
-    useEffect(() => {
-        setFullResLoaded(false)
-        fetchMetadata(fileHash, setMediaData)
-    }, [fileHash])
 
     useEffect(() => {
         const keyDownHandler = event => {
@@ -67,78 +51,46 @@ const Presentation = ({ fileHash, dispatch }) => {
         }
     }, [])
 
-    const handleVideoClick = () => {
-        if (videoPlaying) {
-            setVideoPlaying(false)
-            vidRef.current.pause()
-        } else {
-            setVideoPlaying(true)
-            vidRef.current.play()
+    useEffect(() => {
+        fetchMetadata(fileHash, setMediaData)
+    }, [fileHash])
+
+
+    const filename = useMemo(() => {
+        if (mediaData.FileHash) {
+            return mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
         }
-    }
+    }, [mediaData.Filepath])
 
-    var thumburl = new URL(`http:localhost:3000/api/item/${fileHash}`)
-    thumburl.searchParams.append('thumbnail', 'true')
-
-    var fullresurl = new URL(`http:localhost:3000/api/item/${fileHash}`)
-    fullresurl.searchParams.append('fullres', 'true')
+    const visualComponent = useMemo(() => {
+        var visualComponent
+        if (mediaData.MediaType?.FriendlyName == "File") {
+            visualComponent = (
+                <Box display={"flex"} flexDirection={"column"} alignItems={"center"}>
+                    <InsertDriveFileIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} />
+                    <Typography >{filename}</Typography>
+                </Box>
+            )
+        } else {
+            visualComponent = (<MediaFullresComponent mediaData={mediaData} />)
+        }
+        return visualComponent
+    }, [mediaData])
 
     return (
-        <Box
-            position={"fixed"}
-            color={"white"}
-            top={0}
-            left={0}
-            padding={"25px"}
-            height={"calc(100vh - 50px)"}
-            width={"calc(100vw - 50px)"}
-            zIndex={3}
-            bgcolor={"rgb(0, 0, 0, 0.92)"}
-        >
-
-            {!fullResLoaded && (
-                <StyledPhoto
-                    src={thumburl.toString()}
-                    height={mediaData.MediaHeight}
-                    width={mediaData.MediaWidth}
-                />
-            )}
-            {!fullResLoaded && mediaData.MediaType?.IsVideo && (
-                <CircularProgress style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 101 }} />
-            )}
-            {fullResLoaded && mediaData.MediaType?.IsVideo && !videoPlaying && (
-                <PlayArrowIcon style={{ width: "150px", height: "150px", position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 101 }} />
-            )}
-            {mediaData.FileHash && !mediaData.MediaType.IsVideo && (
-                <StyledPhoto
-                    src={fullresurl.toString()}
-                    onLoad={() => { setFullResLoaded(true) }}
-                    style={{ opacity: fullResLoaded ? "100%" : "0%" }}
-                />
-            )}
-            {mediaData.FileHash && mediaData.MediaType.IsVideo && (
-                <StyledVideo
-                    ref={vidRef}
-                    autoPlay={true}
-                    playsInline={true}
-                    muted={true}
-                    loop={true}
-                    src={fullresurl.toString()}
-                    onPlay={() => { setVideoPlaying(true); setFullResLoaded(true) }}
-                    onClick={() => handleVideoClick()}
-                    width={"inherit"}
-                //style={{ opacity: fullResLoaded ? "100%" : "0%" }}
-                />
+        <PresentationContainer>
+            {mediaData.BlurHash && (
+                visualComponent
             )}
 
             <IconButton
                 onClick={() => dispatch({ type: 'stop_presenting' })}
                 color={"inherit"}
-                sx={{ display: "block", position: "absolute", top: "2.5em", left: "2.5em", cursor: "pointer", zIndex: 100 }}
+                sx={{ display: "block", position: "absolute", top: 15, left: 15, cursor: "pointer", zIndex: 100 }}
             >
                 <CloseIcon />
             </IconButton>
-        </Box>
+        </PresentationContainer>
     )
 }
 

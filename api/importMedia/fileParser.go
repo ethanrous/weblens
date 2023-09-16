@@ -4,11 +4,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/interfaces"
-	util "github.com/ethrousseau/weblens/api/utils"
+	"github.com/ethrousseau/weblens/api/util"
 
 	"github.com/ethrousseau/weblens/api/database"
 )
@@ -16,14 +15,14 @@ import (
 func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, error) {
 	defer func() {
 		if err := recover(); err != nil {
-			util.Error.Printf("Panic recovered parsing new file (%s):\n%s\n\n%s\n", filepath, err, string(debug.Stack()))
+			util.Error.Printf("Recovered panic while parsing new file (%s)", filepath)
 		}
 	}()
 
-	m, exists := db.GetMediaByFilepath(filepath)
+	m := db.GetMediaByFilepath(filepath, true)
 
 	var parseAnyway bool = false
-	if exists && !parseAnyway {
+	if m.IsFilledOut(false) && !parseAnyway {
 		return &m, nil
 	}
 
@@ -38,14 +37,14 @@ func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, 
 		}
 	}
 
-	i := m.ReadFile()
-
-	thumb := m.GenerateThumbnail(i)
-
-	if m.BlurHash == "" {
-
-		m.GenerateBlurhash(thumb)
+	if m.MediaType.FriendlyName != "File" {
+		thumb := m.GenerateThumbnail()
+		if m.BlurHash == "" {
+			m.GenerateBlurhash(thumb)
+		}
 	}
+
+	m.GenerateFileHash()
 
 	db.DbAddMedia(&m)
 

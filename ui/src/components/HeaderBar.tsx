@@ -1,21 +1,21 @@
 
 import { memo } from 'react'
 
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
+import AppBar from '@mui/material/AppBar'
+import Toolbar from '@mui/material/Toolbar'
 
-import IconButton from '@mui/material/IconButton';
+import IconButton from '@mui/material/IconButton'
 import UploadIcon from '@mui/icons-material/Upload'
-import SyncIcon from '@mui/icons-material/Sync';
-import Box from '@mui/material/Box';
+import SyncIcon from '@mui/icons-material/Sync'
+import Box from '@mui/material/Box'
 import FolderIcon from '@mui/icons-material/Folder'
-import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
-import Tooltip from '@mui/material/Tooltip';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
+import Tooltip from '@mui/material/Tooltip'
 
 import { useParams } from 'react-router-dom'
 
-import HandleFileUpload from './Upload'
-import { dispatchSync } from './Websocket'
+import HandleFileUpload from '../api/Upload'
+import { dispatchSync } from '../api/Websocket'
 
 import { SendMessage } from 'react-use-websocket';
 

@@ -1,5 +1,5 @@
-import Gallery from "./components/Gallery"
-import FileBrowser from "./components/FileBrowser";
+import Gallery from "./Pages/Gallery/Gallery"
+import FileBrowser from "./Pages/FileBrowser/FileBrowser";
 import Test from "./components/Test";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SnackbarProvider } from 'notistack';
