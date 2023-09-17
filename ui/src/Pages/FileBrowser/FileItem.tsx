@@ -54,13 +54,13 @@ function StartKeybaordListener(dispatch, editing, newName, filepath) {
     return () => { window.removeEventListener('keydown', keyDownHandler) }
 }
 
-const ItemVisualComponent = ({ fileHash, blurHash, type, isDir, imported }) => {
+const ItemVisualComponent = ({ itemData, type, isDir, imported }) => {
     if (isDir) {
         return (<FolderIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
     } else if (type == "File") {
         return (<InsertDriveFileIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
     } else if (imported) {
-        return (<StyledLazyThumb draggable={false} fileHash={fileHash} blurhash={blurHash} width={"200px"} height={"200px"} sx={{ cursor: "pointer" }} />)
+        return (<StyledLazyThumb mediaData={itemData} quality={"thumbnail"} lazy={true} dispatch={() => { }} />)//width={"200px"} height={"200px"} sx={{ cursor: "pointer" }} />)
     } else {
         return (<Skeleton animation="wave" height={"100%"} width={"100%"} variant="rectangular" />)
     }
@@ -190,7 +190,7 @@ export default function Item({ itemData, editing, dispatch, anyChecked, navigate
 
             )}
             <Box display={"flex"} justifyContent={"center"} alignItems={"center"} position={"absolute"} height={"100%"} width={"100%"} onClick={anyChecked ? () => { } : unselectedAction}>
-                <ItemVisualComponent fileHash={itemData.mediaData?.FileHash} blurHash={itemData.mediaData?.BlurHash} type={itemData.mediaData?.MediaType.FriendlyName} isDir={itemData.isDir} imported={itemData.imported} />
+                <ItemVisualComponent itemData={itemData} type={itemData.mediaData?.MediaType.FriendlyName} isDir={itemData.isDir} imported={itemData.imported} />
             </Box>
             <Box position={"absolute"} display={"flex"} justifyContent={"center"} alignItems={"center"} p={"10px"} bgcolor={"rgb(0, 0, 0, 0.50)"} width={"inherit"} height={"max-content"} bottom={"0px"} textAlign={"center"}>
                 <TextBox itemData={itemData} editing={editing} hasInfo={hasInfo} setRenameVal={setRenameVal} dispatch={dispatch} />

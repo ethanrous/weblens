@@ -1,7 +1,7 @@
-import { MediaThumbComponent } from '../components/PhotoContainer'
+import { MediaImage } from '../components/PhotoContainer'
 import styled from '@emotion/styled'
 
-export const StyledLazyThumb = styled(MediaThumbComponent)({
+export const StyledLazyThumb = styled(MediaImage)({
     position: "relative",
 
     //objectFit: "cover",

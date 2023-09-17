@@ -1,3 +1,5 @@
+import { Ref } from "react"
+
 export type MediaData = {
     BlurHash: string
     CreateDate: string
@@ -15,4 +17,5 @@ export type MediaData = {
     ThumbWidth: number
     ThumbHeight: number
     Thumbnail64: string
+    ImgRef: Ref<any>
 }

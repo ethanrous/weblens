@@ -7,9 +7,8 @@ import styled from '@emotion/styled'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import Typography from '@mui/material/Typography'
 
-import { fetchMetadata } from '../api/ApiFetch'
 import { MediaData } from '../types/Generic'
-import { MediaFullresComponent } from './PhotoContainer'
+import { MediaImage } from './PhotoContainer'
 
 const PresentationContainer = styled(Box)({
     position: "fixed",
@@ -26,10 +25,32 @@ const PresentationContainer = styled(Box)({
     backgroundColor: "rgb(0, 0, 0, 0.92)",
 })
 
-const Presentation = ({ fileHash, dispatch }) => {
-    console.log(fileHash)
-    const [mediaData, setMediaData] = useState({} as MediaData)
+const StyledMediaImage = styled(MediaImage)({
+    height: "calc(100% - 40px)",
+    width: "calc(100% - 40px)",
+    objectFit: "contain",
+    margin: "20px"
+})
 
+const PresentationVisual = ({ mediaData }) => {
+    if (!mediaData) {
+        return
+    }
+    if (mediaData.MediaType.IsVideo) {
+        return (
+            <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
+        )
+    } else {
+        return (
+            <div style={{ height: "100%", width: "100%" }}>
+                <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
+                <StyledMediaImage key={`${mediaData.FileHash} fullres`} mediaData={mediaData} quality={"fullres"} lazy={false} />
+            </div>
+        )
+    }
+}
+
+const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch: React.Dispatch<any> }) => {
     useEffect(() => {
         const keyDownHandler = event => {
             if (event.key === 'Escape') {
@@ -51,11 +72,6 @@ const Presentation = ({ fileHash, dispatch }) => {
         }
     }, [])
 
-    useEffect(() => {
-        fetchMetadata(fileHash, setMediaData)
-    }, [fileHash])
-
-
     const filename = useMemo(() => {
         if (mediaData.FileHash) {
             return mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
@@ -72,16 +88,14 @@ const Presentation = ({ fileHash, dispatch }) => {
                 </Box>
             )
         } else {
-            visualComponent = (<MediaFullresComponent mediaData={mediaData} />)
+
         }
         return visualComponent
-    }, [mediaData])
+    }, [{ ...mediaData }])
 
     return (
         <PresentationContainer>
-            {mediaData.BlurHash && (
-                visualComponent
-            )}
+            <PresentationVisual mediaData={mediaData} />
 
             <IconButton
                 onClick={() => dispatch({ type: 'stop_presenting' })}

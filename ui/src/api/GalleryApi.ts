@@ -1,8 +1,11 @@
+import { MediaData } from '../types/Generic'
+
 export async function fetchData(mediaState, dispatch) {
     try {
-        let mediaList = mediaState.mediaList
-        let mediaIdMap = mediaState.mediaIdMap
-        let dateMap = {}
+        let mediaMap = { ...mediaState.mediaMap }
+        let dateMap = { ...mediaState.dateMap }
+        let previousLast: string = mediaState.previousLast
+
         const limit = mediaState.maxMediaCount - mediaState.mediaCount
         if (limit < 1) {
             if (limit < 0) {
@@ -15,65 +18,42 @@ export async function fetchData(mediaState, dispatch) {
         url.searchParams.append('limit', limit.toString())
         url.searchParams.append('skip', mediaState.mediaCount.toString())
         url.searchParams.append('raw', mediaState.includeRaw.toString())
-        const response = await fetch(url.toString())
-        const data = await response.json()
+        const data = await fetch(url.toString()).then(res => res.json())
+        const media: MediaData[] = data.Media
 
-        let moreMedia: boolean
+        let hasMoreMedia: boolean
         if (data.Media != null) {
-            moreMedia = data.MoreMedia
+            hasMoreMedia = data.MoreMedia
+            for (const [_, value] of media.entries()) {
+                mediaMap[value.FileHash] = value
+                if (previousLast) {
+                    mediaMap[value.FileHash].previous = mediaMap[previousLast]
 
-            const prevousLast = mediaList.length > 0 ? mediaList[mediaList.length - 1] : null
-            mediaList.push(...data.Media)
-            for (const [index, value] of data.Media.entries()) {
-
-                // This is the first media in this fetch, and no prior media exists
-                if (index === 0 && prevousLast == null) {
-                    mediaIdMap[value.FileHash] = {
-                        previous: null,
-                        next: null
-                    }
-
-                    // This is the first media in this fetch, but prior media does exist
-                } else if (index === 0) {
-                    mediaIdMap[value.FileHash] = {
-                        previous: prevousLast.FileHash,
-                        next: null
-                    }
-                    mediaIdMap[prevousLast.FileHash].next = value.FileHash
-
-                    // Not the first media in this fetch
-                } else {
-                    mediaIdMap[value.FileHash] = {
-                        previous: data.Media[index - 1].FileHash,
-                        next: null
-                    }
-                    mediaIdMap[data.Media[index - 1].FileHash].next = value.FileHash
+                    mediaMap[previousLast].next = mediaMap[value.FileHash]
                 }
-            }
-
-
-            for (const item of mediaList) {
-                const [date, _] = item.CreateDate.split("T")
+                previousLast = value.FileHash
+                const [date, _] = value.CreateDate.split("T")
                 if (dateMap[date] == null) {
-                    dateMap[date] = [item]
+                    dateMap[date] = [value]
                 } else {
-                    dateMap[date].push(item)
+                    dateMap[date].push(value)
                 }
             }
         } else {
-            moreMedia = false
+            hasMoreMedia = false
         }
 
         dispatch({
             type: 'add_media',
-            mediaList: mediaList,
-            mediaIdMap: mediaIdMap,
-            hasMoreMedia: moreMedia,
-            dateMap: dateMap
+            mediaMap: mediaMap,
+            dateMap: dateMap,
+            hasMoreMedia: hasMoreMedia,
+            previousLast: previousLast,
+            addedCount: media.length
         })
 
     } catch (error) {
-        console.log(error)
+        console.error(error)
         throw new Error("Error fetching data - Ethan you wrote this, its not a js err")
     }
 }

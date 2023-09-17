@@ -548,7 +548,7 @@ const FileBrowser = () => {
                 onContextMenu={handleContextMenu}
             >
                 {filebrowserState.presentingHash != "" && (
-                    <Presentation fileHash={filebrowserState.presentingHash} dispatch={dispatch} />
+                    <Presentation mediaData={filebrowserState.presentingHash} dispatch={dispatch} />
                 )}
                 {filebrowserState.loading && (
                     <Box sx={{ width: '100%' }}>

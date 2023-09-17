@@ -5,11 +5,23 @@ export function mediaReducer(state, action) {
         case 'add_media': {
             return {
                 ...state,
-                mediaList: action.mediaList,
-                mediaIdMap: action.mediaIdMap,
-                mediaCount: action.mediaList.length,
+                mediaMap: action.mediaMap,
+                dateMap: action.dateMap,
                 hasMoreMedia: action.hasMoreMedia,
-                dateMap: action.dateMap
+                previousLast: action.previousLast,
+                mediaCount: state.mediaCount + action.addedCount
+            }
+        }
+        case 'insert_thumbnail': {
+            state.mediaMap[action.hash].Thumbnail64 = action.thumb64
+            return {
+                ...state,
+            }
+        }
+        case 'insert_fullres': {
+            state.mediaMap[action.hash].Fullres64 = action.fullres64
+            return {
+                ...state,
             }
         }
         case 'inc_max_media_count': {
@@ -40,14 +52,13 @@ export function mediaReducer(state, action) {
                 top: 0,
                 behavior: "smooth"
             })
-
             return {
                 ...state,
-                mediaList: [],
-                mediaIdMap: {},
-                datemap: {},
+                mediaMap: {},
+                dateMap: {},
                 mediaCount: 0,
                 maxMediaCount: 100,
+                previousLast: "",
                 includeRaw: !state.includeRaw
             }
 
@@ -68,28 +79,32 @@ export function mediaReducer(state, action) {
         }
         case 'presentation_next': {
             let incBy = 0
-            if (!state.mediaIdMap[state.mediaIdMap[state.presentingHash].next]?.next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
-                incBy = 10
+            if (!state.mediaMap[state.presentingHash]?.next?.next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
+                console.log("ERE")
+                incBy = 100
             }
             return {
                 ...state,
                 maxMediaCount: state.maxMediaCount + incBy,
-                presentingHash: state.mediaIdMap[state.presentingHash].next ? state.mediaIdMap[state.presentingHash].next : state.presentingHash
+                presentingHash: state.mediaMap[state.presentingHash].next ? state.mediaMap[state.presentingHash].next.FileHash : state.presentingHash
             }
         }
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaIdMap[state.presentingHash].previous ? state.mediaIdMap[state.presentingHash].previous : state.presentingHash
+                presentingHash: state.mediaMap[state.presentingHash].previous ? state.mediaMap[state.presentingHash].previous.FileHash : state.presentingHash
             }
         }
         case 'stop_presenting': {
             document.documentElement.style.overflow = "visible"
-            state.presentingRef.current.scrollIntoView({ behavior: 'instant', block: 'center' })
+            state.mediaMap[state.presentingHash].ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
             return {
                 ...state,
                 presentingHash: ""
             }
+        }
+        default: {
+            console.error("Do not have handler for dispatch type", action.type)
         }
     }
 }

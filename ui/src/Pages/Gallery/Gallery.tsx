@@ -92,12 +92,13 @@ const Gallery = () => {
     const presentingRef = useRef()
 
     const [mediaState, dispatch] = useReducer(mediaReducer, {
-        mediaList: [],
-        mediaIdMap: {},
+        mediaMap: {},
+        dateMap: {},
         mediaCount: 0,
         maxMediaCount: 100,
         hasMoreMedia: true,
         presentingHash: "",
+        previousLast: "",
         presentingRef: presentingRef,
         includeRaw: false,
         showIcons: false,
@@ -145,12 +146,11 @@ const Gallery = () => {
         if (!mediaState.dateMap) {
             return []
         }
-        console.log(mediaState.dateMap)
         const buckets = Object.keys(mediaState.dateMap).map((value, i) => (
-            <GalleryBucket date={value} bucketData={mediaState.dateMap[value]} presentingHash={mediaState.presentingHash} showIcons={mediaState.showIcons} dispatch={dispatch} key={value} />
+            <GalleryBucket date={value} bucketData={mediaState.dateMap[value]} showIcons={mediaState.showIcons} dispatch={dispatch} key={value} />
         ))
         return buckets
-    }, [mediaState.dateMap, mediaState.showIcons, mediaState.presentingHash])
+    }, [{ ...mediaState.mediaMap }, mediaState.dateMap, mediaState.showIcons])
 
     return (
         <Box>
@@ -160,7 +160,7 @@ const Gallery = () => {
             )}
             <Container maxWidth={false} style={{ display: 'flex', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
                 {mediaState.presentingHash != "" && (
-                    <Presentation fileHash={mediaState.presentingHash} dispatch={dispatch} />
+                    <Presentation mediaData={mediaState.mediaMap[mediaState.presentingHash]} dispatch={dispatch} />
                 )}
 
                 <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />

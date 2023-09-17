@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
@@ -9,7 +9,7 @@ import TheatersIcon from '@mui/icons-material/Theaters';
 import styled from '@emotion/styled'
 
 import { MediaWrapperProps, GalleryBucketProps } from '../../types/GalleryTypes'
-import { MediaThumbComponent } from '../../components/PhotoContainer'
+import { MediaImage } from '../../components/PhotoContainer'
 import { Typography } from '@mui/material';
 
 // STYLES //
@@ -37,7 +37,7 @@ const PreviewCardContainer = styled(Box)({
     cursor: "pointer"
 })
 
-const PreviewCardImg = styled(MediaThumbComponent)({
+const PreviewCardImg = styled(MediaImage)({
     height: "250px",
     minWidth: "100%",
     position: "absolute",
@@ -51,6 +51,20 @@ const PreviewCardImg = styled(MediaThumbComponent)({
     }
 })
 
+const RecentlyViewedDisplay = styled(Box)({
+    position: "absolute",
+    height: "100%",
+    width: "100%",
+    outlineWidth: "5px",
+    outlineStyle: "solid",
+    outlineOffset: "-5px",
+    outlineColor: "rgb(78 0 179 / 50%)",
+    zIndex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none"
+
+})
 
 // COMPONENTS //
 
@@ -80,45 +94,9 @@ const MediaInfoDisplay = ({ showIcons, mediaData }) => {
     }
 }
 
-const RecentlyViewedDisplay = styled(Box)({
-    position: "absolute",
-    height: "100%",
-    width: "100%",
-    outlineWidth: "5px",
-    outlineStyle: "solid",
-    outlineOffset: "-5px",
-    outlineColor: "rgb(78 0 179 / 50%)",
-    zIndex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    pointerEvents: "none"
-
-})
-
-// const RecentlyViewedDisplay = ({ visible }) => {
-//     if (visible) {
-//         return (
-//             <Box display={"absolute"}>
-//                 Recently Viewed
-//             </Box>
-//         )
-//     }
-// }
-
-const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, presentingHash, dispatch }: MediaWrapperProps) {
-    const [matching, setMatching] = useState(false)
+const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch }: MediaWrapperProps) {
     let ref = useRef()
-
-    useEffect(() => {
-        if (presentingHash == mediaData.FileHash) {
-            dispatch({ type: 'set_presentation_ref', ref: ref })
-            setMatching(true)
-        } else if (presentingHash != mediaData.FileHash && presentingHash != "") {
-            setMatching(false)
-        } else if (matching && presentingHash == "") {
-            setTimeout(() => setMatching(false), 3000)
-        }
-    }, [presentingHash])
+    mediaData.ImgRef = ref
 
     let height = 250
     let width = mediaData.ThumbWidth * (height / mediaData.ThumbHeight)
@@ -127,37 +105,34 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, presenti
         <PreviewCardContainer
             ref={ref}
             minWidth={`clamp(150px, ${width}px, 100% - 8px)`}
-        //width={width}
+            onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })}
         >
-            <RecentlyViewedDisplay key={"Naw"} display={matching ? "flex" : "none"} onClick={() => { }} >
-                <Typography key={"Yah"} boxShadow={3}>
-                    Just Viewed
-                </Typography>
-            </RecentlyViewedDisplay>
             <PreviewCardImg
-                fileHash={mediaData.FileHash}
-                blurhash={mediaData.BlurHash}
-                onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })}
+                mediaData={mediaData}
+                quality={"thumbnail"}
+                lazy={true}
             />
             <MediaInfoDisplay showIcons={showIcons} mediaData={mediaData} />
 
         </PreviewCardContainer>
     )
+}, (prev: MediaWrapperProps, next: MediaWrapperProps) => {
+    return (prev.mediaData.FileHash == next.mediaData.FileHash)
 })
-
-const BucketCards = ({ medias, showIcons, presentingHash, dispatch }) => {
-    const mediaCards = medias.map((mediaData) => {
-        return (
-            <MediaWrapper
-                key={mediaData.FileHash}
-                mediaData={mediaData}
-                showIcons={showIcons}
-                presentingHash={presentingHash}
-                dispatch={dispatch}
-            />
+const BucketCards = ({ medias, showIcons, dispatch }) => {
+    const mediaCards = useMemo(() => {
+        return medias.map((mediaData) => {
+            return (
+                <MediaWrapper
+                    key={mediaData.FileHash}
+                    mediaData={mediaData}
+                    showIcons={showIcons}
+                    dispatch={dispatch}
+                />
+            )
+        }
         )
-    }
-    )
+    }, [[...medias]])
 
     return (
         <Gallery>
@@ -185,19 +160,19 @@ const DateWrapper = ({ dateTime }) => {
     )
 }
 
-export const GalleryBucket = memo(function GalleryBucket({
+//export const GalleryBucket = memo(function GalleryBucket({
+export const GalleryBucket = ({
     date,
     bucketData,
     showIcons,
-    presentingHash,
     dispatch
-}: GalleryBucketProps) {
+}: GalleryBucketProps) => {
     return (
         <Grid item >
             <DateWrapper dateTime={date} />
-            <BucketCards medias={bucketData} showIcons={showIcons} presentingHash={presentingHash} dispatch={dispatch} />
+            <BucketCards medias={bucketData} showIcons={showIcons} dispatch={dispatch} />
         </Grid >
 
     )
-})
+}
 
