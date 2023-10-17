@@ -1,8 +1,11 @@
 package util
 
 import (
+	"io"
 	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 // Info writes logs in the color blue with "INFO: " as prefix
@@ -15,4 +18,12 @@ var Warning = log.New(os.Stdout, "\u001b[33mWARNING: \u001B[0m", log.LstdFlags|l
 var Error = log.New(os.Stdout, "\u001b[31mERROR: \u001b[0m", log.LstdFlags|log.Lshortfile)
 
 // Debug writes logs in the color cyan with "DEBUG: " as prefix
-var Debug = log.New(os.Stdout, "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
+func getDebug() *log.Logger {
+	godotenv.Load()
+	if ShowDebug() {
+		return log.New(os.Stdout, "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
+	} else {
+		return log.New(io.Discard, "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
+	}
+}
+var Debug = getDebug()

@@ -4,7 +4,7 @@ import styled from '@emotion/styled'
 export const StyledLazyThumb = styled(MediaImage)({
     position: "relative",
 
-    //objectFit: "cover",
+    objectFit: "cover",
     cursor: "pointer",
     overflow: "hidden",
 

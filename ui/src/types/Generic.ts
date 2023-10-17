@@ -17,5 +17,6 @@ export type MediaData = {
     ThumbWidth: number
     ThumbHeight: number
     Thumbnail64: string
+    Display: boolean
     ImgRef: Ref<any>
 }

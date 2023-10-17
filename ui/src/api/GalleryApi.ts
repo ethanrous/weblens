@@ -1,4 +1,5 @@
 import { MediaData } from '../types/Generic'
+import API_ENDPOINT from './ApiEndpoint'
 
 export async function fetchData(mediaState, dispatch) {
     try {
@@ -14,7 +15,7 @@ export async function fetchData(mediaState, dispatch) {
             return
         }
 
-        const url = new URL("http://localhost:3000/api/media")
+        const url = new URL(`${API_ENDPOINT}/media`)
         url.searchParams.append('limit', limit.toString())
         url.searchParams.append('skip', mediaState.mediaCount.toString())
         url.searchParams.append('raw', mediaState.includeRaw.toString())
@@ -49,7 +50,7 @@ export async function fetchData(mediaState, dispatch) {
             dateMap: dateMap,
             hasMoreMedia: hasMoreMedia,
             previousLast: previousLast,
-            addedCount: media.length
+            addedCount: media?.length || 0
         })
 
     } catch (error) {

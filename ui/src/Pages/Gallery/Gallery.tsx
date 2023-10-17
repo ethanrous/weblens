@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useMemo, memo, useRef } from 'react'
+import { useEffect, useReducer, useMemo, memo, useRef, useState } from 'react'
 
 import HeaderBar from "../../components/HeaderBar"
 import Presentation from '../../components/Presentation'
@@ -18,6 +18,7 @@ import InfoIcon from '@mui/icons-material/Info'
 import { useSnackbar } from 'notistack';
 import Tooltip from '@mui/material/Tooltip';
 import styled from '@emotion/styled'
+import { MediaData } from '../../types/Generic'
 
 const NoMediaContainer = styled(Box)({
     display: "flex",
@@ -86,23 +87,20 @@ const InfiniteScroll = ({ items, itemCount, loading, moreItems }: { items: any, 
 
 const Gallery = () => {
     const { enqueueSnackbar } = useSnackbar()
-
-    const { sendMessage, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
-
-    const presentingRef = useRef()
+    const { wsSend, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
 
     const [mediaState, dispatch] = useReducer(mediaReducer, {
         mediaMap: {},
-        dateMap: {},
         mediaCount: 0,
         maxMediaCount: 100,
         hasMoreMedia: true,
         presentingHash: "",
         previousLast: "",
-        presentingRef: presentingRef,
         includeRaw: false,
         showIcons: false,
-        loading: false
+        loading: false,
+        scanProgress: 0,
+        searchContent: ""
     })
 
     useEffect(() => {
@@ -110,8 +108,8 @@ const Gallery = () => {
     }, [mediaState.maxMediaCount, mediaState.includeRaw])
 
     useEffect(() => {
-        window.addEventListener('scroll', (e) => { handleScroll(e, dispatch) }, false)
-        return startKeybaordListener(dispatch)
+        window.addEventListener('scroll', (_) => { handleScroll(dispatch) }, false)
+        //return startKeybaordListener(dispatch)
     }, [])
 
     useEffect(() => {
@@ -120,6 +118,11 @@ const Gallery = () => {
             switch (msgData["type"]) {
                 case "new_items": {
                     dispatch({ type: "append_items", items: msgData["content"] })
+                    return
+                }
+                case "scan_directory_progress": {
+                    dispatch({ type: "set_scan_progress", progress: ((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100) })
+                    console.log(msgData["remainingTasks"], "/", msgData["totalTasks"])
                     return
                 }
                 case "finished": {
@@ -142,23 +145,63 @@ const Gallery = () => {
         }
     }, [lastMessage])
 
+    const dateMap = useMemo(() => {
+        let dateMap = {}
+
+        for (let value of Object.values<MediaData>(mediaState.mediaMap)) {
+
+            const [date, _] = value.CreateDate.split("T")
+            if (dateMap[date] == null) {
+                dateMap[date] = [value]
+            } else {
+                dateMap[date].push(value)
+            }
+        }
+
+        return dateMap
+    }, [mediaState.mediaMap])
+
+    const c = useMemo(() => {
+        handleScroll(dispatch)
+        for (let value of Object.values<MediaData>(mediaState.mediaMap)) {
+            var count = 0
+            if (!value.Filepath.includes(mediaState.searchContent)) {
+                value.Display = false
+            } else {
+                count += 1
+                value.Display = true
+            }
+        }
+        return count
+    }, [dateMap, mediaState.searchContent])
+
     const dateGroups = useMemo(() => {
-        if (!mediaState.dateMap) {
+        if (!dateMap) {
             return []
         }
-        const buckets = Object.keys(mediaState.dateMap).map((value, i) => (
-            <GalleryBucket date={value} bucketData={mediaState.dateMap[value]} showIcons={mediaState.showIcons} dispatch={dispatch} key={value} />
+        const buckets = Object.keys(dateMap).map((value, i) => (
+            <GalleryBucket key={value} date={value} bucketData={dateMap[value]} showIcons={mediaState.showIcons} dispatch={dispatch} />
         ))
         return buckets
-    }, [{ ...mediaState.mediaMap }, mediaState.dateMap, mediaState.showIcons])
+    }, [dateMap, mediaState.showIcons, mediaState.searchContent, c])
 
     return (
         <Box>
-            <HeaderBar dispatch={dispatch} sendMessage={sendMessage} page={"gallery"} />
+            <HeaderBar dispatch={dispatch} wsSend={wsSend} page={"gallery"} />
             {mediaState.loading && (
-                <LinearProgress style={{ width: "100%", position: "absolute" }} />
+                <Box sx={{ width: '100%' }}>
+                    {mediaState.scanProgress == 0 && (
+                        <LinearProgress />
+                    )}
+                    {mediaState.scanProgress != 0 && (
+                        <Box sx={{ width: '100%' }}>
+                            <LinearProgress variant="determinate" value={mediaState.scanProgress} />
+                            <p style={{ position: "absolute", left: "6vw" }}>Syncing filesystem with database...</p>
+                        </Box>
+                    )}
+                </Box>
             )}
-            <Container maxWidth={false} style={{ display: 'flex', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
+            <Container maxWidth={false} style={{ display: 'flex', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingTop: "25px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
                 {mediaState.presentingHash != "" && (
                     <Presentation mediaData={mediaState.mediaMap[mediaState.presentingHash]} dispatch={dispatch} />
                 )}

@@ -21,7 +21,6 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
-	"golang.org/x/image/tiff"
 
 	"github.com/ethrousseau/weblens/api/util"
 )
@@ -143,25 +142,36 @@ func (m *Media) ExtractExif() (error) {
 
 func (m *Media) rawImageReader() (io.Reader, error) {
 	absolutePath := util.GuaranteeAbsolutePath(m.Filepath)
-	cmd := exec.Command("/Users/ethan/Downloads/LibRaw-0.21.1/bin/dcraw_emu", "-mem", "-T", "-Z", "-", absolutePath)
 
-	stdout, err := cmd.StdoutPipe()
-	util.FailOnError(err, "Failed to get dcraw stdout pipe")
+	escapedPath := strings.ReplaceAll(absolutePath, " ", "\\ ")
 
-	err = cmd.Start()
-	util.FailOnError(err, "Failed to start tiff build cmd")
+	//tmpFile, err := os.CreateTemp(util.GetTmpDir(), "*.jpeg")
+	//util.FailOnError(err, "Could not create temp jpeg file")
 
-	buf := new (bytes.Buffer)
-	_, err = buf.ReadFrom(stdout)
+	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
+	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
+
+	cmd := exec.Command("/bin/bash", "-c", cmdString)
+	util.Debug.Println(cmd.String())
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		return nil, err
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		util.FailOnError(err, "Failed to run exiftool extract command")
 	}
-	cmd.Wait()
 
-	i, err := tiff.Decode(buf)
-	util.FailOnError(err, "Failed to read dcraw tiff output into image")
+	// util.Debug.Printf("Buf size: %d", readBytes)
+	r := bytes.NewReader(out.Bytes())
 
-	buf = new(bytes.Buffer)
+	i, err := imaging.Decode(r, imaging.AutoOrientation(true))
+	util.FailOnError(err, "Failed to read exiftool jpeg output into image")
+
+	buf := new(bytes.Buffer)
 	err = jpeg.Encode(buf, i, nil)
 	util.FailOnError(err, "Failed to convert image to jpeg")
 

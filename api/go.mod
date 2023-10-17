@@ -1,17 +1,20 @@
 module github.com/ethrousseau/weblens/api
 
-go 1.21.0
+go 1.21
 
 require (
 	github.com/barasher/go-exiftool v1.10.0
 	github.com/buckket/go-blurhash v1.1.0
 	github.com/disintegration/imaging v1.6.2
+	github.com/gin-gonic/contrib v0.0.0-20221130124618-7e01895a63f2
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/joho/godotenv v1.5.1
 	github.com/kolesa-team/go-webp v1.0.4
 	go.mongodb.org/mongo-driver v1.12.1
+	golang.org/x/crypto v0.11.0
 	golang.org/x/image v0.11.0
 )
 
@@ -44,7 +47,6 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect

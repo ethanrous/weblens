@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Weblensdb struct {
@@ -37,7 +38,7 @@ func New() (Weblensdb) {
 	}
 	if redisc == nil {
 		redisc = redis.NewClient(&redis.Options{
-			Addr: "localhost:6379",
+			Addr: util.GetRedisUrl(),
 			Password: "",
 			DB:		  0,
 		})
@@ -95,8 +96,13 @@ func (db Weblensdb) GetMediaByFilepath(filepath string, includeThumbnail bool) (
 }
 
 // Returns ids of all media in directory with depth 1
-func (db Weblensdb) GetMediaInDirectory(filepath string) ([]interfaces.Media) {
-	re := fmt.Sprintf("^%s\\/?[^\\/]+$", filepath)
+func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]interfaces.Media) {
+	var re string
+	if !recursive {
+		re = fmt.Sprintf("^%s\\/?[^\\/]+$", util.GuaranteeRelativePath(dirpath))
+	} else {
+		re = fmt.Sprintf("^%s/?.*$", util.GuaranteeRelativePath(dirpath))
+	}
 
 	filter := bson.M{"filepath": bson.M{"$regex": re, "$options": "i"}}
 	opts := options.Find().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
@@ -120,7 +126,6 @@ func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails 
 		pipeline = append(pipeline, unsetStage)
 	}
 
-
 	sortStage := bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: -1}}}}
 	pipeline = append(pipeline, sortStage)
 
@@ -128,6 +133,7 @@ func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails 
 		rawMatchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "mediaType.israw", Value: raw}}}}
 		pipeline = append(pipeline, rawMatchStage)
 	}
+
 	mediaMatchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "mediaType.friendlyname", Value: bson.D{{Key: "$ne", Value: "File"}}}}}}
 	pipeline = append(pipeline, mediaMatchStage)
 
@@ -140,7 +146,7 @@ func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails 
 	}
 
 	opts := options.Aggregate()
-	opts.SetHint("createDate_1")
+	// opts.SetHint("createDate_1")
 	cursor, err := db.mongo.Collection("images").Aggregate(mongo_ctx, pipeline, opts)
 	if err != nil {
 		panic(err)
@@ -156,6 +162,8 @@ func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails 
 		go db.redisCacheThumbBytes(val)
 		res[i].Thumbnail64 = ""
 	}
+
+	util.Debug.Println(res)
 	return res, len(res) == limit
 
 }
@@ -226,4 +234,24 @@ func (db Weblensdb) CreateTrashEntry(originalFilepath, trashPath string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (db Weblensdb) CheckLogin(username string, password string) bool {
+	filter := bson.D{{Key: "username", Value: username}}
+	ret := db.mongo.Collection("users").FindOne(mongo_ctx, filter)
+
+	var user interfaces.User
+	err := ret.Decode(&user)
+	if err != nil {
+		return false
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	return err == nil
+}
+
+func (db Weblensdb) AddTokenToUser(username string, token string) {
+	filter := bson.D{{Key: "username", Value: username}}
+	update := bson.D{{Key: "$push", Value: bson.D{{Key: "tokens", Value: token}}}}
+	db.mongo.Collection("users").UpdateOne(mongo_ctx, filter, update)
 }

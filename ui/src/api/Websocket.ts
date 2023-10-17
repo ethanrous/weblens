@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { EnqueueSnackbar, closeSnackbar } from 'notistack';
+import { API_WS_ENDPOINT } from './ApiEndpoint'
 
 export default function GetWebsocket(snacky: EnqueueSnackbar) {
-    const WS_URL = 'ws://localhost:4000/api/ws';
     const [dcTimeout, setDcTimeout] = useState(null)
     const [dcSnack, setDcSnack] = useState(null)
 
-    const { sendMessage, lastMessage, readyState } = useWebSocket(WS_URL, {
+    const { sendMessage, lastMessage, readyState } = useWebSocket(API_WS_ENDPOINT, {
         onOpen: () => {
             clearTimeout(dcTimeout)
             if (dcSnack) {
@@ -33,13 +33,15 @@ export default function GetWebsocket(snacky: EnqueueSnackbar) {
             setDcSnack(snacky("Unable to connect websocket. Please refresh your page", { variant: "error", persist: true, preventDuplicate: true }))
         }
     })
-
-    return { sendMessage, lastMessage, readyState }
+    let wsSend = (msg: string) => { sendMessage(msg) }
+    return {
+        wsSend, lastMessage, readyState
+    }
 }
 
-export function dispatchSync(path, sendMessage, recursive) {
+export function dispatchSync(path, wsSend, recursive) {
     console.log("Doing sync")
-    sendMessage(JSON.stringify({
+    wsSend(JSON.stringify({
         type: 'scan_directory',
         content: {
             path: path,

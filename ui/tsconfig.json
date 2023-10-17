@@ -2,6 +2,7 @@
     "compilerOptions": {
         "jsx": "react-jsx",
         //"downlevelIteration": true
+        "module": "es2022",
         "target": "ES2022",
         "moduleResolution": "node",
     },

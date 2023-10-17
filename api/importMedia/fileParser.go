@@ -1,6 +1,7 @@
 package importMedia
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -15,9 +16,11 @@ import (
 func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, error) {
 	defer func() {
 		if err := recover(); err != nil {
-			util.Error.Printf("Recovered panic while parsing new file (%s)", filepath)
+			util.Error.Printf("Recovered panic while parsing new file (%s): %s", filepath, err)
 		}
 	}()
+
+	util.Debug.Println("Starting parse of file: ", filepath)
 
 	m := db.GetMediaByFilepath(filepath, true)
 
@@ -46,6 +49,8 @@ func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, 
 
 	m.GenerateFileHash()
 
+	util.Debug.Println("Finished parse of file: ", filepath)
+
 	db.DbAddMedia(&m)
 
 	return &m, nil
@@ -60,7 +65,8 @@ func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db database.Webl
 	}
 
 	wp.AddTask(func() {
-		HandleNewImage(path, db)
+		_, err:= HandleNewImage(path, db)
+		util.DisplayError(err, "Error attempting to import new media")
 	})
 
 	return nil
@@ -91,13 +97,12 @@ func ScanDirectory(scanDir string, recursive bool) (util.WorkerPool) {
 		}
 	}
 
-	ms := db.GetMediaInDirectory(scanDir)
+	ms := db.GetMediaInDirectory(scanDir, recursive)
+
 	for _, m := range ms {
-		if !recursive && filepath.Dir(m.Filepath) != scanDir {
-			continue
-		}
-		_, err := os.Stat(m.Filepath)
-		if err != nil {
+		_, err := os.Stat(util.GuaranteeAbsolutePath(m.Filepath))
+		if errors.Is(err, os.ErrNotExist) {
+			util.Error.Println("ERR: ", err)
 			util.Debug.Println("Remove: ", m.Filepath)
 			db.RemoveMediaByFilepath(m.Filepath)
 		}

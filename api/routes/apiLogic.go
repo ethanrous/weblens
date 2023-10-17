@@ -2,6 +2,7 @@ package routes
 
 import (
 	b64 "encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +12,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	_ "image/png"
@@ -22,7 +22,7 @@ import (
 	"github.com/ethrousseau/weblens/api/importMedia"
 	"github.com/ethrousseau/weblens/api/interfaces"
 	"github.com/ethrousseau/weblens/api/util"
-	"github.com/gorilla/websocket"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/gin-gonic/gin"
 )
@@ -42,104 +42,9 @@ type fileInfo struct{
 	MediaData interfaces.Media `json:"mediaData"`
 }
 
-func wsConnect(ctx *gin.Context) {
-	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-
-	for {
-		var msg wsMsg
-        err := conn.ReadJSON(&msg)
-        if err != nil {
-			util.Error.Println(err)
-            break
-        }
-		handleWsRequest(msg, conn)
-		conn.WriteJSON(wsMsg{Type: "finished"})
-    }
-}
-
-func handleWsRequest(msg wsMsg, conn *websocket.Conn) {
-	switch msg.Type {
-		case "file_upload": {
-			var wg sync.WaitGroup
-
-			path := msg.Content["path"].(string)
-			files := msg.Content["files"]
-
-			numFiles := len(files.([]any))
-			contentArr := make([]fileInfo, numFiles)
-			var errorArr []wsMsg
-
-			for i, f := range files.([]any) {
-				wg.Add(1)
-				go func(file map[string]interface{}, index int) {
-					defer wg.Done()
-					m, err := uploadItem(path, file["name"].(string), file["item64"].(string))
-					if err != nil {
-						errMsg := fmt.Sprintf("Upload error: %s", err)
-						errContent := map[string]any{"Message": errMsg, "File": util.GuaranteeRelativePath(filepath.Join(path, file["name"].(string)))}
-						errorArr = append(errorArr, wsMsg{Type: "error", Content: errContent, Error: "upload_error"})
-						return
-					}
-
-					f, err := os.Stat(util.GuaranteeAbsolutePath(m.Filepath))
-					util.FailOnError(err, "Failed to get stats of uploaded file")
-
-					newItem := fileInfo{
-						Imported: true,
-						IsDir: false,
-						Filepath: util.GuaranteeRelativePath(m.Filepath),
-						MediaData: *m,
-						ModTime: f.ModTime(),
-					}
-
-					contentArr[index] = newItem
-				}(f.(map[string]interface{}), i)
-			}
-
-			wg.Wait()
-
-			for _, e := range errorArr {
-				conn.WriteJSON(e)
-			}
-
-			var filteredContentArr []fileInfo
-
-			for _, item := range contentArr {
-				if item.Filepath != "" {
-					filteredContentArr = append(filteredContentArr, item)
-				}
-			}
-
-			if len(filteredContentArr) != 0 {
-				res := struct {
-					Type string 		`json:"type"`
-					Content []fileInfo 	`json:"content"`
-				} {
-					Type: "new_items",
-					Content: filteredContentArr,
-				}
-
-				conn.WriteJSON(res)
-			}
-		}
-		case "scan_directory": {
-			wp := scan(msg.Content["path"].(string), msg.Content["recursive"].(bool))
-
-			_, remainingTasks, totalTasks := wp.Status()
-			for remainingTasks > 0 {
-				_, remainingTasks, _ = wp.Status()
-				status := struct {Type string `json:"type"`; RemainingTasks int `json:"remainingTasks"`; TotalTasks int `json:"totalTasks"`} {Type: "scan_directory_progress", RemainingTasks: remainingTasks, TotalTasks: totalTasks}
-				conn.WriteJSON(status)
-				time.Sleep(time.Second)
-			}
-			res := struct {Type string `json:"type"`} {Type: "refresh"}
-			conn.WriteJSON(res)
-		}
-	}
+type loginInfo struct {
+	Username string 	`json:"username"`
+	Password string 	`json:"password"`
 }
 
 func getPagedMedia(ctx *gin.Context) {
@@ -197,7 +102,8 @@ func getMediaItem(ctx *gin.Context) {
 	_, err := b64.URLEncoding.DecodeString(fileHash)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
-		util.FailOnError(err, "Given filehash (" + fileHash + ") is not base64 encoded")
+		util.DisplayError(err, "Given filehash (" + fileHash + ") is not base64 encoded")
+		return
 	}
 
 	includeMeta := util.BoolFromString(ctx.Query("meta"), true)
@@ -224,11 +130,12 @@ func getMediaItem(ctx *gin.Context) {
 
 	if includeFullres {
 		redisKey := "Fullres " + m.FileHash
-		data64, err := db.RedisCacheGet(redisKey)
+		// data64, err := db.RedisCacheGet(redisKey)
+		err := os.ErrClosed
 		if err == nil {
 			util.Debug.Println("Redis hit")
-			fullResBytes, _ := b64.StdEncoding.DecodeString(data64)
-			ctx.Writer.Write(fullResBytes)
+			//fullResBytes, _ := b64.StdEncoding.DecodeString(data64)
+			//ctx.Writer.Write(fullResBytes)
 			return
 		} else {
 			util.Debug.Println("Redis miss")
@@ -237,6 +144,7 @@ func getMediaItem(ctx *gin.Context) {
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
 					ctx.Writer.WriteHeader(http.StatusNotFound)
+					util.DisplayError(err, "Failed to read full res file")
 					return
 				} else {
 					util.FailOnError(err, "Failed to read full res file")
@@ -265,7 +173,8 @@ func streamVideo(ctx *gin.Context) {
 	_, err := b64.URLEncoding.DecodeString(fileHash)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusBadRequest)
-		util.FailOnError(err, "Given filehash (" + fileHash + ") is not base64 encoded")
+		util.DisplayError(err, "Given filehash (" + fileHash + ") is not base64 encoded")
+		return
 	}
 
 	includeThumbnail := false
@@ -360,7 +269,7 @@ func makeDir(ctx *gin.Context) () {
 	absolutePath := filepath.Join(util.GuaranteeAbsolutePath(relativePath), "newDir")
 
 	_, err := os.Stat(absolutePath)
-	if !os.IsNotExist(err) {
+	if err !=nil && !errors.Is(err, os.ErrNotExist) {
 		util.Error.Panicf("Directory (%s) already exists", relativePath)
 	}
 
@@ -438,7 +347,7 @@ func updateFile(ctx *gin.Context) {
 	existingFilepath := util.GuaranteeAbsolutePath(ctx.Query("existingFilepath"))
 	newFilepath := util.GuaranteeAbsolutePath(ctx.Query("newFilepath"))
 
-	_, err := os.Stat(existingFilepath)
+	stat, err := os.Stat(existingFilepath)
 	util.FailOnError(err, "Cannot rename file that does not exist")
 
 	_, err = os.Stat(newFilepath)
@@ -446,6 +355,10 @@ func updateFile(ctx *gin.Context) {
 
 	err = os.Rename(existingFilepath, newFilepath)
 	util.FailOnError(err, "Failed to rename file")
+
+	if stat.IsDir() {
+		return
+	}
 
 	db := database.New()
 	m := db.GetMediaByFilepath(existingFilepath, true)
@@ -470,10 +383,124 @@ func moveFileToTrash(ctx *gin.Context) {
 
 	trashPath := filepath.Join(util.GetTrashDir(),filepath.Base(absolutePath))
 
-	os.Rename(absolutePath,  trashPath)
-	//os.Remove(absolutePath)
+	_, err = os.Stat(trashPath)
+	if err == nil {
+		trashPath += time.Now().Format(" 2006-01-02 15.04.05")
+	}
+	err = os.Rename(absolutePath,  trashPath)
+	util.FailOnError(err, "Failed to move file to trash")
 
 	db := database.New()
 	db.CreateTrashEntry(relativePath, trashPath)
+}
+
+type takeoutItems struct {
+	Items []string `json:"items"`
+	Path []string `json:"path"`
+}
+
+func createTakeout(ctx *gin.Context) {
+	util.Debug.Println("Beginning takeout creation")
+
+	var items takeoutItems
+	bodyData, err := io.ReadAll(ctx.Request.Body)
+	util.FailOnError(err, "Could not read items to create takeout with")
+	json.Unmarshal(bodyData, &items)
+
+	var redir string
+	var doSingle bool = false
+
+	if len(items.Items) == 1 {
+		stat, _ := os.Stat(util.GuaranteeAbsolutePath(items.Items[0]))
+		if !stat.IsDir() {
+			doSingle = true
+		}
+	}
+
+	if doSingle {
+		db := database.New()
+		m := db.GetMediaByFilepath(items.Items[0], false)
+		redir = fmt.Sprintf("/api/takeout/%s?single=true", m.FileHash)
+
+	} else {
+		takeoutId := util.CreateZipFromPaths(items.Items)
+		redir = fmt.Sprintf("/api/takeout/%s", takeoutId)
+	}
+
+	ctx.Redirect(http.StatusSeeOther, redir)
+
+}
+
+func getTakeout(ctx *gin.Context) {
+	takeoutId := ctx.Param("takeoutId")
+	isSingle := util.BoolFromString(ctx.Query("single"), true)
+
+	extraHeaders := make(map[string]string)
+
+	var readPath string
+
+	if isSingle {
+		db := database.New()
+		m := db.GetMedia(takeoutId, false)
+		readPath = util.GuaranteeAbsolutePath(m.Filepath)
+		extraHeaders["Content-Disposition"] = fmt.Sprintf("attachment; filename=\"%s\";", filepath.Base(m.Filepath))
+	} else {
+		readPath = fmt.Sprintf("%s/%s.zip", util.GetTakeoutDir(), takeoutId) // Will already be absolute path
+		extraHeaders["Content-Disposition"] = "attachment; filename=\"takeout.zip\";"
+	}
+
+	f, err := os.Open(readPath)
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
+		util.FailOnError(err, "Failed to open takeout file")
+	}
+
+	stat, err := f.Stat()
+	util.FailOnError(err, "")
+
+	extraHeaders["Access-Control-Expose-Headers"] = "Content-Disposition"
+	ctx.DataFromReader(http.StatusOK, stat.Size(), "application/octet-stream", f, extraHeaders)
+
+}
+
+type tokenReturn struct {
+	Token string `json:"token"`
+}
+
+func loginUser(ctx *gin.Context) {
+	jsonData, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	var usrCreds loginInfo
+	json.Unmarshal(jsonData, &usrCreds)
+
+	//passHashBytes, err := bcrypt.GenerateFromPassword([]byte(usrCreds.Password), 14)
+	if err != nil {
+		panic(err)
+	}
+	//passHash := string(passHashBytes)
+
+	db := database.New()
+	if db.CheckLogin(usrCreds.Username, usrCreds.Password) {
+		util.Debug.Printf("Valid login for [%s]\n", usrCreds.Username)
+
+		token := jwt.New(jwt.SigningMethodHS256)
+		tokenString, err := token.SignedString([]byte("key"))
+		if err != nil {
+			util.Error.Println(err)
+		}
+
+		util.Debug.Println(tokenString)
+		var ret tokenReturn = tokenReturn{Token: tokenString}
+
+		db.AddTokenToUser(usrCreds.Username, tokenString)
+
+		ctx.JSON(http.StatusOK, ret)
+	} else {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+	}
+
 
 }

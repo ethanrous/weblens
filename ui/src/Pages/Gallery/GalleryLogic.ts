@@ -1,4 +1,6 @@
+import excludeVariablesFromRoot from '@mui/material/styles/excludeVariablesFromRoot'
 import { fetchData } from '../../api/GalleryApi'
+import { MediaData } from '../../types/Generic'
 
 export function mediaReducer(state, action) {
     switch (action.type) {
@@ -16,6 +18,12 @@ export function mediaReducer(state, action) {
             state.mediaMap[action.hash].Thumbnail64 = action.thumb64
             return {
                 ...state,
+            }
+        }
+        case 'set_scan_progress': {
+            return {
+                ...state,
+                scanProgress: action.progress
             }
         }
         case 'insert_fullres': {
@@ -61,9 +69,15 @@ export function mediaReducer(state, action) {
                 previousLast: "",
                 includeRaw: !state.includeRaw
             }
-
+        }
+        case 'set_search': {
+            return {
+                ...state,
+                searchContent: action.search,
+            }
         }
         case 'set_presentation': {
+            console.log("Setting: ", action.presentingHash)
             document.documentElement.style.overflow = "hidden"
 
             return {
@@ -71,22 +85,16 @@ export function mediaReducer(state, action) {
                 presentingHash: action.presentingHash
             }
         }
-        case 'set_presentation_ref': {
-            return {
-                ...state,
-                presentingRef: action.ref
-            }
-        }
         case 'presentation_next': {
+            console.log("Here1")
             let incBy = 0
             if (!state.mediaMap[state.presentingHash]?.next?.next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
-                console.log("ERE")
                 incBy = 100
             }
             return {
                 ...state,
                 maxMediaCount: state.maxMediaCount + incBy,
-                presentingHash: state.mediaMap[state.presentingHash].next ? state.mediaMap[state.presentingHash].next.FileHash : state.presentingHash
+                presentingHash: state.mediaMap[state.presentingHash]?.next ? state.mediaMap[state.presentingHash].next.FileHash : state.presentingHash
             }
         }
         case 'presentation_previous': {
@@ -96,8 +104,17 @@ export function mediaReducer(state, action) {
             }
         }
         case 'stop_presenting': {
+            if (state.presentingHash == "") {
+                return {
+                    ...state
+                }
+            }
             document.documentElement.style.overflow = "visible"
-            state.mediaMap[state.presentingHash].ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            try {
+                state.mediaMap[state.presentingHash].ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            } catch {
+                console.log("No img ref: ", state.presentingHash)
+            }
             return {
                 ...state,
                 presentingHash: ""
@@ -126,7 +143,7 @@ export function startKeybaordListener(dispatch) {
     }
 }
 
-export function handleScroll(e, dispatch) {
+export function handleScroll(dispatch) {
     if (document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 1500) {
         dispatch({ type: "inc_max_media_count", incBy: 100 })
     }

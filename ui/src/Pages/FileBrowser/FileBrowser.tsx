@@ -1,18 +1,18 @@
 // React
-import { useState, useEffect, useReducer, useMemo, memo, useRef } from 'react'
-import { NavigateFunction, useNavigate, useParams } from 'react-router-dom'
+import { useState, useEffect, useReducer, useMemo } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 
 // MUI
 import Box from '@mui/material/Box'
-import Breadcrumbs from '@mui/material/Breadcrumbs'
-import Chip from '@mui/material/Chip'
-import { emphasize, styled } from '@mui/material/styles'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { IconButton, LinearProgress } from '@mui/material'
+import DownloadIcon from '@mui/icons-material/Download';
+import { IconButton, LinearProgress, Tooltip } from '@mui/material'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'
+import Badge from '@mui/material/Badge';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 
 // Local
 import { GetDirectoryData, CreateDirectory, RenameFile, DeleteFile } from '../../api/FileBrowserApi'
@@ -22,9 +22,11 @@ import HeaderBar from "../../components/HeaderBar"
 import HandleFileUpload from "../../api/Upload"
 import GetWebsocket, { dispatchSync } from '../../api/Websocket'
 import { itemData } from '../../types/FileBrowserTypes'
+import Crumbs from '../../components/Crumbs'
 
 // Other
 import { useSnackbar } from 'notistack'
+import API_ENDPOINT from '../../api/ApiEndpoint';
 
 const mapToList = (dirMap) => {
     const newList = Object.keys(dirMap).map((key) => {
@@ -32,10 +34,16 @@ const mapToList = (dirMap) => {
     })
 
     newList.sort((a, b) => {
-        if (a.modTime > b.modTime) {
+        if (a.mediaData && !b.mediaData) {
             return -1
-        } else if (a.modTime < b.modTime) {
+        } else if (!a.mediaData && b.mediaData) {
             return 1
+        }
+
+        if (a.filepath > b.filepath) {
+            return 1
+        } else if (a.filepath < b.filepath) {
+            return -1
         } else {
             return 0
         }
@@ -57,7 +65,8 @@ const fileBrowserReducer = (state, action) => {
     switch (action.type) {
         case 'update_items': {
             let newMap = copyObject(state.dirMap)
-            for (const item of action.items) {
+            let items: itemData[] = action.items
+            for (const item of items) {
                 item.selected = false
                 newMap[item.filepath] = item
             }
@@ -70,8 +79,17 @@ const fileBrowserReducer = (state, action) => {
 
         case 'add_template_items': {
             let newMap = copyObject(state.dirMap)
-            for (const item of action.files) {
-                newMap[state.path + item.name] = { filepath: state.path + item.name, modTime: new Date().toString() }
+            for (const tmpItem of action.files) {
+
+                let item: itemData = {
+                    filepath: state.path + tmpItem.name,
+                    isDir: false,
+                    imported: false,
+                    modTime: new Date().toString(),
+                    selected: false,
+                    mediaData: null
+                }
+                newMap[item.filepath] = item
             }
             return {
                 ...state,
@@ -170,6 +188,9 @@ const fileBrowserReducer = (state, action) => {
                 }
                 let changedCounter = 0
                 for (const val of dirList.slice(startIndex, endIndex + 1)) {
+                    if (newMap[val.filepath].selected == true) {
+                        continue
+                    }
                     newMap[val.filepath].selected = true
                     changedCounter += 1
                 }
@@ -241,35 +262,35 @@ const fileBrowserReducer = (state, action) => {
             document.documentElement.style.overflow = "hidden"
             return {
                 ...state,
-                presentingHash: action.presentingHash
+                presentingPath: action.presentingPath
             }
         }
 
         case 'presentation_next': {
             return { ...state }
             let changeTo
-            if (state.mediaIdMap[state.presentingHash].next) {
-                changeTo = state.mediaIdMap[state.presentingHash].next
+            if (state.mediaIdMap[state.presentingPath].next) {
+                changeTo = state.mediaIdMap[state.presentingPath].next
             } else {
-                changeTo = state.presentingHash
+                changeTo = state.presentingPath
             }
             return {
                 ...state,
-                presentingHash: changeTo
+                presentingPath: changeTo
             }
         }
 
         case 'presentation_previous': {
             return { ...state }
             let changeTo
-            if (state.mediaIdMap[state.presentingHash].previous) {
-                changeTo = state.mediaIdMap[state.presentingHash].previous
+            if (state.mediaIdMap[state.presentingPath].previous) {
+                changeTo = state.mediaIdMap[state.presentingPath].previous
             } else {
-                changeTo = state.presentingHash
+                changeTo = state.presentingPath
             }
             return {
                 ...state,
-                presentingHash: changeTo
+                presentingPath: changeTo
             }
         }
 
@@ -277,7 +298,7 @@ const fileBrowserReducer = (state, action) => {
             document.documentElement.style.overflow = "visible"
             return {
                 ...state,
-                presentingHash: ""
+                presentingPath: ""
             }
         }
 
@@ -286,55 +307,6 @@ const fileBrowserReducer = (state, action) => {
             return { ...state }
         }
     }
-}
-
-const StyledBreadcrumb = styled(Chip)(({ theme }) => {
-    const backgroundColor =
-        theme.palette.mode === 'light'
-            ? theme.palette.grey[100]
-            : theme.palette.grey[800]
-    return {
-        backgroundColor,
-        height: theme.spacing(3),
-        color: theme.palette.text.primary,
-        fontWeight: theme.typography.fontWeightRegular,
-        '&:hover, &:focus': {
-            backgroundColor: emphasize(backgroundColor, 0.06),
-        },
-        '&:active': {
-            boxShadow: theme.shadows[1],
-            backgroundColor: emphasize(backgroundColor, 0.12),
-        },
-    }
-}) as typeof Chip
-
-const Crumbs = (path: string, navigate) => {
-    path = path.slice(1)
-    let parts = path.split('/')
-    while (parts[parts.length - 1] == '') {
-        parts.pop()
-    }
-
-    parts.unshift('/')
-    const current = parts.pop()
-
-    let crumbPaths = []
-    for (let [index, val] of parts.entries()) {
-        if (index == 0) {
-            crumbPaths.push("/")
-            continue
-        } else {
-            crumbPaths.push(crumbPaths[index - 1] + "/" + val)
-        }
-    }
-    const crumbs = parts.map((part, i) => (
-        <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} onClick={() => { navigate(`/files/${crumbPaths[i]}`.replace(/\/\/+/g, '/')) }} />)
-    )
-    crumbs.push(
-        <StyledBreadcrumb key={current} label={current == "/" ? "Home" : current} />
-    )
-    return crumbs
-
 }
 
 const HandleDrag = (event, dispatch, dragging) => {
@@ -347,7 +319,7 @@ const HandleDrag = (event, dispatch, dragging) => {
     }
 }
 
-const HandleDrop = (event, path, dirMap, dispatch, sendMessage, enqueueSnackbar) => {
+const HandleDrop = (event, path, dirMap, dispatch, wsSend, enqueueSnackbar) => {
     event.preventDefault()
     event.stopPropagation()
     dispatch({ type: "set_dragging", dragging: false })
@@ -364,9 +336,41 @@ const HandleDrop = (event, path, dirMap, dispatch, sendMessage, enqueueSnackbar)
     dispatch({ type: "add_template_items", files: filteredFiles })
     if (filteredFiles.length != 0) {
         dispatch({ type: "set_loading", loading: true })
-        HandleFileUpload(filteredFiles, path, sendMessage)
+        HandleFileUpload(filteredFiles, path, wsSend)
     }
 }
+
+function downloadSelected(dirMap: Map<string, itemData>, path, dispatch) {
+    let itemsToDownload = []
+    for (const item of Object.values(dirMap)) {
+        if (item.selected) {
+            itemsToDownload.push(item.filepath)
+        }
+    }
+
+    dispatch({ type: "set_loading", loading: true })
+
+    var url = new URL(`${API_ENDPOINT}/takeout`)
+    var filename: string
+
+    fetch(url.toString(), { method: "POST", body: JSON.stringify({ items: itemsToDownload, path: path }) })
+        .then((res) => {
+            console.log(res.headers.get("Content-Disposition"))
+            filename = res.headers.get("Content-Disposition").split(';')[1].split('=')[1].replaceAll("\"", "")
+            return res.blob()
+        })
+        .then((res) => {
+            const aElement = document.createElement("a");
+            aElement.setAttribute("download", filename);
+            const href = URL.createObjectURL(res);
+            aElement.href = href;
+            aElement.setAttribute("target", "_blank");
+            aElement.click();
+            URL.revokeObjectURL(href);
+            dispatch({ type: "set_loading", loading: false })
+        });
+}
+
 
 function StartKeybaordListener(dispatch) {
 
@@ -408,7 +412,7 @@ const FileBrowser = () => {
         path: path,
         dragging: false,
         loading: false,
-        presentingHash: "",
+        presentingPath: "",
         numSelected: 0,
         holdingShift: false,
         lastSelected: "",
@@ -416,7 +420,7 @@ const FileBrowser = () => {
     })
 
     const { enqueueSnackbar } = useSnackbar()
-    const { sendMessage, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
+    const { wsSend, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
     const [scanProgress, setScanProgress] = useState(0)
     const navigate = useNavigate()
     const [alreadyScanned, setAlreadyScanned] = useState(false)
@@ -497,21 +501,17 @@ const FileBrowser = () => {
         setAlreadyScanned(false)
         dispatch({ type: 'set_path', path: path })
         dispatch({ type: "set_loading", loading: false })
+        dispatch({ type: "clear_selected" })
         setScanProgress(0)
         GetDirectoryData(path, dispatch)
     }, [path])
-
-    const crumbs = useMemo(() => {
-        const crumbs = Crumbs(filebrowserState.path, navigate)
-        return crumbs
-    }, [filebrowserState.path])
 
     const dirItems = useMemo(() => {
         const itemsList = mapToList(filebrowserState.dirMap)
         const anyChecked = filebrowserState.numSelected > 0 ? true : false
         let scanRequired = false
         const items = itemsList.map((entry: itemData) => {
-            if (!entry.imported && !entry.isDir) {
+            if (entry.mediaData && !entry.imported && !entry.isDir) {
                 scanRequired = true
             }
             return (
@@ -520,7 +520,7 @@ const FileBrowser = () => {
                 </Box>
             )
         })
-        if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatch({ type: "set_loading", loading: true }); dispatchSync(path, sendMessage, false) }
+        if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatch({ type: "set_loading", loading: true }); dispatchSync(path, wsSend, false) }
         return items
     }, [filebrowserState.dirMap, filebrowserState.editing])
 
@@ -531,11 +531,11 @@ const FileBrowser = () => {
                 flexDirection: 'column',
             }}
         >
-            <HeaderBar dispatch={dispatch} sendMessage={sendMessage} page={"files"} />
+            <HeaderBar dispatch={dispatch} wsSend={wsSend} page={"files"} />
             <Box
                 onDragOver={(event => HandleDrag(event, dispatch, filebrowserState.dragging))}
                 onDragLeave={event => HandleDrag(event, dispatch, filebrowserState.dragging)}
-                onDrop={(event => HandleDrop(event, path, filebrowserState.dirMap, dispatch, sendMessage, enqueueSnackbar))}
+                onDrop={(event => HandleDrop(event, path, filebrowserState.dirMap, dispatch, wsSend, enqueueSnackbar))}
                 bgcolor={filebrowserState.dragging ? "rgb(200, 200, 200)" : "white"}
                 display={"flex"}
                 flexDirection={"column"}
@@ -547,8 +547,8 @@ const FileBrowser = () => {
                 sx={{ outline: filebrowserState.dragging ? "rgb(54, 147, 255) solid 2px" : "", outlineOffset: "-10px" }}
                 onContextMenu={handleContextMenu}
             >
-                {filebrowserState.presentingHash != "" && (
-                    <Presentation mediaData={filebrowserState.presentingHash} dispatch={dispatch} />
+                {filebrowserState.presentingPath != "" && (
+                    <Presentation mediaData={filebrowserState.dirMap[filebrowserState.presentingPath].mediaData} dispatch={dispatch} />
                 )}
                 {filebrowserState.loading && (
                     <Box sx={{ width: '100%' }}>
@@ -564,14 +564,32 @@ const FileBrowser = () => {
                     </Box>
                 )}
                 {filebrowserState.numSelected > 0 && (
-                    <IconButton style={{ position: 'absolute', left: "5vw" }} onClick={() => { dispatch({ type: "delete_selected" }) }}>
-                        <DeleteIcon />
-                    </IconButton>
+                    <Box position={"absolute"} display={"flex"} left={"5vw"} >
+
+                        <IconButton style={{ padding: "15px" }} onClick={() => { dispatch({ type: "clear_selected" }) }}>
+                            <Tooltip title={"Unselect All (esc)"}>
+                                <Badge badgeContent={filebrowserState.numSelected} color="secondary">
+                                    <CheckBoxIcon color="action" />
+                                </Badge>
+                            </Tooltip>
+                        </IconButton>
+
+                        <IconButton style={{ padding: "15px" }} onClick={() => { downloadSelected(filebrowserState.dirMap, path, dispatch) }}>
+                            <Tooltip title={"Download Selected"}>
+                                <DownloadIcon />
+                            </Tooltip>
+                        </IconButton>
+
+                        <IconButton style={{ padding: "15px" }} onClick={() => { dispatch({ type: "delete_selected" }) }}>
+                            <Tooltip title={"Delete Selected"}>
+                                <DeleteIcon />
+                            </Tooltip>
+                        </IconButton>
+
+                    </Box>
                 )}
                 <Box marginTop={2} marginBottom={2} width={"max-content"}>
-                    <Breadcrumbs separator={"›"} >
-                        {crumbs}
-                    </Breadcrumbs>
+                    <Crumbs path={filebrowserState.path} includeHome={true} navigate={navigate} />
                 </Box>
 
                 <Box display={"flex"} justifyContent={"center"} width={"100%"} >
@@ -589,7 +607,7 @@ const FileBrowser = () => {
                             : undefined
                     }
                 >
-                    <MenuItem onClick={() => { handleClose(); CreateDirectory(path, dispatch) }}>
+                    <MenuItem onClick={() => { handleClose(); CreateDirectory(path, dispatch); console.log("ESCAPE"); dispatch({ type: 'start_editing', file: path }) }}>
                         <ListItemIcon>
                             <CreateNewFolderIcon />
                         </ListItemIcon>

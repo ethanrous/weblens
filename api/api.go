@@ -1,7 +1,10 @@
 package main
 
 import (
+	"os"
+
 	"github.com/ethrousseau/weblens/api/routes"
+	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -9,10 +12,14 @@ import (
 func main() {
 	godotenv.Load()
 
+	os.Stat(util.GetMediaRoot())
+
 	router := gin.Default()
 
 	routes.AddApiRoutes(router)
-	//routes.AddUiRoutes(router)
+	if !util.IsDevMode() {
+		routes.AddUiRoutes(router)
+	}
 
-	router.Run("127.0.0.1:4000")
+	router.Run("0.0.0.0:8080")
 }

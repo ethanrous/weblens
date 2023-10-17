@@ -60,7 +60,7 @@ const ItemVisualComponent = ({ itemData, type, isDir, imported }) => {
     } else if (type == "File") {
         return (<InsertDriveFileIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
     } else if (imported) {
-        return (<StyledLazyThumb mediaData={itemData} quality={"thumbnail"} lazy={true} dispatch={() => { }} />)//width={"200px"} height={"200px"} sx={{ cursor: "pointer" }} />)
+        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} />)//width={"200px"} height={"200px"} sx={{ cursor: "pointer" }} />)
     } else {
         return (<Skeleton animation="wave" height={"100%"} width={"100%"} variant="rectangular" />)
     }
@@ -109,7 +109,7 @@ const TextBox = ({ itemData, editing, hasInfo, setRenameVal, dispatch }) => {
                 <EditingHook dispatch={dispatch} />
             </FormControl>
         )
-    } else if (hasInfo) {
+    } else {
         return (
             <Tooltip title={filename} enterNextDelay={100}>
                 <Box
@@ -121,15 +121,15 @@ const TextBox = ({ itemData, editing, hasInfo, setRenameVal, dispatch }) => {
                     onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', file: itemData.filepath }) }}
                 >
                     <Typography noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{filename} </Typography>
-                    <Box display={"flex"} justifyContent={"space-evenly"}>
-                        <Typography fontSize={12} noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{humanFileSize(itemData.size)} </Typography>
-                        <Typography fontSize={12} noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{dateFromItemData(itemData)} </Typography>
-                    </Box>
+                    {hasInfo && (
+                        <Box display={"flex"} justifyContent={"space-evenly"}>
+                            <Typography fontSize={12} noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{humanFileSize(itemData.size)} </Typography>
+                            <Typography fontSize={12} noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{dateFromItemData(itemData)} </Typography>
+                        </Box>
+                    )}
                 </Box>
             </Tooltip>
         )
-    } else {
-        return (<Skeleton animation="wave" height={10} width="40%" />)
     }
 }
 
@@ -152,7 +152,7 @@ export default function Item({ itemData, editing, dispatch, anyChecked, navigate
         if (itemData.isDir) {
             unselectedAction = () => navigate(("/files/" + itemData.filepath).replace(/\/\/+/g, '/'))
         } else if (itemData.imported) {
-            unselectedAction = () => dispatch({ type: 'set_presentation', presentingHash: itemData.mediaData.FileHash })
+            unselectedAction = () => dispatch({ type: 'set_presentation', presentingPath: itemData.filepath })
         } else {
             unselectedAction = () => { }
         }

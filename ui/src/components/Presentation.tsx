@@ -6,6 +6,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import styled from '@emotion/styled'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import Typography from '@mui/material/Typography'
+import Crumbs from './Crumbs'
 
 import { MediaData } from '../types/Generic'
 import { MediaImage } from './PhotoContainer'
@@ -36,62 +37,53 @@ const PresentationVisual = ({ mediaData }) => {
     if (!mediaData) {
         return
     }
-    if (mediaData.MediaType.IsVideo) {
+    else if (mediaData.MediaType.IsVideo) {
         return (
             <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
+        )
+    } else if (mediaData.MediaType?.FriendlyName == "File") {
+        return (
+            // <Box display={"flex"} flexDirection={"column"} alignItems={"center"}>
+            <InsertDriveFileIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} />
+            // </Box>
         )
     } else {
         return (
             <div style={{ height: "100%", width: "100%" }}>
                 <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
                 <StyledMediaImage key={`${mediaData.FileHash} fullres`} mediaData={mediaData} quality={"fullres"} lazy={false} />
+
             </div>
         )
     }
 }
 
+function startKeyDownHandler(dispatch) {
+    console.log("AHH")
+    const keyDownHandler = event => {
+        if (event.key === 'Escape') {
+            event.preventDefault()
+            dispatch({ type: 'stop_presenting' })
+        }
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault()
+            dispatch({ type: 'presentation_previous' })
+        }
+        if (event.key === 'ArrowRight') {
+            event.preventDefault()
+            dispatch({ type: 'presentation_next' })
+        }
+    }
+    document.addEventListener('keydown', keyDownHandler)
+    return () => {
+        document.removeEventListener('keydown', keyDownHandler)
+    }
+}
+
 const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch: React.Dispatch<any> }) => {
     useEffect(() => {
-        const keyDownHandler = event => {
-            if (event.key === 'Escape') {
-                event.preventDefault()
-                dispatch({ type: 'stop_presenting' })
-            }
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault()
-                dispatch({ type: 'presentation_previous' })
-            }
-            if (event.key === 'ArrowRight') {
-                event.preventDefault()
-                dispatch({ type: 'presentation_next' })
-            }
-        }
-        document.addEventListener('keydown', keyDownHandler)
-        return () => {
-            document.removeEventListener('keydown', keyDownHandler)
-        }
+        return startKeyDownHandler(dispatch)
     }, [])
-
-    const filename = useMemo(() => {
-        if (mediaData.FileHash) {
-            return mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
-        }
-    }, [mediaData.Filepath])
-
-    const visualComponent = useMemo(() => {
-        var visualComponent
-        if (mediaData.MediaType?.FriendlyName == "File") {
-            visualComponent = (
-                <Box display={"flex"} flexDirection={"column"} alignItems={"center"}>
-                    <InsertDriveFileIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} />
-                    <Typography >{filename}</Typography>
-                </Box>
-            )
-        } else {
-
-        }
-        return visualComponent
-    }, [{ ...mediaData }])
 
     return (
         <PresentationContainer>
@@ -104,6 +96,9 @@ const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch:
             >
                 <CloseIcon />
             </IconButton>
+            <Box position={"absolute"} top={10}>
+                <Crumbs path={mediaData?.Filepath} includeHome={false} navigate={() => { }} />
+            </Box>
         </PresentationContainer>
     )
 }

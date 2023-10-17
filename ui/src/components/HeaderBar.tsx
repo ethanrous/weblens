@@ -7,25 +7,77 @@ import Toolbar from '@mui/material/Toolbar'
 import IconButton from '@mui/material/IconButton'
 import UploadIcon from '@mui/icons-material/Upload'
 import SyncIcon from '@mui/icons-material/Sync'
+import LogoutIcon from '@mui/icons-material/Logout'
 import Box from '@mui/material/Box'
 import FolderIcon from '@mui/icons-material/Folder'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import Tooltip from '@mui/material/Tooltip'
 
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import HandleFileUpload from '../api/Upload'
 import { dispatchSync } from '../api/Websocket'
 
-import { SendMessage } from 'react-use-websocket';
+import { SendMessage } from 'react-use-websocket'
+import { TextField, alpha, styled } from '@mui/material'
+import InputBase from '@mui/material/InputBase'
+import SearchIcon from '@mui/icons-material/Search'
+import { useCookies } from 'react-cookie'
 
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>
-    sendMessage: SendMessage
-    page: string
+    wsSend: SendMessage
+    page: string,
 }
 
-const HeaderBar = memo(function HeaderBar({ dispatch, sendMessage, page }: HeaderBarProps) {
+const Search = styled('div')(({ theme }) => ({
+    position: 'relative',
+    borderRadius: theme.shape.borderRadius,
+    backgroundColor: alpha(theme.palette.common.white, 0.15),
+    '&:hover': {
+        backgroundColor: alpha(theme.palette.common.white, 0.25),
+    },
+    marginLeft: 0,
+    width: '100%',
+    [theme.breakpoints.up('sm')]: {
+        marginLeft: theme.spacing(1),
+        width: 'auto',
+    },
+}));
+
+const SearchIconWrapper = styled('div')(({ theme }) => ({
+    padding: theme.spacing(0, 2),
+    height: '100%',
+    position: 'absolute',
+    pointerEvents: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+}));
+
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+    color: 'inherit',
+    '& .MuiInputBase-input': {
+        padding: theme.spacing(1, 1, 1, 0),
+        // vertical padding + font size from searchIcon
+        paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+        transition: theme.transitions.create('width'),
+        width: '100%',
+        [theme.breakpoints.up('sm')]: {
+            width: '12ch',
+            '&:focus': {
+                width: '20ch',
+            },
+        },
+    },
+}));
+
+
+
+const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarProps) {
+    const [cookies, setCookie, removeCookie] = useCookies(['weblens-login-token']);
+    const nav = useNavigate()
+
     let path = (useParams()["*"] + "/").replace(/\/\/+/g, '/')
     if (page == "gallery") {
         path = "/"
@@ -54,10 +106,11 @@ const HeaderBar = memo(function HeaderBar({ dispatch, sendMessage, page }: Heade
                         </Tooltip>
                     )}
                     <Tooltip title={"Sync"}>
-                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, sendMessage, true) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
                             <SyncIcon />
                     </IconButton>
                     </Tooltip>
+
                     <Tooltip title={"Upload"}>
                         <IconButton edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
                         <input
@@ -67,9 +120,23 @@ const HeaderBar = memo(function HeaderBar({ dispatch, sendMessage, page }: Heade
                             type="file"
                             onChange={(e) => HandleFileUpload(e.target.files[0], "/", null)}
                             />
-                        <UploadIcon />
-
-                    </IconButton>
+                            <UploadIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Search>
+                        <SearchIconWrapper>
+                            <SearchIcon />
+                        </SearchIconWrapper>
+                        <StyledInputBase
+                            placeholder="Search…"
+                            inputProps={{ 'aria-label': 'search' }}
+                            onChange={e => dispatch({ type: 'set_search', search: e.target.value })}
+                        />
+                    </Search>
+                    <Tooltip title={"Logout"} >
+                        <IconButton edge="end" color="inherit" aria-label="logout" style={{ margin: 10, flexDirection: "column", fontSize: 20 }} onClick={() => { removeCookie('weblens-login-token'); nav("/login") }}>
+                            <LogoutIcon />
+                        </IconButton>
                     </Tooltip>
                 </Toolbar>
             </AppBar>

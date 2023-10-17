@@ -1,6 +1,8 @@
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,9 +38,20 @@ func FailOnError(err error, msg string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			Error.Panicf("Erorr from %s:%d %s: %s", file, line, msg, err)
+			Error.Panicf("Error from %s:%d %s: %s", file, line, msg, err)
 		} else {
 			Error.Panicf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
+		}
+	}
+}
+
+func DisplayError(err error, msg string) {
+	if err != nil {
+		_, file, line, ok := runtime.Caller(1)
+		if ok {
+			Error.Printf("Error from %s:%d %s: %s", file, line, msg, err)
+		} else {
+			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
 	}
 }
@@ -80,4 +93,17 @@ func PrintMemUsage() {
 	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(mem.TotalAlloc))
 	fmt.Printf("\tSys = %v MiB", bToMb(mem.Sys))
 	fmt.Printf("\tNumGC = %v\n", mem.NumGC)
+}
+
+// Set charLimit to 0 to disable
+func HashOfString(s string, charLimit int) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
+
+	if charLimit != 0 {
+		return hash[:charLimit]
+	} else {
+		return hash
+	}
 }

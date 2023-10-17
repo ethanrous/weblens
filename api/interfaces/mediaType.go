@@ -11,6 +11,7 @@ type mediaType struct {
 
 var mediaTypeMap = map[string]mediaType {
 	"image/x-sony-arw": {"Sony ARW", []string{"ARW"}, true, false},
+	"image/x-nikon-nef": {"Nikon Raw", []string{"NEF"}, true, false},
 	"image/jpeg": {"Jpeg", []string{"jpeg", "jpg"}, false, false},
 	"image/png": {"Png", []string{"png"}, false, false},
 	"image/gif": {"Gif", []string{"gif"}, false, false},

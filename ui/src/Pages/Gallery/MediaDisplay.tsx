@@ -3,14 +3,16 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 
-import RawOnIcon from '@mui/icons-material/RawOn';
-import ImageIcon from '@mui/icons-material/Image';
-import TheatersIcon from '@mui/icons-material/Theaters';
+import RawOnIcon from '@mui/icons-material/RawOn'
+import ImageIcon from '@mui/icons-material/Image'
+import TheatersIcon from '@mui/icons-material/Theaters'
+import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
 import styled from '@emotion/styled'
 
 import { MediaWrapperProps, GalleryBucketProps } from '../../types/GalleryTypes'
 import { MediaImage } from '../../components/PhotoContainer'
-import { Typography } from '@mui/material';
+import { Tooltip } from '@mui/material'
+import { MediaData } from '../../types/Generic'
 
 // STYLES //
 
@@ -29,9 +31,10 @@ const BlankCard = styled("div")({
 
 const PreviewCardContainer = styled(Box)({
     height: "250px",
+    borderRadius: "2px",
     flexGrow: 1,
     flexBasis: 0,
-    margin: 0.3,
+    margin: 2,
     position: "relative",
     overflow: "hidden",
     cursor: "pointer"
@@ -63,35 +66,61 @@ const RecentlyViewedDisplay = styled(Box)({
     alignItems: "center",
     justifyContent: "center",
     pointerEvents: "none"
-
 })
+
+const StyledIconBox = styled(Box)({
+    position: "absolute",
+    top: 10,
+    left: 10,
+})
+
+// Functions
+
+function handleCopy(setCopied) {
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1000)
+}
 
 // COMPONENTS //
 
-const MediaInfoDisplay = ({ showIcons, mediaData }) => {
-    if (!showIcons) {
-        return
-    }
-    if (mediaData.MediaType.IsRaw) {
-        return (
-            <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(1px, -20px)" }}>
-                <RawOnIcon />
-            </Box>
-        )
-    } else if (mediaData.MediaType.IsVideo) {
-        return (
+const MediaInfoDisplay = ({ mediaData }) => {
+    const [copied, setCopied] = useState(false)
 
-            <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(2px, -26px)" }}>
-                <TheatersIcon />
-            </Box>
-        )
-    } else {
-        return (
-            <Box display="flex" justifyContent="flex-end" position="absolute" zIndex={1} sx={{ transform: "translate(2px, -26px)" }}>
-                <ImageIcon />
-            </Box>
-        )
+    const TypeIcon = () => {
+        if (mediaData.MediaType.IsRaw) {
+            return (
+                <StyledIconBox>
+                    <RawOnIcon sx={{ bgcolor: "rgb(255, 255, 255, 0.40)", borderRadius: "3px" }} />
+                </StyledIconBox>
+            )
+        } else if (mediaData.MediaType.IsVideo) {
+            return (
+                <StyledIconBox>
+                    <TheatersIcon sx={{ bgcolor: "rgb(255, 255, 255, 0.40)", borderRadius: "3px" }} />
+                </StyledIconBox>
+            )
+        } else {
+            return (
+                <StyledIconBox>
+                    <ImageIcon sx={{ bgcolor: "rgb(255, 255, 255, 0.40)", borderRadius: "3px" }} />
+                </StyledIconBox>
+            )
+        }
     }
+
+    const filename = mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
+
+    return (
+        <Box width={"100%"} height={"100%"}>
+            <TypeIcon />
+            <Box width={"95%"} height={"max-content"} bottom={10} left={10} position={"absolute"}>
+                <StyledBreadcrumb label={copied ? "Copied" : filename} success={copied} onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(filename); handleCopy(setCopied) }} />
+
+                {/* <Crumbs path={mediaData.Filepath} includeHome={false} navigate={() => { }} /> */}
+                {/* <Typography position={"absolute"} top={4} left={50}>{mediaData.Filepath}</Typography> */}
+            </Box>
+        </Box>
+    )
 }
 
 const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch }: MediaWrapperProps) {
@@ -104,7 +133,8 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch
     return (
         <PreviewCardContainer
             ref={ref}
-            minWidth={`clamp(150px, ${width}px, 100% - 8px)`}
+            minWidth={`clamp(100px, ${width}px, 100% - 8px)`}
+            maxWidth={`${width * 1.5}px`}
             onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })}
         >
             <PreviewCardImg
@@ -112,16 +142,21 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch
                 quality={"thumbnail"}
                 lazy={true}
             />
-            <MediaInfoDisplay showIcons={showIcons} mediaData={mediaData} />
+            {showIcons && (
+                <MediaInfoDisplay mediaData={mediaData} />
+            )}
 
         </PreviewCardContainer>
     )
 }, (prev: MediaWrapperProps, next: MediaWrapperProps) => {
-    return (prev.mediaData.FileHash == next.mediaData.FileHash)
+    return (prev.mediaData.FileHash == next.mediaData.FileHash) && (prev.showIcons == next.showIcons)
 })
 const BucketCards = ({ medias, showIcons, dispatch }) => {
     const mediaCards = useMemo(() => {
-        return medias.map((mediaData) => {
+        return medias.map((mediaData: MediaData) => {
+            if (!mediaData.Display == true) {
+                return null
+            }
             return (
                 <MediaWrapper
                     key={mediaData.FileHash}
@@ -132,7 +167,7 @@ const BucketCards = ({ medias, showIcons, dispatch }) => {
             )
         }
         )
-    }, [[...medias]])
+    }, [[...medias], showIcons])
 
     return (
         <Gallery>
@@ -167,12 +202,24 @@ export const GalleryBucket = ({
     showIcons,
     dispatch
 }: GalleryBucketProps) => {
+    const anyDisplayed = () => {
+        for (const val of bucketData) {
+            if (val.Display) {
+                return true
+            }
+        }
+        return false
+    }
+
+    if (!anyDisplayed()) {
+        return null
+    }
+
     return (
         <Grid item >
             <DateWrapper dateTime={date} />
             <BucketCards medias={bucketData} showIcons={showIcons} dispatch={dispatch} />
         </Grid >
-
     )
 }
 
