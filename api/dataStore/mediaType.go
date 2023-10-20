@@ -1,4 +1,4 @@
-package interfaces
+package dataStore
 
 import "fmt"
 

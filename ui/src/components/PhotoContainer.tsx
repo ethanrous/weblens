@@ -31,15 +31,23 @@ const StyledLoader = styled(CircularProgress)({
 //Components
 
 
-export function useIsVisible(ref) {
+export function useIsVisible(ref, maintained: boolean) {
     const [isIntersecting, setIntersecting] = useState(false);
 
     useEffect(() => {
+        if (!ref.current) {
+            return
+        }
         let options = {
             rootMargin: "1000px"
         }
         const observer = new IntersectionObserver(([entry]) => {
-            setIntersecting(entry.isIntersecting)
+            if (maintained && entry.isIntersecting) {
+                setIntersecting(true)
+            } else if (!maintained) {
+                setIntersecting(entry.isIntersecting)
+            }
+
         }, options)
 
         observer.observe(ref.current);
@@ -60,7 +68,11 @@ export const MediaImage = ({
 }) => {
     const [imageLoaded, setImageLoaded] = useState(false)
     const ref = useRef()
-    const isVisible = useIsVisible(ref)
+    const isVisible = useIsVisible(ref, true)
+    // useEffect(() => {
+    //     console.log(isVisible, mediaData.FileHash)
+    // }, [isVisible])
+
 
     const imgUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
     imgUrl.searchParams.append(quality, "true")

@@ -1,4 +1,4 @@
-package interfaces
+package dataStore
 
 type User struct {
 	Id			string `bson:"_id"`

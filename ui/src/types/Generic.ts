@@ -17,6 +17,24 @@ export type MediaData = {
     ThumbWidth: number
     ThumbHeight: number
     Thumbnail64: string
+
+    // Local things
+    Previous: MediaData
+    Next: MediaData
     Display: boolean
-    ImgRef: Ref<any>
+    ImgRef: React.MutableRefObject<any>
+}
+
+export type MediaStateType = {
+    mediaMap: Map<string, MediaData>
+    mediaCount: number
+    maxMediaCount: number
+    hasMoreMedia: boolean
+    presentingHash: string
+    previousLast: string
+    includeRaw: boolean
+    showIcons: boolean
+    loading: boolean
+    scanProgress: number
+    searchContent: string
 }

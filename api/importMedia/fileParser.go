@@ -7,20 +7,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethrousseau/weblens/api/interfaces"
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
-
-	"github.com/ethrousseau/weblens/api/database"
 )
 
-func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, error) {
+func HandleNewImage(filepath string, db dataStore.Weblensdb) (*dataStore.Media, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			util.Error.Printf("Recovered panic while parsing new file (%s): %s", filepath, err)
 		}
 	}()
 
-	util.Debug.Println("Starting parse of file: ", filepath)
+	// util.Debug.Println("Starting parse of file: ", filepath)
 
 	m := db.GetMediaByFilepath(filepath, true)
 
@@ -49,14 +47,14 @@ func HandleNewImage(filepath string, db database.Weblensdb) (*interfaces.Media, 
 
 	m.GenerateFileHash()
 
-	util.Debug.Println("Finished parse of file: ", filepath)
+	// util.Debug.Println("Finished parse of file: ", filepath)
 
 	db.DbAddMedia(&m)
 
 	return &m, nil
 }
 
-func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db database.Weblensdb) error {
+func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db dataStore.Weblensdb) error {
 	if d.IsDir() {
 		return nil
 	}
@@ -73,11 +71,11 @@ func middleware(path string, d fs.DirEntry, wp util.WorkerPool, db database.Webl
 }
 
 func ScanDirectory(scanDir string, recursive bool) (util.WorkerPool) {
-	scanDir = util.GuaranteeAbsolutePath(scanDir)
+	scanDir = dataStore.GuaranteeAbsolutePath(scanDir)
 	util.Debug.Printf("Beginning directory scan: %s\n", scanDir)
 	//start := time.Now()
 
-	db := database.New()
+	db := dataStore.NewDB()
 
 	wp := util.NewWorkerPool(10)
 	wp.Run()
@@ -100,7 +98,7 @@ func ScanDirectory(scanDir string, recursive bool) (util.WorkerPool) {
 	ms := db.GetMediaInDirectory(scanDir, recursive)
 
 	for _, m := range ms {
-		_, err := os.Stat(util.GuaranteeAbsolutePath(m.Filepath))
+		_, err := os.Stat(dataStore.GuaranteeAbsolutePath(m.Filepath))
 		if errors.Is(err, os.ErrNotExist) {
 			util.Error.Println("ERR: ", err)
 			util.Debug.Println("Remove: ", m.Filepath)

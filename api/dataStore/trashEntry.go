@@ -1,4 +1,4 @@
-package interfaces
+package dataStore
 
 type TrashEntry struct {
 	OriginalPath	string				`bson:"originalPath"`

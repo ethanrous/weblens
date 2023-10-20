@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { EnqueueSnackbar, closeSnackbar } from 'notistack';
 import { API_WS_ENDPOINT } from './ApiEndpoint'
@@ -39,8 +39,7 @@ export default function GetWebsocket(snacky: EnqueueSnackbar) {
     }
 }
 
-export function dispatchSync(path, wsSend, recursive) {
-    console.log("Doing sync")
+export function dispatchSync(path: string, wsSend: (msg: string) => void, recursive: boolean) {
     wsSend(JSON.stringify({
         type: 'scan_directory',
         content: {

@@ -1,12 +1,12 @@
-package database
+package dataStore
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/interfaces"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/bson"
@@ -25,7 +25,7 @@ var mongoc *mongo.Client
 var mongodb *mongo.Database
 var redisc *redis.Client
 
-func New() (Weblensdb) {
+func NewDB() (Weblensdb) {
 	if mongoc == nil {
 		var uri = util.GetMongoURI()
 		clientOptions := options.Client().ApplyURI(uri)
@@ -36,7 +36,7 @@ func New() (Weblensdb) {
 		}
 		mongodb = mongoc.Database("weblens")
 	}
-	if redisc == nil {
+	if redisc == nil && util.ShouldUseRedis() {
 		redisc = redis.NewClient(&redis.Options{
 			Addr: util.GetRedisUrl(),
 			Password: "",
@@ -50,7 +50,7 @@ func New() (Weblensdb) {
 	}
 }
 
-func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (interfaces.Media) {
+func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (Media) {
 	conn := db.redis.Get(fileHash)
 	val, err := conn.Result()
 	if err != nil {
@@ -64,20 +64,20 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (interfaces
 		filter := bson.D{{Key: "_id", Value: fileHash}}
 		findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter, opts)
 
-		var i interfaces.Media
+		var i Media
 		findRet.Decode(&i)
 		return i
 
 	} else {
 		//fmt.Println("Redis cache hit")
-		var i interfaces.Media
+		var i Media
 		json.Unmarshal([]byte(val), &i)
 		return i
 	}
 }
 
-func (db Weblensdb) GetMediaByFilepath(filepath string, includeThumbnail bool) (interfaces.Media) {
-	filepath = util.GuaranteeRelativePath(filepath)
+func (db Weblensdb) GetMediaByFilepath(filepath string, includeThumbnail bool) (Media) {
+	filepath = GuaranteeRelativePath(filepath)
 
 	filter := bson.D{{Key: "filepath", Value: filepath}}
 
@@ -88,20 +88,20 @@ func (db Weblensdb) GetMediaByFilepath(filepath string, includeThumbnail bool) (
 	findRet := db.mongo.Collection("images").FindOne(mongo_ctx, filter, opts)
 
 	if findRet.Err() != nil {
-		return interfaces.Media{}
+		return Media{}
 	}
-	var i interfaces.Media
+	var i Media
 	findRet.Decode(&i)
 	return i
 }
 
 // Returns ids of all media in directory with depth 1
-func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]interfaces.Media) {
+func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]Media) {
 	var re string
 	if !recursive {
-		re = fmt.Sprintf("^%s\\/?[^\\/]+$", util.GuaranteeRelativePath(dirpath))
+		re = fmt.Sprintf("^%s\\/?[^\\/]+$", GuaranteeRelativePath(dirpath))
 	} else {
-		re = fmt.Sprintf("^%s/?.*$", util.GuaranteeRelativePath(dirpath))
+		re = fmt.Sprintf("^%s/?.*$", GuaranteeRelativePath(dirpath))
 	}
 
 	filter := bson.M{"filepath": bson.M{"$regex": re, "$options": "i"}}
@@ -113,12 +113,12 @@ func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]inter
 		panic(err)
 	}
 
-	var i []interfaces.Media
+	var i []Media
 	findRet.All(mongo_ctx, &i)
 	return i
 }
 
-func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails bool) ([]interfaces.Media, bool) {
+func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails bool) ([]Media, bool) {
 	pipeline := mongo.Pipeline{}
 
 	if !thumbnails {
@@ -152,45 +152,58 @@ func (db Weblensdb) GetPagedMedia(sort string, skip, limit int, raw, thumbnails 
 		panic(err)
 	}
 
-	var res []interfaces.Media
+	var res []Media
 	err = cursor.All(mongo_ctx, &res)
 	if err != nil {
 		panic(err)
 	}
 
-	for i, val := range res {
-		go db.redisCacheThumbBytes(val)
-		res[i].Thumbnail64 = ""
+	if redisc != nil {
+		for i, val := range res {
+			go db.redisCacheThumbBytes(val)
+			res[i].Thumbnail64 = ""
+		}
 	}
 
-	util.Debug.Println(res)
 	return res, len(res) == limit
 
 }
 
 func (db Weblensdb) RedisCacheSet(key string, data string) (error) {
+	if redisc == nil {
+		return errors.New("redis not initialized")
+	}
 	_, err := db.redis.Set(key, data, time.Duration(600000000000)).Result()
 	return err
 }
 
 func (db Weblensdb) RedisCacheGet(key string) (string, error) {
+	if redisc == nil {
+		return "", errors.New("redis not initialized")
+	}
 	data, err := db.redis.Get(key).Result()
+	if err != nil {
+		util.Debug.Println("Redis miss")
+	} else {
+		util.Debug.Println("Redis hit")
+	}
 	return data, err
 }
 
-func (db Weblensdb) redisCacheThumbBytes(media interfaces.Media) {
-	_, err := db.redis.Set(media.FileHash, media, time.Duration(60000000000)).Result()
-	if err != nil {
-		panic(err)
+func (db Weblensdb) redisCacheThumbBytes(media Media) (error) {
+	if redisc == nil {
+		return errors.New("redis not initialized")
 	}
+	_, err := db.redis.Set(media.FileHash, media, time.Duration(60000000000)).Result()
+	return err
 }
 
-func (db Weblensdb) DbAddMedia(m *interfaces.Media) {
+func (db Weblensdb) DbAddMedia(m *Media) {
 	if !m.IsFilledOut(false) {
 		util.Error.Panicf("Refusing to write incomplete media to database for file %s", m.Filepath)
 	}
 
-	m.Filepath = util.GuaranteeRelativePath(m.Filepath)
+	m.Filepath = GuaranteeRelativePath(m.Filepath)
 
 	filter := bson.D{{Key: "_id", Value: m.FileHash}}
 	set := bson.D{{Key: "$set", Value: *m}}
@@ -200,9 +213,9 @@ func (db Weblensdb) DbAddMedia(m *interfaces.Media) {
 	}
 }
 
-func (db Weblensdb) UpdateMediaByFilepath(filepath string, m interfaces.Media) {
-	filepath = util.GuaranteeRelativePath(filepath)
-	m.Filepath = util.GuaranteeRelativePath(m.Filepath)
+func (db Weblensdb) UpdateMediaByFilepath(filepath string, m Media) {
+	filepath = GuaranteeRelativePath(filepath)
+	m.Filepath = GuaranteeRelativePath(m.Filepath)
 
 	filter := bson.D{{Key: "filepath", Value: filepath}}
 	set := bson.D{{Key: "$set", Value: m}}
@@ -210,9 +223,9 @@ func (db Weblensdb) UpdateMediaByFilepath(filepath string, m interfaces.Media) {
 	util.FailOnError(err, "Failed to update media by filepath")
 }
 
-func (db Weblensdb) MoveMedia(oldFilepath string, newM interfaces.Media) {
-	oldFilepath = util.GuaranteeRelativePath(oldFilepath)
-	newM.Filepath = util.GuaranteeRelativePath(newM.Filepath)
+func (db Weblensdb) MoveMedia(oldFilepath string, newM Media) {
+	oldFilepath = GuaranteeRelativePath(oldFilepath)
+	newM.Filepath = GuaranteeRelativePath(newM.Filepath)
 
 	db.RemoveMediaByFilepath(oldFilepath)
 	db.DbAddMedia(&newM)
@@ -226,9 +239,9 @@ func (db Weblensdb) RemoveMediaByFilepath(filepath string) {
 
 func (db Weblensdb) CreateTrashEntry(originalFilepath, trashPath string) {
 
-	originalFilepath = util.GuaranteeRelativePath(originalFilepath)
+	originalFilepath = GuaranteeRelativePath(originalFilepath)
 
-	entry := interfaces.TrashEntry{OriginalPath: originalFilepath, TrashPath: trashPath}
+	entry := TrashEntry{OriginalPath: originalFilepath, TrashPath: trashPath}
 
 	_, err := db.mongo.Collection("trash").InsertOne(mongo_ctx, entry)
 	if err != nil {
@@ -240,7 +253,7 @@ func (db Weblensdb) CheckLogin(username string, password string) bool {
 	filter := bson.D{{Key: "username", Value: username}}
 	ret := db.mongo.Collection("users").FindOne(mongo_ctx, filter)
 
-	var user interfaces.User
+	var user User
 	err := ret.Decode(&user)
 	if err != nil {
 		return false

@@ -2,32 +2,7 @@ import Chip from '@mui/material/Chip'
 import { createTheme, emphasize, styled } from '@mui/material/styles'
 import Breadcrumbs from '@mui/material/Breadcrumbs'
 import { Box } from '@mui/material'
-
-// export const StyledBreadcrumb = styled(Chip)(({ theme, success }) => {
-//     let backgroundColor
-//     if (success) {
-
-//     }
-//     else {
-//         backgroundColor =
-//             theme.palette.mode === 'light'
-//                 ? theme.palette.grey[100]
-//                 : theme.palette.grey[800]
-//     }
-//     return {
-//         backgroundColor,
-//         height: theme.spacing(3.5),
-//         color: theme.palette.text.primary,
-//         fontWeight: theme.typography.fontWeightRegular,
-//         '&:hover, &:focus': {
-//             backgroundColor: emphasize(backgroundColor, 0.06),
-//         },
-//         '&:active': {
-//             boxShadow: theme.shadows[1],
-//             backgroundColor: emphasize(backgroundColor, 0.12),
-//         },
-//     }
-// }) as typeof Chip
+import { useState } from 'react'
 
 const customTheme = createTheme({
     palette: {
@@ -43,7 +18,8 @@ const customTheme = createTheme({
 })
 
 
-export const StyledBreadcrumb = ({ label, success, onClick }) => {
+export const StyledBreadcrumb = ({ label, onClick }) => {
+    const [success, setSuccess] = useState(false)
     let backgroundColor
     if (success) {
         backgroundColor = "rgb(0, 255, 0)"
@@ -51,9 +27,20 @@ export const StyledBreadcrumb = ({ label, success, onClick }) => {
     else {
         backgroundColor = "rgb(230, 230, 230)"
     }
+
+    if (onClick == "copy") {
+        onClick = (e) => {
+            console.log(e)
+            e.stopPropagation()
+            navigator.clipboard.writeText(label)
+            setSuccess(true)
+            setTimeout(() => setSuccess(false), 2000)
+        }
+    }
+
     return (
         <Box height={"max-content"} width={"100%"} onClick={onClick} sx={{ cursor: "pointer" }}>
-            <Chip label={label} sx={{
+            <Chip label={success ? "Copied" : label} sx={{
                 width: "100%",
                 backgroundColor,
                 height: 25,
@@ -73,38 +60,53 @@ export const StyledBreadcrumb = ({ label, success, onClick }) => {
     )
 }
 
-const Crumbs = ({ path, includeHome, navigate }) => {
+const Crumbs = ({ path, includeHome, navOnLast, navigate }) => {
     if (!path) {
         return (null)
     }
     try {
-
-        path = path.slice(1)
-        let parts = path.split('/')
-        while (parts[parts.length - 1] == '') {
-            parts.pop()
-        }
-
-        if (includeHome) {
+        path = `/${path}/`.replace(/\/\/+/g, '/').slice(1, -1)
+        let parts: string[] = path.split('/')
+        if (parts[0] == '' && parts.length == 1) {
+            parts = ['/']
+        } else {
             parts.unshift('/')
         }
-        const current = parts.pop()
+
+        if (!includeHome) {
+            parts = parts.slice(1)
+        }
 
         let crumbPaths = []
-        for (let [index, val] of parts.entries()) {
-            if (index == 0 && includeHome) {
-                crumbPaths.push("/")
+        for (const [index, val] of parts.entries()) {
+            if (index === 0) {
+                crumbPaths.push(val)
                 continue
-            } else {
-                crumbPaths.push(crumbPaths[index - 1] + "/" + val)
             }
+            let subPath = crumbPaths[index - 1]
+            if (subPath.slice(-1) !== "/") {
+                subPath += '/'
+            }
+            subPath += val
+
+            crumbPaths.push(subPath)
         }
-        const crumbs = parts.map((part, i) => (
-            <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} success={false} onClick={() => { navigate(`/files/${crumbPaths[i]}`.replace(/\/\/+/g, '/')) }} />)
-        )
-        crumbs.push(
-            <StyledBreadcrumb key={current} label={current == "/" ? "Home" : current} success={false} onClick={() => { }} />
-        )
+
+        const crumbs = parts.map((part, i) => {
+            let onClick
+            if (!navOnLast && i == crumbPaths.length - 1) {
+                onClick = "copy"
+            } else {
+                let navPath = "/files"
+                if (crumbPaths[i][0] !== "/") {
+                    navPath += "/"
+                }
+                navPath += crumbPaths[i]
+                onClick = () => navigate(navPath)
+            }
+            return <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} onClick={onClick} />
+        })
+
         return (
             <Breadcrumbs separator={"›"} >
                 {crumbs}

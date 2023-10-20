@@ -1,24 +1,29 @@
 import Login from "./Pages/Login/Login"
-import React, { Suspense } from 'react';
-
 import Test from "./components/Test"
+import GetWebsocket from './api/Websocket'
+
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { SnackbarProvider } from 'notistack'
+import { useSnackbar, SnackbarProvider } from 'notistack'
+import { LinearProgress } from "@mui/material";
 
 const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"));
 const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"));
 
 function App() {
+  const { enqueueSnackbar } = useSnackbar()
+  const { wsSend, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
+
   return (
     <BrowserRouter>
       <Routes>
         <Route
           path="/"
           element={
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<LinearProgress style={{ width: "100%", position: "absolute" }} />}>
               <div className="container">
                 <SnackbarProvider maxSnack={10} autoHideDuration={5000}>
-                  <Gallery />
+                  <Gallery wsSend={wsSend} lastMessage={lastMessage} readyState={readyState} enqueueSnackbar={enqueueSnackbar} />
                 </SnackbarProvider>
               </div>
             </Suspense>
@@ -35,10 +40,10 @@ function App() {
         <Route
           path="/files/*"
           element={
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<LinearProgress style={{ width: "100%", position: "absolute" }} />}>
               <div className="container">
                 <SnackbarProvider maxSnack={10} autoHideDuration={5000}>
-                  <FileBrowser />
+                  <FileBrowser wsSend={wsSend} lastMessage={lastMessage} readyState={readyState} enqueueSnackbar={enqueueSnackbar} />
                 </SnackbarProvider>
               </div>
             </Suspense>

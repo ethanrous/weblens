@@ -2,7 +2,6 @@ import { useEffect, useReducer, useMemo, memo, useRef, useState } from 'react'
 
 import HeaderBar from "../../components/HeaderBar"
 import Presentation from '../../components/Presentation'
-import GetWebsocket from '../../api/Websocket'
 import { GalleryBucket } from './MediaDisplay'
 import { mediaReducer, startKeybaordListener, handleScroll, moreData } from './GalleryLogic'
 
@@ -15,10 +14,10 @@ import { LinearProgress } from '@mui/material'
 import ToggleButton from '@mui/material/ToggleButton'
 import RawOnIcon from '@mui/icons-material/RawOn'
 import InfoIcon from '@mui/icons-material/Info'
-import { useSnackbar } from 'notistack';
+
 import Tooltip from '@mui/material/Tooltip';
 import styled from '@emotion/styled'
-import { MediaData } from '../../types/Generic'
+import { MediaData, MediaStateType } from '../../types/Generic'
 
 const NoMediaContainer = styled(Box)({
     display: "flex",
@@ -75,7 +74,7 @@ const InfiniteScroll = ({ items, itemCount, loading, moreItems }: { items: any, 
     return (
         <Box flexDirection={"column"} pb={10} width={"90vw"}>
             {items}
-            {itemCount == 0 && !loading && (
+            {itemCount == 0 && (
                 <NoMediaDisplay />
             )}
             {!moreItems && (
@@ -85,12 +84,10 @@ const InfiniteScroll = ({ items, itemCount, loading, moreItems }: { items: any, 
     )
 }
 
-const Gallery = () => {
-    const { enqueueSnackbar } = useSnackbar()
-    const { wsSend, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
+const Gallery = ({ wsSend, lastMessage, readyState, enqueueSnackbar }) => {
 
-    const [mediaState, dispatch] = useReducer(mediaReducer, {
-        mediaMap: {},
+    const [mediaState, dispatch]: [MediaStateType, React.Dispatch<any>] = useReducer(mediaReducer, {
+        mediaMap: new Map<string, MediaData>(),
         mediaCount: 0,
         maxMediaCount: 100,
         hasMoreMedia: true,
@@ -116,10 +113,10 @@ const Gallery = () => {
         if (lastMessage) {
             const msgData = JSON.parse(lastMessage.data)
             switch (msgData["type"]) {
-                case "new_items": {
-                    dispatch({ type: "append_items", items: msgData["content"] })
-                    return
-                }
+                // case "new_items": {
+                //     dispatch({ type: "append_items", items: msgData["content"] })
+                //     return
+                // }
                 case "scan_directory_progress": {
                     dispatch({ type: "set_scan_progress", progress: ((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100) })
                     console.log(msgData["remainingTasks"], "/", msgData["totalTasks"])
@@ -129,10 +126,10 @@ const Gallery = () => {
                     dispatch({ type: "set_loading", loading: false })
                     return
                 }
-                case "refresh": {
-                    //GetDirectoryData(path, dispatch)
-                    return
-                }
+                // case "refresh": {
+                //     GetDirectoryData(path, dispatch)
+                //     return
+                // }
                 case "error": {
                     enqueueSnackbar(msgData["error"], { variant: "error" })
                     return
@@ -145,45 +142,39 @@ const Gallery = () => {
         }
     }, [lastMessage])
 
-    const dateMap = useMemo(() => {
-        let dateMap = {}
+    const dateMap: Map<string, Array<MediaData>> = useMemo(() => {
+        let dateMap = new Map<string, Array<MediaData>>()
 
-        for (let value of Object.values<MediaData>(mediaState.mediaMap)) {
+        if (mediaState.mediaMap.size === 0) {
+            return dateMap
+        }
+
+        for (let value of mediaState.mediaMap.values()) {
 
             const [date, _] = value.CreateDate.split("T")
-            if (dateMap[date] == null) {
-                dateMap[date] = [value]
+            if (dateMap.get(date) == null) {
+                dateMap.set(date, [value])
             } else {
-                dateMap[date].push(value)
+                dateMap.get(date).push(value)
             }
         }
-
         return dateMap
-    }, [mediaState.mediaMap])
+    }, [mediaState.mediaMap.size])
 
-    const c = useMemo(() => {
-        handleScroll(dispatch)
-        for (let value of Object.values<MediaData>(mediaState.mediaMap)) {
-            var count = 0
-            if (!value.Filepath.includes(mediaState.searchContent)) {
-                value.Display = false
-            } else {
-                count += 1
-                value.Display = true
-            }
-        }
-        return count
-    }, [dateMap, mediaState.searchContent])
+    const [dateGroups, numShownItems]: [JSX.Element[], number] = useMemo(() => {
+        if (!dateMap) { return [[], 0] }
 
-    const dateGroups = useMemo(() => {
-        if (!dateMap) {
-            return []
-        }
-        const buckets = Object.keys(dateMap).map((value, i) => (
-            <GalleryBucket key={value} date={value} bucketData={dateMap[value]} showIcons={mediaState.showIcons} dispatch={dispatch} />
-        ))
-        return buckets
-    }, [dateMap, mediaState.showIcons, mediaState.searchContent, c])
+        let counter = 0
+        const buckets = Array.from(dateMap.keys()).map((date) => {
+            const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.Filepath.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
+            if (items.length == 0) { return null }
+            counter += items.length
+            return (<GalleryBucket key={date} date={date} bucketData={items} showIcons={mediaState.showIcons} dispatch={dispatch} />)
+        })
+
+        return [buckets, counter]
+    }, [dateMap, mediaState.showIcons, mediaState.searchContent])
+
 
     return (
         <Box>
@@ -203,7 +194,10 @@ const Gallery = () => {
             )}
             <Container maxWidth={false} style={{ display: 'flex', flexDirection: 'row', justifyContent: "center", paddingLeft: "0px", paddingTop: "25px", paddingRight: mediaState.presentingHash == "" ? "55px" : "71px" }}>
                 {mediaState.presentingHash != "" && (
-                    <Presentation mediaData={mediaState.mediaMap[mediaState.presentingHash]} dispatch={dispatch} />
+                    <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} dispatch={dispatch} />
+                )}
+                {mediaState.searchContent && (
+                    <p style={{ position: "absolute", top: "75px", left: "105px" }}>Search limiting to {numShownItems} items</p>
                 )}
 
                 <GalleryOptions rawSelected={mediaState.includeRaw} showIcons={mediaState.showIcons} dispatch={dispatch} />

@@ -18,9 +18,9 @@ import (
 
 	"slices"
 
-	"github.com/ethrousseau/weblens/api/database"
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/importMedia"
-	"github.com/ethrousseau/weblens/api/interfaces"
+
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/golang-jwt/jwt/v5"
 
@@ -39,7 +39,7 @@ type fileInfo struct{
 	Size int `json:"size"`
 	ModTime time.Time `json:"modTime"`
 	Filepath string `json:"filepath"`
-	MediaData interfaces.Media `json:"mediaData"`
+	MediaData dataStore.Media `json:"mediaData"`
 }
 
 type loginInfo struct {
@@ -84,11 +84,11 @@ func getPagedMedia(ctx *gin.Context) {
 		raw = true
 	}
 
-	db := database.New()
+	db := dataStore.NewDB()
 	media, moreMedia := db.GetPagedMedia(sort, skip, limit, raw, true)
 
 	res := struct{
-		Media []interfaces.Media
+		Media []dataStore.Media
 		MoreMedia bool
 	} {
 		media,
@@ -120,7 +120,7 @@ func getMediaItem(ctx *gin.Context) {
 		util.FailOnError(errors.New("fullres should be the only option if selected"), "Failed to handle get media request (trying to get: " + fileHash + ")")
 	}
 
-	db := database.New()
+	db := dataStore.NewDB()
 	m := db.GetMedia(fileHash, includeThumbnail)
 
 	if !m.IsFilledOut(!includeThumbnail) {
@@ -129,35 +129,12 @@ func getMediaItem(ctx *gin.Context) {
 	}
 
 	if includeFullres {
-		redisKey := "Fullres " + m.FileHash
-		// data64, err := db.RedisCacheGet(redisKey)
-		err := os.ErrClosed
-		if err == nil {
-			util.Debug.Println("Redis hit")
-			//fullResBytes, _ := b64.StdEncoding.DecodeString(data64)
-			//ctx.Writer.Write(fullResBytes)
-			return
-		} else {
-			util.Debug.Println("Redis miss")
-			fullResBytes, err := m.ReadFullres()
+		fullresBytes, err := m.ReadFullres(db)
+		util.FailOnError(err, "Failed to read fullres file")
+		ctx.Writer.Write(fullresBytes)
 
-			if err != nil {
-				if errors.Is(err, os.ErrNotExist) {
-					ctx.Writer.WriteHeader(http.StatusNotFound)
-					util.DisplayError(err, "Failed to read full res file")
-					return
-				} else {
-					util.FailOnError(err, "Failed to read full res file")
-				}
-			}
-			ctx.Writer.Write(fullResBytes)
-			fullres64 := b64.StdEncoding.EncodeToString(fullResBytes)
-			db.RedisCacheSet(redisKey, fullres64)
-			return
-		}
-
+		return
 	} else if !includeMeta && includeThumbnail {
-
 		thumbBytes, err := b64.StdEncoding.DecodeString(m.Thumbnail64)
 		util.FailOnError(err, "Failed to decode thumb64 to bytes")
 
@@ -179,7 +156,7 @@ func streamVideo(ctx *gin.Context) {
 
 	includeThumbnail := false
 
-	db := database.New()
+	db := dataStore.NewDB()
 	m := db.GetMedia(fileHash, includeThumbnail)
 
 	if !m.IsFilledOut(!includeThumbnail) {
@@ -187,7 +164,7 @@ func streamVideo(ctx *gin.Context) {
 		util.FailOnError(errors.New("media struct not propperly filled out"), "Failed to get media from Database (trying to get: " + fileHash + ")")
 	}
 
-	// cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", util.GuaranteeAbsolutePath(m.Filepath), "-c:v", "h264_videotoolbox", "-f", "h264", "pipe:1")
+	// cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", dataStore.GuaranteeAbsolutePath(m.Filepath), "-c:v", "h264_videotoolbox", "-f", "h264", "pipe:1")
 	// stdout, err := cmd.StdoutPipe()
 	// util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
 
@@ -201,7 +178,7 @@ func streamVideo(ctx *gin.Context) {
 	// // _, err = buf.ReadFrom(stdout)
 
 	//	util.FailOnError(err, "Failed to run ffmpeg to get video thumbnail")
-	file, err := os.Open(util.GuaranteeAbsolutePath(m.Filepath))
+	file, err := os.Open(dataStore.GuaranteeAbsolutePath(m.Filepath))
 
 	util.FailOnError(err, "Failed to open fullres stream file")
 
@@ -217,7 +194,7 @@ func streamVideo(ctx *gin.Context) {
 }
 
 func scan(path string, recursive bool) (util.WorkerPool) {
-	scanPath := util.GuaranteeAbsolutePath(path)
+	scanPath := dataStore.GuaranteeAbsolutePath(path)
 
 	_, err := os.Stat(scanPath)
 	util.FailOnError(err, "Scan path does not exist")
@@ -227,8 +204,8 @@ func scan(path string, recursive bool) (util.WorkerPool) {
 	return wp
 }
 
-func uploadItem(relParentDir, filename, item64 string) (*interfaces.Media, error) {
-	absoluteParent := util.GuaranteeAbsolutePath(relParentDir)
+func uploadItem(relParentDir, filename, item64 string) (*dataStore.Media, error) {
+	absoluteParent := dataStore.GuaranteeAbsolutePath(relParentDir)
 	filepath := filepath.Join(absoluteParent, filename)
 
 	_, err := os.Stat(filepath)
@@ -248,7 +225,7 @@ func uploadItem(relParentDir, filename, item64 string) (*interfaces.Media, error
 	_, err = outFile.Write(itemBytes)
 	util.FailOnError(err, "Failed to write uploaded bytes to new file")
 
-	db := database.New()
+	db := dataStore.NewDB()
 
 	m, err := importMedia.HandleNewImage(filepath, db)
 	if err != nil {
@@ -266,20 +243,30 @@ var dirIgnore = []string{
 
 func makeDir(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
-	absolutePath := filepath.Join(util.GuaranteeAbsolutePath(relativePath), "newDir")
+	absolutePath := filepath.Join(dataStore.GuaranteeAbsolutePath(relativePath), "untitled folder")
 
 	_, err := os.Stat(absolutePath)
-	if err !=nil && !errors.Is(err, os.ErrNotExist) {
+
+	counter := 1
+	for err == nil {
+		absolutePath = filepath.Join(dataStore.GuaranteeAbsolutePath(relativePath), fmt.Sprintf("untitled folder %d", counter))
+		_, err = os.Stat(absolutePath)
+		counter += 1
+	}
+
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		util.Error.Panicf("Directory (%s) already exists", relativePath)
 	}
 
 	err = os.Mkdir(absolutePath, os.FileMode(0777))
 	util.FailOnError(err, "Failed to create new directory")
+
+	ctx.JSON(http.StatusCreated, dataStore.GuaranteeRelativePath(absolutePath))
 }
 
-func formatFileInfo(file fs.FileInfo, parentDir string, db database.Weblensdb) (fileInfo, bool) {
-	var absolutePath string = util.GuaranteeAbsolutePath(parentDir)
-	var relativePath string = util.GuaranteeRelativePath(parentDir)
+func formatFileInfo(file fs.FileInfo, parentDir string, db dataStore.Weblensdb) (fileInfo, bool) {
+	var absolutePath string = dataStore.GuaranteeAbsolutePath(parentDir)
+	var relativePath string = dataStore.GuaranteeRelativePath(parentDir)
 
 	var formattedInfo fileInfo
 	var include bool = false
@@ -304,22 +291,23 @@ func formatFileInfo(file fs.FileInfo, parentDir string, db database.Weblensdb) (
 
 func getDirInfo(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
-	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+	absolutePath := dataStore.GuaranteeAbsolutePath(relativePath)
 
 	dirInfo, err := os.ReadDir(absolutePath)
 	if err != nil {
 		ctx.AbortWithStatus(404)
+		return
 	}
 
-	db := database.New()
+	db := dataStore.NewDB()
 	var filteredDirInfo []fileInfo
 	for _, file := range dirInfo {
-			info, err := file.Info()
-			util.FailOnError(err, "Failed to get file info")
-			formattedInfo, include := formatFileInfo(info, absolutePath, db)
-			if include {
-				filteredDirInfo = append(filteredDirInfo, formattedInfo)
-			}
+		info, err := file.Info()
+		util.FailOnError(err, "Failed to get file info")
+		formattedInfo, include := formatFileInfo(info, absolutePath, db)
+		if include {
+			filteredDirInfo = append(filteredDirInfo, formattedInfo)
+		}
 	}
 
 	ctx.JSON(http.StatusOK, filteredDirInfo)
@@ -327,12 +315,12 @@ func getDirInfo(ctx *gin.Context) () {
 
 func getFile(ctx *gin.Context) {
 	relativePath := ctx.Query("path")
-	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+	absolutePath := dataStore.GuaranteeAbsolutePath(relativePath)
 
 	parentDir := filepath.Dir(absolutePath)
 
 	file, _ := os.Stat(absolutePath)
-	db := database.New()
+	db := dataStore.NewDB()
 	formattedInfo, include := formatFileInfo(file, parentDir, db)
 
 	if include {
@@ -344,8 +332,8 @@ func getFile(ctx *gin.Context) {
 }
 
 func updateFile(ctx *gin.Context) {
-	existingFilepath := util.GuaranteeAbsolutePath(ctx.Query("existingFilepath"))
-	newFilepath := util.GuaranteeAbsolutePath(ctx.Query("newFilepath"))
+	existingFilepath := dataStore.GuaranteeAbsolutePath(ctx.Query("existingFilepath"))
+	newFilepath := dataStore.GuaranteeAbsolutePath(ctx.Query("newFilepath"))
 
 	stat, err := os.Stat(existingFilepath)
 	util.FailOnError(err, "Cannot rename file that does not exist")
@@ -360,7 +348,7 @@ func updateFile(ctx *gin.Context) {
 		return
 	}
 
-	db := database.New()
+	db := dataStore.NewDB()
 	m := db.GetMediaByFilepath(existingFilepath, true)
 
 	if !m.IsFilledOut(false) {
@@ -376,7 +364,7 @@ func updateFile(ctx *gin.Context) {
 
 func moveFileToTrash(ctx *gin.Context) {
 	relativePath := ctx.Query("path")
-	absolutePath := util.GuaranteeAbsolutePath(relativePath)
+	absolutePath := dataStore.GuaranteeAbsolutePath(relativePath)
 
 	_, err := os.Stat(absolutePath)
 	util.FailOnError(err, "Failed to move file to trash that does not exist")
@@ -390,7 +378,7 @@ func moveFileToTrash(ctx *gin.Context) {
 	err = os.Rename(absolutePath,  trashPath)
 	util.FailOnError(err, "Failed to move file to trash")
 
-	db := database.New()
+	db := dataStore.NewDB()
 	db.CreateTrashEntry(relativePath, trashPath)
 }
 
@@ -411,19 +399,19 @@ func createTakeout(ctx *gin.Context) {
 	var doSingle bool = false
 
 	if len(items.Items) == 1 {
-		stat, _ := os.Stat(util.GuaranteeAbsolutePath(items.Items[0]))
+		stat, _ := os.Stat(dataStore.GuaranteeAbsolutePath(items.Items[0]))
 		if !stat.IsDir() {
 			doSingle = true
 		}
 	}
 
 	if doSingle {
-		db := database.New()
+		db := dataStore.NewDB()
 		m := db.GetMediaByFilepath(items.Items[0], false)
 		redir = fmt.Sprintf("/api/takeout/%s?single=true", m.FileHash)
 
 	} else {
-		takeoutId := util.CreateZipFromPaths(items.Items)
+		takeoutId := dataStore.CreateZipFromPaths(items.Items)
 		redir = fmt.Sprintf("/api/takeout/%s", takeoutId)
 	}
 
@@ -440,9 +428,9 @@ func getTakeout(ctx *gin.Context) {
 	var readPath string
 
 	if isSingle {
-		db := database.New()
+		db := dataStore.NewDB()
 		m := db.GetMedia(takeoutId, false)
-		readPath = util.GuaranteeAbsolutePath(m.Filepath)
+		readPath = dataStore.GuaranteeAbsolutePath(m.Filepath)
 		extraHeaders["Content-Disposition"] = fmt.Sprintf("attachment; filename=\"%s\";", filepath.Base(m.Filepath))
 	} else {
 		readPath = fmt.Sprintf("%s/%s.zip", util.GetTakeoutDir(), takeoutId) // Will already be absolute path
@@ -482,7 +470,7 @@ func loginUser(ctx *gin.Context) {
 	}
 	//passHash := string(passHashBytes)
 
-	db := database.New()
+	db := dataStore.NewDB()
 	if db.CheckLogin(usrCreds.Username, usrCreds.Password) {
 		util.Debug.Printf("Valid login for [%s]\n", usrCreds.Username)
 

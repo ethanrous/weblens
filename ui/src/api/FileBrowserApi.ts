@@ -16,22 +16,36 @@ export function DeleteFile(path) {
     fetch(url.toString(), { method: "DELETE" })
 }
 
-export function GetDirectoryData(path, dispatch) {
+export function GetDirectoryData(path, dispatch, navigate) {
+    dispatch({ type: "set_loading", loading: true })
     var url = new URL(`${API_ENDPOINT}/directory`)
-    url.searchParams.append('path', ('/' + path).replace(/\/\/+/g, '/'))
-    fetch(url.toString()).then((res) => res.json()).then((data) => {
+    path = ('/' + path).replace(/\/\/+/g, '/')
+    url.searchParams.append('path', path)
+    fetch(url.toString())
+        .then((res) => {
+            if (res.status == 404) {
+                path = path.slice(0, -1)
+                let newPath = `/files/${path.slice(0, path.lastIndexOf("/"))}`.replace(/\/\/+/g, '/')
+                console.log("NEW!", newPath)
+                navigate(newPath)
+            } else {
+                return res.json()
+            }
+        })
+        .then((data) => {
+            dispatch({ type: 'set_loading', loading: false })
         dispatch({
             type: 'update_items', items: data == null ? [] : data
         })
     })
 }
 
-export function CreateDirectory(path, dispatch) {
-    console.log("HJERE")
+export function CreateDirectory(path) {
     var url = new URL(`${API_ENDPOINT}/directory`)
     url.searchParams.append('path', ('/' + path).replace(/\/\/+/g, '/'))
-    console.log("AFTR")
-    return fetch(url.toString(), { method: "POST" }).then(() => GetDirectoryData(path, dispatch))
+
+    return fetch(url.toString(), { method: "POST" })
+        .then(res => { return res.json() })
 }
 
 export function RenameFile(existingPath, newPath) {

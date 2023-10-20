@@ -7,7 +7,6 @@ const PostFiles = (files, path, wsSend) => {
 }
 
 const PostFile = (file, path, wsSend) => {
-    console.log("Inside!")
     let msg = JSON.stringify({
         type: 'file_upload',
         content: {
@@ -23,7 +22,6 @@ function readFile(file) {
         let fr = new FileReader();
 
         fr.onload = function () {
-            console.log("HERE");
             resolve({ name: file.name, item64: fr.result });
         };
 
@@ -36,15 +34,12 @@ function readFile(file) {
 }
 
 const HandleFileUpload = (filesData, path, wsSend) => {
-    let readers = []
-
     for (let file of filesData) {
-        if (file.size > 2000000000)
+        if (file.size > 2000000000) {
             console.log("This upload is going to fail")
+        }
         readFile(file).then(value => PostFile(value, path, wsSend))
     }
-
-    //Promise.all(readers).then((values) => { console.log(values); PostFiles(values, path, wsSend) })
 
 }
 

@@ -28,6 +28,10 @@ func IsDevMode() (bool) {
 	return envReadBool("DEV_MODE")
 }
 
+func ShouldUseRedis() (bool) {
+	return envReadBool("USE_REDIS")
+}
+
 func ShowDebug() (bool) {
 	return envReadBool("SHOW_DEBUG")
 }

@@ -72,8 +72,6 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
     },
 }));
 
-
-
 const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarProps) {
     const [cookies, setCookie, removeCookie] = useCookies(['weblens-login-token']);
     const nav = useNavigate()
@@ -93,25 +91,21 @@ const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarP
                 <Toolbar style={{ paddingLeft: "25px" }}>
                     {page == "gallery" && (
                         <Tooltip title={"Files"}>
-                            <IconButton href={"/files/"} edge="start" color="inherit" aria-label="files" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                            <IconButton onClick={() => nav("/files/")} edge="start" color="inherit" aria-label="files" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
                                 <FolderIcon />
                             </IconButton>
                         </Tooltip>
                     )}
                     {page == "files" && (
                         <Tooltip title={"Gallery"}>
-                            <IconButton href={"/"} edge="start" color="inherit" aria-label="files" style={{ margin: 15, flexDirection: "column", fontSize: 20 }}>
+                            <IconButton onClick={() => nav("/")} edge="start" color="inherit" aria-label="files" style={{ margin: 15, flexDirection: "column", fontSize: 20 }}>
                                 <PhotoLibraryIcon />
                             </IconButton>
                         </Tooltip>
-                    )}
-                    <Tooltip title={"Sync"}>
-                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
-                            <SyncIcon />
-                    </IconButton>
-                    </Tooltip>
 
-                    <Tooltip title={"Upload"}>
+                    )}
+                    {page == "files" && (
+                        <Tooltip title={"Upload"}>
                         <IconButton edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
                         <input
                             id="upload-image"
@@ -123,6 +117,13 @@ const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarP
                             <UploadIcon />
                         </IconButton>
                     </Tooltip>
+                    )}
+                    <Tooltip title={"Sync"}>
+                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                            <SyncIcon />
+                        </IconButton>
+                    </Tooltip>
+
                     <Search>
                         <SearchIconWrapper>
                             <SearchIcon />

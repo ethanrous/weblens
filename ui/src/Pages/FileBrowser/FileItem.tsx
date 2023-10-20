@@ -157,7 +157,7 @@ export default function Item({ itemData, editing, dispatch, anyChecked, navigate
             unselectedAction = () => { }
         }
         return unselectedAction
-    }, [])
+    }, [itemData.imported])
 
     const select = (e) => { dispatch({ type: 'set_selected', itempath: itemData.filepath, selected: !itemData.selected }) }
 

@@ -5,11 +5,11 @@ import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import styled from '@emotion/styled'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import Typography from '@mui/material/Typography'
 import Crumbs from './Crumbs'
 
 import { MediaData } from '../types/Generic'
 import { MediaImage } from './PhotoContainer'
+import { useNavigate } from 'react-router-dom'
 
 const PresentationContainer = styled(Box)({
     position: "fixed",
@@ -59,7 +59,6 @@ const PresentationVisual = ({ mediaData }) => {
 }
 
 function startKeyDownHandler(dispatch) {
-    console.log("AHH")
     const keyDownHandler = event => {
         if (event.key === 'Escape') {
             event.preventDefault()
@@ -85,6 +84,8 @@ const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch:
         return startKeyDownHandler(dispatch)
     }, [])
 
+    const navigate = useNavigate()
+
     return (
         <PresentationContainer>
             <PresentationVisual mediaData={mediaData} />
@@ -97,7 +98,7 @@ const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch:
                 <CloseIcon />
             </IconButton>
             <Box position={"absolute"} top={10}>
-                <Crumbs path={mediaData?.Filepath} includeHome={false} navigate={() => { }} />
+                <Crumbs path={mediaData?.Filepath} includeHome={false} navOnLast={false} navigate={navigate} />
             </Box>
         </PresentationContainer>
     )

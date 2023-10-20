@@ -1,4 +1,4 @@
-package interfaces
+package dataStore
 
 import (
 	"bytes"
@@ -19,10 +19,9 @@ import (
 	"github.com/barasher/go-exiftool"
 	"github.com/buckket/go-blurhash"
 	"github.com/disintegration/imaging"
+	"github.com/ethrousseau/weblens/api/util"
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
-
-	"github.com/ethrousseau/weblens/api/util"
 )
 
 type Media struct {
@@ -141,7 +140,7 @@ func (m *Media) ExtractExif() (error) {
 }
 
 func (m *Media) rawImageReader() (io.Reader, error) {
-	absolutePath := util.GuaranteeAbsolutePath(m.Filepath)
+	absolutePath := GuaranteeAbsolutePath(m.Filepath)
 
 	escapedPath := strings.ReplaceAll(absolutePath, " ", "\\ ")
 
@@ -152,7 +151,6 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
 
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
-	util.Debug.Println(cmd.String())
 
 	var out bytes.Buffer
 	var stderr bytes.Buffer
@@ -181,7 +179,7 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 
 func (m *Media) videoThumbnailReader() (io.Reader, error) {
 
-	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", util.GuaranteeAbsolutePath(m.Filepath), "-ss", "00:00:02.000", "-frames:v", "1", "-f", "mjpeg", "pipe:1")
+	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", GuaranteeAbsolutePath(m.Filepath), "-ss", "00:00:02.000", "-frames:v", "1", "-f", "mjpeg", "pipe:1")
 	stdout, err := cmd.StdoutPipe()
 	util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
 
@@ -200,7 +198,27 @@ func (m *Media) videoThumbnailReader() (io.Reader, error) {
 
 }
 
-func (m *Media) ReadFullres() ([]byte, error) {
+func (m *Media) ReadFullres(db Weblensdb) ([]byte, error) {
+	defer func() any {
+		if err := recover(); err != nil {
+			util.Error.Printf("Could not read fullres image: %s", err)
+			return err
+		}
+		return nil
+	}()
+
+	redisKey := "Fullres " + m.FileHash
+	if util.ShouldUseRedis() {
+		db := NewDB()
+		fullres64, err := db.RedisCacheGet(redisKey)
+		if err == nil {
+			fullresBytes, err := base64.StdEncoding.DecodeString(fullres64)
+			util.FailOnError(err, "Failed to decode fullres image base64 string")
+
+			return fullresBytes, nil
+		}
+	}
+
 	var readable io.Reader
 	if m.MediaType.IsRaw {
 		var err error
@@ -210,20 +228,24 @@ func (m *Media) ReadFullres() ([]byte, error) {
 		}
 	} else {
 		var err error
-		readable, err = os.Open(util.GuaranteeAbsolutePath(m.Filepath))
+		readable, err = os.Open(GuaranteeAbsolutePath(m.Filepath))
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	buf := new(bytes.Buffer)
-	read, err := buf.ReadFrom(readable)
-	if err != nil {
-		return nil, err
-	}
-	util.Debug.Println("Read ", read, " bytes")
+	_, err := buf.ReadFrom(readable)
+	util.FailOnError(err, "Failed to read fullres image from buffer")
 
-	return buf.Bytes(), nil
+	fullresBytes := buf.Bytes()
+
+	if util.ShouldUseRedis() {
+		fullres64 := base64.StdEncoding.EncodeToString(fullresBytes)
+		db.RedisCacheSet(redisKey, fullres64)
+	}
+
+	return fullresBytes, nil
 }
 
 func (m *Media) getReadable() (io.Reader) {
@@ -238,7 +260,7 @@ func (m *Media) getReadable() (io.Reader) {
 		util.FailOnError(err, "Failed to get readable video proxy image")
 	} else {
 		var err error
-		readable, err = os.Open(util.GuaranteeAbsolutePath(m.Filepath))
+		readable, err = os.Open(GuaranteeAbsolutePath(m.Filepath))
 		util.FailOnError(err, "Failed to open generic image file")
 	}
 

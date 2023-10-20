@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -35,26 +36,26 @@ func wsReqSwitchboard(msg wsMsg, conn *websocket.Conn) {
 	switch msg.Type {
 		case "file_upload": {
 
-			relPath := util.GuaranteeRelativePath(msg.Content["path"].(string))
+			relPath := dataStore.GuaranteeRelativePath(msg.Content["path"].(string))
 
 			fileData := msg.Content["file"].(map[string]interface {})
 			m, err := uploadItem(relPath, fileData["name"].(string), fileData["item64"].(string))
 
 			if err != nil {
 				errMsg := fmt.Sprintf("Upload error: %s", err)
-				errContent := map[string]any{"Message": errMsg, "File": util.GuaranteeRelativePath(filepath.Join(relPath, fileData["name"].(string)))}
+				errContent := map[string]any{"Message": errMsg, "File": dataStore.GuaranteeRelativePath(filepath.Join(relPath, fileData["name"].(string)))}
 				conn.WriteJSON(wsMsg{Type: "error", Content: errContent, Error: "upload_error"})
 				return
 			}
 
-			f, err := os.Stat(util.GuaranteeAbsolutePath(m.Filepath))
+			f, err := os.Stat(dataStore.GuaranteeAbsolutePath(m.Filepath))
 			util.FailOnError(err, "Failed to get stats of uploaded file")
 
 			newItem := fileInfo{
 				Imported: true,
 				IsDir: false,
 				Size: int(f.Size()),
-				Filepath: util.GuaranteeRelativePath(m.Filepath),
+				Filepath: dataStore.GuaranteeRelativePath(m.Filepath),
 				MediaData: *m,
 				ModTime: f.ModTime(),
 			}
@@ -65,7 +66,6 @@ func wsReqSwitchboard(msg wsMsg, conn *websocket.Conn) {
 			} {
 				Type: "new_items",
 				Content: []fileInfo{newItem},
-
 			}
 
 			conn.WriteJSON(res)

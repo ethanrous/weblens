@@ -76,11 +76,6 @@ const StyledIconBox = styled(Box)({
 
 // Functions
 
-function handleCopy(setCopied) {
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1000)
-}
-
 // COMPONENTS //
 
 const MediaInfoDisplay = ({ mediaData }) => {
@@ -111,10 +106,10 @@ const MediaInfoDisplay = ({ mediaData }) => {
     const filename = mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
 
     return (
-        <Box width={"100%"} height={"100%"}>
+        <Box width={"100%"} height={"100%"} display={"flex"} justifyContent={"center"}>
             <TypeIcon />
-            <Box width={"95%"} height={"max-content"} bottom={10} left={10} position={"absolute"}>
-                <StyledBreadcrumb label={copied ? "Copied" : filename} success={copied} onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(filename); handleCopy(setCopied) }} />
+            <Box width={"max-content"} height={"max-content"} bottom={10} position={"absolute"}>
+                <StyledBreadcrumb label={copied ? "Copied" : filename} onClick={"copy"} />
 
                 {/* <Crumbs path={mediaData.Filepath} includeHome={false} navigate={() => { }} /> */}
                 {/* <Typography position={"absolute"} top={4} left={50}>{mediaData.Filepath}</Typography> */}
@@ -154,9 +149,6 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch
 const BucketCards = ({ medias, showIcons, dispatch }) => {
     const mediaCards = useMemo(() => {
         return medias.map((mediaData: MediaData) => {
-            if (!mediaData.Display == true) {
-                return null
-            }
             return (
                 <MediaWrapper
                     key={mediaData.FileHash}
@@ -195,25 +187,12 @@ const DateWrapper = ({ dateTime }) => {
     )
 }
 
-//export const GalleryBucket = memo(function GalleryBucket({
 export const GalleryBucket = ({
     date,
     bucketData,
     showIcons,
     dispatch
 }: GalleryBucketProps) => {
-    const anyDisplayed = () => {
-        for (const val of bucketData) {
-            if (val.Display) {
-                return true
-            }
-        }
-        return false
-    }
-
-    if (!anyDisplayed()) {
-        return null
-    }
 
     return (
         <Grid item >

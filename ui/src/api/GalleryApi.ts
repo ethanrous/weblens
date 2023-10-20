@@ -3,8 +3,8 @@ import API_ENDPOINT from './ApiEndpoint'
 
 export async function fetchData(mediaState, dispatch) {
     try {
-        let mediaMap = { ...mediaState.mediaMap }
-        let dateMap = { ...mediaState.dateMap }
+        // let mediaMap = new Map<string, MediaData>(mediaState.mediaMap)
+        let mediaMap: Map<string, MediaData> = mediaState.mediaMap
         let previousLast: string = mediaState.previousLast
 
         const limit = mediaState.maxMediaCount - mediaState.mediaCount
@@ -26,19 +26,12 @@ export async function fetchData(mediaState, dispatch) {
         if (data.Media != null) {
             hasMoreMedia = data.MoreMedia
             for (const [_, value] of media.entries()) {
-                mediaMap[value.FileHash] = value
+                mediaMap.set(value.FileHash, value)
                 if (previousLast) {
-                    mediaMap[value.FileHash].previous = mediaMap[previousLast]
-
-                    mediaMap[previousLast].next = mediaMap[value.FileHash]
+                    mediaMap.get(value.FileHash).Previous = mediaMap.get(previousLast)
+                    mediaMap.get(previousLast).Next = mediaMap.get(value.FileHash)
                 }
                 previousLast = value.FileHash
-                const [date, _] = value.CreateDate.split("T")
-                if (dateMap[date] == null) {
-                    dateMap[date] = [value]
-                } else {
-                    dateMap[date].push(value)
-                }
             }
         } else {
             hasMoreMedia = false
@@ -47,7 +40,6 @@ export async function fetchData(mediaState, dispatch) {
         dispatch({
             type: 'add_media',
             mediaMap: mediaMap,
-            dateMap: dateMap,
             hasMoreMedia: hasMoreMedia,
             previousLast: previousLast,
             addedCount: media?.length || 0

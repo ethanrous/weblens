@@ -1,21 +1,19 @@
-import excludeVariablesFromRoot from '@mui/material/styles/excludeVariablesFromRoot'
 import { fetchData } from '../../api/GalleryApi'
-import { MediaData } from '../../types/Generic'
+import { MediaStateType } from '../../types/Generic'
 
-export function mediaReducer(state, action) {
+export function mediaReducer(state: MediaStateType, action) {
     switch (action.type) {
         case 'add_media': {
             return {
                 ...state,
                 mediaMap: action.mediaMap,
-                dateMap: action.dateMap,
                 hasMoreMedia: action.hasMoreMedia,
                 previousLast: action.previousLast,
                 mediaCount: state.mediaCount + action.addedCount
             }
         }
         case 'insert_thumbnail': {
-            state.mediaMap[action.hash].Thumbnail64 = action.thumb64
+            state.mediaMap.get(action.hash).Thumbnail64 = action.thumb64
             return {
                 ...state,
             }
@@ -26,12 +24,12 @@ export function mediaReducer(state, action) {
                 scanProgress: action.progress
             }
         }
-        case 'insert_fullres': {
-            state.mediaMap[action.hash].Fullres64 = action.fullres64
-            return {
-                ...state,
-            }
-        }
+        // case 'insert_fullres': {
+        //     state.mediaMap.get(action.hash).Fullres64 = action.fullres64
+        //     return {
+        //         ...state,
+        //     }
+        // }
         case 'inc_max_media_count': {
             if (state.loading || state.maxMediaCount > state.mediaCount) {
                 return {
@@ -60,10 +58,9 @@ export function mediaReducer(state, action) {
                 top: 0,
                 behavior: "smooth"
             })
+            state.mediaMap.clear()
             return {
                 ...state,
-                mediaMap: {},
-                dateMap: {},
                 mediaCount: 0,
                 maxMediaCount: 100,
                 previousLast: "",
@@ -77,7 +74,6 @@ export function mediaReducer(state, action) {
             }
         }
         case 'set_presentation': {
-            console.log("Setting: ", action.presentingHash)
             document.documentElement.style.overflow = "hidden"
 
             return {
@@ -86,21 +82,20 @@ export function mediaReducer(state, action) {
             }
         }
         case 'presentation_next': {
-            console.log("Here1")
             let incBy = 0
-            if (!state.mediaMap[state.presentingHash]?.next?.next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
+            if (!state.mediaMap.get(state.presentingHash)?.Next?.Next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
                 incBy = 100
             }
             return {
                 ...state,
                 maxMediaCount: state.maxMediaCount + incBy,
-                presentingHash: state.mediaMap[state.presentingHash]?.next ? state.mediaMap[state.presentingHash].next.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.FileHash : state.presentingHash
             }
         }
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaMap[state.presentingHash].previous ? state.mediaMap[state.presentingHash].previous.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash).Previous ? state.mediaMap.get(state.presentingHash).Previous.FileHash : state.presentingHash
             }
         }
         case 'stop_presenting': {
@@ -111,7 +106,7 @@ export function mediaReducer(state, action) {
             }
             document.documentElement.style.overflow = "visible"
             try {
-                state.mediaMap[state.presentingHash].ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
             } catch {
                 console.log("No img ref: ", state.presentingHash)
             }
@@ -122,6 +117,9 @@ export function mediaReducer(state, action) {
         }
         default: {
             console.error("Do not have handler for dispatch type", action.type)
+            return {
+                ...state
+            }
         }
     }
 }

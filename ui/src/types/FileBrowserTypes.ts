@@ -1,4 +1,26 @@
+import { EnqueueSnackbar } from "notistack"
 import { MediaData } from "./Generic"
+
+
+export type FileBrowserTypes = {
+    wsSend: (msg: string) => void
+    lastMessage: MessageEvent<any> | null
+    readyState: ReadyState
+    enqueueSnackbar: EnqueueSnackbar
+}
+
+export type FileBrowserStateType = {
+    dirMap: Map<string, itemData>
+    path: string
+    dragging: boolean
+    loading: boolean
+    presentingPath: string
+    numSelected: number
+    scanProgress: number
+    holdingShift: boolean
+    lastSelected: string
+    editing: string
+}
 
 export type itemData = {
     filepath: string

@@ -20,18 +20,14 @@ import Item from './FileItem'
 import Presentation from '../../components/Presentation'
 import HeaderBar from "../../components/HeaderBar"
 import HandleFileUpload from "../../api/Upload"
-import GetWebsocket, { dispatchSync } from '../../api/Websocket'
-import { itemData } from '../../types/FileBrowserTypes'
+import { itemData, FileBrowserTypes, FileBrowserStateType } from '../../types/FileBrowserTypes'
 import Crumbs from '../../components/Crumbs'
+import API_ENDPOINT from '../../api/ApiEndpoint'
+import { dispatchSync } from '../../api/Websocket'
 
-// Other
-import { useSnackbar } from 'notistack'
-import API_ENDPOINT from '../../api/ApiEndpoint';
 
-const mapToList = (dirMap) => {
-    const newList = Object.keys(dirMap).map((key) => {
-        return dirMap[key]
-    })
+const mapToList = (dirMap: Map<string, itemData>) => {
+    const newList = Array.from(dirMap.values())
 
     newList.sort((a, b) => {
         if (a.mediaData && !b.mediaData) {
@@ -52,33 +48,22 @@ const mapToList = (dirMap) => {
     return newList
 }
 
-function copyObject(map) {
-    var newMap = {};
-    for (var i in map) {
-        newMap[i] = map[i]
-    }
-    return { ...map }
-
-}
-
-const fileBrowserReducer = (state, action) => {
+const fileBrowserReducer = (state: FileBrowserStateType, action) => {
     switch (action.type) {
         case 'update_items': {
-            let newMap = copyObject(state.dirMap)
             let items: itemData[] = action.items
             for (const item of items) {
                 item.selected = false
-                newMap[item.filepath] = item
+                state.dirMap.set(item.filepath, item)
             }
 
             return {
-                ...state,
-                dirMap: newMap,
+                ...state
             }
         }
 
         case 'add_template_items': {
-            let newMap = copyObject(state.dirMap)
+            let newMap = state.dirMap
             for (const tmpItem of action.files) {
 
                 let item: itemData = {
@@ -89,24 +74,22 @@ const fileBrowserReducer = (state, action) => {
                     selected: false,
                     mediaData: null
                 }
-                newMap[item.filepath] = item
+                newMap.set(item.filepath, item)
             }
             return {
                 ...state,
-                dirMap: newMap,
             }
         }
 
         case 'set_path': {
-            let newMap = copyObject(state.dirMap)
+            let newMap = state.dirMap
             const newPath = action.path.replace(/\/\/+/g, '/')
             if (newPath != state.path) {
-                newMap = {}
+                newMap.clear()
             }
             return {
                 ...state,
                 path: newPath,
-                dirMap: newMap,
             }
         }
 
@@ -114,6 +97,13 @@ const fileBrowserReducer = (state, action) => {
             return {
                 ...state,
                 loading: action.loading
+            }
+        }
+
+        case 'set_scan_progress': {
+            return {
+                ...state,
+                scanProgress: action.progress
             }
         }
 
@@ -140,7 +130,7 @@ const fileBrowserReducer = (state, action) => {
 
         case 'confirm_edit': {
             // Call api to change filename
-            let newMap = copyObject(state.dirMap)
+            let newMap = state.dirMap
 
             let oldName = action.file.replace(/.*?([^/]*)$/, '$1')
             let newName = action.newName
@@ -155,7 +145,7 @@ const fileBrowserReducer = (state, action) => {
             }
             let newPath = (parentDir + newName)
 
-            if (newMap[newPath]) {
+            if (newMap.has(newPath)) {
                 return {
                     ...state,
                     editing: ""
@@ -164,23 +154,21 @@ const fileBrowserReducer = (state, action) => {
 
             RenameFile(action.file, newPath)
 
-            newMap[newPath] = newMap[action.file]
-            newMap[newPath].filepath = newPath
+            newMap.set(newPath, newMap.get(action.file))
+            newMap.get(newPath).filepath = newPath
 
-            delete newMap[action.file]
+            newMap.delete(action.file)
             return {
                 ...state,
-                dirMap: newMap,
                 editing: ""
             }
         }
 
         case 'set_selected': {
-            let newMap = copyObject(state.dirMap)
+            let newMap = state.dirMap
             let numSelected = state.numSelected
-
             if (state.holdingShift && state.numSelected > 0 && state.lastSelected != "") {
-                const dirList = mapToList(state.dirMap)
+                const dirList = mapToList(newMap)
                 let startIndex = dirList.findIndex((val) => val.filepath == state.lastSelected)
                 let endIndex = dirList.findIndex((val) => val.filepath == action.itempath)
                 if (endIndex < startIndex) {
@@ -188,15 +176,15 @@ const fileBrowserReducer = (state, action) => {
                 }
                 let changedCounter = 0
                 for (const val of dirList.slice(startIndex, endIndex + 1)) {
-                    if (newMap[val.filepath].selected == true) {
+                    if (newMap.get(val.filepath).selected == true) {
                         continue
                     }
-                    newMap[val.filepath].selected = true
+                    newMap.get(val.filepath).selected = true
                     changedCounter += 1
                 }
                 numSelected += changedCounter
             } else {
-                newMap[action.itempath].selected = action.selected
+                newMap.get(action.itempath).selected = action.selected
                 if (action.selected) {
                     numSelected += 1
                 } else {
@@ -205,49 +193,44 @@ const fileBrowserReducer = (state, action) => {
             }
             return {
                 ...state,
-                dirMap: newMap,
                 numSelected: numSelected,
                 lastSelected: action.itempath
             }
         }
 
         case 'clear_selected': {
-            let newMap = copyObject(state.dirMap)
-            for (const key of Object.keys(newMap)) {
-                newMap[key].selected = false
+            for (const value of state.dirMap.values()) {
+                value.selected = false
             }
 
             return {
                 ...state,
-                dirMap: newMap,
                 numSelected: 0,
                 lastSelected: ""
             }
         }
 
         case 'delete_selected': {
-            let newMap = copyObject(state.dirMap)
-            for (const key of Object.keys(newMap)) {
-                if (newMap[key].selected) {
+            let newMap = state.dirMap
+            for (const key of newMap.keys()) {
+                if (newMap.get(key).selected) {
                     DeleteFile(key)
-                    delete newMap[key]
+                    newMap.delete(key)
                 }
             }
             return {
                 ...state,
-                dirMap: newMap,
                 numSelected: 0
             }
         }
 
         case 'delete_from_map': {
-            let newMap = copyObject(state.dirMap)
+            let newMap = state.dirMap
 
-            delete newMap[action.file]
+            newMap.delete(action.file)
 
             return {
                 ...state,
-                dirMap: newMap
             }
         }
 
@@ -266,33 +249,32 @@ const fileBrowserReducer = (state, action) => {
             }
         }
 
-        case 'presentation_next': {
-            return { ...state }
-            let changeTo
-            if (state.mediaIdMap[state.presentingPath].next) {
-                changeTo = state.mediaIdMap[state.presentingPath].next
-            } else {
-                changeTo = state.presentingPath
-            }
-            return {
-                ...state,
-                presentingPath: changeTo
-            }
-        }
+        // case 'presentation_next': {
+        //     return { ...state }
+        //     if (state.mediaIdMap[state.presentingPath].next) {
+        //         changeTo = state.mediaIdMap[state.presentingPath].next
+        //     } else {
+        //         changeTo = state.presentingPath
+        //     }
+        //     return {
+        //         ...state,
+        //         presentingPath: changeTo
+        //     }
+        // }
 
-        case 'presentation_previous': {
-            return { ...state }
-            let changeTo
-            if (state.mediaIdMap[state.presentingPath].previous) {
-                changeTo = state.mediaIdMap[state.presentingPath].previous
-            } else {
-                changeTo = state.presentingPath
-            }
-            return {
-                ...state,
-                presentingPath: changeTo
-            }
-        }
+        // case 'presentation_previous': {
+        //     return { ...state }
+        //     let changeTo
+        //     if (state.mediaIdMap[state.presentingPath].previous) {
+        //         changeTo = state.mediaIdMap[state.presentingPath].previous
+        //     } else {
+        //         changeTo = state.presentingPath
+        //     }
+        //     return {
+        //         ...state,
+        //         presentingPath: changeTo
+        //     }
+        // }
 
         case 'stop_presenting': {
             document.documentElement.style.overflow = "visible"
@@ -326,7 +308,7 @@ const HandleDrop = (event, path, dirMap, dispatch, wsSend, enqueueSnackbar) => {
 
     let filteredFiles = []
     for (const file of event.dataTransfer.files) {
-        if (dirMap[path + file.name]) {
+        if (dirMap.has(path + file.name)) {
             enqueueSnackbar(file.name + " already exists in this directory", { variant: "error" })
         } else {
             filteredFiles.push(file)
@@ -342,7 +324,7 @@ const HandleDrop = (event, path, dirMap, dispatch, wsSend, enqueueSnackbar) => {
 
 function downloadSelected(dirMap: Map<string, itemData>, path, dispatch) {
     let itemsToDownload = []
-    for (const item of Object.values(dirMap)) {
+    for (const item of dirMap.values()) {
         if (item.selected) {
             itemsToDownload.push(item.filepath)
         }
@@ -355,7 +337,6 @@ function downloadSelected(dirMap: Map<string, itemData>, path, dispatch) {
 
     fetch(url.toString(), { method: "POST", body: JSON.stringify({ items: itemsToDownload, path: path }) })
         .then((res) => {
-            console.log(res.headers.get("Content-Disposition"))
             filename = res.headers.get("Content-Disposition").split(';')[1].split('=')[1].replaceAll("\"", "")
             return res.blob()
         })
@@ -371,6 +352,42 @@ function downloadSelected(dirMap: Map<string, itemData>, path, dispatch) {
         });
 }
 
+function HandleWebsocketMessage(lastMessage, path, dispatch, navigate, enqueueSnackbar) {
+    if (lastMessage) {
+        let msgData = JSON.parse(lastMessage.data)
+
+        switch (msgData["type"]) {
+            case "new_items": {
+                dispatch({ type: "update_items", items: msgData["content"] })
+                return
+            }
+            case "finished": {
+                dispatch({ type: "set_scan_progress", progress: 0 })
+                dispatch({ type: "set_loading", loading: false })
+                return
+            }
+            case "refresh": {
+                GetDirectoryData(path, dispatch, navigate)
+                return
+            }
+            case "scan_directory_progress": {
+                dispatch({ type: "set_scan_progress", progress: (1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100 })
+                return
+            }
+            case "error": {
+                if (msgData["error"] == "upload_error") {
+                    dispatch({ type: "delete_from_map", file: msgData["content"]["File"] })
+                }
+                enqueueSnackbar(msgData["content"]["Message"], { variant: "error" })
+                return
+            }
+            default: {
+                console.error("Got unexpected websocket message type: ", msgData["type"])
+                return
+            }
+        }
+    }
+}
 
 function StartKeybaordListener(dispatch) {
 
@@ -403,25 +420,23 @@ function StartKeybaordListener(dispatch) {
     //}
 }
 
-const FileBrowser = () => {
+const FileBrowser = ({ wsSend, lastMessage, readyState, enqueueSnackbar }: FileBrowserTypes) => {
 
     const path = ("/" + useParams()["*"] + "/").replace(/\/\/+/g, '/')
 
-    const [filebrowserState, dispatch] = useReducer(fileBrowserReducer, {
+    const [filebrowserState, dispatch]: [FileBrowserStateType, React.Dispatch<any>] = useReducer(fileBrowserReducer, {
         dirMap: new Map<string, itemData>(),
         path: path,
         dragging: false,
         loading: false,
         presentingPath: "",
         numSelected: 0,
+        scanProgress: 0,
         holdingShift: false,
         lastSelected: "",
         editing: ""
     })
 
-    const { enqueueSnackbar } = useSnackbar()
-    const { wsSend, lastMessage, readyState } = GetWebsocket(enqueueSnackbar)
-    const [scanProgress, setScanProgress] = useState(0)
     const navigate = useNavigate()
     const [alreadyScanned, setAlreadyScanned] = useState(false)
 
@@ -438,20 +453,13 @@ const FileBrowser = () => {
                     mouseX: event.clientX + 2,
                     mouseY: event.clientY - 6,
                 }
-                : // repeated contextmenu when it is already open closes it with Chrome 84 on Ubuntu
-                // Other native context menus might behave different.
-                // With this behavior we prevent contextmenu from the backdrop to re-locale existing context menus.
-                null,
+                : null,
         )
     }
 
-    const handleClose = () => {
-        setContextMenu(null)
-    }
-
     useEffect(() => {
-        if (readyState == 1) {
-            GetDirectoryData(path, dispatch)
+        if (readyState == "open") {
+            GetDirectoryData(path, dispatch, navigate)
         }
     }, [readyState])
 
@@ -460,50 +468,15 @@ const FileBrowser = () => {
     }, [])
 
     useEffect(() => {
-        if (lastMessage) {
-            let msgData = JSON.parse(lastMessage.data)
-            //console.log("Got server msg: ", msgData)
-
-            switch (msgData["type"]) {
-                case "new_items": {
-                    dispatch({ type: "update_items", items: msgData["content"] })
-                    return
-                }
-                case "finished": {
-                    setScanProgress(0)
-                    dispatch({ type: "set_loading", loading: false })
-                    return
-                }
-                case "refresh": {
-                    GetDirectoryData(path, dispatch)
-                    return
-                }
-                case "scan_directory_progress": {
-                    setScanProgress((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100)
-                    return
-                }
-                case "error": {
-                    if (msgData["error"] == "upload_error") {
-                        dispatch({ type: "delete_from_map", file: msgData["content"]["File"] })
-                    }
-                    enqueueSnackbar(msgData["content"]["Message"], { variant: "error" })
-                    return
-                }
-                default: {
-                    console.error("Got unexpected websocket message type: ", msgData["type"])
-                    return
-                }
-            }
-        }
+        HandleWebsocketMessage(lastMessage, path, dispatch, navigate, enqueueSnackbar)
     }, [lastMessage])
 
     useEffect(() => {
         setAlreadyScanned(false)
         dispatch({ type: 'set_path', path: path })
-        dispatch({ type: "set_loading", loading: false })
         dispatch({ type: "clear_selected" })
-        setScanProgress(0)
-        GetDirectoryData(path, dispatch)
+        dispatch({ type: "set_scan_progress", progress: 0 })
+        GetDirectoryData(path, dispatch, navigate)
     }, [path])
 
     const dirItems = useMemo(() => {
@@ -515,22 +488,17 @@ const FileBrowser = () => {
                 scanRequired = true
             }
             return (
-                <Box key={entry.filepath} >
-                    <Item itemData={entry} editing={filebrowserState.editing == entry.filepath} dispatch={dispatch} anyChecked={anyChecked} navigate={navigate} />
-                </Box>
+                // <Box key={entry.filepath} >
+                <Item key={entry.filepath} itemData={entry} editing={filebrowserState.editing == entry.filepath} dispatch={dispatch} anyChecked={anyChecked} navigate={navigate} />
+                // </Box>
             )
         })
         if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatch({ type: "set_loading", loading: true }); dispatchSync(path, wsSend, false) }
         return items
-    }, [filebrowserState.dirMap, filebrowserState.editing])
+    }, [filebrowserState.dirMap.values(), filebrowserState.editing, filebrowserState.numSelected])
 
     return (
-        <Box
-            sx={{
-                display: "flex",
-                flexDirection: 'column',
-            }}
-        >
+        <Box display={"flex"} flexDirection={"column"}>
             <HeaderBar dispatch={dispatch} wsSend={wsSend} page={"files"} />
             <Box
                 onDragOver={(event => HandleDrag(event, dispatch, filebrowserState.dragging))}
@@ -547,17 +515,20 @@ const FileBrowser = () => {
                 sx={{ outline: filebrowserState.dragging ? "rgb(54, 147, 255) solid 2px" : "", outlineOffset: "-10px" }}
                 onContextMenu={handleContextMenu}
             >
+
                 {filebrowserState.presentingPath != "" && (
-                    <Presentation mediaData={filebrowserState.dirMap[filebrowserState.presentingPath].mediaData} dispatch={dispatch} />
+                    <Presentation mediaData={filebrowserState.dirMap.get(filebrowserState.presentingPath)?.mediaData} dispatch={dispatch} />
                 )}
+
+
                 {filebrowserState.loading && (
-                    <Box sx={{ width: '100%' }}>
-                        {scanProgress == 0 && (
-                            <LinearProgress />
-                        )}
-                        {scanProgress != 0 && (
+                    <Box width={"100%"} position={"absolute"} zIndex={10}>
+                        <LinearProgress style={{ position: "absolute", width: "100%" }} />
+                        {/* {!scanProgress && (
+                        )} */}
+                        {filebrowserState.scanProgress != 0 && (
                             <Box sx={{ width: '100%' }}>
-                                <LinearProgress variant="determinate" value={scanProgress} />
+                                <LinearProgress variant="determinate" value={filebrowserState.scanProgress} />
                                 <p style={{ position: "absolute", left: "6vw" }}>Syncing filesystem with database...</p>
                             </Box>
                         )}
@@ -589,7 +560,7 @@ const FileBrowser = () => {
                     </Box>
                 )}
                 <Box marginTop={2} marginBottom={2} width={"max-content"}>
-                    <Crumbs path={filebrowserState.path} includeHome={true} navigate={navigate} />
+                    <Crumbs path={filebrowserState.path} includeHome={true} navOnLast={true} navigate={navigate} />
                 </Box>
 
                 <Box display={"flex"} justifyContent={"center"} width={"100%"} >
@@ -599,7 +570,7 @@ const FileBrowser = () => {
                 </Box>
                 <Menu
                     open={contextMenu !== null}
-                    onClose={handleClose}
+                    onClose={() => setContextMenu(null)}
                     anchorReference="anchorPosition"
                     anchorPosition={
                         contextMenu !== null
@@ -607,7 +578,7 @@ const FileBrowser = () => {
                             : undefined
                     }
                 >
-                    <MenuItem onClick={() => { handleClose(); CreateDirectory(path, dispatch); console.log("ESCAPE"); dispatch({ type: 'start_editing', file: path }) }}>
+                    <MenuItem onClick={() => { setContextMenu(null); CreateDirectory(path).then(newDir => { GetDirectoryData(path, dispatch, navigate); dispatch({ type: 'start_editing', file: newDir }) }) }}>
                         <ListItemIcon>
                             <CreateNewFolderIcon />
                         </ListItemIcon>
