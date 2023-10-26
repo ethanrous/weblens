@@ -182,11 +182,7 @@ func (db Weblensdb) RedisCacheGet(key string) (string, error) {
 		return "", errors.New("redis not initialized")
 	}
 	data, err := db.redis.Get(key).Result()
-	if err != nil {
-		util.Debug.Println("Redis miss")
-	} else {
-		util.Debug.Println("Redis hit")
-	}
+
 	return data, err
 }
 
@@ -267,4 +263,36 @@ func (db Weblensdb) AddTokenToUser(username string, token string) {
 	filter := bson.D{{Key: "username", Value: username}}
 	update := bson.D{{Key: "$push", Value: bson.D{{Key: "tokens", Value: token}}}}
 	db.mongo.Collection("users").UpdateOne(mongo_ctx, filter, update)
+}
+
+func (db Weblensdb) GetUser(username string) User {
+	filter := bson.D{{Key: "username", Value: username}}
+
+	ret := db.mongo.Collection("users").FindOne(mongo_ctx, filter)
+
+	var user User
+	err := ret.Decode(&user)
+	util.FailOnError(err, "Could not get user")
+
+	return user
+}
+
+func (db Weblensdb) CheckToken(username, token string) bool {
+	redisKey := "AuthToken-" + username
+	redisRet, _ := db.RedisCacheGet(redisKey)
+	if redisRet == token {
+		return true
+	}
+
+	filter := bson.D{{Key: "username", Value: username}, {Key: "tokens", Value: token}}
+	ret := db.mongo.Collection("users").FindOne(mongo_ctx, filter)
+
+	var user User
+	err := ret.Decode(&user)
+	if err == nil {
+		err = db.RedisCacheSet(redisKey, token)
+		util.FailOnError(err, "Failed to add webtoken to redis cache")
+	}
+
+	return err == nil
 }

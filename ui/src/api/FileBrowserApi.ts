@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import API_ENDPOINT from './ApiEndpoint'
 
 export function GetFileInfo(filepath, dispatch) {
@@ -16,18 +17,19 @@ export function DeleteFile(path) {
     fetch(url.toString(), { method: "DELETE" })
 }
 
-export function GetDirectoryData(path, dispatch, navigate) {
+export function GetDirectoryData(path, dispatch, navigate, username, token) {
     dispatch({ type: "set_loading", loading: true })
     var url = new URL(`${API_ENDPOINT}/directory`)
     path = ('/' + path).replace(/\/\/+/g, '/')
     url.searchParams.append('path', path)
-    fetch(url.toString())
+    fetch(url.toString(), { headers: { "Authorization": `${username},${token}` } })
         .then((res) => {
             if (res.status == 404) {
                 path = path.slice(0, -1)
                 let newPath = `/files/${path.slice(0, path.lastIndexOf("/"))}`.replace(/\/\/+/g, '/')
-                console.log("NEW!", newPath)
-                navigate(newPath)
+                navigate(newPath, { replace: true })
+            } else if (res.status == 401) {
+                navigate("/login", { replace: true })
             } else {
                 return res.json()
             }

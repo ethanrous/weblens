@@ -1,4 +1,4 @@
-import { itemData } from './types/FileBrowserTypes'
+import { itemData } from './types/Types'
 
 export function humanFileSize(bytes, si = false, dp = 1) {
     const thresh = si ? 1000 : 1024;

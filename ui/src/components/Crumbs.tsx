@@ -1,64 +1,72 @@
 import Chip from '@mui/material/Chip'
-import { createTheme, emphasize, styled } from '@mui/material/styles'
+import { emphasize, styled } from '@mui/material/styles'
 import Breadcrumbs from '@mui/material/Breadcrumbs'
-import { Box } from '@mui/material'
+import { Box, Tooltip, alpha, useTheme } from '@mui/material'
 import { useState } from 'react'
 
-const customTheme = createTheme({
-    palette: {
-        primary: {
-            main: '#1976d2',
-            contrastText: 'white',
-        }
-    },
-    typography: {
-        fontWeightRegular: "12px"
-    },
+type breadcrumbProps = {
+    label: string,
+    onClick?: React.MouseEventHandler<HTMLDivElement>,
+    tooltipText?: string
+    doCopy?: boolean
+}
 
-})
-
-
-export const StyledBreadcrumb = ({ label, onClick }) => {
+export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy }: breadcrumbProps) => {
     const [success, setSuccess] = useState(false)
+    const theme = useTheme()
+
     let backgroundColor
     if (success) {
-        backgroundColor = "rgb(0, 255, 0)"
+        backgroundColor = theme.palette.success.main
     }
     else {
-        backgroundColor = "rgb(230, 230, 230)"
+        backgroundColor = alpha(theme.palette.background.default, 0.40)
     }
 
-    if (onClick == "copy") {
+    if (doCopy) {
+        tooltipText = "Copy"
         onClick = (e) => {
-            console.log(e)
             e.stopPropagation()
             navigator.clipboard.writeText(label)
             setSuccess(true)
-            setTimeout(() => setSuccess(false), 2000)
+            setTimeout(() => setSuccess(false), 1000)
         }
     }
 
     return (
-        <Box height={"max-content"} width={"100%"} onClick={onClick} sx={{ cursor: "pointer" }}>
-            <Chip label={success ? "Copied" : label} sx={{
-                width: "100%",
-                backgroundColor,
-                height: 25,
-                color: "white",
-                fontWeight: customTheme.typography.fontWeightRegular,
-                '&:hover, &:focus': {
-                    backgroundColor: emphasize(backgroundColor, 0.10),
-                },
-                '&:active': {
-                    boxShadow: customTheme.shadows[1],
-                    backgroundColor: emphasize(backgroundColor, 0.12),
-                },
-            }}
-            />
+        <Tooltip title={success ? "Copied!" : tooltipText} disableInteractive>
+            <Box height={"max-content"} padding={"5px"} flexShrink={1} minWidth={0} onClick={onClick} sx={{ cursor: "pointer" }}>
+                <Chip label={label} sx={{
+                    borderRadius: "5px",
+                    backdropFilter: "blur(8px)",
+                    width: "100%",
+                    backgroundColor,
+                    height: 25,
+                    color: 'secondary',
+                    fontWeight: theme.typography.fontWeightBold,
 
-        </Box>
+                    '&:hover, &:focus': {
+                        backgroundColor: emphasize(backgroundColor, 0.15),
+                    },
+                    '&:active': {
+                        boxShadow: theme.shadows[1],
+                        backgroundColor: emphasize(backgroundColor, 0.12),
+                    },
+                }}
+                />
+            </Box>
+        </Tooltip >
     )
 }
+
+const StyledLoaf = styled(Breadcrumbs)(({ theme }) => ({
+    backgroundColor: alpha(theme.palette.background.default, 0.40),
+    backdropFilter: "blur(8px)",
+    borderRadius: "5px",
+    ".MuiBreadcrumbs-separator": {
+        color: theme.palette.primary.main
+    }
+}))
 
 const Crumbs = ({ path, includeHome, navOnLast, navigate }) => {
     if (!path) {
@@ -96,11 +104,9 @@ const Crumbs = ({ path, includeHome, navOnLast, navigate }) => {
             let onClick
             if (!navOnLast && i == crumbPaths.length - 1) {
                 onClick = "copy"
-            } else {
+            } else if (`/${path}` !== crumbPaths[i]) {
                 let navPath = "/files"
-                if (crumbPaths[i][0] !== "/") {
-                    navPath += "/"
-                }
+                if (crumbPaths[i][0] !== "/") { navPath += "/" }
                 navPath += crumbPaths[i]
                 onClick = () => navigate(navPath)
             }
@@ -108,9 +114,9 @@ const Crumbs = ({ path, includeHome, navOnLast, navigate }) => {
         })
 
         return (
-            <Breadcrumbs separator={"›"} >
+            <StyledLoaf separator={"›"} >
                 {crumbs}
-            </Breadcrumbs>
+            </StyledLoaf>
         )
     }
     catch (err) {

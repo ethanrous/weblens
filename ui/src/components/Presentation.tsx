@@ -7,7 +7,7 @@ import styled from '@emotion/styled'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import Crumbs from './Crumbs'
 
-import { MediaData } from '../types/Generic'
+import { MediaData } from '../types/Types'
 import { MediaImage } from './PhotoContainer'
 import { useNavigate } from 'react-router-dom'
 
@@ -27,10 +27,10 @@ const PresentationContainer = styled(Box)({
 })
 
 const StyledMediaImage = styled(MediaImage)({
-    height: "calc(100% - 40px)",
-    width: "calc(100% - 40px)",
+    height: "calc(100% - 10px)",
+    width: "calc(100% - 10px)",
     objectFit: "contain",
-    margin: "20px"
+    margin: "5px"
 })
 
 const PresentationVisual = ({ mediaData }) => {
@@ -43,16 +43,13 @@ const PresentationVisual = ({ mediaData }) => {
         )
     } else if (mediaData.MediaType?.FriendlyName == "File") {
         return (
-            // <Box display={"flex"} flexDirection={"column"} alignItems={"center"}>
             <InsertDriveFileIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} />
-            // </Box>
         )
     } else {
         return (
             <div style={{ height: "100%", width: "100%" }}>
                 <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
                 <StyledMediaImage key={`${mediaData.FileHash} fullres`} mediaData={mediaData} quality={"fullres"} lazy={false} />
-
             </div>
         )
     }
@@ -85,6 +82,10 @@ const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch:
     }, [])
 
     const navigate = useNavigate()
+
+    if (!mediaData) {
+        return null
+    }
 
     return (
         <PresentationContainer>

@@ -1,7 +1,6 @@
 
-import { memo } from 'react'
+import { Ref, memo, useRef } from 'react'
 
-import AppBar from '@mui/material/AppBar'
 import Toolbar from '@mui/material/Toolbar'
 
 import IconButton from '@mui/material/IconButton'
@@ -17,9 +16,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import HandleFileUpload from '../api/Upload'
 import { dispatchSync } from '../api/Websocket'
+import WeblensLoader from './Loading'
 
 import { SendMessage } from 'react-use-websocket'
-import { TextField, alpha, styled } from '@mui/material'
+import { Paper, alpha, styled } from '@mui/material'
 import InputBase from '@mui/material/InputBase'
 import SearchIcon from '@mui/icons-material/Search'
 import { useCookies } from 'react-cookie'
@@ -27,7 +27,10 @@ import { useCookies } from 'react-cookie'
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>
     wsSend: SendMessage
-    page: string,
+    page: string
+    searchRef: Ref<any>
+    loading: boolean
+    progress: number
 }
 
 const Search = styled('div')(({ theme }) => ({
@@ -37,16 +40,15 @@ const Search = styled('div')(({ theme }) => ({
     '&:hover': {
         backgroundColor: alpha(theme.palette.common.white, 0.25),
     },
-    marginLeft: 0,
     width: '100%',
     [theme.breakpoints.up('sm')]: {
-        marginLeft: theme.spacing(1),
+
         width: 'auto',
     },
 }));
 
 const SearchIconWrapper = styled('div')(({ theme }) => ({
-    padding: theme.spacing(0, 2),
+    padding: theme.spacing(0, 1),
     height: '100%',
     position: 'absolute',
     pointerEvents: 'none',
@@ -56,11 +58,9 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
 }));
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
-    color: 'inherit',
     '& .MuiInputBase-input': {
-        padding: theme.spacing(1, 1, 1, 0),
-        // vertical padding + font size from searchIcon
-        paddingLeft: `calc(1em + ${theme.spacing(4)})`,
+        padding: theme.spacing(8, 2, 8, 0),
+        paddingLeft: `calc(1em + ${theme.spacing(20)})`,
         transition: theme.transitions.create('width'),
         width: '100%',
         [theme.breakpoints.up('sm')]: {
@@ -72,8 +72,8 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
     },
 }));
 
-const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarProps) {
-    const [cookies, setCookie, removeCookie] = useCookies(['weblens-login-token']);
+const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) {
+    const [cookies, setCookie, removeCookie] = useCookies(['weblens-username', 'weblens-login-token'])
     const nav = useNavigate()
 
     let path = (useParams()["*"] + "/").replace(/\/\/+/g, '/')
@@ -82,31 +82,27 @@ const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarP
     }
 
     return (
-        <Box sx={{ flexGrow: 1 }} zIndex={1} pt={1} maxWidth={"100vw"}>
-            <AppBar
-                position="static"
-                color='transparent'
-                style={{ boxShadow: "none" }}
-            >
-                <Toolbar style={{ paddingLeft: "25px" }}>
+        <Box zIndex={1} height={"max-content"} width={"100vw"} position={'fixed'} >
+            <Paper sx={{ width: "100%", backgroundColor: (theme) => { return alpha(theme.palette.secondary.dark, 0.80) }, backdropFilter: "blur(8px)", border: (theme) => `1px solid ${theme.palette.divider}`, height: "75px" }}>
+                <Toolbar style={{ paddingLeft: "25px", width: "100%" }}>
                     {page == "gallery" && (
-                        <Tooltip title={"Files"}>
-                            <IconButton onClick={() => nav("/files/")} edge="start" color="inherit" aria-label="files" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
-                                <FolderIcon />
+                        <Tooltip title={"Files"} disableInteractive >
+                            <IconButton onClick={() => nav("/files/")} edge="start" color="primary" aria-label="files" style={{ margin: 10 }}>
+                                <FolderIcon fontSize={'large'} />
                             </IconButton>
                         </Tooltip>
                     )}
                     {page == "files" && (
-                        <Tooltip title={"Gallery"}>
-                            <IconButton onClick={() => nav("/")} edge="start" color="inherit" aria-label="files" style={{ margin: 15, flexDirection: "column", fontSize: 20 }}>
-                                <PhotoLibraryIcon />
+                        <Tooltip title={"Gallery"} disableInteractive >
+                            <IconButton onClick={() => nav("/")} edge="start" color="primary" aria-label="files" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                                <PhotoLibraryIcon fontSize={'large'} />
                             </IconButton>
                         </Tooltip>
 
                     )}
                     {page == "files" && (
-                        <Tooltip title={"Upload"}>
-                        <IconButton edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
+                        <Tooltip title={"Upload"} disableInteractive >
+                            <IconButton edge="start" color="primary" aria-label="upload" style={{ margin: 10 }}>
                         <input
                             id="upload-image"
                             hidden
@@ -114,33 +110,35 @@ const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page }: HeaderBarP
                             type="file"
                             onChange={(e) => HandleFileUpload(e.target.files[0], "/", null)}
                             />
-                            <UploadIcon />
+                                <UploadIcon fontSize={'large'} />
                         </IconButton>
                     </Tooltip>
                     )}
-                    <Tooltip title={"Sync"}>
-                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} edge="start" color="inherit" aria-label="upload" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
-                            <SyncIcon />
+                    <Tooltip title={"Sync"} disableInteractive >
+                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} sx={{ margin: 10 }} >
+                            <SyncIcon fontSize={'large'} />
                         </IconButton>
                     </Tooltip>
-
-                    <Search>
+                    <Search sx={{ margin: 10 }}>
                         <SearchIconWrapper>
-                            <SearchIcon />
+                            <SearchIcon fontSize={'medium'} sx={{ marginLeft: "6px" }} />
                         </SearchIconWrapper>
                         <StyledInputBase
+                            ref={searchRef}
                             placeholder="Search…"
                             inputProps={{ 'aria-label': 'search' }}
                             onChange={e => dispatch({ type: 'set_search', search: e.target.value })}
                         />
                     </Search>
-                    <Tooltip title={"Logout"} >
-                        <IconButton edge="end" color="inherit" aria-label="logout" style={{ margin: 10, flexDirection: "column", fontSize: 20 }} onClick={() => { removeCookie('weblens-login-token'); nav("/login") }}>
-                            <LogoutIcon />
+                    <Tooltip title={"Logout"} disableInteractive >
+                        <IconButton onClick={() => { removeCookie('weblens-login-token'); nav("/login") }} sx={{ margin: 10 }}>
+                            <LogoutIcon fontSize={'large'} />
                         </IconButton>
                     </Tooltip>
                 </Toolbar>
-            </AppBar>
+
+            </Paper>
+            <WeblensLoader loading={loading} progress={progress} />
         </Box>
     )
 })

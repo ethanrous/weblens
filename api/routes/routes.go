@@ -4,14 +4,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
-
-func uiRedirect(ctx *gin.Context) {
-	ctx.Redirect(301, "/ui/")
-}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -29,7 +26,7 @@ func CORSMiddleware() gin.HandlerFunc {
         c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
         if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
+            c.AbortWithStatus(http.StatusNoContent)
             return
         }
 
@@ -37,9 +34,35 @@ func CORSMiddleware() gin.HandlerFunc {
     }
 }
 
+func WeblensAuth() gin.HandlerFunc {
+    return func(c *gin.Context) {
+		db := dataStore.NewDB()
+
+		authHeader := c.Request.Header["Authorization"]
+		if len(authHeader) == 0 {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		authList := strings.Split(authHeader[0], ",")
+
+		if len(authList) < 2 || !db.CheckToken(authList[0], authList[1]) { // {user, token}
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+        c.Next()
+    }
+}
+
 func AddApiRoutes(r *gin.Engine) {
 	r.Use(CORSMiddleware())
+
+	public := r.Group("/api")
+	public.POST("/login", func(ctx *gin.Context) { loginUser(ctx) })
+
 	api := r.Group("/api")
+	api.Use(WeblensAuth())
+
 	api.GET("/media", func(ctx *gin.Context) { getPagedMedia(ctx) })
 	api.GET("/item/:filehash", func(ctx *gin.Context) { getMediaItem(ctx) })
 	api.GET("/stream/:filehash", func(ctx *gin.Context) { streamVideo(ctx) })
@@ -54,11 +77,7 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/takeout/:takeoutId", func(ctx *gin.Context) { getTakeout(ctx) })
 	api.POST("/takeout", func(ctx *gin.Context) { createTakeout(ctx) })
 
-	api.POST("/login", func(ctx *gin.Context) { loginUser(ctx) })
-	//api.POST("/item", func(ctx *gin.Context) { uploadItem(ctx) })
-	//api.POST("/scan", func(ctx *gin.Context) { scan(ctx) })
-
-	api.GET("/ws", func (ctx *gin.Context) { wsConnect(ctx) })
+	r.GET("/api/ws", func (ctx *gin.Context) { wsConnect(ctx) })
 }
 
 func AddUiRoutes(r *gin.Engine) {

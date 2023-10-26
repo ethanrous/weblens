@@ -12,23 +12,38 @@ import Tooltip from '@mui/material/Tooltip'
 
 import { StyledLazyThumb } from '../../types/Styles'
 import { humanFileSize, dateFromItemData } from '../../util'
-// import { itemData } from '../../types/FileBrowserTypes'
+import { styled, useTheme } from '@mui/material'
 
 const boxSX = {
-    outline: "1px solid #00F0FF",
+    outline: "1px solid #00a0aa",
     color: 'gray',
-    backgroundColor: 'lightblue'
+    backgroundColor: "#110055"
 }
 
-// type ItemProps = {
-//     itemData: itemData
-//     dispatch: React.Dispatch<fileBrowserAction>
-//     navigate: NavigateFunction
-// }
+const StyledCheckbox = styled(Checkbox)(({ theme }) => ({
+    width: "max-content",
+    position: "absolute",
+    zIndex: 2,
+    left: 0,
+    boxShadow: "10px",
+    //color: 'primary',
+    root: {
+        color: theme.palette.primary.main
+    },
+}))
+
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+    '& .MuiInputBase-input': {
+        color: theme.palette.primary.main,
+    },
+}))
 
 function StartKeybaordListener(dispatch, editing, newName, filepath) {
 
     const keyDownHandler = event => {
+        if (event.metaKey && event.key === 'a') {
+            event.stopPropagation();
+        }
         if (!editing) { return }
         switch (event.key) {
             case 'Escape': {
@@ -46,7 +61,6 @@ function StartKeybaordListener(dispatch, editing, newName, filepath) {
                 return
             }
         }
-
     }
 
     window.addEventListener('keydown', keyDownHandler)
@@ -56,11 +70,11 @@ function StartKeybaordListener(dispatch, editing, newName, filepath) {
 
 const ItemVisualComponent = ({ itemData, type, isDir, imported }) => {
     if (isDir) {
-        return (<FolderIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
+        return (<FolderIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} color='primary' onDragOver={() => { }} />)
     } else if (type == "File") {
         return (<InsertDriveFileIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
     } else if (imported) {
-        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} />)//width={"200px"} height={"200px"} sx={{ cursor: "pointer" }} />)
+        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} />)
     } else {
         return (<Skeleton animation="wave" height={"100%"} width={"100%"} variant="rectangular" />)
     }
@@ -77,11 +91,10 @@ const EditingHook = ({ dispatch }) => {
             setPrevious(focused)
         }
     }, [focused])
-    return (<></>)
+    return null
 }
 
 const TextBox = ({ itemData, editing, hasInfo, setRenameVal, dispatch }) => {
-
     const filename = useMemo(() => {
         return itemData.filepath.substring(itemData.filepath.lastIndexOf('/') + 1)
     }, [itemData.filepath])
@@ -98,20 +111,19 @@ const TextBox = ({ itemData, editing, hasInfo, setRenameVal, dispatch }) => {
 
         return (
             <FormControl style={{ width: "90%" }}>
-                <InputBase
-                    autoFocus
-                    placeholder={basename}
+                <StyledInputBase
+                    autoFocus={true}
+                    defaultValue={basename}
                     onClick={(e) => { e.stopPropagation() }}
                     onChange={(e) => { setRenameVal(e.target.value) }}
-
-                    endAdornment={ext ? ext : ""}
+                    endAdornment={<Typography color={'primary'}>{ext ? ext : ""}</Typography>}
                 />
                 <EditingHook dispatch={dispatch} />
             </FormControl>
         )
     } else {
         return (
-            <Tooltip title={filename} enterNextDelay={100}>
+            <Tooltip title={filename} disableInteractive >
                 <Box
                     display={"flex"}
                     flexDirection={"column"}
@@ -178,18 +190,13 @@ export default function Item({ itemData, editing, dispatch, anyChecked, navigate
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation() }}
         >
             {(hovering || itemData.selected) && hasInfo && (
-                <Box width={"100%"}>
-                    <Checkbox
-                        name='check'
-                        checked={itemData.selected}
-                        style={{ position: "absolute", zIndex: 2, boxShadow: "10px" }}
-                        onChange={select}
-                        onClick={(e) => { e.stopPropagation() }}
-                    />
-                </Box>
-
+                <StyledCheckbox
+                    checked={itemData.selected}
+                    onChange={select}
+                    onClick={(e) => { e.stopPropagation() }}
+                />
             )}
-            <Box display={"flex"} justifyContent={"center"} alignItems={"center"} position={"absolute"} height={"100%"} width={"100%"} onClick={anyChecked ? () => { } : unselectedAction}>
+            <Box display={"flex"} justifyContent={"center"} alignItems={"center"} position={"absolute"} height={"100%"} width={"100%"} sx={{ cursor: "pointer" }} onClick={anyChecked ? () => { } : unselectedAction}>
                 <ItemVisualComponent itemData={itemData} type={itemData.mediaData?.MediaType.FriendlyName} isDir={itemData.isDir} imported={itemData.imported} />
             </Box>
             <Box position={"absolute"} display={"flex"} justifyContent={"center"} alignItems={"center"} p={"10px"} bgcolor={"rgb(0, 0, 0, 0.50)"} width={"inherit"} height={"max-content"} bottom={"0px"} textAlign={"center"}>

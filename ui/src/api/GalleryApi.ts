@@ -1,7 +1,10 @@
-import { MediaData } from '../types/Generic'
+import { redirect } from 'react-router-dom'
+import { MediaData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
-export async function fetchData(mediaState, dispatch) {
+export async function fetchData(mediaState, dispatch, nav, username, token) {
+    dispatch({ type: "set_loading", loading: true })
+
     try {
         // let mediaMap = new Map<string, MediaData>(mediaState.mediaMap)
         let mediaMap: Map<string, MediaData> = mediaState.mediaMap
@@ -12,6 +15,7 @@ export async function fetchData(mediaState, dispatch) {
             if (limit < 0) {
                 console.error(`maxMediaCount (${mediaState.maxMediaCount}) less than mediaCount ${mediaState.mediaCount}`)
             }
+            dispatch({ type: "set_loading", loading: false })
             return
         }
 
@@ -19,7 +23,7 @@ export async function fetchData(mediaState, dispatch) {
         url.searchParams.append('limit', limit.toString())
         url.searchParams.append('skip', mediaState.mediaCount.toString())
         url.searchParams.append('raw', mediaState.includeRaw.toString())
-        const data = await fetch(url.toString()).then(res => res.json())
+        const data = await fetch(url.toString(), { headers: { "Authorization": `${username},${token}` } }).then(res => { if (res.status == 401) { nav('/login') } else { return res.json() } })
         const media: MediaData[] = data.Media
 
         let hasMoreMedia: boolean
@@ -44,9 +48,14 @@ export async function fetchData(mediaState, dispatch) {
             previousLast: previousLast,
             addedCount: media?.length || 0
         })
+        dispatch({ type: "set_loading", loading: false })
 
     } catch (error) {
-        console.error(error)
-        throw new Error("Error fetching data - Ethan you wrote this, its not a js err")
+        // if (error.name == "TypeError") {
+        //     throw new Error("Unauthorized")
+        // }
+        console.error(error.name)
+        dispatch({ type: "set_loading", loading: false })
+        // throw new Error("Error fetching data - Ethan you wrote this, its not a js err")
     }
 }

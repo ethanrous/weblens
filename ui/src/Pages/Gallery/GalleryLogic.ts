@@ -1,5 +1,4 @@
-import { fetchData } from '../../api/GalleryApi'
-import { MediaStateType } from '../../types/Generic'
+import { MediaStateType } from '../../types/Types'
 
 export function mediaReducer(state: MediaStateType, action) {
     switch (action.type) {
@@ -12,24 +11,21 @@ export function mediaReducer(state: MediaStateType, action) {
                 mediaCount: state.mediaCount + action.addedCount
             }
         }
+
         case 'insert_thumbnail': {
             state.mediaMap.get(action.hash).Thumbnail64 = action.thumb64
             return {
                 ...state,
             }
         }
+
         case 'set_scan_progress': {
             return {
                 ...state,
                 scanProgress: action.progress
             }
         }
-        // case 'insert_fullres': {
-        //     state.mediaMap.get(action.hash).Fullres64 = action.fullres64
-        //     return {
-        //         ...state,
-        //     }
-        // }
+
         case 'inc_max_media_count': {
             if (state.loading || state.maxMediaCount > state.mediaCount) {
                 return {
@@ -47,12 +43,7 @@ export function mediaReducer(state: MediaStateType, action) {
                 loading: action.loading
             }
         }
-        case 'toggle_info': {
-            return {
-                ...state,
-                showIcons: !state.showIcons
-            }
-        }
+
         case 'toggle_raw': {
             window.scrollTo({
                 top: 0,
@@ -67,12 +58,14 @@ export function mediaReducer(state: MediaStateType, action) {
                 includeRaw: !state.includeRaw
             }
         }
+
         case 'set_search': {
             return {
                 ...state,
                 searchContent: action.search,
             }
         }
+
         case 'set_presentation': {
             document.documentElement.style.overflow = "hidden"
 
@@ -81,6 +74,7 @@ export function mediaReducer(state: MediaStateType, action) {
                 presentingHash: action.presentingHash
             }
         }
+
         case 'presentation_next': {
             let incBy = 0
             if (!state.mediaMap.get(state.presentingHash)?.Next?.Next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
@@ -92,19 +86,21 @@ export function mediaReducer(state: MediaStateType, action) {
                 presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.FileHash : state.presentingHash
             }
         }
+
         case 'presentation_previous': {
             return {
                 ...state,
                 presentingHash: state.mediaMap.get(state.presentingHash).Previous ? state.mediaMap.get(state.presentingHash).Previous.FileHash : state.presentingHash
             }
         }
+
         case 'stop_presenting': {
+            document.documentElement.style.overflow = "visible"
             if (state.presentingHash == "") {
                 return {
                     ...state
                 }
             }
-            document.documentElement.style.overflow = "visible"
             try {
                 state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
             } catch {
@@ -115,6 +111,7 @@ export function mediaReducer(state: MediaStateType, action) {
                 presentingHash: ""
             }
         }
+
         default: {
             console.error("Do not have handler for dispatch type", action.type)
             return {
@@ -145,14 +142,4 @@ export function handleScroll(dispatch) {
     if (document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 1500) {
         dispatch({ type: "inc_max_media_count", incBy: 100 })
     }
-}
-
-export function moreData(mediaState, dispatch) {
-    if (mediaState.loading) {
-        return
-    }
-
-    dispatch({ type: "set_loading", loading: true })
-    fetchData(mediaState, dispatch).then(() => dispatch({ type: "set_loading", loading: false }))
-
 }

@@ -473,6 +473,14 @@ func loginUser(ctx *gin.Context) {
 	db := dataStore.NewDB()
 	if db.CheckLogin(usrCreds.Username, usrCreds.Password) {
 		util.Debug.Printf("Valid login for [%s]\n", usrCreds.Username)
+		user := db.GetUser(usrCreds.Username)
+
+		if len(user.Tokens) != 0 {
+			util.Debug.Println("HEREEREREERERERERERERE WOOOOOO")
+			var ret tokenReturn = tokenReturn{Token: user.Tokens[0]}
+			ctx.JSON(http.StatusOK, ret)
+			return
+		}
 
 		token := jwt.New(jwt.SigningMethodHS256)
 		tokenString, err := token.SignedString([]byte("key"))
@@ -480,11 +488,8 @@ func loginUser(ctx *gin.Context) {
 			util.Error.Println(err)
 		}
 
-		util.Debug.Println(tokenString)
 		var ret tokenReturn = tokenReturn{Token: tokenString}
-
 		db.AddTokenToUser(usrCreds.Username, tokenString)
-
 		ctx.JSON(http.StatusOK, ret)
 	} else {
 		ctx.AbortWithStatus(http.StatusUnauthorized)

@@ -5,6 +5,8 @@ import API_ENDPOINT from '../api/ApiEndpoint'
 import Box from '@mui/material/Box';
 import { CircularProgress } from '@mui/material'
 import styled from "@emotion/styled";
+import { useCookies } from "react-cookie";
+import { useNavigate } from "react-router-dom";
 
 // Styles
 
@@ -67,15 +69,27 @@ export const MediaImage = ({
     ...props
 }) => {
     const [imageLoaded, setImageLoaded] = useState(false)
+    const [cookies, setCookie, removeCookie] = useCookies(['weblens-username', 'weblens-login-token'])
     const ref = useRef()
     const isVisible = useIsVisible(ref, true)
-    // useEffect(() => {
-    //     console.log(isVisible, mediaData.FileHash)
-    // }, [isVisible])
+    const [imgData, setImgData] = useState("")
+    const [imgUrl, setImgUrl] = useState("")
 
+    useEffect(() => {
+        const url = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
+        url.searchParams.append(quality, "true")
+        setImgUrl(url.toString())
+    }, [])
 
-    const imgUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
-    imgUrl.searchParams.append(quality, "true")
+    useEffect(() => {
+        if (isVisible && !imgData) {
+            fetch(imgUrl, { headers: { "Authorization": `${cookies['weblens-username']},${cookies['weblens-login-token']}` } }).then(res => res.blob()).then((blob) => {
+                setImgData(URL.createObjectURL(blob))
+                setImageLoaded(true)
+            })
+        }
+
+    }, [isVisible, imgUrl])
 
     return (
         <ThumbnailContainer ref={ref} >
@@ -86,14 +100,12 @@ export const MediaImage = ({
             <img
                 height={"100%"}
                 width={"100%"}
-                loading={lazy ? "lazy" : "eager"}
+                src={imgData}
+                crossOrigin="use-credentials"
 
                 {...props}
 
-                src={imgUrl.toString()}
-                style={{ position: "absolute", display: isVisible ? "block" : "none" }}
-
-                onLoad={() => { setImageLoaded(true) }}
+                style={{ position: "absolute", display: imageLoaded ? "block" : "none" }}
             />
             {mediaData.BlurHash && lazy && !imageLoaded && (
                 <Blurhash
