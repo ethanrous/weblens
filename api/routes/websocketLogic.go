@@ -1,97 +1,80 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 )
 
 func wsConnect(ctx *gin.Context) {
+
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-	util.Debug.Println("Websocket connected")
+	util.FailOnError(err, "Failed to upgrade http request to websocket")
+
+	client := dataProcess.ClientConnect(conn)
+
+	defer client.Disconnect()
+
+	wsUser := ctx.GetString("username")
+	util.Info.Printf("%s made successful websocket connection (%s)", wsUser, client.GetClientId())
 
 	for {
-		var msg wsMsg
-        err := conn.ReadJSON(&msg)
+		var msg dataProcess.WsMsg
+		_, buf, err := conn.ReadMessage()
+        // err := conn.ReadJSON(&msg)
         if err != nil {
 			util.Error.Println(err)
             break
         }
-		go wsReqSwitchboard(msg, conn)
-		conn.WriteJSON(wsMsg{Type: "finished"})
+		err = json.Unmarshal(buf, &msg)
+		util.FailOnError(err, "Failed to unmarshal ws message")
+
+		go wsReqSwitchboard(msg, client, wsUser)
+		conn.WriteJSON(dataProcess.WsMsg{Type: "finished"})
     }
 }
 
-func wsReqSwitchboard(msg wsMsg, conn *websocket.Conn) {
+func wsReqSwitchboard(msg dataProcess.WsMsg, client *dataProcess.Client, username string) {
+	defer func() {
+		if err := recover(); err != nil {
+			util.Error.Printf("[WEBSOCKET] Recovered panic while handling message (%s): %v\n", msg.Type, err)
+			// util.DisplayError(err, "[WEBSOCKET] Recovered panic while handling message")
+			fmt.Printf("[WEBSOCKET] %s | %s | %s\n", time.Now().Format("2006/01/02 - 15:04:05"), client.GetClientId(), msg.Type)
+		}
+	}()
+
+	fmt.Printf("[WEBSOCKET] %s | %s | %s\n", time.Now().Format("2006/01/02 - 15:04:05"), client.GetClientId(), msg.Type)
+
+	jsonString, err := json.Marshal(msg.Content)
+	util.FailOnError(err, "Failed to marshal ws content to json string")
 	switch msg.Type {
-		case "file_upload": {
-
-			relPath := dataStore.GuaranteeRelativePath(msg.Content["path"].(string))
-
-			fileData := msg.Content["file"].(map[string]interface {})
-			m, err := uploadItem(relPath, fileData["name"].(string), fileData["item64"].(string))
-
-			if err != nil {
-				errMsg := fmt.Sprintf("Upload error: %s", err)
-				errContent := map[string]any{"Message": errMsg, "File": dataStore.GuaranteeRelativePath(filepath.Join(relPath, fileData["name"].(string)))}
-				conn.WriteJSON(wsMsg{Type: "error", Content: errContent, Error: "upload_error"})
-				return
-			}
-
-			f, err := os.Stat(dataStore.GuaranteeAbsolutePath(m.Filepath))
-			util.FailOnError(err, "Failed to get stats of uploaded file")
-
-			newItem := fileInfo{
-				Imported: true,
-				IsDir: false,
-				Size: int(f.Size()),
-				Filepath: dataStore.GuaranteeRelativePath(m.Filepath),
-				MediaData: *m,
-				ModTime: f.ModTime(),
-			}
-
-			res := struct{
-				Type string 		`json:"type"`
-				Content []fileInfo 	`json:"content"`
-			} {
-				Type: "new_items",
-				Content: []fileInfo{newItem},
-			}
-
-			conn.WriteJSON(res)
+		case "subscribe": {
+			var subMeta dataProcess.SubscribeContent
+			json.Unmarshal(jsonString, &subMeta)
+			client.Subscribe(subMeta, username)
 		}
 
 		case "scan_directory": {
-			wp := scan(msg.Content["path"].(string), msg.Content["recursive"].(bool))
+			var content dataProcess.ScanContent
+			json.Unmarshal(jsonString, &content)
 
-			var previousRemaining int
-			_, remainingTasks, totalTasks := wp.Status()
-			for remainingTasks > 0 {
-				time.Sleep(time.Second)
-				_, remainingTasks, _ = wp.Status()
+			path := content.Path
+			recursive := content.Recursive
 
-				// Don't send new message unless new data
-				if remainingTasks == previousRemaining {
-					continue
-				} else {
-					previousRemaining = remainingTasks
-				}
+			meta := dataProcess.ScanMetadata{Path: path, Username: username, Recursive: recursive}
+			metaS, _ := json.Marshal(meta)
 
-				status := struct {Type string `json:"type"`; RemainingTasks int `json:"remainingTasks"`; TotalTasks int `json:"totalTasks"`} {Type: "scan_directory_progress", RemainingTasks: remainingTasks, TotalTasks: totalTasks}
-				conn.WriteJSON(status)
-			}
-			res := struct {Type string `json:"type"`} {Type: "refresh"}
-			conn.WriteJSON(res)
+			task := dataProcess.Task{TaskType: "scan_directory", Metadata: string(metaS)}
+			dataProcess.RequestTask(task)
+
+		}
+
+		default: {
+			util.Error.Printf("Recieved unknown websocket message type: %s", msg.Type)
 		}
 	}
 }

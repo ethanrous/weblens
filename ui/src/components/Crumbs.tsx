@@ -1,26 +1,29 @@
-import Chip from '@mui/material/Chip'
-import { emphasize, styled } from '@mui/material/styles'
-import Breadcrumbs from '@mui/material/Breadcrumbs'
-import { Box, Tooltip, alpha, useTheme } from '@mui/material'
-import { useState } from 'react'
+import { Box, Tooltip, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
+import { SxProps, Theme } from '@mui/joy/styles/types'
+import { Dispatch, useState } from 'react'
 
 type breadcrumbProps = {
-    label: string,
-    onClick?: React.MouseEventHandler<HTMLDivElement>,
+    label: string
+    dispatch?: Dispatch<any>
+    onClick?: React.MouseEventHandler<HTMLDivElement>
     tooltipText?: string
     doCopy?: boolean
+    sx?: any
+    path?: string
 }
 
-export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy }: breadcrumbProps) => {
+export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, sx, path, dispatch }: breadcrumbProps) => {
     const [success, setSuccess] = useState(false)
+    const [hovering, setHovering] = useState(false)
     const theme = useTheme()
 
     let backgroundColor
     if (success) {
-        backgroundColor = theme.palette.success.main
-    }
-    else {
-        backgroundColor = alpha(theme.palette.background.default, 0.40)
+        backgroundColor = theme.colorSchemes.dark.palette.success.solidBg
+    } else if (hovering) {
+        backgroundColor = theme.colorSchemes.dark.palette.primary.solidBg
+    } else {
+        backgroundColor = theme.colorSchemes.dark.palette.primary.solidDisabledBg
     }
 
     if (doCopy) {
@@ -32,43 +35,54 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy }: breadc
             setTimeout(() => setSuccess(false), 1000)
         }
     }
-
     return (
         <Tooltip title={success ? "Copied!" : tooltipText} disableInteractive>
-            <Box height={"max-content"} padding={"5px"} flexShrink={1} minWidth={0} onClick={onClick} sx={{ cursor: "pointer" }}>
-                <Chip label={label} sx={{
-                    borderRadius: "5px",
-                    backdropFilter: "blur(8px)",
-                    width: "100%",
-                    backgroundColor,
-                    height: 25,
-                    color: 'secondary',
-                    fontWeight: theme.typography.fontWeightBold,
-
-                    '&:hover, &:focus': {
-                        backgroundColor: emphasize(backgroundColor, 0.15),
-                    },
-                    '&:active': {
-                        boxShadow: theme.shadows[1],
-                        backgroundColor: emphasize(backgroundColor, 0.12),
-                    },
-                }}
-                />
+            <Box
+                height={"max-content"}
+                flexShrink={1}
+                minWidth={0}
+                onMouseOver={() => setHovering(true)}
+                onMouseLeave={() => setHovering(false)}
+                onClick={onClick}
+                onMouseUp={() => { if (dispatch) { dispatch({ type: 'move_selected', targetItemPath: path, ignoreMissingItem: true }) } }}
+                sx={{ ...sx, cursor: "pointer" }}
+            >
+                <Chip
+                    variant='solid'
+                    sx={{
+                        borderRadius: "5px",
+                        width: "100%",
+                        backgroundColor,
+                        height: 25,
+                    }}
+                >
+                    {label}
+                </Chip>
             </Box>
         </Tooltip >
     )
 }
 
-const StyledLoaf = styled(Breadcrumbs)(({ theme }) => ({
-    backgroundColor: alpha(theme.palette.background.default, 0.40),
-    backdropFilter: "blur(8px)",
-    borderRadius: "5px",
-    ".MuiBreadcrumbs-separator": {
-        color: theme.palette.primary.main
-    }
-}))
+const StyledLoaf = ({ ...props }) => {
+    const theme = useTheme()
+    return (
+        <Breadcrumbs
+            {...props}
+            sx={{
+                backgroundColor: theme.colorSchemes.dark.palette.primary.softBg,
+                outline: theme.colorSchemes.dark.palette.primary.outlinedColor,
+                width: "max-content",
+                borderRadius: "5px",
+                ".MuiBreadcrumbs-separator": {
+                    color: theme.colorSchemes.dark.palette.text.primary
+                },
+                margin: "20px"
+            }}
+        />
+    )
+}
 
-const Crumbs = ({ path, includeHome, navOnLast, navigate }) => {
+const Crumbs = ({ path, includeHome, navOnLast, navigate, dispatch }) => {
     if (!path) {
         return (null)
     }
@@ -101,16 +115,12 @@ const Crumbs = ({ path, includeHome, navOnLast, navigate }) => {
         }
 
         const crumbs = parts.map((part, i) => {
-            let onClick
-            if (!navOnLast && i == crumbPaths.length - 1) {
-                onClick = "copy"
-            } else if (`/${path}` !== crumbPaths[i]) {
-                let navPath = "/files"
-                if (crumbPaths[i][0] !== "/") { navPath += "/" }
-                navPath += crumbPaths[i]
-                onClick = () => navigate(navPath)
-            }
-            return <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} onClick={onClick} />
+            let navPath = "/files"
+            if (crumbPaths[i][0] !== "/") { navPath += "/" }
+            navPath += crumbPaths[i]
+            let onClick = () => navigate(navPath)
+
+            return <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} path={navPath} dispatch={dispatch} onClick={onClick} doCopy={!navOnLast && i == crumbPaths.length - 1} />
         })
 
         return (

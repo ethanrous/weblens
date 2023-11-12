@@ -1,29 +1,19 @@
-import { useEffect, useReducer, useMemo, memo, useRef, useState } from 'react'
+import { useEffect, useReducer, useMemo, useRef, useContext } from 'react'
 
 import HeaderBar from "../../components/HeaderBar"
 import Presentation from '../../components/Presentation'
 import { GalleryBucket } from './MediaDisplay'
-import { mediaReducer, handleScroll } from './GalleryLogic'
-import { fetchData } from '../../api/GalleryApi'
-
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import Button from '@mui/material/Button'
-import Box from '@mui/material/Box'
-import ToggleButton from '@mui/material/ToggleButton'
-import RawOnIcon from '@mui/icons-material/RawOn'
-
-import Tooltip from '@mui/material/Tooltip';
-import { styled } from '@mui/material/styles';
+import { mediaReducer, useScroll, useKeyDown } from './GalleryLogic'
+import { FetchData } from '../../api/GalleryApi'
 import { MediaData, MediaStateType } from '../../types/Types'
-import { Divider, Paper, ToggleButtonGroup, Typography, useTheme } from '@mui/material'
-import { useCookies } from 'react-cookie'
+import useWeblensSocket from '../../api/Websocket'
+import { StyledBreadcrumb } from '../../components/Crumbs'
+import { userContext } from '../../Context'
+
+import { Divider, Sheet, Button, Box, ToggleButtonGroup, Typography, useTheme, styled, IconButton } from '@mui/joy'
 import { useNavigate } from 'react-router-dom'
 import { useSnackbar } from 'notistack'
-import useWeblensSocket from '../../api/Websocket'
-import RawOn from '@mui/icons-material/RawOn'
-import { StyledBreadcrumb } from '../../components/Crumbs'
-import { ThemeContext } from '@emotion/react'
+import { RawOn } from '@mui/icons-material'
 
 // styles
 
@@ -36,27 +26,16 @@ const NoMediaContainer = styled(Box)({
     alignContent: "center"
 })
 
-const StyledToggleButtonGroup = styled(ToggleButtonGroup)(({ theme }) => ({
-    '& .MuiToggleButtonGroup-grouped': {
-        margin: theme.spacing(0.5),
-
-        '&.Mui-disabled': {
-            border: 0,
-        },
-    },
-}));
-
 // funcs
 
 const NoMediaDisplay = ({ loading }: { loading: boolean }) => {
-    const theme = useTheme()
     const nav = useNavigate()
     if (loading) {
         return null
     }
     return (
         <NoMediaContainer>
-            <Typography color={theme.palette.primary.main}>No media to display</Typography>
+            <Typography color={'primary'}>No media to display</Typography>
             <Button sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }} onClick={() => nav('/files')}>
                 Upload Media
             </Button>
@@ -65,34 +44,33 @@ const NoMediaDisplay = ({ loading }: { loading: boolean }) => {
 }
 
 const Sidebar = ({ rawSelected, itemCount, dispatch }) => {
+    const theme = useTheme()
     return (
-        <Box display={"flex"} flexDirection={"column"} alignItems={"center"} position={"sticky"} alignSelf={'flex-start'} top={'75px'} padding={'25px'} >
-            <Paper
-                elevation={3}
+        <Box display={"flex"} flexDirection={"column"} alignItems={"center"} position={"sticky"} alignSelf={'flex-start'} top={'100px'} padding={'15px'} >
+            <Sheet
                 sx={{
                     width: "max-content",
                     display: 'flex',
                     flexWrap: 'wrap',
                     flexDirection: 'column',
-                    padding: "4px",
-                    backgroundColor: (theme) => { return theme.palette.background.default },
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    alignItems: 'center',
+                    padding: "15px",
+                    borderRadius: "8px",
+                    backgroundColor: theme.colorSchemes.dark.palette.primary.solidBg,
                 }}
             >
                 <StyledBreadcrumb label={itemCount} tooltipText={`Showing ${itemCount} images`} />
-                <ToggleButton value="RAW" selected={rawSelected} onChange={(e, val) => { console.log(val); dispatch({ type: 'toggle_raw' }) }} sx={{ m: 4 }}>
-                    <RawOn sx={{ color: (theme) => { return theme.palette.primary.main } }} />
-                </ToggleButton>
-                <Divider flexItem orientation="horizontal" variant='middle' />
-                {/* <StyledToggleButtonGroup orientation="vertical" value={"bold"} onChange={() => { }} sx={{ m: 4 }}>
-                    <ToggleButton value="bold" aria-label="bold">
-                        <FormatBoldIcon />
-                    </ToggleButton>
-                    <ToggleButton value="italic" aria-label="italic">
-                        <FormatItalicIcon />
-                    </ToggleButton>
-                </StyledToggleButtonGroup> */}
-            </Paper>
+                <IconButton
+                    variant='solid'
+                    onClick={() => { dispatch({ type: 'toggle_raw' }) }}
+                    sx={{
+                        margin: '8px'
+                    }}
+                >
+                    <RawOn sx={{ color: theme.colorSchemes.dark.palette.common.white }} />
+                </IconButton>
+                <Divider orientation="horizontal" />
+            </Sheet>
         </Box>
     )
 }
@@ -105,7 +83,7 @@ const InfiniteScroll = ({ items, itemCount, loading, moreItems }: { items: any, 
                 <NoMediaDisplay loading={loading} />
             )}
             {!moreItems && (
-                <Typography color={'primary'} style={{ textAlign: "center", paddingTop: "90px" }}> Wow, you scrolled this whole way? </Typography>
+                <Typography color={'neutral'} style={{ textAlign: "center", paddingTop: "80px", paddingBottom: "10px" }}> Wow, you scrolled this whole way? </Typography>
             )}
         </Box>
     )
@@ -115,9 +93,15 @@ const handleWebsocket = (lastMessage, dispatch, enqueueSnackbar) => {
     if (lastMessage) {
         const msgData = JSON.parse(lastMessage.data)
         switch (msgData["type"]) {
+            case "item_update": {
+                return
+            }
+            case "item_deleted": {
+                dispatch({ type: "delete_from_map", item: msgData["content"].hash })
+                return
+            }
             case "scan_directory_progress": {
                 dispatch({ type: "set_scan_progress", progress: ((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100) })
-                console.log(msgData["remainingTasks"], "/", msgData["totalTasks"])
                 return
             }
             case "finished": {
@@ -136,35 +120,9 @@ const handleWebsocket = (lastMessage, dispatch, enqueueSnackbar) => {
     }
 }
 
-const useKeyDown = (dispatch, searchRef) => {
-
-    const onKeyDown = (event) => {
-        if (!event.metaKey && event.which >= 65 && event.which <= 90) {
-            searchRef.current.children[0].focus()
-        }
-    };
-    useEffect(() => {
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-            document.removeEventListener('keydown', onKeyDown)
-        };
-    }, [onKeyDown])
-}
-
-const useScroll = (hasMoreMedia, dispatch) => {
-    const onScrollEvent = (_) => {
-        if (hasMoreMedia) { handleScroll(dispatch) }
-    }
-    useEffect(() => {
-        window.addEventListener('scroll', onScrollEvent)
-        return () => {
-            window.removeEventListener('scroll', onScrollEvent)
-        }
-    }, [onScrollEvent])
-}
-
 const Gallery = () => {
     document.documentElement.style.overflow = "visible"
+    const { authHeader, userInfo } = useContext(userContext)
 
     const [mediaState, dispatch]: [MediaStateType, React.Dispatch<any>] = useReducer(mediaReducer, {
         mediaMap: new Map<string, MediaData>(),
@@ -181,13 +139,12 @@ const Gallery = () => {
 
     const nav = useNavigate()
     const { enqueueSnackbar } = useSnackbar()
-    const [cookies, setCookie, removeCookie] = useCookies(['weblens-username', 'weblens-login-token']);
     const { wsSend, lastMessage, readyState } = useWeblensSocket()
 
     const searchRef = useRef()
-    useKeyDown(dispatch, searchRef)
+    useKeyDown(searchRef)
     useScroll(mediaState.hasMoreMedia, dispatch)
-    useEffect(() => { fetchData(mediaState, dispatch, nav, cookies['weblens-username'], cookies["weblens-login-token"]) }, [mediaState.maxMediaCount, mediaState.includeRaw])
+    useEffect(() => { FetchData(mediaState, dispatch, nav, authHeader) }, [mediaState.maxMediaCount, mediaState.includeRaw, authHeader])
     useEffect(() => { handleWebsocket(lastMessage, dispatch, enqueueSnackbar) }, [lastMessage])
 
     const dateMap: Map<string, Array<MediaData>> = useMemo(() => {
@@ -211,7 +168,6 @@ const Gallery = () => {
 
     const [dateGroups, numShownItems]: [JSX.Element[], number] = useMemo(() => {
         if (!dateMap) { return [[], 0] }
-
         let counter = 0
         const buckets = Array.from(dateMap.keys()).map((date) => {
             const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.Filepath.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
@@ -223,9 +179,13 @@ const Gallery = () => {
         return [buckets, counter]
     }, [dateMap, mediaState.searchContent])
 
+    useEffect(() => {
+        wsSend(JSON.stringify({ type: "subscribe", content: { path: "/", recursive: true }, error: null }))
+    }, [])
+
     return (
         <Box>
-            <HeaderBar dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
+            <HeaderBar path={"/"} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
 
             <Box display={'flex'} flexDirection={'row'} width={"100%"} minHeight={"50vh"} justifyContent={'space-evenly'} pt={"70px"}>
                 <Sidebar rawSelected={mediaState.includeRaw} itemCount={numShownItems} dispatch={dispatch} />

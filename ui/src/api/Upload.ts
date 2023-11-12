@@ -1,20 +1,23 @@
+import API_ENDPOINT from "./ApiEndpoint"
 
 
-const PostFiles = (files, path, wsSend) => {
-    for (let file of files) {
-        PostFile(file, path, wsSend)
-    }
-}
+// const PostFiles = (files, path, wsSend) => {
+//     for (let file of files) {
+//         PostFile(file, path, wsSend)
+//     }
+// }
 
-const PostFile = (file, path, wsSend) => {
-    let msg = JSON.stringify({
-        type: 'file_upload',
-        content: {
+const PostFile = (file64, fileName, path, wsSend, authHeader) => {
+    const url = new URL(`${API_ENDPOINT}/file`)
+    fetch(url.toString(), {
+        method: "POST",
+        body: JSON.stringify({
+            file64: file64,
+            fileName: fileName,
             path: path,
-            file: file
-        },
+        }),
+        headers: authHeader
     })
-    wsSend(msg)
 }
 
 function readFile(file) {
@@ -33,14 +36,12 @@ function readFile(file) {
     });
 }
 
-const HandleFileUpload = (filesData, path, wsSend) => {
-    for (let file of filesData) {
-        if (file.size > 2000000000) {
-            console.log("This upload is going to fail")
-        }
-        readFile(file).then(value => PostFile(value, path, wsSend))
+const HandleFileUpload = (fileData, path, wsSend, authHeader) => {
+    if (fileData.size > 2000000000) {
+        console.log("This upload is going to fail")
     }
-
+    return readFile(fileData).then((value: { name: String, item64: string }) => { PostFile(value.item64, value.name, path, wsSend, authHeader) })
 }
+
 
 export default HandleFileUpload

@@ -1,4 +1,3 @@
-import { EnqueueSnackbar } from "notistack"
 
 // Global Types
 
@@ -63,30 +62,32 @@ export type FileBrowserTypes = {
 
 export type FileBrowserStateType = {
     dirMap: Map<string, itemData>
+    selected: Map<string, boolean>
     path: string
-    dragging: boolean
+    draggingState: number
     loading: boolean
     presentingPath: string
     searchContent: string
-    numSelected: number
     scanProgress: number
     holdingShift: boolean
     lastSelected: string
     editing: string
+    hovering: string
 }
 
 export type itemData = {
     filepath: string
+    updatePath: string
     isDir: boolean
     imported: boolean
     modTime: string
-    selected: boolean
+    // selected: boolean
     mediaData: MediaData
 }
 
 export type fileBrowserAction =
     | { type: 'set_path'; path: string }
-    | { type: 'update_items'; item: [{}] }
+    | { type: 'update_item'; item: itemData }
     | { type: 'set_selected'; itempath: string, selected: boolean }
     | { type: 'clear_selected'; }
     | { type: 'holding_shift'; shift: boolean }

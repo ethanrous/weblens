@@ -1,4 +1,4 @@
-import { LinearProgress } from '@mui/material'
+import { LinearProgress } from '@mui/joy'
 
 export default function WeblensLoader({ loading, progress }: { loading: boolean, progress: number }) {
     let loader
@@ -7,11 +7,11 @@ export default function WeblensLoader({ loading, progress }: { loading: boolean,
     }
     if (progress) {
         loader = (
-            <LinearProgress style={{ position: "absolute", width: "100%" }} variant="determinate" value={progress} color='primary' />
+            <LinearProgress determinate style={{ position: "absolute", width: "100%" }} variant="soft" value={Number(progress)} />
         )
     } else {
         loader = (
-            <LinearProgress style={{ position: "absolute", width: "100%" }} color='primary' />
+            <LinearProgress style={{ position: "absolute", width: "100%" }} variant="soft" />
         )
     }
 

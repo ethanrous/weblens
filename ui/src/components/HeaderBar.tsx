@@ -1,16 +1,8 @@
 
-import { Ref, memo, useRef } from 'react'
+import { Ref, useContext } from 'react'
 
-import Toolbar from '@mui/material/Toolbar'
-
-import IconButton from '@mui/material/IconButton'
-import UploadIcon from '@mui/icons-material/Upload'
-import SyncIcon from '@mui/icons-material/Sync'
-import LogoutIcon from '@mui/icons-material/Logout'
-import Box from '@mui/material/Box'
-import FolderIcon from '@mui/icons-material/Folder'
+import { Folder, Search, Sync, Upload, AdminPanelSettings, Logout } from '@mui/icons-material'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
-import Tooltip from '@mui/material/Tooltip'
 
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -19,12 +11,12 @@ import { dispatchSync } from '../api/Websocket'
 import WeblensLoader from './Loading'
 
 import { SendMessage } from 'react-use-websocket'
-import { Paper, alpha, styled } from '@mui/material'
-import InputBase from '@mui/material/InputBase'
-import SearchIcon from '@mui/icons-material/Search'
-import { useCookies } from 'react-cookie'
+import { Sheet, Typography, styled, Input, Tooltip, Box, IconButton, useTheme } from '@mui/joy'
+
+import { userContext } from '../Context'
 
 type HeaderBarProps = {
+    path: string
     dispatch: React.Dispatch<any>
     wsSend: SendMessage
     page: string
@@ -33,35 +25,41 @@ type HeaderBarProps = {
     progress: number
 }
 
-const Search = styled('div')(({ theme }) => ({
-    position: 'relative',
-    borderRadius: theme.shape.borderRadius,
-    backgroundColor: alpha(theme.palette.common.white, 0.15),
-    '&:hover': {
-        backgroundColor: alpha(theme.palette.common.white, 0.25),
+const SearchBox = ({ ...props }) => {
+    let theme = useTheme()
+    return (
+        <Box
+            {...props}
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                position: 'relative',
+                borderRadius: "8px",
+                height: 'max-content',
+                width: '100%',
+                margin: '8px',
+                [theme.breakpoints.up('sm')]: {
+                    width: 'auto',
+                },
+            }}
+        />
+    )
+}
+
+const StyledInput = styled(Input)(({ theme }) => ({
+    // backgroundColor: theme.colorSchemes.dark.palette.primary.softBg,
+    backgroundColor: `rgba(0 0 0 / 0.0)`,
+    width: '15ch',
+    transition: "width 0.5s",
+    '&.Mui-focused': {
+        backgroundColor: theme.colorSchemes.dark.palette.neutral.softBg,
+        width: '20ch',
+        transition: "width 0.5s"
     },
-    width: '100%',
-    [theme.breakpoints.up('sm')]: {
-
-        width: 'auto',
-    },
-}));
-
-const SearchIconWrapper = styled('div')(({ theme }) => ({
-    padding: theme.spacing(0, 1),
-    height: '100%',
-    position: 'absolute',
-    pointerEvents: 'none',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-}));
-
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
     '& .MuiInputBase-input': {
+        // color: theme.colorSchemes.dark.palette.neutral.softBg,
         padding: theme.spacing(8, 2, 8, 0),
         paddingLeft: `calc(1em + ${theme.spacing(20)})`,
-        transition: theme.transitions.create('width'),
         width: '100%',
         [theme.breakpoints.up('sm')]: {
             width: '12ch',
@@ -72,75 +70,110 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
     },
 }));
 
-const HeaderBar = memo(function HeaderBar({ dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) {
-    const [cookies, setCookie, removeCookie] = useCookies(['weblens-username', 'weblens-login-token'])
+const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
+    const { authHeader, userInfo, removeCookie } = useContext(userContext)
     const nav = useNavigate()
+    const spacing = "8px"
+    const theme = useTheme()
 
-    let path = (useParams()["*"] + "/").replace(/\/\/+/g, '/')
-    if (page == "gallery") {
-        path = "/"
-    }
+    // if (page == "gallery") {
+    //     path = "/"
+    // }
 
     return (
-        <Box zIndex={1} height={"max-content"} width={"100vw"} position={'fixed'} >
-            <Paper sx={{ width: "100%", backgroundColor: (theme) => { return alpha(theme.palette.secondary.dark, 0.80) }, backdropFilter: "blur(8px)", border: (theme) => `1px solid ${theme.palette.divider}`, height: "75px" }}>
-                <Toolbar style={{ paddingLeft: "25px", width: "100%" }}>
-                    {page == "gallery" && (
-                        <Tooltip title={"Files"} disableInteractive >
-                            <IconButton onClick={() => nav("/files/")} edge="start" color="primary" aria-label="files" style={{ margin: 10 }}>
-                                <FolderIcon fontSize={'large'} />
-                            </IconButton>
-                        </Tooltip>
-                    )}
-                    {page == "files" && (
-                        <Tooltip title={"Gallery"} disableInteractive >
-                            <IconButton onClick={() => nav("/")} edge="start" color="primary" aria-label="files" style={{ margin: 10, flexDirection: "column", fontSize: 20 }}>
-                                <PhotoLibraryIcon fontSize={'large'} />
-                            </IconButton>
-                        </Tooltip>
-
-                    )}
-                    {page == "files" && (
-                        <Tooltip title={"Upload"} disableInteractive >
-                            <IconButton edge="start" color="primary" aria-label="upload" style={{ margin: 10 }}>
-                        <input
-                            id="upload-image"
-                            hidden
-                            accept="image/*"
-                            type="file"
-                            onChange={(e) => HandleFileUpload(e.target.files[0], "/", null)}
+        <Box zIndex={3} height={"max-content"} width={"100vw"} position={'fixed'} >
+            <Sheet
+                sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: theme.colorSchemes.dark.palette.primary.softBg,
+                    backdropFilter: "blur(8px)",
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    height: "75px"
+                }}
+            >
+                <Box paddingLeft={'10px'} />
+                {page == "gallery" && (
+                    <Tooltip title={"Files"} disableInteractive >
+                        <IconButton
+                            onClick={() => nav("/files/")}
+                            aria-label="files"
+                            sx={{ margin: spacing }}
+                        >
+                            <Folder fontSize={'large'} />
+                        </IconButton>
+                    </Tooltip>
+                )}
+                {(page == "files" || page == "admin") && (
+                    <Tooltip title={"Gallery"} disableInteractive >
+                        <IconButton
+                            onClick={() => nav("/")}
+                            aria-label="files"
+                            style={{ flexDirection: "column", fontSize: 20, margin: spacing }}>
+                            <PhotoLibraryIcon fontSize={'large'} />
+                        </IconButton>
+                    </Tooltip>
+                )}
+                {page == "files" && (
+                    <Tooltip title={"Upload"} disableInteractive >
+                        <IconButton aria-label="upload" sx={{ margin: spacing }}>
+                            <input
+                                id="upload-image"
+                                hidden
+                                accept="image/*"
+                                type="file"
+                                onChange={(e) => HandleFileUpload(e.target.files[0], "/", null, authHeader)}
                             />
-                                <UploadIcon fontSize={'large'} />
+                            <Upload fontSize={'large'} />
                         </IconButton>
                     </Tooltip>
-                    )}
-                    <Tooltip title={"Sync"} disableInteractive >
-                        <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} sx={{ margin: 10 }} >
-                            <SyncIcon fontSize={'large'} />
+                )}
+                <Tooltip title={"Sync"} disableInteractive >
+                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} sx={{ margin: spacing }}>
+                        <Sync fontSize={'large'} />
+                    </IconButton>
+                </Tooltip>
+                <SearchBox>
+                    <StyledInput
+                        endDecorator={<Search />}
+                        color='neutral'
+                        ref={searchRef}
+                        placeholder="Search…"
+                        onChange={e => dispatch({ type: 'set_search', search: e.target.value })}
+                    />
+                </SearchBox>
+                {(loading && progress != 0 && progress != 100) && (
+                    <Sheet sx={{
+                        height: "max-content",
+                        padding: "10px",
+                        marginLeft: "20px",
+                        borderRadius: '8px',
+                        backgroundColor: (theme) => { return theme.colorSchemes.dark.palette.neutral.softBg }
+                    }}>
+                        <Typography color='primary'>
+                            Directory Scan: {progress.toFixed(0)}%
+                        </Typography>
+                    </Sheet>
+                )}
+                <Box flexGrow={1} />
+                {userInfo.Admin && (
+                    <Tooltip title={"Admin Settings"} disableInteractive >
+                        <IconButton onClick={() => { nav("/admin") }} sx={{ margin: spacing }}>
+                            <AdminPanelSettings fontSize={'large'} />
                         </IconButton>
                     </Tooltip>
-                    <Search sx={{ margin: 10 }}>
-                        <SearchIconWrapper>
-                            <SearchIcon fontSize={'medium'} sx={{ marginLeft: "6px" }} />
-                        </SearchIconWrapper>
-                        <StyledInputBase
-                            ref={searchRef}
-                            placeholder="Search…"
-                            inputProps={{ 'aria-label': 'search' }}
-                            onChange={e => dispatch({ type: 'set_search', search: e.target.value })}
-                        />
-                    </Search>
-                    <Tooltip title={"Logout"} disableInteractive >
-                        <IconButton onClick={() => { removeCookie('weblens-login-token'); nav("/login") }} sx={{ margin: 10 }}>
-                            <LogoutIcon fontSize={'large'} />
-                        </IconButton>
-                    </Tooltip>
-                </Toolbar>
-
-            </Paper>
+                )}
+                <Tooltip title={"Logout"} disableInteractive >
+                    <IconButton onClick={() => { removeCookie("weblens-username"); removeCookie("weblens-login-token"); nav("/login", { state: { doLogin: false } }) }} sx={{ margin: spacing }}>
+                        <Logout fontSize={'large'} />
+                    </IconButton>
+                </Tooltip>
+                <Box paddingRight={'10px'} />
+            </Sheet>
             <WeblensLoader loading={loading} progress={progress} />
         </Box>
     )
-})
+}
 
 export default HeaderBar

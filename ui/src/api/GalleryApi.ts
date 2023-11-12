@@ -1,12 +1,11 @@
-import { redirect } from 'react-router-dom'
 import { MediaData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
-export async function fetchData(mediaState, dispatch, nav, username, token) {
+export async function FetchData(mediaState, dispatch, nav, authHeader) {
+    if (Object.keys(authHeader).length === 0) { return }
     dispatch({ type: "set_loading", loading: true })
 
     try {
-        // let mediaMap = new Map<string, MediaData>(mediaState.mediaMap)
         let mediaMap: Map<string, MediaData> = mediaState.mediaMap
         let previousLast: string = mediaState.previousLast
 
@@ -23,7 +22,7 @@ export async function fetchData(mediaState, dispatch, nav, username, token) {
         url.searchParams.append('limit', limit.toString())
         url.searchParams.append('skip', mediaState.mediaCount.toString())
         url.searchParams.append('raw', mediaState.includeRaw.toString())
-        const data = await fetch(url.toString(), { headers: { "Authorization": `${username},${token}` } }).then(res => { if (res.status == 401) { nav('/login') } else { return res.json() } })
+        const data = await fetch(url.toString(), { headers: authHeader }).then(res => { if (res.status == 401) { nav("/login", { state: { doLogin: false } }) } else { return res.json() } })
         const media: MediaData[] = data.Media
 
         let hasMoreMedia: boolean

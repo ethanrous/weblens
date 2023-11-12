@@ -22,64 +22,76 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/kolesa-team/go-webp/encoder"
 	"github.com/kolesa-team/go-webp/webp"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Media struct {
-	FileHash		string				`bson:"_id"`
-	Filepath 		string 				`bson:"filepath"`
-	MediaType		mediaType			`bson:"mediaType"`
-	BlurHash 		string 				`bson:"blurHash"`
-	Thumbnail64 	string		 		`bson:"thumbnail"`
-	MediaWidth 		int					`bson:"width"`
-	MediaHeight 	int 				`bson:"height"`
-	ThumbWidth 		int					`bson:"thumbWidth"`
-	ThumbHeight 	int 				`bson:"thumbHeight"`
-	CreateDate		time.Time			`bson:"createDate"`
+	FileHash		string					`bson:"_id"`
+	Filepath 		string 					`bson:"filepath"`
+	MediaType		mediaType				`bson:"mediaType"`
+	BlurHash 		string 					`bson:"blurHash"`
+	Thumbnail64 	string		 			`bson:"thumbnail"`
+	MediaWidth 		int						`bson:"width"`
+	MediaHeight 	int 					`bson:"height"`
+	ThumbWidth 		int						`bson:"thumbWidth"`
+	ThumbHeight 	int 					`bson:"thumbHeight"`
+	CreateDate		time.Time				`bson:"createDate"`
+	Owner			string					`bson:"owner"`
+	SharedWith		[]primitive.ObjectID	`bson:"sharedWith"`
 }
 
 func (m Media) MarshalBinary() ([]byte, error) {
     return json.Marshal(m)
 }
 
-func (m *Media) IsFilledOut(skipThumbnail bool) (bool) {
+func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	if m.FileHash == "" {
-		return false
+		// util.Debug.Println("FileHash")
+		return false, "filehash"
 	}
 	if m.Filepath == "" {
-		return false
+		// util.Debug.Println("Filepath")
+		return false, "filepath"
 	}
 	if m.MediaType.FriendlyName == "" {
-		return false
+		// util.Debug.Println("Friendly Name")
+		return false, "friendly name"
+	}
+
+	if (m.Owner == "") {
+		// util.Debug.Println("Owner")
+		return false, "owner"
 	}
 
 	// Visual media specific properties
 	if m.MediaType.FriendlyName != "File" {
 
 		if m.BlurHash == "" {
-			return false
+			return false, "blurhash"
 		}
 		if !skipThumbnail && m.Thumbnail64 == "" {
-			return false
+			return false, "thumbnail"
 		}
 		if m.MediaWidth == 0 {
-			return false
+			return false, "media width"
 		}
 		if m.MediaHeight == 0 {
-			return false
+			return false, "media height"
 		}
 		if m.ThumbWidth == 0 {
-			return false
+			return false, "thumb width"
 		}
 		if m.ThumbHeight == 0 {
-			return false
+			return false, "thumb height"
 		}
 	}
 
 	if m.CreateDate.IsZero() {
-		return false
+		// util.Debug.Println("Create Date")
+		return false, "create date"
 	}
 
-	return true
+	return true, ""
 
 }
 
@@ -140,7 +152,7 @@ func (m *Media) ExtractExif() (error) {
 }
 
 func (m *Media) rawImageReader() (io.Reader, error) {
-	absolutePath := GuaranteeAbsolutePath(m.Filepath)
+	absolutePath := GuaranteeUserAbsolutePath(m.Filepath, m.Owner)
 
 	escapedPath := strings.ReplaceAll(absolutePath, " ", "\\ ")
 
@@ -179,7 +191,7 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 
 func (m *Media) videoThumbnailReader() (io.Reader, error) {
 
-	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", GuaranteeAbsolutePath(m.Filepath), "-ss", "00:00:02.000", "-frames:v", "1", "-f", "mjpeg", "pipe:1")
+	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", GuaranteeAbsolutePath(m.Filepath, m.Owner), "-ss", "00:00:02.000", "-frames:v", "1", "-f", "mjpeg", "pipe:1")
 	stdout, err := cmd.StdoutPipe()
 	util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
 
@@ -209,7 +221,7 @@ func (m *Media) ReadFullres(db Weblensdb) ([]byte, error) {
 
 	redisKey := "Fullres " + m.FileHash
 	if util.ShouldUseRedis() {
-		db := NewDB()
+		db := NewDB(m.Owner)
 		fullres64, err := db.RedisCacheGet(redisKey)
 		if err == nil {
 			fullresBytes, err := base64.StdEncoding.DecodeString(fullres64)
@@ -228,7 +240,7 @@ func (m *Media) ReadFullres(db Weblensdb) ([]byte, error) {
 		}
 	} else {
 		var err error
-		readable, err = os.Open(GuaranteeAbsolutePath(m.Filepath))
+		readable, err = os.Open(GuaranteeUserAbsolutePath(m.Filepath, m.Owner))
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +272,7 @@ func (m *Media) getReadable() (io.Reader) {
 		util.FailOnError(err, "Failed to get readable video proxy image")
 	} else {
 		var err error
-		readable, err = os.Open(GuaranteeAbsolutePath(m.Filepath))
+		readable, err = os.Open(GuaranteeUserAbsolutePath(m.Filepath, m.Owner))
 		util.FailOnError(err, "Failed to open generic image file")
 	}
 

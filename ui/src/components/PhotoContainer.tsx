@@ -1,34 +1,57 @@
-import { useState, useEffect, useRef, useMemo, ComponentProps } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import { Blurhash } from "react-blurhash";
 import API_ENDPOINT from '../api/ApiEndpoint'
 
 import Box from '@mui/material/Box';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { CircularProgress } from '@mui/material'
-import styled from "@emotion/styled";
-import { useCookies } from "react-cookie";
-import { useNavigate } from "react-router-dom";
+import { userContext } from "../Context";
 
 // Styles
 
-const ThumbnailContainer = styled(Box)({
-    top: 0,
-    left: 0,
-    height: "100%",
-    width: "100%",
-    display: "flex",
-    position: "absolute",
-    justifyContent: "center",
-    overflow: "hidden",
-    objectFit: "contain"
-})
+const ThumbnailContainer = ({ reff, sx, ...props }) => {
+    return (
+        <Box
+            ref={reff}
+            sx={{
+                ...sx,
+                height: '100%',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                position: 'absolute'
+            }}
+            {...props}
+        />
+    )
+}
 
-const StyledLoader = styled(CircularProgress)({
-    position: "absolute",
-    zIndex: 1,
-    bottom: "10px",
-    right: "10px",
-    color: "rgb(255, 255, 255)"
-})
+
+const StyledLoader = ({ loading, error }) => {
+    if (!loading && !error) {
+        return null
+    } else if (loading && !error) {
+        return (
+            <CircularProgress size={20} sx={{
+                position: "absolute",
+                zIndex: 1,
+                top: "10px",
+                right: "10px",
+                color: "rgb(255, 255, 255)"
+            }} />
+        )
+    } else {
+        return (
+            <ErrorOutlineIcon sx={{
+                position: "absolute",
+                zIndex: 1,
+                top: "10px",
+                right: "10px",
+                color: "rgb(255, 51, 51)"
+            }} />
+        )
+    }
+}
 
 //Components
 
@@ -69,7 +92,8 @@ export const MediaImage = ({
     ...props
 }) => {
     const [imageLoaded, setImageLoaded] = useState(false)
-    const [cookies, setCookie, removeCookie] = useCookies(['weblens-username', 'weblens-login-token'])
+    const [loadError, setLoadError] = useState(false)
+    const { authHeader, userInfo } = useContext(userContext)
     const ref = useRef()
     const isVisible = useIsVisible(ref, true)
     const [imgData, setImgData] = useState("")
@@ -82,30 +106,35 @@ export const MediaImage = ({
     }, [])
 
     useEffect(() => {
-        if (isVisible && !imgData) {
-            fetch(imgUrl, { headers: { "Authorization": `${cookies['weblens-username']},${cookies['weblens-login-token']}` } }).then(res => res.blob()).then((blob) => {
+        if (!mediaData.FileHash) {
+            setLoadError(true)
+        } else if (isVisible && !imgData) {
+            fetch(imgUrl, { headers: authHeader }).then(res => res.blob()).then((blob) => {
+                if (blob.length === 0) {
+                    Promise.reject("Empty blob")
+                }
                 setImgData(URL.createObjectURL(blob))
                 setImageLoaded(true)
+            }).catch((r) => {
+                console.error("Failed to get image from server: ", r)
             })
         }
-
     }, [isVisible, imgUrl])
 
     return (
-        <ThumbnailContainer ref={ref} >
-            {!imageLoaded && (
-                <StyledLoader size={20} />
-            )}
-
+        <ThumbnailContainer reff={ref} sx={props.sx} onDrag={(e) => { console.log(e); e.preventDefault(); e.stopPropagation() }}>
+            <StyledLoader loading={!imageLoaded} error={loadError} />
             <img
-                height={"100%"}
+                draggable={false}
+                height={"max-content"}
                 width={"100%"}
                 src={imgData}
                 crossOrigin="use-credentials"
+                // onDrag={(e) => { console.log(e); e.preventDefault(); e.stopPropagation() }}
 
                 {...props}
 
-                style={{ position: "absolute", display: imageLoaded ? "block" : "none" }}
+                style={{ display: imageLoaded ? "block" : "none" }}
             />
             {mediaData.BlurHash && lazy && !imageLoaded && (
                 <Blurhash
@@ -116,6 +145,6 @@ export const MediaImage = ({
                 />
 
             )}
-        </ThumbnailContainer>
+        </ThumbnailContainer >
     )
 }

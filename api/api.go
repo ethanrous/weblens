@@ -16,10 +16,15 @@ func main() {
 
 	router := gin.Default()
 
+	var ip string
+
 	routes.AddApiRoutes(router)
 	if !util.IsDevMode() {
+		ip = "0.0.0.0"
 		routes.AddUiRoutes(router)
+	} else {
+		ip = "127.0.0.1"
 	}
 
-	router.Run("0.0.0.0:8080")
+	router.Run(ip + ":8080")
 }

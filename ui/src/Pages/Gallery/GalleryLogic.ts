@@ -1,4 +1,5 @@
-import { MediaStateType } from '../../types/Types'
+import { useEffect } from 'react'
+import { MediaStateType, itemData } from '../../types/Types'
 
 export function mediaReducer(state: MediaStateType, action) {
     switch (action.type) {
@@ -10,6 +11,12 @@ export function mediaReducer(state: MediaStateType, action) {
                 previousLast: action.previousLast,
                 mediaCount: state.mediaCount + action.addedCount
             }
+        }
+
+        case 'delete_from_map': {
+            state.mediaMap.delete(action.item)
+            // action.item
+            return { ...state }
         }
 
         case 'insert_thumbnail': {
@@ -90,7 +97,7 @@ export function mediaReducer(state: MediaStateType, action) {
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaMap.get(state.presentingHash).Previous ? state.mediaMap.get(state.presentingHash).Previous.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash)?.Previous ? state.mediaMap.get(state.presentingHash).Previous.FileHash : state.presentingHash
             }
         }
 
@@ -121,21 +128,33 @@ export function mediaReducer(state: MediaStateType, action) {
     }
 }
 
-export function startKeybaordListener(dispatch) {
+export const useKeyDown = (searchRef) => {
 
-    const keyDownHandler = event => {
-        if (event.key === 'i') {
-            event.preventDefault()
-            dispatch({
-                type: 'toggle_info'
-            })
+    const onKeyDown = (event) => {
+        if (!event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
+            searchRef.current.children[0].focus()
+        } else if (event.key == "Escape") {
+            searchRef.current.children[0].blur()
         }
-    }
+    };
+    useEffect(() => {
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+            document.removeEventListener('keydown', onKeyDown)
+        };
+    }, [onKeyDown])
+}
 
-    document.addEventListener('keydown', keyDownHandler)
-    return () => {
-        document.removeEventListener('keydown', keyDownHandler)
+export const useScroll = (hasMoreMedia, dispatch) => {
+    const onScrollEvent = (_) => {
+        if (hasMoreMedia) { handleScroll(dispatch) }
     }
+    useEffect(() => {
+        window.addEventListener('scroll', onScrollEvent)
+        return () => {
+            window.removeEventListener('scroll', onScrollEvent)
+        }
+    }, [onScrollEvent])
 }
 
 export function handleScroll(dispatch) {

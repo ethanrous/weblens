@@ -38,7 +38,9 @@ func FailOnError(err error, msg string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			Error.Panicf("Error from %s:%d %s: %s", file, line, msg, err)
+			var trace []byte
+			runtime.Stack(trace, false)
+			Error.Panicf("Error from %s:%d %s: %s\n%s", file, line, msg, err, string(trace))
 		} else {
 			Error.Panicf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
@@ -49,7 +51,9 @@ func DisplayError(err error, msg string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			Error.Printf("Error from %s:%d %s: %s", file, line, msg, err)
+			var trace []byte
+			runtime.Stack(trace, false)
+			Error.Printf("Error from %s:%d %s: %s\n%s", file, line, msg, err, string(trace))
 		} else {
 			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}

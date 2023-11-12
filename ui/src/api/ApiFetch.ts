@@ -39,8 +39,17 @@ export function fetchFullres64(fileHash, setMediaData: (fullres64: string) => vo
 
 export function login(user: string, pass: string) {
     var url = new URL(`${API_ENDPOINT}/login`)
-    url.searchParams.append('user', user)
-    url.searchParams.append('pass', pass)
+    let data = {
+        username: user,
+        password: pass
+    }
 
-    fetch(url, { method: "POST" }).then(res => res.json()).then(data => console.log(data))
+    return fetch(url.toString(), { method: "POST", body: JSON.stringify(data) })
+}
+
+export function createUser(username, password, admin, authHeader, enqueueSnackbar) {
+    const url = new URL(`${API_ENDPOINT}/user`)
+    fetch(url, { headers: authHeader, method: "POST", body: JSON.stringify({ username: username, password: password, admin: admin, autoActivate: false }) })
+        .then((res) => { if (res.status != 201) { return Promise.reject(`${res.statusText}`) } })
+        .catch((reason) => { enqueueSnackbar(`Failed to create new user: ${reason}`, { variant: "error" }) })
 }
