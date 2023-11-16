@@ -48,9 +48,9 @@ export default function useWeblensSocket() {
 
 export function dispatchSync(path: string, wsSend: (msg: string) => void, recursive: boolean) {
     wsSend(JSON.stringify({
-        type: 'scan_directory',
+        req: 'scan_directory',
         content: {
-            path: path,
+            dirPath: path,
             recursive: recursive
         },
     }))

@@ -36,8 +36,8 @@ export const DirViewWrapper = ({ path, dragging, hoverTarget, dispatch, onDrop, 
             onDragOver={event => { HandleDrag(event, dispatch, dragging) }}
             onDrop={onDrop}
             onMouseOver={onMouseOver}
-            onClick={() => dispatch({ type: 'clear_selected' })}
-            onMouseUp={() => { dispatch({ type: 'set_dragging', dragging: false }) }}
+            onClick={() => { dispatch({ type: 'reject_edit' }); if (!dragging) { dispatch({ type: 'clear_selected' }) } else { dispatch({ type: 'set_dragging', dragging: false }) } }}
+            // onMouseUp={() => { dispatch({ type: 'set_dragging', dragging: false }) }}
             zIndex={1}
         >
             {(dragging == 2) && (
@@ -97,7 +97,7 @@ export const DirItemsWrapper = styled(Box)({
 
 })
 
-export const FileItemWrapper = ({ hovering, isDir, selected, dragging, ...props }) => {
+export const FileItemWrapper = ({ itemRef, hovering, isDir, selected, dragging, ...props }) => {
     const theme = useTheme()
     let outline
     let backgroundColor
@@ -112,7 +112,7 @@ export const FileItemWrapper = ({ hovering, isDir, selected, dragging, ...props 
         backgroundColor = theme.colorSchemes.dark.palette.primary.solidDisabledBg
     }
     return (
-        <Box>
+        <Box ref={itemRef}>
             <Card
                 {...props}
                 variant='solid'
@@ -142,6 +142,7 @@ export const FileItemWrapper = ({ hovering, isDir, selected, dragging, ...props 
             />
             {(selected && dragging != 0) && (
                 <Box height={'100%'} width={'100%'} sx={{ backdropFilter: 'blur(2px)', backgroundColor: "#ffffff22", transform: 'translateY(-100%)', borderRadius: '10px' }} />
+
             )}
         </Box>
     )

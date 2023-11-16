@@ -185,7 +185,7 @@ const Gallery = () => {
 
     return (
         <Box>
-            <HeaderBar path={"/"} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
+            <HeaderBar path={"/"} searchContent={mediaState.searchContent} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
 
             <Box display={'flex'} flexDirection={'row'} width={"100%"} minHeight={"50vh"} justifyContent={'space-evenly'} pt={"70px"}>
                 <Sidebar rawSelected={mediaState.includeRaw} itemCount={numShownItems} dispatch={dispatch} />

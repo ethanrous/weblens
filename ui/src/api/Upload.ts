@@ -1,13 +1,31 @@
 import API_ENDPOINT from "./ApiEndpoint"
 
 
-// const PostFiles = (files, path, wsSend) => {
-//     for (let file of files) {
-//         PostFile(file, path, wsSend)
-//     }
-// }
+function PromiseQueue(tasks = [], concurrentCount = 1) {
+    this.total = tasks.length;
+    this.todo = tasks;
+    this.running = [];
+    this.complete = [];
+    this.count = concurrentCount;
+}
 
-const PostFile = (file64, fileName, path, wsSend, authHeader) => {
+PromiseQueue.prototype.runNext = function () {
+    return ((this.running.length < this.count) && this.todo.length);
+}
+
+PromiseQueue.prototype.run = function () {
+    while (this.runNext()) {
+        const promiseFunc = this.todo.shift();
+        // console.log(promise)
+        promiseFunc().then(() => {
+            this.complete.push(this.running.shift());
+            this.run();
+        });
+        this.running.push(promiseFunc);
+    }
+}
+
+const PostFile = (file64, fileName, path, authHeader, dispatch) => {
     const url = new URL(`${API_ENDPOINT}/file`)
     fetch(url.toString(), {
         method: "POST",
@@ -17,10 +35,12 @@ const PostFile = (file64, fileName, path, wsSend, authHeader) => {
             path: path,
         }),
         headers: authHeader
-    })
+    }).then(() => dispatch({ type: 'remove_from_upload_map', uploadName: fileName }))
 }
 
-function readFile(file) {
+function readFile(file, dispatch) {
+    dispatch({ type: 'add_to_upload_map', uploadName: file.name })
+    console.log("Startin")
     return new Promise(function (resolve, reject) {
         let fr = new FileReader();
 
@@ -36,12 +56,21 @@ function readFile(file) {
     });
 }
 
-const HandleFileUpload = (fileData, path, wsSend, authHeader) => {
+const singleUploadPromise = (fileData, path, authHeader, dispatch) => {
     if (fileData.size > 2000000000) {
         console.log("This upload is going to fail")
     }
-    return readFile(fileData).then((value: { name: String, item64: string }) => { PostFile(value.item64, value.name, path, wsSend, authHeader) })
+    return () => readFile(fileData, dispatch).then((value: { name: String, item64: string }) => { PostFile(value.item64, value.name, path, authHeader, dispatch) })
 }
 
+const Upload = (files, path, authHeader, dispatch) => {
+    let uploads: (() => Promise<void>)[] = []
 
-export default HandleFileUpload
+    for (const file of files) {
+        uploads.push(singleUploadPromise(file, path, authHeader, dispatch))
+    }
+    const taskQueue = new PromiseQueue(uploads, 5)
+    taskQueue.run()
+}
+
+export default Upload

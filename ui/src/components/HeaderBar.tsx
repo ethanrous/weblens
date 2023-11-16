@@ -1,12 +1,12 @@
 
-import { Ref, useContext } from 'react'
+import { Ref, useContext, useRef } from 'react'
 
 import { Folder, Search, Sync, Upload, AdminPanelSettings, Logout } from '@mui/icons-material'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
-import HandleFileUpload from '../api/Upload'
+// import HandleFileUpload from '../api/Upload'
 import { dispatchSync } from '../api/Websocket'
 import WeblensLoader from './Loading'
 
@@ -17,6 +17,7 @@ import { userContext } from '../Context'
 
 type HeaderBarProps = {
     path: string
+    searchContent: string
     dispatch: React.Dispatch<any>
     wsSend: SendMessage
     page: string
@@ -70,15 +71,12 @@ const StyledInput = styled(Input)(({ theme }) => ({
     },
 }));
 
-const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
+const HeaderBar = ({ path, searchContent, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
     const { authHeader, userInfo, removeCookie } = useContext(userContext)
     const nav = useNavigate()
     const spacing = "8px"
     const theme = useTheme()
-
-    // if (page == "gallery") {
-    //     path = "/"
-    // }
+    const openRef = useRef(null);
 
     return (
         <Box zIndex={3} height={"max-content"} width={"100vw"} position={'fixed'} >
@@ -94,7 +92,7 @@ const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress 
                 }}
             >
                 <Box paddingLeft={'10px'} />
-                {page == "gallery" && (
+                {page === "gallery" && (
                     <Tooltip title={"Files"} disableInteractive >
                         <IconButton
                             onClick={() => nav("/files/")}
@@ -105,7 +103,7 @@ const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress 
                         </IconButton>
                     </Tooltip>
                 )}
-                {(page == "files" || page == "admin") && (
+                {(page === "files" || page === "admin") && (
                     <Tooltip title={"Gallery"} disableInteractive >
                         <IconButton
                             onClick={() => nav("/")}
@@ -115,15 +113,14 @@ const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress 
                         </IconButton>
                     </Tooltip>
                 )}
-                {page == "files" && (
+                {page === "files" && (
                     <Tooltip title={"Upload"} disableInteractive >
-                        <IconButton aria-label="upload" sx={{ margin: spacing }}>
+                        <IconButton aria-label="upload" sx={{ margin: spacing }} onClick={() => openRef.current?.click()}>
                             <input
-                                id="upload-image"
-                                hidden
-                                accept="image/*"
                                 type="file"
-                                onChange={(e) => HandleFileUpload(e.target.files[0], "/", null, authHeader)}
+                                onChange={(event) => dispatch({ type: "do_upload", event: event, auth: authHeader })}
+                                ref={openRef}
+                                style={{ display: 'none' }} // Make the file input element invisible
                             />
                             <Upload fontSize={'large'} />
                         </IconButton>
@@ -136,6 +133,7 @@ const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress 
                 </Tooltip>
                 <SearchBox>
                     <StyledInput
+                        value={searchContent}
                         endDecorator={<Search />}
                         color='neutral'
                         ref={searchRef}
@@ -143,7 +141,7 @@ const HeaderBar = ({ path, dispatch, wsSend, page, searchRef, loading, progress 
                         onChange={e => dispatch({ type: 'set_search', search: e.target.value })}
                     />
                 </SearchBox>
-                {(loading && progress != 0 && progress != 100) && (
+                {(loading && progress !== 0 && progress !== 100) && (
                     <Sheet sx={{
                         height: "max-content",
                         padding: "10px",

@@ -27,9 +27,9 @@ const ThumbnailContainer = ({ reff, sx, ...props }) => {
 }
 
 
-const StyledLoader = ({ loading, error }) => {
-    if (!loading && !error) {
-        return null
+const StyledLoader = ({ isVisible, loading, error }) => {
+    if (!isVisible || (!loading && !error)) {
+        return null;
     } else if (loading && !error) {
         return (
             <CircularProgress size={20} sx={{
@@ -94,10 +94,10 @@ export const MediaImage = ({
     const [imageLoaded, setImageLoaded] = useState(false)
     const [loadError, setLoadError] = useState(false)
     const { authHeader, userInfo } = useContext(userContext)
-    const ref = useRef()
-    const isVisible = useIsVisible(ref, true)
     const [imgData, setImgData] = useState("")
     const [imgUrl, setImgUrl] = useState("")
+    const ref = useRef()
+    const isVisible = useIsVisible(ref, true)
 
     useEffect(() => {
         const url = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
@@ -123,18 +123,19 @@ export const MediaImage = ({
 
     return (
         <ThumbnailContainer reff={ref} sx={props.sx} onDrag={(e) => { console.log(e); e.preventDefault(); e.stopPropagation() }}>
-            <StyledLoader loading={!imageLoaded} error={loadError} />
+            <StyledLoader isVisible={isVisible} loading={!imageLoaded} error={loadError} />
             <img
                 draggable={false}
                 height={"max-content"}
                 width={"100%"}
                 src={imgData}
                 crossOrigin="use-credentials"
+
                 // onDrag={(e) => { console.log(e); e.preventDefault(); e.stopPropagation() }}
 
                 {...props}
 
-                style={{ display: imageLoaded ? "block" : "none" }}
+                style={{ display: imageLoaded ? "block" : "none", userSelect: 'none' }}
             />
             {mediaData.BlurHash && lazy && !imageLoaded && (
                 <Blurhash

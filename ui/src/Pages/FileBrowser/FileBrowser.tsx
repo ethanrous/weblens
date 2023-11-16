@@ -5,6 +5,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 // MUI
 import { Box, Button, Tooltip, Badge, Typography, Card, CardContent, Divider } from '@mui/joy'
 import { Delete, Download, CreateNewFolder, CheckBox, Person, Backup } from '@mui/icons-material'
+
+// Mantine
+import { Button as ManButton } from '@mantine/core'
+
 // Other
 import { useSnackbar } from 'notistack';
 
@@ -18,11 +22,13 @@ import useWeblensSocket, { dispatchSync } from '../../api/Websocket'
 import { deleteSelected, GetDirItems, HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, changeOwner, useMousePosition } from './FileBrowserLogic';
 import { DirItemsWrapper, DirViewWrapper, FlexColumnBox } from './FilebrowserStyles';
 import { userContext } from '../../Context';
+import UploadStatus from '../../components/UploadStatus';
+import { Notifications } from '@mantine/notifications'
 
-function SelectedActions({ dirMap, selectedMap, path, dispatch }) {
-    const { authHeader, userInfo } = useContext(userContext)
+function SelectedActions({ dirMap, selectedMap, path, wsSend, dispatch }) {
+    const { authHeader } = useContext(userContext)
 
-    if (selectedMap.size == 0) {
+    if (selectedMap.size === 0) {
         return null
     }
 
@@ -37,7 +43,7 @@ function SelectedActions({ dirMap, selectedMap, path, dispatch }) {
             </Tooltip>
 
             <Tooltip title={"Download Selected"} disableInteractive >
-                <Button style={{ padding: "15px" }} color='primary' onClick={() => { downloadSelected(selectedMap, path, dispatch, authHeader) }}>
+                <Button style={{ padding: "15px" }} color='primary' onClick={(e) => { e.stopPropagation(); downloadSelected(selectedMap, path, dispatch, wsSend, authHeader) }}>
                     <Download />
                 </Button>
             </Tooltip>
@@ -75,7 +81,7 @@ function UnselectedActions({ numSelected, dispatch, navigate, authHeader, path }
 
 function DraggingCounter({ dragging, numSelected, dispatch }) {
     const position = useMousePosition()
-    if (dragging != 1) {
+    if (dragging !== 1) {
         return null
     }
     return (
@@ -95,11 +101,15 @@ function DraggingCounter({ dragging, numSelected, dispatch }) {
 }
 
 function Files({ filebrowserState, alreadyScanned, setAlreadyScanned, path, navigate, dispatch, wsSend, authHeader }) {
-    const { items, scanRequired } = GetDirItems(filebrowserState, dispatch, authHeader)
+    const { items, scanRequired } = useMemo(() => {
+        return GetDirItems(filebrowserState, dispatch, authHeader)
+    }, [filebrowserState, dispatch, authHeader])
+
     useEffect(() => {
         if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatch({ type: "set_loading", loading: true }); dispatchSync(filebrowserState.path, wsSend, false) }
     }, [scanRequired])
-    if (items.length != 0) {
+
+    if (items.length !== 0) {
         return (
             <DirItemsWrapper>
                 {items}
@@ -141,6 +151,7 @@ const FileBrowser = () => {
     const [filebrowserState, dispatch]: [FileBrowserStateType, React.Dispatch<any>] = useReducer(fileBrowserReducer, {
         dirMap: new Map<string, itemData>(),
         selected: new Map<string, boolean>(),
+        uploadMap: new Map<string, boolean>(),
         path: realPath,
         draggingState: 0,
         loading: true,
@@ -157,8 +168,7 @@ const FileBrowser = () => {
 
     useEffect(() => {
         if (readyState === 1) {
-            wsSend(JSON.stringify({ type: "subscribe", content: { path: filebrowserState.path, recursive: false }, error: null }))
-            GetDirectoryData(filebrowserState.path, dispatch, navigate, authHeader)
+            wsSend(JSON.stringify({ req: "subscribe", content: { subType: "path", dirPath: filebrowserState.path, recursive: false }, error: null }))
         }
     }, [readyState])
 
@@ -168,6 +178,7 @@ const FileBrowser = () => {
 
     useEffect(() => {
         if (realPath !== filebrowserState.path) {
+            dispatch({ type: "set_loading", loading: true })
             navigate("/files" + filebrowserState.path)
         }
 
@@ -175,8 +186,9 @@ const FileBrowser = () => {
         document.documentElement.style.overflow = "visible"
         setAlreadyScanned(false)
         dispatch({ type: "clear_items" })
+        dispatch({ type: "set_search", search: "" })
         dispatch({ type: "set_scan_progress", progress: 0 })
-        wsSend(JSON.stringify({ type: "subscribe", content: { path: filebrowserState.path, recursive: false }, error: null }))
+        wsSend(JSON.stringify({ req: "subscribe", content: { subType: "path", dirPath: filebrowserState.path, recursive: false }, error: null }))
         GetDirectoryData(filebrowserState.path, dispatch, navigate, authHeader)
     }, [filebrowserState.path])
 
@@ -184,6 +196,7 @@ const FileBrowser = () => {
         <FlexColumnBox>
             <HeaderBar
                 path={filebrowserState.path}
+                searchContent={filebrowserState.searchContent}
                 dispatch={dispatch}
                 wsSend={wsSend}
                 page={"files"}
@@ -197,15 +210,16 @@ const FileBrowser = () => {
                 path={filebrowserState.path}
                 dragging={filebrowserState.draggingState}
                 hoverTarget={filebrowserState.hovering}
-                onDrop={(e => HandleDrop(e, filebrowserState.path, filebrowserState.dirMap, dispatch, wsSend, enqueueSnackbar, authHeader))}
+                onDrop={(e => HandleDrop(e, filebrowserState.path, filebrowserState.dirMap, dispatch, enqueueSnackbar, authHeader))}
                 dispatch={dispatch}
                 onMouseOver={e => dispatch({ type: 'set_hovering', itempath: "" })}
             >
-                <SelectedActions dirMap={filebrowserState.dirMap} selectedMap={filebrowserState.selected} path={filebrowserState.path} dispatch={dispatch} />
+                <SelectedActions dirMap={filebrowserState.dirMap} selectedMap={filebrowserState.selected} path={filebrowserState.path} wsSend={wsSend} dispatch={dispatch} />
                 <UnselectedActions numSelected={filebrowserState.selected.size} dispatch={dispatch} navigate={navigate} authHeader={authHeader} path={filebrowserState.path} />
                 <Crumbs path={filebrowserState.path} includeHome={true} dispatch={dispatch} navOnLast={true} navigate={(newPath) => dispatch({ type: 'set_path', path: newPath })} />
 
                 <Files filebrowserState={filebrowserState} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} path={filebrowserState.path} navigate={navigate} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
+                <UploadStatus fileStrings={filebrowserState.uploadMap} />
 
             </DirViewWrapper>
         </FlexColumnBox>

@@ -200,13 +200,14 @@ func streamVideo(ctx *gin.Context) {
 
 
 
-func uploadItem(relParentDir, filename, item64, uploaderName string) (*dataStore.Media, error) {
+func uploadItem(relParentDir, filename, item64, uploaderName string) {
 	absoluteParent := dataStore.GuaranteeUserAbsolutePath(relParentDir, uploaderName)
 	itemPath := filepath.Join(absoluteParent, filename)
 
 	_, err := os.Stat(itemPath)
 	if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("file (%s) already exists", filename)
+		newErr := fmt.Errorf("file (%s) already exists", filename)
+		util.DisplayError(newErr, "")
 	}
 
 	outFile, err := os.Create(itemPath)
@@ -221,23 +222,27 @@ func uploadItem(relParentDir, filename, item64, uploaderName string) (*dataStore
 	_, err = outFile.Write(itemBytes)
 	util.FailOnError(err, "Failed to write uploaded bytes to new file")
 
-	db := dataStore.NewDB(uploaderName)
+	// db := dataStore.NewDB(uploaderName)
 
-	uploader, err := db.GetUser(uploaderName)
-	util.FailOnError(err, "Failed to get uploader user")
+	// uploader, err := db.GetUser(uploaderName)
+	// util.FailOnError(err, "Failed to get uploader user")
 
-	m, err := dataProcess.HandleNewImage(itemPath, uploader.Username, db)
-	if err != nil {
-		os.Remove(itemPath)
-		return nil, err
-	}
 
-	newItem, _ := dataStore.FormatFileInfo(itemPath, uploader.Username, db)
+	util.Debug.Println("ASKING TO SCAN")
+	dataProcess.RequestTask("scan_file", dataProcess.ScanMetadata{Path: itemPath, Username: uploaderName})
+	// m, err := dataProcess.HandleNewImage(itemPath, uploaderName, db)
+	// if err != nil {
+		// os.Remove(itemPath)
+		// return nil, err
+	// }
 
-	msg := dataProcess.WsMsg{Type: "item_update", Content: newItem}
-	dataProcess.Broadcast(filepath.Dir(itemPath), msg)
+	// dataProcess.PushItemUpdate(itemPath, uploaderName, db)
+	// newItem, _ := dataStore.FormatFileInfo(itemPath, uploaderName, db)
 
-	return m, nil
+	// msg := dataProcess.WsMsg{Type: "item_update", Content: newItem}
+	// dataProcess.Broadcast(filepath.Dir(itemPath), msg)
+
+	// return m, nil
 }
 
 type uploadedFile struct {
@@ -258,8 +263,6 @@ func uploadFile(ctx *gin.Context) {
 	username := ctx.GetString("username")
 	uploadItem(file.Path, file.FileName, file.File64, username)
 }
-
-
 
 func makeDir(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
@@ -287,9 +290,10 @@ func makeDir(ctx *gin.Context) () {
 
 	db := dataStore.NewDB(username)
 
-	info, _ := dataStore.FormatFileInfo(absolutePath, username, db)
-	msg := dataProcess.WsMsg{Type: "item_update", Content: info}
-	dataProcess.Broadcast(absolutePath, msg)
+	dataProcess.PushItemUpdate(absolutePath, username, db)
+	// info, _ := dataStore.FormatFileInfo(absolutePath, username, db)
+	// msg := dataProcess.WsMsg{Type: "item_update", Content: info}
+	// dataProcess.Broadcast(absolutePath, msg)
 }
 
 func createUserHomeDir(username string) {
@@ -305,13 +309,20 @@ func getDirInfo(ctx *gin.Context) () {
 	relativePath := ctx.Query("path")
 	username := ctx.GetString("username")
 	absolutePath := dataStore.GuaranteeUserAbsolutePath(relativePath, username)
+	db := dataStore.NewDB(username)
+
+	cachedJson, err := db.RedisCacheGet(absolutePath)
+	if err == nil {
+		ctx.Data(http.StatusOK, "application/json", []byte(cachedJson))
+		return
+	}
 
 	dirInfo, err := os.ReadDir(absolutePath)
 	if err != nil {
 		ctx.AbortWithStatus(404)
 		return
 	}
-	db := dataStore.NewDB(username)
+
 	var filteredDirInfo []dataStore.FileInfo
 	for _, file := range dirInfo {
 		formattedInfo, include := dataStore.FormatFileInfo(filepath.Join(absolutePath, file.Name()), username, db)
@@ -321,6 +332,10 @@ func getDirInfo(ctx *gin.Context) () {
 	}
 
 	ctx.JSON(http.StatusOK, filteredDirInfo)
+
+	dirInfoJson, err := json.Marshal(filteredDirInfo)
+	util.FailOnError(err, "Failed to marshal dir info to json string")
+	db.RedisCacheSet(absolutePath, string(dirInfoJson))
 }
 
 func getFile(ctx *gin.Context) {
@@ -367,6 +382,7 @@ func updateFile(ctx *gin.Context) {
 	}
 
 	db.MoveMedia(newFilepath, username, m)
+	db.RedisCacheBust(filepath.Dir(newFilepath))
 
 	dataProcess.PushItemUpdate(filepath.Dir(newFilepath), username, db)
 
@@ -409,19 +425,8 @@ func moveFileToTrash(ctx *gin.Context) {
 	err = os.Rename(absolutePath,  trashPath)
 	util.FailOnError(err, "Failed to move file to trash")
 
-	relPath, _ := dataStore.GuaranteeUserRelativePath(absolutePath, username)
+	dataProcess.PushItemDelete(absolutePath, m.FileHash, username, db)
 
-	content := struct {
-		Path string `json:"path"`
-	 	Hash string `json:"hash"`
-	} {
-		Path: relPath,
-		Hash: m.FileHash,
-	}
-
-	msg := dataProcess.WsMsg{Type: "item_deleted", Content: content}
-
-	dataProcess.Broadcast(filepath.Dir(absolutePath), msg)
 }
 
 type takeoutItems struct {
@@ -431,35 +436,35 @@ type takeoutItems struct {
 
 func createTakeout(ctx *gin.Context) {
 	username := ctx.GetString("username")
-	util.Debug.Println("Beginning takeout creation")
 
 	var items takeoutItems
 	bodyData, err := io.ReadAll(ctx.Request.Body)
 	util.FailOnError(err, "Could not read items to create takeout with")
 	json.Unmarshal(bodyData, &items)
 
-	var redir string
 	var doSingle bool = false
 
-	if len(items.Items) == 1 {
-		stat, _ := os.Stat(dataStore.GuaranteeAbsolutePath(items.Items[0], username))
+	if len(items.Items) == 1 { // If we only have 1 item, and it is not a directory, we have a special case to return the item immediately
+		tmpPath := dataStore.GuaranteeUserAbsolutePath(items.Items[0], username)
+		stat, err := os.Stat(tmpPath)
+		util.FailOnError(err, "Failed to get file stats for [ %s ]", tmpPath)
 		if !stat.IsDir() {
 			doSingle = true
 		}
 	}
 
 	if doSingle {
-		db := dataStore.NewDB(username)
-		m, _ := db.GetMediaByFilepath(items.Items[0], false)
-		redir = fmt.Sprintf("/api/takeout/%s?single=true", m.FileHash)
 
 	} else {
-		takeoutId := dataStore.CreateZipFromPaths(items.Items, username)
-		redir = fmt.Sprintf("/api/takeout/%s", takeoutId)
+		task, complete := dataProcess.RequestTask("create_zip", dataProcess.ZipMetadata{Paths: items.Items, Username: username})
+		if complete {
+			ret := struct { TakeoutId string `json:"takeoutId"`} {TakeoutId: task.GetResult("takeoutId")}
+			ctx.JSON(http.StatusOK, ret)
+		} else {
+			ret := struct { TaskId string `json:"taskId"`} {TaskId: task.TaskId}
+			ctx.JSON(http.StatusCreated, ret)
+		}
 	}
-
-	ctx.Redirect(http.StatusSeeOther, redir)
-
 }
 
 func getTakeout(ctx *gin.Context) {
@@ -478,17 +483,18 @@ func getTakeout(ctx *gin.Context) {
 		extraHeaders["Content-Disposition"] = fmt.Sprintf("attachment; filename=\"%s\";", filepath.Base(m.Filepath))
 	} else {
 		readPath = fmt.Sprintf("%s/%s.zip", util.GetTakeoutDir(), takeoutId) // Will already be absolute path
-		extraHeaders["Content-Disposition"] = "attachment; filename=\"takeout.zip\";"
+		extraHeaders["Content-Disposition"] = fmt.Sprintf("attachment; filename=\"%s.zip\";", takeoutId)
 	}
 
 	f, err := os.Open(readPath)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
-		util.FailOnError(err, "Failed to open takeout file")
+		return
+		// util.FailOnError(err, "Failed to open takeout file")
 	}
 
 	stat, err := f.Stat()
-	util.FailOnError(err, "")
+	util.FailOnError(err, "Could not get stats of zip file while preparing to send")
 
 	extraHeaders["Access-Control-Expose-Headers"] = "Content-Disposition"
 	ctx.DataFromReader(http.StatusOK, stat.Size(), "application/octet-stream", f, extraHeaders)

@@ -54,6 +54,7 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, sx, path
                         width: "100%",
                         backgroundColor,
                         height: 25,
+                        userSelect: 'none'
                     }}
                 >
                     {label}

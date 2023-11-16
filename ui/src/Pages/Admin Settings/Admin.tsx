@@ -57,7 +57,7 @@ const Admin = () => {
 
     return (
         <Box>
-            <HeaderBar path={"/"} dispatch={() => { }} wsSend={() => { }} page={"admin"} searchRef={null} loading={false} progress={0} />
+            <HeaderBar path={"/"} searchContent="" dispatch={() => { }} wsSend={() => { }} page={"admin"} searchRef={null} loading={false} progress={0} />
             <Box height={"100vh"} display={"flex"} flexDirection={"column"} justifyContent={"center"} alignItems={"center"} sx={{ backgroundImage: "linear-gradient(to bottom right, rgb(89,54,146), rgb(89,54,246))" }}>
                 <Sheet
                     sx={{ display: "flex", flexDirection: "column", backgroundColor: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(10px)", justifyContent: "center", alignItems: "center", padding: "20px", backgroundImage: "linear-gradient(to bottom right, rgba(100,100,255,0.2), rgba(100,100,255,0.1))", boxShadow: "8px 8px 10px rgba(30,30,30,0.5)" }}

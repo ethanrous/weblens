@@ -45,6 +45,7 @@ func NewDB(username string) (Weblensdb) {
 			Password: "",
 			DB:		  0,
 		})
+		redisc.FlushAll()
 	}
 
 	return Weblensdb{
@@ -107,7 +108,6 @@ func (db Weblensdb) GetMediaByFilepath(path string, includeThumbnail bool) (Medi
 // Returns ids of all media in directory with depth 1
 func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]Media) {
 	var re string
-	util.Debug.Println("DIR: ", dirpath)
 	relPath, _ := GuaranteeUserRelativePath(dirpath, db.accessor)
 	if !recursive {
 		re = fmt.Sprintf("^%s\\/?[^\\/]+$", relPath)
@@ -173,11 +173,14 @@ func (db Weblensdb) GetPagedMedia(sort, owner string, skip, limit int, raw, thum
 		panic(err)
 	}
 
+
 	if redisc != nil {
-		for i, val := range res {
-			go db.redisCacheThumbBytes(val)
-			res[i].Thumbnail64 = ""
-		}
+		go func () {
+			for i, val := range res {
+				db.redisCacheThumbBytes(val)
+				res[i].Thumbnail64 = ""
+			}
+		}()
 	}
 
 	return res, len(res) == limit
@@ -188,7 +191,7 @@ func (db Weblensdb) RedisCacheSet(key string, data string) (error) {
 	if redisc == nil {
 		return errors.New("redis not initialized")
 	}
-	_, err := db.redis.Set(key, data, time.Duration(600000000000)).Result()
+	_, err := db.redis.Set(key, data, time.Duration(time.Minute)).Result()
 	return err
 }
 
@@ -199,6 +202,10 @@ func (db Weblensdb) RedisCacheGet(key string) (string, error) {
 	data, err := db.redis.Get(key).Result()
 
 	return data, err
+}
+
+func (db Weblensdb) RedisCacheBust(key string) {
+	db.redis.Del(key)
 }
 
 func (db Weblensdb) redisCacheThumbBytes(media Media) (error) {

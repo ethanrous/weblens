@@ -31,6 +31,12 @@ func NewWorkerPool(workerCount int) (WorkerPool) {
 func (wp *WorkerPool) Run() {
 	for i := 0; i < wp.maxWorker; i++ {
 		go func(workerID int) {
+			defer func(){
+				err := recover()
+				if err != nil {
+					util.Error.Println("Recovered panic at the surface of worker thread, this should have been handled sooner: ", err)
+				}
+			}()
 			atomic.StoreInt64(wp.currentWorkers, atomic.AddInt64(wp.currentWorkers, 1))
 			for task := range wp.remainingTasks {
 				if task.flag == 1 {
@@ -39,7 +45,9 @@ func (wp *WorkerPool) Run() {
 					break
 				}
 				atomic.StoreInt64(wp.busyCount, atomic.AddInt64(wp.busyCount, 1))
+				util.Debug.Printf("Worker %d starting work", workerID)
 				task.work()
+				util.Debug.Printf("Worker %d finished work", workerID)
 				atomic.StoreInt64(wp.busyCount, atomic.AddInt64(wp.busyCount, -1))
 			}
 		}(i + 1)
@@ -51,16 +59,14 @@ func (wp *WorkerPool) AddTask(f func()) {
 	wp.remainingTasks <- task{work: f, flag: 0}
 }
 
-func (wp *WorkerPool) Status() (bool, int, int) {
-	var busy bool
-	busyCount := atomic.LoadInt64(wp.busyCount)
-	totalTasks := atomic.LoadInt64(wp.totalTasks)
-	if busyCount == 0 && len(wp.remainingTasks) == 0 {
-		busy = false
-	} else {
-		busy = true
-	}
-	return busy, len(wp.remainingTasks) + int(busyCount), int(totalTasks)
+// Returns the count of tasks in the queue, and the total number of tasks accepted, number of busy workers, the total number of live workers in the worker pool
+func (wp *WorkerPool) Status() (int, int, int, int) {
+
+	busyCount := *wp.busyCount
+	totalTasks := *wp.totalTasks
+	currentWorkers := *wp.currentWorkers
+
+	return len(wp.remainingTasks), int(totalTasks), int(busyCount), int(currentWorkers)
 }
 
 func (wp *WorkerPool) Close() {

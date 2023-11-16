@@ -11,7 +11,7 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func HandleNewImage(path, owner string, db dataStore.Weblensdb) (*dataStore.Media, error) {
+func ProcessMediaFile(path, owner string, db dataStore.Weblensdb) (error) {
 	defer func() {
 		if err := recover(); err != nil {
 			util.Error.Printf("Recovered panic while parsing new file (%s): %v", path, err)
@@ -23,7 +23,7 @@ func HandleNewImage(path, owner string, db dataStore.Weblensdb) (*dataStore.Medi
 	var parseAnyway bool = false
 	filled, _ := m.IsFilledOut(false)
 	if filled && !parseAnyway {
-		return &m, nil
+		return nil
 	}
 
 	if m.Filepath == "" {
@@ -33,7 +33,7 @@ func HandleNewImage(path, owner string, db dataStore.Weblensdb) (*dataStore.Medi
 	if m.MediaType.FriendlyName == "" {
 		err := m.ExtractExif()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -56,22 +56,6 @@ func HandleNewImage(path, owner string, db dataStore.Weblensdb) (*dataStore.Medi
 
 	PushItemUpdate(dataStore.GuaranteeUserAbsolutePath(m.Filepath, owner), owner, db)
 
-	return &m, nil
-}
-
-func middleware(path, username string, d fs.DirEntry, wp WorkerPool, db dataStore.Weblensdb) error {
-	if d.IsDir() {
-		return nil
-	}
-	if strings.HasSuffix(path, ".DS_Store") || strings.HasSuffix(path, ".thumb.jpeg") {
-		return nil
-	}
-
-	wp.AddTask(func() {
-		_, err:= HandleNewImage(path, username ,db)
-		util.DisplayError(err, "Error attempting to import new media")
-	})
-
 	return nil
 }
 
@@ -80,14 +64,21 @@ func ScanDirectory(scanDir, username string, recursive bool) (WorkerPool) {
 	util.Debug.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, absoluteScanDir)
 
 	db := dataStore.NewDB(username)
+	ms := db.GetMediaInDirectory(absoluteScanDir, recursive)
+	mediaMap := map[string]bool{}
+	for _, m := range ms {
+		mediaMap[dataStore.GuaranteeUserAbsolutePath(m.Filepath, username)] = true
+	}
 
 	wp := NewWorkerPool(10)
 	wp.Run()
 
 	if recursive {
 		filepath.WalkDir(absoluteScanDir, func(path string, d fs.DirEntry,  err error) error {
-			e := middleware(path, username, d, wp, db)
-			return e
+			if !(d.IsDir() || strings.HasSuffix(path, ".DS_Store") || strings.HasSuffix(path, ".thumb.jpeg") || mediaMap[path]) {
+				RequestTask("scan_file", ScanMetadata{Path: path, Username: username})
+			}
+			return nil
 		})
 	} else {
 		files, err := os.ReadDir(absoluteScanDir)
@@ -95,13 +86,12 @@ func ScanDirectory(scanDir, username string, recursive bool) (WorkerPool) {
 			panic(err)
 		}
 		for _, d := range files {
-			middleware(filepath.Join(absoluteScanDir, d.Name()), username, d, wp, db)
+			tmpPath := filepath.Join(absoluteScanDir, d.Name())
+			if !(d.IsDir() || strings.HasSuffix(tmpPath, ".DS_Store") || strings.HasSuffix(tmpPath, ".thumb.jpeg") || mediaMap[tmpPath]) {
+				RequestTask("scan_file", ScanMetadata{Path: tmpPath, Username: username})
+			}
 		}
 	}
-
-	ms := db.GetMediaInDirectory(absoluteScanDir, recursive)
-	util.Debug.Println(absoluteScanDir)
-
 
 	for _, m := range ms {
 		_, err := os.Stat(dataStore.GuaranteeUserAbsolutePath(m.Filepath, username))

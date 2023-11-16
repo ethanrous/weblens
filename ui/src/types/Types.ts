@@ -63,6 +63,7 @@ export type FileBrowserTypes = {
 export type FileBrowserStateType = {
     dirMap: Map<string, itemData>
     selected: Map<string, boolean>
+    uploadMap: Map<string, boolean>
     path: string
     draggingState: number
     loading: boolean
@@ -81,7 +82,7 @@ export type itemData = {
     isDir: boolean
     imported: boolean
     modTime: string
-    // selected: boolean
+    visible: boolean
     mediaData: MediaData
 }
 

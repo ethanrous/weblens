@@ -3,6 +3,7 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,7 +35,8 @@ func SliceRemove(s []any, i int) []any {
     return s[:len(s)-1]
 }
 
-func FailOnError(err error, msg string) {
+func FailOnError(err error, format string, fmtArgs... any) {
+	msg := fmt.Sprintf(format, fmtArgs...)
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
@@ -100,9 +102,13 @@ func PrintMemUsage() {
 }
 
 // Set charLimit to 0 to disable
-func HashOfString(s string, charLimit int) string {
+func HashOfString(charLimit int, dataToHash... string) string {
 	h := sha256.New()
-	h.Write([]byte(s))
+
+	for _, s := range dataToHash {
+		h.Write([]byte(s))
+	}
+
 	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
 
 	if charLimit != 0 {
@@ -110,4 +116,12 @@ func HashOfString(s string, charLimit int) string {
 	} else {
 		return hash
 	}
+}
+
+func StructFromMap(inputMap map[string]any, target any) error {
+	jsonString, err := json.Marshal(inputMap)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonString, target)
 }

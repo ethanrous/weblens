@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo } from 'react'
+import { useEffect, useMemo, useState, memo, useRef } from 'react'
 
 import FolderIcon from '@mui/icons-material/Folder'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
@@ -11,12 +11,7 @@ import { FileItemWrapper, ItemVisualComponentWrapper } from './FilebrowserStyles
 import { itemData } from '../../types/Types'
 
 import { useSnackbar } from 'notistack'
-
-const StyledInputBase = styled(Input)(({ theme }) => ({
-    '& .MuiInputBase-input': {
-        color: theme.palette.primary.mainChannel,
-    },
-}))
+import { useIsVisible } from '../../components/PhotoContainer'
 
 function StartKeybaordListener(dispatch, editing, newName, filepath, authHeader) {
 
@@ -24,7 +19,7 @@ function StartKeybaordListener(dispatch, editing, newName, filepath, authHeader)
         if (!editing) { return }
         if (event.key === 'Enter') {
             event.preventDefault()
-            if (newName == "") {
+            if (newName === "") {
                 dispatch({ type: 'reject_edit' })
             } else {
                 let newPath = RenameFile(filepath, newName, authHeader)
@@ -41,7 +36,7 @@ function StartKeybaordListener(dispatch, editing, newName, filepath, authHeader)
 const ItemVisualComponent = ({ itemData, type, isDir, imported }) => {
     if (isDir) {
         return (<FolderIcon style={{ width: "80%", height: "80%" }} />)
-    } else if (type == "File") {
+    } else if (type === "File") {
         return (<InsertDriveFileIcon style={{ width: "80%", height: "80%" }} />)
     } else if (imported) {
         return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={false} />)
@@ -55,7 +50,7 @@ const EditingHook = ({ dispatch }) => {
     const [previous, setPrevious] = useState(false)
 
     useEffect(() => {
-        if (!focused && previous == true) {
+        if (!focused && previous === true) {
             dispatch({ type: 'reject_edit' })
         } else {
             setPrevious(focused)
@@ -69,13 +64,22 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }) => {
         return itemData.filepath.substring(itemData.filepath.lastIndexOf('/') + 1)
     }, [itemData.filepath])
 
+    const editRef: React.Ref<HTMLInputElement> = useRef()
+    useEffect(() => {
+        if (editRef.current) {
+            editRef.current.select()
+        }
+    }, [editing])
+
     if (editing) {
         return (
-            <FormControl style={{ width: "90%" }}>
-                <StyledInputBase
+            <FormControl style={{ width: "100%", height: "30px", bottom: "5px" }} >
+                <Input
+                    slotProps={{ input: { ref: editRef } }}
                     autoFocus={true}
                     defaultValue={filename}
                     onClick={(e) => { e.stopPropagation() }}
+                    onDoubleClick={(e) => { e.stopPropagation() }}
                     onChange={(e) => { setRenameVal(e.target.value) }}
                 />
                 <EditingHook dispatch={dispatch} />
@@ -95,12 +99,12 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }) => {
                     onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', file: itemData.filepath }) }}
                     sx={{ cursor: 'text' }}
                 >
-                    <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"}>
-                        <Typography fontSize={15} noWrap sx={{ color: "white" }}>{filename} </Typography>
+                    <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"} height={"30px"}>
+                        <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{filename} </Typography>
                         <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
                         <Box display={"flex"} flexDirection={'column'} alignContent={'center'} alignItems={'center'} >
-                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible' }}> {sizeValue} </Typography>
-                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible' }}> {units} </Typography>
+                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
+                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Typography>
                         </Box>
                     </Box>
                 </Box>
@@ -114,6 +118,12 @@ const Item = memo(({ itemData, selected, editing, dragging, dispatch, authHeader
     const [mouseDown, setMouseDown] = useState(false)
     const [renameVal, setRenameVal] = useState("")
     const { enqueueSnackbar } = useSnackbar()
+    const itemRef = useRef()
+    const isVisible = useIsVisible(itemRef, false)
+
+    useEffect(() => {
+        dispatch({ type: "set_visible", item: itemData.filepath, visible: isVisible })
+    }, [isVisible])
 
     useEffect(() => {
         if (editing) {
@@ -122,9 +132,9 @@ const Item = memo(({ itemData, selected, editing, dragging, dispatch, authHeader
     }, [editing, renameVal])
 
     useEffect(() => {
-        if (itemData.updatePath && itemData.filepath != itemData.updatePath) {
+        if (itemData.updatePath && itemData.filepath !== itemData.updatePath) {
             MoveFile(itemData.filepath, itemData.updatePath, authHeader).then((res) => {
-                if (res.status != 200) {
+                if (res.status !== 200) {
                     return Promise.reject(`Could not move file: ${res.statusText}`)
                 }
                 dispatch({ type: "delete_from_map", item: itemData.filepath })
@@ -136,13 +146,15 @@ const Item = memo(({ itemData, selected, editing, dragging, dispatch, authHeader
 
     return (
         <FileItemWrapper
+            itemRef={itemRef}
             hovering={hovering} isDir={itemData.isDir} selected={selected} dragging={dragging}
             onMouseDown={() => { setMouseDown(true) }}
             onMouseUp={() => { dispatch({ type: 'move_selected', targetItemPath: itemData.filepath }); setMouseDown(false) }}
             onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itempath: itemData.filepath }) }}
-            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_selected', itempath: itemData.filepath }) }}
+            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'reject_edit' }); if (!itemData.imported && !itemData.isDir) { return } dispatch({ type: 'set_selected', itempath: itemData.filepath }) }}
             onDoubleClick={() => { if (itemData.isDir) { dispatch({ type: 'set_path', path: itemData.filepath }) } else { dispatch({ type: 'set_presentation', presentingPath: itemData.filepath }) } }}
             onMouseLeave={(e) => {
+                if (!itemData.imported && !itemData.isDir) { return }
                 setHovering(false); if (!selected && mouseDown) { dispatch({ type: "clear_selected" }) }
                 if (mouseDown) {
                     dispatch({ type: 'set_selected', itempath: itemData.filepath, selected: true })
@@ -159,15 +171,19 @@ const Item = memo(({ itemData, selected, editing, dragging, dispatch, authHeader
         </FileItemWrapper>
     )
 }, (prev, next) => {
-    if (prev.itemData.updatePath != next.itemData.updatePath) {
+    if (!next.itemData.visible) {
+        return true
+    }
+
+    if (prev.itemData.updatePath !== next.itemData.updatePath) {
         return false
-    } else if (prev.selected != next.selected) {
+    } else if (prev.selected !== next.selected) {
         return false
-    } else if (prev.editing != next.editing) {
+    } else if (prev.editing !== next.editing) {
         return false
-    } else if (prev.dragging != next.dragging) {
+    } else if (prev.dragging !== next.dragging) {
         return false
-    } else if (prev.itemData.imported != next.itemData.imported) {
+    } else if (prev.itemData.imported !== next.itemData.imported) {
         return false
     }
     return true

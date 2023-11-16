@@ -1,17 +1,17 @@
 import { itemData, FileBrowserStateType } from '../../types/Types'
-import HandleFileUpload from "../../api/Upload"
+import Upload from "../../api/Upload"
 import { Dispatch, DragEvent, useEffect, useState } from 'react'
-import { ChangeOwner, DeleteFile, GetDirectoryData } from '../../api/FileBrowserApi'
-import API_ENDPOINT from '../../api/ApiEndpoint'
+import { ChangeOwner, DeleteFile, downloadZip, requestZipCreate } from '../../api/FileBrowserApi'
 import Item from './FileItem'
-import { BlankCard } from '../../types/Styles'
+
+import { notifications } from '@mantine/notifications'
 
 const handleSelect = (state: FileBrowserStateType, action) => {
     let numSelected = state.selected.size
-    if (state.holdingShift && numSelected > 0 && state.lastSelected != "") {
+    if (state.holdingShift && numSelected > 0 && state.lastSelected !== "") {
         const dirList = MapToList(state.dirMap)
-        let startIndex = dirList.findIndex((val) => val.filepath == state.lastSelected)
-        let endIndex = dirList.findIndex((val) => val.filepath == action.itempath)
+        let startIndex = dirList.findIndex((val) => val.filepath === state.lastSelected)
+        let endIndex = dirList.findIndex((val) => val.filepath === action.itempath)
 
         if (endIndex < startIndex) {
             [startIndex, endIndex] = [endIndex, startIndex]
@@ -24,7 +24,7 @@ const handleSelect = (state: FileBrowserStateType, action) => {
     } else {
         // If action.selected is undefined, i.e. not passed to the request,
         // we treat that as a request to toggle the selection
-        if (action.selected == undefined) {
+        if (action.selected === undefined) {
             if (state.selected.get(action.itempath)) {
                 state.selected.delete(action.itempath)
             } else {
@@ -62,25 +62,44 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
 
             for (const item of items) {
                 item.updatePath = ""
+                item.visible = true
                 state.dirMap.set(item.filepath, item)
             }
-
-            return { ...state, loading: false }
+            return { ...state }
+            // return { ...state, loading: false }
         }
 
-        case 'add_template_items': {
-            let newMap = state.dirMap
-            for (const tmpItem of action.files) {
-
+        case 'do_upload': {
+            console.log("UHH")
+            // const allowedFiles = HandleUpload(state.dirMap, state.path, action.event.target.files, () => { }, action.auth)
+            const allowedFiles = []
+            for (const tmpItem of allowedFiles) {
                 let item: itemData = {
                     filepath: state.path + tmpItem.name,
                     updatePath: "",
                     isDir: false,
                     imported: false,
                     modTime: new Date().toString(),
+                    visible: true,
                     mediaData: null
                 }
-                newMap.set(item.filepath, item)
+                state.dirMap.set(item.filepath, item)
+            }
+            return { ...state }
+        }
+
+        case 'add_template_items': {
+            for (const tmpItem of action.files) {
+                let item: itemData = {
+                    filepath: state.path + tmpItem.name,
+                    updatePath: "",
+                    isDir: false,
+                    imported: false,
+                    modTime: new Date().toString(),
+                    visible: true,
+                    mediaData: null
+                }
+                state.dirMap.set(item.filepath, item)
             }
             return {
                 ...state,
@@ -90,7 +109,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
         case 'set_path': {
             let newPath = action.path.replace(/\/\/+/g, '/')
             newPath = action.path.replace("/files", '')
-            if (newPath != state.path) {
+            if (newPath !== state.path) {
                 state.dirMap.clear()
                 state.selected.clear()
             }
@@ -111,14 +130,10 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
         }
 
         case 'set_scan_progress': {
-            let loading = true
-            if (action.progress == 0 || action.progress == 1) {
-                loading = false
-            }
             return {
                 ...state,
-                loading: loading,
                 scanProgress: action.progress
+
             }
         }
 
@@ -187,6 +202,14 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             return handleSelect(state, action)
         }
 
+        case 'set_visible': {
+            const item = state.dirMap.get(action.item)
+            if (item) {
+                item.visible = action.visible
+            }
+            return { ...state }
+        }
+
         case 'select_all': {
             for (const key of state.dirMap.keys()) {
                 if (key.toLowerCase().includes(state.searchContent.toLowerCase())) {
@@ -214,7 +237,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             }
 
             // If there are other things selected, we have some decisions to make
-            if (state.selected.size != 0) {
+            if (state.selected.size !== 0) {
                 return handleSelect(state, action)
             } else {
                 if (item.isDir) {
@@ -297,6 +320,16 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             return {
                 ...state,
             }
+        }
+
+        case 'add_to_upload_map': {
+            state.uploadMap.set(action.uploadName, true)
+            return { ...state }
+        }
+
+        case 'remove_from_upload_map': {
+            state.uploadMap.delete(action.uploadName)
+            return { ...state }
         }
 
         case 'holding_shift': {
@@ -388,54 +421,45 @@ export const HandleDrag = (event: DragEvent, dispatch: Dispatch<any>, dragging: 
     }
 }
 
-export const HandleDrop = (event, path, dirMap, dispatch, wsSend, enqueueSnackbar, authHeader) => {
+export const HandleDrop = (event, path, dirMap, dispatch, enqueueSnackbar, authHeader) => {
     event.preventDefault()
     event.stopPropagation()
     dispatch({ type: "set_dragging", dragging: false })
-    dispatch({ type: "set_loading", loading: true })
+    // dispatch({ type: "set_loading", loading: true })
 
-    let uploads: Promise<any>[] = []
+    const allowedItems = HandleUpload(dirMap, path, event.dataTransfer.files, enqueueSnackbar, authHeader, dispatch)
+    // dispatch({ type: "add_template_items", files: allowedItems })
 
-    for (const file of event.dataTransfer.files) {
-        if (dirMap.has(path + file.name)) {
-            enqueueSnackbar(file.name + " already exists in this directory", { variant: "error" })
-        } else {
-            dispatch({ type: "add_template_items", files: [file] })
-            let p = HandleFileUpload(file, path, wsSend, authHeader)
-            uploads.push(p)
-        }
-    }
-    Promise.all(uploads).then(() => dispatch({ type: "set_loading", loading: false }))
 }
 
-export function downloadSelected(selectedMap: Map<string, boolean>, path, dispatch, authHeader) {
+export function downloadSelected(selectedMap: Map<string, boolean>, path, dispatch, wsSend, authHeader) {
     dispatch({ type: "set_loading", loading: true })
 
-    var url = new URL(`${API_ENDPOINT}/takeout`)
-    var filename: string
+    const items = Array.from(selectedMap.keys())
+    const body = { items: items, path: path }
 
-    fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ items: selectedMap.keys(), path: path }) })
-        .then((res) => {
-            filename = res.headers.get("Content-Disposition").split(';')[1].split('=')[1].replaceAll("\"", "")
-            return res.blob()
-        })
-        .then((res) => {
-            const aElement = document.createElement("a");
-            aElement.setAttribute("download", filename);
-            const href = URL.createObjectURL(res);
-            aElement.href = href;
-            aElement.setAttribute("target", "_blank");
-            aElement.click();
-            URL.revokeObjectURL(href);
+    console.log("HERE")
+    const id = notifications.show({ id: "zip_download", color: "gray", message: `Zipping ${items.length} item${items.length > 1 ? "s" : ""}`, loading: true, withBorder: true, autoClose: false, withCloseButton: false })
+    console.log(id)
+
+    requestZipCreate(body, authHeader).then((res) => {
+        res.json.then((json) => {
+            if (res.status === 200) {
+                console.log(json)
+                downloadZip(json.takeoutId, authHeader)
+            } else {
+                wsSend(JSON.stringify({ req: "subscribe", content: { subType: "task", lookingFor: ["takeoutId"], taskId: json.taskId }, error: null }))
+            }
             dispatch({ type: "set_loading", loading: false })
-        });
+        })
+    })
 }
+
 
 export function HandleWebsocketMessage(lastMessage, path, dispatch, navigate, enqueueSnackbar, authHeader) {
     if (lastMessage) {
         let msgData = JSON.parse(lastMessage.data)
-
-        switch (msgData["type"]) {
+        switch (msgData["messageStatus"]) {
             case "item_update": {
                 dispatch({ type: "update_item", item: msgData["content"] })
                 return
@@ -445,6 +469,7 @@ export function HandleWebsocketMessage(lastMessage, path, dispatch, navigate, en
                 return
             }
             case "finished": {
+                dispatch({ type: "set_loading", loading: false })
                 dispatch({ type: "set_scan_progress", progress: 0 })
                 return
             }
@@ -453,18 +478,28 @@ export function HandleWebsocketMessage(lastMessage, path, dispatch, navigate, en
             //     return
             // }
             case "scan_directory_progress": {
-                dispatch({ type: "set_scan_progress", progress: (1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100 })
+                dispatch({ type: "set_scan_progress", progress: (1 - (msgData.content["remainingTasks"] / msgData.content["totalTasks"])) * 100 })
+                return
+            }
+            case "create_zip_progress": {
+                console.log(msgData.content)
+                notifications.update({ id: "zip_download", message: msgData.content["remainingFiles"], style: { backgroundColor: 'white' } })
+                dispatch({ type: "set_scan_progress", progress: (1 - (msgData.content["remainingFiles"] / msgData.content["totalFiles"])) * 100 })
+                return
+            }
+            case "zip_complete": {
+                downloadZip(msgData.content["takeoutId"], authHeader)
                 return
             }
             case "error": {
-                if (msgData["error"] == "upload_error") {
+                if (msgData["error"] === "upload_error") {
                     dispatch({ type: "delete_from_map", item: msgData["content"]["File"] })
                 }
                 enqueueSnackbar(msgData["content"]["Message"], { variant: "error" })
                 return
             }
             default: {
-                console.error("Got unexpected websocket message type: ", msgData["type"])
+                console.error("Could not parse websocket message type: ", msgData)
                 return
             }
         }
@@ -472,53 +507,53 @@ export function HandleWebsocketMessage(lastMessage, path, dispatch, navigate, en
 }
 
 export const useKeyDown = (editing, dispatch, searchRef) => {
-
-    const onKeyDown = (event) => {
-        if (!editing) {
-            if (document.activeElement !== searchRef.current?.children[0] && event.metaKey && event.key === 'a') {
-                event.preventDefault();
-                dispatch({ type: 'select_all' })
-
-            } else if (!event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
-                searchRef.current.children[0].focus()
-
-            } else if (document.activeElement === searchRef.current.children[0] && event.key === 'Escape') {
-                searchRef.current.children[0].blur()
-
-            } else if (event.key === 'Escape') {
-                event.preventDefault()
-                dispatch({ type: 'clear_selected' })
-
-            } else if (event.key === 'Shift') {
-                dispatch({ type: 'holding_shift', shift: true })
-
-            }
-        } else {
-            if (event.metaKey && event.key === 'a') {
-                event.stopPropagation();
-            } else if (event.key === 'Escape') {
-                event.preventDefault()
-                dispatch({ type: 'reject_edit' })
-                return
-            }
-        }
-    };
-
-    const onKeyUp = (event) => {
-        if (!editing) {
-            if (event.key === 'Shift') {
-                dispatch({ type: 'holding_shift', shift: false })
-            }
-        }
-    }
     useEffect(() => {
+        const onKeyDown = (event) => {
+            if (!editing) {
+                if (document.activeElement !== searchRef.current?.children[0] && event.metaKey && event.key === 'a') {
+                    event.preventDefault();
+                    dispatch({ type: 'select_all' })
+
+                } else if (!event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key === "Backspace")) {
+                    searchRef.current.children[0].focus()
+
+                } else if (document.activeElement === searchRef.current.children[0] && event.key === 'Escape') {
+                    searchRef.current.children[0].blur()
+
+                } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    dispatch({ type: 'clear_selected' })
+
+                } else if (event.key === 'Shift') {
+                    dispatch({ type: 'holding_shift', shift: true })
+
+                }
+            } else {
+                if (event.metaKey && event.key === 'a') {
+                    event.stopPropagation();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    dispatch({ type: 'reject_edit' })
+                    return
+                }
+            }
+        };
+
+        const onKeyUp = (event) => {
+            if (!editing) {
+                if (event.key === 'Shift') {
+                    dispatch({ type: 'holding_shift', shift: false })
+                }
+            }
+        }
+
         document.addEventListener('keydown', onKeyDown)
         document.addEventListener('keyup', onKeyUp)
         return () => {
             document.removeEventListener('keydown', onKeyDown)
             document.removeEventListener('keyup', onKeyUp)
         };
-    }, [onKeyDown, onKeyUp])
+    }, [editing, dispatch, searchRef])
 }
 
 export const useMousePosition = () => {
@@ -567,6 +602,7 @@ export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, au
     //     return (filebrowserState.path + val.filepath.slice(val.filepath.lastIndexOf('/'))).replace('//', '/') == val.filepath
     // })
 
+
     const items = itemsList.map((entry: itemData) => {
         if (entry.mediaData && !entry.imported && !entry.isDir) {
             scanRequired = true
@@ -576,7 +612,7 @@ export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, au
                 key={entry.filepath}
                 itemData={entry}
                 selected={filebrowserState.selected.get(entry.filepath)}
-                editing={filebrowserState.editing == entry.filepath}
+                editing={filebrowserState.editing === entry.filepath}
                 dragging={filebrowserState.draggingState}
                 dispatch={dispatch}
                 authHeader={authHeader}
@@ -586,3 +622,18 @@ export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, au
     return { items, scanRequired }
 }
 
+export function HandleUpload(dirMap, path, files, enqueueSnackbar, authHeader, dispatch) {
+
+    let allowedFiles = []
+
+    for (const file of files) {
+        if (dirMap.has(path + file.name)) {
+            enqueueSnackbar(file.name + " already exists in this directory", { variant: "error" })
+        } else {
+            allowedFiles.push(file)
+        }
+    }
+
+    Upload(allowedFiles, path, authHeader, dispatch)
+    return allowedFiles
+}

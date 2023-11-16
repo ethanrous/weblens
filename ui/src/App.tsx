@@ -2,7 +2,9 @@ import React, { Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { SnackbarProvider } from 'notistack'
 import Fourohfour from "./Pages/404/fourohfour"
-import { CssVarsProvider, extendTheme } from "@mui/joy"
+import { Box, Button, CssVarsProvider, extendTheme } from "@mui/joy"
+import { MantineProvider } from '@mantine/core'
+import { Notifications, notifications } from '@mantine/notifications'
 
 import WeblensLoader from "./components/Loading"
 import Admin from "./Pages/Admin Settings/Admin"
@@ -10,6 +12,9 @@ import useR from "./components/UserInfo"
 import { userContext } from "./Context"
 import SignUp from "./Pages/Login/SignUp"
 import Login from "./Pages/Login/Login"
+
+import "@mantine/notifications/styles.css"
+import "@mantine/core/styles.css"
 
 const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"))
 const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"))
@@ -28,23 +33,21 @@ const palette = {
     solidDisabledBg: 'rgb(30 30 35)',
 
     softBg: 'rgba(20 00 75 / 0.5)',
-    // solidOutline: '1px solid #333333',
 
-    // solidBorder: '#333399',
-    // solidHoverBg: '#0b5ed7',
-    // solidHoverBorder: '#0a58ca',
-    // solidDisabledBorder: '#051423',
+    plainColor: '#442299',
 
   },
   neutral: {
     solidBg: 'rgb(25 15 55)',
+    // solidColor: '#fff',
     solidColor: '#fff',
     plainColor: '#aa88ff',
     solidDisabledBg: '#111418',
     solidActiveBg: '#111418',
+    // mainChannel: '255 255 255',
     mainChannel: '255 255 255',
     // softBg: 'rgba(25 25 45 / 0.80)',
-    softBg: 'rgb(255 255 255)',
+    softBg: 'rgb(47 40 100)',
     outlinedColor: '#fff',
 
   },
@@ -184,16 +187,19 @@ function App() {
   // document.body.style.backgroundColor = "#fff"
 
   return (
-    <BrowserRouter>
-      <CssVarsProvider
-        defaultMode="system"
-        theme={theme}
-      >
-        <SnackbarProvider maxSnack={10} autoHideDuration={5000}>
-          <WeblensRoutes />
-        </SnackbarProvider >
-      </CssVarsProvider>
-    </BrowserRouter>
+    <MantineProvider >
+      <Notifications />
+      <BrowserRouter>
+        <CssVarsProvider
+          defaultMode="system"
+          theme={theme}
+        >
+          <SnackbarProvider maxSnack={10} autoHideDuration={5000}>
+            <WeblensRoutes />
+          </SnackbarProvider >
+        </CssVarsProvider>
+      </BrowserRouter>
+    </MantineProvider>
   );
 }
 
