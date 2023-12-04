@@ -1,16 +1,42 @@
-import { AspectRatio, Box, Card, CardContent, Sheet, Typography, styled, useTheme } from "@mui/joy";
-import { Dispatch } from "react";
-import { HandleDrag } from "./FileBrowserLogic";
-import { Folder } from "@mui/icons-material";
+import { Card, CardContent, Sheet, Typography, styled, useTheme } from "@mui/joy"
+import { Box, MantineStyleProp, rem } from '@mantine/core'
+import { Dispatch, useState } from "react"
+import { HandleDrag } from "./FileBrowserLogic"
+import { Folder } from "@mui/icons-material"
+import { AspectRatio, Tooltip } from "@mantine/core"
+import { itemData } from "../../types/Types"
+import { useNavigate } from "react-router-dom"
 
-export const FlexColumnBox = styled(Box)({
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center"
-})
+export const FlexColumnBox = ({ children, style }: { children, style?: MantineStyleProp }) => {
+    return (
+        <Box
+            children={children}
+            style={{
+                ...style,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center"
+            }}
+        />
+    )
+}
+
+export const FlexRowBox = ({ children, ...style }) => {
+    return (
+        <Box
+            children={children}
+            w={"100%"}
+            style={{
+                ...style,
+                display: "flex",
+                flexDirection: "row",
+            }}
+        />
+    )
+}
 
 type DirViewWrapperProps = {
-    path: string
+    folderName: string
     dragging: number
     hoverTarget: string
     dispatch: Dispatch<any>
@@ -19,26 +45,17 @@ type DirViewWrapperProps = {
     children: JSX.Element[]
 }
 
-export const DirViewWrapper = ({ path, dragging, hoverTarget, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
+export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
     const theme = useTheme()
-    let dirName = path.slice(path.lastIndexOf('/', 1) + 1)
-    if (dirName.endsWith('/')) {
-        dirName = dirName.slice(0, -1)
-    }
-
-    if (dirName === "" || dirName === "/") {
-        dirName = "Home"
-    }
 
     return (
         <Box
-            width={"100%"} height={'max-content'} display={'flex'} alignItems={'center'} justifyContent={'center'} paddingBottom={"100px"} paddingTop={"80px"}
+            w={"100%"} display={'flex'} pt={"80px"}
+            style={{ zIndex: 1, height: "calc(100vh - 20px)" }}
             onDragOver={event => { HandleDrag(event, dispatch, dragging) }}
             onDrop={onDrop}
             onMouseOver={onMouseOver}
             onClick={() => { dispatch({ type: 'reject_edit' }); if (!dragging) { dispatch({ type: 'clear_selected' }) } else { dispatch({ type: 'set_dragging', dragging: false }) } }}
-            // onMouseUp={() => { dispatch({ type: 'set_dragging', dragging: false }) }}
-            zIndex={1}
         >
             {(dragging == 2) && (
                 <Sheet
@@ -46,8 +63,9 @@ export const DirViewWrapper = ({ path, dragging, hoverTarget, dispatch, onDrop, 
                     sx={{
                         zIndex: 2,
                         bottom: "10px",
+                        left: "10px",
                         width: "calc(100% - 20px)",
-                        height: "calc(100% - 100px)",
+                        height: "calc(100% - 90px)",
                         position: 'fixed',
                         display: 'flex',
                         flexDirection: 'row',
@@ -63,7 +81,7 @@ export const DirViewWrapper = ({ path, dragging, hoverTarget, dispatch, onDrop, 
                                 {"Drop to upload to"}
                                 <Folder sx={{ marginLeft: '7px' }} />
                                 <Typography fontWeight={'lg'} marginLeft={'3px'}>
-                                    {dirName}
+                                    {folderName}
                                 </Typography>
                             </Typography>
                         </CardContent>
@@ -72,33 +90,43 @@ export const DirViewWrapper = ({ path, dragging, hoverTarget, dispatch, onDrop, 
             )}
             <Box
                 display={"flex"}
-                flexDirection={"column"}
-                alignItems={"center"}
-                width={"100%"}
-                minHeight={"calc(100vh - 180px)"}
-                height={"max-content"}
+                pl={20}
+                w={"100%"}
+                style={{ flexDirection: 'column' }}
             >
                 {children}
             </Box>
+
         </Box>
     )
 }
 
-export const DirItemsWrapper = styled(Box)({
-    display: 'grid',
-    gridGap: '16px',
-    gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))",
+export const DirItemsWrapper = ({ children }) => {
+    return (
+        <Box
+            children={children}
+            style={{
+                display: 'grid',
+                gridGap: '16px',
+                gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))",
+                touchAction: 'none',
+                overflowY: 'scroll',
+                borderRadius: '10px',
+                paddingTop: "1px",
+                paddingBottom: "1px",
+                paddingLeft: "1px",
+                paddingRight: "5vw",
+                width: "105%"
+            }}
+        />
+    )
+}
 
-    paddingTop: "20px",
-
-    width: '90%',
-    maxWidth: '90%',
-    height: 'max-content',
-
-})
-
-export const FileItemWrapper = ({ itemRef, hovering, isDir, selected, dragging, ...props }) => {
+export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { itemRef: any, itemData: itemData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
+    const [mouseDown, setMouseDown] = useState(false)
     const theme = useTheme()
+    const navigate = useNavigate()
+
     let outline
     let backgroundColor
     if (selected) {
@@ -112,9 +140,25 @@ export const FileItemWrapper = ({ itemRef, hovering, isDir, selected, dragging, 
         backgroundColor = theme.colorSchemes.dark.palette.primary.solidDisabledBg
     }
     return (
+        <Tooltip openDelay={500} label={itemData.filename}>
         <Box ref={itemRef}>
             <Card
-                {...props}
+                    {...children}
+                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'reject_edit' }); if (!itemData.imported && !itemData.isDir) { return } dispatch({ type: 'set_selected', itemId: itemData.id }) }}
+                    onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itemId: itemData.id }) }}
+                    onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
+                    onMouseDown={() => { setMouseDown(true) }}
+                    onDoubleClick={(e) => { e.stopPropagation(); if (itemData.isDir) { navigate(itemData.id) } else if (itemData.mediaData.MediaType.IsDisplayable) { dispatch({ type: 'set_presentation', presentingId: itemData.id }) } }}
+                    onMouseLeave={() => {
+                        setHovering(false);
+                        if (!itemData.imported && !itemData.isDir) { return }
+                        if (!selected && mouseDown) { dispatch({ type: "clear_selected" }) }
+                        if (mouseDown) {
+                            dispatch({ type: 'set_selected', itemId: itemData.id, selected: true })
+                            dispatch({ type: 'set_dragging', dragging: true })
+                            setMouseDown(false)
+                        }
+                    }}
                 variant='solid'
                 sx={{
                     // internal
@@ -140,29 +184,18 @@ export const FileItemWrapper = ({ itemRef, hovering, isDir, selected, dragging, 
                     cursor: 'pointer'
                 }}
             />
-            {(selected && dragging != 0) && (
-                <Box height={'100%'} width={'100%'} sx={{ backdropFilter: 'blur(2px)', backgroundColor: "#ffffff22", transform: 'translateY(-100%)', borderRadius: '10px' }} />
-
+                {(selected && dragging != 0) && (
+                    <Box h={'100%'} w={'100%'} style={{ backdropFilter: 'blur(2px)', backgroundColor: "#ffffff22", transform: 'translateY(-100%)', borderRadius: '10px' }} />
             )}
         </Box>
+        </Tooltip>
     )
 }
 
-export const ItemVisualComponentWrapper = ({ ...props }) => {
+export const ItemVisualComponentWrapper = ({ children }) => {
     return (
-        <AspectRatio ratio={"1/1"} variant='solid' sx={{ width: "100%", ".MuiAspectRatio-content": { backgroundColor: 'transparent' } }}>
-            <Box
-                {...props}
-                sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    position: "static",
-                    borderRadius: "10px",
-                    overflow: 'hidden',
-                    sx: { cursor: "pointer" },
-                }}
-            />
+        <AspectRatio ratio={1} variant='solid' w={"100%"} display={'flex'}>
+            <Box children={children} style={{ overflow: 'hidden', borderRadius: '5px' }} />
         </AspectRatio>
     )
 }
@@ -172,7 +205,7 @@ export const TextBoxWrapper = ({ ...props }) => {
     return (
         <Box
             {...props}
-            sx={{
+            style={{
                 position: "relative",
                 display: "flex",
                 justifyContent: "center",

@@ -1,8 +1,8 @@
 package dataProcess
 
 import (
+	"fmt"
 	"path/filepath"
-	"runtime"
 	"sync"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -25,9 +25,9 @@ type clientManager struct {
 	// 		"clientId2": false
 	// 	}
 	// }
-	pathSubscriptionMap map[string]map[string]bool
+	folderSubscriptionMap map[string]map[string]bool
 	taskSubscriptionMap map[string]map[string]bool
-	pathMu sync.Mutex
+	folderMu sync.Mutex
 	taskMu sync.Mutex
 }
 
@@ -37,8 +37,8 @@ func verifyClientManager() *clientManager {
 	if cmInstance.clientMap == nil {
 		cmInstance.clientMap = map[string]*Client{}
 	}
-	if cmInstance.pathSubscriptionMap == nil {
-		cmInstance.pathSubscriptionMap = map[string]map[string]bool{}
+	if cmInstance.folderSubscriptionMap == nil {
+		cmInstance.folderSubscriptionMap = map[string]map[string]bool{}
 	}
 	if cmInstance.taskSubscriptionMap == nil {
 		cmInstance.taskSubscriptionMap = map[string]map[string]bool{}
@@ -62,55 +62,52 @@ func Broadcast(broadcastType, broadcastKey, messageStatus string, content any) {
 	// This is a "best effort" method
 
 	// util.Debug.Printf("Broadcast: [%s %s] -- %v", label, key, content)
-	msg := WsResponse{MessageStatus: messageStatus, Content: content, Error: nil}
+	msg := WsResponse{MessageStatus: messageStatus, SubscribeKey: broadcastKey, Content: content, Error: nil}
 	go _broadcast(broadcastType, broadcastKey, msg)
 }
 
 func _broadcast(broadcastType, key string, msg WsResponse) {
-	defer func(){err := recover(); if err != nil {util.Debug.Println("Got error while broadcasting:", err)}}()
+	defer util.RecoverPanic("Panic caught while broadcasting: ")
 	var allClients map[string]bool = make(map[string]bool)
 
 	switch broadcastType {
-	case "path": {
-
+	case "folder": {
 		tmpKey := key
 		for {
-			tmpClients := cmInstance.pathSubscriptionMap[tmpKey]
+			tmpClients := cmInstance.folderSubscriptionMap[tmpKey]
 			for c := range tmpClients {
 				if tmpKey == key || tmpClients[c] {
 					allClients[c] = true
 				}
 			}
-
 			if dataStore.GuaranteeRelativePath(tmpKey) == "/" || filepath.Dir(tmpKey) == tmpKey {
 				break
 			}
 			tmpKey = filepath.Dir(tmpKey)
 		}
-
 	}
 	case "task": {
 		allClients = cmInstance.taskSubscriptionMap[key]
 	}
-
 	}
 
 	if len(allClients) != 0 {
 		for c := range allClients {
 			cmInstance.clientMap[c]._writeToClient(msg)
 		}
-	} else {
-		_, file, line, _ := runtime.Caller(1)
-		util.Debug.Printf("No subscribers to %s (from %s:%d)", key, file, line)
 	}
+	// else {
+	// 	// _, file, line, _ := runtime.Caller(1)
+	// 	// util.Debug.Printf("No subscribers to %s (from %s:%d)", key, file, line)
+	// }
 }
 
 func RemoveSubscription(s SubData, clientId string) {
 	switch s.SubType {
-	case "path": {
-		cmInstance.pathMu.Lock()
-		defer cmInstance.pathMu.Unlock()
-		delete(cmInstance.pathSubscriptionMap[s.SubKey], clientId)
+	case "folder": {
+		cmInstance.folderMu.Lock()
+		defer cmInstance.folderMu.Unlock()
+		delete(cmInstance.folderSubscriptionMap[s.SubKey], clientId)
 	}
 	case "task": {
 		cmInstance.taskMu.Lock()
@@ -120,17 +117,37 @@ func RemoveSubscription(s SubData, clientId string) {
 	}
 }
 
-func PushItemUpdate(path, username string, db dataStore.Weblensdb) {
-	fileInfo, _ := dataStore.FormatFileInfo(path, username, db)
-	parentDir := filepath.Dir(path)
-	Broadcast("path", parentDir, "item_update", fileInfo)
-	db.RedisCacheBust(parentDir)
+func PushItemCreate(file *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
+	PushItemUpdate(file, file, db)
 }
 
-func PushItemDelete(path, hash, username string, db dataStore.Weblensdb) {
-	relPath, _ := dataStore.GuaranteeUserRelativePath(path, username)
-	content := struct { Path string `json:"path"`; Hash string `json:"hash"`} {Path: relPath, Hash: hash}
-	parentDir := filepath.Dir(path)
-	Broadcast("path", parentDir, "item_deleted", content)
-	db.RedisCacheBust(parentDir)
+func PushItemUpdate(preUpdateFile *dataStore.WeblensFileDescriptor, postUpdateFile *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
+	fileInfo, err := postUpdateFile.FormatFileInfo()
+	if err != nil {
+		util.DisplayError(err, "Failed to push item update for: ", postUpdateFile.String())
+		return
+	}
+
+	if preUpdateFile.Id() == "" {
+		panic(fmt.Errorf("tried to push update for item with empty id: %s -- %s", preUpdateFile, preUpdateFile.Err()))
+	}
+
+	Broadcast("folder", postUpdateFile.ParentFolderId, "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
+	db.RedisCacheBust(postUpdateFile.ParentFolderId)
+
+	// When a file changes directories, we need to alert both the old (here vv ) and new (above ^^) folder subscribers of the change
+	if postUpdateFile.ParentFolderId != preUpdateFile.ParentFolderId {
+		Broadcast("folder", preUpdateFile.ParentFolderId, "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
+		db.RedisCacheBust(preUpdateFile.ParentFolderId)
+	}
+}
+
+func PushItemDelete(file *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
+	content := map[string]any{"itemId": file.Id()}
+	if file.Err() != nil {
+		util.DisplayError(file.Err(), "Failed to get file Id while trying to push delete")
+		return
+	}
+	Broadcast("folder", file.ParentFolderId, "item_deleted", content)
+	db.RedisCacheBust(file.ParentFolderId)
 }

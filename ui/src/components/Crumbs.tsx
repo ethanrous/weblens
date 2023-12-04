@@ -1,18 +1,21 @@
 import { Box, Tooltip, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
-import { SxProps, Theme } from '@mui/joy/styles/types'
-import { Dispatch, useState } from 'react'
+import { Dispatch, useContext, useState } from 'react'
+import { itemData } from '../types/Types'
+import { userContext } from '../Context'
+import { useNavigate } from 'react-router-dom'
+import { Text } from '@mantine/core'
 
 type breadcrumbProps = {
     label: string
-    dispatch?: Dispatch<any>
     onClick?: React.MouseEventHandler<HTMLDivElement>
+    onMouseUp?: () => void
     tooltipText?: string
     doCopy?: boolean
+    dragging?: number
     sx?: any
-    path?: string
 }
 
-export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, sx, path, dispatch }: breadcrumbProps) => {
+export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging, onMouseUp, sx }: breadcrumbProps) => {
     const [success, setSuccess] = useState(false)
     const [hovering, setHovering] = useState(false)
     const theme = useTheme()
@@ -35,6 +38,18 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, sx, path
             setTimeout(() => setSuccess(false), 1000)
         }
     }
+    let outline
+    let bgColor
+    if (dragging && hovering) {
+        outline = '1px solid #aaaaaa'
+        bgColor = "rgb(30, 30, 90)"
+    } else if (dragging) {
+        outline = '1px solid rgb(51, 51, 153)'
+        bgColor = "transparent"
+    } else {
+        outline = ""
+        bgColor = "transparent"
+    }
     return (
         <Tooltip title={success ? "Copied!" : tooltipText} disableInteractive>
             <Box
@@ -43,22 +58,12 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, sx, path
                 minWidth={0}
                 onMouseOver={() => setHovering(true)}
                 onMouseLeave={() => setHovering(false)}
+                onMouseUp={onMouseUp}
                 onClick={onClick}
-                onMouseUp={() => { if (dispatch) { dispatch({ type: 'move_selected', targetItemPath: path, ignoreMissingItem: true }) } }}
-                sx={{ ...sx, cursor: "pointer" }}
+                padding={1}
+                sx={{ ...sx, cursor: "pointer", outline: outline, borderRadius: "5px", backgroundColor: bgColor }}
             >
-                <Chip
-                    variant='solid'
-                    sx={{
-                        borderRadius: "5px",
-                        width: "100%",
-                        backgroundColor,
-                        height: 25,
-                        userSelect: 'none'
-                    }}
-                >
-                    {label}
-                </Chip>
+                <Text c={'white'} style={{ fontSize: "25px", lineHeight: "1", userSelect: "none" }}>{label}</Text>
             </Box>
         </Tooltip >
     )
@@ -69,69 +74,62 @@ const StyledLoaf = ({ ...props }) => {
     return (
         <Breadcrumbs
             {...props}
+            size='lg'
             sx={{
-                backgroundColor: theme.colorSchemes.dark.palette.primary.softBg,
-                outline: theme.colorSchemes.dark.palette.primary.outlinedColor,
                 width: "max-content",
-                borderRadius: "5px",
+                borderRadius: "3px",
                 ".MuiBreadcrumbs-separator": {
                     color: theme.colorSchemes.dark.palette.text.primary
                 },
-                margin: "20px"
+                // margin: "10px"
             }}
         />
     )
 }
 
-const Crumbs = ({ path, includeHome, navOnLast, navigate, dispatch }) => {
-    if (!path) {
-        return (null)
+const Crumbs = ({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: itemData, parents: itemData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
+    const navigate = useNavigate()
+    const { userInfo } = useContext(userContext)
+    if (parents === null || !finalItem?.id) {
+        return null
     }
+    if (parents.length != 0 && parents[0].id == "shared" && finalItem.id == "shared") {
+        parents.shift()
+    }
+    if ((parents.length == 0 && finalItem.owner != userInfo.username && finalItem.id != "shared") || (parents.length != 0 && parents[0].id != "shared" && parents[parents.length - 1].owner != userInfo.username)) {
+        let sharedRoot: itemData = {
+            id: "shared",
+            filename: "Shared",
+            parentFolderId: "",
+            owner: "",
+            isDir: true,
+            imported: false,
+            modTime: new Date().toString(),
+            size: 0,
+            visible: true,
+            mediaData: null
+        }
+        parents.unshift(sharedRoot)
+    }
+
     try {
-        path = `/${path}/`.replace(/\/\/+/g, '/').slice(1, -1)
-        let parts: string[] = path.split('/')
-        if (parts[0] == '' && parts.length == 1) {
-            parts = ['/']
-        } else {
-            parts.unshift('/')
-        }
-
-        if (!includeHome) {
-            parts = parts.slice(1)
-        }
-
-        let crumbPaths = []
-        for (const [index, val] of parts.entries()) {
-            if (index === 0) {
-                crumbPaths.push(val)
-                continue
-            }
-            let subPath = crumbPaths[index - 1]
-            if (subPath.slice(-1) !== "/") {
-                subPath += '/'
-            }
-            subPath += val
-
-            crumbPaths.push(subPath)
-        }
-
-        const crumbs = parts.map((part, i) => {
-            let navPath = "/files"
-            if (crumbPaths[i][0] !== "/") { navPath += "/" }
-            navPath += crumbPaths[i]
-            let onClick = () => navigate(navPath)
-
-            return <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} path={navPath} dispatch={dispatch} onClick={onClick} doCopy={!navOnLast && i == crumbPaths.length - 1} />
+        const crumbs = parents.map((parent, i) => {
+            const isHome = parent.id === userInfo.homeFolderId
+            return <StyledBreadcrumb key={parent.id} label={isHome ? "Home" : parent.filename} onClick={(e) => { e.stopPropagation(); navigate(`/files/${isHome ? "home" : parent.id}`) }} doCopy={false} dragging={dragging} onMouseUp={() => { if (dragging !== 0) { moveSelectedTo(parent.id) } }} />
         })
 
+        crumbs.push(
+            <StyledBreadcrumb key={finalItem.id} label={finalItem.id === userInfo.homeFolderId ? "Home" : finalItem.filename} onClick={(e) => { e.stopPropagation(); if (!navOnLast) { return }; navigate(`/files/${finalItem.parentFolderId === userInfo.homeFolderId ? "home" : finalItem.parentFolderId}`) }} doCopy={!navOnLast} />
+        )
+
         return (
-            <StyledLoaf separator={"›"} >
+            <StyledLoaf separator={" › "} >
                 {crumbs}
             </StyledLoaf>
         )
     }
     catch (err) {
-        console.log(err)
+        console.error(err)
         return (null)
     }
 }

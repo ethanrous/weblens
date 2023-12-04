@@ -1,12 +1,12 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { closeSnackbar, useSnackbar } from 'notistack';
 import { API_WS_ENDPOINT } from './ApiEndpoint'
 import { userContext } from '../Context';
+import { notifications } from '@mantine/notifications';
 
 export default function useWeblensSocket() {
     const [dcTimeout, setDcTimeout] = useState(null)
-    const [dcSnack, setDcSnack] = useState(null)
     // const [wsData, setWsData] = useState({ wsSend: null, lastMessage: null, readyState: null })
     const { enqueueSnackbar } = useSnackbar()
     const { authHeader, userInfo } = useContext(userContext)
@@ -17,15 +17,21 @@ export default function useWeblensSocket() {
         onOpen: () => {
             clearTimeout(dcTimeout)
             closeSnackbar()
+            notifications.clean()
             // enqueueSnackbar("Websocket reconnected", { variant: "success" })
-            setDcSnack(null)
 
             console.log('WebSocket connection established.')
         },
         onClose: (event) => {
-            if (!event.wasClean && !dcSnack && !dcTimeout) {
+            if (!event.wasClean && authHeader && !dcTimeout) {
                 setDcTimeout(setTimeout(() => {
-                    setDcSnack(enqueueSnackbar("No connection to websocket, retrying...", { variant: "error", preventDuplicate: true }))
+                    notifications.show({
+                        id: "wsdc",
+                        message: "Lost websocket connection, retrying...",
+                        color: "red",
+                        // icon: <IconCheck style={{ width: rem(18), height: rem(18) }} />,
+                        loading: false
+                    })
                 }, 2000))
             }
         },
@@ -34,8 +40,7 @@ export default function useWeblensSocket() {
         shouldReconnect: () => true,
         onReconnectStop: () => {
             clearTimeout(dcTimeout)
-            closeSnackbar(dcSnack)
-            setDcSnack(enqueueSnackbar("Unable to connect to websocket. Please try refreshing your page", { variant: "error", persist: true, preventDuplicate: true }))
+            notifications.show({ id: "wsdc", message: "Lost websocket connection, retrying...", autoClose: false })
         }
     })
     let wsSend = (msg: string) => { sendMessage(msg) }
@@ -46,11 +51,12 @@ export default function useWeblensSocket() {
     }
 }
 
-export function dispatchSync(path: string, wsSend: (msg: string) => void, recursive: boolean) {
+export function dispatchSync(folderId: string, wsSend: (msg: string) => void, recursive: boolean) {
+    console.log("SCANNING")
     wsSend(JSON.stringify({
         req: 'scan_directory',
         content: {
-            dirPath: path,
+            folderId: folderId,
             recursive: recursive
         },
     }))

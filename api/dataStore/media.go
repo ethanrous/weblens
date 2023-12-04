@@ -10,7 +10,6 @@ import (
 	"image/jpeg"
 	"io"
 	"math"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -26,8 +25,10 @@ import (
 )
 
 type Media struct {
-	FileHash		string					`bson:"_id"`
-	Filepath 		string 					`bson:"filepath"`
+	mongoId			string					`bson:"_id"`
+	FileHash		string					`bson:"fileHash"`
+	ParentFolder 	string 					`bson:"parentFolderId"`
+	Filename	 	string 					`bson:"filename"`
 	MediaType		mediaType				`bson:"mediaType"`
 	BlurHash 		string 					`bson:"blurHash"`
 	Thumbnail64 	string		 			`bson:"thumbnail"`
@@ -46,15 +47,15 @@ func (m Media) MarshalBinary() ([]byte, error) {
 
 func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	if m.FileHash == "" {
-		// util.Debug.Println("FileHash")
 		return false, "filehash"
 	}
-	if m.Filepath == "" {
-		// util.Debug.Println("Filepath")
-		return false, "filepath"
+	if m.ParentFolder == "" {
+		return false, "parent folder"
+	}
+	if m.Filename == "" {
+		return false, "filename"
 	}
 	if m.MediaType.FriendlyName == "" {
-		// util.Debug.Println("Friendly Name")
 		return false, "friendly name"
 	}
 
@@ -64,7 +65,7 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	}
 
 	// Visual media specific properties
-	if m.MediaType.FriendlyName != "File" {
+	if m.MediaType.IsDisplayable {
 
 		if m.BlurHash == "" {
 			return false, "blurhash"
@@ -98,13 +99,17 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 func (m *Media) ExtractExif() (error) {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer et.Close()
-
-	fileInfos := et.ExtractMetadata(m.Filepath)
+	mFile := m.GetBackingFile()
+	if mFile.Err() != nil {
+		return mFile.Err()
+	}
+	fileInfos := et.ExtractMetadata(mFile.String())
 	if fileInfos[0].Err != nil {
-		util.Debug.Panicf("Cound not extract metadata for %s: %s", m.Filepath, fileInfos[0].Err)
+		return fileInfos[0].Err
+		// util.Debug.Panicf("Cound not extract metadata for %s: %s", m.Filepath, fileInfos[0].Err)
 	}
 
 	exifData := fileInfos[0].Fields
@@ -122,46 +127,59 @@ func (m *Media) ExtractExif() (error) {
 		m.CreateDate, err = time.Now(), nil
 	}
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	mimeType, ok := exifData["MIMEType"].(string)
 	if !ok {
-		panic(fmt.Errorf("refusing to parse file without MIMEType"))
+		mimeType = "generic"
 	}
 	m.MediaType, _ = ParseMediaType(mimeType)
 	// if err != nil {
-	// 	return err
+		// util.DisplayError(err, "Error parsing media")
 	// }
 
-	if m.MediaType.FriendlyName == "File" {
+	if !m.MediaType.IsDisplayable {
 		return nil
 	}
 
-	var dimentions string
+	ok = true
+	var dimentionsStr string
 	if m.MediaType.IsVideo {
-		dimentions = exifData["VideoSize"].(string)
-	} else {
-		dimentions = exifData["ImageSize"].(string)
+		d, k := exifData["VideoSize"]
+		ok = k
+		if k {
+			dimentionsStr = d.(string)
+		}
 	}
-	dimentionsList := strings.Split(dimentions, "x")
-	m.MediaHeight, _ = strconv.Atoi(dimentionsList[0])
-	m.MediaWidth, _ = strconv.Atoi(dimentionsList[1])
+	if !m.MediaType.IsVideo || !ok {
+		d, ok := exifData["ImageSize"]
+		if ok {
+			dimentionsStr = d.(string)
+		} else {
+			return fmt.Errorf("did not find expected image dimentions from exif data")
+		}
+	}
+	dimentionsList := strings.Split(dimentionsStr, "x")
+	m.MediaHeight, err = strconv.Atoi(dimentionsList[0])
+	if err != nil {
+		return err
+	}
+	m.MediaWidth, err = strconv.Atoi(dimentionsList[1])
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (m *Media) rawImageReader() (io.Reader, error) {
-	absolutePath := GuaranteeUserAbsolutePath(m.Filepath, m.Owner)
-
-	escapedPath := strings.ReplaceAll(absolutePath, " ", "\\ ")
-
-	//tmpFile, err := os.CreateTemp(util.GetTmpDir(), "*.jpeg")
-	//util.FailOnError(err, "Could not create temp jpeg file")
-
+	mFile := m.GetBackingFile()
+	if mFile.Err() != nil {
+		return nil, mFile.Err()
+	}
+	escapedPath := strings.ReplaceAll(mFile.String(), " ", "\\ ")
 	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
-	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
-
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
 
 	var out bytes.Buffer
@@ -175,7 +193,6 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 		util.FailOnError(err, "Failed to run exiftool extract command")
 	}
 
-	// util.Debug.Printf("Buf size: %d", readBytes)
 	r := bytes.NewReader(out.Bytes())
 
 	i, err := imaging.Decode(r, imaging.AutoOrientation(true))
@@ -190,38 +207,40 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 }
 
 func (m *Media) videoThumbnailReader() (io.Reader, error) {
-
-	cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", GuaranteeAbsolutePath(m.Filepath, m.Owner), "-ss", "00:00:02.000", "-frames:v", "1", "-f", "mjpeg", "pipe:1")
+	mFile := m.GetBackingFile()
+	if mFile.Err() != nil {
+		return nil, mFile.Err()
+	}
+	absolutePath := mFile.String()
+	cmd := exec.Command("ffmpeg", "-ss", "00:00:02.000", "-i", absolutePath, "-frames:v", "1", "-f", "mjpeg", "pipe:1")
 	stdout, err := cmd.StdoutPipe()
-	util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
+	if err != nil {
+		return nil, err
+	}
 
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
-	buf := new (bytes.Buffer)
-	_, err = buf.ReadFrom(stdout)
+	buf := new(bytes.Buffer)
+	var bytesRead int64
+	bytesRead, err = buf.ReadFrom(stdout)
+	if err != nil {
+		return nil, err
+	}
 
 	cmd.Wait()
-
-	util.FailOnError(err, "Failed to run ffmpeg to get video thumbnail")
-
+	if bytesRead == 0 {
+		return nil, fmt.Errorf("did not read anything from ffmpeg stdout")
+	}
 	return buf, nil
-
 }
 
-func (m *Media) ReadFullres(db Weblensdb) ([]byte, error) {
-	defer func() any {
-		if err := recover(); err != nil {
-			util.Error.Printf("Could not read fullres image: %s", err)
-			return err
-		}
-		return nil
-	}()
+func (m *Media) ReadFullres(db *Weblensdb) ([]byte, error) {
+	defer util.RecoverPanic()
 
 	redisKey := "Fullres " + m.FileHash
 	if util.ShouldUseRedis() {
-		db := NewDB(m.Owner)
 		fullres64, err := db.RedisCacheGet(redisKey)
 		if err == nil {
 			fullresBytes, err := base64.StdEncoding.DecodeString(fullres64)
@@ -240,7 +259,11 @@ func (m *Media) ReadFullres(db Weblensdb) ([]byte, error) {
 		}
 	} else {
 		var err error
-		readable, err = os.Open(GuaranteeUserAbsolutePath(m.Filepath, m.Owner))
+		mFile:= m.GetBackingFile()
+		if mFile.Err() != nil {
+			return nil, mFile.Err()
+		}
+		readable, err = mFile.Read()
 		if err != nil {
 			return nil, err
 		}
@@ -272,8 +295,10 @@ func (m *Media) getReadable() (io.Reader) {
 		util.FailOnError(err, "Failed to get readable video proxy image")
 	} else {
 		var err error
-		readable, err = os.Open(GuaranteeUserAbsolutePath(m.Filepath, m.Owner))
-		util.FailOnError(err, "Failed to open generic image file")
+		mFile := m.GetBackingFile()
+		util.FailOnError(mFile.Err(), "Failed to get generic media backing file")
+		readable, err = mFile.Read()
+		util.FailOnError(err, "Failed to get generic media readable")
 	}
 
 	return readable
@@ -288,14 +313,16 @@ func (m *Media) readFileIntoImage() (image.Image) {
 	return i
 }
 
-func (m *Media) GenerateFileHash() {
+func (m *Media) GenerateFileHash(mFile *WeblensFileDescriptor) {
 	readable := m.getReadable()
 
 	h := sha256.New()
-	_, err := io.Copy(h, readable)
-	util.FailOnError(err, "Failed to copy readable image into hash")
+	if mFile.isDisplayable() {
+		_, err := io.Copy(h, readable)
+		util.FailOnError(err, "Failed to copy readable image into hash")
+	}
 
-	h.Write([]byte(m.Filepath)) // Make exact same files in different locations have unique id's
+	h.Write([]byte(mFile.String())) // Make exact same files in different locations have unique id's
 
 	m.FileHash = base64.URLEncoding.EncodeToString(h.Sum(nil))
 }
@@ -348,4 +375,9 @@ func (m *Media) GenerateThumbnail() (*image.NRGBA) {
 
 	return thumb
 
+}
+
+func (m *Media) GetBackingFile() *WeblensFileDescriptor {
+	file := GetWFD(m.ParentFolder, m.Filename)
+	return file
 }

@@ -2,55 +2,33 @@ import { useState, useEffect, useRef, useContext } from "react";
 import { Blurhash } from "react-blurhash";
 import API_ENDPOINT from '../api/ApiEndpoint'
 
-import Box from '@mui/material/Box';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { CircularProgress } from '@mui/material'
 import { userContext } from "../Context";
+import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react"
+import { MediaData } from "../types/Types";
+import { AspectRatio, Box, Image, Loader, MantineStyleProp } from "@mantine/core";
+import { FlexColumnBox } from "../Pages/FileBrowser/FilebrowserStyles";
 
 // Styles
 
-const ThumbnailContainer = ({ reff, sx, ...props }) => {
+const ThumbnailContainer = ({ reff, style, children }) => {
     return (
         <Box
             ref={reff}
-            sx={{
-                ...sx,
+            style={{
+                ...style,
+            // height: 'max-content',
                 height: '100%',
+                // width: 'max-content',
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                position: 'absolute'
+                justifyContent: 'center',
+                // position: 'absolute'
             }}
-            {...props}
+            onDrag={(e) => { e.preventDefault(); e.stopPropagation() }}
+            children={children}
         />
     )
-}
-
-
-const StyledLoader = ({ isVisible, loading, error }) => {
-    if (!isVisible || (!loading && !error)) {
-        return null;
-    } else if (loading && !error) {
-        return (
-            <CircularProgress size={20} sx={{
-                position: "absolute",
-                zIndex: 1,
-                top: "10px",
-                right: "10px",
-                color: "rgb(255, 255, 255)"
-            }} />
-        )
-    } else {
-        return (
-            <ErrorOutlineIcon sx={{
-                position: "absolute",
-                zIndex: 1,
-                top: "10px",
-                right: "10px",
-                color: "rgb(255, 51, 51)"
-            }} />
-        )
-    }
 }
 
 //Components
@@ -84,68 +62,98 @@ export function useIsVisible(ref, maintained: boolean) {
     return isIntersecting;
 }
 
+function getImageData(url, authHeader, setImgData, setImgLoaded, setLoadErr) {
+    fetch(url, { headers: authHeader }).then(res => res.blob()).then((blob) => {
+        if (blob.length === 0) {
+            Promise.reject("Empty blob")
+        }
+        setImgData(URL.createObjectURL(blob))
+        setImgLoaded(true)
+    }).catch((r) => {
+        setLoadErr(true)
+        console.error("Failed to get image from server: ", r)
+    })
+}
 
 export const MediaImage = ({
     mediaData,
     quality,
     lazy,
-    ...props
-}) => {
-    const [imageLoaded, setImageLoaded] = useState(false)
-    const [loadError, setLoadError] = useState(false)
-    const { authHeader, userInfo } = useContext(userContext)
-    const [imgData, setImgData] = useState("")
-    const [imgUrl, setImgUrl] = useState("")
+    containerStyle,
+    imgStyle,
+}: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean, containerStyle?: any, imgStyle?: MantineStyleProp }
+) => {
+    const [thumbLoaded, setThumbLoaded] = useState(false)
+    const [fullresLoaded, setFullresLoaded] = useState(false)
+    const [loadError, setLoadErr] = useState(false)
+    const { authHeader } = useContext(userContext)
+    const [thumbData, setThumbData] = useState("")
+    const [fullresData, setFullresData] = useState("")
+
     const ref = useRef()
     const isVisible = useIsVisible(ref, true)
 
-    useEffect(() => {
-        const url = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
-        url.searchParams.append(quality, "true")
-        setImgUrl(url.toString())
-    }, [])
+    const thumbUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
+    thumbUrl.searchParams.append("thumbnail", "true")
+    const fullresUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
+    fullresUrl.searchParams.append("fullres", "true")
 
     useEffect(() => {
+        setThumbData("")
+        setFullresData("")
+        setThumbLoaded(false)
+        setFullresLoaded(false)
+    }, [mediaData.FileHash])
+
+    useEffect(() => {
+        console.log(thumbUrl)
         if (!mediaData.FileHash) {
-            setLoadError(true)
-        } else if (isVisible && !imgData) {
-            fetch(imgUrl, { headers: authHeader }).then(res => res.blob()).then((blob) => {
-                if (blob.length === 0) {
-                    Promise.reject("Empty blob")
-                }
-                setImgData(URL.createObjectURL(blob))
-                setImageLoaded(true)
-            }).catch((r) => {
-                console.error("Failed to get image from server: ", r)
-            })
+            console.error("LOAD ERR")
+            setLoadErr(true)
+        } else if (isVisible && !thumbData && !fullresData) {
+            console.log("GETTIN")
+            getImageData(thumbUrl, authHeader, setThumbData, setThumbLoaded, setLoadErr)
+            if (quality === "fullres") {
+                getImageData(fullresUrl, authHeader, setFullresData, setFullresLoaded, setLoadErr)
+            }
         }
-    }, [isVisible, imgUrl])
+    }, [isVisible, thumbData, thumbUrl.toString()])
+
+    if (quality === "fullres") {
+        console.log(!lazy, isVisible, !fullresLoaded, !loadError)
+    }
 
     return (
-        <ThumbnailContainer reff={ref} sx={props.sx} onDrag={(e) => { console.log(e); e.preventDefault(); e.stopPropagation() }}>
-            <StyledLoader isVisible={isVisible} loading={!imageLoaded} error={loadError} />
-            <img
-                draggable={false}
-                height={"max-content"}
-                width={"100%"}
-                src={imgData}
-                crossOrigin="use-credentials"
+        <FlexColumnBox style={{ height: "100%", width: "100%" }}>
+            <ThumbnailContainer reff={ref} style={containerStyle} >
+                {(isVisible && loadError) && (
+                    <IconExclamationCircle color="red" style={{ position: 'absolute' }} />
+                )}
 
-                // onDrag={(e) => { console.log(e); e.preventDefault(); e.stopPropagation() }}
+                {(!lazy && isVisible && !fullresLoaded && !loadError) && (
+                    <Loader color="white" bottom={40} right={40} size={20} style={{ position: 'absolute' }} />
+                )}
 
-                {...props}
+                {/* <AspectRatio ratio={mediaData.MediaWidth / mediaData.MediaHeight} maw={"100%"} mah={"100%"}> */}
 
-                style={{ display: imageLoaded ? "block" : "none", userSelect: 'none' }}
-            />
-            {mediaData.BlurHash && lazy && !imageLoaded && (
-                <Blurhash
-                    style={{ position: "absolute" }}
-                    height={250}
-                    width={550}
-                    hash={mediaData.BlurHash}
+                <Image
+                    draggable={false}
+                    src={fullresData ? fullresData : thumbData}
+                    style={{ ...imgStyle, position: 'relative', display: (fullresData || thumbData) ? "block" : "none", userSelect: 'none', maxWidth: "100%" }}
                 />
 
-            )}
+                {isVisible && mediaData.BlurHash && lazy && !thumbData && !fullresLoaded && (
+                    <Blurhash
+                        style={{ position: "absolute" }}
+                        height={250}
+                        width={550}
+                        hash={mediaData.BlurHash}
+                    />
+                )}
+
+                {/* </AspectRatio> */}
+
         </ThumbnailContainer >
+        </FlexColumnBox>
     )
 }

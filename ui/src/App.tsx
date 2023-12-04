@@ -184,10 +184,11 @@ const WeblensRoutes = () => {
 
 function App() {
   document.body.style.backgroundColor = theme.colorSchemes.dark.palette.neutral.solidDisabledBg
+  document.documentElement.style.overflow = "hidden"
   // document.body.style.backgroundColor = "#fff"
 
   return (
-    <MantineProvider >
+    <MantineProvider defaultColorScheme="dark">
       <Notifications />
       <BrowserRouter>
         <CssVarsProvider

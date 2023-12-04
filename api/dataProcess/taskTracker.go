@@ -2,6 +2,7 @@ package dataProcess
 
 import (
 	"encoding/json"
+	"runtime"
 	"sync"
 	"time"
 
@@ -38,14 +39,15 @@ func taskWorkerPoolStatus() {
 func verifyTaskTracker() {
 	if ttInstance.taskMap == nil {
 		ttInstance.taskMap = map[string]*Task{}
-		ttInstance.wp = NewWorkerPool(10)
+		ttInstance.wp = NewWorkerPool(runtime.NumCPU()/2)
 		ttInstance.wp.Run()
 		go taskWorkerPoolStatus()
 	}
 }
 
-// Pass params to create new task, and return the task to the caller. If the task already exists, the second return value (bool) will be true
-func RequestTask(taskType string, taskMeta any) (*Task, bool ) {
+// Pass params to create new task, and return the task to the caller.
+// If the task already exists, the existing task will be returned, and a new one will not be created
+func RequestTask(taskType string, taskMeta any) *Task {
 	verifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
@@ -56,14 +58,14 @@ func RequestTask(taskType string, taskMeta any) (*Task, bool ) {
 	defer ttInstance.taskMu.Unlock()
 	existingTask, ok := ttInstance.taskMap[taskId]
 	if ok {
-	 	return existingTask, existingTask.Completed
+	 	return existingTask
 	}
 	newTask := &Task{TaskId: taskId, taskType: taskType, metadata: taskMeta}
 
 	ttInstance.taskMap[taskId] = newTask
 	queueTask(newTask)
 
-	return newTask, false
+	return newTask
 }
 
 func (t *Task) ClearAndRecompute() {
@@ -112,7 +114,15 @@ func removeTask(taskKey string) {
 func queueTask(task *Task) {
 	switch task.taskType {
 		case "scan_directory": ttInstance.wp.AddTask(func(){ScanDir(task.metadata.(ScanMetadata)); removeTask(task.TaskId)})
-		case "create_zip": {ttInstance.wp.AddTask(func(){createZipFromPaths(task)})}
+		case "create_zip": ttInstance.wp.AddTask(func(){createZipFromPaths(task)})
 		case "scan_file": ttInstance.wp.AddTask(func(){ScanFile(task.metadata.(ScanMetadata)); removeTask(task.TaskId)})
+	}
+}
+
+func FlushCompleteTasks() {
+	for k, t := range ttInstance.taskMap {
+		if t.Completed {
+			delete(ttInstance.taskMap, k)
+		}
 	}
 }

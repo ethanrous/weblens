@@ -1,6 +1,7 @@
 package dataProcess
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -16,7 +17,7 @@ type SubData struct {
 type Client struct {
 	connId string
 	conn *websocket.Conn
-	activePath string // This is the same as the key in the path subscription map
+	activeFolder string // This is the same as the key in the folder subscription map
 	mu sync.Mutex
 	subscriptions []SubData
 }
@@ -26,10 +27,10 @@ func (c *Client) GetClientId() string {
 }
 
 func (c *Client) Disconnect() {
-	cmInstance.pathMu.Lock()
-	defer cmInstance.pathMu.Unlock()
-	if (c.activePath != "") {
-		delete(cmInstance.pathSubscriptionMap[c.activePath], c.connId)
+	cmInstance.folderMu.Lock()
+	defer cmInstance.folderMu.Unlock()
+	if (c.activeFolder != "") {
+		delete(cmInstance.folderSubscriptionMap[c.activeFolder], c.connId)
 	}
 
 	for _, s := range c.subscriptions {
@@ -45,37 +46,41 @@ func (c *Client) Disconnect() {
 	delete(cmInstance.clientMap, c.connId)
 }
 
-func (c *Client) updatePathSubscription(newPath string, recursive bool) {
-	cmInstance.pathMu.Lock()
-	defer cmInstance.pathMu.Unlock()
+func (c *Client) updateFolderSubscription(folderId string, recursive bool) {
+	cmInstance.folderMu.Lock()
+	defer cmInstance.folderMu.Unlock()
 
-	if (c.activePath != "") {
-		delete(cmInstance.pathSubscriptionMap[c.activePath], c.connId)
+	if (c.activeFolder != "") {
+		delete(cmInstance.folderSubscriptionMap[c.activeFolder], c.connId)
 	}
 
-	_, ok := cmInstance.pathSubscriptionMap[newPath]
+	_, ok := cmInstance.folderSubscriptionMap[folderId]
 	if ok {
-		cmInstance.pathSubscriptionMap[newPath][c.connId] = recursive
+		cmInstance.folderSubscriptionMap[folderId][c.connId] = recursive
 	} else {
-		cmInstance.pathSubscriptionMap[newPath] = map[string]bool{c.connId: recursive}
+		cmInstance.folderSubscriptionMap[folderId] = map[string]bool{c.connId: recursive}
 	}
 
-	c.activePath = newPath
+	c.activeFolder = folderId
 }
 
 // Link a websocket connection to a "key" that can be broadcasted to later if
 // relevent updates should be communicated
 //
 // Returns "true" and the results at meta.LookingFor if the task is completed, false otherwise
-// subscriptions to ongoing events like "path" never return truthful completed
+// subscriptions to ongoing events like "folder" never return truthful completed
 func (c *Client) Subscribe(subType, username string, subData any) (bool, string) {
 	// c.removeSubscription(subMeta.Label)
 
 	switch subType {
-	case "path": {
-		var meta PathSubMetadata = subData.(PathSubMetadata)
-		absDirPath := dataStore.GuaranteeUserAbsolutePath(meta.DirPath, username)
-		c.updatePathSubscription(absDirPath, meta.Recursive)
+	case "folder": {
+		var meta FolderSubMetadata = subData.(FolderSubMetadata)
+
+		folder := dataStore.WFDByFolderId(meta.FolderId)
+		if folder.Err() != nil {
+			panic(fmt.Errorf("failed to get folder to scan: %s", folder.Err()))
+		}
+		c.updateFolderSubscription(folder.Id(), meta.Recursive)
 	}
 	case "task": {
 		var meta TaskSubMetadata = subData.(TaskSubMetadata)

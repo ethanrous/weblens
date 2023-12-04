@@ -44,16 +44,15 @@ const PreviewCardContainer = ({ reff, ...props }) => {
     )
 }
 
-const PreviewCardImg = ({ mediaData, quality, lazy, ...props }) => {
+const PreviewCardImg = ({ mediaData, quality, lazy }) => {
     return (
         <MediaImage
             mediaData={mediaData}
             quality={quality}
             lazy={lazy}
-            sx={{
-                // height: "250px",
+            containerStyle={{
                 minWidth: "100%",
-                position: "absolute",
+                // position: "absolute",
                 objectFit: "cover",
 
                 transitionDuration: "300ms",
@@ -66,42 +65,6 @@ const PreviewCardImg = ({ mediaData, quality, lazy, ...props }) => {
         />
     )
 }
-
-
-const StyledIconBox = ({ onClick, ...props }) => {
-    return (
-        <Box
-            {...props}
-            onClick={onClick}
-            sx={{
-                height: "24px",
-                width: "24px",
-                padding: "5px"
-            }}
-        />
-    )
-}
-
-
-// const StyledIcon = forwardRef((props: { Element: any, onClick: any }, ref) => {
-//     let theme = useTheme()
-
-//     return (
-//         <props.Element
-//             ref={ref}
-//             {...props}
-//             onClick={props.onClick}
-//             sx={{
-//                 position: "static",
-//                 color: theme.palette.primary.mainChannel,
-//                 backgroundColor: theme.palette.background.surface,
-//                 backdropFilter: "blur(8px)",
-//                 borderRadius: "3px"
-//             }}
-
-//         />
-//     )
-// })
 
 // Functions
 
@@ -154,17 +117,16 @@ const StyledIcon = forwardRef((props: mediaTypeProps, ref) => {
 
 const MediaInfoDisplay = ({ mediaData }: { mediaData: MediaData }) => {
     const nav = useNavigate()
-    const filename = mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
     const [icon, name] = TypeIcon(mediaData)
 
     return (
         <Box width={"100%"} height={"100%"} display={"flex"} flexDirection={'column'} justifyContent={"space-between"}>
             <StyledIcon Icon={icon} ttText={name} onClick={(e) => { e.stopPropagation() }} />
             <Box display={"flex"} flexDirection={"row"} alignItems={"center"} justifyContent={"space-between"} width={"auto"} margin={"5px"} height={"max-content"} bottom={0}>
-                <StyledBreadcrumb label={filename} doCopy />
+                <StyledBreadcrumb label={mediaData.Filename} doCopy />
                 <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={(e) => {
-                    e.stopPropagation();
-                    nav(`/files/${mediaData.Filepath.slice(0, mediaData.Filepath.lastIndexOf('/'))}`)
+                    e.stopPropagation()
+                    nav(`/files/${mediaData.ParentFolder}`)
                 }}
                 />
             </Box>
@@ -187,7 +149,7 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, dispatch }: MediaWr
             maxWidth={`${width * 1.5}px`}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
-            onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })}
+            onClick={() => { dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash }) }}
         >
             <PreviewCardImg
                 mediaData={mediaData}
@@ -242,7 +204,7 @@ export const GalleryBucket = ({
     dispatch
 }: GalleryBucketProps) => {
     return (
-        <Box>
+        <Box ml={"-1.6px"}>
             <DateWrapper dateTime={date} />
             <BucketCards medias={bucketData} dispatch={dispatch} />
         </Box>

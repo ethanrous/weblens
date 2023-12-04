@@ -23,7 +23,7 @@ func CORSMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
         c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
         c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
         if c.Request.Method == "OPTIONS" {
@@ -43,6 +43,7 @@ func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
 		if !websocket {
 			authHeader := c.Request.Header["Authorization"]
 			if len(authHeader) == 0 {
+				util.Debug.Println(c.Request.Header)
 				util.Info.Printf("Rejecting authorization for unknown user due to empty auth header")
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
@@ -87,24 +88,33 @@ func AddApiRoutes(r *gin.Engine) {
 	api.PUT("/items", updateMediaItems)
 	api.GET("/stream/:filehash", streamVideo)
 
-	api.GET("/directory", getDirInfo)
-	api.POST("/directory", makeDir)
+	api.GET("/folder/:folderId", getFolderInfo)
+	api.POST("/folder", makeDir)
 
 	api.GET("/file", getFile)
 	api.POST("/file", uploadFile)
-	api.DELETE("/file", moveFileToTrash)
 	api.PUT("/file", updateFile)
+	api.DELETE("/file", moveFileToTrash)
+
+	api.GET("/download", downloadSingleFile)
 
 	api.GET("/takeout/:takeoutId", getTakeout)
 	api.POST("/takeout", createTakeout)
 
 	api.GET("/user", getUserInfo)
 	api.POST("/user", createUser)
+	api.GET("/userSearch", searchUsers)
 
-	admin := r.Group("/api")
+	api.GET("/share", getSharedFiles)
+	api.POST("/share", shareFiles)
+
+	admin := r.Group("/api/admin")
 	admin.Use(WeblensAuth(false, true))
 
 	admin.GET("/users", getUsers)
+	admin.POST("/user", updateUser)
+	admin.DELETE("/user/:username", deleteUser)
+	admin.POST("/cache", clearCache)
 
 	websocket := r.Group("/api")
 	websocket.Use(WeblensAuth(true, false))

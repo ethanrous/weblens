@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
@@ -40,12 +41,7 @@ func handleWsRequest(msgBuf []byte, client *dataProcess.Client, wsUser string) {
 }
 
 func wsReqSwitchboard(msg dataProcess.WsRequest, client *dataProcess.Client, username string) {
-	defer func() {
-		if err := recover(); err != nil {
-			util.Error.Printf("[WEBSOCKET] Recovered panic while handling message (%s): %v\n", msg.ReqType, err)
-			fmt.Printf("[WEBSOCKET] %s | %s | %s\n", time.Now().Format("2006/01/02 - 15:04:05"), client.GetClientId(), msg.ReqType)
-		}
-	}()
+	defer util.RecoverPanic("[WEBSOCKET] Client %d panicked", client.GetClientId())
 
 	fmt.Printf("[WEBSOCKET] %s | %s | %s\n", time.Now().Format("2006/01/02 - 15:04:05"), client.GetClientId(), msg.ReqType)
 
@@ -63,16 +59,14 @@ func wsReqSwitchboard(msg dataProcess.WsRequest, client *dataProcess.Client, use
 		}
 
 		case "scan_directory": {
-			var scanMeta dataProcess.ScanContent
-			util.StructFromMap(msg.Content.(map[string]any), &scanMeta)
+			var scanInfo dataProcess.ScanContent
+			util.StructFromMap(msg.Content.(map[string]any), &scanInfo)
 
-			path := scanMeta.Path
-			recursive := scanMeta.Recursive
+			folder := dataStore.WFDByFolderId(scanInfo.FolderId)
+			util.FailOnError(folder.Err(), "Failed to get folder to scan")
 
-			meta := dataProcess.ScanMetadata{Path: path, Username: username, Recursive: recursive}
-
+			meta := dataProcess.ScanMetadata{File: folder, Username: username, Recursive: scanInfo.Recursive}
 			dataProcess.RequestTask("scan_directory", meta)
-
 		}
 
 		default: {
@@ -85,8 +79,8 @@ func getSubscribeInfo(contentMap map[string]any) (string, any) {
 	subType := contentMap["subType"].(string)
 	delete(contentMap, "subType")
 	switch subType {
-	case "path": {
-		var subContentStruct dataProcess.PathSubMetadata
+	case "folder": {
+		var subContentStruct dataProcess.FolderSubMetadata
 		err := util.StructFromMap(contentMap, &subContentStruct)
 		util.FailOnError(err, "Could not convert map to struct")
 		return subType, subContentStruct

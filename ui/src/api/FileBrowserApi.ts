@@ -1,19 +1,12 @@
+import axios from 'axios'
 import { itemData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
+import { notifications } from '@mantine/notifications'
 
-export function GetFileInfo(filepath, dispatch) {
+export function DeleteFile(parentId, filename, authHeader) {
     var url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('path', filepath)
-    fetch(url.toString()).then((res) => res.json()).then((data: itemData) => {
-        dispatch({
-            type: 'update_item', item: data
-        })
-    })
-}
-
-export function DeleteFile(path, authHeader) {
-    var url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('path', path)
+    url.searchParams.append('parentFolderId', parentId)
+    url.searchParams.append('filename', filename)
     fetch(url.toString(), { method: "DELETE", headers: authHeader })
 }
 
@@ -26,84 +19,179 @@ export function ChangeOwner(updateHashes: string[], user: string, authHeader) {
     fetch(url.toString(), { method: "PUT", headers: authHeader, body: JSON.stringify(updateData) })
 }
 
-export function GetDirectoryData(path, dispatch, navigate, authHeader) {
+function getSharedWithMe(username, dispatch, authHeader) {
+    let url = new URL(`${API_ENDPOINT}/share`)
+    fetch(url.toString(), { headers: authHeader })
+        .then((res) => res.json())
+        .then((data) => {
+            let files = data.files?.map((val: itemData) => { return { itemId: val.id, updateInfo: val } })
+            if (!files) {
+                files = []
+            }
+            dispatch({ type: 'set_folder_info', folderInfo: { id: "shared", filename: "Shared" } })
+            dispatch({ type: 'update_many', items: files, user: username })
+            dispatch({ type: "set_loading", loading: false })
+        })
+}
+
+export function GetFolderData(folderId, username, dispatch, navigate, authHeader) {
+    if (!folderId) {
+        navigate("/files/home")
+        return
+    }
     dispatch({ type: "set_loading", loading: true })
-    var url = new URL(`${API_ENDPOINT}/directory`)
-    path = ('/' + path).replace(/\/\/+/g, '/')
-    url.searchParams.append('path', path)
+
+    if (folderId == "shared") {
+        getSharedWithMe(username, dispatch, authHeader)
+        return
+    }
+
+    let url = new URL(`${API_ENDPOINT}/folder/${folderId}`)
     fetch(url.toString(), { headers: authHeader })
         .then((res) => {
             if (res.status === 404) {
-                path = path.slice(0, -1)
-                let newPath = `/files/${path.slice(0, path.lastIndexOf("/"))}`.replace(/\/\/+/g, '/')
-                navigate(newPath, { replace: true })
+                navigate("/fourohfour")
+                return Promise.reject("Page not found")
             } else if (res.status === 401) {
-                navigate("/login", { state: { doLogin: false } })
+                // navigate("/login", { state: { doLogin: false } })
             } else {
                 return res.json()
             }
         })
-        .then((data: itemData) => {
-            dispatch({ type: 'update_item', items: data })
+        .then((data) => {
+            let children = data.children?.map((val: itemData) => { return { itemId: val.id, updateInfo: val } })
+            if (!children) {
+                children = []
+            }
+            let parents
+            if (!data.parents) {
+                parents = []
+            } else {
+                parents = data.parents.reverse()
+            }
+            dispatch({ type: 'set_folder_info', folderInfo: data.self })
+            dispatch({ type: 'update_many', items: children, user: username })
+            dispatch({ type: 'set_parents_info', parents: parents })
             dispatch({ type: "set_loading", loading: false })
-    })
+        }).catch((r) => console.error(r))
 }
 
-export function CreateDirectory(path, authHeader) {
-    var url = new URL(`${API_ENDPOINT}/directory`)
-    url.searchParams.append('path', ('/' + path).replace(/\/\/+/g, '/'))
+export async function CreateFolder(parentFolderId, name, authHeader) {
+    var url = new URL(`${API_ENDPOINT}/folder`)
+    url.searchParams.append('parentFolderId', parentFolderId)
+    url.searchParams.append('folderName', name)
 
-    return fetch(url.toString(), { method: "POST", headers: authHeader })
-        .then(res => { return res.json() })
+    const dirInfo = await fetch(url.toString(), { method: "POST", headers: authHeader }).then(res => res.json())
+    return { folderId: dirInfo.folderId, alreadyExisted: dirInfo.alreadyExisted }
 }
 
-export function MoveFile(existingPath, newPath, authHeader) {
+export function MoveFile(currentParentId, newParentId, currentFilename, authHeader) {
     var url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('existingFilepath', existingPath)
-    url.searchParams.append('newFilepath', newPath)
+    url.searchParams.append('currentParentId', currentParentId)
+    url.searchParams.append('newParentId', newParentId)
+    url.searchParams.append('currentFilename', currentFilename)
     return fetch(url.toString(), { method: "PUT", headers: authHeader })
 }
 
-export function RenameFile(existingPath, newName, authHeader) {
-    const parentDir = existingPath.replace(/(.*?)[^/]*$/, '$1')
-    let newPath = (parentDir + newName)
+export async function RenameFile(parentId, oldName, newName, authHeader) {
+    var url = new URL(`${API_ENDPOINT}/file`)
+    url.searchParams.append('currentParentId', parentId)
+    url.searchParams.append('currentFilename', oldName)
+    url.searchParams.append('newFilename', newName)
+    const res = await fetch(url.toString(), { method: "PUT", headers: authHeader }).then(res => res.json())
+    return res.newItemId
+}
 
-    MoveFile(existingPath, newPath, authHeader)
+function downloadBlob(blob, filename) {
+    const aElement = document.createElement("a")
+    aElement.setAttribute("download", filename)
+    const href = URL.createObjectURL(blob)
+    aElement.href = href
+    aElement.setAttribute("target", "_blank")
+    aElement.click()
+    URL.revokeObjectURL(href)
+    return
+}
 
-    return newPath
+export function downloadSingleItem(item: itemData, authHeader, dispatch) {
+    const url = new URL(`${API_ENDPOINT}/download`)
+    url.searchParams.append("parentFolderId", item.parentFolderId)
+    url.searchParams.append("filename", item.filename)
+
+    notifications.show({ id: `download_${item.filename}`, message: "Starting download", autoClose: false, loading: true })
+
+    axios.get(url.toString(), {
+        responseType: 'blob',
+        headers: authHeader,
+        onDownloadProgress: (p) => {
+            notifications.update({ id: `download_${item.filename}`, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
+            dispatch({ type: "set_scan_progress", progress: (p.progress * 100).toFixed(0) })
+        },
+    })
+        .then(res => new Blob([res.data]))
+        .then((blob) => {
+            downloadBlob(blob, item.filename)
+        })
+        .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(`download_${item.filename}`) })
 }
 
 export function requestZipCreate(body, authHeader) {
     const url = new URL(`${API_ENDPOINT}/takeout`)
 
     return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
-        .then((res) => {
-            return { json: res.json(), status: res.status }
+        .then(async (res) => {
+            if (res.status !== 200 && res.status !== 202) {
+                Promise.reject(res.statusText)
+            }
+            const json = await res.json()
+            return { json: json, status: res.status }
         })
 }
 
-export function downloadZip(takeoutId: string, authHeader) {
+export function downloadTakeout(takeoutId: string, authHeader, dispatch) {
     const url = new URL(`${API_ENDPOINT}/takeout/${takeoutId}`)
-    var filename: string = "takeout.zip"
+    let filename = "takeout.zip"
 
-    console.log(takeoutId)
+    notifications.show({ id: `zip_download_${takeoutId}`, message: "Starting download", autoClose: false, loading: true })
 
-    return fetch(url.toString(), { headers: authHeader, method: "GET" })
+    return axios.get(url.toString(), {
+        responseType: 'blob',
+        headers: authHeader,
+        onDownloadProgress: (p) => {
+            notifications.update({ id: `zip_download_${takeoutId}`, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
+            dispatch({ type: "set_scan_progress", progress: (p.progress * 100).toFixed(0) })
+        },
+    })
         .then((res) => {
+            notifications.hide(`zip_download_${takeoutId}`)
             if (res.status !== 200) {
                 return Promise.reject("Got bad response code while trying to download item")
             }
-            // filename = res.headers.get("Content-Disposition").split(';')[1].split('=')[1].replaceAll("\"", "")
-            return res.blob()
+            filename = `${takeoutId}.zip`
+
+            return new Blob([res.data])
         })
-        .then((res) => {
-            const aElement = document.createElement("a");
-            aElement.setAttribute("download", filename);
-            const href = URL.createObjectURL(res);
-            aElement.href = href;
-            aElement.setAttribute("target", "_blank");
-            aElement.click();
-            URL.revokeObjectURL(href);
-            return
-        }).catch((r) => console.error(r))
+        .then((blob) => downloadBlob(blob, filename))
+        .catch((r) => console.error(r))
+        .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(`zip_download_${takeoutId}`) })
+}
+
+export async function AutocompleteUsers(searchValue, authHeader) {
+    if (searchValue.length < 2) {
+        return []
+    }
+    const url = new URL(`${API_ENDPOINT}/userSearch`)
+    url.searchParams.append('searchValue', searchValue)
+    const res = await fetch(url.toString(), { headers: authHeader }).then(res => res.json())
+    return res.users ? res.users : []
+}
+
+export function ShareFiles(files: { parentFolderId: string, filename: string }[], users: string[], authHeader) {
+    console.log(files)
+    const url = new URL(`${API_ENDPOINT}/share`)
+    const body = {
+        files: files,
+        users: users
+    }
+    fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
 }

@@ -77,7 +77,7 @@ const Sidebar = ({ rawSelected, itemCount, dispatch }) => {
 
 const InfiniteScroll = ({ items, itemCount, loading, moreItems }: { items: any, itemCount: number, loading: boolean, moreItems: boolean }) => {
     return (
-        <Box flexDirection={"column"} width={"90vw"} >
+        <Box flexDirection={"column"} width={"105%"} pr={"55px"} style={{ height: "calc(100vh - 110px)", overflowY: 'scroll', borderRadius: "15px" }}>
             {items}
             {itemCount == 0 && (
                 <NoMediaDisplay loading={loading} />
@@ -121,7 +121,6 @@ const handleWebsocket = (lastMessage, dispatch, enqueueSnackbar) => {
 }
 
 const Gallery = () => {
-    document.documentElement.style.overflow = "visible"
     const { authHeader, userInfo } = useContext(userContext)
 
     const [mediaState, dispatch]: [MediaStateType, React.Dispatch<any>] = useReducer(mediaReducer, {
@@ -147,6 +146,12 @@ const Gallery = () => {
     useEffect(() => { FetchData(mediaState, dispatch, nav, authHeader) }, [mediaState.maxMediaCount, mediaState.includeRaw, authHeader])
     useEffect(() => { handleWebsocket(lastMessage, dispatch, enqueueSnackbar) }, [lastMessage])
 
+    useEffect(() => {
+        if (userInfo) {
+            wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: userInfo?.homeFolderId, recursive: false }, error: null }))
+        }
+    }, [userInfo])
+
     const dateMap: Map<string, Array<MediaData>> = useMemo(() => {
         let dateMap = new Map<string, Array<MediaData>>()
 
@@ -170,7 +175,7 @@ const Gallery = () => {
         if (!dateMap) { return [[], 0] }
         let counter = 0
         const buckets = Array.from(dateMap.keys()).map((date) => {
-            const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.Filepath.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
+            const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.Filename.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
             if (items.length == 0) { return null }
             counter += items.length
             return (<GalleryBucket key={date} date={date} bucketData={items} dispatch={dispatch} />)
@@ -179,19 +184,15 @@ const Gallery = () => {
         return [buckets, counter]
     }, [dateMap, mediaState.searchContent])
 
-    useEffect(() => {
-        wsSend(JSON.stringify({ type: "subscribe", content: { path: "/", recursive: true }, error: null }))
-    }, [])
-
     return (
         <Box>
-            <HeaderBar path={"/"} searchContent={mediaState.searchContent} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
+            <HeaderBar folderId={"home"} searchContent={mediaState.searchContent} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
 
+            <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} parents={null} dispatch={dispatch} />
             <Box display={'flex'} flexDirection={'row'} width={"100%"} minHeight={"50vh"} justifyContent={'space-evenly'} pt={"70px"}>
                 <Sidebar rawSelected={mediaState.includeRaw} itemCount={numShownItems} dispatch={dispatch} />
                 <Box width={'90%'} style={{ justifyContent: "center", paddingTop: "25px", paddingRight: mediaState.presentingHash == "" ? "30px" : "46px" }}>
                     <InfiniteScroll items={dateGroups} itemCount={mediaState.mediaCount} loading={mediaState.loading} moreItems={mediaState.hasMoreMedia} />
-                    <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} dispatch={dispatch} />
                 </Box>
             </Box>
         </Box>

@@ -49,7 +49,11 @@ export function login(user: string, pass: string) {
 
 export function createUser(username, password, admin, authHeader, enqueueSnackbar) {
     const url = new URL(`${API_ENDPOINT}/user`)
-    fetch(url, { headers: authHeader, method: "POST", body: JSON.stringify({ username: username, password: password, admin: admin, autoActivate: false }) })
+    return fetch(url, { headers: authHeader, method: "POST", body: JSON.stringify({ username: username, password: password, admin: admin, autoActivate: false }) })
         .then((res) => { if (res.status != 201) { return Promise.reject(`${res.statusText}`) } })
         .catch((reason) => { enqueueSnackbar(`Failed to create new user: ${reason}`, { variant: "error" }) })
+}
+
+export function clearCache(authHeader) {
+    return fetch(`${API_ENDPOINT}/admin/cache`, { method: "POST", headers: authHeader })
 }

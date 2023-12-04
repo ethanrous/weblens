@@ -74,8 +74,6 @@ export function mediaReducer(state: MediaStateType, action) {
         }
 
         case 'set_presentation': {
-            document.documentElement.style.overflow = "hidden"
-
             return {
                 ...state,
                 presentingHash: action.presentingHash
@@ -102,7 +100,6 @@ export function mediaReducer(state: MediaStateType, action) {
         }
 
         case 'stop_presenting': {
-            document.documentElement.style.overflow = "visible"
             if (state.presentingHash == "") {
                 return {
                     ...state

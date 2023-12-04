@@ -16,7 +16,7 @@ import { Sheet, Typography, styled, Input, Tooltip, Box, IconButton, useTheme } 
 import { userContext } from '../Context'
 
 type HeaderBarProps = {
-    path: string
+    folderId: string
     searchContent: string
     dispatch: React.Dispatch<any>
     wsSend: SendMessage
@@ -71,13 +71,12 @@ const StyledInput = styled(Input)(({ theme }) => ({
     },
 }));
 
-const HeaderBar = ({ path, searchContent, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
+const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
     const { authHeader, userInfo, removeCookie } = useContext(userContext)
     const nav = useNavigate()
     const spacing = "8px"
     const theme = useTheme()
     const openRef = useRef(null);
-
     return (
         <Box zIndex={3} height={"max-content"} width={"100vw"} position={'fixed'} >
             <Sheet
@@ -86,9 +85,8 @@ const HeaderBar = ({ path, searchContent, dispatch, wsSend, page, searchRef, loa
                     flexDirection: "row",
                     alignItems: "center",
                     backgroundColor: theme.colorSchemes.dark.palette.primary.softBg,
-                    backdropFilter: "blur(8px)",
                     border: (theme) => `1px solid ${theme.palette.divider}`,
-                    height: "75px"
+                    height: "70px"
                 }}
             >
                 <Box paddingLeft={'10px'} />
@@ -127,7 +125,7 @@ const HeaderBar = ({ path, searchContent, dispatch, wsSend, page, searchRef, loa
                     </Tooltip>
                 )}
                 <Tooltip title={"Sync"} disableInteractive >
-                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(path, wsSend, true) }} sx={{ margin: spacing }}>
+                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(folderId, wsSend, true) }} sx={{ margin: spacing }}>
                         <Sync fontSize={'large'} />
                     </IconButton>
                 </Tooltip>
@@ -155,7 +153,7 @@ const HeaderBar = ({ path, searchContent, dispatch, wsSend, page, searchRef, loa
                     </Sheet>
                 )}
                 <Box flexGrow={1} />
-                {userInfo.Admin && (
+                {userInfo?.admin && (
                     <Tooltip title={"Admin Settings"} disableInteractive >
                         <IconButton onClick={() => { nav("/admin") }} sx={{ margin: spacing }}>
                             <AdminPanelSettings fontSize={'large'} />

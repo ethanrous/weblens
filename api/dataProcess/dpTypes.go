@@ -1,5 +1,7 @@
 package dataProcess
 
+import "github.com/ethrousseau/weblens/api/dataStore"
+
 // Websocket request types
 type WsRequest struct {
 	ReqType string 	`json:"req"`
@@ -12,8 +14,8 @@ type SubscribeReqContent struct{
 	Metadata string `json:"metadata"`
 }
 
-type PathSubMetadata struct {
-	DirPath string `json:"dirPath"`
+type FolderSubMetadata struct {
+	FolderId string `json:"folderId"`
 	Recursive bool `json:"recursive"`
 }
 
@@ -23,25 +25,27 @@ type TaskSubMetadata struct {
 }
 
 type ScanContent struct{
-	Path string `json:"dirPath"`
+	FolderId string `json:"folderId"`
+	Filename string `json:"filename"`
 	Recursive bool `json:"recursive"`
 }
 
 // Internal types
 type ScanMetadata struct {
-	Path string
+	File *dataStore.WeblensFileDescriptor
 	Username string
 	Recursive bool
 }
 
 type ZipMetadata struct {
-	Paths []string
+	Files []*dataStore.WeblensFileDescriptor
 	Username string
 }
 
 // Ws response types
 type WsResponse struct {
 	MessageStatus string 	`json:"messageStatus"`
+	SubscribeKey string		`json:"subscribeKey"`
 	Content any 			`json:"content"`
 	Error error 			`json:"error"`
 }

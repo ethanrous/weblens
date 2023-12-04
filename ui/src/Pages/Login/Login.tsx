@@ -1,27 +1,11 @@
 import { Box, Button, Input, Sheet, Typography, useTheme } from '@mui/joy'
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { EnqueueSnackbar, useSnackbar } from 'notistack'
 import { login } from '../../api/ApiFetch'
 import { userContext } from '../../Context'
+import { notifications } from '@mantine/notifications'
 
-function useKeyDown(doLogin) {
-    const keyDownHandler = event => {
-        if (event.key === 'Enter') {
-            event.preventDefault()
-            event.stopPropagation()
-            doLogin()
-        }
-    }
-    useEffect(() => {
-        window.addEventListener('keydown', keyDownHandler)
-        return () => {
-            window.removeEventListener('keydown', keyDownHandler)
-        }
-    }, [keyDownHandler])
-}
-
-function CheckCreds(username, password, setCookie, nav, snack: EnqueueSnackbar) {
+function CheckCreds(username, password, setCookie, nav) {
     login(username, password)
         .then(res => { if (res.status == 401) { return Promise.reject("Incorrect username or password") } else { return res.json() } })
         .then(data => {
@@ -29,11 +13,9 @@ function CheckCreds(username, password, setCookie, nav, snack: EnqueueSnackbar) 
             setCookie('weblens-username', username, { sameSite: "strict" })
             console.log("Setting session token to ", data.token)
             setCookie('weblens-login-token', data.token, { sameSite: "strict" })
-            console.log("Bouta nav")
             nav("/")
-            console.log("Nav'd")
         })
-        .catch((r) => { snack(r, { variant: "error" }) })
+        .catch((r) => { notifications.show({ message: r, color: "red" }) })
 }
 
 const Login = () => {
@@ -42,12 +24,7 @@ const Login = () => {
     const nav = useNavigate()
     const loc = useLocation()
     const theme = useTheme()
-    const { enqueueSnackbar } = useSnackbar()
     const { authHeader, setCookie } = useContext(userContext)
-
-    const doLogin = useMemo(() => {
-        return () => { CheckCreds(userInput, passInput, setCookie, nav, enqueueSnackbar) }
-    }, [userInput, passInput])
 
     useEffect(() => {
         if (loc.state == null && authHeader.Authorization != "") {
@@ -84,12 +61,12 @@ const Login = () => {
                     placeholder='Password'
                     type="password"
                     onChange={(e) => setPassInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { doLogin() } }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { CheckCreds(userInput, passInput, setCookie, nav) } }}
                 />
                 <Button
                     sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, ":hover": { backgroundColor: (theme) => theme.palette.primary.solidActiveBg } }}
                     style={{ height: "40px", width: "150px", margin: 10 }}
-                    onClick={doLogin}
+                    onClick={() => { CheckCreds(userInput, passInput, setCookie, nav) }}
                 >
                     Log in
                 </Button>
