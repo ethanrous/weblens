@@ -1,9 +1,9 @@
-import { Box, Tooltip, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
+import { Box, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
 import { Dispatch, useContext, useState } from 'react'
 import { itemData } from '../types/Types'
 import { userContext } from '../Context'
 import { useNavigate } from 'react-router-dom'
-import { Text } from '@mantine/core'
+import { Text, Tooltip } from '@mantine/core'
 
 type breadcrumbProps = {
     label: string
@@ -13,45 +13,45 @@ type breadcrumbProps = {
     doCopy?: boolean
     dragging?: number
     sx?: any
+    fontSize?: number
+    alwaysOn?: boolean
 }
 
-export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging, onMouseUp, sx }: breadcrumbProps) => {
+export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging, onMouseUp, sx, alwaysOn = false, fontSize = 25 }: breadcrumbProps) => {
     const [success, setSuccess] = useState(false)
     const [hovering, setHovering] = useState(false)
-    const theme = useTheme()
-
-    let backgroundColor
-    if (success) {
-        backgroundColor = theme.colorSchemes.dark.palette.success.solidBg
-    } else if (hovering) {
-        backgroundColor = theme.colorSchemes.dark.palette.primary.solidBg
-    } else {
-        backgroundColor = theme.colorSchemes.dark.palette.primary.solidDisabledBg
-    }
 
     if (doCopy) {
-        tooltipText = "Copy"
+        tooltipText = `Copy "${label}"`
         onClick = (e) => {
             e.stopPropagation()
             navigator.clipboard.writeText(label)
             setSuccess(true)
             setTimeout(() => setSuccess(false), 1000)
         }
-    }
+    } else { tooltipText = `Go to ${label}` }
     let outline
     let bgColor
-    if (dragging && hovering) {
+    if (success) {
+        bgColor = "rgba(5, 125, 5, 1.0)"
         outline = '1px solid #aaaaaa'
+    }
+    else if (alwaysOn) {
+        outline = '1px solid #aaaaaa'
+        bgColor = "rgba(30, 30, 30, 0.5)"
+    }
+    else if (dragging && hovering) {
+        outline = '1px solid #ffffff'
         bgColor = "rgb(30, 30, 90)"
     } else if (dragging) {
-        outline = '1px solid rgb(51, 51, 153)'
+        outline = '1px solid #aaaaaa'
         bgColor = "transparent"
     } else {
         outline = ""
         bgColor = "transparent"
     }
     return (
-        <Tooltip title={success ? "Copied!" : tooltipText} disableInteractive>
+        <Tooltip label={tooltipText} >
             <Box
                 height={"max-content"}
                 flexShrink={1}
@@ -63,7 +63,7 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
                 padding={1}
                 sx={{ ...sx, cursor: "pointer", outline: outline, borderRadius: "5px", backgroundColor: bgColor }}
             >
-                <Text c={'white'} style={{ fontSize: "25px", lineHeight: "1", userSelect: "none" }}>{label}</Text>
+                <Text lineClamp={1} c={'white'} style={{ textOverflow: 'ellipsis', fontSize: `${fontSize}px`, lineHeight: "1", userSelect: "none" }}>{label}</Text>
             </Box>
         </Tooltip >
     )

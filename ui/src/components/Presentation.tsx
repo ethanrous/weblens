@@ -57,7 +57,7 @@ const PresentationVisual = ({ mediaData }) => {
         return (
             <FlexColumnBox style={{ height: "100%", width: "100%" }}>
                 {/* <MediaImage mediaData={mediaData} quality={"thumbnail"} lazy={false} imgStyle={{ objectFit: "contain" }} /> */}
-                <MediaImage mediaData={mediaData} quality={"fullres"} lazy={false} imgStyle={{ objectFit: "contain" }} />
+                <MediaImage mediaData={mediaData} quality={"fullres"} lazy={false} imgStyle={{ objectFit: "contain", maxHeight: "100%", height: "100%" }} />
                 {/* <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} /> */}
                 {/* <StyledMediaImage key={`${mediaData.FileHash} fullres`} mediaData={mediaData} quality={"fullres"} lazy={false} /> */}
             </FlexColumnBox>

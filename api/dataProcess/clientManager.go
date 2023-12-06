@@ -117,11 +117,13 @@ func RemoveSubscription(s SubData, clientId string) {
 	}
 }
 
-func PushItemCreate(file *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
-	PushItemUpdate(file, file, db)
+var updateDb = dataStore.NewDB("")
+
+func PushItemCreate(file *dataStore.WeblensFileDescriptor) {
+	PushItemUpdate(file, file)
 }
 
-func PushItemUpdate(preUpdateFile *dataStore.WeblensFileDescriptor, postUpdateFile *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
+func PushItemUpdate(preUpdateFile *dataStore.WeblensFileDescriptor, postUpdateFile *dataStore.WeblensFileDescriptor) {
 	fileInfo, err := postUpdateFile.FormatFileInfo()
 	if err != nil {
 		util.DisplayError(err, "Failed to push item update for: ", postUpdateFile.String())
@@ -133,21 +135,21 @@ func PushItemUpdate(preUpdateFile *dataStore.WeblensFileDescriptor, postUpdateFi
 	}
 
 	Broadcast("folder", postUpdateFile.ParentFolderId, "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
-	db.RedisCacheBust(postUpdateFile.ParentFolderId)
+	updateDb.RedisCacheBust(postUpdateFile.ParentFolderId)
 
 	// When a file changes directories, we need to alert both the old (here vv ) and new (above ^^) folder subscribers of the change
 	if postUpdateFile.ParentFolderId != preUpdateFile.ParentFolderId {
 		Broadcast("folder", preUpdateFile.ParentFolderId, "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
-		db.RedisCacheBust(preUpdateFile.ParentFolderId)
+		updateDb.RedisCacheBust(preUpdateFile.ParentFolderId)
 	}
 }
 
-func PushItemDelete(file *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
+func PushItemDelete(file *dataStore.WeblensFileDescriptor) {
 	content := map[string]any{"itemId": file.Id()}
 	if file.Err() != nil {
 		util.DisplayError(file.Err(), "Failed to get file Id while trying to push delete")
 		return
 	}
 	Broadcast("folder", file.ParentFolderId, "item_deleted", content)
-	db.RedisCacheBust(file.ParentFolderId)
+	updateDb.RedisCacheBust(file.ParentFolderId)
 }

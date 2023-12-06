@@ -350,6 +350,12 @@ func (m *Media) calculateThumbSize(i image.Image) {
 	m.ThumbWidth = int(newWidth)
 	m.ThumbHeight = int(newHeight)
 
+	// The exif data is read in wrong if the image is rotated, since we rely on the image library to rotate for us when making the thumbnail,
+	// we can assume that the dimentions of the thumbnail are correct. If they are opposite the real media, we swap the real media ones.
+	if (m.ThumbWidth > m.ThumbHeight && m.MediaHeight > m.MediaWidth) || (m.ThumbWidth < m.ThumbHeight && m.MediaHeight < m.MediaWidth) {
+		m.MediaHeight, m.MediaWidth = m.MediaWidth, m.MediaHeight
+	}
+
 }
 
 func (m *Media) GenerateBlurhash(thumb *image.NRGBA) {

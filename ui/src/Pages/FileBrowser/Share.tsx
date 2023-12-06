@@ -1,15 +1,15 @@
 import { Button, Combobox, Loader, Modal, Pill, PillsInput, Space, useCombobox } from "@mantine/core"
-import useR from "../../components/UserInfo"
-import { useEffect, useState } from "react"
+import { useContext, useEffect, useState } from "react"
 import { AutocompleteUsers, ShareFiles } from "../../api/FileBrowserApi"
 import { itemData } from "../../types/Types"
+import { userContext } from "../../Context"
 
 
 function ShareDialogue({ sharing, selectedMap, dirMap, dispatch, authHeader }) {
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     })
-    const { userInfo } = useR()
+    const { userInfo } = useContext(userContext)
     const [userSearch, setUserSearch] = useState(null)
     const [empty, setEmpty] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -64,6 +64,7 @@ function ShareDialogue({ sharing, selectedMap, dirMap, dispatch, authHeader }) {
             >
                 <Combobox.DropdownTarget>
                     <PillsInput
+                        label="People to share with"
                         onClick={() => combobox.openDropdown()}
                         rightSection={loading && <Loader size={18} />}
                         placeholder='Search users to share with'

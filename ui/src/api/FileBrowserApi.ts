@@ -35,6 +35,7 @@ function getSharedWithMe(username, dispatch, authHeader) {
 }
 
 export function GetFolderData(folderId, username, dispatch, navigate, authHeader) {
+    console.log(username)
     if (!folderId) {
         navigate("/files/home")
         return
@@ -91,6 +92,16 @@ export function MoveFile(currentParentId, newParentId, currentFilename, authHead
     url.searchParams.append('newParentId', newParentId)
     url.searchParams.append('currentFilename', currentFilename)
     return fetch(url.toString(), { method: "PUT", headers: authHeader })
+}
+
+export function MoveFiles(files, newParentId, authHeader) {
+    var url = new URL(`${API_ENDPOINT}/files`)
+    const body = {
+        files: files,
+        newParentId: newParentId
+    }
+
+    return fetch(url.toString(), { method: "PUT", headers: authHeader, body: JSON.stringify(body) })
 }
 
 export async function RenameFile(parentId, oldName, newName, authHeader) {

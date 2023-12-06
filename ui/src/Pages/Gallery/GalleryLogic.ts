@@ -9,7 +9,7 @@ export function mediaReducer(state: MediaStateType, action) {
                 mediaMap: action.mediaMap,
                 hasMoreMedia: action.hasMoreMedia,
                 previousLast: action.previousLast,
-                mediaCount: state.mediaCount + action.addedCount
+                mediaCount: state.mediaCount + action.addedCount,
             }
         }
 
@@ -41,7 +41,8 @@ export function mediaReducer(state: MediaStateType, action) {
             }
             return {
                 ...state,
-                maxMediaCount: state.maxMediaCount + action.incBy
+                maxMediaCount: state.maxMediaCount + action.incBy,
+                loading: true
             }
         }
         case 'set_loading': {
@@ -61,7 +62,9 @@ export function mediaReducer(state: MediaStateType, action) {
                 ...state,
                 mediaCount: 0,
                 maxMediaCount: 100,
+                hasMoreMedia: true,
                 previousLast: "",
+                loading: true,
                 includeRaw: !state.includeRaw
             }
         }
@@ -155,7 +158,8 @@ export const useScroll = (hasMoreMedia, dispatch) => {
 }
 
 export function handleScroll(dispatch) {
+    console.log("HERE")
     if (document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 1500) {
-        dispatch({ type: "inc_max_media_count", incBy: 100 })
+
     }
 }

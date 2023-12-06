@@ -204,7 +204,7 @@ func mkDirs(dir *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) {
 		mkDirs(parentDir, db)
 		err := dir.CreateSelf()
 		util.FailOnError(err, "failed to create dir")
-		dataProcess.PushItemCreate(dir, db)
+		dataProcess.PushItemCreate(dir)
 	}
 }
 
@@ -335,7 +335,13 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 		}
 
 		moveOpts := dataStore.MoveOpts().SetSkipMediaMove(true).SetSkipIdRecompute(true)
-		err = tmpFile.MoveTo(destination, moveOpts)
+		err = tmpFile.MoveTo(destination,
+			func(taskType string, taskMeta map[string]any) {
+				dataProcess.RequestTask(taskType, dataProcess.ScanMetadata{
+						File: taskMeta["file"].(*dataStore.WeblensFileDescriptor),
+						Username: taskMeta["username"].(string),
+					})}, moveOpts)
+
 		if err != nil {
 			util.DisplayError(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move tmp file to permenant location"})
@@ -406,10 +412,8 @@ func makeDir(ctx *gin.Context) () {
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.Id(), "alreadyExisted": false})
-	username := ctx.GetString("username")
-	db := dataStore.NewDB(username)
 
-	dataProcess.PushItemCreate(newDir, db)
+	dataProcess.PushItemCreate(newDir)
 }
 
 func createUserHomeDir(username string) {
@@ -505,76 +509,43 @@ func getFile(ctx *gin.Context) {
 }
 
 func updateFile(ctx *gin.Context) {
-	username := ctx.GetString("username")
 	currentParentId := ctx.Query("currentParentId")
 	newParentId := ctx.Query("newParentId")
 	currentFilename := ctx.Query("currentFilename")
-	newFilename := ctx.Query("newFilename")
+	// newFilename := ctx.Query("newFilename")
+	dataProcess.RequestTask("move_file", dataProcess.MoveMeta{ParentFolderId: currentParentId, DestinationFolderId: newParentId, Filename: currentFilename})
+	// err := _updateFile(ctx, currentParentId, newParentId, currentFilename, newFilename, false)
+	// util.DisplayError(err)
+}
 
-	if currentParentId == "" || currentFilename == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Both currentParentId and currentFilename are required"})
-		return
-	}
+type file struct {
+	ParentFolderId string `json:"parentFolderId"`
+	Filename string `json:"filename"`
+}
 
-	if newParentId == "" && newFilename == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "At least one of newParentId or newFilename is required"})
-		return
-	}
+type updateMany struct {
+	Files []file `json:"files"`
+	NewParentId string `json:"newParentId"`
+}
 
-	currentFile := dataStore.GetWFD(currentParentId, currentFilename)
-	if currentFile.Err() != nil {
-		util.DisplayError(currentFile.Err(), currentParentId, currentFilename)
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find existing file"})
-		return
-	}
-
-	if newParentId == "" {
-		newParentId = currentParentId
-	}
-	if newFilename == "" {
-		newFilename = currentFilename
-	}
-
-	opts := dataStore.CreateOpts().SetIgnoreNonexistance(true)
-	destinationFile := dataStore.GetWFD(newParentId, newFilename, opts)
-	if destinationFile.Err() != nil {
-		util.DisplayError(destinationFile.Err())
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not initialize destination file"})
-		return
-	}
-
-	if destinationFile.Exists() {
-		ctx.JSON(http.StatusConflict, gin.H{"error": "Destination file already exists"})
-		return
-	}
-
-	currentFile.Id()
-	preUpdateFile := currentFile.Copy()
-
-	if currentFile.Err() != nil {
-		util.DisplayError(currentFile.Err())
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Unknown Error"})
-		return
-	}
-
-	err := currentFile.MoveTo(destinationFile)
+func updateFiles(ctx *gin.Context) {
+	jsonData, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
-		util.DisplayError(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move file"})
-		return
+		panic(err)
 	}
 
-	db := dataStore.NewDB(username)
-	dataProcess.PushItemUpdate(preUpdateFile, currentFile, db)
+	var filesData updateMany
+	json.Unmarshal(jsonData, &filesData)
 
-	ctx.JSON(http.StatusOK, gin.H{"newItemId": currentFile.Id()})
-
+	for _, file := range filesData.Files {
+		dataProcess.RequestTask("move_file", dataProcess.MoveMeta{ParentFolderId: file.ParentFolderId, DestinationFolderId: filesData.NewParentId, Filename: file.Filename})
+	}
+	ctx.Status(http.StatusOK)
 }
 
 func moveFileToTrash(ctx *gin.Context) {
 	parentId := ctx.Query("parentFolderId")
 	filename := ctx.Query("filename")
-	username := ctx.GetString("username")
 
 	file := dataStore.GetWFD(parentId, filename)
 	if file.Err() != nil {
@@ -597,14 +568,7 @@ func moveFileToTrash(ctx *gin.Context) {
 	}
 	ctx.Status(http.StatusOK)
 
-	dataProcess.PushItemDelete(oldFile, dataStore.NewDB(username))
-	db := dataStore.NewDB(username)
-	db.RedisCacheBust(parentId)
-}
-
-type file struct {
-	ParentFolderId string `json:"parentFolderId"`
-	Filename string `json:"filename"`
+	dataProcess.PushItemDelete(oldFile)
 }
 
 type takeoutItems struct {

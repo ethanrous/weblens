@@ -1,7 +1,7 @@
 import { itemData, FileBrowserStateType } from '../../types/Types'
 import Upload, { fileUploadMetadata } from "../../api/Upload"
 import { Dispatch, DragEvent, useEffect, useState } from 'react'
-import { ChangeOwner, CreateFolder, DeleteFile, MoveFile, downloadSingleItem, downloadTakeout, requestZipCreate } from '../../api/FileBrowserApi'
+import { ChangeOwner, CreateFolder, DeleteFile, MoveFile, MoveFiles, downloadSingleItem, downloadTakeout, requestZipCreate } from '../../api/FileBrowserApi'
 import Item from './FileItem'
 
 import { notifications } from '@mantine/notifications'
@@ -614,11 +614,14 @@ export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<st
 }
 
 export function moveSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, itemData>, destinationId: string, authHeader) {
+    let files = []
     for (const itemKey of selectedMap.keys()) {
         const item = dirMap.get(itemKey)
-        console.log(itemKey, item)
-        MoveFile(item.parentFolderId, destinationId, item.filename, authHeader)
+        if (item) {
+            files.push({ parentFolderId: item.parentFolderId, filename: item.filename })
+        }
     }
+    MoveFiles(files, destinationId, authHeader)
 }
 
 export function changeOwner(dirMap, dispatch, authHeader) {
@@ -631,7 +634,7 @@ export function changeOwner(dirMap, dispatch, authHeader) {
     ChangeOwner(hashesToUpdate, "ethan", authHeader)
 }
 
-export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, authHeader) {
+export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, authHeader, gridRef) {
     let itemsList = MapToList(filebrowserState.dirMap).filter((val) => { return val.filename.toLowerCase().includes(filebrowserState.searchContent.toLowerCase()) })
     let scanRequired = false
 
@@ -656,6 +659,7 @@ export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, au
                 dragging={filebrowserState.draggingState}
                 dispatch={dispatch}
                 authHeader={authHeader}
+                root={gridRef}
             />
         )
     })

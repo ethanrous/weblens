@@ -12,14 +12,14 @@ import (
 )
 
 func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) error {
-	defer util.RecoverPanic("Panic caught while processing media file:")
+	defer util.RecoverPanic("Panic caught while processing media file:", file.String())
 
 	m, _ := db.GetMediaByFile(file, true)
 
 	var parseAnyway bool = false
 	filled, _ := m.IsFilledOut(false)
 	if filled && !parseAnyway {
-		util.Warning.Println("Tried to process media file that already exists in the database")
+		// util.Warning.Println("Tried to process media file that already exists in the database")
 		return nil
 	}
 
@@ -40,7 +40,7 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, db *dataStore.Weble
 
 	// Files that are not "media" (jpeg, png, mov, etc.) should not be stored in the media database
 	if (!m.MediaType.IsDisplayable) {
-		PushItemCreate(file, db)
+		PushItemCreate(file)
 		return nil
 	}
 
@@ -50,12 +50,12 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, db *dataStore.Weble
 	}
 
 	if (m.Owner == "") {
-		m.Owner = file.Owner
+		m.Owner = file.Owner()
 	}
 
 	db.DbAddMedia(&m)
 
-	PushItemCreate(file, db)
+	PushItemCreate(file)
 
 	return nil
 }

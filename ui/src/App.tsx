@@ -122,10 +122,10 @@ const theme = extendTheme({
 });
 
 const WeblensRoutes = () => {
-  const { authHeader, userInfo, setCookie, removeCookie } = useR()
+  const { authHeader, userInfo, setCookie, clear } = useR()
 
   return (
-    <userContext.Provider value={{ authHeader, userInfo, setCookie, removeCookie }}>
+    <userContext.Provider value={{ authHeader, userInfo, setCookie, clear }}>
       <Routes>
         <Route
           path="/"

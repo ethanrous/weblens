@@ -47,10 +47,13 @@ func (f *WeblensFileDescriptor) getMediaType() mediaType {
 		initDisplayMap()
 	}
 	ext := filepath.Ext(f.Filename)
-	if ext == "" {
-		return mediaType{}
+	var mType mediaType
+	if ext == "" || displayableMap[ext[1:]].FriendlyName == "" {
+		mType = mediaTypeMap["generic"]
+	} else {
+		mType = displayableMap[ext[1:]]
 	}
-	return displayableMap[ext[1:]]
+	return mType
 }
 
 func (f *WeblensFileDescriptor) isDisplayable() bool {

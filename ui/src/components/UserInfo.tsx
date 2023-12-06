@@ -8,27 +8,32 @@ const useR = () => {
     const [cookies, setCookie, removeCookie] = useCookies(['weblens-username', 'weblens-login-token'])
     const [authHeader, setAuthHeader] = useState<{ "Authorization": string }>({ "Authorization": "" })
     const [userInfo, setUserInfo] = useState(null)
+    const clear = () => {
+        setAuthHeader({ "Authorization": "" })
+        setUserInfo(null)
+        removeCookie("weblens-username")
+        removeCookie("weblens-login-token")
+    }
 
     useEffect(() => {
         if (authHeader.Authorization === "" && cookies['weblens-username'] && cookies['weblens-login-token']) {
             // Auth header unset, but the cookies are ready
             setAuthHeader({ "Authorization": `${cookies['weblens-username']},${cookies['weblens-login-token']}` })
-        } else if (authHeader.Authorization != "" && (!userInfo || Object.keys(userInfo).length === 0)) {
+        } else if (authHeader.Authorization !== "" && (!userInfo || Object.keys(userInfo).length === 0)) {
             // Auth header set, but no user data, go get the user data
-            try {
-                let url = new URL(`${API_ENDPOINT}/user`)
-                fetch(url.toString(), { headers: authHeader })
-                    .then(res => res.json())
-                    .then(json => { setUserInfo(json) })
-                // .catch(r => { console.log("useR naving", r); nav("/login", { state: { doLogin: false } }) })
-            } catch {
-                console.error("Failed to get user data outside promise")
-            }
+
+            let url = new URL(`${API_ENDPOINT}/user`)
+            fetch(url.toString(), { headers: authHeader })
+                .then(res => res.json())
+                .then(json => { setUserInfo(json) })
+            // .catch(r => { console.log("useR naving", r); nav("/login", { state: { doLogin: false } }) })
+
         } else if (authHeader.Authorization === "") {
-            // nav("/login", { state: { doLogin: false } })
+            nav("/login")
         }
     }, [authHeader, cookies])
-    return { authHeader, userInfo, setCookie, removeCookie }
+
+    return { authHeader, userInfo, setCookie, clear }
 }
 
 export default useR

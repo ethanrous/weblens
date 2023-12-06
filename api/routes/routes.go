@@ -96,6 +96,8 @@ func AddApiRoutes(r *gin.Engine) {
 	api.PUT("/file", updateFile)
 	api.DELETE("/file", moveFileToTrash)
 
+	api.PUT("/files", updateFiles)
+
 	api.GET("/download", downloadSingleFile)
 
 	api.GET("/takeout/:takeoutId", getTakeout)

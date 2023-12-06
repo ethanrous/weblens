@@ -7,21 +7,23 @@ import { AspectRatio, Tooltip } from "@mantine/core"
 import { itemData } from "../../types/Types"
 import { useNavigate } from "react-router-dom"
 
-export const FlexColumnBox = ({ children, style }: { children, style?: MantineStyleProp }) => {
+export const FlexColumnBox = ({ children, style, alignOverride }: { children, style?: MantineStyleProp, alignOverride?: string }) => {
+    let align = alignOverride || "center"
     return (
         <Box
             children={children}
+            draggable={false}
             style={{
-                ...style,
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center"
+                alignItems: align,
+                ...style,
             }}
         />
     )
 }
 
-export const FlexRowBox = ({ children, ...style }) => {
+export const FlexRowBox = ({ children, style }: { children, style: MantineStyleProp }) => {
     return (
         <Box
             children={children}
@@ -101,9 +103,10 @@ export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, on
     )
 }
 
-export const DirItemsWrapper = ({ children }) => {
+export const DirItemsWrapper = ({ reff, children }) => {
     return (
         <Box
+            ref={reff}
             children={children}
             style={{
                 display: 'grid',
@@ -139,26 +142,28 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
     } else {
         backgroundColor = theme.colorSchemes.dark.palette.primary.solidDisabledBg
     }
+
     return (
-        <Tooltip openDelay={500} label={itemData.filename}>
-        <Box ref={itemRef}>
+        <Box draggable={false} ref={itemRef}>
             <Card
-                    {...children}
-                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'reject_edit' }); if (!itemData.imported && !itemData.isDir) { return } dispatch({ type: 'set_selected', itemId: itemData.id }) }}
-                    onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itemId: itemData.id }) }}
-                    onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
-                    onMouseDown={() => { setMouseDown(true) }}
-                    onDoubleClick={(e) => { e.stopPropagation(); if (itemData.isDir) { navigate(itemData.id) } else if (itemData.mediaData.MediaType.IsDisplayable) { dispatch({ type: 'set_presentation', presentingId: itemData.id }) } }}
-                    onMouseLeave={() => {
-                        setHovering(false);
-                        if (!itemData.imported && !itemData.isDir) { return }
-                        if (!selected && mouseDown) { dispatch({ type: "clear_selected" }) }
-                        if (mouseDown) {
-                            dispatch({ type: 'set_selected', itemId: itemData.id, selected: true })
-                            dispatch({ type: 'set_dragging', dragging: true })
-                            setMouseDown(false)
-                        }
-                    }}
+                {...children}
+                draggable={false}
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'reject_edit' }); dispatch({ type: 'set_selected', itemId: itemData.id }) }}
+                onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itemId: itemData.id }) }}
+                onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
+                onMouseDown={() => { setMouseDown(true) }}
+                onDoubleClick={(e) => { e.stopPropagation(); if (itemData.isDir) { navigate(itemData.id) } else if (itemData.mediaData.MediaType.IsDisplayable) { dispatch({ type: 'set_presentation', presentingId: itemData.id }) } }}
+                onContextMenu={(e) => { e.preventDefault() }}
+                onMouseLeave={() => {
+                    setHovering(false)
+                    if (!itemData.imported && !itemData.isDir) { return }
+                    if (!selected && mouseDown) { dispatch({ type: "clear_selected" }) }
+                    if (mouseDown) {
+                        dispatch({ type: 'set_selected', itemId: itemData.id, selected: true })
+                        dispatch({ type: 'set_dragging', dragging: true })
+                        setMouseDown(false)
+                    }
+                }}
                 variant='solid'
                 sx={{
                     // internal
@@ -181,14 +186,13 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
 
                     // other
                     position: 'relative',
-                    cursor: 'pointer'
+                    cursor: (dragging !== 0 && !isDir) ? 'default' : 'pointer'
                 }}
             />
-                {(selected && dragging != 0) && (
-                    <Box h={'100%'} w={'100%'} style={{ backdropFilter: 'blur(2px)', backgroundColor: "#ffffff22", transform: 'translateY(-100%)', borderRadius: '10px' }} />
+            {(selected && dragging !== 0) && (
+                <Box h={'100%'} w={'100%'} style={{ backgroundColor: "#ffffff22", transform: 'translateY(-100%)', borderRadius: '10px' }} />
             )}
         </Box>
-        </Tooltip>
     )
 }
 

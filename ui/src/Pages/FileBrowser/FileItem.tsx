@@ -12,7 +12,7 @@ import { itemData } from '../../types/Types'
 import { useSnackbar } from 'notistack'
 import { useIsVisible } from '../../components/PhotoContainer'
 import { IconFileZip, IconFolder } from '@tabler/icons-react'
-import { Center, Skeleton, Text } from '@mantine/core'
+import { Center, Skeleton, Text, Tooltip } from '@mantine/core'
 
 function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, newName, imported, authHeader) {
 
@@ -40,14 +40,14 @@ function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, new
     return () => { window.removeEventListener('keydown', keyDownHandler) }
 }
 
-const ItemVisualComponent = ({ itemData }: { itemData: itemData }) => {
+const ItemVisualComponent = ({ itemData, root }: { itemData: itemData, root }) => {
     const sqareSize = "75%"
     const type = itemData.mediaData?.MediaType.FriendlyName
     const displayable = itemData.mediaData?.MediaType.IsDisplayable
     if (itemData.isDir) {
         return (<IconFolder style={{ width: sqareSize, height: sqareSize }} />)
     } else if (displayable) {
-        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} />)
+        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} root={root} />)
     } else if (type === "File") {
         return (<InsertDriveFileIcon style={{ width: sqareSize, height: sqareSize }} />)
     } else if (type === "Zip") {
@@ -86,6 +86,7 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: item
 
     if (editing) {
         return (
+
             <FormControl style={{ width: "100%", height: "30px", bottom: "5px" }} >
                 <Input
                     slotProps={{ input: { ref: editRef } }}
@@ -101,35 +102,37 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: item
     } else {
         const [sizeValue, units] = humanFileSize(itemData.size, true)
         return (
-            <Box
-                display={"flex"}
-                flexDirection={"column"}
-                justifyContent={"center"}
-                alignItems={"center"}
+            <Tooltip openDelay={300} label={itemData.filename}>
+                <Box
+                    display={"flex"}
+                    flexDirection={"column"}
+                    justifyContent={"center"}
+                    alignItems={"center"}
 
-                width={"100%"}
-                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: itemData.id }) }}
-                sx={{ cursor: 'text' }}
-            >
-                <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"} height={"30px"}>
-                    <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{itemData.filename} </Typography>
-                    <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
-                    <Box display={"flex"} flexDirection={'column'} alignContent={'center'} alignItems={'center'} >
-                        <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
-                        <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Typography>
+                    width={"100%"}
+                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: itemData.id }) }}
+                    sx={{ cursor: 'text' }}
+                >
+                    <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"} height={"30px"}>
+                        <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{itemData.filename} </Typography>
+                        <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
+                        <Box display={"flex"} flexDirection={'column'} alignContent={'center'} alignItems={'center'} >
+                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
+                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Typography>
+                        </Box>
                     </Box>
                 </Box>
-            </Box>
+            </Tooltip>
         )
     }
 }
 
-const Item = memo(({ itemData, selected, moveSelected, editing, dragging, dispatch, authHeader }: { itemData: itemData, selected: boolean, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any }) => {
+const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, dispatch, authHeader }: { itemData: itemData, selected: boolean, root, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any }) => {
     const [hovering, setHovering] = useState(false)
     const [renameVal, setRenameVal] = useState("")
     const { enqueueSnackbar } = useSnackbar()
     const itemRef = useRef()
-    const isVisible = useIsVisible(itemRef, false)
+    const isVisible = useIsVisible(root, itemRef, false)
 
     useEffect(() => {
         dispatch({ type: "set_visible", item: itemData.id, visible: isVisible })
@@ -154,7 +157,7 @@ const Item = memo(({ itemData, selected, moveSelected, editing, dragging, dispat
             dragging={dragging}
         >
             <ItemVisualComponentWrapper>
-                <ItemVisualComponent itemData={itemData} />
+                <ItemVisualComponent itemData={itemData} root={root} />
             </ItemVisualComponentWrapper>
 
             <TextBox itemData={itemData} editing={editing} setRenameVal={setRenameVal} dispatch={dispatch} />

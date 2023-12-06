@@ -14,6 +14,7 @@ const ThumbnailContainer = ({ reff, style, children }) => {
     return (
         <Box
             ref={reff}
+            draggable={false}
             style={{
                 ...style,
             // height: 'max-content',
@@ -33,22 +34,26 @@ const ThumbnailContainer = ({ reff, style, children }) => {
 
 //Components
 
-
-export function useIsVisible(ref, maintained: boolean) {
-    const [isIntersecting, setIntersecting] = useState(false);
-
+export function useIsVisible(root, ref, maintained: boolean = false, margin: number = 100, thresh: number = 0.0) {
+    const [isVisible, setIsVisible] = useState(false)
+    const visibleRef = useRef(false)
     useEffect(() => {
         if (!ref.current) {
             return
         }
-        let options = {
-            rootMargin: "1000px"
+        let options: IntersectionObserverInit = {
+            root: root?.current || null,
+            rootMargin: `${margin}px`,
+            threshold: thresh
         }
+
         const observer = new IntersectionObserver(([entry]) => {
             if (maintained && entry.isIntersecting) {
-                setIntersecting(true)
+                visibleRef.current = entry.isIntersecting
+                setIsVisible(entry.isIntersecting)
             } else if (!maintained) {
-                setIntersecting(entry.isIntersecting)
+                visibleRef.current = entry.isIntersecting
+                setIsVisible(entry.isIntersecting)
             }
 
         }, options)
@@ -57,20 +62,19 @@ export function useIsVisible(ref, maintained: boolean) {
         return () => {
             observer.disconnect();
         };
-    }, [ref]);
+    }, [ref.current]);
 
-    return isIntersecting;
+    return { isVisible: isVisible, visibleStateRef: visibleRef };
 }
 
-function getImageData(url, authHeader, setImgData, setImgLoaded, setLoadErr) {
-    fetch(url, { headers: authHeader }).then(res => res.blob()).then((blob) => {
+function getImageData(url, filehash, authHeader, signal) {
+    return fetch(url, { headers: authHeader, signal }).then(res => res.blob()).then((blob) => {
         if (blob.length === 0) {
             Promise.reject("Empty blob")
         }
-        setImgData(URL.createObjectURL(blob))
-        setImgLoaded(true)
+        return { data: URL.createObjectURL(blob), hash: filehash }
     }).catch((r) => {
-        setLoadErr(true)
+        if (!signal.aborted)
         console.error("Failed to get image from server: ", r)
     })
 }
@@ -81,17 +85,24 @@ export const MediaImage = ({
     lazy,
     containerStyle,
     imgStyle,
-}: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean, containerStyle?: any, imgStyle?: MantineStyleProp }
+    root
+}: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean, containerStyle?: any, imgStyle?: MantineStyleProp, root?}
 ) => {
-    const [thumbLoaded, setThumbLoaded] = useState(false)
-    const [fullresLoaded, setFullresLoaded] = useState(false)
+    const [loaded, setLoaded] = useState(false)
     const [loadError, setLoadErr] = useState(false)
     const { authHeader } = useContext(userContext)
-    const [thumbData, setThumbData] = useState("")
-    const [fullresData, setFullresData] = useState("")
+    const [imgData, setImgData] = useState(null)
 
-    const ref = useRef()
-    const isVisible = useIsVisible(ref, true)
+    const [thumbPromise, setThumbPromise] = useState(null)
+    const [fullresPromise, setFullresPromise] = useState(null)
+
+    const visibleRef = useRef()
+    const { isVisible, visibleStateRef } = useIsVisible(root, visibleRef, false, 1000, 0)
+
+    const hashRef = useRef("")
+
+    const abortController = new AbortController();
+    const signal = abortController.signal;
 
     const thumbUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
     thumbUrl.searchParams.append("thumbnail", "true")
@@ -99,50 +110,66 @@ export const MediaImage = ({
     fullresUrl.searchParams.append("fullres", "true")
 
     useEffect(() => {
-        setThumbData("")
-        setFullresData("")
-        setThumbLoaded(false)
-        setFullresLoaded(false)
+        setImgData(null)
+        setThumbPromise(null)
+        setFullresPromise(null)
+        setLoaded(false)
+        hashRef.current = mediaData.FileHash
     }, [mediaData.FileHash])
 
+    thumbPromise?.then((res) => {
+        if (res && res.data && res.hash === hashRef.current && !loaded && !imgData && !loadError) {
+            setImgData(res.data)
+            if (quality === "thumbnail") {
+                setLoaded(true)
+            }
+        } else if (res === undefined) {
+            setThumbPromise(null)
+        }
+    })
+    fullresPromise?.then((res) => {
+        if (res && res.data && res.hash === hashRef.current && !loaded && !loadError) {
+            setImgData(res.data)
+            setLoaded(true)
+        } else if (res === undefined) {
+            setFullresPromise(null)
+        }
+    })
+
     useEffect(() => {
-        console.log(thumbUrl)
-        if (!mediaData.FileHash) {
-            console.error("LOAD ERR")
+        if (hashRef.current === "") {
             setLoadErr(true)
-        } else if (isVisible && !thumbData && !fullresData) {
-            console.log("GETTIN")
-            getImageData(thumbUrl, authHeader, setThumbData, setThumbLoaded, setLoadErr)
+        } else if (isVisible && !thumbPromise && !fullresPromise) {
+            setThumbPromise(getImageData(thumbUrl, mediaData.FileHash, authHeader, signal))
             if (quality === "fullres") {
-                getImageData(fullresUrl, authHeader, setFullresData, setFullresLoaded, setLoadErr)
+                setFullresPromise(getImageData(fullresUrl, mediaData.FileHash, authHeader, signal))
             }
         }
-    }, [isVisible, thumbData, thumbUrl.toString()])
-
-    if (quality === "fullres") {
-        console.log(!lazy, isVisible, !fullresLoaded, !loadError)
-    }
+        return () => {
+            if (!visibleStateRef.current || mediaData.FileHash !== hashRef.current) {
+                abortController.abort()
+            }
+        }
+    }, [isVisible, hashRef.current])
 
     return (
         <FlexColumnBox style={{ height: "100%", width: "100%" }}>
-            <ThumbnailContainer reff={ref} style={containerStyle} >
+            <ThumbnailContainer reff={visibleRef} style={containerStyle} >
                 {(isVisible && loadError) && (
                     <IconExclamationCircle color="red" style={{ position: 'absolute' }} />
                 )}
 
-                {(!lazy && isVisible && !fullresLoaded && !loadError) && (
+                {(!lazy && isVisible && !loaded && !loadError) && (
                     <Loader color="white" bottom={40} right={40} size={20} style={{ position: 'absolute' }} />
                 )}
 
-                {/* <AspectRatio ratio={mediaData.MediaWidth / mediaData.MediaHeight} maw={"100%"} mah={"100%"}> */}
-
                 <Image
                     draggable={false}
-                    src={fullresData ? fullresData : thumbData}
-                    style={{ ...imgStyle, position: 'relative', display: (fullresData || thumbData) ? "block" : "none", userSelect: 'none', maxWidth: "100%" }}
+                    src={imgData}
+                    style={{ position: 'relative', display: imgData ? "block" : "none", userSelect: 'none', ...imgStyle }}
                 />
 
-                {isVisible && mediaData.BlurHash && lazy && !thumbData && !fullresLoaded && (
+                {isVisible && mediaData.BlurHash && lazy && !imgData && (
                     <Blurhash
                         style={{ position: "absolute" }}
                         height={250}
@@ -150,8 +177,6 @@ export const MediaImage = ({
                         hash={mediaData.BlurHash}
                     />
                 )}
-
-                {/* </AspectRatio> */}
 
         </ThumbnailContainer >
         </FlexColumnBox>

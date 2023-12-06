@@ -121,7 +121,7 @@ func (f *WeblensFileDescriptor) FormatFileInfo() (FileInfo, error) {
 			m.MediaType = mt
 		}
 
-		formattedInfo = FileInfo{Id: f.Id(), Imported: imported, IsDir: *f.isDir, Size: int(f.Size()), ModTime: f.ModTime(), Filename: f.Filename, ParentFolderId: f.ParentFolderId, MediaData: m, Owner: f.Owner}
+		formattedInfo = FileInfo{Id: f.Id(), Imported: imported, IsDir: *f.isDir, Size: int(f.Size()), ModTime: f.ModTime(), Filename: f.Filename, ParentFolderId: f.ParentFolderId, MediaData: m, Owner: f.owner}
 	} else {
 		return formattedInfo, fmt.Errorf("filename in blocklist")
 	}
@@ -265,7 +265,7 @@ type WeblensFileDescriptor struct {
 	id string
 	ParentFolderId string
 	Filename string
-	Owner string
+	owner string
 
 	isDir *bool
 	absolutePath string
@@ -280,7 +280,7 @@ var mediaRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	id: "0",
 	ParentFolderId: "0",
 	Filename: "MEDIA_ROOT",
-	Owner: "SYS",
+	owner: "SYS",
 
 	isDir: boolPointer(true),
 	absolutePath: util.GetMediaRoot(),
@@ -290,7 +290,7 @@ var tmpRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	id: "1",
 	ParentFolderId: "1",
 	Filename: "TMP_ROOT",
-	Owner: "SYS",
+	owner: "SYS",
 
 	isDir: boolPointer(true),
 	absolutePath: util.GetTmpDir(),
@@ -300,7 +300,7 @@ var trashRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	id: "2",
 	ParentFolderId: "2",
 	Filename: "TRASH_ROOT",
-	Owner: "SYS",
+	owner: "SYS",
 
 	isDir: boolPointer(true),
 	absolutePath: util.GetTrashDir(),
@@ -310,7 +310,7 @@ var takeoutRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	id: "3",
 	ParentFolderId: "3",
 	Filename: "TAKEOUT_ROOT",
-	Owner: "SYS",
+	owner: "SYS",
 
 	isDir: boolPointer(true),
 	absolutePath: util.GetTakeoutDir(),
@@ -369,7 +369,7 @@ func (f *WeblensFileDescriptor) CreateGhostChild(childFilename string) *WeblensF
 
 	ghostChild.absolutePath = filepath.Join(f.absolutePath, childFilename)
 	ghostChild.ParentFolderId = f.Id()
-	ghostChild.Owner = f.Owner
+	ghostChild.owner = f.owner
 	ghostChild.Filename = childFilename
 
 	return ghostChild
@@ -384,8 +384,8 @@ func (f *WeblensFileDescriptor) init(opts... *WFDCreateOptions) {
 	if f.Filename == "" {
 		f.Filename = filepath.Base(f.absolutePath)
 	}
-	if f.Owner == "" {
-		f.Owner = GetOwnerFromFilepath(f.absolutePath)
+	if f.owner == "" {
+		f.owner = GetOwnerFromFilepath(f.absolutePath)
 	}
 
 	opt := mergeCreateOpts(opts...)
@@ -491,6 +491,13 @@ func (f *WeblensFileDescriptor) Id() string {
 // Returns string of absolute path to file
 func (f *WeblensFileDescriptor) String() string {
 	return f.absolutePath
+}
+
+func (f *WeblensFileDescriptor) Owner() string {
+	if f.owner == "" {
+		f.owner = GetOwnerFromFilepath(f.absolutePath)
+	}
+	return f.owner
 }
 
 func (f *WeblensFileDescriptor) GetMedia() (Media, error) {
@@ -633,7 +640,7 @@ func (f *WeblensFileDescriptor) CreateSelf() error {
 	return nil
 }
 
-func (f *WeblensFileDescriptor) MoveTo(destination *WeblensFileDescriptor, opts... *WFDMoveOptions) error {
+func (f *WeblensFileDescriptor) MoveTo(destination *WeblensFileDescriptor, tasker func(string, map[string]any), opts... *WFDMoveOptions) error {
 	if !f.Exists() {
 		return fmt.Errorf("file does not exist")
 	}
@@ -648,23 +655,22 @@ func (f *WeblensFileDescriptor) MoveTo(destination *WeblensFileDescriptor, opts.
 		return err
 	}
 
-	f.absolutePath = destination.absolutePath
-	f.Filename = filepath.Base(f.absolutePath)
-
-	f.id = ""
-
-	if f.IsDir() {
+	if destination.IsDir() {
 		// Remove old directory from database
 		err := fddb.deleteDirectory(f.Id())
 		if err != nil {
 			return err
 		}
 
-	} else if f.isDisplayable() && !*opt.SkipMediaMove {
+	} else if f.isDisplayable() && destination.isDisplayable() && !*opt.SkipMediaMove {
 		err := fddb.HandleMediaMove(f, destination)
 		if err != nil {
 			return err
 		}
+	} else if f.isDisplayable() && !destination.isDisplayable() {
+		fddb.RemoveMediaByFilepath(f.ParentFolderId, f.Filename)
+	} else if !f.isDisplayable() && destination.isDisplayable() {
+		tasker("scan_file", map[string]any{"file": destination, "username": destination.Owner()})
 	}
 
 	f.ParentFolderId = destination.ParentFolderId
@@ -672,6 +678,8 @@ func (f *WeblensFileDescriptor) MoveTo(destination *WeblensFileDescriptor, opts.
 	if !*opt.SkipIdRecompute {
 		f.Id()
 	}
+
+	*f = *destination
 
 	return f.Err()
 }
@@ -734,7 +742,7 @@ func (f *WeblensFileDescriptor) Rename(newName string) error {
 }
 
 func (f *WeblensFileDescriptor) UserCanAccess(username string) bool {
-	if (f.Owner == username) {
+	if (f.owner == username) {
 		return true
 	}
 	return fddb.CanUserAccess(f, username)

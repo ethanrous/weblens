@@ -1,9 +1,10 @@
-import { Box, Button, Input, Sheet, Typography, useTheme } from '@mui/joy'
+import { Box, useTheme } from '@mui/joy'
 import { useContext, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../../api/ApiFetch'
 import { userContext } from '../../Context'
 import { notifications } from '@mantine/notifications'
+import { Button, Fieldset, Space, Tabs, TextInput } from '@mantine/core'
 
 function CheckCreds(username, password, setCookie, nav) {
     login(username, password)
@@ -21,9 +22,9 @@ function CheckCreds(username, password, setCookie, nav) {
 const Login = () => {
     const [userInput, setUserInput] = useState("")
     const [passInput, setPassInput] = useState("")
+    const [tab, setTab] = useState("login")
     const nav = useNavigate()
     const loc = useLocation()
-    const theme = useTheme()
     const { authHeader, setCookie } = useContext(userContext)
 
     useEffect(() => {
@@ -36,49 +37,32 @@ const Login = () => {
         <Box height={"100vh"} width={"100vw"} display={"flex"} justifyContent={"center"} alignItems={"center"}
             sx={{ background: "linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%);" }}
         >
-            <Sheet
-                sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    padding: "20px",
-                    bgcolor: `rgba(${theme.colorSchemes.dark.palette.primary.solidBg} / 0.5)`,
-                    backdropFilter: "blur(8px)",
-                    borderRadius: "8px"
-                }}
-            >
-                <Typography color={'primary'} component={'h1'} fontSize={30} style={{ marginTop: -100, marginBottom: 50 }}>
-                    Weblens
-                </Typography>
-                <Input
-                    sx={{ backgroundColor: '#00000000' }}
-                    placeholder='Username'
-                    onChange={(e) => setUserInput(e.target.value)}
-                />
-                <Input
-                    sx={{ backgroundColor: '#00000000' }}
-                    placeholder='Password'
-                    type="password"
-                    onChange={(e) => setPassInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { CheckCreds(userInput, passInput, setCookie, nav) } }}
-                />
-                <Button
-                    sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, ":hover": { backgroundColor: (theme) => theme.palette.primary.solidActiveBg } }}
-                    style={{ height: "40px", width: "150px", margin: 10 }}
-                    onClick={() => { CheckCreds(userInput, passInput, setCookie, nav) }}
-                >
-                    Log in
-                </Button>
-                <Typography textColor={'white'} > or </Typography>
-                <Button
-                    sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, ":hover": { backgroundColor: (theme) => theme.palette.primary.solidActiveBg } }}
-                    style={{ height: "40px", width: "150px", margin: 10 }}
-                    onClick={() => nav("/signup")}
-                >
-                    Sign Up
-                </Button>
-            </Sheet>
+            <Tabs value={tab} onChange={setTab} variant="pills">
+                <Tabs.List grow>
+                    <Tabs.Tab value="login" >
+                        Login
+                    </Tabs.Tab>
+                    <Tabs.Tab value="signup" >
+                        Sign Up
+                    </Tabs.Tab>
+                </Tabs.List>
+                <Tabs.Panel value="login">
+                    <Fieldset>
+                        <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
+                        <TextInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
+                        <Space h={'md'} />
+                        <Button fullWidth onClick={() => CheckCreds(userInput, passInput, setCookie, nav)}>Login</Button>
+                    </Fieldset >
+                </Tabs.Panel>
+                <Tabs.Panel value="signup">
+                    <Fieldset>
+                        <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
+                        <TextInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
+                        <Space h={'md'} />
+                        <Button fullWidth>Sign Up</Button>
+                    </Fieldset >
+                </Tabs.Panel>
+            </Tabs>
         </Box>
     )
 }

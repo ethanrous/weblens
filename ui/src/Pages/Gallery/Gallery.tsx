@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useMemo, useRef, useContext } from 'react'
+import { useEffect, useReducer, useMemo, useRef, useContext, useState } from 'react'
 
 import HeaderBar from "../../components/HeaderBar"
 import Presentation from '../../components/Presentation'
@@ -10,10 +10,13 @@ import useWeblensSocket from '../../api/Websocket'
 import { StyledBreadcrumb } from '../../components/Crumbs'
 import { userContext } from '../../Context'
 
-import { Divider, Sheet, Button, Box, ToggleButtonGroup, Typography, useTheme, styled, IconButton } from '@mui/joy'
+import { Divider, Sheet, Button, Box, Typography, useTheme, styled, IconButton } from '@mui/joy'
 import { useNavigate } from 'react-router-dom'
 import { useSnackbar } from 'notistack'
 import { RawOn } from '@mui/icons-material'
+import { Center, Loader } from '@mantine/core'
+import { FlexRowBox } from '../FileBrowser/FilebrowserStyles'
+import { useIsVisible } from '../../components/PhotoContainer'
 
 // styles
 
@@ -75,12 +78,28 @@ const Sidebar = ({ rawSelected, itemCount, dispatch }) => {
     )
 }
 
-const InfiniteScroll = ({ items, itemCount, loading, moreItems }: { items: any, itemCount: number, loading: boolean, moreItems: boolean }) => {
+function InfiniteScroll({ scrollerRef, items, itemCount, loading, moreItems, onBottom, onNoLongerBottom }: { scrollerRef, items, itemCount: number, loading: boolean, moreItems: boolean, onBottom: () => void, onNoLongerBottom?: () => void }) {
+    const loaderRef = useRef(null)
+    const { isVisible, visibleStateRef } = useIsVisible(scrollerRef, loaderRef, false, 1000, 0.5)
+    useEffect(() => {
+        if (visibleStateRef.current && !loading) {
+            onBottom()
+        }
+        if (loading && !visibleStateRef.current && onNoLongerBottom) {
+            onNoLongerBottom()
+        }
+    }, [isVisible, loading])
+
     return (
-        <Box flexDirection={"column"} width={"105%"} pr={"55px"} style={{ height: "calc(100vh - 110px)", overflowY: 'scroll', borderRadius: "15px" }}>
+        <Box ref={scrollerRef} flexDirection={"column"} width={"105%"} pr={"55px"} style={{ height: "calc(100vh - 110px)", overflow: 'scroll', borderRadius: "15px" }}>
             {items}
-            {itemCount == 0 && (
+            {itemCount === 0 && (
                 <NoMediaDisplay loading={loading} />
+            )}
+            {moreItems && (
+                <Center ref={loaderRef} style={{ height: '100px', width: "100%" }}>
+                    <Loader color={"white"} bottom={10} />
+                </Center>
             )}
             {!moreItems && (
                 <Typography color={'neutral'} style={{ textAlign: "center", paddingTop: "80px", paddingBottom: "10px" }}> Wow, you scrolled this whole way? </Typography>
@@ -131,18 +150,17 @@ const Gallery = () => {
         presentingHash: "",
         previousLast: "",
         includeRaw: false,
-        loading: false,
+        loading: true,
         scanProgress: 0,
         searchContent: ""
     })
 
     const nav = useNavigate()
     const { enqueueSnackbar } = useSnackbar()
-    const { wsSend, lastMessage, readyState } = useWeblensSocket()
+    const { wsSend, lastMessage } = useWeblensSocket()
 
     const searchRef = useRef()
     useKeyDown(searchRef)
-    useScroll(mediaState.hasMoreMedia, dispatch)
     useEffect(() => { FetchData(mediaState, dispatch, nav, authHeader) }, [mediaState.maxMediaCount, mediaState.includeRaw, authHeader])
     useEffect(() => { handleWebsocket(lastMessage, dispatch, enqueueSnackbar) }, [lastMessage])
 
@@ -171,31 +189,33 @@ const Gallery = () => {
         return dateMap
     }, [mediaState.mediaMap.size])
 
+    const scrollerRef = useRef(null)
+
     const [dateGroups, numShownItems]: [JSX.Element[], number] = useMemo(() => {
-        if (!dateMap) { return [[], 0] }
+        if (!dateMap || !scrollerRef?.current) { return [[], 0] }
         let counter = 0
         const buckets = Array.from(dateMap.keys()).map((date) => {
             const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.Filename.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
             if (items.length == 0) { return null }
             counter += items.length
-            return (<GalleryBucket key={date} date={date} bucketData={items} dispatch={dispatch} />)
+            return (<GalleryBucket key={date} date={date} bucketData={items} scrollerRef={scrollerRef} dispatch={dispatch} />)
         })
 
         return [buckets, counter]
-    }, [dateMap, mediaState.searchContent])
+    }, [dateMap, scrollerRef.current, mediaState.searchContent])
 
     return (
         <Box>
             <HeaderBar folderId={"home"} searchContent={mediaState.searchContent} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
 
             <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} parents={null} dispatch={dispatch} />
-            <Box display={'flex'} flexDirection={'row'} width={"100%"} minHeight={"50vh"} justifyContent={'space-evenly'} pt={"70px"}>
+            <FlexRowBox style={{ width: "100%", minHeight: "50vh", justifyContent: 'space-evenly', paddingTop: "70px" }}>
                 <Sidebar rawSelected={mediaState.includeRaw} itemCount={numShownItems} dispatch={dispatch} />
                 <Box width={'90%'} style={{ justifyContent: "center", paddingTop: "25px", paddingRight: mediaState.presentingHash == "" ? "30px" : "46px" }}>
-                    <InfiniteScroll items={dateGroups} itemCount={mediaState.mediaCount} loading={mediaState.loading} moreItems={mediaState.hasMoreMedia} />
+                    <InfiniteScroll scrollerRef={scrollerRef} items={dateGroups} itemCount={mediaState.mediaCount} loading={mediaState.loading} moreItems={mediaState.hasMoreMedia} onBottom={() => { dispatch({ type: "inc_max_media_count", incBy: 100 }) }} onNoLongerBottom={() => dispatch({ type: "set_loading", loading: false })} />
                 </Box>
-            </Box>
-        </Box>
+            </FlexRowBox>
+        </Box >
     )
 }
 

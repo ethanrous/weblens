@@ -2,27 +2,10 @@ package dataProcess
 
 import (
 	"encoding/json"
-	"runtime"
-	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/util"
 )
-
-type taskTracker struct {
-	taskMu sync.Mutex
-	taskMap map[string]*Task
-	wp WorkerPool
-}
-
-type Task struct {
-	TaskId string
-	Completed bool
-
-	taskType string
-	metadata any
-	result map[string]string
-}
 
 var ttInstance taskTracker
 
@@ -38,8 +21,9 @@ func taskWorkerPoolStatus() {
 
 func verifyTaskTracker() {
 	if ttInstance.taskMap == nil {
-		ttInstance.taskMap = map[string]*Task{}
-		ttInstance.wp = NewWorkerPool(runtime.NumCPU()/2)
+		ttInstance.taskMap = map[string]*task{}
+		// ttInstance.wp = NewWorkerPool(runtime.NumCPU()/2)
+		ttInstance.wp = NewWorkerPool(20)
 		ttInstance.wp.Run()
 		go taskWorkerPoolStatus()
 	}
@@ -47,7 +31,7 @@ func verifyTaskTracker() {
 
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
-func RequestTask(taskType string, taskMeta any) *Task {
+func RequestTask(taskType string, taskMeta any) *task {
 	verifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
@@ -60,7 +44,7 @@ func RequestTask(taskType string, taskMeta any) *Task {
 	if ok {
 	 	return existingTask
 	}
-	newTask := &Task{TaskId: taskId, taskType: taskType, metadata: taskMeta}
+	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta}
 
 	ttInstance.taskMap[taskId] = newTask
 	queueTask(newTask)
@@ -68,33 +52,33 @@ func RequestTask(taskType string, taskMeta any) *Task {
 	return newTask
 }
 
-func (t *Task) ClearAndRecompute() {
+func (t *task) ClearAndRecompute() {
 	for k := range t.result {
 		delete(t.result, k)
 	}
 	queueTask(t)
 }
 
-func GetTask(taskId string) *Task {
+func GetTask(taskId string) *task {
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()
 	return ttInstance.taskMap[taskId]
 }
 
-func (t *Task) GetResult(resultKey string) string {
+func (t *task) GetResult(resultKey string) string {
 	if t.result == nil {
 		return ""
 	}
 	return t.result[resultKey]
 }
 
-func (t *Task) setComplete(broadcastType, messageStatus string) {
+func (t *task) setComplete(broadcastType, messageStatus string) {
 	t.Completed = true
 	util.Debug.Println("Task complete, broadcasting")
 	Broadcast(broadcastType, t.TaskId, messageStatus, t.result)
 }
 
-func (t *Task) setResult(fields... KeyVal) {
+func (t *task) setResult(fields... KeyVal) {
 	if t.result == nil {
 		t.result = make(map[string]string)
 	}
@@ -111,11 +95,12 @@ func removeTask(taskKey string) {
 	delete(ttInstance.taskMap, taskKey)
 }
 
-func queueTask(task *Task) {
-	switch task.taskType {
-		case "scan_directory": ttInstance.wp.AddTask(func(){ScanDir(task.metadata.(ScanMetadata)); removeTask(task.TaskId)})
-		case "create_zip": ttInstance.wp.AddTask(func(){createZipFromPaths(task)})
-		case "scan_file": ttInstance.wp.AddTask(func(){ScanFile(task.metadata.(ScanMetadata)); removeTask(task.TaskId)})
+func queueTask(t *task) {
+	switch t.taskType {
+		case "scan_directory": ttInstance.wp.AddTask(func(){ScanDir(t.metadata.(ScanMetadata)); removeTask(t.TaskId)})
+		case "create_zip": ttInstance.wp.AddTask(func(){createZipFromPaths(t)})
+		case "scan_file": ttInstance.wp.AddTask(func(){ScanFile(t.metadata.(ScanMetadata)); removeTask(t.TaskId)})
+		case "move_file": ttInstance.wp.AddTask(func(){moveFile(t); removeTask(t.TaskId)})
 	}
 }
 

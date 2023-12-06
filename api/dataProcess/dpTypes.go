@@ -1,6 +1,10 @@
 package dataProcess
 
-import "github.com/ethrousseau/weblens/api/dataStore"
+import (
+	"sync"
+
+	"github.com/ethrousseau/weblens/api/dataStore"
+)
 
 // Websocket request types
 type WsRequest struct {
@@ -30,6 +34,31 @@ type ScanContent struct{
 	Recursive bool `json:"recursive"`
 }
 
+// Tasks
+type taskTracker struct {
+	taskMu sync.Mutex
+	taskMap map[string]*task
+	wp WorkerPool
+}
+
+type task struct {
+	TaskId string
+	Completed bool
+
+	taskType string
+	metadata any
+	result map[string]string
+}
+
+type Task interface {
+	ClearAndRecompute()
+	GetResult()
+	setComplete()
+	setResult()
+}
+
+type taskDispatcher struct {}
+
 // Internal types
 type ScanMetadata struct {
 	File *dataStore.WeblensFileDescriptor
@@ -40,6 +69,12 @@ type ScanMetadata struct {
 type ZipMetadata struct {
 	Files []*dataStore.WeblensFileDescriptor
 	Username string
+}
+
+type MoveMeta struct {
+	ParentFolderId string
+	DestinationFolderId string
+	Filename string
 }
 
 // Ws response types

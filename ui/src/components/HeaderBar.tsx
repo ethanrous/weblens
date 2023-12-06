@@ -72,7 +72,7 @@ const StyledInput = styled(Input)(({ theme }) => ({
 }));
 
 const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
-    const { authHeader, userInfo, removeCookie } = useContext(userContext)
+    const { authHeader, userInfo, clear } = useContext(userContext)
     const nav = useNavigate()
     const spacing = "8px"
     const theme = useTheme()
@@ -111,21 +111,8 @@ const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef,
                         </IconButton>
                     </Tooltip>
                 )}
-                {page === "files" && (
-                    <Tooltip title={"Upload"} disableInteractive >
-                        <IconButton aria-label="upload" sx={{ margin: spacing }} onClick={() => openRef.current?.click()}>
-                            <input
-                                type="file"
-                                onChange={(event) => dispatch({ type: "do_upload", event: event, auth: authHeader })}
-                                ref={openRef}
-                                style={{ display: 'none' }} // Make the file input element invisible
-                            />
-                            <Upload fontSize={'large'} />
-                        </IconButton>
-                    </Tooltip>
-                )}
                 <Tooltip title={"Sync"} disableInteractive >
-                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(folderId, wsSend, true) }} sx={{ margin: spacing }}>
+                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(folderId === "home" ? userInfo.homeFolderId : folderId, wsSend, true) }} sx={{ margin: spacing }}>
                         <Sync fontSize={'large'} />
                     </IconButton>
                 </Tooltip>
@@ -161,7 +148,7 @@ const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef,
                     </Tooltip>
                 )}
                 <Tooltip title={"Logout"} disableInteractive >
-                    <IconButton onClick={() => { removeCookie("weblens-username"); removeCookie("weblens-login-token"); nav("/login", { state: { doLogin: false } }) }} sx={{ margin: spacing }}>
+                    <IconButton onClick={() => { clear(); nav("/login", { state: { doLogin: false } }) }} sx={{ margin: spacing }}>
                         <Logout fontSize={'large'} />
                     </IconButton>
                 </Tooltip>

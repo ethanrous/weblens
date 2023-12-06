@@ -2,8 +2,7 @@ import { MediaData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
 export async function FetchData(mediaState, dispatch, nav, authHeader) {
-    if (Object.keys(authHeader).length === 0) { return }
-    dispatch({ type: "set_loading", loading: true })
+    if (!authHeader || authHeader.Authorization === "") { return }
 
     try {
         let mediaMap: Map<string, MediaData> = mediaState.mediaMap
@@ -39,7 +38,6 @@ export async function FetchData(mediaState, dispatch, nav, authHeader) {
         } else {
             hasMoreMedia = false
         }
-
         dispatch({
             type: 'add_media',
             mediaMap: mediaMap,
@@ -47,14 +45,7 @@ export async function FetchData(mediaState, dispatch, nav, authHeader) {
             previousLast: previousLast,
             addedCount: media?.length || 0
         })
-        dispatch({ type: "set_loading", loading: false })
-
     } catch (error) {
-        // if (error.name == "TypeError") {
-        //     throw new Error("Unauthorized")
-        // }
-        console.error(error.name)
-        dispatch({ type: "set_loading", loading: false })
-        // throw new Error("Error fetching data - Ethan you wrote this, its not a js err")
+        console.error("Error fetching data - Ethan you wrote this, its not a js err")
     }
 }

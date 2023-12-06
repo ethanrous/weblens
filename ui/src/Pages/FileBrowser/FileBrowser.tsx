@@ -83,12 +83,13 @@ function DraggingCounter({ dragging, numSelected, dispatch }) {
 }
 
 function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, dispatch, wsSend, authHeader }) {
+    const gridRef = useRef()
     const nav = useNavigate()
     const [debouncedSearch] = useDebouncedValue(filebrowserState.searchContent, 200)
 
     const { items, scanRequired } = useMemo(() => {
-        return GetDirItems(filebrowserState, dispatch, authHeader)
-    }, [debouncedSearch, filebrowserState, dispatch, authHeader])
+        return GetDirItems(filebrowserState, dispatch, authHeader, gridRef)
+    }, [debouncedSearch, filebrowserState, dispatch, authHeader, gridRef])
 
     useEffect(() => {
         if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatchSync(filebrowserState.folderInfo.id, wsSend, false) }
@@ -97,7 +98,7 @@ function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, 
 
     if (items.length !== 0) {
         return (
-            <DirItemsWrapper>
+            <DirItemsWrapper reff={gridRef}>
                 {items}
             </DirItemsWrapper>
         )
@@ -207,7 +208,7 @@ const FileBrowser = () => {
         wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: realId, recursive: false }, error: null }))
         GetFolderData(realId, userInfo.username, dispatch, navigate, authHeader)
     }, [folderId, userInfo])
-
+    console.log("HERE")
     return (
         <FlexColumnBox style={{ backgroundColor: "#111418" }} >
             <HeaderBar
@@ -224,7 +225,7 @@ const FileBrowser = () => {
             <Presentation mediaData={filebrowserState.dirMap.get(filebrowserState.presentingId)?.mediaData} parents={[...filebrowserState.parents, filebrowserState.folderInfo]} dispatch={dispatch} />
             <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} count={uploadState.uploadsMap.size} />
             <ShareDialogue sharing={filebrowserState.sharing} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dispatch={dispatch} authHeader={authHeader} />
-            <FlexRowBox height={'calc(100vh - 70px)'}>
+            <FlexRowBox style={{ height: "calc(100vh - 70px)" }}>
                 <GlobalActions folderId={filebrowserState.folderInfo.id} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dragging={filebrowserState.draggingState} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
                 <DirViewWrapper
                     folderName={filebrowserState.folderInfo?.filename}
@@ -232,7 +233,7 @@ const FileBrowser = () => {
                     hoverTarget={filebrowserState.hovering}
                     onDrop={(e => { dispatch({ type: "set_dragging", dragging: false }); HandleDrop(e, realId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch) })}
                     dispatch={dispatch}
-                    onMouseOver={e => dispatch({ type: 'set_hovering', itempath: "" })}
+                    onMouseOver={() => dispatch({ type: 'set_hovering', itempath: "" })}
                 >
                     <Crumbs finalItem={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={(folderId) => moveSelected(filebrowserState.selected, filebrowserState.dirMap, folderId, authHeader)} />
                     <Files filebrowserState={filebrowserState} folderId={realId} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
