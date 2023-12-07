@@ -475,7 +475,7 @@ func (f *WeblensFileDescriptor) Id() string {
 			f.err = fmt.Errorf("failed to import directory: %s", err)
 		}
 		f.id = folderData.FolderId
-	} else if f.isDisplayable() {
+	} else if f.IsDisplayable() {
 		m, err := f.GetMedia()
 		if err != nil {
 			f.err = fmt.Errorf("failed to get media: %s", err)
@@ -490,6 +490,9 @@ func (f *WeblensFileDescriptor) Id() string {
 
 // Returns string of absolute path to file
 func (f *WeblensFileDescriptor) String() string {
+	if f.IsDir() && !strings.HasSuffix(f.absolutePath, "/") {
+		f.absolutePath = f.absolutePath + "/"
+	}
 	return f.absolutePath
 }
 
@@ -662,14 +665,14 @@ func (f *WeblensFileDescriptor) MoveTo(destination *WeblensFileDescriptor, taske
 			return err
 		}
 
-	} else if f.isDisplayable() && destination.isDisplayable() && !*opt.SkipMediaMove {
+	} else if f.IsDisplayable() && destination.IsDisplayable() && !*opt.SkipMediaMove {
 		err := fddb.HandleMediaMove(f, destination)
 		if err != nil {
 			return err
 		}
-	} else if f.isDisplayable() && !destination.isDisplayable() {
+	} else if f.IsDisplayable() && !destination.IsDisplayable() {
 		fddb.RemoveMediaByFilepath(f.ParentFolderId, f.Filename)
-	} else if !f.isDisplayable() && destination.isDisplayable() {
+	} else if !f.IsDisplayable() && destination.IsDisplayable() {
 		tasker("scan_file", map[string]any{"file": destination, "username": destination.Owner()})
 	}
 

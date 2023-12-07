@@ -166,7 +166,7 @@ export const MediaImage = ({
                 <Image
                     draggable={false}
                     src={imgData}
-                    style={{ position: 'relative', display: imgData ? "block" : "none", userSelect: 'none', ...imgStyle }}
+                    style={{ height: "100%", width: "100%", position: 'absolute', display: imgData ? "block" : "none", userSelect: 'none', ...imgStyle }}
                 />
 
                 {isVisible && mediaData.BlurHash && lazy && !imgData && (

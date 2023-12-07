@@ -237,7 +237,7 @@ func uploadItem(file *dataStore.WeblensFileDescriptor, item64, uploaderName stri
 		return err
 	}
 
-	dataProcess.RequestTask("scan_file", dataProcess.ScanMetadata{File: file, Username: uploaderName})
+	// dataProcess.RequestTask("scan_file", "", dataProcess.ScanMetadata{File: file, Username: uploaderName})
 
 	return nil
 }
@@ -318,7 +318,7 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 
 	f.Close()
 	if rangeMax >= fileSize-1 {
-		username := ctx.GetString("username")
+		// username := ctx.GetString("username")
 
 		tmpFile := dataStore.WFDByPath(tmpFilePath)
 		if tmpFile.Err() != nil {
@@ -337,7 +337,7 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 		moveOpts := dataStore.MoveOpts().SetSkipMediaMove(true).SetSkipIdRecompute(true)
 		err = tmpFile.MoveTo(destination,
 			func(taskType string, taskMeta map[string]any) {
-				dataProcess.RequestTask(taskType, dataProcess.ScanMetadata{
+				dataProcess.RequestTask(taskType, "", dataProcess.ScanMetadata{
 						File: taskMeta["file"].(*dataStore.WeblensFileDescriptor),
 						Username: taskMeta["username"].(string),
 					})}, moveOpts)
@@ -348,7 +348,7 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 			return
 		}
 
-		dataProcess.RequestTask("scan_file", dataProcess.ScanMetadata{File: tmpFile, Username: username})
+		// dataProcess.RequestTask("scan_file", dataProcess.ScanMetadata{File: tmpFile, Username: username})
 		ctx.Status(http.StatusCreated)
 		return
 	}
@@ -513,7 +513,7 @@ func updateFile(ctx *gin.Context) {
 	newParentId := ctx.Query("newParentId")
 	currentFilename := ctx.Query("currentFilename")
 	// newFilename := ctx.Query("newFilename")
-	dataProcess.RequestTask("move_file", dataProcess.MoveMeta{ParentFolderId: currentParentId, DestinationFolderId: newParentId, Filename: currentFilename})
+	dataProcess.RequestTask("move_file", "", dataProcess.MoveMeta{ParentFolderId: currentParentId, DestinationFolderId: newParentId, Filename: currentFilename})
 	// err := _updateFile(ctx, currentParentId, newParentId, currentFilename, newFilename, false)
 	// util.DisplayError(err)
 }
@@ -538,7 +538,7 @@ func updateFiles(ctx *gin.Context) {
 	json.Unmarshal(jsonData, &filesData)
 
 	for _, file := range filesData.Files {
-		dataProcess.RequestTask("move_file", dataProcess.MoveMeta{ParentFolderId: file.ParentFolderId, DestinationFolderId: filesData.NewParentId, Filename: file.Filename})
+		dataProcess.RequestTask("move_file", "", dataProcess.MoveMeta{ParentFolderId: file.ParentFolderId, DestinationFolderId: filesData.NewParentId, Filename: file.Filename})
 	}
 	ctx.Status(http.StatusOK)
 }
@@ -603,7 +603,7 @@ func createTakeout(ctx *gin.Context) {
 		util.Warning.Println("Creating zip file with only 1 non-dir item")
 	}
 
-	task := dataProcess.RequestTask("create_zip", dataProcess.ZipMetadata{Files: files, Username: username})
+	task := dataProcess.RequestTask("create_zip", "", dataProcess.ZipMetadata{Files: files, Username: username})
 	if task.Completed {
 		ctx.JSON(http.StatusOK, gin.H{"takeoutId": task.GetResult("takeoutId"), "single": false})
 	} else {

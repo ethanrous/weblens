@@ -56,6 +56,6 @@ func (f *WeblensFileDescriptor) getMediaType() mediaType {
 	return mType
 }
 
-func (f *WeblensFileDescriptor) isDisplayable() bool {
+func (f *WeblensFileDescriptor) IsDisplayable() bool {
 	return f.getMediaType().IsDisplayable
 }

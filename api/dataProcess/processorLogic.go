@@ -15,17 +15,13 @@ import (
 	"github.com/saracen/fastzip"
 )
 
-func ScanDir(meta ScanMetadata) {
-	_, err := os.Stat(meta.File.String())
-	util.FailOnError(err, "Scan path does not exist")
-
-	ScanDirectory(meta.File.String(), meta.Username, meta.Recursive)
-
-}
-
 func ScanFile(meta ScanMetadata) {
 	db := dataStore.NewDB(meta.Username)
-	err := ProcessMediaFile(meta.File, db)
+	if meta.PartialMedia == nil {
+		m, _ := db.GetMediaByFile(meta.File, true)
+		meta.PartialMedia = &m
+	}
+	err := ProcessMediaFile(meta.File, meta.PartialMedia, db)
 	if err != nil {
 		util.DisplayError(err, "Failed to process new meda file")
 	}
@@ -139,7 +135,7 @@ func moveFile(t *task) {
 
 	err := currentFile.MoveTo(destinationFile,
 		func(taskType string, taskMeta map[string]any) {
-			RequestTask(taskType, ScanMetadata{
+			RequestTask(taskType, "", ScanMetadata{
 					File: taskMeta["file"].(*dataStore.WeblensFileDescriptor),
 					Username: taskMeta["username"].(string),
 				})})

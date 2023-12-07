@@ -39,6 +39,9 @@ type Media struct {
 	CreateDate		time.Time				`bson:"createDate"`
 	Owner			string					`bson:"owner"`
 	SharedWith		[]primitive.ObjectID	`bson:"sharedWith"`
+
+	rawExif			map[string]any
+	thumbBytes		[]byte
 }
 
 func (m Media) MarshalBinary() ([]byte, error) {
@@ -96,7 +99,7 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 
 }
 
-func (m *Media) ExtractExif() (error) {
+func (m *Media) extractExif() error {
 	et, err := exiftool.NewExiftool()
 	if err != nil {
 		return err
@@ -109,14 +112,25 @@ func (m *Media) ExtractExif() (error) {
 	fileInfos := et.ExtractMetadata(mFile.String())
 	if fileInfos[0].Err != nil {
 		return fileInfos[0].Err
-		// util.Debug.Panicf("Cound not extract metadata for %s: %s", m.Filepath, fileInfos[0].Err)
 	}
 
-	exifData := fileInfos[0].Fields
+	m.rawExif = fileInfos[0].Fields
+	return nil
+}
 
-	r, ok := exifData["SubSecCreateDate"]
+func (m *Media) ComputeExif() (error) {
+	if m.rawExif == nil {
+		util.Debug.Println("EXTRACTING EXIF INDIVIDUALLY, NOT GREAT")
+		err := m.extractExif()
+		if err != nil {
+			return err
+		}
+	}
+
+	var err error
+	r, ok := m.rawExif["SubSecCreateDate"]
 	if !ok {
-		r, ok = exifData["MediaCreateDate"]
+		r, ok = m.rawExif["MediaCreateDate"]
 	}
 	if ok {
 		m.CreateDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
@@ -130,14 +144,11 @@ func (m *Media) ExtractExif() (error) {
 		return err
 	}
 
-	mimeType, ok := exifData["MIMEType"].(string)
+	mimeType, ok := m.rawExif["MIMEType"].(string)
 	if !ok {
 		mimeType = "generic"
 	}
 	m.MediaType, _ = ParseMediaType(mimeType)
-	// if err != nil {
-		// util.DisplayError(err, "Error parsing media")
-	// }
 
 	if !m.MediaType.IsDisplayable {
 		return nil
@@ -146,14 +157,14 @@ func (m *Media) ExtractExif() (error) {
 	ok = true
 	var dimentionsStr string
 	if m.MediaType.IsVideo {
-		d, k := exifData["VideoSize"]
+		d, k := m.rawExif["VideoSize"]
 		ok = k
 		if k {
 			dimentionsStr = d.(string)
 		}
 	}
 	if !m.MediaType.IsVideo || !ok {
-		d, ok := exifData["ImageSize"]
+		d, ok := m.rawExif["ImageSize"]
 		if ok {
 			dimentionsStr = d.(string)
 		} else {
@@ -173,13 +184,22 @@ func (m *Media) ExtractExif() (error) {
 	return nil
 }
 
+func (m *Media) DumpRawExif(rawExif map[string]any) {
+	m.rawExif = rawExif
+}
+
+func (m *Media) DumpThumbBytes(thumbBytes []byte) {
+	m.thumbBytes = thumbBytes
+}
+
 func (m *Media) rawImageReader() (io.Reader, error) {
 	mFile := m.GetBackingFile()
 	if mFile.Err() != nil {
 		return nil, mFile.Err()
 	}
 	escapedPath := strings.ReplaceAll(mFile.String(), " ", "\\ ")
-	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
+	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
+	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
 
 	var out bytes.Buffer
@@ -195,7 +215,7 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 
 	r := bytes.NewReader(out.Bytes())
 
-	i, err := imaging.Decode(r, imaging.AutoOrientation(true))
+	i, err := imaging.Decode(r)
 	util.FailOnError(err, "Failed to read exiftool jpeg output into image")
 
 	buf := new(bytes.Buffer)
@@ -285,7 +305,9 @@ func (m *Media) ReadFullres(db *Weblensdb) ([]byte, error) {
 
 func (m *Media) getReadable() (io.Reader) {
 	var readable io.Reader
-	if m.MediaType.IsRaw {
+	if m.thumbBytes != nil {
+		readable = bytes.NewReader(m.thumbBytes)
+	} else if m.MediaType.IsRaw {
 		var err error
 		readable, err = m.rawImageReader()
 		util.FailOnError(err, "Failed to get readable raw proxy image")
@@ -307,8 +329,13 @@ func (m *Media) getReadable() (io.Reader) {
 func (m *Media) readFileIntoImage() (image.Image) {
 	readable := m.getReadable()
 
-	i, err := imaging.Decode(readable, imaging.AutoOrientation(true))
+	i, err := imaging.Decode(readable)
+
 	util.FailOnError(err, "Failed to decode readable proxy image buffer")
+	if m.rawExif["Orientation"] == "Rotate 270 CW" {
+		m.MediaHeight, m.MediaWidth = m.MediaWidth, m.MediaHeight
+		i = imaging.Rotate90(i)
+	}
 
 	return i
 }
@@ -317,7 +344,7 @@ func (m *Media) GenerateFileHash(mFile *WeblensFileDescriptor) {
 	readable := m.getReadable()
 
 	h := sha256.New()
-	if mFile.isDisplayable() {
+	if mFile.IsDisplayable() {
 		_, err := io.Copy(h, readable)
 		util.FailOnError(err, "Failed to copy readable image into hash")
 	}
@@ -350,12 +377,6 @@ func (m *Media) calculateThumbSize(i image.Image) {
 	m.ThumbWidth = int(newWidth)
 	m.ThumbHeight = int(newHeight)
 
-	// The exif data is read in wrong if the image is rotated, since we rely on the image library to rotate for us when making the thumbnail,
-	// we can assume that the dimentions of the thumbnail are correct. If they are opposite the real media, we swap the real media ones.
-	if (m.ThumbWidth > m.ThumbHeight && m.MediaHeight > m.MediaWidth) || (m.ThumbWidth < m.ThumbHeight && m.MediaHeight < m.MediaWidth) {
-		m.MediaHeight, m.MediaWidth = m.MediaWidth, m.MediaHeight
-	}
-
 }
 
 func (m *Media) GenerateBlurhash(thumb *image.NRGBA) {
@@ -364,23 +385,18 @@ func (m *Media) GenerateBlurhash(thumb *image.NRGBA) {
 
 func (m *Media) GenerateThumbnail() (*image.NRGBA) {
 	i := m.readFileIntoImage()
-
 	m.calculateThumbSize(i)
-
-	thumb := imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.CatmullRom)
+	thumb := imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.Lanczos)
 
 	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
 	if err != nil {
 		util.Error.Fatal(err)
 	}
-
 	thumbBytesBuf := new(bytes.Buffer)
 	webp.Encode(thumbBytesBuf, thumb, options)
-
 	m.Thumbnail64 = base64.StdEncoding.EncodeToString(thumbBytesBuf.Bytes())
 
 	return thumb
-
 }
 
 func (m *Media) GetBackingFile() *WeblensFileDescriptor {

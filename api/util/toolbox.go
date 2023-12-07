@@ -205,6 +205,14 @@ func Map[T, V any](ts []T, fn func(T) V) []V {
     return result
 }
 
+func MapToSlice[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
+    var result []V
+    for t, x := range tMap {
+        result = append(result, fn(t, x))
+    }
+    return result
+}
+
 func Filter[T any](ts []T, fn func(T) bool) []T {
     var result []T
     for _, t := range ts {

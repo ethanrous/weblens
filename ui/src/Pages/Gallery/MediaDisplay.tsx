@@ -134,7 +134,7 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scrollerRef, dispat
                 quality={"thumbnail"}
                 lazy={true}
                 root={scrollerRef}
-                containerStyle={{ objectFit: "cover" }}
+                imgStyle={{ objectFit: "cover" }}
             />
             {hovering && (
                 <MediaInfoDisplay mediaData={mediaData} />

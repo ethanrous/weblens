@@ -66,7 +66,7 @@ func wsReqSwitchboard(msg dataProcess.WsRequest, client *dataProcess.Client, use
 			util.FailOnError(folder.Err(), "Failed to get folder to scan")
 
 			meta := dataProcess.ScanMetadata{File: folder, Username: username, Recursive: scanInfo.Recursive}
-			dataProcess.RequestTask("scan_directory", meta)
+			dataProcess.RequestTask("scan_directory", "", meta)
 		}
 
 		default: {

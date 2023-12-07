@@ -44,6 +44,7 @@ type taskTracker struct {
 type task struct {
 	TaskId string
 	Completed bool
+	QueueId string
 
 	taskType string
 	metadata any
@@ -64,6 +65,7 @@ type ScanMetadata struct {
 	File *dataStore.WeblensFileDescriptor
 	Username string
 	Recursive bool
+	PartialMedia *dataStore.Media
 }
 
 type ZipMetadata struct {

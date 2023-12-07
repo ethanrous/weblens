@@ -1,20 +1,20 @@
 package dataProcess
 
 import (
-	"errors"
-	"io/fs"
+	"bytes"
+	"fmt"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"strings"
+	"time"
 
+	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, db *dataStore.Weblensdb) error {
+func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media, db *dataStore.Weblensdb) error {
 	defer util.RecoverPanic("Panic caught while processing media file:", file.String())
-
-	m, _ := db.GetMediaByFile(file, true)
 
 	var parseAnyway bool = false
 	filled, _ := m.IsFilledOut(false)
@@ -32,11 +32,12 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, db *dataStore.Weble
 	}
 
 	if m.MediaType.FriendlyName == "" {
-		err := m.ExtractExif()
+		err := m.ComputeExif()
 		util.FailOnError(err, "Failed to extract exif data")
 	}
 
-	m.GenerateFileHash(file)
+	m.FileHash = util.HashOfString(8, file.String())
+	// m.GenerateFileHash(file)
 
 	// Files that are not "media" (jpeg, png, mov, etc.) should not be stored in the media database
 	if (!m.MediaType.IsDisplayable) {
@@ -53,52 +54,25 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, db *dataStore.Weble
 		m.Owner = file.Owner()
 	}
 
-	db.DbAddMedia(&m)
+	db.DbAddMedia(m)
 
 	PushItemCreate(file)
 
 	return nil
 }
 
-func ScanDirectory(scanDir, username string, recursive bool) {
-	absoluteScanDir := dataStore.GuaranteeAbsolutePath(scanDir)
-	util.Debug.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, absoluteScanDir)
+func ScanDirectory(t *task) {
+	meta := t.metadata.(ScanMetadata)
+
+	scanDir := meta.File
+	recursive := meta.Recursive
+	username := meta.Username
+
+	util.Debug.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, scanDir.String())
 
 	db := dataStore.NewDB(username)
-	ms := db.GetMediaInDirectory(absoluteScanDir, recursive)
+	ms := db.GetMediaInDirectory(scanDir.String(), recursive)
 	mediaMap := map[string]bool{}
-	for _, m := range ms {
-		mFile := m.GetBackingFile()
-		if mFile.Err() != nil {
-			util.DisplayError(mFile.Err())
-			continue
-		}
-		mediaMap[mFile.String()] = true
-	}
-
-	if recursive {
-		filepath.WalkDir(absoluteScanDir, func(path string, d fs.DirEntry,  err error) error {
-			file := dataStore.WFDByPath(path)
-			util.FailOnError(file.Err(), "")
-			if !(file.IsDir() || strings.HasSuffix(path, ".DS_Store") || strings.HasSuffix(path, ".thumb.jpeg") || mediaMap[path]) {
-				RequestTask("scan_file", ScanMetadata{File: file, Username: username})
-			}
-			return nil
-		})
-	} else {
-		files, err := os.ReadDir(absoluteScanDir)
-		if err != nil {
-			panic(err)
-		}
-		for _, d := range files {
-			file := dataStore.WFDByPath(filepath.Join(absoluteScanDir, d.Name()))
-			util.FailOnError(file.Err(), "")
-			if (!file.IsDir() && file.Filename != ".DS_Store" && !strings.HasSuffix(d.Name(), ".thumb.jpeg") && !mediaMap[file.String()]) {
-				RequestTask("scan_file", ScanMetadata{File: file, Username: username})
-			}
-		}
-	}
-
 	for _, m := range ms {
 		mFile := m.GetBackingFile()
 		if mFile.Err() != nil {
@@ -107,18 +81,88 @@ func ScanDirectory(scanDir, username string, recursive bool) {
 		}
 		if !mFile.Exists() {
 			db.RemoveMediaByFilepath(m.ParentFolder, m.Filename)
+			continue
 		}
+		mediaMap[mFile.String()] = true
 	}
 
-	userPath, _ := dataStore.GuaranteeUserRelativePath(scanDir, username)
-	if userPath == "/" && recursive {
-		trashedFiles := db.GetTrashedFiles()
-		for _, trashed := range trashedFiles {
-			_, err := os.Stat(dataStore.GuaranteeAbsolutePath(trashed.TrashPath))
-			if errors.Is(err, os.ErrNotExist) {
-				db.RemoveTrashEntry(trashed)
+	files, err := os.ReadDir(scanDir.String())
+	if err != nil {
+		panic(err)
+	}
+
+	newFilesMap := map[string]*dataStore.WeblensFileDescriptor{}
+
+	NewWorkSubQueue(t.TaskId)
+
+	for _, d := range files {
+		file := scanDir.JoinStr(d.Name())
+		util.FailOnError(file.Err(), "")
+		if recursive && file.IsDir() {
+			RequestTask("scan_directory", "", ScanMetadata{File: file, Username: username, Recursive: recursive})
+		} else if (file.Filename != ".DS_Store" && !strings.HasSuffix(d.Name(), ".thumb.jpeg") && !mediaMap[file.String()] && !file.IsDir()) {
+			if (!file.IsDisplayable()) {
+				RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username})
+			} else {
+				_, err := file.GetMedia()
+				if err != nil {
+					newFilesMap[file.String()] = file
+				}
 			}
 		}
 	}
 
+	et, err := exiftool.NewExiftool()
+	if err != nil {
+		panic(err)
+	}
+
+	start := time.Now()
+	allMeta := et.ExtractMetadata(util.MapToSlice(newFilesMap, func(absPath string, f *dataStore.WeblensFileDescriptor) string {return absPath})...)
+	thumbsReader := readRawThumbBytesFromDir(util.Map(allMeta, func(meta exiftool.FileMetadata) string {return meta.File})...)
+	offset := 0
+	for _, meta := range allMeta {
+		file := newFilesMap[meta.File]
+		m := dataStore.Media{}
+		m.Filename = file.Filename
+		m.ParentFolder = file.ParentFolderId
+
+		rawJpegLen := meta.Fields["JpgFromRawLength"]
+		if rawJpegLen != nil {
+			thumbLen := int(rawJpegLen.(float64))
+			m.DumpThumbBytes(thumbsReader[offset:offset+thumbLen])
+			offset += thumbLen
+		}
+
+		m.DumpRawExif(meta.Fields)
+		RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username, PartialMedia: &m})
+	}
+
+	MainNotifyAllQueued(t.TaskId)
+	util.Debug.Println("Pre-import meta collection", time.Since(start))
+
+	start = time.Now()
+	MainWorkQueueWait(t.TaskId)
+	util.Debug.Printf("Completed %d scanning images in %v", len(allMeta), time.Since(start))
+}
+
+func readRawThumbBytesFromDir(paths ...string) []byte {
+	paths = util.Map(paths, func(path string) string {return strings.ReplaceAll(path, " ", "\\ ")})
+	allPathsStr := strings.Join(paths, " ")
+	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", allPathsStr)
+	cmd := exec.Command("/bin/bash", "-c", cmdString)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		util.FailOnError(err, "Failed to run exiftool extract command")
+	}
+
+	bytes := out.Bytes()
+	return bytes
 }
