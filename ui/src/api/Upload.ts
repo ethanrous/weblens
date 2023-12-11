@@ -1,43 +1,42 @@
 import API_ENDPOINT from "./ApiEndpoint"
 import axios from 'axios'
 import { useUploadStatus } from "../components/UploadStatus";
+import { dispatchSync } from "./Websocket";
 
 export type fileUploadMetadata = {
-    file: FileSystemFileEntry
+    file: File
+    isDir: boolean
+    folderId?: string
     parentId: string
     topLevelParentKey: string
     isTopLevel: boolean
 }
 
-function PromiseQueue(tasks = [], concurrentCount = 1) {
-    this.total = tasks.length;
-    this.todo = tasks;
-    this.running = [];
-    this.complete = [];
-    this.count = concurrentCount;
+function PromiseQueue(tasks: (() => Promise<any>)[] = [], concurrentCount = 1) {
+    this.total = tasks.length
+    this.todo = tasks
+    this.running = []
+    this.results = []
+    this.count = concurrentCount
 }
 
 PromiseQueue.prototype.runNext = function () {
     return ((this.running.length < this.count) && this.todo.length);
 }
 
-PromiseQueue.prototype.run = function () {
-    while (this.runNext()) {
-        const promiseFunc = this.todo.shift();
-        promiseFunc().then(() => {
-            this.complete.push(this.running.shift());
-            this.run();
-        });
-        this.running.push(promiseFunc);
+PromiseQueue.prototype.workerMain = async function (workerNum: number) {
+    while (this.todo.length) {
+        const task = this.todo.shift()
+        this.results.push(await task())
     }
 }
 
-async function getFile(fileEntry: FileSystemFileEntry): Promise<File> {
-    try {
-        return new Promise((resolve, reject) => fileEntry.file(resolve, reject));
-    } catch (err) {
-        console.error(err);
+PromiseQueue.prototype.run = async function () {
+    for (let workerNum = 0; workerNum < this.count; workerNum++) {
+        this.running.push(this.workerMain())
     }
+    await Promise.all(this.running)
+    return this.results
 }
 
 const PostFile = async (file64, parentFolderId, filename, authHeader, onProgress, onFinish) => {
@@ -56,7 +55,7 @@ const PostFile = async (file64, parentFolderId, filename, authHeader, onProgress
     onFinish()
 }
 
-async function readFile(file, blobStart?: number, blobEnd?: number) {
+async function readFile(file) {
     return new Promise<string>(function (resolve, reject) {
         let fr = new FileReader();
 
@@ -69,11 +68,7 @@ async function readFile(file, blobStart?: number, blobEnd?: number) {
             reject(fr)
         }
 
-        if (blobStart == undefined) {
-            blobStart = 0
-            blobEnd = file.size
-        }
-        fr.readAsDataURL(file.slice(blobStart, blobEnd));
+        fr.readAsDataURL(file);
     })
 }
 
@@ -85,8 +80,9 @@ async function doChunkedUpload(fileData: File, parentFolderId, filename, authHea
         const fileSize = fileData.size;
         let offset = 0;
 
+        const file64 = await readFile(fileData)
         while (offset < fileSize) {
-            const chunk = await readFile(fileData, offset, (offset + CHUNK_SIZE))
+            const chunk = file64.slice(offset, offset + CHUNK_SIZE)
 
             const formData = new FormData()
             formData.append("chunk", chunk)
@@ -115,47 +111,61 @@ async function doChunkedUpload(fileData: File, parentFolderId, filename, authHea
 }
 
 async function singleUploadPromise(uploadMeta: fileUploadMetadata, authHeader, uploadDispatch, dispatch) {
-    const file: File = await getFile(uploadMeta.file)
+    const file: File = uploadMeta.file
+
     const key: string = uploadMeta.parentId + uploadMeta.file.name
     const onFinish = () => { uploadDispatch({ type: "finished", key: key }); if (uploadMeta.isTopLevel) { dispatch({ type: "add_skeleton", filename: uploadMeta.file.name }) } }
 
     if (file.size > CHUNK_SIZE) {
         // Upload is too large, do chunked upload
         const onProgress = (bytesWritten, totalBytes, MBpS) => { uploadDispatch({ type: "set_progress", key: key, progress: 100 * bytesWritten / totalBytes, speed: Math.trunc(MBpS) }) }
-        return async () => await doChunkedUpload(file, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish)
+        return async () => {
+            await doChunkedUpload(file, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish)
+        }
 
     } else {
         // Upload is small enough for single upload
         const onProgress = (p) => { uploadDispatch({ type: "set_progress", key: key, progress: p.progress * 100 }) }
-        return async () => await readFile(file).then(async (file64: string) => { await PostFile(file64, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish) })
+        return async () => {
+            const file64 = await readFile(file)
+            await PostFile(file64, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish)
+        }
     }
 }
 
-async function Upload(filesMeta: fileUploadMetadata[], authHeader, uploadDispatch, dispatch) {
-    let uploads: (() => Promise<void>)[] = []
+async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, uploadDispatch, dispatch, wsSend) {
+    let uploads: (() => Promise<any>)[] = []
 
-    // filesMeta.map((val) => {
-    //     if (val.isTopLevel) {
-    //         const key: string = val.parentId + val.file.name
-    //         uploadDispatch({ type: 'add_new', isDir: val.file.isDirectory, key: key, name: val.file.name })
-    //     }
-    // })
+    let tlds: string[] = []
+    let tlf = false
 
     for (const meta of filesMeta) {
-        const key: string = meta.parentId + meta.file.name
+        const key: string = meta?.folderId || meta.parentId + meta.file.name
         if (meta.isTopLevel) {
-            uploadDispatch({ type: 'add_new', isDir: meta.file.isDirectory, key: key, name: meta.file.name })
+            uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name })
+            if (meta.isDir) {
+                tlds.push(meta.folderId)
+            }
+            tlf = tlf || !meta.isDir
         }
 
-        uploadDispatch({ type: 'add_new', isDir: meta.file.isDirectory, key: key, name: meta.file.name, parent: meta.topLevelParentKey })
-        if (meta.file.isDirectory) {
+        uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name, parent: meta.topLevelParentKey })
+        if (meta.isDir) {
             continue
         }
         const task = await singleUploadPromise(meta, authHeader, uploadDispatch, dispatch)
         uploads.push(task)
     }
     const taskQueue = new PromiseQueue(uploads, 5)
-    taskQueue.run()
+    await taskQueue.run()
+
+    if (tlf) {
+        dispatchSync(rootFolder, wsSend, false)
+    }
+
+    for (const tld of tlds) {
+        dispatchSync(tld, wsSend, true)
+    }
 }
 
 export default Upload

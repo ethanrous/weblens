@@ -10,7 +10,6 @@ import WeblensLoader from "./components/Loading"
 import Admin from "./Pages/Admin Settings/Admin"
 import useR from "./components/UserInfo"
 import { userContext } from "./Context"
-import SignUp from "./Pages/Login/SignUp"
 import Login from "./Pages/Login/Login"
 
 import "@mantine/notifications/styles.css"
@@ -142,14 +141,6 @@ const WeblensRoutes = () => {
           element={
             <div className="container">
               <Login />
-            </div>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <div className="container">
-              <SignUp />
             </div>
           }
         />

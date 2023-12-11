@@ -6,11 +6,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Typography, Card, CardContent, Divider } from '@mui/joy'
 
 // Icons
-import { IconHome, IconPlus, IconShare, IconTrash, IconUsers } from "@tabler/icons-react"
-import { Delete, Download, CreateNewFolder, Backup } from '@mui/icons-material'
+import { IconDownload, IconFolderPlus, IconHome, IconShare, IconTrash, IconUpload, IconUsers } from "@tabler/icons-react"
 
 // Mantine
-import { Tooltip, Box, ActionIcon, Button, Text, Space } from '@mantine/core'
+import { Box, Button, Text, Space, FileButton } from '@mantine/core'
 
 // Other
 import { useSnackbar } from 'notistack'
@@ -29,7 +28,7 @@ import UploadStatus, { useUploadStatus } from '../../components/UploadStatus'
 import ShareDialogue from './Share'
 import { useDebouncedValue } from '@mantine/hooks'
 
-function GlobalActions({ folderId, selectedMap, dirMap, dragging, dispatch, wsSend, authHeader }) {
+function GlobalActions({ folderId, selectedMap, dirMap, dragging, dispatch, wsSend, uploadDispatch, authHeader }) {
     const nav = useNavigate()
     const { userInfo } = useContext(userContext)
     const amHome = folderId === userInfo?.homeFolderId
@@ -44,11 +43,22 @@ function GlobalActions({ folderId, selectedMap, dirMap, dragging, dispatch, wsSe
                 Shared With Me
             </Button>
             <Space h={"md"} />
-            <Button disabled={dragging || inShared} m={3} justify='space-between' rightSection={<IconPlus />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }}>
+            <Button disabled={dragging || inShared} m={3} justify='space-between' rightSection={<IconFolderPlus />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }}>
                 New Folder
             </Button>
+            <FileButton onChange={(files) => { HandleDrop(files, folderId, dirMap, authHeader, uploadDispatch, dispatch, wsSend) }} accept="file" multiple>
+                {(props) => {
+                    return (
+                        <Button disabled={dragging || inShared} m={3} justify='space-between' rightSection={<IconUpload />} onClick={() => props.onClick()}>
+                            Upload
+                        </Button>
+
+                    )
+                }}
+
+            </FileButton>
             <Space h={"md"} />
-            <Button m={3} disabled={dragging || selectedMap.size === 0} justify='space-between' leftSection={<Text>{selectedMap.size}</Text>} rightSection={<Download />} onClick={(e) => { e.stopPropagation(); downloadSelected(selectedMap, dirMap, folderId, dispatch, wsSend, authHeader) }} >
+            <Button m={3} disabled={dragging || selectedMap.size === 0} justify='space-between' leftSection={<Text>{selectedMap.size}</Text>} rightSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(selectedMap, dirMap, folderId, dispatch, wsSend, authHeader) }} >
                 Download
             </Button>
             <Button m={3} disabled={dragging || numFilesIOwn === 0} justify='space-between' leftSection={<Text>{numFilesIOwn}</Text>} rightSection={<IconShare />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'share_selected' }) }} >
@@ -82,7 +92,7 @@ function DraggingCounter({ dragging, numSelected, dispatch }) {
     )
 }
 
-function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, dispatch, wsSend, authHeader }) {
+function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }) {
     const gridRef = useRef()
     const nav = useNavigate()
     const [debouncedSearch] = useDebouncedValue(filebrowserState.searchContent, 200)
@@ -110,16 +120,22 @@ function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, 
                         This folder is empty
                     </Text>
                     <CardContent sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography level="title-md" display={'flex'} flexDirection={'column'} alignItems={'center'} padding={2} sx={{ cursor: "pointer" }} >
-                            <Backup sx={{ height: 100, width: 100 }} />
-                            Upload
-                            <Typography level="body-sm" display={'flex'} position={'absolute'} variant='plain' width={"100px"} justifyContent={'center'} paddingTop={'125px'}>
-                                Click or Drop
-                            </Typography>
-                        </Typography>
+                        <FileButton onChange={(files) => { HandleDrop(files, folderId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch, wsSend) }} accept="file" multiple>
+                            {(props) => {
+                                return (
+                                    <Typography level="title-md" display={'flex'} flexDirection={'column'} alignItems={'center'} padding={2} sx={{ cursor: "pointer" }} onClick={() => { props.onClick() }}>
+                                        <IconUpload size={100} style={{ padding: "10px" }} />
+                                        Upload
+                                        <Typography level="body-sm" display={'flex'} position={'absolute'} variant='plain' width={"100px"} justifyContent={'center'} paddingTop={'125px'}>
+                                            Click or Drop
+                                        </Typography>
+                                    </Typography>
+                                )
+                            }}
+                        </FileButton>
                         <Divider orientation='vertical' >Or</Divider>
-                        <Typography level="title-md" display={'flex'} flexDirection={'column'} alignItems={'center'} padding={2} onClick={() => { dispatch({ type: 'new_dir' }) }} sx={{ cursor: "pointer" }}>
-                            <CreateNewFolder sx={{ height: 100, width: 100 }} />
+                        <Typography level="title-md" display={'flex'} flexDirection={'column'} alignItems={'center'} padding={2} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }} sx={{ cursor: "pointer" }}>
+                            <IconFolderPlus size={100} style={{ padding: "10px" }} />
                             New Folder
                         </Typography>
                     </CardContent>
@@ -208,7 +224,7 @@ const FileBrowser = () => {
         wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: realId, recursive: false }, error: null }))
         GetFolderData(realId, userInfo.username, dispatch, navigate, authHeader)
     }, [folderId, userInfo])
-    console.log("HERE")
+
     return (
         <FlexColumnBox style={{ backgroundColor: "#111418" }} >
             <HeaderBar
@@ -226,17 +242,17 @@ const FileBrowser = () => {
             <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} count={uploadState.uploadsMap.size} />
             <ShareDialogue sharing={filebrowserState.sharing} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dispatch={dispatch} authHeader={authHeader} />
             <FlexRowBox style={{ height: "calc(100vh - 70px)" }}>
-                <GlobalActions folderId={filebrowserState.folderInfo.id} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dragging={filebrowserState.draggingState} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
+                <GlobalActions folderId={filebrowserState.folderInfo.id} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dragging={filebrowserState.draggingState} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
                 <DirViewWrapper
                     folderName={filebrowserState.folderInfo?.filename}
                     dragging={filebrowserState.draggingState}
                     hoverTarget={filebrowserState.hovering}
-                    onDrop={(e => { dispatch({ type: "set_dragging", dragging: false }); HandleDrop(e, realId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch) })}
+                    onDrop={(e => { e.preventDefault(); e.stopPropagation(); dispatch({ type: "set_dragging", dragging: false }); HandleDrop(e.dataTransfer.items, realId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch, wsSend) })}
                     dispatch={dispatch}
                     onMouseOver={() => dispatch({ type: 'set_hovering', itempath: "" })}
                 >
                     <Crumbs finalItem={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={(folderId) => moveSelected(filebrowserState.selected, filebrowserState.dirMap, folderId, authHeader)} />
-                    <Files filebrowserState={filebrowserState} folderId={realId} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
+                    <Files filebrowserState={filebrowserState} folderId={realId} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
             </DirViewWrapper>
             </FlexRowBox>
         </FlexColumnBox>

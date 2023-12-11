@@ -3,6 +3,7 @@ import { Card, Paper, Text, RingProgress, Box, ScrollArea, Button, CloseButton, 
 import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react';
 
 import { memo, useEffect, useMemo, useReducer, useState } from "react"
+import { dispatchSync } from '../api/Websocket';
 
 function uploadReducer(state: UploadStateType, action) {
     switch (action.type) {
@@ -32,6 +33,7 @@ function uploadReducer(state: UploadStateType, action) {
             let replaceItem = newMap.get(action.key)
             replaceItem.progress = action.progress
             replaceItem.speed = action.speed
+
             newMap.set(action.key, replaceItem)
             return { ...state, uploadsMap: newMap }
         }

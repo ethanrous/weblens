@@ -87,14 +87,12 @@ func (c *Client) Subscribe(subType, username string, subData any) (bool, string)
 
 		task := GetTask(meta.TaskId)
 		if task == nil {
-			util.Debug.Println("Could not find task with ID ", meta.TaskId)
+			util.Warning.Println("Could not find task with ID ", meta.TaskId)
 			return false, ""
-		} else if task.Completed{
-			util.Debug.Println("Found completed task")
+		} else if task.Completed {
 			return true, task.result[meta.LookingFor[0]]
 		}
 
-		util.Debug.Println("Subscribing to incomplete task", meta.TaskId)
 		cmInstance.taskMu.Lock()
 		defer cmInstance.taskMu.Unlock()
 		_, ok := cmInstance.taskSubscriptionMap[meta.TaskId]

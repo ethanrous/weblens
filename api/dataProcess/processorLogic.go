@@ -86,9 +86,8 @@ func createZipFromPaths(t *task) {
 			break
 		}
 		bytes, entries = a.Written()
-		util.Debug.Printf("Zip Speed: %dMB/s", (bytes-prevBytes)/10000000)
 		prevBytes = bytes
-		status := struct {CompletedFiles int `json:"completedFiles"`; TotalFiles int `json:"totalFiles"`} {CompletedFiles: int(entries), TotalFiles: totalFiles}
+		status := struct {CompletedFiles int `json:"completedFiles"`; TotalFiles int `json:"totalFiles"`; SpeedBytes int `json:"speedBytes"`} {CompletedFiles: int(entries), TotalFiles: totalFiles, SpeedBytes: int(bytes-prevBytes)}
 		Broadcast("task", t.TaskId, "create_zip_progress", status)
 
 		time.Sleep(time.Second)
@@ -102,24 +101,16 @@ func createZipFromPaths(t *task) {
 func moveFile(t *task) {
 	moveMeta := t.metadata.(MoveMeta)
 
-	if moveMeta.ParentFolderId == "" || moveMeta.Filename == "" {
-		err := fmt.Errorf("both currentParentId and currentFilename are required")
-		panic(err)
-	}
 
-	if moveMeta.DestinationFolderId == "" {
-		err := fmt.Errorf("DestinationFolderId is required")
-		panic(err)
-	}
 
-	currentFile := dataStore.GetWFD(moveMeta.ParentFolderId, moveMeta.Filename)
+	currentFile := dataStore.GetWFD(moveMeta.ParentFolderId, moveMeta.OldFilename)
 	if currentFile.Err() != nil {
 		err := fmt.Errorf("could not find existing file")
 		panic(err)
 	}
 
 	opts := dataStore.CreateOpts().SetIgnoreNonexistance(true)
-	destinationFile := dataStore.GetWFD(moveMeta.DestinationFolderId, moveMeta.Filename, opts)
+	destinationFile := dataStore.GetWFD(moveMeta.DestinationFolderId, moveMeta.NewFilename, opts)
 	util.FailOnError(destinationFile.Err(), "")
 
 	if destinationFile.Exists() {

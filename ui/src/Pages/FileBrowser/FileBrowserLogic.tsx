@@ -208,14 +208,15 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             const item = state.dirMap.get(action.item)
             if (item) {
                 item.visible = action.visible
+                state.dirMap.set(action.item, item)
             }
-            return state
+
+            return { ...state }
         }
 
         case 'select_all': {
             for (const item of state.dirMap.values()) {
                 if (item.filename.toLowerCase().includes(state.searchContent.toLowerCase())) {
-                    console.log("SETTIN")
                     state.selected.set(item.id, true)
                 }
             }
@@ -278,7 +279,6 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
         }
 
         case 'move_selected': {
-            console.log("HERE")
             // Move selected items into directory at action.targetItemPath
             let targetPath: string = action.targetItemPath
             targetPath = targetPath.replace('files/', '')
@@ -289,10 +289,6 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
                 return { ...state, draggingState: 0 }
             }
 
-            // for (const itemPath of state.selected.keys()) {
-            //     const item = state.dirMap.get(itemPath)
-            //     item.updatePath = (targetPath + itemPath.slice(itemPath.lastIndexOf('/'))).replace('//', '/')
-            // }
             state.selected.clear()
             return { ...state, draggingState: 0 }
         }
@@ -396,58 +392,66 @@ export const HandleDrag = (event: DragEvent, dispatch: Dispatch<any>, dragging: 
     }
 }
 
-export async function HandleDrop(event, rootFolderId, dirMap, authHeader, uploadDispatch, dispatch) {
-    event.preventDefault()
-    event.stopPropagation()
-    let files: fileUploadMetadata[] = []
-
-    async function addDir(fsEntry, parentFolderId: string, topFolderKey: string): Promise<any> {
-        return await new Promise(async (resolve: (value: fileUploadMetadata[]) => void, reject): Promise<fileUploadMetadata[]> => {
-            if (fsEntry.isDirectory) {
-                const { folderId, alreadyExisted } = await CreateFolder(parentFolderId, fsEntry.name, authHeader)
-                if (!folderId || alreadyExisted) {
-                    reject("Could not create folder")
-                }
-                let e: fileUploadMetadata = null
-                if (!topFolderKey) {
-                    topFolderKey = rootFolderId + fsEntry.name
-                    e = { file: fsEntry, parentId: rootFolderId, isTopLevel: true, topLevelParentKey: null }
-                }
-                var dirReader = fsEntry.createReader()
-                dirReader.readEntries(async (entries: FileSystemEntry[]) => {
-                    let resolvedEntries = await Promise.all(entries.map((entry) => addDir(entry, folderId, topFolderKey)))
-                    let re = []
-                    if (e !== null) {
-                        re.push(e)
-                    }
-                    for (let r of resolvedEntries) {
-                        if (r.length != undefined) {
-                            re.push(...r)
-                        } else {
-                            re.push(r)
-                        }
-                    }
-                    resolve(re)
-                })
-            } else {
-                if (fsEntry.name === ".DS_Store") {
-                    resolve([])
-                    return
-                }
-                let e: fileUploadMetadata = { file: fsEntry, parentId: parentFolderId, isTopLevel: parentFolderId === rootFolderId, topLevelParentKey: topFolderKey }
-                resolve([e])
-            }
-        })
+async function getFile(file): Promise<File> {
+    try {
+        return await file.getAsFile()
+        // return new Promise((resolve, reject) => file.file(resolve, reject));
+    } catch (err) {
+        return file
+        // return new Promise((resolve, reject) => file)
     }
+}
 
-    if (event.dataTransfer && event.dataTransfer.items) { // Handle Directory
-        let items = event.dataTransfer.items
+async function addDir(fsEntry, parentFolderId: string, topFolderKey: string, rootFolderId: string, authHeader): Promise<any> {
+    return await new Promise(async (resolve: (value: fileUploadMetadata[]) => void, reject): Promise<fileUploadMetadata[]> => {
+        if (fsEntry.isDirectory) {
+            const { folderId, alreadyExisted } = await CreateFolder(parentFolderId, fsEntry.name, authHeader)
+            if (!folderId || alreadyExisted) {
+                reject("Could not create folder")
+            }
+            let e: fileUploadMetadata = null
+            if (!topFolderKey) {
+                topFolderKey = folderId
+                e = { file: fsEntry, isDir: true, folderId: folderId, parentId: rootFolderId, isTopLevel: true, topLevelParentKey: null }
+            }
+            var dirReader = fsEntry.createReader()
+            dirReader.readEntries(async (entries: FileSystemEntry[]) => {
+                let resolvedEntries = await Promise.all(entries.map((entry) => addDir(entry, folderId, topFolderKey, rootFolderId, authHeader)))
+                let re = []
+                if (e !== null) {
+                    re.push(e)
+                }
+                for (let r of resolvedEntries) {
+                    if (r.length != undefined) {
+                        re.push(...r)
+                    } else {
+                        re.push(r)
+                    }
+                }
+                resolve(re)
+            })
+        } else {
+            if (fsEntry.name === ".DS_Store") {
+                resolve([])
+                return
+            }
+            const f = await getFile(fsEntry)
+            let e: fileUploadMetadata = { file: f, parentId: parentFolderId, isDir: f.type === "", isTopLevel: parentFolderId === rootFolderId, topLevelParentKey: topFolderKey }
+            resolve([e])
+        }
+    })
+}
 
+export async function HandleDrop(items, rootFolderId, dirMap, authHeader, uploadDispatch, dispatch, wsSend) {
+    let files: fileUploadMetadata[] = []
+    let topLevels = []
+
+    if (items) { // Handle Directory
         const names = new Map<string, boolean>()
         Array.from(dirMap.values()).map((value: itemData) => names.set(value.filename, true))
 
         for (const item of items) {
-            var entry = item.webkitGetAsEntry()
+            let entry = item
             if (!entry) {
                 continue
             }
@@ -455,12 +459,16 @@ export async function HandleDrop(event, rootFolderId, dirMap, authHeader, upload
                 notifications.show({ message: `A file or folder named "${entry.name}" already exists in this folder`, autoClose: 5000, color: "red" })
                 continue
             }
-            await addDir(entry, rootFolderId, null).then(newItems => files.push(...newItems)).catch((r) => notifications.show({ message: r, color: "red" }))
+            topLevels.push(
+                addDir(entry, rootFolderId, null, rootFolderId, authHeader).then(newItems => files.push(...newItems)).catch((r) => notifications.show({ message: r, color: "red" }))
+            )
         }
     }
 
+    await Promise.all(topLevels)
+
     if (files.length !== 0) {
-        Upload(files, authHeader, uploadDispatch, dispatch)
+        Upload(files, rootFolderId, authHeader, uploadDispatch, dispatch, wsSend)
     }
 }
 
@@ -542,7 +550,6 @@ export const useKeyDown = (editing, sharing, dispatch, searchRef) => {
         const onKeyDown = (event) => {
             if (!editing && !sharing) {
                 if (document.activeElement !== searchRef.current?.children[0] && event.metaKey && event.key === 'a') {
-                    console.log("HERE?")
                     event.preventDefault()
                     dispatch({ type: 'select_all' })
                 } else if (!event.metaKey && ((event.which >= 49 && event.which <= 90) || event.key === "Backspace")) {

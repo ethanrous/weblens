@@ -1,22 +1,26 @@
 import { Box, useTheme } from '@mui/joy'
 import { useContext, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { login } from '../../api/ApiFetch'
+import { createUser, login } from '../../api/ApiFetch'
 import { userContext } from '../../Context'
 import { notifications } from '@mantine/notifications'
-import { Button, Fieldset, Space, Tabs, TextInput } from '@mantine/core'
+import { Button, Fieldset, PasswordInput, Space, Tabs, TextInput } from '@mantine/core'
 
 function CheckCreds(username, password, setCookie, nav) {
     login(username, password)
         .then(res => { if (res.status == 401) { return Promise.reject("Incorrect username or password") } else { return res.json() } })
         .then(data => {
-            console.log("Setting username cookie to ", username)
             setCookie('weblens-username', username, { sameSite: "strict" })
-            console.log("Setting session token to ", data.token)
             setCookie('weblens-login-token', data.token, { sameSite: "strict" })
             nav("/")
         })
         .catch((r) => { notifications.show({ message: r, color: "red" }) })
+}
+
+function CreateUser(username, password) {
+    createUser(username, password)
+        .then(x => { notifications.show({ message: "Account created! Once an administrator activates your account you may login" }) })
+        .catch((reason) => { notifications.show({ message: `Failed to create new user: ${reason}`, color: 'red' }) })
 }
 
 const Login = () => {
@@ -49,7 +53,7 @@ const Login = () => {
                 <Tabs.Panel value="login">
                     <Fieldset>
                         <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
-                        <TextInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
+                        <PasswordInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
                         <Space h={'md'} />
                         <Button fullWidth onClick={() => CheckCreds(userInput, passInput, setCookie, nav)}>Login</Button>
                     </Fieldset >
@@ -57,9 +61,9 @@ const Login = () => {
                 <Tabs.Panel value="signup">
                     <Fieldset>
                         <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
-                        <TextInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
+                        <PasswordInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
                         <Space h={'md'} />
-                        <Button fullWidth>Sign Up</Button>
+                        <Button fullWidth onClick={() => CreateUser(userInput, passInput)}>Sign Up</Button>
                     </Fieldset >
                 </Tabs.Panel>
             </Tabs>

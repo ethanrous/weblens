@@ -114,8 +114,6 @@ func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]Media
 		re = fmt.Sprintf("^%s/?.*$", relPath)
 	}
 
-	// util.Debug.Println("RE", re)
-
 	filter := bson.M{"filepath": bson.M{"$regex": re, "$options": "i"}, "owner": db.accessor}
 	opts := options.Find().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
 
@@ -190,11 +188,10 @@ func (db Weblensdb) GetPagedMedia(sort, owner string, skip, limit int, raw, thum
 }
 
 func (db Weblensdb) RedisCacheSet(key string, data string) (error) {
-	// util.Debug.Println("CACHING: ", key)
 	if redisc == nil {
 		return errors.New("redis not initialized")
 	}
-	_, err := db.redis.Set(key, data, time.Duration(time.Minute)).Result()
+	_, err := db.redis.Set(key, data, time.Duration(time.Minute) * 10).Result()
 	return err
 }
 
@@ -208,7 +205,6 @@ func (db Weblensdb) RedisCacheGet(key string) (string, error) {
 }
 
 func (db Weblensdb) RedisCacheBust(key string) {
-	// util.Debug.Println("BUSTING: ", key)
 	db.redis.Del(key)
 }
 
@@ -520,6 +516,12 @@ func (db Weblensdb) importDirectory(dirPath string) (folderData, error) {
 func (db Weblensdb) deleteDirectory(folderId string) error {
 	filter := bson.M{"_id": folderId}
 	_, err := db.mongo.Collection("folders").DeleteOne(mongo_ctx, filter)
+	return err
+}
+
+func (db Weblensdb) deleteMediaByFolder(folderId string) error {
+	filter := bson.M{"parentFolderId": folderId}
+	_, err := db.mongo.Collection("media").DeleteMany(mongo_ctx, filter)
 	return err
 }
 

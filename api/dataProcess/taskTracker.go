@@ -3,6 +3,7 @@ package dataProcess
 import (
 	"encoding/json"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/util"
@@ -49,10 +50,17 @@ func RequestTask(taskType, queueKey string, taskMeta any) *task {
 	if ok {
 	 	return existingTask
 	}
-	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta, QueueId: queueKey}
+	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta, QueueId: queueKey, waitMu: &sync.Mutex{}}
+	newTask.waitMu.Lock()
 
 	ttInstance.taskMap[taskId] = newTask
-	queueTask(newTask)
+	switch newTask.taskType {
+		case "scan_directory": newTask.work = func(){ScanDirectory(newTask); removeTask(newTask.TaskId)}
+		case "create_zip": newTask.work = func(){createZipFromPaths(newTask)}
+		case "scan_file": newTask.work = func(){ScanFile(newTask.metadata.(ScanMetadata)); removeTask(newTask.TaskId)}
+		case "move_file": newTask.work = func(){moveFile(newTask); removeTask(newTask.TaskId)}
+	}
+	ttInstance.wp.AddTask(newTask)
 
 	return newTask
 }
@@ -61,7 +69,8 @@ func (t *task) ClearAndRecompute() {
 	for k := range t.result {
 		delete(t.result, k)
 	}
-	queueTask(t)
+	t.waitMu.Lock()
+	ttInstance.wp.AddTask(t)
 }
 
 func GetTask(taskId string) *task {
@@ -70,16 +79,18 @@ func GetTask(taskId string) *task {
 	return ttInstance.taskMap[taskId]
 }
 
-func (t *task) GetResult(resultKey string) string {
+func (t *task) Result(resultKey string) string {
 	if t.result == nil {
 		return ""
 	}
 	return t.result[resultKey]
 }
+func (t *task) Err() any {
+	return t.err
+}
 
 func (t *task) setComplete(broadcastType, messageStatus string) {
 	t.Completed = true
-	util.Debug.Println("Task complete, broadcasting")
 	Broadcast(broadcastType, t.TaskId, messageStatus, t.result)
 }
 
@@ -100,13 +111,10 @@ func removeTask(taskKey string) {
 	delete(ttInstance.taskMap, taskKey)
 }
 
-func queueTask(t *task) {
-	switch t.taskType {
-		case "scan_directory": ttInstance.wp.AddTask(func(){ScanDirectory(t); removeTask(t.TaskId)}, t.QueueId)
-		case "create_zip": ttInstance.wp.AddTask(func(){createZipFromPaths(t)}, t.QueueId)
-		case "scan_file": ttInstance.wp.AddTask(func(){ScanFile(t.metadata.(ScanMetadata)); removeTask(t.TaskId)}, t.QueueId)
-		case "move_file": ttInstance.wp.AddTask(func(){moveFile(t); removeTask(t.TaskId)}, t.QueueId)
-	}
+func (t *task)Wait() {
+	t.waitMu.Lock()
+	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
+	t.waitMu.Unlock()
 }
 
 func FlushCompleteTasks() {

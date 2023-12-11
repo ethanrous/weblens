@@ -2,23 +2,21 @@ package dataProcess
 
 import (
 	"runtime/debug"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-type taskWrapper struct {
-	virtualQueueId string
-	work func()
-}
-type workChannel chan taskWrapper
+type workChannel chan *task
 
 type virtualTaskPool struct {
 	queueId string
 	totalTasks *atomic.Int64
 	completedTasks *atomic.Int64
-	waitersCount *atomic.Int64
-	waiterChan chan bool
+	waiterCount *atomic.Int32
+	waitMu *sync.Mutex
 	allQueuedFlag bool
 }
 
@@ -29,6 +27,8 @@ type WorkerPool struct {
 	virtualQueues map[string]virtualTaskPool
 	busyCount *atomic.Int64
 
+	virtQueueMu *sync.Mutex
+	lifetimeQueuedCount *atomic.Int64
 	exitFlag int
 }
 
@@ -40,13 +40,16 @@ func NewWorkerPool(workerCount int) (WorkerPool) {
 
 	var busyCount atomic.Int64
 	var startingWorkers atomic.Int64
+	var totalTasks atomic.Int64
 
 	newWp := WorkerPool{
 		maxWorker: workerCount,
 		currentWorkers: &startingWorkers,
-		taskStream: make(workChannel, workerCount * 100),
+		taskStream: make(workChannel, workerCount * 1000),
 		virtualQueues: make(map[string]virtualTaskPool),
 		busyCount: &busyCount,
+		lifetimeQueuedCount: &totalTasks,
+		virtQueueMu: &sync.Mutex{},
 		exitFlag: 0,
 	}
 
@@ -61,88 +64,103 @@ func (wp *WorkerPool) Run() {
 	}
 }
 
-func (wp *WorkerPool) workerRecover(workerId int) {
+func workerRecover(task *task, workerId int) {
 	err := recover()
-	wp.currentWorkers.Add(-1)
 	if err != nil {
-		wp.busyCount.Add(-1)
+		task.err = err
 		util.Error.Printf("Worker %d recovered error: %s\n%s", workerId, err, debug.Stack())
 	}
-	if wp.exitFlag == 1 {
-		util.Debug.Println("Worker ", workerId, " exiting")
-		return
-	}
-	util.Debug.Println("Worker ", workerId, " restarting")
-	wp.AddWorker(workerId)
+}
+
+func saftyWork(task *task, workerId int) {
+	defer workerRecover(task, workerId)
+	task.work()
 }
 
 func (wp *WorkerPool) AddWorker(workerId int) {
 	go func(workerId int) {
-
-		defer wp.workerRecover(workerId)
-
 		wp.currentWorkers.Add(1)
 		for task := range wp.taskStream {
 			if wp.exitFlag == 1 {break}
 
-			// util.Debug.Println("Worker ", workerId, "starting task")
 			wp.busyCount.Add(1)
-			task.work()
+			saftyWork(task, workerId)
 			wp.busyCount.Add(-1)
-			// util.Debug.Println("Worker ", workerId, "finished task")
 
-			wp.virtualQueues[task.virtualQueueId].completedTasks.Add(1)
+			wp.virtQueueMu.Lock()
+			wp.virtualQueues[task.QueueId].completedTasks.Add(1)
+			wp.virtQueueMu.Unlock()
+			task.waitMu.Unlock()
 
-			if task.virtualQueueId != "GLOBAL" {
-				uncompletedTasks := wp.virtualQueues[task.virtualQueueId].totalTasks.Load() - wp.virtualQueues[task.virtualQueueId].completedTasks.Load()
-				if uncompletedTasks == 0 && wp.virtualQueues[task.virtualQueueId].allQueuedFlag {
-					for wp.virtualQueues[task.virtualQueueId].waitersCount.Load() != 0 {
-						wp.virtualQueues[task.virtualQueueId].waiterChan <- true
-					}
+			if task.QueueId != "GLOBAL" {
+				wp.virtQueueMu.Lock()
+				uncompletedTasks := wp.virtualQueues[task.QueueId].totalTasks.Load() - wp.virtualQueues[task.QueueId].completedTasks.Load()
+				if uncompletedTasks == 0 && wp.virtualQueues[task.QueueId].allQueuedFlag {
+					wp.virtualQueues[task.QueueId].waitMu.Unlock()
+					// Make sure all waiters have left before closing the queue, spin and sleep for 10ms if not
+					for wp.virtualQueues[task.QueueId].waiterCount.Load() != 0 {time.Sleep(10000000)}
+					wp.CloseVirtualQueue(task.QueueId)
 				}
+				wp.virtQueueMu.Unlock()
+			} else if wp.currentWorkers.Load() > int64(wp.maxWorker) {
+				break
 			}
 		}
+		wp.currentWorkers.Add(-1)
 	}(workerId)
 }
 
-func (wp *WorkerPool) AddTask(f func(), queueKey string) {
-	t := taskWrapper{
-		virtualQueueId: queueKey,
-		work: f,
+func (wp *WorkerPool) AddTask(task *task) {
+	if task.QueueId == "GLOBAL" {
+		wp.AddWorker(int(wp.currentWorkers.Load()))
 	}
 
-	wp.virtualQueues[queueKey].totalTasks.Add(1)
-	wp.taskStream <- t
+	wp.virtQueueMu.Lock()
+	wp.virtualQueues[task.QueueId].totalTasks.Add(1)
+	wp.virtQueueMu.Unlock()
+	wp.lifetimeQueuedCount.Add(1)
+	wp.taskStream <- task
 }
 
 func (wp *WorkerPool) NewVirtualTaskQueue(queueKey string) {
 	var totalTasks atomic.Int64
 	var completedTasks atomic.Int64
-	var waitersCount atomic.Int64
+	var waiterCount atomic.Int32
 
 	newQueue := virtualTaskPool{
 		queueId: queueKey,
 		totalTasks: &totalTasks,
 		completedTasks: &completedTasks,
-		waitersCount: &waitersCount,
-		waiterChan: make(chan bool, wp.currentWorkers.Load()),
+		waiterCount: &waiterCount,
+		waitMu: &sync.Mutex{},
 	}
+	newQueue.waitMu.Lock()
+	wp.virtQueueMu.Lock()
 	wp.virtualQueues[queueKey] = newQueue
+	wp.virtQueueMu.Unlock()
 }
 
 func (wp *WorkerPool) NotifyAllQueued(queueKey string) {
+	wp.virtQueueMu.Lock()
 	q := wp.virtualQueues[queueKey]
 	q.allQueuedFlag = true
 	wp.virtualQueues[queueKey] = q
+	wp.virtQueueMu.Unlock()
 }
 
-func (wp *WorkerPool) CloseWorkQueue(queueKey string) {
+func (wp *WorkerPool) CloseVirtualQueue(queueKey string) {
 	delete(wp.virtualQueues, queueKey)
 }
 
 // Returns the count of tasks in the queue, and the total number of tasks accepted, number of busy workers, the total number of live workers in the worker pool
 func (wp *WorkerPool) Status(queueKey string) (int, int, int, int) {
-	return len(wp.taskStream), int(wp.virtualQueues[queueKey].totalTasks.Load()), int(wp.busyCount.Load()), int(wp.currentWorkers.Load())
+	var total int
+	if queueKey == "GLOBAL" {
+		total = int(wp.lifetimeQueuedCount.Load())
+	} else {
+		total = int(wp.virtualQueues[queueKey].totalTasks.Load())
+	}
+	return len(wp.taskStream), total, int(wp.busyCount.Load()), int(wp.currentWorkers.Load())
 }
 
 func (wp *WorkerPool) Close() {
@@ -150,7 +168,16 @@ func (wp *WorkerPool) Close() {
 }
 
 func (wp *WorkerPool) Wait(queueKey string) {
-	wp.virtualQueues[queueKey].waitersCount.Add(1)
-	<-wp.virtualQueues[queueKey].waiterChan
-	wp.virtualQueues[queueKey].waitersCount.Add(-1)
+	wp.virtQueueMu.Lock()
+	if wp.virtualQueues[queueKey].allQueuedFlag && wp.virtualQueues[queueKey].totalTasks.Load() == 0 {
+		wp.virtQueueMu.Unlock()
+		return
+	}
+	wp.virtQueueMu.Unlock()
+
+	wp.virtualQueues[queueKey].waiterCount.Add(1)
+	wp.virtualQueues[queueKey].waitMu.Lock()
+	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
+	wp.virtualQueues[queueKey].waitMu.Unlock()
+	wp.virtualQueues[queueKey].waiterCount.Add(-1)
 }

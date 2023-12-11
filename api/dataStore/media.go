@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/jpeg"
 	"io"
 	"math"
 	"os/exec"
@@ -40,6 +39,7 @@ type Media struct {
 	Owner			string					`bson:"owner"`
 	SharedWith		[]primitive.ObjectID	`bson:"sharedWith"`
 
+	rotation		int
 	rawExif			map[string]any
 	thumbBytes		[]byte
 }
@@ -63,7 +63,6 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	}
 
 	if (m.Owner == "") {
-		// util.Debug.Println("Owner")
 		return false, "owner"
 	}
 
@@ -91,7 +90,6 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	}
 
 	if m.CreateDate.IsZero() {
-		// util.Debug.Println("Create Date")
 		return false, "create date"
 	}
 
@@ -100,7 +98,7 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 }
 
 func (m *Media) extractExif() error {
-	et, err := exiftool.NewExiftool()
+	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"))
 	if err != nil {
 		return err
 	}
@@ -120,7 +118,7 @@ func (m *Media) extractExif() error {
 
 func (m *Media) ComputeExif() (error) {
 	if m.rawExif == nil {
-		util.Debug.Println("EXTRACTING EXIF INDIVIDUALLY, NOT GREAT")
+		util.Warning.Println("Spawning lone exiftool for", m.Filename)
 		err := m.extractExif()
 		if err != nil {
 			return err
@@ -198,8 +196,8 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 		return nil, mFile.Err()
 	}
 	escapedPath := strings.ReplaceAll(mFile.String(), " ", "\\ ")
-	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
-	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
+	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
+	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
 
 	var out bytes.Buffer
@@ -215,14 +213,15 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 
 	r := bytes.NewReader(out.Bytes())
 
-	i, err := imaging.Decode(r)
-	util.FailOnError(err, "Failed to read exiftool jpeg output into image")
+	// i, err := imaging.Decode(r)
+	// util.FailOnError(err, "Failed to read exiftool jpeg output into image")
 
-	buf := new(bytes.Buffer)
-	err = jpeg.Encode(buf, i, nil)
-	util.FailOnError(err, "Failed to convert image to jpeg")
+	// buf := new(bytes.Buffer)
+	// err = jpeg.Encode(buf, i, nil)
+	// util.FailOnError(err, "Failed to convert image to jpeg")
 
-	return buf, nil
+	// return buf, nil
+	return r, nil
 
 }
 

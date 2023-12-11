@@ -26,7 +26,6 @@ const useR = () => {
             fetch(url.toString(), { headers: authHeader })
                 .then(res => res.json())
                 .then(json => { setUserInfo(json) })
-            // .catch(r => { console.log("useR naving", r); nav("/login", { state: { doLogin: false } }) })
 
         } else if (authHeader.Authorization === "") {
             nav("/login")

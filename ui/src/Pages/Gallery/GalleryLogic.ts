@@ -111,7 +111,7 @@ export function mediaReducer(state: MediaStateType, action) {
             try {
                 state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
             } catch {
-                console.log("No img ref: ", state.presentingHash)
+                console.error("No img ref: ", state.presentingHash)
             }
             return {
                 ...state,
@@ -158,7 +158,6 @@ export const useScroll = (hasMoreMedia, dispatch) => {
 }
 
 export function handleScroll(dispatch) {
-    console.log("HERE")
     if (document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 1500) {
 
     }

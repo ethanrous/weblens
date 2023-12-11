@@ -4,7 +4,6 @@ import (
 	"bytes"
 	b64 "encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,8 +23,8 @@ import (
 )
 
 type loginInfo struct {
-	Username string 	`json:"username"`
-	Password string 	`json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func getPagedMedia(ctx *gin.Context) {
@@ -95,13 +94,13 @@ func getMediaItem(ctx *gin.Context) {
 	includeFullres := util.BoolFromString(ctx.Query("fullres"), true)
 
 	if !(includeMeta || includeThumbnail || includeFullres) {
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		util.FailOnError(errors.New("at least one of meta, thumbnail, or fullres must be selected"), "Failed to handle get media request (trying to get: " + fileHash + ")")
 		// At least one option must be selected
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "at least one of meta, thumbnail, or fullres must be selected"})
+		return
 	} else if includeFullres && (includeMeta || includeThumbnail) {
 		// Full res must be the only option if selected
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		util.FailOnError(errors.New("fullres should be the only option if selected"), "Failed to handle get media request (trying to get: " + fileHash + ")")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "fullres should be the only option if selected"})
+		return
 	}
 
 	db := dataStore.NewDB(ctx.GetString("username"))
@@ -172,8 +171,6 @@ func streamVideo(ctx *gin.Context) {
 	// stdout, err := cmd.StdoutPipe()
 	// util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
 
-	// util.Debug.Println(cmd.String())
-
 	// err = cmd.Start()
 	// if err != nil {
 	// 	util.FailOnError(err, "Failed to start ffmpeg")
@@ -187,8 +184,6 @@ func streamVideo(ctx *gin.Context) {
 	util.FailOnError(err, "Failed to open fullres stream file")
 
 	ctx.Writer.Header().Add("Connection", "keep-alive")
-
-	//util.Debug.Println(buf)
 
 	//writtenBytes, err := io.Copy(ctx.Writer, stdout)
 	// writtenBytes, err := io.Copy(ctx.Writer, file)
@@ -237,6 +232,7 @@ func uploadItem(file *dataStore.WeblensFileDescriptor, item64, uploaderName stri
 		return err
 	}
 
+	// dataProcess.PushItemCreate(file)
 	// dataProcess.RequestTask("scan_file", "", dataProcess.ScanMetadata{File: file, Username: uploaderName})
 
 	return nil
@@ -302,13 +298,12 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 
 	chunkBytes, err := b64.StdEncoding.DecodeString(chunk64[strings.Index(chunk64, ",") + 1:])
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding chunk"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Error decoding chunk"})
 		util.Error.Println(err)
 		return
 	}
 	chunkReader := bytes.NewBuffer(chunkBytes)
 
-	util.Debug.Println(rangeParts)
 	_, err = io.Copy(f, chunkReader)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error writing to a file"})
@@ -337,7 +332,7 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 		moveOpts := dataStore.MoveOpts().SetSkipMediaMove(true).SetSkipIdRecompute(true)
 		err = tmpFile.MoveTo(destination,
 			func(taskType string, taskMeta map[string]any) {
-				dataProcess.RequestTask(taskType, "", dataProcess.ScanMetadata{
+				dataProcess.RequestTask(taskType, "GLOBAL", dataProcess.ScanMetadata{
 						File: taskMeta["file"].(*dataStore.WeblensFileDescriptor),
 						Username: taskMeta["username"].(string),
 					})}, moveOpts)
@@ -349,6 +344,7 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 		}
 
 		// dataProcess.RequestTask("scan_file", dataProcess.ScanMetadata{File: tmpFile, Username: username})
+		// dataProcess.PushItemCreate(tmpFile)
 		ctx.Status(http.StatusCreated)
 		return
 	}
@@ -420,7 +416,8 @@ func createUserHomeDir(username string) {
 	homeDirPath := dataStore.GuaranteeUserAbsolutePath("/", username)
 	_, err := os.Stat(homeDirPath)
 	if err == nil {
-		util.Error.Panicln("Tried to create user home directory, but it already exists")
+		util.Warning.Println("Tried to create user home directory, but it already exists")
+		return
 	}
 	os.Mkdir(homeDirPath, os.FileMode(0777))
 }
@@ -512,10 +509,26 @@ func updateFile(ctx *gin.Context) {
 	currentParentId := ctx.Query("currentParentId")
 	newParentId := ctx.Query("newParentId")
 	currentFilename := ctx.Query("currentFilename")
-	// newFilename := ctx.Query("newFilename")
-	dataProcess.RequestTask("move_file", "", dataProcess.MoveMeta{ParentFolderId: currentParentId, DestinationFolderId: newParentId, Filename: currentFilename})
-	// err := _updateFile(ctx, currentParentId, newParentId, currentFilename, newFilename, false)
-	// util.DisplayError(err)
+	newFilename := ctx.Query("newFilename")
+
+	if currentParentId == "" || currentFilename == "" {
+		err := fmt.Errorf("both currentParentId and currentFilename are required")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err})
+	}
+
+	// If the directory does not change, just assume this is a rename
+	if newParentId == "" {
+		newParentId = currentParentId
+	}
+
+	task := dataProcess.RequestTask("move_file", "GLOBAL", dataProcess.MoveMeta{ParentFolderId: currentParentId, DestinationFolderId: newParentId, OldFilename: currentFilename, NewFilename: newFilename})
+	task.Wait()
+
+	if task.Err() != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	ctx.Status(http.StatusOK)
 }
 
 type file struct {
@@ -538,9 +551,24 @@ func updateFiles(ctx *gin.Context) {
 	json.Unmarshal(jsonData, &filesData)
 
 	for _, file := range filesData.Files {
-		dataProcess.RequestTask("move_file", "", dataProcess.MoveMeta{ParentFolderId: file.ParentFolderId, DestinationFolderId: filesData.NewParentId, Filename: file.Filename})
+		dataProcess.RequestTask("move_file", "", dataProcess.MoveMeta{ParentFolderId: file.ParentFolderId, DestinationFolderId: filesData.NewParentId, OldFilename: file.Filename, NewFilename: file.Filename})
 	}
 	ctx.Status(http.StatusOK)
+}
+
+func _moveFileToTrash(file *dataStore.WeblensFileDescriptor) error {
+	file.Id()
+	if file.Err() != nil {
+		util.DisplayError(file.Err())
+	}
+	oldFile := file.Copy()
+
+	err := file.MoveToTrash()
+	if err != nil {
+		return err
+	}
+	dataProcess.PushItemDelete(oldFile)
+	return nil
 }
 
 func moveFileToTrash(ctx *gin.Context) {
@@ -554,21 +582,14 @@ func moveFileToTrash(ctx *gin.Context) {
 		return
 	}
 
-	file.Id()
-	if file.Err() != nil {
-		util.DisplayError(file.Err())
-	}
-	oldFile := file.Copy()
-
-	err := file.MoveToTrash()
+	err := _moveFileToTrash(file)
 	if err != nil {
 		util.DisplayError(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
-	ctx.Status(http.StatusOK)
 
-	dataProcess.PushItemDelete(oldFile)
+	ctx.Status(http.StatusOK)
 }
 
 type takeoutItems struct {
@@ -605,7 +626,7 @@ func createTakeout(ctx *gin.Context) {
 
 	task := dataProcess.RequestTask("create_zip", "", dataProcess.ZipMetadata{Files: files, Username: username})
 	if task.Completed {
-		ctx.JSON(http.StatusOK, gin.H{"takeoutId": task.GetResult("takeoutId"), "single": false})
+		ctx.JSON(http.StatusOK, gin.H{"takeoutId": task.Result("takeoutId"), "single": false})
 	} else {
 		ctx.JSON(http.StatusAccepted, gin.H{"taskId": task.TaskId})
 	}
@@ -629,7 +650,6 @@ func getTakeout(ctx *gin.Context) {
 	extraHeaders := map[string]string{"Content-Disposition": fmt.Sprintf("attachment; filename=\"%s\";", zipFile.Filename)}
 
 	extraHeaders["Access-Control-Expose-Headers"] = "Content-Disposition"
-	util.Debug.Println("SIZE: ", zipFile.Size())
 	ctx.File(zipFile.String())
 	// ctx.DataFromReader(http.StatusOK, zipFile.Size(), "application/octet-stream", file, extraHeaders)
 }
@@ -670,7 +690,6 @@ func createUser(ctx *gin.Context) {
 	db.GetUser(userInfo.Username)
 
 	db.CreateUser(userInfo.Username, userInfo.Password, userInfo.Admin)
-	createUserHomeDir(userInfo.Username)
 
 	ctx.Status(http.StatusCreated)
 }
@@ -686,7 +705,7 @@ func loginUser(ctx *gin.Context) {
 
 	db := dataStore.NewDB(ctx.GetString("username"))
 	if db.CheckLogin(usrCreds.Username, usrCreds.Password) {
-		util.Debug.Printf("Valid login for [%s]\n", usrCreds.Username)
+		util.Info.Printf("Valid login for [%s]\n", usrCreds.Username)
 		user, err := db.GetUser(usrCreds.Username)
 		util.FailOnError(err, "Failed to get user to log in")
 
@@ -741,6 +760,7 @@ func updateUser(ctx *gin.Context) {
 
 	db := dataStore.NewDB(ctx.GetString("username"))
 	db.ActivateUser(userToUpdate.Username)
+	createUserHomeDir(userToUpdate.Username)
 
 	ctx.Status(http.StatusOK)
 }

@@ -127,7 +127,7 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scrollerRef, dispat
                 maxWidth: `${width * 1.5}px`
             }}
             setPresentation={() => { dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash }) }}
-            setHover={(input: boolean) => { console.log("HERE!", input); setHovering(input) }}
+            setHover={setHovering}
         >
             <MediaImage
                 mediaData={mediaData}

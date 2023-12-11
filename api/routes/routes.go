@@ -43,7 +43,6 @@ func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
 		if !websocket {
 			authHeader := c.Request.Header["Authorization"]
 			if len(authHeader) == 0 {
-				util.Debug.Println(c.Request.Header)
 				util.Info.Printf("Rejecting authorization for unknown user due to empty auth header")
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
@@ -79,6 +78,7 @@ func AddApiRoutes(r *gin.Engine) {
 
 	public := r.Group("/api")
 	public.POST("/login", loginUser)
+	public.POST("/user", createUser)
 
 	api := r.Group("/api")
 	api.Use(WeblensAuth(false, false))
@@ -104,7 +104,6 @@ func AddApiRoutes(r *gin.Engine) {
 	api.POST("/takeout", createTakeout)
 
 	api.GET("/user", getUserInfo)
-	api.POST("/user", createUser)
 	api.GET("/userSearch", searchUsers)
 
 	api.GET("/share", getSharedFiles)

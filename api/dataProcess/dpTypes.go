@@ -46,9 +46,12 @@ type task struct {
 	Completed bool
 	QueueId string
 
+	work func()
 	taskType string
 	metadata any
 	result map[string]string
+	err any
+	waitMu *sync.Mutex
 }
 
 type Task interface {
@@ -57,8 +60,6 @@ type Task interface {
 	setComplete()
 	setResult()
 }
-
-type taskDispatcher struct {}
 
 // Internal types
 type ScanMetadata struct {
@@ -76,7 +77,8 @@ type ZipMetadata struct {
 type MoveMeta struct {
 	ParentFolderId string
 	DestinationFolderId string
-	Filename string
+	OldFilename string
+	NewFilename string
 }
 
 // Ws response types

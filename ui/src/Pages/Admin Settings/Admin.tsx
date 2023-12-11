@@ -1,11 +1,10 @@
-import { Box, Button, Checkbox, Sheet, Input, Typography, FormControl, FormLabel, useTheme } from "@mui/joy"
+import { Box, Button, Checkbox, Sheet, Input, Typography, useTheme } from "@mui/joy"
 import { Button as ManButton } from "@mantine/core"
 import { useContext, useEffect, useMemo, useState } from "react"
-import API_ENDPOINT from "../../api/ApiEndpoint"
 import { userContext } from "../../Context"
 import { useSnackbar } from "notistack"
 import HeaderBar from "../../components/HeaderBar"
-import { createUser, clearCache } from "../../api/ApiFetch"
+import { clearCache, adminCreateUser } from "../../api/ApiFetch"
 import { ActivateUser, DeleteUser, GetUsersInfo } from "../../api/UserApi"
 import { notifications } from "@mantine/notifications"
 
@@ -27,7 +26,6 @@ const Admin = () => {
     const [makeAdmin, setMakeAdmin] = useState(false)
     const { authHeader, userInfo } = useContext(userContext)
     const [allUsersInfo, setAllUsersInfo] = useState(null)
-    const theme = useTheme()
     const { enqueueSnackbar } = useSnackbar()
 
     useEffect(() => {
@@ -42,7 +40,7 @@ const Admin = () => {
         }
         const usersList = allUsersInfo.map((val) => {
             return (
-                <Box display={"flex"} alignItems={'center'} width={"400px"} justifyContent={"space-between"}>
+                <Box key={val.Username} display={"flex"} alignItems={'center'} width={"400px"} justifyContent={"space-between"}>
                     <Typography variant="solid" key={val.Username}>
                         {val.Username} - Admin: {val.Admin.toString()}
                     </Typography>
@@ -84,7 +82,7 @@ const Admin = () => {
                         sx={{ margin: '8px' }}
                         onChange={(e) => { setMakeAdmin(e.target.checked) }}
                     />
-                    <Button sx={buttonSx} onClick={() => createUser(userInput, passInput, makeAdmin, authHeader, enqueueSnackbar).then((_) => { GetUsersInfo(setAllUsersInfo, authHeader, enqueueSnackbar); setUserInput(""); setPassInput("") })}>
+                    <Button sx={buttonSx} onClick={() => adminCreateUser(userInput, passInput, makeAdmin, authHeader).then((_) => { GetUsersInfo(setAllUsersInfo, authHeader, enqueueSnackbar); setUserInput(""); setPassInput("") })}>
                         Create User
                     </Button>
                 </Sheet>

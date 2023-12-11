@@ -35,7 +35,6 @@ function getSharedWithMe(username, dispatch, authHeader) {
 }
 
 export function GetFolderData(folderId, username, dispatch, navigate, authHeader) {
-    console.log(username)
     if (!folderId) {
         navigate("/files/home")
         return
@@ -109,8 +108,7 @@ export async function RenameFile(parentId, oldName, newName, authHeader) {
     url.searchParams.append('currentParentId', parentId)
     url.searchParams.append('currentFilename', oldName)
     url.searchParams.append('newFilename', newName)
-    const res = await fetch(url.toString(), { method: "PUT", headers: authHeader }).then(res => res.json())
-    return res.newItemId
+    fetch(url.toString(), { method: "PUT", headers: authHeader })
 }
 
 function downloadBlob(blob, filename) {
@@ -198,7 +196,6 @@ export async function AutocompleteUsers(searchValue, authHeader) {
 }
 
 export function ShareFiles(files: { parentFolderId: string, filename: string }[], users: string[], authHeader) {
-    console.log(files)
     const url = new URL(`${API_ENDPOINT}/share`)
     const body = {
         files: files,

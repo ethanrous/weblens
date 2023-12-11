@@ -716,9 +716,12 @@ func (f *WeblensFileDescriptor) MoveUnder(newParent *WeblensFileDescriptor, over
 func (f *WeblensFileDescriptor) MoveToTrash() error {
 	if f.IsDir() {
 		fddb.deleteDirectory(f.Id())
-	} else {
-		// Might not be media, but we can try anyway, and dont care about error
-		fddb.RemoveMediaByFilepath(f.ParentFolderId, f.Filename)
+		fddb.deleteMediaByFolder(f.Id())
+	} else if f.IsDisplayable() {
+		err := fddb.RemoveMediaByFilepath(f.ParentFolderId, f.Filename)
+		if err != nil {
+			return err
+		}
 	}
 	err := f.MoveUnder(&trashRoot, false)
 	if err != nil {

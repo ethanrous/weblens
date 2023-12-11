@@ -68,7 +68,7 @@ func ScanDirectory(t *task) {
 	recursive := meta.Recursive
 	username := meta.Username
 
-	util.Debug.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, scanDir.String())
+	util.Info.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, scanDir.String())
 
 	db := dataStore.NewDB(username)
 	ms := db.GetMediaInDirectory(scanDir.String(), recursive)
@@ -99,7 +99,7 @@ func ScanDirectory(t *task) {
 		file := scanDir.JoinStr(d.Name())
 		util.FailOnError(file.Err(), "")
 		if recursive && file.IsDir() {
-			RequestTask("scan_directory", "", ScanMetadata{File: file, Username: username, Recursive: recursive})
+			RequestTask("scan_directory", "GLOBAL", ScanMetadata{File: file, Username: username, Recursive: recursive})
 		} else if (file.Filename != ".DS_Store" && !strings.HasSuffix(d.Name(), ".thumb.jpeg") && !mediaMap[file.String()] && !file.IsDir()) {
 			if (!file.IsDisplayable()) {
 				RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username})
@@ -128,7 +128,7 @@ func ScanDirectory(t *task) {
 		m.ParentFolder = file.ParentFolderId
 
 		rawJpegLen := meta.Fields["JpgFromRawLength"]
-		if rawJpegLen != nil {
+		if rawJpegLen != nil && thumbsReader != nil {
 			thumbLen := int(rawJpegLen.(float64))
 			m.DumpThumbBytes(thumbsReader[offset:offset+thumbLen])
 			offset += thumbLen
@@ -139,15 +139,21 @@ func ScanDirectory(t *task) {
 	}
 
 	MainNotifyAllQueued(t.TaskId)
-	util.Debug.Println("Pre-import meta collection", time.Since(start))
+	util.Info.Println("Pre-import meta collection", time.Since(start))
 
 	start = time.Now()
 	MainWorkQueueWait(t.TaskId)
-	util.Debug.Printf("Completed %d scanning images in %v", len(allMeta), time.Since(start))
+	util.Info.Printf("Completed scanning %d images in %v", len(allMeta), time.Since(start))
+
+	PushItemUpdate(scanDir, scanDir)
 }
 
 func readRawThumbBytesFromDir(paths ...string) []byte {
-	paths = util.Map(paths, func(path string) string {return strings.ReplaceAll(path, " ", "\\ ")})
+	if len(paths) == 0 {
+		return nil
+	}
+
+	paths = util.Map(paths, func(path string) string {return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(path, " ", "\\ "), "(", "\\("), ")", "\\)")})
 	allPathsStr := strings.Join(paths, " ")
 	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", allPathsStr)
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
@@ -159,8 +165,8 @@ func readRawThumbBytesFromDir(paths ...string) []byte {
 
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		util.FailOnError(err, "Failed to run exiftool extract command")
+		util.Warning.Printf("Failed to bulk read thumbnails: %s %s", err, stderr.String())
+		return nil
 	}
 
 	bytes := out.Bytes()

@@ -61,7 +61,6 @@ func Broadcast(broadcastType, broadcastKey, messageStatus string, content any) {
 	// Just spawn a thread to handle the broadcast
 	// This is a "best effort" method
 
-	// util.Debug.Printf("Broadcast: [%s %s] -- %v", label, key, content)
 	msg := WsResponse{MessageStatus: messageStatus, SubscribeKey: broadcastKey, Content: content, Error: nil}
 	go _broadcast(broadcastType, broadcastKey, msg)
 }
@@ -96,10 +95,6 @@ func _broadcast(broadcastType, key string, msg WsResponse) {
 			cmInstance.clientMap[c]._writeToClient(msg)
 		}
 	}
-	// else {
-	// 	// _, file, line, _ := runtime.Caller(1)
-	// 	// util.Debug.Printf("No subscribers to %s (from %s:%d)", key, file, line)
-	// }
 }
 
 func RemoveSubscription(s SubData, clientId string) {

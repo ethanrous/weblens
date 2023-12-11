@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo, useRef } from 'react'
+import { useEffect, useState, memo, useRef } from 'react'
 
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import { FormControl, Typography, Input, Box, Divider } from '@mui/joy'
@@ -9,7 +9,6 @@ import { CreateFolder, RenameFile } from '../../api/FileBrowserApi'
 import { FileItemWrapper, ItemVisualComponentWrapper } from './FilebrowserStyles'
 import { itemData } from '../../types/Types'
 
-import { useSnackbar } from 'notistack'
 import { useIsVisible } from '../../components/PhotoContainer'
 import { IconFileZip, IconFolder } from '@tabler/icons-react'
 import { Center, Skeleton, Text, Tooltip } from '@mantine/core'
@@ -24,7 +23,7 @@ function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, new
                 dispatch({ type: 'reject_edit' })
             } else {
                 if (imported) {
-                    RenameFile(parentId, oldName, newName, authHeader).then(newId => dispatch({ type: 'confirm_edit', itemId: itemId, newItemId: newId, newFilename: newName }))
+                    RenameFile(parentId, oldName, newName, authHeader)
                 } else {
                     CreateFolder(parentId, newName, authHeader).then(res => {
                         dispatch({ type: 'set_selected', itemId: res.folderId })
@@ -76,7 +75,7 @@ const EditingHook = ({ dispatch }) => {
     return null
 }
 
-const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: itemData, editing: boolean, setRenameVal: any, dispatch: any }) => {
+const TextBox = ({ filename, fileId, fileSize, editing, setRenameVal, dispatch }: { filename: string, fileId: string, fileSize: number, editing: boolean, setRenameVal: any, dispatch: any }) => {
     const editRef: React.Ref<HTMLInputElement> = useRef()
     useEffect(() => {
         if (editRef.current) {
@@ -91,7 +90,7 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: item
                 <Input
                     slotProps={{ input: { ref: editRef } }}
                     autoFocus={true}
-                    defaultValue={itemData.filename}
+                    defaultValue={filename}
                     onClick={(e) => { e.stopPropagation() }}
                     onDoubleClick={(e) => { e.stopPropagation() }}
                     onChange={(e) => { setRenameVal(e.target.value) }}
@@ -100,9 +99,9 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: item
             </FormControl>
         )
     } else {
-        const [sizeValue, units] = humanFileSize(itemData.size, true)
+        const [sizeValue, units] = humanFileSize(fileSize, true)
         return (
-            <Tooltip openDelay={300} label={itemData.filename}>
+            <Tooltip openDelay={300} label={filename}>
                 <Box
                     display={"flex"}
                     flexDirection={"column"}
@@ -110,11 +109,11 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: item
                     alignItems={"center"}
 
                     width={"100%"}
-                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: itemData.id }) }}
+                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: fileId }) }}
                     sx={{ cursor: 'text' }}
                 >
                     <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"} height={"30px"}>
-                        <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{itemData.filename} </Typography>
+                        <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{filename} </Typography>
                         <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
                         <Box display={"flex"} flexDirection={'column'} alignContent={'center'} alignItems={'center'} >
                             <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
@@ -130,9 +129,8 @@ const TextBox = ({ itemData, editing, setRenameVal, dispatch }: { itemData: item
 const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, dispatch, authHeader }: { itemData: itemData, selected: boolean, root, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any }) => {
     const [hovering, setHovering] = useState(false)
     const [renameVal, setRenameVal] = useState("")
-    const { enqueueSnackbar } = useSnackbar()
     const itemRef = useRef()
-    const isVisible = useIsVisible(root, itemRef, false)
+    const { isVisible } = useIsVisible(root, itemRef, false)
 
     useEffect(() => {
         dispatch({ type: "set_visible", item: itemData.id, visible: isVisible })
@@ -143,7 +141,6 @@ const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, 
             return StartKeybaordListener(dispatch, editing, itemData.parentFolderId, itemData.id, itemData.filename, renameVal, itemData.imported, authHeader)
         }
     }, [editing, renameVal])
-
     return (
         <FileItemWrapper
             itemRef={itemRef}
@@ -160,10 +157,14 @@ const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, 
                 <ItemVisualComponent itemData={itemData} root={root} />
             </ItemVisualComponentWrapper>
 
-            <TextBox itemData={itemData} editing={editing} setRenameVal={setRenameVal} dispatch={dispatch} />
+            <TextBox filename={itemData.filename} fileId={itemData.id} fileSize={itemData.size} editing={editing} setRenameVal={setRenameVal} dispatch={dispatch} />
         </FileItemWrapper>
     )
 }, (prev, next) => {
+    if (prev.itemData.visible !== next.itemData.visible) {
+        return false
+    }
+
     if (!next.itemData.visible) {
         return true
     }
@@ -175,6 +176,8 @@ const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, 
     } else if (prev.dragging !== next.dragging) {
         return false
     } else if (prev.itemData.imported !== next.itemData.imported) {
+        return false
+    } else if (prev.itemData.size !== next.itemData.size) {
         return false
     }
     return true
