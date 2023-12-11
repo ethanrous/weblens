@@ -29,8 +29,9 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/uuid v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
@@ -40,6 +41,8 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.27.10 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
+	github.com/saracen/fastzip v0.1.11 // indirect
+	github.com/saracen/zipextra v0.0.0-20220303013732-0187cb0159ea // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
@@ -48,7 +51,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/sync v0.2.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect

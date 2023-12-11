@@ -1,52 +1,37 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, memo, useRef } from 'react'
 
-import Box from '@mui/material/Box'
-import FolderIcon from '@mui/icons-material/Folder'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import Skeleton from '@mui/material/Skeleton'
-import Checkbox from '@mui/material/Checkbox'
-import InputBase from '@mui/material/InputBase'
-import Typography from '@mui/material/Typography'
-import FormControl, { useFormControl } from '@mui/material/FormControl'
-import Tooltip from '@mui/material/Tooltip'
+import { FormControl, Typography, Input, Box, Divider } from '@mui/joy'
 
 import { StyledLazyThumb } from '../../types/Styles'
-import { humanFileSize, dateFromItemData } from '../../util'
-// import { itemData } from '../../types/FileBrowserTypes'
+import { humanFileSize } from '../../util'
+import { CreateFolder, RenameFile } from '../../api/FileBrowserApi'
+import { FileItemWrapper, ItemVisualComponentWrapper } from './FilebrowserStyles'
+import { itemData } from '../../types/Types'
 
-const boxSX = {
-    outline: "1px solid #00F0FF",
-    color: 'gray',
-    backgroundColor: 'lightblue'
-}
+import { useIsVisible } from '../../components/PhotoContainer'
+import { IconFileZip, IconFolder } from '@tabler/icons-react'
+import { Center, Skeleton, Text, Tooltip } from '@mantine/core'
 
-// type ItemProps = {
-//     itemData: itemData
-//     dispatch: React.Dispatch<fileBrowserAction>
-//     navigate: NavigateFunction
-// }
-
-function StartKeybaordListener(dispatch, editing, newName, filepath) {
+function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, newName, imported, authHeader) {
 
     const keyDownHandler = event => {
         if (!editing) { return }
-        switch (event.key) {
-            case 'Escape': {
-                event.preventDefault()
+        if (event.key === 'Enter') {
+            event.preventDefault()
+            if (newName === "") {
                 dispatch({ type: 'reject_edit' })
-                return
-            }
-            case 'Enter': {
-                event.preventDefault()
-                if (newName == "") {
-                    dispatch({ type: 'reject_edit' })
+            } else {
+                if (imported) {
+                    RenameFile(parentId, oldName, newName, authHeader)
                 } else {
-                    dispatch({ type: 'confirm_edit', newName: newName, file: filepath })
+                    CreateFolder(parentId, newName, authHeader).then(res => {
+                        dispatch({ type: 'set_selected', itemId: res.folderId })
+                        dispatch({ type: 'confirm_edit', itemId: itemId })
+                    })
                 }
-                return
             }
         }
-
     }
 
     window.addEventListener('keydown', keyDownHandler)
@@ -54,147 +39,148 @@ function StartKeybaordListener(dispatch, editing, newName, filepath) {
     return () => { window.removeEventListener('keydown', keyDownHandler) }
 }
 
-const ItemVisualComponent = ({ itemData, type, isDir, imported }) => {
-    if (isDir) {
-        return (<FolderIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
-    } else if (type == "File") {
-        return (<InsertDriveFileIcon style={{ width: "80%", height: "80%", cursor: "pointer", marginBottom: "20%" }} onDragOver={() => { }} />)
-    } else if (imported) {
-        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} />)//width={"200px"} height={"200px"} sx={{ cursor: "pointer" }} />)
+const ItemVisualComponent = ({ itemData, root }: { itemData: itemData, root }) => {
+    const sqareSize = "75%"
+    const type = itemData.mediaData?.MediaType.FriendlyName
+    const displayable = itemData.mediaData?.MediaType.IsDisplayable
+    if (itemData.isDir) {
+        return (<IconFolder style={{ width: sqareSize, height: sqareSize }} />)
+    } else if (displayable) {
+        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} root={root} />)
+    } else if (type === "File") {
+        return (<InsertDriveFileIcon style={{ width: sqareSize, height: sqareSize }} />)
+    } else if (type === "Zip") {
+        return (<IconFileZip style={{ width: sqareSize, height: sqareSize }} />)
     } else {
-        return (<Skeleton animation="wave" height={"100%"} width={"100%"} variant="rectangular" />)
+        return (
+            <Center style={{ height: "100%", width: "100%" }}>
+                <Skeleton height={"100%"} width={"100%"} />
+                <Text pos={'absolute'} style={{ userSelect: 'none' }}>Processing...</Text>
+            </Center>
+        )
     }
 }
 
 const EditingHook = ({ dispatch }) => {
-    const { focused } = useFormControl() || {}
+    let focused = false
     const [previous, setPrevious] = useState(false)
 
     useEffect(() => {
-        if (!focused && previous == true) {
+        if (!focused && previous === true) {
             dispatch({ type: 'reject_edit' })
         } else {
             setPrevious(focused)
         }
     }, [focused])
-    return (<></>)
+    return null
 }
 
-const TextBox = ({ itemData, editing, hasInfo, setRenameVal, dispatch }) => {
-
-    const filename = useMemo(() => {
-        return itemData.filepath.substring(itemData.filepath.lastIndexOf('/') + 1)
-    }, [itemData.filepath])
+const TextBox = ({ filename, fileId, fileSize, editing, setRenameVal, dispatch }: { filename: string, fileId: string, fileSize: number, editing: boolean, setRenameVal: any, dispatch: any }) => {
+    const editRef: React.Ref<HTMLInputElement> = useRef()
+    useEffect(() => {
+        if (editRef.current) {
+            editRef.current.select()
+        }
+    }, [editing])
 
     if (editing) {
-        let periodIndex = filename.lastIndexOf('.')
-
-        if (periodIndex != -1) {
-            var ext = filename.slice(periodIndex)
-            var basename = filename.slice(0, periodIndex)
-        } else {
-            var basename = filename
-        }
-
         return (
-            <FormControl style={{ width: "90%" }}>
-                <InputBase
-                    autoFocus
-                    placeholder={basename}
-                    onClick={(e) => { e.stopPropagation() }}
-                    onChange={(e) => { setRenameVal(e.target.value) }}
 
-                    endAdornment={ext ? ext : ""}
+            <FormControl style={{ width: "100%", height: "30px", bottom: "5px" }} >
+                <Input
+                    slotProps={{ input: { ref: editRef } }}
+                    autoFocus={true}
+                    defaultValue={filename}
+                    onClick={(e) => { e.stopPropagation() }}
+                    onDoubleClick={(e) => { e.stopPropagation() }}
+                    onChange={(e) => { setRenameVal(e.target.value) }}
                 />
                 <EditingHook dispatch={dispatch} />
             </FormControl>
         )
     } else {
+        const [sizeValue, units] = humanFileSize(fileSize, true)
         return (
-            <Tooltip title={filename} enterNextDelay={100}>
+            <Tooltip openDelay={300} label={filename}>
                 <Box
                     display={"flex"}
                     flexDirection={"column"}
                     justifyContent={"center"}
-                    height={"90%"}
-                    width={"90%"}
-                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', file: itemData.filepath }) }}
+                    alignItems={"center"}
+
+                    width={"100%"}
+                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: fileId }) }}
+                    sx={{ cursor: 'text' }}
                 >
-                    <Typography noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{filename} </Typography>
-                    {hasInfo && (
-                        <Box display={"flex"} justifyContent={"space-evenly"}>
-                            <Typography fontSize={12} noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{humanFileSize(itemData.size)} </Typography>
-                            <Typography fontSize={12} noWrap style={{ margin: 0, color: "white", cursor: "text" }}>{dateFromItemData(itemData)} </Typography>
+                    <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"} height={"30px"}>
+                        <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{filename} </Typography>
+                        <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
+                        <Box display={"flex"} flexDirection={'column'} alignContent={'center'} alignItems={'center'} >
+                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
+                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Typography>
                         </Box>
-                    )}
+                    </Box>
                 </Box>
             </Tooltip>
         )
     }
 }
 
-export default function Item({ itemData, editing, dispatch, anyChecked, navigate }) {
-    const hasInfo = useMemo(() => {
-        return itemData.mediaData ? true : false
-    }, [itemData.mediaData])
-
+const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, dispatch, authHeader }: { itemData: itemData, selected: boolean, root, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any }) => {
     const [hovering, setHovering] = useState(false)
     const [renameVal, setRenameVal] = useState("")
+    const itemRef = useRef()
+    const { isVisible } = useIsVisible(root, itemRef, false)
+
+    useEffect(() => {
+        dispatch({ type: "set_visible", item: itemData.id, visible: isVisible })
+    }, [isVisible])
 
     useEffect(() => {
         if (editing) {
-            return StartKeybaordListener(dispatch, editing, renameVal, itemData.filepath)
+            return StartKeybaordListener(dispatch, editing, itemData.parentFolderId, itemData.id, itemData.filename, renameVal, itemData.imported, authHeader)
         }
     }, [editing, renameVal])
-
-    const unselectedAction = useMemo(() => {
-        let unselectedAction
-        if (itemData.isDir) {
-            unselectedAction = () => navigate(("/files/" + itemData.filepath).replace(/\/\/+/g, '/'))
-        } else if (itemData.imported) {
-            unselectedAction = () => dispatch({ type: 'set_presentation', presentingPath: itemData.filepath })
-        } else {
-            unselectedAction = () => { }
-        }
-        return unselectedAction
-    }, [])
-
-    const select = (e) => { dispatch({ type: 'set_selected', itempath: itemData.filepath, selected: !itemData.selected }) }
-
     return (
-        <Box
-            position={"relative"}
-            display={"flex"}
-            justifyContent={"center"}
-            height={"200px"}
-            width={"200px"}
-            overflow={"hidden"}
-            borderRadius={"10px"}
-            margin={"10px"}
-            sx={itemData.selected ? boxSX : {}}
-            onMouseOver={() => setHovering(true)}
-            onMouseLeave={() => setHovering(false)}
-            onClick={anyChecked ? select : () => { }}
-            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation() }}
+        <FileItemWrapper
+            itemRef={itemRef}
+            itemData={itemData}
+            dispatch={dispatch}
+            hovering={hovering}
+            setHovering={setHovering}
+            isDir={itemData.isDir}
+            selected={selected}
+            moveSelected={moveSelected}
+            dragging={dragging}
         >
-            {(hovering || itemData.selected) && hasInfo && (
-                <Box width={"100%"}>
-                    <Checkbox
-                        name='check'
-                        checked={itemData.selected}
-                        style={{ position: "absolute", zIndex: 2, boxShadow: "10px" }}
-                        onChange={select}
-                        onClick={(e) => { e.stopPropagation() }}
-                    />
-                </Box>
+            <ItemVisualComponentWrapper>
+                <ItemVisualComponent itemData={itemData} root={root} />
+            </ItemVisualComponentWrapper>
 
-            )}
-            <Box display={"flex"} justifyContent={"center"} alignItems={"center"} position={"absolute"} height={"100%"} width={"100%"} onClick={anyChecked ? () => { } : unselectedAction}>
-                <ItemVisualComponent itemData={itemData} type={itemData.mediaData?.MediaType.FriendlyName} isDir={itemData.isDir} imported={itemData.imported} />
-            </Box>
-            <Box position={"absolute"} display={"flex"} justifyContent={"center"} alignItems={"center"} p={"10px"} bgcolor={"rgb(0, 0, 0, 0.50)"} width={"inherit"} height={"max-content"} bottom={"0px"} textAlign={"center"}>
-                <TextBox itemData={itemData} editing={editing} hasInfo={hasInfo} setRenameVal={setRenameVal} dispatch={dispatch} />
-            </Box>
-        </Box>
+            <TextBox filename={itemData.filename} fileId={itemData.id} fileSize={itemData.size} editing={editing} setRenameVal={setRenameVal} dispatch={dispatch} />
+        </FileItemWrapper>
     )
-}
+}, (prev, next) => {
+    if (prev.itemData.visible !== next.itemData.visible) {
+        return false
+    }
+
+    if (!next.itemData.visible) {
+        return true
+    }
+
+    if (prev.selected !== next.selected) {
+        return false
+    } else if (prev.editing !== next.editing) {
+        return false
+    } else if (prev.dragging !== next.dragging) {
+        return false
+    } else if (prev.itemData.imported !== next.itemData.imported) {
+        return false
+    } else if (prev.itemData.size !== next.itemData.size) {
+        return false
+    }
+    return true
+})
+
+export default Item

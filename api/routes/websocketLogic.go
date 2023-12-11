@@ -1,97 +1,99 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/dataProcess"
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 )
 
 func wsConnect(ctx *gin.Context) {
+
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-	util.Debug.Println("Websocket connected")
+	util.FailOnError(err, "Failed to upgrade http request to websocket")
+
+	client := dataProcess.ClientConnect(conn)
+
+	defer client.Disconnect()
+
+	wsUser := ctx.GetString("username")
+	util.Info.Printf("%s made successful websocket connection (%s)", wsUser, client.GetClientId())
 
 	for {
-		var msg wsMsg
-        err := conn.ReadJSON(&msg)
+		_, buf, err := conn.ReadMessage()
         if err != nil {
-			util.Error.Println(err)
             break
         }
-		go wsReqSwitchboard(msg, conn)
-		conn.WriteJSON(wsMsg{Type: "finished"})
+		go handleWsRequest(buf, client, wsUser)
     }
 }
 
-func wsReqSwitchboard(msg wsMsg, conn *websocket.Conn) {
-	switch msg.Type {
-		case "file_upload": {
+func handleWsRequest(msgBuf []byte, client *dataProcess.Client, wsUser string) {
+	var msg dataProcess.WsRequest
+	err := json.Unmarshal(msgBuf, &msg)
+	util.FailOnError(err, "Failed to unmarshal ws message")
 
-			relPath := util.GuaranteeRelativePath(msg.Content["path"].(string))
+	wsReqSwitchboard(msg, client, wsUser)
+}
 
-			fileData := msg.Content["file"].(map[string]interface {})
-			m, err := uploadItem(relPath, fileData["name"].(string), fileData["item64"].(string))
+func wsReqSwitchboard(msg dataProcess.WsRequest, client *dataProcess.Client, username string) {
+	defer util.RecoverPanic("[WEBSOCKET] Client %d panicked", client.GetClientId())
 
-			if err != nil {
-				errMsg := fmt.Sprintf("Upload error: %s", err)
-				errContent := map[string]any{"Message": errMsg, "File": util.GuaranteeRelativePath(filepath.Join(relPath, fileData["name"].(string)))}
-				conn.WriteJSON(wsMsg{Type: "error", Content: errContent, Error: "upload_error"})
+	fmt.Printf("[WEBSOCKET] %s | %s | %s\n", time.Now().Format("2006/01/02 - 15:04:05"), client.GetClientId(), msg.ReqType)
+
+	switch msg.ReqType {
+		case "subscribe": {
+			subType, meta := getSubscribeInfo(msg.Content.(map[string]any))
+			if subType == "" || meta == nil {
+				util.Error.Printf("Bad subscribe request: %v", msg.Content)
 				return
 			}
-
-			f, err := os.Stat(util.GuaranteeAbsolutePath(m.Filepath))
-			util.FailOnError(err, "Failed to get stats of uploaded file")
-
-			newItem := fileInfo{
-				Imported: true,
-				IsDir: false,
-				Size: int(f.Size()),
-				Filepath: util.GuaranteeRelativePath(m.Filepath),
-				MediaData: *m,
-				ModTime: f.ModTime(),
+			complete, result := client.Subscribe(subType, username, meta)
+			if complete {
+				client.Send("zip_complete", struct {TakeoutId string `json:"takeoutId"`} {TakeoutId: result}, nil)
 			}
-
-			res := struct{
-				Type string 		`json:"type"`
-				Content []fileInfo 	`json:"content"`
-			} {
-				Type: "new_items",
-				Content: []fileInfo{newItem},
-
-			}
-
-			conn.WriteJSON(res)
 		}
 
 		case "scan_directory": {
-			wp := scan(msg.Content["path"].(string), msg.Content["recursive"].(bool))
+			var scanInfo dataProcess.ScanContent
+			util.StructFromMap(msg.Content.(map[string]any), &scanInfo)
 
-			var previousRemaining int
-			_, remainingTasks, totalTasks := wp.Status()
-			for remainingTasks > 0 {
-				time.Sleep(time.Second)
-				_, remainingTasks, _ = wp.Status()
+			folder := dataStore.WFDByFolderId(scanInfo.FolderId)
+			util.FailOnError(folder.Err(), "Failed to get folder to scan")
 
-				// Don't send new message unless new data
-				if remainingTasks == previousRemaining {
-					continue
-				} else {
-					previousRemaining = remainingTasks
-				}
+			meta := dataProcess.ScanMetadata{File: folder, Username: username, Recursive: scanInfo.Recursive}
+			dataProcess.RequestTask("scan_directory", "", meta)
+		}
 
-				status := struct {Type string `json:"type"`; RemainingTasks int `json:"remainingTasks"`; TotalTasks int `json:"totalTasks"`} {Type: "scan_directory_progress", RemainingTasks: remainingTasks, TotalTasks: totalTasks}
-				conn.WriteJSON(status)
-			}
-			res := struct {Type string `json:"type"`} {Type: "refresh"}
-			conn.WriteJSON(res)
+		default: {
+			util.Error.Printf("Could not parse websocket request type: %v", msg)
 		}
 	}
+}
+
+func getSubscribeInfo(contentMap map[string]any) (string, any) {
+	subType := contentMap["subType"].(string)
+	delete(contentMap, "subType")
+	switch subType {
+	case "folder": {
+		var subContentStruct dataProcess.FolderSubMetadata
+		err := util.StructFromMap(contentMap, &subContentStruct)
+		util.FailOnError(err, "Could not convert map to struct")
+		return subType, subContentStruct
+	}
+	case "task": {
+		var taskContentStruct dataProcess.TaskSubMetadata
+		err := util.StructFromMap(contentMap, &taskContentStruct)
+		util.FailOnError(err, "Could not convert map to struct")
+		return subType, taskContentStruct
+	}
+	default: {
+		util.Error.Printf("Unknown subscribe type: [ %s ] -- RAW: [ %v ]", subType, contentMap)
+	}
+	}
+	return "", nil
 }

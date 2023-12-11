@@ -1,37 +1,38 @@
-import excludeVariablesFromRoot from '@mui/material/styles/excludeVariablesFromRoot'
-import { fetchData } from '../../api/GalleryApi'
-import { MediaData } from '../../types/Generic'
+import { useEffect } from 'react'
+import { MediaStateType, itemData } from '../../types/Types'
 
-export function mediaReducer(state, action) {
+export function mediaReducer(state: MediaStateType, action) {
     switch (action.type) {
         case 'add_media': {
             return {
                 ...state,
                 mediaMap: action.mediaMap,
-                dateMap: action.dateMap,
                 hasMoreMedia: action.hasMoreMedia,
                 previousLast: action.previousLast,
-                mediaCount: state.mediaCount + action.addedCount
+                mediaCount: state.mediaCount + action.addedCount,
             }
         }
+
+        case 'delete_from_map': {
+            state.mediaMap.delete(action.item)
+            // action.item
+            return { ...state }
+        }
+
         case 'insert_thumbnail': {
-            state.mediaMap[action.hash].Thumbnail64 = action.thumb64
+            state.mediaMap.get(action.hash).Thumbnail64 = action.thumb64
             return {
                 ...state,
             }
         }
+
         case 'set_scan_progress': {
             return {
                 ...state,
                 scanProgress: action.progress
             }
         }
-        case 'insert_fullres': {
-            state.mediaMap[action.hash].Fullres64 = action.fullres64
-            return {
-                ...state,
-            }
-        }
+
         case 'inc_max_media_count': {
             if (state.loading || state.maxMediaCount > state.mediaCount) {
                 return {
@@ -40,7 +41,8 @@ export function mediaReducer(state, action) {
             }
             return {
                 ...state,
-                maxMediaCount: state.maxMediaCount + action.incBy
+                maxMediaCount: state.maxMediaCount + action.incBy,
+                loading: true
             }
         }
         case 'set_loading': {
@@ -49,112 +51,114 @@ export function mediaReducer(state, action) {
                 loading: action.loading
             }
         }
-        case 'toggle_info': {
-            return {
-                ...state,
-                showIcons: !state.showIcons
-            }
-        }
+
         case 'toggle_raw': {
             window.scrollTo({
                 top: 0,
                 behavior: "smooth"
             })
+            state.mediaMap.clear()
             return {
                 ...state,
-                mediaMap: {},
-                dateMap: {},
                 mediaCount: 0,
                 maxMediaCount: 100,
+                hasMoreMedia: true,
                 previousLast: "",
+                loading: true,
                 includeRaw: !state.includeRaw
             }
         }
+
         case 'set_search': {
             return {
                 ...state,
                 searchContent: action.search,
             }
         }
-        case 'set_presentation': {
-            console.log("Setting: ", action.presentingHash)
-            document.documentElement.style.overflow = "hidden"
 
+        case 'set_presentation': {
             return {
                 ...state,
                 presentingHash: action.presentingHash
             }
         }
+
         case 'presentation_next': {
-            console.log("Here1")
             let incBy = 0
-            if (!state.mediaMap[state.presentingHash]?.next?.next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
+            if (!state.mediaMap.get(state.presentingHash)?.Next?.Next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
                 incBy = 100
             }
             return {
                 ...state,
                 maxMediaCount: state.maxMediaCount + incBy,
-                presentingHash: state.mediaMap[state.presentingHash]?.next ? state.mediaMap[state.presentingHash].next.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.FileHash : state.presentingHash
             }
         }
+
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaMap[state.presentingHash].previous ? state.mediaMap[state.presentingHash].previous.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash)?.Previous ? state.mediaMap.get(state.presentingHash).Previous.FileHash : state.presentingHash
             }
         }
+
         case 'stop_presenting': {
             if (state.presentingHash == "") {
                 return {
                     ...state
                 }
             }
-            document.documentElement.style.overflow = "visible"
             try {
-                state.mediaMap[state.presentingHash].ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
             } catch {
-                console.log("No img ref: ", state.presentingHash)
+                console.error("No img ref: ", state.presentingHash)
             }
             return {
                 ...state,
                 presentingHash: ""
             }
         }
+
         default: {
             console.error("Do not have handler for dispatch type", action.type)
+            return {
+                ...state
+            }
         }
     }
 }
 
-export function startKeybaordListener(dispatch) {
+export const useKeyDown = (searchRef) => {
 
-    const keyDownHandler = event => {
-        if (event.key === 'i') {
-            event.preventDefault()
-            dispatch({
-                type: 'toggle_info'
-            })
+    const onKeyDown = (event) => {
+        if (!event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
+            searchRef.current.children[0].focus()
+        } else if (event.key == "Escape") {
+            searchRef.current.children[0].blur()
         }
-    }
+    };
+    useEffect(() => {
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+            document.removeEventListener('keydown', onKeyDown)
+        };
+    }, [onKeyDown])
+}
 
-    document.addEventListener('keydown', keyDownHandler)
-    return () => {
-        document.removeEventListener('keydown', keyDownHandler)
+export const useScroll = (hasMoreMedia, dispatch) => {
+    const onScrollEvent = (_) => {
+        if (hasMoreMedia) { handleScroll(dispatch) }
     }
+    useEffect(() => {
+        window.addEventListener('scroll', onScrollEvent)
+        return () => {
+            window.removeEventListener('scroll', onScrollEvent)
+        }
+    }, [onScrollEvent])
 }
 
 export function handleScroll(dispatch) {
     if (document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 1500) {
-        dispatch({ type: "inc_max_media_count", incBy: 100 })
+
     }
-}
-
-export function moreData(mediaState, dispatch) {
-    if (mediaState.loading) {
-        return
-    }
-
-    dispatch({ type: "set_loading", loading: true })
-    fetchData(mediaState, dispatch).then(() => dispatch({ type: "set_loading", loading: false }))
-
 }

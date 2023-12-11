@@ -1,118 +1,135 @@
-import Chip from '@mui/material/Chip'
-import { createTheme, emphasize, styled } from '@mui/material/styles'
-import Breadcrumbs from '@mui/material/Breadcrumbs'
-import { Box } from '@mui/material'
+import { Box, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
+import { Dispatch, useContext, useState } from 'react'
+import { itemData } from '../types/Types'
+import { userContext } from '../Context'
+import { useNavigate } from 'react-router-dom'
+import { Text, Tooltip } from '@mantine/core'
 
-// export const StyledBreadcrumb = styled(Chip)(({ theme, success }) => {
-//     let backgroundColor
-//     if (success) {
+type breadcrumbProps = {
+    label: string
+    onClick?: React.MouseEventHandler<HTMLDivElement>
+    onMouseUp?: () => void
+    tooltipText?: string
+    doCopy?: boolean
+    dragging?: number
+    sx?: any
+    fontSize?: number
+    alwaysOn?: boolean
+}
 
-//     }
-//     else {
-//         backgroundColor =
-//             theme.palette.mode === 'light'
-//                 ? theme.palette.grey[100]
-//                 : theme.palette.grey[800]
-//     }
-//     return {
-//         backgroundColor,
-//         height: theme.spacing(3.5),
-//         color: theme.palette.text.primary,
-//         fontWeight: theme.typography.fontWeightRegular,
-//         '&:hover, &:focus': {
-//             backgroundColor: emphasize(backgroundColor, 0.06),
-//         },
-//         '&:active': {
-//             boxShadow: theme.shadows[1],
-//             backgroundColor: emphasize(backgroundColor, 0.12),
-//         },
-//     }
-// }) as typeof Chip
+export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging, onMouseUp, sx, alwaysOn = false, fontSize = 25 }: breadcrumbProps) => {
+    const [success, setSuccess] = useState(false)
+    const [hovering, setHovering] = useState(false)
 
-const customTheme = createTheme({
-    palette: {
-        primary: {
-            main: '#1976d2',
-            contrastText: 'white',
+    if (doCopy) {
+        tooltipText = `Copy "${label}"`
+        onClick = (e) => {
+            e.stopPropagation()
+            navigator.clipboard.writeText(label)
+            setSuccess(true)
+            setTimeout(() => setSuccess(false), 1000)
         }
-    },
-    typography: {
-        fontWeightRegular: "12px"
-    },
-
-})
-
-
-export const StyledBreadcrumb = ({ label, success, onClick }) => {
-    let backgroundColor
+    } else { tooltipText = `Go to ${label}` }
+    let outline
+    let bgColor
     if (success) {
-        backgroundColor = "rgb(0, 255, 0)"
+        bgColor = "rgba(5, 125, 5, 1.0)"
+        outline = '1px solid #aaaaaa'
     }
-    else {
-        backgroundColor = "rgb(230, 230, 230)"
+    else if (alwaysOn) {
+        outline = '1px solid #aaaaaa'
+        bgColor = "rgba(30, 30, 30, 0.5)"
+    }
+    else if (dragging && hovering) {
+        outline = '1px solid #ffffff'
+        bgColor = "rgb(30, 30, 90)"
+    } else if (dragging) {
+        outline = '1px solid #aaaaaa'
+        bgColor = "transparent"
+    } else {
+        outline = ""
+        bgColor = "transparent"
     }
     return (
-        <Box height={"max-content"} width={"100%"} onClick={onClick} sx={{ cursor: "pointer" }}>
-            <Chip label={label} sx={{
-                width: "100%",
-                backgroundColor,
-                height: 25,
-                color: "white",
-                fontWeight: customTheme.typography.fontWeightRegular,
-                '&:hover, &:focus': {
-                    backgroundColor: emphasize(backgroundColor, 0.10),
-                },
-                '&:active': {
-                    boxShadow: customTheme.shadows[1],
-                    backgroundColor: emphasize(backgroundColor, 0.12),
-                },
-            }}
-            />
-
-        </Box>
+        <Tooltip label={tooltipText} >
+            <Box
+                height={"max-content"}
+                flexShrink={1}
+                minWidth={0}
+                onMouseOver={() => setHovering(true)}
+                onMouseLeave={() => setHovering(false)}
+                onMouseUp={onMouseUp}
+                onClick={onClick}
+                padding={1}
+                sx={{ ...sx, cursor: "pointer", outline: outline, borderRadius: "5px", backgroundColor: bgColor }}
+            >
+                <Text lineClamp={1} c={'white'} style={{ textOverflow: 'ellipsis', fontSize: `${fontSize}px`, lineHeight: "1", userSelect: "none" }}>{label}</Text>
+            </Box>
+        </Tooltip >
     )
 }
 
-const Crumbs = ({ path, includeHome, navigate }) => {
-    if (!path) {
-        return (null)
+const StyledLoaf = ({ ...props }) => {
+    const theme = useTheme()
+    return (
+        <Breadcrumbs
+            {...props}
+            size='lg'
+            sx={{
+                width: "max-content",
+                borderRadius: "3px",
+                ".MuiBreadcrumbs-separator": {
+                    color: theme.colorSchemes.dark.palette.text.primary
+                },
+                // margin: "10px"
+            }}
+        />
+    )
+}
+
+const Crumbs = ({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: itemData, parents: itemData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
+    const navigate = useNavigate()
+    const { userInfo } = useContext(userContext)
+    if (parents === null || !finalItem?.id) {
+        return null
     }
+    if (parents.length != 0 && parents[0].id == "shared" && finalItem.id == "shared") {
+        parents.shift()
+    }
+    if ((parents.length == 0 && finalItem.owner != userInfo.username && finalItem.id != "shared") || (parents.length != 0 && parents[0].id != "shared" && parents[parents.length - 1].owner != userInfo.username)) {
+        let sharedRoot: itemData = {
+            id: "shared",
+            filename: "Shared",
+            parentFolderId: "",
+            owner: "",
+            isDir: true,
+            imported: false,
+            modTime: new Date().toString(),
+            size: 0,
+            visible: true,
+            mediaData: null
+        }
+        parents.unshift(sharedRoot)
+    }
+
     try {
+        const crumbs = parents.map((parent, i) => {
+            const isHome = parent.id === userInfo.homeFolderId
+            return <StyledBreadcrumb key={parent.id} label={isHome ? "Home" : parent.filename} onClick={(e) => { e.stopPropagation(); navigate(`/files/${isHome ? "home" : parent.id}`) }} doCopy={false} dragging={dragging} onMouseUp={() => { if (dragging !== 0) { moveSelectedTo(parent.id) } }} />
+        })
 
-        path = path.slice(1)
-        let parts = path.split('/')
-        while (parts[parts.length - 1] == '') {
-            parts.pop()
-        }
-
-        if (includeHome) {
-            parts.unshift('/')
-        }
-        const current = parts.pop()
-
-        let crumbPaths = []
-        for (let [index, val] of parts.entries()) {
-            if (index == 0 && includeHome) {
-                crumbPaths.push("/")
-                continue
-            } else {
-                crumbPaths.push(crumbPaths[index - 1] + "/" + val)
-            }
-        }
-        const crumbs = parts.map((part, i) => (
-            <StyledBreadcrumb key={part} label={part == "/" ? "Home" : part} success={false} onClick={() => { navigate(`/files/${crumbPaths[i]}`.replace(/\/\/+/g, '/')) }} />)
-        )
         crumbs.push(
-            <StyledBreadcrumb key={current} label={current == "/" ? "Home" : current} success={false} onClick={() => { }} />
+            <StyledBreadcrumb key={finalItem.id} label={finalItem.id === userInfo.homeFolderId ? "Home" : finalItem.filename} onClick={(e) => { e.stopPropagation(); if (!navOnLast) { return }; navigate(`/files/${finalItem.parentFolderId === userInfo.homeFolderId ? "home" : finalItem.parentFolderId}`) }} doCopy={!navOnLast} />
         )
+
         return (
-            <Breadcrumbs separator={"›"} >
+            <StyledLoaf separator={" › "} >
                 {crumbs}
-            </Breadcrumbs>
+            </StyledLoaf>
         )
     }
     catch (err) {
-        console.log(err)
+        console.error(err)
         return (null)
     }
 }

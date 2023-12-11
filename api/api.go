@@ -1,8 +1,7 @@
 package main
 
 import (
-	"os"
-
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/routes"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
@@ -12,14 +11,25 @@ import (
 func main() {
 	godotenv.Load()
 
-	os.Stat(util.GetMediaRoot())
+	err := dataStore.ClearTempDir()
+	util.FailOnError(err, "Failed to clear temporary directory on initialization")
+
+	err = dataStore.ClearTakeoutDir()
+	util.FailOnError(err, "Failed to clear takeout directory on initialization")
+
+	dataStore.ImportHomeDirectories()
 
 	router := gin.Default()
 
+	var ip string
+
 	routes.AddApiRoutes(router)
 	if !util.IsDevMode() {
+		ip = "0.0.0.0"
 		routes.AddUiRoutes(router)
+	} else {
+		ip = "127.0.0.1"
 	}
 
-	router.Run("0.0.0.0:8080")
+	router.Run(ip + ":8080")
 }

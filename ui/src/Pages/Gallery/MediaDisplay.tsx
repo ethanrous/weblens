@@ -1,130 +1,119 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, memo, useMemo, useRef, useState } from 'react'
+import { RawOn, Image, Folder, Theaters } from '@mui/icons-material'
+import { useNavigate } from 'react-router-dom'
 
-import Box from '@mui/material/Box'
-import Grid from '@mui/material/Grid'
-
-import RawOnIcon from '@mui/icons-material/RawOn'
-import ImageIcon from '@mui/icons-material/Image'
-import TheatersIcon from '@mui/icons-material/Theaters'
-import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
-import styled from '@emotion/styled'
-
-import { MediaWrapperProps, GalleryBucketProps } from '../../types/GalleryTypes'
 import { MediaImage } from '../../components/PhotoContainer'
-import { Tooltip } from '@mui/material'
-import { MediaData } from '../../types/Generic'
+import { StyledBreadcrumb } from '../../components/Crumbs'
+import { MediaData, MediaWrapperProps, GalleryBucketProps } from '../../types/Types'
+import { BlankCard } from '../../types/Styles'
+import { Box, MantineStyleProp, Space, Text, Tooltip } from '@mantine/core'
+import { FlexColumnBox, FlexRowBox } from '../FileBrowser/FilebrowserStyles'
 
 // STYLES //
 
-const Gallery = styled(Box)({
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    minHeight: "250px",
-    position: "relative",
-})
+const Gallery = ({ ...props }) => {
+    return (
+        <Box
+            {...props}
+            style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                minHeight: "250px",
+                position: "relative",
+            }}
+        />
+    )
+}
 
-const BlankCard = styled("div")({
-    height: '250px',
-    flexGrow: 999999
-})
-
-const PreviewCardContainer = styled(Box)({
-    height: "250px",
-    borderRadius: "2px",
-    flexGrow: 1,
-    flexBasis: 0,
-    margin: 2,
-    position: "relative",
-    overflow: "hidden",
-    cursor: "pointer"
-})
-
-const PreviewCardImg = styled(MediaImage)({
-    height: "250px",
-    minWidth: "100%",
-    position: "absolute",
-    objectFit: "cover",
-
-    transitionDuration: "300ms",
-    transform: "scale3d(1.00, 1.00, 1)",
-    "&:hover": {
-        transitionDuration: "200ms",
-        transform: "scale3d(1.03, 1.03, 1)",
-    }
-})
-
-const RecentlyViewedDisplay = styled(Box)({
-    position: "absolute",
-    height: "100%",
-    width: "100%",
-    outlineWidth: "5px",
-    outlineStyle: "solid",
-    outlineOffset: "-5px",
-    outlineColor: "rgb(78 0 179 / 50%)",
-    zIndex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    pointerEvents: "none"
-})
-
-const StyledIconBox = styled(Box)({
-    position: "absolute",
-    top: 10,
-    left: 10,
-})
+const PreviewCardContainer = ({ reff, setPresentation, setHover, children, style }: { reff, setPresentation, setHover, children, style: MantineStyleProp }) => {
+    return (
+        <Box
+            ref={reff}
+            children={children}
+            onClick={setPresentation}
+            onMouseOver={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                ...style,
+                height: "250px",
+                borderRadius: "2px",
+                flexGrow: 1,
+                flexBasis: 0,
+                margin: 1,
+                position: "relative",
+                overflow: "hidden",
+                cursor: "pointer"
+            }}
+        />
+    )
+}
 
 // Functions
 
-function handleCopy(setCopied) {
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1000)
+
+const TypeIcon = (mediaData) => {
+    let icon
+    let name
+    if (mediaData.MediaType.IsRaw) {
+        icon = RawOn
+        name = "RAW"
+    } else if (mediaData.MediaType.IsVideo) {
+        icon = Theaters
+        name = "Video"
+    } else {
+        icon = Image
+        name = "Image"
+    }
+    return [icon, name]
 }
 
 // COMPONENTS //
 
-const MediaInfoDisplay = ({ mediaData }) => {
-    const [copied, setCopied] = useState(false)
+type mediaTypeProps = {
+    Icon: any
+    ttText: string
+    onClick?: React.MouseEventHandler<HTMLDivElement>
+}
 
-    const TypeIcon = () => {
-        if (mediaData.MediaType.IsRaw) {
-            return (
-                <StyledIconBox>
-                    <RawOnIcon sx={{ bgcolor: "rgb(255, 255, 255, 0.40)", borderRadius: "3px" }} />
-                </StyledIconBox>
-            )
-        } else if (mediaData.MediaType.IsVideo) {
-            return (
-                <StyledIconBox>
-                    <TheatersIcon sx={{ bgcolor: "rgb(255, 255, 255, 0.40)", borderRadius: "3px" }} />
-                </StyledIconBox>
-            )
-        } else {
-            return (
-                <StyledIconBox>
-                    <ImageIcon sx={{ bgcolor: "rgb(255, 255, 255, 0.40)", borderRadius: "3px" }} />
-                </StyledIconBox>
-            )
-        }
-    }
+const StyledIcon = forwardRef((props: mediaTypeProps, ref) => {
+    return (
+        <Tooltip label={props.ttText} >
+            <props.Icon
+                onClick={props.onClick}
+                sx={{
+                    position: "static",
+                    margin: '8px',
+                    backgroundColor: "rgba(30, 30, 30, 0.5)",
+                    borderRadius: "3px"
+                }}
+            />
+        </Tooltip>
+    )
+})
 
-    const filename = mediaData.Filepath.substring(mediaData.Filepath.lastIndexOf('/') + 1)
+const MediaInfoDisplay = ({ mediaData }: { mediaData: MediaData }) => {
+    const nav = useNavigate()
+    const [icon, name] = TypeIcon(mediaData)
 
     return (
-        <Box width={"100%"} height={"100%"}>
-            <TypeIcon />
-            <Box width={"95%"} height={"max-content"} bottom={10} left={10} position={"absolute"}>
-                <StyledBreadcrumb label={copied ? "Copied" : filename} success={copied} onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(filename); handleCopy(setCopied) }} />
-
-                {/* <Crumbs path={mediaData.Filepath} includeHome={false} navigate={() => { }} /> */}
-                {/* <Typography position={"absolute"} top={4} left={50}>{mediaData.Filepath}</Typography> */}
-            </Box>
-        </Box>
+        <FlexColumnBox alignOverride='flex-start' style={{ height: "100%", width: "100%", justifyContent: 'space-between', position: 'absolute', transform: 'translateY(-100%)' }}>
+            <StyledIcon Icon={icon} ttText={name} onClick={(e) => { e.stopPropagation() }} />
+            <FlexRowBox style={{ height: 'max-content', justifyContent: 'space-between', alignItems: 'center', margin: "5px", bottom: 0 }}>
+                <StyledBreadcrumb label={mediaData.Filename} fontSize={15} alwaysOn={true} doCopy />
+                <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={(e) => {
+                    e.stopPropagation()
+                    nav(`/files/${mediaData.ParentFolder}`)
+                }}
+                />
+            </FlexRowBox>
+        </FlexColumnBox>
     )
 }
 
-const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch }: MediaWrapperProps) {
-    let ref = useRef()
+const MediaWrapper = memo(function MediaWrapper({ mediaData, scrollerRef, dispatch }: MediaWrapperProps) {
+    const ref = useRef()
+    const [hovering, setHovering] = useState(false)
     mediaData.ImgRef = ref
 
     let height = 250
@@ -132,48 +121,50 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, showIcons, dispatch
 
     return (
         <PreviewCardContainer
-            ref={ref}
-            minWidth={`clamp(100px, ${width}px, 100% - 8px)`}
-            maxWidth={`${width * 1.5}px`}
-            onClick={() => dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash })}
+            reff={ref}
+            style={{
+                minWidth: `clamp(100px, ${width}px, 100% - 8px)`,
+                maxWidth: `${width * 1.5}px`
+            }}
+            setPresentation={() => { dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash }) }}
+            setHover={setHovering}
         >
-            <PreviewCardImg
+            <MediaImage
                 mediaData={mediaData}
                 quality={"thumbnail"}
                 lazy={true}
+                root={scrollerRef}
+                imgStyle={{ objectFit: "cover" }}
             />
-            {showIcons && (
+            {hovering && (
                 <MediaInfoDisplay mediaData={mediaData} />
             )}
 
         </PreviewCardContainer>
     )
 }, (prev: MediaWrapperProps, next: MediaWrapperProps) => {
-    return (prev.mediaData.FileHash == next.mediaData.FileHash) && (prev.showIcons == next.showIcons)
+    return (prev.mediaData.FileHash == next.mediaData.FileHash)
 })
-const BucketCards = ({ medias, showIcons, dispatch }) => {
+const BucketCards = ({ medias, scrollerRef, dispatch }) => {
     const mediaCards = useMemo(() => {
         return medias.map((mediaData: MediaData) => {
-            if (!mediaData.Display == true) {
-                return null
-            }
             return (
                 <MediaWrapper
                     key={mediaData.FileHash}
                     mediaData={mediaData}
-                    showIcons={showIcons}
+                    scrollerRef={scrollerRef}
                     dispatch={dispatch}
                 />
             )
         }
         )
-    }, [[...medias], showIcons])
+    }, [[...medias]])
 
     return (
         <Gallery>
             {mediaCards}
             <BlankCard />
-        </Gallery>
+        </Gallery >
     )
 }
 
@@ -182,44 +173,24 @@ const DateWrapper = ({ dateTime }) => {
     const dateString = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
 
     return (
-        <Box
-            key={`${dateString} title`}
-            component="h3"
-            fontSize={25}
-            pl={1}
-            fontFamily={"Roboto,RobotoDraft,Helvetica,Arial,sans-serif"}
-            marginBottom={1}
-        >
+        <Text style={{ fontSize: 20, fontWeight: 600 }} c={'white'} mt={1} pl={0.5}>
             {dateString}
-        </Box>
+        </Text>
     )
 }
 
-//export const GalleryBucket = memo(function GalleryBucket({
 export const GalleryBucket = ({
     date,
     bucketData,
-    showIcons,
+    scrollerRef,
     dispatch
 }: GalleryBucketProps) => {
-    const anyDisplayed = () => {
-        for (const val of bucketData) {
-            if (val.Display) {
-                return true
-            }
-        }
-        return false
-    }
-
-    if (!anyDisplayed()) {
-        return null
-    }
-
     return (
-        <Grid item >
+        <Box ml={"-1.6px"}>
+            <Space h={"md"} />
             <DateWrapper dateTime={date} />
-            <BucketCards medias={bucketData} showIcons={showIcons} dispatch={dispatch} />
-        </Grid >
+            <BucketCards medias={bucketData} scrollerRef={scrollerRef} dispatch={dispatch} />
+        </Box>
     )
 }
 

@@ -1,57 +1,72 @@
-//document.cookie = "name="+username.value+";path=/" + ";expires="+expire.toUTCString();
-import TextField from '@mui/material/TextField'
-import { Box, Button } from '@mui/material'
-import { useEffect, useState } from 'react'
-import { useCookies } from 'react-cookie'
-import { useNavigate } from 'react-router-dom'
-import API_ENDPOINT from '../../api/ApiEndpoint'
+import { Box, useTheme } from '@mui/joy'
+import { useContext, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { createUser, login } from '../../api/ApiFetch'
+import { userContext } from '../../Context'
+import { notifications } from '@mantine/notifications'
+import { Button, Fieldset, PasswordInput, Space, Tabs, TextInput } from '@mantine/core'
 
 function CheckCreds(username, password, setCookie, nav) {
-    var url = new URL(`${API_ENDPOINT}/login`)
+    login(username, password)
+        .then(res => { if (res.status == 401) { return Promise.reject("Incorrect username or password") } else { return res.json() } })
+        .then(data => {
+            setCookie('weblens-username', username, { sameSite: "strict" })
+            setCookie('weblens-login-token', data.token, { sameSite: "strict" })
+            nav("/")
+        })
+        .catch((r) => { notifications.show({ message: r, color: "red" }) })
+}
 
-    let data = {
-        username: username,
-        password: password
-    }
-
-    fetch(url.toString(), { method: "POST", body: JSON.stringify(data) }).then(res => res.json()).then(data => {
-        console.log("HERE!", data.token)
-        setCookie("weblens-login-token", data.token)
-        nav("/")
-    })
+function CreateUser(username, password) {
+    createUser(username, password)
+        .then(x => { notifications.show({ message: "Account created! Once an administrator activates your account you may login" }) })
+        .catch((reason) => { notifications.show({ message: `Failed to create new user: ${reason}`, color: 'red' }) })
 }
 
 const Login = () => {
     const [userInput, setUserInput] = useState("")
     const [passInput, setPassInput] = useState("")
-
+    const [tab, setTab] = useState("login")
     const nav = useNavigate()
-
-    const [cookies, setCookie, removeCookie] = useCookies(['weblens-login-token']);
+    const loc = useLocation()
+    const { authHeader, setCookie } = useContext(userContext)
 
     useEffect(() => {
-        if (cookies['weblens-login-token']) {
+        if (loc.state == null && authHeader.Authorization != "") {
             nav("/")
         }
-    }, [])
+    }, [authHeader])
 
     return (
-        <Box height={"100vh"} width={"100vw"} display={"flex"} flexDirection={"column"} justifyContent={"center"} alignItems={"center"}>
-            <h1 style={{ marginTop: -100, marginBottom: 50 }}>Weblens</h1>
-            <TextField
-
-                label="Username"
-                style={{ margin: 10 }}
-                onChange={(e) => setUserInput(e.target.value)}
-            />
-            <TextField
-
-                label="Password"
-                type="password"
-                style={{ margin: 10 }}
-                onChange={(e) => setPassInput(e.target.value)}
-            />
-            <Button variant="contained" style={{ height: "40px", width: "150px", margin: 10 }} onClick={() => { CheckCreds(userInput, passInput, setCookie, nav) }} > Log in </Button>
+        <Box height={"100vh"} width={"100vw"} display={"flex"} justifyContent={"center"} alignItems={"center"}
+            sx={{ background: "linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%);" }}
+        >
+            <Tabs value={tab} onChange={setTab} variant="pills">
+                <Tabs.List grow>
+                    <Tabs.Tab value="login" >
+                        Login
+                    </Tabs.Tab>
+                    <Tabs.Tab value="signup" >
+                        Sign Up
+                    </Tabs.Tab>
+                </Tabs.List>
+                <Tabs.Panel value="login">
+                    <Fieldset>
+                        <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
+                        <PasswordInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
+                        <Space h={'md'} />
+                        <Button fullWidth onClick={() => CheckCreds(userInput, passInput, setCookie, nav)}>Login</Button>
+                    </Fieldset >
+                </Tabs.Panel>
+                <Tabs.Panel value="signup">
+                    <Fieldset>
+                        <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
+                        <PasswordInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
+                        <Space h={'md'} />
+                        <Button fullWidth onClick={() => CreateUser(userInput, passInput)}>Sign Up</Button>
+                    </Fieldset >
+                </Tabs.Panel>
+            </Tabs>
         </Box>
     )
 }

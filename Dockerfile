@@ -36,7 +36,7 @@ RUN go build -v -o weblens .
 FROM debian:bookworm
 
 RUN apt update
-RUN apt-get install -y libwebp-dev exiftool
+RUN apt-get install -y libwebp-dev exiftool ffmpeg
 
 WORKDIR /app
 COPY --from=ui /app/build /ui/build
