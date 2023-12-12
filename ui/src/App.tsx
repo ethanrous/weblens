@@ -12,8 +12,10 @@ import useR from "./components/UserInfo"
 import { userContext } from "./Context"
 import Login from "./Pages/Login/Login"
 
+import 'mapbox-gl/dist/mapbox-gl.css'
 import "@mantine/notifications/styles.css"
 import "@mantine/core/styles.css"
+import MapPage from './Pages/Map/Map'
 
 const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"))
 const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"))
@@ -151,6 +153,16 @@ const WeblensRoutes = () => {
               {/* <div className="container"> */}
               <FileBrowser />
               {/* </div> */}
+            </Suspense>
+          }
+        />
+        <Route
+          path="/map"
+          element={
+            <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
+              <div className="container">
+                <MapPage />
+              </div>
             </Suspense>
           }
         />
