@@ -104,10 +104,16 @@ func AddApiRoutes(r *gin.Engine) {
 	api.POST("/takeout", createTakeout)
 
 	api.GET("/user", getUserInfo)
-	api.GET("/userSearch", searchUsers)
+	api.GET("/users", searchUsers)
 
 	api.GET("/share", getSharedFiles)
-	api.POST("/share", shareFiles)
+	api.POST("/share", shareContent)
+
+	api.GET("/albums", getAlbums)
+
+	api.GET("/album/:albumId", getAlbum)
+	api.POST("/album", createAlbum)
+	api.PUT("/album/:albumId", addToAlbum)
 
 	admin := r.Group("/api/admin")
 	admin.Use(WeblensAuth(false, true))

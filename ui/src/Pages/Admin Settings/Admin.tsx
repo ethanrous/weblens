@@ -1,8 +1,7 @@
-import { Box, Button, Checkbox, Sheet, Input, Typography, useTheme } from "@mui/joy"
+import { Box, Button, Checkbox, Sheet, Input, Typography } from "@mui/joy"
 import { Button as ManButton } from "@mantine/core"
 import { useContext, useEffect, useMemo, useState } from "react"
 import { userContext } from "../../Context"
-import { useSnackbar } from "notistack"
 import HeaderBar from "../../components/HeaderBar"
 import { clearCache, adminCreateUser } from "../../api/ApiFetch"
 import { ActivateUser, DeleteUser, GetUsersInfo } from "../../api/UserApi"
@@ -26,11 +25,10 @@ const Admin = () => {
     const [makeAdmin, setMakeAdmin] = useState(false)
     const { authHeader, userInfo } = useContext(userContext)
     const [allUsersInfo, setAllUsersInfo] = useState(null)
-    const { enqueueSnackbar } = useSnackbar()
 
     useEffect(() => {
         if (authHeader.Authorization != "") {
-            GetUsersInfo(setAllUsersInfo, authHeader, enqueueSnackbar)
+            GetUsersInfo(setAllUsersInfo, authHeader)
         }
     }, [authHeader])
 
@@ -45,11 +43,11 @@ const Admin = () => {
                         {val.Username} - Admin: {val.Admin.toString()}
                     </Typography>
                     {val.Activated == false && (
-                        <ManButton onClick={() => { ActivateUser(val.Username, authHeader).then((_) => GetUsersInfo(setAllUsersInfo, authHeader, enqueueSnackbar)) }}>
+                        <ManButton onClick={() => { ActivateUser(val.Username, authHeader).then((_) => GetUsersInfo(setAllUsersInfo, authHeader)) }}>
                             Activate
                         </ManButton>
                     )}
-                    <ManButton color="red" onClick={() => { DeleteUser(val.Username, authHeader).then((_) => GetUsersInfo(setAllUsersInfo, authHeader, enqueueSnackbar)) }}>
+                    <ManButton color="red" onClick={() => { DeleteUser(val.Username, authHeader).then((_) => GetUsersInfo(setAllUsersInfo, authHeader)) }}>
                         Delete
                     </ManButton>
                 </Box>
@@ -82,7 +80,7 @@ const Admin = () => {
                         sx={{ margin: '8px' }}
                         onChange={(e) => { setMakeAdmin(e.target.checked) }}
                     />
-                    <Button sx={buttonSx} onClick={() => adminCreateUser(userInput, passInput, makeAdmin, authHeader).then((_) => { GetUsersInfo(setAllUsersInfo, authHeader, enqueueSnackbar); setUserInput(""); setPassInput("") })}>
+                    <Button sx={buttonSx} onClick={() => adminCreateUser(userInput, passInput, makeAdmin, authHeader).then((_) => { GetUsersInfo(setAllUsersInfo, authHeader); setUserInput(""); setPassInput("") })}>
                         Create User
                     </Button>
                 </Sheet>

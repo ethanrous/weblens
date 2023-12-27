@@ -24,22 +24,23 @@ import (
 )
 
 type Media struct {
-	mongoId			string					`bson:"_id"`
-	FileHash		string					`bson:"fileHash"`
-	ParentFolder 	string 					`bson:"parentFolderId"`
-	Filename	 	string 					`bson:"filename"`
-	MediaType		mediaType				`bson:"mediaType"`
-	BlurHash 		string 					`bson:"blurHash"`
-	Thumbnail64 	string		 			`bson:"thumbnail"`
-	MediaWidth 		int						`bson:"width"`
-	MediaHeight 	int 					`bson:"height"`
-	ThumbWidth 		int						`bson:"thumbWidth"`
-	ThumbHeight 	int 					`bson:"thumbHeight"`
-	CreateDate		time.Time				`bson:"createDate"`
-	Owner			string					`bson:"owner"`
-	SharedWith		[]primitive.ObjectID	`bson:"sharedWith"`
+	// mongoId			string					`bson:"_id"`
+	FileHash		string					`bson:"fileHash" json:"fileHash"`
+	ParentFolder 	string 					`bson:"parentFolderId" json:"parentFolder"`
+	Filename	 	string 					`bson:"filename" json:"filename"`
+	MediaType		mediaType				`bson:"mediaType" json:"mediaType"`
+	BlurHash 		string 					`bson:"blurHash" json:"blurHash"`
+	Thumbnail64 	string		 			`bson:"thumbnail" json:"thumbnail64"`
+	MediaWidth 		int						`bson:"width" json:"mediaWidth"`
+	MediaHeight 	int 					`bson:"height" json:"mediaHeight"`
+	ThumbWidth 		int						`bson:"thumbWidth" json:"thumbWidth"`
+	ThumbHeight 	int 					`bson:"thumbHeight" json:"thumbHeight"`
+	CreateDate		time.Time				`bson:"createDate" json:"createDate"`
+	Owner			string					`bson:"owner" json:"owner"`
+	SharedWith		[]primitive.ObjectID	`bson:"sharedWith" json:"sharedWith"`
 
-	rotation		int
+	// rotation		int
+	image 			image.Image
 	rawExif			map[string]any
 	thumbBytes		[]byte
 }
@@ -401,4 +402,12 @@ func (m *Media) GenerateThumbnail() (*image.NRGBA) {
 func (m *Media) GetBackingFile() *WeblensFileDescriptor {
 	file := GetWFD(m.ParentFolder, m.Filename)
 	return file
+}
+
+func (m *Media) GetImage() image.Image {
+	if m.image == nil {
+		m.image = m.readFileIntoImage()
+	}
+
+	return m.image
 }

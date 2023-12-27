@@ -25,7 +25,7 @@ export function humanFileSize(bytes, si = false, dp = 1) {
 }
 
 export function dateFromItemData(itemData: itemData) {
-    var date = new Date(itemData.mediaData.CreateDate)
+    var date = new Date(itemData.mediaData.createDate)
     if (date.getFullYear() == 0) {
         date = new Date(itemData.modTime)
     }

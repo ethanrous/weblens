@@ -1,17 +1,17 @@
 import { useEffect, useState, memo, useRef } from 'react'
 
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import { FormControl, Typography, Input, Box, Divider } from '@mui/joy'
+import { FormControl, Typography, Input, Divider } from '@mui/joy'
 
 import { StyledLazyThumb } from '../../types/Styles'
 import { humanFileSize } from '../../util'
 import { CreateFolder, RenameFile } from '../../api/FileBrowserApi'
-import { FileItemWrapper, ItemVisualComponentWrapper } from './FilebrowserStyles'
+import { FileItemWrapper, FlexColumnBox, ItemVisualComponentWrapper } from './FilebrowserStyles'
 import { itemData } from '../../types/Types'
 
 import { useIsVisible } from '../../components/PhotoContainer'
 import { IconFileZip, IconFolder } from '@tabler/icons-react'
-import { Center, Skeleton, Text, Tooltip } from '@mantine/core'
+import { Box, Center, Skeleton, Text, Tooltip } from '@mantine/core'
 
 function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, newName, imported, authHeader) {
 
@@ -41,8 +41,8 @@ function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, new
 
 const ItemVisualComponent = ({ itemData, root }: { itemData: itemData, root }) => {
     const sqareSize = "75%"
-    const type = itemData.mediaData?.MediaType.FriendlyName
-    const displayable = itemData.mediaData?.MediaType.IsDisplayable
+    const type = itemData.mediaData?.mediaType.FriendlyName
+    const displayable = itemData.mediaData?.mediaType.IsDisplayable
     if (itemData.isDir) {
         return (<IconFolder style={{ width: sqareSize, height: sqareSize }} />)
     } else if (displayable) {
@@ -85,7 +85,6 @@ const TextBox = ({ filename, fileId, fileSize, editing, setRenameVal, dispatch }
 
     if (editing) {
         return (
-
             <FormControl style={{ width: "100%", height: "30px", bottom: "5px" }} >
                 <Input
                     slotProps={{ input: { ref: editRef } }}
@@ -101,32 +100,25 @@ const TextBox = ({ filename, fileId, fileSize, editing, setRenameVal, dispatch }
     } else {
         const [sizeValue, units] = humanFileSize(fileSize, true)
         return (
-            <Tooltip openDelay={300} label={filename}>
-                <Box
-                    display={"flex"}
-                    flexDirection={"column"}
-                    justifyContent={"center"}
-                    alignItems={"center"}
-
-                    width={"100%"}
-                    onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: fileId }) }}
-                    sx={{ cursor: 'text' }}
-                >
-                    <Box display={"flex"} justifyContent={"space-evenly"} alignItems={'center'} width={"100%"} height={"30px"}>
+            <FlexColumnBox style={{ width: '100%', cursor: 'text', padding: '5px' }}>
+                <Tooltip openDelay={300} label={filename}>
+                    <Box display={"flex"} style={{ justifyContent: 'space-evenly', alignItems: 'center', width: '100%', height: '30px' }} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: fileId }) }}>
                         <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{filename} </Typography>
                         <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
-                        <Box display={"flex"} flexDirection={'column'} alignContent={'center'} alignItems={'center'} >
+                        <FlexColumnBox >
                             <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
                             <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Typography>
-                        </Box>
+                        </FlexColumnBox>
                     </Box>
-                </Box>
             </Tooltip>
+            </FlexColumnBox>
         )
     }
 }
 
-const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, dispatch, authHeader }: { itemData: itemData, selected: boolean, root, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any }) => {
+const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, dispatch, authHeader, visual }: {
+    itemData: itemData, selected: boolean, root, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any, visual?: JSX.Element
+}) => {
     const [hovering, setHovering] = useState(false)
     const [renameVal, setRenameVal] = useState("")
     const itemRef = useRef()
@@ -141,6 +133,11 @@ const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, 
             return StartKeybaordListener(dispatch, editing, itemData.parentFolderId, itemData.id, itemData.filename, renameVal, itemData.imported, authHeader)
         }
     }, [editing, renameVal])
+
+    if (!visual) {
+        visual = <ItemVisualComponent itemData={itemData} root={root} />
+    }
+
     return (
         <FileItemWrapper
             itemRef={itemRef}
@@ -154,7 +151,7 @@ const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, 
             dragging={dragging}
         >
             <ItemVisualComponentWrapper>
-                <ItemVisualComponent itemData={itemData} root={root} />
+                {visual}
             </ItemVisualComponentWrapper>
 
             <TextBox filename={itemData.filename} fileId={itemData.id} fileSize={itemData.size} editing={editing} setRenameVal={setRenameVal} dispatch={dispatch} />

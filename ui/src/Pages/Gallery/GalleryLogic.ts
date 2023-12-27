@@ -1,29 +1,69 @@
 import { useEffect } from 'react'
-import { MediaStateType, itemData } from '../../types/Types'
+import { AlbumData, MediaData, MediaStateType, itemData } from '../../types/Types'
+import { notifications } from '@mantine/notifications'
 
-export function mediaReducer(state: MediaStateType, action) {
+type galleryAction = {
+    type: string
+    media?: MediaData[]
+    albums?: AlbumData[]
+    block?: boolean
+    itemId?: string
+    item?: itemData
+    progress?: number
+    loading?: boolean
+    search?: string
+    open?: boolean
+}
+
+export function mediaReducer(state: MediaStateType, action: galleryAction) {
     switch (action.type) {
-        case 'add_media': {
+        case 'set_media': {
+            state.mediaMap.clear()
+            if (action.media) {
+                let prev: MediaData
+                for (const m of action.media) {
+                    state.mediaMap.set(m.fileHash, m)
+                    if (prev) {
+                        prev.Next = m
+                        m.Previous = prev
+                    }
+                    prev = m
+                }
+            }
+            return {
+                ...state
+            }
+        }
+
+        case 'set_albums': {
+            if (!action.albums) {
+                return { ...state }
+            }
+            for (const a of action.albums) {
+                state.albumsMap.set(a.Name, a)
+            }
+            return { ...state }
+        }
+
+        case 'set_block_search_focus': {
             return {
                 ...state,
-                mediaMap: action.mediaMap,
-                hasMoreMedia: action.hasMoreMedia,
-                previousLast: action.previousLast,
-                mediaCount: state.mediaCount + action.addedCount,
+                blockSearchFocus: action.block
+            }
+        }
+
+        case 'set_new_album_open': {
+            return {
+                ...state,
+                blockSearchFocus: action.open,
+                newAlbumDialogue: action.open
             }
         }
 
         case 'delete_from_map': {
-            state.mediaMap.delete(action.item)
+            state.mediaMap.delete(action.itemId)
             // action.item
             return { ...state }
-        }
-
-        case 'insert_thumbnail': {
-            state.mediaMap.get(action.hash).Thumbnail64 = action.thumb64
-            return {
-                ...state,
-            }
         }
 
         case 'set_scan_progress': {
@@ -33,18 +73,6 @@ export function mediaReducer(state: MediaStateType, action) {
             }
         }
 
-        case 'inc_max_media_count': {
-            if (state.loading || state.maxMediaCount > state.mediaCount) {
-                return {
-                    ...state
-                }
-            }
-            return {
-                ...state,
-                maxMediaCount: state.maxMediaCount + action.incBy,
-                loading: true
-            }
-        }
         case 'set_loading': {
             return {
                 ...state,
@@ -61,9 +89,6 @@ export function mediaReducer(state: MediaStateType, action) {
             return {
                 ...state,
                 mediaCount: 0,
-                maxMediaCount: 100,
-                hasMoreMedia: true,
-                previousLast: "",
                 loading: true,
                 includeRaw: !state.includeRaw
             }
@@ -79,26 +104,21 @@ export function mediaReducer(state: MediaStateType, action) {
         case 'set_presentation': {
             return {
                 ...state,
-                presentingHash: action.presentingHash
+                presentingHash: action.itemId
             }
         }
 
         case 'presentation_next': {
-            let incBy = 0
-            if (!state.mediaMap.get(state.presentingHash)?.Next?.Next && state.hasMoreMedia && !(state.loading || state.maxMediaCount > state.mediaCount)) {
-                incBy = 100
-            }
             return {
                 ...state,
-                maxMediaCount: state.maxMediaCount + incBy,
-                presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.fileHash : state.presentingHash
             }
         }
 
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaMap.get(state.presentingHash)?.Previous ? state.mediaMap.get(state.presentingHash).Previous.FileHash : state.presentingHash
+                presentingHash: state.mediaMap.get(state.presentingHash)?.Previous ? state.mediaMap.get(state.presentingHash).Previous.fileHash : state.presentingHash
             }
         }
 
@@ -109,7 +129,7 @@ export function mediaReducer(state: MediaStateType, action) {
                 }
             }
             try {
-                state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
             } catch {
                 console.error("No img ref: ", state.presentingHash)
             }
@@ -128,13 +148,13 @@ export function mediaReducer(state: MediaStateType, action) {
     }
 }
 
-export const useKeyDown = (searchRef) => {
+export const useKeyDown = (blockSearchFocus, searchRef) => {
 
     const onKeyDown = (event) => {
-        if (!event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
-            searchRef.current.children[0].focus()
+        if (!blockSearchFocus && !event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
+            searchRef.current.focus()
         } else if (event.key == "Escape") {
-            searchRef.current.children[0].blur()
+            searchRef.current.blur()
         }
     };
     useEffect(() => {
@@ -145,20 +165,33 @@ export const useKeyDown = (searchRef) => {
     }, [onKeyDown])
 }
 
-export const useScroll = (hasMoreMedia, dispatch) => {
-    const onScrollEvent = (_) => {
-        if (hasMoreMedia) { handleScroll(dispatch) }
-    }
-    useEffect(() => {
-        window.addEventListener('scroll', onScrollEvent)
-        return () => {
-            window.removeEventListener('scroll', onScrollEvent)
+export function handleWebsocket(lastMessage, dispatch) {
+    if (lastMessage) {
+        const msgData = JSON.parse(lastMessage.data)
+        switch (msgData["type"]) {
+            case "item_update": {
+                return
+            }
+            case "item_deleted": {
+                dispatch({ type: "delete_from_map", itemId: msgData["content"].hash })
+                return
+            }
+            case "scan_directory_progress": {
+                dispatch({ type: "set_scan_progress", progress: ((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100) })
+                return
+            }
+            case "finished": {
+                dispatch({ type: "set_loading", loading: false })
+                return
+            }
+            case "error": {
+                notifications.show({ message: msgData["error"], color: 'red' })
+                return
+            }
+            default: {
+                console.error("Got unexpected websocket message: ", msgData)
+                return
+            }
         }
-    }, [onScrollEvent])
-}
-
-export function handleScroll(dispatch) {
-    if (document.documentElement.scrollHeight - (document.documentElement.scrollTop + window.innerHeight) < 1500) {
-
     }
 }

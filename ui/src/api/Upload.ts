@@ -2,6 +2,7 @@ import API_ENDPOINT from "./ApiEndpoint"
 import axios from 'axios'
 import { useUploadStatus } from "../components/UploadStatus";
 import { dispatchSync } from "./Websocket";
+import { notifications } from "@mantine/notifications";
 
 export type fileUploadMetadata = {
     file: File
@@ -106,6 +107,8 @@ async function doChunkedUpload(fileData: File, parentFolderId, filename, authHea
         onFinish()
     } catch (error) {
         onProgress(-1, 100, 0)
+        notifications.show({ title: `Failed uploading ${filename}`, message: `${error.response.data.error}`, color: 'red' })
+        console.log(error.response.data.error)
         console.error("Error during chunk upload:", error);
     }
 }
@@ -138,6 +141,8 @@ async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, u
 
     let tlds: string[] = []
     let tlf = false
+
+
 
     for (const meta of filesMeta) {
         const key: string = meta?.folderId || meta.parentId + meta.file.name

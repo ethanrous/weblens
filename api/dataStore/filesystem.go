@@ -121,6 +121,8 @@ func (f *WeblensFileDescriptor) FormatFileInfo() (FileInfo, error) {
 			m.MediaType = mt
 		}
 
+		m.Thumbnail64 = ""
+
 		formattedInfo = FileInfo{Id: f.Id(), Imported: imported, IsDir: *f.isDir, Size: int(f.Size()), ModTime: f.ModTime(), Filename: f.Filename, ParentFolderId: f.ParentFolderId, MediaData: m, Owner: f.owner}
 	} else {
 		return formattedInfo, fmt.Errorf("filename in blocklist")

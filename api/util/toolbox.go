@@ -206,7 +206,7 @@ func Map[T, V any](ts []T, fn func(T) V) []V {
 }
 
 func MapToSlice[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
-    var result []V
+    result := make([]V, len(tMap))
     for t, x := range tMap {
         result = append(result, fn(t, x))
     }

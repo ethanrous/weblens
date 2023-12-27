@@ -8,7 +8,9 @@ import { dispatchSync } from '../api/Websocket';
 function uploadReducer(state: UploadStateType, action) {
     switch (action.type) {
         case 'add_new': {
-            if (state.uploadsMap.get(action.key)) {
+            let existingUpload = state.uploadsMap.get(action.key)
+            if (existingUpload?.progress > 0) {
+
                 return { ...state }
             }
             const newUploadMeta: UploadMeta = { key: action.key, isDir: action.isDir, friendlyName: action.name, parent: action?.parent, progress: 0, totalFiles: 0, speed: 0 }
@@ -158,7 +160,7 @@ const UploadStatus = ({ uploadState, uploadDispatch, count }: { uploadState: Upl
     if (uploadState.uploadsMap.size === 0) {
         return null
     }
-    const topLevelCount: number = Array.from(uploadState.uploadsMap.values()).filter((val) => val.parent === undefined).length
+    const topLevelCount: number = Array.from(uploadState.uploadsMap.values()).filter((val) => !val.parent).length
     return (
         <Paper pos={'fixed'} bottom={0} right={30} radius={10} style={{ backgroundColor: "#222222", zIndex: 2 }}>
             <Paper pt={8} pb={25} radius={10} mb={-10} ml={10} mr={10} style={{ backgroundColor: "transparent", display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

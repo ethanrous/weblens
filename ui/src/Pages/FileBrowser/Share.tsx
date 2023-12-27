@@ -4,17 +4,20 @@ import { AutocompleteUsers, ShareFiles } from "../../api/FileBrowserApi"
 import { itemData } from "../../types/Types"
 import { userContext } from "../../Context"
 
-
-function ShareDialogue({ sharing, selectedMap, dirMap, dispatch, authHeader }) {
+export function ShareInput({ valueSetCallback }) {
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     })
-    const { userInfo } = useContext(userContext)
+    const { userInfo, authHeader } = useContext(userContext)
     const [userSearch, setUserSearch] = useState(null)
     const [empty, setEmpty] = useState(false)
     const [loading, setLoading] = useState(false)
     const [search, setSearch] = useState('')
     const [value, setValue] = useState([])
+
+    useEffect(() => {
+        valueSetCallback(value)
+    }, [value])
 
     const searchUsers = async (query: string) => {
         if (query.length < 2) {
@@ -56,55 +59,67 @@ function ShareDialogue({ sharing, selectedMap, dirMap, dispatch, authHeader }) {
     ))
 
     return (
-        <Modal opened={sharing} onClose={() => { dispatch({ type: "close_share" }) }} title={`Share ${selectedMap.size} Files`} centered>
-            <Combobox
-                onOptionSubmit={str => { setSearch(''); handleValueSelect(str) }}
-                withinPortal={false}
-                store={combobox}
-            >
-                <Combobox.DropdownTarget>
-                    <PillsInput
-                        label="People to share with"
-                        onClick={() => combobox.openDropdown()}
-                        rightSection={loading && <Loader size={18} />}
-                        placeholder='Search users to share with'
-                    >
-                        {values}
-                        <Combobox.EventsTarget>
-                            <PillsInput.Field
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.currentTarget.value)
-                                    searchUsers(e.currentTarget.value)
-                                    combobox.updateSelectedOptionIndex()
-                                    combobox.openDropdown()
-                                }}
-                                onClick={() => combobox.openDropdown()}
-                                onFocus={() => {
-                                    combobox.openDropdown()
-                                    if (userSearch === null) {
-                                        searchUsers(search)
-                                    }
-                                }}
-                                onBlur={() => combobox.closeDropdown()}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Backspace' && search.length === 0) {
-                                        event.preventDefault()
-                                        handleValueRemove(value[value.length - 1])
-                                    }
-                                }}
-                            />
+        <Combobox
+            onOptionSubmit={str => { setSearch(''); handleValueSelect(str) }}
+            withinPortal={false}
+            store={combobox}
+        >
+            <Combobox.DropdownTarget>
+                <PillsInput
+                    label="People to share with"
+                    onClick={() => combobox.openDropdown()}
+                    rightSection={loading && <Loader size={18} />}
+                    placeholder='Search users to share with'
+                >
+                    {values}
+                    <Combobox.EventsTarget>
+                        <PillsInput.Field
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.currentTarget.value)
+                                searchUsers(e.currentTarget.value)
+                                combobox.updateSelectedOptionIndex()
+                                combobox.openDropdown()
+                            }}
+                            onClick={(e) => { e.stopPropagation(); combobox.openDropdown() }}
+                            onFocus={() => {
+                                combobox.openDropdown()
+                                if (userSearch === null) {
+                                    searchUsers(search)
+                                }
+                            }}
+                            onBlur={() => combobox.closeDropdown()}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Backspace' && search.length === 0) {
+                                    event.preventDefault()
+                                    handleValueRemove(value[value.length - 1])
+                                }
+                            }}
+                        />
 
-                        </Combobox.EventsTarget>
-                    </PillsInput>
-                </Combobox.DropdownTarget>
-                <Combobox.Dropdown hidden={search === "" || search === null}>
-                    <Combobox.Options>
-                        {options}
-                        {(empty && !loading) && <Combobox.Empty>No results found</Combobox.Empty>}
-                    </Combobox.Options>
-                </Combobox.Dropdown>
-            </Combobox>
+                    </Combobox.EventsTarget>
+                </PillsInput>
+            </Combobox.DropdownTarget>
+            <Combobox.Dropdown hidden={search === "" || search === null}>
+                <Combobox.Options>
+                    {options}
+                    {(empty && !loading) && <Combobox.Empty>No results found</Combobox.Empty>}
+                </Combobox.Options>
+            </Combobox.Dropdown>
+        </Combobox>
+    )
+}
+
+function ShareDialogue({ sharing, selectedMap, dirMap, dispatch }) {
+    const combobox = useCombobox({
+        onDropdownClose: () => combobox.resetSelectedOption(),
+    })
+    const { authHeader } = useContext(userContext)
+    const [value, setValue] = useState([])
+
+    return (
+        <Modal opened={sharing} onClose={() => { dispatch({ type: "close_share" }) }} title={`Share ${selectedMap.size} Files`} centered>
+            <ShareInput valueSetCallback={setValue} />
             <Space h={'md'} />
             <Button onClick={() => ShareFiles(Array.from(selectedMap.keys()).map((key: string) => { const item: itemData = dirMap.get(key); return { parentFolderId: item.parentFolderId, filename: item.filename } }), value, authHeader)}>Share</Button>
         </Modal>
