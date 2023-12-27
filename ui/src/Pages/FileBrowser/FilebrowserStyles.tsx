@@ -1,18 +1,22 @@
-import { Card, CardContent, Sheet, Typography, styled, useTheme } from "@mui/joy"
-import { Box, MantineStyleProp, rem } from '@mantine/core'
+import { CardContent, Sheet, Typography } from "@mui/joy"
+import { Box, Card, MantineStyleProp, AspectRatio } from '@mantine/core'
 import { Dispatch, useState } from "react"
 import { HandleDrag } from "./FileBrowserLogic"
-import { Folder } from "@mui/icons-material"
-import { AspectRatio, Tooltip } from "@mantine/core"
 import { itemData } from "../../types/Types"
 import { useNavigate } from "react-router-dom"
+import { IconFolder } from "@tabler/icons-react"
 
-export const FlexColumnBox = ({ children, style, alignOverride }: { children, style?: MantineStyleProp, alignOverride?: string }) => {
+export const FlexColumnBox = ({ children, style, alignOverride, reff, onClick, onMouseOver, onMouseLeave, onContextMenu }: { children, style?: MantineStyleProp, alignOverride?: string, reff?, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?}) => {
     let align = alignOverride || "center"
     return (
         <Box
+            ref={reff}
             children={children}
             draggable={false}
+            onClick={onClick}
+            onMouseOver={onMouseOver}
+            onMouseLeave={onMouseLeave}
+            onContextMenu={onContextMenu}
             style={{
                 display: "flex",
                 flexDirection: "column",
@@ -23,11 +27,10 @@ export const FlexColumnBox = ({ children, style, alignOverride }: { children, st
     )
 }
 
-export const FlexRowBox = ({ children, style }: { children, style: MantineStyleProp }) => {
+export const FlexRowBox = ({ children, style }: { children, style?: MantineStyleProp }) => {
     return (
         <Box
             children={children}
-            w={"100%"}
             style={{
                 ...style,
                 display: "flex",
@@ -48,12 +51,11 @@ type DirViewWrapperProps = {
 }
 
 export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
-    const theme = useTheme()
 
     return (
         <Box
-            w={"100%"} display={'flex'} pt={"80px"}
-            style={{ zIndex: 1, height: "calc(100vh - 20px)" }}
+            display={'flex'} pt={"80px"}
+            style={{ zIndex: 1, height: "calc(100vh - 20px)", width: '100%' }}
             onDragOver={event => { HandleDrag(event, dispatch, dragging) }}
             onDrop={onDrop}
             onMouseOver={onMouseOver}
@@ -74,14 +76,14 @@ export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, on
                         justifyContent: 'center',
                         backgroundColor: "#00000077",
                         backdropFilter: "blur(3px)",
-                        outline: `1px solid ${theme.colorSchemes.dark.palette.primary.outlinedColor}`
+                        outline: `1px solid white`
                     }}
                 >
-                    <Card variant="plain" orientation="horizontal" sx={{ height: 'max-content', bottom: '20px', position: 'fixed' }}>
+                    <Card style={{ height: 'max-content', bottom: '20px', position: 'fixed' }}>
                         <CardContent>
                             <Typography level="title-md" display={'flex'}>
                                 {"Drop to upload to"}
-                                <Folder sx={{ marginLeft: '7px' }} />
+                                <IconFolder style={{ marginLeft: '7px' }} />
                                 <Typography fontWeight={'lg'} marginLeft={'3px'}>
                                     {folderName}
                                 </Typography>
@@ -90,57 +92,28 @@ export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, on
                     </Card>
                 </Sheet>
             )}
-            <Box
-                display={"flex"}
-                pl={20}
-                w={"100%"}
-                style={{ flexDirection: 'column' }}
-            >
+            <FlexColumnBox style={{ paddingLeft: 20, width: '100%' }}>
                 {children}
-            </Box>
-
+            </FlexColumnBox>
         </Box>
-    )
-}
-
-export const DirItemsWrapper = ({ reff, children }) => {
-    return (
-        <Box
-            ref={reff}
-            children={children}
-            style={{
-                display: 'grid',
-                gridGap: '16px',
-                gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))",
-                touchAction: 'none',
-                overflowY: 'scroll',
-                borderRadius: '10px',
-                paddingTop: "1px",
-                paddingBottom: "1px",
-                paddingLeft: "1px",
-                paddingRight: "5vw",
-                width: "105%"
-            }}
-        />
     )
 }
 
 export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { itemRef: any, itemData: itemData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
     const [mouseDown, setMouseDown] = useState(false)
-    const theme = useTheme()
     const navigate = useNavigate()
 
     let outline
     let backgroundColor
     if (selected) {
-        outline = `1px solid ${theme.colorSchemes.dark.palette.primary.outlinedColor}`
-        backgroundColor = theme.colorSchemes.dark.palette.primary.solidActiveBg
+        outline = `1px solid #220088`
+        backgroundColor = "#331177"
     } else if (hovering && dragging && isDir) {
-        outline = `2px solid ${theme.colorSchemes.dark.palette.primary.outlinedColor}`
+        outline = `2px solid #661199`
     } else if (hovering && !dragging) {
-        backgroundColor = theme.colorSchemes.dark.palette.primary.solidBg
+        backgroundColor = "#333333"
     } else {
-        backgroundColor = theme.colorSchemes.dark.palette.primary.solidDisabledBg
+        backgroundColor = "#222222"
     }
 
     return (
@@ -152,7 +125,7 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
                 onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itemId: itemData.id }) }}
                 onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
                 onMouseDown={() => { setMouseDown(true) }}
-                onDoubleClick={(e) => { e.stopPropagation(); if (itemData.isDir) { navigate(itemData.id) } else if (itemData.mediaData.MediaType.IsDisplayable) { dispatch({ type: 'set_presentation', presentingId: itemData.id }) } }}
+                onDoubleClick={(e) => { e.stopPropagation(); if (itemData.isDir) { navigate(itemData.id) } else if (itemData.mediaData.mediaType.IsDisplayable) { dispatch({ type: 'set_presentation', itemId: itemData.id }) } }}
                 onContextMenu={(e) => { e.preventDefault() }}
                 onMouseLeave={() => {
                     setHovering(false)
@@ -165,7 +138,7 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
                     }
                 }}
                 variant='solid'
-                sx={{
+                style={{
                     // internal
                     display: 'flex',
                     flexDirection: 'column',
@@ -198,29 +171,8 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
 
 export const ItemVisualComponentWrapper = ({ children }) => {
     return (
-        <AspectRatio ratio={1} variant='solid' w={"100%"} display={'flex'}>
+        <AspectRatio ratio={1} w={"94%"} display={'flex'} m={'6px'}>
             <Box children={children} style={{ overflow: 'hidden', borderRadius: '5px' }} />
         </AspectRatio>
-    )
-}
-
-export const TextBoxWrapper = ({ ...props }) => {
-    const theme = useTheme()
-    return (
-        <Box
-            {...props}
-            style={{
-                position: "relative",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                padding: "10px",
-                backgroundColor: theme.colorSchemes.dark.palette.neutral.softBg,
-                width: "100%",
-                height: "max-content",
-                bottom: "0px",
-                textAlign: "center",
-            }}
-        />
     )
 }

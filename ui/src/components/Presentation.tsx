@@ -32,34 +32,31 @@ const PresentationContainer = ({ ...extra }) => {
     )
 }
 
-const StyledMediaImage = ({ mediaData, quality, lazy }) => {
+const StyledMediaImage = ({ mediaData, quality, lazy }: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean }) => {
 
     return (
         <Box pos={'absolute'} style={{ height: "100%", width: "100%" }} onClick={(e) => e.stopPropagation()}>
-            <MediaImage mediaData={mediaData} quality={quality} lazy={lazy} imgStyle={{ height: "calc(100% - 10px)", width: "calc(100% - 10px)", position: 'absolute', objectFit: "contain" }} />
+            <MediaImage mediaId={mediaData.fileHash} blurhash={mediaData.blurHash} quality={quality} lazy={lazy} imgStyle={{ height: "calc(100% - 10px)", width: "calc(100% - 10px)", position: 'absolute', objectFit: "contain" }} />
         </Box>
     )
 }
 
-const PresentationVisual = ({ mediaData }) => {
+const PresentationVisual = ({ mediaData }: { mediaData: MediaData }) => {
     if (!mediaData) {
         return
     }
-    else if (mediaData.MediaType.IsVideo) {
+    else if (mediaData.mediaType.IsVideo) {
         return (
-            <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
+            <StyledMediaImage key={`${mediaData.fileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
         )
-    } else if (mediaData.MediaType?.FriendlyName == "File") {
+    } else if (mediaData.mediaType?.FriendlyName == "File") {
         return (
             <InsertDriveFileIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} />
         )
     } else {
         return (
             <FlexColumnBox style={{ height: "100%", width: "100%" }}>
-                {/* <MediaImage mediaData={mediaData} quality={"thumbnail"} lazy={false} imgStyle={{ objectFit: "contain" }} /> */}
-                <MediaImage mediaData={mediaData} quality={"fullres"} lazy={false} imgStyle={{ objectFit: "contain", maxHeight: "100%", height: "100%" }} />
-                {/* <StyledMediaImage key={`${mediaData.FileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} /> */}
-                {/* <StyledMediaImage key={`${mediaData.FileHash} fullres`} mediaData={mediaData} quality={"fullres"} lazy={false} /> */}
+                <MediaImage mediaId={mediaData.fileHash} blurhash={mediaData.blurHash} quality={"fullres"} lazy={false} imgStyle={{ objectFit: "contain", maxHeight: "100%", height: "100%" }} />
             </FlexColumnBox>
         )
     }
@@ -107,7 +104,7 @@ const Presentation = ({ mediaData, parents, dispatch }: { mediaData: MediaData, 
     const [to, setTo] = useState(null)
     const [guiShown, setGuiShown] = useState(false)
 
-    if (!mediaData || !mediaData.MediaType.IsDisplayable) {
+    if (!mediaData || !mediaData.mediaType.IsDisplayable) {
         return null
     }
 

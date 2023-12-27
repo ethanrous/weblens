@@ -68,16 +68,9 @@ func getPagedMedia(ctx *gin.Context) {
 	user, err := db.GetUser(ctx.GetString("username"))
 	util.FailOnError(err, "Failed to get user for paged media")
 
-	media, moreMedia := db.GetPagedMedia(sort, user.Username, skip, limit, raw, true)
+	media := db.GetPagedMedia(sort, user.Username, skip, limit, raw, false)
 
-	res := struct{
-		Media []dataStore.Media
-		MoreMedia bool
-	} {
-		media,
-		moreMedia,
-	}
-	ctx.JSON(http.StatusOK, res)
+	ctx.JSON(http.StatusOK, gin.H{"Media": media})
 }
 
 func getMediaItem(ctx *gin.Context) {
@@ -783,33 +776,46 @@ func clearCache(ctx *gin.Context) {
 }
 
 func searchUsers(ctx *gin.Context) {
-	searchValue := ctx.Query("searchValue")
-	if len(searchValue) < 2 {
+	filter := ctx.Query("filter")
+	if len(filter) < 2 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User autcomplete must contain at least 2 characters"})
 		return
 	}
 
 	db := dataStore.NewDB(ctx.GetString("username"))
-	users := db.SearchUsers(searchValue)
+	users := db.SearchUsers(filter)
 	ctx.JSON(http.StatusOK, gin.H{"users": users})
 }
 
 type share struct {
-	Files []file 	`json:"files"`
-	Users []string	`json:"users"`
+	ShareType	string 		`json:"shareType"`
+	Users 		[]string	`json:"users"`
+	Content 	string 		`json:"content"`
 }
 
-func shareFiles(ctx *gin.Context) {
+func shareContent(ctx *gin.Context) {
 	jsonData, err := io.ReadAll(ctx.Request.Body)
 	util.FailOnError(err, "Failed to read body of share request")
 	var shareData share
 	json.Unmarshal(jsonData, &shareData)
-
-	shareFiles := util.Map(shareData.Files, func(file file) *dataStore.WeblensFileDescriptor {return dataStore.GetWFD(file.ParentFolderId, file.Filename)})
-
 	db := dataStore.NewDB(ctx.GetString("username"))
 
-	db.ShareFiles(shareFiles, shareData.Users)
+	if shareData.ShareType == "files" {
+		var files []file
+		json.Unmarshal([]byte(shareData.Content), &files)
+		shareFiles := util.Map(files, func(file file) *dataStore.WeblensFileDescriptor {return dataStore.GetWFD(file.ParentFolderId, file.Filename)})
+		db.ShareFiles(shareFiles, shareData.Users)
+	} else if shareData.ShareType == "album" {
+		err = db.ShareAlbum(shareData.Content, shareData.Users)
+	}
+
+	if err != nil {
+		util.DisplayError(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share content"})
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }
 
 func getSharedFiles(ctx *gin.Context) {

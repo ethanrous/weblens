@@ -63,7 +63,7 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
                 padding={1}
                 sx={{ ...sx, cursor: "pointer", outline: outline, borderRadius: "5px", backgroundColor: bgColor }}
             >
-                <Text lineClamp={1} c={'white'} style={{ textOverflow: 'ellipsis', fontSize: `${fontSize}px`, lineHeight: "1", userSelect: "none" }}>{label}</Text>
+                <Text lineClamp={1} c={'white'} truncate='end' style={{ fontSize: `${fontSize}px`, lineHeight: "1.2", userSelect: "none", width: '100%' }}>{label}</Text>
             </Box>
         </Tooltip >
     )

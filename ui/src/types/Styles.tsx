@@ -1,33 +1,36 @@
 import { MediaImage } from '../components/PhotoContainer'
-import { styled } from '@mui/joy'
 import { MediaData } from './Types'
+import { Box, ScrollArea } from '@mantine/core'
 
-export const BlankCard = styled("div")({
-    height: '250px',
-    flexGrow: 999999
-})
+export const BlankCard = ({ scale }) => <Box style={{ height: scale, flexGrow: 9999 }} />
 
 export const StyledLazyThumb = ({ mediaData, quality, lazy, root }: { mediaData: MediaData, quality, lazy, root }) => {
-    let sizer
-    if (mediaData.MediaHeight < mediaData.MediaWidth) {
-        sizer = { height: "100%" }
-    } else {
-        sizer = { width: "100%" }
-    }
     return (
-        <MediaImage mediaData={mediaData} quality={quality} lazy={lazy}
+        <MediaImage mediaId={mediaData.fileHash} blurhash={mediaData.blurHash} quality={quality} lazy={lazy}
             imgStyle={{
-                transitionDuration: "200ms",
-                transform: "scale3d(1.00, 1.00, 1)",
-                "&:hover": {
-                    transitionDuration: "200ms",
-                    transform: "scale3d(1.03, 1.03, 1)",
-                },
                 objectFit: "cover",
-                ...sizer,
             }}
             root={root}
         />
     )
 }
 
+export const ItemsWrapper = ({ size = 200, reff, children }: { size?, reff?, children }) => {
+    return (
+
+        <ScrollArea type='never' style={{ width: '100%', borderRadius: '10px' }}>
+            <Box
+                ref={reff}
+                children={children}
+                style={{
+                    display: 'grid',
+                    gridGap: '16px',
+                    gridTemplateColumns: `repeat(auto-fill, ${size}px)`,
+                    padding: '10px',
+                    paddingRight: "1vw",
+                    width: "100%"
+                }}
+            />
+        </ScrollArea>
+    )
+}

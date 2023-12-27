@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useContext } from "react";
+import { useState, useEffect, useRef, useContext, useMemo } from "react";
 import { Blurhash } from "react-blurhash";
-import API_ENDPOINT from '../api/ApiEndpoint'
-
 import { userContext } from "../Context";
 import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react"
-import { MediaData } from "../types/Types";
-import { AspectRatio, Box, Image, Loader, MantineStyleProp } from "@mantine/core";
-import { FlexColumnBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { AspectRatio, Box, CSSProperties, Image, Loader, MantineStyleProp } from "@mantine/core";
+
+
+import API_ENDPOINT from '../api/ApiEndpoint'
+import { itemData } from "../types/Types";
 
 // Styles
 
@@ -16,15 +16,12 @@ const ThumbnailContainer = ({ reff, style, children }) => {
             ref={reff}
             draggable={false}
             style={{
-                ...style,
-            // height: 'max-content',
                 height: '100%',
-                // width: 'max-content',
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                // position: 'absolute'
+                ...style,
             }}
             onDrag={(e) => { e.preventDefault(); e.stopPropagation() }}
             children={children}
@@ -79,20 +76,33 @@ function getImageData(url, filehash, authHeader, signal) {
     })
 }
 
+function getImageMeta(url, filehash, authHeader, signal) {
+    return fetch(url, { headers: authHeader, signal }).then(res => res.json()).then((json) => {
+        return { data: json, hash: filehash }
+    }).catch((r) => {
+        if (!signal.aborted)
+            console.error("Failed to get image from server: ", r)
+    })
+}
+
 export const MediaImage = ({
-    mediaData,
+    mediaId,
     quality,
-    lazy,
+    blurhash,
+    lazy = true,
+    expectFailure = false,
     containerStyle,
     imgStyle,
     root
-}: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean, containerStyle?: any, imgStyle?: MantineStyleProp, root?}
+}: { mediaId: string, quality: "thumbnail" | "fullres", blurhash?: string, lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp, root?}
 ) => {
     const [loaded, setLoaded] = useState(false)
     const [loadError, setLoadErr] = useState(false)
     const { authHeader } = useContext(userContext)
     const [imgData, setImgData] = useState(null)
+    const [imgMeta, setImgMeta]: [imgMeta: itemData, setImgMeta: any] = useState(null)
 
+    const [metaPromise, setMetaPromise] = useState(null)
     const [thumbPromise, setThumbPromise] = useState(null)
     const [fullresPromise, setFullresPromise] = useState(null)
 
@@ -104,19 +114,29 @@ export const MediaImage = ({
     const abortController = new AbortController();
     const signal = abortController.signal;
 
-    const thumbUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
+    const metaUrl = new URL(`${API_ENDPOINT}/item/${mediaId}`)
+    metaUrl.searchParams.append("meta", "true")
+    const thumbUrl = new URL(`${API_ENDPOINT}/item/${mediaId}`)
     thumbUrl.searchParams.append("thumbnail", "true")
-    const fullresUrl = new URL(`${API_ENDPOINT}/item/${mediaData.FileHash}`)
+    const fullresUrl = new URL(`${API_ENDPOINT}/item/${mediaId}`)
     fullresUrl.searchParams.append("fullres", "true")
 
     useEffect(() => {
         setImgData(null)
+        setMetaPromise(null)
         setThumbPromise(null)
         setFullresPromise(null)
         setLoaded(false)
-        hashRef.current = mediaData.FileHash
-    }, [mediaData.FileHash])
+        hashRef.current = mediaId
+    }, [mediaId])
 
+    metaPromise?.then((res) => {
+        if (res && res.data && res.hash === hashRef.current && !loaded && !imgData && !loadError) {
+            setImgMeta(res.data)
+        } else if (res === undefined) {
+            setMetaPromise(null)
+        }
+    })
     thumbPromise?.then((res) => {
         if (res && res.data && res.hash === hashRef.current && !loaded && !imgData && !loadError) {
             setImgData(res.data)
@@ -140,45 +160,53 @@ export const MediaImage = ({
         if (hashRef.current === "") {
             setLoadErr(true)
         } else if (isVisible && !thumbPromise && !fullresPromise) {
-            setThumbPromise(getImageData(thumbUrl, mediaData.FileHash, authHeader, signal))
+            setThumbPromise(getImageData(thumbUrl, mediaId, authHeader, signal))
             if (quality === "fullres") {
-                setFullresPromise(getImageData(fullresUrl, mediaData.FileHash, authHeader, signal))
+                setFullresPromise(getImageData(fullresUrl, mediaId, authHeader, signal))
             }
         }
         return () => {
-            if (!visibleStateRef.current || mediaData.FileHash !== hashRef.current) {
+            if (!visibleStateRef.current || mediaId !== hashRef.current) {
                 abortController.abort()
             }
         }
     }, [isVisible, hashRef.current])
 
+    const sizer = useMemo(() => {
+        if (!imgMeta) {
+            return null
+        }
+        const sizer = imgMeta?.mediaData.mediaHeight > imgMeta?.mediaData.mediaWidth ? { width: '100%' } : { height: '100%' }
+        return sizer
+    }, [imgMeta])
+
     return (
-        <FlexColumnBox style={{ height: "100%", width: "100%" }}>
-            <ThumbnailContainer reff={visibleRef} style={containerStyle} >
-                {(isVisible && loadError) && (
-                    <IconExclamationCircle color="red" style={{ position: 'absolute' }} />
-                )}
+        <ThumbnailContainer reff={visibleRef} style={containerStyle}>
+            {(isVisible && loadError && !expectFailure) && (
+                <IconExclamationCircle color="red" style={{ position: 'absolute' }} />
+            )}
+            {(isVisible && loadError && expectFailure) && (
+                <IconPhoto style={{ position: 'absolute' }} />
+            )}
+            {(!lazy && isVisible && !loaded && !loadError) && (
+                <Loader color="white" bottom={40} right={40} size={20} style={{ position: 'absolute' }} />
+            )}
 
-                {(!lazy && isVisible && !loaded && !loadError) && (
-                    <Loader color="white" bottom={40} right={40} size={20} style={{ position: 'absolute' }} />
-                )}
+            <Image
+                draggable={false}
+                src={imgData}
+                style={{ ...sizer, display: imgData ? "block" : "none", userSelect: 'none', ...imgStyle }}
+            />
 
-                <Image
-                    draggable={false}
-                    src={imgData}
-                    style={{ height: "100%", width: "100%", position: 'absolute', display: imgData ? "block" : "none", userSelect: 'none', ...imgStyle }}
+            {isVisible && blurhash && lazy && !imgData && (
+                <Blurhash
+                    style={{ position: "absolute" }}
+                    height={containerStyle?.height ? containerStyle?.height : 250}
+                    width={550}
+                    hash={blurhash}
                 />
-
-                {isVisible && mediaData.BlurHash && lazy && !imgData && (
-                    <Blurhash
-                        style={{ position: "absolute" }}
-                        height={250}
-                        width={550}
-                        hash={mediaData.BlurHash}
-                    />
-                )}
+            )}
 
         </ThumbnailContainer >
-        </FlexColumnBox>
     )
 }

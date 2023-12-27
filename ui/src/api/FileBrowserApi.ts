@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { itemData } from '../types/Types'
+import { AlbumData, itemData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 import { notifications } from '@mantine/notifications'
 
@@ -189,10 +189,20 @@ export async function AutocompleteUsers(searchValue, authHeader) {
     if (searchValue.length < 2) {
         return []
     }
-    const url = new URL(`${API_ENDPOINT}/userSearch`)
-    url.searchParams.append('searchValue', searchValue)
+    const url = new URL(`${API_ENDPOINT}/users`)
+    url.searchParams.append('filter', searchValue)
     const res = await fetch(url.toString(), { headers: authHeader }).then(res => res.json())
     return res.users ? res.users : []
+}
+
+export async function AutocompleteAlbums(searchValue, authHeader): Promise<AlbumData[]> {
+    if (searchValue.length < 2) {
+        return []
+    }
+    const url = new URL(`${API_ENDPOINT}/albums`)
+    url.searchParams.append('filter', searchValue)
+    const res = await fetch(url.toString(), { headers: authHeader }).then(res => res.json())
+    return res.albums ? res.albums : []
 }
 
 export function ShareFiles(files: { parentFolderId: string, filename: string }[], users: string[], authHeader) {
@@ -202,4 +212,17 @@ export function ShareFiles(files: { parentFolderId: string, filename: string }[]
         users: users
     }
     fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
+}
+
+export function AddToAlbum(medias: string[], albumId: string, authHeader) {
+    if (!albumId) {
+        return Promise.reject("Empty albumId")
+    }
+    console.log(medias)
+    const url = new URL(`${API_ENDPOINT}/album/${albumId}`)
+    const body = {
+        media: medias
+    }
+    return fetch(url.toString(), { headers: authHeader, method: "PUT", body: JSON.stringify(body) })
+
 }

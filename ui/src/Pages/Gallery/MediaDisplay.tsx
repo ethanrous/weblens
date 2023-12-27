@@ -19,14 +19,13 @@ const Gallery = ({ ...props }) => {
                 display: "flex",
                 flexWrap: "wrap",
                 alignItems: "center",
-                minHeight: "250px",
                 position: "relative",
             }}
         />
     )
 }
 
-const PreviewCardContainer = ({ reff, setPresentation, setHover, children, style }: { reff, setPresentation, setHover, children, style: MantineStyleProp }) => {
+const PreviewCardContainer = ({ reff, setPresentation, setHover, onContextMenu, scale, children, style }: { reff, setPresentation, setHover, onContextMenu?, scale, children, style: MantineStyleProp }) => {
     return (
         <Box
             ref={reff}
@@ -34,16 +33,17 @@ const PreviewCardContainer = ({ reff, setPresentation, setHover, children, style
             onClick={setPresentation}
             onMouseOver={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
+            onContextMenu={onContextMenu}
             style={{
-                ...style,
-                height: "250px",
+                height: scale,
                 borderRadius: "2px",
                 flexGrow: 1,
                 flexBasis: 0,
-                margin: 1,
+                margin: 2,
                 position: "relative",
                 overflow: "hidden",
-                cursor: "pointer"
+                cursor: "pointer",
+                ...style,
             }}
         />
     )
@@ -52,13 +52,13 @@ const PreviewCardContainer = ({ reff, setPresentation, setHover, children, style
 // Functions
 
 
-const TypeIcon = (mediaData) => {
+const TypeIcon = (mediaData: MediaData) => {
     let icon
     let name
-    if (mediaData.MediaType.IsRaw) {
+    if (mediaData.mediaType.IsRaw) {
         icon = RawOn
         name = "RAW"
-    } else if (mediaData.MediaType.IsVideo) {
+    } else if (mediaData.mediaType.IsVideo) {
         icon = Theaters
         name = "Video"
     } else {
@@ -99,11 +99,11 @@ const MediaInfoDisplay = ({ mediaData }: { mediaData: MediaData }) => {
     return (
         <FlexColumnBox alignOverride='flex-start' style={{ height: "100%", width: "100%", justifyContent: 'space-between', position: 'absolute', transform: 'translateY(-100%)' }}>
             <StyledIcon Icon={icon} ttText={name} onClick={(e) => { e.stopPropagation() }} />
-            <FlexRowBox style={{ height: 'max-content', justifyContent: 'space-between', alignItems: 'center', margin: "5px", bottom: 0 }}>
-                <StyledBreadcrumb label={mediaData.Filename} fontSize={15} alwaysOn={true} doCopy />
+            <FlexRowBox style={{ height: 'max-content', justifyContent: 'space-between', alignItems: 'center', margin: "5px", bottom: 0, width: '95%', alignSelf: 'center' }}>
+                <StyledBreadcrumb label={mediaData.filename} fontSize={15} alwaysOn={true} doCopy />
                 <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={(e) => {
                     e.stopPropagation()
-                    nav(`/files/${mediaData.ParentFolder}`)
+                    nav(`/files/${mediaData.parentFolder}`)
                 }}
                 />
             </FlexRowBox>
@@ -111,13 +111,20 @@ const MediaInfoDisplay = ({ mediaData }: { mediaData: MediaData }) => {
     )
 }
 
-const MediaWrapper = memo(function MediaWrapper({ mediaData, scrollerRef, dispatch }: MediaWrapperProps) {
+const MediaWrapper = memo(function MediaWrapper({ mediaData, scale, scrollerRef, menu, dispatch }: MediaWrapperProps) {
     const ref = useRef()
     const [hovering, setHovering] = useState(false)
+    const [menuOpen, setMenuOpen] = useState(false)
     mediaData.ImgRef = ref
 
-    let height = 250
-    let width = mediaData.ThumbWidth * (height / mediaData.ThumbHeight)
+    let width = mediaData.thumbWidth * (scale / mediaData.thumbHeight)
+
+    const qualifiedMenu = useMemo(() => {
+        if (menu) {
+            return menu(mediaData.fileHash, menuOpen, setMenuOpen)
+        }
+        return null
+    }, [menuOpen])
 
     return (
         <PreviewCardContainer
@@ -126,44 +133,58 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scrollerRef, dispat
                 minWidth: `clamp(100px, ${width}px, 100% - 8px)`,
                 maxWidth: `${width * 1.5}px`
             }}
-            setPresentation={() => { dispatch({ type: 'set_presentation', presentingHash: mediaData.FileHash }) }}
+            scale={scale}
+            setPresentation={() => { dispatch({ type: 'set_presentation', itemId: mediaData.fileHash }) }}
             setHover={setHovering}
+            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(true) }}
         >
             <MediaImage
-                mediaData={mediaData}
+                mediaId={mediaData.fileHash}
+                blurhash={mediaData.blurHash}
                 quality={"thumbnail"}
                 lazy={true}
                 root={scrollerRef}
                 imgStyle={{ objectFit: "cover" }}
+                containerStyle={{ height: scale }}
             />
             {hovering && (
                 <MediaInfoDisplay mediaData={mediaData} />
             )}
-
+            {qualifiedMenu}
         </PreviewCardContainer>
     )
 }, (prev: MediaWrapperProps, next: MediaWrapperProps) => {
-    return (prev.mediaData.FileHash == next.mediaData.FileHash)
+    return (prev.mediaData.fileHash == next.mediaData.fileHash)
 })
-const BucketCards = ({ medias, scrollerRef, dispatch }) => {
+export const BucketCards = ({ medias, scrollerRef, dispatch, menu }: { medias, scrollerRef, dispatch, menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element }) => {
+    if (!medias) {
+        medias = []
+    }
+    const scale = 250
     const mediaCards = useMemo(() => {
+        // console.log(medias)
+        // if (!medias) {
+        //     return []
+        // }
         return medias.map((mediaData: MediaData) => {
             return (
                 <MediaWrapper
-                    key={mediaData.FileHash}
+                    key={mediaData.fileHash}
                     mediaData={mediaData}
+                    scale={scale}
                     scrollerRef={scrollerRef}
                     dispatch={dispatch}
+                    menu={menu}
                 />
             )
         }
         )
-    }, [[...medias]])
+    }, [medias])
 
     return (
         <Gallery>
             {mediaCards}
-            <BlankCard />
+            <BlankCard scale={scale} />
         </Gallery >
     )
 }
@@ -186,7 +207,7 @@ export const GalleryBucket = ({
     dispatch
 }: GalleryBucketProps) => {
     return (
-        <Box ml={"-1.6px"}>
+        <Box style={{ width: '100%' }}>
             <Space h={"md"} />
             <DateWrapper dateTime={date} />
             <BucketCards medias={bucketData} scrollerRef={scrollerRef} dispatch={dispatch} />

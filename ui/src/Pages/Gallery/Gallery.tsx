@@ -3,172 +3,144 @@ import { useEffect, useReducer, useMemo, useRef, useContext, useState } from 're
 import HeaderBar from "../../components/HeaderBar"
 import Presentation from '../../components/Presentation'
 import { GalleryBucket } from './MediaDisplay'
-import { mediaReducer, useScroll, useKeyDown } from './GalleryLogic'
-import { FetchData } from '../../api/GalleryApi'
-import { MediaData, MediaStateType } from '../../types/Types'
+import { mediaReducer, useKeyDown, handleWebsocket } from './GalleryLogic'
+import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi'
+import { AlbumData, MediaData, MediaStateType } from '../../types/Types'
 import useWeblensSocket from '../../api/Websocket'
-import { StyledBreadcrumb } from '../../components/Crumbs'
 import { userContext } from '../../Context'
 
-import { Divider, Sheet, Button, Box, Typography, useTheme, styled, IconButton } from '@mui/joy'
-import { useNavigate } from 'react-router-dom'
-import { useSnackbar } from 'notistack'
-import { RawOn } from '@mui/icons-material'
-import { Center, Loader } from '@mantine/core'
-import { FlexRowBox } from '../FileBrowser/FilebrowserStyles'
-import { useIsVisible } from '../../components/PhotoContainer'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Box, Button, Center, Divider, Loader, Modal, Paper, ScrollArea, Space, Switch, Tabs, Text, TextInput } from '@mantine/core'
+import { FlexColumnBox, FlexRowBox } from '../FileBrowser/FilebrowserStyles'
+import { MediaImage, useIsVisible } from '../../components/PhotoContainer'
+import { ItemsWrapper } from '../../types/Styles'
+import { IconPhoto, IconPlus } from '@tabler/icons-react'
+import { Albums } from './Albums'
 
 // styles
 
-const NoMediaContainer = styled(Box)({
-    display: "flex",
-    flexWrap: "wrap",
-    flexDirection: "column",
-    marginTop: "50px",
-    gap: "25px",
-    alignContent: "center"
-})
+const NoMediaContainer = ({ ...children }) => {
+    return (
+        <Box
+            style={{
+                display: "flex",
+                flexWrap: "wrap",
+                flexDirection: "column",
+                marginTop: "50px",
+                gap: "25px",
+                alignContent: "center"
+            }}
+            {...children}
+        />
+    )
+}
 
 // funcs
 
-const NoMediaDisplay = ({ loading }: { loading: boolean }) => {
+const NoMediaDisplay = () => {
     const nav = useNavigate()
-    if (loading) {
-        return null
-    }
+
     return (
         <NoMediaContainer>
-            <Typography color={'primary'}>No media to display</Typography>
-            <Button sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }} onClick={() => nav('/files')}>
+            <Text c='white' >No media to display</Text>
+            <Button style={{ border: `1px solid white` }} onClick={() => nav('/files')}>
                 Upload Media
             </Button>
         </NoMediaContainer>
     )
 }
 
-const Sidebar = ({ rawSelected, itemCount, dispatch }) => {
-    const theme = useTheme()
+const TimelineControls = ({ rawSelected, dispatch }) => {
     return (
-        <Box display={"flex"} flexDirection={"column"} alignItems={"center"} position={"sticky"} alignSelf={'flex-start'} top={'100px'} padding={'15px'} >
-            <Sheet
-                sx={{
-                    width: "max-content",
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: "15px",
-                    borderRadius: "8px",
-                    backgroundColor: theme.colorSchemes.dark.palette.primary.solidBg,
+        <Box>
+            <Switch checked={rawSelected} label={'RAWs'} onChange={() => dispatch({ type: 'toggle_raw' })} />
+        </Box>
+    )
+}
+
+const AlbumsControls = ({ dispatch }) => {
+    const [newAlbumModal, setNewAlbumModal] = useState(false)
+    const [newAlbumName, setNewAlbumName] = useState("")
+    const { authHeader } = useContext(userContext)
+    return (
+        <Box>
+            <Button color='#4444ff' onClick={() => { dispatch({ type: 'set_block_search_focus', block: true }); setNewAlbumModal(true) }} leftSection={<IconPlus />}>
+                New Album
+            </Button>
+
+            <Modal opened={newAlbumModal} onClose={() => { dispatch({ type: 'set_block_search_focus', block: false }); setNewAlbumModal(false) }} title="New Album">
+                <TextInput value={newAlbumName} placeholder='Album name' onChange={(e) => setNewAlbumName(e.currentTarget.value)} />
+                <Space h={'md'} />
+                <Button onClick={() => { CreateAlbum(newAlbumName, authHeader).then(() => GetAlbums(authHeader).then((val) => dispatch({ type: 'set_albums', albums: val }))); dispatch({ type: 'set_block_search_focus', block: false }); setNewAlbumModal(false) }}>
+                    Create
+                </Button>
+            </Modal>
+        </Box>
+    )
+
+}
+
+const GalleryControls = ({ page, albumId, rawSelected, dispatch }) => {
+
+    return (
+        <FlexRowBox style={{ position: 'sticky', alignSelf: 'flex-stat', alignItems: 'center', width: '100%', marginLeft: 225, height: 65, zIndex: 10 }}>
+            <Divider my={10} size={1} orientation='vertical' />
+            <Space w={30} />
+            <Box
+                style={{
+                    width: '100%',
+                    borderRadius: "6px",
                 }}
             >
-                <StyledBreadcrumb label={itemCount} tooltipText={`Showing ${itemCount} images`} />
-                <IconButton
-                    variant='solid'
-                    onClick={() => { dispatch({ type: 'toggle_raw' }) }}
-                    sx={{
-                        margin: '8px'
-                    }}
-                >
-                    <RawOn sx={{ color: theme.colorSchemes.dark.palette.common.white }} />
-                </IconButton>
-                <Divider orientation="horizontal" />
-            </Sheet>
-        </Box>
+                {page == "timeline" && (
+                    <TimelineControls rawSelected={rawSelected} dispatch={dispatch} />
+                )}
+
+                {page == "albums" && !albumId && (
+                    <AlbumsControls dispatch={dispatch} />
+                )}
+            </Box>
+        </FlexRowBox>
     )
 }
 
-function InfiniteScroll({ scrollerRef, items, itemCount, loading, moreItems, onBottom, onNoLongerBottom }: { scrollerRef, items, itemCount: number, loading: boolean, moreItems: boolean, onBottom: () => void, onNoLongerBottom?: () => void }) {
-    const loaderRef = useRef(null)
-    const { isVisible, visibleStateRef } = useIsVisible(scrollerRef, loaderRef, false, 1000, 0.5)
-    useEffect(() => {
-        if (visibleStateRef.current && !loading) {
-            onBottom()
-        }
-        if (loading && !visibleStateRef.current && onNoLongerBottom) {
-            onNoLongerBottom()
-        }
-    }, [isVisible, loading])
-
-    return (
-        <Box ref={scrollerRef} flexDirection={"column"} width={"105%"} pr={"55px"} style={{ height: "calc(100vh - 110px)", overflow: 'scroll', borderRadius: "15px" }}>
-            {items}
-            {itemCount === 0 && (
-                <NoMediaDisplay loading={loading} />
-            )}
-            {moreItems && (
-                <Center ref={loaderRef} style={{ height: '100px', width: "100%" }}>
-                    <Loader color={"white"} bottom={10} />
-                </Center>
-            )}
-            {!moreItems && (
-                <Typography color={'neutral'} style={{ textAlign: "center", paddingTop: "80px", paddingBottom: "10px" }}> Wow, you scrolled this whole way? </Typography>
-            )}
-        </Box>
-    )
-}
-
-const handleWebsocket = (lastMessage, dispatch, enqueueSnackbar) => {
-    if (lastMessage) {
-        const msgData = JSON.parse(lastMessage.data)
-        switch (msgData["type"]) {
-            case "item_update": {
-                return
-            }
-            case "item_deleted": {
-                dispatch({ type: "delete_from_map", item: msgData["content"].hash })
-                return
-            }
-            case "scan_directory_progress": {
-                dispatch({ type: "set_scan_progress", progress: ((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100) })
-                return
-            }
-            case "finished": {
-                dispatch({ type: "set_loading", loading: false })
-                return
-            }
-            case "error": {
-                enqueueSnackbar(msgData["error"], { variant: "error" })
-                return
-            }
-            default: {
-                console.error("Got unexpected websocket message: ", msgData)
-                return
-            }
-        }
-    }
-}
-
-const Gallery = () => {
-    const { authHeader, userInfo } = useContext(userContext)
-
-    const [mediaState, dispatch]: [MediaStateType, React.Dispatch<any>] = useReducer(mediaReducer, {
-        mediaMap: new Map<string, MediaData>(),
-        mediaCount: 0,
-        maxMediaCount: 100,
-        hasMoreMedia: true,
-        presentingHash: "",
-        previousLast: "",
-        includeRaw: false,
-        loading: true,
-        scanProgress: 0,
-        searchContent: ""
-    })
-
+function ViewSwitch({ page, timeline, albums, albumId }) {
     const nav = useNavigate()
-    const { enqueueSnackbar } = useSnackbar()
-    const { wsSend, lastMessage } = useWeblensSocket()
+    const [hovering, setHovering] = useState(false)
+    let albumStyle = {}
+    if (albumId && hovering) {
+        albumStyle = { backgroundColor: '#2e2e2e', outline: '1px solid #4444ff' }
+    }
+    else if (albumId) {
+        albumStyle = { backgroundColor: '#00000000', outline: '1px solid #4444ff' }
+    }
+    return (
+        <Tabs value={page} keepMounted={false} onChange={(p) => nav(`/${p}`)} variant='pills' style={{ height: "100%" }}>
+            <Tabs.List>
+                <Tabs.Tab value='timeline' color='#4444ff'>
+                    Timeline
+                </Tabs.Tab>
+                <Tabs.Tab value='albums' color='#4444ff' onMouseOver={() => setHovering(true)} onMouseLeave={() => setHovering(false)} style={albumStyle}>
+                    Albums
+                </Tabs.Tab>
+            </Tabs.List>
 
-    const searchRef = useRef()
-    useKeyDown(searchRef)
-    useEffect(() => { FetchData(mediaState, dispatch, nav, authHeader) }, [mediaState.maxMediaCount, mediaState.includeRaw, authHeader])
-    useEffect(() => { handleWebsocket(lastMessage, dispatch, enqueueSnackbar) }, [lastMessage])
+            <Tabs.Panel value='timeline' style={{ height: "96%" }}>
+                <Space h={15} />
+                {timeline}
+            </Tabs.Panel>
+            <Tabs.Panel value='albums' style={{ height: "96%" }}>
+                <Space h={15} />
+                {albums}
+            </Tabs.Panel>
+        </Tabs>
+    )
+}
 
-    useEffect(() => {
-        if (userInfo) {
-            wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: userInfo?.homeFolderId, recursive: false }, error: null }))
-        }
-    }, [userInfo])
+function InfiniteScroll({ mediaState, page, loading, dispatch }: { mediaState: MediaStateType, page: string, loading: boolean, dispatch: (value) => void }) {
+    const { authHeader } = useContext(userContext)
+    useEffect(() => { FetchData(mediaState, dispatch, authHeader).then(() => dispatch({ type: 'set_loading', loading: false })) }, [mediaState.includeRaw, authHeader, page])
+    const scrollerRef = useRef(null)
 
     const dateMap: Map<string, Array<MediaData>> = useMemo(() => {
         let dateMap = new Map<string, Array<MediaData>>()
@@ -179,7 +151,7 @@ const Gallery = () => {
 
         for (let value of mediaState.mediaMap.values()) {
 
-            const [date, _] = value.CreateDate.split("T")
+            const [date, _] = value.createDate.split("T")
             if (dateMap.get(date) == null) {
                 dateMap.set(date, [value])
             } else {
@@ -189,33 +161,79 @@ const Gallery = () => {
         return dateMap
     }, [mediaState.mediaMap.size])
 
-    const scrollerRef = useRef(null)
-
     const [dateGroups, numShownItems]: [JSX.Element[], number] = useMemo(() => {
         if (!dateMap || !scrollerRef?.current) { return [[], 0] }
         let counter = 0
         const buckets = Array.from(dateMap.keys()).map((date) => {
-            const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.Filename.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
+            const items = dateMap.get(date).filter((item) => { return mediaState.searchContent ? item.filename.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
             if (items.length == 0) { return null }
             counter += items.length
             return (<GalleryBucket key={date} date={date} bucketData={items} scrollerRef={scrollerRef} dispatch={dispatch} />)
         })
-
         return [buckets, counter]
     }, [dateMap, scrollerRef.current, mediaState.searchContent])
 
     return (
+        <ScrollArea ref={scrollerRef} type='never' style={{ height: "100%", width: '100%', overflow: 'scroll', borderRadius: "8px" }}>
+            {dateGroups}
+            {!loading && dateGroups.length === 0 && (
+                <NoMediaDisplay />
+            )}
+            {loading && (
+                <Center style={{ height: '100px', width: "100%" }}>
+                    <Loader color='white' bottom={10} />
+                </Center>
+            )}
+            {!loading && (
+                <Text c='white' style={{ textAlign: "center", paddingTop: "80px", paddingBottom: "10px" }}> Wow, you scrolled this whole way? </Text>
+            )}
+        </ScrollArea>
+    )
+}
+
+const Gallery = () => {
+    const [mediaState, dispatch]: [MediaStateType, React.Dispatch<any>] = useReducer(mediaReducer, {
+        mediaMap: new Map<string, MediaData>(),
+        albumsMap: new Map<string, AlbumData>(),
+        mediaCount: 0,
+        presentingHash: "",
+        includeRaw: false,
+        loading: true,
+        scanProgress: 0,
+        searchContent: "",
+        blockSearchFocus: false,
+        newAlbumDialogue: false
+    })
+
+    const loc = useLocation()
+    const page = loc.pathname === "/" || loc.pathname === "/timeline" ? 'timeline' : "albums"
+    const albumId = useParams()["*"]
+    const { wsSend, lastMessage } = useWeblensSocket()
+
+    const searchRef = useRef()
+    useKeyDown(mediaState.blockSearchFocus, searchRef)
+    useEffect(() => { handleWebsocket(lastMessage, dispatch) }, [lastMessage])
+
+    return (
         <Box>
             <HeaderBar folderId={"home"} searchContent={mediaState.searchContent} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
-
             <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} parents={null} dispatch={dispatch} />
-            <FlexRowBox style={{ width: "100%", minHeight: "50vh", justifyContent: 'space-evenly', paddingTop: "70px" }}>
-                <Sidebar rawSelected={mediaState.includeRaw} itemCount={numShownItems} dispatch={dispatch} />
-                <Box width={'90%'} style={{ justifyContent: "center", paddingTop: "25px", paddingRight: mediaState.presentingHash == "" ? "30px" : "46px" }}>
-                    <InfiniteScroll scrollerRef={scrollerRef} items={dateGroups} itemCount={mediaState.mediaCount} loading={mediaState.loading} moreItems={mediaState.hasMoreMedia} onBottom={() => { dispatch({ type: "inc_max_media_count", incBy: 100 }) }} onNoLongerBottom={() => dispatch({ type: "set_loading", loading: false })} />
+            <FlexRowBox style={{ width: "100%", height: "100vh", paddingTop: "70px" }}>
+                <GalleryControls page={page} albumId={albumId} rawSelected={mediaState.includeRaw} dispatch={dispatch} />
+                <Box style={{ height: "calc(100% - 80px)", width: '99%', paddingLeft: '25px', paddingTop: "15px", position: 'absolute' }}>
+                    <ViewSwitch
+                        page={page}
+                        timeline={
+                            <InfiniteScroll mediaState={mediaState} page={page} loading={mediaState.loading} dispatch={dispatch} />
+                        }
+                        albums={
+                            <Albums albumsMap={mediaState.albumsMap} selectedAlbum={albumId} dispatch={dispatch} />
+                        }
+                        albumId={albumId}
+                    />
                 </Box>
             </FlexRowBox>
-        </Box >
+        </Box>
     )
 }
 

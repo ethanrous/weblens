@@ -1,7 +1,7 @@
 import { itemData, FileBrowserStateType } from '../../types/Types'
 import Upload, { fileUploadMetadata } from "../../api/Upload"
 import { Dispatch, DragEvent, useEffect, useState } from 'react'
-import { ChangeOwner, CreateFolder, DeleteFile, MoveFile, MoveFiles, downloadSingleItem, downloadTakeout, requestZipCreate } from '../../api/FileBrowserApi'
+import { ChangeOwner, CreateFolder, DeleteFile, MoveFiles, downloadSingleItem, downloadTakeout, requestZipCreate } from '../../api/FileBrowserApi'
 import Item from './FileItem'
 
 import { notifications } from '@mantine/notifications'
@@ -297,16 +297,16 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             return { ...state, sharing: true }
         }
 
+        case 'add_selected_to_album': {
+            return { ...state, albuming: true }
+        }
+
         case 'close_share': {
             return { ...state, sharing: false }
         }
 
-        case 'delete_selected': {
-            // for (const key of state.selected.keys()) {
-            //     state.dirMap.delete(key)
-            //     state.selected.delete(key)
-            // }
-            return { ...state }
+        case 'close_add_to': {
+            return { ...state, albuming: false }
         }
 
         case 'delete_from_map': {
@@ -349,6 +349,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
 
         default: {
             console.error("Got unexpected dispatch type: ", action.type)
+            notifications.show({ title: "Unexpected filebrowser dispatch", message: action.type, color: 'red' })
             return { ...state }
         }
     }
@@ -466,7 +467,7 @@ export async function HandleDrop(items, rootFolderId, dirMap, authHeader, upload
     }
 
     await Promise.all(topLevels)
-
+    console.log(files)
     if (files.length !== 0) {
         Upload(files, rootFolderId, authHeader, uploadDispatch, dispatch, wsSend)
     }
@@ -545,17 +546,17 @@ export function HandleWebsocketMessage(lastMessage, username, dispatch, authHead
     }
 }
 
-export const useKeyDown = (editing, sharing, dispatch, searchRef) => {
+export const useKeyDown = (editing, blockFocus, dispatch, searchRef) => {
     useEffect(() => {
         const onKeyDown = (event) => {
-            if (!editing && !sharing) {
-                if (document.activeElement !== searchRef.current?.children[0] && event.metaKey && event.key === 'a') {
+            if (!editing && !blockFocus) {
+                if (document.activeElement !== searchRef.current && event.metaKey && event.key === 'a') {
                     event.preventDefault()
                     dispatch({ type: 'select_all' })
                 } else if (!event.metaKey && ((event.which >= 49 && event.which <= 90) || event.key === "Backspace")) {
-                    searchRef.current.children[0].focus()
-                } else if (document.activeElement === searchRef.current.children[0] && event.key === 'Escape') {
-                    searchRef.current.children[0].blur()
+                    searchRef.current.focus()
+                } else if (document.activeElement === searchRef.current && event.key === 'Escape') {
+                    searchRef.current.blur()
                 } else if (event.key === 'Escape') {
                     event.preventDefault()
                     dispatch({ type: 'clear_selected' })
@@ -587,7 +588,7 @@ export const useKeyDown = (editing, sharing, dispatch, searchRef) => {
             document.removeEventListener('keydown', onKeyDown)
             document.removeEventListener('keyup', onKeyUp)
         }
-    }, [editing, sharing, dispatch, searchRef, document.activeElement])
+    }, [editing, blockFocus, dispatch, searchRef, document.activeElement])
 }
 
 export const useMousePosition = () => {
@@ -629,16 +630,6 @@ export function moveSelected(selectedMap: Map<string, boolean>, dirMap: Map<stri
         }
     }
     MoveFiles(files, destinationId, authHeader)
-}
-
-export function changeOwner(dirMap, dispatch, authHeader) {
-    let hashesToUpdate = []
-    for (const key of dirMap.keys()) {
-        if (dirMap.get(key).selected) {
-            hashesToUpdate.push(dirMap.get(key).mediaData.FileHash)
-        }
-    }
-    ChangeOwner(hashesToUpdate, "ethan", authHeader)
 }
 
 export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, authHeader, gridRef) {

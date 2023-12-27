@@ -2,30 +2,41 @@
 // Global Types
 
 export type MediaData = {
-    BlurHash: string
-    CreateDate: string
-    FileHash: string
-    Filename: string
-    ParentFolder: string
-    MediaType: {
+    fileHash: string
+    parentFolder: string
+    filename: string
+    mediaType: {
         FileExtension: []
         FriendlyName: string
         IsRaw: boolean
         IsVideo: boolean
         IsDisplayable: boolean
     }
-    ThumbFilepath: string
-    MediaWidth: number
-    MediaHeight: number
-    ThumbWidth: number
-    ThumbHeight: number
-    Thumbnail64: string
+    blurHash: string
+    thumbnail64: string
+    mediaWidth: number
+    mediaHeight: number
+    thumbWidth: number
+    thumbHeight: number
+    createDate: string
+    owner: string
 
     // Local things
     Previous: MediaData
     Next: MediaData
     // Display: boolean
     ImgRef: React.MutableRefObject<any>
+}
+
+export type AlbumData = {
+    Id: string
+    Medias: string[]
+    Name: string
+    Cover: string
+    PrimaryColor: string
+    SecondaryColor: string
+    Owner: string
+    ShowOnTimeline: boolean
 }
 
 // Gallery Types
@@ -39,21 +50,26 @@ export type GalleryBucketProps = {
 
 export type MediaWrapperProps = {
     mediaData: MediaData
+    scale: number
     scrollerRef
     dispatch
+    menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element
 }
 
 export type MediaStateType = {
     mediaMap: Map<string, MediaData>
+    albumsMap: Map<string, AlbumData>
     mediaCount: number
-    maxMediaCount: number
-    hasMoreMedia: boolean
+    // maxMediaCount: number
+    // hasMoreMedia: boolean
     presentingHash: string
-    previousLast: string
+    // previousLast: string
     includeRaw: boolean
     loading: boolean
     scanProgress: number
     searchContent: string
+    blockSearchFocus: boolean
+    newAlbumDialogue: boolean
 }
 
 // File Browser Types
@@ -77,6 +93,7 @@ export type FileBrowserStateType = {
     scanProgress: number
     holdingShift: boolean
     sharing: boolean
+    albuming: boolean
     lastSelected: string
     editing: string
     hovering: string
@@ -94,13 +111,3 @@ export type itemData = {
     visible: boolean
     mediaData: MediaData
 }
-
-export type fileBrowserAction =
-    | { type: 'update_item'; item: itemData }
-    | { type: 'set_selected'; itempath: string, selected: boolean }
-    | { type: 'clear_selected'; }
-    | { type: 'holding_shift'; shift: boolean }
-    | { type: 'set_loading'; loading: boolean }
-    | { type: 'set_dragging'; dragging: boolean }
-    | { type: 'set_presentation'; presentingHash: string }
-    | { type: 'stop_presenting' }
