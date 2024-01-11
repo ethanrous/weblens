@@ -8,4 +8,5 @@ then
     echo $docker_tag
 fi
 
-docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --build-arg build_tag="$docker_tag" --push .
+docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --build-arg build_tag="$docker_tag" .
+docker push ethrous/weblens:"$docker_tag"
