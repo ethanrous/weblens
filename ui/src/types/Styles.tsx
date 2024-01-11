@@ -1,6 +1,7 @@
+import { useRef } from 'react'
 import { MediaImage } from '../components/PhotoContainer'
 import { MediaData } from './Types'
-import { Box, ScrollArea } from '@mantine/core'
+import { Box, MantineStyleProp, ScrollArea } from '@mantine/core'
 
 export const BlankCard = ({ scale }) => <Box style={{ height: scale, flexGrow: 9999 }} />
 
@@ -15,20 +16,25 @@ export const StyledLazyThumb = ({ mediaData, quality, lazy, root }: { mediaData:
     )
 }
 
-export const ItemsWrapper = ({ size = 200, reff, children }: { size?, reff?, children }) => {
-    return (
+export const ItemsWrapper = ({ size = 300, gap = 20, reff, children, style }: { size?: number, gap?: number, reff?, children, style?: MantineStyleProp }) => {
+    const boxRef = useRef(null)
+    // width
 
-        <ScrollArea type='never' style={{ width: '100%', borderRadius: '10px' }}>
+    return (
+        <ScrollArea ref={reff} type='never' style={{ width: '100%', height: '100%', borderRadius: '10px' }}>
             <Box
-                ref={reff}
+                ref={boxRef}
                 children={children}
                 style={{
                     display: 'grid',
-                    gridGap: '16px',
-                    gridTemplateColumns: `repeat(auto-fill, ${size}px)`,
-                    padding: '10px',
-                    paddingRight: "1vw",
-                    width: "100%"
+                    // flexWrap: 'wrap',
+                    gridGap: 16,
+                    gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))",
+                    paddingLeft: 2,
+                    paddingTop: 2,
+                    paddingRight: '20px',
+                    width: "100%",
+                    ...style
                 }}
             />
         </ScrollArea>

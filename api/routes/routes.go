@@ -24,7 +24,7 @@ func CORSMiddleware() gin.HandlerFunc {
         c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
         c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
         c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
         if c.Request.Method == "OPTIONS" {
             c.AbortWithStatus(http.StatusNoContent)
@@ -83,7 +83,7 @@ func AddApiRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.Use(WeblensAuth(false, false))
 
-	api.GET("/media", getPagedMedia)
+	api.GET("/media", getMediaBatch)
 	api.GET("/item/:filehash", getMediaItem)
 	api.PUT("/items", updateMediaItems)
 	api.GET("/stream/:filehash", streamVideo)
@@ -91,32 +91,35 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)
 
-	api.GET("/file", getFile)
+	api.GET("/file/:fileId", getFile)
 	api.POST("/file", uploadFile)
-	api.PUT("/file", updateFile)
+	api.PATCH("/file", updateFile)
 	api.DELETE("/file", moveFileToTrash)
 
-	api.PUT("/files", updateFiles)
+	api.PATCH("/files", updateFiles)
+	api.PATCH("/files/share", shareFiles)
 
-	api.GET("/download", downloadSingleFile)
+	api.GET("/download", downloadFile)
 
-	api.GET("/takeout/:takeoutId", getTakeout)
 	api.POST("/takeout", createTakeout)
 
 	api.GET("/user", getUserInfo)
 	api.GET("/users", searchUsers)
 
 	api.GET("/share", getSharedFiles)
-	api.POST("/share", shareContent)
+	// api.POST("/share", shareContent)
 
 	api.GET("/albums", getAlbums)
 
 	api.GET("/album/:albumId", getAlbum)
 	api.POST("/album", createAlbum)
-	api.PUT("/album/:albumId", addToAlbum)
+	api.PATCH("/album/:albumId", updateAlbum)
+	api.DELETE("/album/:albumId", deleteAlbum)
 
 	admin := r.Group("/api/admin")
 	admin.Use(WeblensAuth(false, true))
+
+	public.GET("/fileTree", getFileTreeInfo)
 
 	admin.GET("/users", getUsers)
 	admin.POST("/user", updateUser)

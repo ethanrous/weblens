@@ -17,7 +17,8 @@ func main() {
 	err = dataStore.ClearTakeoutDir()
 	util.FailOnError(err, "Failed to clear takeout directory on initialization")
 
-	dataStore.ImportHomeDirectories()
+	dataStore.FsInit()
+	// dataStore.ImportHomeDirectories()
 
 	router := gin.Default()
 

@@ -3,10 +3,9 @@ import { AlbumData, itemData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 import { notifications } from '@mantine/notifications'
 
-export function DeleteFile(parentId, filename, authHeader) {
+export function DeleteFile(fileId, authHeader) {
     var url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('parentFolderId', parentId)
-    url.searchParams.append('filename', filename)
+    url.searchParams.append('fileId', fileId)
     fetch(url.toString(), { method: "DELETE", headers: authHeader })
 }
 
@@ -21,7 +20,7 @@ export function ChangeOwner(updateHashes: string[], user: string, authHeader) {
 
 function getSharedWithMe(username, dispatch, authHeader) {
     let url = new URL(`${API_ENDPOINT}/share`)
-    fetch(url.toString(), { headers: authHeader })
+    return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
             let files = data.files?.map((val: itemData) => { return { itemId: val.id, updateInfo: val } })
@@ -34,31 +33,37 @@ function getSharedWithMe(username, dispatch, authHeader) {
         })
 }
 
-export function GetFolderData(folderId, username, dispatch, navigate, authHeader) {
-    if (!folderId) {
-        navigate("/files/home")
-        return
-    }
-    dispatch({ type: "set_loading", loading: true })
+export async function GetFileInfo(fileId, authHeader) {
+    var url = new URL(`${API_ENDPOINT}/file/${fileId}`)
+    return (await fetch(url.toString(), {headers: authHeader})).json()
+}
 
-    if (folderId == "shared") {
-        getSharedWithMe(username, dispatch, authHeader)
-        return
+export function GetFolderData(folderId, username, dispatch, authHeader) {
+
+    if (folderId === "shared") {
+        return getSharedWithMe(username, dispatch, authHeader)
     }
 
     let url = new URL(`${API_ENDPOINT}/folder/${folderId}`)
-    fetch(url.toString(), { headers: authHeader })
+    return fetch(url.toString(), { headers: authHeader })
         .then((res) => {
             if (res.status === 404) {
-                navigate("/fourohfour")
-                return Promise.reject("Page not found")
+                return Promise.reject(404)
             } else if (res.status === 401) {
-                // navigate("/login", { state: { doLogin: false } })
+                return Promise.reject("Not Authorized")
             } else {
-                return res.json()
+                try {
+                    let j = res.json()
+                    return j
+                } catch {
+                    return Promise.reject("Failed to decode response")
+                }
             }
         })
         .then((data) => {
+            if (data.error) {
+                return Promise.reject(data.error)
+            }
             let children = data.children?.map((val: itemData) => { return { itemId: val.id, updateInfo: val } })
             if (!children) {
                 children = []
@@ -72,17 +77,16 @@ export function GetFolderData(folderId, username, dispatch, navigate, authHeader
             dispatch({ type: 'set_folder_info', folderInfo: data.self })
             dispatch({ type: 'update_many', items: children, user: username })
             dispatch({ type: 'set_parents_info', parents: parents })
-            dispatch({ type: "set_loading", loading: false })
-        }).catch((r) => console.error(r))
+        })
 }
 
-export async function CreateFolder(parentFolderId, name, authHeader) {
+export async function CreateFolder(parentFolderId, name, authHeader): Promise<string> {
     var url = new URL(`${API_ENDPOINT}/folder`)
     url.searchParams.append('parentFolderId', parentFolderId)
     url.searchParams.append('folderName', name)
 
-    const dirInfo = await fetch(url.toString(), { method: "POST", headers: authHeader }).then(res => res.json())
-    return { folderId: dirInfo.folderId, alreadyExisted: dirInfo.alreadyExisted }
+    const dirInfo = await fetch(url.toString(), { method: "POST", headers: authHeader }).then(res => res.json()).catch((r) => { notifications.show({ title: "Could not create folder", message: String(r), color: 'red' }) })
+    return dirInfo?.folderId
 }
 
 export function MoveFile(currentParentId, newParentId, currentFilename, authHeader) {
@@ -93,22 +97,21 @@ export function MoveFile(currentParentId, newParentId, currentFilename, authHead
     return fetch(url.toString(), { method: "PUT", headers: authHeader })
 }
 
-export function MoveFiles(files, newParentId, authHeader) {
+export function MoveFiles(fileIds: string[], newParentId: string, authHeader) {
     var url = new URL(`${API_ENDPOINT}/files`)
     const body = {
-        files: files,
+        fileIds: fileIds,
         newParentId: newParentId
     }
 
-    return fetch(url.toString(), { method: "PUT", headers: authHeader, body: JSON.stringify(body) })
+    return fetch(url.toString(), { method: "PATCH", headers: authHeader, body: JSON.stringify(body) })
 }
 
-export async function RenameFile(parentId, oldName, newName, authHeader) {
+export async function RenameFile(fileId: string, newName, authHeader) {
     var url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('currentParentId', parentId)
-    url.searchParams.append('currentFilename', oldName)
+    url.searchParams.append('fileId', fileId)
     url.searchParams.append('newFilename', newName)
-    fetch(url.toString(), { method: "PUT", headers: authHeader })
+    fetch(url.toString(), { method: "PATCH", headers: authHeader })
 }
 
 function downloadBlob(blob, filename) {
@@ -122,32 +125,32 @@ function downloadBlob(blob, filename) {
     return
 }
 
-export function downloadSingleItem(item: itemData, authHeader, dispatch) {
+export function downloadSingleItem(fileId: string, authHeader, dispatch, filename?: string, ext?: string) {
     const url = new URL(`${API_ENDPOINT}/download`)
-    url.searchParams.append("parentFolderId", item.parentFolderId)
-    url.searchParams.append("filename", item.filename)
+    url.searchParams.append("fileId", fileId)
 
-    notifications.show({ id: `download_${item.filename}`, message: "Starting download", autoClose: false, loading: true })
+    const notifId = `download_${fileId}`
+    notifications.show({ id: notifId, message: "Starting download", autoClose: false, loading: true })
 
     axios.get(url.toString(), {
         responseType: 'blob',
         headers: authHeader,
         onDownloadProgress: (p) => {
-            notifications.update({ id: `download_${item.filename}`, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
+            notifications.update({ id: notifId, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
             dispatch({ type: "set_scan_progress", progress: (p.progress * 100).toFixed(0) })
         },
     })
         .then(res => new Blob([res.data]))
         .then((blob) => {
-            downloadBlob(blob, item.filename)
+            downloadBlob(blob, filename ? filename : `${fileId}.${ext}`)
         })
-        .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(`download_${item.filename}`) })
+        .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(notifId) })
 }
 
-export function requestZipCreate(body, authHeader) {
+export function requestZipCreate(items, authHeader) {
     const url = new URL(`${API_ENDPOINT}/takeout`)
 
-    return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
+    return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ fileIds: items }) })
         .then(async (res) => {
             if (res.status !== 200 && res.status !== 202) {
                 Promise.reject(res.statusText)
@@ -155,34 +158,6 @@ export function requestZipCreate(body, authHeader) {
             const json = await res.json()
             return { json: json, status: res.status }
         })
-}
-
-export function downloadTakeout(takeoutId: string, authHeader, dispatch) {
-    const url = new URL(`${API_ENDPOINT}/takeout/${takeoutId}`)
-    let filename = "takeout.zip"
-
-    notifications.show({ id: `zip_download_${takeoutId}`, message: "Starting download", autoClose: false, loading: true })
-
-    return axios.get(url.toString(), {
-        responseType: 'blob',
-        headers: authHeader,
-        onDownloadProgress: (p) => {
-            notifications.update({ id: `zip_download_${takeoutId}`, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
-            dispatch({ type: "set_scan_progress", progress: (p.progress * 100).toFixed(0) })
-        },
-    })
-        .then((res) => {
-            notifications.hide(`zip_download_${takeoutId}`)
-            if (res.status !== 200) {
-                return Promise.reject("Got bad response code while trying to download item")
-            }
-            filename = `${takeoutId}.zip`
-
-            return new Blob([res.data])
-        })
-        .then((blob) => downloadBlob(blob, filename))
-        .catch((r) => console.error(r))
-        .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(`zip_download_${takeoutId}`) })
 }
 
 export async function AutocompleteUsers(searchValue, authHeader) {
@@ -205,24 +180,13 @@ export async function AutocompleteAlbums(searchValue, authHeader): Promise<Album
     return res.albums ? res.albums : []
 }
 
-export function ShareFiles(files: { parentFolderId: string, filename: string }[], users: string[], authHeader) {
-    const url = new URL(`${API_ENDPOINT}/share`)
+export async function ShareFiles(files: string[], users: string[], authHeader) {
+    const url = new URL(`${API_ENDPOINT}/files/share`)
+    console.log(files, users)
     const body = {
         files: files,
         users: users
     }
-    fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
-}
-
-export function AddToAlbum(medias: string[], albumId: string, authHeader) {
-    if (!albumId) {
-        return Promise.reject("Empty albumId")
-    }
-    console.log(medias)
-    const url = new URL(`${API_ENDPOINT}/album/${albumId}`)
-    const body = {
-        media: medias
-    }
-    return fetch(url.toString(), { headers: authHeader, method: "PUT", body: JSON.stringify(body) })
-
+    const res = await fetch(url.toString(), { headers: authHeader, method: "PATCH", body: JSON.stringify(body) })
+    return res
 }

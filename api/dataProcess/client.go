@@ -1,6 +1,7 @@
 package dataProcess
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -20,10 +21,19 @@ type Client struct {
 	activeFolder string // This is the same as the key in the folder subscription map
 	mu sync.Mutex
 	subscriptions []SubData
+	username string
 }
 
 func (c *Client) GetClientId() string {
 	return c.connId
+}
+
+func (c *Client) SetUser(username string) {
+	c.username = username
+}
+
+func (c *Client) Username() string {
+	return c.username
 }
 
 func (c *Client) Disconnect() {
@@ -67,18 +77,20 @@ func (c *Client) updateFolderSubscription(folderId string, recursive bool) {
 // Link a websocket connection to a "key" that can be broadcasted to later if
 // relevent updates should be communicated
 //
-// Returns "true" and the results at meta.LookingFor if the task is completed, false otherwise
-// subscriptions to ongoing events like "folder" never return truthful completed
-func (c *Client) Subscribe(subType, username string, subData any) (bool, string) {
-	// c.removeSubscription(subMeta.Label)
-
+// Returns "true" and the results at meta.LookingFor if the task is completed, false otherwise.
+// Subscriptions to types that represent ongoing events like "folder" never return truthy completed
+func (c *Client) Subscribe(subType, subData any) (bool, string) {
 	switch subType {
 	case "folder": {
 		var meta FolderSubMetadata = subData.(FolderSubMetadata)
 
-		folder := dataStore.WFDByFolderId(meta.FolderId)
-		if folder.Err() != nil {
-			panic(fmt.Errorf("failed to get folder to scan: %s", folder.Err()))
+		if meta.FolderId == "" {
+			panic(fmt.Errorf("empty folder id while trying to subscribe"))
+		}
+		folder := dataStore.FsTreeGet(meta.FolderId)
+		if folder == nil {
+			c.Send("error", nil, errors.New("could not find folder to subscribe to"))
+			return false, ""
 		}
 		c.updateFolderSubscription(folder.Id(), meta.Recursive)
 	}
@@ -119,6 +131,7 @@ func (c *Client) _writeToClient(msg WsResponse) {
 }
 
 func (c *Client) Send(messageStatus string, content any, err error) {
-	msg := WsResponse{MessageStatus: messageStatus, Content: content, Error: err}
+	msg := WsResponse{MessageStatus: messageStatus, Content: content, Error: err.Error()}
+	util.Debug.Printf("Sending to client [ %s ]\n%v", c.GetClientId(), msg)
 	go c._writeToClient(msg)
 }

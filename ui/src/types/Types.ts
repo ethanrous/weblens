@@ -3,8 +3,7 @@
 
 export type MediaData = {
     fileHash: string
-    parentFolder: string
-    filename: string
+    fileId: string
     mediaType: {
         FileExtension: []
         FriendlyName: string
@@ -31,6 +30,7 @@ export type MediaData = {
 export type AlbumData = {
     Id: string
     Medias: string[]
+    SharedWith: string[]
     Name: string
     Cover: string
     PrimaryColor: string
@@ -42,9 +42,10 @@ export type AlbumData = {
 // Gallery Types
 
 export type GalleryBucketProps = {
-    date: string
+    bucketTitle: string
     bucketData: MediaData[]
     scrollerRef
+    scale: number
     dispatch: React.Dispatch<any>
 }
 
@@ -58,18 +59,17 @@ export type MediaWrapperProps = {
 
 export type MediaStateType = {
     mediaMap: Map<string, MediaData>
+    mediaMapUpdated: number
     albumsMap: Map<string, AlbumData>
-    mediaCount: number
-    // maxMediaCount: number
-    // hasMoreMedia: boolean
-    presentingHash: string
-    // previousLast: string
-    includeRaw: boolean
+    albumsFilter: string[]
     loading: boolean
+    includeRaw: boolean
+    newAlbumDialogue: boolean
+    blockSearchFocus: boolean
+    imageSize: number
     scanProgress: number
     searchContent: string
-    blockSearchFocus: boolean
-    newAlbumDialogue: boolean
+    presentingHash: string
 }
 
 // File Browser Types
@@ -92,10 +92,8 @@ export type FileBrowserStateType = {
     searchContent: string
     scanProgress: number
     holdingShift: boolean
-    sharing: boolean
-    albuming: boolean
+    blockFocus: boolean
     lastSelected: string
-    editing: string
     hovering: string
 }
 

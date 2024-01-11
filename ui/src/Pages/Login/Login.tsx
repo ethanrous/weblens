@@ -1,14 +1,14 @@
-import { Box, useTheme } from '@mui/joy'
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { createUser, login } from '../../api/ApiFetch'
 import { userContext } from '../../Context'
 import { notifications } from '@mantine/notifications'
-import { Button, Fieldset, PasswordInput, Space, Tabs, TextInput } from '@mantine/core'
+import { Button, Fieldset, Loader, PasswordInput, Space, Tabs, TextInput } from '@mantine/core'
+import { FlexRowBox } from '../FileBrowser/FilebrowserStyles'
 
 function CheckCreds(username, password, setCookie, nav) {
     login(username, password)
-        .then(res => { if (res.status == 401) { return Promise.reject("Incorrect username or password") } else { return res.json() } })
+        .then(res => { if (res.status === 401) { return Promise.reject("Incorrect username or password") } else { return res.json() } })
         .then(data => {
             setCookie('weblens-username', username, { sameSite: "strict" })
             setCookie('weblens-login-token', data.token, { sameSite: "strict" })
@@ -23,24 +23,42 @@ function CreateUser(username, password) {
         .catch((reason) => { notifications.show({ message: `Failed to create new user: ${reason}`, color: 'red' }) })
 }
 
+export const useKeyDown = (login) => {
+
+    const onKeyDown = useCallback((event) => {
+        if (event.key === "Enter") {
+            login()
+        }
+    }, [login])
+
+    useEffect(() => {
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+            document.removeEventListener('keydown', onKeyDown)
+        }
+    }, [onKeyDown])
+}
+
 const Login = () => {
     const [userInput, setUserInput] = useState("")
     const [passInput, setPassInput] = useState("")
+    const [loading, setLoading] = useState(false)
     const [tab, setTab] = useState("login")
     const nav = useNavigate()
     const loc = useLocation()
     const { authHeader, setCookie } = useContext(userContext)
 
     useEffect(() => {
-        if (loc.state == null && authHeader.Authorization != "") {
+        if (loc.state == null && authHeader.Authorization !== "") {
             nav("/")
         }
-    }, [authHeader])
+    }, [authHeader, loc.state, nav])
+
+    const login = useCallback(() => {setLoading(true); CheckCreds(userInput, passInput, setCookie, nav)}, [userInput, passInput, setCookie, nav])
+    useKeyDown(login)
 
     return (
-        <Box height={"100vh"} width={"100vw"} display={"flex"} justifyContent={"center"} alignItems={"center"}
-            sx={{ background: "linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%);" }}
-        >
+        <FlexRowBox style={{height: '100vh', width: '100vw', justifyContent: 'center', background: "linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)"}}>
             <Tabs value={tab} onChange={setTab} variant="pills">
                 <Tabs.List grow>
                     <Tabs.Tab value="login" >
@@ -55,7 +73,7 @@ const Login = () => {
                         <TextInput value={userInput} label='Username' placeholder='Username' onChange={(event) => setUserInput(event.currentTarget.value)} />
                         <PasswordInput value={passInput} label='Password' placeholder='Password' onChange={(event) => setPassInput(event.currentTarget.value)} />
                         <Space h={'md'} />
-                        <Button fullWidth onClick={() => CheckCreds(userInput, passInput, setCookie, nav)}>Login</Button>
+                        <Button disabled={loading} fullWidth onClick={login}>{loading ? <Loader color='white' size={25}/> : "Login"}</Button>
                     </Fieldset >
                 </Tabs.Panel>
                 <Tabs.Panel value="signup">
@@ -67,7 +85,7 @@ const Login = () => {
                     </Fieldset >
                 </Tabs.Panel>
             </Tabs>
-        </Box>
+        </FlexRowBox>
     )
 }
 

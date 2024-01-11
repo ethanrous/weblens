@@ -2,9 +2,10 @@ package dataProcess
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -16,6 +17,12 @@ import (
 func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media, db *dataStore.Weblensdb) error {
 	defer util.RecoverPanic("Panic caught while processing media file:", file.String())
 
+	if m == nil {
+		return errors.New("attempted to process nil media")
+	}
+
+	defer m.Clean()
+
 	var parseAnyway bool = false
 	filled, _ := m.IsFilledOut(false)
 	if filled && !parseAnyway {
@@ -23,13 +30,7 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media,
 		return nil
 	}
 
-	if m.ParentFolder == "" {
-		m.ParentFolder = file.ParentFolderId
-	}
-
-	if m.Filename == "" {
-		m.Filename = file.Filename
-	}
+	m.FileId = file.Id()
 
 	if m.MediaType.FriendlyName == "" {
 		err := m.ComputeExif()
@@ -37,8 +38,6 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media,
 	}
 
 	m.FileHash = util.HashOfString(8, file.String())
-	// m.GenerateFileHash(file)
-
 	// Files that are not "media" (jpeg, png, mov, etc.) should not be stored in the media database
 	if (!m.MediaType.IsDisplayable) {
 		PushItemCreate(file)
@@ -63,69 +62,60 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media,
 
 func ScanDirectory(t *task) {
 	meta := t.metadata.(ScanMetadata)
-
 	scanDir := meta.File
 	recursive := meta.Recursive
 	username := meta.Username
+	deepScan := meta.DeepScan
 
-	util.Info.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, scanDir.String())
+	util.Info.Printf("Beginning directory scan (recursive: %t, deep: %t): %s\n", recursive, deepScan, scanDir.String())
 
-	db := dataStore.NewDB(username)
-	ms := db.GetMediaInDirectory(scanDir.String(), recursive)
-	mediaMap := map[string]bool{}
-	for _, m := range ms {
-		mFile := m.GetBackingFile()
-		if mFile.Err() != nil {
-			util.DisplayError(mFile.Err())
-			continue
-		}
-		if !mFile.Exists() {
-			db.RemoveMediaByFilepath(m.ParentFolder, m.Filename)
-			continue
-		}
-		mediaMap[mFile.String()] = true
+	mediaToScan := []*dataStore.WeblensFileDescriptor{}
+	dirsToScan := []*dataStore.WeblensFileDescriptor{}
+
+	if deepScan {
+		scanDir.ReadDir()
 	}
 
-	files, err := os.ReadDir(scanDir.String())
-	if err != nil {
-		panic(err)
-	}
-
-	newFilesMap := map[string]*dataStore.WeblensFileDescriptor{}
-
-	NewWorkSubQueue(t.TaskId)
-
-	for _, d := range files {
-		file := scanDir.JoinStr(d.Name())
-		util.FailOnError(file.Err(), "")
-		if recursive && file.IsDir() {
-			RequestTask("scan_directory", "GLOBAL", ScanMetadata{File: file, Username: username, Recursive: recursive})
-		} else if (file.Filename != ".DS_Store" && !strings.HasSuffix(d.Name(), ".thumb.jpeg") && !mediaMap[file.String()] && !file.IsDir()) {
-			if (!file.IsDisplayable()) {
-				RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username})
-			} else {
-				_, err := file.GetMedia()
-				if err != nil {
-					newFilesMap[file.String()] = file
-				}
+	children := scanDir.GetChildren()
+	for _, c := range children {
+		if !c.IsDir() {
+			if m, _ := c.GetMedia(); m == nil && c.IsDisplayable() {
+				mediaToScan = append(mediaToScan, c)
 			}
+		} else if recursive && c != scanDir {
+			dirsToScan = append(dirsToScan, c)
 		}
 	}
 
-	et, err := exiftool.NewExiftool()
+	for _, dir := range dirsToScan {
+		t := NewTask("scan_directory", ScanMetadata{File: dir, Username: username, Recursive: recursive, DeepScan: deepScan})
+		ttInstance.globalQueue.QueueTask(t)
+	}
+
+	if len(mediaToScan) == 0 {
+		t.BroadcastComplete("scan_complete")
+		util.Info.Printf("No media to scan: %s", scanDir.String())
+		return
+	}
+
+	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"))
 	if err != nil {
-		panic(err)
+		util.DisplayError(err)
+		t.err = err
 	}
 
 	start := time.Now()
-	allMeta := et.ExtractMetadata(util.MapToSlice(newFilesMap, func(absPath string, f *dataStore.WeblensFileDescriptor) string {return absPath})...)
+	filesStrings := util.Map(mediaToScan, func(f *dataStore.WeblensFileDescriptor) string {return f.String()})
+	allMeta := et.ExtractMetadata(filesStrings...)
 	thumbsReader := readRawThumbBytesFromDir(util.Map(allMeta, func(meta exiftool.FileMetadata) string {return meta.File})...)
+
+	wq := NewWorkQueue()
+
 	offset := 0
-	for _, meta := range allMeta {
-		file := newFilesMap[meta.File]
-		m := dataStore.Media{}
-		m.Filename = file.Filename
-		m.ParentFolder = file.ParentFolderId
+	for i, meta := range allMeta {
+		file := mediaToScan[i]
+		m := &dataStore.Media{}
+		m.FileId = file.Id()
 
 		rawJpegLen := meta.Fields["JpgFromRawLength"]
 		if rawJpegLen != nil && thumbsReader != nil {
@@ -134,16 +124,25 @@ func ScanDirectory(t *task) {
 			offset += thumbLen
 		}
 
+		err := file.SetMedia(m)
+		if err != nil {
+			util.DisplayError(err)
+			continue
+		}
+
 		m.DumpRawExif(meta.Fields)
-		RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username, PartialMedia: &m})
+		t := NewTask("scan_file", ScanMetadata{File: file, Username: username, PartialMedia: m})
+		wq.QueueTask(t)
 	}
 
-	MainNotifyAllQueued(t.TaskId)
+	wq.AllQueued()
 	util.Info.Println("Pre-import meta collection", time.Since(start))
 
-	start = time.Now()
-	MainWorkQueueWait(t.TaskId)
-	util.Info.Printf("Completed scanning %d images in %v", len(allMeta), time.Since(start))
+	// start = time.Now()
+	wq.Wait()
+	t.BroadcastComplete("scan_complete")
+	// t.Complete(fmt.Sprintf("Completed scanning %d images in %v", len(allMeta), time.Since(start)))
+	runtime.GC()
 
 	PushItemUpdate(scanDir, scanDir)
 }
@@ -153,8 +152,7 @@ func readRawThumbBytesFromDir(paths ...string) []byte {
 		return nil
 	}
 
-	paths = util.Map(paths, func(path string) string {return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(path, " ", "\\ "), "(", "\\("), ")", "\\)")})
-	allPathsStr := strings.Join(paths, " ")
+	allPathsStr := strings.Join(util.Map(paths, func(path string) string {return fmt.Sprintf("'%s'", path)}), " ")
 	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", allPathsStr)
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
 

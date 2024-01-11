@@ -10,8 +10,6 @@ import (
 	"io"
 	"math"
 	"os/exec"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/barasher/go-exiftool"
@@ -24,10 +22,8 @@ import (
 )
 
 type Media struct {
-	// mongoId			string					`bson:"_id"`
 	FileHash		string					`bson:"fileHash" json:"fileHash"`
-	ParentFolder 	string 					`bson:"parentFolderId" json:"parentFolder"`
-	Filename	 	string 					`bson:"filename" json:"filename"`
+	FileId		 	string 					`bson:"fileId" json:"fileId"`
 	MediaType		mediaType				`bson:"mediaType" json:"mediaType"`
 	BlurHash 		string 					`bson:"blurHash" json:"blurHash"`
 	Thumbnail64 	string		 			`bson:"thumbnail" json:"thumbnail64"`
@@ -39,7 +35,6 @@ type Media struct {
 	Owner			string					`bson:"owner" json:"owner"`
 	SharedWith		[]primitive.ObjectID	`bson:"sharedWith" json:"sharedWith"`
 
-	// rotation		int
 	image 			image.Image
 	rawExif			map[string]any
 	thumbBytes		[]byte
@@ -53,11 +48,8 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	if m.FileHash == "" {
 		return false, "filehash"
 	}
-	if m.ParentFolder == "" {
-		return false, "parent folder"
-	}
-	if m.Filename == "" {
-		return false, "filename"
+	if m.FileId == "" {
+		return false, "file id"
 	}
 	if m.MediaType.FriendlyName == "" {
 		return false, "friendly name"
@@ -119,7 +111,7 @@ func (m *Media) extractExif() error {
 
 func (m *Media) ComputeExif() (error) {
 	if m.rawExif == nil {
-		util.Warning.Println("Spawning lone exiftool for", m.Filename)
+		util.Warning.Println("Spawning lone exiftool for", FsTreeGet(m.FileId).absolutePath)
 		err := m.extractExif()
 		if err != nil {
 			return err
@@ -137,7 +129,7 @@ func (m *Media) ComputeExif() (error) {
 			m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
 		}
 	} else {
-		m.CreateDate, err = time.Now(), nil
+		m.CreateDate, err = time.Unix(0, 0), nil
 	}
 	if err != nil {
 		return err
@@ -153,32 +145,6 @@ func (m *Media) ComputeExif() (error) {
 		return nil
 	}
 
-	ok = true
-	var dimentionsStr string
-	if m.MediaType.IsVideo {
-		d, k := m.rawExif["VideoSize"]
-		ok = k
-		if k {
-			dimentionsStr = d.(string)
-		}
-	}
-	if !m.MediaType.IsVideo || !ok {
-		d, ok := m.rawExif["ImageSize"]
-		if ok {
-			dimentionsStr = d.(string)
-		} else {
-			return fmt.Errorf("did not find expected image dimentions from exif data")
-		}
-	}
-	dimentionsList := strings.Split(dimentionsStr, "x")
-	m.MediaHeight, err = strconv.Atoi(dimentionsList[0])
-	if err != nil {
-		return err
-	}
-	m.MediaWidth, err = strconv.Atoi(dimentionsList[1])
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -196,9 +162,9 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 	if mFile.Err() != nil {
 		return nil, mFile.Err()
 	}
-	escapedPath := strings.ReplaceAll(mFile.String(), " ", "\\ ")
-	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s | exiftool -tagsfromfile %s -Orientation -", escapedPath, escapedPath)
-	// cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", escapedPath)
+
+	// escapedPath := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(mFile.String(), " ", "\\ "), "(", "\\("), ")", "\\)")
+	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw '%s' | exiftool -tagsfromfile '%s' -Orientation -", mFile.String(), mFile.String())
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
 
 	var out bytes.Buffer
@@ -231,7 +197,7 @@ func (m *Media) videoThumbnailReader() (io.Reader, error) {
 	if mFile.Err() != nil {
 		return nil, mFile.Err()
 	}
-	absolutePath := mFile.String()
+	absolutePath := fmt.Sprintf("'%s'", mFile.String())
 	cmd := exec.Command("ffmpeg", "-ss", "00:00:02.000", "-i", absolutePath, "-frames:v", "1", "-f", "mjpeg", "pipe:1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -333,7 +299,6 @@ func (m *Media) readFileIntoImage() (image.Image) {
 
 	util.FailOnError(err, "Failed to decode readable proxy image buffer")
 	if m.rawExif["Orientation"] == "Rotate 270 CW" {
-		m.MediaHeight, m.MediaWidth = m.MediaWidth, m.MediaHeight
 		i = imaging.Rotate90(i)
 	}
 
@@ -357,6 +322,8 @@ func (m *Media) GenerateFileHash(mFile *WeblensFileDescriptor) {
 func (m *Media) calculateThumbSize(i image.Image) {
 	dimentions := i.Bounds()
 	width, height := dimentions.Dx(), dimentions.Dy()
+	m.MediaHeight = height
+	m.MediaWidth = width
 
 	aspectRatio := float64(width) / float64(height)
 
@@ -400,7 +367,7 @@ func (m *Media) GenerateThumbnail() (*image.NRGBA) {
 }
 
 func (m *Media) GetBackingFile() *WeblensFileDescriptor {
-	file := GetWFD(m.ParentFolder, m.Filename)
+	file := FsTreeGet(m.FileId)
 	return file
 }
 
@@ -410,4 +377,10 @@ func (m *Media) GetImage() image.Image {
 	}
 
 	return m.image
+}
+
+func (m *Media) Clean() {
+	m.thumbBytes = nil
+	m.rawExif = nil
+	m.image = nil
 }

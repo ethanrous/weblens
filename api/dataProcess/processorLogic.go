@@ -2,12 +2,9 @@ package dataProcess
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -17,6 +14,7 @@ import (
 
 func ScanFile(meta ScanMetadata) {
 	db := dataStore.NewDB(meta.Username)
+	defer func(){meta.PartialMedia = nil}()
 	if meta.PartialMedia == nil {
 		m, _ := db.GetMediaByFile(meta.File, true)
 		meta.PartialMedia = &m
@@ -29,38 +27,50 @@ func ScanFile(meta ScanMetadata) {
 
 func createZipFromPaths(t *task) {
 	zipMeta := t.metadata.(ZipMetadata)
-	files := zipMeta.Files
-	filePaths := util.Map(files, func (file *dataStore.WeblensFileDescriptor) string {return file.String()})
+
+	if len(zipMeta.Files) == 0 {
+		err := fmt.Errorf("cannot create a zip with no files")
+		util.DisplayError(err)
+		t.err = err
+
+		return
+	}
 
 	filesInfoMap := map[string]os.FileInfo{}
-	util.Map(files,
+
+	util.Map(zipMeta.Files,
 		func (file *dataStore.WeblensFileDescriptor) error {
-			err := filepath.Walk(file.String(), func(pathname string, info os.FileInfo, err error) error {
-				filesInfoMap[pathname] = info
-				return nil
+			file.RecursiveMap(func (f *dataStore.WeblensFileDescriptor) {
+				stat, err := os.Stat(f.String())
+				util.FailOnError(err, "Failed to stat file %s", f.String())
+				filesInfoMap[f.String()] = stat
 			})
-			util.FailOnError(err, "Failed to walk directory selecting files to zip")
 			return nil
 		},
 	)
 
-	mapBytes, err := json.Marshal(filesInfoMap)
-	util.FailOnError(err, "Failed to marshal zip files map")
-	takeoutHash := util.HashOfString(8, string(mapBytes))
-	t.setResult(KeyVal{Key: "takeoutId", Val: takeoutHash})
-
-	zipPath := filepath.Join(util.GetTakeoutDir(), takeoutHash + ".zip")
-	_, err = os.Stat(zipPath)
-	if !errors.Is(err, fs.ErrNotExist) { // If the zip file already exists, then we're done
-		t.setComplete("task", "zip_complete")
+	takeoutHash := util.HashOfString(8, strings.Join(util.MapToKeys(filesInfoMap), ""))
+	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash)
+	if err != nil {
+		util.DisplayError(err)
+		t.err = err
+		return
+	}
+	if zipExists {
+		t.setResult(KeyVal{Key: "takeoutId", Val: zipFile.Id()})
+		t.BroadcastComplete("zip_complete")
 		return
 	}
 
-	zippy, err := os.Create(zipPath)
-	util.FailOnError(err, "Could not create zip takeout file")
+	fp, err := os.Create(zipFile.String())
+	if err != nil {
+		util.DisplayError(err)
+		t.err = err
+		return
+	}
+	defer fp.Close()
 
-	chroot := filepath.Dir(filePaths[0])
-	a, err := fastzip.NewArchiver(zippy, chroot, fastzip.WithStageDirectory(util.GetTakeoutDir()), fastzip.WithArchiverBufferSize(32))
+	a, err := fastzip.NewArchiver(fp, zipMeta.Files[0].GetParent().String(), fastzip.WithStageDirectory(zipFile.GetParent().String()), fastzip.WithArchiverBufferSize(32))
 	util.FailOnError(err, "Filed to create new zip archiver")
 	defer a.Close()
 
@@ -93,47 +103,33 @@ func createZipFromPaths(t *task) {
 		time.Sleep(time.Second)
 	}
 	if archiveErr != nil {
-		util.FailOnError(*archiveErr, "Failed to archive")
+		t.err = *archiveErr
+		util.DisplayError(*archiveErr, "Failed to archive")
+		return
 	}
-	t.setComplete("task", "zip_complete")
+
+	t.setResult(KeyVal{Key: "takeoutId", Val: zipFile.Id()})
+	t.BroadcastComplete("zip_complete")
 }
 
 func moveFile(t *task) {
 	moveMeta := t.metadata.(MoveMeta)
 
-
-
-	currentFile := dataStore.GetWFD(moveMeta.ParentFolderId, moveMeta.OldFilename)
-	if currentFile.Err() != nil {
+	file := dataStore.FsTreeGet(moveMeta.FileId)
+	if file.Err() != nil {
 		err := fmt.Errorf("could not find existing file")
 		panic(err)
 	}
 
-	opts := dataStore.CreateOpts().SetIgnoreNonexistance(true)
-	destinationFile := dataStore.GetWFD(moveMeta.DestinationFolderId, moveMeta.NewFilename, opts)
-	util.FailOnError(destinationFile.Err(), "")
-
-	if destinationFile.Exists() {
-		err := fmt.Errorf("destination file already exists")
-		panic(err)
-	}
-
-	currentFile.Id()
-	preUpdateFile := currentFile.Copy()
-	if currentFile.Err() != nil {
-		panic(currentFile.Err())
-	}
-
-	err := currentFile.MoveTo(destinationFile,
-		func(taskType string, taskMeta map[string]any) {
-			RequestTask(taskType, "", ScanMetadata{
-					File: taskMeta["file"].(*dataStore.WeblensFileDescriptor),
-					Username: taskMeta["username"].(string),
-				})})
+	destinationFolder := dataStore.FsTreeGet(moveMeta.DestinationFolderId)
+	preUpdateFile := file.Copy()
+	err := dataStore.FsTreeMove(file, destinationFolder, moveMeta.NewFilename, false)
 	if err != nil {
-		panic(err)
+		util.DisplayError(err)
+		t.err = err
+		return
 	}
 
-	PushItemUpdate(preUpdateFile, currentFile)
+	PushItemUpdate(preUpdateFile, file)
 
 }

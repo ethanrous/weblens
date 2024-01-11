@@ -1,4 +1,5 @@
-import { LinearProgress } from '@mui/joy'
+import { Loader, Progress } from "@mantine/core"
+
 
 export default function WeblensLoader({ loading, progress }: { loading: boolean, progress: number }) {
     let loader
@@ -7,21 +8,11 @@ export default function WeblensLoader({ loading, progress }: { loading: boolean,
     }
     if (progress && progress !== 100) {
         loader = (
-            <LinearProgress determinate style={{ position: "absolute", width: "100%" }} variant="plain" value={Number(progress)}
-                sx={{
-                    "--LinearProgress-thickness": "5px",
-                    "--LinearProgress-radius": "0px"
-                }}
-            />
+            <Progress color='#4444ff' style={{ position: "absolute", width: "100%" }} value={Number(progress)} />
         )
     } else {
         loader = (
-            <LinearProgress style={{ position: "absolute", width: "100%" }} variant="plain"
-                sx={{
-                    "--LinearProgress-thickness": "5px",
-                    "--LinearProgress-radius": "0px"
-                }}
-            />
+            <Loader color='#4444ff' type='bars' style={{ position: "absolute", right: '2vh', top: '95vh' }} />
         )
     }
     return loader

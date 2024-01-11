@@ -1,164 +1,304 @@
 // React
-import { useState, useEffect, useReducer, useMemo, useRef, useContext } from 'react'
+import { useState, useEffect, useReducer, useMemo, useRef, useContext, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 // Icons
-import { IconArrowRight, IconDownload, IconFolderPlus, IconHome, IconPhotoPlus, IconShare, IconTrash, IconUpload, IconUsers } from "@tabler/icons-react"
+import { IconCloud, IconDownload, IconExternalLink, IconFolderPlus, IconHome, IconPhotoPlus, IconPlus, IconRefresh, IconShare, IconTrash, IconUpload, IconUsers, IconUsersGroup } from "@tabler/icons-react"
 
 // Mantine
-import { Box, Button, Text, Space, FileButton, Paper, Card, Divider, Popover, ScrollArea, Loader } from '@mantine/core'
+import { Box, Button, Text, Space, FileButton, Paper, Card, Divider, Popover, ScrollArea, Loader, TextInput, Tooltip, ActionIcon, LoadingOverlay, TooltipFloating } from '@mantine/core'
 
 // Local
 import Presentation from '../../components/Presentation'
 import HeaderBar from "../../components/HeaderBar"
 import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
-import { AddToAlbum, GetFolderData } from '../../api/FileBrowserApi'
+import { GetFileInfo, GetFolderData, ShareFiles } from '../../api/FileBrowserApi'
 import { itemData, FileBrowserStateType, AlbumData } from '../../types/Types'
 import useWeblensSocket, { dispatchSync } from '../../api/Websocket'
-import { deleteSelected, GetDirItems, HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected } from './FileBrowserLogic'
+import { deleteSelected, GetDirItems, HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton } from './FileBrowserLogic'
 import { DirViewWrapper, FlexColumnBox, FlexRowBox } from './FilebrowserStyles'
 import { userContext } from '../../Context'
 import UploadStatus, { useUploadStatus } from '../../components/UploadStatus'
-import ShareDialogue from './Share'
 import { useDebouncedValue } from '@mantine/hooks'
-import { ItemsWrapper, StyledLazyThumb } from '../../types/Styles'
-import { GetAlbums } from '../../api/GalleryApi'
+import { ItemsWrapper } from '../../types/Styles'
+import { AddMediaToAlbum, CreateAlbum, GetAlbums } from '../../api/GalleryApi'
 import { MediaImage } from '../../components/PhotoContainer'
 import { notifications } from '@mantine/notifications'
+import { ShareInput } from '../../components/Share'
+import { humanFileSize } from '../../util'
+import NotFound from '../../components/NotFound'
 
-function SingleAlbum({ album, PartialApiCall }: { album: AlbumData, PartialApiCall: (albumId: string) => void }) {
+function NewAlbum({ refreshAlbums }: { refreshAlbums: (doLoading) => Promise<void> }) {
+    const { authHeader } = useContext(userContext)
     const [hovered, setHovered] = useState(false)
-    console.log(album)
+    const [newAlbumName, setNewAlbumName] = useState(null)
+    const [loading, setLoading] = useState(false)
+
+    if (newAlbumName == null) {
+        return (
+            <FlexColumnBox
+                style={{ height: '100%', width: '100%', minHeight: '260px', cursor: 'pointer', padding: '5px', borderRadius: '5px', backgroundColor: hovered ? '#3333ee' : "", justifyContent: 'center' }}
+                onClick={_ => setNewAlbumName("")}
+                onMouseOver={() => { setHovered(true) }}
+                onMouseLeave={() => { setHovered(false) }}
+            >
+                <IconPlus />
+                <Text>New Album</Text>
+            </FlexColumnBox>
+        )
+    } else {
+        return (
+            <FlexColumnBox style={{justifyContent: 'center', height: '100%', minHeight: '260px'}}>
+                <FlexColumnBox style={{ height: '85px', width: '100%', padding: '5px'}}>
+                    <TextInput autoFocus onBlur={() => { if (!newAlbumName) { setHovered(false); setNewAlbumName(null) } }} placeholder="New Album Name" value={newAlbumName} onChange={e => setNewAlbumName(e.target.value)} style={{width: '100%'}}/>
+                    <Space h={10} />
+                    <Button fullWidth color='#4444ff' onClick={() => {setHovered(false); setLoading(true); CreateAlbum(newAlbumName, authHeader).then(() => { refreshAlbums(false).then(() => setNewAlbumName(null)); setLoading(false) })}}>Create</Button>
+                </FlexColumnBox>
+                <LoadingOverlay visible={loading}/>
+            </FlexColumnBox>
+        )
+    }
+}
+
+function SingleAlbum({ album, loading, PartialApiCall }: { album: AlbumData, loading: boolean, PartialApiCall: (albumId: string) => void }) {
+    const [hovered, setHovered] = useState(false)
+    const {userInfo} = useContext(userContext)
+
     return (
-        <FlexColumnBox
-            style={{ height: '165px', width: '150px', cursor: 'pointer', padding: '5px', borderRadius: '5px', backgroundColor: hovered ? '#3333ee' : "", justifyContent: 'space-between' }}
-            onClick={() => { PartialApiCall(album.Id) }}
-            onMouseOver={() => { setHovered(true) }}
-            onMouseLeave={() => { setHovered(false) }}
-        >
-            <MediaImage mediaId={album.Cover} quality='thumbnail' expectFailure containerStyle={{ borderRadius: '6px', overflow: 'hidden', width: '125px', height: '125px' }} />
-            <Text>{album.Name}</Text>
-        </FlexColumnBox>
+        <Box pos={'relative'}>
+            <FlexColumnBox
+                style={{  cursor: 'pointer', padding: '5px', borderRadius: '5px', backgroundColor: hovered ? '#3333ee' : "#ffffff21", justifyContent: 'space-between' }}
+                onClick={() => { PartialApiCall(album.Id) }}
+                onMouseOver={() => { setHovered(true) }}
+                onMouseLeave={() => { setHovered(false) }}
+            >
+                {album.Owner !== userInfo.username && (
+                    <Tooltip label={`Shared by ${album.Owner}`}>
+                        <IconUsersGroup color="white" style={{ position: "absolute", alignSelf: 'flex-start', margin: 10, zIndex: 1 }} />
+                    </Tooltip>
+                )}
+                <MediaImage mediaId={album.Cover} quality='thumbnail' expectFailure containerStyle={{ borderRadius: '6px', overflow: 'hidden', width: '200px', height: '200px' }} />
+                <FlexRowBox style={{height: '50px', justifyContent: 'space-between', paddingLeft: 4}}>
+                    <FlexColumnBox style={{height: 'max-content', alignItems: 'flex-start', width: '175px'}}>
+                        <TooltipFloating position='top' label={album.Name}>
+                            <Text c='white' fw={500} truncate='end' w={'100%'}>{album.Name}</Text>
+                        </TooltipFloating>
+                        <Text size='12px'>{album.Medias.length}</Text>
+                    </FlexColumnBox>
+                    <TooltipFloating position='right' label='Open Album'>
+                        <IconExternalLink onClick={(e) => {e.stopPropagation(); window.open(`/albums/${album.Id}`,'_blank')}} onMouseOver={(e) => {e.stopPropagation(); setHovered(false) }}/>
+                    </TooltipFloating>
+                </FlexRowBox>
+            </FlexColumnBox>
+            <LoadingOverlay visible={loading} overlayProps={{radius: 'sm'}}/>
+        </Box>
     )
 }
 
-function AlbumScoller({ getSelected, dispatch, authHeader }: {
-    getSelected: () => string[],
-    dispatch,
+function AlbumScoller({ getSelected, authHeader }: {
+    getSelected: () => {media: string[], folders: string[]},
     authHeader
 }) {
     const [albums, setAlbums]: [albums: AlbumData[], setAlbums: any] = useState(null)
-    const [partialApiCall, setPartialApiCall] = useState(null)
-    const nav = useNavigate()
+    // This is for the state if we are waiting for the list of albums
+    const [loading, setLoading] = useState(false)
+
+    // This is for tracking which album(s) are waiting
+    // for results of adding media... naming is hard
+    const [loadingAlbums, setLoadingAlbums] = useState([])
+
+    const fetchAlbums = useCallback((doLoading) => {
+        if (authHeader.Authorization === "") {
+            return
+        }
+        if (doLoading) {
+            setLoading(true)
+        }
+        return GetAlbums(authHeader).then(ret => {setAlbums(ret); setLoading(false)})
+    }, [authHeader])
+
+    const addMediaApiCall = useCallback((albumId) => {
+        const {media, folders} = getSelected()
+        setLoadingAlbums(cur => [...cur, albumId])
+        AddMediaToAlbum(albumId, media, folders, authHeader)
+            .then((res) => {
+                if (res.errors.length === 0) {
+                    setLoadingAlbums(cur => cur.filter(v => v !== albumId))
+                    fetchAlbums(false)
+                    if (res.addedCount === 0) {
+                        notifications.show({message: `No new media to add to album`, color: 'orange'})
+                    } else {
+                        notifications.show({message: `Added ${res.addedCount} medias to album`, color: 'green'})
+                    }
+                } else {
+                    Promise.reject(res.errors)
+                }
+            })
+            .catch((r) => { notifications.show({ title: "Could not add media to album", message: String(r), color: 'red' }) })
+    }, [getSelected, authHeader, fetchAlbums])
 
     useEffect(() => {
-        GetAlbums(authHeader).then(ret => setAlbums(ret))
-        const func = (albumId) => {
-            AddToAlbum(getSelected(), albumId, authHeader).catch((r) => { notifications.show({ title: "Could not add media to album", message: r, color: 'red' }) })
-            dispatch({ type: 'close_add_to' })
-        }
-        setPartialApiCall((_) => func)
-    }, [])
+        fetchAlbums(true)
+    }, [fetchAlbums])
 
     const albumElements = useMemo(() => {
-        if (!albums || !partialApiCall) {
+        if (!albums || !addMediaApiCall) {
             return []
         }
         const albumElements = albums.map((val) => {
             return (
-                <SingleAlbum key={val.Name} album={val} PartialApiCall={partialApiCall} />
+                <SingleAlbum key={val.Name} album={val} loading={loadingAlbums.includes(val.Id)} PartialApiCall={addMediaApiCall} />
             )
         })
         return albumElements
-    }, [albums, partialApiCall])
+    }, [albums, addMediaApiCall, loadingAlbums])
 
-    console.log(albumElements)
-    if (!albumElements) {
+    const columns = useMemo(() => {return Math.min(albumElements.length + 1, 4)}, [albumElements.length])
+
+    if (loading || !albumElements) {
         return (
             <Loader />
         )
     }
-    if (albumElements.length == 0) {
-        return (
-            <FlexColumnBox style={{ height: '100px', width: '200px', justifyContent: 'center' }}>
-                <Text>You don't have any albums</Text>
-                <Space h={'md'}></Space>
-                <Button fullWidth variant='light' rightSection={<IconArrowRight />} onClick={() => { nav('/albums') }}>Albums</Button>
-            </FlexColumnBox>
-        )
-    }
     return (
-        <ScrollArea.Autosize mah={1000} maw={310}>
-            {albumElements}
+        <ScrollArea.Autosize type='never' mah={1000} maw={1000}>
+            <Box style={{display: 'grid', gap: 16, gridTemplateColumns: `repeat(${columns}, 210px)`}}>
+                {albumElements}
+                <NewAlbum refreshAlbums={fetchAlbums} />
+            </Box>
+            {albumElements.length === 0 && (
+                <Text style={{ textAlign: 'center' }}>No Albums</Text>
+            )}
         </ScrollArea.Autosize>
     )
 }
 
-function formatSelected(dirMap: Map<string, itemData>, selectedMap: Map<string, boolean>): string[] {
-    const selectedObjs = Array.from(selectedMap.keys()).map((key) => {
+function selectedMediaIds(dirMap: Map<string, itemData>, selectedMap: Map<string, boolean>): string[] {
+    let selectedObjs = Array.from(selectedMap.keys()).map((key) => {
         const item: itemData = dirMap.get(key)
-        return item.id
+        return item.mediaData.fileHash
+    })
+    selectedObjs = selectedObjs.filter((val) => {
+        return val !== ""
     })
     return selectedObjs
 }
 
-function GlobalActions({ folderId, selectedMap, dirMap, dragging, adding, dispatch, wsSend, uploadDispatch }: { folderId, selectedMap: Map<string, boolean>, dirMap, dragging, dispatch, adding, wsSend, uploadDispatch, authHeader }) {
+function selectedFolderIds(dirMap: Map<string, itemData>, selectedMap: Map<string, boolean>): string[] {
+    let selectedObjs = Array.from(selectedMap.keys()).map((key) => {
+        const item: itemData = dirMap.get(key)
+        if (item.isDir) {
+            return item.id
+        }
+        return ""
+    })
+    selectedObjs = selectedObjs.filter((val) => {
+        return val !== ""
+    })
+    return selectedObjs
+}
+
+function ShareBox({ open, setOpen, fileIds, fetchFiles, dragging, numFilesIOwn }: { open: boolean, setOpen, fileIds: string[], fetchFiles, dragging, numFilesIOwn }) {
+    const { authHeader } = useContext(userContext)
+    const [value, setValue] = useState([])
+
+    return (
+        <Popover opened={open} position='right' onClose={() => setOpen(false)} closeOnClickOutside>
+            <Popover.Target>
+                <Button fullWidth variant='subtle' color='#eeeeee' m={3} disabled={dragging || numFilesIOwn === 0} justify='space-between' rightSection={<Text>{numFilesIOwn}</Text>} leftSection={<IconShare />} onClick={(e) => { e.stopPropagation(); setOpen(true) }} >
+                    Share
+                </Button>
+            </Popover.Target>
+            <Popover.Dropdown>
+                <ShareInput valueSetCallback={setValue} initValues={[]} />
+                <Space h={10} />
+                <Button fullWidth disabled={JSON.stringify(value) === JSON.stringify([])} color="#4444ff" onClick={() => { ShareFiles(fileIds, value, authHeader).then(() => { notifications.show({ message: "File(s) shared", color: 'green' }); setOpen(false) }).catch((r) => notifications.show({ title: "Failed to share files", message: String(r), color: 'red' })) }}>
+                    Update
+                </Button>
+            </Popover.Dropdown>
+        </Popover>
+    )
+}
+
+function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState: FileBrowserStateType, dispatch, wsSend, uploadDispatch }) {
     const nav = useNavigate()
     const { userInfo, authHeader } = useContext(userContext)
-    const amHome = folderId === userInfo?.homeFolderId
-    const inShared = folderId === "shared"
-    const numFiles = selectedMap.size
-    const numFilesIOwn = Array.from(selectedMap.keys()).filter((key) => dirMap.get(key)?.owner === userInfo.username).length
+    const [sharing, setSharing] = useState(false)
+    const [adding, setAdding] = useState(false)
+
+    const amHome = fbState.folderInfo.id === userInfo?.homeFolderId
+    const inShared = fbState.folderInfo.id === "shared"
+    const numFilesIOwn = useMemo(() => Array.from(fbState.selected.keys()).filter((key) => fbState.dirMap.get(key)?.owner === userInfo.username).length, [fbState.selected.size, fbState.dirMap, fbState.selected, userInfo?.username])
+
     return (
-        <Box pr={0} top={150} h={'max-content'} display={'flex'} pos={'sticky'} style={{ marginLeft: "16px", flexDirection: 'column' }} >
-            <Button variant={amHome ? 'light' : 'subtle'} m={3} disabled={dragging} justify='flex-start' leftSection={<IconHome />} onClick={() => { nav('/files/home') }} >
+        <FlexColumnBox style={{ marginLeft: "16px", marginTop: 125, width: 'max-content' }} >
+            <Button fullWidth variant={amHome ? 'light' : 'subtle'} color={'#4444ff'} m={3} disabled={fbState.draggingState !== 0} justify='flex-start' leftSection={<IconHome />} onClick={() => { nav('/files/home') }} >
                 My Files
             </Button>
-            <Button variant={inShared ? 'light' : 'subtle'} m={3} disabled={dragging} justify='flex-start' leftSection={<IconUsers />} onClick={() => { nav('/files/shared') }} >
+            <Button fullWidth variant={inShared ? 'light' : 'subtle'} color={'#4444ff'} m={3} disabled={fbState.draggingState !== 0} justify='flex-start' leftSection={<IconUsers />} onClick={() => { nav('/files/shared') }} >
                 Shared With Me
             </Button>
             <Space h={"md"} />
-            <Button variant='subtle' color='#eeeeee' disabled={dragging || inShared} m={3} justify='flex-start' leftSection={<IconFolderPlus />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }}>
+            <Button fullWidth variant='subtle' color='#eeeeee' disabled={fbState.draggingState !== 0 || inShared} m={3} justify='flex-start' leftSection={<IconFolderPlus />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }}>
                 New Folder
             </Button>
-            <FileButton onChange={(files) => { HandleDrop(files, folderId, dirMap, authHeader, uploadDispatch, dispatch, wsSend) }} accept="file" multiple>
+            <FileButton onChange={(files) => { HandleUploadButton(files, fbState.folderInfo.id, authHeader, uploadDispatch, dispatch, wsSend) }} accept="file" multiple>
                 {(props) => {
                     return (
-                        <Button variant='subtle' color='#eeeeee' disabled={dragging || inShared} m={3} justify='flex-start' leftSection={<IconUpload />} onClick={() => props.onClick()}>
+                        <Button fullWidth variant='subtle' color='#eeeeee' disabled={fbState.draggingState !== 0 || inShared} m={3} justify='flex-start' leftSection={<IconUpload />} onClick={() => props.onClick()}>
                             Upload
                         </Button>
                     )
                 }}
-
             </FileButton>
             <Space h={"md"} />
-            <Popover opened={false} >
+            <ShareBox open={sharing} setOpen={(open) => {setSharing(open); dispatch({type: 'set_block_focus', block: open})}} fileIds={Array.from(fbState.selected.keys())} fetchFiles={() => { }} dragging={fbState.draggingState} numFilesIOwn={numFilesIOwn} />
+            <Popover opened={adding} trapFocus position="right-end" onClose={() => {setAdding(false); dispatch({type: 'set_block_focus', block: false})}} styles={{dropdown: {marginTop: 100}}}>
                 <Popover.Target>
-                    <Button variant='subtle' color='#eeeeee' m={3} disabled={dragging || numFilesIOwn === 0} justify='space-between' rightSection={<Text>{numFilesIOwn}</Text>} leftSection={<IconShare />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'share_selected' }) }} >
-                        Share
-                    </Button>
-                </Popover.Target>
-            </Popover>
-
-            <Popover opened={adding} trapFocus position="right" onClose={() => { dispatch({ type: 'close_add_to' }) }}>
-                <Popover.Target>
-                    <Button variant='subtle' color='#eeeeee' m={3} disabled={dragging || numFilesIOwn === 0} justify='space-between' rightSection={<Text>{numFiles}</Text>} leftSection={<IconPhotoPlus />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'add_selected_to_album' }) }} >
+                    <Button fullWidth variant='subtle' color='#eeeeee' m={3} disabled={fbState.draggingState !== 0 || fbState.selected.size === 0} justify='space-between' rightSection={<Text>{fbState.selected.size}</Text>} leftSection={<IconPhotoPlus />} onClick={(e) => { e.stopPropagation(); setAdding(true); dispatch({type: 'set_block_focus', block: true}) }}>
                         Add to
                     </Button>
                 </Popover.Target>
                 <Popover.Dropdown style={{ width: 'max-content' }}>
-                    <AlbumScoller getSelected={() => formatSelected(dirMap, selectedMap)} dispatch={dispatch} authHeader={authHeader} />
+                    <AlbumScoller getSelected={() => {return {media: selectedMediaIds(fbState.dirMap, fbState.selected), folders: selectedFolderIds(fbState.dirMap, fbState.selected)}}} authHeader={authHeader} />
                 </Popover.Dropdown>
             </Popover>
 
-            <Button variant='subtle' color='#eeeeee' m={3} disabled={dragging || selectedMap.size === 0} justify='space-between' rightSection={<Text>{selectedMap.size}</Text>} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(selectedMap, dirMap, folderId, dispatch, wsSend, authHeader) }} >
+            <Button fullWidth variant='subtle' color='#eeeeee' m={3} disabled={fbState.draggingState !== 0 || fbState.selected.size === 0} justify='space-between' rightSection={<Text>{fbState.selected.size}</Text>} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(fbState.selected, fbState.dirMap, fbState.folderInfo.id, dispatch, wsSend, authHeader) }} >
                 Download
             </Button>
             <Space h={"md"} />
-            <Button variant='subtle' color='red' m={3} disabled={dragging || numFilesIOwn === 0} justify='space-between' rightSection={<Text>{numFilesIOwn}</Text>} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); deleteSelected(selectedMap, dirMap, folderId, dispatch, authHeader) }} >
+            <Button fullWidth variant='subtle' color='red' m={3} disabled={fbState.draggingState !== 0 || numFilesIOwn === 0} justify='space-between' rightSection={<Text>{numFilesIOwn}</Text>} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); deleteSelected(fbState.selected, fbState.dirMap, authHeader) }} >
                 Delete
             </Button>
-        </Box>
+
+            <Divider w={'100%'} my='lg' size={1.5}/>
+
+            <UsageInfo homeFolderId={userInfo?.homeFolderId} authHeader={authHeader}/>
+        </FlexColumnBox>
+    )
+}
+
+function UsageInfo({homeFolderId, authHeader}) {
+
+    const [folderData, setFolderData]: [itemData, any] = useState(null)
+
+    useEffect(() => {
+        if (!homeFolderId || !authHeader) {return}
+        GetFileInfo(homeFolderId, authHeader).then(res => setFolderData(res))
+    }, [homeFolderId, authHeader])
+
+    if (!folderData) {
+        return null
+    }
+    return (
+        <FlexColumnBox style={{height: 'max-content', width: '100%', alignItems: 'flex-start', marginLeft: 10}}>
+            <Text fw={600} style={{width: 'max-content'}}>Usage</Text>
+            <FlexRowBox style={{marginTop: 10}}>
+                <IconCloud />
+                <Text style={{marginLeft: 10}}>{humanFileSize(folderData.size)}</Text>
+            </FlexRowBox>
+        </FlexColumnBox>
     )
 }
 
@@ -182,8 +322,8 @@ function DraggingCounter({ dragging, numSelected, dispatch }) {
     )
 }
 
-function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }) {
-    const gridRef = useRef()
+function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }) {
+    const gridRef = useRef(null)
     const nav = useNavigate()
     const [debouncedSearch] = useDebouncedValue(filebrowserState.searchContent, 200)
 
@@ -192,9 +332,14 @@ function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, 
     }, [debouncedSearch, filebrowserState, dispatch, authHeader, gridRef])
 
     useEffect(() => {
-        if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatchSync(filebrowserState.folderInfo.id, wsSend, false) }
-    }, [scanRequired])
+        if (scanRequired && !alreadyScanned) { setAlreadyScanned(true); dispatchSync(filebrowserState.folderInfo.id, wsSend, false, false) }
+    }, [scanRequired, alreadyScanned, filebrowserState.folderInfo.id, wsSend, setAlreadyScanned])
 
+    if (notFound) {
+        return (
+            <NotFound resourceType='Folder' link='/files/home' setNotFound={setNotFound}/>
+        )
+    }
 
     if (items.length !== 0) {
         return (
@@ -204,33 +349,39 @@ function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, 
         )
     } else if (!filebrowserState.loading && folderId !== "shared") {
         return (
-            <Box display={'flex'} style={{ justifyContent: 'center' }}>
-                <Card variant="solid" style={{ height: 'max-content', top: '40vh', position: 'fixed' }}>
-                    <Text ta={'center'} fw={600} mt={"sm"}>
+            <FlexRowBox style={{ overflow: 'hidden', justifyContent: 'center' }}>
+                <Card variant="solid" style={{ height: 'max-content', top: '40vh', position: 'fixed', padding: '50px' }}>
+                    <Text size='25px' ta={'center'} fw={800}>
                         This folder is empty
                     </Text>
-                    <Card.Section style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                    <Space h={15}></Space>
+                    <Card.Section style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
                         <FileButton onChange={(files) => { HandleDrop(files, folderId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch, wsSend) }} accept="file" multiple>
                             {(props) => {
                                 return (
-                                    <Text display={'flex'} style={{ flexDirection: 'column', alignItems: 'center', padding: 2, cursor: 'pointer' }} onClick={() => { props.onClick() }}>
+                                    <FlexColumnBox onClick={() => { props.onClick() }} style={{ cursor: 'pointer', marginTop: '0px' }}>
                                         <IconUpload size={100} style={{ padding: "10px" }} />
-                                        Upload
-                                        <Text display={'flex'} style={{ position: 'absolute', width: '100px', justifyContent: 'center', paddingTop: '125px' }}>
-                                            Click or Drop
+                                        <Text size='20px' fw={600}>
+                                            Upload
                                         </Text>
-                                    </Text>
+                                        <Space h={4}></Space>
+                                        <Text size='12px'>Click or Drop</Text>
+                                    </FlexColumnBox>
                                 )
                             }}
                         </FileButton>
-                        <Divider orientation='vertical' >Or</Divider>
-                        <Text display={'flex'} style={{ flexDirection: 'column', alignItems: 'center', padding: 2, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }}>
+                        <Divider orientation='vertical' m={20} />
+
+                        <FlexColumnBox onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }} style={{ cursor: 'pointer' }}>
                             <IconFolderPlus size={100} style={{ padding: "10px" }} />
-                            New Folder
-                        </Text>
+                            <Text size='20px' fw={600}>
+                                New Folder
+                            </Text>
+
+                        </FlexColumnBox>
                     </Card.Section>
                 </Card>
-            </Box>
+            </FlexRowBox>
         )
     } else if (!filebrowserState.loading && folderId === "shared") {
         return (
@@ -240,7 +391,7 @@ function Files({ filebrowserState, folderId, alreadyScanned, setAlreadyScanned, 
                         You have no files shared with you
                     </Text>
                     <Space h={'lg'} />
-                    <Button variant='light' fullWidth onClick={() => nav('/files/home')}>Return Home</Button>
+                    <Button color={'#4444ff'} fullWidth onClick={() => nav('/files/home')}>Return Home</Button>
                 </FlexColumnBox>
             </Paper>
         )
@@ -256,6 +407,7 @@ const FileBrowser = () => {
     const searchRef = useRef()
     const { wsSend, lastMessage, readyState } = useWeblensSocket()
     const [alreadyScanned, setAlreadyScanned] = useState(false)
+    const [notFound, setNotFound] = useState(false)
     const { uploadState, uploadDispatch } = useUploadStatus()
 
     const [filebrowserState, dispatch]: [FileBrowserStateType, React.Dispatch<any>] = useReducer(fileBrowserReducer, {
@@ -270,14 +422,12 @@ const FileBrowser = () => {
         searchContent: "",
         scanProgress: 0,
         holdingShift: false,
-        sharing: false,
-        albuming: false,
+        blockFocus: false,
         lastSelected: "",
-        editing: null,
         hovering: "",
     })
 
-    useKeyDown(filebrowserState.editing || filebrowserState.albuming, filebrowserState.sharing, dispatch, searchRef)
+    useKeyDown(filebrowserState.blockFocus, dispatch, searchRef)
 
     const realId = useMemo(() => {
         let realId
@@ -288,33 +438,45 @@ const FileBrowser = () => {
     }, [folderId, userInfo])
 
     useEffect(() => {
-        if (readyState === 1 && realId != null) {
+        if (readyState === 1 && realId != null && realId !== "shared") {
             wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: realId, recursive: false }, error: null }))
         }
-    }, [readyState])
+    }, [readyState, realId])
 
     useEffect(() => {
         if (!userInfo) {
             return
         }
         HandleWebsocketMessage(lastMessage, userInfo.username, dispatch, authHeader)
-    }, [lastMessage, userInfo])
+    }, [lastMessage, userInfo, authHeader])
 
     useEffect(() => {
-        if (!userInfo) {
-            return
-        }
-        if (!folderId || folderId === userInfo.homeFolderId || folderId == "undefined") {
+        if (!folderId || folderId === userInfo?.homeFolderId || folderId === "undefined") {
             navigate('/files/home')
+        }
+        if (!userInfo || authHeader.Authorization === '' || !realId) {
+            return
         }
         // Kinda just reset everything...
         setAlreadyScanned(false)
         dispatch({ type: "clear_items" })
         dispatch({ type: "set_search", search: "" })
         dispatch({ type: "set_scan_progress", progress: 0 })
-        wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: realId, recursive: false }, error: null }))
-        GetFolderData(realId, userInfo.username, dispatch, navigate, authHeader)
-    }, [folderId, userInfo])
+        dispatch({ type: "set_loading", loading: true })
+        GetFolderData(realId, userInfo.username, dispatch, authHeader)
+        .then(() => dispatch({ type: "set_loading", loading: false }))
+        .catch((r) => {
+            dispatch({ type: "set_loading", loading: false })
+            if (r === 404) {
+                setNotFound(true)
+                return
+            }
+            notifications.show({ title: "Could not get folder info", message: String(r), color: 'red', autoClose: 5000 })
+        })
+    }, [folderId, userInfo, authHeader, navigate, realId])
+
+    const moveSelectedTo = useCallback((folderId) => {moveSelected(filebrowserState.selected, folderId, authHeader); dispatch({type: 'clear_selected'})}, [filebrowserState.selected.size, authHeader])
+    const doScan = useCallback(() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(realId, wsSend, true, filebrowserState.holdingShift) }, [realId, wsSend, filebrowserState.holdingShift])
 
     return (
         <FlexColumnBox style={{ height: '100vh', backgroundColor: "#111418" }} >
@@ -331,10 +493,8 @@ const FileBrowser = () => {
             <DraggingCounter dragging={filebrowserState.draggingState} numSelected={filebrowserState.selected.size} dispatch={dispatch} />
             <Presentation mediaData={filebrowserState.dirMap.get(filebrowserState.presentingId)?.mediaData} parents={[...filebrowserState.parents, filebrowserState.folderInfo]} dispatch={dispatch} />
             <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} count={uploadState.uploadsMap.size} />
-            {/* <ShareDialogue sharing={filebrowserState.sharing} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dispatch={dispatch} /> */}
-            {/* <AddToDialogue albuming={filebrowserState.albuming} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dispatch={dispatch} /> */}
-            <FlexRowBox style={{ height: "calc(100vh - 70px)", width: '100%' }}>
-                <GlobalActions folderId={filebrowserState.folderInfo.id} selectedMap={filebrowserState.selected} dirMap={filebrowserState.dirMap} dragging={filebrowserState.draggingState} adding={filebrowserState.albuming} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
+            <FlexRowBox style={{ alignItems: 'flex-start' }}>
+                <GlobalActions fbState={filebrowserState} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} />
                 <DirViewWrapper
                     folderName={filebrowserState.folderInfo?.filename}
                     dragging={filebrowserState.draggingState}
@@ -343,10 +503,17 @@ const FileBrowser = () => {
                     dispatch={dispatch}
                     onMouseOver={() => dispatch({ type: 'set_hovering', itempath: "" })}
                 >
-                    <Box style={{ width: '100%' }}>
-                        <Crumbs finalItem={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={(folderId) => moveSelected(filebrowserState.selected, filebrowserState.dirMap, folderId, authHeader)} />
-                    </Box>
-                    <Files filebrowserState={filebrowserState} folderId={realId} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
+                    <FlexRowBox style={{height: 78}}>
+                        {realId !== "shared" && (
+                            <Tooltip label={filebrowserState.holdingShift ? "Deep scan folder" : "Scan folder"}>
+                                <ActionIcon color='#00000000' size={35} onClick={doScan}>
+                                    <IconRefresh color={filebrowserState.holdingShift ? '#4444ff' : 'white'} size={35} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <Crumbs finalItem={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={moveSelectedTo} />
+                    </FlexRowBox>
+                    <Files filebrowserState={filebrowserState} folderId={realId} notFound={notFound} setNotFound={setNotFound} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
             </DirViewWrapper>
             </FlexRowBox>
         </FlexColumnBox>

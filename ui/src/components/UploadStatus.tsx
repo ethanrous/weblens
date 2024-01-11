@@ -1,21 +1,25 @@
 
-import { Card, Paper, Text, RingProgress, Box, ScrollArea, Button, CloseButton, Loader, Center, ActionIcon, Progress, Tooltip } from '@mantine/core';
+import { Card, Paper, Text, RingProgress, Box, ScrollArea, CloseButton, Center, Tooltip, Space } from '@mantine/core';
 import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react';
 
-import { memo, useEffect, useMemo, useReducer, useState } from "react"
-import { dispatchSync } from '../api/Websocket';
+import { useMemo, useReducer } from "react"
+import { humanFileSize } from '../util';
+import { FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles';
+
 
 function uploadReducer(state: UploadStateType, action) {
     switch (action.type) {
         case 'add_new': {
             let existingUpload = state.uploadsMap.get(action.key)
             if (existingUpload?.progress > 0) {
-
                 return { ...state }
             }
             const newUploadMeta: UploadMeta = { key: action.key, isDir: action.isDir, friendlyName: action.name, parent: action?.parent, progress: 0, totalFiles: 0, speed: 0 }
             if (action.parent) {
                 const parent = state.uploadsMap.get(action.parent)
+                if (!parent) {
+                    console.log("BAD", state.uploadsMap)
+                }
                 parent.totalFiles += 1
                 state.uploadsMap.set(action.parent, parent)
             }
@@ -88,24 +92,26 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
             prog = (uploadMetadata.progress / uploadMetadata.totalFiles) * 100
         }
         statusText = `${uploadMetadata.progress} of ${uploadMetadata.totalFiles} files`
-    } else {
+    } else if (uploadMetadata.progress) {
         prog = uploadMetadata.progress
-        statusText = `${uploadMetadata.speed}MB/s`
+        const [val, unit] = humanFileSize(uploadMetadata.speed, true)
+        statusText = `${val}${unit}/s`
     }
 
     return (
-        <Card display={'flex'} pl={10} radius={0} style={{ width: "100%", backgroundColor: "#444444", height: '40px', minHeight: '40px', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box display={'flex'} style={{ flexDirection: 'row' }}>
-                {(uploadMetadata.isDir && (
-                    <IconFolder color='white' />
-                ))}
-                {(!uploadMetadata.isDir && (
-                    <IconFile color='white' />
-                ))}
-                <Text c="white" fw={500} pl={5}>{uploadMetadata.friendlyName}</Text>
-            </Box>
-            {(statusText && prog != 100 && prog != -1) && (
-                <Text c="white" pl={10}>{statusText}</Text>
+        <FlexRowBox style={{ width: 400, backgroundColor: "#444444", height: '40px' }}>
+            <Space w={2}/>
+            {(uploadMetadata.isDir && (
+                <IconFolder color='white' style={{minHeight: '30px', minWidth: '30px'}}/>
+            ))}
+            {(!uploadMetadata.isDir && (
+                <IconFile color='white' style={{minHeight: '30px', minWidth: '30px'}}/>
+            ))}
+            <Text truncate="end" c="white" fw={500} pl={5} pr={5}>{uploadMetadata.friendlyName}</Text>
+
+            <Space style={{flexGrow: 1}}/>
+            {(statusText && prog !== 100 && prog !== -1) && (
+                <Text c="white" pr={5} style={{minWidth: 75}}>{statusText}</Text>
             )}
             {(uploadMetadata.progress === -1) && (
                 <RingProgress
@@ -133,16 +139,13 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
                     thickness={5}
                     label={
                         <Center>
-
-                            {/* <IconCheck style={{ width: "20px", height: rem(22) }} /> */}
                             <IconCheck color='white' />
-
                         </Center>
                     }
                 />
             )}
 
-        </Card>
+        </FlexRowBox>
     )
 }
 
@@ -164,13 +167,13 @@ const UploadStatus = ({ uploadState, uploadDispatch, count }: { uploadState: Upl
     return (
         <Paper pos={'fixed'} bottom={0} right={30} radius={10} style={{ backgroundColor: "#222222", zIndex: 2 }}>
             <Paper pt={8} pb={25} radius={10} mb={-10} ml={10} mr={10} style={{ backgroundColor: "transparent", display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text c={'white'}>Uploading {topLevelCount} item{topLevelCount != 1 ? 's' : ''}</Text>
+                <Text c={'white'}>Uploading {topLevelCount} item{topLevelCount !== 1 ? 's' : ''}</Text>
                 <Tooltip label={"Close"}>
                     <CloseButton c={'white'} variant='transparent' onClick={() => uploadDispatch({ type: "clear" })} />
                 </Tooltip>
             </Paper>
             <Card p={0} radius={0} style={{ backgroundColor: "transparent", height: "max-content", maxHeight: "200px", width: "400px" }}>
-                <ScrollArea type='never' p={0} style={{ height: `${uploadCards.length * 40}px`, maxHeight: "200px" }}>
+                <ScrollArea type='never' p={0} mih={40} mah={200} maw={400}>
                     {uploadCards}
                 </ScrollArea>
             </Card>

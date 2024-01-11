@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/util"
@@ -18,11 +17,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Weblensdb struct {
-	mongo 		*mongo.Database
-	redis 		*redis.Client
-	accessor 	string
-}
 var mongo_ctx = context.TODO()
 //var redis_ctx = context.TODO()
 var mongoc *mongo.Client
@@ -89,8 +83,8 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (Media) {
 	return i
 }
 
-func (db Weblensdb) GetMediaByFile(file *WeblensFileDescriptor, includeThumbnail bool) (Media, error) {
-	filter := bson.M{"parentFolderId": file.ParentFolderId, "filename": file.Filename}
+func (db Weblensdb) GetMediaByFile(file *WeblensFileDescriptor, includeThumbnail bool) (m Media, err error) {
+	filter := bson.M{"fileId": file.Id()}
 
 	opts :=	options.FindOne()
 	if !includeThumbnail {
@@ -99,76 +93,165 @@ func (db Weblensdb) GetMediaByFile(file *WeblensFileDescriptor, includeThumbnail
 
 	ret := db.mongo.Collection("media").FindOne(mongo_ctx, filter, opts)
 	if ret.Err() != nil {
-		return Media{}, fmt.Errorf("failed to get media by filepath (%s): %s", file.Filename, ret.Err())
+		return m, fmt.Errorf("failed to get media by filepath (%s): %s", file.Filename(), ret.Err())
 	}
 
-	var m Media
 	ret.Decode(&m)
 	return m, nil
 }
 
-// Returns ids of all media in directory with depth 1
-func (db Weblensdb) GetMediaInDirectory(dirpath string, recursive bool) ([]Media) {
-	var re string
-	relPath, _ := GuaranteeUserRelativePath(dirpath, db.accessor)
-	if !recursive {
-		re = fmt.Sprintf("^%s\\/?[^\\/]+$", relPath)
-	} else {
-		re = fmt.Sprintf("^%s/?.*$", relPath)
+func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, albums []string, raw, thumbnails bool) (res []Media, err error) {
+	pipeline := bson.A{
+		bson.D{
+			{Key: "$match",
+				Value: bson.D{
+					{Key: "mediaType.isdisplayable", Value: true},
+					{Key: "$or",
+						Value: bson.A{
+							bson.D{{Key: "mediaType.israw", Value: false}},
+							bson.D{{Key: "mediaType.israw", Value: raw}},
+						},
+					},
+				},
+			},
+		},
 	}
 
-	filter := bson.M{"filepath": bson.M{"$regex": re, "$options": "i"}, "owner": db.accessor}
-	opts := options.Find().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
 
-	findRet, err := db.mongo.Collection("media").Find(mongo_ctx, filter, opts)
+	pipeline = append(pipeline, bson.D{
+		{Key: "$lookup",
+			Value: bson.D{
+				{Key: "from", Value: "albums"},
+				{Key: "let",
+					Value: bson.D{
+						{Key: "fileHash", Value: "$fileHash"},
+						{Key: "owner", Value: "$owner"},
+					},
+				},
+				{Key: "pipeline",
+					Value: bson.A{
+						bson.D{
+							{Key: "$match",
+								Value: bson.D{
+									{Key: "$expr",
+										Value: bson.D{
+											{Key: "$or",
+												Value: bson.A{
+													bson.D{
+														{Key: "$eq",
+															Value: bson.A{
+																"$$owner",
+																requester,
+															},
+														},
+													},
+													bson.D{
+														{Key: "$and",
+															Value: bson.A{
+																bson.D{
+																	{Key: "$or",
+																		Value: bson.A{
+																			bson.D{
+																				{Key: "$eq",
+																					Value: bson.A{
+																						"$owner",
+																						requester,
+																					},
+																				},
+																			},
+																			bson.D{
+																				{Key: "$in",
+																					Value: bson.A{
+																						requester,
+																						"$sharedWith",
+																					},
+																				},
+																			},
+																		},
+																	},
+																},
+																bson.D{
+																	{Key: "$in",
+																		Value: bson.A{
+																			"$$fileHash",
+																			"$medias",
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						bson.D{
+							{Key: "$match",
+								Value: bson.D{
+									{Key: "$expr",
+										Value: bson.D{
+											{Key: "$or",
+												Value: bson.A{
+													bson.D{
+														{Key: "$eq",
+															Value: bson.A{
+																albums,
+																bson.A{},
+															},
+														},
+													},
+													bson.D{
+														{Key: "$and",
+															Value: bson.A{
+																bson.D{
+																	{Key: "$in",
+																		Value: bson.A{
+																			"$$fileHash",
+																			"$medias",
+																		},
+																	},
+																},
+																bson.D{
+																	{Key: "$in",
+																		Value: bson.A{
+																			"$_id",
+																			albums,
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: 1}}}},
+					},
+				},
+				{Key: "as", Value: "result"},
+			},
+		},
+	})
 
+
+	pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.D{{Key: "result", Value: bson.D{{Key: "$ne", Value: bson.A{}}}}}}})
+	pipeline = append(pipeline, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
+
+	cursor, err := db.mongo.Collection("media").Aggregate(mongo_ctx, pipeline)
 	if err != nil {
-		panic(err)
+		return
 	}
 
-	var i []Media
-	findRet.All(mongo_ctx, &i)
-	return i
-}
-
-func (db Weblensdb) GetPagedMedia(sort, owner string, skip, limit int, raw, thumbnails bool) ([]Media) {
-	pipeline := mongo.Pipeline{}
-
-	sortStage := bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: -1}}}}
-	pipeline = append(pipeline, sortStage)
-
-	displayableMatchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "mediaType.isdisplayable", Value: true}}}}
-	pipeline = append(pipeline, displayableMatchStage)
-
-	if !raw {
-		rawMatchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "mediaType.israw", Value: raw}}}}
-		pipeline = append(pipeline, rawMatchStage)
-	}
-
-	mediaMatchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "mediaType.friendlyname", Value: bson.D{{Key: "$ne", Value: "File"}}}}}}
-	pipeline = append(pipeline, mediaMatchStage)
-
-	userMatchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "owner", Value: owner}}}}
-	pipeline = append(pipeline, userMatchStage)
-
-	skipStage := bson.D{{Key: "$skip", Value: skip}}
-	pipeline = append(pipeline, skipStage)
-
-	if limit != 0 {
-		limitStage := bson.D{{Key: "$limit", Value: limit * 1000}}
-		pipeline = append(pipeline, limitStage)
-	}
-
-	opts := options.Aggregate()
-	cursor, err := db.mongo.Collection("media").Aggregate(mongo_ctx, pipeline, opts)
-	if err != nil {
-		panic(err)
-	}
-
-	var res []Media
 	err = cursor.All(mongo_ctx, &res)
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	if redisc != nil {
@@ -180,13 +263,12 @@ func (db Weblensdb) GetPagedMedia(sort, owner string, skip, limit int, raw, thum
 		}(res)
 	}
 
-
 	if !thumbnails {
 		noThumbs := util.Map(res, func(m Media) Media {m.Thumbnail64 = ""; return m})
-		return noThumbs
+		return noThumbs, err
 	}
 
-	return res
+	return
 
 }
 
@@ -214,7 +296,7 @@ func (db Weblensdb) RedisCacheBust(key string) {
 func (db Weblensdb) DbAddMedia(m *Media) {
 	filled, reason := m.IsFilledOut(false)
 	if !filled {
-		util.Error.Panicf("Refusing to write incomplete media to database for file %s (missing %s)", m.Filename, reason)
+		util.Error.Panicf("Refusing to write incomplete media to database for file %s (missing %s)", FsTreeGet(m.FileId).absolutePath, reason)
 	}
 
 	if (m.Owner == "") {
@@ -247,25 +329,24 @@ func (db Weblensdb) UpdateMediasByFilehash(filehashes []string, newOwner string)
 // Processes necessary changes in database after moving a media file on the filesystem.
 // This must be called AFTER the file is moved, i.e. `destinationFile` must exist on the fs
 func (db Weblensdb) HandleMediaMove(existingMediaFile, destinationFile *WeblensFileDescriptor) error {
-	filter := bson.M{"parentFolderId": existingMediaFile.ParentFolderId, "filename": existingMediaFile.Filename}
+	filter := bson.M{"parentFolderId": existingMediaFile.ParentFolderId, "filename": existingMediaFile.Filename()}
 	res := db.mongo.Collection("media").FindOne(mongo_ctx, filter)
 	var m Media
 	err := res.Decode(&m)
 	if err != nil {return err}
 
-	m.ParentFolder = destinationFile.ParentFolderId
-	m.Filename = destinationFile.Filename
+	m.FileId = destinationFile.Id()
 
 	m.GenerateFileHash(destinationFile)
 
-	update := bson.M{"$set": bson.M{"parentFolderId": destinationFile.ParentFolderId, "filename": destinationFile.Filename, "fileHash": m.FileHash}}
+	update := bson.M{"$set": bson.M{"parentFolderId": destinationFile.ParentFolderId, "filename": destinationFile.Filename(), "fileHash": m.FileHash}}
 
 	_, err = db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
 	return err
 }
 
-func (db Weblensdb) RemoveMediaByFilepath(folderId, filename string) error {
-	filter := bson.M{"parentFolderId": folderId, "filename": filename}
+func (db Weblensdb) RemoveMediaByFile(file *WeblensFileDescriptor) error {
+	filter := bson.M{"fileId": file.Id()}
 	_, err := db.mongo.Collection("media").DeleteOne(mongo_ctx, filter)
 	return err
 }
@@ -416,162 +497,121 @@ func (db Weblensdb) ClearCache() {
 	db.redis.FlushAll()
 }
 
-type username struct {
-	Username string `bson:"username"`
-}
-
 func (db Weblensdb) SearchUsers(searchStr string) []string {
 	ret, err := db.mongo.Collection("users").Find(mongo_ctx, bson.M{"username": bson.M{"$regex": searchStr}})
 	util.DisplayError(err, "Failed to autocomplete user search")
-	var users []username
+	var users []struct { Username string `bson:"username"` }
 	ret.All(mongo_ctx, &users)
 
-	return util.Map(users, func(u username) string {return u.Username})
+	return util.Map(users, func(u struct { Username string `bson:"username"` }) string {return u.Username})
 }
 
-type shareData struct {
-	ShareId primitive.ObjectID `bson:"_id" json:"shareId"`
-	Owner string `bson:"owner" json:"owner"`
-	ParentFolderId string `bson:"parentFolderId" json:"parentFolderId"`
-	Filename string `bson:"filename" json:"filename"`
-}
-
-func (db Weblensdb) ShareFiles(files []*WeblensFileDescriptor, users []string) {
-	if len(files) == 0 || len(users) == 0 {
-		return
-	}
-	opts := options.Update().SetUpsert(true)
+func (db Weblensdb) ShareFiles(files []*WeblensFileDescriptor, users []string) error {
 	for _, file := range files {
-		filter := bson.M{"parentFolderId": file.ParentFolderId, "filename": file.Filename, "owner": db.accessor}
-		update := bson.M{"$addToSet": bson.M{"users": bson.M{"$each": users}}}
-		_, err := db.mongo.Collection("shares").UpdateOne(mongo_ctx, filter, update, opts)
-		util.DisplayError(err, "Failed to create or update share")
+		filter := bson.M{"_id": file.Id()}
+		update := bson.M{"$addToSet": bson.M{"sharedWith": bson.M{"$each": users}}}
+		_, err := db.mongo.Collection("folders").UpdateOne(mongo_ctx, filter, update)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (db Weblensdb) GetSharedWith(username string) []*WeblensFileDescriptor {
-	opts := options.Find().SetProjection(bson.M{"users": 0})
-	filter := bson.M{"users": username}
-	ret, err := db.mongo.Collection("shares").Find(mongo_ctx, filter, opts)
+	opts := options.Find().SetProjection(bson.M{"sharedWith": 0})
+	filter := bson.M{"sharedWith": username}
+	ret, err := db.mongo.Collection("folders").Find(mongo_ctx, filter, opts)
 	util.DisplayError(err, "Failed to get shared files")
 
-	var files []shareData
+	var files []folderData
 	ret.All(mongo_ctx, &files)
 
-	return util.Map(files, func(share shareData) *WeblensFileDescriptor {file := GetWFD(share.ParentFolderId, share.Filename); file.Id(); return file})
+	return util.Map(files, func(share folderData) *WeblensFileDescriptor {return FsTreeGet(share.FolderId)})
 }
 
-func (db Weblensdb) CanUserAccess(file *WeblensFileDescriptor, username string) bool {
-	opts := options.Find().SetProjection(bson.M{"users": 0})
-	filter := bson.M{"parentFolderId": file.ParentFolderId, "filename": file.Filename, "users": username}
-	ret, _ := db.mongo.Collection("shares").Find(mongo_ctx, filter, opts)
-	return ret.RemainingBatchLength() != 0
+func (db Weblensdb) getFileGuests(file *WeblensFileDescriptor) []string {
+	filter := bson.M{"_id": file.Id()}
+	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
+
+	var fd folderData
+	ret.Decode(&fd)
+
+	return fd.SharedWith
 }
 
-type folderData struct {
-	FolderId string `bson:"_id" json:"folderId"`
-	ParentId string `bson:"parentId" json:"parentId"`
-	DirPath string `bson:"dirPath" json:"dirPath"`
+func (db Weblensdb) writeFolder(folder *WeblensFileDescriptor) error {
+	opts :=  options.Update().SetUpsert(true)
+
+	filter := bson.M{"_id": folder.Id()}
+	fldrSet := bson.M{"$set": folderData{FolderId: folder.Id(), ParentFolderId: folder.parent.Id(), RelPath: GuaranteeRelativePath(folder.absolutePath), SharedWith: []string{}}}
+
+	_, err := db.mongo.Collection("folders").UpdateOne(mongo_ctx, filter, fldrSet, opts)
+	if err != nil {
+		util.DisplayError(err, "Error importing directory to database")
+		return err
+	}
+	return nil
+}
+
+func (db Weblensdb) deleteFolder(folder *WeblensFileDescriptor) error {
+	filter := bson.M{"_id": folder.Id()}
+
+	_, err := db.mongo.Collection("folders").DeleteOne(mongo_ctx, filter)
+	if err != nil {
+		util.DisplayError(err, "Error deleting directory from database")
+		return err
+	}
+	return nil
 }
 
 func (db Weblensdb) importDirectory(dirPath string) (folderData, error) {
-	relPath := GuaranteeRelativePath(dirPath)
-	pathHash := util.HashOfString(8, relPath)
+	return folderData{}, nil
 
-	fldr, err := db.getFolderByPath(relPath)
-	if err == nil {
-		return fldr, nil
-	}
+	// relPath := GuaranteeRelativePath(dirPath)
+	// pathHash := util.HashOfString(8, relPath)
 
-	parentPath := filepath.Dir(relPath)
-	var parentId string
-	if parentPath == "/" {
-		parentId = "0"
-	} else {
-		parent, err := db.getFolderByPath(parentPath)
-		if err != nil {
-			parent, err = db.importDirectory(parentPath) // Recursively import directories if not found
-			if err != nil {
-				return folderData{}, err
-			}
-		}
-		parentId = parent.FolderId
-	}
+	// fldr, err := db.getFolderByPath(relPath)
+	// if err == nil {
+	// 	return fldr, nil
+	// }
 
-	fldr = folderData{FolderId: pathHash, ParentId: parentId, DirPath: relPath}
+	// parentPath := filepath.Dir(relPath)
+	// var parentId string
+	// if parentPath == "/" {
+	// 	parentId = "0"
+	// } else {
+	// 	parent, err := db.getFolderByPath(parentPath)
+	// 	if err != nil {
+	// 		parent, err = db.importDirectory(parentPath) // Recursively import directories if not found
+	// 		if err != nil {
+	// 			return folderData{}, err
+	// 		}
+	// 	}
+	// 	parentId = parent.FolderId
+	// }
 
-	_, err = db.mongo.Collection("folders").InsertOne(mongo_ctx, fldr)
-	if err != nil {
-		util.DisplayError(err, "Error importing directory to database")
-		return fldr, err
-	}
-	return fldr, nil
+	// fldr = folderData{FolderId: pathHash, ParentId: parentId, Filename: filepath.Base(relPath)}
+
+	// _, err = db.mongo.Collection("folders").InsertOne(mongo_ctx, fldr)
+	// if err != nil {
+	// 	util.DisplayError(err, "Error importing directory to database")
+	// 	return fldr, err
+	// }
+	// return fldr, nil
 }
 
-func (db Weblensdb) deleteDirectory(folderId string) error {
-	filter := bson.M{"_id": folderId}
-	_, err := db.mongo.Collection("folders").DeleteOne(mongo_ctx, filter)
-	return err
-}
-
-func (db Weblensdb) deleteMediaByFolder(folderId string) error {
-	filter := bson.M{"parentFolderId": folderId}
-	_, err := db.mongo.Collection("media").DeleteMany(mongo_ctx, filter)
-	return err
-}
-
-func (db Weblensdb) getFolderById(folderId string) folderData {
+func (db Weblensdb) getFolderById(folderId string) (f folderData) {
 	if folderId == "home" {
 		util.LazyStackTrace()
 		util.Error.Panicf("Db attempt to get folder by `home` id. This should be translated before reaching the database. See trace above")
 	}
 	filter := bson.M{"_id": folderId}
 	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
-	var f folderData
 	ret.Decode(&f)
 
-	return f
-}
-
-func (db Weblensdb) getFolderByPath(folderPath string) (folderData, error) {
-	relPath := GuaranteeRelativePath(folderPath)
-	filter := bson.M{"dirPath": relPath}
-	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
-	err := ret.Err()
-	var f folderData
-	if ret.Err() != nil {
-		return f, err
-	}
-	ret.Decode(&f)
-
-	return f, nil
-}
-
-func (db Weblensdb) getMediaByPath(parentFolder, filename string) (Media, error) {
-	filter := bson.M{"parentFolderId": parentFolder, "filename": filename}
-	// opts := options.FindOne().SetProjection(bson.M{"thumbnail": util.IntFromBool(includeThumbnail)})
-
-	// ret := db.mongo.Collection("media").FindOne(mongo_ctx, filter, opts)
-	ret := db.mongo.Collection("media").FindOne(mongo_ctx, filter)
-
-	if ret.Err() != nil {
-		return Media{}, fmt.Errorf("failed to get media (%s -> %s): %s", parentFolder, filename, ret.Err())
-	}
-	var i Media
-	ret.Decode(&i)
-	return i, nil
-}
-
-type AlbumData struct {
-	Id string `bson:"_id"`
-	Name string `bson:"name"`
-	Owner string `bson:"owner"`
-	Cover string `bson:"cover"`
-	PrimaryColor string `bson:"primaryColor"`
-	SecondaryColor string `bson:"secondaryColor"`
-	Medias []string `bson:"medias"`
-	SharedWith []string `bson:"sharedWith"`
-	ShowOnTimeline bool `bson:"showOnTimeline"`
+	return
 }
 
 func (db Weblensdb) GetAlbum(albumId string) (a AlbumData, err error) {
@@ -593,32 +633,77 @@ func (db Weblensdb) GetAlbumsByUser(user, nameFilter string, includeShared bool)
 	if err != nil {
 		return
 	}
+
 	res.All(mongo_ctx, &as)
+	if as == nil {
+		as = []AlbumData{}
+	}
 	return
 }
 
 func (db Weblensdb) CreateAlbum(name, owner string) {
-	a := AlbumData{Id: util.HashOfString(12, fmt.Sprintln(name, owner)), Name: name, Owner: owner, ShowOnTimeline: true, Medias: []string{}}
+	a := AlbumData{Id: util.HashOfString(12, fmt.Sprintln(name, owner)), Name: name, Owner: owner, ShowOnTimeline: true, Medias: []string{}, SharedWith: []string{}}
 	db.mongo.Collection("albums").InsertOne(mongo_ctx, a)
 }
 
-func (db Weblensdb) AddMediaToAlbum(albumId string, mediaIds []string) error {
+func (db Weblensdb) AddMediaToAlbum(albumId string, mediaIds []string) (addedCount int, err error) {
+	if mediaIds == nil {
+		return addedCount, fmt.Errorf("nil media ids")
+	}
+
+	match := bson.M{"_id": albumId}
+	preFindRes := db.mongo.Collection("albums").FindOne(mongo_ctx, match)
+	if preFindRes.Err() != nil {
+		return addedCount, preFindRes.Err()
+	}
+	var preData AlbumData
+	preFindRes.Decode(&preData)
+
+	update := bson.M{"$addToSet": bson.M{"medias": bson.M{"$each": mediaIds}}}
+	res, err := db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
+	if err != nil {
+		return
+	}
+	if res == nil || res.MatchedCount == 0 {
+		return addedCount, fmt.Errorf("no matched albums while adding media")
+	}
+
+	postFindRes := db.mongo.Collection("albums").FindOne(mongo_ctx, match)
+	if postFindRes.Err() != nil {
+		return addedCount, postFindRes.Err()
+	}
+	var postData AlbumData
+	postFindRes.Decode(&postData)
+
+	addedCount = len(postData.Medias) - len(preData.Medias)
+
+	return
+}
+
+func (db Weblensdb) RemoveMediaFromAlbum(albumId string, mediaIds []string) error {
 	if mediaIds == nil {
 		return fmt.Errorf("nil media ids")
 	}
 
 	match := bson.M{"_id": albumId}
-	update := bson.M{"$addToSet": bson.M{"medias": bson.M{"$each": mediaIds}}}
+	update := bson.M{"$pull": bson.M{"medias": bson.M{"$in": mediaIds}}}
 	res, err := db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
 	if err != nil {
 		return err
 	}
 
 	if res == nil || res.MatchedCount == 0 {
-		return fmt.Errorf("no matched albums while adding media")
+		return fmt.Errorf("no matched albums while removing media")
 	}
 
 	return nil
+}
+
+func (db Weblensdb) SetAlbumName(albumId, newName string) (err error) {
+	match := bson.M{"_id": albumId}
+	update := bson.M{"$set": bson.M{"name": newName}}
+	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
+	return
 }
 
 func (db Weblensdb) SetAlbumCover(albumId, coverMediaId, prom1, prom2 string) (err error) {
@@ -633,4 +718,24 @@ func (db Weblensdb) ShareAlbum(albumId string, users []string) (err error) {
 	update := bson.M{"$addToSet": bson.M{"sharedWith": bson.M{"$each": users}}}
 	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
 	return
+}
+
+func (db Weblensdb) UnshareAlbum(albumId string, users []string) (err error) {
+	match := bson.M{"_id": albumId}
+	update := bson.M{"$pull": bson.M{"sharedWith": bson.M{"$in": users}}}
+	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
+	return
+}
+
+func (db Weblensdb) DeleteAlbum(albumId string) (err error) {
+	match := bson.M{"_id": albumId}
+	_, err = db.mongo.Collection("albums").DeleteOne(mongo_ctx, match)
+	return
+}
+
+func (db Weblensdb) HURDUR() {
+	index := mongo.IndexModel{
+		Keys: bson.M{"fileHash": 1},
+	}
+	db.mongo.Collection("media").Indexes().CreateOne(mongo_ctx, index)
 }

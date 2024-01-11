@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 func BoolFromString(input string, emptyIsFalse bool) bool {
@@ -107,10 +108,11 @@ func bToMb(b uint64) uint64 {
     return b / 1024 / 1024
 }
 
-func PrintMemUsage() {
+func PrintMemUsage(contextTag string) {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	Debug.Println("Memory dump: ", contextTag)
 	fmt.Printf("Alloc = %v MiB", bToMb(mem.Alloc))
 	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(mem.TotalAlloc))
 	fmt.Printf("\tSys = %v MiB", bToMb(mem.Sys))
@@ -205,10 +207,32 @@ func Map[T, V any](ts []T, fn func(T) V) []V {
     return result
 }
 
-func MapToSlice[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
+func MapToSliceMutate[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
     result := make([]V, len(tMap))
+	counter := 0
     for t, x := range tMap {
-        result = append(result, fn(t, x))
+		result[counter] = fn(t, x)
+        counter++
+    }
+    return result
+}
+
+func MapToSlicePure[T comparable, V any](tMap map[T]V) []V {
+    result := make([]V, len(tMap))
+	counter := 0
+    for _, v := range tMap {
+		result[counter] = v
+        counter++
+    }
+    return result
+}
+
+func MapToKeys[T comparable, V any](tMap map[T]V) []T {
+    result := make([]T, len(tMap))
+	counter := 0
+    for t := range tMap {
+		result[counter] = t
+        counter++
     }
     return result
 }
@@ -221,4 +245,60 @@ func Filter[T any](ts []T, fn func(T) bool) []T {
 		}
     }
     return result
+}
+
+type lap struct {
+	tag string
+	time time.Time
+}
+
+type Stopwatch struct {
+	start time.Time
+	laps []lap
+	stop time.Time
+}
+
+func NewStopwatch() *Stopwatch {
+	return &Stopwatch{}
+}
+
+func (s *Stopwatch) Start() {
+	s.start = time.Now()
+}
+
+func (s *Stopwatch) Stop() {
+	s.stop = time.Now()
+}
+
+func (s *Stopwatch) Lap(tag... any) {
+	l := lap{
+		tag: fmt.Sprint(tag...),
+		time: time.Now(),
+	}
+	s.laps = append(s.laps, l)
+}
+
+func (s *Stopwatch) Results() {
+	var res string = "--- Stopwatch Results ---"
+
+	res = fmt.Sprintf("%s\n%s", res, fmt.Sprint("Started at ", s.start))
+
+	for i, l := range s.laps {
+		var sinceLast string
+		if i != 0 {
+			sinceLast = fmt.Sprintf("(%s since previous lap)", s.laps[i].time.Sub(s.laps[i - 1].time))
+		}
+
+		if l.tag != "" {
+			res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf("\t%s: %s since start %s", l.tag, l.time.Sub(s.start), sinceLast))
+		} else {
+			res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf("\tLap %d: %s since start %s", i, l.time.Sub(s.start), sinceLast))
+		}
+
+	}
+
+	res = fmt.Sprintf("%s\n%s\n", res, fmt.Sprintf("Stopped %s after start", s.stop.Sub(s.start)))
+
+	fmt.Println(res)
+
 }

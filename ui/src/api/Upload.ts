@@ -66,43 +66,53 @@ async function readFile(file) {
         };
 
         fr.onerror = () => {
+            console.log("AHH")
             reject(fr)
         }
 
-        fr.readAsDataURL(file);
+        if (file) {
+            fr.readAsDataURL(file);
+        }
     })
 }
 
-const CHUNK_SIZE = 20000000
+const CHUNK_SIZE: number = 20000000
 
 async function doChunkedUpload(fileData: File, parentFolderId, filename, authHeader, onProgress?, onFinish?) {
     let uploadId: string = ""
     try {
-        const fileSize = fileData.size;
         let offset = 0;
-
-        const file64 = await readFile(fileData)
-        while (offset < fileSize) {
-            const chunk = file64.slice(offset, offset + CHUNK_SIZE)
+        while (offset < fileData.size) {
+            let upperBound
+            if (offset + CHUNK_SIZE >= fileData.size) {
+                upperBound = fileData.size
+            } else {
+                upperBound = offset + CHUNK_SIZE
+            }
+            let chunk = await readFile(fileData.slice(offset, upperBound))
+            chunk = chunk.substring(chunk.indexOf(',') + 1, chunk.length)
 
             const formData = new FormData()
             formData.append("chunk", chunk)
             formData.append("offset", offset.toString())
-            formData.append("totalSize", fileSize.toString())
+            formData.append("totalSize", fileData.size.toString())
             formData.append("filename", filename)
             formData.append("uploadId", uploadId)
             formData.append("parentFolderId", parentFolderId)
 
-            const start = Date.now()
+            const start = Date.now() / 1000
             let res = await axios.post(`${API_ENDPOINT}/file`, formData, {
-                headers: { "Content-Type": "multipart/form-data", "Authorization": authHeader.Authorization, "Content-Range": `${offset}-${offset + CHUNK_SIZE - 1}/${fileSize}` }
+                headers: { "Content-Type": "multipart/form-data", "Authorization": authHeader.Authorization, "Content-Range": `${offset}-${upperBound}/${fileData.size}` }
             })
-            const end = Date.now()
+            const end = Date.now() / 1000
+
             if (uploadId === "") {
                 uploadId = res.data.uploadId
             }
             offset += CHUNK_SIZE;
-            onProgress(offset, fileSize, (CHUNK_SIZE / (end - start)) / 1000)
+
+            let speed = ((CHUNK_SIZE / 6) * 8) / (end - start)
+            onProgress(offset, fileData.size, speed)
         }
         onFinish()
     } catch (error) {
@@ -117,7 +127,7 @@ async function singleUploadPromise(uploadMeta: fileUploadMetadata, authHeader, u
     const file: File = uploadMeta.file
 
     const key: string = uploadMeta.parentId + uploadMeta.file.name
-    const onFinish = () => { uploadDispatch({ type: "finished", key: key }); if (uploadMeta.isTopLevel) { dispatch({ type: "add_skeleton", filename: uploadMeta.file.name }) } }
+    const onFinish = () => uploadDispatch({ type: "finished", key: key })
 
     if (file.size > CHUNK_SIZE) {
         // Upload is too large, do chunked upload
@@ -128,7 +138,7 @@ async function singleUploadPromise(uploadMeta: fileUploadMetadata, authHeader, u
 
     } else {
         // Upload is small enough for single upload
-        const onProgress = (p) => { uploadDispatch({ type: "set_progress", key: key, progress: p.progress * 100 }) }
+        const onProgress = (p) => { uploadDispatch({ type: "set_progress", key: key, progress: p.progress * 100, speed: p.rate }) }
         return async () => {
             const file64 = await readFile(file)
             await PostFile(file64, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish)
@@ -142,19 +152,18 @@ async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, u
     let tlds: string[] = []
     let tlf = false
 
-
-
     for (const meta of filesMeta) {
-        const key: string = meta?.folderId || meta.parentId + meta.file.name
+        const key: string = meta.folderId || meta.parentId + meta.file.name
         if (meta.isTopLevel) {
             uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name })
             if (meta.isDir) {
+                console.log("TLD!")
                 tlds.push(meta.folderId)
             }
             tlf = tlf || !meta.isDir
+        } else {
+            uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name, parent: meta.topLevelParentKey })
         }
-
-        uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name, parent: meta.topLevelParentKey })
         if (meta.isDir) {
             continue
         }
@@ -165,11 +174,12 @@ async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, u
     await taskQueue.run()
 
     if (tlf) {
-        dispatchSync(rootFolder, wsSend, false)
+        dispatchSync(rootFolder, wsSend, false, false)
     }
 
     for (const tld of tlds) {
-        dispatchSync(tld, wsSend, true)
+        console.log("Dispatching post-upload directory sync")
+        dispatchSync(tld, wsSend, true, false)
     }
 }
 

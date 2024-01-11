@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route, useRoutes } from "react-router-dom"
-import Fourohfour from "./Pages/404/fourohfour"
-import { MantineProvider } from '@mantine/core'
+import { BrowserRouter as Router, useRoutes } from "react-router-dom"
+import { AppShell, MantineProvider, Text } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 
 import WeblensLoader from "./components/Loading"
@@ -63,16 +62,19 @@ function App() {
   // document.body.style.backgroundColor = theme.colorSchemes.dark.palette.neutral.solidDisabledBg
   document.documentElement.style.overflow = "hidden"
   // document.body.style.backgroundColor = "#fff"
-
-
   return (
     <MantineProvider defaultColorScheme="dark">
-      <Notifications position='top-right' top={80} />
+      <AppShell>
+        <AppShell.Footer style={{backgroundColor: "#00000000", border: 0, zIndex: 0}}>
+          <Text style={{paddingLeft: 30, opacity: 0.20, zIndex: 0, userSelect: 'none'}}>{process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
+        </AppShell.Footer>
+      </AppShell>
+      <Notifications position='top-right' top={90} />
       <Router>
         <WeblensRoutes />
       </Router>
     </MantineProvider>
-  );
+  )
 }
 
 export default App

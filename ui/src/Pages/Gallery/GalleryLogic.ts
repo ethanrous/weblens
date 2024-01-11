@@ -6,6 +6,8 @@ type galleryAction = {
     type: string
     media?: MediaData[]
     albums?: AlbumData[]
+    albumNames?: string[]
+    include?: boolean
     block?: boolean
     itemId?: string
     item?: itemData
@@ -13,9 +15,11 @@ type galleryAction = {
     loading?: boolean
     search?: string
     open?: boolean
+    size?: number
+    raw?: boolean
 }
 
-export function mediaReducer(state: MediaStateType, action: galleryAction) {
+export function mediaReducer(state: MediaStateType, action: galleryAction): MediaStateType {
     switch (action.type) {
         case 'set_media': {
             state.mediaMap.clear()
@@ -31,7 +35,8 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
                 }
             }
             return {
-                ...state
+                ...state,
+                mediaMapUpdated: Date.now()
             }
         }
 
@@ -39,10 +44,25 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
             if (!action.albums) {
                 return { ...state }
             }
+            state.albumsMap.clear()
             for (const a of action.albums) {
                 state.albumsMap.set(a.Name, a)
             }
             return { ...state }
+        }
+
+        case 'set_albums_filter': {
+            return {
+                ...state,
+                albumsFilter: action.albumNames
+            }
+        }
+
+        case 'set_image_size': {
+            return {
+                ...state,
+                imageSize: action.size
+            }
         }
 
         case 'set_block_search_focus': {
@@ -62,7 +82,6 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
 
         case 'delete_from_map': {
             state.mediaMap.delete(action.itemId)
-            // action.item
             return { ...state }
         }
 
@@ -80,7 +99,10 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
             }
         }
 
-        case 'toggle_raw': {
+        case 'set_raw_toggle': {
+            if (action.raw === state.includeRaw) {
+                return {...state}
+            }
             window.scrollTo({
                 top: 0,
                 behavior: "smooth"
@@ -88,9 +110,8 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
             state.mediaMap.clear()
             return {
                 ...state,
-                mediaCount: 0,
                 loading: true,
-                includeRaw: !state.includeRaw
+                includeRaw: action.raw
             }
         }
 

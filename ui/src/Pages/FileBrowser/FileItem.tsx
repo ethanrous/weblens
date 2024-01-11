@@ -1,54 +1,52 @@
-import { useEffect, useState, memo, useRef } from 'react'
+import { useEffect, useState, memo, useRef, useCallback } from 'react'
 
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import { FormControl, Typography, Input, Divider } from '@mui/joy'
-
-import { StyledLazyThumb } from '../../types/Styles'
 import { humanFileSize } from '../../util'
 import { CreateFolder, RenameFile } from '../../api/FileBrowserApi'
-import { FileItemWrapper, FlexColumnBox, ItemVisualComponentWrapper } from './FilebrowserStyles'
+import { FileItemWrapper, FlexColumnBox, FlexRowBox, ItemVisualComponentWrapper } from './FilebrowserStyles'
 import { itemData } from '../../types/Types'
 
-import { useIsVisible } from '../../components/PhotoContainer'
-import { IconFileZip, IconFolder } from '@tabler/icons-react'
-import { Box, Center, Skeleton, Text, Tooltip } from '@mantine/core'
+import { MediaImage } from '../../components/PhotoContainer'
+import { IconFile, IconFileZip, IconFolder } from '@tabler/icons-react'
+import { Box, Center, Divider, Skeleton, Text, TextInput, Tooltip } from '@mantine/core'
 
-function StartKeybaordListener(dispatch, editing, parentId, itemId, oldName, newName, imported, authHeader) {
-
-    const keyDownHandler = event => {
+function useKeyDown(dispatch, editing, setEditing, parentId, itemId, newName, imported, authHeader) {
+    const keyDownHandler = useCallback(event => {
         if (!editing) { return }
         if (event.key === 'Enter') {
             event.preventDefault()
+            event.stopPropagation()
             if (newName === "") {
-                dispatch({ type: 'reject_edit' })
+                setEditing(false)
             } else {
                 if (imported) {
-                    RenameFile(parentId, oldName, newName, authHeader)
+                    RenameFile(itemId, newName, authHeader).then(() => setEditing(false))
                 } else {
-                    CreateFolder(parentId, newName, authHeader).then(res => {
-                        dispatch({ type: 'set_selected', itemId: res.folderId })
-                        dispatch({ type: 'confirm_edit', itemId: itemId })
+                    CreateFolder(parentId, newName, authHeader).then(folderId => {
+                        dispatch({ type: 'set_selected', itemId: folderId })
+                        setEditing(false)
                     })
                 }
             }
+        } else if (event.key === 'Escape') {
+            setEditing(false)
         }
-    }
+    }, [dispatch, editing, setEditing, itemId, newName, imported, authHeader, parentId])
 
-    window.addEventListener('keydown', keyDownHandler)
-
-    return () => { window.removeEventListener('keydown', keyDownHandler) }
+    useEffect(() => {
+        window.addEventListener('keydown', keyDownHandler)
+        return () => { window.removeEventListener('keydown', keyDownHandler) }
+    }, [keyDownHandler])
 }
 
 const ItemVisualComponent = ({ itemData, root }: { itemData: itemData, root }) => {
     const sqareSize = "75%"
     const type = itemData.mediaData?.mediaType.FriendlyName
-    const displayable = itemData.mediaData?.mediaType.IsDisplayable
     if (itemData.isDir) {
         return (<IconFolder style={{ width: sqareSize, height: sqareSize }} />)
-    } else if (displayable) {
-        return (<StyledLazyThumb mediaData={itemData.mediaData} quality={"thumbnail"} lazy={true} root={root} />)
+    } else if (itemData.mediaData?.mediaType.IsDisplayable && itemData.imported) {
+        return (<MediaImage mediaId={itemData.mediaData.fileHash} blurhash={itemData.mediaData.blurHash} metadataPreload={itemData.mediaData} quality={"thumbnail"} lazy root={root} />)
     } else if (type === "File") {
-        return (<InsertDriveFileIcon style={{ width: sqareSize, height: sqareSize }} />)
+        return (<IconFile style={{ width: sqareSize, height: sqareSize }} />)
     } else if (type === "Zip") {
         return (<IconFileZip style={{ width: sqareSize, height: sqareSize }} />)
     } else {
@@ -61,21 +59,7 @@ const ItemVisualComponent = ({ itemData, root }: { itemData: itemData, root }) =
     }
 }
 
-const EditingHook = ({ dispatch }) => {
-    let focused = false
-    const [previous, setPrevious] = useState(false)
-
-    useEffect(() => {
-        if (!focused && previous === true) {
-            dispatch({ type: 'reject_edit' })
-        } else {
-            setPrevious(focused)
-        }
-    }, [focused])
-    return null
-}
-
-const TextBox = ({ filename, fileId, fileSize, editing, setRenameVal, dispatch }: { filename: string, fileId: string, fileSize: number, editing: boolean, setRenameVal: any, dispatch: any }) => {
+const TextBox = ({ filename, fileId, fileSize, editing, setEditing, renameVal, setRenameVal, dispatch }: { filename: string, fileId: string, fileSize: number, editing: boolean, setEditing: (boolean) => void, renameVal: string, setRenameVal: any, dispatch: any }) => {
     const editRef: React.Ref<HTMLInputElement> = useRef()
     useEffect(() => {
         if (editRef.current) {
@@ -85,58 +69,50 @@ const TextBox = ({ filename, fileId, fileSize, editing, setRenameVal, dispatch }
 
     if (editing) {
         return (
-            <FormControl style={{ width: "100%", height: "30px", bottom: "5px" }} >
-                <Input
-                    slotProps={{ input: { ref: editRef } }}
-                    autoFocus={true}
+            <FlexColumnBox style={{ justifyContent: 'center', height: '40px' }} onBlur={() => setEditing(false)}>
+                <TextInput
+                    autoFocus
+                    ref={editRef}
+                    w={'90%'}
+                    variant='unstyled'
+                    error={renameVal === ""}
                     defaultValue={filename}
                     onClick={(e) => { e.stopPropagation() }}
                     onDoubleClick={(e) => { e.stopPropagation() }}
                     onChange={(e) => { setRenameVal(e.target.value) }}
                 />
-                <EditingHook dispatch={dispatch} />
-            </FormControl>
+            </FlexColumnBox>
         )
     } else {
         const [sizeValue, units] = humanFileSize(fileSize, true)
         return (
-            <FlexColumnBox style={{ width: '100%', cursor: 'text', padding: '5px' }}>
+            <FlexColumnBox style={{ width: '100%', cursor: 'text', padding: '5px' }} onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
+                <FlexRowBox style={{ justifyContent: 'space-evenly', width: '90%', height: '30px' }}>
+                    <Text size={'15px'} truncate={'end'} style={{ color: "white", userSelect: 'none', lineHeight: 1.5 }}>{filename}</Text>
+                    <Divider orientation='vertical' m={6} />
+                    <FlexColumnBox style={{ width: 'max-content', justifyContent: 'center' }}>
+                        <Text size={'10px'} style={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Text>
+                        <Text size={'10px'} style={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Text>
+                    </FlexColumnBox>
+                </FlexRowBox>
                 <Tooltip openDelay={300} label={filename}>
-                    <Box display={"flex"} style={{ justifyContent: 'space-evenly', alignItems: 'center', width: '100%', height: '30px' }} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'start_editing', fileId: fileId }) }}>
-                        <Typography fontSize={15} noWrap sx={{ color: "white", userSelect: 'none' }}>{filename} </Typography>
-                        <Divider orientation='vertical' sx={{ marginLeft: '6px', marginRight: '6px' }} />
-                        <FlexColumnBox >
-                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {sizeValue} </Typography>
-                            <Typography fontSize={10} noWrap sx={{ color: "white", overflow: 'visible', userSelect: 'none' }}> {units} </Typography>
-                        </FlexColumnBox>
-                    </Box>
-            </Tooltip>
+                    <Box style={{ position: 'absolute', width: '100%', height: '100%' }} />
+                </Tooltip>
             </FlexColumnBox>
         )
     }
 }
 
-const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, dispatch, authHeader, visual }: {
-    itemData: itemData, selected: boolean, root, moveSelected: () => void, editing: boolean, dragging: number, dispatch: any, authHeader: any, visual?: JSX.Element
+const Item = memo(({ itemData, selected, root, moveSelected, dragging, dispatch, authHeader }: {
+    itemData: itemData, selected: boolean, root, moveSelected: () => void, dragging: number, dispatch: any, authHeader: any
 }) => {
     const [hovering, setHovering] = useState(false)
-    const [renameVal, setRenameVal] = useState("")
+    const [editing, setEditing] = useState(false)
+    const [renameVal, setRenameVal] = useState(itemData.filename)
     const itemRef = useRef()
-    const { isVisible } = useIsVisible(root, itemRef, false)
 
-    useEffect(() => {
-        dispatch({ type: "set_visible", item: itemData.id, visible: isVisible })
-    }, [isVisible])
-
-    useEffect(() => {
-        if (editing) {
-            return StartKeybaordListener(dispatch, editing, itemData.parentFolderId, itemData.id, itemData.filename, renameVal, itemData.imported, authHeader)
-        }
-    }, [editing, renameVal])
-
-    if (!visual) {
-        visual = <ItemVisualComponent itemData={itemData} root={root} />
-    }
+    const setEditingPlus = useCallback((b: boolean) => {setEditing(b); setRenameVal(cur => {if (cur === '') {return itemData.filename} else {return cur}}); dispatch({type: 'set_block_focus', block: b})}, [setEditing, dispatch])
+    useKeyDown(dispatch, editing, setEditingPlus, itemData.parentFolderId, itemData.id, renameVal, itemData.imported, authHeader)
 
     return (
         <FileItemWrapper
@@ -151,24 +127,22 @@ const Item = memo(({ itemData, selected, root, moveSelected, editing, dragging, 
             dragging={dragging}
         >
             <ItemVisualComponentWrapper>
-                {visual}
+                <ItemVisualComponent itemData={itemData} root={root} />
             </ItemVisualComponentWrapper>
 
-            <TextBox filename={itemData.filename} fileId={itemData.id} fileSize={itemData.size} editing={editing} setRenameVal={setRenameVal} dispatch={dispatch} />
+            <TextBox filename={itemData.filename} fileId={itemData.id} fileSize={itemData.size} editing={editing} setEditing={setEditingPlus} renameVal={renameVal} setRenameVal={setRenameVal} dispatch={dispatch} />
         </FileItemWrapper>
     )
 }, (prev, next) => {
-    if (prev.itemData.visible !== next.itemData.visible) {
-        return false
-    }
+    // if (prev.itemData.visible !== next.itemData.visible) {
+    //     return false
+    // }
 
-    if (!next.itemData.visible) {
-        return true
-    }
+    // if (!next.itemData.visible) {
+    //     return true
+    // }
 
     if (prev.selected !== next.selected) {
-        return false
-    } else if (prev.editing !== next.editing) {
         return false
     } else if (prev.dragging !== next.dragging) {
         return false

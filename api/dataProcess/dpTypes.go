@@ -32,6 +32,7 @@ type ScanContent struct{
 	FolderId string `json:"folderId"`
 	Filename string `json:"filename"`
 	Recursive bool `json:"recursive"`
+	DeepScan bool `json:"full"`
 }
 
 // Tasks
@@ -39,12 +40,13 @@ type taskTracker struct {
 	taskMu sync.Mutex
 	taskMap map[string]*task
 	wp WorkerPool
+	globalQueue *virtualTaskPool
 }
 
 type task struct {
 	TaskId string
 	Completed bool
-	QueueId string
+	queue *virtualTaskPool
 
 	work func()
 	taskType string
@@ -66,6 +68,7 @@ type ScanMetadata struct {
 	File *dataStore.WeblensFileDescriptor
 	Username string
 	Recursive bool
+	DeepScan bool
 	PartialMedia *dataStore.Media
 }
 
@@ -75,9 +78,8 @@ type ZipMetadata struct {
 }
 
 type MoveMeta struct {
-	ParentFolderId string
+	FileId string
 	DestinationFolderId string
-	OldFilename string
 	NewFilename string
 }
 
@@ -86,7 +88,7 @@ type WsResponse struct {
 	MessageStatus string 	`json:"messageStatus"`
 	SubscribeKey string		`json:"subscribeKey"`
 	Content any 			`json:"content"`
-	Error error 			`json:"error"`
+	Error string 			`json:"error"`
 }
 
 // Misc

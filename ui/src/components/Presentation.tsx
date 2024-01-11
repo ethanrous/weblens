@@ -1,14 +1,10 @@
-import { useEffect, useState } from 'react'
-
-import { Close } from '@mui/icons-material'
-import { styled, Button } from '@mui/joy'
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
+import { useCallback, useEffect, useState } from 'react'
 
 import { MediaData, itemData } from '../types/Types'
 import { MediaImage } from './PhotoContainer'
-import { useNavigate } from 'react-router-dom'
 import { FlexColumnBox } from '../Pages/FileBrowser/FilebrowserStyles'
-import { Box } from '@mantine/core'
+import { Box, CloseButton } from '@mantine/core'
+import { IconFile } from '@tabler/icons-react'
 
 const PresentationContainer = ({ ...extra }) => {
     return (
@@ -51,11 +47,11 @@ const PresentationVisual = ({ mediaData }: { mediaData: MediaData }) => {
         )
     } else if (mediaData.mediaType?.FriendlyName == "File") {
         return (
-            <InsertDriveFileIcon style={{ width: "80%", height: "80%" }} onDragOver={() => { }} />
+            <IconFile />
         )
     } else {
         return (
-            <FlexColumnBox style={{ height: "100%", width: "100%" }}>
+            <FlexColumnBox style={{ height: "100%", width: "max-content" }} onClick={e => e.stopPropagation()}>
                 <MediaImage mediaId={mediaData.fileHash} blurhash={mediaData.blurHash} quality={"fullres"} lazy={false} imgStyle={{ objectFit: "contain", maxHeight: "100%", height: "100%" }} />
             </FlexColumnBox>
         )
@@ -63,13 +59,13 @@ const PresentationVisual = ({ mediaData }: { mediaData: MediaData }) => {
 }
 
 function useKeyDown(mediaData, dispatch) {
-    const keyDownHandler = event => {
+    const keyDownHandler = useCallback(event => {
         if (!mediaData) {
             return
         }
         else if (event.key === 'Escape') {
             event.preventDefault()
-            dispatch({ type: 'stop_presenting' })
+            dispatch({ type: 'set_presentation', presentingId: '' })
         }
         else if (event.key === 'ArrowLeft') {
             event.preventDefault()
@@ -82,7 +78,7 @@ function useKeyDown(mediaData, dispatch) {
         else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
             event.preventDefault()
         }
-    }
+    }, [mediaData, dispatch])
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
         return () => {
@@ -109,14 +105,9 @@ const Presentation = ({ mediaData, parents, dispatch }: { mediaData: MediaData, 
     }
 
     return (
-        <PresentationContainer onMouseMove={(_) => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }}>
+        <PresentationContainer onMouseMove={(_) => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }} onClick={() => dispatch({ type: 'set_presentation', presentingId: '' })}>
             <PresentationVisual mediaData={mediaData} />
-            <Button
-                onClick={() => dispatch({ type: 'stop_presenting' })}
-                sx={{ display: "flex", justifyContent: 'center', position: "absolute", top: guiShown ? 15 : -100, left: 15, cursor: "pointer", zIndex: 100, height: '10px', width: '10px', padding: 2 }}
-            >
-                <Close />
-            </Button>
+            <CloseButton c={'white'} style={{ position: 'absolute', top: guiShown ? 15 : -100, left: 15 }} onClick={() => dispatch({ type: 'set_presentation', presentingId: '' })} />
         </PresentationContainer>
     )
 }

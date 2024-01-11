@@ -35,18 +35,19 @@ export default function useWeblensSocket() {
             notifications.show({ id: "wsdc", message: "Lost websocket connection, retrying...", autoClose: false })
         }
     })
-    let wsSend = (msg: string) => { sendMessage(msg) }
+    let wsSend = (msg: string) => { console.log(JSON.stringify(JSON.parse(msg), undefined, 2)); sendMessage(msg) }
     return {
         wsSend, lastMessage, readyState
     }
 }
 
-export function dispatchSync(folderId: string, wsSend: (msg: string) => void, recursive: boolean) {
+export function dispatchSync(folderId: string, wsSend: (msg: string) => void, recursive: boolean, full: boolean) {
     wsSend(JSON.stringify({
         req: 'scan_directory',
         content: {
             folderId: folderId,
-            recursive: recursive
+            recursive: recursive,
+            full: full
         },
     }))
 }

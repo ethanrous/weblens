@@ -14,7 +14,7 @@ var ttInstance taskTracker
 func taskWorkerPoolStatus() {
 	for {
 		time.Sleep(time.Second * 10)
-		remaining, total, busy, alive := ttInstance.wp.Status("GLOBAL")
+		remaining, total, busy, alive := ttInstance.globalQueue.Status()
 		if busy != 0 {
 			util.Info.Printf("Task worker pool status (queued/total, #busy, #alive): %d/%d, %d, %d", remaining, total, busy, alive)
 		}
@@ -24,8 +24,10 @@ func taskWorkerPoolStatus() {
 func verifyTaskTracker() {
 	if ttInstance.taskMap == nil {
 		ttInstance.taskMap = map[string]*task{}
-		ttInstance.wp = NewWorkerPool(runtime.NumCPU() - 1)
-		// ttInstance.wp = NewWorkerPool(20)
+		wp, wq := NewWorkerPool(runtime.NumCPU() - 1)
+		ttInstance.wp = wp
+		ttInstance.globalQueue = wq
+
 		ttInstance.wp.Run()
 		go taskWorkerPoolStatus()
 	}
@@ -33,12 +35,9 @@ func verifyTaskTracker() {
 
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
-func RequestTask(taskType, queueKey string, taskMeta any) *task {
-	verifyTaskTracker()
 
-	if queueKey == "" {
-		queueKey = "GLOBAL"
-	}
+func NewTask(taskType string, taskMeta any) *task {
+	verifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
 	util.FailOnError(err, "Failed to marshal task metadata when queuing new task")
@@ -48,9 +47,12 @@ func RequestTask(taskType, queueKey string, taskMeta any) *task {
 	defer ttInstance.taskMu.Unlock()
 	existingTask, ok := ttInstance.taskMap[taskId]
 	if ok {
-	 	return existingTask
+		if existingTask.err != nil {
+			existingTask.ClearAndRecompute()
+		}
+		return existingTask
 	}
-	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta, QueueId: queueKey, waitMu: &sync.Mutex{}}
+	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}}
 	newTask.waitMu.Lock()
 
 	ttInstance.taskMap[taskId] = newTask
@@ -60,7 +62,6 @@ func RequestTask(taskType, queueKey string, taskMeta any) *task {
 		case "scan_file": newTask.work = func(){ScanFile(newTask.metadata.(ScanMetadata)); removeTask(newTask.TaskId)}
 		case "move_file": newTask.work = func(){moveFile(newTask); removeTask(newTask.TaskId)}
 	}
-	ttInstance.wp.AddTask(newTask)
 
 	return newTask
 }
@@ -69,8 +70,13 @@ func (t *task) ClearAndRecompute() {
 	for k := range t.result {
 		delete(t.result, k)
 	}
+	if t.err != nil {
+		util.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId, t.err)
+		t.err = nil
+	}
+	t.queue = nil
 	t.waitMu.Lock()
-	ttInstance.wp.AddTask(t)
+	t.queue.QueueTask(t)
 }
 
 func GetTask(taskId string) *task {
@@ -89,9 +95,16 @@ func (t *task) Err() any {
 	return t.err
 }
 
-func (t *task) setComplete(broadcastType, messageStatus string) {
+func (t *task) BroadcastComplete(statusMessage string) {
 	t.Completed = true
-	Broadcast(broadcastType, t.TaskId, messageStatus, t.result)
+	Broadcast("task", t.TaskId, statusMessage, t.result)
+}
+
+func (t *task) Complete(msg string) {
+	t.Completed = true
+	if msg != "" {
+		util.Info.Println(msg)
+	}
 }
 
 func (t *task) setResult(fields... KeyVal) {
@@ -111,7 +124,7 @@ func removeTask(taskKey string) {
 	delete(ttInstance.taskMap, taskKey)
 }
 
-func (t *task)Wait() {
+func (t *task) Wait() {
 	t.waitMu.Lock()
 	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
 	t.waitMu.Unlock()
@@ -125,14 +138,20 @@ func FlushCompleteTasks() {
 	}
 }
 
-func NewWorkSubQueue(queueKey string) {
-	ttInstance.wp.NewVirtualTaskQueue(queueKey)
+func NewWorkQueue() *virtualTaskPool {
+	verifyTaskTracker()
+	wq := ttInstance.wp.NewVirtualTaskQueue()
+	return wq
 }
 
-func MainWorkQueueWait(queueKey string) {
-	ttInstance.wp.Wait(queueKey)
+func QueueGlobalTask(t *task) {
+	ttInstance.globalQueue.QueueTask(t)
 }
 
-func MainNotifyAllQueued(queueKey string) {
-	ttInstance.wp.NotifyAllQueued(queueKey)
-}
+// func MainWorkQueueWait(queueKey string) {
+// 	ttInstance.wp.Wait(queueKey)
+// }
+
+// func MainNotifyAllQueued(queueKey string) {
+// 	ttInstance.wp.NotifyAllQueued(queueKey)
+// }

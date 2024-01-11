@@ -1,13 +1,12 @@
 import { CardContent, Sheet, Typography } from "@mui/joy"
 import { Box, Card, MantineStyleProp, AspectRatio } from '@mantine/core'
-import { Dispatch, useState } from "react"
+import { Dispatch, useMemo, useState } from "react"
 import { HandleDrag } from "./FileBrowserLogic"
 import { itemData } from "../../types/Types"
 import { useNavigate } from "react-router-dom"
 import { IconFolder } from "@tabler/icons-react"
 
-export const FlexColumnBox = ({ children, style, alignOverride, reff, onClick, onMouseOver, onMouseLeave, onContextMenu }: { children, style?: MantineStyleProp, alignOverride?: string, reff?, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?}) => {
-    let align = alignOverride || "center"
+export const FlexColumnBox = ({ children, style, reff, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur }: { children?, style?: MantineStyleProp, reff?, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?}) => {
     return (
         <Box
             ref={reff}
@@ -17,24 +16,33 @@ export const FlexColumnBox = ({ children, style, alignOverride, reff, onClick, o
             onMouseOver={onMouseOver}
             onMouseLeave={onMouseLeave}
             onContextMenu={onContextMenu}
+            onBlur={onBlur}
             style={{
                 display: "flex",
+                height: "100%",
+                width: "100%",
                 flexDirection: "column",
-                alignItems: align,
+                alignItems: 'center',
                 ...style,
             }}
         />
     )
 }
 
-export const FlexRowBox = ({ children, style }: { children, style?: MantineStyleProp }) => {
+
+export const FlexRowBox = ({ children, style, onClick, onBlur }: { children, style?: MantineStyleProp, onClick?, onBlur?}) => {
     return (
         <Box
             children={children}
+            onClick={onClick}
+            onBlur={onBlur}
             style={{
-                ...style,
+                height: '100%',
+                width: '100%',
                 display: "flex",
                 flexDirection: "row",
+                alignItems: "center",
+                ...style,
             }}
         />
     )
@@ -59,9 +67,9 @@ export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, on
             onDragOver={event => { HandleDrag(event, dispatch, dragging) }}
             onDrop={onDrop}
             onMouseOver={onMouseOver}
-            onClick={() => { dispatch({ type: 'reject_edit' }); if (!dragging) { dispatch({ type: 'clear_selected' }) } else { dispatch({ type: 'set_dragging', dragging: false }) } }}
+            onClick={() => {if (!dragging) { dispatch({ type: 'clear_selected' }) } else { dispatch({ type: 'set_dragging', dragging: false }) } }}
         >
-            {(dragging == 2) && (
+            {dragging === 2 && (
                 <Sheet
                     onDragLeave={event => { HandleDrag(event, dispatch, dragging) }}
                     sx={{
@@ -103,25 +111,28 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
     const [mouseDown, setMouseDown] = useState(false)
     const navigate = useNavigate()
 
-    let outline
-    let backgroundColor
-    if (selected) {
-        outline = `1px solid #220088`
-        backgroundColor = "#331177"
-    } else if (hovering && dragging && isDir) {
-        outline = `2px solid #661199`
-    } else if (hovering && !dragging) {
-        backgroundColor = "#333333"
-    } else {
-        backgroundColor = "#222222"
-    }
+    const [outline, backgroundColor] = useMemo(() => {
+        let outline
+        let backgroundColor
+        if (selected) {
+            outline = `1px solid #220088`
+            backgroundColor = "#331177"
+        } else if (hovering && dragging && isDir) {
+            outline = `2px solid #661199`
+        } else if (hovering && !dragging) {
+            backgroundColor = "#333333"
+        } else {
+            backgroundColor = "#222222"
+        }
+        return [outline, backgroundColor]
+    }, [selected, hovering, dragging, isDir])
 
     return (
         <Box draggable={false} ref={itemRef}>
             <Card
                 {...children}
                 draggable={false}
-                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'reject_edit' }); dispatch({ type: 'set_selected', itemId: itemData.id }) }}
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_selected', itemId: itemData.id }) }}
                 onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itemId: itemData.id }) }}
                 onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
                 onMouseDown={() => { setMouseDown(true) }}
@@ -150,12 +161,8 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
                     backgroundColor: backgroundColor,
                     padding: 1,
 
-                    // sizing
-                    maxWidth: '100%',
-                    minWidth: '50%',
-                    flexGrow: 1,
-                    flexShrink: 1,
-                    flexBasis: 200,
+                    height: '100%',
+                    width: '100%',
 
                     // other
                     position: 'relative',

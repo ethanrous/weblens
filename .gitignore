@@ -28,5 +28,6 @@ yarn-error.log*
 /images
 /media
 /caches
+api/vendor/
 
 __debug*

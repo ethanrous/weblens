@@ -58,10 +58,14 @@ func ClientConnect(conn *websocket.Conn) *Client {
 }
 
 func Broadcast(broadcastType, broadcastKey, messageStatus string, content any) {
+	if broadcastKey == "" {
+		util.Error.Println("Trying to broadcast on empty key")
+		return
+	}
+
 	// Just spawn a thread to handle the broadcast
 	// This is a "best effort" method
-
-	msg := WsResponse{MessageStatus: messageStatus, SubscribeKey: broadcastKey, Content: content, Error: nil}
+	msg := WsResponse{MessageStatus: messageStatus, SubscribeKey: broadcastKey, Content: content}
 	go _broadcast(broadcastType, broadcastKey, msg)
 }
 
@@ -129,13 +133,13 @@ func PushItemUpdate(preUpdateFile *dataStore.WeblensFileDescriptor, postUpdateFi
 		panic(fmt.Errorf("tried to push update for item with empty id: %s -- %s", preUpdateFile, preUpdateFile.Err()))
 	}
 
-	Broadcast("folder", postUpdateFile.ParentFolderId, "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
-	updateDb.RedisCacheBust(postUpdateFile.ParentFolderId)
+	Broadcast("folder", postUpdateFile.GetParent().Id(), "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
+	updateDb.RedisCacheBust(postUpdateFile.GetParent().Id())
 
 	// When a file changes directories, we need to alert both the old (here vv ) and new (above ^^) folder subscribers of the change
-	if postUpdateFile.ParentFolderId != preUpdateFile.ParentFolderId {
-		Broadcast("folder", preUpdateFile.ParentFolderId, "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
-		updateDb.RedisCacheBust(preUpdateFile.ParentFolderId)
+	if postUpdateFile.GetParent().Id() != preUpdateFile.GetParent().Id() {
+		Broadcast("folder", preUpdateFile.GetParent().Id(), "item_update", map[string]any{"itemId": preUpdateFile.Id(), "updateInfo": fileInfo})
+		updateDb.RedisCacheBust(preUpdateFile.GetParent().Id())
 	}
 }
 
@@ -145,6 +149,6 @@ func PushItemDelete(file *dataStore.WeblensFileDescriptor) {
 		util.DisplayError(file.Err(), "Failed to get file Id while trying to push delete")
 		return
 	}
-	Broadcast("folder", file.ParentFolderId, "item_deleted", content)
-	updateDb.RedisCacheBust(file.ParentFolderId)
+	Broadcast("folder", file.GetParent().Id(), "item_deleted", content)
+	updateDb.RedisCacheBust(file.GetParent().Id())
 }

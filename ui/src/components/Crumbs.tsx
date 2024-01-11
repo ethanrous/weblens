@@ -1,5 +1,5 @@
-import { Box, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
-import { Dispatch, useContext, useState } from 'react'
+import { Box, useTheme, Breadcrumbs } from '@mui/joy'
+import { memo, useContext, useMemo, useState } from 'react'
 import { itemData } from '../types/Types'
 import { userContext } from '../Context'
 import { useNavigate } from 'react-router-dom'
@@ -76,43 +76,44 @@ const StyledLoaf = ({ ...props }) => {
             {...props}
             size='lg'
             sx={{
-                width: "max-content",
+                // width: "100%",
                 borderRadius: "3px",
                 ".MuiBreadcrumbs-separator": {
                     color: theme.colorSchemes.dark.palette.text.primary
                 },
-                // margin: "10px"
             }}
         />
     )
 }
 
-const Crumbs = ({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: itemData, parents: itemData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
+const Crumbs = memo(({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: itemData, parents: itemData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
     const navigate = useNavigate()
     const { userInfo } = useContext(userContext)
-    if (parents === null || !finalItem?.id) {
-        return null
-    }
-    if (parents.length != 0 && parents[0].id == "shared" && finalItem.id == "shared") {
-        parents.shift()
-    }
-    if ((parents.length == 0 && finalItem.owner != userInfo.username && finalItem.id != "shared") || (parents.length != 0 && parents[0].id != "shared" && parents[parents.length - 1].owner != userInfo.username)) {
-        let sharedRoot: itemData = {
-            id: "shared",
-            filename: "Shared",
-            parentFolderId: "",
-            owner: "",
-            isDir: true,
-            imported: false,
-            modTime: new Date().toString(),
-            size: 0,
-            visible: true,
-            mediaData: null
-        }
-        parents.unshift(sharedRoot)
-    }
 
-    try {
+    const loaf = useMemo(() => {
+        if (parents === null || !finalItem?.id) {
+            return null
+        }
+
+        if (parents.length !== 0 && parents[0].id === "shared" && finalItem.id === "shared") {
+            parents.shift()
+        }
+        if ((parents.length === 0 && finalItem.owner !== userInfo.username && finalItem.id !== "shared") || (parents.length !== 0 && parents[0].id !== "shared" && parents[parents.length - 1].owner !== userInfo.username)) {
+            let sharedRoot: itemData = {
+                id: "shared",
+                filename: "Shared",
+                parentFolderId: "",
+                owner: "",
+                isDir: true,
+                imported: false,
+                modTime: new Date().toString(),
+                size: 0,
+                visible: true,
+                mediaData: null
+            }
+            parents.unshift(sharedRoot)
+        }
+
         const crumbs = parents.map((parent, i) => {
             const isHome = parent.id === userInfo.homeFolderId
             return <StyledBreadcrumb key={parent.id} label={isHome ? "Home" : parent.filename} onClick={(e) => { e.stopPropagation(); navigate(`/files/${isHome ? "home" : parent.id}`) }} doCopy={false} dragging={dragging} onMouseUp={() => { if (dragging !== 0) { moveSelectedTo(parent.id) } }} />
@@ -121,17 +122,17 @@ const Crumbs = ({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { f
         crumbs.push(
             <StyledBreadcrumb key={finalItem.id} label={finalItem.id === userInfo.homeFolderId ? "Home" : finalItem.filename} onClick={(e) => { e.stopPropagation(); if (!navOnLast) { return }; navigate(`/files/${finalItem.parentFolderId === userInfo.homeFolderId ? "home" : finalItem.parentFolderId}`) }} doCopy={!navOnLast} />
         )
-
         return (
             <StyledLoaf separator={" › "} >
                 {crumbs}
             </StyledLoaf>
         )
-    }
-    catch (err) {
-        console.error(err)
-        return (null)
-    }
-}
+    }, [parents, finalItem, moveSelectedTo, navOnLast, dragging, navigate, userInfo?.homeFolderId, userInfo?.username])
+
+    return loaf
+
+}, (prev, next) => {
+    return prev.dragging === next.dragging && prev.parents === next.parents
+})
 
 export default Crumbs

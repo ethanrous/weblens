@@ -1,13 +1,15 @@
-import { forwardRef, memo, useMemo, useRef, useState } from 'react'
+import { forwardRef, memo, useContext, useMemo, useRef, useState } from 'react'
 import { RawOn, Image, Folder, Theaters } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 
 import { MediaImage } from '../../components/PhotoContainer'
 import { StyledBreadcrumb } from '../../components/Crumbs'
-import { MediaData, MediaWrapperProps, GalleryBucketProps } from '../../types/Types'
-import { BlankCard } from '../../types/Styles'
+import { MediaData, MediaWrapperProps, GalleryBucketProps, itemData } from '../../types/Types'
 import { Box, MantineStyleProp, Space, Text, Tooltip } from '@mantine/core'
 import { FlexColumnBox, FlexRowBox } from '../FileBrowser/FilebrowserStyles'
+import { notifications } from '@mantine/notifications'
+import { GetFileInfo } from '../../api/FileBrowserApi'
+import { userContext } from '../../Context'
 
 // STYLES //
 
@@ -25,7 +27,7 @@ const Gallery = ({ ...props }) => {
     )
 }
 
-const PreviewCardContainer = ({ reff, setPresentation, setHover, onContextMenu, scale, children, style }: { reff, setPresentation, setHover, onContextMenu?, scale, children, style: MantineStyleProp }) => {
+const PreviewCardContainer = ({ reff, setPresentation, setHover, onContextMenu, children, style }: { reff, setPresentation, setHover, onContextMenu?, children, style: MantineStyleProp }) => {
     return (
         <Box
             ref={reff}
@@ -35,7 +37,6 @@ const PreviewCardContainer = ({ reff, setPresentation, setHover, onContextMenu, 
             onMouseLeave={() => setHover(false)}
             onContextMenu={onContextMenu}
             style={{
-                height: scale,
                 borderRadius: "2px",
                 flexGrow: 1,
                 flexBasis: 0,
@@ -94,16 +95,25 @@ const StyledIcon = forwardRef((props: mediaTypeProps, ref) => {
 
 const MediaInfoDisplay = ({ mediaData }: { mediaData: MediaData }) => {
     const nav = useNavigate()
+    const {authHeader} = useContext(userContext)
     const [icon, name] = TypeIcon(mediaData)
 
     return (
-        <FlexColumnBox alignOverride='flex-start' style={{ height: "100%", width: "100%", justifyContent: 'space-between', position: 'absolute', transform: 'translateY(-100%)' }}>
+        <FlexColumnBox style={{ height: "100%", width: "100%", justifyContent: 'space-between', alignItems: 'flex-start', position: 'absolute', transform: 'translateY(-100%)' }}>
             <StyledIcon Icon={icon} ttText={name} onClick={(e) => { e.stopPropagation() }} />
             <FlexRowBox style={{ height: 'max-content', justifyContent: 'space-between', alignItems: 'center', margin: "5px", bottom: 0, width: '95%', alignSelf: 'center' }}>
-                <StyledBreadcrumb label={mediaData.filename} fontSize={15} alwaysOn={true} doCopy />
-                <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={(e) => {
+                {/* <StyledBreadcrumb label={mediaData.filename} fontSize={15} alwaysOn={true} doCopy /> */}
+                <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={async (e) => {
                     e.stopPropagation()
-                    nav(`/files/${mediaData.parentFolder}`)
+                    const fileInfo: itemData = await GetFileInfo(mediaData.fileId, authHeader)
+
+                    if (!fileInfo.parentFolderId) {
+                        console.error("File info:", fileInfo)
+                        notifications.show({ title: "Failed to jump to folder", message: "Parent folder could not be identified", color: 'red' })
+                        return
+                    }
+
+                    nav(`/files/${fileInfo.parentFolderId}`)
                 }}
                 />
             </FlexRowBox>
@@ -115,28 +125,34 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scale, scrollerRef,
     const ref = useRef()
     const [hovering, setHovering] = useState(false)
     const [menuOpen, setMenuOpen] = useState(false)
-    mediaData.ImgRef = ref
+    const [menuPos, setMenuPos] = useState({ x: null, y: null })
 
-    let width = mediaData.thumbWidth * (scale / mediaData.thumbHeight)
+    const width = useMemo(() => {
+        mediaData.ImgRef = ref
+        return mediaData.thumbWidth * (scale / mediaData.thumbHeight)
+    }, [scale])
 
-    const qualifiedMenu = useMemo(() => {
-        if (menu) {
+    const filledMenu = useMemo(() => {
+        if (menuOpen) {
             return menu(mediaData.fileHash, menuOpen, setMenuOpen)
+        } else {
+            return null
         }
-        return null
     }, [menuOpen])
 
     return (
         <PreviewCardContainer
             reff={ref}
             style={{
-                minWidth: `clamp(100px, ${width}px, 100% - 8px)`,
-                maxWidth: `${width * 1.5}px`
+                height: scale,
+                // minHeight: scale,
+                width: width,
+                minWidth: width * 0.85,
+                maxWidth: width * 1.2
             }}
-            scale={scale}
             setPresentation={() => { dispatch({ type: 'set_presentation', itemId: mediaData.fileHash }) }}
             setHover={setHovering}
-            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(true) }}
+            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
         >
             <MediaImage
                 mediaId={mediaData.fileHash}
@@ -144,28 +160,29 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scale, scrollerRef,
                 quality={"thumbnail"}
                 lazy={true}
                 root={scrollerRef}
-                imgStyle={{ objectFit: "cover" }}
-                containerStyle={{ height: scale }}
+                imgStyle={{ objectFit: "cover", flexGrow: 1 }}
+                containerStyle={{ height: scale, width: '100%' }}
             />
             {hovering && (
                 <MediaInfoDisplay mediaData={mediaData} />
             )}
-            {qualifiedMenu}
+            <Box style={{ position: 'fixed', top: menuPos.y, left: menuPos.x }}>
+                {filledMenu}
+            </Box>
         </PreviewCardContainer>
     )
 }, (prev: MediaWrapperProps, next: MediaWrapperProps) => {
-    return (prev.mediaData.fileHash == next.mediaData.fileHash)
+    if (prev.scale != next.scale) {
+        return false
+    }
+    return (prev.mediaData.fileHash === next.mediaData.fileHash)
 })
-export const BucketCards = ({ medias, scrollerRef, dispatch, menu }: { medias, scrollerRef, dispatch, menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element }) => {
+export const BucketCards = ({ medias, scale = 300, scrollerRef, dispatch, menu }: { medias, scale?, scrollerRef, dispatch, menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element }) => {
     if (!medias) {
         medias = []
     }
-    const scale = 250
+
     const mediaCards = useMemo(() => {
-        // console.log(medias)
-        // if (!medias) {
-        //     return []
-        // }
         return medias.map((mediaData: MediaData) => {
             return (
                 <MediaWrapper
@@ -179,38 +196,38 @@ export const BucketCards = ({ medias, scrollerRef, dispatch, menu }: { medias, s
             )
         }
         )
-    }, [medias])
+    }, [medias, scale])
 
     return (
         <Gallery>
             {mediaCards}
-            <BlankCard scale={scale} />
         </Gallery >
     )
 }
 
-const DateWrapper = ({ dateTime }) => {
-    const dateObj = new Date(dateTime)
-    const dateString = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
-
+const TitleWrapper = ({ bucketTitle }) => {
+    if (bucketTitle === "") {
+        return null
+    }
     return (
         <Text style={{ fontSize: 20, fontWeight: 600 }} c={'white'} mt={1} pl={0.5}>
-            {dateString}
+            {bucketTitle}
         </Text>
     )
 }
 
 export const GalleryBucket = ({
-    date,
+    bucketTitle,
     bucketData,
     scrollerRef,
+    scale,
     dispatch
 }: GalleryBucketProps) => {
     return (
         <Box style={{ width: '100%' }}>
             <Space h={"md"} />
-            <DateWrapper dateTime={date} />
-            <BucketCards medias={bucketData} scrollerRef={scrollerRef} dispatch={dispatch} />
+            <TitleWrapper bucketTitle={bucketTitle} />
+            <BucketCards medias={bucketData} scale={scale} scrollerRef={scrollerRef} dispatch={dispatch} />
         </Box>
     )
 }

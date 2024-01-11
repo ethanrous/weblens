@@ -3,6 +3,9 @@ FROM --platform=${BUILDPLATFORM:-linux/amd64} node:18 as ui
 RUN mkdir -p /app
 WORKDIR /app
 
+ARG build_tag
+ENV REACT_APP_BUILD_TAG $build_tag
+
 COPY ui/package*.json /app/
 RUN npm ci --omit=dev --ignore-scripts
 
@@ -28,10 +31,6 @@ ENV GIN_MODE=release
 
 COPY api /app
 RUN go build -v -o weblens .
-
-# RUN wget https://www.libraw.org/data/LibRaw-0.21.1.tar.gz
-# RUN tar -xf LibRaw-0.21.1.tar.gz
-# RUN ls LibRaw-0.21.1/bin
 
 FROM debian:bookworm
 

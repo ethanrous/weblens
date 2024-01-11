@@ -1,16 +1,14 @@
 
 import { Ref, useContext } from 'react'
-import { Search } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
-import { dispatchSync } from '../api/Websocket'
 import WeblensLoader from './Loading'
 
 import { SendMessage } from 'react-use-websocket'
-import { Sheet, Tooltip, IconButton } from '@mui/joy'
 
 import { userContext } from '../Context'
-import { Box, Input, Space } from '@mantine/core'
-import { IconFolder, IconLogout, IconPhoto, IconRefresh, IconSearch, IconTools } from '@tabler/icons-react'
+import { ActionIcon, Box, Input, Space, Text, Tooltip } from '@mantine/core'
+import { IconFolder, IconLogout, IconPhoto, IconSearch, IconTools } from '@tabler/icons-react'
+import { FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 type HeaderBarProps = {
     folderId: string
@@ -47,43 +45,42 @@ const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef,
 
     return (
         <Box style={{ zIndex: 3, height: 'max-content', width: '100vw', position: 'fixed' }}>
-            <Sheet
-                sx={{
+            <Box
+                style={{
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
                     backgroundColor: "#222222",
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
+
                     height: "70px"
                 }}
             >
                 <Box style={{ paddingLeft: '10px' }} />
                 {page === "gallery" && (
-                    <Tooltip title={"Files"} disableInteractive >
-                        <IconButton
+                    <Tooltip label={"Files"} >
+                        <ActionIcon
+                            color='#00000000'
+                            size={40}
                             onClick={() => nav("/files/")}
                             aria-label="files"
-                            sx={{ margin: spacing }}
+                            style={{ margin: spacing }}
                         >
                             <IconFolder color='white' size={40} />
-                        </IconButton>
+                        </ActionIcon>
                     </Tooltip>
                 )}
                 {(page === "files" || page === "admin") && (
-                    <Tooltip title={"Gallery"} disableInteractive >
-                        <IconButton
+                    <Tooltip label={"Gallery"} >
+                        <ActionIcon
+                            color='#00000000'
+                            size={40}
                             onClick={() => nav("/")}
                             aria-label="files"
                             style={{ flexDirection: "column", fontSize: 20, margin: spacing }}>
                             <IconPhoto color='white' size={40} />
-                        </IconButton>
+                        </ActionIcon>
                     </Tooltip>
                 )}
-                <Tooltip title={"Sync"} disableInteractive >
-                    <IconButton onClick={() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(folderId === "home" ? userInfo.homeFolderId : folderId, wsSend, true) }} sx={{ margin: spacing }}>
-                        <IconRefresh color='white' size={40} />
-                    </IconButton>
-                </Tooltip>
                 <SearchBox>
                     <Input
                         value={searchContent}
@@ -95,19 +92,23 @@ const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef,
                 </SearchBox>
                 <Space style={{ flexGrow: 1 }} />
                 {userInfo?.admin && (
-                    <Tooltip title={"Admin Settings"} disableInteractive >
-                        <IconButton onClick={() => { nav("/admin") }} sx={{ margin: spacing }}>
-                            <IconTools color='white' size={40} />
-                        </IconButton>
+                    <Tooltip label={"Admin Settings"} >
+                        <ActionIcon color='#00000000' size={40} onClick={() => { nav("/admin") }} style={{ margin: spacing }}>
+                            <IconTools size={40} />
+                        </ActionIcon>
                     </Tooltip>
                 )}
-                <Tooltip title={"Logout"} disableInteractive >
-                    <IconButton onClick={() => { clear(); nav("/login", { state: { doLogin: false } }) }} sx={{ margin: spacing }}>
-                        <IconLogout color='white' size={40} />
-                    </IconButton>
-                </Tooltip>
+                <FlexRowBox style={{ margin: spacing, backgroundColor: '#444444', height: 'max-content', width: 'max-content', padding: 6, borderRadius: '8px' }}>
+                    <Text size='30' c={'white'} style={{ lineHeight: '10px', paddingBottom: 5 }}>{userInfo?.username}</Text>
+                    <Space w={10} />
+                    <Tooltip label={"Logout"} >
+                        <ActionIcon variant='transparent' c={'white'} onClick={() => { clear(); nav("/login", { state: { doLogin: false } }) }}>
+                            <IconLogout />
+                        </ActionIcon>
+                    </Tooltip>
+                </FlexRowBox>
                 <Box style={{ paddingRight: '10px' }} />
-            </Sheet>
+            </Box>
             <WeblensLoader loading={loading} progress={progress} />
         </Box>
     )

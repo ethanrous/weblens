@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useContext, useMemo } from "react";
 import { Blurhash } from "react-blurhash";
 import { userContext } from "../Context";
 import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react"
-import { AspectRatio, Box, CSSProperties, Image, Loader, MantineStyleProp } from "@mantine/core";
+import { Box, CSSProperties, Image, Loader, MantineStyleProp } from "@mantine/core";
 
 
 import API_ENDPOINT from '../api/ApiEndpoint'
-import { itemData } from "../types/Types";
+import { MediaData } from "../types/Types";
 
 // Styles
 
@@ -34,14 +34,18 @@ const ThumbnailContainer = ({ reff, style, children }) => {
 export function useIsVisible(root, ref, maintained: boolean = false, margin: number = 100, thresh: number = 0.0) {
     const [isVisible, setIsVisible] = useState(false)
     const visibleRef = useRef(false)
+
     useEffect(() => {
-        if (!ref.current) {
+        if (!ref?.current) {
             return
         }
-        let options: IntersectionObserverInit = {
+
+        const options: IntersectionObserverInit = {
             root: root?.current || null,
-            rootMargin: `${margin}px`,
-            threshold: thresh
+
+            rootMargin: "1000px 0px 1000px 0px",
+            // rootMargin: `${margin}px`,
+            // threshold: thresh
         }
 
         const observer = new IntersectionObserver(([entry]) => {
@@ -59,29 +63,33 @@ export function useIsVisible(root, ref, maintained: boolean = false, margin: num
         return () => {
             observer.disconnect();
         };
-    }, [ref.current]);
+    }, [ref, root, maintained]);
 
     return { isVisible: isVisible, visibleStateRef: visibleRef };
 }
 
-function getImageData(url, filehash, authHeader, signal) {
+function getImageData(url, filehash, authHeader, signal, setLoadErr) {
     return fetch(url, { headers: authHeader, signal }).then(res => res.blob()).then((blob) => {
         if (blob.length === 0) {
             Promise.reject("Empty blob")
         }
         return { data: URL.createObjectURL(blob), hash: filehash }
     }).catch((r) => {
-        if (!signal.aborted)
-        console.error("Failed to get image from server: ", r)
+        if (!signal.aborted) {
+            console.error("Failed to get image from server:", r)
+            setLoadErr(true)
+        }
     })
 }
 
-function getImageMeta(url, filehash, authHeader, signal) {
+function getImageMeta(url, filehash, authHeader, signal, setLoadErr) {
     return fetch(url, { headers: authHeader, signal }).then(res => res.json()).then((json) => {
         return { data: json, hash: filehash }
     }).catch((r) => {
-        if (!signal.aborted)
-            console.error("Failed to get image from server: ", r)
+        if (!signal.aborted) {
+            console.error("Failed to get image meta from server: ", r)
+            setLoadErr(true)
+        }
     })
 }
 
@@ -89,18 +97,19 @@ export const MediaImage = ({
     mediaId,
     quality,
     blurhash,
+    metadataPreload,
     lazy = true,
     expectFailure = false,
     containerStyle,
     imgStyle,
     root
-}: { mediaId: string, quality: "thumbnail" | "fullres", blurhash?: string, lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp, root?}
+}: { mediaId: string, quality: "thumbnail" | "fullres", blurhash?: string, metadataPreload?: MediaData, lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp, root?}
 ) => {
-    const [loaded, setLoaded] = useState(false)
+    const [loaded, setLoaded] = useState("")
     const [loadError, setLoadErr] = useState(false)
     const { authHeader } = useContext(userContext)
     const [imgData, setImgData] = useState(null)
-    const [imgMeta, setImgMeta]: [imgMeta: itemData, setImgMeta: any] = useState(null)
+    const [imgMeta, setImgMeta]: [imgMeta: MediaData, setImgMeta: any] = useState(metadataPreload)
 
     const [metaPromise, setMetaPromise] = useState(null)
     const [thumbPromise, setThumbPromise] = useState(null)
@@ -126,57 +135,74 @@ export const MediaImage = ({
         setMetaPromise(null)
         setThumbPromise(null)
         setFullresPromise(null)
-        setLoaded(false)
+        setLoaded("")
+        setLoadErr(false)
         hashRef.current = mediaId
     }, [mediaId])
 
     metaPromise?.then((res) => {
-        if (res && res.data && res.hash === hashRef.current && !loaded && !imgData && !loadError) {
+        if (res && res.data && res.hash === hashRef.current && !loaded && !loadError) {
+            setMetaPromise(null)
             setImgMeta(res.data)
         } else if (res === undefined) {
             setMetaPromise(null)
         }
     })
+
     thumbPromise?.then((res) => {
         if (res && res.data && res.hash === hashRef.current && !loaded && !imgData && !loadError) {
             setImgData(res.data)
-            if (quality === "thumbnail") {
-                setLoaded(true)
-            }
-        } else if (res === undefined) {
-            setThumbPromise(null)
+            setLoaded("thumbnail")
         }
-    })
-    fullresPromise?.then((res) => {
-        if (res && res.data && res.hash === hashRef.current && !loaded && !loadError) {
-            setImgData(res.data)
-            setLoaded(true)
-        } else if (res === undefined) {
-            setFullresPromise(null)
-        }
+        setThumbPromise(null)
     })
 
     useEffect(() => {
+        if (!fullresPromise) {
+            return
+        }
+
+        fullresPromise?.then((res) => {
+            if (res && res.data && res.hash === hashRef.current && !loadError) {
+                setImgData(res.data)
+                setLoaded("fullres")
+            }
+            setFullresPromise(null)
+        })
+    }, [fullresPromise])
+
+    useEffect(() => {
+        if (!isVisible) {
+            return
+        }
         if (hashRef.current === "") {
             setLoadErr(true)
-        } else if (isVisible && !thumbPromise && !fullresPromise) {
-            setThumbPromise(getImageData(thumbUrl, mediaId, authHeader, signal))
-            if (quality === "fullres") {
-                setFullresPromise(getImageData(fullresUrl, mediaId, authHeader, signal))
+        } else {
+            if (!imgMeta && !metaPromise) {
+                setMetaPromise(getImageMeta(metaUrl, mediaId, authHeader, signal, setLoadErr))
+            }
+            if (!imgData && !thumbPromise) {
+                setThumbPromise(getImageData(thumbUrl, mediaId, authHeader, signal, setLoadErr))
+            }
+            if (quality === "fullres" && loaded !== "fullres" && !fullresPromise) {
+                setFullresPromise(getImageData(fullresUrl, mediaId, authHeader, signal, setLoadErr))
             }
         }
         return () => {
             if (!visibleStateRef.current || mediaId !== hashRef.current) {
                 abortController.abort()
+                setMetaPromise(null)
+                setThumbPromise(null)
+                setFullresPromise(null)
             }
         }
-    }, [isVisible, hashRef.current])
+    }, [mediaId, isVisible, quality, hashRef])
 
     const sizer = useMemo(() => {
         if (!imgMeta) {
             return null
         }
-        const sizer = imgMeta?.mediaData.mediaHeight > imgMeta?.mediaData.mediaWidth ? { width: '100%' } : { height: '100%' }
+        const sizer = imgMeta.mediaHeight > imgMeta.mediaWidth ? { width: '100%' } : { height: '100%' }
         return sizer
     }, [imgMeta])
 
@@ -188,21 +214,21 @@ export const MediaImage = ({
             {(isVisible && loadError && expectFailure) && (
                 <IconPhoto style={{ position: 'absolute' }} />
             )}
-            {(!lazy && isVisible && !loaded && !loadError) && (
+            {(quality === "fullres" && isVisible && loaded !== "fullres" && !loadError) && (
                 <Loader color="white" bottom={40} right={40} size={20} style={{ position: 'absolute' }} />
             )}
 
             <Image
                 draggable={false}
                 src={imgData}
-                style={{ ...sizer, display: imgData ? "block" : "none", userSelect: 'none', ...imgStyle }}
+                style={{ display: imgData && !loadError ? "" : "none", userSelect: 'none', minWidth: '100%', minHeight: '100%', ...sizer, ...imgStyle }}
             />
 
             {isVisible && blurhash && lazy && !imgData && (
                 <Blurhash
                     style={{ position: "absolute" }}
-                    height={containerStyle?.height ? containerStyle?.height : 250}
-                    width={550}
+                    height={containerStyle?.height ? containerStyle?.height : 300}
+                    width={containerStyle?.width ? containerStyle?.width : 550}
                     hash={blurhash}
                 />
             )}

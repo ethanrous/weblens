@@ -27,7 +27,7 @@ func getDebug() *log.Logger {
 	if ShowDebug() {
 		return log.New(os.Stdout, "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
 	} else {
-		return log.New(io.Discard, "\u001b[36mDEBUG: \u001B[0m", log.LstdFlags|log.Lshortfile)
+		return log.New(io.Discard, "", 0)
 	}
 }
 var Debug = getDebug()

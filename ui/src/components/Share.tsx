@@ -1,10 +1,9 @@
-import { Button, Combobox, Loader, Modal, Pill, PillsInput, Space, useCombobox } from "@mantine/core"
-import { useContext, useEffect, useState } from "react"
-import { AutocompleteUsers, ShareFiles } from "../../api/FileBrowserApi"
-import { itemData } from "../../types/Types"
-import { userContext } from "../../Context"
+import { Combobox, Loader, Pill, PillsInput, Space, useCombobox } from "@mantine/core"
+import { useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { AutocompleteUsers } from "../api/FileBrowserApi"
+import { userContext } from "../Context"
 
-export function ShareInput({ valueSetCallback }) {
+export function ShareInput({ valueSetCallback, initValues }: { valueSetCallback, initValues?}) {
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     })
@@ -13,13 +12,13 @@ export function ShareInput({ valueSetCallback }) {
     const [empty, setEmpty] = useState(false)
     const [loading, setLoading] = useState(false)
     const [search, setSearch] = useState('')
-    const [value, setValue] = useState([])
+    const [value, setValue] = useState(initValues)
 
     useEffect(() => {
         valueSetCallback(value)
     }, [value])
 
-    const searchUsers = async (query: string) => {
+    const searchUsers = useCallback(async (query: string) => {
         if (query.length < 2) {
             setUserSearch([])
             setEmpty(true)
@@ -34,29 +33,26 @@ export function ShareInput({ valueSetCallback }) {
         setUserSearch(users)
         setLoading(false)
         setEmpty(users.length === 0)
-    }
+    }, [])
 
-    const options = (userSearch || []).map((item) => (
-        <Combobox.Option value={item} key={item}>
-            {item}
-        </Combobox.Option>
-    ))
+    const handleValueSelect = useCallback((val: string) => setValue((current) => { searchUsers(""); return current.includes(val) ? current.filter((v) => v !== val) : [...current, val] }), [])
+    const handleValueRemove = useCallback((val: string) => setValue((current) => current.filter((v) => v !== val)), [])
 
-    useEffect(() => {
+    const options = useMemo(() => {
         combobox.selectFirstOption()
+        return (userSearch || []).map((item) => (
+            <Combobox.Option value={item} key={item}>
+                {item}
+            </Combobox.Option>
+        ))
     }, [userSearch])
 
-    const handleValueSelect = (val: string) =>
-        setValue((current) => { searchUsers(""); return current.includes(val) ? current.filter((v) => v !== val) : [...current, val] })
-
-    const handleValueRemove = (val: string) =>
-        setValue((current) => current.filter((v) => v !== val))
-
-    const values = value.map((item) => (
-        <Pill key={item} withRemoveButton onRemove={() => handleValueRemove(item)}>
-            {item}
-        </Pill>
-    ))
+    const values = useMemo(() =>
+        value.map((item) => (
+            <Pill key={item} withRemoveButton onRemove={() => handleValueRemove(item)}>
+                {item}
+            </Pill>
+        )), [value])
 
     return (
         <Combobox
@@ -109,21 +105,3 @@ export function ShareInput({ valueSetCallback }) {
         </Combobox>
     )
 }
-
-function ShareDialogue({ sharing, selectedMap, dirMap, dispatch }) {
-    const combobox = useCombobox({
-        onDropdownClose: () => combobox.resetSelectedOption(),
-    })
-    const { authHeader } = useContext(userContext)
-    const [value, setValue] = useState([])
-
-    return (
-        <Modal opened={sharing} onClose={() => { dispatch({ type: "close_share" }) }} title={`Share ${selectedMap.size} Files`} centered>
-            <ShareInput valueSetCallback={setValue} />
-            <Space h={'md'} />
-            <Button onClick={() => ShareFiles(Array.from(selectedMap.keys()).map((key: string) => { const item: itemData = dirMap.get(key); return { parentFolderId: item.parentFolderId, filename: item.filename } }), value, authHeader)}>Share</Button>
-        </Modal>
-    )
-}
-
-export default ShareDialogue
