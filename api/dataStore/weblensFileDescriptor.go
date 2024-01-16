@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,33 +28,33 @@ import (
 	in sync.
 */
 
-
 func (f *WeblensFileDescriptor) Copy() *WeblensFileDescriptor {
+	// Copy values of wfd struct
 	c := *f
+
+	// Create unique versions of pointers that are only relevent locally
+	if c.isDir != nil {
+		boolCopy := *c.isDir
+		c.isDir = &boolCopy
+	}
+
+	if c.childLock != nil {
+		c.childLock = &sync.Mutex{}
+	}
+
+	// Return pointer to copy
 	return &c
 }
 
 // Retrieve the error field set internally in
 // the file descriptor. If multiple errors have
 // occurred, only the most recent will be shown.
-// A non-nil err will only ever be set to nil
-// if .ClrErr() is called
+// A non-nil f.err shall never be reset to nil
 func (f *WeblensFileDescriptor) Err() error {
 	if f == nil {
 		return fmt.Errorf("error check on nil file descriptor")
 	}
 	return f.err
-}
-
-// Sets the error field internally to nil,
-// and returns the error value that was set.
-// Use this call sparingly, chances are there
-// is a better way to do what you want than ignoring
-// errors.
-func (f *WeblensFileDescriptor) ClrErr() error {
-	err := f.err
-	f.err = nil
-	return err
 }
 
 // This function does not return an error, and instead
@@ -110,7 +111,7 @@ func (f *WeblensFileDescriptor) GetMedia() (*Media, error) {
 	}
 
 	m, err := fddb.GetMediaByFile(f, false)
-	if err != nil || m.FileHash == ""{
+	if err != nil || m.FileHash == "" {
 		return nil, fmt.Errorf("failed to get media from WFD: %s", err)
 	}
 
@@ -153,30 +154,19 @@ func (f *WeblensFileDescriptor) ModTime() time.Time {
 	return stat.ModTime()
 }
 
-func (f *WeblensFileDescriptor) recompSize() (size int64) {
-	if f.IsDir() {
-		var err error
-		f.childLock.Lock()
-		size, err = util.DirSize(f.absolutePath)
-		f.childLock.Unlock()
-		util.FailOnError(err, "Failed to get dir size")
-	} else {
-		stat, err := os.Stat(f.absolutePath)
-		util.FailOnError(err, "Failed to get file stats")
-
-		size = stat.Size()
-	}
-
-	f.size = size
-	return
-}
-
-func (f *WeblensFileDescriptor) Size() int64 {
+func (f *WeblensFileDescriptor) Size() (int64, error) {
 	if f.size != 0 {
-		return f.size
+		return f.size, nil
 	}
 
-	return f.recompSize()
+	if !f.IsDir() {
+		if !f.assertExists() {
+			return 0, fmt.Errorf("getting size of file that does not exist")
+		}
+		return f.recompSize()
+	}
+
+	return f.size, nil
 }
 
 func (f *WeblensFileDescriptor) Read() (*os.File, error) {
@@ -205,6 +195,9 @@ func (f *WeblensFileDescriptor) ReadDir() error {
 	}
 
 	for _, file := range entries {
+		if file.Name() == ".DS_Store" {
+			continue
+		}
 		tmpChild := WeblensFileDescriptor{}
 		tmpChild.absolutePath = filepath.Join(f.absolutePath, file.Name())
 		f.childLock.Lock()
@@ -235,7 +228,8 @@ func (f *WeblensFileDescriptor) GetChildren() []*WeblensFileDescriptor {
 	if len(f.children) == 0 {
 		err := f.ReadDir()
 		if err != nil {
-			panic(err)
+			util.DisplayError(err)
+			return []*WeblensFileDescriptor{}
 		}
 	}
 
@@ -261,51 +255,24 @@ func (f *WeblensFileDescriptor) AddChild(child *WeblensFileDescriptor) {
 	f.childLock.Unlock()
 }
 
-func (f *WeblensFileDescriptor) removeChild(childId string) {
-	if f.children == nil {
-		util.Debug.Println("attempt to remove child on wfd where children map is nil")
-		return
-	}
-	f.childLock.Lock()
-	if f.children[childId] == nil {
-		f.childLock.Unlock()
-		util.Warning.Printf("Child (%s) of %s does not exist (attempting to remove)", childId, f.Filename())
-		return
-	}
-
-	delete(f.children, childId)
-	f.childLock.Unlock()
-}
-
 func (f *WeblensFileDescriptor) GetChildrenInfo() []FileInfo {
-	start := time.Now()
-	childrenInfo := util.MapToSliceMutate(f.children, func(_ string, file *WeblensFileDescriptor) FileInfo {info, err := file.FormatFileInfo(); if err != nil {info.Id = "R"}; return info})
-	util.Debug.Println(time.Since(start))
+	childrenInfo := util.MapToSliceMutate(f.children, func(_ string, file *WeblensFileDescriptor) FileInfo {
+		info, err := file.FormatFileInfo()
+		if err != nil {
+			info.Id = "R"
+		}
+		return info
+	})
 	return childrenInfo
 }
-
-// func (dir *WeblensFileDescriptor) GetMediaInDirectory(recursive bool) (ms []*Media) {
-// 	if recursive {
-// 		dir.RecursiveMap(func(f *WeblensFileDescriptor) {
-// 			if m, err := f.GetMedia(); err == nil {
-// 				ms = append(ms, m)
-// 			}
-// 		})
-// 	} else {
-// 		for _, f := range dir.GetChildren() {
-// 			if m, err := f.GetMedia(); err == nil {
-// 				ms = append(ms, m)
-// 			}
-// 		}
-// 	}
-
-// 	return ms
-// }
 
 func (f *WeblensFileDescriptor) GetParent() *WeblensFileDescriptor {
 	if f.id == "0" {
 		util.Error.Println(fmt.Errorf("cannot get parent of media root"))
-		return nil
+		return f
+	}
+	if f.parent == nil {
+		util.Error.Println("Returning parent as nil from file GetParent")
 	}
 
 	return f.parent
@@ -338,7 +305,7 @@ func (f *WeblensFileDescriptor) CreateSelf() error {
 }
 
 func (f *WeblensFileDescriptor) UserCanAccess(username string) bool {
-	if (f.Owner() == username || slices.Contains(f.Guests(), username)) {
+	if f.Owner() == username || slices.Contains(f.Guests(), username) {
 		return true
 	}
 	return false
@@ -367,12 +334,17 @@ func (f *WeblensFileDescriptor) FormatFileInfo() (formattedInfo FileInfo, err er
 			m.MediaType = f.getMediaType()
 		}
 
-		if f.err != nil {
+		if f.Err() != nil {
 			util.DisplayError(f.err)
 			return formattedInfo, f.err
 		}
+		var size int64
+		if size, err = f.Size(); err != nil {
+			util.DisplayError(err)
+			return formattedInfo, err
+		}
 
-		formattedInfo = FileInfo{Id: f.Id(), Imported: imported, IsDir: f.IsDir(), Size: int(f.Size()), ModTime: f.ModTime(), Filename: f.Filename(), ParentFolderId: f.parent.Id(), MediaData: m, Owner: f.Owner()}
+		formattedInfo = FileInfo{Id: f.Id(), Imported: imported, IsDir: f.IsDir(), Modifiable: f.Filename() != ".user_trash", Size: size, ModTime: f.ModTime(), Filename: f.Filename(), ParentFolderId: f.GetParent().Id(), MediaData: m, Owner: f.Owner()}
 	} else {
 		return formattedInfo, fmt.Errorf("filename in blocklist")
 	}
@@ -392,7 +364,67 @@ func (f *WeblensFileDescriptor) RecursiveMap(fn func(*WeblensFileDescriptor)) {
 	}
 }
 
+func (f *WeblensFileDescriptor) BubbleMap(fn func(*WeblensFileDescriptor)) {
+	if f == nil || f.Id() == "0" {
+		return
+	}
+	fn(f)
+
+	parent := f.GetParent()
+	parent.BubbleMap(fn)
+}
+
 func (f *WeblensFileDescriptor) MarshalJSON() ([]byte, error) {
-	m := marshalableWFD{Id: f.Id(), AbsolutePath: f.absolutePath, Filename: f.Filename(), Owner: f.Owner(), ParentFolderId: f.parent.Id(), Guests: f.Guests(), Size: f.Size(), IsDir: f.IsDir()}
+	size, err := f.Size()
+	if err != nil {
+		return nil, err
+	}
+
+	m := marshalableWFD{Id: f.Id(), AbsolutePath: f.absolutePath, Filename: f.Filename(), Owner: f.Owner(), ParentFolderId: f.parent.Id(), Guests: f.Guests(), Size: size, IsDir: f.IsDir()}
 	return json.Marshal(m)
+}
+
+// Private
+
+func (f *WeblensFileDescriptor) recompSize() (size int64, err error) {
+	if f.IsDir() {
+		// return size, fmt.Errorf("attempt to recompute size of directory")
+		children := f.GetChildren()
+
+		util.Map(children, func(w *WeblensFileDescriptor) int { size += w.size; return 0 })
+	} else {
+		var stat fs.FileInfo
+		stat, err = os.Stat(f.absolutePath)
+		if err != nil {
+			return
+		}
+		size = stat.Size()
+	}
+
+	f.size = size
+	return
+}
+
+func (f *WeblensFileDescriptor) removeChild(childId string) {
+	if f.children == nil {
+		util.Debug.Println("attempt to remove child on wfd where children map is nil")
+		return
+	}
+	f.childLock.Lock()
+	if f.children[childId] == nil {
+		f.childLock.Unlock()
+		util.Warning.Printf("Child (%s) of %s does not exist (attempting to remove)", childId, f.Filename())
+		return
+	}
+
+	delete(f.children, childId)
+	f.childLock.Unlock()
+}
+
+func (f *WeblensFileDescriptor) assertExists() bool {
+	if f.Exists() {
+		return true
+	}
+	FsTreeRemove(f)
+	return false
 }

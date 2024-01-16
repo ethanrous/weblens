@@ -20,6 +20,15 @@ func envReadBool(s string) (bool) {
 	}
 }
 
+func GetConfigDir() (string) {
+	configDir := envReadString("CONFIG_DIR")
+	if configDir == "" {
+		configDir = "/app/config"
+		Info.Println("Config directory not set, using", configDir)
+	}
+	return configDir
+}
+
 func GetMediaRoot() (string) {
 	return envReadString("MEDIA_ROOT_PATH")
 }

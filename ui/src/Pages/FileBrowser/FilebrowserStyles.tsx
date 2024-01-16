@@ -1,10 +1,9 @@
-import { CardContent, Sheet, Typography } from "@mui/joy"
-import { Box, Card, MantineStyleProp, AspectRatio } from '@mantine/core'
-import { Dispatch, useMemo, useState } from "react"
+import { Box, Card, MantineStyleProp, AspectRatio, Paper, Text } from '@mantine/core'
+import { Dispatch, useMemo, useRef, useState } from "react"
 import { HandleDrag } from "./FileBrowserLogic"
-import { itemData } from "../../types/Types"
+import { fileData } from "../../types/Types"
 import { useNavigate } from "react-router-dom"
-import { IconFolder } from "@tabler/icons-react"
+import { IconFolder, IconFolderCancel } from "@tabler/icons-react"
 
 export const FlexColumnBox = ({ children, style, reff, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur }: { children?, style?: MantineStyleProp, reff?, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?}) => {
     return (
@@ -49,6 +48,7 @@ export const FlexRowBox = ({ children, style, onClick, onBlur }: { children, sty
 }
 
 type DirViewWrapperProps = {
+    folderId: string
     folderName: string
     dragging: number
     hoverTarget: string
@@ -58,21 +58,28 @@ type DirViewWrapperProps = {
     children: JSX.Element[]
 }
 
-export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
+export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
+
+    const dropAllowed = useMemo(() => {
+        return !(folderId === "shared" || folderId === "trash")
+    }, [folderId])
+
+    const blockFolderRef: React.Ref<HTMLDivElement> = useRef()
 
     return (
         <Box
             display={'flex'} pt={"80px"}
-            style={{ zIndex: 1, height: "calc(100vh - 20px)", width: '100%' }}
             onDragOver={event => { HandleDrag(event, dispatch, dragging) }}
-            onDrop={onDrop}
+            onDrop={(e) => {e.preventDefault(); e.stopPropagation(); dispatch({ type: "set_dragging", dragging: false }); dropAllowed && onDrop(e)}}
             onMouseOver={onMouseOver}
             onClick={() => {if (!dragging) { dispatch({ type: 'clear_selected' }) } else { dispatch({ type: 'set_dragging', dragging: false }) } }}
+            style={{ zIndex: 1, height: "calc(100vh - 20px)", width: '100%', cursor: (!dropAllowed && dragging === 2) ? 'no-drop' : 'auto'}}
         >
             {dragging === 2 && (
-                <Sheet
-                    onDragLeave={event => { HandleDrag(event, dispatch, dragging) }}
-                    sx={{
+                <Paper
+                    // This is overly complicated because if we don't check this, when you drag over the red folder, the screen flickers as it registers as a "onDragLeave" event
+                    onDragLeave={event => {if (event.target instanceof Element && blockFolderRef.current.contains(event.target)) {return}; HandleDrag(event, dispatch, dragging) }}
+                    style={{
                         zIndex: 2,
                         bottom: "10px",
                         left: "10px",
@@ -84,21 +91,30 @@ export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, on
                         justifyContent: 'center',
                         backgroundColor: "#00000077",
                         backdropFilter: "blur(3px)",
-                        outline: `1px solid white`
+                        outline: `1px solid white`,
+                        outlineColor: `${dropAllowed ? "#ffffff" :"#dd2222"}`,
+                        cursor: (!dropAllowed && dragging === 2) ? 'no-drop' : 'auto'
                     }}
                 >
-                    <Card style={{ height: 'max-content', bottom: '20px', position: 'fixed' }}>
-                        <CardContent>
-                            <Typography level="title-md" display={'flex'}>
-                                {"Drop to upload to"}
+                    {!dropAllowed && (
+                        <FlexColumnBox reff={blockFolderRef} style={{position: 'absolute', justifyContent: 'center', cursor: 'no-drop'}}>
+                            <IconFolderCancel size={100} color="#dd2222" />
+                        </FlexColumnBox >
+                    )}
+                    {dropAllowed && (
+                        <Card style={{ height: 'max-content', bottom: '20px', position: 'fixed' }}>
+                            <FlexRowBox>
+                                <Text>
+                                    Drop to upload to
+                                </Text>
                                 <IconFolder style={{ marginLeft: '7px' }} />
-                                <Typography fontWeight={'lg'} marginLeft={'3px'}>
+                                <Text fw={700} style={{marginLeft: 3}}>
                                     {folderName}
-                                </Typography>
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Sheet>
+                                </Text>
+                            </FlexRowBox>
+                        </Card>
+                    )}
+                </Paper>
             )}
             <FlexColumnBox style={{ paddingLeft: 20, width: '100%' }}>
                 {children}
@@ -107,7 +123,7 @@ export const DirViewWrapper = ({ folderName, dragging, hoverTarget, dispatch, on
     )
 }
 
-export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { itemRef: any, itemData: itemData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
+export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { itemRef: any, itemData: fileData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
     const [mouseDown, setMouseDown] = useState(false)
     const navigate = useNavigate()
 

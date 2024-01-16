@@ -18,7 +18,8 @@ import (
 )
 
 var mongo_ctx = context.TODO()
-//var redis_ctx = context.TODO()
+
+// var redis_ctx = context.TODO()
 var mongoc *mongo.Client
 var mongodb *mongo.Database
 var redisc *redis.Client
@@ -36,16 +37,16 @@ func NewDB(username string) *Weblensdb {
 	}
 	if redisc == nil && util.ShouldUseRedis() {
 		redisc = redis.NewClient(&redis.Options{
-			Addr: util.GetRedisUrl(),
+			Addr:     util.GetRedisUrl(),
 			Password: "",
-			DB:		  0,
+			DB:       0,
 		})
 		redisc.FlushAll()
 	}
 
 	return &Weblensdb{
-		mongo: mongodb,
-		redis: redisc,
+		mongo:    mongodb,
+		redis:    redisc,
 		accessor: username,
 	}
 }
@@ -54,15 +55,15 @@ func (db Weblensdb) GetAccessor() string {
 	return db.accessor
 }
 
-func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (Media) {
+func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) Media {
 	val, err := db.RedisCacheGet(fileHash)
 	if err == nil {
 		var i Media
 		json.Unmarshal([]byte(val), &i)
-		if (!includeThumbnail && i.Thumbnail64 != "") {
+		if !includeThumbnail && i.Thumbnail64 != "" {
 			i.Thumbnail64 = ""
 		}
-		if (i.Thumbnail64 != "" || !includeThumbnail) {
+		if i.Thumbnail64 != "" || !includeThumbnail {
 			return i
 		}
 	}
@@ -86,7 +87,7 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) (Media) {
 func (db Weblensdb) GetMediaByFile(file *WeblensFileDescriptor, includeThumbnail bool) (m Media, err error) {
 	filter := bson.M{"fileId": file.Id()}
 
-	opts :=	options.FindOne()
+	opts := options.FindOne()
 	if !includeThumbnail {
 		opts = options.FindOne().SetProjection(bson.M{"thumbnail": 0})
 	}
@@ -116,7 +117,6 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 			},
 		},
 	}
-
 
 	pipeline = append(pipeline, bson.D{
 		{Key: "$lookup",
@@ -240,7 +240,6 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 		},
 	})
 
-
 	pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.D{{Key: "result", Value: bson.D{{Key: "$ne", Value: bson.A{}}}}}}})
 	pipeline = append(pipeline, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
 
@@ -255,7 +254,7 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 	}
 
 	if redisc != nil {
-		go func (medias []Media) {
+		go func(medias []Media) {
 			for _, val := range medias {
 				b, _ := json.Marshal(val)
 				db.RedisCacheSet(val.FileHash, string(b))
@@ -264,7 +263,7 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 	}
 
 	if !thumbnails {
-		noThumbs := util.Map(res, func(m Media) Media {m.Thumbnail64 = ""; return m})
+		noThumbs := util.Map(res, func(m Media) Media { m.Thumbnail64 = ""; return m })
 		return noThumbs, err
 	}
 
@@ -272,11 +271,11 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 
 }
 
-func (db Weblensdb) RedisCacheSet(key string, data string) (error) {
+func (db Weblensdb) RedisCacheSet(key string, data string) error {
 	if redisc == nil {
 		return errors.New("redis not initialized")
 	}
-	_, err := db.redis.Set(key, data, time.Duration(time.Minute) * 10).Result()
+	_, err := db.redis.Set(key, data, time.Duration(time.Minute)*10).Result()
 	return err
 }
 
@@ -299,7 +298,7 @@ func (db Weblensdb) DbAddMedia(m *Media) {
 		util.Error.Panicf("Refusing to write incomplete media to database for file %s (missing %s)", FsTreeGet(m.FileId).absolutePath, reason)
 	}
 
-	if (m.Owner == "") {
+	if m.Owner == "" {
 		// owner := GetOwnerFromFilepath(m.Filepath)
 		// _, err := db.GetUser(owner)
 		util.Error.Println("Attempt to add media to database with empty user")
@@ -328,21 +327,12 @@ func (db Weblensdb) UpdateMediasByFilehash(filehashes []string, newOwner string)
 
 // Processes necessary changes in database after moving a media file on the filesystem.
 // This must be called AFTER the file is moved, i.e. `destinationFile` must exist on the fs
-func (db Weblensdb) HandleMediaMove(existingMediaFile, destinationFile *WeblensFileDescriptor) error {
-	filter := bson.M{"parentFolderId": existingMediaFile.ParentFolderId, "filename": existingMediaFile.Filename()}
-	res := db.mongo.Collection("media").FindOne(mongo_ctx, filter)
-	var m Media
-	err := res.Decode(&m)
-	if err != nil {return err}
-
-	m.FileId = destinationFile.Id()
-
-	m.GenerateFileHash(destinationFile)
-
-	update := bson.M{"$set": bson.M{"parentFolderId": destinationFile.ParentFolderId, "filename": destinationFile.Filename(), "fileHash": m.FileHash}}
+func (db Weblensdb) HandleMediaMove(oldFile, newFile *WeblensFileDescriptor) (err error) {
+	filter := bson.M{"fileId": oldFile.Id()}
+	update := bson.M{"$set": bson.M{"fileId": newFile.Id()}}
 
 	_, err = db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
-	return err
+	return
 }
 
 func (db Weblensdb) RemoveMediaByFile(file *WeblensFileDescriptor) error {
@@ -500,10 +490,16 @@ func (db Weblensdb) ClearCache() {
 func (db Weblensdb) SearchUsers(searchStr string) []string {
 	ret, err := db.mongo.Collection("users").Find(mongo_ctx, bson.M{"username": bson.M{"$regex": searchStr}})
 	util.DisplayError(err, "Failed to autocomplete user search")
-	var users []struct { Username string `bson:"username"` }
+	var users []struct {
+		Username string `bson:"username"`
+	}
 	ret.All(mongo_ctx, &users)
 
-	return util.Map(users, func(u struct { Username string `bson:"username"` }) string {return u.Username})
+	return util.Map(users, func(u struct {
+		Username string `bson:"username"`
+	}) string {
+		return u.Username
+	})
 }
 
 func (db Weblensdb) ShareFiles(files []*WeblensFileDescriptor, users []string) error {
@@ -528,7 +524,7 @@ func (db Weblensdb) GetSharedWith(username string) []*WeblensFileDescriptor {
 	var files []folderData
 	ret.All(mongo_ctx, &files)
 
-	return util.Map(files, func(share folderData) *WeblensFileDescriptor {return FsTreeGet(share.FolderId)})
+	return util.Map(files, func(share folderData) *WeblensFileDescriptor { return FsTreeGet(share.FolderId) })
 }
 
 func (db Weblensdb) getFileGuests(file *WeblensFileDescriptor) []string {
@@ -542,7 +538,7 @@ func (db Weblensdb) getFileGuests(file *WeblensFileDescriptor) []string {
 }
 
 func (db Weblensdb) writeFolder(folder *WeblensFileDescriptor) error {
-	opts :=  options.Update().SetUpsert(true)
+	opts := options.Update().SetUpsert(true)
 
 	filter := bson.M{"_id": folder.Id()}
 	fldrSet := bson.M{"$set": folderData{FolderId: folder.Id(), ParentFolderId: folder.parent.Id(), RelPath: GuaranteeRelativePath(folder.absolutePath), SharedWith: []string{}}}

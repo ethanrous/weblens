@@ -1,4 +1,4 @@
-import { itemData, FileBrowserStateType } from '../../types/Types'
+import { fileData, FileBrowserStateType, getBlankFile } from '../../types/Types'
 import Upload, { fileUploadMetadata } from "../../api/Upload"
 import { Dispatch, DragEvent, useEffect, useState } from 'react'
 import { CreateFolder, DeleteFile, MoveFiles, downloadSingleItem, requestZipCreate } from '../../api/FileBrowserApi'
@@ -48,12 +48,35 @@ const handleSelect = (state: FileBrowserStateType, action): FileBrowserStateType
     return { ...state }
 }
 
-function updateItem(dirMap: Map<string, itemData>, user, existingId: string, newData: itemData, currentFolderId) {
-    let exitingItem: itemData = dirMap.get(existingId)
-    let possibleTemplateItem: itemData = dirMap.get(newData.filename)
-    if (exitingItem && exitingItem.id !== newData.id) {
-        dirMap.delete(exitingItem.id)
+function createFile(dirMap: Map<string, fileData>, user, newData: fileData, currentFolderId) {
+    console.log("NEW DATA", newData)
+    if (dirMap.get(newData.id)) {
+        console.error("Trying to create file with Id that already exists", newData.id)
+        return
     }
+
+    if (newData.parentFolderId === currentFolderId || user !== newData.owner) {
+        dirMap.set(newData.id, newData)
+    }
+}
+
+function updateFile(dirMap: Map<string, fileData>, user, existingId: string, newData: fileData, currentFolderId) {
+    let existingFile: fileData = dirMap.get(existingId)
+    if (!newData) {
+        console.error("No newData")
+        return
+    }
+
+    if (!existingFile) {
+        console.warn("Not upserting file", existingId)
+        return
+    }
+
+    let possibleTemplateItem: fileData = dirMap.get("TEMPLATE_NEW_FOLDER")
+    if (existingFile && existingFile.id !== newData.id) {
+        dirMap.delete(existingFile.id)
+    }
+
     if (possibleTemplateItem) {
         dirMap.delete(possibleTemplateItem.id)
     }
@@ -65,15 +88,20 @@ function updateItem(dirMap: Map<string, itemData>, user, existingId: string, new
 
 export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
     switch (action.type) {
-        case 'update_item': {
-            updateItem(state.dirMap, action.user, action.itemId, action.updateInfo, state.folderInfo.id)
+        case 'create_file': {
+            createFile(state.dirMap, action.user, action.fileInfo, state.folderInfo.id)
+            return { ...state }
+        }
+
+        case 'update_file': {
+            updateFile(state.dirMap, action.user, action.fileInfo.id, action.fileInfo, state.folderInfo.id)
             return { ...state }
         }
 
         case 'update_many': {
-            const itemsMeta: { itemId: string, updateInfo: itemData }[] = action.items
+            const itemsMeta: { itemId: string, updateInfo: fileData }[] = action.items
             for (const itemMeta of itemsMeta) {
-                updateItem(state.dirMap, action.user, itemMeta.itemId, itemMeta.updateInfo, state.folderInfo.id)
+                createFile(state.dirMap, action.user, itemMeta.updateInfo, state.folderInfo.id)
             }
             return { ...state }
         }
@@ -126,20 +154,11 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
         }
 
         case 'new_dir': {
-            let item: itemData = {
-                id: "TEMPLATE_NEW_FOLDER",
-                filename: "",
-                parentFolderId: state.folderInfo.id,
-                owner: "",
-                isDir: true,
-                imported: false,
-                modTime: new Date().toString(),
-                size: 0,
-                visible: true,
-                mediaData: null
-            }
-            state.dirMap.set(item.id, item)
-            return { ...state, editing: item.id }
+            let newDir: fileData = getBlankFile()
+            newDir.id = "TEMPLATE_NEW_FOLDER"
+            newDir.isDir = true
+            state.dirMap.set(newDir.id, newDir)
+            return { ...state }
         }
 
         case 'set_selected': {
@@ -224,7 +243,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
     }
 }
 
-export const MapToList = (dirMap: Map<string, itemData>) => {
+export const MapToList = (dirMap: Map<string, fileData>) => {
     const newList = Array.from(dirMap.values())
 
     newList.sort((a, b) => {
@@ -254,6 +273,7 @@ export const MapToList = (dirMap: Map<string, itemData>) => {
 
 export const HandleDrag = (event: DragEvent, dispatch: Dispatch<any>, dragging: number) => {
     event.preventDefault()
+    event.stopPropagation()
     if (event.type === "dragenter" || event.type === "dragover") {
         !dragging && dispatch({ type: "set_dragging", dragging: true, external: true })
 
@@ -265,6 +285,7 @@ export const HandleDrag = (event: DragEvent, dispatch: Dispatch<any>, dragging: 
 async function getFile(file): Promise<File> {
     try {
         const f = await file.getAsFile()
+        return f
         // return new Promise((resolve, reject) => file.file(resolve, reject));
     } catch (err) {
         return await new Promise((resolve, reject) => file.file(resolve, reject));
@@ -336,7 +357,7 @@ export async function HandleDrop(items, rootFolderId, dirMap, authHeader, upload
     let topLevels = []
     if (items) { // Handle Directory
         const names = new Map<string, boolean>()
-        Array.from(dirMap.values()).map((value: itemData) => names.set(value.filename, true))
+        Array.from(dirMap.values()).map((value: fileData) => names.set(value.filename, true))
 
         for (const item of items) {
             if (!item) {
@@ -372,12 +393,12 @@ export function HandleUploadButton(files: File[], parentFolderId, authHeader, up
     }
 }
 
-export function downloadSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, itemData>, folderId: string, dispatch, wsSend, authHeader) {
+export function downloadSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, fileData>, folderId: string, dispatch, wsSend, authHeader) {
     const items = Array.from(selectedMap.keys())
 
     let taskId: string = ""
 
-    if (items.length == 1 && !dirMap.get(items[0]).isDir) {
+    if (items.length === 1 && !dirMap.get(items[0]).isDir) {
         const item = dirMap.get(items[0])
         if (!item.isDir) {
             downloadSingleItem(item.id, authHeader, dispatch, item.filename)
@@ -404,11 +425,15 @@ export function HandleWebsocketMessage(lastMessage, username, dispatch, authHead
         let msgData = JSON.parse(lastMessage.data)
         console.log("WSmsg", msgData)
         switch (msgData.messageStatus) {
-            case "item_update": {
-                dispatch({ type: "update_item", itemId: msgData.content.itemId, updateInfo: msgData.content.updateInfo, user: username })
+            case "file_created": {
+                dispatch({ type: "create_file", fileInfo: msgData.content.fileInfo, user: username })
                 return
             }
-            case "item_deleted": {
+            case "file_updated": {
+                dispatch({ type: "update_file", fileInfo: msgData.content.fileInfo, updateInfo: msgData.content.updateInfo, user: username })
+                return
+            }
+            case "file_deleted": {
                 dispatch({ type: "delete_from_map", itemId: msgData.content.itemId })
                 return
             }
@@ -502,7 +527,7 @@ export const useMousePosition = () => {
     return mousePosition
 }
 
-export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, itemData>, authHeader) {
+export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, fileData>, authHeader) {
     for (const itemKey of selectedMap.keys()) {
         const item = dirMap.get(itemKey)
         if (!item?.id) {
@@ -518,11 +543,12 @@ export function moveSelected(selectedMap: Map<string, boolean>, destinationId: s
     return MoveFiles(Array.from(selectedMap.keys()), destinationId, authHeader).catch(r => notifications.show({title: "Failed to move files", message: String(r), color: 'red'}))
 }
 
-export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, authHeader, gridRef) {
+export function GetDirItems(filebrowserState: FileBrowserStateType, userInfo, dispatch, authHeader, gridRef) {
     let itemsList = MapToList(filebrowserState.dirMap).filter((val) => { return val.filename.toLowerCase().includes(filebrowserState.searchContent.toLowerCase()) })
     let scanRequired = false
 
-    const items = itemsList.map((entry: itemData) => {
+    const items = itemsList.map((entry: fileData) => {
+        if (entry.id === userInfo.trashFolderId) {return null}
         if (entry.mediaData?.mediaType.IsDisplayable && !entry.imported && !entry.isDir) {
             scanRequired = true
         }
@@ -539,7 +565,6 @@ export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, au
                 itemData={entry}
                 selected={filebrowserState.selected.get(entry.id)}
                 moveSelected={move}
-                // editing={filebrowserState.editing === entry.id}
                 dragging={filebrowserState.draggingState}
                 dispatch={dispatch}
                 authHeader={authHeader}

@@ -32,15 +32,15 @@ ENV GIN_MODE=release
 COPY api /app
 RUN go build -v -o weblens .
 
-FROM debian:bookworm
+FROM debian:12-slim
 
 RUN apt update
 RUN apt-get install -y libwebp-dev exiftool ffmpeg
 
 WORKDIR /app
 COPY --from=ui /app/build /ui/build
-
 COPY --from=api /app/weblens /app/weblens
+COPY api/config /app/config
 
 EXPOSE 8080
 

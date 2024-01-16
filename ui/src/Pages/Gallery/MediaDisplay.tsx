@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { MediaImage } from '../../components/PhotoContainer'
 import { StyledBreadcrumb } from '../../components/Crumbs'
-import { MediaData, MediaWrapperProps, GalleryBucketProps, itemData } from '../../types/Types'
+import { MediaData, MediaWrapperProps, GalleryBucketProps, fileData } from '../../types/Types'
 import { Box, MantineStyleProp, Space, Text, Tooltip } from '@mantine/core'
 import { FlexColumnBox, FlexRowBox } from '../FileBrowser/FilebrowserStyles'
 import { notifications } from '@mantine/notifications'
@@ -105,7 +105,7 @@ const MediaInfoDisplay = ({ mediaData }: { mediaData: MediaData }) => {
                 {/* <StyledBreadcrumb label={mediaData.filename} fontSize={15} alwaysOn={true} doCopy /> */}
                 <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={async (e) => {
                     e.stopPropagation()
-                    const fileInfo: itemData = await GetFileInfo(mediaData.fileId, authHeader)
+                    const fileInfo: fileData = await GetFileInfo(mediaData.fileId, authHeader)
 
                     if (!fileInfo.parentFolderId) {
                         console.error("File info:", fileInfo)

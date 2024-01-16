@@ -1,6 +1,6 @@
 import { Box, useTheme, Breadcrumbs } from '@mui/joy'
 import { memo, useContext, useMemo, useState } from 'react'
-import { itemData } from '../types/Types'
+import { fileData, getBlankFile } from '../types/Types'
 import { userContext } from '../Context'
 import { useNavigate } from 'react-router-dom'
 import { Text, Tooltip } from '@mantine/core'
@@ -86,35 +86,30 @@ const StyledLoaf = ({ ...props }) => {
     )
 }
 
-const Crumbs = memo(({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: itemData, parents: itemData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
+const Crumbs = memo(({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: fileData, parents: fileData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
     const navigate = useNavigate()
     const { userInfo } = useContext(userContext)
-
     const loaf = useMemo(() => {
-        if (parents === null || !finalItem?.id) {
+        if (parents === null || !finalItem?.id || !userInfo) {
             return null
         }
-
-        if (parents.length !== 0 && parents[0].id === "shared" && finalItem.id === "shared") {
-            parents.shift()
-        }
-        if ((parents.length === 0 && finalItem.owner !== userInfo.username && finalItem.id !== "shared") || (parents.length !== 0 && parents[0].id !== "shared" && parents[parents.length - 1].owner !== userInfo.username)) {
-            let sharedRoot: itemData = {
-                id: "shared",
-                filename: "Shared",
-                parentFolderId: "",
-                owner: "",
-                isDir: true,
-                imported: false,
-                modTime: new Date().toString(),
-                size: 0,
-                visible: true,
-                mediaData: null
-            }
+        const parentsIds = parents.map(p => p.id)
+        if (parentsIds.includes("shared")) {
+            let sharedRoot = getBlankFile()
+            sharedRoot.filename = "Shared"
             parents.unshift(sharedRoot)
+        } else if (parentsIds.includes(userInfo.trashFolderId)) {
+            parents.shift()
+            if (parents.length === 0) {
+                parents.push(getBlankFile())
+            }
+            parents[0].filename = "Trash"
         }
+        // if (parents.length !== 0 && parents[0].id === "shared" && finalItem.id === "shared") {
+        //     parents.shift()
+        // }
 
-        const crumbs = parents.map((parent, i) => {
+        const crumbs = parents.map((parent) => {
             const isHome = parent.id === userInfo.homeFolderId
             return <StyledBreadcrumb key={parent.id} label={isHome ? "Home" : parent.filename} onClick={(e) => { e.stopPropagation(); navigate(`/files/${isHome ? "home" : parent.id}`) }} doCopy={false} dragging={dragging} onMouseUp={() => { if (dragging !== 0) { moveSelectedTo(parent.id) } }} />
         })
@@ -127,12 +122,12 @@ const Crumbs = memo(({ finalItem, parents, moveSelectedTo, navOnLast, dragging }
                 {crumbs}
             </StyledLoaf>
         )
-    }, [parents, finalItem, moveSelectedTo, navOnLast, dragging, navigate, userInfo?.homeFolderId, userInfo?.username])
+    }, [parents, finalItem, moveSelectedTo, navOnLast, dragging, navigate, userInfo])
 
     return loaf
 
 }, (prev, next) => {
-    return prev.dragging === next.dragging && prev.parents === next.parents
+    return prev.dragging === next.dragging && prev.parents === next.parents && prev.finalItem === next.finalItem
 })
 
 export default Crumbs

@@ -20,23 +20,23 @@ var upgrader = websocket.Upgrader{
 }
 
 func CORSMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(http.StatusNoContent)
-            return
-        }
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 
-        c.Next()
-    }
+		c.Next()
+	}
 }
 
 func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
-    return func(c *gin.Context) {
+	return func(c *gin.Context) {
 		db := dataStore.NewDB("SYS")
 		var authString string
 
@@ -69,8 +69,8 @@ func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
 
 		c.Set("username", authList[0])
 
-        c.Next()
-    }
+		c.Next()
+	}
 }
 
 func AddApiRoutes(r *gin.Engine) {
@@ -91,10 +91,12 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)
 
+	api.GET("/trash", getUserTrashInfo)
+
 	api.GET("/file/:fileId", getFile)
 	api.POST("/file", uploadFile)
 	api.PATCH("/file", updateFile)
-	api.DELETE("/file", moveFileToTrash)
+	api.DELETE("/file", trashFile)
 
 	api.PATCH("/files", updateFiles)
 	api.PATCH("/files/share", shareFiles)
@@ -107,7 +109,6 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/users", searchUsers)
 
 	api.GET("/share", getSharedFiles)
-	// api.POST("/share", shareContent)
 
 	api.GET("/albums", getAlbums)
 
@@ -138,8 +139,5 @@ func AddUiRoutes(r *gin.Engine) {
 		if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
 			ctx.File("../ui/build/index.html")
 		}
-		//default 404 page not found
 	})
-	//r.GET("/", uiRedirect)
-	//r.StaticFS("/ui/", http.Dir("../ui/build"))
 }

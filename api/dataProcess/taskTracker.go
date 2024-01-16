@@ -6,8 +6,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 )
+
+var caster BroadcasterAgent
+
+func SetCaster(c BroadcasterAgent) {
+	caster = c
+}
 
 var ttInstance taskTracker
 
@@ -57,10 +64,16 @@ func NewTask(taskType string, taskMeta any) *task {
 
 	ttInstance.taskMap[taskId] = newTask
 	switch newTask.taskType {
-		case "scan_directory": newTask.work = func(){ScanDirectory(newTask); removeTask(newTask.TaskId)}
-		case "create_zip": newTask.work = func(){createZipFromPaths(newTask)}
-		case "scan_file": newTask.work = func(){ScanFile(newTask.metadata.(ScanMetadata)); removeTask(newTask.TaskId)}
-		case "move_file": newTask.work = func(){moveFile(newTask); removeTask(newTask.TaskId)}
+	case "scan_directory":
+		newTask.work = func() { scanDirectory(newTask); removeTask(newTask.TaskId) }
+	case "create_zip":
+		newTask.work = func() { createZipFromPaths(newTask) }
+	case "scan_file":
+		newTask.work = func() { ScanFile(newTask.metadata.(ScanMetadata)); removeTask(newTask.TaskId) }
+	case "move_file":
+		newTask.work = func() { moveFile(newTask); removeTask(newTask.TaskId) }
+	case "preload_meta":
+		newTask.work = func() { preloadThumbs(newTask); removeTask(newTask.TaskId) }
 	}
 
 	return newTask
@@ -97,7 +110,7 @@ func (t *task) Err() any {
 
 func (t *task) BroadcastComplete(statusMessage string) {
 	t.Completed = true
-	Broadcast("task", t.TaskId, statusMessage, t.result)
+	caster.PushTaskUpdate(t.TaskId, statusMessage, t.result)
 }
 
 func (t *task) Complete(msg string) {
@@ -107,7 +120,7 @@ func (t *task) Complete(msg string) {
 	}
 }
 
-func (t *task) setResult(fields... KeyVal) {
+func (t *task) setResult(fields ...KeyVal) {
 	if t.result == nil {
 		t.result = make(map[string]string)
 	}
@@ -138,20 +151,23 @@ func FlushCompleteTasks() {
 	}
 }
 
+func QueueGlobalTask(t *task) {
+	ttInstance.globalQueue.QueueTask(t)
+}
+
 func NewWorkQueue() *virtualTaskPool {
 	verifyTaskTracker()
 	wq := ttInstance.wp.NewVirtualTaskQueue()
 	return wq
 }
 
-func QueueGlobalTask(t *task) {
-	ttInstance.globalQueue.QueueTask(t)
+// Parameters:
+//   - `directory` : the weblens file descriptor representing the directory to scan
+//   - `recursive` : if true, scan all children of directory recursively
+//   - `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
+func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFileDescriptor, recursive, deep bool) {
+	// Partial media means nothing for a directory scan, so it's always nil
+	scanMeta := ScanMetadata{File: directory, Recursive: recursive, DeepScan: deep}
+	t := NewTask("scan_directory", scanMeta)
+	tskr.QueueTask(t)
 }
-
-// func MainWorkQueueWait(queueKey string) {
-// 	ttInstance.wp.Wait(queueKey)
-// }
-
-// func MainNotifyAllQueued(queueKey string) {
-// 	ttInstance.wp.NotifyAllQueued(queueKey)
-// }

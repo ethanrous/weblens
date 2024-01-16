@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { AlbumData, itemData } from '../types/Types'
+import { AlbumData, fileData } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 import { notifications } from '@mantine/notifications'
 
@@ -23,7 +23,7 @@ function getSharedWithMe(username, dispatch, authHeader) {
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
-            let files = data.files?.map((val: itemData) => { return { itemId: val.id, updateInfo: val } })
+            let files = data.files?.map((val: fileData) => { return { itemId: val.id, updateInfo: val } })
             if (!files) {
                 files = []
             }
@@ -33,15 +33,36 @@ function getSharedWithMe(username, dispatch, authHeader) {
         })
 }
 
+function getMyTrash(username, dispatch, authHeader) {
+    let url = new URL(`${API_ENDPOINT}/trash`)
+    return fetch(url.toString(), { headers: authHeader })
+        .then((res) => res.json())
+        .then((data) => {
+            let children = data.children?.map((val: fileData) => { return { itemId: val.id, updateInfo: val } })
+            if (!children) {
+                children = []
+            }
+            let parents = data.parents.reverse()
+            parents.shift()
+
+            data.self.filename = "Trash"
+            dispatch({ type: 'set_folder_info', folderInfo: data.self })
+            dispatch({ type: 'update_many', items: children, user: username })
+            dispatch({ type: 'set_parents_info', parents: parents })
+        })
+}
+
 export async function GetFileInfo(fileId, authHeader) {
     var url = new URL(`${API_ENDPOINT}/file/${fileId}`)
     return (await fetch(url.toString(), {headers: authHeader})).json()
 }
 
 export function GetFolderData(folderId, username, dispatch, authHeader) {
-
     if (folderId === "shared") {
         return getSharedWithMe(username, dispatch, authHeader)
+    }
+    if (folderId === "trash") {
+        return getMyTrash(username, dispatch, authHeader)
     }
 
     let url = new URL(`${API_ENDPOINT}/folder/${folderId}`)
@@ -64,7 +85,7 @@ export function GetFolderData(folderId, username, dispatch, authHeader) {
             if (data.error) {
                 return Promise.reject(data.error)
             }
-            let children = data.children?.map((val: itemData) => { return { itemId: val.id, updateInfo: val } })
+            let children = data.children?.map((val: fileData) => { return { itemId: val.id, updateInfo: val } })
             if (!children) {
                 children = []
             }

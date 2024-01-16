@@ -1,9 +1,11 @@
 package dataProcess
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -13,8 +15,8 @@ import (
 )
 
 func ScanFile(meta ScanMetadata) {
-	db := dataStore.NewDB(meta.Username)
-	defer func(){meta.PartialMedia = nil}()
+	db := dataStore.NewDB("")
+	defer func() { meta.PartialMedia = nil }()
 	if meta.PartialMedia == nil {
 		m, _ := db.GetMediaByFile(meta.File, true)
 		meta.PartialMedia = &m
@@ -39,8 +41,8 @@ func createZipFromPaths(t *task) {
 	filesInfoMap := map[string]os.FileInfo{}
 
 	util.Map(zipMeta.Files,
-		func (file *dataStore.WeblensFileDescriptor) error {
-			file.RecursiveMap(func (f *dataStore.WeblensFileDescriptor) {
+		func(file *dataStore.WeblensFileDescriptor) error {
+			file.RecursiveMap(func(f *dataStore.WeblensFileDescriptor) {
 				stat, err := os.Stat(f.String())
 				util.FailOnError(err, "Failed to stat file %s", f.String())
 				filesInfoMap[f.String()] = stat
@@ -97,8 +99,12 @@ func createZipFromPaths(t *task) {
 		}
 		bytes, entries = a.Written()
 		prevBytes = bytes
-		status := struct {CompletedFiles int `json:"completedFiles"`; TotalFiles int `json:"totalFiles"`; SpeedBytes int `json:"speedBytes"`} {CompletedFiles: int(entries), TotalFiles: totalFiles, SpeedBytes: int(bytes-prevBytes)}
-		Broadcast("task", t.TaskId, "create_zip_progress", status)
+		status := struct {
+			CompletedFiles int `json:"completedFiles"`
+			TotalFiles     int `json:"totalFiles"`
+			SpeedBytes     int `json:"speedBytes"`
+		}{CompletedFiles: int(entries), TotalFiles: totalFiles, SpeedBytes: int(bytes - prevBytes)}
+		caster.PushTaskUpdate(t.TaskId, "create_zip_progress", status)
 
 		time.Sleep(time.Second)
 	}
@@ -122,7 +128,6 @@ func moveFile(t *task) {
 	}
 
 	destinationFolder := dataStore.FsTreeGet(moveMeta.DestinationFolderId)
-	preUpdateFile := file.Copy()
 	err := dataStore.FsTreeMove(file, destinationFolder, moveMeta.NewFilename, false)
 	if err != nil {
 		util.DisplayError(err)
@@ -130,6 +135,48 @@ func moveFile(t *task) {
 		return
 	}
 
-	PushItemUpdate(preUpdateFile, file)
+}
 
+func preloadThumbs(t *task) {
+	meta := t.metadata.(PreloadMetaMeta)
+	paths := util.Map(meta.Files, func(f *dataStore.WeblensFileDescriptor) string { return f.String() })
+
+	if len(paths) == 0 {
+		t.err = fmt.Errorf("failed to parse raw thumbnails, files slice is empty")
+		util.DisplayError(t.err.(error))
+		return
+	}
+
+	allPathsStr := strings.Join(util.Map(paths, func(path string) string { return fmt.Sprintf("\"%s\"", path) }), " ")
+	cmdString := fmt.Sprintf("exiftool -a -b -%s %s", meta.ExifThumbType, allPathsStr)
+	cmd := exec.Command("/bin/bash", "-c", cmdString)
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		util.Warning.Printf("Failed to bulk read thumbnails: %s %s", err, stderr.String())
+		return
+	}
+
+	thumbBytes := out.Bytes()
+
+	offset := 0
+	for _, file := range meta.Files {
+		m, err := file.GetMedia()
+		if err != nil {
+			util.DisplayError(err)
+			t.err = fmt.Errorf("failed to parse raw thumbnails, could not get media for %s", file.String())
+			return
+		}
+
+		thumbLen := int(m.QueryExif(fmt.Sprintf("%sLength", meta.ExifThumbType)).(float64))
+		m.DumpThumbBytes(thumbBytes[offset : offset+thumbLen])
+		offset += thumbLen
+
+	}
+	util.Debug.Println("Finished loading thumbs without error for", meta.Files[0].String())
 }

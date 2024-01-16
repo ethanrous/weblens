@@ -1,10 +1,11 @@
-package dataProcess
+package routes
 
 import (
 	"errors"
 	"fmt"
 	"sync"
 
+	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gorilla/websocket"
@@ -82,7 +83,7 @@ func (c *Client) updateFolderSubscription(folderId string, recursive bool) {
 func (c *Client) Subscribe(subType, subData any) (bool, string) {
 	switch subType {
 	case "folder": {
-		var meta FolderSubMetadata = subData.(FolderSubMetadata)
+		var meta dataProcess.FolderSubMetadata = subData.(dataProcess.FolderSubMetadata)
 
 		if meta.FolderId == "" {
 			panic(fmt.Errorf("empty folder id while trying to subscribe"))
@@ -95,14 +96,14 @@ func (c *Client) Subscribe(subType, subData any) (bool, string) {
 		c.updateFolderSubscription(folder.Id(), meta.Recursive)
 	}
 	case "task": {
-		var meta TaskSubMetadata = subData.(TaskSubMetadata)
+		meta := subData.(dataProcess.TaskSubMetadata)
 
-		task := GetTask(meta.TaskId)
+		task := dataProcess.GetTask(meta.TaskId)
 		if task == nil {
 			util.Warning.Println("Could not find task with ID ", meta.TaskId)
 			return false, ""
 		} else if task.Completed {
-			return true, task.result[meta.LookingFor[0]]
+			return true, task.Result(meta.LookingFor[0])
 		}
 
 		cmInstance.taskMu.Lock()

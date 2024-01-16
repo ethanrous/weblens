@@ -1,8 +1,13 @@
 package dataStore
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
+
+	"github.com/ethrousseau/weblens/api/util"
 )
 
 type mediaType struct {
@@ -11,20 +16,33 @@ type mediaType struct {
 	IsDisplayable bool
 	IsRaw bool
 	IsVideo bool
+	RawThumbExifKey string
 }
 
-var mediaTypeMap = map[string]mediaType {
-	"image/x-sony-arw": 	{FriendlyName: "Sony ARW", FileExtension: []string{"ARW"}, IsDisplayable: true, IsRaw: true, IsVideo: false},
-	"image/x-nikon-nef": 	{FriendlyName: "Nikon Raw", FileExtension: []string{"NEF"}, IsDisplayable: true, IsRaw: true, IsVideo: false},
-	"image/jpeg": 			{FriendlyName: "Jpeg", FileExtension: []string{"jpeg", "jpg"}, IsDisplayable: true, IsRaw: false, IsVideo: false},
-	"image/png": 			{FriendlyName: "Png", FileExtension: []string{"png"}, IsDisplayable: true, IsRaw: false, IsVideo: false},
-	"image/gif": 			{FriendlyName: "Gif", FileExtension: []string{"gif"},IsDisplayable: true, IsRaw: false,IsVideo: false},
-	"video/mp4": 			{FriendlyName: "MP4",FileExtension: []string{"MP4"},IsDisplayable: true,IsRaw: false,IsVideo: true},
-	"application/zip": 		{FriendlyName: "Zip",FileExtension: []string{"zip"},IsDisplayable: false, IsRaw: false, IsVideo: false},
-	"generic": 				{FriendlyName: "File", FileExtension: []string{}, IsDisplayable: false, IsRaw: false, IsVideo: false},
-}
-
+var mediaTypeMap = map[string]mediaType{}
 var displayableMap = map[string]mediaType{}
+
+func InitMediaTypeMaps() error {
+	typeJson, err := os.Open(filepath.Join(util.GetConfigDir(), "mediaType.json"))
+	if err != nil {
+		return err
+	}
+	defer typeJson.Close()
+
+	typesBytes, err := io.ReadAll(typeJson)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(typesBytes, &mediaTypeMap)
+	if err != nil {
+		return err
+	}
+
+	initDisplayMap()
+
+	return nil
+}
 
 func initDisplayMap() {
 	for _, mediaType := range mediaTypeMap {
@@ -43,9 +61,14 @@ func ParseMediaType(mimeType string) (mediaType, error) {
 }
 
 func (f *WeblensFileDescriptor) getMediaType() mediaType {
+	if f.media != nil && f.media.MediaType.FriendlyName != "" {
+		return f.media.MediaType
+	}
+
 	if len(displayableMap) == 0 {
 		initDisplayMap()
 	}
+
 	ext := filepath.Ext(f.Filename())
 	var mType mediaType
 	if ext == "" || displayableMap[ext[1:]].FriendlyName == "" {
@@ -53,9 +76,17 @@ func (f *WeblensFileDescriptor) getMediaType() mediaType {
 	} else {
 		mType = displayableMap[ext[1:]]
 	}
+	if f.media != nil {
+		f.media.MediaType = mType
+	}
 	return mType
 }
 
 func (f *WeblensFileDescriptor) IsDisplayable() bool {
+	// s, err := json.Marshal(mediaTypeMap)
+	// util.DisplayError(err)
+	// if s != nil {
+	// 	util.Debug.Println(string(s))
+	// }
 	return f.getMediaType().IsDisplayable
 }

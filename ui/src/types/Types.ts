@@ -81,11 +81,11 @@ export type FileBrowserTypes = {
 }
 
 export type FileBrowserStateType = {
-    dirMap: Map<string, itemData>
+    dirMap: Map<string, fileData>
     selected: Map<string, boolean>
     uploadMap: Map<string, boolean>
-    folderInfo: itemData,
-    parents: itemData[],
+    folderInfo: fileData,
+    parents: fileData[],
     draggingState: number
     loading: boolean
     presentingId: string
@@ -97,7 +97,7 @@ export type FileBrowserStateType = {
     hovering: string
 }
 
-export type itemData = {
+export type fileData = {
     id: string
     parentFolderId: string
     filename: string
@@ -107,5 +107,23 @@ export type itemData = {
     owner: string
     size: number
     visible: boolean
+    modifiable: boolean
     mediaData: MediaData
+}
+
+export const getBlankFile = () => {
+    const blank: fileData = {
+        id: "",
+        filename: "",
+        parentFolderId: "",
+        owner: "",
+        isDir: true,
+        imported: false,
+        modTime: new Date().toString(),
+        size: 0,
+        visible: true,
+        modifiable: false,
+        mediaData: null
+    }
+    return blank
 }

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AlbumData, MediaData, MediaStateType, itemData } from '../../types/Types'
+import { AlbumData, MediaData, MediaStateType, fileData } from '../../types/Types'
 import { notifications } from '@mantine/notifications'
 
 type galleryAction = {
@@ -10,7 +10,7 @@ type galleryAction = {
     include?: boolean
     block?: boolean
     itemId?: string
-    item?: itemData
+    item?: fileData
     progress?: number
     loading?: boolean
     search?: string

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { MediaData, itemData } from '../types/Types'
+import { MediaData, fileData } from '../types/Types'
 import { MediaImage } from './PhotoContainer'
 import { FlexColumnBox } from '../Pages/FileBrowser/FilebrowserStyles'
 import { Box, CloseButton } from '@mantine/core'
@@ -94,7 +94,7 @@ function handleTimeout(to, setTo, setGuiShown) {
     setTo(setTimeout(() => setGuiShown(false), 1000))
 }
 
-const Presentation = ({ mediaData, parents, dispatch }: { mediaData: MediaData, parents: itemData[], dispatch: React.Dispatch<any> }) => {
+const Presentation = ({ mediaData, parents, dispatch }: { mediaData: MediaData, parents: fileData[], dispatch: React.Dispatch<any> }) => {
     useKeyDown(mediaData, dispatch)
 
     const [to, setTo] = useState(null)

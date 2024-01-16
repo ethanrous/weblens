@@ -196,7 +196,7 @@ func RecoverPanic(preText ...any) {
 		formatString = ""
 		rest = []any{}
 	}
-	ErrorCatcher.Println(fmt.Sprintf(formatString, rest...), identifyPanic(), r)
+	ErrorCatcher.Println(fmt.Sprintf(formatString, Map(rest, func(a any) string {return a.(string)}) ), identifyPanic(), r)
 }
 
 func Map[T, V any](ts []T, fn func(T) V) []V {

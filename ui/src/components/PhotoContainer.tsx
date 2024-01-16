@@ -69,17 +69,27 @@ export function useIsVisible(root, ref, maintained: boolean = false, margin: num
 }
 
 function getImageData(url, filehash, authHeader, signal, setLoadErr) {
-    return fetch(url, { headers: authHeader, signal }).then(res => res.blob()).then((blob) => {
+    const res = fetch(url, { headers: authHeader, signal })
+    .then(res => {
+        if (res.status !== 200) {
+            return Promise.reject(res.statusText)
+        }
+        return res.blob()
+    })
+    .then(blob => {
         if (blob.length === 0) {
             Promise.reject("Empty blob")
         }
         return { data: URL.createObjectURL(blob), hash: filehash }
-    }).catch((r) => {
+    })
+    .catch((r) => {
         if (!signal.aborted) {
             console.error("Failed to get image from server:", r)
             setLoadErr(true)
         }
     })
+
+    return res
 }
 
 function getImageMeta(url, filehash, authHeader, signal, setLoadErr) {
@@ -184,7 +194,7 @@ export const MediaImage = ({
             if (!imgData && !thumbPromise) {
                 setThumbPromise(getImageData(thumbUrl, mediaId, authHeader, signal, setLoadErr))
             }
-            if (quality === "fullres" && loaded !== "fullres" && !fullresPromise) {
+            if (quality === "fullres" && loaded !== "fullres" && !fullresPromise && !imgMeta?.mediaType.IsVideo) {
                 setFullresPromise(getImageData(fullresUrl, mediaId, authHeader, signal, setLoadErr))
             }
         }
@@ -196,7 +206,7 @@ export const MediaImage = ({
                 setFullresPromise(null)
             }
         }
-    }, [mediaId, isVisible, quality, hashRef])
+    }, [hashRef.current, isVisible, quality])
 
     const sizer = useMemo(() => {
         if (!imgMeta) {
@@ -223,6 +233,10 @@ export const MediaImage = ({
                 src={imgData}
                 style={{ display: imgData && !loadError ? "" : "none", userSelect: 'none', minWidth: '100%', minHeight: '100%', ...sizer, ...imgStyle }}
             />
+
+            {quality === "fullres" && imgMeta?.mediaType.IsVideo && (
+                <video src="" controls/>
+            )}
 
             {isVisible && blurhash && lazy && !imgData && (
                 <Blurhash

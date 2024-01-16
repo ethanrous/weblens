@@ -3,7 +3,7 @@ import { useEffect, useState, memo, useRef, useCallback } from 'react'
 import { humanFileSize } from '../../util'
 import { CreateFolder, RenameFile } from '../../api/FileBrowserApi'
 import { FileItemWrapper, FlexColumnBox, FlexRowBox, ItemVisualComponentWrapper } from './FilebrowserStyles'
-import { itemData } from '../../types/Types'
+import { fileData } from '../../types/Types'
 
 import { MediaImage } from '../../components/PhotoContainer'
 import { IconFile, IconFileZip, IconFolder } from '@tabler/icons-react'
@@ -38,7 +38,7 @@ function useKeyDown(dispatch, editing, setEditing, parentId, itemId, newName, im
     }, [keyDownHandler])
 }
 
-const ItemVisualComponent = ({ itemData, root }: { itemData: itemData, root }) => {
+const ItemVisualComponent = ({ itemData, root }: { itemData: fileData, root }) => {
     const sqareSize = "75%"
     const type = itemData.mediaData?.mediaType.FriendlyName
     if (itemData.isDir) {
@@ -104,7 +104,7 @@ const TextBox = ({ filename, fileId, fileSize, editing, setEditing, renameVal, s
 }
 
 const Item = memo(({ itemData, selected, root, moveSelected, dragging, dispatch, authHeader }: {
-    itemData: itemData, selected: boolean, root, moveSelected: () => void, dragging: number, dispatch: any, authHeader: any
+    itemData: fileData, selected: boolean, root, moveSelected: () => void, dragging: number, dispatch: any, authHeader: any
 }) => {
     const [hovering, setHovering] = useState(false)
     const [editing, setEditing] = useState(false)
@@ -113,6 +113,12 @@ const Item = memo(({ itemData, selected, root, moveSelected, dragging, dispatch,
 
     const setEditingPlus = useCallback((b: boolean) => {setEditing(b); setRenameVal(cur => {if (cur === '') {return itemData.filename} else {return cur}}); dispatch({type: 'set_block_focus', block: b})}, [setEditing, dispatch])
     useKeyDown(dispatch, editing, setEditingPlus, itemData.parentFolderId, itemData.id, renameVal, itemData.imported, authHeader)
+
+    useEffect(() => {
+        if (itemData.id === "TEMPLATE_NEW_FOLDER") {
+            setEditingPlus(true)
+        }
+    }, [itemData.id, setEditingPlus])
 
     return (
         <FileItemWrapper

@@ -1,4 +1,4 @@
-import { itemData } from './types/Types'
+import { fileData } from './types/Types'
 
 export function humanFileSize(bytes, si = true, dp = 1) {
     const thresh = si ? 1000 : 1024;
@@ -24,7 +24,7 @@ export function humanFileSize(bytes, si = true, dp = 1) {
     return [bytes.toFixed(dp), units[u]];
 }
 
-export function dateFromItemData(itemData: itemData) {
+export function dateFromItemData(itemData: fileData) {
     var date = new Date(itemData.mediaData.createDate)
     if (date.getFullYear() === 0) {
         date = new Date(itemData.modTime)

@@ -111,7 +111,7 @@ func (m *Media) extractExif() error {
 
 func (m *Media) ComputeExif() (error) {
 	if m.rawExif == nil {
-		util.Warning.Println("Spawning lone exiftool for", FsTreeGet(m.FileId).absolutePath)
+		util.Warning.Println("Spawning lone exiftool for", FsTreeGet(m.FileId).String())
 		err := m.extractExif()
 		if err != nil {
 			return err
@@ -125,6 +125,9 @@ func (m *Media) ComputeExif() (error) {
 	}
 	if ok {
 		m.CreateDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
+		if err != nil {
+			m.CreateDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
+		}
 		if err != nil {
 			m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
 		}
@@ -149,6 +152,13 @@ func (m *Media) ComputeExif() (error) {
 	return nil
 }
 
+func (m *Media) QueryExif(lookupKey string) any {
+	if m.rawExif != nil {
+		return m.rawExif[lookupKey]
+	}
+	return ""
+}
+
 func (m *Media) DumpRawExif(rawExif map[string]any) {
 	m.rawExif = rawExif
 }
@@ -163,8 +173,8 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 		return nil, mFile.Err()
 	}
 
-	// escapedPath := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(mFile.String(), " ", "\\ "), "(", "\\("), ")", "\\)")
-	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw '%s' | exiftool -tagsfromfile '%s' -Orientation -", mFile.String(), mFile.String())
+	util.Warning.Println("Spawning lone exiftool for", m.FileHash)
+	cmdString := fmt.Sprintf("exiftool -a -b -%s \"%s\" | exiftool -tagsfromfile \"%s\" -Orientation -", m.MediaType.RawThumbExifKey, mFile.String(), mFile.String())
 	cmd := exec.Command("/bin/bash", "-c", cmdString)
 
 	var out bytes.Buffer
@@ -174,20 +184,13 @@ func (m *Media) rawImageReader() (io.Reader, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
-		util.FailOnError(err, "Failed to run exiftool extract command")
+		util.Error.Println("Failed running command: ", cmdString)
+		util.DisplayError(err)
+		return nil, err
 	}
 
 	r := bytes.NewReader(out.Bytes())
 
-	// i, err := imaging.Decode(r)
-	// util.FailOnError(err, "Failed to read exiftool jpeg output into image")
-
-	// buf := new(bytes.Buffer)
-	// err = jpeg.Encode(buf, i, nil)
-	// util.FailOnError(err, "Failed to convert image to jpeg")
-
-	// return buf, nil
 	return r, nil
 
 }
@@ -269,54 +272,52 @@ func (m *Media) ReadFullres(db *Weblensdb) ([]byte, error) {
 	return fullresBytes, nil
 }
 
-func (m *Media) getReadable() (io.Reader) {
-	var readable io.Reader
+func (m *Media) getReadable() (readable io.Reader, err error) {
 	if m.thumbBytes != nil {
 		readable = bytes.NewReader(m.thumbBytes)
+		return
 	} else if m.MediaType.IsRaw {
-		var err error
-		readable, err = m.rawImageReader()
-		util.FailOnError(err, "Failed to get readable raw proxy image")
+		return m.rawImageReader()
 	} else if m.MediaType.IsVideo {
-		var err error
-		readable, err = m.videoThumbnailReader()
-		util.FailOnError(err, "Failed to get readable video proxy image")
+		return m.videoThumbnailReader()
 	} else {
-		var err error
 		mFile := m.GetBackingFile()
-		util.FailOnError(mFile.Err(), "Failed to get generic media backing file")
-		readable, err = mFile.Read()
-		util.FailOnError(err, "Failed to get generic media readable")
+		if mFile == nil {
+			return nil, fmt.Errorf("Failed to get file to read")
+		}
+		return mFile.Read()
 	}
-
-	return readable
 }
 
-func (m *Media) readFileIntoImage() (image.Image) {
-	readable := m.getReadable()
+func (m *Media) readFileIntoImage() (i image.Image, err error) {
+	readable, err := m.getReadable()
+	if err != nil {return}
 
-	i, err := imaging.Decode(readable)
+	i, err = imaging.Decode(readable)
+	if err != nil {return}
 
-	util.FailOnError(err, "Failed to decode readable proxy image buffer")
-	if m.rawExif["Orientation"] == "Rotate 270 CW" {
-		i = imaging.Rotate90(i)
+	switch m.rawExif["Orientation"] {
+	case "Rotate 270 CW": i = imaging.Rotate90(i)
+	case "Rotate 90 CW": i = imaging.Rotate270(i)
 	}
 
-	return i
+	return
 }
 
-func (m *Media) GenerateFileHash(mFile *WeblensFileDescriptor) {
-	readable := m.getReadable()
+func (m *Media) GenerateFileHash(mFile *WeblensFileDescriptor) (err error) {
+	readable, err := m.getReadable()
+	if err != nil {return}
 
 	h := sha256.New()
 	if mFile.IsDisplayable() {
-		_, err := io.Copy(h, readable)
-		util.FailOnError(err, "Failed to copy readable image into hash")
+		_, err = io.Copy(h, readable)
+		if err != nil {return}
 	}
 
 	h.Write([]byte(mFile.String())) // Make exact same files in different locations have unique id's
-
 	m.FileHash = base64.URLEncoding.EncodeToString(h.Sum(nil))
+
+	return
 }
 
 func (m *Media) calculateThumbSize(i image.Image) {
@@ -350,20 +351,21 @@ func (m *Media) GenerateBlurhash(thumb *image.NRGBA) {
 	m.BlurHash, _ = blurhash.Encode(4, 3, thumb)
 }
 
-func (m *Media) GenerateThumbnail() (*image.NRGBA) {
-	i := m.readFileIntoImage()
+func (m *Media) GenerateThumbnail() (thumb *image.NRGBA, err error) {
+	i, err := m.readFileIntoImage()
+	if err != nil {return}
+
 	m.calculateThumbSize(i)
-	thumb := imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.Lanczos)
+	thumb = imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.Lanczos)
 
 	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
-	if err != nil {
-		util.Error.Fatal(err)
-	}
+	if err != nil {return}
+
 	thumbBytesBuf := new(bytes.Buffer)
 	webp.Encode(thumbBytesBuf, thumb, options)
 	m.Thumbnail64 = base64.StdEncoding.EncodeToString(thumbBytesBuf.Bytes())
 
-	return thumb
+	return thumb, nil
 }
 
 func (m *Media) GetBackingFile() *WeblensFileDescriptor {
@@ -373,7 +375,11 @@ func (m *Media) GetBackingFile() *WeblensFileDescriptor {
 
 func (m *Media) GetImage() image.Image {
 	if m.image == nil {
-		m.image = m.readFileIntoImage()
+		var err error
+		m.image, err = m.readFileIntoImage()
+		if err != nil {
+			util.DisplayError(err)
+		}
 	}
 
 	return m.image
