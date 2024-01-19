@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useCallback, useContext, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { API_WS_ENDPOINT } from './ApiEndpoint'
 import { userContext } from '../Context'
@@ -35,19 +35,25 @@ export default function useWeblensSocket() {
             notifications.show({ id: "wsdc", message: "Lost websocket connection, retrying...", autoClose: false })
         }
     })
-    let wsSend = (msg: string) => { console.log(JSON.stringify(JSON.parse(msg), undefined, 2)); sendMessage(msg) }
+    const wsSend = useCallback((action: string, content: any) => {
+        const msg = {
+            action: action,
+            content: JSON.stringify(content)
+        }
+        // console.log(JSON.stringify(msg, undefined, 2))
+        sendMessage(JSON.stringify(msg))
+    }, [sendMessage])
+
     return {
         wsSend, lastMessage, readyState
     }
 }
 
-export function dispatchSync(folderId: string, wsSend: (msg: string) => void, recursive: boolean, full: boolean) {
-    wsSend(JSON.stringify({
-        req: 'scan_directory',
-        content: {
+export function dispatchSync(folderId: string, wsSend: (action: string, content: any) => void, recursive: boolean, full: boolean) {
+    wsSend("scan_directory", {
             folderId: folderId,
             recursive: recursive,
             full: full
-        },
-    }))
+        }
+    )
 }

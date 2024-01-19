@@ -9,26 +9,17 @@ export function DeleteFile(fileId, authHeader) {
     fetch(url.toString(), { method: "DELETE", headers: authHeader })
 }
 
-export function ChangeOwner(updateHashes: string[], user: string, authHeader) {
-    const updateData = {
-        "owner": user,
-        "fileHashes": updateHashes
-    }
-    var url = new URL(`${API_ENDPOINT}/items`)
-    fetch(url.toString(), { method: "PUT", headers: authHeader, body: JSON.stringify(updateData) })
-}
-
 function getSharedWithMe(username, dispatch, authHeader) {
     let url = new URL(`${API_ENDPOINT}/share`)
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
-            let files = data.files?.map((val: fileData) => { return { itemId: val.id, updateInfo: val } })
+            let files = data.files?.map((val: fileData) => { return { fileId: val.id, updateInfo: val } })
             if (!files) {
                 files = []
             }
             dispatch({ type: 'set_folder_info', folderInfo: { id: "shared", filename: "Shared" } })
-            dispatch({ type: 'update_many', items: files, user: username })
+            dispatch({ type: 'update_many', files: files, user: username })
             dispatch({ type: "set_loading", loading: false })
         })
 }
@@ -38,7 +29,7 @@ function getMyTrash(username, dispatch, authHeader) {
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
-            let children = data.children?.map((val: fileData) => { return { itemId: val.id, updateInfo: val } })
+            let children = data.children?.map((val: fileData) => { return { fileId: val.id, updateInfo: val } })
             if (!children) {
                 children = []
             }
@@ -47,7 +38,7 @@ function getMyTrash(username, dispatch, authHeader) {
 
             data.self.filename = "Trash"
             dispatch({ type: 'set_folder_info', folderInfo: data.self })
-            dispatch({ type: 'update_many', items: children, user: username })
+            dispatch({ type: 'update_many', files: children, user: username })
             dispatch({ type: 'set_parents_info', parents: parents })
         })
 }
@@ -85,7 +76,7 @@ export function GetFolderData(folderId, username, dispatch, authHeader) {
             if (data.error) {
                 return Promise.reject(data.error)
             }
-            let children = data.children?.map((val: fileData) => { return { itemId: val.id, updateInfo: val } })
+            let children = data.children?.map((val: fileData) => { return { fileId: val.id, updateInfo: val } })
             if (!children) {
                 children = []
             }
@@ -96,7 +87,7 @@ export function GetFolderData(folderId, username, dispatch, authHeader) {
                 parents = data.parents.reverse()
             }
             dispatch({ type: 'set_folder_info', folderInfo: data.self })
-            dispatch({ type: 'update_many', items: children, user: username })
+            dispatch({ type: 'update_many', files: children, user: username })
             dispatch({ type: 'set_parents_info', parents: parents })
         })
 }
@@ -146,7 +137,7 @@ function downloadBlob(blob, filename) {
     return
 }
 
-export function downloadSingleItem(fileId: string, authHeader, dispatch, filename?: string, ext?: string) {
+export function downloadSingleFile(fileId: string, authHeader, dispatch, filename?: string, ext?: string) {
     const url = new URL(`${API_ENDPOINT}/download`)
     url.searchParams.append("fileId", fileId)
 
@@ -168,10 +159,10 @@ export function downloadSingleItem(fileId: string, authHeader, dispatch, filenam
         .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(notifId) })
 }
 
-export function requestZipCreate(items, authHeader) {
+export function requestZipCreate(fileIds, authHeader) {
     const url = new URL(`${API_ENDPOINT}/takeout`)
 
-    return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ fileIds: items }) })
+    return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ fileIds: fileIds }) })
         .then(async (res) => {
             if (res.status !== 200 && res.status !== 202) {
                 Promise.reject(res.statusText)

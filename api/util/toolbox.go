@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -24,20 +25,7 @@ func BoolFromString(input string, emptyIsFalse bool) bool {
 	}
 }
 
-func IntFromBool( input bool ) int {
-	if input {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-func SliceRemove(s []any, i int) []any {
-    s[i] = s[len(s)-1]
-    return s[:len(s)-1]
-}
-
-func FailOnError(err error, format string, fmtArgs... any) {
+func FailOnError(err error, format string, fmtArgs ...any) {
 	msg := fmt.Sprintf(format, fmtArgs...)
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
@@ -51,10 +39,10 @@ func FailOnError(err error, format string, fmtArgs... any) {
 	}
 }
 
-func DisplayError(err error, extras... string) {
-	msg := strings.Join(extras, " ")
+func DisplayError(err error, extras ...string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
+		msg := strings.Join(extras, " ")
 		if ok {
 			var trace []byte
 			runtime.Stack(trace, false)
@@ -65,7 +53,7 @@ func DisplayError(err error, extras... string) {
 	}
 }
 
-func Warn(err error, extras... string) {
+func Warn(err error, extras ...string) {
 	msg := strings.Join(extras, " ")
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
@@ -91,21 +79,21 @@ func FailOnNoError(err error, msg string) {
 }
 
 func DirSize(path string) (int64, error) {
-    var size int64
-    err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
-        if err != nil {
-            return err
-        }
-        if !info.IsDir() {
-            size += info.Size()
-        }
-        return err
-    })
-    return size, err
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
 }
 
 func bToMb(b uint64) uint64 {
-    return b / 1024 / 1024
+	return b / 1024 / 1024
 }
 
 func PrintMemUsage(contextTag string) {
@@ -120,7 +108,7 @@ func PrintMemUsage(contextTag string) {
 }
 
 // Set charLimit to 0 to disable
-func HashOfString(charLimit int, dataToHash... string) string {
+func HashOfString(charLimit int, dataToHash ...string) string {
 	h := sha256.New()
 
 	for _, s := range dataToHash {
@@ -196,109 +184,133 @@ func RecoverPanic(preText ...any) {
 		formatString = ""
 		rest = []any{}
 	}
-	ErrorCatcher.Println(fmt.Sprintf(formatString, Map(rest, func(a any) string {return a.(string)}) ), identifyPanic(), r)
+	ErrorCatcher.Println(fmt.Sprintf(formatString, Map(rest, func(a any) string { return a.(string) })), identifyPanic(), r)
+}
+
+// See Banish. Yoink is the same as Banish, but returns the value at i
+// in addition to the shortened slice
+func Yoink[T any](s []T, i int) ([]T, T) {
+	y := s[i]
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1], y
+}
+
+// Banish removes the element at index, i, from the slice, s, in place and in constant time.
+//
+// Banish returns a slice of length len(s) - 1. The order of s will be modified
+func Banish[T any](s []T, i int) []T {
+	s, _ = Yoink(s, i)
+	return s
 }
 
 func Map[T, V any](ts []T, fn func(T) V) []V {
-    result := make([]V, len(ts))
-    for i, t := range ts {
-        result[i] = fn(t)
-    }
-    return result
+	result := make([]V, len(ts))
+	for i, t := range ts {
+		result[i] = fn(t)
+	}
+	return result
 }
 
 func MapToSliceMutate[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
-    result := make([]V, len(tMap))
+	result := make([]V, len(tMap))
 	counter := 0
-    for t, x := range tMap {
+	for t, x := range tMap {
 		result[counter] = fn(t, x)
-        counter++
-    }
-    return result
+		counter++
+	}
+	return result
 }
 
+// Takes a generic map and returns a slice of the values
 func MapToSlicePure[T comparable, V any](tMap map[T]V) []V {
-    result := make([]V, len(tMap))
+	result := make([]V, len(tMap))
 	counter := 0
-    for _, v := range tMap {
+	for _, v := range tMap {
 		result[counter] = v
-        counter++
-    }
-    return result
+		counter++
+	}
+	return result
 }
 
 func MapToKeys[T comparable, V any](tMap map[T]V) []T {
-    result := make([]T, len(tMap))
+	result := make([]T, len(tMap))
 	counter := 0
-    for t := range tMap {
+	for t := range tMap {
 		result[counter] = t
-        counter++
-    }
-    return result
+		counter++
+	}
+	return result
 }
 
 func Filter[T any](ts []T, fn func(T) bool) []T {
-    var result []T
-    for _, t := range ts {
-        if fn(t) {
+	var result []T
+	for _, t := range ts {
+		if fn(t) {
 			result = append(result, t)
 		}
-    }
-    return result
+	}
+	return result
 }
 
 type lap struct {
-	tag string
+	tag  string
 	time time.Time
 }
 
 type Stopwatch struct {
+	name  string
 	start time.Time
-	laps []lap
-	stop time.Time
+	laps  []lap
+	stop  time.Time
 }
 
-func NewStopwatch() *Stopwatch {
-	return &Stopwatch{}
+func NewStopwatch(name string) *Stopwatch {
+	return &Stopwatch{name: name, start: time.Now()}
 }
 
-func (s *Stopwatch) Start() {
-	s.start = time.Now()
-}
-
-func (s *Stopwatch) Stop() {
+func (s *Stopwatch) Stop() time.Duration {
 	s.stop = time.Now()
+	return s.stop.Sub(s.start)
 }
 
-func (s *Stopwatch) Lap(tag... any) {
+func (s *Stopwatch) Lap(tag ...any) {
 	l := lap{
-		tag: fmt.Sprint(tag...),
+		tag:  fmt.Sprint(tag...),
 		time: time.Now(),
 	}
 	s.laps = append(s.laps, l)
 }
 
-func (s *Stopwatch) Results() {
-	var res string = "--- Stopwatch Results ---"
-
-	res = fmt.Sprintf("%s\n%s", res, fmt.Sprint("Started at ", s.start))
-
-	for i, l := range s.laps {
-		var sinceLast string
-		if i != 0 {
-			sinceLast = fmt.Sprintf("(%s since previous lap)", s.laps[i].time.Sub(s.laps[i - 1].time))
-		}
-
-		if l.tag != "" {
-			res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf("\t%s: %s since start %s", l.tag, l.time.Sub(s.start), sinceLast))
-		} else {
-			res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf("\tLap %d: %s since start %s", i, l.time.Sub(s.start), sinceLast))
-		}
-
+func (s *Stopwatch) PrintResults() {
+	if s.stop.Unix() < 0 {
+		Error.Println("Stopwatch cannot provide results before being stopped")
+		return
 	}
 
-	res = fmt.Sprintf("%s\n%s\n", res, fmt.Sprintf("Stopped %s after start", s.stop.Sub(s.start)))
+	var res string = fmt.Sprintf("--- %s Stopwatch ---", s.name)
 
-	fmt.Println(res)
+	if len(s.laps) != 0 {
+		longest := len(slices.MaxFunc(s.laps, func(a, b lap) int { return len(a.tag) - len(b.tag) }).tag)
+		lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since start)", longest+5)
+		for i, l := range s.laps {
+			var sinceLast time.Duration
+			if i != 0 {
+				sinceLast = s.laps[i].time.Sub(s.laps[i-1].time)
+			}
 
+			if l.tag != "" {
+				res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf(lapFmt, l.tag, sinceLast, l.time.Sub(s.start)))
+			}
+		}
+	}
+
+	fmt.Printf("%s\n%s\n", res, fmt.Sprintf("Stopped at %s", s.stop.Sub(s.start)))
+	// fmt.Println(res)
 }
+
+// func (s *Stopwatch) TotalTime() time.Duration {
+// 	if s.stop == time.Unix(0, 0) {
+// 		Error.Println("Stopwatch cannot provide results before being stopped")
+// 	}
+
+// }

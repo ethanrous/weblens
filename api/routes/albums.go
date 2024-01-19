@@ -14,12 +14,12 @@ import (
 )
 
 type albumUpdateData struct {
-	AddMedia []string `json:"newMedia"`
-	AddFolders []string `json:"newFolders"`
+	AddMedia    []string `json:"newMedia"`
+	AddFolders  []string `json:"newFolders"`
 	RemoveMedia []string `json:"removeMedia"`
-	Cover string `json:"cover"`
-	NewName string `json:"newName"`
-	Users []string	`json:"users"`
+	Cover       string   `json:"cover"`
+	NewName     string   `json:"newName"`
+	Users       []string `json:"users"`
 	RemoveUsers []string `json:"removeUsers"`
 }
 
@@ -98,7 +98,7 @@ func updateAlbum(ctx *gin.Context) {
 
 	ms := []string{}
 	if update.AddMedia != nil && len(update.AddMedia) != 0 {
-		ms := util.Filter(update.AddMedia, func(m string) bool {return m != ""})
+		ms := util.Filter(update.AddMedia, func(m string) bool { return m != "" })
 		if len(ms) == 0 {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
 			return
@@ -111,7 +111,7 @@ func updateAlbum(ctx *gin.Context) {
 				ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder id"})
 				return
 			}
-			d.RecursiveMap(func(f *dataStore.WeblensFileDescriptor) {
+			d.RecursiveMap(func(f *dataStore.WeblensFile) {
 				if !f.IsDir() {
 					m, err := f.GetMedia()
 					if err != nil {
@@ -219,7 +219,7 @@ func deleteAlbum(ctx *gin.Context) {
 	album, err := db.GetAlbum(albumId)
 
 	// err or user does not have access to this album, claim not found
-	if err != nil || (album.Owner != username && slices.Contains(album.SharedWith, username)){
+	if err != nil || (album.Owner != username && slices.Contains(album.SharedWith, username)) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}

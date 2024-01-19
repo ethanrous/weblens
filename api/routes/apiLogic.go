@@ -49,14 +49,8 @@ func getMediaBatch(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"Media": media})
 }
 
-func getMediaItem(ctx *gin.Context) {
-	fileHash := ctx.Param("filehash")
-	_, err := b64.URLEncoding.DecodeString(fileHash)
-	if err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		util.DisplayError(err, "Given filehash ("+fileHash+") is not base64 encoded")
-		return
-	}
+func getOneMedia(ctx *gin.Context) {
+	mediaId := ctx.Param("mediaId")
 
 	includeMeta := util.BoolFromString(ctx.Query("meta"), true)
 	includeThumbnail := util.BoolFromString(ctx.Query("thumbnail"), true)
@@ -73,11 +67,11 @@ func getMediaItem(ctx *gin.Context) {
 	}
 
 	db := dataStore.NewDB(ctx.GetString("username"))
-	m := db.GetMedia(fileHash, includeThumbnail)
+	m := db.GetMedia(mediaId, includeThumbnail)
 
 	filled, reason := m.IsFilledOut(!includeThumbnail)
 	if !filled {
-		util.Error.Printf("Failed to get [ %s ] from Database (missing %s)", fileHash, reason)
+		util.Error.Printf("Failed to get [ %s ] from Database (missing %s)", mediaId, reason)
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -99,18 +93,18 @@ func getMediaItem(ctx *gin.Context) {
 
 }
 
-type updateMediaItemsBody struct {
+type updateMediasBody struct {
 	Owner      string   `json:"owner"`
 	FileHashes []string `json:"fileHashes"`
 }
 
-func updateMediaItems(ctx *gin.Context) {
+func updateMedias(ctx *gin.Context) {
 	jsonData, err := io.ReadAll(ctx.Request.Body)
-	util.FailOnError(err, "Failed to read body of media item update")
+	util.FailOnError(err, "Failed to read body of media update")
 
-	var updateBody updateMediaItemsBody
+	var updateBody updateMediasBody
 	err = json.Unmarshal(jsonData, &updateBody)
-	util.FailOnError(err, "Failed to unmarshal body of media item update")
+	util.FailOnError(err, "Failed to unmarshal body of media update")
 
 	db := dataStore.NewDB(ctx.GetString("username"))
 	db.UpdateMediasByFilehash(updateBody.FileHashes, updateBody.Owner)
@@ -163,19 +157,19 @@ func streamVideo(ctx *gin.Context) {
 	//cmd.Wait()
 }
 
-func uploadItem(file *dataStore.WeblensFileDescriptor, item64, uploaderName string) error {
+func handleFileUpload(file *dataStore.WeblensFile, file64, uploaderName string) error {
 	if !file.Exists() {
 		conflictErr := fmt.Errorf("file (%s) does not exist for writing", file)
 		return conflictErr
 	}
 
-	index := strings.Index(item64, ",")
-	itemBytes, err := b64.StdEncoding.DecodeString(item64[index+1:])
+	index := strings.Index(file64, ",")
+	fileBytes, err := b64.StdEncoding.DecodeString(file64[index+1:])
 	if err != nil {
 		return err
 	}
 
-	err = file.Write(itemBytes)
+	err = file.Write(fileBytes)
 	if err != nil {
 		return err
 	}
@@ -223,7 +217,7 @@ func handleChunkedFileUpload(ctx *gin.Context) {
 		return
 	}
 
-	var tmpFile *dataStore.WeblensFileDescriptor
+	var tmpFile *dataStore.WeblensFile
 
 	if uploadId == "" {
 		tmpDir := dataStore.GetTmpDir()
@@ -325,14 +319,14 @@ func uploadFile(ctx *gin.Context) {
 	}
 
 	username := ctx.GetString("username")
-	err = uploadItem(file, fileMeta.File64, username)
+	err = handleFileUpload(file, fileMeta.File64, username)
 	if err != nil {
-		util.DisplayError(err, "Failed to upload item")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload item"})
+		util.DisplayError(err, "Failed to upload file")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 		return
 	}
 
-	dataStore.FsTreeInsert(file, parentFolder.Id())
+	dataStore.FsTreeInsert(file, parentFolder)
 
 	ctx.Status(http.StatusCreated)
 }
@@ -352,24 +346,20 @@ func makeDir(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.Id()})
 
-	Caster.PushItemCreate(newDir)
+	Caster.PushFileCreate(newDir)
 }
 
-func createUserHomeDir(username string) {
-	homeDir, err := dataStore.Touch(dataStore.GetMediaDir(), username, true)
-	util.DisplayError(err)
-
-	_, err = dataStore.Touch(homeDir, ".user_trash", true)
-	util.DisplayError(err)
-}
-
-func _getDirInfo(dir *dataStore.WeblensFileDescriptor, ctx *gin.Context) {
+func _getDirInfo(dir *dataStore.WeblensFile, ctx *gin.Context) {
 	username := ctx.GetString("username")
 
-	selfData, _ := dir.FormatFileInfo()
+	selfData, err := dir.FormatFileInfo()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, "Failed to get folder info")
+		return
+	}
 
 	filteredDirInfo := dir.GetChildrenInfo()
-	filteredDirInfo = util.Filter(filteredDirInfo, func(t dataStore.FileInfo) bool { return (t.Id != "R" && t.Filename != ".user_trash") })
+	filteredDirInfo = util.Filter(filteredDirInfo, func(t dataStore.FileInfo) bool { return t.Id != "R" })
 
 	parentsInfo := []dataStore.FileInfo{}
 	parent := dir.GetParent()
@@ -381,6 +371,7 @@ func _getDirInfo(dir *dataStore.WeblensFileDescriptor, ctx *gin.Context) {
 		parentInfo, err := parent.FormatFileInfo()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, "Failed to format parent file info")
+			return
 		}
 		parentsInfo = append(parentsInfo, parentInfo)
 		parent = parent.GetParent()
@@ -501,9 +492,6 @@ func updateFiles(ctx *gin.Context) {
 	wq.SignalAllQueued()
 	wq.Wait()
 
-	// postParent := arbFile.GetParent()
-
-	// Caster.PushItemUpdate(preParent, postParent)
 	ctx.Status(http.StatusOK)
 }
 
@@ -540,27 +528,27 @@ func trashFile(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-type takeoutItems struct {
+type takeoutFiles struct {
 	FileIds []string `json:"fileIds"`
 }
 
 func createTakeout(ctx *gin.Context) {
 	username := ctx.GetString("username")
 
-	var items takeoutItems
+	var takeoutRequest takeoutFiles
 	bodyData, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not read request body"})
 		return
 	}
 
-	err = json.Unmarshal(bodyData, &items)
+	err = json.Unmarshal(bodyData, &takeoutRequest)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Request body not in expected format"})
 		return
 	}
 
-	files := util.Map(items.FileIds, func(fileId string) *dataStore.WeblensFileDescriptor { return dataStore.FsTreeGet(fileId) })
+	files := util.Map(takeoutRequest.FileIds, func(fileId string) *dataStore.WeblensFile { return dataStore.FsTreeGet(fileId) })
 	for _, file := range files {
 		if file == nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Failed to find at least one file"})
@@ -568,8 +556,8 @@ func createTakeout(ctx *gin.Context) {
 		}
 	}
 
-	if len(files) == 1 && !files[0].IsDir() { // If we only have 1 item, and it is not a directory, we should have requested to just download that file
-		util.Warning.Println("Creating zip file with only 1 non-dir item")
+	if len(files) == 1 && !files[0].IsDir() { // If we only have 1 file, and it is not a directory, we should have requested to just download that file
+		util.Warning.Println("Creating zip file with only 1 non-dir file")
 	}
 
 	t := dataProcess.NewTask("create_zip", dataProcess.ZipMetadata{Files: files, Username: username})
@@ -689,7 +677,7 @@ func updateUser(ctx *gin.Context) {
 
 	db := dataStore.NewDB(ctx.GetString("username"))
 	db.ActivateUser(userToUpdate.Username)
-	createUserHomeDir(userToUpdate.Username)
+	dataStore.CreateUserHomeDir(userToUpdate.Username)
 
 	ctx.Status(http.StatusOK)
 }
@@ -744,7 +732,7 @@ func shareFiles(ctx *gin.Context) {
 		return
 	}
 
-	shareFiles := util.Map(shareData.Files, func(fileId string) *dataStore.WeblensFileDescriptor { return dataStore.FsTreeGet(fileId) })
+	shareFiles := util.Map(shareData.Files, func(fileId string) *dataStore.WeblensFile { return dataStore.FsTreeGet(fileId) })
 	err = db.ShareFiles(shareFiles, shareData.Users)
 	if err != nil {
 		util.DisplayError(err)
@@ -760,7 +748,7 @@ func getSharedFiles(ctx *gin.Context) {
 	db := dataStore.NewDB(username)
 	sharedList := db.GetSharedWith(username)
 
-	filesInfos := util.Map(sharedList, func(file *dataStore.WeblensFileDescriptor) dataStore.FileInfo {
+	filesInfos := util.Map(sharedList, func(file *dataStore.WeblensFile) dataStore.FileInfo {
 		fileInfo, _ := file.FormatFileInfo()
 		return fileInfo
 	})

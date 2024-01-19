@@ -3,18 +3,14 @@ import { Ref, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import WeblensLoader from './Loading'
 
-import { SendMessage } from 'react-use-websocket'
-
 import { userContext } from '../Context'
 import { ActionIcon, Box, Input, Space, Text, Tooltip } from '@mantine/core'
 import { IconFolder, IconLogout, IconPhoto, IconSearch, IconTools } from '@tabler/icons-react'
 import { FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 type HeaderBarProps = {
-    folderId: string
     searchContent: string
     dispatch: React.Dispatch<any>
-    wsSend: SendMessage
     page: string
     searchRef: Ref<any>
     loading: boolean
@@ -38,7 +34,7 @@ const SearchBox = ({ ...props }) => {
     )
 }
 
-const HeaderBar = ({ folderId, searchContent, dispatch, wsSend, page, searchRef, loading, progress }: HeaderBarProps) => {
+const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress }: HeaderBarProps) => {
     const { userInfo, clear } = useContext(userContext)
     const nav = useNavigate()
     const spacing = "8px"

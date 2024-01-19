@@ -16,10 +16,14 @@ import (
 
 func ScanFile(meta ScanMetadata) {
 	db := dataStore.NewDB("")
-	defer func() { meta.PartialMedia = nil }()
 	if meta.PartialMedia == nil {
-		m, _ := db.GetMediaByFile(meta.File, true)
-		meta.PartialMedia = &m
+		m, err := meta.File.GetMedia()
+		if err != nil {
+			util.DisplayError(err)
+			return
+		}
+
+		meta.PartialMedia = m
 	}
 	err := ProcessMediaFile(meta.File, meta.PartialMedia, db)
 	if err != nil {
@@ -41,8 +45,8 @@ func createZipFromPaths(t *task) {
 	filesInfoMap := map[string]os.FileInfo{}
 
 	util.Map(zipMeta.Files,
-		func(file *dataStore.WeblensFileDescriptor) error {
-			file.RecursiveMap(func(f *dataStore.WeblensFileDescriptor) {
+		func(file *dataStore.WeblensFile) error {
+			file.RecursiveMap(func(f *dataStore.WeblensFile) {
 				stat, err := os.Stat(f.String())
 				util.FailOnError(err, "Failed to stat file %s", f.String())
 				filesInfoMap[f.String()] = stat
@@ -139,7 +143,7 @@ func moveFile(t *task) {
 
 func preloadThumbs(t *task) {
 	meta := t.metadata.(PreloadMetaMeta)
-	paths := util.Map(meta.Files, func(f *dataStore.WeblensFileDescriptor) string { return f.String() })
+	paths := util.Map(meta.Files, func(f *dataStore.WeblensFile) string { return f.String() })
 
 	if len(paths) == 0 {
 		t.err = fmt.Errorf("failed to parse raw thumbnails, files slice is empty")
@@ -178,5 +182,5 @@ func preloadThumbs(t *task) {
 		offset += thumbLen
 
 	}
-	util.Debug.Println("Finished loading thumbs without error for", meta.Files[0].String())
+	util.Debug.Println("Finished loading thumbs without error for", meta.Files[0].GetParent().String())
 }

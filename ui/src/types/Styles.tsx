@@ -16,7 +16,7 @@ export const StyledLazyThumb = ({ mediaData, quality, lazy, root }: { mediaData:
     )
 }
 
-export const ItemsWrapper = ({ size = 300, gap = 20, reff, children, style }: { size?: number, gap?: number, reff?, children, style?: MantineStyleProp }) => {
+export const FilesWrapper = ({ size = 300, gap = 20, reff, children, style }: { size?: number, gap?: number, reff?, children, style?: MantineStyleProp }) => {
     const boxRef = useRef(null)
     // width
 

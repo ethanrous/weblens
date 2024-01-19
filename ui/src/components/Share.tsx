@@ -40,17 +40,17 @@ export function ShareInput({ valueSetCallback, initValues }: { valueSetCallback,
 
     const options = useMemo(() => {
         combobox.selectFirstOption()
-        return (userSearch || []).map((item) => (
-            <Combobox.Option value={item} key={item}>
-                {item}
+        return (userSearch || []).map((user) => (
+            <Combobox.Option value={user} key={user}>
+                {user}
             </Combobox.Option>
         ))
     }, [userSearch])
 
     const values = useMemo(() =>
-        value.map((item) => (
-            <Pill key={item} withRemoveButton onRemove={() => handleValueRemove(item)}>
-                {item}
+        value.map((user) => (
+            <Pill key={user} withRemoveButton onRemove={() => handleValueRemove(user)}>
+                {user}
             </Pill>
         )), [value])
 

@@ -2,20 +2,22 @@ package dataStore
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ethrousseau/weblens/api/util"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type mediaType struct {
-	FriendlyName string
-	FileExtension []string
-	IsDisplayable bool
-	IsRaw bool
-	IsVideo bool
+	FriendlyName    string
+	FileExtension   []string
+	IsDisplayable   bool
+	IsRaw           bool
+	IsVideo         bool
 	RawThumbExifKey string
 }
 
@@ -52,41 +54,49 @@ func initDisplayMap() {
 	}
 }
 
-func ParseMediaType(mimeType string) (mediaType, error) {
-	mediaType, ok := mediaTypeMap[mimeType]
+// Get a pointer to the weblens media type of a file given the mimeType
+func ParseMimeType(mimeType string) *mediaType {
+	mType, ok := mediaTypeMap[mimeType]
 	if !ok {
-		return mediaTypeMap["generic"], fmt.Errorf("unsupported filetype: %s, falling back to generic type", mimeType)
+		mType = mediaTypeMap["generic"]
+		return &mType
 	}
-	return mediaType, nil
+	return &mType
 }
 
-func (f *WeblensFileDescriptor) getMediaType() mediaType {
-	if f.media != nil && f.media.MediaType.FriendlyName != "" {
-		return f.media.MediaType
-	}
-
-	if len(displayableMap) == 0 {
-		initDisplayMap()
-	}
-
-	ext := filepath.Ext(f.Filename())
+// Get a pointer to the weblens media type of a file given the file extension
+func ParseExtType(ext string) *mediaType {
 	var mType mediaType
-	if ext == "" || displayableMap[ext[1:]].FriendlyName == "" {
+	if ext == "" || displayableMap[ext].FriendlyName == "" {
 		mType = mediaTypeMap["generic"]
 	} else {
-		mType = displayableMap[ext[1:]]
+		mType = displayableMap[ext]
 	}
-	if f.media != nil {
-		f.media.MediaType = mType
-	}
-	return mType
+	return &mType
 }
 
-func (f *WeblensFileDescriptor) IsDisplayable() bool {
-	// s, err := json.Marshal(mediaTypeMap)
-	// util.DisplayError(err)
-	// if s != nil {
-	// 	util.Debug.Println(string(s))
-	// }
-	return f.getMediaType().IsDisplayable
+// type DirNotAllowed error
+// type NoMedia error
+
+var DirNotAllowed = errors.New("directory not allowed")
+var NoMedia = errors.New("no media found")
+
+func (f *WeblensFile) IsDisplayable() (bool, error) {
+	if f.IsDir() {
+		return false, DirNotAllowed
+	}
+
+	m, err := f.GetMedia()
+	if err != nil && err != mongo.ErrNoDocuments {
+		util.DisplayError(err)
+		return false, err
+	}
+
+	if m != nil && m.MediaType != nil {
+		return m.MediaType.IsDisplayable, nil
+	}
+	err = NoMedia
+
+	mType := ParseExtType(f.Filename()[strings.Index(f.Filename(), ".")+1:])
+	return mType.IsDisplayable, err
 }

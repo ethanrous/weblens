@@ -46,7 +46,8 @@
     "image/x-nikon-nef": {
       "FriendlyName": "Nikon Raw",
       "FileExtension": [
-        "NEF"
+        "NEF",
+        "nef"
       ],
       "IsDisplayable": true,
       "IsRaw": true,

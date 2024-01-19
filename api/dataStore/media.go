@@ -22,26 +22,27 @@ import (
 )
 
 type Media struct {
-	FileHash		string					`bson:"fileHash" json:"fileHash"`
-	FileId		 	string 					`bson:"fileId" json:"fileId"`
-	MediaType		mediaType				`bson:"mediaType" json:"mediaType"`
-	BlurHash 		string 					`bson:"blurHash" json:"blurHash"`
-	Thumbnail64 	string		 			`bson:"thumbnail" json:"thumbnail64"`
-	MediaWidth 		int						`bson:"width" json:"mediaWidth"`
-	MediaHeight 	int 					`bson:"height" json:"mediaHeight"`
-	ThumbWidth 		int						`bson:"thumbWidth" json:"thumbWidth"`
-	ThumbHeight 	int 					`bson:"thumbHeight" json:"thumbHeight"`
-	CreateDate		time.Time				`bson:"createDate" json:"createDate"`
-	Owner			string					`bson:"owner" json:"owner"`
-	SharedWith		[]primitive.ObjectID	`bson:"sharedWith" json:"sharedWith"`
+	FileHash    string               `bson:"fileHash" json:"fileHash"`
+	FileId      string               `bson:"fileId" json:"fileId"`
+	MediaType   *mediaType           `bson:"mediaType" json:"mediaType"`
+	BlurHash    string               `bson:"blurHash" json:"blurHash"`
+	Thumbnail64 string               `bson:"thumbnail" json:"thumbnail64"`
+	MediaWidth  int                  `bson:"width" json:"mediaWidth"`
+	MediaHeight int                  `bson:"height" json:"mediaHeight"`
+	ThumbWidth  int                  `bson:"thumbWidth" json:"thumbWidth"`
+	ThumbHeight int                  `bson:"thumbHeight" json:"thumbHeight"`
+	CreateDate  time.Time            `bson:"createDate" json:"createDate"`
+	Owner       string               `bson:"owner" json:"owner"`
+	SharedWith  []primitive.ObjectID `bson:"sharedWith" json:"sharedWith"`
 
-	image 			image.Image
-	rawExif			map[string]any
-	thumbBytes		[]byte
+	image      image.Image
+	rawExif    map[string]any
+	thumbBytes []byte
+	imported   bool
 }
 
 func (m Media) MarshalBinary() ([]byte, error) {
-    return json.Marshal(m)
+	return json.Marshal(m)
 }
 
 func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
@@ -51,16 +52,15 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 	if m.FileId == "" {
 		return false, "file id"
 	}
-	if m.MediaType.FriendlyName == "" {
-		return false, "friendly name"
-	}
-
-	if (m.Owner == "") {
+	// if m.MediaType.FriendlyName == "" {
+	// 	return false, "friendly name"
+	// }
+	if m.Owner == "" {
 		return false, "owner"
 	}
 
 	// Visual media specific properties
-	if m.MediaType.IsDisplayable {
+	if m.MediaType != nil && m.MediaType.IsDisplayable {
 
 		if m.BlurHash == "" {
 			return false, "blurhash"
@@ -109,7 +109,7 @@ func (m *Media) extractExif() error {
 	return nil
 }
 
-func (m *Media) ComputeExif() (error) {
+func (m *Media) ComputeExif() error {
 	if m.rawExif == nil {
 		util.Warning.Println("Spawning lone exiftool for", FsTreeGet(m.FileId).String())
 		err := m.extractExif()
@@ -132,7 +132,7 @@ func (m *Media) ComputeExif() (error) {
 			m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
 		}
 	} else {
-		m.CreateDate, err = time.Unix(0, 0), nil
+		m.CreateDate, err = time.Unix(0, 1), nil
 	}
 	if err != nil {
 		return err
@@ -142,12 +142,11 @@ func (m *Media) ComputeExif() (error) {
 	if !ok {
 		mimeType = "generic"
 	}
-	m.MediaType, _ = ParseMediaType(mimeType)
+	m.MediaType = ParseMimeType(mimeType)
 
 	if !m.MediaType.IsDisplayable {
 		return nil
 	}
-
 
 	return nil
 }
@@ -248,7 +247,7 @@ func (m *Media) ReadFullres(db *Weblensdb) ([]byte, error) {
 		}
 	} else {
 		var err error
-		mFile:= m.GetBackingFile()
+		mFile := m.GetBackingFile()
 		if mFile.Err() != nil {
 			return nil, mFile.Err()
 		}
@@ -283,7 +282,7 @@ func (m *Media) getReadable() (readable io.Reader, err error) {
 	} else {
 		mFile := m.GetBackingFile()
 		if mFile == nil {
-			return nil, fmt.Errorf("Failed to get file to read")
+			return nil, fmt.Errorf("failed to get file to read")
 		}
 		return mFile.Read()
 	}
@@ -291,27 +290,38 @@ func (m *Media) getReadable() (readable io.Reader, err error) {
 
 func (m *Media) readFileIntoImage() (i image.Image, err error) {
 	readable, err := m.getReadable()
-	if err != nil {return}
+	if err != nil {
+		return
+	}
 
 	i, err = imaging.Decode(readable)
-	if err != nil {return}
+	if err != nil {
+		return
+	}
 
 	switch m.rawExif["Orientation"] {
-	case "Rotate 270 CW": i = imaging.Rotate90(i)
-	case "Rotate 90 CW": i = imaging.Rotate270(i)
+	case "Rotate 270 CW":
+		i = imaging.Rotate90(i)
+	case "Rotate 90 CW":
+		i = imaging.Rotate270(i)
 	}
 
 	return
 }
 
-func (m *Media) GenerateFileHash(mFile *WeblensFileDescriptor) (err error) {
+func (m *Media) GenerateFileHash(mFile *WeblensFile) (err error) {
 	readable, err := m.getReadable()
-	if err != nil {return}
+	if err != nil {
+		return
+	}
 
 	h := sha256.New()
-	if mFile.IsDisplayable() {
+	displayable, _ := mFile.IsDisplayable()
+	if displayable {
 		_, err = io.Copy(h, readable)
-		if err != nil {return}
+		if err != nil {
+			return
+		}
 	}
 
 	h.Write([]byte(mFile.String())) // Make exact same files in different locations have unique id's
@@ -353,13 +363,17 @@ func (m *Media) GenerateBlurhash(thumb *image.NRGBA) {
 
 func (m *Media) GenerateThumbnail() (thumb *image.NRGBA, err error) {
 	i, err := m.readFileIntoImage()
-	if err != nil {return}
+	if err != nil {
+		return
+	}
 
 	m.calculateThumbSize(i)
 	thumb = imaging.Thumbnail(i, m.ThumbWidth, m.ThumbHeight, imaging.Lanczos)
 
 	options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, 75)
-	if err != nil {return}
+	if err != nil {
+		return
+	}
 
 	thumbBytesBuf := new(bytes.Buffer)
 	webp.Encode(thumbBytesBuf, thumb, options)
@@ -368,7 +382,7 @@ func (m *Media) GenerateThumbnail() (thumb *image.NRGBA, err error) {
 	return thumb, nil
 }
 
-func (m *Media) GetBackingFile() *WeblensFileDescriptor {
+func (m *Media) GetBackingFile() *WeblensFile {
 	file := FsTreeGet(m.FileId)
 	return file
 }
@@ -389,4 +403,8 @@ func (m *Media) Clean() {
 	m.thumbBytes = nil
 	m.rawExif = nil
 	m.image = nil
+}
+
+func (m *Media) SetImported() {
+	m.imported = true
 }

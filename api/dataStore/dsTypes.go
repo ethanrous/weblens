@@ -2,6 +2,7 @@ package dataStore
 
 import (
 	"sync"
+	"time"
 
 	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -13,7 +14,7 @@ type Weblensdb struct {
 	accessor string
 }
 
-type WeblensFileDescriptor struct {
+type WeblensFile struct {
 	id           string
 	absolutePath string
 	filename     string
@@ -23,12 +24,12 @@ type WeblensFileDescriptor struct {
 	isDir        *bool
 	err          error
 	media        *Media
-	parent       *WeblensFileDescriptor
+	parent       *WeblensFile
 	childLock    *sync.Mutex
-	children     map[string]*WeblensFileDescriptor
+	children     map[string]*WeblensFile
 }
 
-type marshalableWFD struct {
+type marshalableWF struct {
 	Id             string
 	AbsolutePath   string
 	Filename       string
@@ -39,6 +40,29 @@ type marshalableWFD struct {
 	IsDir          bool
 }
 
+// Structure for safely sending file information to the client
+type FileInfo struct {
+	Id string `json:"id"`
+
+	// If the media has been loaded into the database, only if it should be.
+	// If media is not required to be imported, this will be set true
+	Imported bool `json:"imported"`
+
+	// If the content of the file can be displayed visually.
+	// Say the file is a jpg, mov, arw, etc. and not a zip,
+	// txt, doc etc.
+	Displayable bool `json:"displayable"`
+
+	IsDir          bool      `json:"isDir"`
+	Modifiable     bool      `json:"modifiable"`
+	Size           int64     `json:"size"`
+	ModTime        time.Time `json:"modTime"`
+	Filename       string    `json:"filename"`
+	ParentFolderId string    `json:"parentFolderId"`
+	MediaData      *Media    `json:"mediaData"`
+	Owner          string    `json:"owner"`
+}
+
 type folderData struct {
 	FolderId       string   `bson:"_id" json:"folderId"`
 	ParentFolderId string   `bson:"parentFolderId" json:"parentFolderId"`
@@ -46,6 +70,8 @@ type folderData struct {
 	SharedWith     []string `bson:"sharedWith" json:"sharedWith"`
 	// Owner string `bson:"owner" json:"owner"`
 }
+
+type alreadyExists error
 
 type AlbumData struct {
 	Id             string   `bson:"_id"`
@@ -68,14 +94,14 @@ type TaskerAgent interface {
 	//	- `recursive` : if true, scan all children of directory recursively
 	//
 	//	- `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-	ScanDirectory(directory *WeblensFileDescriptor, recursive, deep bool)
+	ScanDirectory(directory *WeblensFile, recursive, deep bool)
 }
 
 type BroadcasterAgent interface {
-	PushItemCreate(newFile *WeblensFileDescriptor)
-	PushItemUpdate(updatedFile *WeblensFileDescriptor)
-	PushItemMove(preMoveFile *WeblensFileDescriptor, postMoveFile *WeblensFileDescriptor)
-	PushItemDelete(deletedFile *WeblensFileDescriptor)
+	PushFileCreate(newFile *WeblensFile)
+	PushFileUpdate(updatedFile *WeblensFile)
+	PushFileMove(preMoveFile *WeblensFile, postMoveFile *WeblensFile)
+	PushFileDelete(deletedFile *WeblensFile)
 }
 
 // Tasker interface for queueing tasks in the task pool

@@ -84,7 +84,7 @@ func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) Media {
 	return i
 }
 
-func (db Weblensdb) GetMediaByFile(file *WeblensFileDescriptor, includeThumbnail bool) (m Media, err error) {
+func (db Weblensdb) GetMediaByFile(file *WeblensFile, includeThumbnail bool) (m *Media, err error) {
 	filter := bson.M{"fileId": file.Id()}
 
 	opts := options.FindOne()
@@ -93,12 +93,15 @@ func (db Weblensdb) GetMediaByFile(file *WeblensFileDescriptor, includeThumbnail
 	}
 
 	ret := db.mongo.Collection("media").FindOne(mongo_ctx, filter, opts)
-	if ret.Err() != nil {
-		return m, fmt.Errorf("failed to get media by filepath (%s): %s", file.Filename(), ret.Err())
+	err = ret.Err()
+	if err != nil {
+		return
 	}
 
-	ret.Decode(&m)
-	return m, nil
+	m = &Media{}
+	err = ret.Decode(m)
+	m.imported = true
+	return
 }
 
 func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, albums []string, raw, thumbnails bool) (res []Media, err error) {
@@ -327,7 +330,7 @@ func (db Weblensdb) UpdateMediasByFilehash(filehashes []string, newOwner string)
 
 // Processes necessary changes in database after moving a media file on the filesystem.
 // This must be called AFTER the file is moved, i.e. `destinationFile` must exist on the fs
-func (db Weblensdb) HandleMediaMove(oldFile, newFile *WeblensFileDescriptor) (err error) {
+func (db Weblensdb) HandleMediaMove(oldFile, newFile *WeblensFile) (err error) {
 	filter := bson.M{"fileId": oldFile.Id()}
 	update := bson.M{"$set": bson.M{"fileId": newFile.Id()}}
 
@@ -335,7 +338,7 @@ func (db Weblensdb) HandleMediaMove(oldFile, newFile *WeblensFileDescriptor) (er
 	return
 }
 
-func (db Weblensdb) RemoveMediaByFile(file *WeblensFileDescriptor) error {
+func (db Weblensdb) RemoveMediaByFile(file *WeblensFile) error {
 	filter := bson.M{"fileId": file.Id()}
 	_, err := db.mongo.Collection("media").DeleteOne(mongo_ctx, filter)
 	return err
@@ -502,7 +505,7 @@ func (db Weblensdb) SearchUsers(searchStr string) []string {
 	})
 }
 
-func (db Weblensdb) ShareFiles(files []*WeblensFileDescriptor, users []string) error {
+func (db Weblensdb) ShareFiles(files []*WeblensFile, users []string) error {
 	for _, file := range files {
 		filter := bson.M{"_id": file.Id()}
 		update := bson.M{"$addToSet": bson.M{"sharedWith": bson.M{"$each": users}}}
@@ -515,7 +518,7 @@ func (db Weblensdb) ShareFiles(files []*WeblensFileDescriptor, users []string) e
 	return nil
 }
 
-func (db Weblensdb) GetSharedWith(username string) []*WeblensFileDescriptor {
+func (db Weblensdb) GetSharedWith(username string) []*WeblensFile {
 	opts := options.Find().SetProjection(bson.M{"sharedWith": 0})
 	filter := bson.M{"sharedWith": username}
 	ret, err := db.mongo.Collection("folders").Find(mongo_ctx, filter, opts)
@@ -524,10 +527,10 @@ func (db Weblensdb) GetSharedWith(username string) []*WeblensFileDescriptor {
 	var files []folderData
 	ret.All(mongo_ctx, &files)
 
-	return util.Map(files, func(share folderData) *WeblensFileDescriptor { return FsTreeGet(share.FolderId) })
+	return util.Map(files, func(share folderData) *WeblensFile { return FsTreeGet(share.FolderId) })
 }
 
-func (db Weblensdb) getFileGuests(file *WeblensFileDescriptor) []string {
+func (db Weblensdb) getFileGuests(file *WeblensFile) []string {
 	filter := bson.M{"_id": file.Id()}
 	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
 
@@ -537,7 +540,18 @@ func (db Weblensdb) getFileGuests(file *WeblensFileDescriptor) []string {
 	return fd.SharedWith
 }
 
-func (db Weblensdb) writeFolder(folder *WeblensFileDescriptor) error {
+func (db Weblensdb) getAllFolders() (fs []folderData, err error) {
+	ret, err := db.mongo.Collection("folders").Find(mongo_ctx, bson.M{})
+	if err != nil {
+		util.DisplayError(err)
+		return
+	}
+
+	err = ret.All(mongo_ctx, &fs)
+	return
+}
+
+func (db Weblensdb) writeFolder(folder *WeblensFile) error {
 	opts := options.Update().SetUpsert(true)
 
 	filter := bson.M{"_id": folder.Id()}
@@ -551,7 +565,7 @@ func (db Weblensdb) writeFolder(folder *WeblensFileDescriptor) error {
 	return nil
 }
 
-func (db Weblensdb) deleteFolder(folder *WeblensFileDescriptor) error {
+func (db Weblensdb) deleteFolder(folder *WeblensFile) error {
 	filter := bson.M{"_id": folder.Id()}
 
 	_, err := db.mongo.Collection("folders").DeleteOne(mongo_ctx, filter)
@@ -560,42 +574,6 @@ func (db Weblensdb) deleteFolder(folder *WeblensFileDescriptor) error {
 		return err
 	}
 	return nil
-}
-
-func (db Weblensdb) importDirectory(dirPath string) (folderData, error) {
-	return folderData{}, nil
-
-	// relPath := GuaranteeRelativePath(dirPath)
-	// pathHash := util.HashOfString(8, relPath)
-
-	// fldr, err := db.getFolderByPath(relPath)
-	// if err == nil {
-	// 	return fldr, nil
-	// }
-
-	// parentPath := filepath.Dir(relPath)
-	// var parentId string
-	// if parentPath == "/" {
-	// 	parentId = "0"
-	// } else {
-	// 	parent, err := db.getFolderByPath(parentPath)
-	// 	if err != nil {
-	// 		parent, err = db.importDirectory(parentPath) // Recursively import directories if not found
-	// 		if err != nil {
-	// 			return folderData{}, err
-	// 		}
-	// 	}
-	// 	parentId = parent.FolderId
-	// }
-
-	// fldr = folderData{FolderId: pathHash, ParentId: parentId, Filename: filepath.Base(relPath)}
-
-	// _, err = db.mongo.Collection("folders").InsertOne(mongo_ctx, fldr)
-	// if err != nil {
-	// 	util.DisplayError(err, "Error importing directory to database")
-	// 	return fldr, err
-	// }
-	// return fldr, nil
 }
 
 func (db Weblensdb) getFolderById(folderId string) (f folderData) {

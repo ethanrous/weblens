@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -11,20 +12,7 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-type FileInfo struct {
-	Id             string    `json:"id"`
-	Imported       bool      `json:"imported"` // If the item has been loaded into the database, dictates if MediaData is set or not
-	IsDir          bool      `json:"isDir"`
-	Modifiable     bool      `json:"modifiable"`
-	Size           int64     `json:"size"`
-	ModTime        time.Time `json:"modTime"`
-	Filename       string    `json:"filename"`
-	ParentFolderId string    `json:"parentFolderId"`
-	MediaData      Media     `json:"mediaData"`
-	Owner          string    `json:"owner"`
-}
-
-var mediaRoot WeblensFileDescriptor = WeblensFileDescriptor{
+var mediaRoot WeblensFile = WeblensFile{
 	id:       "0",
 	filename: "MEDIA_ROOT",
 	owner:    "SYS",
@@ -33,10 +21,10 @@ var mediaRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	absolutePath: util.GetMediaRoot(),
 
 	childLock: &sync.Mutex{},
-	children:  map[string]*WeblensFileDescriptor{},
+	children:  map[string]*WeblensFile{},
 }
 
-var tmpRoot WeblensFileDescriptor = WeblensFileDescriptor{
+var tmpRoot WeblensFile = WeblensFile{
 	id:       "1",
 	filename: "TMP_ROOT",
 	owner:    "SYS",
@@ -45,22 +33,10 @@ var tmpRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	absolutePath: util.GetTmpDir(),
 
 	childLock: &sync.Mutex{},
-	children:  map[string]*WeblensFileDescriptor{},
+	children:  map[string]*WeblensFile{},
 }
 
-var trashRoot WeblensFileDescriptor = WeblensFileDescriptor{
-	id:       "2",
-	filename: "TRASH_ROOT",
-	owner:    "SYS",
-
-	isDir:        boolPointer(true),
-	absolutePath: util.GetTrashDir(),
-
-	childLock: &sync.Mutex{},
-	children:  map[string]*WeblensFileDescriptor{},
-}
-
-var takeoutRoot WeblensFileDescriptor = WeblensFileDescriptor{
+var takeoutRoot WeblensFile = WeblensFile{
 	id:       "3",
 	filename: "TAKEOUT_ROOT",
 	owner:    "SYS",
@@ -69,7 +45,59 @@ var takeoutRoot WeblensFileDescriptor = WeblensFileDescriptor{
 	absolutePath: util.GetTakeoutDir(),
 
 	childLock: &sync.Mutex{},
-	children:  map[string]*WeblensFileDescriptor{},
+	children:  map[string]*WeblensFile{},
+}
+
+// Initial loading of folders from the database on first read
+var initFolderIds []string
+
+// Initialize the filesystem.
+func FsInit() {
+	fileTree["0"] = &mediaRoot
+	fileTree["1"] = &tmpRoot
+	fileTree["2"] = &takeoutRoot
+
+	initFolders, err := fddb.getAllFolders()
+	if err != nil {
+		panic(err)
+	}
+	initFolderIds = util.Map(initFolders, func(f folderData) string { return f.FolderId })
+	slices.SortFunc(initFolderIds, strings.Compare)
+
+	users := fddb.GetUsers()
+
+	for _, user := range users {
+		homeDir, err := MkDir(&mediaRoot, user.Username)
+		if err != nil {
+			switch err.(type) {
+			case alreadyExists:
+			default:
+				{
+					panic(err)
+				}
+			}
+		}
+
+		_, err = MkDir(homeDir, ".user_trash")
+		if err != nil {
+			switch err.(type) {
+			case alreadyExists:
+			default:
+				{
+					panic(err)
+				}
+			}
+		}
+	}
+
+	// Dump initial folder slice
+	initFolderIds = nil
+
+	// Put the file tree into safty mode, it stays like this for the rest of runtime
+	safety = true
+
+	util.Debug.Println("Filesystem initialized without error")
+
 }
 
 // Take a (possibly) absolutePath (string), and return a path to the same location, relative to media root (from .env)
@@ -151,41 +179,6 @@ func ClearTakeoutDir() error {
 	return nil
 }
 
-func ImportHomeDirectories() error {
-	files, err := os.ReadDir(mediaRoot.absolutePath)
-	if err != nil {
-		return err
-	}
-	for _, file := range files {
-		if file.IsDir() {
-			dirPath := filepath.Join(mediaRoot.absolutePath, file.Name())
-			_, err := fddb.importDirectory(dirPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func getUserHomeDirectories() (homeDirs []*WeblensFileDescriptor, err error) {
-	files, err := os.ReadDir(mediaRoot.absolutePath)
-	if err != nil {
-		return
-	}
-	for _, homeDir := range files {
-		if !homeDir.IsDir() {
-			continue
-		}
-		tmpHomeDescriptor := WeblensFileDescriptor{}
-		tmpHomeDescriptor.absolutePath = filepath.Join(mediaRoot.absolutePath, homeDir.Name())
-		tmpHomeDescriptor.owner = homeDir.Name()
-		tmpHomeDescriptor.filename = homeDir.Name()
-		homeDirs = append(homeDirs, &tmpHomeDescriptor)
-	}
-	return
-}
-
 ///////////////////////////////
 
 var fddb *Weblensdb = NewDB("")
@@ -194,18 +187,29 @@ func boolPointer(b bool) *bool {
 	return &b
 }
 
-func GetUserHomeDir(username string) *WeblensFileDescriptor {
+func CreateUserHomeDir(username string) {
+	homeDir, err := MkDir(GetMediaDir(), username)
+	util.DisplayError(err)
+
+	_, err = MkDir(homeDir, ".user_trash")
+	util.DisplayError(err)
+}
+
+func GetUserHomeDir(username string) *WeblensFile {
 	homeDirHash := util.HashOfString(8, filepath.Join(GuaranteeRelativePath(mediaRoot.absolutePath), username))
-	return FsTreeGet(homeDirHash)
+	homeDir := FsTreeGet(homeDirHash)
+	return homeDir
 }
 
-func GetUserTrashDir(username string) *WeblensFileDescriptor {
-	trashDirHash := util.HashOfString(8, filepath.Join(GuaranteeRelativePath(mediaRoot.absolutePath), username, ".user_trash"))
-	return FsTreeGet(trashDirHash)
+func GetUserTrashDir(username string) *WeblensFile {
+	trashPath := filepath.Join(GuaranteeRelativePath(mediaRoot.absolutePath), username, ".user_trash")
+	trashDirHash := util.HashOfString(8, trashPath)
+	trash := FsTreeGet(trashDirHash)
+	return trash
 }
 
-func NewTakeoutZip(zipName string) (*WeblensFileDescriptor, bool, error) {
-	newZip := &WeblensFileDescriptor{}
+func NewTakeoutZip(zipName string) (*WeblensFile, bool, error) {
+	newZip := &WeblensFile{}
 
 	if !strings.HasSuffix(zipName, ".zip") {
 		zipName = zipName + ".zip"
@@ -216,7 +220,7 @@ func NewTakeoutZip(zipName string) (*WeblensFileDescriptor, bool, error) {
 		return newZip, true, nil
 	}
 
-	err := FsTreeInsert(newZip, takeoutRoot.Id())
+	err := FsTreeInsert(newZip, &takeoutRoot)
 	if err != nil {
 		return nil, false, err
 	}
@@ -224,19 +228,32 @@ func NewTakeoutZip(zipName string) (*WeblensFileDescriptor, bool, error) {
 	return newZip, false, nil
 }
 
-func MkDir(parentFolder *WeblensFileDescriptor, newDirName string) (*WeblensFileDescriptor, error) {
-	d := &WeblensFileDescriptor{}
+func MkDir(parentFolder *WeblensFile, newDirName string) (*WeblensFile, error) {
+	d := &WeblensFile{}
 	d.absolutePath = filepath.Join(parentFolder.absolutePath, newDirName)
 	d.isDir = boolPointer(true)
+
 	if d.Exists() {
-		return d, fmt.Errorf("trying create dir that already exists")
+		existsErr := fmt.Errorf("trying create dir that already exists").(alreadyExists)
+		existingFile := FsTreeGet(d.Id())
+
+		if existingFile == nil {
+			err := FsTreeInsert(d, parentFolder)
+			if err != nil {
+				return d, err
+			}
+			existingFile = d
+		}
+
+		return existingFile, existsErr
 	}
+
 	err := d.CreateSelf()
 	if err != nil {
 		return d, err
 	}
 
-	err = FsTreeInsert(d, parentFolder.Id())
+	err = FsTreeInsert(d, parentFolder)
 	if err != nil {
 		return d, err
 	}
@@ -244,12 +261,12 @@ func MkDir(parentFolder *WeblensFileDescriptor, newDirName string) (*WeblensFile
 	return d, nil
 }
 
-func Touch(parentFolder *WeblensFileDescriptor, newFileName string, insert bool) (*WeblensFileDescriptor, error) {
-	f := &WeblensFileDescriptor{}
+func Touch(parentFolder *WeblensFile, newFileName string, insert bool) (*WeblensFile, error) {
+	f := &WeblensFile{}
 	f.absolutePath = filepath.Join(parentFolder.absolutePath, newFileName)
 	f.isDir = boolPointer(false)
-	if f.Exists() {
-		return f, fmt.Errorf("trying create file that already exists")
+	if FsTreeGet(f.Id()) != nil || f.Exists() {
+		return f, fmt.Errorf("trying create file that already exists").(alreadyExists)
 	}
 
 	err := f.CreateSelf()
@@ -258,7 +275,7 @@ func Touch(parentFolder *WeblensFileDescriptor, newFileName string, insert bool)
 	}
 
 	if insert {
-		err = FsTreeInsert(f, parentFolder.Id())
+		err = FsTreeInsert(f, parentFolder)
 		if err != nil {
 			return f, err
 		}
@@ -267,7 +284,7 @@ func Touch(parentFolder *WeblensFileDescriptor, newFileName string, insert bool)
 	return f, nil
 }
 
-func MoveFileToTrash(file *WeblensFileDescriptor) error {
+func MoveFileToTrash(file *WeblensFile) error {
 	if !file.Exists() {
 		return fmt.Errorf("attempting to move a non-existant file to trash")
 	}
@@ -280,14 +297,15 @@ func MoveFileToTrash(file *WeblensFileDescriptor) error {
 	return nil
 }
 
-func PermenantlyDeleteFile(file *WeblensFileDescriptor) {
+// Removes file being pointed to from the tree and deletes it from the real filesystem
+func PermenantlyDeleteFile(file *WeblensFile) {
 	FsTreeRemove(file)
 }
 
-func GetTmpDir() *WeblensFileDescriptor {
+func GetTmpDir() *WeblensFile {
 	return &tmpRoot
 }
 
-func GetMediaDir() *WeblensFileDescriptor {
+func GetMediaDir() *WeblensFile {
 	return &mediaRoot
 }

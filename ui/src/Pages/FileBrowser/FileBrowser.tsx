@@ -12,15 +12,15 @@ import { Box, Button, Text, Space, FileButton, Paper, Card, Divider, Popover, Sc
 import Presentation from '../../components/Presentation'
 import HeaderBar from "../../components/HeaderBar"
 import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
-import { GetFileInfo, GetFolderData, ShareFiles } from '../../api/FileBrowserApi'
+import { GetFolderData, ShareFiles } from '../../api/FileBrowserApi'
 import { fileData, FileBrowserStateType, AlbumData } from '../../types/Types'
 import useWeblensSocket, { dispatchSync } from '../../api/Websocket'
-import { deleteSelected, GetDirItems, HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton } from './FileBrowserLogic'
+import { deleteSelected, GetDirFiles, HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton } from './FileBrowserLogic'
 import { DirViewWrapper, FlexColumnBox, FlexRowBox } from './FilebrowserStyles'
 import { userContext } from '../../Context'
 import UploadStatus, { useUploadStatus } from '../../components/UploadStatus'
 import { useDebouncedValue } from '@mantine/hooks'
-import { ItemsWrapper } from '../../types/Styles'
+import { FilesWrapper } from '../../types/Styles'
 import { AddMediaToAlbum, CreateAlbum, GetAlbums } from '../../api/GalleryApi'
 import { MediaImage } from '../../components/PhotoContainer'
 import { notifications } from '@mantine/notifications'
@@ -175,8 +175,8 @@ function AlbumScoller({ getSelected, authHeader }: {
 
 function selectedMediaIds(dirMap: Map<string, fileData>, selectedMap: Map<string, boolean>): string[] {
     let selectedObjs = Array.from(selectedMap.keys()).map((key) => {
-        const item: fileData = dirMap.get(key)
-        return item.mediaData.fileHash
+        const file: fileData = dirMap.get(key)
+        return file.mediaData.fileHash
     })
     selectedObjs = selectedObjs.filter((val) => {
         return val !== ""
@@ -186,9 +186,9 @@ function selectedMediaIds(dirMap: Map<string, fileData>, selectedMap: Map<string
 
 function selectedFolderIds(dirMap: Map<string, fileData>, selectedMap: Map<string, boolean>): string[] {
     let selectedObjs = Array.from(selectedMap.keys()).map((key) => {
-        const item: fileData = dirMap.get(key)
-        if (item.isDir) {
-            return item.id
+        const file: fileData = dirMap.get(key)
+        if (file.isDir) {
+            return file.id
         }
         return ""
     })
@@ -220,7 +220,7 @@ function ShareBox({ open, setOpen, fileIds, fetchFiles, dragging, numFilesIOwn }
     )
 }
 
-function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState: FileBrowserStateType, dispatch, wsSend, uploadDispatch }) {
+function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState: FileBrowserStateType, dispatch, wsSend: (action: string, content: any) => void, uploadDispatch }) {
     const nav = useNavigate()
     const { userInfo, authHeader } = useContext(userContext)
     const [sharing, setSharing] = useState(false)
@@ -229,7 +229,7 @@ function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState:
     const numFilesIOwn = useMemo(() => Array.from(fbState.selected.keys()).filter((key) => fbState.dirMap.get(key)?.owner === userInfo.username).length, [fbState.selected.size, fbState.dirMap, fbState.selected, userInfo?.username])
 
     return (
-        <FlexColumnBox style={{ marginLeft: "16px", marginTop: 125, width: 'max-content' }} >
+        <FlexColumnBox style={{ marginLeft: "16px", marginTop: 125, width: '200px' }} >
             <Button fullWidth variant={amHome ? 'light' : 'subtle'} color={'#4444ff'} m={3} disabled={fbState.draggingState !== 0} justify='flex-start' leftSection={<IconHome />} onClick={() => { nav('/files/home') }} >
                 My Files
             </Button>
@@ -265,7 +265,7 @@ function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState:
                 </Popover.Dropdown>
             </Popover>
 
-            <Button fullWidth variant='subtle' color='#eeeeee' m={3} disabled={fbState.draggingState !== 0 || fbState.selected.size === 0} justify='space-between' rightSection={<Text>{fbState.selected.size}</Text>} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(fbState.selected, fbState.dirMap, fbState.folderInfo.id, dispatch, wsSend, authHeader) }} >
+            <Button fullWidth variant='subtle' color='#eeeeee' m={3} disabled={fbState.draggingState !== 0 || fbState.selected.size === 0} justify='space-between' rightSection={<Text>{fbState.selected.size}</Text>} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(fbState.selected, fbState.dirMap, dispatch, wsSend, authHeader) }} >
                 Download
             </Button>
             <Space h={"md"} />
@@ -275,43 +275,34 @@ function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState:
 
             <Divider w={'100%'} my='lg' size={1.5}/>
 
-            <UsageInfo homeFolderId={userInfo?.homeFolderId} currentFolderSize={fbState.folderInfo.size} displayCurrent={fbState.folderInfo.id !== "shared"} authHeader={authHeader}/>
+            <UsageInfo homeDirSize={fbState.homeDirSize} currentFolderSize={fbState.folderInfo.size} displayCurrent={fbState.folderInfo.id !== "shared"} trashSize={fbState.folderInfo.id === userInfo.homeFolderId ? fbState.dirMap.get(userInfo.trashFolderId)?.size : 0}/>
         </FlexColumnBox>
     )
 }
 
-function UsageInfo({homeFolderId, currentFolderSize, displayCurrent, authHeader}) {
-
-    const [folderData, setFolderData]: [fileData, any] = useState(null)
-
-    useEffect(() => {
-        if (!homeFolderId || !authHeader) {return}
-        GetFileInfo(homeFolderId, authHeader).then(res => setFolderData(res))
-    }, [homeFolderId, authHeader])
-
-    if (!folderData) {
-        return null
-    }
-
+function UsageInfo({homeDirSize, currentFolderSize, displayCurrent, trashSize}) {
     if (!displayCurrent) {
-        currentFolderSize = folderData.size
+        currentFolderSize = homeDirSize
+    }
+    if (!trashSize) {
+        trashSize = 0
     }
 
     return (
-        <FlexColumnBox style={{height: 'max-content', width: '100%', alignItems: 'flex-start', marginLeft: 10}}>
-            <Text fw={600} style={{width: 'max-content'}}>Usage</Text>
+        <FlexColumnBox style={{height: 'max-content', width: '100%', alignItems: 'flex-start'}}>
+            <Text fw={600}>Usage</Text>
             <Space h={10}/>
-            <Progress radius={'xs'} color='#4444ff' value={(currentFolderSize/folderData.size) * 100} style={{height: 20, width: '100%'}}/>
+            <Progress radius={'xs'} color='#4444ff' value={((currentFolderSize - trashSize)/homeDirSize) * 100} style={{height: 20, width: '100%'}}/>
             <FlexRowBox>
                 {displayCurrent && (
                     <FlexRowBox>
-                        <IconFolder />
-                        <Text>{humanFileSize(currentFolderSize)}</Text>
+                        <IconFolder size={20} />
+                        <Text size='14px' pl={3}>{humanFileSize(currentFolderSize - trashSize)}</Text>
                     </FlexRowBox>
                 )}
                 <FlexRowBox style={{justifyContent: 'right'}}>
-                    <IconCloud />
-                    <Text>{humanFileSize(folderData.size)}</Text>
+                    <Text size='14px' pr={3}>{humanFileSize(homeDirSize)}</Text>
+                    <IconCloud size={20} />
                 </FlexRowBox>
             </FlexRowBox>
         </FlexColumnBox>
@@ -339,14 +330,14 @@ function DraggingCounter({ dragging, numSelected, dispatch }) {
 }
 
 function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }:
-    { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }) {
+    { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend: (action: string, content: any) => void, uploadDispatch, authHeader }) {
     const gridRef = useRef(null)
     const {userInfo} = useContext(userContext)
     const nav = useNavigate()
     const [debouncedSearch] = useDebouncedValue(filebrowserState.searchContent, 200)
 
-    const { items, scanRequired } = useMemo(() => {
-        return GetDirItems(filebrowserState, userInfo, dispatch, authHeader, gridRef)
+    const { files, scanRequired } = useMemo(() => {
+        return GetDirFiles(filebrowserState, userInfo, dispatch, authHeader, gridRef)
     }, [debouncedSearch, filebrowserState, dispatch, authHeader, gridRef])
 
     useEffect(() => {
@@ -359,11 +350,11 @@ function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScann
         )
     }
 
-    if (items.length !== 0) {
+    if (files.length !== 0) {
         return (
-            <ItemsWrapper reff={gridRef}>
-                {items}
-            </ItemsWrapper>
+            <FilesWrapper reff={gridRef}>
+                {files}
+            </FilesWrapper>
         )
     } else if (!filebrowserState.loading && folderId !== "shared") {
         return (
@@ -437,14 +428,15 @@ const FileBrowser = () => {
         folderInfo: {},
         parents: [],
         draggingState: 0,
-        loading: true,
+        scanProgress: 0,
+        homeDirSize: 0,
         presentingId: "",
         searchContent: "",
-        scanProgress: 0,
-        holdingShift: false,
-        blockFocus: false,
         lastSelected: "",
         hovering: "",
+        loading: true,
+        holdingShift: false,
+        blockFocus: false,
     })
 
     useKeyDown(filebrowserState.blockFocus, dispatch, searchRef)
@@ -454,6 +446,8 @@ const FileBrowser = () => {
         if (userInfo) {
             if (folderId === "home") {
                 realId = userInfo.homeFolderId
+            } else if (folderId === "trash") {
+                realId = userInfo.trashFolderId
             } else {
                 realId = folderId
             }
@@ -461,21 +455,42 @@ const FileBrowser = () => {
         return realId
     }, [folderId, userInfo])
 
+    // Subscribe to the current folder to get updates about size, children, etc.
     useEffect(() => {
         if (readyState === 1 && realId != null && realId !== "shared") {
+            if (filebrowserState.folderInfo.id !== realId) {
+                return
+            }
             if (realId === "trash") {
-                wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: userInfo.trashFolderId, recursive: false }, error: null }))
+                wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.trashFolderId, subscribeMeta: JSON.stringify({recursive: false}) })
+                return (
+                    () => wsSend("unsubscribe", { subscribeKey: userInfo.trashFolderId })
+                )
             } else {
-                wsSend(JSON.stringify({ req: "subscribe", content: { subType: "folder", folderId: realId, recursive: false }, error: null }))
+                wsSend("subscribe", { subscribeType: "folder", subscribeKey: realId, subscribeMeta: JSON.stringify({recursive: false}) })
+                return (
+                    () => wsSend("unsubscribe", { subscribeKey: realId })
+                )
             }
         }
-    }, [readyState, realId])
+    }, [readyState, filebrowserState.folderInfo.id, realId, userInfo?.trashFolderId, wsSend])
+
+    // Subscribe to the home folder even if we aren't in it, to be able to update the total disk usage
+    useEffect(() => {
+        if (!userInfo || userInfo.homeFolderId === realId) {
+            return
+        }
+        wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.homeFolderId, subscribeMeta: JSON.stringify({recursive: false}) })
+        return (
+            () => wsSend("unsubscribe", { subscribeKey: userInfo.homeFolderId })
+        )
+    }, [userInfo, userInfo?.homeFolderId, realId, wsSend])
 
     useEffect(() => {
         if (!userInfo) {
             return
         }
-        HandleWebsocketMessage(lastMessage, userInfo.username, dispatch, authHeader)
+        HandleWebsocketMessage(lastMessage, userInfo, dispatch, authHeader)
     }, [lastMessage, userInfo, authHeader])
 
     useEffect(() => {
@@ -487,7 +502,7 @@ const FileBrowser = () => {
         }
         // Kinda just reset everything...
         setAlreadyScanned(false)
-        dispatch({ type: "clear_items" })
+        dispatch({ type: "clear_files" })
         dispatch({ type: "set_search", search: "" })
         dispatch({ type: "set_scan_progress", progress: 0 })
         dispatch({ type: "set_loading", loading: true })
@@ -504,7 +519,7 @@ const FileBrowser = () => {
     }, [folderId, userInfo, authHeader, navigate, realId])
 
     const moveSelectedTo = useCallback(folderId => {moveSelected(filebrowserState.selected, folderId, authHeader); dispatch({type: 'clear_selected'})}, [filebrowserState.selected.size, authHeader])
-    const doScan = useCallback(() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(realId, wsSend, true, filebrowserState.holdingShift) }, [realId, wsSend, filebrowserState.holdingShift])
+    const doScan = useCallback(() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(realId, wsSend, filebrowserState.holdingShift, filebrowserState.holdingShift) }, [realId, wsSend, filebrowserState.holdingShift])
 
     if (!userInfo) {
         return null
@@ -513,10 +528,8 @@ const FileBrowser = () => {
     return (
         <FlexColumnBox style={{ height: '100vh', backgroundColor: "#111418" }} >
             <HeaderBar
-                folderId={folderId}
                 searchContent={filebrowserState.searchContent}
                 dispatch={dispatch}
-                wsSend={wsSend}
                 page={"files"}
                 searchRef={searchRef}
                 loading={filebrowserState.loading}
@@ -534,7 +547,7 @@ const FileBrowser = () => {
                     hoverTarget={filebrowserState.hovering}
                     onDrop={(e => HandleDrop(e.dataTransfer.items, realId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch, wsSend) )}
                     dispatch={dispatch}
-                    onMouseOver={() => dispatch({ type: 'set_hovering', itempath: "" })}
+                    onMouseOver={() => dispatch({ type: 'set_hovering', filepath: "" })}
                 >
                     <FlexRowBox style={{height: 78}}>
                         {realId !== "shared" && realId !== "trash" && (
@@ -547,7 +560,7 @@ const FileBrowser = () => {
                         {(realId === "shared" || realId === "trash") && (
                             <Space w={35}/>
                         )}
-                        <Crumbs finalItem={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={moveSelectedTo} />
+                        <Crumbs finalFile={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={moveSelectedTo} />
                     </FlexRowBox>
                     <Files filebrowserState={filebrowserState} folderId={realId} notFound={notFound} setNotFound={setNotFound} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
             </DirViewWrapper>

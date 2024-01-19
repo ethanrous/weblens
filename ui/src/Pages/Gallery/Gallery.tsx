@@ -311,7 +311,7 @@ const Gallery = () => {
 
     return (
         <Box>
-            <HeaderBar folderId={"home"} searchContent={mediaState.searchContent} dispatch={dispatch} wsSend={wsSend} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
+            <HeaderBar searchContent={mediaState.searchContent} dispatch={dispatch} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
             <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} parents={null} dispatch={dispatch} />
             <FlexRowBox style={{ height: "100vh", paddingTop: "70px", alignItems: 'normal' }}>
                 <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} />

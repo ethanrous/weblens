@@ -28,23 +28,27 @@ func taskWorkerPoolStatus() {
 	}
 }
 
-func verifyTaskTracker() {
+func VerifyTaskTracker() *taskTracker {
 	if ttInstance.taskMap == nil {
 		ttInstance.taskMap = map[string]*task{}
 		wp, wq := NewWorkerPool(runtime.NumCPU() - 1)
 		ttInstance.wp = wp
 		ttInstance.globalQueue = wq
-
-		ttInstance.wp.Run()
 		go taskWorkerPoolStatus()
 	}
+	return &ttInstance
+}
+
+func (tt *taskTracker) EnableWP() {
+	tt.wp.Enable()
+	tt.wp.Run()
 }
 
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
 
 func NewTask(taskType string, taskMeta any) *task {
-	verifyTaskTracker()
+	VerifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
 	util.FailOnError(err, "Failed to marshal task metadata when queuing new task")
@@ -156,7 +160,6 @@ func QueueGlobalTask(t *task) {
 }
 
 func NewWorkQueue() *virtualTaskPool {
-	verifyTaskTracker()
 	wq := ttInstance.wp.NewVirtualTaskQueue()
 	return wq
 }
@@ -165,7 +168,7 @@ func NewWorkQueue() *virtualTaskPool {
 //   - `directory` : the weblens file descriptor representing the directory to scan
 //   - `recursive` : if true, scan all children of directory recursively
 //   - `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFileDescriptor, recursive, deep bool) {
+func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, recursive, deep bool) {
 	// Partial media means nothing for a directory scan, so it's always nil
 	scanMeta := ScanMetadata{File: directory, Recursive: recursive, DeepScan: deep}
 	t := NewTask("scan_directory", scanMeta)

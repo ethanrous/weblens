@@ -146,7 +146,7 @@ async function singleUploadPromise(uploadMeta: fileUploadMetadata, authHeader, u
     }
 }
 
-async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, uploadDispatch, dispatch, wsSend) {
+async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, uploadDispatch, dispatch, wsSend: (action: string, content: any) => void) {
     let uploads: (() => Promise<any>)[] = []
 
     let tlds: string[] = []
@@ -157,7 +157,6 @@ async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, u
         if (meta.isTopLevel) {
             uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name })
             if (meta.isDir) {
-                console.log("TLD!")
                 tlds.push(meta.folderId)
             }
             tlf = tlf || !meta.isDir
@@ -178,7 +177,6 @@ async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, u
     }
 
     for (const tld of tlds) {
-        console.log("Dispatching post-upload directory sync")
         dispatchSync(tld, wsSend, true, false)
     }
 }

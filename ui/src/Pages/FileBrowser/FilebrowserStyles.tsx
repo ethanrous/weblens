@@ -1,9 +1,10 @@
 import { Box, Card, MantineStyleProp, AspectRatio, Paper, Text } from '@mantine/core'
-import { Dispatch, useMemo, useRef, useState } from "react"
+import { Dispatch, useContext, useMemo, useRef, useState } from "react"
 import { HandleDrag } from "./FileBrowserLogic"
 import { fileData } from "../../types/Types"
 import { useNavigate } from "react-router-dom"
 import { IconFolder, IconFolderCancel } from "@tabler/icons-react"
+import { userContext } from '../../Context'
 
 export const FlexColumnBox = ({ children, style, reff, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur }: { children?, style?: MantineStyleProp, reff?, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?}) => {
     return (
@@ -59,9 +60,10 @@ type DirViewWrapperProps = {
 }
 
 export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
+    const {userInfo} = useContext(userContext)
 
     const dropAllowed = useMemo(() => {
-        return !(folderId === "shared" || folderId === "trash")
+        return !(folderId === "shared" || folderId === userInfo.trashFolderId)
     }, [folderId])
 
     const blockFolderRef: React.Ref<HTMLDivElement> = useRef()
@@ -78,7 +80,7 @@ export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDro
             {dragging === 2 && (
                 <Paper
                     // This is overly complicated because if we don't check this, when you drag over the red folder, the screen flickers as it registers as a "onDragLeave" event
-                    onDragLeave={event => {if (event.target instanceof Element && blockFolderRef.current.contains(event.target)) {return}; HandleDrag(event, dispatch, dragging) }}
+                    onDragLeave={event => {if (event.target instanceof Element && blockFolderRef.current?.contains(event.target)) {return}; HandleDrag(event, dispatch, dragging) }}
                     style={{
                         zIndex: 2,
                         bottom: "10px",
@@ -123,7 +125,7 @@ export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDro
     )
 }
 
-export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { itemRef: any, itemData: fileData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
+export const FileWrapper = ({ fileRef, fileData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { fileRef: any, fileData: fileData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
     const [mouseDown, setMouseDown] = useState(false)
     const navigate = useNavigate()
 
@@ -144,22 +146,22 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
     }, [selected, hovering, dragging, isDir])
 
     return (
-        <Box draggable={false} ref={itemRef}>
+        <Box draggable={false} ref={fileRef}>
             <Card
                 {...children}
                 draggable={false}
-                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_selected', itemId: itemData.id }) }}
-                onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', itemId: itemData.id }) }}
+                onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_selected', fileId: fileData.id }) }}
+                onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', fileId: fileData.id }) }}
                 onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
                 onMouseDown={() => { setMouseDown(true) }}
-                onDoubleClick={(e) => { e.stopPropagation(); if (itemData.isDir) { navigate(itemData.id) } else if (itemData.mediaData.mediaType.IsDisplayable) { dispatch({ type: 'set_presentation', itemId: itemData.id }) } }}
+                onDoubleClick={(e) => { e.stopPropagation(); if (fileData.isDir) { navigate(fileData.id) } }}
                 onContextMenu={(e) => { e.preventDefault() }}
                 onMouseLeave={() => {
                     setHovering(false)
-                    if (!itemData.imported && !itemData.isDir) { return }
+                    if (!fileData.imported && !fileData.isDir) { return }
                     if (!selected && mouseDown) { dispatch({ type: "clear_selected" }) }
                     if (mouseDown) {
-                        dispatch({ type: 'set_selected', itemId: itemData.id, selected: true })
+                        dispatch({ type: 'set_selected', fileId: fileData.id, selected: true })
                         dispatch({ type: 'set_dragging', dragging: true })
                         setMouseDown(false)
                     }
@@ -192,7 +194,7 @@ export const FileItemWrapper = ({ itemRef, itemData, dispatch, hovering, setHove
     )
 }
 
-export const ItemVisualComponentWrapper = ({ children }) => {
+export const FileVisualWrapper = ({ children }) => {
     return (
         <AspectRatio ratio={1} w={"94%"} display={'flex'} m={'6px'}>
             <Box children={children} style={{ overflow: 'hidden', borderRadius: '5px' }} />

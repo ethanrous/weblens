@@ -133,11 +133,11 @@ export const MediaImage = ({
     const abortController = new AbortController();
     const signal = abortController.signal;
 
-    const metaUrl = new URL(`${API_ENDPOINT}/item/${mediaId}`)
+    const metaUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
     metaUrl.searchParams.append("meta", "true")
-    const thumbUrl = new URL(`${API_ENDPOINT}/item/${mediaId}`)
+    const thumbUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
     thumbUrl.searchParams.append("thumbnail", "true")
-    const fullresUrl = new URL(`${API_ENDPOINT}/item/${mediaId}`)
+    const fullresUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
     fullresUrl.searchParams.append("fullres", "true")
 
     useEffect(() => {
@@ -185,7 +185,7 @@ export const MediaImage = ({
         if (!isVisible) {
             return
         }
-        if (hashRef.current === "") {
+        if (!hashRef.current) {
             setLoadErr(true)
         } else {
             if (!imgMeta && !metaPromise) {

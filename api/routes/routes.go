@@ -84,9 +84,9 @@ func AddApiRoutes(r *gin.Engine) {
 	api.Use(WeblensAuth(false, false))
 
 	api.GET("/media", getMediaBatch)
-	api.GET("/item/:filehash", getMediaItem)
-	api.PUT("/items", updateMediaItems)
-	api.GET("/stream/:filehash", streamVideo)
+	api.GET("/media/:mediaId", getOneMedia)
+	api.PUT("/media", updateMedias)
+	api.GET("/stream/:mediaId", streamVideo)
 
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)

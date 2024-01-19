@@ -1,9 +1,8 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { FlexColumnBox, FlexRowBox, ItemVisualComponentWrapper } from "../FileBrowser/FilebrowserStyles"
+import { FileVisualWrapper, FlexColumnBox, FlexRowBox} from "../FileBrowser/FilebrowserStyles"
 import { MediaImage } from "../../components/PhotoContainer"
 import { Box, Button, Card, Menu, Popover, ScrollArea, Space, Text, TextInput, Tooltip, TooltipFloating } from "@mantine/core"
 import { DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum, RenameAlbum, SetAlbumCover, ShareAlbum } from "../../api/GalleryApi"
-import { ItemsWrapper } from "../../types/Styles"
 import { IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react"
 import { AlbumData, MediaData, MediaStateType } from "../../types/Types"
 import { userContext } from "../../Context"
@@ -13,6 +12,7 @@ import { notifications } from "@mantine/notifications"
 import { IconUsersGroup } from "@tabler/icons-react"
 import { ShareInput } from "../../components/Share"
 import NotFound from "../../components/NotFound"
+import { FilesWrapper } from "../../types/Styles"
 
 function ShareBox({ open, setOpen, pos, albumId, sharedWith, fetchAlbums }: { open: boolean, setOpen, pos: { x: number, y: number }, albumId, sharedWith, fetchAlbums }) {
     const { authHeader } = useContext(userContext)
@@ -96,9 +96,9 @@ function AlbumPreviewCard({ albumData, fetchAlbums, dispatch }: { albumData: Alb
                 onMouseLeave={() => setHovering(false)}
                 style={{ display: 'flex', height: '100%', width: '100%', position: "relative", padding: 0, cursor: 'pointer', backgroundColor: hovering ? '#333333' : '#222222', alignItems: 'center' }}
             >
-                <ItemVisualComponentWrapper >
+                <FileVisualWrapper >
                     <MediaImage mediaId={albumData.Cover} quality='thumbnail' lazy={true} containerStyle={{ overflow: 'hidden', borderRadius: '6px' }} />
-                </ItemVisualComponentWrapper>
+                </FileVisualWrapper>
 
                 {/* <FlexRowBox onClick={(e) => { e.stopPropagation(); setEditing(true) }} style={{ justifyContent: 'space-between', width: '85%', cursor: 'text', height: '36px' }}> */}
                 {!editing && (
@@ -306,9 +306,9 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
         )
     } else {
         return (
-            <ItemsWrapper size={300} style={{ paddingLeft: 25, paddingRight: 25 }}>
+            <FilesWrapper size={300} style={{ paddingLeft: 25, paddingRight: 25 }}>
                 {albumItems}
-            </ItemsWrapper>
+            </FilesWrapper>
         )
     }
 }

@@ -97,7 +97,7 @@ const Admin = () => {
 
     return (
         <Box>
-            <HeaderBar folderId={"home"} searchContent="" dispatch={() => { }} wsSend={() => { }} page={"admin"} searchRef={null} loading={false} progress={0} />
+            <HeaderBar searchContent="" dispatch={() => { }} page={"admin"} searchRef={null} loading={false} progress={0} />
             <FlexColumnBox style={{ height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
                 <FlexRowBox style={{justifyContent: 'center', height: 'max-content'}}>
                     <CreateUserBox setAllUsersInfo={setAllUsersInfo} authHeader={authHeader} />

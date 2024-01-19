@@ -91,6 +91,7 @@ export type FileBrowserStateType = {
     presentingId: string
     searchContent: string
     scanProgress: number
+    homeDirSize: number
     holdingShift: boolean
     blockFocus: boolean
     lastSelected: string
@@ -99,31 +100,35 @@ export type FileBrowserStateType = {
 
 export type fileData = {
     id: string
-    parentFolderId: string
-    filename: string
-    isDir: boolean
     imported: boolean
-    modTime: string
-    owner: string
-    size: number
-    visible: boolean
+    displayable: boolean
+    isDir: boolean
     modifiable: boolean
+    size: number
+    modTime: string
+    filename: string
+    parentFolderId: string
     mediaData: MediaData
+    owner: string
+
+    visible: boolean
 }
 
 export const getBlankFile = () => {
     const blank: fileData = {
         id: "",
+        imported: false,
+        displayable: false,
+        isDir: false,
+        modifiable: false,
+        size: 0,
+        modTime: new Date().toString(),
         filename: "",
         parentFolderId: "",
+        mediaData: null,
         owner: "",
-        isDir: true,
-        imported: false,
-        modTime: new Date().toString(),
-        size: 0,
-        visible: true,
-        modifiable: false,
-        mediaData: null
+
+        visible: false,
     }
     return blank
 }

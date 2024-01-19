@@ -33,7 +33,7 @@ type WorkerPool struct {
 	exitFlag            int
 }
 
-func NewWorkerPool(workerCount int) (WorkerPool, *virtualTaskPool) {
+func NewWorkerPool(workerCount int) (*WorkerPool, *virtualTaskPool) {
 	if workerCount == 0 {
 		workerCount = 1
 	}
@@ -43,13 +43,13 @@ func NewWorkerPool(workerCount int) (WorkerPool, *virtualTaskPool) {
 	var startingWorkers atomic.Int64
 	var totalTasks atomic.Int64
 
-	newWp := WorkerPool{
+	newWp := &WorkerPool{
 		maxWorker:           workerCount,
 		currentWorkers:      &startingWorkers,
 		taskStream:          make(workChannel, workerCount*1000),
 		busyCount:           &busyCount,
 		lifetimeQueuedCount: &totalTasks,
-		exitFlag:            0,
+		exitFlag:            1,
 	}
 
 	globalPool := newWp.NewVirtualTaskQueue()
@@ -69,6 +69,10 @@ func workerRecover(task *task, workerId int64) {
 func saftyWork(task *task, workerId int64) {
 	defer workerRecover(task, workerId)
 	task.work()
+}
+
+func (wp *WorkerPool) Enable() {
+	wp.exitFlag = 0
 }
 
 func (wp *WorkerPool) Run() {
@@ -134,6 +138,9 @@ func (wp *WorkerPool) Close() {
 }
 
 func (wq *virtualTaskPool) QueueTask(t *task) {
+	if wq.parentWorkerPool.exitFlag == 1 {
+		return
+	}
 	if t.queue != nil {
 		// Task is already queued, so we don't need to re-add to the queue
 		if t.queue != wq {

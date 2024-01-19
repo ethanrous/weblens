@@ -9,7 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media, db *dataStore.Weblensdb) (err error) {
+func ProcessMediaFile(file *dataStore.WeblensFile, m *dataStore.Media, db *dataStore.Weblensdb) (err error) {
 	defer util.RecoverPanic("Panic caught while processing media file %s", file.String())
 
 	if m == nil {
@@ -27,15 +27,15 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media,
 
 	m.FileId = file.Id()
 
-	if m.MediaType.FriendlyName == "" {
+	if m.MediaType == nil {
 		err := m.ComputeExif()
 		util.FailOnError(err, "Failed to extract exif data")
 	}
 
 	m.FileHash = util.HashOfString(8, file.String())
 	// Files that are not "media" (jpeg, png, mov, etc.) should not be stored in the media database
-	if !m.MediaType.IsDisplayable {
-		// PushItemCreate(file)
+	if m.MediaType == nil || !m.MediaType.IsDisplayable {
+		caster.PushFileUpdate(file)
 		return
 	}
 
@@ -53,11 +53,11 @@ func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media,
 	}
 
 	db.DbAddMedia(m)
+	m.SetImported()
 	file.SetMedia(m)
 
-	// PushItemCreate(file)
-
-	return nil
+	caster.PushFileUpdate(file)
+	return
 }
 
 func scanDirectory(t *task) {
@@ -72,10 +72,8 @@ func scanDirectory(t *task) {
 	recursive := meta.Recursive
 	deepScan := meta.DeepScan
 
-	util.Info.Printf("Beginning directory scan (recursive: %t, deep: %t): %s\n", recursive, deepScan, scanDir.String())
-
-	mediaToScan := []*dataStore.WeblensFileDescriptor{}
-	dirsToScan := []*dataStore.WeblensFileDescriptor{}
+	mediaToScan := []*dataStore.WeblensFile{}
+	dirsToScan := []*dataStore.WeblensFile{}
 
 	if deepScan {
 		scanDir.ReadDir()
@@ -84,7 +82,8 @@ func scanDirectory(t *task) {
 	children := scanDir.GetChildren()
 	for _, c := range children {
 		if !c.IsDir() {
-			if m, _ := c.GetMedia(); m == nil && c.IsDisplayable() {
+			displayable, err := c.IsDisplayable()
+			if displayable == true && errors.Is(err, dataStore.NoMedia) {
 				mediaToScan = append(mediaToScan, c)
 			}
 		} else if recursive && c != scanDir {
@@ -99,9 +98,11 @@ func scanDirectory(t *task) {
 
 	if len(mediaToScan) == 0 {
 		t.BroadcastComplete("scan_complete")
-		util.Info.Printf("No media to scan: %s", scanDir.String())
+		util.Debug.Printf("No media to scan: %s", scanDir.String())
 		return
 	}
+
+	util.Info.Printf("Beginning directory scan for %s [M %d][R %t][D %t]\n", scanDir.String(), len(mediaToScan), recursive, deepScan)
 
 	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"))
 	if err != nil {
@@ -109,7 +110,7 @@ func scanDirectory(t *task) {
 		t.err = err
 	}
 
-	paths := util.Map(mediaToScan, func(f *dataStore.WeblensFileDescriptor) string { return f.String() })
+	paths := util.Map(mediaToScan, func(f *dataStore.WeblensFile) string { return f.String() })
 	allMetadata := et.ExtractMetadata(paths...)
 	for i, file := range mediaToScan {
 		newMedia := &dataStore.Media{}
@@ -121,7 +122,7 @@ func scanDirectory(t *task) {
 	wq := NewWorkQueue()
 
 	start := time.Now()
-	jpgFromRaws := util.Filter(mediaToScan, func(f *dataStore.WeblensFileDescriptor) bool {
+	jpgFromRaws := util.Filter(mediaToScan, func(f *dataStore.WeblensFile) bool {
 		if m, err := f.GetMedia(); err != nil {
 			util.DisplayError(err)
 			return false
@@ -135,7 +136,7 @@ func scanDirectory(t *task) {
 		wq.QueueTask(jpgFromRawsTask)
 	}
 
-	previewImages := util.Filter(mediaToScan, func(f *dataStore.WeblensFileDescriptor) bool {
+	previewImages := util.Filter(mediaToScan, func(f *dataStore.WeblensFile) bool {
 		if m, err := f.GetMedia(); err != nil {
 			util.DisplayError(err)
 			return false

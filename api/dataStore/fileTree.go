@@ -5,69 +5,64 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-var fileTree = map[string]*WeblensFileDescriptor{}
+var fileTree = map[string]*WeblensFile{}
 var fsTreeLock = &sync.Mutex{}
 
-func FsInit() {
-	fileTree["0"] = &mediaRoot
-	fileTree["1"] = &tmpRoot
-	fileTree["2"] = &trashRoot
-	fileTree["3"] = &takeoutRoot
+// Disables certain actions if we know we can batch them for later
+// Mainly just for init of the fs, then is disabled for the rest of runtime
+var safety bool = false
 
-	homeDirs, err := getUserHomeDirectories()
-	if err != nil {
-		panic(err)
-	}
-	for _, homeDir := range homeDirs {
-		homeDir.id = util.HashOfString(8, GuaranteeRelativePath(homeDir.absolutePath))
-		if err := FsTreeInsert(homeDir, "0"); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func FsTreeInsert(f *WeblensFileDescriptor, parentId string) error {
+func FsTreeInsert(f, parent *WeblensFile) error {
 	if f.Id() == "" || f.absolutePath == "" {
 		return fmt.Errorf("not inserting file with empty file id: %s", f.absolutePath)
 	}
+
 	fsTreeLock.Lock()
 	if fileTree[f.id] != nil {
 		fsTreeLock.Unlock()
-		return fmt.Errorf("key collision on attempt to insert to filesystem tree: %s", f.id)
+		return fmt.Errorf("key collision on attempt to insert to filesystem tree: %s", f.id).(alreadyExists)
 	}
 	fileTree[f.id] = f
 	fsTreeLock.Unlock()
-	f.parent = FsTreeGet(parentId)
-	f.parent.AddChild(f)
+
+	f.parent = parent
+	parent.AddChild(f)
 
 	if f.IsDir() {
-		fddb.writeFolder(f)
-		f.GetChildren()
-	}
-
-	if !f.IsDir() {
-		f.GetParent().BubbleMap(func(file *WeblensFileDescriptor) {
-			size, err := f.Size()
-			if err != nil {
-				util.DisplayError(err)
-				return
+		if safety {
+			fddb.writeFolder(f)
+		} else {
+			f.ReadDir()
+			if _, b := slices.BinarySearchFunc(initFolderIds, f.Id(), strings.Compare); !b {
+				fddb.writeFolder(f)
 			}
-
-			file.size = file.size + size
-			caster.PushItemUpdate(file)
-		})
+		}
+		if !f.Exists() {
+			util.Warning.Println("Creating directory that doesn't exist during insert to file tree")
+			err := f.CreateSelf()
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	caster.PushItemCreate(f)
+	caster.PushFileCreate(f)
+	if safety {
+		resize(f.GetParent())
+	}
+
+	util.Debug.Println("Inserted file", f.String())
 	return nil
 }
 
-func FsTreeRemove(f *WeblensFileDescriptor) {
+func FsTreeRemove(f *WeblensFile) {
 	fsTreeLock.Lock()
 	if fileTree[f.Id()] == nil {
 		fsTreeLock.Unlock()
@@ -78,50 +73,47 @@ func FsTreeRemove(f *WeblensFileDescriptor) {
 
 	f.GetParent().removeChild(f.Id())
 
-	f.RecursiveMap(func(file *WeblensFileDescriptor) {
-		if file.IsDir() {
-			fddb.deleteFolder(file)
-		} else if file.IsDisplayable() {
+	f.RecursiveMap(func(file *WeblensFile) {
+		displayable, err := file.IsDisplayable()
+		if displayable && err == nil {
 			fddb.RemoveMediaByFile(file)
+		} else if errors.Is(err, DirNotAllowed) {
+			fddb.deleteFolder(file)
 		}
+
 		fsTreeLock.Lock()
 		delete(fileTree, file.Id())
 		fsTreeLock.Unlock()
-		// util.Debug.Printf("Inner removed %s", file.String())
 	})
 
 	err := os.RemoveAll(f.absolutePath)
 	if err != nil {
 		util.DisplayError(err)
-	} else {
-		util.Info.Printf("Removed %s from tree", f.absolutePath)
 	}
 
-	f.GetParent().BubbleMap(func(file *WeblensFileDescriptor) {
-		file.recompSize()
-	})
+	caster.PushFileDelete(f)
+	resize(f.GetParent())
 
-	caster.PushItemDelete(f)
-	tasker.ScanDirectory(f.parent, false, true)
+	util.Debug.Println("Removed file", f.String())
 }
 
-func FsTreeGet(wfdId string) (f *WeblensFileDescriptor) {
+func FsTreeGet(fileId string) (f *WeblensFile) {
 	fsTreeLock.Lock()
-	f = fileTree[wfdId]
+	f = fileTree[fileId]
 	fsTreeLock.Unlock()
 
 	if f == nil {
-		folder := fddb.getFolderById(wfdId)
+		folder := fddb.getFolderById(fileId)
 		if folder.FolderId == "" {
 			return
 		}
-		f = wfdInitFromFolderData(folder)
+		f = wfInitFromFolderData(folder)
 		f.GetChildren()
 	}
 	return
 }
 
-func FsTreeMove(f, newParent *WeblensFileDescriptor, newFilename string, overwrite bool) error {
+func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool) error {
 	if !newParent.IsDir() {
 		return errors.New("cannot move file to a non-directory")
 	}
@@ -146,41 +138,46 @@ func FsTreeMove(f, newParent *WeblensFileDescriptor, newFilename string, overwri
 	if !f.Exists() || !newParent.Exists() {
 		return fmt.Errorf("file or parent does not exist while trying to move")
 	}
-	fileSize, err := f.Size()
-	if err != nil {
-		return err
-	}
 
 	// Point of no return
-
-	f.parent.removeChild(f.Id())
-	err = os.Rename(f.String(), newAbsPath)
+	err := os.Rename(f.String(), newAbsPath)
 	if err != nil {
 		// This really shouldn't happen, but anything is possible
 		util.DisplayError(err)
 		return err
 	}
 
-	f.GetParent().BubbleMap(func(w *WeblensFileDescriptor) {
-		w.size -= fileSize
-		caster.PushItemUpdate(w)
-	})
+	oldParent := f.GetParent()
 
-	f.parent = newParent
+	// Overwrite filename
 	f.filename = newFilename
-	f.RecursiveMap(func(w *WeblensFileDescriptor) {
+
+	// Sync database and file tree with new move, including f and all of its children.
+	f.RecursiveMap(func(w *WeblensFile) {
 		preFile := w.Copy()
+
+		if f == w {
+			w.parent = newParent
+		}
 
 		if w.IsDir() {
 			fddb.deleteFolder(w)
 		}
 
+		preFile.GetParent().removeChild(w.Id())
+
 		fsTreeLock.Lock()
 		delete(fileTree, w.Id())
+		fsTreeLock.Unlock()
+
 		w.id = ""
 		w.absolutePath = filepath.Join(w.GetParent().absolutePath, w.Filename())
+
+		fsTreeLock.Lock()
 		fileTree[w.Id()] = w
 		fsTreeLock.Unlock()
+
+		w.GetParent().AddChild(w)
 
 		if w.IsDir() {
 			fddb.writeFolder(w)
@@ -188,31 +185,47 @@ func FsTreeMove(f, newParent *WeblensFileDescriptor, newFilename string, overwri
 			fddb.HandleMediaMove(preFile, w)
 		}
 
-		caster.PushItemMove(preFile, w)
+		caster.PushFileMove(preFile, w)
 	})
 
-	f.GetParent().BubbleMap(func(w *WeblensFileDescriptor) {
-		w.size += fileSize
-		caster.PushItemUpdate(w)
-	})
-
-	f.GetParent().AddChild(f)
+	resizeMultiple(oldParent, f.GetParent())
 
 	return nil
 }
 
-func wfdInitFromFolderData(fd folderData) *WeblensFileDescriptor {
-	f := WeblensFileDescriptor{}
+func wfInitFromFolderData(fd folderData) *WeblensFile {
+	f := WeblensFile{}
 	f.id = fd.FolderId
 	f.absolutePath = GuaranteeAbsolutePath(fd.RelPath)
 
 	f.childLock = &sync.Mutex{}
-	f.children = map[string]*WeblensFileDescriptor{}
-	FsTreeInsert(&f, fd.ParentFolderId)
+	f.children = map[string]*WeblensFile{}
+	parent := FsTreeGet(fd.ParentFolderId)
+	FsTreeInsert(&f, parent)
 
 	return &f
 }
 
 func GetTreeSize() int {
 	return len(fileTree)
+}
+
+func resize(f *WeblensFile) {
+	f.BubbleMap(func(w *WeblensFile) {
+		w.recompSize()
+	})
+}
+
+func resizeMultiple(old, new *WeblensFile) {
+	oldIsParent := strings.HasPrefix(old.String(), new.String())
+	newIsParent := strings.HasPrefix(new.String(), old.String())
+
+	if oldIsParent || !(oldIsParent || newIsParent) {
+		resize(old)
+	}
+
+	if newIsParent || !(oldIsParent || newIsParent) {
+		resize(new)
+	}
+
 }

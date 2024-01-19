@@ -2,14 +2,14 @@ import { useEffect, useState, memo, useRef, useCallback } from 'react'
 
 import { humanFileSize } from '../../util'
 import { CreateFolder, RenameFile } from '../../api/FileBrowserApi'
-import { FileItemWrapper, FlexColumnBox, FlexRowBox, ItemVisualComponentWrapper } from './FilebrowserStyles'
+import { FileVisualWrapper, FileWrapper, FlexColumnBox, FlexRowBox } from './FilebrowserStyles'
 import { fileData } from '../../types/Types'
 
 import { MediaImage } from '../../components/PhotoContainer'
 import { IconFile, IconFileZip, IconFolder } from '@tabler/icons-react'
 import { Box, Center, Divider, Skeleton, Text, TextInput, Tooltip } from '@mantine/core'
 
-function useKeyDown(dispatch, editing, setEditing, parentId, itemId, newName, imported, authHeader) {
+function useKeyDown(dispatch, editing, setEditing, parentId, fileId, newName, imported, authHeader) {
     const keyDownHandler = useCallback(event => {
         if (!editing) { return }
         if (event.key === 'Enter') {
@@ -19,18 +19,21 @@ function useKeyDown(dispatch, editing, setEditing, parentId, itemId, newName, im
                 setEditing(false)
             } else {
                 if (imported) {
-                    RenameFile(itemId, newName, authHeader).then(() => setEditing(false))
+                    RenameFile(fileId, newName, authHeader).then(() => setEditing(false))
                 } else {
+                    dispatch({type: 'set_loading', loading: true})
+                    dispatch({ type: 'delete_from_map', fileId: "TEMPLATE_NEW_FOLDER" })
                     CreateFolder(parentId, newName, authHeader).then(folderId => {
-                        dispatch({ type: 'set_selected', itemId: folderId })
+                        dispatch({ type: 'set_selected', fileId: folderId })
                         setEditing(false)
+                        dispatch({type: 'set_loading', loading: false})
                     })
                 }
             }
         } else if (event.key === 'Escape') {
             setEditing(false)
         }
-    }, [dispatch, editing, setEditing, itemId, newName, imported, authHeader, parentId])
+    }, [dispatch, editing, setEditing, fileId, newName, imported, authHeader, parentId])
 
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
@@ -38,13 +41,13 @@ function useKeyDown(dispatch, editing, setEditing, parentId, itemId, newName, im
     }, [keyDownHandler])
 }
 
-const ItemVisualComponent = ({ itemData, root }: { itemData: fileData, root }) => {
+const FileVisualComponent = ({ fileData, root }: { fileData: fileData, root }) => {
     const sqareSize = "75%"
-    const type = itemData.mediaData?.mediaType.FriendlyName
-    if (itemData.isDir) {
+    const type = fileData.mediaData?.mediaType?.FriendlyName
+    if (fileData.isDir) {
         return (<IconFolder style={{ width: sqareSize, height: sqareSize }} />)
-    } else if (itemData.mediaData?.mediaType.IsDisplayable && itemData.imported) {
-        return (<MediaImage mediaId={itemData.mediaData.fileHash} blurhash={itemData.mediaData.blurHash} metadataPreload={itemData.mediaData} quality={"thumbnail"} lazy root={root} />)
+    } else if (fileData.displayable && fileData.imported) {
+        return (<MediaImage mediaId={fileData?.mediaData?.fileHash} blurhash={fileData?.mediaData?.blurHash} metadataPreload={fileData.mediaData} quality={"thumbnail"} lazy root={root} />)
     } else if (type === "File") {
         return (<IconFile style={{ width: sqareSize, height: sqareSize }} />)
     } else if (type === "Zip") {
@@ -103,48 +106,48 @@ const TextBox = ({ filename, fileId, fileSize, editing, setEditing, renameVal, s
     }
 }
 
-const Item = memo(({ itemData, selected, root, moveSelected, dragging, dispatch, authHeader }: {
-    itemData: fileData, selected: boolean, root, moveSelected: () => void, dragging: number, dispatch: any, authHeader: any
+const File = memo(({ fileData, selected, root, moveSelected, dragging, dispatch, authHeader }: {
+    fileData: fileData, selected: boolean, root, moveSelected: () => void, dragging: number, dispatch: any, authHeader: any
 }) => {
     const [hovering, setHovering] = useState(false)
     const [editing, setEditing] = useState(false)
-    const [renameVal, setRenameVal] = useState(itemData.filename)
-    const itemRef = useRef()
+    const [renameVal, setRenameVal] = useState(fileData.filename)
+    const fileRef = useRef()
 
-    const setEditingPlus = useCallback((b: boolean) => {setEditing(b); setRenameVal(cur => {if (cur === '') {return itemData.filename} else {return cur}}); dispatch({type: 'set_block_focus', block: b})}, [setEditing, dispatch])
-    useKeyDown(dispatch, editing, setEditingPlus, itemData.parentFolderId, itemData.id, renameVal, itemData.imported, authHeader)
+    const setEditingPlus = useCallback((b: boolean) => {setEditing(b); setRenameVal(cur => {if (cur === '') {return fileData.filename} else {return cur}}); dispatch({type: 'set_block_focus', block: b})}, [setEditing, dispatch])
+    useKeyDown(dispatch, editing, setEditingPlus, fileData.parentFolderId, fileData.id, renameVal, fileData.imported, authHeader)
 
     useEffect(() => {
-        if (itemData.id === "TEMPLATE_NEW_FOLDER") {
+        if (fileData.id === "TEMPLATE_NEW_FOLDER") {
             setEditingPlus(true)
         }
-    }, [itemData.id, setEditingPlus])
+    }, [fileData.id, setEditingPlus])
 
     return (
-        <FileItemWrapper
-            itemRef={itemRef}
-            itemData={itemData}
+        <FileWrapper
+            fileRef={fileRef}
+            fileData={fileData}
             dispatch={dispatch}
             hovering={hovering}
             setHovering={setHovering}
-            isDir={itemData.isDir}
+            isDir={fileData.isDir}
             selected={selected}
             moveSelected={moveSelected}
             dragging={dragging}
         >
-            <ItemVisualComponentWrapper>
-                <ItemVisualComponent itemData={itemData} root={root} />
-            </ItemVisualComponentWrapper>
+            <FileVisualWrapper>
+                <FileVisualComponent fileData={fileData} root={root} />
+            </FileVisualWrapper>
 
-            <TextBox filename={itemData.filename} fileId={itemData.id} fileSize={itemData.size} editing={editing} setEditing={setEditingPlus} renameVal={renameVal} setRenameVal={setRenameVal} dispatch={dispatch} />
-        </FileItemWrapper>
+            <TextBox filename={fileData.filename} fileId={fileData.id} fileSize={fileData.size} editing={editing} setEditing={setEditingPlus} renameVal={renameVal} setRenameVal={setRenameVal} dispatch={dispatch} />
+        </FileWrapper>
     )
 }, (prev, next) => {
-    // if (prev.itemData.visible !== next.itemData.visible) {
+    // if (prev.fileData.visible !== next.fileData.visible) {
     //     return false
     // }
 
-    // if (!next.itemData.visible) {
+    // if (!next.fileData.visible) {
     //     return true
     // }
 
@@ -152,12 +155,12 @@ const Item = memo(({ itemData, selected, root, moveSelected, dragging, dispatch,
         return false
     } else if (prev.dragging !== next.dragging) {
         return false
-    } else if (prev.itemData.imported !== next.itemData.imported) {
+    } else if (prev.fileData.imported !== next.fileData.imported) {
         return false
-    } else if (prev.itemData.size !== next.itemData.size) {
+    } else if (prev.fileData.size !== next.fileData.size) {
         return false
     }
     return true
 })
 
-export default Item
+export default File
