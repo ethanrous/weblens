@@ -90,6 +90,11 @@ func FsInit() {
 		}
 	}
 
+	// Compute size for the whole tree
+	mediaRoot.LeafMap(func(wf *WeblensFile) {
+		wf.recompSize()
+	})
+
 	// Dump initial folder slice
 	initFolderIds = nil
 
@@ -181,7 +186,7 @@ func ClearTakeoutDir() error {
 
 ///////////////////////////////
 
-var fddb *Weblensdb = NewDB("")
+var fddb *Weblensdb = NewDB()
 
 func boolPointer(b bool) *bool {
 	return &b

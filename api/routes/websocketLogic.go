@@ -2,6 +2,8 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -14,10 +16,8 @@ func wsConnect(ctx *gin.Context) {
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	util.FailOnError(err, "Failed to upgrade http request to websocket")
 
-	client := cmInstance.ClientConnect(conn)
+	client := cmInstance.ClientConnect(conn, ctx.GetString("username"))
 	defer client.Disconnect()
-	client.SetUser(ctx.GetString("username"))
-	client.log("Connected", client.Username())
 
 	for {
 		_, buf, err := client.conn.ReadMessage()
@@ -37,14 +37,21 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 		return
 	}
 
+	// client.debug("Got", msg.Action)
+
 	switch msg.Action {
 	case Subscribe:
 		{
 			var subInfo subscribeInfo
-			json.Unmarshal([]byte(msg.Content), &subInfo)
+			err = json.Unmarshal([]byte(msg.Content), &subInfo)
+
+			if err != nil {
+				util.DisplayError(err)
+				client.Error(errors.New("failed to parse subscribe request"))
+			}
 
 			if subInfo.SubType == "" || subInfo.Key == "" {
-				util.Error.Printf("Bad subscribe request: %v", msg.Content)
+				client.Error(fmt.Errorf("bad subscribe request: %s", msg.Content))
 				return
 			}
 
@@ -78,9 +85,9 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 			meta := dataProcess.ScanMetadata{File: folder, Recursive: scanInfo.Recursive, DeepScan: scanInfo.DeepScan}
 
 			t := dataProcess.NewTask(string(ScanDirectory), meta)
-			dataProcess.QueueGlobalTask(t)
+			dataProcess.GetGlobalQueue().QueueTask(t)
 
-			client.Subscribe(Task, subId(t.TaskId), nil)
+			client.Subscribe(SubTask, subId(t.TaskId()), nil)
 		}
 
 	default:

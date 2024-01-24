@@ -24,7 +24,7 @@ var mongoc *mongo.Client
 var mongodb *mongo.Database
 var redisc *redis.Client
 
-func NewDB(username string) *Weblensdb {
+func NewDB() *Weblensdb {
 	if mongoc == nil {
 		var uri = util.GetMongoURI()
 		clientOptions := options.Client().ApplyURI(uri)
@@ -41,47 +41,31 @@ func NewDB(username string) *Weblensdb {
 			Password: "",
 			DB:       0,
 		})
-		redisc.FlushAll()
+		// redisc.FlushAll()
 	}
 
 	return &Weblensdb{
 		mongo:    mongodb,
 		redis:    redisc,
-		accessor: username,
+		useRedis: util.ShouldUseRedis(),
 	}
 }
 
-func (db Weblensdb) GetAccessor() string {
-	return db.accessor
-}
-
-func (db Weblensdb) GetMedia(fileHash string, includeThumbnail bool) Media {
-	val, err := db.RedisCacheGet(fileHash)
-	if err == nil {
-		var i Media
-		json.Unmarshal([]byte(val), &i)
-		if !includeThumbnail && i.Thumbnail64 != "" {
-			i.Thumbnail64 = ""
-		}
-		if i.Thumbnail64 != "" || !includeThumbnail {
-			return i
-		}
+func (db Weblensdb) GetMedia(mediaId string) (m *Media) {
+	m = mediaMapGet(mediaId)
+	if m != nil {
+		return m
 	}
 
-	var opts *options.FindOneOptions
+	filter := bson.D{{Key: "fileHash", Value: mediaId}}
+	findRet := db.mongo.Collection("media").FindOne(mongo_ctx, filter)
+	findRet.Decode(&m)
 
-	if !includeThumbnail {
-		opts = options.FindOne().SetProjection(bson.D{{Key: "thumbnail", Value: 0}})
+	if m != nil {
+		mediaMapAdd(m)
 	}
 
-	filter := bson.D{{Key: "fileHash", Value: fileHash}}
-	findRet := db.mongo.Collection("media").FindOne(mongo_ctx, filter, opts)
-
-	var i Media
-	findRet.Decode(&i)
-	b, _ := json.Marshal(i)
-	db.RedisCacheSet(fileHash, string(b))
-	return i
+	return
 }
 
 func (db Weblensdb) GetMediaByFile(file *WeblensFile, includeThumbnail bool) (m *Media, err error) {
@@ -260,7 +244,7 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 		go func(medias []Media) {
 			for _, val := range medias {
 				b, _ := json.Marshal(val)
-				db.RedisCacheSet(val.FileHash, string(b))
+				db.RedisCacheSet(val.MediaId, string(b))
 			}
 		}(res)
 	}
@@ -275,53 +259,56 @@ func (db Weblensdb) GetFilteredMedia(sort, requester string, sortDirection int, 
 }
 
 func (db Weblensdb) RedisCacheSet(key string, data string) error {
-	if redisc == nil {
+	if !db.useRedis {
+		return nil
+	}
+
+	if db.redis == nil {
 		return errors.New("redis not initialized")
 	}
-	_, err := db.redis.Set(key, data, time.Duration(time.Minute)*10).Result()
+	_, err := db.redis.Set(key, data, time.Duration(time.Minute*10)).Result()
 	return err
 }
 
 func (db Weblensdb) RedisCacheGet(key string) (string, error) {
-	if redisc == nil {
+	if !db.useRedis {
+		return "", ErrNotUsingRedis
+	}
+
+	if db.redis == nil {
 		return "", errors.New("redis not initialized")
 	}
+
 	data, err := db.redis.Get(key).Result()
 
 	return data, err
 }
 
 func (db Weblensdb) RedisCacheBust(key string) {
+	if !db.useRedis {
+		return
+	}
 	db.redis.Del(key)
 }
 
-func (db Weblensdb) DbAddMedia(m *Media) {
+func (db Weblensdb) AddMedia(m *Media) error {
 	filled, reason := m.IsFilledOut(false)
 	if !filled {
-		util.Error.Panicf("Refusing to write incomplete media to database for file %s (missing %s)", FsTreeGet(m.FileId).absolutePath, reason)
+		err := fmt.Errorf("Refusing to write incomplete media to database for file %s (missing %s)", FsTreeGet(m.FileId).absolutePath, reason)
+		return err
 	}
 
-	if m.Owner == "" {
-		// owner := GetOwnerFromFilepath(m.Filepath)
-		// _, err := db.GetUser(owner)
-		util.Error.Println("Attempt to add media to database with empty user")
-		// util.FailOnError(err, )
-
-		// m.Owner = owner
-		return
-	}
+	mediaMapAdd(m)
 
 	_, err := db.mongo.Collection("media").InsertOne(mongo_ctx, m)
-	if err != nil {
-		panic(err)
-	}
+	return err
 }
 
-func (db Weblensdb) UpdateMediasByFilehash(filehashes []string, newOwner string) {
+func (db Weblensdb) UpdateMediasById(mediaIds []string, newOwner string) {
 	user, err := db.GetUser(newOwner)
 	util.FailOnError(err, "Failed to get user to update media owner")
 
-	filter := bson.M{"fileHash": bson.M{"$in": filehashes}}
+	filter := bson.M{"fileHash": bson.M{"$in": mediaIds}}
 	update := bson.M{"$set": bson.M{"owner": user.Id}}
 
 	_, err = db.mongo.Collection("media").UpdateMany(mongo_ctx, filter, update)
@@ -330,7 +317,7 @@ func (db Weblensdb) UpdateMediasByFilehash(filehashes []string, newOwner string)
 
 // Processes necessary changes in database after moving a media file on the filesystem.
 // This must be called AFTER the file is moved, i.e. `destinationFile` must exist on the fs
-func (db Weblensdb) HandleMediaMove(oldFile, newFile *WeblensFile) (err error) {
+func (db Weblensdb) handleMediaMove(oldFile, newFile *WeblensFile) (err error) {
 	filter := bson.M{"fileId": oldFile.Id()}
 	update := bson.M{"$set": bson.M{"fileId": newFile.Id()}}
 
@@ -588,10 +575,13 @@ func (db Weblensdb) getFolderById(folderId string) (f folderData) {
 	return
 }
 
-func (db Weblensdb) GetAlbum(albumId string) (a AlbumData, err error) {
-	filter := bson.M{"_id": albumId, "$or": []bson.M{{"owner": db.accessor}, {"sharedWith": db.accessor}}}
+func (db Weblensdb) GetAlbum(albumId string) (a *AlbumData, err error) {
+	filter := bson.M{"_id": albumId}
 	res := db.mongo.Collection("albums").FindOne(mongo_ctx, filter)
-	res.Decode(&a)
+
+	var album AlbumData
+	a = &album
+	res.Decode(a)
 	err = res.Err()
 	return
 }
@@ -620,7 +610,7 @@ func (db Weblensdb) CreateAlbum(name, owner string) {
 	db.mongo.Collection("albums").InsertOne(mongo_ctx, a)
 }
 
-func (db Weblensdb) AddMediaToAlbum(albumId string, mediaIds []string) (addedCount int, err error) {
+func (db Weblensdb) addMediaToAlbum(albumId string, mediaIds []string) (addedCount int, err error) {
 	if mediaIds == nil {
 		return addedCount, fmt.Errorf("nil media ids")
 	}
@@ -654,7 +644,7 @@ func (db Weblensdb) AddMediaToAlbum(albumId string, mediaIds []string) (addedCou
 	return
 }
 
-func (db Weblensdb) RemoveMediaFromAlbum(albumId string, mediaIds []string) error {
+func (db Weblensdb) removeMediaFromAlbum(albumId string, mediaIds []string) error {
 	if mediaIds == nil {
 		return fmt.Errorf("nil media ids")
 	}
@@ -673,7 +663,7 @@ func (db Weblensdb) RemoveMediaFromAlbum(albumId string, mediaIds []string) erro
 	return nil
 }
 
-func (db Weblensdb) SetAlbumName(albumId, newName string) (err error) {
+func (db Weblensdb) setAlbumName(albumId, newName string) (err error) {
 	match := bson.M{"_id": albumId}
 	update := bson.M{"$set": bson.M{"name": newName}}
 	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
@@ -687,14 +677,14 @@ func (db Weblensdb) SetAlbumCover(albumId, coverMediaId, prom1, prom2 string) (e
 	return
 }
 
-func (db Weblensdb) ShareAlbum(albumId string, users []string) (err error) {
+func (db Weblensdb) shareAlbum(albumId string, users []string) (err error) {
 	match := bson.M{"_id": albumId}
 	update := bson.M{"$addToSet": bson.M{"sharedWith": bson.M{"$each": users}}}
 	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
 	return
 }
 
-func (db Weblensdb) UnshareAlbum(albumId string, users []string) (err error) {
+func (db Weblensdb) unshareAlbum(albumId string, users []string) (err error) {
 	match := bson.M{"_id": albumId}
 	update := bson.M{"$pull": bson.M{"sharedWith": bson.M{"$in": users}}}
 	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)

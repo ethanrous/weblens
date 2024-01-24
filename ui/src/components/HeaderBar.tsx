@@ -6,7 +6,7 @@ import WeblensLoader from './Loading'
 import { userContext } from '../Context'
 import { ActionIcon, Box, Input, Space, Text, Tooltip } from '@mantine/core'
 import { IconFolder, IconLogout, IconPhoto, IconSearch, IconTools } from '@tabler/icons-react'
-import { FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles'
+import { FlexColumnBox, FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 type HeaderBarProps = {
     searchContent: string
@@ -87,6 +87,12 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
                     />
                 </SearchBox>
                 <Space style={{ flexGrow: 1 }} />
+                <FlexColumnBox onClick={() => window.open(`https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}`, "_blank")}
+                    style={{cursor: 'pointer', width: 'max-content', alignItems: 'flex-end', justifyContent: 'center', margin: 15}}
+                >
+                    <Text style={{opacity: 0.20, zIndex: 0, userSelect: 'none'}}>{process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
+                    <Text lineClamp={1} style={{opacity: 0.20, zIndex: 0, userSelect: 'none', width: 'max-content'}}>Report an issue</Text>
+                </FlexColumnBox>
                 {userInfo?.admin && (
                     <Tooltip label={"Admin Settings"} >
                         <ActionIcon color='#00000000' size={40} onClick={() => { nav("/admin") }} style={{ margin: spacing }}>

@@ -103,7 +103,7 @@ function AlbumPreviewCard({ albumData, fetchAlbums, dispatch }: { albumData: Alb
                 {/* <FlexRowBox onClick={(e) => { e.stopPropagation(); setEditing(true) }} style={{ justifyContent: 'space-between', width: '85%', cursor: 'text', height: '36px' }}> */}
                 {!editing && (
                     <FlexRowBox style={{height: '50px', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: 10}}>
-                        <FlexColumnBox style={{height: 'max-content', alignItems: 'flex-start', width: '175px', cursor: 'text'}} onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
+                        <FlexColumnBox style={{height: 'max-content', alignItems: 'flex-start', width: 'max-content', cursor: 'text'}} onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
                             <TooltipFloating position='top' label={albumData.Name}>
                                 <Text c='white' fw={500} truncate='end' w={'100%'}>{albumData.Name}</Text>
                             </TooltipFloating>
@@ -203,7 +203,7 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
 
     const fetchAlbum = useCallback(() => {
         GetAlbumMedia(albumId, includeRaw, dispatch, authHeader).then(m => {
-            dispatch({ type: 'set_media', media: m.media });
+            dispatch({ type: 'set_media', medias: m.media });
             dispatch({ type: 'set_loading', albums: false }); setAlbumData(m)
         })
             .catch(r => {

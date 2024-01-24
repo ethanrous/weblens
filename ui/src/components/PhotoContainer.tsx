@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext, useMemo } from "react";
+import { useState, useEffect, useRef, useContext, useMemo, memo, useCallback } from "react";
 import { Blurhash } from "react-blurhash";
 import { userContext } from "../Context";
 import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react"
@@ -103,7 +103,7 @@ function getImageMeta(url, filehash, authHeader, signal, setLoadErr) {
     })
 }
 
-export const MediaImage = ({
+export const MediaImage = memo(({
     mediaId,
     quality,
     blurhash,
@@ -126,87 +126,84 @@ export const MediaImage = ({
     const [fullresPromise, setFullresPromise] = useState(null)
 
     const visibleRef = useRef()
-    const { isVisible, visibleStateRef } = useIsVisible(root, visibleRef, false, 1000, 0)
+    const { isVisible, visibleStateRef } = useIsVisible(root, visibleRef, true, 1000, 0)
 
     const hashRef = useRef("")
 
-    const abortController = new AbortController();
-    const signal = abortController.signal;
+    useEffect(() => {
+        if (!isVisible) {
+            return
+        }
 
-    const metaUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-    metaUrl.searchParams.append("meta", "true")
-    const thumbUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-    thumbUrl.searchParams.append("thumbnail", "true")
-    const fullresUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-    fullresUrl.searchParams.append("fullres", "true")
+        setImgData("")
+        setLoaded("")
+        setImgData(null)
+        setLoadErr(false)
+
+        const metaUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
+        metaUrl.searchParams.append("meta", "true")
+        const thumbUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
+        thumbUrl.searchParams.append("thumbnail", "true")
+        const fullresUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
+        fullresUrl.searchParams.append("fullres", "true")
+
+        hashRef.current = mediaId
+
+        const abortController = new AbortController();
+        const signal = abortController.signal;
+
+        setMetaPromise(_ => () => getImageMeta(metaUrl, mediaId, authHeader, signal, setLoadErr))
+        setThumbPromise(_ => () => getImageData(thumbUrl, mediaId, authHeader, signal, setLoadErr))
+
+        if (quality === "fullres" && !imgMeta?.mediaType.IsVideo) {
+            setFullresPromise(_ => () => getImageData(fullresUrl, mediaId, authHeader, signal, setLoadErr))
+        }
+
+        // If the mediaId changes, we want to abort fetch requests
+        // so we don't load a ton of images we don't need to
+        return () => {
+            abortController.abort()
+        }
+
+    }, [mediaId, isVisible])
 
     useEffect(() => {
-        setImgData(null)
-        setMetaPromise(null)
-        setThumbPromise(null)
-        setFullresPromise(null)
-        setLoaded("")
-        setLoadErr(false)
-        hashRef.current = mediaId
-    }, [mediaId])
-
-    metaPromise?.then((res) => {
-        if (res && res.data && res.hash === hashRef.current && !loaded && !loadError) {
-            setMetaPromise(null)
-            setImgMeta(res.data)
-        } else if (res === undefined) {
-            setMetaPromise(null)
+        if (!metaPromise) {
+            return
         }
-    })
 
-    thumbPromise?.then((res) => {
-        if (res && res.data && res.hash === hashRef.current && !loaded && !imgData && !loadError) {
-            setImgData(res.data)
-            setLoaded("thumbnail")
+        metaPromise().then((res) => {
+            if (res && res.data && res.hash === hashRef.current && !loadError) {
+                setImgMeta(res.data)
+            }
+        })
+    }, [metaPromise, loadError])
+
+    useEffect(() => {
+        if (!thumbPromise) {
+            return
         }
-        setThumbPromise(null)
-    })
+
+        thumbPromise().then((res) => {
+            if (res && res.data && res.hash === hashRef.current) {
+                setImgData(prev => {if (prev) {return prev}; return res.data})
+                setLoaded(prev => {if (prev) {return prev}; return "thumbnail"})
+            }
+        })
+    }, [thumbPromise, loadError])
 
     useEffect(() => {
         if (!fullresPromise) {
             return
         }
 
-        fullresPromise?.then((res) => {
-            if (res && res.data && res.hash === hashRef.current && !loadError) {
+        fullresPromise().then((res) => {
+            if (res && res.data && res.hash === hashRef.current) {
                 setImgData(res.data)
                 setLoaded("fullres")
             }
-            setFullresPromise(null)
         })
-    }, [fullresPromise])
-
-    useEffect(() => {
-        if (!isVisible) {
-            return
-        }
-        if (!hashRef.current) {
-            setLoadErr(true)
-        } else {
-            if (!imgMeta && !metaPromise) {
-                setMetaPromise(getImageMeta(metaUrl, mediaId, authHeader, signal, setLoadErr))
-            }
-            if (!imgData && !thumbPromise) {
-                setThumbPromise(getImageData(thumbUrl, mediaId, authHeader, signal, setLoadErr))
-            }
-            if (quality === "fullres" && loaded !== "fullres" && !fullresPromise && !imgMeta?.mediaType.IsVideo) {
-                setFullresPromise(getImageData(fullresUrl, mediaId, authHeader, signal, setLoadErr))
-            }
-        }
-        return () => {
-            if (!visibleStateRef.current || mediaId !== hashRef.current) {
-                abortController.abort()
-                setMetaPromise(null)
-                setThumbPromise(null)
-                setFullresPromise(null)
-            }
-        }
-    }, [hashRef.current, isVisible, quality])
+    }, [fullresPromise, loadError])
 
     const sizer = useMemo(() => {
         if (!imgMeta) {
@@ -249,4 +246,9 @@ export const MediaImage = ({
 
         </ThumbnailContainer >
     )
-}
+}, (last, next) =>{
+    if (last.mediaId !== next.mediaId) {
+        return false
+    }
+    return true
+})

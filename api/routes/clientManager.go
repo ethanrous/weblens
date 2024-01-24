@@ -31,13 +31,14 @@ func VerifyClientManager() *clientManager {
 	return &cmInstance
 }
 
-func (cm *clientManager) ClientConnect(conn *websocket.Conn) *Client {
+func (cm *clientManager) ClientConnect(conn *websocket.Conn, username string) *Client {
 	cm = VerifyClientManager()
 	connectionId := uuid.New().String()
-	newClient := Client{connId: connectionId, conn: conn}
+	newClient := Client{connId: connectionId, conn: conn, username: username}
 	cm.clientMu.Lock()
 	(*cm.clientMap)[connectionId] = &newClient
 	cm.clientMu.Unlock()
+	newClient.log("Connected", newClient.Username())
 	return &newClient
 }
 
@@ -64,11 +65,11 @@ func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, mes
 	var allClients []*Client
 
 	switch dest.Type {
-	case Folder:
+	case SubFolder:
 		{
 			allClients = (*cm.folderSubs)[dest.Key]
 		}
-	case Task:
+	case SubTask:
 		{
 			allClients = (*cm.taskSubs)[dest.Key]
 		}
@@ -76,10 +77,10 @@ func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, mes
 
 	if len(allClients) != 0 {
 		for _, c := range allClients {
-			// util.Debug.Printf("Broadcasting %s for %v", msg.MessageStatus, msg.Content)
 			c._writeToClient(msg)
 		}
 	} else {
+		// Although "debug" is our verbose mode, this one is really annoying, so it's disabled unless needed.
 		// util.Debug.Println("No subscribers to", dest.Type, dest.Key)
 	}
 }
@@ -89,12 +90,12 @@ func (cm clientManager) AddSubscription(subInfo subscription, client *Client) {
 	var lock *sync.Mutex
 
 	switch subInfo.Type {
-	case Folder:
+	case SubFolder:
 		{
 			subMap = cm.folderSubs
 			lock = cm.folderMu
 		}
-	case Task:
+	case SubTask:
 		{
 			subMap = cm.taskSubs
 			lock = cm.taskMu
@@ -118,7 +119,6 @@ func (cm clientManager) AddSubscription(subInfo subscription, client *Client) {
 	}
 
 	(*subMap)[subInfo.Key] = append(subs, client)
-	// util.Debug.Println("New subscriptions", (*subMap)[subInfo.Key])
 }
 
 func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client) {
@@ -126,12 +126,12 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 	var lock *sync.Mutex
 
 	switch subInfo.Type {
-	case Folder:
+	case SubFolder:
 		{
 			subMap = cm.folderSubs
 			lock = cm.folderMu
 		}
-	case Task:
+	case SubTask:
 		{
 			subMap = cm.taskSubs
 			lock = cm.taskMu
@@ -152,8 +152,6 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 	}
 	subs = util.Filter(subs, func(c *Client) bool { return c.connId != client.connId })
 	(*subMap)[subInfo.Key] = subs
-
-	// util.Debug.Println("Removed subscription")
 }
 
 func (c caster) PushTaskUpdate(taskId, status string, result any) {
@@ -173,7 +171,6 @@ func (c caster) PushFileCreate(newFile *dataStore.WeblensFile) {
 		return
 	}
 
-	// util.Debug.Printf("Broadcasting create %s", newFile.String())
 	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", map[string]any{"fileInfo": fileInfo})
 }
 
@@ -187,7 +184,7 @@ func (c caster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
 		util.DisplayError(err)
 		return
 	}
-	// util.Debug.Println("Broadcasting update", updatedFile.String())
+
 	cmInstance.Broadcast("folder", subId(updatedFile.Id()), "file_updated", gin.H{"fileInfo": fileInfo})
 
 	if updatedFile.GetParent().Id() == "0" {
@@ -202,12 +199,10 @@ func (c caster) PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *d
 	}
 
 	if filepath.Dir(preMoveFile.String()) == filepath.Dir(postMoveFile.String()) {
-		// This should've been a "rename"
 		util.Error.Println("This should've been a rename")
 		return
 	}
 
-	// util.Debug.Printf("Broadcasting move %s -> %s", preMoveFile.String(), postMoveFile.String())
 	c.PushFileCreate(postMoveFile)
 	c.PushFileDelete(preMoveFile)
 }

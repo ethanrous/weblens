@@ -75,28 +75,38 @@ func ParseExtType(ext string) *mediaType {
 	return &mType
 }
 
-// type DirNotAllowed error
-// type NoMedia error
+var ErrDirNotAllowed = errors.New("directory not allowed")
+var ErrNoMedia = errors.New("no media found")
 
-var DirNotAllowed = errors.New("directory not allowed")
-var NoMedia = errors.New("no media found")
-
-func (f *WeblensFile) IsDisplayable() (bool, error) {
+func (f *WeblensFile) GetMediaType() (*mediaType, error) {
 	if f.IsDir() {
-		return false, DirNotAllowed
+		return nil, ErrDirNotAllowed
+	}
+
+	if f.media != nil && f.media.MediaType != nil {
+		return f.media.MediaType, nil
 	}
 
 	m, err := f.GetMedia()
 	if err != nil && err != mongo.ErrNoDocuments {
 		util.DisplayError(err)
-		return false, err
+		return nil, err
 	}
 
 	if m != nil && m.MediaType != nil {
-		return m.MediaType.IsDisplayable, nil
+		return m.MediaType, nil
 	}
-	err = NoMedia
+	err = ErrNoMedia
 
 	mType := ParseExtType(f.Filename()[strings.Index(f.Filename(), ".")+1:])
+	return mType, err
+}
+
+func (f *WeblensFile) IsDisplayable() (bool, error) {
+	mType, err := f.GetMediaType()
+	if mType == nil {
+		return false, err
+	}
+
 	return mType.IsDisplayable, err
 }

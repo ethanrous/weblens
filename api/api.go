@@ -23,7 +23,11 @@ func main() {
 	routes.VerifyClientManager()
 	tt := dataProcess.VerifyTaskTracker()
 	dataStore.SetTasker(dataProcess.NewWorkQueue())
-	sw.Lap("Verify cm, tt and set ds queue")
+
+	routes.UploadTasker = dataProcess.NewWorkQueue()
+	routes.UploadTasker.MarkGlobal()
+
+	sw.Lap("Verify cm, tt and set routes and ds queue")
 
 	dataProcess.SetCaster(routes.Caster)
 	dataStore.SetCaster(routes.Caster)
@@ -51,8 +55,16 @@ func main() {
 	routes.Caster.Enable()
 	sw.Lap("Global caster enabled")
 
+	// 								100MB
+	et := dataProcess.InitGExif(1000 * 1000 * 100)
+	if et == nil {
+		panic("Exiftool is nil")
+	}
+	dataStore.SetExiftool(et)
+	sw.Lap("Init global exiftool")
+
 	// Enable the worker pool heald by the task tracker
-	tt.EnableWP()
+	tt.StartWP()
 	sw.Lap("Global worker pool enabled")
 
 	router := gin.Default()
@@ -65,6 +77,7 @@ func main() {
 		routes.AddUiRoutes(router)
 	} else {
 		ip = "127.0.0.1"
+		routes.AttachProfiler(router)
 	}
 	sw.Lap("Gin routes added")
 	sw.Stop()

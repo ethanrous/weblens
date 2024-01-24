@@ -53,7 +53,7 @@ export type MediaWrapperProps = {
     mediaData: MediaData
     scale: number
     scrollerRef
-    dispatch
+    dispatch: (galleryAction) => void
     menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element
 }
 
@@ -69,7 +69,7 @@ export type MediaStateType = {
     imageSize: number
     scanProgress: number
     searchContent: string
-    presentingHash: string
+    presentingMedia: MediaData
 }
 
 // File Browser Types
@@ -84,14 +84,15 @@ export type FileBrowserStateType = {
     dirMap: Map<string, fileData>
     selected: Map<string, boolean>
     uploadMap: Map<string, boolean>
-    folderInfo: fileData,
-    parents: fileData[],
+    folderInfo: fileData
+    parents: fileData[]
     draggingState: number
     loading: boolean
     presentingId: string
     searchContent: string
     scanProgress: number
     homeDirSize: number
+    trashDirSize: number
     holdingShift: boolean
     blockFocus: boolean
     lastSelected: string
@@ -109,6 +110,7 @@ export type fileData = {
     filename: string
     parentFolderId: string
     mediaData: MediaData
+    fileFriendlyName: string
     owner: string
 
     visible: boolean
@@ -126,6 +128,7 @@ export const getBlankFile = () => {
         filename: "",
         parentFolderId: "",
         mediaData: null,
+        fileFriendlyName: "",
         owner: "",
 
         visible: false,

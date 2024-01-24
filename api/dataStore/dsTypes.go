@@ -1,17 +1,21 @@
 package dataStore
 
 import (
+	"errors"
+	"image"
 	"sync"
 	"time"
 
+	"github.com/barasher/go-exiftool"
 	"github.com/go-redis/redis"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Weblensdb struct {
 	mongo    *mongo.Database
+	useRedis bool
 	redis    *redis.Client
-	accessor string
 }
 
 type WeblensFile struct {
@@ -25,8 +29,39 @@ type WeblensFile struct {
 	err          error
 	media        *Media
 	parent       *WeblensFile
-	childLock    *sync.Mutex
-	children     map[string]*WeblensFile
+
+	childLock *sync.Mutex
+	children  map[string]*WeblensFile
+
+	tasksLock  *sync.Mutex
+	tasksUsing []Task
+}
+
+type Media struct {
+	MediaId     string               `bson:"fileHash" json:"fileHash"`
+	FileId      string               `bson:"fileId" json:"fileId"`
+	MediaType   *mediaType           `bson:"mediaType" json:"mediaType"`
+	BlurHash    string               `bson:"blurHash" json:"blurHash"`
+	Thumbnail64 string               `bson:"thumbnail" json:"thumbnail64"`
+	MediaWidth  int                  `bson:"width" json:"mediaWidth"`
+	MediaHeight int                  `bson:"height" json:"mediaHeight"`
+	ThumbWidth  int                  `bson:"thumbWidth" json:"thumbWidth"`
+	ThumbHeight int                  `bson:"thumbHeight" json:"thumbHeight"`
+	CreateDate  time.Time            `bson:"createDate" json:"createDate"`
+	Owner       string               `bson:"owner" json:"owner"`
+	SharedWith  []primitive.ObjectID `bson:"sharedWith" json:"sharedWith"`
+
+	image      image.Image
+	rawExif    map[string]any
+	thumbBytes []byte
+	rotate     string
+	imported   bool
+}
+
+var gexift *exiftool.Exiftool
+
+func SetExiftool(et *exiftool.Exiftool) {
+	gexift = et
 }
 
 type marshalableWF struct {
@@ -53,14 +88,15 @@ type FileInfo struct {
 	// txt, doc etc.
 	Displayable bool `json:"displayable"`
 
-	IsDir          bool      `json:"isDir"`
-	Modifiable     bool      `json:"modifiable"`
-	Size           int64     `json:"size"`
-	ModTime        time.Time `json:"modTime"`
-	Filename       string    `json:"filename"`
-	ParentFolderId string    `json:"parentFolderId"`
-	MediaData      *Media    `json:"mediaData"`
-	Owner          string    `json:"owner"`
+	IsDir            bool      `json:"isDir"`
+	Modifiable       bool      `json:"modifiable"`
+	Size             int64     `json:"size"`
+	ModTime          time.Time `json:"modTime"`
+	Filename         string    `json:"filename"`
+	ParentFolderId   string    `json:"parentFolderId"`
+	MediaData        *Media    `json:"mediaData"`
+	FileFriendlyName string    `json:"fileFriendlyName"`
+	Owner            string    `json:"owner"`
 }
 
 type folderData struct {
@@ -70,8 +106,6 @@ type folderData struct {
 	SharedWith     []string `bson:"sharedWith" json:"sharedWith"`
 	// Owner string `bson:"owner" json:"owner"`
 }
-
-type alreadyExists error
 
 type AlbumData struct {
 	Id             string   `bson:"_id"`
@@ -85,6 +119,14 @@ type AlbumData struct {
 	ShowOnTimeline bool     `bson:"showOnTimeline"`
 }
 
+type Task interface {
+	TaskId() string
+	Status() (bool, string)
+	Wait()
+	Cancel()
+}
+
+// Tasker interface for queueing tasks in the task pool
 type TaskerAgent interface {
 
 	// Parameters:
@@ -104,7 +146,6 @@ type BroadcasterAgent interface {
 	PushFileDelete(deletedFile *WeblensFile)
 }
 
-// Tasker interface for queueing tasks in the task pool
 var tasker TaskerAgent
 var caster BroadcasterAgent
 
@@ -115,3 +156,8 @@ func SetTasker(d TaskerAgent) {
 func SetCaster(b BroadcasterAgent) {
 	caster = b
 }
+
+// Errors
+type alreadyExists error
+
+var ErrNotUsingRedis = errors.New("not using redis")

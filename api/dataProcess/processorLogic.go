@@ -1,44 +1,60 @@
 package dataProcess
 
 import (
-	"bytes"
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
-	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/saracen/fastzip"
 )
 
-func ScanFile(meta ScanMetadata) {
-	db := dataStore.NewDB("")
+func ScanFile(t *Task) {
+	meta := t.metadata.(ScanMetadata)
+
+	displayable, err := meta.File.IsDisplayable()
+	if err != nil && !errors.Is(err, dataStore.ErrNoMedia) {
+		t.error(err)
+	}
+	if !displayable {
+		err = errors.New(fmt.Sprint("attempt to process non-displayable file", meta.File.String()))
+		t.error(err)
+	}
+
 	if meta.PartialMedia == nil {
 		m, err := meta.File.GetMedia()
 		if err != nil {
-			util.DisplayError(err)
+			t.error(err)
 			return
 		}
-
 		meta.PartialMedia = m
 	}
-	err := ProcessMediaFile(meta.File, meta.PartialMedia, db)
-	if err != nil {
-		util.DisplayError(err, "Failed to process new meda file")
-	}
+
+	t.SetErrorCleanup(func() {
+		media, err := meta.File.GetMedia()
+		util.DisplayError(err)
+		if media != nil {
+			media.Clean()
+		}
+
+		meta.File.ClearMedia()
+	})
+
+	processMediaFile(t)
 }
 
-func createZipFromPaths(t *task) {
+func createZipFromPaths(t *Task) {
 	zipMeta := t.metadata.(ZipMetadata)
 
 	if len(zipMeta.Files) == 0 {
-		err := fmt.Errorf("cannot create a zip with no files")
-		util.DisplayError(err)
-		t.err = err
-
+		t.error(errors.New("cannot create a zip with no files"))
 		return
 	}
 
@@ -58,20 +74,19 @@ func createZipFromPaths(t *task) {
 	takeoutHash := util.HashOfString(8, strings.Join(util.MapToKeys(filesInfoMap), ""))
 	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash)
 	if err != nil {
-		util.DisplayError(err)
-		t.err = err
+		t.error(err)
 		return
 	}
 	if zipExists {
 		t.setResult(KeyVal{Key: "takeoutId", Val: zipFile.Id()})
-		t.BroadcastComplete("zip_complete")
+		caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
+		t.success()
 		return
 	}
 
 	fp, err := os.Create(zipFile.String())
 	if err != nil {
-		util.DisplayError(err)
-		t.err = err
+		t.error(err)
 		return
 	}
 	defer fp.Close()
@@ -88,7 +103,6 @@ func createZipFromPaths(t *task) {
 		if err != nil {
 			archiveErr = &err
 		}
-		util.DisplayError(err, "Archive Error")
 	}()
 
 	var entries int64
@@ -108,79 +122,159 @@ func createZipFromPaths(t *task) {
 			TotalFiles     int `json:"totalFiles"`
 			SpeedBytes     int `json:"speedBytes"`
 		}{CompletedFiles: int(entries), TotalFiles: totalFiles, SpeedBytes: int(bytes - prevBytes)}
-		caster.PushTaskUpdate(t.TaskId, "create_zip_progress", status)
+		caster.PushTaskUpdate(t.taskId, "create_zip_progress", status)
 
 		time.Sleep(time.Second)
 	}
 	if archiveErr != nil {
-		t.err = *archiveErr
-		util.DisplayError(*archiveErr, "Failed to archive")
+		t.error(*archiveErr)
 		return
 	}
 
 	t.setResult(KeyVal{Key: "takeoutId", Val: zipFile.Id()})
-	t.BroadcastComplete("zip_complete")
+	caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
+	t.success()
 }
 
-func moveFile(t *task) {
+func moveFile(t *Task) {
 	moveMeta := t.metadata.(MoveMeta)
 
 	file := dataStore.FsTreeGet(moveMeta.FileId)
-	if file.Err() != nil {
-		err := fmt.Errorf("could not find existing file")
-		panic(err)
+	if file == nil {
+		t.error(errors.New("could not find existing file"))
+		return
 	}
 
 	destinationFolder := dataStore.FsTreeGet(moveMeta.DestinationFolderId)
 	err := dataStore.FsTreeMove(file, destinationFolder, moveMeta.NewFilename, false)
 	if err != nil {
-		util.DisplayError(err)
-		t.err = err
+		t.error(err)
 		return
 	}
 
 }
 
-func preloadThumbs(t *task) {
+func preloadThumbss(t *Task) {
 	meta := t.metadata.(PreloadMetaMeta)
 	paths := util.Map(meta.Files, func(f *dataStore.WeblensFile) string { return f.String() })
 
-	if len(paths) == 0 {
-		t.err = fmt.Errorf("failed to parse raw thumbnails, files slice is empty")
-		util.DisplayError(t.err.(error))
-		return
-	}
-
-	allPathsStr := strings.Join(util.Map(paths, func(path string) string { return fmt.Sprintf("\"%s\"", path) }), " ")
-	cmdString := fmt.Sprintf("exiftool -a -b -%s %s", meta.ExifThumbType, allPathsStr)
-	cmd := exec.Command("/bin/bash", "-c", cmdString)
-
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"))
 	if err != nil {
-		util.Warning.Printf("Failed to bulk read thumbnails: %s %s", err, stderr.String())
+		util.DisplayError(err)
+		t.err = err
+	}
+
+	et.ExtractMetadata(paths...)
+
+}
+
+func parseRangeHeader(contentRange string) (min, max, total int, err error) {
+	rangeAndSize := strings.Split(contentRange, "/")
+	rangeParts := strings.Split(rangeAndSize[0], "-")
+
+	min, err = strconv.Atoi(rangeParts[0])
+	if err != nil {
 		return
 	}
 
-	thumbBytes := out.Bytes()
-
-	offset := 0
-	for _, file := range meta.Files {
-		m, err := file.GetMedia()
-		if err != nil {
-			util.DisplayError(err)
-			t.err = fmt.Errorf("failed to parse raw thumbnails, could not get media for %s", file.String())
-			return
-		}
-
-		thumbLen := int(m.QueryExif(fmt.Sprintf("%sLength", meta.ExifThumbType)).(float64))
-		m.DumpThumbBytes(thumbBytes[offset : offset+thumbLen])
-		offset += thumbLen
-
+	max, err = strconv.Atoi(rangeParts[1])
+	if err != nil {
+		return
 	}
-	util.Debug.Println("Finished loading thumbs without error for", meta.Files[0].GetParent().String())
+
+	total, err = strconv.Atoi(rangeAndSize[1])
+	if err != nil {
+		return
+	}
+	return
+}
+
+type bufferChunk struct {
+	lowByte    int
+	highByte   int
+	chunkBytes []byte
+}
+
+func writeToFile(t *Task) {
+	meta := t.metadata.(WriteFileMeta)
+
+	parent := dataStore.FsTreeGet(meta.ParentFolderId)
+	if parent == nil {
+		t.error(errors.New("failed to get parent of file to upload"))
+		return
+	}
+
+	file, err := dataStore.Touch(parent, meta.Filename, true)
+	if err != nil {
+		t.error(err)
+		return
+	}
+
+	file.AddTask(t)
+
+	var buffer []bufferChunk
+	var nextByte, min, max, total int
+
+WriterLoop:
+	for {
+		t.setTimeout(time.Now().Add(time.Second * 60))
+		select {
+		case signal := <-t.signalChan: // Listen for cancellation
+			if signal == 1 {
+				return
+			}
+		case chunk := <-meta.ChunkStream:
+			min, max, total, err = parseRangeHeader(chunk.ContentRange)
+			if err != nil {
+				t.error(err)
+				return
+			}
+
+			chunk64 := string(chunk.Chunk)
+			index := strings.Index(chunk64, ",")
+			chunk64 = chunk64[index+1:]
+
+			fileBytes, err := base64.StdEncoding.DecodeString(chunk64)
+			if err != nil {
+				t.error(err)
+				return
+			}
+
+			currentBuf := bufferChunk{lowByte: min, highByte: max, chunkBytes: fileBytes}
+
+			if nextByte != currentBuf.lowByte {
+				util.Debug.Println("Buffering", currentBuf.lowByte, "-", currentBuf.highByte)
+				buffer = append(buffer, currentBuf)
+				continue WriterLoop
+			}
+
+			for {
+				err = file.Append(currentBuf.chunkBytes)
+				if err != nil {
+					t.error(err)
+					return
+				}
+				nextByte = currentBuf.highByte + 1
+
+				if len(buffer) == 0 {
+					break
+				}
+
+				var exists bool
+				buffer, currentBuf, exists = util.YoinkFunc(buffer, func(b bufferChunk) bool { return b.lowByte == nextByte })
+				if !exists {
+					break
+				}
+			}
+
+			if nextByte == total {
+				break WriterLoop
+			}
+		}
+	}
+
+	caster.PushFileCreate(file)
+	dataStore.Resize(parent)
+	file.RemoveTask(t.TaskId())
+	t.success()
 }

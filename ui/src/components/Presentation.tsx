@@ -65,7 +65,7 @@ function useKeyDown(mediaData, dispatch) {
         }
         else if (event.key === 'Escape') {
             event.preventDefault()
-            dispatch({ type: 'set_presentation', presentingId: '' })
+            dispatch({ type: 'set_presentation', media: null })
         }
         else if (event.key === 'ArrowLeft') {
             event.preventDefault()
@@ -105,9 +105,9 @@ const Presentation = ({ mediaData, parents, dispatch }: { mediaData: MediaData, 
     }
 
     return (
-        <PresentationContainer onMouseMove={(_) => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }} onClick={() => dispatch({ type: 'set_presentation', presentingId: '' })}>
+        <PresentationContainer onMouseMove={(_) => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }} onClick={() => dispatch({ type: 'set_presentation', media: null })}>
             <PresentationVisual mediaData={mediaData} />
-            <CloseButton c={'white'} style={{ position: 'absolute', top: guiShown ? 15 : -100, left: 15 }} onClick={() => dispatch({ type: 'set_presentation', presentingId: '' })} />
+            <CloseButton c={'white'} style={{ position: 'absolute', top: guiShown ? 15 : -100, left: 15 }} onClick={() => dispatch({ type: 'set_presentation', presentingId: null })} />
         </PresentationContainer>
     )
 }

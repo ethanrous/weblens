@@ -1,5 +1,5 @@
 
-import { Card, Paper, Text, RingProgress, Box, ScrollArea, CloseButton, Center, Tooltip, Space } from '@mantine/core';
+import { Card, Paper, Text, RingProgress, ScrollArea, CloseButton, Center, Tooltip, Space } from '@mantine/core';
 import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react';
 
 import { useMemo, useReducer } from "react"
@@ -10,24 +10,22 @@ import { FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles';
 function uploadReducer(state: UploadStateType, action) {
     switch (action.type) {
         case 'add_new': {
-            let existingUpload = state.uploadsMap.get(action.key)
-            if (existingUpload?.progress > 0) {
-                return { ...state }
-            }
-            const newUploadMeta: UploadMeta = { key: action.key, isDir: action.isDir, friendlyName: action.name, parent: action?.parent, progress: 0, totalFiles: 0, speed: 0 }
+            // let existingUpload = state.uploadsMap.get(action.key)
+            // if (existingUpload?.progress > 0) {
+            //     return { ...state }
+            // }
+            const newUploadMeta: UploadMeta = { key: action.key, isDir: action.isDir, friendlyName: action.name, parent: action?.parent, progress: 0, total: action.size ? action.size : 0, speed: [] }
             if (action.parent) {
                 const parent = state.uploadsMap.get(action.parent)
-                if (!parent) {
-                    console.log("BAD", state.uploadsMap)
-                }
-                parent.totalFiles += 1
+                parent.total += 1
                 state.uploadsMap.set(action.parent, parent)
             }
             state.uploadsMap.set(newUploadMeta.key, newUploadMeta)
             return { ...state }
         }
-        case 'set_progress': {
+        case 'update_progress': {
             if (!state.uploadsMap.get(action.key)) {
+                console.error("Looking for upload key that doesn't exist")
                 return { ...state }
             }
             let newMap = new Map<string, UploadMeta>()
@@ -37,8 +35,17 @@ function uploadReducer(state: UploadStateType, action) {
             })
 
             let replaceItem = newMap.get(action.key)
-            replaceItem.progress = action.progress
-            replaceItem.speed = action.speed
+            replaceItem.progress += action.progress
+
+            if (replaceItem.speed.push(action.speed) >= 6) {
+                replaceItem.speed.shift()
+            }
+
+            if (replaceItem.progress === replaceItem.total && replaceItem.parent) {
+                const parent = state.uploadsMap.get(replaceItem.parent)
+                parent.progress += 1
+                state.uploadsMap.set(replaceItem.parent, parent)
+            }
 
             newMap.set(action.key, replaceItem)
             return { ...state, uploadsMap: newMap }
@@ -46,16 +53,8 @@ function uploadReducer(state: UploadStateType, action) {
         case 'clear': {
             return { ...state, uploadsMap: new Map<string, UploadMeta>() }
         }
-        case 'finished': {
-            const finishedItem = state.uploadsMap.get(action.key)
-            if (finishedItem.parent) {
-                const parent = state.uploadsMap.get(finishedItem.parent)
-                parent.progress += 1
-                state.uploadsMap.set(finishedItem.parent, parent)
-            } else {
-                finishedItem.progress = 100
-                state.uploadsMap.set(action.key, finishedItem)
-            }
+        default: {
+            console.error("Got unexpected upload status action", action.type)
             return { ...state }
         }
     }
@@ -66,8 +65,8 @@ type UploadMeta = {
     isDir: boolean
     friendlyName: string
     progress: number // 0-100 for files, 0-{n} where n is number of files for directories
-    totalFiles: number // only for directories, number of files in the dir
-    speed: number
+    total: number // total size in bytes of the file, or number of files in the dir
+    speed: number[]
     parent: string // For files if they have a directory parent at the top level
 }
 type UploadStateType = {
@@ -82,6 +81,8 @@ export function useUploadStatus() {
     return { uploadState, uploadDispatch }
 }
 
+const average = (array) => {return (array.reduce((a, b) => a + b) / array.length)}
+
 function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
     let prog = 0
     let statusText = ""
@@ -89,12 +90,12 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
         if (uploadMetadata.progress === -1) {
             prog = -1
         } else {
-            prog = (uploadMetadata.progress / uploadMetadata.totalFiles) * 100
+            prog = (uploadMetadata.progress / uploadMetadata.total) * 100
         }
-        statusText = `${uploadMetadata.progress} of ${uploadMetadata.totalFiles} files`
+        statusText = `${uploadMetadata.progress} of ${uploadMetadata.total} files`
     } else if (uploadMetadata.progress) {
-        prog = uploadMetadata.progress
-        const [val, unit] = humanFileSize(uploadMetadata.speed, true)
+        prog = (uploadMetadata.progress / uploadMetadata.total) * 100
+        const [val, unit] = humanFileSize(average(uploadMetadata.speed), true)
         statusText = `${val}${unit}/s`
     }
 
@@ -151,7 +152,7 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
 
 // const UploadStatus = ({ uploadState, uploadDispatch, count }: { uploadState: UploadStateType, uploadDispatch, count: number }) => {
 
-const UploadStatus = ({ uploadState, uploadDispatch, count }: { uploadState: UploadStateType, uploadDispatch, count: number }) => {
+const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStateType, uploadDispatch }) => {
     const uploadCards = useMemo(() => {
         let uploadCards = []
         const uploads = Array.from(uploadState.uploadsMap.values()).filter((val) => !val.parent)
@@ -159,10 +160,12 @@ const UploadStatus = ({ uploadState, uploadDispatch, count }: { uploadState: Upl
             uploadCards.push(<UploadCard key={uploadMeta.key} uploadMetadata={uploadMeta} />)
         }
         return uploadCards
-    }, [uploadState.uploadsMap.values(), count])
+    }, [uploadState.uploadsMap.values(), uploadState.uploadsMap.size])
+
     if (uploadState.uploadsMap.size === 0) {
         return null
     }
+
     const topLevelCount: number = Array.from(uploadState.uploadsMap.values()).filter((val) => !val.parent).length
     return (
         <Paper pos={'fixed'} bottom={0} right={30} radius={10} style={{ backgroundColor: "#222222", zIndex: 2 }}>

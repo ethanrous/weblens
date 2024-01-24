@@ -79,7 +79,7 @@
       "FileExtension": [
         "MP4"
       ],
-      "IsDisplayable": true,
+      "IsDisplayable": false,
       "IsRaw": false,
       "IsVideo": true
     }

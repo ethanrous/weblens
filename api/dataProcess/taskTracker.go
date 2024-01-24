@@ -30,7 +30,7 @@ func taskWorkerPoolStatus() {
 
 func VerifyTaskTracker() *taskTracker {
 	if ttInstance.taskMap == nil {
-		ttInstance.taskMap = map[string]*task{}
+		ttInstance.taskMap = map[string]*Task{}
 		wp, wq := NewWorkerPool(runtime.NumCPU() - 1)
 		ttInstance.wp = wp
 		ttInstance.globalQueue = wq
@@ -39,15 +39,14 @@ func VerifyTaskTracker() *taskTracker {
 	return &ttInstance
 }
 
-func (tt *taskTracker) EnableWP() {
-	tt.wp.Enable()
+func (tt *taskTracker) StartWP() {
 	tt.wp.Run()
 }
 
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
 
-func NewTask(taskType string, taskMeta any) *task {
+func NewTask(taskType string, taskMeta any) *Task {
 	VerifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
@@ -58,81 +57,36 @@ func NewTask(taskType string, taskMeta any) *task {
 	defer ttInstance.taskMu.Unlock()
 	existingTask, ok := ttInstance.taskMap[taskId]
 	if ok {
-		if existingTask.err != nil {
+		if taskType == "write_file" {
 			existingTask.ClearAndRecompute()
 		}
 		return existingTask
 	}
-	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}}
+	//										  signal chan must be buffered so caller doesn't block trying to close many tasks \/
+	newTask := &Task{taskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}, signalChan: make(chan int, 1)}
 	newTask.waitMu.Lock()
 
 	ttInstance.taskMap[taskId] = newTask
 	switch newTask.taskType {
 	case "scan_directory":
-		newTask.work = func() { scanDirectory(newTask); removeTask(newTask.TaskId) }
+		newTask.work = func() { scanDirectory(newTask); removeTask(newTask.taskId) }
 	case "create_zip":
 		newTask.work = func() { createZipFromPaths(newTask) }
 	case "scan_file":
-		newTask.work = func() { ScanFile(newTask.metadata.(ScanMetadata)); removeTask(newTask.TaskId) }
+		newTask.work = func() { ScanFile(newTask) }
 	case "move_file":
-		newTask.work = func() { moveFile(newTask); removeTask(newTask.TaskId) }
-	case "preload_meta":
-		newTask.work = func() { preloadThumbs(newTask); removeTask(newTask.TaskId) }
+		newTask.work = func() { moveFile(newTask); removeTask(newTask.taskId) }
+	case "write_file":
+		newTask.work = func() { writeToFile(newTask); removeTask(newTask.taskId) }
 	}
 
 	return newTask
 }
 
-func (t *task) ClearAndRecompute() {
-	for k := range t.result {
-		delete(t.result, k)
-	}
-	if t.err != nil {
-		util.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId, t.err)
-		t.err = nil
-	}
-	t.queue = nil
-	t.waitMu.Lock()
-	t.queue.QueueTask(t)
-}
-
-func GetTask(taskId string) *task {
+func GetTask(taskId string) *Task {
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()
 	return ttInstance.taskMap[taskId]
-}
-
-func (t *task) Result(resultKey string) string {
-	if t.result == nil {
-		return ""
-	}
-	return t.result[resultKey]
-}
-func (t *task) Err() any {
-	return t.err
-}
-
-func (t *task) BroadcastComplete(statusMessage string) {
-	t.Completed = true
-	caster.PushTaskUpdate(t.TaskId, statusMessage, t.result)
-}
-
-func (t *task) Complete(msg string) {
-	t.Completed = true
-	if msg != "" {
-		util.Info.Println(msg)
-	}
-}
-
-func (t *task) setResult(fields ...KeyVal) {
-	if t.result == nil {
-		t.result = make(map[string]string)
-	}
-
-	for _, pair := range fields {
-		t.result[pair.Key] = pair.Val
-	}
-
 }
 
 func removeTask(taskKey string) {
@@ -141,22 +95,16 @@ func removeTask(taskKey string) {
 	delete(ttInstance.taskMap, taskKey)
 }
 
-func (t *task) Wait() {
-	t.waitMu.Lock()
-	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
-	t.waitMu.Unlock()
-}
-
 func FlushCompleteTasks() {
 	for k, t := range ttInstance.taskMap {
-		if t.Completed {
+		if t.completed {
 			delete(ttInstance.taskMap, k)
 		}
 	}
 }
 
-func QueueGlobalTask(t *task) {
-	ttInstance.globalQueue.QueueTask(t)
+func GetGlobalQueue() *virtualTaskPool {
+	return ttInstance.globalQueue
 }
 
 func NewWorkQueue() *virtualTaskPool {
@@ -173,4 +121,18 @@ func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, rec
 	scanMeta := ScanMetadata{File: directory, Recursive: recursive, DeepScan: deep}
 	t := NewTask("scan_directory", scanMeta)
 	tskr.QueueTask(t)
+}
+
+// Parameters:
+//   - `file` : the weblens file to write to
+//   - `fileSize` : the size of the file when writing is finished
+func (tskr *virtualTaskPool) WriteToFile(filename, parentFolderId string) *Task {
+	writeMeta := WriteFileMeta{Filename: filename, ParentFolderId: parentFolderId, ChunkStream: make(chan FileChunk, 25)}
+	t := NewTask("write_file", writeMeta)
+	tskr.QueueTask(t)
+	return t
+}
+
+func WaitMany(ts []*Task) {
+	util.Each(ts, func(t *Task) { t.Wait() })
 }

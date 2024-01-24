@@ -11,6 +11,7 @@ import Login from "./Pages/Login/Login"
 
 import "@mantine/notifications/styles.css"
 import "@mantine/core/styles.css"
+import { FlexColumnBox, FlexRowBox } from './Pages/FileBrowser/FilebrowserStyles'
 
 const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"))
 const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"))
@@ -64,11 +65,6 @@ function App() {
   // document.body.style.backgroundColor = "#fff"
   return (
     <MantineProvider defaultColorScheme="dark">
-      <AppShell>
-        <AppShell.Footer style={{backgroundColor: "#00000000", border: 0, zIndex: 0}}>
-          <Text style={{paddingLeft: 30, opacity: 0.20, zIndex: 0, userSelect: 'none'}}>{process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
-        </AppShell.Footer>
-      </AppShell>
       <Notifications position='top-right' top={90} />
       <Router>
         <WeblensRoutes />

@@ -277,6 +277,7 @@ const Gallery = () => {
         mediaMap: new Map<string, MediaData>(),
         mediaMapUpdated: 0,
         albumsMap: new Map<string, AlbumData>(),
+        presentingMedia: null,
         albumsFilter: [],
         loading: true,
         includeRaw: false,
@@ -285,7 +286,6 @@ const Gallery = () => {
         imageSize: 300,
         scanProgress: 0,
         searchContent: "",
-        presentingHash: "",
     })
 
     const { authHeader } = useContext(userContext)
@@ -312,7 +312,7 @@ const Gallery = () => {
     return (
         <Box>
             <HeaderBar searchContent={mediaState.searchContent} dispatch={dispatch} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
-            <Presentation mediaData={mediaState.mediaMap.get(mediaState.presentingHash)} parents={null} dispatch={dispatch} />
+            <Presentation mediaData={mediaState.presentingMedia} parents={null} dispatch={dispatch} />
             <FlexRowBox style={{ height: "100vh", paddingTop: "70px", alignItems: 'normal' }}>
                 <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} />
                 <Box style={{ height: "calc(100% - 80px)", width: '100%', paddingTop: "15px", position: 'absolute' }}>

@@ -1,16 +1,12 @@
 package routes
 
 import (
-	"bytes"
 	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -20,11 +16,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-type loginInfo struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
 
 func getMediaBatch(ctx *gin.Context) {
 	sort := ctx.Query("sort")
@@ -37,7 +28,7 @@ func getMediaBatch(ctx *gin.Context) {
 	albumFilter := []string{}
 	json.Unmarshal([]byte(ctx.Query("albums")), &albumFilter)
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 
 	media, err := db.GetFilteredMedia(sort, ctx.GetString("username"), -1, albumFilter, raw, false)
 	if err != nil {
@@ -66,36 +57,36 @@ func getOneMedia(ctx *gin.Context) {
 		return
 	}
 
-	db := dataStore.NewDB(ctx.GetString("username"))
-	m := db.GetMedia(mediaId, includeThumbnail)
+	db := dataStore.NewDB()
+	m := db.GetMedia(mediaId)
 
-	filled, reason := m.IsFilledOut(!includeThumbnail)
-	if !filled {
-		util.Error.Printf("Failed to get [ %s ] from Database (missing %s)", mediaId, reason)
-		ctx.AbortWithStatus(http.StatusInternalServerError)
+	if m == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given Id not found"})
 		return
 	}
 
 	if includeFullres {
-		fullresBytes, err := m.ReadFullres(db)
-		util.FailOnError(err, "Failed to read fullres file")
+		fullresBytes, err := m.ReadFullres()
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read fullres file"})
+			return
+		}
+
 		ctx.Writer.Write(fullresBytes)
-		return
 
 	} else if !includeMeta && includeThumbnail {
 		thumbBytes, err := b64.StdEncoding.DecodeString(m.Thumbnail64)
-		util.FailOnError(err, "Failed to decode thumb64 to bytes")
+		if err != nil {
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
 
 		ctx.Writer.Write(thumbBytes)
 	} else {
 		ctx.JSON(http.StatusOK, m)
 	}
 
-}
-
-type updateMediasBody struct {
-	Owner      string   `json:"owner"`
-	FileHashes []string `json:"fileHashes"`
 }
 
 func updateMedias(ctx *gin.Context) {
@@ -106,229 +97,33 @@ func updateMedias(ctx *gin.Context) {
 	err = json.Unmarshal(jsonData, &updateBody)
 	util.FailOnError(err, "Failed to unmarshal body of media update")
 
-	db := dataStore.NewDB(ctx.GetString("username"))
-	db.UpdateMediasByFilehash(updateBody.FileHashes, updateBody.Owner)
+	db := dataStore.NewDB()
+	db.UpdateMediasById(updateBody.FileHashes, updateBody.Owner)
 
 }
 
-func streamVideo(ctx *gin.Context) {
-	fileHash := ctx.Param("filehash")
-	_, err := b64.URLEncoding.DecodeString(fileHash)
-	if err != nil {
-		ctx.AbortWithStatus(http.StatusBadRequest)
-		util.DisplayError(err, "Given filehash ("+fileHash+") is not base64 encoded")
-		return
-	}
-
-	includeThumbnail := false
-
-	db := dataStore.NewDB(ctx.GetString("username"))
-	m := db.GetMedia(fileHash, includeThumbnail)
-
-	filled, reason := m.IsFilledOut(!includeThumbnail)
-	if !filled {
-		util.Error.Printf("Failed to get [ %s ] from Database (missing %s)", fileHash, reason)
-		ctx.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	// cmd := exec.Command("/opt/homebrew/bin/ffmpeg", "-i", dataStore.GuaranteeAbsolutePath(m.Filepath), "-c:v", "h264_videotoolbox", "-f", "h264", "pipe:1")
-	// stdout, err := cmd.StdoutPipe()
-	// util.FailOnError(err, "Failed to get ffmpeg stdout pipe")
-
-	// err = cmd.Start()
-	// if err != nil {
-	// 	util.FailOnError(err, "Failed to start ffmpeg")
-	// }
-	// // buf := new (bytes.Buffer)
-	// // _, err = buf.ReadFrom(stdout)
-
-	//	util.FailOnError(err, "Failed to run ffmpeg to get video thumbnail")
-	// file, err := os.Open(dataStore.GuaranteeAbsolutePath(m.Filepath, ctx.GetString("username")))
-
-	util.FailOnError(err, "Failed to open fullres stream file")
-
-	ctx.Writer.Header().Add("Connection", "keep-alive")
-
-	//writtenBytes, err := io.Copy(ctx.Writer, stdout)
-	// writtenBytes, err := io.Copy(ctx.Writer, file)
-	// util.FailOnError(err, fmt.Sprintf("Failed to write video stream to response writer (wrote %d bytes)", writtenBytes))
-
-	//cmd.Wait()
+// Create new file upload task, and wait for data
+func newFileUpload(ctx *gin.Context) {
+	t := UploadTasker.WriteToFile(ctx.Query("filename"), ctx.Query("parentFolderId"))
+	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
 
-func handleFileUpload(file *dataStore.WeblensFile, file64, uploaderName string) error {
-	if !file.Exists() {
-		conflictErr := fmt.Errorf("file (%s) does not exist for writing", file)
-		return conflictErr
-	}
-
-	index := strings.Index(file64, ",")
-	fileBytes, err := b64.StdEncoding.DecodeString(file64[index+1:])
-	if err != nil {
-		return err
-	}
-
-	err = file.Write(fileBytes)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type uploadedFile struct {
-	File64         string `json:"file64"`
-	FileName       string `json:"fileName"`
-	ParentFolderId string `json:"parentFolderId"`
-}
-
-func handleChunkedFileUpload(ctx *gin.Context) {
-	chunk64 := ctx.Request.FormValue("chunk")
-	filename := ctx.Request.FormValue("filename")
-	uploadId := ctx.Request.FormValue("uploadId")
-
-	contentRangeHeader := ctx.GetHeader("Content-Range")
-	rangeAndSize := strings.Split(contentRangeHeader, "/")
-	rangeParts := strings.Split(rangeAndSize[0], "-")
-
-	rangeMin, err := strconv.Atoi(rangeParts[0])
-	if err != nil {
-		util.Debug.Println(rangeParts[0])
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing range in Content-Range header"})
+// Add chunks of file to previously created task
+func handleUploadChunk(ctx *gin.Context) {
+	uploadId := ctx.Param("uploadId")
+	t := dataProcess.GetTask(uploadId)
+	if t == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "No upload exists with given id"})
 		return
 	}
-	rangeMax, err := strconv.Atoi(rangeParts[1])
-	if err != nil {
-		util.Debug.Println(rangeParts[1])
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing range in Content-Range header"})
-		return
-	}
-	chunkSize := rangeMax - rangeMin
-	if chunkSize == 0 {
-		util.Error.Println("Chunk is empty")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Chunk is empty"})
-		return
-	}
-
-	fileSize, err := strconv.Atoi(rangeAndSize[1])
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing file size in Content-Range header"})
-		return
-	}
-
-	var tmpFile *dataStore.WeblensFile
-
-	if uploadId == "" {
-		tmpDir := dataStore.GetTmpDir()
-		finalParent := dataStore.FsTreeGet(ctx.Request.FormValue("parentFolderId"))
-		if finalParent == nil {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not get parent directory"})
-			return
-		}
-
-		tmpFilename := util.HashOfString(8, finalParent.GetParent().Id()+filename+time.Now().String())
-		tmpFile, err = dataStore.Touch(tmpDir, tmpFilename, true)
-		if err != nil {
-			util.DisplayError(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not touch temp file"})
-			return
-		}
-		uploadId = tmpFile.Id()
-	} else {
-		tmpFile = dataStore.FsTreeGet(uploadId)
-	}
-
-	f, err := os.OpenFile(tmpFile.String(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	stream := t.GetMeta().(dataProcess.WriteFileMeta).ChunkStream
+	chunk, err := util.OracleReader(ctx.Request.Body, ctx.Request.ContentLength)
 	if err != nil {
 		util.DisplayError(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating file"})
-		return
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
 	}
-
-	commaPos := strings.Index(chunk64, ",")
-	if commaPos != -1 {
-		chunk64 = chunk64[commaPos+1:]
-	}
-	chunkBytes, err := b64.StdEncoding.DecodeString(chunk64)
-	if err != nil {
-		util.DisplayError(err)
-		illegalByte, byteErr := strconv.Atoi(strings.Replace(err.Error(), "illegal base64 data at input byte ", "", 1))
-		if byteErr == nil {
-			util.Debug.Println("Illegal byte:", string(chunk64[illegalByte]))
-		}
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Error decoding chunk"})
-		return
-	}
-
-	chunkBuffer := bytes.NewBuffer(chunkBytes)
-
-	bsWritten, err := io.Copy(f, chunkBuffer)
-	if err != nil || bsWritten == 0 {
-		util.DisplayError(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error writing to tmp file"})
-		return
-	}
-
-	f.Close()
-	if rangeMax >= fileSize-1 {
-		parentDir := dataStore.FsTreeGet(ctx.Request.FormValue("parentFolderId"))
-		err = dataStore.FsTreeMove(tmpFile, parentDir, filename, false)
-		if err != nil {
-			util.DisplayError(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to move tmp file to permenant location"})
-			return
-		}
-
-		ctx.Status(http.StatusCreated)
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{"status": "uploading", "uploadId": uploadId})
-}
-
-func uploadFile(ctx *gin.Context) {
-	if strings.Contains(ctx.GetHeader("Content-Type"), "multipart/form-data") {
-		handleChunkedFileUpload(ctx)
-		return
-	}
-
-	jsonData, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body on file upload"})
-		return
-	}
-
-	var fileMeta uploadedFile
-	err = json.Unmarshal(jsonData, &fileMeta)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
-		return
-	}
-
-	parentFolder := dataStore.FsTreeGet(fileMeta.ParentFolderId)
-	if parentFolder == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find parent folder"})
-		return
-	}
-	file, err := dataStore.Touch(parentFolder, fileMeta.FileName, false)
-
-	if err != nil {
-		util.DisplayError(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create file"})
-		return
-	}
-
-	username := ctx.GetString("username")
-	err = handleFileUpload(file, fileMeta.File64, username)
-	if err != nil {
-		util.DisplayError(err, "Failed to upload file")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
-		return
-	}
-
-	dataStore.FsTreeInsert(file, parentFolder)
-
-	ctx.Status(http.StatusCreated)
+	chunkData := dataProcess.FileChunk{Chunk: chunk, ContentRange: ctx.GetHeader("Content-Range")}
+	stream <- chunkData
 }
 
 func makeDir(ctx *gin.Context) {
@@ -367,7 +162,7 @@ func _getDirInfo(dir *dataStore.WeblensFile, ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find parent directory"})
 		return
 	}
-	for parent.Id() != "0" && parent.UserCanAccess(username) {
+	for parent.Id() != "0" && parent.CanUserAccess(username) {
 		parentInfo, err := parent.FormatFileInfo()
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, "Failed to format parent file info")
@@ -398,7 +193,7 @@ func getFolderInfo(ctx *gin.Context) {
 		return
 	}
 
-	if !dir.UserCanAccess(ctx.GetString("username")) {
+	if !dir.CanUserAccess(ctx.GetString("username")) {
 		util.Debug.Println("Not auth")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
 		return
@@ -453,22 +248,17 @@ func updateFile(ctx *gin.Context) {
 	}
 
 	t := dataProcess.NewTask("move_file", dataProcess.MoveMeta{FileId: fileId, DestinationFolderId: newParentId, NewFilename: newFilename})
-	dataProcess.QueueGlobalTask(t)
+	dataProcess.GetGlobalQueue().QueueTask(t)
 
 	t.Wait()
 
-	if t.Err() != nil {
-		util.Error.Println(t.Err())
+	if t.ReadError() != nil {
+		util.Error.Println(t.ReadError())
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	ctx.Status(http.StatusOK)
-}
-
-type updateMany struct {
-	Files       []string `json:"fileIds"`
-	NewParentId string   `json:"newParentId"`
 }
 
 func updateFiles(ctx *gin.Context) {
@@ -482,15 +272,12 @@ func updateFiles(ctx *gin.Context) {
 
 	wq := dataProcess.NewWorkQueue()
 
-	// arbFile := dataStore.FsTreeGet(filesData.Files[0])
-	// preParent := arbFile.GetParent()
-
 	for _, fileId := range filesData.Files {
 		t := dataProcess.NewTask("move_file", dataProcess.MoveMeta{FileId: fileId, DestinationFolderId: filesData.NewParentId, NewFilename: ""})
 		wq.QueueTask(t)
 	}
 	wq.SignalAllQueued()
-	wq.Wait()
+	wq.Wait(false)
 
 	ctx.Status(http.StatusOK)
 }
@@ -528,10 +315,6 @@ func trashFile(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-type takeoutFiles struct {
-	FileIds []string `json:"fileIds"`
-}
-
 func createTakeout(ctx *gin.Context) {
 	username := ctx.GetString("username")
 
@@ -561,12 +344,13 @@ func createTakeout(ctx *gin.Context) {
 	}
 
 	t := dataProcess.NewTask("create_zip", dataProcess.ZipMetadata{Files: files, Username: username})
-	dataProcess.QueueGlobalTask(t)
+	dataProcess.GetGlobalQueue().QueueTask(t)
 
-	if t.Completed {
-		ctx.JSON(http.StatusOK, gin.H{"takeoutId": t.Result("takeoutId"), "single": false})
+	completed, _ := t.Status()
+	if completed {
+		ctx.JSON(http.StatusOK, gin.H{"takeoutId": t.GetResult("takeoutId"), "single": false})
 	} else {
-		ctx.JSON(http.StatusAccepted, gin.H{"taskId": t.TaskId})
+		ctx.JSON(http.StatusAccepted, gin.H{"taskId": t.TaskId()})
 	}
 }
 
@@ -580,17 +364,6 @@ func downloadFile(ctx *gin.Context) {
 	ctx.File(file.String())
 }
 
-type tokenReturn struct {
-	Token string `json:"token"`
-}
-
-type newUserInfo struct {
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	Admin        bool   `json:"admin"`
-	AutoActivate bool   `json:"autoActivate"`
-}
-
 func createUser(ctx *gin.Context) {
 	jsonData, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
@@ -600,7 +373,7 @@ func createUser(ctx *gin.Context) {
 	var userInfo newUserInfo
 	json.Unmarshal(jsonData, &userInfo)
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	db.GetUser(userInfo.Username)
 
 	db.CreateUser(userInfo.Username, userInfo.Password, userInfo.Admin)
@@ -617,7 +390,7 @@ func loginUser(ctx *gin.Context) {
 	var usrCreds loginInfo
 	json.Unmarshal(jsonData, &usrCreds)
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	if db.CheckLogin(usrCreds.Username, usrCreds.Password) {
 		util.Info.Printf("Valid login for [%s]\n", usrCreds.Username)
 		user, err := db.GetUser(usrCreds.Username)
@@ -646,7 +419,7 @@ func loginUser(ctx *gin.Context) {
 }
 
 func getUserInfo(ctx *gin.Context) {
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	authList := strings.Split(ctx.Request.Header["Authorization"][0], ",")
 
 	user, err := db.GetUser(authList[0])
@@ -661,7 +434,7 @@ func getUserInfo(ctx *gin.Context) {
 }
 
 func getUsers(ctx *gin.Context) {
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	users := db.GetUsers()
 	ctx.JSON(http.StatusOK, users)
 }
@@ -675,7 +448,7 @@ func updateUser(ctx *gin.Context) {
 	}
 	json.Unmarshal(jsonData, &userToUpdate)
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	db.ActivateUser(userToUpdate.Username)
 	dataStore.CreateUserHomeDir(userToUpdate.Username)
 
@@ -687,14 +460,14 @@ func deleteUser(ctx *gin.Context) {
 	homeDir := dataStore.GetUserHomeDir(username)
 	dataStore.MoveFileToTrash(homeDir)
 
-	db := dataStore.NewDB(ctx.GetString("username")) // Admin username
+	db := dataStore.NewDB() // Admin username
 	db.DeleteUser(username)
 
 	ctx.Status(http.StatusOK)
 }
 
 func clearCache(ctx *gin.Context) {
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	db.ClearCache()
 	dataProcess.FlushCompleteTasks()
 }
@@ -706,14 +479,9 @@ func searchUsers(ctx *gin.Context) {
 		return
 	}
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	users := db.SearchUsers(filter)
 	ctx.JSON(http.StatusOK, gin.H{"users": users})
-}
-
-type fileShare struct {
-	Files []string `json:"files"`
-	Users []string `json:"users"`
 }
 
 func shareFiles(ctx *gin.Context) {
@@ -725,7 +493,7 @@ func shareFiles(ctx *gin.Context) {
 
 	var shareData fileShare
 	json.Unmarshal(jsonData, &shareData)
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 
 	if len(shareData.Files) == 0 || len(shareData.Users) == 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cannot share files with either 0 files or 0 users"})
@@ -745,7 +513,7 @@ func shareFiles(ctx *gin.Context) {
 
 func getSharedFiles(ctx *gin.Context) {
 	username := ctx.GetString("username")
-	db := dataStore.NewDB(username)
+	db := dataStore.NewDB()
 	sharedList := db.GetSharedWith(username)
 
 	filesInfos := util.Map(sharedList, func(file *dataStore.WeblensFile) dataStore.FileInfo {

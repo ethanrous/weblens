@@ -3,6 +3,7 @@ import axios from 'axios'
 import { useUploadStatus } from "../components/UploadStatus";
 import { dispatchSync } from "./Websocket";
 import { notifications } from "@mantine/notifications";
+import { dateFromFileData } from "../util";
 
 export type fileUploadMetadata = {
     file: File
@@ -32,28 +33,16 @@ PromiseQueue.prototype.workerMain = async function (workerNum: number) {
     }
 }
 
+PromiseQueue.prototype.queueMore = function (tasks: (() => Promise<any>)[]) {
+    this.todo.push(...tasks)
+}
+
 PromiseQueue.prototype.run = async function () {
     for (let workerNum = 0; workerNum < this.count; workerNum++) {
         this.running.push(this.workerMain())
     }
     await Promise.all(this.running)
     return this.results
-}
-
-const PostFile = async (file64, parentFolderId, filename, authHeader, onProgress, onFinish) => {
-    await axios.post(
-        `${API_ENDPOINT}/file`,
-        JSON.stringify({
-            parentFolderId: parentFolderId,
-            filename: filename,
-            file64: file64,
-        }),
-        {
-            onUploadProgress: onProgress,
-            headers: authHeader
-        }
-    )
-    onFinish()
 }
 
 async function readFile(file) {
@@ -66,7 +55,6 @@ async function readFile(file) {
         };
 
         fr.onerror = () => {
-            console.log("AHH")
             reject(fr)
         }
 
@@ -76,100 +64,78 @@ async function readFile(file) {
     })
 }
 
-const CHUNK_SIZE: number = 20000000
+const UPLOAD_CHUNK_SIZE: number = 51200000
 
-async function doChunkedUpload(fileData: File, parentFolderId, filename, authHeader, onProgress?, onFinish?) {
-    let uploadId: string = ""
-    try {
-        let offset = 0;
-        while (offset < fileData.size) {
-            let upperBound
-            if (offset + CHUNK_SIZE >= fileData.size) {
-                upperBound = fileData.size
-            } else {
-                upperBound = offset + CHUNK_SIZE
-            }
-            let chunk = await readFile(fileData.slice(offset, upperBound))
-            chunk = chunk.substring(chunk.indexOf(',') + 1, chunk.length)
+async function uploadChunk(fileData: File, low: number, high: number, uploadId: string, authHeader, onProgress, onFinish) {
+    let chunk = await readFile(fileData.slice(low, high))
+    chunk = chunk.substring(chunk.indexOf(',') + 1, chunk.length)
+    const url = `${API_ENDPOINT}/upload/${uploadId}`
 
-            const formData = new FormData()
-            formData.append("chunk", chunk)
-            formData.append("offset", offset.toString())
-            formData.append("totalSize", fileData.size.toString())
-            formData.append("filename", filename)
-            formData.append("uploadId", uploadId)
-            formData.append("parentFolderId", parentFolderId)
+    const start = Date.now() / 1000
+    let res = await axios.put(url, chunk, {
+        headers: { "Authorization": authHeader.Authorization, "Content-Range": `${low}-${high - 1}/${fileData.size}` },
+        // onUploadProgress: (e) => {console.log(e.progress)}
+    })
+    // .catch(r => {notifications.show({title: `Failed to upload chunk of ${fileData.name}`, message: String(r), color: 'red'}); return String(r)})
+    const end = Date.now() / 1000
 
-            const start = Date.now() / 1000
-            let res = await axios.post(`${API_ENDPOINT}/file`, formData, {
-                headers: { "Content-Type": "multipart/form-data", "Authorization": authHeader.Authorization, "Content-Range": `${offset}-${upperBound}/${fileData.size}` }
-            })
-            const end = Date.now() / 1000
+    // Convert from base64 size to byte size
+    let speed = ((UPLOAD_CHUNK_SIZE / 6) * 8) / (end - start)
+    onProgress(high - low, fileData.size, speed)
 
-            if (uploadId === "") {
-                uploadId = res.data.uploadId
-            }
-            offset += CHUNK_SIZE;
-
-            let speed = ((CHUNK_SIZE / 6) * 8) / (end - start)
-            onProgress(offset, fileData.size, speed)
-        }
-        onFinish()
-    } catch (error) {
-        onProgress(-1, 100, 0)
-        notifications.show({ title: `Failed uploading ${filename}`, message: `${error.response.data.error}`, color: 'red' })
-        console.log(error.response.data.error)
-        console.error("Error during chunk upload:", error);
-    }
+    return null
 }
 
-async function singleUploadPromise(uploadMeta: fileUploadMetadata, authHeader, uploadDispatch, dispatch) {
+async function queueChunks(uploadMeta: fileUploadMetadata, authHeader, uploadDispatch, taskQueue) {
     const file: File = uploadMeta.file
-
     const key: string = uploadMeta.parentId + uploadMeta.file.name
+
+    const url = new URL(`${API_ENDPOINT}/upload`)
+    url.searchParams.append("filename", uploadMeta.file.name)
+    url.searchParams.append("parentFolderId", uploadMeta.parentId)
+    let res = axios.post(url.toString(), null, {headers: authHeader})
+
     const onFinish = () => uploadDispatch({ type: "finished", key: key })
+    const onProgress = (bytesWritten, totalBytes, MBpS) => { uploadDispatch({ type: "update_progress", key: key, progress: bytesWritten, speed: Math.trunc(MBpS) }) }
 
-    if (file.size > CHUNK_SIZE) {
-        // Upload is too large, do chunked upload
-        const onProgress = (bytesWritten, totalBytes, MBpS) => { uploadDispatch({ type: "set_progress", key: key, progress: 100 * bytesWritten / totalBytes, speed: Math.trunc(MBpS) }) }
-        return async () => {
-            await doChunkedUpload(file, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish)
-        }
+    const createFileResponse = await res
+    console.log(createFileResponse)
+    const uploadId = createFileResponse.data.uploadId
 
-    } else {
-        // Upload is small enough for single upload
-        const onProgress = (p) => { uploadDispatch({ type: "set_progress", key: key, progress: p.progress * 100, speed: p.rate }) }
-        return async () => {
-            const file64 = await readFile(file)
-            await PostFile(file64, uploadMeta.parentId, uploadMeta.file.name, authHeader, onProgress, onFinish)
-        }
+    let chunkTasks = []
+    let offset = 0
+    while (offset < file.size) {
+        let innerOffset = offset // Copy offset to appease eslint
+        let upperBound = offset + UPLOAD_CHUNK_SIZE >= file.size ? file.size : offset + UPLOAD_CHUNK_SIZE
+        chunkTasks.push(async () => await uploadChunk(file, innerOffset, upperBound, uploadId, authHeader, onProgress, onFinish))
+        offset += UPLOAD_CHUNK_SIZE
     }
+
+    taskQueue.queueMore(chunkTasks)
 }
 
 async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, uploadDispatch, dispatch, wsSend: (action: string, content: any) => void) {
-    let uploads: (() => Promise<any>)[] = []
-
     let tlds: string[] = []
     let tlf = false
 
+    const taskQueue = new PromiseQueue([], 5)
     for (const meta of filesMeta) {
         const key: string = meta.folderId || meta.parentId + meta.file.name
+
         if (meta.isTopLevel) {
-            uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name })
+            uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name, size: meta.isDir ? 0 : meta.file.size })
             if (meta.isDir) {
                 tlds.push(meta.folderId)
             }
             tlf = tlf || !meta.isDir
         } else {
-            uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name, parent: meta.topLevelParentKey })
+            uploadDispatch({ type: 'add_new', isDir: meta.isDir, key: key, name: meta.file.name, parent: meta.topLevelParentKey, size: meta.isDir ? 0 : meta.file.size })
         }
         if (meta.isDir) {
             continue
         }
-        const task = await singleUploadPromise(meta, authHeader, uploadDispatch, dispatch)
-        uploads.push(task)
+        await queueChunks(meta, authHeader, uploadDispatch, taskQueue)
     }
-    const taskQueue = new PromiseQueue(uploads, 5)
     await taskQueue.run()
 
     if (tlf) {

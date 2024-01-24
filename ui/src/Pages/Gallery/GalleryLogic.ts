@@ -4,13 +4,12 @@ import { notifications } from '@mantine/notifications'
 
 type galleryAction = {
     type: string
-    media?: MediaData[]
+    medias?: MediaData[]
     albums?: AlbumData[]
+    media?: MediaData
     albumNames?: string[]
     include?: boolean
     block?: boolean
-    itemId?: string
-    item?: fileData
     progress?: number
     loading?: boolean
     search?: string
@@ -23,9 +22,9 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
     switch (action.type) {
         case 'set_media': {
             state.mediaMap.clear()
-            if (action.media) {
+            if (action.medias) {
                 let prev: MediaData
-                for (const m of action.media) {
+                for (const m of action.medias) {
                     state.mediaMap.set(m.fileHash, m)
                     if (prev) {
                         prev.Next = m
@@ -81,7 +80,7 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
         }
 
         case 'delete_from_map': {
-            state.mediaMap.delete(action.itemId)
+            state.mediaMap.delete(action.media.fileHash)
             return { ...state }
         }
 
@@ -125,38 +124,38 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
         case 'set_presentation': {
             return {
                 ...state,
-                presentingHash: action.itemId
+                presentingMedia: action.media
             }
         }
 
         case 'presentation_next': {
             return {
                 ...state,
-                presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.fileHash : state.presentingHash
+                presentingMedia: state.presentingMedia.Next ? state.presentingMedia.Next : state.presentingMedia
             }
         }
 
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaMap.get(state.presentingHash)?.Previous ? state.mediaMap.get(state.presentingHash).Previous.fileHash : state.presentingHash
+                presentingMedia: state.presentingMedia.Previous ? state.presentingMedia.Previous : state.presentingMedia
             }
         }
 
         case 'stop_presenting': {
-            if (state.presentingHash == "") {
+            if (state.presentingMedia === null) {
                 return {
                     ...state
                 }
             }
             try {
-                state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+                state.presentingMedia.ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
             } catch {
-                console.error("No img ref: ", state.presentingHash)
+                console.error("No img ref: ", state.presentingMedia)
             }
             return {
                 ...state,
-                presentingHash: ""
+                presentingMedia: null
             }
         }
 
@@ -194,7 +193,7 @@ export function handleWebsocket(lastMessage, dispatch) {
                 return
             }
             case "item_deleted": {
-                dispatch({ type: "delete_from_map", itemId: msgData["content"].hash })
+                dispatch({ type: "delete_from_map", media: msgData["content"].hash })
                 return
             }
             case "scan_directory_progress": {

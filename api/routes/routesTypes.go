@@ -4,9 +4,47 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/gorilla/websocket"
 )
+
+// Endpoint logic
+
+type loginInfo struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type updateMediasBody struct {
+	Owner      string   `json:"owner"`
+	FileHashes []string `json:"fileHashes"`
+}
+
+type updateMany struct {
+	Files       []string `json:"fileIds"`
+	NewParentId string   `json:"newParentId"`
+}
+
+type takeoutFiles struct {
+	FileIds []string `json:"fileIds"`
+}
+
+type tokenReturn struct {
+	Token string `json:"token"`
+}
+
+type newUserInfo struct {
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	Admin        bool   `json:"admin"`
+	AutoActivate bool   `json:"autoActivate"`
+}
+
+type fileShare struct {
+	Files []string `json:"files"`
+	Users []string `json:"users"`
+}
 
 // Websocket
 
@@ -94,11 +132,19 @@ type BroadcasterAgent interface {
 	PushTaskUpdate(taskId string, status string, result any)
 }
 
+// Tasker interface for queueing tasks in the task pool
+type TaskerAgent interface {
+	WriteToFile(filename, parentFolderId string) *dataProcess.Task
+	MarkGlobal()
+}
+
+var UploadTasker TaskerAgent
+
 // Client
 
 const (
-	Folder subType = "folder"
-	Task   subType = "task"
+	SubFolder subType = "folder"
+	SubTask   subType = "task"
 )
 
 type subscription struct {

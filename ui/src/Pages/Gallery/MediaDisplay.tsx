@@ -150,7 +150,7 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scale, scrollerRef,
                 minWidth: width * 0.85,
                 maxWidth: width * 1.2
             }}
-            setPresentation={() => { dispatch({ type: 'set_presentation', itemId: mediaData.fileHash }) }}
+            setPresentation={() => { dispatch({ type: 'set_presentation', media: mediaData }) }}
             setHover={setHovering}
             onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
         >

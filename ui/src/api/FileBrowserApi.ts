@@ -9,7 +9,7 @@ export function DeleteFile(fileId, authHeader) {
     fetch(url.toString(), { method: "DELETE", headers: authHeader })
 }
 
-function getSharedWithMe(username, dispatch, authHeader) {
+function getSharedWithMe(user, dispatch, authHeader) {
     let url = new URL(`${API_ENDPOINT}/share`)
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
@@ -19,12 +19,12 @@ function getSharedWithMe(username, dispatch, authHeader) {
                 files = []
             }
             dispatch({ type: 'set_folder_info', folderInfo: { id: "shared", filename: "Shared" } })
-            dispatch({ type: 'update_many', files: files, user: username })
+            dispatch({ type: 'update_many', files: files, user: user })
             dispatch({ type: "set_loading", loading: false })
         })
 }
 
-function getMyTrash(username, dispatch, authHeader) {
+function getMyTrash(user, dispatch, authHeader) {
     let url = new URL(`${API_ENDPOINT}/trash`)
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
@@ -38,7 +38,7 @@ function getMyTrash(username, dispatch, authHeader) {
 
             data.self.filename = "Trash"
             dispatch({ type: 'set_folder_info', folderInfo: data.self })
-            dispatch({ type: 'update_many', files: children, user: username })
+            dispatch({ type: 'update_many', files: children, user: user })
             dispatch({ type: 'set_parents_info', parents: parents })
         })
 }
@@ -48,12 +48,12 @@ export async function GetFileInfo(fileId, authHeader) {
     return (await fetch(url.toString(), {headers: authHeader})).json()
 }
 
-export function GetFolderData(folderId, username, dispatch, authHeader) {
+export function GetFolderData(folderId, user, dispatch, authHeader) {
     if (folderId === "shared") {
-        return getSharedWithMe(username, dispatch, authHeader)
+        return getSharedWithMe(user, dispatch, authHeader)
     }
     if (folderId === "trash") {
-        return getMyTrash(username, dispatch, authHeader)
+        return getMyTrash(user, dispatch, authHeader)
     }
 
     let url = new URL(`${API_ENDPOINT}/folder/${folderId}`)
@@ -87,7 +87,7 @@ export function GetFolderData(folderId, username, dispatch, authHeader) {
                 parents = data.parents.reverse()
             }
             dispatch({ type: 'set_folder_info', folderInfo: data.self })
-            dispatch({ type: 'update_many', files: children, user: username })
+            dispatch({ type: 'update_many', files: children, user: user })
             dispatch({ type: 'set_parents_info', parents: parents })
         })
 }

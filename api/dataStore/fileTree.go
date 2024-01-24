@@ -20,8 +20,40 @@ var fsTreeLock = &sync.Mutex{}
 var safety bool = false
 
 func FsTreeInsert(f, parent *WeblensFile) error {
-	if f.Id() == "" || f.absolutePath == "" {
-		return fmt.Errorf("not inserting file with empty file id: %s", f.absolutePath)
+	if f.Filename() == ".DS_Store" {
+		return nil
+	}
+
+	if safety {
+		return mainInsert(f, parent)
+	}
+	return initInsert(f, parent)
+}
+
+func initInsert(f, parent *WeblensFile) error {
+	if f.Id() == "" {
+		return fmt.Errorf("not inserting file with empty file id")
+	}
+
+	fileTree[f.id] = f
+
+	f.parent = parent
+	parent.AddChild(f)
+
+	if f.IsDir() {
+		f.ReadDir()
+		if _, b := slices.BinarySearchFunc(initFolderIds, f.Id(), strings.Compare); !b {
+			fddb.writeFolder(f)
+		}
+	}
+
+	// util.Debug.Println("Init file", f.String())
+	return nil
+}
+
+func mainInsert(f, parent *WeblensFile) error {
+	if f.Id() == "" {
+		return fmt.Errorf("not inserting file with empty file id")
 	}
 
 	fsTreeLock.Lock()
@@ -36,14 +68,7 @@ func FsTreeInsert(f, parent *WeblensFile) error {
 	parent.AddChild(f)
 
 	if f.IsDir() {
-		if safety {
-			fddb.writeFolder(f)
-		} else {
-			f.ReadDir()
-			if _, b := slices.BinarySearchFunc(initFolderIds, f.Id(), strings.Compare); !b {
-				fddb.writeFolder(f)
-			}
-		}
+		fddb.writeFolder(f)
 		if !f.Exists() {
 			util.Warning.Println("Creating directory that doesn't exist during insert to file tree")
 			err := f.CreateSelf()
@@ -53,12 +78,9 @@ func FsTreeInsert(f, parent *WeblensFile) error {
 		}
 	}
 
-	caster.PushFileCreate(f)
-	if safety {
-		resize(f.GetParent())
-	}
+	Resize(f.GetParent())
 
-	util.Debug.Println("Inserted file", f.String())
+	// util.Debug.Println("Inserted file", f.String())
 	return nil
 }
 
@@ -74,10 +96,12 @@ func FsTreeRemove(f *WeblensFile) {
 	f.GetParent().removeChild(f.Id())
 
 	f.RecursiveMap(func(file *WeblensFile) {
+		util.Each(f.GetTasks(), func(t Task) { t.Cancel() })
+
 		displayable, err := file.IsDisplayable()
 		if displayable && err == nil {
 			fddb.RemoveMediaByFile(file)
-		} else if errors.Is(err, DirNotAllowed) {
+		} else if errors.Is(err, ErrDirNotAllowed) {
 			fddb.deleteFolder(file)
 		}
 
@@ -92,7 +116,7 @@ func FsTreeRemove(f *WeblensFile) {
 	}
 
 	caster.PushFileDelete(f)
-	resize(f.GetParent())
+	Resize(f.GetParent())
 
 	util.Debug.Println("Removed file", f.String())
 }
@@ -182,7 +206,7 @@ func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool) e
 		if w.IsDir() {
 			fddb.writeFolder(w)
 		} else {
-			fddb.HandleMediaMove(preFile, w)
+			fddb.handleMediaMove(preFile, w)
 		}
 
 		caster.PushFileMove(preFile, w)
@@ -199,6 +223,7 @@ func wfInitFromFolderData(fd folderData) *WeblensFile {
 	f.absolutePath = GuaranteeAbsolutePath(fd.RelPath)
 
 	f.childLock = &sync.Mutex{}
+	f.tasksLock = &sync.Mutex{}
 	f.children = map[string]*WeblensFile{}
 	parent := FsTreeGet(fd.ParentFolderId)
 	FsTreeInsert(&f, parent)
@@ -210,7 +235,7 @@ func GetTreeSize() int {
 	return len(fileTree)
 }
 
-func resize(f *WeblensFile) {
+func Resize(f *WeblensFile) {
 	f.BubbleMap(func(w *WeblensFile) {
 		w.recompSize()
 	})
@@ -221,11 +246,11 @@ func resizeMultiple(old, new *WeblensFile) {
 	newIsParent := strings.HasPrefix(new.String(), old.String())
 
 	if oldIsParent || !(oldIsParent || newIsParent) {
-		resize(old)
+		Resize(old)
 	}
 
 	if newIsParent || !(oldIsParent || newIsParent) {
-		resize(new)
+		Resize(new)
 	}
 
 }

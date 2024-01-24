@@ -45,6 +45,10 @@ func (f *WeblensFile) Copy() *WeblensFile {
 		c.childLock = &sync.Mutex{}
 	}
 
+	if c.tasksLock != nil {
+		c.tasksLock = &sync.Mutex{}
+	}
+
 	// Return pointer to copy
 	return &c
 }
@@ -68,6 +72,9 @@ func (f *WeblensFile) Err() error {
 func (f *WeblensFile) Id() string {
 	if f == nil {
 		panic("Tried to get Id of nil file")
+	}
+	if f.absolutePath == "" {
+		return ""
 	}
 	if f.id == "" {
 		f.id = util.HashOfString(8, GuaranteeRelativePath(f.absolutePath))
@@ -137,7 +144,7 @@ func (f *WeblensFile) GetMedia() (m *Media, err error) {
 }
 
 func (f *WeblensFile) SetMedia(m *Media) error {
-	if f.media != nil && f.media.FileHash != "" {
+	if f.media != nil && f.media.MediaId != "" {
 		if f.media != m {
 			return errors.New("attempted to reasign media on file descriptor that already has media")
 		}
@@ -146,6 +153,10 @@ func (f *WeblensFile) SetMedia(m *Media) error {
 	f.media = m
 
 	return nil
+}
+
+func (f *WeblensFile) ClearMedia() {
+	f.media = nil
 }
 
 // Check if the file exists on the real filesystem below
@@ -203,6 +214,23 @@ func (f *WeblensFile) Write(data []byte) error {
 		return fmt.Errorf("attempt to write to directory")
 	}
 	err := os.WriteFile(f.absolutePath, data, 0660)
+	if err == nil {
+		f.size = int64(len(data))
+	}
+	return err
+}
+
+func (f *WeblensFile) Append(data []byte) error {
+	if f.IsDir() {
+		return fmt.Errorf("attempt to write to directory")
+	}
+	realFile, err := os.OpenFile(f.String(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
+	if err != nil {
+		return err
+	}
+
+	wroteLen, err := realFile.Write(data)
+	f.size += int64(wroteLen)
 	return err
 }
 
@@ -218,16 +246,24 @@ func (f *WeblensFile) ReadDir() error {
 	f.verifyChildren()
 
 	for _, file := range entries {
-		tmpChild := WeblensFile{}
-		tmpChild.absolutePath = filepath.Join(f.absolutePath, file.Name())
+		childPath := filepath.Join(f.absolutePath, file.Name())
+		childId := util.HashOfString(8, GuaranteeRelativePath(childPath))
+
 		f.childLock.Lock()
-		if _, ok := f.children[tmpChild.Id()]; ok {
+		if _, ok := f.children[childId]; ok {
 			f.childLock.Unlock()
 			continue
 		}
 		f.childLock.Unlock()
-		tmpChild.filename = file.Name()
-		tmpChild.owner = f.Owner()
+
+		tmpChild := WeblensFile{
+			id:           childId,
+			absolutePath: childPath,
+			isDir:        boolPointer(file.IsDir()),
+			filename:     file.Name(),
+			owner:        f.Owner(),
+		}
+
 		err := FsTreeInsert(&tmpChild, f)
 		if err != nil {
 			switch err.(type) {
@@ -236,9 +272,6 @@ func (f *WeblensFile) ReadDir() error {
 				return err
 			}
 		}
-	}
-	if f.isDir == nil {
-		f.isDir = boolPointer(true)
 	}
 
 	return nil
@@ -258,7 +291,7 @@ func (f *WeblensFile) GetChild(childId string) (child *WeblensFile) {
 
 func (f *WeblensFile) GetChildren() []*WeblensFile {
 	if !f.IsDir() {
-		return nil
+		return []*WeblensFile{}
 	}
 
 	f.verifyChildren()
@@ -300,12 +333,12 @@ func (f *WeblensFile) GetChildrenInfo() []FileInfo {
 }
 
 func (f *WeblensFile) GetParent() *WeblensFile {
-	if f.id == "0" {
-		util.Error.Println(fmt.Errorf("cannot get parent of media root"))
-		return f
-	}
+	// if f.id == "0" {
+	// 	util.Error.Println(fmt.Errorf("cannot get parent of media root"))
+	// 	return f
+	// }
 	if f.parent == nil {
-		util.Error.Println("Returning parent as nil from file GetParent")
+		util.Debug.Println("Returning parent as nil from f.GetParent")
 	}
 
 	return f.parent
@@ -337,7 +370,7 @@ func (f *WeblensFile) CreateSelf() error {
 	return nil
 }
 
-func (f *WeblensFile) UserCanAccess(username string) bool {
+func (f *WeblensFile) CanUserAccess(username string) bool {
 	// Is owner or is shared into the file (guest)
 	if f.Owner() == username || slices.Contains(f.Guests(), username) {
 		return true
@@ -364,6 +397,11 @@ func (f *WeblensFile) FormatFileInfo() (formattedInfo FileInfo, err error) {
 		}
 
 		if m != nil {
+			// Copy so we don't clear the thumbnail on the real one
+			tmp := *m
+			m = &tmp
+
+			m.Thumbnail64 = ""
 			imported = m.imported
 		}
 	}
@@ -380,14 +418,30 @@ func (f *WeblensFile) FormatFileInfo() (formattedInfo FileInfo, err error) {
 		return formattedInfo, fmt.Errorf("failed to get modtime")
 	}
 
-	displayable, _ := f.IsDisplayable()
+	var displayable bool
+	var friendlyName string
+	mType, _ := f.GetMediaType()
+	if mType != nil {
+		displayable = mType.IsDisplayable
+		friendlyName = mType.FriendlyName
+	}
 
-	formattedInfo = FileInfo{Id: f.Id(), Imported: imported, Displayable: displayable, IsDir: f.IsDir(), Modifiable: f.Filename() != ".user_trash", Size: size, ModTime: *modTime, Filename: f.Filename(), ParentFolderId: f.GetParent().Id(), MediaData: m, Owner: f.Owner()}
+	formattedInfo = FileInfo{Id: f.Id(), Imported: imported, Displayable: displayable, IsDir: f.IsDir(), Modifiable: f.Filename() != ".user_trash", Size: size, ModTime: *modTime, Filename: f.Filename(), ParentFolderId: f.GetParent().Id(), MediaData: m, FileFriendlyName: friendlyName, Owner: f.Owner()}
 
 	return formattedInfo, nil
 }
 
-// Recursively perform fn on f and all children of f. This takes a "Depth first" approach.
+/*
+Recursively perform fn on f, first, and all children of f. This takes a "Depth first" approach as shown below.
+
+Files are acted on in the order of their index number here, starting with the root
+
+		f1
+	   /  \
+	  f2  f5
+	 /  \
+	f3  f4
+*/
 func (f *WeblensFile) RecursiveMap(fn func(*WeblensFile)) {
 	fn(f)
 	if !f.IsDir() {
@@ -401,7 +455,50 @@ func (f *WeblensFile) RecursiveMap(fn func(*WeblensFile)) {
 	}
 }
 
-// Perform fn on f and all parents of f, not including the media root.
+/*
+Recursively perform fn on leaves, first, and work back up the tree.
+This will not call fn on the root file.
+This takes a "Depth first" approach, but note this
+behaves very differently than RecursiveMap. See below.
+
+Files are acted on in the order of their index number here, starting with the leftmost leaf
+
+		fx.LeafMap(fn) <- fn not called on root caller
+		|
+		f5
+	   /  \
+	  f3  f4
+	 /  \
+	f1  f2
+*/
+func (f *WeblensFile) LeafMap(fn func(*WeblensFile)) {
+	if !f.IsDir() {
+		return
+	}
+
+	children := f.GetChildren()
+
+	childrenWithChildren := util.Filter(children, func(c *WeblensFile) bool { return c.children != nil && len(c.children) != 0 })
+	for _, c := range childrenWithChildren {
+		c.LeafMap(fn)
+	}
+
+	for _, c := range children {
+		fn(c)
+	}
+}
+
+/*
+Perform fn on f and all parents of f, not including the media root or other static directories.
+
+Files are acted on in the order of their index number here, starting with the caller, children are never accessed
+
+	f3 <- Parent of f2
+	|
+	f2 <- Parent of f1
+	|
+	f1 <- Called from
+*/
 func (f *WeblensFile) BubbleMap(fn func(*WeblensFile)) {
 	if f == nil || f.Id() == "0" || f.Id() == "1" || f.Id() == "2" {
 		return
@@ -420,6 +517,31 @@ func (f *WeblensFile) MarshalJSON() ([]byte, error) {
 
 	m := marshalableWF{Id: f.Id(), AbsolutePath: f.absolutePath, Filename: f.Filename(), Owner: f.Owner(), ParentFolderId: f.parent.Id(), Guests: f.Guests(), Size: size, IsDir: f.IsDir()}
 	return json.Marshal(m)
+}
+
+func (f *WeblensFile) AddTask(t Task) {
+	if f.tasksLock == nil {
+		f.tasksLock = &sync.Mutex{}
+	}
+
+	f.tasksLock.Lock()
+	f.tasksUsing = util.AddToSet(f.tasksUsing, []Task{t})
+	f.tasksLock.Unlock()
+}
+
+func (f *WeblensFile) GetTasks() []Task {
+	return f.tasksUsing
+}
+
+func (f *WeblensFile) RemoveTask(tId string) (exists bool) {
+	if f.tasksLock == nil {
+		f.tasksLock = &sync.Mutex{}
+	}
+
+	f.tasksLock.Lock()
+	f.tasksUsing, _, exists = util.YoinkFunc(f.tasksUsing, func(f Task) bool { return f.TaskId() == tId })
+	f.tasksLock.Unlock()
+	return
 }
 
 // Private

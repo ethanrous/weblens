@@ -13,7 +13,7 @@ import Presentation from '../../components/Presentation'
 import HeaderBar from "../../components/HeaderBar"
 import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
 import { GetFolderData, ShareFiles } from '../../api/FileBrowserApi'
-import { fileData, FileBrowserStateType, AlbumData } from '../../types/Types'
+import { fileData, FileBrowserStateType, AlbumData, getBlankFile } from '../../types/Types'
 import useWeblensSocket, { dispatchSync } from '../../api/Websocket'
 import { deleteSelected, GetDirFiles, HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton } from './FileBrowserLogic'
 import { DirViewWrapper, FlexColumnBox, FlexRowBox } from './FilebrowserStyles'
@@ -175,11 +175,12 @@ function AlbumScoller({ getSelected, authHeader }: {
 
 function selectedMediaIds(dirMap: Map<string, fileData>, selectedMap: Map<string, boolean>): string[] {
     let selectedObjs = Array.from(selectedMap.keys()).map((key) => {
+        console.log(key, dirMap)
         const file: fileData = dirMap.get(key)
-        return file.mediaData.fileHash
+        return file.mediaData?.fileHash
     })
-    selectedObjs = selectedObjs.filter((val) => {
-        return val !== ""
+    .filter((val) => {
+        return Boolean(val)
     })
     return selectedObjs
 }
@@ -275,7 +276,7 @@ function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState:
 
             <Divider w={'100%'} my='lg' size={1.5}/>
 
-            <UsageInfo homeDirSize={fbState.homeDirSize} currentFolderSize={fbState.folderInfo.size} displayCurrent={fbState.folderInfo.id !== "shared"} trashSize={fbState.folderInfo.id === userInfo.homeFolderId ? fbState.dirMap.get(userInfo.trashFolderId)?.size : 0}/>
+            <UsageInfo homeDirSize={fbState.homeDirSize} currentFolderSize={fbState.folderInfo.size} displayCurrent={fbState.folderInfo.id !== "shared"} trashSize={fbState.trashDirSize}/>
         </FlexColumnBox>
     )
 }
@@ -420,6 +421,7 @@ const FileBrowser = () => {
     const [alreadyScanned, setAlreadyScanned] = useState(false)
     const [notFound, setNotFound] = useState(false)
     const { uploadState, uploadDispatch } = useUploadStatus()
+    // uploadDispatch = (v) => {console.log(v); uploadDispatch(v)}
 
     const [filebrowserState, dispatch]: [FileBrowserStateType, React.Dispatch<any>] = useReducer(fileBrowserReducer, {
         dirMap: new Map<string, fileData>(),
@@ -430,6 +432,7 @@ const FileBrowser = () => {
         draggingState: 0,
         scanProgress: 0,
         homeDirSize: 0,
+        trashDirSize: 0,
         presentingId: "",
         searchContent: "",
         lastSelected: "",
@@ -461,30 +464,35 @@ const FileBrowser = () => {
             if (filebrowserState.folderInfo.id !== realId) {
                 return
             }
-            if (realId === "trash") {
-                wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.trashFolderId, subscribeMeta: JSON.stringify({recursive: false}) })
-                return (
-                    () => wsSend("unsubscribe", { subscribeKey: userInfo.trashFolderId })
-                )
-            } else {
-                wsSend("subscribe", { subscribeType: "folder", subscribeKey: realId, subscribeMeta: JSON.stringify({recursive: false}) })
-                return (
-                    () => wsSend("unsubscribe", { subscribeKey: realId })
-                )
-            }
+            wsSend("subscribe", { subscribeType: "folder", subscribeKey: realId, subscribeMeta: JSON.stringify({recursive: false}) })
+            return (
+                () => wsSend("unsubscribe", { subscribeKey: realId })
+            )
         }
     }, [readyState, filebrowserState.folderInfo.id, realId, userInfo?.trashFolderId, wsSend])
 
-    // Subscribe to the home folder even if we aren't in it, to be able to update the total disk usage
+    // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
     useEffect(() => {
-        if (!userInfo || userInfo.homeFolderId === realId) {
+        if (!userInfo || readyState !== 1) {
             return
         }
+
+        // If we are in the home folder, subscribe to the trash only
+        if (userInfo.homeFolderId === realId) {
+            wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.trashFolderId, subscribeMeta: JSON.stringify({recursive: false}) })
+            return (
+                () => {
+                    wsSend("unsubscribe", { subscribeKey: userInfo.trashFolderId })
+                    dispatch({type: 'clear_trash_size'})
+                }
+            )
+        }
+
         wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.homeFolderId, subscribeMeta: JSON.stringify({recursive: false}) })
         return (
             () => wsSend("unsubscribe", { subscribeKey: userInfo.homeFolderId })
         )
-    }, [userInfo, userInfo?.homeFolderId, realId, wsSend])
+    }, [readyState, userInfo, userInfo?.homeFolderId, realId, wsSend])
 
     useEffect(() => {
         if (!userInfo) {
@@ -506,7 +514,7 @@ const FileBrowser = () => {
         dispatch({ type: "set_search", search: "" })
         dispatch({ type: "set_scan_progress", progress: 0 })
         dispatch({ type: "set_loading", loading: true })
-        GetFolderData(realId, userInfo.username, dispatch, authHeader)
+        GetFolderData(realId, userInfo, dispatch, authHeader)
         .then(() => dispatch({ type: "set_loading", loading: false }))
         .catch((r) => {
             dispatch({ type: "set_loading", loading: false })
@@ -537,7 +545,7 @@ const FileBrowser = () => {
             />
             <DraggingCounter dragging={filebrowserState.draggingState} numSelected={filebrowserState.selected.size} dispatch={dispatch} />
             <Presentation mediaData={filebrowserState.dirMap.get(filebrowserState.presentingId)?.mediaData} parents={[...filebrowserState.parents, filebrowserState.folderInfo]} dispatch={dispatch} />
-            <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} count={uploadState.uploadsMap.size} />
+            <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} />
             <FlexRowBox style={{ alignItems: 'flex-start' }}>
                 <GlobalActions fbState={filebrowserState} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} />
                 <DirViewWrapper
@@ -545,7 +553,7 @@ const FileBrowser = () => {
                     folderName={filebrowserState.folderInfo?.filename}
                     dragging={filebrowserState.draggingState}
                     hoverTarget={filebrowserState.hovering}
-                    onDrop={(e => HandleDrop(e.dataTransfer.items, realId, filebrowserState.dirMap, authHeader, uploadDispatch, dispatch, wsSend) )}
+                    onDrop={(e => HandleDrop(e.dataTransfer.items, realId, filebrowserState.dirMap, authHeader, v => uploadDispatch(v), dispatch, wsSend) )}
                     dispatch={dispatch}
                     onMouseOver={() => dispatch({ type: 'set_hovering', filepath: "" })}
                 >

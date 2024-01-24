@@ -18,7 +18,7 @@ export async function FetchData(mediaState: MediaStateType, dispatch, authHeader
 
         dispatch({
             type: 'set_media',
-            media: data.Media,
+            medias: data.Media,
         })
     } catch (error) {
         console.error("Error fetching data - Ethan you wrote this, its not a js err")

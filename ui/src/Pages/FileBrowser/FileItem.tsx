@@ -43,14 +43,13 @@ function useKeyDown(dispatch, editing, setEditing, parentId, fileId, newName, im
 
 const FileVisualComponent = ({ fileData, root }: { fileData: fileData, root }) => {
     const sqareSize = "75%"
-    const type = fileData.mediaData?.mediaType?.FriendlyName
     if (fileData.isDir) {
         return (<IconFolder style={{ width: sqareSize, height: sqareSize }} />)
     } else if (fileData.displayable && fileData.imported) {
         return (<MediaImage mediaId={fileData?.mediaData?.fileHash} blurhash={fileData?.mediaData?.blurHash} metadataPreload={fileData.mediaData} quality={"thumbnail"} lazy root={root} />)
-    } else if (type === "File") {
+    } else if (fileData.fileFriendlyName === "File") {
         return (<IconFile style={{ width: sqareSize, height: sqareSize }} />)
-    } else if (type === "Zip") {
+    } else if (fileData.fileFriendlyName === "Zip") {
         return (<IconFileZip style={{ width: sqareSize, height: sqareSize }} />)
     } else {
         return (
@@ -62,7 +61,7 @@ const FileVisualComponent = ({ fileData, root }: { fileData: fileData, root }) =
     }
 }
 
-const TextBox = ({ filename, fileId, fileSize, editing, setEditing, renameVal, setRenameVal, dispatch }: { filename: string, fileId: string, fileSize: number, editing: boolean, setEditing: (boolean) => void, renameVal: string, setRenameVal: any, dispatch: any }) => {
+const TextBox = ({ filename, fileSize, editing, setEditing, renameVal, setRenameVal }: { filename: string, fileSize: number, editing: boolean, setEditing: (boolean) => void, renameVal: string, setRenameVal: any }) => {
     const editRef: React.Ref<HTMLInputElement> = useRef()
     useEffect(() => {
         if (editRef.current) {
@@ -139,7 +138,7 @@ const File = memo(({ fileData, selected, root, moveSelected, dragging, dispatch,
                 <FileVisualComponent fileData={fileData} root={root} />
             </FileVisualWrapper>
 
-            <TextBox filename={fileData.filename} fileId={fileData.id} fileSize={fileData.size} editing={editing} setEditing={setEditingPlus} renameVal={renameVal} setRenameVal={setRenameVal} dispatch={dispatch} />
+            <TextBox filename={fileData.filename} fileSize={fileData.size} editing={editing} setEditing={setEditingPlus} renameVal={renameVal} setRenameVal={setRenameVal} />
         </FileWrapper>
     )
 }, (prev, next) => {

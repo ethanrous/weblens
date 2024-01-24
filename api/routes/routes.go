@@ -2,10 +2,15 @@ package routes
 
 import (
 	"net/http"
+	"os"
+	"runtime/pprof"
+
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
+
+	// "github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -37,7 +42,7 @@ func CORSMiddleware() gin.HandlerFunc {
 
 func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		db := dataStore.NewDB("SYS")
+		db := dataStore.NewDB()
 		var authString string
 
 		if !websocket {
@@ -86,15 +91,18 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/media", getMediaBatch)
 	api.GET("/media/:mediaId", getOneMedia)
 	api.PUT("/media", updateMedias)
-	api.GET("/stream/:mediaId", streamVideo)
+	// api.GET("/stream/:mediaId", streamVideo)
 
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)
 
 	api.GET("/trash", getUserTrashInfo)
 
+	api.POST("/upload", newFileUpload)
+	api.PUT("/upload/:uploadId", handleUploadChunk)
+	// api.GET("/upload/:uploadId", findUpload)
+
 	api.GET("/file/:fileId", getFile)
-	api.POST("/file", uploadFile)
 	api.PATCH("/file", updateFile)
 	api.DELETE("/file", trashFile)
 
@@ -140,4 +148,17 @@ func AddUiRoutes(r *gin.Engine) {
 			ctx.File("../ui/build/index.html")
 		}
 	})
+}
+
+func snapshotHeap(ctx *gin.Context) {
+	file, err := os.Create("heap.out")
+	// file, err := os.Create(filepath.Join(util.GetMediaRoot(), "heap.out"))
+	util.FailOnError(err, "")
+	pprof.Lookup("heap").WriteTo(file, 0)
+}
+
+func AttachProfiler(r *gin.Engine) {
+	debug := r.Group("/debug")
+
+	debug.GET("/heap", snapshotHeap)
 }

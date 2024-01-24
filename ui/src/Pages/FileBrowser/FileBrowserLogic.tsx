@@ -54,7 +54,11 @@ function createFile(dirMap: Map<string, fileData>, user, newData: fileData, curr
         return
     }
 
-    if (newData.parentFolderId === currentFolderId || user !== newData.owner) {
+    if (newData.id === user.trashFolderId) {
+        return
+    }
+
+    if (newData.parentFolderId === currentFolderId || user.username !== newData.owner) {
         dirMap.set(newData.id, newData)
     }
 }
@@ -66,20 +70,22 @@ function updateFile(state: FileBrowserStateType, user, existingId: string, newDa
         return
     }
 
-    // if (newData.id === user.trashFolderId) {
-    //     return { ...state }
-    // }
+    if (newData.id === user.trashFolderId) {
+        if (newData.id === state.folderInfo.id) {
+            return { ...state, folderInfo: newData, trashDirSize: 0 }
+        }
+        return { ...state, trashDirSize: newData.size }
+    }
 
-    if (newData.id === state.folderInfo.id && newData.id === user.homeFolderId) {
-        return { ...state, folderInfo: newData, homeDirSize: newData.size }
+    if (newData.id === user.homeFolderId) {
+        if (newData.id === state.folderInfo.id) {
+            return { ...state, folderInfo: newData, homeDirSize: newData.size }
+        }
+        return { ...state, homeDirSize: newData.size }
     }
 
     if (newData.id === state.folderInfo.id) {
         return { ...state, folderInfo: newData }
-    }
-
-    if (newData.id === user.homeFolderId) {
-        return { ...state, homeDirSize: newData.size }
     }
 
     if (!existingFile) {
@@ -101,7 +107,7 @@ function updateFile(state: FileBrowserStateType, user, existingId: string, newDa
 export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
     switch (action.type) {
         case 'create_file': {
-            createFile(state.dirMap, action.user.username, action.fileInfo, state.folderInfo.id)
+            createFile(state.dirMap, action.user, action.fileInfo, state.folderInfo.id)
             return { ...state }
         }
 
@@ -115,6 +121,11 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
                 createFile(state.dirMap, action.user, fileMeta.updateInfo, state.folderInfo.id)
             }
             return { ...state }
+        }
+
+        case 'clear_trash_size': {
+            return { ...state }
+            // return { ...state, trashDirSize: 0 }
         }
 
         case 'set_folder_info': {
@@ -288,7 +299,6 @@ export const HandleDrag = (event: DragEvent, dispatch: Dispatch<any>, dragging: 
     event.stopPropagation()
     if (event.type === "dragenter" || event.type === "dragover") {
         !dragging && dispatch({ type: "set_dragging", dragging: true, external: true })
-
     } else {
         dispatch({ type: "set_dragging", dragging: false })
     }
@@ -435,7 +445,7 @@ export function downloadSelected(selectedMap: Map<string, boolean>, dirMap: Map<
 export function HandleWebsocketMessage(lastMessage, userInfo, dispatch, authHeader) {
     if (lastMessage) {
         let msgData = JSON.parse(lastMessage.data)
-        console.log("WSmsg", msgData)
+        console.log("WSRecv", msgData)
         switch (msgData.messageStatus) {
             case "file_created": {
                 dispatch({ type: "create_file", fileInfo: msgData.content.fileInfo, user: userInfo })

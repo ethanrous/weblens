@@ -41,10 +41,6 @@ func ShouldUseRedis() bool {
 	return envReadBool("USE_REDIS")
 }
 
-func ShowDebug() bool {
-	return envReadBool("SHOW_DEBUG")
-}
-
 func GetTakeoutDir() string {
 	takeoutString := envReadString("CACHES_PATH") + "/takeout"
 	_, err := os.Stat(takeoutString)

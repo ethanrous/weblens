@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -46,7 +47,7 @@ func DisplayError(err error, extras ...string) {
 		if ok {
 			var trace []byte
 			runtime.Stack(trace, false)
-			Error.Printf("Error from %s:%d %s: %s\n%s", file, line, msg, err, string(trace))
+			ErrorCatcher.Printf("%s:%d %s: %s\n%s", file, line, msg, err, string(trace))
 		} else {
 			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
@@ -195,6 +196,18 @@ func Yoink[T any](s []T, i int) ([]T, T) {
 	return s[:len(s)-1], y
 }
 
+func YoinkFunc[T any](s []T, fn func(f T) bool) (rs []T, rt T, re bool) {
+	for i, t := range s {
+		if fn(t) {
+			rs, rt = Yoink(s, i)
+			re = true
+			return
+		}
+	}
+	rs = s
+	return
+}
+
 // Banish removes the element at index, i, from the slice, s, in place and in constant time.
 //
 // Banish returns a slice of length len(s) - 1. The order of s will be modified
@@ -203,12 +216,27 @@ func Banish[T any](s []T, i int) []T {
 	return s
 }
 
+func AddToSet[T comparable](set []T, add []T) []T {
+	for _, a := range add {
+		if !slices.Contains(set, a) {
+			set = append(set, a)
+		}
+	}
+	return set
+}
+
 func Map[T, V any](ts []T, fn func(T) V) []V {
 	result := make([]V, len(ts))
 	for i, t := range ts {
 		result[i] = fn(t)
 	}
 	return result
+}
+
+func Each[T any](ts []T, fn func(T)) {
+	for _, t := range ts {
+		fn(t)
+	}
 }
 
 func MapToSliceMutate[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
@@ -257,23 +285,38 @@ type lap struct {
 	time time.Time
 }
 
-type Stopwatch struct {
+type Stopwatch interface {
+	Lap(tag ...any)
+	Stop() time.Duration
+	PrintResults()
+}
+
+type sw struct {
 	name  string
 	start time.Time
 	laps  []lap
 	stop  time.Time
 }
 
-func NewStopwatch(name string) *Stopwatch {
-	return &Stopwatch{name: name, start: time.Now()}
+type prod_sw bool
+
+func (prod_sw) Stop() (t time.Duration) { return }
+func (prod_sw) Lap(tag ...any)          {}
+func (prod_sw) PrintResults()           {}
+
+func NewStopwatch(name string) Stopwatch {
+	if IsDevMode() {
+		return &sw{name: name, start: time.Now()}
+	}
+	return prod_sw(false)
 }
 
-func (s *Stopwatch) Stop() time.Duration {
+func (s *sw) Stop() time.Duration {
 	s.stop = time.Now()
 	return s.stop.Sub(s.start)
 }
 
-func (s *Stopwatch) Lap(tag ...any) {
+func (s *sw) Lap(tag ...any) {
 	l := lap{
 		tag:  fmt.Sprint(tag...),
 		time: time.Now(),
@@ -281,7 +324,7 @@ func (s *Stopwatch) Lap(tag ...any) {
 	s.laps = append(s.laps, l)
 }
 
-func (s *Stopwatch) PrintResults() {
+func (s *sw) PrintResults() {
 	if s.stop.Unix() < 0 {
 		Error.Println("Stopwatch cannot provide results before being stopped")
 		return
@@ -308,9 +351,23 @@ func (s *Stopwatch) PrintResults() {
 	// fmt.Println(res)
 }
 
-// func (s *Stopwatch) TotalTime() time.Duration {
-// 	if s.stop == time.Unix(0, 0) {
-// 		Error.Println("Stopwatch cannot provide results before being stopped")
-// 	}
+// Almost exactly like io.ReadAll, but if we know how long the content is,
+// we can allocate the whole array up front, saving a bit of time
+func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
+	b := make([]byte, 0, readerSize)
+	for {
+		n, err := r.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return b, err
+		}
 
-// }
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
+		}
+	}
+}

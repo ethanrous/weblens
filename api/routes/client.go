@@ -44,7 +44,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 	var sub subscription
 
 	switch subType {
-	case Folder:
+	case SubFolder:
 		{
 			if key == "" {
 				err := fmt.Errorf("cannot subscribe with empty folder id")
@@ -61,8 +61,10 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 			}
 			sub = subscription{Type: subType, Key: key}
 			c.PushFileUpdate(folder)
+
+			c.debug("Subscribed to", subType, key)
 		}
-	case Task:
+	case SubTask:
 		{
 			task := dataProcess.GetTask(string(key))
 			if task == nil {
@@ -72,9 +74,9 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 				return
 			}
 
-			complete = task.Completed
+			complete, _ = task.Status()
 			if meta != nil {
-				result = task.Result(meta.Meta(Task).(taskSubMetadata).ResultKeys()[0])
+				result = task.GetResult(meta.Meta(SubTask).(taskSubMetadata).ResultKeys()[0])
 			}
 			if complete {
 				return
@@ -95,6 +97,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 	c.subscriptions = append(c.subscriptions, sub)
 	c.mu.Unlock()
 	cmInstance.AddSubscription(sub, c)
+
 	return
 }
 
@@ -110,15 +113,16 @@ func (c *Client) Unsubscribe(key subId) {
 	c.mu.Unlock()
 
 	cmInstance.RemoveSubscription(subToRemove, c)
-	// c.log(fmt.Sprintf("Unsubscribed from %s. Now: %v", key, c.subscriptions))
-}
 
-// func (c *Client) isSubscribed(key subId) bool {
-// 	return slices.ContainsFunc(c.subscriptions, func(s subscription) bool { return s.Key == key })
-// }
+	c.debug("Unsubscribed from", subToRemove.Type, subToRemove.Key)
+}
 
 func (c *Client) log(msg ...any) {
 	util.WsInfo.Printf("| %s | %s", c.GetShortId(), fmt.Sprintln(msg...))
+}
+
+func (c *Client) debug(msg ...any) {
+	util.WsDebug.Printf("| %s | %s", c.GetShortId(), fmt.Sprintln(msg...))
 }
 
 func (c *Client) _writeToClient(msg wsResponse) {
@@ -131,21 +135,17 @@ func (c *Client) _writeToClient(msg wsResponse) {
 
 func (c *Client) Send(messageStatus string, key subId, content any) {
 	msg := wsResponse{MessageStatus: messageStatus, SubscribeKey: key, Content: content}
-	c.log(fmt.Sprintf("Sending %s %s", messageStatus, key))
+	// c.debug(fmt.Sprintf("Sending %s %s", messageStatus, key))
 	c._writeToClient(msg)
 }
 
 func (c *Client) Error(err error) {
+	util.WsError.Println(err)
 	msg := wsResponse{MessageStatus: "error", Error: err.Error()}
-	c.log(fmt.Sprintf("Error %v", msg))
 	c._writeToClient(msg)
 }
 
 func (c *Client) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
-	// if !c.isSubscribed(subId(updatedFile.Id())) {
-	// 	return
-	// }
-
 	fileInfo, err := updatedFile.FormatFileInfo()
 	if err != nil {
 		util.DisplayError(err)
