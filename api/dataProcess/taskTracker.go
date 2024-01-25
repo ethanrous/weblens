@@ -46,7 +46,7 @@ func (tt *taskTracker) StartWP() {
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
 
-func NewTask(taskType string, taskMeta any) *Task {
+func newTask(taskType string, taskMeta any) *Task {
 	VerifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
@@ -73,7 +73,7 @@ func NewTask(taskType string, taskMeta any) *Task {
 	case "create_zip":
 		newTask.work = func() { createZipFromPaths(newTask) }
 	case "scan_file":
-		newTask.work = func() { ScanFile(newTask) }
+		newTask.work = func() { ScanFile(newTask); removeTask(newTask.taskId) }
 	case "move_file":
 		newTask.work = func() { moveFile(newTask); removeTask(newTask.taskId) }
 	case "write_file":
@@ -116,20 +116,49 @@ func NewWorkQueue() *virtualTaskPool {
 //   - `directory` : the weblens file descriptor representing the directory to scan
 //   - `recursive` : if true, scan all children of directory recursively
 //   - `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, recursive, deep bool) {
+func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, recursive, deep bool) dataStore.Task {
 	// Partial media means nothing for a directory scan, so it's always nil
 	scanMeta := ScanMetadata{File: directory, Recursive: recursive, DeepScan: deep}
-	t := NewTask("scan_directory", scanMeta)
+	t := newTask("scan_directory", scanMeta)
 	tskr.QueueTask(t)
+
+	return t
+}
+
+func (tskr *virtualTaskPool) ScanFile(file *dataStore.WeblensFile, m *dataStore.Media) dataStore.Task {
+	scanMeta := ScanMetadata{File: file, PartialMedia: m}
+	t := newTask("scan_file", scanMeta)
+	tskr.QueueTask(t)
+
+	file.AddTask(t)
+
+	return t
 }
 
 // Parameters:
-//   - `file` : the weblens file to write to
-//   - `fileSize` : the size of the file when writing is finished
-func (tskr *virtualTaskPool) WriteToFile(filename, parentFolderId string) *Task {
+//   - `filename` : the name of the new file to create
+//   - `fileSize` : the parent directory to upload the new file into
+func (tskr *virtualTaskPool) WriteToFile(filename, parentFolderId string) dataStore.Task {
 	writeMeta := WriteFileMeta{Filename: filename, ParentFolderId: parentFolderId, ChunkStream: make(chan FileChunk, 25)}
-	t := NewTask("write_file", writeMeta)
+	t := newTask("write_file", writeMeta)
 	tskr.QueueTask(t)
+
+	return t
+}
+
+func (tskr *virtualTaskPool) MoveFile(fileId, destinationFolderId, newFilename string) dataStore.Task {
+	meta := MoveMeta{FileId: fileId, DestinationFolderId: destinationFolderId, NewFilename: newFilename}
+	t := newTask("move_file", meta)
+	tskr.QueueTask(t)
+
+	return t
+}
+
+func (tskr *virtualTaskPool) CreateZip(files []*dataStore.WeblensFile, username string) dataStore.Task {
+	meta := ZipMetadata{Files: files, Username: username}
+	t := newTask("create_zip", meta)
+	tskr.QueueTask(t)
+
 	return t
 }
 

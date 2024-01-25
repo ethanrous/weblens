@@ -271,7 +271,7 @@ func MapToKeys[T comparable, V any](tMap map[T]V) []T {
 }
 
 func Filter[T any](ts []T, fn func(T) bool) []T {
-	var result []T
+	var result []T = []T{}
 	for _, t := range ts {
 		if fn(t) {
 			result = append(result, t)

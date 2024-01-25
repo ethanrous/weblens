@@ -121,9 +121,13 @@ type AlbumData struct {
 
 type Task interface {
 	TaskId() string
+	TaskType() string
 	Status() (bool, string)
+	GetResult(string) string
 	Wait()
 	Cancel()
+
+	ReadError() any
 }
 
 // Tasker interface for queueing tasks in the task pool
@@ -136,7 +140,7 @@ type TaskerAgent interface {
 	//	- `recursive` : if true, scan all children of directory recursively
 	//
 	//	- `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-	ScanDirectory(directory *WeblensFile, recursive, deep bool)
+	ScanDirectory(directory *WeblensFile, recursive, deep bool) Task
 }
 
 type BroadcasterAgent interface {

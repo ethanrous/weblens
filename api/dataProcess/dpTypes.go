@@ -1,10 +1,12 @@
 package dataProcess
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/util"
 )
 
 // Tasks
@@ -52,6 +54,16 @@ type ScanMetadata struct {
 	Recursive    bool
 	DeepScan     bool
 	PartialMedia *dataStore.Media
+}
+
+func (s *ScanMetadata) MarshalJSON() ([]byte, error) {
+	util.Debug.Println("WOOO HERE")
+	data := map[string]any{
+		"FileId":    s.File.Id(),
+		"Recursive": s.Recursive,
+		"Deep":      s.DeepScan,
+	}
+	return json.Marshal(data)
 }
 
 type ZipMetadata struct {

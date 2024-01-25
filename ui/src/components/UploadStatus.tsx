@@ -4,7 +4,7 @@ import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react';
 
 import { useMemo, useReducer } from "react"
 import { humanFileSize } from '../util';
-import { FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles';
+import { FlexColumnBox, FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles';
 
 
 function uploadReducer(state: UploadStateType, action) {
@@ -81,7 +81,7 @@ export function useUploadStatus() {
     return { uploadState, uploadDispatch }
 }
 
-const average = (array) => {return (array.reduce((a, b) => a + b) / array.length)}
+const average = (array) => { return (array.reduce((a, b) => a + b) / array.length) }
 
 function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
     let prog = 0
@@ -101,18 +101,18 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
 
     return (
         <FlexRowBox style={{ width: 400, backgroundColor: "#444444", height: '40px' }}>
-            <Space w={2}/>
+            <Space w={2} />
             {(uploadMetadata.isDir && (
-                <IconFolder color='white' style={{minHeight: '30px', minWidth: '30px'}}/>
+                <IconFolder color='white' style={{ minHeight: '30px', minWidth: '30px' }} />
             ))}
             {(!uploadMetadata.isDir && (
-                <IconFile color='white' style={{minHeight: '30px', minWidth: '30px'}}/>
+                <IconFile color='white' style={{ minHeight: '30px', minWidth: '30px' }} />
             ))}
             <Text truncate="end" c="white" fw={500} pl={5} pr={5}>{uploadMetadata.friendlyName}</Text>
 
-            <Space style={{flexGrow: 1}}/>
+            <Space style={{ flexGrow: 1 }} />
             {(statusText && prog !== 100 && prog !== -1) && (
-                <Text c="white" pr={5} style={{minWidth: 75}}>{statusText}</Text>
+                <Text c="white" pr={5} style={{ minWidth: 75 }}>{statusText}</Text>
             )}
             {(uploadMetadata.progress === -1) && (
                 <RingProgress
@@ -155,12 +155,23 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
 const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStateType, uploadDispatch }) => {
     const uploadCards = useMemo(() => {
         let uploadCards = []
-        const uploads = Array.from(uploadState.uploadsMap.values()).filter((val) => !val.parent)
+
+        const uploads = Array.from(uploadState.uploadsMap.values())
+            .filter((val) => !val.parent)
+            .sort((a, b) => {
+                if ((a.progress / a.total) !== 1 && (b.progress / b.total) === 1) { return -1 }
+                else if ((b.progress / b.total) !== 1 && (a.progress / a.total) === 1) { return 1 }
+                return 0
+            })
+
         for (const uploadMeta of uploads) {
+            console.log(uploadMeta.progress / uploadMeta.total)
             uploadCards.push(<UploadCard key={uploadMeta.key} uploadMetadata={uploadMeta} />)
         }
         return uploadCards
     }, [uploadState.uploadsMap.values(), uploadState.uploadsMap.size])
+
+    const height = useMemo(() => uploadCards.length * 40 < 225 ? 'max-content' : '225px', [uploadCards.length])
 
     if (uploadState.uploadsMap.size === 0) {
         return null
@@ -175,9 +186,11 @@ const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStat
                     <CloseButton c={'white'} variant='transparent' onClick={() => uploadDispatch({ type: "clear" })} />
                 </Tooltip>
             </Paper>
-            <Card p={0} radius={0} style={{ backgroundColor: "transparent", height: "max-content", maxHeight: "200px", width: "400px" }}>
-                <ScrollArea type='never' p={0} mih={40} mah={200} maw={400}>
+            <Card p={0} radius={0} style={{ backgroundColor: "transparent", height: height, maxHeight: 225, width: "400px" }}>
+                <ScrollArea type='never' mih={40} maw={400}>
+
                     {uploadCards}
+
                 </ScrollArea>
             </Card>
         </Paper>

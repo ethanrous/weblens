@@ -1,5 +1,5 @@
 import API_ENDPOINT from "./ApiEndpoint"
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { useUploadStatus } from "../components/UploadStatus";
 import { dispatchSync } from "./Websocket";
 import { notifications } from "@mantine/notifications";
@@ -93,14 +93,21 @@ async function queueChunks(uploadMeta: fileUploadMetadata, authHeader, uploadDis
     const url = new URL(`${API_ENDPOINT}/upload`)
     url.searchParams.append("filename", uploadMeta.file.name)
     url.searchParams.append("parentFolderId", uploadMeta.parentId)
-    let res = axios.post(url.toString(), null, {headers: authHeader})
+    let res = await axios.post(url.toString(), null, {headers: authHeader}).catch((r: AxiosError) => r.response)
+    console.log(res)
 
     const onFinish = () => uploadDispatch({ type: "finished", key: key })
     const onProgress = (bytesWritten, totalBytes, MBpS) => { uploadDispatch({ type: "update_progress", key: key, progress: bytesWritten, speed: Math.trunc(MBpS) }) }
 
-    const createFileResponse = await res
-    console.log(createFileResponse)
-    const uploadId = createFileResponse.data.uploadId
+    if (res.status === 409) {
+        notifications.show({title: "Failed to upload", message: `${file.name} already exists`, color: 'red'})
+        return
+    } else if (res.status !== 201) {
+        notifications.show({title: "Failed to upload", message: res.statusText, color: 'red'})
+        return
+    }
+    console.log(res)
+    const uploadId = res.data.uploadId
 
     let chunkTasks = []
     let offset = 0

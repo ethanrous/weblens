@@ -52,7 +52,7 @@ func NewDB() *Weblensdb {
 }
 
 func (db Weblensdb) GetMedia(mediaId string) (m *Media) {
-	m = mediaMapGet(mediaId)
+	m = MediaMapGet(mediaId)
 	if m != nil {
 		return m
 	}
@@ -68,16 +68,14 @@ func (db Weblensdb) GetMedia(mediaId string) (m *Media) {
 	return
 }
 
-func (db Weblensdb) GetMediaByFile(file *WeblensFile, includeThumbnail bool) (m *Media, err error) {
+func (db Weblensdb) getMediaByFile(file *WeblensFile) (m *Media, err error) {
 	filter := bson.M{"fileId": file.Id()}
 
-	opts := options.FindOne()
-	if !includeThumbnail {
-		opts = options.FindOne().SetProjection(bson.M{"thumbnail": 0})
-	}
-
-	ret := db.mongo.Collection("media").FindOne(mongo_ctx, filter, opts)
+	ret := db.mongo.Collection("media").FindOne(mongo_ctx, filter)
 	err = ret.Err()
+	if err == mongo.ErrNoDocuments {
+		err = ErrNoMedia
+	}
 	if err != nil {
 		return
 	}
@@ -294,7 +292,7 @@ func (db Weblensdb) RedisCacheBust(key string) {
 func (db Weblensdb) AddMedia(m *Media) error {
 	filled, reason := m.IsFilledOut(false)
 	if !filled {
-		err := fmt.Errorf("Refusing to write incomplete media to database for file %s (missing %s)", FsTreeGet(m.FileId).absolutePath, reason)
+		err := fmt.Errorf("refusing to write incomplete media to database for file %s (missing %s)", FsTreeGet(m.FileId).String(), reason)
 		return err
 	}
 
@@ -325,7 +323,7 @@ func (db Weblensdb) handleMediaMove(oldFile, newFile *WeblensFile) (err error) {
 	return
 }
 
-func (db Weblensdb) RemoveMediaByFile(file *WeblensFile) error {
+func (db Weblensdb) removeMediaByFile(file *WeblensFile) error {
 	filter := bson.M{"fileId": file.Id()}
 	_, err := db.mongo.Collection("media").DeleteOne(mongo_ctx, filter)
 	return err
@@ -695,11 +693,4 @@ func (db Weblensdb) DeleteAlbum(albumId string) (err error) {
 	match := bson.M{"_id": albumId}
 	_, err = db.mongo.Collection("albums").DeleteOne(mongo_ctx, match)
 	return
-}
-
-func (db Weblensdb) HURDUR() {
-	index := mongo.IndexModel{
-		Keys: bson.M{"fileHash": 1},
-	}
-	db.mongo.Collection("media").Indexes().CreateOne(mongo_ctx, index)
 }

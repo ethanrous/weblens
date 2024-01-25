@@ -1,9 +1,9 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { FileVisualWrapper, FlexColumnBox, FlexRowBox} from "../FileBrowser/FilebrowserStyles"
 import { MediaImage } from "../../components/PhotoContainer"
-import { Box, Button, Card, Menu, Popover, ScrollArea, Space, Text, TextInput, Tooltip, TooltipFloating } from "@mantine/core"
-import { DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum, RenameAlbum, SetAlbumCover, ShareAlbum } from "../../api/GalleryApi"
-import { IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react"
+import { Box, Button, Card, Divider, Menu, Popover, ScrollArea, Space, Text, TextInput, Tooltip, TooltipFloating } from "@mantine/core"
+import { CleanAlbum, DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum, RenameAlbum, SetAlbumCover, ShareAlbum } from "../../api/GalleryApi"
+import { IconClearAll, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react"
 import { AlbumData, MediaData, MediaStateType } from "../../types/Types"
 import { userContext } from "../../Context"
 import { BucketCards } from "./MediaDisplay"
@@ -97,7 +97,7 @@ function AlbumPreviewCard({ albumData, fetchAlbums, dispatch }: { albumData: Alb
                 style={{ display: 'flex', height: '100%', width: '100%', position: "relative", padding: 0, cursor: 'pointer', backgroundColor: hovering ? '#333333' : '#222222', alignItems: 'center' }}
             >
                 <FileVisualWrapper >
-                    <MediaImage mediaId={albumData.Cover} quality='thumbnail' lazy={true} containerStyle={{ overflow: 'hidden', borderRadius: '6px' }} />
+                    <MediaImage mediaId={albumData.Cover} quality='thumbnail' lazy={true} expectFailure={albumData.Cover === ""} containerStyle={{ overflow: 'hidden', borderRadius: '6px' }} />
                 </FileVisualWrapper>
 
                 {/* <FlexRowBox onClick={(e) => { e.stopPropagation(); setEditing(true) }} style={{ justifyContent: 'space-between', width: '85%', cursor: 'text', height: '36px' }}> */}
@@ -146,6 +146,15 @@ function AlbumPreviewCard({ albumData, fetchAlbums, dispatch }: { albumData: Alb
                             Share
                         </Menu.Item>
 
+                        <FlexColumnBox style={{height: 'max-content', padding: '3px'}}>
+                            <Divider w={'90%'}/>
+                        </FlexColumnBox>
+
+                        {albumData.Owner === userInfo.username && (
+                            <Menu.Item c={'red'} leftSection={<IconClearAll />} onClick={(e) => { e.stopPropagation(); CleanAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
+                                Clean Missing
+                            </Menu.Item>
+                        )}
                         {albumData.Owner === userInfo.username && (
                             <Menu.Item c={'red'} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); DeleteAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
                                 Delete
@@ -203,8 +212,9 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
 
     const fetchAlbum = useCallback(() => {
         GetAlbumMedia(albumId, includeRaw, dispatch, authHeader).then(m => {
-            dispatch({ type: 'set_media', medias: m.media });
-            dispatch({ type: 'set_loading', albums: false }); setAlbumData(m)
+            dispatch({ type: 'set_media', medias: m.media })
+            dispatch({ type: 'set_loading', albums: false })
+            setAlbumData(m)
         })
             .catch(r => {
                 dispatch({ type: 'set_loading', loading: false })

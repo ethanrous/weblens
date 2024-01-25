@@ -108,17 +108,18 @@ export const MediaImage = memo(({
     quality,
     blurhash,
     metadataPreload,
+    contentPreload = null,
     lazy = true,
     expectFailure = false,
     containerStyle,
     imgStyle,
     root
-}: { mediaId: string, quality: "thumbnail" | "fullres", blurhash?: string, metadataPreload?: MediaData, lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp, root?}
+}: { mediaId: string, quality: "thumbnail" | "fullres", blurhash?: string, metadataPreload?: MediaData, contentPreload?, lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp, root?}
 ) => {
     const [loaded, setLoaded] = useState("")
     const [loadError, setLoadErr] = useState(false)
     const { authHeader } = useContext(userContext)
-    const [imgData, setImgData] = useState(null)
+    const [imgData, setImgData] = useState(contentPreload)
     const [imgMeta, setImgMeta]: [imgMeta: MediaData, setImgMeta: any] = useState(metadataPreload)
 
     const [metaPromise, setMetaPromise] = useState(null)
@@ -132,6 +133,11 @@ export const MediaImage = memo(({
 
     useEffect(() => {
         if (!isVisible) {
+            return
+        }
+
+        if (!mediaId) {
+            // setLoadErr(true)
             return
         }
 
@@ -246,8 +252,10 @@ export const MediaImage = memo(({
 
         </ThumbnailContainer >
     )
-}, (last, next) =>{
+}, (last, next) => {
     if (last.mediaId !== next.mediaId) {
+        return false
+    } else if (last.containerStyle?.height !== next.containerStyle?.height) {
         return false
     }
     return true

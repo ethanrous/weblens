@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -13,10 +14,18 @@ import (
 
 func wsConnect(ctx *gin.Context) {
 
+	ctx.Status(http.StatusSwitchingProtocols)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	util.FailOnError(err, "Failed to upgrade http request to websocket")
+	if err != nil {
+		util.DisplayError(err)
+		return
+	}
 
 	client := cmInstance.ClientConnect(conn, ctx.GetString("username"))
+	go wsMain(client)
+}
+
+func wsMain(client *Client) {
 	defer client.Disconnect()
 
 	for {
@@ -30,14 +39,13 @@ func wsConnect(ctx *gin.Context) {
 
 func wsReqSwitchboard(msgBuf []byte, client *Client) {
 	defer util.RecoverPanic("[WS] Client %d panicked: %v", client.GetClientId())
+
 	var msg wsRequest
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
 		util.DisplayError(err)
 		return
 	}
-
-	// client.debug("Got", msg.Action)
 
 	switch msg.Action {
 	case Subscribe:
@@ -82,17 +90,13 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 				return
 			}
 
-			meta := dataProcess.ScanMetadata{File: folder, Recursive: scanInfo.Recursive, DeepScan: scanInfo.DeepScan}
-
-			t := dataProcess.NewTask(string(ScanDirectory), meta)
-			dataProcess.GetGlobalQueue().QueueTask(t)
-
+			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan)
 			client.Subscribe(SubTask, subId(t.TaskId()), nil)
 		}
 
 	default:
 		{
-			util.Error.Printf("Could not parse websocket request type: %s", string(msg.Action))
+			client.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
 		}
 	}
 }

@@ -97,6 +97,7 @@ export type FileBrowserStateType = {
     blockFocus: boolean
     lastSelected: string
     hovering: string
+    pasteImg: string
 }
 
 export type fileData = {

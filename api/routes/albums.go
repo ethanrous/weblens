@@ -18,6 +18,7 @@ type albumUpdateData struct {
 	NewName     string   `json:"newName"`
 	Users       []string `json:"users"`
 	RemoveUsers []string `json:"removeUsers"`
+	CleanMedia  bool     `json:"cleanMissing"`
 }
 
 func getAlbum(ctx *gin.Context) {
@@ -152,6 +153,14 @@ func updateAlbum(ctx *gin.Context) {
 			util.DisplayError(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
 			return
+		}
+	}
+
+	if update.CleanMedia {
+		err = a.CleanMissingMedia()
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed clean missing album media"})
 		}
 	}
 

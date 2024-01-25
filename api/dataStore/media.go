@@ -62,20 +62,30 @@ func (m *Media) IsFilledOut(skipThumbnail bool) (bool, string) {
 
 }
 
-func (m *Media) LoadFileBytes(f *WeblensFile) {
+func (m *Media) LoadFileBytes() error {
 	if m.thumbBytes != nil {
-		return
+		return nil
 	}
-	osFile, err := f.Read()
+
+	mFile := m.GetBackingFile()
+	if mFile == nil {
+		return fmt.Errorf("failed to get file to read")
+	}
+
+	osFile, err := mFile.Read()
 	if err != nil {
-		util.DisplayError(err)
+		return err
 	}
-	size, _ := f.Size()
+	defer osFile.Close()
+
+	size, _ := mFile.Size()
 	bytes, err := util.OracleReader(osFile, size)
 	if err != nil {
-		util.DisplayError(err)
+		return err
 	}
 	m.thumbBytes = bytes
+
+	return nil
 }
 
 func (m *Media) extractExif() error {
@@ -128,7 +138,12 @@ func (m *Media) ComputeExif() error {
 				m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
 			}
 		} else {
-			m.CreateDate, err = time.Unix(0, 1), nil
+			stat, err := os.Stat(m.GetBackingFile().String())
+			if err != nil {
+				return err
+			}
+
+			m.CreateDate = stat.ModTime()
 		}
 		if err != nil {
 			return err
@@ -245,40 +260,25 @@ func (m *Media) ReadFullres() ([]byte, error) {
 
 func (m *Media) getReadable() (readable io.Reader, bytesLen int64, err error) {
 	if m.thumbBytes == nil {
+		util.Debug.Println("Getting readable")
 
-		m.ComputeExif()
+		err = m.ComputeExif()
+		if err != nil {
+			return
+		}
 
 		if !m.MediaType.IsDisplayable {
+			err = fmt.Errorf("cannot get readable of media that is not displayable")
 			return
 		}
 
 		// When the media is not raw, the exifdata does not load
 		// the thumb bytes into the struct, so we read the file manually
 		if m.thumbBytes == nil {
-			mFile := m.GetBackingFile()
-			if mFile == nil {
-				return nil, 0, fmt.Errorf("failed to get file to read")
-			}
-
-			var osFile *os.File
-			osFile, err = mFile.Read()
+			err = m.LoadFileBytes()
 			if err != nil {
 				return
 			}
-
-			var size int64
-			var fileBytes []byte
-			size, err = mFile.Size()
-			if err != nil {
-				return
-			}
-
-			fileBytes, err = util.OracleReader(osFile, size)
-			if err != nil {
-				return
-			}
-
-			m.thumbBytes = fileBytes
 		}
 	}
 
@@ -310,10 +310,13 @@ func (m *Media) readFileIntoImage() (i image.Image, err error) {
 	return
 }
 
-func (m *Media) generateFileHash(mFile *WeblensFile) (err error) {
+func (m *Media) generateFileHash() (err error) {
 	readable, _, err := m.getReadable()
 	if err != nil {
 		return
+	}
+	if readable == nil {
+		return fmt.Errorf("nil readable")
 	}
 
 	h := sha256.New()
@@ -336,7 +339,7 @@ func (m *Media) Id() string {
 			util.DisplayError(err)
 			return ""
 		}
-		err := m.generateFileHash(FsTreeGet(m.FileId))
+		err := m.generateFileHash()
 		util.DisplayError(err)
 	}
 
@@ -422,4 +425,11 @@ func (m *Media) Clean() {
 
 func (m *Media) SetImported() {
 	m.imported = true
+}
+
+func (m *Media) IsImported() bool {
+	if m == nil {
+		return false
+	}
+	return m.imported
 }

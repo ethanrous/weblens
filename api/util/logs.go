@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -24,14 +25,15 @@ var WsError = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|lo
 var ErrorCatcher = log.New(os.Stdout, "\u001b[31mERROR: \u001b[0m", log.LstdFlags)
 
 // Debug writes logs in the color cyan with "DEBUG: " as prefix
-func getDebug() *log.Logger {
+func getDebug(name string) *log.Logger {
 	godotenv.Load()
+	prefix := fmt.Sprintf("\u001b[36m[%s] \u001B[0m", name)
 	if IsDevMode() {
-		return log.New(os.Stdout, "\u001b[36m[DEBUG] \u001B[0m", log.LstdFlags|log.Lshortfile)
+		return log.New(os.Stdout, prefix, log.LstdFlags|log.Lshortfile)
 	} else {
 		return log.New(io.Discard, "", 0)
 	}
 }
 
-var Debug = getDebug()
-var WsDebug = getDebug()
+var Debug = getDebug("DEBUG")
+var WsDebug = getDebug("WS DEBUG")

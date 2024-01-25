@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/util"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type mediaType struct {
@@ -88,7 +87,7 @@ func (f *WeblensFile) GetMediaType() (*mediaType, error) {
 	}
 
 	m, err := f.GetMedia()
-	if err != nil && err != mongo.ErrNoDocuments {
+	if err != nil && err != ErrNoMedia {
 		util.DisplayError(err)
 		return nil, err
 	}

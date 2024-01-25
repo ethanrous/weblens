@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/gorilla/websocket"
 )
@@ -134,7 +133,7 @@ type BroadcasterAgent interface {
 
 // Tasker interface for queueing tasks in the task pool
 type TaskerAgent interface {
-	WriteToFile(filename, parentFolderId string) *dataProcess.Task
+	WriteToFile(filename, parentFolderId string) dataStore.Task
 	MarkGlobal()
 }
 

@@ -31,6 +31,8 @@ func processMediaFile(t *Task) {
 	m := meta.PartialMedia
 	file := meta.File
 
+	defer file.RemoveTask(t.TaskId())
+
 	if m == nil {
 		t.error(errors.New("attempted to process nil media"))
 		return
@@ -92,15 +94,6 @@ func processMediaFile(t *Task) {
 
 }
 
-func initTmpExiftool(bufSize int64) (et *exiftool.Exiftool, err error) {
-	buf := make([]byte, int(bufSize))
-	et, err = exiftool.NewExiftool(exiftool.Api("largefilesupport"), exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(buf, int(bufSize)))
-	return
-}
-
-// We don't pre-load directories that are larger than 5GB
-const DIR_PRELOAD_LIMIT = 1000 * 1000 * 1000 * 5
-
 func scanDirectory(t *Task) {
 	meta := t.metadata.(ScanMetadata)
 	scanDir := meta.File
@@ -126,9 +119,18 @@ func scanDirectory(t *Task) {
 
 	children := scanDir.GetChildren()
 	for _, c := range children {
+		// If this file is already being procecced, don't queue it again
+		if slices.ContainsFunc(c.GetTasks(), func(t dataStore.Task) bool { return t.TaskType() == "scan_file" || t.TaskType() == "scan_directory" }) {
+			continue
+		}
 		if !c.IsDir() {
-			displayable, err := c.IsDisplayable()
-			if displayable && errors.Is(err, dataStore.ErrNoMedia) {
+			m, err := c.GetMedia()
+			if err != nil && !errors.Is(err, dataStore.ErrNoMedia) {
+				util.DisplayError(err)
+				continue
+			}
+
+			if !m.IsImported() {
 				mediaToScan = append(mediaToScan, c)
 			}
 		} else if recursive && c != scanDir {
@@ -137,8 +139,7 @@ func scanDirectory(t *Task) {
 	}
 
 	for _, dir := range dirsToScan {
-		t := NewTask("scan_directory", ScanMetadata{File: dir, Recursive: recursive, DeepScan: deepScan})
-		ttInstance.globalQueue.QueueTask(t)
+		GetGlobalQueue().ScanDirectory(dir, recursive, deepScan)
 	}
 
 	if len(mediaToScan) == 0 {
@@ -154,45 +155,9 @@ func scanDirectory(t *Task) {
 
 	sw := util.NewStopwatch(fmt.Sprint("Directory scan ", scanDir.String()))
 
-	var dirSize int64
-	var allMetadata []exiftool.FileMetadata
-	util.Each(mediaToScan, func(f *dataStore.WeblensFile) { s, err := f.Size(); util.DisplayError(err); dirSize += s })
-
-	var preload bool = false
-	if dirSize < DIR_PRELOAD_LIMIT {
-		util.Debug.Println("Preloading exifdata for", scanDir.String())
-		preload = true
-		et, err := initTmpExiftool(dirSize)
-		if err != nil {
-			t.error(err)
-
-			if et != nil {
-				// This might panic...
-				et.Close()
-			}
-			return
-		}
-
-		sw.Lap("Initiated exiftool")
-
-		paths := util.Map(mediaToScan, func(f *dataStore.WeblensFile) string { return f.String() })
-		allMetadata = et.ExtractMetadata(paths...)
-
-		err = et.Close()
-		if err != nil {
-			t.error(err)
-			return
-		}
-
-		sw.Lap("Pre-Loaded Metadata")
-	}
-
-	for i, file := range mediaToScan {
+	for _, file := range mediaToScan {
 		newMedia := &dataStore.Media{}
 		newMedia.FileId = file.Id()
-		if preload {
-			newMedia.DumpRawExif(allMetadata[i].Fields)
-		}
 		file.SetMedia(newMedia)
 	}
 
@@ -208,8 +173,7 @@ func scanDirectory(t *Task) {
 			util.DisplayError(err)
 			continue
 		}
-		t := NewTask("scan_file", ScanMetadata{File: file, PartialMedia: m})
-		wq.QueueTask(t)
+		wq.ScanFile(file, m)
 	}
 
 	sw.Lap("Queued all tasks")

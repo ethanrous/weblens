@@ -81,7 +81,7 @@ func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, mes
 		}
 	} else {
 		// Although "debug" is our verbose mode, this one is really annoying, so it's disabled unless needed.
-		// util.Debug.Println("No subscribers to", dest.Type, dest.Key)
+		util.Debug.Println("No subscribers to", dest.Type, dest.Key)
 	}
 }
 

@@ -84,7 +84,7 @@ func mainInsert(f, parent *WeblensFile) error {
 	return nil
 }
 
-func FsTreeRemove(f *WeblensFile) {
+func FsTreeRemove(f *WeblensFile) (err error) {
 	fsTreeLock.Lock()
 	if fileTree[f.Id()] == nil {
 		fsTreeLock.Unlock()
@@ -100,9 +100,17 @@ func FsTreeRemove(f *WeblensFile) {
 
 		displayable, err := file.IsDisplayable()
 		if displayable && err == nil {
-			fddb.RemoveMediaByFile(file)
+			err = removeMediaByFile(file)
+			if err != nil {
+				return
+			}
 		} else if errors.Is(err, ErrDirNotAllowed) {
-			fddb.deleteFolder(file)
+			err = fddb.deleteFolder(file)
+			if err != nil {
+				return
+			}
+		} else if err != nil && err != ErrNoMedia {
+			return
 		}
 
 		fsTreeLock.Lock()
@@ -110,15 +118,16 @@ func FsTreeRemove(f *WeblensFile) {
 		fsTreeLock.Unlock()
 	})
 
-	err := os.RemoveAll(f.absolutePath)
+	err = os.RemoveAll(f.absolutePath)
 	if err != nil {
-		util.DisplayError(err)
+		return
 	}
 
 	caster.PushFileDelete(f)
 	Resize(f.GetParent())
 
 	util.Debug.Println("Removed file", f.String())
+	return
 }
 
 func FsTreeGet(fileId string) (f *WeblensFile) {
@@ -237,6 +246,7 @@ func GetTreeSize() int {
 
 func Resize(f *WeblensFile) {
 	f.BubbleMap(func(w *WeblensFile) {
+		util.Debug.Println("RESIZING", w.String())
 		w.recompSize()
 	})
 }

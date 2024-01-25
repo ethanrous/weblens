@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
@@ -57,9 +58,7 @@ func getOneMedia(ctx *gin.Context) {
 		return
 	}
 
-	db := dataStore.NewDB()
-	m := db.GetMedia(mediaId)
-
+	m := dataStore.MediaMapGet(mediaId)
 	if m == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given Id not found"})
 		return
@@ -104,7 +103,17 @@ func updateMedias(ctx *gin.Context) {
 
 // Create new file upload task, and wait for data
 func newFileUpload(ctx *gin.Context) {
-	t := UploadTasker.WriteToFile(ctx.Query("filename"), ctx.Query("parentFolderId"))
+	parentId := ctx.Query("parentFolderId")
+	filename := ctx.Query("filename")
+	parent := dataStore.FsTreeGet(parentId)
+
+	children := parent.GetChildren()
+	if slices.ContainsFunc(children, func(wf *dataStore.WeblensFile) bool { return wf.Filename() == filename }) {
+		ctx.AbortWithStatus(http.StatusConflict)
+		return
+	}
+
+	t := UploadTasker.WriteToFile(filename, parentId)
 	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
 
@@ -247,8 +256,7 @@ func updateFile(ctx *gin.Context) {
 		newParentId = file.GetParent().Id()
 	}
 
-	t := dataProcess.NewTask("move_file", dataProcess.MoveMeta{FileId: fileId, DestinationFolderId: newParentId, NewFilename: newFilename})
-	dataProcess.GetGlobalQueue().QueueTask(t)
+	t := dataProcess.GetGlobalQueue().MoveFile(fileId, newParentId, newFilename)
 
 	t.Wait()
 
@@ -273,8 +281,7 @@ func updateFiles(ctx *gin.Context) {
 	wq := dataProcess.NewWorkQueue()
 
 	for _, fileId := range filesData.Files {
-		t := dataProcess.NewTask("move_file", dataProcess.MoveMeta{FileId: fileId, DestinationFolderId: filesData.NewParentId, NewFilename: ""})
-		wq.QueueTask(t)
+		wq.MoveFile(fileId, filesData.NewParentId, "")
 	}
 	wq.SignalAllQueued()
 	wq.Wait(false)
@@ -302,12 +309,17 @@ func trashFile(ctx *gin.Context) {
 	}
 
 	if inTrash {
-		dataStore.PermenantlyDeleteFile(file)
+		err := dataStore.PermenantlyDeleteFile(file)
+		if err != nil {
+			util.DisplayError(err)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
 	} else {
 		err := dataStore.MoveFileToTrash(file)
 		if err != nil {
 			util.DisplayError(err)
-			ctx.Status(http.StatusInternalServerError)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 	}
@@ -343,8 +355,7 @@ func createTakeout(ctx *gin.Context) {
 		util.Warning.Println("Creating zip file with only 1 non-dir file")
 	}
 
-	t := dataProcess.NewTask("create_zip", dataProcess.ZipMetadata{Files: files, Username: username})
-	dataProcess.GetGlobalQueue().QueueTask(t)
+	t := dataProcess.GetGlobalQueue().CreateZip(files, username)
 
 	completed, _ := t.Status()
 	if completed {

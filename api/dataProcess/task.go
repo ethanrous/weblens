@@ -11,6 +11,10 @@ func (t *Task) TaskId() string {
 	return t.taskId
 }
 
+func (t *Task) TaskType() string {
+	return t.taskType
+}
+
 // Status returns a boolean represending if a task has completed, and a string describing its exit type, if completed.
 func (t *Task) Status() (bool, string) {
 	return t.completed, t.exitStatus
@@ -57,6 +61,7 @@ func (t *Task) ClearAndRecompute() {
 		util.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId(), t.err)
 		t.err = nil
 	}
+	t.completed = false
 	t.queue = nil
 	t.waitMu.Lock()
 	t.queue.QueueTask(t)

@@ -21,12 +21,12 @@ function useKeyDown(dispatch, editing, setEditing, parentId, fileId, newName, im
                 if (imported) {
                     RenameFile(fileId, newName, authHeader).then(() => setEditing(false))
                 } else {
-                    dispatch({type: 'set_loading', loading: true})
+                    dispatch({ type: 'set_loading', loading: true })
                     dispatch({ type: 'delete_from_map', fileId: "TEMPLATE_NEW_FOLDER" })
                     CreateFolder(parentId, newName, authHeader).then(folderId => {
                         dispatch({ type: 'set_selected', fileId: folderId })
                         setEditing(false)
-                        dispatch({type: 'set_loading', loading: false})
+                        dispatch({ type: 'set_loading', loading: false })
                     })
                 }
             }
@@ -105,7 +105,7 @@ const TextBox = ({ filename, fileSize, editing, setEditing, renameVal, setRename
     }
 }
 
-const File = memo(({ fileData, selected, root, moveSelected, dragging, dispatch, authHeader }: {
+const FileItem = memo(({ fileData, selected, root, moveSelected, dragging, dispatch, authHeader }: {
     fileData: fileData, selected: boolean, root, moveSelected: () => void, dragging: number, dispatch: any, authHeader: any
 }) => {
     const [hovering, setHovering] = useState(false)
@@ -113,7 +113,7 @@ const File = memo(({ fileData, selected, root, moveSelected, dragging, dispatch,
     const [renameVal, setRenameVal] = useState(fileData.filename)
     const fileRef = useRef()
 
-    const setEditingPlus = useCallback((b: boolean) => {setEditing(b); setRenameVal(cur => {if (cur === '') {return fileData.filename} else {return cur}}); dispatch({type: 'set_block_focus', block: b})}, [setEditing, dispatch])
+    const setEditingPlus = useCallback((b: boolean) => { setEditing(b); setRenameVal(cur => { if (cur === '') { return fileData.filename } else { return cur } }); dispatch({ type: 'set_block_focus', block: b }) }, [setEditing, dispatch])
     useKeyDown(dispatch, editing, setEditingPlus, fileData.parentFolderId, fileData.id, renameVal, fileData.imported, authHeader)
 
     useEffect(() => {
@@ -162,4 +162,4 @@ const File = memo(({ fileData, selected, root, moveSelected, dragging, dispatch,
     return true
 })
 
-export default File
+export default FileItem

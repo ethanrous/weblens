@@ -99,7 +99,7 @@ export async function RenameAlbum(albumId, newName, authHeader) {
         newName: newName
     }
     return fetch(url.toString(), { method: "PATCH", headers: authHeader, body: JSON.stringify(body) })
-        .then(res => { if (res.status != 200) { return res.json() } })
+        .then(res => { if (res.status !== 200) { return res.json() } })
         .then((json) => { if (json?.error) { return Promise.reject(json.error) } })
         .catch((r) => notifications.show({ title: "Failed to rename album", message: String(r), color: 'red' }))
 }
@@ -108,5 +108,12 @@ export async function DeleteAlbum(albumId, authHeader) {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`)
 
     let ret = await fetch(url.toString(), { method: "DELETE", headers: authHeader })
+    return ret
+}
+
+export async function CleanAlbum(albumId, authHeader) {
+    const url = new URL(`${API_ENDPOINT}/album/${albumId}`)
+
+    let ret = await fetch(url.toString(), { method: "PATCH", headers: authHeader, body: JSON.stringify({cleanMissing: true}) })
     return ret
 }

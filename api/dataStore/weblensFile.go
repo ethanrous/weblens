@@ -133,12 +133,8 @@ func (f *WeblensFile) GetMedia() (m *Media, err error) {
 		return nil, fmt.Errorf("cannot get media of directory")
 	}
 
-	m, err = fddb.GetMediaByFile(f, false)
-	if err != nil {
-		return
-	}
-
-	f.media = m
+	err = loadMediaByFile(f)
+	m = f.media
 
 	return
 }
@@ -194,9 +190,9 @@ func (f *WeblensFile) Size() (int64, error) {
 		return f.size, nil
 	}
 
-	if !f.assertExists() {
-		return 0, fmt.Errorf("getting size of file that does not exist")
-	}
+	// if !f.assertExists() {
+	// 	return 0, fmt.Errorf("getting size of file that does not exist")
+	// }
 
 	return f.recompSize()
 }
@@ -581,14 +577,6 @@ func (f *WeblensFile) removeChild(childId string) {
 
 	delete(f.children, childId)
 	f.childLock.Unlock()
-}
-
-func (f *WeblensFile) assertExists() bool {
-	if f.Exists() {
-		return true
-	}
-	FsTreeRemove(f)
-	return false
 }
 
 func (f *WeblensFile) verifyChildren() {

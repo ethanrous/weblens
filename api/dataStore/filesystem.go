@@ -303,8 +303,9 @@ func MoveFileToTrash(file *WeblensFile) error {
 }
 
 // Removes file being pointed to from the tree and deletes it from the real filesystem
-func PermenantlyDeleteFile(file *WeblensFile) {
-	FsTreeRemove(file)
+func PermenantlyDeleteFile(file *WeblensFile) error {
+	return FsTreeRemove(file)
+
 }
 
 func GetTmpDir() *WeblensFile {

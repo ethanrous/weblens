@@ -6,10 +6,14 @@ import { FlexColumnBox } from '../Pages/FileBrowser/FilebrowserStyles'
 import { Box, CloseButton } from '@mantine/core'
 import { IconFile } from '@tabler/icons-react'
 
-const PresentationContainer = ({ ...extra }) => {
+export const PresentationContainer = ({ shadeOpacity, onMouseMove, onClick, children }: { shadeOpacity?, onMouseMove?, onClick?, children }) => {
+    if (!shadeOpacity) {
+        shadeOpacity = "0.90"
+    }
     return (
         <Box
-            {...extra}
+            onMouseMove={onMouseMove}
+            onClick={onClick}
             style={{
                 position: "fixed",
                 display: "flex",
@@ -21,9 +25,10 @@ const PresentationContainer = ({ ...extra }) => {
                 height: "100%",
                 width: "100%",
                 zIndex: 100,
-                backgroundColor: "rgb(0, 0, 0, 0.92)",
+                backgroundColor: `rgb(0, 0, 0, ${shadeOpacity})`,
                 backdropFilter: "blur(4px)"
             }}
+            children={children}
         />
     )
 }
@@ -45,7 +50,7 @@ const PresentationVisual = ({ mediaData }: { mediaData: MediaData }) => {
         return (
             <StyledMediaImage key={`${mediaData.fileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
         )
-    } else if (mediaData.mediaType?.FriendlyName == "File") {
+    } else if (mediaData.mediaType?.FriendlyName === "File") {
         return (
             <IconFile />
         )

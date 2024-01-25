@@ -35,7 +35,10 @@ func (a *AlbumData) RemoveMedia(ms []string) (err error) {
 }
 
 func (a *AlbumData) SetCover(mediaId string) error {
-	m := fddb.GetMedia(mediaId)
+	m := MediaMapGet(mediaId)
+	if m == nil {
+		return ErrNoMedia
+	}
 	i := m.GetImage()
 	prom, err := prominentcolor.Kmeans(i)
 	if err != nil {
@@ -58,5 +61,30 @@ func (a *AlbumData) AddUsers(usernames []string) (err error) {
 func (a *AlbumData) RemoveUsers(usernames []string) (err error) {
 	a.SharedWith = util.Filter(a.SharedWith, func(s string) bool { return !slices.Contains(usernames, s) })
 	err = fddb.unshareAlbum(a.Id, usernames)
+	return
+}
+
+func (a *AlbumData) CleanMissingMedia() (err error) {
+	missing := util.Filter(a.Medias, func(s string) bool { return MediaMapGet(s) == nil })
+	if len(missing) != 0 {
+		err = fddb.removeMediaFromAlbum(a.Id, missing)
+		if err != nil {
+			return
+		}
+	}
+	a.Medias = util.Filter(a.Medias, func(s string) bool { return !slices.Contains(missing, s) })
+
+	// If the cover is missing, reset to the first media, or none if no more media
+	if !slices.Contains(a.Medias, a.Cover) {
+		if len(a.Medias) != 0 {
+			err = a.SetCover(a.Medias[0])
+			if err != nil {
+				return
+			}
+		} else {
+			fddb.SetAlbumCover(a.Id, "", "", "")
+		}
+	}
+
 	return
 }

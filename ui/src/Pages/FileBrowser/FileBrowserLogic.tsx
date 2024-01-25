@@ -1,8 +1,8 @@
 import { fileData, FileBrowserStateType, getBlankFile } from '../../types/Types'
 import Upload, { fileUploadMetadata } from "../../api/Upload"
-import { Dispatch, DragEvent, useEffect, useState } from 'react'
+import { Dispatch, DragEvent, useCallback, useEffect, useState } from 'react'
 import { CreateFolder, DeleteFile, MoveFiles, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
-import File from './FileItem'
+import FileItem from './FileItem'
 
 import { notifications } from '@mantine/notifications'
 
@@ -147,7 +147,6 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             return {
                 ...state,
                 scanProgress: action.progress
-
             }
         }
 
@@ -256,6 +255,10 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
                 ...state,
                 presentingId: action.presentingId
             }
+        }
+
+        case 'paste_image': {
+            return { ...state, pasteImg: action.img }
         }
 
         default: {
@@ -431,13 +434,13 @@ export function downloadSelected(selectedMap: Map<string, boolean>, dirMap: Map<
     requestZipCreate(files, authHeader).then(({ json, status }) => {
         if (status === 200) {
             downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, "zip")
-            } else {
+        } else {
             taskId = json.taskId
             notifications.show({ id: `zip_create_${taskId}`, message: `Requesting zip...`, autoClose: false })
             wsSend("subscribe", { subType: "task", lookingFor: ["takeoutId"], taskId: taskId })
-            }
-            dispatch({ type: "set_loading", loading: false })
-        })
+        }
+        dispatch({ type: "set_loading", loading: false })
+    })
         .catch((r) => console.error(r))
 }
 
@@ -479,7 +482,7 @@ export function HandleWebsocketMessage(lastMessage, userInfo, dispatch, authHead
                 return
             }
             case "error": {
-                notifications.show({title: "Websocket error", message: msgData.error, color: 'red'})
+                notifications.show({ title: "Websocket error", message: msgData.error, color: 'red' })
                 return
             }
             default: {
@@ -490,10 +493,10 @@ export function HandleWebsocketMessage(lastMessage, userInfo, dispatch, authHead
     }
 }
 
-export const useKeyDown = (blockFocus, dispatch, searchRef) => {
+export const useKeyDown = (fbState: FileBrowserStateType, userInfo, dispatch, authHeader, wsSend, searchRef) => {
     useEffect(() => {
         const onKeyDown = (event) => {
-            if (!blockFocus) {
+            if (!fbState.blockFocus) {
                 if (document.activeElement !== searchRef.current && event.metaKey && event.key === 'a') {
                     event.preventDefault()
                     dispatch({ type: 'select_all' })
@@ -503,9 +506,19 @@ export const useKeyDown = (blockFocus, dispatch, searchRef) => {
                     searchRef.current.blur()
                 } else if (event.key === 'Escape') {
                     event.preventDefault()
-                    dispatch({ type: 'clear_selected' })
+                    if (fbState.pasteImg !== "") {
+                        dispatch({ type: "paste_image", img: "" })
+                    } else {
+                        dispatch({ type: 'clear_selected' })
+                    }
                 } else if (event.key === 'Shift') {
                     dispatch({ type: 'holding_shift', shift: true })
+                } else if (event.key === 'Enter' && fbState.pasteImg !== "") {
+                    if (fbState.folderInfo.id === "shared" || fbState.folderInfo.id === userInfo.trashFolderId) {
+                        notifications.show({ title: "Paste blocked", message: "This folder does not allow paste-to-upload", color: 'red' })
+                        return
+                    }
+                    UploadViaUrl(fbState.pasteImg, fbState.folderInfo.id, fbState.dirMap, authHeader, dispatch, wsSend)
                 }
             } else {
                 if (event.metaKey && event.key === 'a') {
@@ -515,7 +528,7 @@ export const useKeyDown = (blockFocus, dispatch, searchRef) => {
         }
 
         const onKeyUp = (event) => {
-            if (!blockFocus) {
+            if (!fbState.blockFocus) {
                 if (event.key === 'Shift') {
                     dispatch({ type: 'holding_shift', shift: false })
                 }
@@ -528,7 +541,7 @@ export const useKeyDown = (blockFocus, dispatch, searchRef) => {
             document.removeEventListener('keydown', onKeyDown)
             document.removeEventListener('keyup', onKeyUp)
         }
-    }, [blockFocus, dispatch, searchRef])
+    }, [fbState.blockFocus, fbState.pasteImg, dispatch, searchRef])
 }
 
 export const useMousePosition = () => {
@@ -549,6 +562,50 @@ export const useMousePosition = () => {
     return mousePosition
 }
 
+export const usePaste = (folderId: string, userInfo, searchRef, dispatch) => {
+    const handlePaste = useCallback(async (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        const clipboardItems = typeof navigator?.clipboard?.read === 'function'
+            ? await navigator.clipboard.read().catch(v => { console.error(v); notifications.show({ title: "Could not paste", message: "Does your browser block clipboard for Weblens?", color: 'red' }) })
+            : e.clipboardData?.files
+        if (!clipboardItems) {
+            return
+        }
+        for (const item of clipboardItems) {
+            for (const mime of item.types) {
+                if (mime.startsWith("image/")) {
+                    if (folderId === "shared" || folderId === userInfo.trashFolderId) {
+                        notifications.show({ title: "Paste blocked", message: "This folder does not allow paste-to-upload", color: 'red' })
+                        return
+                    }
+                    const img = URL.createObjectURL(await item.getType(mime))
+                    dispatch({ type: 'paste_image', img: img })
+                } else if (mime === "text/plain") {
+                    const text = await (await item.getType("text/plain"))?.text()
+                    if (!text) {
+                        continue
+                    }
+                    searchRef.current.focus()
+                    dispatch({ type: "set_search", search: text })
+                } else {
+                    console.log("Unknown mime", mime)
+                }
+            }
+            console.log(item)
+        }
+
+    }, [folderId])
+
+    useEffect(() => {
+        window.addEventListener('paste', handlePaste)
+        return () => {
+            window.removeEventListener('paste', handlePaste)
+        }
+    }, [handlePaste])
+}
+
 export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, fileData>, authHeader) {
     for (const fileKey of selectedMap.keys()) {
         const file = dirMap.get(fileKey)
@@ -558,11 +615,11 @@ export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<st
         }
         DeleteFile(file.id, authHeader)
     }
-// dispatch({ type: "delete_selected" })
+    // dispatch({ type: "delete_selected" })
 }
 
 export function moveSelected(selectedMap: Map<string, boolean>, destinationId: string, authHeader) {
-    return MoveFiles(Array.from(selectedMap.keys()), destinationId, authHeader).catch(r => notifications.show({title: "Failed to move files", message: String(r), color: 'red'}))
+    return MoveFiles(Array.from(selectedMap.keys()), destinationId, authHeader).catch(r => notifications.show({ title: "Failed to move files", message: String(r), color: 'red' }))
 }
 
 export function GetDirFiles(filebrowserState: FileBrowserStateType, userInfo, dispatch, authHeader, gridRef) {
@@ -577,11 +634,11 @@ export function GetDirFiles(filebrowserState: FileBrowserStateType, userInfo, di
         if (!entry.isDir) {
             move = () => { }
         } else {
-            move = () => { moveSelected(filebrowserState.selected, entry.id, authHeader).then(() => dispatch({type: 'clear_selected'})) }
+            move = () => { moveSelected(filebrowserState.selected, entry.id, authHeader).then(() => dispatch({ type: 'clear_selected' })) }
         }
 
         return (
-            <File
+            <FileItem
                 key={entry.id}
                 fileData={entry}
                 selected={filebrowserState.selected.get(entry.id)}
@@ -594,4 +651,26 @@ export function GetDirFiles(filebrowserState: FileBrowserStateType, userInfo, di
         )
     })
     return { files, scanRequired }
+}
+
+export async function UploadViaUrl(imgUrl, folderId, dirMap: Map<string, fileData>, authHeader, dispatch, wsSend) {
+    const blob = await (await fetch(imgUrl)).blob()
+
+    const names = Array.from(dirMap.values()).map((v) => v.filename)
+    let imgNumber = 1
+    let imgName = `image${imgNumber}.jpg`
+    while (names.includes(imgName)) {
+        imgNumber++
+        imgName = `image${imgNumber}.jpg`
+    }
+
+    const meta: fileUploadMetadata = {
+        file: new File([blob], imgName),
+        isDir: false,
+        parentId: folderId,
+        topLevelParentKey: "",
+        isTopLevel: true
+    }
+    await Upload([meta], folderId, authHeader, () => { }, dispatch, wsSend)
+    dispatch({ type: "paste_image", img: "" })
 }
