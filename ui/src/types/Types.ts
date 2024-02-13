@@ -3,8 +3,7 @@
 
 export type MediaData = {
     fileHash: string
-    parentFolder: string
-    filename: string
+    fileIds: string[]
     mediaType: {
         FileExtension: []
         FriendlyName: string
@@ -13,13 +12,15 @@ export type MediaData = {
         IsDisplayable: boolean
     }
     blurHash: string
-    thumbnail64: string
+    thumbnail: ArrayBuffer
+    fullres: ArrayBuffer
     mediaWidth: number
     mediaHeight: number
     thumbWidth: number
     thumbHeight: number
     createDate: string
     owner: string
+    recognitionTags: string[]
 
     // Local things
     Previous: MediaData
@@ -31,8 +32,10 @@ export type MediaData = {
 export type AlbumData = {
     Id: string
     Medias: string[]
+    SharedWith: string[]
     Name: string
     Cover: string
+    CoverMedia: MediaData
     PrimaryColor: string
     SecondaryColor: string
     Owner: string
@@ -42,72 +45,145 @@ export type AlbumData = {
 // Gallery Types
 
 export type GalleryBucketProps = {
-    date: string
+    bucketTitle: string
     bucketData: MediaData[]
-    scrollerRef
+    scale: number
     dispatch: React.Dispatch<any>
 }
 
 export type MediaWrapperProps = {
     mediaData: MediaData
     scale: number
-    scrollerRef
-    dispatch
+    dispatch: (galleryAction) => void
     menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element
 }
 
 export type MediaStateType = {
     mediaMap: Map<string, MediaData>
+    mediaMapUpdated: number
     albumsMap: Map<string, AlbumData>
-    mediaCount: number
-    // maxMediaCount: number
-    // hasMoreMedia: boolean
-    presentingHash: string
-    // previousLast: string
-    includeRaw: boolean
+    albumsFilter: string[]
     loading: boolean
-    scanProgress: number
-    searchContent: string
-    blockSearchFocus: boolean
+    includeRaw: boolean
     newAlbumDialogue: boolean
+    blockSearchFocus: boolean
+    imageSize: number
+    scanProgress: number
+    showingCount: number
+    searchContent: string
+    presentingMedia: MediaData
 }
 
 // File Browser Types
 
-export type FileBrowserTypes = {
-    wsSend: (msg: string) => void
-    lastMessage: MessageEvent<any> | null
-    readyState: ReadyState
+export type FileBrowserAction = {
+    type: string
+
+    selected?: boolean
+    loading?: boolean
+    external?: boolean
+    block?: boolean
+    shift?: boolean
+
+    dragging?: boolean
+    progress?: number
+
+    user?: string
+    fileId?: string
+    fileIds?: string[]
+    fileName?: string
+    search?: string
+    presentingId?: string
+
+    img?: ArrayBuffer
+
+    fileInfo?: fileData
+    fileInfos?: fileData[]
+    files?: { fileId: string, updateInfo: fileData }[]
+
+    parents?: any
 }
 
+export type FileBrowserDispatch = (action: FileBrowserAction) => void
+
 export type FileBrowserStateType = {
-    dirMap: Map<string, itemData>
+    dirMap: Map<string, fileData>
     selected: Map<string, boolean>
     uploadMap: Map<string, boolean>
-    folderInfo: itemData,
-    parents: itemData[],
+    folderInfo: fileData
+    parents: fileData[]
     draggingState: number
     loading: boolean
+    waitingForNewName: string
     presentingId: string
     searchContent: string
     scanProgress: number
+    homeDirSize: number
+    trashDirSize: number
     holdingShift: boolean
-    sharing: boolean
-    albuming: boolean
+    blockFocus: boolean
     lastSelected: string
-    editing: string
-    hovering: string
+    pasteImg: ArrayBuffer
+    scrollTo: string
 }
 
-export type itemData = {
+export type fileData = {
     id: string
-    parentFolderId: string
-    filename: string
-    isDir: boolean
     imported: boolean
-    modTime: string
-    owner: string
+    displayable: boolean
+    isDir: boolean
+    modifiable: boolean
     size: number
-    visible: boolean
+    modTime: string
+    filename: string
+    parentFolderId: string
     mediaData: MediaData
+    fileFriendlyName: string
+    owner: string
+    shares: any[]
+    visible: boolean
+}
+
+export const getBlankFile = () => {
+    const blank: fileData = {
+        id: "",
+        imported: false,
+        displayable: false,
+        isDir: false,
+        modifiable: false,
+        size: 0,
+        modTime: new Date().toString(),
+        filename: "",
+        parentFolderId: "",
+        mediaData: null,
+        fileFriendlyName: "",
+        owner: "",
+        shares: [],
+        visible: false,
+    }
+    return blank
+}
+
+export const getBlankMedia = () => {
+    const blank: MediaData = {
+        fileHash: "",
+        fileIds: [""],
+        mediaType: null,
+        blurHash: "",
+        thumbnail: null,
+        fullres: null,
+        mediaWidth: 0,
+        mediaHeight: 0,
+        thumbWidth: 0,
+        thumbHeight: 0,
+        createDate: "",
+        owner: "",
+        recognitionTags: [],
+
+        Previous: null,
+        Next: null,
+
+        ImgRef: null
+    }
+    return blank
 }

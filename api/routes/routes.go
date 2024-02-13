@@ -2,10 +2,15 @@ package routes
 
 import (
 	"net/http"
+	"os"
+	"runtime/pprof"
+
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
+
+	// "github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -20,24 +25,24 @@ var upgrader = websocket.Upgrader{
 }
 
 func CORSMiddleware() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(http.StatusNoContent)
-            return
-        }
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
 
-        c.Next()
-    }
+		c.Next()
+	}
 }
 
 func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
-    return func(c *gin.Context) {
-		db := dataStore.NewDB("SYS")
+	return func(c *gin.Context) {
+		db := dataStore.NewDB()
 		var authString string
 
 		if !websocket {
@@ -69,8 +74,8 @@ func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
 
 		c.Set("username", authList[0])
 
-        c.Next()
-    }
+		c.Next()
+	}
 }
 
 func AddApiRoutes(r *gin.Engine) {
@@ -83,44 +88,61 @@ func AddApiRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.Use(WeblensAuth(false, false))
 
-	api.GET("/media", getPagedMedia)
-	api.GET("/item/:filehash", getMediaItem)
-	api.PUT("/items", updateMediaItems)
-	api.GET("/stream/:filehash", streamVideo)
+	api.GET("/media", getMediaBatch)
+	api.GET("/media/:mediaId", getOneMedia)
+	api.PUT("/media", updateMedias)
+	// api.GET("/stream/:mediaId", streamVideo)
 
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)
 
-	api.GET("/file", getFile)
-	api.POST("/file", uploadFile)
-	api.PUT("/file", updateFile)
-	api.DELETE("/file", moveFileToTrash)
+	// Allow publically creating folders
+	public.POST("/public/folder", pubMakeDir)
 
-	api.PUT("/files", updateFiles)
+	api.GET("/trash", getUserTrashInfo)
 
-	api.GET("/download", downloadSingleFile)
+	// Regular file upload endpoint
+	api.POST("/upload", newFileUpload)
 
-	api.GET("/takeout/:takeoutId", getTakeout)
+	// Allow publically creating file uploads for wormholes
+	public.POST("/public/upload", newSharedFileUpload)
+
+	// Allow public chunk upload to support wormhole drops
+	public.PUT("/upload/:uploadId", handleUploadChunk)
+
+	api.GET("/file/:fileId", getFile)
+	api.PATCH("/file", updateFile)
+	api.DELETE("/files", trashFiles)
+
+	api.GET("/share", getSharedFiles)
+	api.PATCH("/files", updateFiles)
+	api.PATCH("/files/share", shareFiles)
+	api.POST("/share", createShareLink)
+	public.GET("/share/:shareId", getShare)
+
+	api.GET("/download", downloadFile)
+
 	api.POST("/takeout", createTakeout)
 
 	api.GET("/user", getUserInfo)
 	api.GET("/users", searchUsers)
 
-	api.GET("/share", getSharedFiles)
-	api.POST("/share", shareContent)
-
 	api.GET("/albums", getAlbums)
 
 	api.GET("/album/:albumId", getAlbum)
 	api.POST("/album", createAlbum)
-	api.PUT("/album/:albumId", addToAlbum)
+	api.PATCH("/album/:albumId", updateAlbum)
+	api.DELETE("/album/:albumId", deleteAlbum)
 
 	admin := r.Group("/api/admin")
 	admin.Use(WeblensAuth(false, true))
 
+	public.GET("/fileTree", getFileTreeInfo)
+
 	admin.GET("/users", getUsers)
 	admin.POST("/user", updateUser)
 	admin.DELETE("/user/:username", deleteUser)
+	admin.POST("/cleanup/medias", cleanupMedias)
 	admin.POST("/cache", clearCache)
 
 	websocket := r.Group("/api")
@@ -135,8 +157,18 @@ func AddUiRoutes(r *gin.Engine) {
 		if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
 			ctx.File("../ui/build/index.html")
 		}
-		//default 404 page not found
 	})
-	//r.GET("/", uiRedirect)
-	//r.StaticFS("/ui/", http.Dir("../ui/build"))
+}
+
+func snapshotHeap(ctx *gin.Context) {
+	file, err := os.Create("heap.out")
+	// file, err := os.Create(filepath.Join(util.GetMediaRoot(), "heap.out"))
+	util.FailOnError(err, "")
+	pprof.Lookup("heap").WriteTo(file, 0)
+}
+
+func AttachProfiler(r *gin.Engine) {
+	debug := r.Group("/debug")
+
+	debug.GET("/heap", snapshotHeap)
 }

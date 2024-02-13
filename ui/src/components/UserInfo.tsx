@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useCookies } from "react-cookie"
 import API_ENDPOINT from "../api/ApiEndpoint"
 import { useNavigate } from "react-router-dom"
+import { notifications } from "@mantine/notifications"
 
 const useR = () => {
     const nav = useNavigate()
@@ -26,6 +27,7 @@ const useR = () => {
             fetch(url.toString(), { headers: authHeader })
                 .then(res => res.json())
                 .then(json => { setUserInfo(json) })
+                .catch(r => notifications.show({message: String(r)}))
 
         } else if (authHeader.Authorization === "") {
             nav("/login")

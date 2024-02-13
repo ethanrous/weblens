@@ -5,11 +5,11 @@ import (
 	"os"
 )
 
-func envReadString(s string) (string) {
+func envReadString(s string) string {
 	val := os.Getenv(string(s))
 	return val
 }
-func envReadBool(s string) (bool) {
+func envReadBool(s string) bool {
 	val := os.Getenv(string(s))
 	if val == "true" || val == "1" {
 		return true
@@ -20,23 +20,41 @@ func envReadBool(s string) (bool) {
 	}
 }
 
-func GetMediaRoot() (string) {
+func GetConfigDir() string {
+	configDir := envReadString("CONFIG_DIR")
+	if configDir == "" {
+		configDir = "/app/config"
+		Info.Println("Config directory not set, using", configDir)
+	}
+	return configDir
+}
+
+func GetMediaRoot() string {
 	return envReadString("MEDIA_ROOT_PATH")
 }
 
-func IsDevMode() (bool) {
+func GetImgRecognitionUrl() string {
+	return envReadString("IMG_RECOGNITION_URI")
+}
+
+func IsDevMode() bool {
 	return envReadBool("DEV_MODE")
 }
 
-func ShouldUseRedis() (bool) {
+func ShouldUseRedis() bool {
 	return envReadBool("USE_REDIS")
 }
 
-func ShowDebug() (bool) {
-	return envReadBool("SHOW_DEBUG")
+func GetCacheDir() string {
+	cacheString := envReadString("CACHES_PATH") + "/cache"
+	_, err := os.Stat(cacheString)
+	if err != nil {
+		os.Mkdir(cacheString, 0755)
+	}
+	return cacheString
 }
 
-func GetTakeoutDir() (string) {
+func GetTakeoutDir() string {
 	takeoutString := envReadString("CACHES_PATH") + "/takeout"
 	_, err := os.Stat(takeoutString)
 	if err != nil {
@@ -45,7 +63,7 @@ func GetTakeoutDir() (string) {
 	return takeoutString
 }
 
-func GetTmpDir() (string) {
+func GetTmpDir() string {
 	tmpString := envReadString("CACHES_PATH") + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
@@ -54,23 +72,14 @@ func GetTmpDir() (string) {
 	return tmpString
 }
 
-func GetTrashDir() (string) {
-	trashString := envReadString("CACHES_PATH") + "/trash"
-	_, err := os.Stat(trashString)
-	if err != nil {
-		os.Mkdir(trashString, 0755)
-	}
-	return trashString
-}
-
-func GetMongoURI() (string) {
+func GetMongoURI() string {
 	return envReadString("MONGODB_URI")
 }
 
-func GetRedisUrl() (string) {
+func GetRedisUrl() string {
 	return envReadString("REDIS_URL")
 }
 
-func GetLibRawPath() (string) {
+func GetLibRawPath() string {
 	return envReadString("LIBRAW_PATH")
 }

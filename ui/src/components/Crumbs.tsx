@@ -1,9 +1,12 @@
-import { Box, useTheme, styled, Breadcrumbs, Chip } from '@mui/joy'
-import { Dispatch, useContext, useState } from 'react'
-import { itemData } from '../types/Types'
-import { userContext } from '../Context'
 import { useNavigate } from 'react-router-dom'
-import { Text, Tooltip } from '@mantine/core'
+
+import { Box, Text, Tooltip } from '@mantine/core'
+import { IconChevronRight } from '@tabler/icons-react'
+
+import { memo, useContext, useMemo, useState } from 'react'
+import { fileData, getBlankFile } from '../types/Types'
+import { userContext } from '../Context'
+import { RowBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 type breadcrumbProps = {
     label: string
@@ -29,7 +32,7 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
             setSuccess(true)
             setTimeout(() => setSuccess(false), 1000)
         }
-    } else { tooltipText = `Go to ${label}` }
+    } else { tooltipText = `${dragging === 1 ? "Move to" : "Go to"} ${label}` }
     let outline
     let bgColor
     if (success) {
@@ -40,10 +43,10 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
         outline = '1px solid #aaaaaa'
         bgColor = "rgba(30, 30, 30, 0.5)"
     }
-    else if (dragging && hovering) {
+    else if (dragging === 1 && hovering) {
         outline = '1px solid #ffffff'
         bgColor = "rgb(30, 30, 90)"
-    } else if (dragging) {
+    } else if (dragging === 1) {
         outline = '1px solid #aaaaaa'
         bgColor = "transparent"
     } else {
@@ -53,15 +56,12 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
     return (
         <Tooltip label={tooltipText} >
             <Box
-                height={"max-content"}
-                flexShrink={1}
-                minWidth={0}
                 onMouseOver={() => setHovering(true)}
                 onMouseLeave={() => setHovering(false)}
                 onMouseUp={onMouseUp}
                 onClick={onClick}
-                padding={1}
-                sx={{ ...sx, cursor: "pointer", outline: outline, borderRadius: "5px", backgroundColor: bgColor }}
+
+                style={{ height: 'max-content', cursor: 'pointer', outline: outline, borderRadius: 4, backgroundColor: bgColor, padding: 2, margin: 8 }}
             >
                 <Text lineClamp={1} c={'white'} truncate='end' style={{ fontSize: `${fontSize}px`, lineHeight: "1.2", userSelect: "none", width: '100%' }}>{label}</Text>
             </Box>
@@ -69,69 +69,71 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
     )
 }
 
-const StyledLoaf = ({ ...props }) => {
-    const theme = useTheme()
+// The crumb concatenator, the Crumbcatenator
+const Crumbcatenator = ({ crumb, last }) => {
     return (
-        <Breadcrumbs
-            {...props}
-            size='lg'
-            sx={{
-                width: "max-content",
-                borderRadius: "3px",
-                ".MuiBreadcrumbs-separator": {
-                    color: theme.colorSchemes.dark.palette.text.primary
-                },
-                // margin: "10px"
-            }}
-        />
+        <RowBox style={{ width: 'max-content' }}>
+            {crumb}
+            {!last && (
+                <IconChevronRight />
+            )}
+        </RowBox>
     )
 }
 
-const Crumbs = ({ finalItem, parents, moveSelectedTo, navOnLast, dragging }: { finalItem: itemData, parents: itemData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
+const StyledLoaf = ({ crumbs }) => {
+    return (
+        <RowBox>
+            {crumbs.map((c, i) => <Crumbcatenator key={i} crumb={c} last={i === crumbs.length - 1} />)}
+        </RowBox>
+    )
+}
+
+const Crumbs = memo(({ finalFile, parents, moveSelectedTo, navOnLast, dragging }: { finalFile: fileData, parents: fileData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, dragging?: number }) => {
     const navigate = useNavigate()
     const { userInfo } = useContext(userContext)
-    if (parents === null || !finalItem?.id) {
-        return null
-    }
-    if (parents.length != 0 && parents[0].id == "shared" && finalItem.id == "shared") {
-        parents.shift()
-    }
-    if ((parents.length == 0 && finalItem.owner != userInfo.username && finalItem.id != "shared") || (parents.length != 0 && parents[0].id != "shared" && parents[parents.length - 1].owner != userInfo.username)) {
-        let sharedRoot: itemData = {
-            id: "shared",
-            filename: "Shared",
-            parentFolderId: "",
-            owner: "",
-            isDir: true,
-            imported: false,
-            modTime: new Date().toString(),
-            size: 0,
-            visible: true,
-            mediaData: null
-        }
-        parents.unshift(sharedRoot)
-    }
 
-    try {
-        const crumbs = parents.map((parent, i) => {
+    const loaf = useMemo(() => {
+        if (!userInfo || !finalFile?.id) {
+            return null
+        }
+
+        const parentsIds = parents.map(p => p.id)
+        if (parentsIds.includes("shared")) {
+            let sharedRoot = getBlankFile()
+            sharedRoot.filename = "Shared"
+            parents.unshift(sharedRoot)
+        } else if (finalFile.id === userInfo.trashFolderId || parentsIds.includes(userInfo.trashFolderId)) {
+            if (parents[0]?.id === userInfo.homeFolderId) {
+                parents.shift()
+            }
+            if (parents[0]?.id === userInfo.trashFolderId && parents[0].filename !== "Trash") {
+                parents[0].filename = "Trash"
+            }
+            if (finalFile.id === userInfo.trashFolderId && finalFile.filename !== "Trash") {
+                finalFile.filename = "Trash"
+            }
+        }
+
+        const crumbs = parents.map((parent) => {
             const isHome = parent.id === userInfo.homeFolderId
             return <StyledBreadcrumb key={parent.id} label={isHome ? "Home" : parent.filename} onClick={(e) => { e.stopPropagation(); navigate(`/files/${isHome ? "home" : parent.id}`) }} doCopy={false} dragging={dragging} onMouseUp={() => { if (dragging !== 0) { moveSelectedTo(parent.id) } }} />
         })
 
         crumbs.push(
-            <StyledBreadcrumb key={finalItem.id} label={finalItem.id === userInfo.homeFolderId ? "Home" : finalItem.filename} onClick={(e) => { e.stopPropagation(); if (!navOnLast) { return }; navigate(`/files/${finalItem.parentFolderId === userInfo.homeFolderId ? "home" : finalItem.parentFolderId}`) }} doCopy={!navOnLast} />
+            <StyledBreadcrumb key={finalFile.id} label={finalFile.id === userInfo.homeFolderId ? "Home" : finalFile.filename} onClick={(e) => { e.stopPropagation(); if (!navOnLast) { return }; navigate(`/files/${finalFile.parentFolderId === userInfo.homeFolderId ? "home" : finalFile.parentFolderId}`) }} doCopy={!navOnLast} />
         )
 
         return (
-            <StyledLoaf separator={" › "} >
-                {crumbs}
-            </StyledLoaf>
+            <StyledLoaf crumbs={crumbs} />
+            // <StyledLoaf crumbs={crumbs} separator={" › "} />
         )
-    }
-    catch (err) {
-        console.error(err)
-        return (null)
-    }
-}
+    }, [parents, finalFile, moveSelectedTo, navOnLast, dragging, navigate, userInfo])
+
+    return loaf
+
+}, (prev, next) => {
+    return (prev.dragging === next.dragging && prev.parents === next.parents && prev.finalFile === next.finalFile) || next.parents === null || !next.finalFile?.id
+})
 
 export default Crumbs

@@ -1,27 +1,31 @@
-import { useEffect } from 'react'
-import { AlbumData, MediaData, MediaStateType, itemData } from '../../types/Types'
+import { useCallback, useEffect } from 'react'
+import { AlbumData, MediaData, MediaStateType, fileData } from '../../types/Types'
 import { notifications } from '@mantine/notifications'
 
 type galleryAction = {
     type: string
-    media?: MediaData[]
+    medias?: MediaData[]
     albums?: AlbumData[]
+    albumId?: string
+    media?: MediaData
+    albumNames?: string[]
+    include?: boolean
     block?: boolean
-    itemId?: string
-    item?: itemData
     progress?: number
     loading?: boolean
     search?: string
     open?: boolean
+    size?: number
+    raw?: boolean
 }
 
-export function mediaReducer(state: MediaStateType, action: galleryAction) {
+export function mediaReducer(state: MediaStateType, action: galleryAction): MediaStateType {
     switch (action.type) {
         case 'set_media': {
             state.mediaMap.clear()
-            if (action.media) {
+            if (action.medias) {
                 let prev: MediaData
-                for (const m of action.media) {
+                for (const m of action.medias) {
                     state.mediaMap.set(m.fileHash, m)
                     if (prev) {
                         prev.Next = m
@@ -31,7 +35,9 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
                 }
             }
             return {
-                ...state
+                ...state,
+                mediaMapUpdated: Date.now(),
+                loading: false
             }
         }
 
@@ -39,10 +45,32 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
             if (!action.albums) {
                 return { ...state }
             }
+            state.albumsMap.clear()
             for (const a of action.albums) {
-                state.albumsMap.set(a.Name, a)
+                state.albumsMap.set(a.Id, a)
             }
             return { ...state }
+        }
+
+        case 'set_album_media': {
+            const album = state.albumsMap.get(action.albumId)
+            album.CoverMedia = action.media
+            state.albumsMap.set(action.albumId, album)
+            return {...state}
+        }
+
+        case 'set_albums_filter': {
+            return {
+                ...state,
+                albumsFilter: action.albumNames
+            }
+        }
+
+        case 'set_image_size': {
+            return {
+                ...state,
+                imageSize: action.size
+            }
         }
 
         case 'set_block_search_focus': {
@@ -61,8 +89,7 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
         }
 
         case 'delete_from_map': {
-            state.mediaMap.delete(action.itemId)
-            // action.item
+            state.mediaMap.delete(action.media.fileHash)
             return { ...state }
         }
 
@@ -80,7 +107,10 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
             }
         }
 
-        case 'toggle_raw': {
+        case 'set_raw_toggle': {
+            if (action.raw === state.includeRaw) {
+                return {...state}
+            }
             window.scrollTo({
                 top: 0,
                 behavior: "smooth"
@@ -88,9 +118,8 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
             state.mediaMap.clear()
             return {
                 ...state,
-                mediaCount: 0,
                 loading: true,
-                includeRaw: !state.includeRaw
+                includeRaw: action.raw
             }
         }
 
@@ -104,38 +133,38 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
         case 'set_presentation': {
             return {
                 ...state,
-                presentingHash: action.itemId
+                presentingMedia: action.media
             }
         }
 
         case 'presentation_next': {
             return {
                 ...state,
-                presentingHash: state.mediaMap.get(state.presentingHash)?.Next ? state.mediaMap.get(state.presentingHash).Next.fileHash : state.presentingHash
+                presentingMedia: state.presentingMedia.Next ? state.presentingMedia.Next : state.presentingMedia
             }
         }
 
         case 'presentation_previous': {
             return {
                 ...state,
-                presentingHash: state.mediaMap.get(state.presentingHash)?.Previous ? state.mediaMap.get(state.presentingHash).Previous.fileHash : state.presentingHash
+                presentingMedia: state.presentingMedia.Previous ? state.presentingMedia.Previous : state.presentingMedia
             }
         }
 
         case 'stop_presenting': {
-            if (state.presentingHash == "") {
+            if (state.presentingMedia === null) {
                 return {
                     ...state
                 }
             }
             try {
-                state.mediaMap.get(state.presentingHash).ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+                state.presentingMedia.ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
             } catch {
-                console.error("No img ref: ", state.presentingHash)
+                console.error("No img ref: ", state.presentingMedia)
             }
             return {
                 ...state,
-                presentingHash: ""
+                presentingMedia: null
             }
         }
 
@@ -150,13 +179,13 @@ export function mediaReducer(state: MediaStateType, action: galleryAction) {
 
 export const useKeyDown = (blockSearchFocus, searchRef) => {
 
-    const onKeyDown = (event) => {
-        if (!blockSearchFocus && !event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
+    const onKeyDown = useCallback((event) => {
+        if (!blockSearchFocus && !event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key === "Backspace")) {
             searchRef.current.focus()
-        } else if (event.key == "Escape") {
+        } else if (event.key === "Escape") {
             searchRef.current.blur()
         }
-    };
+    }, [blockSearchFocus, searchRef])
     useEffect(() => {
         document.addEventListener('keydown', onKeyDown)
         return () => {
@@ -173,7 +202,7 @@ export function handleWebsocket(lastMessage, dispatch) {
                 return
             }
             case "item_deleted": {
-                dispatch({ type: "delete_from_map", itemId: msgData["content"].hash })
+                dispatch({ type: "delete_from_map", media: msgData["content"].hash })
                 return
             }
             case "scan_directory_progress": {

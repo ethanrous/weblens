@@ -1,17 +1,18 @@
-import { itemData, FileBrowserStateType } from '../../types/Types'
-import Upload, { fileUploadMetadata } from "../../api/Upload"
-import { Dispatch, DragEvent, useEffect, useState } from 'react'
-import { ChangeOwner, CreateFolder, DeleteFile, MoveFiles, downloadSingleItem, downloadTakeout, requestZipCreate } from '../../api/FileBrowserApi'
-import Item from './FileItem'
+import { DragEvent, useCallback, useEffect, useState } from 'react'
 
 import { notifications } from '@mantine/notifications'
 
-const handleSelect = (state: FileBrowserStateType, action) => {
+import Upload, { fileUploadMetadata } from "../../api/Upload"
+import { fileData, FileBrowserStateType, getBlankFile, FileBrowserAction, FileBrowserDispatch } from '../../types/Types'
+import { CreateFolder, DeleteFiles, MoveFiles, RenameFile, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
+
+
+const handleSelect = (state: FileBrowserStateType, action: FileBrowserAction): FileBrowserStateType => {
     let numSelected = state.selected.size
     if (state.holdingShift && numSelected > 0 && state.lastSelected !== "") {
         const dirList = MapToList(state.dirMap)
         let startIndex = dirList.findIndex((val) => val.id === state.lastSelected)
-        let endIndex = dirList.findIndex((val) => val.id === action.itemId)
+        let endIndex = dirList.findIndex((val) => val.id === action.fileId)
 
         if (endIndex < startIndex) {
             [startIndex, endIndex] = [endIndex, startIndex]
@@ -25,84 +26,122 @@ const handleSelect = (state: FileBrowserStateType, action) => {
         // If action.selected is undefined, i.e. not passed to the request,
         // we treat that as a request to toggle the selection
         if (action.selected === undefined) {
-            if (state.selected.get(action.itemId)) {
-                state.selected.delete(action.itemId)
+            if (state.selected.get(action.fileId)) {
+                state.selected.delete(action.fileId)
             } else {
-                state.selected.set(action.itemId, true)
-                return { ...state, lastSelected: action.itemId }
+                state.selected.set(action.fileId, true)
+                return { ...state, lastSelected: action.fileId }
             }
         }
         // state.selected.get returns undefined if not selected,
         // so we not (!) it to make boolean, and not the other to match... yay javascript :/
-        else if (!state.selected.get(action.itemId) === !action.selected) {
-            // If the item is already in the correct state, we do nothing.
+        else if (!state.selected.get(action.fileId) === !action.selected) {
+            // If the file is already in the correct state, we do nothing.
             // Specifically, we do not overwrite lastSelected
         } else {
             if (action.selected) {
-                state.selected.set(action.itemId, true)
+                state.selected.set(action.fileId, true)
             } else {
-                state.selected.delete(action.itemId)
+                state.selected.delete(action.fileId)
             }
         }
     }
     return { ...state }
 }
 
-function updateItem(dirMap: Map<string, itemData>, user, existingId: string, newData: itemData, currentFolderId) {
-
-    let exitingItem: itemData = dirMap.get(existingId)
-    let possibleTemplateItem: itemData = dirMap.get(newData.filename)
-    if (exitingItem && exitingItem.id !== newData.id) {
-        dirMap.delete(exitingItem.id)
-    }
-    if (possibleTemplateItem) {
-        dirMap.delete(possibleTemplateItem.id)
+function createFile(dirMap: Map<string, fileData>, user, newData: fileData, currentFolderId) {
+    if (dirMap.get(newData.id)) {
+        console.warn("Taking no action creating file that already exists", newData.id)
+        return
     }
 
-    if (newData.parentFolderId === currentFolderId || user !== newData.owner) {
-        if (!newData.imported) {
-            newData.id = newData.filename
-        }
+    if (newData.id === user.trashFolderId) {
+        return
+    }
 
+    if (newData.parentFolderId === currentFolderId || user.username !== newData.owner) {
         dirMap.set(newData.id, newData)
     }
 }
 
-export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
+function updateFile(state: FileBrowserStateType, user, existingId: string, newData: fileData) {
+    let existingFile: fileData = state.dirMap.get(existingId)
+    if (!newData) {
+        return
+    }
+
+    if (newData.id === user.trashFolderId) {
+        if (state.folderInfo.id === user.trashFolderId) {
+            return { ...state, folderInfo: newData, trashDirSize: newData.size }
+        }
+
+        return { ...state, trashDirSize: newData.size }
+    }
+
+    if (newData.id === user.homeFolderId) {
+        if (newData.id === state.folderInfo.id) {
+            return { ...state, folderInfo: newData, homeDirSize: newData.size }
+        }
+        return { ...state, homeDirSize: newData.size }
+    }
+
+    if (newData.id === state.folderInfo.id) {
+        return { ...state, folderInfo: newData }
+    }
+
+    if (!existingFile) {
+        console.warn("Not upserting file", existingId)
+        return { ...state }
+    }
+
+    if (existingFile && existingFile.id !== newData.id) {
+        state.dirMap.delete(existingFile.id)
+    }
+
+    if (newData.parentFolderId === state.folderInfo.id || user.username !== newData.owner) {
+        state.dirMap.set(newData.id, newData)
+    }
+
+    return { ...state }
+}
+
+export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrowserAction): FileBrowserStateType => {
     switch (action.type) {
-        case 'update_item': {
-            updateItem(state.dirMap, action.user, action.itemId, action.updateInfo, state.folderInfo.id)
+        case 'create_file': {
+            for (const fileInfo of action.fileInfos) {
+                if (fileInfo.filename === state.waitingForNewName) {
+                    state.dirMap.delete("")
+                    state.dirMap.set(fileInfo.id, fileInfo)
+                    return { ...state, waitingForNewName: "" }
+                }
+                createFile(state.dirMap, action.user, fileInfo, state.folderInfo.id)
+            }
             return { ...state }
+        }
+
+        case 'update_file': {
+            let update
+            for (const fileInfo of action.fileInfos) {
+                update = updateFile(state, action.user, fileInfo.id, fileInfo)
+            }
+
+            return update
         }
 
         case 'update_many': {
-            const itemsMeta: { itemId: string, updateInfo: itemData }[] = action.items
-            for (const itemMeta of itemsMeta) {
-                updateItem(state.dirMap, action.user, itemMeta.itemId, itemMeta.updateInfo, state.folderInfo.id)
+            const filesMeta: { fileId: string, updateInfo: fileData }[] = action.files
+            for (const fileMeta of filesMeta) {
+                createFile(state.dirMap, action.user, fileMeta.updateInfo, state.folderInfo.id)
             }
-            return { ...state }
-        }
-
-        case 'add_skeleton': {
-            let item: itemData = {
-                id: action.filename,
-                filename: action.filename,
-                parentFolderId: state.folderInfo.id,
-                owner: "",
-                isDir: false,
-                imported: false,
-                modTime: new Date().toString(),
-                size: 0,
-                visible: true,
-                mediaData: null
-            }
-
-            state.dirMap.set(action.filename, item)
             return { ...state }
         }
 
         case 'set_folder_info': {
-            return { ...state, folderInfo: action.folderInfo }
+            if (!action.fileInfo) {
+                console.error("Trying to set undefined file info")
+                return { ...state }
+            }
+            return { ...state, folderInfo: action.fileInfo }
         }
 
         case 'set_parents_info': {
@@ -120,7 +159,6 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             return {
                 ...state,
                 scanProgress: action.progress
-
             }
         }
 
@@ -149,75 +187,28 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
         }
 
         case 'new_dir': {
-            let item: itemData = {
-                id: "TEMPLATE_NEW_FOLDER",
-                filename: "",
-                parentFolderId: state.folderInfo.id,
-                owner: "",
-                isDir: true,
-                imported: false,
-                modTime: new Date().toString(),
-                size: 0,
-                visible: true,
-                mediaData: null
-            }
-            state.dirMap.set(item.id, item)
-            return { ...state, editing: item.id }
-        }
-
-        case 'start_editing': {
-            return {
-                ...state,
-                editing: action.fileId
-            }
-        }
-
-        case 'reject_edit': {
-            const item = state.dirMap.get(state.editing)
-            if (!item) {
-                return state
-            }
-            if (state.editing === "TEMPLATE_NEW_FOLDER") {
-                state.dirMap.delete("TEMPLATE_NEW_FOLDER")
-            }
-            return {
-                ...state,
-                editing: null
-            }
-        }
-
-        case 'confirm_edit': {
-            if (state.editing === "TEMPLATE_NEW_FOLDER") {
-                state.dirMap.delete("TEMPLATE_NEW_FOLDER")
-                state.selected.delete("TEMPLATE_NEW_FOLDER")
-            }
-            if (action.itemId !== action.newItemId) {
-                state.selected.delete(action.itemId)
-            }
-            return {
-                ...state,
-                editing: null
-            }
+            let newDir: fileData = getBlankFile()
+            newDir.id = ""
+            newDir.isDir = true
+            newDir.parentFolderId = state.folderInfo.id
+            state.dirMap.set(newDir.id, newDir)
+            return { ...state }
         }
 
         case 'set_selected': {
             return handleSelect(state, action)
         }
 
-        case 'set_visible': {
-            const item = state.dirMap.get(action.item)
-            if (item) {
-                item.visible = action.visible
-                state.dirMap.set(action.item, item)
-            }
-
-            return { ...state }
-        }
-
         case 'select_all': {
-            for (const item of state.dirMap.values()) {
-                if (item.filename.toLowerCase().includes(state.searchContent.toLowerCase())) {
-                    state.selected.set(item.id, true)
+            if (state.searchContent === "") {
+                for (const file of state.dirMap.values()) {
+                    state.selected.set(file.id, true)
+                }
+            } else {
+                for (const file of state.dirMap.values()) {
+                    if (file.filename.toLowerCase().includes(state.searchContent.toLowerCase())) {
+                        state.selected.set(file.id, true)
+                    }
                 }
             }
             return {
@@ -226,50 +217,26 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             }
         }
 
-        case 'handle_click': {
-            const item = state.dirMap.get(action.itempath)
-            if (!item) {
-                console.error("Failed to handle click on file item")
-                return { ...state }
-            }
-
-            // If an item is already selected, we only ever unselect
-            if (state.selected.get(action.itempath)) {
-                state.selected.delete(item.id)
-
-                return { ...state }
-            }
-
-            // If there are other things selected, there are many options, see `handleSelect`
-            if (state.selected.size !== 0) {
-                return handleSelect(state, action)
-            }
+        case 'set_block_focus': {
+            return { ...state, blockFocus: action.block }
         }
 
-        case 'set_hovering': {
-            if (state.draggingState === 0 || state.hovering === action.itemId) {
-                return { ...state }
-            }
-
-            return {
-                ...state,
-                hovering: action.itemId
-            }
-        }
-
-        case 'clear_items': {
+        case 'clear_files': {
             state.dirMap.clear()
             state.selected.clear()
 
             return {
                 ...state,
-                folderInfo: {},
                 parents: [],
                 lastSelected: ""
             }
         }
 
         case 'clear_selected': {
+            if (state.selected.size === 0) {
+                return state
+            }
+
             state.selected.clear()
 
             return {
@@ -278,51 +245,12 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             }
         }
 
-        case 'move_selected': {
-            // Move selected items into directory at action.targetItemPath
-            let targetPath: string = action.targetItemPath
-            targetPath = targetPath.replace('files/', '')
-            const targetItem = state.dirMap.get(targetPath)
-
-            // If (1) the item does not exist, (2) we are not dragging (3) the target is not a directory, or (4) the target is selected, we bail
-            if (state.draggingState === 0 || !action.ignoreMissingItem && (!targetItem || !targetItem.isDir || state.selected.get(targetPath))) {
-                return { ...state, draggingState: 0 }
+        case 'delete_from_map': {
+            for (const fileId of action.fileIds) {
+                state.dirMap.delete(fileId)
+                state.selected.delete(fileId)
             }
 
-            state.selected.clear()
-            return { ...state, draggingState: 0 }
-        }
-
-        case 'share_selected': {
-            return { ...state, sharing: true }
-        }
-
-        case 'add_selected_to_album': {
-            return { ...state, albuming: true }
-        }
-
-        case 'close_share': {
-            return { ...state, sharing: false }
-        }
-
-        case 'close_add_to': {
-            return { ...state, albuming: false }
-        }
-
-        case 'delete_from_map': {
-            state.dirMap.delete(action.itemId)
-            state.selected.delete(action.itemId)
-
-            return { ...state }
-        }
-
-        case 'add_to_upload_map': {
-            state.uploadMap.set(action.uploadName, true)
-            return { ...state }
-        }
-
-        case 'remove_from_upload_map': {
-            state.uploadMap.delete(action.uploadName)
             return { ...state }
         }
 
@@ -340,11 +268,18 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
             }
         }
 
-        case 'stop_presenting': {
-            return {
-                ...state,
-                presentingId: ""
-            }
+        case 'paste_image': {
+            return { ...state, pasteImg: action.img }
+        }
+
+        case 'set_scroll_to': {
+            return { ...state, scrollTo: action.fileId }
+        }
+
+        // When we are waiting for a new file to be created, we don't know the id
+        // so we set the name of the file we are waiting to see created
+        case 'set_waiting_for': {
+            return { ...state, waitingForNewName: action.fileName }
         }
 
         default: {
@@ -355,7 +290,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action) => {
     }
 }
 
-export const MapToList = (dirMap: Map<string, itemData>) => {
+export const MapToList = (dirMap: Map<string, fileData>, limit?: number) => {
     const newList = Array.from(dirMap.values())
 
     newList.sort((a, b) => {
@@ -380,140 +315,201 @@ export const MapToList = (dirMap: Map<string, itemData>) => {
         }
     })
 
-    return newList
+    if (limit) {
+        return newList.slice(0, limit)
+    } else {
+        return newList
+    }
 }
 
-export const HandleDrag = (event: DragEvent, dispatch: Dispatch<any>, dragging: number) => {
+export const FilebrowserDragOver = (event: DragEvent, dispatch: FileBrowserDispatch, dragging: number) => {
     event.preventDefault()
+    event.stopPropagation()
     if (event.type === "dragenter" || event.type === "dragover") {
         !dragging && dispatch({ type: "set_dragging", dragging: true, external: true })
-
     } else {
         dispatch({ type: "set_dragging", dragging: false })
     }
 }
 
+export const HandleRename = (itemId: string, newName: string, folderId: string, selectedCount: number, dispatch: FileBrowserDispatch, authHeader) => {
+    // When we are creating a new folder, the id is initially ""
+    if (itemId === "") {
+        // If we do not get a new name, the rename is canceled
+        if (newName === "") {
+            dispatch({ type: "delete_from_map", fileIds: [""] })
+        } else {
+            dispatch({ type: "set_loading", loading: true })
+            dispatch({ type: "set_waiting_for", fileName: newName })
+
+            CreateFolder(folderId, newName, false, "", authHeader).then(d => {
+                if (selectedCount === 0) {
+                    dispatch({ type: "set_selected", fileId: d })
+                }
+                dispatch({ type: "set_loading", loading: false })
+            })
+        }
+    } else {
+        RenameFile(itemId, newName, authHeader)
+    }
+}
+
 async function getFile(file): Promise<File> {
     try {
-        return await file.getAsFile()
+        const f = await file.getAsFile()
+        return f
         // return new Promise((resolve, reject) => file.file(resolve, reject));
     } catch (err) {
-        return file
+        return await new Promise((resolve, reject) => file.file(resolve, reject));
+
         // return new Promise((resolve, reject) => file)
     }
 }
 
-async function addDir(fsEntry, parentFolderId: string, topFolderKey: string, rootFolderId: string, authHeader): Promise<any> {
+async function addDir(fsEntry, parentFolderId: string, topFolderKey: string, rootFolderId: string, isPublic: boolean, authHeader): Promise<any> {
+    console.log("Folder", parentFolderId)
     return await new Promise(async (resolve: (value: fileUploadMetadata[]) => void, reject): Promise<fileUploadMetadata[]> => {
-        if (fsEntry.isDirectory) {
-            const { folderId, alreadyExisted } = await CreateFolder(parentFolderId, fsEntry.name, authHeader)
-            if (!folderId || alreadyExisted) {
-                reject("Could not create folder")
+        if (fsEntry.isDirectory === true) {
+            const folderId = await CreateFolder(parentFolderId, fsEntry.name, isPublic, rootFolderId, authHeader)
+            if (!folderId) {
+                reject()
             }
             let e: fileUploadMetadata = null
             if (!topFolderKey) {
                 topFolderKey = folderId
                 e = { file: fsEntry, isDir: true, folderId: folderId, parentId: rootFolderId, isTopLevel: true, topLevelParentKey: null }
             }
-            var dirReader = fsEntry.createReader()
-            dirReader.readEntries(async (entries: FileSystemEntry[]) => {
-                let resolvedEntries = await Promise.all(entries.map((entry) => addDir(entry, folderId, topFolderKey, rootFolderId, authHeader)))
-                let re = []
-                if (e !== null) {
-                    re.push(e)
-                }
-                for (let r of resolvedEntries) {
-                    if (r.length != undefined) {
-                        re.push(...r)
-                    } else {
-                        re.push(r)
+
+            let dirReader = fsEntry.createReader()
+            // addDir(entry, parentFolderId, topFolderKey, rootFolderId, authHeader)
+            const entriesPromise = new Promise((resolve: (value: any[]) => void, reject) => {
+                let allEntries = []
+
+                const reader = (callback) => (entries) => {
+
+                    if (entries.length === 0) {
+                        resolve(allEntries)
+                        return
                     }
+
+                    for (const entry of entries) {
+                        allEntries.push(entry)
+                    }
+
+                    if (entries.length !== 100) {
+                        resolve(allEntries)
+                        return
+                    }
+                    dirReader.readEntries(callback(callback))
                 }
-                resolve(re)
+
+                dirReader.readEntries(reader(reader))
             })
+
+            let allResults = []
+            if (e !== null) {
+                allResults.push(e)
+            }
+            for (const entry of await entriesPromise) {
+                allResults.push(...(await addDir(entry, folderId, topFolderKey, rootFolderId, isPublic, authHeader)))
+            }
+            resolve(allResults)
+
         } else {
             if (fsEntry.name === ".DS_Store") {
                 resolve([])
                 return
             }
             const f = await getFile(fsEntry)
-            let e: fileUploadMetadata = { file: f, parentId: parentFolderId, isDir: f.type === "", isTopLevel: parentFolderId === rootFolderId, topLevelParentKey: topFolderKey }
+            let e: fileUploadMetadata = { file: f, parentId: parentFolderId, isDir: false, isTopLevel: parentFolderId === rootFolderId, topLevelParentKey: topFolderKey }
             resolve([e])
         }
     })
 }
 
-export async function HandleDrop(items, rootFolderId, dirMap, authHeader, uploadDispatch, dispatch, wsSend) {
+export async function HandleDrop(entries, rootFolderId, conflictNames: string[], isPublic: boolean, shareId: string, authHeader, uploadDispatch, wsSend: (action: string, content: any) => void) {
     let files: fileUploadMetadata[] = []
     let topLevels = []
-
-    if (items) { // Handle Directory
-        const names = new Map<string, boolean>()
-        Array.from(dirMap.values()).map((value: itemData) => names.set(value.filename, true))
-
-        for (const item of items) {
-            let entry = item
+    if (entries) { // Handle Directory
+        for (const entry of entries) {
             if (!entry) {
+                console.error("Upload entry does not exist or is not a file")
                 continue
             }
-            if (names.get(entry.name)) {
-                notifications.show({ message: `A file or folder named "${entry.name}" already exists in this folder`, autoClose: 5000, color: "red" })
+            const file = entry.webkitGetAsEntry()
+            if (conflictNames.includes(file.name)) {
+                notifications.show({ title: `Cannot upload "${file.name}"`, message: "A file or folder with that name already exists in this folder", autoClose: 10000, color: "red" })
                 continue
             }
             topLevels.push(
-                addDir(entry, rootFolderId, null, rootFolderId, authHeader).then(newItems => files.push(...newItems)).catch((r) => notifications.show({ message: r, color: "red" }))
+                addDir(file, rootFolderId, null, rootFolderId, isPublic, authHeader).then(newFiles => { files.push(...newFiles) }).catch(r => { notifications.show({ message: String(r), color: "red" }) })
             )
         }
     }
 
     await Promise.all(topLevels)
-    console.log(files)
+
     if (files.length !== 0) {
-        Upload(files, rootFolderId, authHeader, uploadDispatch, dispatch, wsSend)
+        Upload(files, isPublic, shareId, rootFolderId, authHeader, uploadDispatch, wsSend)
     }
 }
 
-export function downloadSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, itemData>, folderId: string, dispatch, wsSend, authHeader) {
-    const items = Array.from(selectedMap.keys())
+export function HandleUploadButton(files: File[], parentFolderId, isPublic: boolean, shareId: string, authHeader, uploadDispatch, wsSend: (action: string, content: any) => void) {
+    let uploads: fileUploadMetadata[] = []
+    for (const f of files) {
+        uploads.push({ file: f, parentId: parentFolderId, isDir: false, isTopLevel: true, topLevelParentKey: parentFolderId })
+    }
+
+    if (uploads.length !== 0) {
+        Upload(uploads, isPublic, shareId, parentFolderId, authHeader, uploadDispatch, wsSend)
+    }
+}
+
+export function downloadSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, fileData>, dispatch: FileBrowserDispatch, wsSend: (action: string, content: any) => void, authHeader) {
+    const files = Array.from(selectedMap.keys())
 
     let taskId: string = ""
 
-    if (items.length == 1 && !dirMap.get(items[0]).isDir) {
-        const item = dirMap.get(items[0])
-        if (!item.isDir) {
-            downloadSingleItem(item, authHeader, dispatch)
+    if (files.length === 1 && !dirMap.get(files[0]).isDir) {
+        const file = dirMap.get(files[0])
+        if (!file.isDir) {
+            downloadSingleFile(file.id, authHeader, dispatch, file.filename)
             return
         }
     }
 
-    const body = { items: items.map((val) => { let item: itemData = dirMap.get(val); return { parentFolderId: item.parentFolderId, filename: item.filename } }) }
-    requestZipCreate(body, authHeader).then(({ json, status }) => {
+    requestZipCreate(files, authHeader).then(({ json, status }) => {
         if (status === 200) {
-            downloadTakeout(json.takeoutId, authHeader, dispatch)
-            } else {
+            downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, "zip")
+        } else {
             taskId = json.taskId
             notifications.show({ id: `zip_create_${taskId}`, message: `Requesting zip...`, autoClose: false })
-            wsSend(JSON.stringify({ req: "subscribe", content: { subType: "task", lookingFor: ["takeoutId"], taskId: taskId }, error: null }))
-            }
-            dispatch({ type: "set_loading", loading: false })
-        })
+            wsSend("subscribe", { subscribeType: "task", subscribeMeta: JSON.stringify({ lookingFor: ["takeoutId"] }), subscribeKey: taskId })
+        }
+        dispatch({ type: "set_loading", loading: false })
+    })
         .catch((r) => console.error(r))
 }
 
 
-export function HandleWebsocketMessage(lastMessage, username, dispatch, authHeader) {
+export function HandleWebsocketMessage(lastMessage, userInfo, dispatch: FileBrowserDispatch, authHeader) {
     if (lastMessage) {
         let msgData = JSON.parse(lastMessage.data)
-        switch (msgData["messageStatus"]) {
-            case "item_update": {
-                dispatch({ type: "update_item", itemId: msgData["content"].itemId, updateInfo: msgData["content"].updateInfo, user: username })
+        console.log("WSRecv", msgData)
+        switch (msgData.messageStatus) {
+            case "file_created": {
+                dispatch({ type: "create_file", fileInfos: msgData.content.map(v => v.fileInfo), user: userInfo })
                 return
             }
-            case "item_deleted": {
-                dispatch({ type: "delete_from_map", itemId: msgData["content"].itemId })
+            case "file_updated": {
+                dispatch({ type: "update_file", fileInfos: msgData.content.map(v => v.fileInfo), user: userInfo })
                 return
             }
-            case "finished": {
+            case "file_deleted": {
+                dispatch({ type: "delete_from_map", fileIds: msgData.content.map(v => v.fileId) })
+                return
+            }
+            case "scan_complete": {
                 dispatch({ type: "set_loading", loading: false })
                 dispatch({ type: "set_scan_progress", progress: 0 })
                 return
@@ -529,13 +525,11 @@ export function HandleWebsocketMessage(lastMessage, username, dispatch, authHead
             }
             case "zip_complete": {
                 notifications.hide(`zip_create_${msgData.subscribeKey}`)
-                downloadTakeout(msgData.content["takeoutId"], authHeader, dispatch)
+                downloadSingleFile(msgData.content["takeoutId"], authHeader, dispatch, undefined, "zip")
                 return
             }
             case "error": {
-                if (msgData["error"] === "upload_error") {
-                    dispatch({ type: "delete_from_map", item: msgData["content"]["File"] })
-                }
+                notifications.show({ title: "Websocket error", message: msgData.error, color: 'red' })
                 return
             }
             default: {
@@ -546,10 +540,10 @@ export function HandleWebsocketMessage(lastMessage, username, dispatch, authHead
     }
 }
 
-export const useKeyDown = (editing, blockFocus, dispatch, searchRef) => {
+export const useKeyDown = (fbState: FileBrowserStateType, userInfo, dispatch: (action: FileBrowserAction) => void, authHeader, wsSend, searchRef) => {
     useEffect(() => {
         const onKeyDown = (event) => {
-            if (!editing && !blockFocus) {
+            if (!fbState.blockFocus) {
                 if (document.activeElement !== searchRef.current && event.metaKey && event.key === 'a') {
                     event.preventDefault()
                     dispatch({ type: 'select_all' })
@@ -559,23 +553,29 @@ export const useKeyDown = (editing, blockFocus, dispatch, searchRef) => {
                     searchRef.current.blur()
                 } else if (event.key === 'Escape') {
                     event.preventDefault()
-                    dispatch({ type: 'clear_selected' })
+                    if (fbState.pasteImg) {
+                        dispatch({ type: "paste_image", img: null })
+                    } else {
+                        dispatch({ type: 'clear_selected' })
+                    }
                 } else if (event.key === 'Shift') {
                     dispatch({ type: 'holding_shift', shift: true })
+                } else if (event.key === 'Enter' && fbState.pasteImg) {
+                    if (fbState.folderInfo.id === "shared" || fbState.folderInfo.id === userInfo.trashFolderId) {
+                        notifications.show({ title: "Paste blocked", message: "This folder does not allow paste-to-upload", color: 'red' })
+                        return
+                    }
+                    UploadViaUrl(fbState.pasteImg, fbState.folderInfo.id, fbState.dirMap, authHeader, dispatch, wsSend)
                 }
-            } else if (editing) {
+            } else {
                 if (event.metaKey && event.key === 'a') {
                     event.stopPropagation()
-                } else if (event.key === 'Escape') {
-                    event.preventDefault()
-                    dispatch({ type: 'reject_edit' })
-                    return
                 }
             }
         }
 
         const onKeyUp = (event) => {
-            if (!editing) {
+            if (!fbState.blockFocus) {
                 if (event.key === 'Shift') {
                     dispatch({ type: 'holding_shift', shift: false })
                 }
@@ -588,7 +588,7 @@ export const useKeyDown = (editing, blockFocus, dispatch, searchRef) => {
             document.removeEventListener('keydown', onKeyDown)
             document.removeEventListener('keyup', onKeyUp)
         }
-    }, [editing, blockFocus, dispatch, searchRef, document.activeElement])
+    }, [fbState.blockFocus, fbState.pasteImg, dispatch, searchRef])
 }
 
 export const useMousePosition = () => {
@@ -609,57 +609,76 @@ export const useMousePosition = () => {
     return mousePosition
 }
 
-export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, itemData>, folderId: string, dispatch, authHeader) {
-    for (const itemKey of selectedMap.keys()) {
-        const item = dirMap.get(itemKey)
-        if (!item?.filename) {
-            console.error("Could not get filename to delete", item)
-            continue
+export const usePaste = (folderId: string, userInfo, searchRef, dispatch) => {
+    const handlePaste = useCallback(async (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        const clipboardItems = typeof navigator?.clipboard?.read === 'function'
+            ? await navigator.clipboard.read().catch(v => { console.error(v); notifications.show({ title: "Could not paste", message: "Does your browser block clipboard for Weblens?", color: 'red' }) })
+            : e.clipboardData?.files
+        if (!clipboardItems) {
+            return
         }
-        DeleteFile(folderId, item.filename, authHeader)
-    }
-// dispatch({ type: "delete_selected" })
+        for (const item of clipboardItems) {
+            for (const mime of item.types) {
+                if (mime.startsWith("image/")) {
+                    if (folderId === "shared" || folderId === userInfo.trashFolderId) {
+                        notifications.show({ title: "Paste blocked", message: "This folder does not allow paste-to-upload", color: 'red' })
+                        return
+                    }
+                    const img = await item.getType(mime)
+                    dispatch({ type: 'paste_image', img: img })
+                } else if (mime === "text/plain") {
+                    const text = await (await item.getType("text/plain"))?.text()
+                    if (!text) {
+                        continue
+                    }
+                    searchRef.current.focus()
+                    dispatch({ type: "set_search", search: text })
+                } else {
+                    console.log("Unknown mime", mime)
+                }
+            }
+        }
+
+    }, [folderId])
+
+    useEffect(() => {
+        window.addEventListener('paste', handlePaste)
+        return () => {
+            window.removeEventListener('paste', handlePaste)
+        }
+    }, [handlePaste])
 }
 
-export function moveSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, itemData>, destinationId: string, authHeader) {
-    let files = []
-    for (const itemKey of selectedMap.keys()) {
-        const item = dirMap.get(itemKey)
-        if (item) {
-            files.push({ parentFolderId: item.parentFolderId, filename: item.filename })
-        }
-    }
-    MoveFiles(files, destinationId, authHeader)
+export function deleteSelected(selectedMap: Map<string, boolean>, dirMap: Map<string, fileData>, authHeader) {
+    const fileIds = Array.from(selectedMap.keys())
+    DeleteFiles(fileIds, authHeader)
+
+    // dispatch({ type: "delete_selected" })
 }
 
-export function GetDirItems(filebrowserState: FileBrowserStateType, dispatch, authHeader, gridRef) {
-    let itemsList = MapToList(filebrowserState.dirMap).filter((val) => { return val.filename.toLowerCase().includes(filebrowserState.searchContent.toLowerCase()) })
-    let scanRequired = false
+export function moveSelected(selectedMap: Map<string, boolean>, destinationId: string, authHeader) {
+    return MoveFiles(Array.from(selectedMap.keys()), destinationId, authHeader).catch(r => notifications.show({ title: "Failed to move files", message: String(r), color: 'red' }))
+}
 
-    const items = itemsList.map((entry: itemData) => {
-        if (entry.mediaData && !entry.imported && !entry.isDir) {
-            scanRequired = true
-        }
-        let move: () => void
-        if (!entry.isDir) {
-            move = () => { }
-        } else {
-            move = () => { moveSelected(filebrowserState.selected, filebrowserState.dirMap, entry.id, authHeader) }
-        }
+export async function UploadViaUrl(img: ArrayBuffer, folderId, dirMap: Map<string, fileData>, authHeader, dispatch, wsSend) {
+    const names = Array.from(dirMap.values()).map((v) => v.filename)
+    let imgNumber = 1
+    let imgName = `image${imgNumber}.jpg`
+    while (names.includes(imgName)) {
+        imgNumber++
+        imgName = `image${imgNumber}.jpg`
+    }
 
-        return (
-            <Item
-                key={entry.id}
-                itemData={entry}
-                selected={filebrowserState.selected.get(entry.id)}
-                moveSelected={move}
-                editing={filebrowserState.editing === entry.id}
-                dragging={filebrowserState.draggingState}
-                dispatch={dispatch}
-                authHeader={authHeader}
-                root={gridRef}
-            />
-        )
-    })
-    return { items, scanRequired }
+    const meta: fileUploadMetadata = {
+        file: new File([img], imgName),
+        isDir: false,
+        parentId: folderId,
+        topLevelParentKey: "",
+        isTopLevel: true
+    }
+    await Upload([meta], false, "", folderId, authHeader, () => { }, wsSend)
+    dispatch({ type: "paste_image", img: null })
 }

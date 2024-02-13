@@ -1,174 +1,189 @@
 package dataProcess
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
-	"os"
-	"os/exec"
+	"runtime"
+	"slices"
 	"strings"
-	"time"
 
 	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func ProcessMediaFile(file *dataStore.WeblensFileDescriptor, m *dataStore.Media, db *dataStore.Weblensdb) error {
-	defer util.RecoverPanic("Panic caught while processing media file:", file.String())
+// Global exiftool
+var gexift *exiftool.Exiftool
+var gexiftBufferSize int64
 
-	var parseAnyway bool = false
-	filled, _ := m.IsFilledOut(false)
-	if filled && !parseAnyway {
-		// util.Warning.Println("Tried to process media file that already exists in the database")
+func InitGExif(bufSize int64) *exiftool.Exiftool {
+	if bufSize <= gexiftBufferSize {
+		return gexift
+	}
+	if gexift != nil {
+		err := gexift.Close()
+		util.DisplayError(err)
+		gexift = nil
+		gexiftBufferSize = 0
+	}
+	gbuf := make([]byte, int(bufSize))
+	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"), exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(gbuf, int(bufSize)))
+	if err != nil {
+		util.DisplayError(err)
 		return nil
 	}
+	gexift = et
 
-	if m.ParentFolder == "" {
-		m.ParentFolder = file.ParentFolderId
-	}
-
-	if m.Filename == "" {
-		m.Filename = file.Filename
-	}
-
-	if m.MediaType.FriendlyName == "" {
-		err := m.ComputeExif()
-		util.FailOnError(err, "Failed to extract exif data")
-	}
-
-	m.FileHash = util.HashOfString(8, file.String())
-	// m.GenerateFileHash(file)
-
-	// Files that are not "media" (jpeg, png, mov, etc.) should not be stored in the media database
-	if (!m.MediaType.IsDisplayable) {
-		PushItemCreate(file)
-		return nil
-	}
-
-	thumb := m.GenerateThumbnail()
-	if m.BlurHash == "" {
-		m.GenerateBlurhash(thumb)
-	}
-
-	if (m.Owner == "") {
-		m.Owner = file.Owner()
-	}
-
-	db.DbAddMedia(m)
-
-	PushItemCreate(file)
-
-	return nil
+	return gexift
 }
 
-func ScanDirectory(t *task) {
+func processMediaFile(t *Task) {
 	meta := t.metadata.(ScanMetadata)
+	m := meta.PartialMedia
+	file := meta.File
 
-	scanDir := meta.File
-	recursive := meta.Recursive
-	username := meta.Username
+	defer file.RemoveTask(t.TaskId())
 
-	util.Info.Printf("Beginning directory scan (recursive: %t): %s\n", recursive, scanDir.String())
-
-	db := dataStore.NewDB(username)
-	ms := db.GetMediaInDirectory(scanDir.String(), recursive)
-	mediaMap := map[string]bool{}
-	for _, m := range ms {
-		mFile := m.GetBackingFile()
-		if mFile.Err() != nil {
-			util.DisplayError(mFile.Err())
-			continue
-		}
-		if !mFile.Exists() {
-			db.RemoveMediaByFilepath(m.ParentFolder, m.Filename)
-			continue
-		}
-		mediaMap[mFile.String()] = true
+	if m == nil {
+		t.error(errors.New("attempted to process nil media"))
+		return
 	}
 
-	files, err := os.ReadDir(scanDir.String())
+	d, err := file.IsDisplayable()
+	if err != nil && err != dataStore.ErrNoMedia {
+		t.error(err)
+		return
+	}
+	if !d {
+		return
+	}
+
+	defer m.Clean()
+
+	m, err = m.LoadFromFile(file)
 	if err != nil {
-		panic(err)
+		t.error(err)
+		return
 	}
 
-	newFilesMap := map[string]*dataStore.WeblensFileDescriptor{}
-
-	NewWorkSubQueue(t.TaskId)
-
-	for _, d := range files {
-		file := scanDir.JoinStr(d.Name())
-		util.FailOnError(file.Err(), "")
-		if recursive && file.IsDir() {
-			RequestTask("scan_directory", "GLOBAL", ScanMetadata{File: file, Username: username, Recursive: recursive})
-		} else if (file.Filename != ".DS_Store" && !strings.HasSuffix(d.Name(), ".thumb.jpeg") && !mediaMap[file.String()] && !file.IsDir()) {
-			if (!file.IsDisplayable()) {
-				RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username})
-			} else {
-				_, err := file.GetMedia()
-				if err != nil {
-					newFilesMap[file.String()] = file
-				}
-			}
-		}
-	}
-
-	et, err := exiftool.NewExiftool()
+	err = m.WriteToDb()
 	if err != nil {
-		panic(err)
+		t.error(err)
+		return
+	}
+	if !m.IsImported() {
+		m.SetImported()
 	}
 
-	start := time.Now()
-	allMeta := et.ExtractMetadata(util.MapToSlice(newFilesMap, func(absPath string, f *dataStore.WeblensFileDescriptor) string {return absPath})...)
-	thumbsReader := readRawThumbBytesFromDir(util.Map(allMeta, func(meta exiftool.FileMetadata) string {return meta.File})...)
-	offset := 0
-	for _, meta := range allMeta {
-		file := newFilesMap[meta.File]
-		m := dataStore.Media{}
-		m.Filename = file.Filename
-		m.ParentFolder = file.ParentFolderId
-
-		rawJpegLen := meta.Fields["JpgFromRawLength"]
-		if rawJpegLen != nil && thumbsReader != nil {
-			thumbLen := int(rawJpegLen.(float64))
-			m.DumpThumbBytes(thumbsReader[offset:offset+thumbLen])
-			offset += thumbLen
-		}
-
-		m.DumpRawExif(meta.Fields)
-		RequestTask("scan_file", t.TaskId, ScanMetadata{File: file, Username: username, PartialMedia: &m})
-	}
-
-	MainNotifyAllQueued(t.TaskId)
-	util.Info.Println("Pre-import meta collection", time.Since(start))
-
-	start = time.Now()
-	MainWorkQueueWait(t.TaskId)
-	util.Info.Printf("Completed scanning %d images in %v", len(allMeta), time.Since(start))
-
-	PushItemUpdate(scanDir, scanDir)
+	caster.PushFileUpdate(file)
+	t.success()
 }
 
-func readRawThumbBytesFromDir(paths ...string) []byte {
-	if len(paths) == 0 {
-		return nil
+func scanDirectory(t *Task) {
+	meta := t.metadata.(ScanMetadata)
+	scanDir := meta.File
+
+	if scanDir.Filename() == ".user_trash" {
+		caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+		t.success()
+		return
 	}
 
-	paths = util.Map(paths, func(path string) string {return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(path, " ", "\\ "), "(", "\\("), ")", "\\)")})
-	allPathsStr := strings.Join(paths, " ")
-	cmdString := fmt.Sprintf("exiftool -a -b -JpgFromRaw %s", allPathsStr)
-	cmd := exec.Command("/bin/bash", "-c", cmdString)
+	recursive := meta.Recursive
+	deepScan := meta.DeepScan
 
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
+	mediaToScan := []*dataStore.WeblensFile{}
+	dirsToScan := []*dataStore.WeblensFile{}
 
-	err := cmd.Run()
-	if err != nil {
-		util.Warning.Printf("Failed to bulk read thumbnails: %s %s", err, stderr.String())
-		return nil
+	// "deepScan" defines wether or not we should go sync
+	// with the real filesystem for this scan. Otherwise,
+	// just handle processing media we already know about
+	if deepScan {
+		scanDir.ReadDir()
 	}
 
-	bytes := out.Bytes()
-	return bytes
+	children := scanDir.GetChildren()
+	for _, c := range children {
+		// If this file is already being procecced, don't queue it again
+		if slices.ContainsFunc(c.GetTasks(), func(t dataStore.Task) bool { return t.TaskType() == "scan_file" || t.TaskType() == "scan_directory" }) {
+			continue
+		}
+		if !c.IsDir() {
+			m, err := c.GetMedia()
+			if err != nil && err != dataStore.ErrNoMedia {
+				util.DisplayError(err)
+				continue
+			}
+
+			d, err := c.IsDisplayable()
+			if err != nil && err != dataStore.ErrNoMedia {
+				util.DisplayError(err)
+				continue
+			}
+
+			if m == nil {
+				mediaToScan = append(mediaToScan, c)
+				continue
+			}
+
+			if !m.IsImported() && d {
+				mediaToScan = append(mediaToScan, c)
+				continue
+			}
+
+			filled, _ := m.IsFilledOut()
+			if !filled && d {
+				mediaToScan = append(mediaToScan, c)
+				continue
+			}
+
+		} else if recursive && c != scanDir {
+			dirsToScan = append(dirsToScan, c)
+		}
+	}
+
+	for _, dir := range dirsToScan {
+		GetGlobalQueue().ScanDirectory(dir, recursive, deepScan)
+	}
+
+	if len(mediaToScan) == 0 {
+		caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+		t.success("No media to scan: ", scanDir.String())
+		return
+	}
+
+	// Wait on all tasks on files as not to be destructive
+	util.Each(mediaToScan, func(wf *dataStore.WeblensFile) { util.Each(wf.GetTasks(), func(t dataStore.Task) { t.Wait() }) })
+
+	util.Info.Printf("Beginning directory scan for %s [M %d][R %t][D %t]\n", scanDir.String(), len(mediaToScan), recursive, deepScan)
+
+	sw := util.NewStopwatch(fmt.Sprint("Directory scan ", scanDir.String()))
+
+	wq := NewWorkQueue()
+
+	slices.SortFunc(mediaToScan, func(a, b *dataStore.WeblensFile) int { return strings.Compare(a.Filename(), b.Filename()) })
+
+	for _, file := range mediaToScan {
+		m, err := file.GetMedia()
+		if err != nil && err != dataStore.ErrNoMedia {
+			util.DisplayError(err)
+			continue
+		}
+		wq.ScanFile(file, m)
+	}
+
+	sw.Lap("Queued all tasks")
+
+	wq.SignalAllQueued()
+	wq.Wait(true) // Park this thread and wait for the media to finish computing
+
+	runtime.GC()
+	util.PrintMemUsage("After directory scan")
+
+	sw.Lap("All tasks finished")
+	sw.Stop()
+	sw.PrintResults()
+
+	caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+	t.success()
 }

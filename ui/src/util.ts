@@ -1,9 +1,12 @@
-import { itemData } from './types/Types'
+import { fileData } from './types/Types'
 
-export function humanFileSize(bytes, si = false, dp = 1) {
+export function humanFileSize(bytes, si = true, dp = 1) {
+    if (!bytes) {
+        return [0, "B"]
+    }
     const thresh = si ? 1000 : 1024;
 
-    if (bytes == undefined) {
+    if (bytes === undefined) {
         return [0, 'B']
     }
     if (Math.abs(bytes) < thresh) {
@@ -24,10 +27,10 @@ export function humanFileSize(bytes, si = false, dp = 1) {
     return [bytes.toFixed(dp), units[u]];
 }
 
-export function dateFromItemData(itemData: itemData) {
-    var date = new Date(itemData.mediaData.createDate)
-    if (date.getFullYear() == 0) {
-        date = new Date(itemData.modTime)
+export function dateFromFileData(fileData: fileData) {
+    var date = new Date(fileData.mediaData.createDate)
+    if (date.getFullYear() === 0) {
+        date = new Date(fileData.modTime)
     }
     return date.toDateString()
 }

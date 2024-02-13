@@ -6,103 +6,87 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 )
+
+var caster BroadcasterAgent
+
+func SetCaster(c BroadcasterAgent) {
+	caster = c
+}
 
 var ttInstance taskTracker
 
 func taskWorkerPoolStatus() {
 	for {
 		time.Sleep(time.Second * 10)
-		remaining, total, busy, alive := ttInstance.wp.Status("GLOBAL")
+		remaining, total, busy, alive := ttInstance.globalQueue.Status()
 		if busy != 0 {
 			util.Info.Printf("Task worker pool status (queued/total, #busy, #alive): %d/%d, %d, %d", remaining, total, busy, alive)
 		}
 	}
 }
 
-func verifyTaskTracker() {
+func VerifyTaskTracker() *taskTracker {
 	if ttInstance.taskMap == nil {
-		ttInstance.taskMap = map[string]*task{}
-		ttInstance.wp = NewWorkerPool(runtime.NumCPU() - 1)
-		// ttInstance.wp = NewWorkerPool(20)
-		ttInstance.wp.Run()
+		ttInstance.taskMap = map[string]*Task{}
+		wp, wq := NewWorkerPool(runtime.NumCPU() - 1)
+		ttInstance.wp = wp
+		ttInstance.globalQueue = wq
 		go taskWorkerPoolStatus()
 	}
+	return &ttInstance
+}
+
+func (tt *taskTracker) StartWP() {
+	tt.wp.Run()
 }
 
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
-func RequestTask(taskType, queueKey string, taskMeta any) *task {
-	verifyTaskTracker()
 
-	if queueKey == "" {
-		queueKey = "GLOBAL"
-	}
+func newTask(taskType string, taskMeta any) *Task {
+	VerifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
 	util.FailOnError(err, "Failed to marshal task metadata when queuing new task")
-	taskId := util.HashOfString(8, string(metaString))
+	taskId := util.GlobbyHash(8, string(metaString))
 
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()
 	existingTask, ok := ttInstance.taskMap[taskId]
 	if ok {
-	 	return existingTask
+		if taskType == "write_file" {
+			existingTask.ClearAndRecompute()
+		}
+		return existingTask
 	}
-	newTask := &task{TaskId: taskId, taskType: taskType, metadata: taskMeta, QueueId: queueKey, waitMu: &sync.Mutex{}}
+	//										  signal chan must be buffered so caller doesn't block trying to close many tasks \/
+	newTask := &Task{taskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}, signalChan: make(chan int, 1)}
 	newTask.waitMu.Lock()
 
 	ttInstance.taskMap[taskId] = newTask
 	switch newTask.taskType {
-		case "scan_directory": newTask.work = func(){ScanDirectory(newTask); removeTask(newTask.TaskId)}
-		case "create_zip": newTask.work = func(){createZipFromPaths(newTask)}
-		case "scan_file": newTask.work = func(){ScanFile(newTask.metadata.(ScanMetadata)); removeTask(newTask.TaskId)}
-		case "move_file": newTask.work = func(){moveFile(newTask); removeTask(newTask.TaskId)}
+	case "scan_directory":
+		newTask.work = func() { scanDirectory(newTask); removeTask(newTask.taskId) }
+	case "create_zip":
+		newTask.work = func() { createZipFromPaths(newTask) }
+	case "scan_file":
+		newTask.work = func() { ScanFile(newTask); removeTask(newTask.taskId) }
+	case "move_file":
+		newTask.work = func() { moveFile(newTask); removeTask(newTask.taskId) }
+	case "write_file":
+		newTask.work = func() { writeToFile(newTask); removeTask(newTask.taskId) }
 	}
-	ttInstance.wp.AddTask(newTask)
 
 	return newTask
 }
 
-func (t *task) ClearAndRecompute() {
-	for k := range t.result {
-		delete(t.result, k)
-	}
-	t.waitMu.Lock()
-	ttInstance.wp.AddTask(t)
-}
-
-func GetTask(taskId string) *task {
+func GetTask(taskId string) *Task {
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()
 	return ttInstance.taskMap[taskId]
-}
-
-func (t *task) Result(resultKey string) string {
-	if t.result == nil {
-		return ""
-	}
-	return t.result[resultKey]
-}
-func (t *task) Err() any {
-	return t.err
-}
-
-func (t *task) setComplete(broadcastType, messageStatus string) {
-	t.Completed = true
-	Broadcast(broadcastType, t.TaskId, messageStatus, t.result)
-}
-
-func (t *task) setResult(fields... KeyVal) {
-	if t.result == nil {
-		t.result = make(map[string]string)
-	}
-
-	for _, pair := range fields {
-		t.result[pair.Key] = pair.Val
-	}
-
 }
 
 func removeTask(taskKey string) {
@@ -111,28 +95,73 @@ func removeTask(taskKey string) {
 	delete(ttInstance.taskMap, taskKey)
 }
 
-func (t *task)Wait() {
-	t.waitMu.Lock()
-	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
-	t.waitMu.Unlock()
-}
-
 func FlushCompleteTasks() {
 	for k, t := range ttInstance.taskMap {
-		if t.Completed {
+		if t.completed {
 			delete(ttInstance.taskMap, k)
 		}
 	}
 }
 
-func NewWorkSubQueue(queueKey string) {
-	ttInstance.wp.NewVirtualTaskQueue(queueKey)
+func GetGlobalQueue() *virtualTaskPool {
+	return ttInstance.globalQueue
 }
 
-func MainWorkQueueWait(queueKey string) {
-	ttInstance.wp.Wait(queueKey)
+func NewWorkQueue() *virtualTaskPool {
+	wq := ttInstance.wp.NewVirtualTaskQueue()
+	return wq
 }
 
-func MainNotifyAllQueued(queueKey string) {
-	ttInstance.wp.NotifyAllQueued(queueKey)
+// Parameters:
+//   - `directory` : the weblens file descriptor representing the directory to scan
+//   - `recursive` : if true, scan all children of directory recursively
+//   - `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
+func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, recursive, deep bool) dataStore.Task {
+	// Partial media means nothing for a directory scan, so it's always nil
+	scanMeta := ScanMetadata{File: directory, Recursive: recursive, DeepScan: deep}
+	t := newTask("scan_directory", scanMeta)
+	tskr.QueueTask(t)
+
+	return t
+}
+
+func (tskr *virtualTaskPool) ScanFile(file *dataStore.WeblensFile, m *dataStore.Media) dataStore.Task {
+	scanMeta := ScanMetadata{File: file, PartialMedia: m}
+	t := newTask("scan_file", scanMeta)
+	tskr.QueueTask(t)
+
+	file.AddTask(t)
+
+	return t
+}
+
+// Parameters:
+//   - `filename` : the name of the new file to create
+//   - `fileSize` : the parent directory to upload the new file into
+func (tskr *virtualTaskPool) WriteToFile(filename, parentFolderId string) dataStore.Task {
+	writeMeta := WriteFileMeta{Filename: filename, ParentFolderId: parentFolderId, ChunkStream: make(chan FileChunk, 25)}
+	t := newTask("write_file", writeMeta)
+	tskr.QueueTask(t)
+
+	return t
+}
+
+func (tskr *virtualTaskPool) MoveFile(fileId, destinationFolderId, newFilename string) dataStore.Task {
+	meta := MoveMeta{FileId: fileId, DestinationFolderId: destinationFolderId, NewFilename: newFilename}
+	t := newTask("move_file", meta)
+	tskr.QueueTask(t)
+
+	return t
+}
+
+func (tskr *virtualTaskPool) CreateZip(files []*dataStore.WeblensFile, username string) dataStore.Task {
+	meta := ZipMetadata{Files: files, Username: username}
+	t := newTask("create_zip", meta)
+	tskr.QueueTask(t)
+
+	return t
+}
+
+func WaitMany(ts []*Task) {
+	util.Each(ts, func(t *Task) { t.Wait() })
 }

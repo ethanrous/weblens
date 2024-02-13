@@ -3,23 +3,33 @@ FROM --platform=${BUILDPLATFORM:-linux/amd64} node:18 as ui
 RUN mkdir -p /app
 WORKDIR /app
 
+ARG build_tag
+ENV REACT_APP_BUILD_TAG $build_tag
+
 COPY ui/package*.json /app/
 RUN npm ci --omit=dev --ignore-scripts
 
 COPY ui /app
 RUN npm run build
 
-# FROM --platform=${BUILDPLATFORM:-linux/amd64} golang:1.21.3-bookworm AS api
-FROM --platform=linux/amd64 golang:1.21.3-bookworm AS api
+# Build backend binary #
+FROM --platform=linux/amd64 golang:1.22-bookworm AS api
 
 RUN mkdir -p /app
 WORKDIR /app
 
-RUN apt update
-RUN apt-get install -y libwebp-dev wget
+# Install dependencies
+RUN apt-get update
+RUN apt-get install -y \
+  libvips-dev \
+  libheif-dev \
+  libwebp-dev \
+  libglib2.0-dev \
+  libexpat1-dev
 
 ENV GOOS=linux
 ENV GOARCH=amd64
+ENV CGO_ENABLED=1
 
 COPY api/go.mod api/go.sum /app/
 RUN go mod download
@@ -27,21 +37,17 @@ RUN go mod download
 ENV GIN_MODE=release
 
 COPY api /app
-RUN go build -v -o weblens .
+RUN go build -o weblens .
 
-# RUN wget https://www.libraw.org/data/LibRaw-0.21.1.tar.gz
-# RUN tar -xf LibRaw-0.21.1.tar.gz
-# RUN ls LibRaw-0.21.1/bin
-
-FROM debian:bookworm
+FROM debian:12-slim
 
 RUN apt update
-RUN apt-get install -y libwebp-dev exiftool ffmpeg
+RUN apt-get install -y libvips exiftool ffmpeg
 
 WORKDIR /app
 COPY --from=ui /app/build /ui/build
-
 COPY --from=api /app/weblens /app/weblens
+COPY api/config /app/config
 
 EXPOSE 8080
 

@@ -2,8 +2,10 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"time"
+	"net/http"
+	"runtime/debug"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -13,87 +15,97 @@ import (
 
 func wsConnect(ctx *gin.Context) {
 
+	ctx.Status(http.StatusSwitchingProtocols)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	util.FailOnError(err, "Failed to upgrade http request to websocket")
+	if err != nil {
+		util.DisplayError(err)
+		return
+	}
 
-	client := dataProcess.ClientConnect(conn)
+	client := cmInstance.ClientConnect(conn, ctx.GetString("username"))
+	go wsMain(client)
+}
 
+func wsMain(client *Client) {
 	defer client.Disconnect()
 
-	wsUser := ctx.GetString("username")
-	util.Info.Printf("%s made successful websocket connection (%s)", wsUser, client.GetClientId())
-
 	for {
-		_, buf, err := conn.ReadMessage()
-        if err != nil {
-            break
-        }
-		go handleWsRequest(buf, client, wsUser)
-    }
+		_, buf, err := client.conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		go wsReqSwitchboard(buf, client)
+	}
 }
 
-func handleWsRequest(msgBuf []byte, client *dataProcess.Client, wsUser string) {
-	var msg dataProcess.WsRequest
+func wsReqSwitchboard(msgBuf []byte, client *Client) {
+	defer wsRecover(client.GetClientId())
+	// defer util.RecoverPanic("[WS] Client %d panicked: %v", client.GetClientId())
+
+	var msg wsRequest
 	err := json.Unmarshal(msgBuf, &msg)
-	util.FailOnError(err, "Failed to unmarshal ws message")
+	if err != nil {
+		util.DisplayError(err)
+		return
+	}
 
-	wsReqSwitchboard(msg, client, wsUser)
-}
+	switch msg.Action {
+	case Subscribe:
+		{
+			var subInfo subscribeInfo
+			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 
-func wsReqSwitchboard(msg dataProcess.WsRequest, client *dataProcess.Client, username string) {
-	defer util.RecoverPanic("[WEBSOCKET] Client %d panicked", client.GetClientId())
+			if err != nil {
+				util.DisplayError(err)
+				client.Error(errors.New("failed to parse subscribe request"))
+			}
 
-	fmt.Printf("[WEBSOCKET] %s | %s | %s\n", time.Now().Format("2006/01/02 - 15:04:05"), client.GetClientId(), msg.ReqType)
-
-	switch msg.ReqType {
-		case "subscribe": {
-			subType, meta := getSubscribeInfo(msg.Content.(map[string]any))
-			if subType == "" || meta == nil {
-				util.Error.Printf("Bad subscribe request: %v", msg.Content)
+			if subInfo.SubType == "" || subInfo.Key == "" {
+				client.Error(fmt.Errorf("bad subscribe request: %s", msg.Content))
 				return
 			}
-			complete, result := client.Subscribe(subType, username, meta)
+
+			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta)
 			if complete {
-				client.Send("zip_complete", struct {TakeoutId string `json:"takeoutId"`} {TakeoutId: result}, nil)
+				client.Send("zip_complete", subInfo.Key, []map[string]any{gin.H{"takeoutId": result}})
 			}
 		}
 
-		case "scan_directory": {
-			var scanInfo dataProcess.ScanContent
-			util.StructFromMap(msg.Content.(map[string]any), &scanInfo)
-
-			folder := dataStore.WFDByFolderId(scanInfo.FolderId)
-			util.FailOnError(folder.Err(), "Failed to get folder to scan")
-
-			meta := dataProcess.ScanMetadata{File: folder, Username: username, Recursive: scanInfo.Recursive}
-			dataProcess.RequestTask("scan_directory", "", meta)
+	case Unsubscribe:
+		{
+			var unsubInfo unsubscribeInfo
+			json.Unmarshal([]byte(msg.Content), &unsubInfo)
+			client.Unsubscribe(unsubInfo.Key)
 		}
 
-		default: {
-			util.Error.Printf("Could not parse websocket request type: %v", msg)
+	case ScanDirectory:
+		{
+			var scanInfo scanInfo
+			err := json.Unmarshal([]byte(msg.Content), &scanInfo)
+			if err != nil {
+				util.DisplayError(err)
+				return
+			}
+			folder := dataStore.FsTreeGet(scanInfo.FolderId)
+			if folder == nil {
+				util.Error.Println("Failed to get dir to scan:", scanInfo.FolderId)
+				return
+			}
+
+			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan)
+			client.Subscribe(SubTask, subId(t.TaskId()), nil)
+		}
+
+	default:
+		{
+			client.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
 		}
 	}
 }
 
-func getSubscribeInfo(contentMap map[string]any) (string, any) {
-	subType := contentMap["subType"].(string)
-	delete(contentMap, "subType")
-	switch subType {
-	case "folder": {
-		var subContentStruct dataProcess.FolderSubMetadata
-		err := util.StructFromMap(contentMap, &subContentStruct)
-		util.FailOnError(err, "Could not convert map to struct")
-		return subType, subContentStruct
+func wsRecover(clientId string) {
+	err := recover()
+	if err != nil {
+		util.WsError.Println(clientId, err, debug.Stack())
 	}
-	case "task": {
-		var taskContentStruct dataProcess.TaskSubMetadata
-		err := util.StructFromMap(contentMap, &taskContentStruct)
-		util.FailOnError(err, "Could not convert map to struct")
-		return subType, taskContentStruct
-	}
-	default: {
-		util.Error.Printf("Unknown subscribe type: [ %s ] -- RAW: [ %v ]", subType, contentMap)
-	}
-	}
-	return "", nil
 }

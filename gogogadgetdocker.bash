@@ -1,11 +1,15 @@
 #!/bin/bash
 set -e
 docker_tag="$1"
-# docker build --platform linux/amd64 -t ethrous/weblens:v0.2 --progress plain --push .
 if [ -z "$docker_tag" ]
 then
-    echo "ERR No tag specified"
-    exit 1
+    echo "WARN No tag specified. Using tag:"
+    docker_tag=devel_$(date +%b.%d.%y)
+    echo $docker_tag
 fi
 
-docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --push .
+docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --build-arg build_tag="$docker_tag" .
+docker push ethrous/weblens:"$docker_tag"
+
+# docker build --platform linux/amd64 -t ethrous/weblens-recog:"$docker_tag" --build-arg build_tag="$docker_tag" ./classification
+# docker push ethrous/weblens-recog:"$docker_tag"

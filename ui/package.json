@@ -34,7 +34,11 @@
     "react-router-dom": "^6.15.0",
     "react-scripts": "5.0.1",
     "react-use-websocket": "^4.4.0",
+    "react-window": "^1.8.10",
     "web-vitals": "^2.1.4"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
   },
   "scripts": {
     "start": "react-scripts start",

@@ -2,45 +2,50 @@ package routes
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"slices"
 
-	"github.com/EdlinOrg/prominentcolor"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
 
-type albumCreateData struct {
-	Name string `json:"name"`
-}
-
 type albumUpdateData struct {
-	Media []string `json:"media"`
-	Cover string `json:"cover"`
+	AddMedia    []string `json:"newMedia"`
+	AddFolders  []string `json:"newFolders"`
+	RemoveMedia []string `json:"removeMedia"`
+	Cover       string   `json:"cover"`
+	NewName     string   `json:"newName"`
+	Users       []string `json:"users"`
+	RemoveUsers []string `json:"removeUsers"`
+	CleanMedia  bool     `json:"cleanMissing"`
 }
 
 func getAlbum(ctx *gin.Context) {
 	albumId := ctx.Param("albumId")
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	raw := ctx.Query("raw") == "true"
+
+	db := dataStore.NewDB()
 	albumData, err := db.GetAlbum(albumId)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Unable to find album information"})
 		return
 	}
 
-	medias := util.Map(albumData.Medias, func(mediaHash string) (m dataStore.Media) {m = db.GetMedia(mediaHash, false); return})
-	slices.SortFunc(medias, func(a, b dataStore.Media) int {return a.CreateDate.Compare(b.CreateDate)})
+	medias, err := db.GetFilteredMedia("createDate", ctx.GetString("username"), 1, []string{albumId}, raw)
+	if err != nil {
+		util.DisplayError(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get filtered media"})
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{"albumMeta": albumData, "medias": medias})
 }
 
 func getAlbums(ctx *gin.Context) {
 	username := ctx.GetString("username")
 	filter := ctx.Query("filter")
-	db := dataStore.NewDB(username)
+	db := dataStore.NewDB()
 	albums := db.GetAlbumsByUser(username, filter, true)
 	ctx.JSON(http.StatusOK, gin.H{"albums": albums})
 }
@@ -52,6 +57,9 @@ func createAlbum(ctx *gin.Context) {
 		return
 	}
 
+	type albumCreateData struct {
+		Name string `json:"name"`
+	}
 	var albumData albumCreateData
 	json.Unmarshal(jsonData, &albumData)
 	if err != nil {
@@ -59,12 +67,18 @@ func createAlbum(ctx *gin.Context) {
 		return
 	}
 
-	db := dataStore.NewDB(ctx.GetString("username"))
+	db := dataStore.NewDB()
 	db.CreateAlbum(albumData.Name, ctx.GetString("username"))
 }
 
-func addToAlbum(ctx *gin.Context) {
+func updateAlbum(ctx *gin.Context) {
 	albumId := ctx.Param("albumId")
+	a, err := dataStore.GetAlbum(albumId)
+
+	if err != nil {
+		util.DisplayError(err)
+		ctx.Status(http.StatusNotFound)
+	}
 
 	jsonData, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
@@ -73,50 +87,146 @@ func addToAlbum(ctx *gin.Context) {
 	}
 
 	var update albumUpdateData
-	json.Unmarshal(jsonData, &update)
-	db := dataStore.NewDB(ctx.GetString("username"))
-	album, err := db.GetAlbum(albumId)
+	err = json.Unmarshal(jsonData, &update)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Decoded but unable to parse request body"})
 		return
 	}
 
-	if update.Media != nil {
-		err = db.AddMediaToAlbum(albumId, update.Media)
+	var ms []string
+	if update.AddMedia != nil && len(update.AddMedia) != 0 {
+		ms = util.Filter(update.AddMedia, func(m string) bool { return m != "" })
+		if len(ms) == 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
+			return
+		}
+	}
+	if update.AddFolders != nil && len(update.AddFolders) != 0 {
+		for _, dId := range update.AddFolders {
+			d := dataStore.FsTreeGet(dId)
+			if d == nil {
+				ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder id"})
+				return
+			}
+			d.RecursiveMap(func(f *dataStore.WeblensFile) {
+				if !f.IsDir() {
+					m, err := f.GetMedia()
+					if err != nil {
+						util.DisplayError(err)
+						return
+					}
+					if m != nil {
+						ms = append(ms, m.MediaId)
+					}
+				}
+			})
+		}
+	}
+
+	addedCount := 0
+	if len(ms) != 0 {
+		addedCount, err = a.AddMedia(ms)
 		if err != nil {
-			util.Error.Printf("Failed to add media to album (%s) %v", albumId, err)
+			util.DisplayError(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add media to album"})
 			return
 		}
 
-
-		if album.Cover == "" || album.PrimaryColor == "" {
-			coverMediaId := album.Cover
+		if a.Cover == "" || a.PrimaryColor == "" {
+			coverMediaId := a.Cover
 			if coverMediaId == "" {
-				coverMediaId = album.Medias[0]
+				coverMediaId = ms[0]
 			}
-			setAlbumCover(album.Id, coverMediaId, db)
+			err = a.SetCover(coverMediaId)
+			if err != nil {
+				util.DisplayError(err)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+				return
+			}
+		}
+	}
+
+	if update.RemoveMedia != nil {
+		err = a.RemoveMedia(update.RemoveMedia)
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
+			return
+		}
+	}
+
+	if update.CleanMedia {
+		err = a.CleanMissingMedia()
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed clean missing album media"})
 		}
 	}
 
 	if update.Cover != "" {
-		setAlbumCover(album.Id, update.Cover, db)
+		err = a.SetCover(update.Cover)
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+			return
+		}
 	}
 
-	ctx.Status(http.StatusOK)
+	if update.NewName != "" {
+		a.Rename(update.NewName)
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album name"})
+			return
+		}
+	}
+
+	if update.RemoveUsers != nil {
+		err = a.RemoveUsers(update.RemoveUsers)
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unshare user(s)"})
+			return
+		}
+	}
+
+	if update.Users != nil {
+		err = a.AddUsers(update.Users)
+		if err != nil {
+			util.DisplayError(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share user(s)"})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"errors": []string{}, "addedCount": addedCount})
 }
 
-func setAlbumCover(albumId, mediaId string, db *dataStore.Weblensdb) error {
-	m := db.GetMedia(mediaId, false)
-	i := (&m).GetImage()
-	prom, err := prominentcolor.Kmeans(i)
-	if err != nil {
-		return err
+func deleteAlbum(ctx *gin.Context) {
+	username := ctx.GetString("username")
+	albumId := ctx.Param("albumId")
+	db := dataStore.NewDB()
+	a, err := db.GetAlbum(albumId)
+
+	// err or user does not have access to this album, claim not found
+	if a == nil || err != nil || !a.CanUserAccess(username) {
+		util.DisplayError(err)
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+		return
 	}
 
-	err = db.SetAlbumCover(albumId, mediaId, prom[0].AsString(), prom[1].AsString())
-	if err != nil {
-		return fmt.Errorf("failed to set album cover")
+	// If the user is not the owner, then unshare themself from it
+	if a.Owner != username {
+		a.RemoveUsers([]string{username})
+		ctx.Status(http.StatusOK)
+		return
 	}
-	return nil
+
+	err = db.DeleteAlbum(albumId)
+	if err != nil {
+		util.DisplayError(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	ctx.Status(http.StatusOK)
 }
