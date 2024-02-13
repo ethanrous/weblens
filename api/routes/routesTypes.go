@@ -3,8 +3,10 @@ package routes
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gorilla/websocket"
 )
 
@@ -45,16 +47,22 @@ type fileShare struct {
 	Users []string `json:"users"`
 }
 
+type newShareInfo struct {
+	FolderId string `json:"folderId"`
+}
+
 // Websocket
 
 type subType string
 type subId string
 
 type wsResponse struct {
-	MessageStatus string `json:"messageStatus"`
-	SubscribeKey  subId  `json:"subscribeKey"`
-	Content       any    `json:"content"`
-	Error         string `json:"error"`
+	MessageStatus string           `json:"messageStatus"`
+	SubscribeKey  subId            `json:"subscribeKey"`
+	Content       []map[string]any `json:"content"`
+	Error         string           `json:"error"`
+
+	broadcastType subType
 }
 
 type wsAction string
@@ -87,9 +95,20 @@ type unsubscribeInfo struct {
 }
 
 func (s subscribeMetadata) Meta(t subType) subMeta {
-	var meta subMeta
-	json.Unmarshal([]byte(s), &meta)
-	return meta
+	var ret subMeta
+	switch t {
+	case SubTask:
+		meta := taskSubMetadata{}
+		err := json.Unmarshal([]byte(s), &meta)
+		if err != nil {
+			util.DisplayError(err)
+			return nil
+		}
+		ret = meta
+	default:
+		return nil
+	}
+	return ret
 }
 
 type taskSubMetadata struct {
@@ -112,14 +131,35 @@ type scanInfo struct {
 }
 
 // Physical type to pass BroadcasterAgent to children
+
+type bufferedCaster struct {
+	bufLimit          int
+	buffer            []wsResponse
+	autoFlush         bool
+	enabled           bool
+	autoFlushInterval time.Duration
+	bufLock           *sync.Mutex
+}
+
 type caster struct {
 	enabled bool
 }
 
-var Caster *caster = &caster{enabled: false}
+// var Caster *caster = &caster{enabled: false}
+var Caster = NewBufferedCaster()
+
+// Broadcaster that is always disabled
+var VoidCaster *caster = &caster{enabled: false}
 
 func (c *caster) Enable() {
 	c.enabled = true
+}
+
+type BufferedBroadcasterAgent interface {
+	BroadcasterAgent
+	DropBuffer()
+	DisableAutoflush()
+	Enable(autoFlush bool)
 }
 
 type BroadcasterAgent interface {

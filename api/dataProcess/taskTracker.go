@@ -51,7 +51,7 @@ func newTask(taskType string, taskMeta any) *Task {
 
 	metaString, err := json.Marshal(taskMeta)
 	util.FailOnError(err, "Failed to marshal task metadata when queuing new task")
-	taskId := util.HashOfString(8, string(metaString))
+	taskId := util.GlobbyHash(8, string(metaString))
 
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()

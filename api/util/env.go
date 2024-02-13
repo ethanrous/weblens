@@ -33,12 +33,25 @@ func GetMediaRoot() string {
 	return envReadString("MEDIA_ROOT_PATH")
 }
 
+func GetImgRecognitionUrl() string {
+	return envReadString("IMG_RECOGNITION_URI")
+}
+
 func IsDevMode() bool {
 	return envReadBool("DEV_MODE")
 }
 
 func ShouldUseRedis() bool {
 	return envReadBool("USE_REDIS")
+}
+
+func GetCacheDir() string {
+	cacheString := envReadString("CACHES_PATH") + "/cache"
+	_, err := os.Stat(cacheString)
+	if err != nil {
+		os.Mkdir(cacheString, 0755)
+	}
+	return cacheString
 }
 
 func GetTakeoutDir() string {

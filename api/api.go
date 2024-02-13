@@ -31,6 +31,7 @@ func main() {
 
 	dataProcess.SetCaster(routes.Caster)
 	dataStore.SetCaster(routes.Caster)
+	dataStore.SetVoidCaster(routes.VoidCaster)
 	sw.Lap("Set casters")
 
 	err := dataStore.ClearTempDir()
@@ -46,13 +47,20 @@ func main() {
 	sw.Lap("Init type map")
 
 	// Load filesystem
+	util.Info.Println("Loading filesystem...")
 	dataStore.FsInit()
 	sw.Lap("FS init")
+	util.Info.Println("Initialized Filesystem")
+
+	dataStore.MediaInit()
+	sw.Lap("Media init")
+	util.Info.Println("Initialized Media Map")
 
 	// The global broadcaster is disbled by default so all of the
 	// initial loading of the filesystem (that was just done above) doesn't
 	// try to broadcast for every file that exists. So it must be enabled here
-	routes.Caster.Enable()
+	routes.Caster.DropBuffer()
+	routes.Caster.Enable(true)
 	sw.Lap("Global caster enabled")
 
 	// 								100MB

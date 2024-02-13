@@ -3,6 +3,7 @@ package dataProcess
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -13,8 +14,18 @@ import (
 
 // Global exiftool
 var gexift *exiftool.Exiftool
+var gexiftBufferSize int64
 
 func InitGExif(bufSize int64) *exiftool.Exiftool {
+	if bufSize <= gexiftBufferSize {
+		return gexift
+	}
+	if gexift != nil {
+		err := gexift.Close()
+		util.DisplayError(err)
+		gexift = nil
+		gexiftBufferSize = 0
+	}
 	gbuf := make([]byte, int(bufSize))
 	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"), exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(gbuf, int(bufSize)))
 	if err != nil {
@@ -38,60 +49,34 @@ func processMediaFile(t *Task) {
 		return
 	}
 
+	d, err := file.IsDisplayable()
+	if err != nil && err != dataStore.ErrNoMedia {
+		t.error(err)
+		return
+	}
+	if !d {
+		return
+	}
+
 	defer m.Clean()
 
-	var parseAnyway bool = false
-	filled, _ := m.IsFilledOut(false)
-	if filled && !parseAnyway {
-		util.Warning.Println("Tried to process media file that already exists in the database")
-		t.success()
-		return
-	}
-
-	m.FileId = file.Id()
-
-	if m.MediaType == nil {
-		err := m.ComputeExif()
-		util.FailOnError(err, "Failed to extract exif data")
-	}
-
-	m.Id()
-
-	// Files that are not "media" (jpeg, png, mov, etc.) should not be stored in the media database
-	if m.MediaType == nil || !m.MediaType.IsDisplayable {
-		caster.PushFileUpdate(file)
-		t.success()
-		return
-	}
-
-	thumb, err := m.GenerateThumbnail()
+	m, err = m.LoadFromFile(file)
 	if err != nil {
 		t.error(err)
 		return
 	}
 
-	if m.BlurHash == "" {
-		m.GenerateBlurhash(thumb)
-	}
-
-	if m.Owner == "" {
-		m.Owner = file.Owner()
-	}
-
-	db := dataStore.NewDB()
-
-	err = db.AddMedia(m)
+	err = m.WriteToDb()
 	if err != nil {
 		t.error(err)
 		return
 	}
-
-	m.SetImported()
-	file.SetMedia(m)
+	if !m.IsImported() {
+		m.SetImported()
+	}
 
 	caster.PushFileUpdate(file)
 	t.success()
-
 }
 
 func scanDirectory(t *Task) {
@@ -125,14 +110,33 @@ func scanDirectory(t *Task) {
 		}
 		if !c.IsDir() {
 			m, err := c.GetMedia()
-			if err != nil && !errors.Is(err, dataStore.ErrNoMedia) {
+			if err != nil && err != dataStore.ErrNoMedia {
 				util.DisplayError(err)
 				continue
 			}
 
-			if !m.IsImported() {
-				mediaToScan = append(mediaToScan, c)
+			d, err := c.IsDisplayable()
+			if err != nil && err != dataStore.ErrNoMedia {
+				util.DisplayError(err)
+				continue
 			}
+
+			if m == nil {
+				mediaToScan = append(mediaToScan, c)
+				continue
+			}
+
+			if !m.IsImported() && d {
+				mediaToScan = append(mediaToScan, c)
+				continue
+			}
+
+			filled, _ := m.IsFilledOut()
+			if !filled && d {
+				mediaToScan = append(mediaToScan, c)
+				continue
+			}
+
 		} else if recursive && c != scanDir {
 			dirsToScan = append(dirsToScan, c)
 		}
@@ -144,7 +148,7 @@ func scanDirectory(t *Task) {
 
 	if len(mediaToScan) == 0 {
 		caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
-		t.success("No media to scan:", scanDir.String())
+		t.success("No media to scan: ", scanDir.String())
 		return
 	}
 
@@ -155,21 +159,13 @@ func scanDirectory(t *Task) {
 
 	sw := util.NewStopwatch(fmt.Sprint("Directory scan ", scanDir.String()))
 
-	for _, file := range mediaToScan {
-		newMedia := &dataStore.Media{}
-		newMedia.FileId = file.Id()
-		file.SetMedia(newMedia)
-	}
-
-	sw.Lap("Loaded medias")
-
 	wq := NewWorkQueue()
 
 	slices.SortFunc(mediaToScan, func(a, b *dataStore.WeblensFile) int { return strings.Compare(a.Filename(), b.Filename()) })
 
 	for _, file := range mediaToScan {
 		m, err := file.GetMedia()
-		if err != nil {
+		if err != nil && err != dataStore.ErrNoMedia {
 			util.DisplayError(err)
 			continue
 		}
@@ -180,6 +176,9 @@ func scanDirectory(t *Task) {
 
 	wq.SignalAllQueued()
 	wq.Wait(true) // Park this thread and wait for the media to finish computing
+
+	runtime.GC()
+	util.PrintMemUsage("After directory scan")
 
 	sw.Lap("All tasks finished")
 	sw.Stop()

@@ -2,17 +2,17 @@ import { Box, Button, Checkbox, ScrollArea, Space, Text, TextInput } from "@mant
 import { useContext, useEffect, useMemo, useState } from "react"
 import { userContext } from "../../Context"
 import HeaderBar from "../../components/HeaderBar"
-import { clearCache, adminCreateUser } from "../../api/ApiFetch"
+import { clearCache, adminCreateUser, cleanMedias } from "../../api/ApiFetch"
 import { ActivateUser, DeleteUser, GetUsersInfo } from "../../api/UserApi"
 import { notifications } from "@mantine/notifications"
-import { FlexColumnBox, FlexRowBox } from "../FileBrowser/FilebrowserStyles"
+import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles"
 
 function CreateUserBox({ setAllUsersInfo, authHeader }) {
     const [userInput, setUserInput] = useState("")
     const [passInput, setPassInput] = useState("")
     const [makeAdmin, setMakeAdmin] = useState(false)
     return (
-        <FlexColumnBox
+        <ColumnBox
             style={{ backgroundColor: "#333333", padding: "20px", height: 'max-content', width: '300px' }}
         >
             <TextInput
@@ -35,7 +35,7 @@ function CreateUserBox({ setAllUsersInfo, authHeader }) {
             <Button color="#4444ff" onClick={() => adminCreateUser(userInput, passInput, makeAdmin, authHeader).then(() => { GetUsersInfo(setAllUsersInfo, authHeader); setUserInput(""); setPassInput("") })}>
                 Create User
             </Button>
-        </FlexColumnBox>
+        </ColumnBox>
     )
 }
 
@@ -47,15 +47,15 @@ function UsersBox({ allUsersInfo, setAllUsersInfo, authHeader }) {
 
         const usersList = allUsersInfo.map((val) => {
             return (
-                <FlexRowBox key={val.Username} style={{ width: '95%', height: '50px', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#4444ff', borderRadius: '6px', padding: 5, margin: 10 }}>
-                    <FlexColumnBox style={{justifyContent: 'center', width: 'max-content', paddingLeft: '20px'}}>
+                <RowBox key={val.Username} style={{ width: '95%', height: '50px', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#4444ff', borderRadius: '6px', padding: 5, margin: 10 }}>
+                    <ColumnBox style={{ justifyContent: 'center', width: 'max-content', paddingLeft: '20px' }}>
                         <Text c={'white'}>
                             {val.Username}
                         </Text>
                         {val.Admin && (
                             <Text>Admin</Text>
                         )}
-                    </FlexColumnBox>
+                    </ColumnBox>
 
                     {val.Activated === false && (
                         <Button onClick={() => { ActivateUser(val.Username, authHeader).then(() => GetUsersInfo(setAllUsersInfo, authHeader)) }}>
@@ -65,14 +65,14 @@ function UsersBox({ allUsersInfo, setAllUsersInfo, authHeader }) {
                     <Button color="red" onClick={() => { DeleteUser(val.Username, authHeader).then(() => GetUsersInfo(setAllUsersInfo, authHeader)) }}>
                         Delete
                     </Button>
-                </FlexRowBox>
+                </RowBox>
             )
         })
         return usersList
     }, [allUsersInfo, authHeader, setAllUsersInfo])
 
     return (
-        <FlexColumnBox
+        <ColumnBox
             style={{ padding: "10px", backgroundColor: "#333333", height: '350px', width: '450px' }}>
             <Text size={'20px'} fw={800} c={'white'} >
                 Users
@@ -81,7 +81,7 @@ function UsersBox({ allUsersInfo, setAllUsersInfo, authHeader }) {
             <ScrollArea w={'100%'} type="never" maw={'450px'}>
                 {usersList}
             </ScrollArea>
-        </FlexColumnBox>
+        </ColumnBox>
     )
 }
 
@@ -98,17 +98,22 @@ const Admin = () => {
     return (
         <Box>
             <HeaderBar searchContent="" dispatch={() => { }} page={"admin"} searchRef={null} loading={false} progress={0} />
-            <FlexColumnBox style={{ height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
-                <FlexRowBox style={{justifyContent: 'center', height: 'max-content'}}>
+            <ColumnBox style={{ height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+                <RowBox style={{ justifyContent: 'center', height: 'max-content' }}>
                     <CreateUserBox setAllUsersInfo={setAllUsersInfo} authHeader={authHeader} />
                     <Space w={25} />
                     <UsersBox allUsersInfo={allUsersInfo} setAllUsersInfo={setAllUsersInfo} authHeader={authHeader} />
-                </FlexRowBox>
+                </RowBox>
                 <Space h={25} />
-                <Button color="red" onClick={() => { clearCache(authHeader).then(() => notifications.show({ message: "Cache cleared" })) }} >
-                    Clear Cache
-                </Button>
-            </FlexColumnBox >
+                <RowBox style={{ height: 'max-content', justifyContent: 'center' }}>
+                    <Button style={{ margin: 10 }} onClick={() => { cleanMedias(authHeader).then(() => notifications.show({ message: "Removed medias" })) }} >
+                        Clean Orphaned Media
+                    </Button>
+                    <Button color="red" style={{ margin: 10 }} onClick={() => { clearCache(authHeader).then(() => notifications.show({ message: "Cache cleared" })) }} >
+                        Clear Cache
+                    </Button>
+                </RowBox>
+            </ColumnBox >
         </Box>
     )
 }

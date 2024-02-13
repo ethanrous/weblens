@@ -1,9 +1,7 @@
 import API_ENDPOINT from "./ApiEndpoint"
 import axios, { AxiosError } from 'axios'
-import { useUploadStatus } from "../components/UploadStatus";
 import { dispatchSync } from "./Websocket";
 import { notifications } from "@mantine/notifications";
-import { dateFromFileData } from "../util";
 
 export type fileUploadMetadata = {
     file: File
@@ -46,21 +44,11 @@ PromiseQueue.prototype.run = async function () {
 }
 
 async function readFile(file) {
-    return new Promise<string>(function (resolve, reject) {
+    return new Promise<any>(function (resolve, reject) {
         let fr = new FileReader();
-
-        fr.onload = function () {
-            resolve(fr.result.toString())
-            // resolve({ name: file.name, item64: fr.result.toString() });
-        };
-
-        fr.onerror = () => {
-            reject(fr)
-        }
-
-        if (file) {
-            fr.readAsDataURL(file);
-        }
+        fr.onload = () => {resolve(fr.result)}
+        fr.onerror = () => {reject(fr)}
+        if (file) {fr.readAsArrayBuffer(file)}
     })
 }
 
@@ -68,36 +56,37 @@ const UPLOAD_CHUNK_SIZE: number = 51200000
 
 async function uploadChunk(fileData: File, low: number, high: number, uploadId: string, authHeader, onProgress, onFinish) {
     let chunk = await readFile(fileData.slice(low, high))
-    chunk = chunk.substring(chunk.indexOf(',') + 1, chunk.length)
     const url = `${API_ENDPOINT}/upload/${uploadId}`
 
-    const start = Date.now() / 1000
-    let res = await axios.put(url, chunk, {
-        headers: { "Authorization": authHeader.Authorization, "Content-Range": `${low}-${high - 1}/${fileData.size}` },
-        // onUploadProgress: (e) => {console.log(e.progress)}
+    const start = Date.now()
+    await axios.put(url, chunk, {
+        headers: { "Authorization": authHeader.Authorization, "Content-Range": `${low}-${high - 1}/${fileData.size}`, "Content-Type": "application/octet-stream" },
+        onUploadProgress: (e) => {onProgress(e.bytes, e.rate)}
     })
-    // .catch(r => {notifications.show({title: `Failed to upload chunk of ${fileData.name}`, message: String(r), color: 'red'}); return String(r)})
-    const end = Date.now() / 1000
-
-    // Convert from base64 size to byte size
-    let speed = ((UPLOAD_CHUNK_SIZE / 6) * 8) / (end - start)
-    onProgress(high - low, fileData.size, speed)
+    const end = Date.now()
+    onFinish(high - low, (high - low) / ((end - start) / 1000))
 
     return null
 }
 
-async function queueChunks(uploadMeta: fileUploadMetadata, authHeader, uploadDispatch, taskQueue) {
+async function queueChunks(uploadMeta: fileUploadMetadata, isPublic: boolean, shareId: string, authHeader, uploadDispatch, taskQueue) {
     const file: File = uploadMeta.file
     const key: string = uploadMeta.parentId + uploadMeta.file.name
 
-    const url = new URL(`${API_ENDPOINT}/upload`)
+    let url
+    if (isPublic) {
+        url = new URL(`${API_ENDPOINT}/public/upload`)
+        url.searchParams.append("shareId", shareId)
+        url.searchParams.append("parentFolderId", uploadMeta.parentId)
+    } else {
+        url = new URL(`${API_ENDPOINT}/upload`)
+        url.searchParams.append("parentFolderId", uploadMeta.parentId)
+    }
     url.searchParams.append("filename", uploadMeta.file.name)
-    url.searchParams.append("parentFolderId", uploadMeta.parentId)
     let res = await axios.post(url.toString(), null, {headers: authHeader}).catch((r: AxiosError) => r.response)
-    console.log(res)
 
-    const onFinish = () => uploadDispatch({ type: "finished", key: key })
-    const onProgress = (bytesWritten, totalBytes, MBpS) => { uploadDispatch({ type: "update_progress", key: key, progress: bytesWritten, speed: Math.trunc(MBpS) }) }
+    const onFinish = (chunkSize, rate) => uploadDispatch({ type: "finished_chunk", key: key, chunkSize: chunkSize, speed: rate })
+    const onProgress = (bytesWritten, MBpS) => { uploadDispatch({ type: "update_progress", key: key, progress: bytesWritten, speed: Math.trunc(MBpS) }) }
 
     if (res.status === 409) {
         notifications.show({title: "Failed to upload", message: `${file.name} already exists`, color: 'red'})
@@ -106,7 +95,6 @@ async function queueChunks(uploadMeta: fileUploadMetadata, authHeader, uploadDis
         notifications.show({title: "Failed to upload", message: res.statusText, color: 'red'})
         return
     }
-    console.log(res)
     const uploadId = res.data.uploadId
 
     let chunkTasks = []
@@ -121,7 +109,11 @@ async function queueChunks(uploadMeta: fileUploadMetadata, authHeader, uploadDis
     taskQueue.queueMore(chunkTasks)
 }
 
-async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, uploadDispatch, dispatch, wsSend: (action: string, content: any) => void) {
+async function Upload(filesMeta: fileUploadMetadata[], isPublic: boolean, shareId: string, rootFolder, authHeader, uploadDispatch, wsSend: (action: string, content: any) => void) {
+    if (isPublic && !shareId) {
+        throw new Error("Cannot do public upload without shareId");
+    }
+
     let tlds: string[] = []
     let tlf = false
 
@@ -141,7 +133,7 @@ async function Upload(filesMeta: fileUploadMetadata[], rootFolder, authHeader, u
         if (meta.isDir) {
             continue
         }
-        await queueChunks(meta, authHeader, uploadDispatch, taskQueue)
+        await queueChunks(meta, isPublic, shareId, authHeader, uploadDispatch, taskQueue)
     }
     await taskQueue.run()
 

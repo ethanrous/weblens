@@ -84,7 +84,7 @@ func mainInsert(f, parent *WeblensFile) error {
 	return nil
 }
 
-func FsTreeRemove(f *WeblensFile) (err error) {
+func FsTreeRemove(f *WeblensFile, casters ...BroadcasterAgent) (err error) {
 	fsTreeLock.Lock()
 	if fileTree[f.Id()] == nil {
 		fsTreeLock.Unlock()
@@ -99,18 +99,25 @@ func FsTreeRemove(f *WeblensFile) (err error) {
 		util.Each(f.GetTasks(), func(t Task) { t.Cancel() })
 
 		displayable, err := file.IsDisplayable()
-		if displayable && err == nil {
-			err = removeMediaByFile(file)
+		if err != nil && err != ErrDirNotAllowed && err != ErrNoMedia {
+			return
+		}
+
+		if displayable {
+			var m *Media
+			m, err = file.GetMedia()
 			if err != nil {
 				return
 			}
-		} else if errors.Is(err, ErrDirNotAllowed) {
+			if m != nil {
+				m.RemoveFile(file.Id())
+				file.ClearMedia()
+			}
+		} else if err == ErrDirNotAllowed {
 			err = fddb.deleteFolder(file)
 			if err != nil {
 				return
 			}
-		} else if err != nil && err != ErrNoMedia {
-			return
 		}
 
 		fsTreeLock.Lock()
@@ -123,10 +130,8 @@ func FsTreeRemove(f *WeblensFile) (err error) {
 		return
 	}
 
-	caster.PushFileDelete(f)
-	Resize(f.GetParent())
+	util.Each(casters, func(c BroadcasterAgent) { c.PushFileDelete(f) })
 
-	util.Debug.Println("Removed file", f.String())
 	return
 }
 
@@ -146,7 +151,7 @@ func FsTreeGet(fileId string) (f *WeblensFile) {
 	return
 }
 
-func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool) error {
+func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool, casters ...BroadcasterAgent) error {
 	if !newParent.IsDir() {
 		return errors.New("cannot move file to a non-directory")
 	}
@@ -215,13 +220,23 @@ func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool) e
 		if w.IsDir() {
 			fddb.writeFolder(w)
 		} else {
-			fddb.handleMediaMove(preFile, w)
+			var m *Media
+			m, err = preFile.GetMedia()
+
+			if err != nil && err != ErrNoMedia {
+				util.DisplayError(err)
+				return
+			} else if err != ErrNoMedia {
+				// Add new file first so the media doesn't get deleted if there is only 1 file
+				m.AddFile(w)
+				m.RemoveFile(preFile.Id())
+			}
 		}
 
-		caster.PushFileMove(preFile, w)
+		util.Each(casters, func(c BroadcasterAgent) { c.PushFileMove(preFile, w) })
 	})
 
-	resizeMultiple(oldParent, f.GetParent())
+	resizeMultiple(oldParent, f.GetParent(), casters...)
 
 	return nil
 }
@@ -229,7 +244,7 @@ func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool) e
 func wfInitFromFolderData(fd folderData) *WeblensFile {
 	f := WeblensFile{}
 	f.id = fd.FolderId
-	f.absolutePath = GuaranteeAbsolutePath(fd.RelPath)
+	f.absolutePath = filepath.Join(mediaRoot.absolutePath, fd.RelPath)
 
 	f.childLock = &sync.Mutex{}
 	f.tasksLock = &sync.Mutex{}
@@ -244,23 +259,23 @@ func GetTreeSize() int {
 	return len(fileTree)
 }
 
-func Resize(f *WeblensFile) {
+func Resize(f *WeblensFile, c ...BroadcasterAgent) {
 	f.BubbleMap(func(w *WeblensFile) {
-		util.Debug.Println("RESIZING", w.String())
-		w.recompSize()
+		w.recompSize(c...)
 	})
 }
 
-func resizeMultiple(old, new *WeblensFile) {
+func resizeMultiple(old, new *WeblensFile, c ...BroadcasterAgent) {
+	// Check if either of the files are a parent of the other
 	oldIsParent := strings.HasPrefix(old.String(), new.String())
 	newIsParent := strings.HasPrefix(new.String(), old.String())
 
 	if oldIsParent || !(oldIsParent || newIsParent) {
-		Resize(old)
+		Resize(old, c...)
 	}
 
 	if newIsParent || !(oldIsParent || newIsParent) {
-		Resize(new)
+		Resize(new, c...)
 	}
 
 }

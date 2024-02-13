@@ -1,9 +1,12 @@
-import { Box, useTheme, Breadcrumbs } from '@mui/joy'
-import { memo, useContext, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import { Box, Text, Tooltip } from '@mantine/core'
+import { IconChevronRight } from '@tabler/icons-react'
+
+import { memo, useContext, useMemo, useState } from 'react'
 import { fileData, getBlankFile } from '../types/Types'
 import { userContext } from '../Context'
-import { useNavigate } from 'react-router-dom'
-import { Text, Tooltip } from '@mantine/core'
+import { RowBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 type breadcrumbProps = {
     label: string
@@ -29,7 +32,7 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
             setSuccess(true)
             setTimeout(() => setSuccess(false), 1000)
         }
-    } else { tooltipText = `Go to ${label}` }
+    } else { tooltipText = `${dragging === 1 ? "Move to" : "Go to"} ${label}` }
     let outline
     let bgColor
     if (success) {
@@ -40,10 +43,10 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
         outline = '1px solid #aaaaaa'
         bgColor = "rgba(30, 30, 30, 0.5)"
     }
-    else if (dragging && hovering) {
+    else if (dragging === 1 && hovering) {
         outline = '1px solid #ffffff'
         bgColor = "rgb(30, 30, 90)"
-    } else if (dragging) {
+    } else if (dragging === 1) {
         outline = '1px solid #aaaaaa'
         bgColor = "transparent"
     } else {
@@ -53,15 +56,12 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
     return (
         <Tooltip label={tooltipText} >
             <Box
-                height={"max-content"}
-                flexShrink={1}
-                minWidth={0}
                 onMouseOver={() => setHovering(true)}
                 onMouseLeave={() => setHovering(false)}
                 onMouseUp={onMouseUp}
                 onClick={onClick}
-                padding={1}
-                sx={{ ...sx, cursor: "pointer", outline: outline, borderRadius: "5px", backgroundColor: bgColor }}
+
+                style={{ height: 'max-content', cursor: 'pointer', outline: outline, borderRadius: 4, backgroundColor: bgColor, padding: 2, margin: 8 }}
             >
                 <Text lineClamp={1} c={'white'} truncate='end' style={{ fontSize: `${fontSize}px`, lineHeight: "1.2", userSelect: "none", width: '100%' }}>{label}</Text>
             </Box>
@@ -69,20 +69,23 @@ export const StyledBreadcrumb = ({ label, onClick, tooltipText, doCopy, dragging
     )
 }
 
-const StyledLoaf = ({ ...props }) => {
-    const theme = useTheme()
+// The crumb concatenator, the Crumbcatenator
+const Crumbcatenator = ({ crumb, last }) => {
     return (
-        <Breadcrumbs
-            {...props}
-            size='lg'
-            sx={{
-                // width: "100%",
-                borderRadius: "3px",
-                ".MuiBreadcrumbs-separator": {
-                    color: theme.colorSchemes.dark.palette.text.primary
-                },
-            }}
-        />
+        <RowBox style={{ width: 'max-content' }}>
+            {crumb}
+            {!last && (
+                <IconChevronRight />
+            )}
+        </RowBox>
+    )
+}
+
+const StyledLoaf = ({ crumbs }) => {
+    return (
+        <RowBox>
+            {crumbs.map((c, i) => <Crumbcatenator key={i} crumb={c} last={i === crumbs.length - 1} />)}
+        </RowBox>
     )
 }
 
@@ -122,9 +125,8 @@ const Crumbs = memo(({ finalFile, parents, moveSelectedTo, navOnLast, dragging }
         )
 
         return (
-            <StyledLoaf separator={" › "} >
-                {crumbs}
-            </StyledLoaf>
+            <StyledLoaf crumbs={crumbs} />
+            // <StyledLoaf crumbs={crumbs} separator={" › "} />
         )
     }, [parents, finalFile, moveSelectedTo, navOnLast, dragging, navigate, userInfo])
 

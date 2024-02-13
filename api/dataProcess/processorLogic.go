@@ -2,15 +2,14 @@ package dataProcess
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/saracen/fastzip"
@@ -24,22 +23,20 @@ func ScanFile(t *Task) {
 		t.error(err)
 	}
 	if !displayable {
-		err = errors.New(fmt.Sprint("attempt to process non-displayable file", meta.File.String()))
+		err = errors.New(fmt.Sprintln("attempt to process non-displayable file", meta.File.String()))
 		t.error(err)
+		return
 	}
 
 	if meta.PartialMedia == nil {
-		m, err := meta.File.GetMedia()
-		if err != nil {
-			t.error(err)
-			return
-		}
-		meta.PartialMedia = m
+		meta.PartialMedia = &dataStore.Media{}
 	}
 
 	t.SetErrorCleanup(func() {
 		media, err := meta.File.GetMedia()
-		util.DisplayError(err)
+		if err != nil && err != dataStore.ErrNoMedia {
+			util.DisplayError(err)
+		}
 		if media != nil {
 			media.Clean()
 		}
@@ -47,6 +44,7 @@ func ScanFile(t *Task) {
 		meta.File.ClearMedia()
 	})
 
+	t.metadata = meta
 	processMediaFile(t)
 }
 
@@ -71,7 +69,9 @@ func createZipFromPaths(t *Task) {
 		},
 	)
 
-	takeoutHash := util.HashOfString(8, strings.Join(util.MapToKeys(filesInfoMap), ""))
+	paths := util.MapToKeys(filesInfoMap)
+	slices.Sort(paths)
+	takeoutHash := util.GlobbyHash(8, strings.Join(paths, ""))
 	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash)
 	if err != nil {
 		t.error(err)
@@ -154,20 +154,6 @@ func moveFile(t *Task) {
 
 }
 
-func preloadThumbss(t *Task) {
-	meta := t.metadata.(PreloadMetaMeta)
-	paths := util.Map(meta.Files, func(f *dataStore.WeblensFile) string { return f.String() })
-
-	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"))
-	if err != nil {
-		util.DisplayError(err)
-		t.err = err
-	}
-
-	et.ExtractMetadata(paths...)
-
-}
-
 func parseRangeHeader(contentRange string) (min, max, total int, err error) {
 	rangeAndSize := strings.Split(contentRange, "/")
 	rangeParts := strings.Split(rangeAndSize[0], "-")
@@ -210,6 +196,11 @@ func writeToFile(t *Task) {
 		return
 	}
 
+	// We have now really created the file, if this task fails, we will remove it
+	t.SetErrorCleanup(func() {
+		dataStore.FsTreeRemove(file)
+	})
+
 	file.AddTask(t)
 
 	var buffer []bufferChunk
@@ -217,7 +208,7 @@ func writeToFile(t *Task) {
 
 WriterLoop:
 	for {
-		t.setTimeout(time.Now().Add(time.Second * 60))
+		t.setTimeout(time.Now().Add(time.Second * 30))
 		select {
 		case signal := <-t.signalChan: // Listen for cancellation
 			if signal == 1 {
@@ -230,17 +221,16 @@ WriterLoop:
 				return
 			}
 
-			chunk64 := string(chunk.Chunk)
-			index := strings.Index(chunk64, ",")
-			chunk64 = chunk64[index+1:]
+			file.WriteAt(chunk.Chunk, int64(min))
 
-			fileBytes, err := base64.StdEncoding.DecodeString(chunk64)
-			if err != nil {
-				t.error(err)
-				return
+			// Uploading an entire 100 byte file would have the content range header
+			// 0-99/100, so max is 99 and total is 100, so we -1.
+			if max == total-1 {
+				break WriterLoop
 			}
+			continue
 
-			currentBuf := bufferChunk{lowByte: min, highByte: max, chunkBytes: fileBytes}
+			currentBuf := bufferChunk{lowByte: min, highByte: max, chunkBytes: chunk.Chunk}
 
 			if nextByte != currentBuf.lowByte {
 				util.Debug.Println("Buffering", currentBuf.lowByte, "-", currentBuf.highByte)

@@ -3,7 +3,7 @@ import { AlbumData, MediaData, MediaStateType } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
 export async function FetchData(mediaState: MediaStateType, dispatch, authHeader) {
-    if (!authHeader || authHeader.Authorization === "") { dispatch({ type: "set_loading", loading: false }); return }
+    if (!authHeader || authHeader.Authorization === "") { return }
 
     try {
         const url = new URL(`${API_ENDPOINT}/media`)
@@ -36,7 +36,10 @@ export async function CreateAlbum(albumName, authHeader) {
 export async function GetAlbums(authHeader): Promise<AlbumData[]> {
     const url = new URL(`${API_ENDPOINT}/albums`)
 
-    const res = await fetch(url.toString(), { headers: authHeader })
+    const res = await fetch(url.toString(), { headers: authHeader }).catch(r => console.error(r))
+    if (!res) {
+        return
+    }
 
     if (res.status === 200) {
         return (await res.json()).albums

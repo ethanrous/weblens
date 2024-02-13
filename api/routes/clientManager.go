@@ -52,7 +52,25 @@ func (cm clientManager) ClientDisconnect(c *Client) {
 	cm.clientMu.Unlock()
 }
 
-func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, messageStatus string, content any) {
+func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client) {
+
+	switch st {
+	case SubFolder:
+		{
+			clients = (*cm.folderSubs)[key]
+		}
+	case SubTask:
+		{
+			clients = (*cm.taskSubs)[key]
+		}
+	default:
+		util.Error.Println("Unknown subscriber type", st)
+	}
+
+	return
+}
+
+func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, messageStatus string, content []map[string]any) {
 	if broadcastKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return
@@ -60,28 +78,16 @@ func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, mes
 	defer util.RecoverPanic("Panic caught while broadcasting: %v")
 
 	msg := wsResponse{MessageStatus: messageStatus, SubscribeKey: broadcastKey, Content: content}
-	dest := subscription{Type: subType(broadcastType), Key: subId(broadcastKey)}
 
-	var allClients []*Client
+	clients := cmInstance.GetSubscribers(subType(broadcastType), subId(broadcastKey))
 
-	switch dest.Type {
-	case SubFolder:
-		{
-			allClients = (*cm.folderSubs)[dest.Key]
-		}
-	case SubTask:
-		{
-			allClients = (*cm.taskSubs)[dest.Key]
-		}
-	}
-
-	if len(allClients) != 0 {
-		for _, c := range allClients {
+	if len(clients) != 0 {
+		for _, c := range clients {
 			c._writeToClient(msg)
 		}
 	} else {
-		// Although "debug" is our verbose mode, this one is really annoying, so it's disabled unless needed.
-		util.Debug.Println("No subscribers to", dest.Type, dest.Key)
+		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.
+		// util.Debug.Println("No subscribers to", dest.Type, dest.Key)
 	}
 }
 
@@ -158,7 +164,8 @@ func (c caster) PushTaskUpdate(taskId, status string, result any) {
 	if !c.enabled {
 		return
 	}
-	cmInstance.Broadcast("task", subId(taskId), status, result)
+
+	cmInstance.Broadcast("task", subId(taskId), status, []map[string]any{gin.H{"result": result}})
 }
 
 func (c caster) PushFileCreate(newFile *dataStore.WeblensFile) {
@@ -171,11 +178,15 @@ func (c caster) PushFileCreate(newFile *dataStore.WeblensFile) {
 		return
 	}
 
-	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", map[string]any{"fileInfo": fileInfo})
+	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", []map[string]any{gin.H{"fileInfo": fileInfo}})
 }
 
 func (c caster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
 	if !c.enabled {
+		return
+	}
+
+	if dataStore.IsSystemDir(updatedFile) {
 		return
 	}
 
@@ -185,12 +196,12 @@ func (c caster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
 		return
 	}
 
-	cmInstance.Broadcast("folder", subId(updatedFile.Id()), "file_updated", gin.H{"fileInfo": fileInfo})
+	cmInstance.Broadcast("folder", subId(updatedFile.Id()), "file_updated", []map[string]any{gin.H{"fileInfo": fileInfo}})
 
-	if updatedFile.GetParent().Id() == "0" {
+	if dataStore.IsSystemDir(updatedFile.GetParent()) {
 		return
 	}
-	cmInstance.Broadcast("folder", subId(updatedFile.GetParent().Id()), "file_updated", gin.H{"fileInfo": fileInfo})
+	cmInstance.Broadcast("folder", subId(updatedFile.GetParent().Id()), "file_updated", []map[string]any{gin.H{"fileInfo": fileInfo}})
 }
 
 func (c caster) PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *dataStore.WeblensFile) {
@@ -212,6 +223,6 @@ func (c caster) PushFileDelete(deletedFile *dataStore.WeblensFile) {
 		return
 	}
 
-	content := gin.H{"fileId": deletedFile.Id()}
+	content := []map[string]any{gin.H{"fileId": deletedFile.Id()}}
 	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
 }

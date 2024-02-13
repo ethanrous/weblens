@@ -2,12 +2,12 @@ package dataStore
 
 import (
 	"errors"
-	"image"
 	"sync"
 	"time"
 
 	"github.com/barasher/go-exiftool"
 	"github.com/go-redis/redis"
+	"github.com/h2non/bimg"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -26,7 +26,6 @@ type WeblensFile struct {
 	guests       []string
 	size         int64
 	isDir        *bool
-	err          error
 	media        *Media
 	parent       *WeblensFile
 
@@ -35,28 +34,44 @@ type WeblensFile struct {
 
 	tasksLock  *sync.Mutex
 	tasksUsing []Task
+
+	shares []shareData
 }
 
 type Media struct {
-	MediaId     string               `bson:"fileHash" json:"fileHash"`
-	FileId      string               `bson:"fileId" json:"fileId"`
-	MediaType   *mediaType           `bson:"mediaType" json:"mediaType"`
-	BlurHash    string               `bson:"blurHash" json:"blurHash"`
-	Thumbnail64 string               `bson:"thumbnail" json:"thumbnail64"`
-	MediaWidth  int                  `bson:"width" json:"mediaWidth"`
-	MediaHeight int                  `bson:"height" json:"mediaHeight"`
-	ThumbWidth  int                  `bson:"thumbWidth" json:"thumbWidth"`
-	ThumbHeight int                  `bson:"thumbHeight" json:"thumbHeight"`
-	CreateDate  time.Time            `bson:"createDate" json:"createDate"`
-	Owner       string               `bson:"owner" json:"owner"`
-	SharedWith  []primitive.ObjectID `bson:"sharedWith" json:"sharedWith"`
+	MediaId          string               `bson:"fileHash" json:"fileHash"`
+	FileIds          []string             `bson:"fileIds" json:"fileIds"`
+	ThumbnailCacheId string               `bson:"thumbnailCacheId" json:"thumbnailCacheId"`
+	FullresCacheId   string               `bson:"fullresCacheId" json:"fullresCacheId"`
+	BlurHash         string               `bson:"blurHash" json:"blurHash"`
+	Owner            string               `bson:"owner" json:"owner"`
+	MediaWidth       int                  `bson:"width" json:"mediaWidth"`
+	MediaHeight      int                  `bson:"height" json:"mediaHeight"`
+	ThumbWidth       int                  `bson:"thumbWidth" json:"thumbWidth"`
+	ThumbHeight      int                  `bson:"thumbHeight" json:"thumbHeight"`
+	ThumbLength      int                  `bson:"thumbLength" json:"thumbLength"`
+	FullresLength    int                  `bson:"fullresLength" json:"fullresLength"`
+	CreateDate       time.Time            `bson:"createDate" json:"createDate"`
+	MediaType        *mediaType           `bson:"mediaType" json:"mediaType"`
+	SharedWith       []primitive.ObjectID `bson:"sharedWith" json:"sharedWith"`
+	RecognitionTags  []string             `bson:"recognitionTags" json:"recognitionTags"`
 
-	image      image.Image
-	rawExif    map[string]any
-	thumbBytes []byte
-	rotate     string
-	imported   bool
+	imported bool
+	rotate   string
+	imgBytes []byte
+	image    *bimg.Image
+	// thumb            image.Image
+	rawExif          map[string]any
+	thumbCacheFile   *WeblensFile
+	fullresCacheFile *WeblensFile
 }
+
+type quality string
+
+const (
+	Thumbnail quality = "thumbnail"
+	Fullres   quality = "fullres"
+)
 
 var gexift *exiftool.Exiftool
 
@@ -88,23 +103,32 @@ type FileInfo struct {
 	// txt, doc etc.
 	Displayable bool `json:"displayable"`
 
-	IsDir            bool      `json:"isDir"`
-	Modifiable       bool      `json:"modifiable"`
-	Size             int64     `json:"size"`
-	ModTime          time.Time `json:"modTime"`
-	Filename         string    `json:"filename"`
-	ParentFolderId   string    `json:"parentFolderId"`
-	MediaData        *Media    `json:"mediaData"`
-	FileFriendlyName string    `json:"fileFriendlyName"`
-	Owner            string    `json:"owner"`
+	IsDir            bool        `json:"isDir"`
+	Modifiable       bool        `json:"modifiable"`
+	Size             int64       `json:"size"`
+	ModTime          time.Time   `json:"modTime"`
+	Filename         string      `json:"filename"`
+	ParentFolderId   string      `json:"parentFolderId"`
+	MediaData        *Media      `json:"mediaData"`
+	FileFriendlyName string      `json:"fileFriendlyName"`
+	Owner            string      `json:"owner"`
+	Shares           []shareData `json:"shares"`
 }
 
 type folderData struct {
-	FolderId       string   `bson:"_id" json:"folderId"`
-	ParentFolderId string   `bson:"parentFolderId" json:"parentFolderId"`
-	RelPath        string   `bson:"relPath" json:"relPath"`
-	SharedWith     []string `bson:"sharedWith" json:"sharedWith"`
-	// Owner string `bson:"owner" json:"owner"`
+	FolderId       string      `bson:"_id" json:"folderId"`
+	ParentFolderId string      `bson:"parentFolderId" json:"parentFolderId"`
+	RelPath        string      `bson:"relPath" json:"relPath"`
+	SharedWith     []string    `bson:"sharedWith" json:"sharedWith"`
+	Shares         []shareData `bson:"shares"`
+}
+
+type shareData struct {
+	ShareId   string `bson:"shareId"`
+	ShareName string `bson:"shareName"`
+	Public    bool
+	Wormhole  bool
+	Expires   time.Time
 }
 
 type AlbumData struct {
@@ -141,6 +165,8 @@ type TaskerAgent interface {
 	//
 	//	- `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
 	ScanDirectory(directory *WeblensFile, recursive, deep bool) Task
+
+	ScanFile(file *WeblensFile, m *Media) Task
 }
 
 type BroadcasterAgent interface {
@@ -151,17 +177,28 @@ type BroadcasterAgent interface {
 }
 
 var tasker TaskerAgent
-var caster BroadcasterAgent
+var globalCaster BroadcasterAgent
+var voidCaster BroadcasterAgent
 
 func SetTasker(d TaskerAgent) {
 	tasker = d
 }
 
 func SetCaster(b BroadcasterAgent) {
-	caster = b
+	globalCaster = b
+}
+
+func SetVoidCaster(b BroadcasterAgent) {
+	voidCaster = b
 }
 
 // Errors
 type alreadyExists error
 
 var ErrNotUsingRedis = errors.New("not using redis")
+var ErrDirNotAllowed = errors.New("directory not allowed")
+var ErrFileAlreadyExists = errors.New("trying create file that already exists")
+var ErrNoFile = errors.New("no file found")
+var ErrNoMedia = errors.New("no media found")
+var ErrNoShare = errors.New("no share found")
+var ErrUnsupportedImgType error = errors.New("image type is not supported by weblens")

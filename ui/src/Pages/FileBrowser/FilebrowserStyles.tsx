@@ -1,12 +1,15 @@
-import { Box, Card, MantineStyleProp, AspectRatio, Paper, Text } from '@mantine/core'
-import { Dispatch, useContext, useMemo, useRef, useState } from "react"
-import { HandleDrag } from "./FileBrowserLogic"
-import { fileData } from "../../types/Types"
+import { Box, Card, MantineStyleProp, AspectRatio, Paper, Text, Tooltip, ActionIcon, Space } from '@mantine/core'
+import { useCallback, useContext, useMemo, useRef, useState } from "react"
+import { FilebrowserDragOver, HandleDrop } from "./FileBrowserLogic"
+import { FileBrowserDispatch, fileData } from "../../types/Types"
 import { useNavigate } from "react-router-dom"
-import { IconFolder, IconFolderCancel } from "@tabler/icons-react"
+import { IconFolder, IconFolderCancel, IconRefresh } from "@tabler/icons-react"
 import { userContext } from '../../Context'
+import '../../components/style.css'
+import './style.css'
 
-export const FlexColumnBox = ({ children, style, reff, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur }: { children?, style?: MantineStyleProp, reff?, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?}) => {
+
+export const ColumnBox = ({ children, style, reff, className, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur, onDragOver, onDrop }: { children?, style?: MantineStyleProp, reff?, className?: string, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?, onDragOver?, onDrop?}) => {
     return (
         <Box
             ref={reff}
@@ -17,20 +20,23 @@ export const FlexColumnBox = ({ children, style, reff, onClick, onMouseOver, onM
             onMouseLeave={onMouseLeave}
             onContextMenu={onContextMenu}
             onBlur={onBlur}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
             style={{
                 display: "flex",
                 height: "100%",
                 width: "100%",
                 flexDirection: "column",
                 alignItems: 'center',
+                // justifyContent: 'center',
                 ...style,
             }}
+            className={className}
         />
     )
 }
 
-
-export const FlexRowBox = ({ children, style, onClick, onBlur }: { children, style?: MantineStyleProp, onClick?, onBlur?}) => {
+export const RowBox = ({ children, style, onClick, onBlur }: { children, style?: MantineStyleProp, onClick?, onBlur?}) => {
     return (
         <Box
             children={children}
@@ -48,84 +54,127 @@ export const FlexRowBox = ({ children, style, onClick, onBlur }: { children, sty
     )
 }
 
-type DirViewWrapperProps = {
-    folderId: string
-    folderName: string
-    dragging: number
-    hoverTarget: string
-    dispatch: Dispatch<any>
-    onDrop: (e: any) => void
-    onMouseOver: (e: any) => void
-    children: JSX.Element[]
-}
 
-export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDrop, onMouseOver, children }: DirViewWrapperProps) => {
-    const {userInfo} = useContext(userContext)
-
-    const dropAllowed = useMemo(() => {
-        return !(folderId === "shared" || folderId === userInfo.trashFolderId)
-    }, [folderId])
-
-    const blockFolderRef: React.Ref<HTMLDivElement> = useRef()
-
+const Dropspot = ({ onDrop, dropspotTitle, dragging, dropAllowed, handleDrag }: { onDrop, dropspotTitle, dragging, dropAllowed, handleDrag: React.DragEventHandler<HTMLDivElement> }) => {
     return (
         <Box
-            display={'flex'} pt={"80px"}
-            onDragOver={event => { HandleDrag(event, dispatch, dragging) }}
-            onDrop={(e) => {e.preventDefault(); e.stopPropagation(); dispatch({ type: "set_dragging", dragging: false }); dropAllowed && onDrop(e)}}
-            onMouseOver={onMouseOver}
-            onClick={() => {if (!dragging) { dispatch({ type: 'clear_selected' }) } else { dispatch({ type: 'set_dragging', dragging: false }) } }}
-            style={{ zIndex: 1, height: "calc(100vh - 20px)", width: '100%', cursor: (!dropAllowed && dragging === 2) ? 'no-drop' : 'auto'}}
+            className='dropspot-wrapper'
+            onDragOver={e => handleDrag(e)}
+            style={{ pointerEvents: dragging === 2 ? 'all' : 'none', cursor: (!dropAllowed && dragging === 2) ? 'no-drop' : 'auto' }}
+            onDragLeave={handleDrag}
         >
             {dragging === 2 && (
-                <Paper
-                    // This is overly complicated because if we don't check this, when you drag over the red folder, the screen flickers as it registers as a "onDragLeave" event
-                    onDragLeave={event => {if (event.target instanceof Element && blockFolderRef.current?.contains(event.target)) {return}; HandleDrag(event, dispatch, dragging) }}
-                    style={{
-                        zIndex: 2,
-                        bottom: "10px",
-                        left: "10px",
-                        width: "calc(100% - 20px)",
-                        height: "calc(100% - 90px)",
-                        position: 'fixed',
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'center',
-                        backgroundColor: "#00000077",
-                        backdropFilter: "blur(3px)",
-                        outline: `1px solid white`,
-                        outlineColor: `${dropAllowed ? "#ffffff" :"#dd2222"}`,
-                        cursor: (!dropAllowed && dragging === 2) ? 'no-drop' : 'auto'
-                    }}
+                <Box
+                    onMouseLeave={handleDrag}
+                    // onMouseMove={handleDrag}
+                    className='dropbox'
+                    onDrop={(e) => { console.log("here_again"); e.preventDefault(); e.stopPropagation(); dropAllowed && onDrop(e) }}
+                    style={{ outlineColor: `${dropAllowed ? "#ffffff" : "#dd2222"}`, cursor: (!dropAllowed && dragging === 2) ? 'no-drop' : 'auto' }}
                 >
                     {!dropAllowed && (
-                        <FlexColumnBox reff={blockFolderRef} style={{position: 'absolute', justifyContent: 'center', cursor: 'no-drop'}}>
+                        <ColumnBox style={{ position: 'relative', justifyContent: 'center', cursor: 'no-drop', width: 'max-content', pointerEvents: 'none' }}>
                             <IconFolderCancel size={100} color="#dd2222" />
-                        </FlexColumnBox >
+                        </ColumnBox >
                     )}
                     {dropAllowed && (
                         <Card style={{ height: 'max-content', bottom: '20px', position: 'fixed' }}>
-                            <FlexRowBox>
+                            <RowBox>
                                 <Text>
                                     Drop to upload to
                                 </Text>
                                 <IconFolder style={{ marginLeft: '7px' }} />
-                                <Text fw={700} style={{marginLeft: 3}}>
-                                    {folderName}
+                                <Text fw={700} style={{ marginLeft: 3 }}>
+                                    {dropspotTitle}
                                 </Text>
-                            </FlexRowBox>
+                            </RowBox>
                         </Card>
                     )}
-                </Paper>
+                </Box>
             )}
-            <FlexColumnBox style={{ paddingLeft: 20, width: '100%' }}>
-                {children}
-            </FlexColumnBox>
         </Box>
     )
 }
 
-export const FileWrapper = ({ fileRef, fileData, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { fileRef: any, fileData: fileData, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: () => void, dragging: number, children: any }) => {
+type DirViewWrapperProps = {
+    folderId: string
+    folderName: string
+    dragging: number
+    dispatch: FileBrowserDispatch
+    onDrop: (e: any) => void
+    children: JSX.Element[]
+}
+
+export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDrop, children }: DirViewWrapperProps) => {
+    const { userInfo } = useContext(userContext)
+    const dropAllowed = useMemo(() => {
+        return !(folderId === "shared" || folderId === userInfo.trashFolderId)
+    }, [folderId, userInfo.trashFolderId])
+
+    return (
+        <Box
+            style={{ height: "99%", width: "calc(100vw - (226px + 1vw))", position: 'relative' }}
+
+            // If dropping is not allowed, and we drop, we want to clear the window when we detect the mouse moving again
+            // We have to wait (a very short time, 10ms) to make sure the drop event fires and gets captured by the dropbox, otherwise
+            // we set dragging to 0 too early, the dropbox gets removed, and chrome handles the drop event, opening the image in another tab
+            onMouseMove={e => { if (dragging) { setTimeout(() => dispatch({ type: 'set_dragging', dragging: false }), 10) } }}
+            onClick={() => dispatch({ type: "clear_selected" })}
+        >
+            <Dropspot onDrop={e => { dispatch({ type: 'set_dragging', dragging: false }); onDrop(e) }} dropspotTitle={folderName} dragging={dragging} dropAllowed={dropAllowed} handleDrag={event => { FilebrowserDragOver(event, dispatch, dragging) }} />
+            <ColumnBox style={{ padding: 10 }} onDragOver={event => { FilebrowserDragOver(event, dispatch, dragging) }}>
+                {children}
+            </ColumnBox>
+        </Box >
+    )
+}
+
+export const WormholeWrapper = ({ wormholeId, wormholeName, validWormhole, uploadDispatch, children }: { wormholeId: string, wormholeName: string, validWormhole: boolean, uploadDispatch, children }) => {
+    const { authHeader } = useContext(userContext)
+    const [dragging, setDragging] = useState(0)
+    const handleDrag = useCallback(e => { e.preventDefault(); if (e.type === "dragenter" || e.type === "dragover") { if (!dragging) { console.log("Yes drag"); setDragging(2) } } else if (dragging) { console.log("No drag"); setDragging(0) } }, [dragging])
+
+    return (
+        <Box className='wormhole-wrapper'>
+            <Box
+                style={{ position: 'relative', width: '98%', height: '98%' }}
+
+                //                    See DirViewWrapper \/
+                onMouseMove={e => { if (dragging) { setTimeout(() => setDragging(0), 10) } }}
+            >
+
+                <Dropspot
+                    onDrop={(e => HandleDrop(e.dataTransfer.items, wormholeId, [], true, wormholeId, authHeader, uploadDispatch, () => { }))}
+                    dropspotTitle={wormholeName}
+                    dragging={dragging}
+                    dropAllowed={validWormhole}
+                    handleDrag={handleDrag} />
+                <ColumnBox style={{ justifyContent: 'center' }} onDragOver={handleDrag}>
+                    {children}
+                </ColumnBox>
+            </Box>
+        </Box>
+
+    )
+}
+
+export const ScanFolderButton = ({ folderId, holdingShift, doScan }) => {
+    return (
+        <Box >
+            {folderId !== "shared" && folderId !== "trash" && (
+                <Tooltip label={holdingShift ? "Deep scan folder" : "Scan folder"}>
+                    <ActionIcon color='#00000000' size={35} onClick={doScan}>
+                        <IconRefresh color={holdingShift ? '#4444ff' : 'white'} size={35} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            {(folderId === "shared" || folderId === "trash") && (
+                <Space w={35} />
+            )}
+        </Box>
+    )
+}
+
+export const FileWrapper = ({ fileRef, fileData, width, dispatch, hovering, setHovering, isDir, selected, moveSelected, dragging, ...children }: { fileRef: any, fileData: fileData, width: number, dispatch: any, hovering: boolean, setHovering: any, isDir: boolean, selected: boolean, moveSelected: (entryId: string) => void, dragging: number, children: any }) => {
     const [mouseDown, setMouseDown] = useState(false)
     const navigate = useNavigate()
 
@@ -145,14 +194,16 @@ export const FileWrapper = ({ fileRef, fileData, dispatch, hovering, setHovering
         return [outline, backgroundColor]
     }, [selected, hovering, dragging, isDir])
 
+    const MARGIN = 6
+
     return (
-        <Box draggable={false} ref={fileRef}>
+        <Box draggable={false} ref={fileRef} style={{ margin: MARGIN }}>
             <Card
                 {...children}
                 draggable={false}
                 onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_selected', fileId: fileData.id }) }}
                 onMouseOver={(e) => { e.stopPropagation(); setHovering(true); dispatch({ type: 'set_hovering', fileId: fileData.id }) }}
-                onMouseUp={() => { if (dragging !== 0) { moveSelected() }; setMouseDown(false) }}
+                onMouseUp={() => { if (dragging !== 0) { moveSelected(fileData.id) }; setMouseDown(false) }}
                 onMouseDown={() => { setMouseDown(true) }}
                 onDoubleClick={(e) => { e.stopPropagation(); if (fileData.isDir) { navigate(fileData.id) } }}
                 onContextMenu={(e) => { e.preventDefault() }}
@@ -179,11 +230,13 @@ export const FileWrapper = ({ fileRef, fileData, dispatch, hovering, setHovering
                     backgroundColor: backgroundColor,
                     padding: 1,
 
-                    height: '100%',
-                    width: '100%',
+                    height: (width - (MARGIN * 2)) * 1.10,
+                    // height: '290px',
+                    width: width - (MARGIN * 2),
+                    // width: '250px',
 
                     // other
-                    position: 'relative',
+                    // position: 'relative',
                     cursor: (dragging !== 0 && !isDir) ? 'default' : 'pointer'
                 }}
             />

@@ -2,7 +2,6 @@ package dataStore
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -73,9 +72,6 @@ func ParseExtType(ext string) *mediaType {
 	}
 	return &mType
 }
-
-var ErrDirNotAllowed = errors.New("directory not allowed")
-var ErrNoMedia = errors.New("no media found")
 
 func (f *WeblensFile) GetMediaType() (*mediaType, error) {
 	if f.IsDir() {

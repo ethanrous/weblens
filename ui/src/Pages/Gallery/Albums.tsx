@@ -1,18 +1,20 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { FileVisualWrapper, FlexColumnBox, FlexRowBox} from "../FileBrowser/FilebrowserStyles"
-import { MediaImage } from "../../components/PhotoContainer"
-import { Box, Button, Card, Divider, Menu, Popover, ScrollArea, Space, Text, TextInput, Tooltip, TooltipFloating } from "@mantine/core"
-import { CleanAlbum, DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum, RenameAlbum, SetAlbumCover, ShareAlbum } from "../../api/GalleryApi"
-import { IconClearAll, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react"
-import { AlbumData, MediaData, MediaStateType } from "../../types/Types"
-import { userContext } from "../../Context"
-import { BucketCards } from "./MediaDisplay"
+import { useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+
 import { notifications } from "@mantine/notifications"
-import { IconUsersGroup } from "@tabler/icons-react"
+import { Box, Button, Divider, Menu, Popover, Space, Text } from "@mantine/core"
+import { IconClearAll, IconExclamationCircle, IconPencil, IconPhoto, IconTrash, IconUsersGroup } from "@tabler/icons-react"
+
+import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles"
+import { CleanAlbum, DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum, RenameAlbum, SetAlbumCover, ShareAlbum } from "../../api/GalleryApi"
+import { AlbumData, FileBrowserDispatch, MediaData, MediaStateType, getBlankMedia } from "../../types/Types"
+import { userContext } from "../../Context"
+import { PhotoGallery } from "../../components/MediaDisplay"
 import { ShareInput } from "../../components/Share"
 import NotFound from "../../components/NotFound"
-import { FilesWrapper } from "../../types/Styles"
+import { GlobalContextType, ItemProps } from "../../components/ItemDisplay"
+import { ItemScroller } from "../../components/ItemScroller"
+import { getMedia } from "../../api/ApiFetch"
 
 function ShareBox({ open, setOpen, pos, albumId, sharedWith, fetchAlbums }: { open: boolean, setOpen, pos: { x: number, y: number }, albumId, sharedWith, fetchAlbums }) {
     const { authHeader } = useContext(userContext)
@@ -35,144 +37,6 @@ function ShareBox({ open, setOpen, pos, albumId, sharedWith, fetchAlbums }: { op
                 </Button>
             </Popover.Dropdown>
         </Popover>
-    )
-}
-
-export const useKeyDown = (albumId, newName, editing, setEditing, setShareOpen, fetchAlbums, authHeader) => {
-
-    const onKeyDown = useCallback((event) => {
-        if (event.key === "Enter" && editing) {
-            RenameAlbum(albumId, newName, authHeader).then(() => { setEditing(false); fetchAlbums() })
-        } else if (event.key === "Escape") {
-            setEditing(false)
-            setShareOpen(false)
-        }
-    }, [editing, albumId, newName, authHeader, setEditing, fetchAlbums, setShareOpen])
-
-    useEffect(() => {
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-            document.removeEventListener('keydown', onKeyDown)
-        }
-    }, [onKeyDown])
-}
-
-function AlbumPreviewCard({ albumData, fetchAlbums, dispatch }: { albumData: AlbumData, fetchAlbums: () => void, dispatch }) {
-    const { userInfo, authHeader } = useContext(userContext)
-
-    const [editing, setEditing] = useState(false)
-    const [hovering, setHovering] = useState(false)
-    const [menuOpen, setMenuOpen] = useState(false)
-    const [shareOpen, setShareOpen] = useState(false)
-
-    const nav = useNavigate()
-    const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
-    const [renameVal, setRenameVal] = useState(albumData.Name)
-
-    useKeyDown(albumData.Id, renameVal, editing, setEditing, setShareOpen, fetchAlbums, authHeader)
-
-    useEffect(() => {
-        dispatch({ type: 'set_block_search_focus', block: shareOpen })
-    }, [shareOpen])
-
-    const editRef: React.Ref<HTMLInputElement> = useRef()
-
-    useEffect(() => {
-        if (editing) {
-            dispatch({ type: "set_block_search_focus", block: true })
-            editRef.current.select()
-        } else {
-            dispatch({ type: "set_block_search_focus", block: false })
-            setRenameVal(albumData.Name)
-        }
-    }, [editing])
-
-    return (
-        <Box>
-            <Card
-                onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
-                onClick={() => { if (!menuOpen && !shareOpen) { nav(`/albums/${albumData.Id}`) } }}
-                onMouseOver={() => setHovering(true)}
-                onMouseLeave={() => setHovering(false)}
-                style={{ display: 'flex', height: '100%', width: '100%', position: "relative", padding: 0, cursor: 'pointer', backgroundColor: hovering ? '#333333' : '#222222', alignItems: 'center' }}
-            >
-                <FileVisualWrapper >
-                    <MediaImage mediaId={albumData.Cover} quality='thumbnail' lazy={true} expectFailure={albumData.Cover === ""} containerStyle={{ overflow: 'hidden', borderRadius: '6px' }} />
-                </FileVisualWrapper>
-
-                {/* <FlexRowBox onClick={(e) => { e.stopPropagation(); setEditing(true) }} style={{ justifyContent: 'space-between', width: '85%', cursor: 'text', height: '36px' }}> */}
-                {!editing && (
-                    <FlexRowBox style={{height: '50px', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: 10}}>
-                        <FlexColumnBox style={{height: 'max-content', alignItems: 'flex-start', width: 'max-content', cursor: 'text'}} onClick={(e) => { e.stopPropagation(); setEditing(true) }}>
-                            <TooltipFloating position='top' label={albumData.Name}>
-                                <Text c='white' fw={500} truncate='end' w={'100%'}>{albumData.Name}</Text>
-                            </TooltipFloating>
-                            <Text size='12px'>{albumData.Medias.length}</Text>
-                        </FlexColumnBox>
-                        {albumData.Owner !== userInfo.username && (
-                            <Tooltip label={`Shared by ${albumData.Owner}`}>
-                                <IconUsersGroup color="white" style={{ margin: 10, zIndex: 1 }} />
-                            </Tooltip>
-                        )}
-                    </FlexRowBox>
-                )}
-
-                {editing && (
-                    <FlexRowBox onBlur={() => setEditing(false)} style={{ width: '85%' }}>
-                        <TextInput
-                            color={'white'}
-                            autoFocus
-                            ref={editRef}
-                            variant='unstyled'
-                            defaultValue={albumData.Name}
-                            onClick={(e) => { e.stopPropagation() }}
-                            onChange={(e) => { setRenameVal(e.target.value) }}
-                            style={{ width: "100%" }}
-                        />
-                    </FlexRowBox>
-                )}
-
-                <Menu opened={menuOpen} onChange={setMenuOpen} transitionProps={{ transition: 'pop' }}>
-                    <Menu.Target>
-                        <Box pos={'fixed'} top={menuPos.y} left={menuPos.x} />
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Label>Album Actions</Menu.Label>
-                        <Menu.Item leftSection={<IconPencil />} onClick={() => setEditing(true)}>
-                            Rename
-                        </Menu.Item>
-
-                        <Menu.Item leftSection={<IconUsersGroup />} onClick={(e) => { e.stopPropagation(); setShareOpen(true) }}>
-                            Share
-                        </Menu.Item>
-
-                        <FlexColumnBox style={{height: 'max-content', padding: '3px'}}>
-                            <Divider w={'90%'}/>
-                        </FlexColumnBox>
-
-                        {albumData.Owner === userInfo.username && (
-                            <Menu.Item c={'red'} leftSection={<IconClearAll />} onClick={(e) => { e.stopPropagation(); CleanAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
-                                Clean Missing
-                            </Menu.Item>
-                        )}
-                        {albumData.Owner === userInfo.username && (
-                            <Menu.Item c={'red'} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); DeleteAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
-                                Delete
-                            </Menu.Item>
-                        )}
-                        {albumData.Owner !== userInfo.username && (
-                            <Menu.Item c={'red'} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); DeleteAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
-                                Leave
-                            </Menu.Item>
-                        )}
-
-                    </Menu.Dropdown>
-                </Menu>
-
-                <ShareBox open={shareOpen} setOpen={setShareOpen} sharedWith={albumData.SharedWith} pos={menuPos} albumId={albumData.Id} fetchAlbums={fetchAlbums} />
-
-            </Card>
-        </Box>
     )
 }
 
@@ -222,7 +86,7 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
                     setNotFound(true)
                     return
                 }
-                notifications.show({ title: "Failed to load album", message: r, color: 'red' });
+                notifications.show({ title: "Failed to load album", message: String(r), color: 'red' });
             })
     }, [albumId, includeRaw])
 
@@ -234,29 +98,35 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
         if (!albumData) {
             return []
         }
-        if (searchContent === "") {
-        }
-        return albumData.media
-        // return albumData.media.filter(v => v?.filename.toLowerCase().includes(searchContent))
+        // if (searchContent === "") {
+        // }
+        return albumData.media.reverse()
     }, [albumData?.media])
 
     if (notFound) {
         return (
-            <NotFound resourceType="Album" link="/albums" setNotFound={setNotFound}/>
+            <NotFound resourceType="Album" link="/albums" setNotFound={setNotFound} />
         )
     }
 
     if (!albumData) {
         return null
+        return (
+            <RowBox style={{ height: 'max-content', justifyContent: 'center', paddingTop: '25vh' }}>
+                <IconExclamationCircle color="red" />
+                <Space w={8} />
+                <Text c='red' fw={600} size={'30px'}>Album failed to load</Text>
+            </RowBox>
+        )
     }
 
-    if (albumData.media.length === 0) {
+    if (media.length === 0) {
         return (
-            <FlexColumnBox>
+            <ColumnBox>
                 <Text size={'75px'} fw={900} variant="gradient" style={{ display: 'flex', justifyContent: 'center', userSelect: 'none', lineHeight: 1.1 }}>
                     {albumData.albumMeta.Name}
                 </Text>
-                <FlexColumnBox style={{ paddingTop: '150px', width: 'max-content' }}>
+                <ColumnBox style={{ paddingTop: '150px', width: 'max-content' }}>
                     <Text fw={800} size="30px">This album has no media
                     </Text>
                     <Space h={5} />
@@ -265,60 +135,156 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
                     </Text>
                     <Space h={20} />
                     <Button fullWidth color="#4444ff" onClick={() => nav('/files/home')}>Filebrowser</Button>
-                </FlexColumnBox>
-            </FlexColumnBox>
+                </ColumnBox>
+            </ColumnBox>
         )
     }
     const startColor = albumData.albumMeta.PrimaryColor ? `#${albumData.albumMeta.PrimaryColor}` : '#ffffff'
     const endColor = albumData.albumMeta.SecondaryColor ? `#${albumData.albumMeta.SecondaryColor}` : '#ffffff'
 
     return (
-        <ScrollArea type="never" mah={'100vh'} style={{ paddingLeft: 25, paddingRight: 35, height: '100%', width: '100%' }}>
-            <FlexColumnBox style={{ height: 'max-content' }}>
+        <ColumnBox style={{ width: '98%' }}>
+            <ColumnBox style={{ height: 'max-content' }}>
                 <Text size={'75px'} fw={900} variant="gradient" gradient={{ from: startColor, to: endColor, deg: 45 }} style={{ display: 'flex', justifyContent: 'center', userSelect: 'none', lineHeight: 1.1 }}>
                     {albumData.albumMeta.Name}
                 </Text>
-            </FlexColumnBox>
-            <Space h={25} />
-            <BucketCards medias={media} scale={imageSize} scrollerRef={null} dispatch={dispatch} menu={MenuFactory(albumData.albumMeta.Id, fetchAlbum, authHeader)} />
-            <Space h={25} />
-        </ScrollArea>
+            </ColumnBox>
+            <Space h={10} />
+            <PhotoGallery medias={media} imageBaseScale={imageSize} dispatch={dispatch} />
+        </ColumnBox>
     )
+}
+
+function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos }: { open, setMenuOpen: (o: boolean) => void, albumData, fetchAlbums, menuPos }) {
+    const { userInfo, authHeader } = useContext(userContext)
+    const [shareOpen, setShareOpen] = useState(false)
+
+    if (!albumData) {
+        return
+    }
+
+    return (
+        <Box>
+            <Menu opened={open} onChange={setMenuOpen} transitionProps={{ transition: 'pop' }}>
+                <Menu.Target>
+                    <Box style={{ position: 'fixed', top: menuPos.y - 125, left: menuPos.x }} />
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Label>Album Actions</Menu.Label>
+                    {/* <Menu.Item leftSection={<IconPencil />} onClick={() => setEditing(true)}>
+                        Rename
+                    </Menu.Item> */}
+
+                    <Menu.Item leftSection={<IconUsersGroup />} onClick={(e) => { e.stopPropagation(); setShareOpen(true) }}>
+                        Share
+                    </Menu.Item>
+
+                    <ColumnBox style={{ height: 'max-content', padding: '3px' }}>
+                        <Divider w={'90%'} />
+                    </ColumnBox>
+
+                    {albumData.Owner === userInfo.username && (
+                        <Menu.Item c={'red'} leftSection={<IconClearAll />} onClick={(e) => { e.stopPropagation(); CleanAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
+                            Clean Missing
+                        </Menu.Item>
+                    )}
+                    {albumData.Owner === userInfo.username && (
+                        <Menu.Item c={'red'} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); DeleteAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
+                            Delete
+                        </Menu.Item>
+                    )}
+                    {albumData.Owner !== userInfo.username && (
+                        <Menu.Item c={'red'} leftSection={<IconTrash />} onClick={(e) => { e.stopPropagation(); DeleteAlbum(albumData.Id, authHeader).then(() => fetchAlbums()) }}>
+                            Leave
+                        </Menu.Item>
+                    )}
+
+                </Menu.Dropdown>
+            </Menu>
+
+            <ShareBox open={shareOpen} setOpen={setShareOpen} sharedWith={albumData.SharedWith} pos={menuPos} albumId={albumData.Id} fetchAlbums={fetchAlbums} />
+        </Box>
+    )
+}
+
+function AlbumCoverMenuFactory(albumsMap, fetchAlbums) {
+    return ({ open, setOpen, itemInfo, menuPos }: { open: boolean, setOpen: (o: boolean) => boolean, itemInfo: ItemProps, menuPos: { x: number, y: number } }) => {
+        const albumData = albumsMap.get(itemInfo.itemId)
+        if (!albumData) {
+            return
+        }
+        return (
+            <AlbumCoverMenu open={open} setMenuOpen={setOpen} albumData={albumData} fetchAlbums={fetchAlbums} menuPos={menuPos} />
+        )
+    }
 }
 
 function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map<string, AlbumData>, searchContent: string, dispatch }) {
     const { authHeader } = useContext(userContext)
+    const nav = useNavigate()
 
     const fetchAlbums = useCallback(() => {
         GetAlbums(authHeader)
             .then((val) => {
                 dispatch({ type: 'set_albums', albums: val })
-                dispatch({ type: 'set_loading', albums: false })
+                dispatch({ type: 'set_loading', loading: false })
             })
     }, [authHeader, dispatch])
 
     useEffect(() => {
-        fetchAlbums()
-    }, [fetchAlbums])
+        if (albumsMap.size === 0) {
+            fetchAlbums()
+        }
+    }, [fetchAlbums, albumsMap.size])
 
-    let albumItems = []
-    if (albumsMap.size) {
-        const albums = Array.from(albumsMap.values())
-        albumItems = albums.filter(val => val.Name.toLowerCase().includes(searchContent.toLowerCase())).map(val => <AlbumPreviewCard key={val.Name} albumData={val} fetchAlbums={fetchAlbums} dispatch={dispatch} />)
-    }
+    const albums = useMemo(() => {
+        const albums = Array.from(albumsMap.values()).filter(val => val.Name.toLowerCase().includes(searchContent.toLowerCase())).map(v => {
+            if (!v.CoverMedia && v.Cover) {
+                getMedia(v.Cover, authHeader).then(m => dispatch({ type: "set_album_media", albumId: v.Id, media: m }))
+            } else if (!v.Cover) {
 
-    if (albumItems.length === 0) {
+                v.CoverMedia = getBlankMedia()
+                // dispatch({ type: "set_album_media", albumId: v.Id, media: m })
+            }
+            const item: ItemProps = {
+                itemId: v.Id,
+                itemTitle: v.Name,
+                secondaryInfo: String(v.Medias.length),
+                selected: false,
+                mediaData: v.CoverMedia,
+                droppable: false,
+                isDir: false,
+                imported: true
+            }
+            return item
+        })
+        return albums
+    }, [JSON.stringify(Array.from(albumsMap.values())), searchContent])
+
+    const albumsContext = useMemo(() => {
+        const ctx: GlobalContextType = {
+            visitItem: (itemId: string) => nav(itemId),
+            setDragging: () => { },
+            blockFocus: (b: boolean) => dispatch({ type: "set_block_search_focus", block: b }),
+            setSelected: () => { },
+            menu: AlbumCoverMenuFactory(albumsMap, fetchAlbums),
+            rename: (itemId: string, newName: string) => { RenameAlbum(itemId, newName, authHeader).then(v => fetchAlbums()) }
+        }
+        return ctx
+    }, [albumsMap.size, nav, dispatch])
+
+    if (albums.length === 0) {
         return (
-            <FlexColumnBox>
+            <ColumnBox>
                 <Space h={200} />
-                <Text> You have no albums, create one on the left </Text>
-            </FlexColumnBox>
+                <Text> You have no albums </Text>
+            </ColumnBox>
         )
     } else {
         return (
-            <FilesWrapper size={300} style={{ paddingLeft: 25, paddingRight: 25 }}>
-                {albumItems}
-            </FilesWrapper>
+            <Box style={{ width: '100%', height: '100%', padding: 10 }}>
+                <ItemScroller itemsContext={albums} globalContext={albumsContext} />
+            </Box>
         )
     }
 }

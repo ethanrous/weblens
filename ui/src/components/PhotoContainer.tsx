@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext, useMemo, memo, useCallback } from "react";
+import { useState, useEffect, useRef, useContext, memo, useCallback } from "react";
 import { Blurhash } from "react-blurhash";
 import { userContext } from "../Context";
 import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react"
@@ -7,6 +7,7 @@ import { Box, CSSProperties, Image, Loader, MantineStyleProp } from "@mantine/co
 
 import API_ENDPOINT from '../api/ApiEndpoint'
 import { MediaData } from "../types/Types";
+import './style.css'
 
 // Styles
 
@@ -16,9 +17,9 @@ const ThumbnailContainer = ({ reff, style, children }) => {
             ref={reff}
             draggable={false}
             style={{
+                display: 'flex',
                 height: '100%',
                 width: '100%',
-                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 ...style,
@@ -29,234 +30,151 @@ const ThumbnailContainer = ({ reff, style, children }) => {
     )
 }
 
-//Components
-
-export function useIsVisible(root, ref, maintained: boolean = false, margin: number = 100, thresh: number = 0.0) {
-    const [isVisible, setIsVisible] = useState(false)
-    const visibleRef = useRef(false)
-
-    useEffect(() => {
-        if (!ref?.current) {
-            return
-        }
-
-        const options: IntersectionObserverInit = {
-            root: root?.current || null,
-
-            rootMargin: "1000px 0px 1000px 0px",
-            // rootMargin: `${margin}px`,
-            // threshold: thresh
-        }
-
-        const observer = new IntersectionObserver(([entry]) => {
-            if (maintained && entry.isIntersecting) {
-                visibleRef.current = entry.isIntersecting
-                setIsVisible(entry.isIntersecting)
-            } else if (!maintained) {
-                visibleRef.current = entry.isIntersecting
-                setIsVisible(entry.isIntersecting)
-            }
-
-        }, options)
-
-        observer.observe(ref.current);
-        return () => {
-            observer.disconnect();
-        };
-    }, [ref, root, maintained]);
-
-    return { isVisible: isVisible, visibleStateRef: visibleRef };
-}
-
 function getImageData(url, filehash, authHeader, signal, setLoadErr) {
     const res = fetch(url, { headers: authHeader, signal })
-    .then(res => {
-        if (res.status !== 200) {
-            return Promise.reject(res.statusText)
-        }
-        return res.blob()
-    })
-    .then(blob => {
-        if (blob.length === 0) {
-            Promise.reject("Empty blob")
-        }
-        return { data: URL.createObjectURL(blob), hash: filehash }
-    })
-    .catch((r) => {
-        if (!signal.aborted) {
-            console.error("Failed to get image from server:", r)
-            setLoadErr(true)
-        }
-    })
+        .then(res => {
+            if (res.status !== 200) {
+                return Promise.reject(res.statusText)
+            }
+            return res.arrayBuffer()
+        })
+        .then(buf => {
+            if (buf.byteLength === 0) {
+                Promise.reject("Empty blob")
+            }
+
+            return { data: buf, hash: filehash }
+        })
+        .catch((r) => {
+            if (!signal.aborted) {
+                console.error("Failed to get image from server:", r)
+                setLoadErr(true)
+            }
+        })
 
     return res
 }
 
-function getImageMeta(url, filehash, authHeader, signal, setLoadErr) {
-    return fetch(url, { headers: authHeader, signal }).then(res => res.json()).then((json) => {
-        return { data: json, hash: filehash }
-    }).catch((r) => {
-        if (!signal.aborted) {
-            console.error("Failed to get image meta from server: ", r)
-            setLoadErr(true)
-        }
-    })
-}
-
 export const MediaImage = memo(({
-    mediaId,
+    media,
     quality,
-    blurhash,
-    metadataPreload,
-    contentPreload = null,
     lazy = true,
     expectFailure = false,
     containerStyle,
     imgStyle,
-    root
-}: { mediaId: string, quality: "thumbnail" | "fullres", blurhash?: string, metadataPreload?: MediaData, contentPreload?, lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp, root?}
+}: { media: MediaData, quality: "thumbnail" | "fullres", lazy?: boolean, expectFailure?: boolean, containerStyle?: CSSProperties, imgStyle?: MantineStyleProp }
 ) => {
-    const [loaded, setLoaded] = useState("")
+    const [loaded, setLoaded] = useState(media?.fullres ? "fullres" : media?.thumbnail ? "thumbnail" : "")
     const [loadError, setLoadErr] = useState(false)
     const { authHeader } = useContext(userContext)
-    const [imgData, setImgData] = useState(contentPreload)
-    const [imgMeta, setImgMeta]: [imgMeta: MediaData, setImgMeta: any] = useState(metadataPreload)
-
-    const [metaPromise, setMetaPromise] = useState(null)
-    const [thumbPromise, setThumbPromise] = useState(null)
-    const [fullresPromise, setFullresPromise] = useState(null)
-
-    const visibleRef = useRef()
-    const { isVisible, visibleStateRef } = useIsVisible(root, visibleRef, true, 1000, 0)
-
+    const [imgData, setImgData] = useState(null)
+    const [innerImgStyle, setImgStyle] = useState(imgStyle)
+    const visibleRef = useRef(null)
     const hashRef = useRef("")
+    const abortController = new AbortController();
+
+    const fetchFullres = useCallback(async () => {
+        const ret = await getImageData(`${API_ENDPOINT}/media/${media.fileHash}?fullres=true`, media.fileHash, authHeader, abortController.signal, setLoadErr)
+        if (!ret) {
+            return
+        }
+        media.fullres = ret.data
+        setImgData(URL.createObjectURL(new Blob([ret.data])))
+        setLoaded("fullres")
+        setImgStyle(imgStyle)
+    }, [media?.fileHash, authHeader])
+
+    const fetchThumbnail = useCallback(async () => {
+        const ret = await getImageData(`${API_ENDPOINT}/media/${media.fileHash}?thumbnail=true`, media.fileHash, authHeader, abortController.signal, setLoadErr)
+        if (!ret) {
+            return
+        }
+        media.thumbnail = ret.data
+        setImgData(prev => prev === "" ? URL.createObjectURL(new Blob([ret.data])) : prev)
+        setLoaded(prev => prev === "" ? "thumbnail" : prev)
+        setImgStyle(imgStyle)
+    }, [media?.fileHash, authHeader])
 
     useEffect(() => {
-        if (!isVisible) {
+        if (!media || !media.fileHash) {
             return
         }
-
-        if (!mediaId) {
-            // setLoadErr(true)
-            return
-        }
-
-        setImgData("")
+        hashRef.current = media.fileHash
         setLoaded("")
-        setImgData(null)
-        setLoadErr(false)
 
-        const metaUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-        metaUrl.searchParams.append("meta", "true")
-        const thumbUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-        thumbUrl.searchParams.append("thumbnail", "true")
-        const fullresUrl = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-        fullresUrl.searchParams.append("fullres", "true")
-
-        hashRef.current = mediaId
-
-        const abortController = new AbortController();
-        const signal = abortController.signal;
-
-        setMetaPromise(_ => () => getImageMeta(metaUrl, mediaId, authHeader, signal, setLoadErr))
-        setThumbPromise(_ => () => getImageData(thumbUrl, mediaId, authHeader, signal, setLoadErr))
-
-        if (quality === "fullres" && !imgMeta?.mediaType.IsVideo) {
-            setFullresPromise(_ => () => getImageData(fullresUrl, mediaId, authHeader, signal, setLoadErr))
+        if (media.fullres && quality === "fullres") {
+            setImgData(URL.createObjectURL(new Blob([media.fullres])))
+            setLoaded("fullres")
+            setImgStyle(imgStyle)
+        } else if (media.thumbnail) {
+            setImgData(URL.createObjectURL(new Blob([media.thumbnail])))
+            setLoaded("thumbnail")
+            setImgStyle(imgStyle)
+        } else {
+            setImgData("")
         }
 
-        // If the mediaId changes, we want to abort fetch requests
-        // so we don't load a ton of images we don't need to
-        return () => {
-            abortController.abort()
+        if (!media.fullres && quality === "fullres") {
+            fetchFullres()
+        }
+        if (!media.thumbnail) {
+            fetchThumbnail()
         }
 
-    }, [mediaId, isVisible])
+        return () => abortController.abort()
+    }, [media?.fileHash])
 
-    useEffect(() => {
-        if (!metaPromise) {
-            return
-        }
-
-        metaPromise().then((res) => {
-            if (res && res.data && res.hash === hashRef.current && !loadError) {
-                setImgMeta(res.data)
-            }
-        })
-    }, [metaPromise, loadError])
-
-    useEffect(() => {
-        if (!thumbPromise) {
-            return
-        }
-
-        thumbPromise().then((res) => {
-            if (res && res.data && res.hash === hashRef.current) {
-                setImgData(prev => {if (prev) {return prev}; return res.data})
-                setLoaded(prev => {if (prev) {return prev}; return "thumbnail"})
-            }
-        })
-    }, [thumbPromise, loadError])
-
-    useEffect(() => {
-        if (!fullresPromise) {
-            return
-        }
-
-        fullresPromise().then((res) => {
-            if (res && res.data && res.hash === hashRef.current) {
-                setImgData(res.data)
-                setLoaded("fullres")
-            }
-        })
-    }, [fullresPromise, loadError])
-
-    const sizer = useMemo(() => {
-        if (!imgMeta) {
-            return null
-        }
-        const sizer = imgMeta.mediaHeight > imgMeta.mediaWidth ? { width: '100%' } : { height: '100%' }
-        return sizer
-    }, [imgMeta])
+    const imgClass = quality === 'thumbnail' ? "media-image" : ""
 
     return (
         <ThumbnailContainer reff={visibleRef} style={containerStyle}>
-            {(isVisible && loadError && !expectFailure) && (
+            {(loadError && !expectFailure) && (
                 <IconExclamationCircle color="red" style={{ position: 'absolute' }} />
             )}
-            {(isVisible && loadError && expectFailure) && (
+            {(loadError && expectFailure) && (
                 <IconPhoto style={{ position: 'absolute' }} />
             )}
-            {(quality === "fullres" && isVisible && loaded !== "fullres" && !loadError) && (
+            {(quality === "fullres" && loaded !== "fullres" && !loadError) && (
                 <Loader color="white" bottom={40} right={40} size={20} style={{ position: 'absolute' }} />
             )}
 
             <Image
+                className={imgClass}
                 draggable={false}
                 src={imgData}
-                style={{ display: imgData && !loadError ? "" : "none", userSelect: 'none', minWidth: '100%', minHeight: '100%', ...sizer, ...imgStyle }}
+                style={{ display: imgData && !loadError ? "" : "none", userSelect: 'none', flex: 'none', ...innerImgStyle }}
             />
 
-            {quality === "fullres" && imgMeta?.mediaType.IsVideo && (
-                <video src="" controls/>
+            {quality === "fullres" && media?.mediaType?.IsVideo && (
+                <video src="" controls />
             )}
 
-            {isVisible && blurhash && lazy && !imgData && (
+            {media?.blurHash && lazy && !imgData && (
                 <Blurhash
                     style={{ position: "absolute" }}
-                    height={containerStyle?.height ? containerStyle?.height : 300}
-                    width={containerStyle?.width ? containerStyle?.width : 550}
-                    hash={blurhash}
+                    height={visibleRef?.current?.clientHeight ? visibleRef.current.clientHeight : 0}
+                    width={visibleRef?.current?.clientWidth ? visibleRef.current.clientWidth : 0}
+                    hash={media.blurHash}
                 />
+            )}
+            {!media?.blurHash && lazy && !imgData && !loadError && (
+                <IconPhoto />
             )}
 
         </ThumbnailContainer >
     )
 }, (last, next) => {
-    if (last.mediaId !== next.mediaId) {
+    if (last.media?.fileHash !== next.media?.fileHash) {
         return false
     } else if (last.containerStyle?.height !== next.containerStyle?.height) {
         return false
+    } else if (last.imgStyle !== next.imgStyle) {
+        return false
+    } else if (last.media?.thumbnail !== next.media?.thumbnail) {
+        return false
+    } else if (last.media?.fullres !== next.media?.fullres) {
+        return false
     }
+
     return true
 })

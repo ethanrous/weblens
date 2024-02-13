@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/EdlinOrg/prominentcolor"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
@@ -35,17 +34,16 @@ func (a *AlbumData) RemoveMedia(ms []string) (err error) {
 }
 
 func (a *AlbumData) SetCover(mediaId string) error {
-	m := MediaMapGet(mediaId)
-	if m == nil {
-		return ErrNoMedia
+	m, err := MediaMapGet(mediaId)
+	if err != nil {
+		return err
 	}
-	i := m.GetImage()
-	prom, err := prominentcolor.Kmeans(i)
+	colors, err := m.GetProminentColors()
 	if err != nil {
 		return err
 	}
 
-	err = fddb.SetAlbumCover(a.Id, mediaId, prom[0].AsString(), prom[1].AsString())
+	err = fddb.SetAlbumCover(a.Id, mediaId, colors[0], colors[1])
 	if err != nil {
 		return fmt.Errorf("failed to set album cover")
 	}
@@ -65,7 +63,7 @@ func (a *AlbumData) RemoveUsers(usernames []string) (err error) {
 }
 
 func (a *AlbumData) CleanMissingMedia() (err error) {
-	missing := util.Filter(a.Medias, func(s string) bool { return MediaMapGet(s) == nil })
+	missing := util.Filter(a.Medias, func(s string) bool { _, err := MediaMapGet(s); return err == ErrNoMedia })
 	if len(missing) != 0 {
 		err = fddb.removeMediaFromAlbum(a.Id, missing)
 		if err != nil {

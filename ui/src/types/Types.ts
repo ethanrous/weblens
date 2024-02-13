@@ -3,7 +3,7 @@
 
 export type MediaData = {
     fileHash: string
-    fileId: string
+    fileIds: string[]
     mediaType: {
         FileExtension: []
         FriendlyName: string
@@ -12,13 +12,15 @@ export type MediaData = {
         IsDisplayable: boolean
     }
     blurHash: string
-    thumbnail64: string
+    thumbnail: ArrayBuffer
+    fullres: ArrayBuffer
     mediaWidth: number
     mediaHeight: number
     thumbWidth: number
     thumbHeight: number
     createDate: string
     owner: string
+    recognitionTags: string[]
 
     // Local things
     Previous: MediaData
@@ -33,6 +35,7 @@ export type AlbumData = {
     SharedWith: string[]
     Name: string
     Cover: string
+    CoverMedia: MediaData
     PrimaryColor: string
     SecondaryColor: string
     Owner: string
@@ -44,7 +47,6 @@ export type AlbumData = {
 export type GalleryBucketProps = {
     bucketTitle: string
     bucketData: MediaData[]
-    scrollerRef
     scale: number
     dispatch: React.Dispatch<any>
 }
@@ -52,7 +54,6 @@ export type GalleryBucketProps = {
 export type MediaWrapperProps = {
     mediaData: MediaData
     scale: number
-    scrollerRef
     dispatch: (galleryAction) => void
     menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element
 }
@@ -68,17 +69,42 @@ export type MediaStateType = {
     blockSearchFocus: boolean
     imageSize: number
     scanProgress: number
+    showingCount: number
     searchContent: string
     presentingMedia: MediaData
 }
 
 // File Browser Types
 
-export type FileBrowserTypes = {
-    wsSend: (msg: string) => void
-    lastMessage: MessageEvent<any> | null
-    readyState: ReadyState
+export type FileBrowserAction = {
+    type: string
+
+    selected?: boolean
+    loading?: boolean
+    external?: boolean
+    block?: boolean
+    shift?: boolean
+
+    dragging?: boolean
+    progress?: number
+
+    user?: string
+    fileId?: string
+    fileIds?: string[]
+    fileName?: string
+    search?: string
+    presentingId?: string
+
+    img?: ArrayBuffer
+
+    fileInfo?: fileData
+    fileInfos?: fileData[]
+    files?: { fileId: string, updateInfo: fileData }[]
+
+    parents?: any
 }
+
+export type FileBrowserDispatch = (action: FileBrowserAction) => void
 
 export type FileBrowserStateType = {
     dirMap: Map<string, fileData>
@@ -88,6 +114,7 @@ export type FileBrowserStateType = {
     parents: fileData[]
     draggingState: number
     loading: boolean
+    waitingForNewName: string
     presentingId: string
     searchContent: string
     scanProgress: number
@@ -96,8 +123,8 @@ export type FileBrowserStateType = {
     holdingShift: boolean
     blockFocus: boolean
     lastSelected: string
-    hovering: string
-    pasteImg: string
+    pasteImg: ArrayBuffer
+    scrollTo: string
 }
 
 export type fileData = {
@@ -113,7 +140,7 @@ export type fileData = {
     mediaData: MediaData
     fileFriendlyName: string
     owner: string
-
+    shares: any[]
     visible: boolean
 }
 
@@ -131,8 +158,32 @@ export const getBlankFile = () => {
         mediaData: null,
         fileFriendlyName: "",
         owner: "",
-
+        shares: [],
         visible: false,
+    }
+    return blank
+}
+
+export const getBlankMedia = () => {
+    const blank: MediaData = {
+        fileHash: "",
+        fileIds: [""],
+        mediaType: null,
+        blurHash: "",
+        thumbnail: null,
+        fullres: null,
+        mediaWidth: 0,
+        mediaHeight: 0,
+        thumbWidth: 0,
+        thumbHeight: 0,
+        createDate: "",
+        owner: "",
+        recognitionTags: [],
+
+        Previous: null,
+        Next: null,
+
+        ImgRef: null
     }
     return blank
 }

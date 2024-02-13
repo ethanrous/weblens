@@ -133,14 +133,14 @@ func (c *Client) _writeToClient(msg wsResponse) {
 	}
 }
 
-func (c *Client) Send(messageStatus string, key subId, content any) {
+func (c *Client) Send(messageStatus string, key subId, content []map[string]any) {
 	msg := wsResponse{MessageStatus: messageStatus, SubscribeKey: key, Content: content}
 	// c.debug(fmt.Sprintf("Sending %s %s", messageStatus, key))
 	c._writeToClient(msg)
 }
 
 func (c *Client) Error(err error) {
-	util.WsError.Println(err)
+	util.DisplayError(err)
 	msg := wsResponse{MessageStatus: "error", Error: err.Error()}
 	c._writeToClient(msg)
 }
@@ -152,5 +152,5 @@ func (c *Client) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
 		return
 	}
 
-	c.Send("file_updated", subId(updatedFile.Id()), gin.H{"fileInfo": fileInfo})
+	c.Send("file_updated", subId(updatedFile.Id()), []map[string]any{gin.H{"fileInfo": fileInfo}})
 }

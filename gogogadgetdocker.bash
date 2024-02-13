@@ -10,3 +10,6 @@ fi
 
 docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --build-arg build_tag="$docker_tag" .
 docker push ethrous/weblens:"$docker_tag"
+
+# docker build --platform linux/amd64 -t ethrous/weblens-recog:"$docker_tag" --build-arg build_tag="$docker_tag" ./classification
+# docker push ethrous/weblens-recog:"$docker_tag"

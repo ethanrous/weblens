@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -38,7 +39,8 @@ func wsMain(client *Client) {
 }
 
 func wsReqSwitchboard(msgBuf []byte, client *Client) {
-	defer util.RecoverPanic("[WS] Client %d panicked: %v", client.GetClientId())
+	defer wsRecover(client.GetClientId())
+	// defer util.RecoverPanic("[WS] Client %d panicked: %v", client.GetClientId())
 
 	var msg wsRequest
 	err := json.Unmarshal(msgBuf, &msg)
@@ -65,7 +67,7 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 
 			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta)
 			if complete {
-				client.Send("zip_complete", subInfo.Key, gin.H{"takeoutId": result})
+				client.Send("zip_complete", subInfo.Key, []map[string]any{gin.H{"takeoutId": result}})
 			}
 		}
 
@@ -98,5 +100,12 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 		{
 			client.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
 		}
+	}
+}
+
+func wsRecover(clientId string) {
+	err := recover()
+	if err != nil {
+		util.WsError.Println(clientId, err, debug.Stack())
 	}
 }

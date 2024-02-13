@@ -1,15 +1,16 @@
 import axios from 'axios'
-import { AlbumData, fileData } from '../types/Types'
+import { AlbumData, FileBrowserDispatch, fileData, getBlankFile } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 import { notifications } from '@mantine/notifications'
 
-export function DeleteFile(fileId, authHeader) {
-    var url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('fileId', fileId)
-    fetch(url.toString(), { method: "DELETE", headers: authHeader })
+export function DeleteFiles(fileIds: string[], authHeader) {
+    var url = new URL(`${API_ENDPOINT}/files`)
+
+    fetch(url.toString(), { method: "DELETE", headers: authHeader, body: JSON.stringify(fileIds) })
+    .catch(r => notifications.show({title: "Failed to delete file", message: String(r), color: 'red'}))
 }
 
-function getSharedWithMe(user, dispatch, authHeader) {
+function getSharedWithMe(user, dispatch: FileBrowserDispatch, authHeader) {
     let url = new URL(`${API_ENDPOINT}/share`)
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
@@ -18,13 +19,19 @@ function getSharedWithMe(user, dispatch, authHeader) {
             if (!files) {
                 files = []
             }
-            dispatch({ type: 'set_folder_info', folderInfo: { id: "shared", filename: "Shared" } })
+
+            const sharedFolder = getBlankFile()
+            sharedFolder.isDir = true
+            sharedFolder.id = "shared"
+            sharedFolder.filename = "Shared"
+
+            dispatch({ type: 'set_folder_info', fileInfo: sharedFolder })
             dispatch({ type: 'update_many', files: files, user: user })
             dispatch({ type: "set_loading", loading: false })
         })
 }
 
-function getMyTrash(user, dispatch, authHeader) {
+function getMyTrash(user, dispatch: FileBrowserDispatch, authHeader) {
     let url = new URL(`${API_ENDPOINT}/trash`)
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
@@ -37,7 +44,7 @@ function getMyTrash(user, dispatch, authHeader) {
             parents.shift()
 
             data.self.filename = "Trash"
-            dispatch({ type: 'set_folder_info', folderInfo: data.self })
+            dispatch({ type: 'set_folder_info', fileInfo: data.self })
             dispatch({ type: 'update_many', files: children, user: user })
             dispatch({ type: 'set_parents_info', parents: parents })
         })
@@ -48,7 +55,7 @@ export async function GetFileInfo(fileId, authHeader) {
     return (await fetch(url.toString(), {headers: authHeader})).json()
 }
 
-export function GetFolderData(folderId, user, dispatch, authHeader) {
+export function GetFolderData(folderId, user, dispatch: FileBrowserDispatch, authHeader) {
     if (folderId === "shared") {
         return getSharedWithMe(user, dispatch, authHeader)
     }
@@ -72,7 +79,7 @@ export function GetFolderData(folderId, user, dispatch, authHeader) {
                 }
             }
         })
-        .then((data) => {
+        .then((data: {self: fileData, children: fileData[], parents: fileData[], error: any}) => {
             if (data.error) {
                 return Promise.reject(data.error)
             }
@@ -86,14 +93,25 @@ export function GetFolderData(folderId, user, dispatch, authHeader) {
             } else {
                 parents = data.parents.reverse()
             }
-            dispatch({ type: 'set_folder_info', folderInfo: data.self })
+
+            dispatch({ type: 'set_folder_info', fileInfo: data.self })
             dispatch({ type: 'update_many', files: children, user: user })
             dispatch({ type: 'set_parents_info', parents: parents })
         })
 }
 
-export async function CreateFolder(parentFolderId, name, authHeader): Promise<string> {
-    var url = new URL(`${API_ENDPOINT}/folder`)
+export async function CreateFolder(parentFolderId, name, isPublic, shareId, authHeader): Promise<string> {
+    if (isPublic && !shareId) {
+        throw new Error("Attempting to do public upload with no shareId");
+    }
+
+    var url
+    if (isPublic) {
+        url = new URL(`${API_ENDPOINT}/public/folder`)
+        url.searchParams.append('shareId', shareId)
+    } else {
+        url = new URL(`${API_ENDPOINT}/folder`)
+    }
     url.searchParams.append('parentFolderId', parentFolderId)
     url.searchParams.append('folderName', name)
 
@@ -137,7 +155,7 @@ function downloadBlob(blob, filename) {
     return
 }
 
-export function downloadSingleFile(fileId: string, authHeader, dispatch, filename?: string, ext?: string) {
+export function downloadSingleFile(fileId: string, authHeader, dispatch: FileBrowserDispatch, filename?: string, ext?: string) {
     const url = new URL(`${API_ENDPOINT}/download`)
     url.searchParams.append("fileId", fileId)
 
@@ -149,7 +167,7 @@ export function downloadSingleFile(fileId: string, authHeader, dispatch, filenam
         headers: authHeader,
         onDownloadProgress: (p) => {
             notifications.update({ id: notifId, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
-            dispatch({ type: "set_scan_progress", progress: (p.progress * 100).toFixed(0) })
+            dispatch({ type: "set_scan_progress", progress: Number((p.progress * 100).toFixed(0)) })
         },
     })
         .then(res => new Blob([res.data]))
@@ -201,4 +219,20 @@ export async function ShareFiles(files: string[], users: string[], authHeader) {
     }
     const res = await fetch(url.toString(), { headers: authHeader, method: "PATCH", body: JSON.stringify(body) })
     return res
+}
+
+export async function NewWormhole(folderId: string, authHeader) {
+    const url = new URL(`${API_ENDPOINT}/share`)
+
+    const body = {
+        folderId: folderId
+    }
+    const res = await fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
+    return res
+}
+
+export async function GetWormholeInfo(shareId: string, authHeader) {
+    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
+
+    return fetch(url.toString(), { headers: authHeader })
 }

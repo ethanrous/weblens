@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
@@ -45,9 +46,7 @@ func DisplayError(err error, extras ...string) {
 		_, file, line, ok := runtime.Caller(1)
 		msg := strings.Join(extras, " ")
 		if ok {
-			var trace []byte
-			runtime.Stack(trace, false)
-			ErrorCatcher.Printf("%s:%d %s: %s\n%s", file, line, msg, err, string(trace))
+			ErrorCatcher.Printf("%s:%d %s: %s\n%s", file, line, msg, err, debug.Stack())
 		} else {
 			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
@@ -109,12 +108,11 @@ func PrintMemUsage(contextTag string) {
 }
 
 // Set charLimit to 0 to disable
-func HashOfString(charLimit int, dataToHash ...string) string {
+func GlobbyHash(charLimit int, dataToHash ...any) string {
 	h := sha256.New()
 
-	for _, s := range dataToHash {
-		h.Write([]byte(s))
-	}
+	s := fmt.Sprint(dataToHash...)
+	h.Write([]byte(s))
 
 	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
 
@@ -146,7 +144,7 @@ func LazyStackTrace() {
 	}
 }
 
-func identifyPanic() string {
+func IdentifyPanic() string {
 	var name, file string
 	var line int
 	var pc [16]uintptr
@@ -185,7 +183,7 @@ func RecoverPanic(preText ...any) {
 		formatString = ""
 		rest = []any{}
 	}
-	ErrorCatcher.Println(fmt.Sprintf(formatString, Map(rest, func(a any) string { return a.(string) })), identifyPanic(), r)
+	ErrorCatcher.Println(fmt.Sprintf(formatString, Map(rest, func(a any) string { return a.(string) })), IdentifyPanic(), r)
 }
 
 // See Banish. Yoink is the same as Banish, but returns the value at i
@@ -239,6 +237,15 @@ func Each[T any](ts []T, fn func(T)) {
 	}
 }
 
+func Find[T any](ts []T, fn func(T) bool) int {
+	for i, t := range ts {
+		if fn(t) {
+			return i
+		}
+	}
+	return -1
+}
+
 func MapToSliceMutate[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V {
 	result := make([]V, len(tMap))
 	counter := 0
@@ -275,6 +282,17 @@ func Filter[T any](ts []T, fn func(T) bool) []T {
 	for _, t := range ts {
 		if fn(t) {
 			result = append(result, t)
+		}
+	}
+	return result
+}
+
+func FilterMap[T, V any](ts []T, fn func(T) (V, bool)) []V {
+	var result []V = []V{}
+	for _, t := range ts {
+		res, y := fn(t)
+		if y {
+			result = append(result, res)
 		}
 	}
 	return result
@@ -339,6 +357,8 @@ func (s *sw) PrintResults() {
 			var sinceLast time.Duration
 			if i != 0 {
 				sinceLast = s.laps[i].time.Sub(s.laps[i-1].time)
+			} else {
+				sinceLast = s.laps[i].time.Sub(s.start)
 			}
 
 			if l.tag != "" {

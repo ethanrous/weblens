@@ -28,7 +28,7 @@ yarn-error.log*
 /caches
 
 api/vendor/
-Dockerfile
 api/.env
 
 __debug*
+__pycache__

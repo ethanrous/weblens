@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react'
 import { BrowserRouter as Router, useRoutes } from "react-router-dom"
-import { AppShell, MantineProvider, Text } from '@mantine/core'
+import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 
 import WeblensLoader from "./components/Loading"
@@ -11,7 +11,8 @@ import Login from "./Pages/Login/Login"
 
 import "@mantine/notifications/styles.css"
 import "@mantine/core/styles.css"
-import { FlexColumnBox, FlexRowBox } from './Pages/FileBrowser/FilebrowserStyles'
+
+import Wormhole from './Pages/FileBrowser/Wormhole'
 
 const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"))
 const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"))
@@ -31,6 +32,12 @@ const WeblensRoutes = () => {
     </Suspense>
   )
 
+  const wormholePage = (
+    <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
+      <Wormhole />
+    </Suspense>
+  )
+
   const loginPage = (
     <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
       <Login />
@@ -47,6 +54,7 @@ const WeblensRoutes = () => {
     [
       ...["/", "/timeline", "/albums/*"].map(path => ({ path: path, element: galleryPage })),
       { path: "/files/*", element: filesPage },
+      { path: "/wormhole/*", element: wormholePage },
       { path: "/login", element: loginPage },
       { path: "/admin", element: adminPage },
     ]

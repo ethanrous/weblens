@@ -3,13 +3,21 @@ package dataProcess
 import (
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
-	"github.com/ethrousseau/weblens/api/util"
 )
 
-// Tasks
+// Caster
+type BroadcasterAgent interface {
+	PushTaskUpdate(taskId string, status string, result any)
+	PushFileCreate(updatedFile *dataStore.WeblensFile)
+	PushFileUpdate(updatedFile *dataStore.WeblensFile)
+}
+
+// Tasks //
+
 type taskTracker struct {
 	taskMu      sync.Mutex
 	taskMap     map[string]*Task
@@ -41,14 +49,49 @@ type Task struct {
 	waitMu *sync.Mutex
 }
 
-type task interface {
-	TaskId() string
-	Status() (bool, string)
-	Wait()
-	Cancel()
+type TaskType string
+
+const (
+	ScanDirectoryTask TaskType = "scan_directory"
+)
+
+// Worker pool //
+
+type hit struct {
+	time   time.Time
+	target *Task
 }
 
-// Internal types
+type workChannel chan *Task
+
+type hitChannel chan hit
+
+type virtualTaskPool struct {
+	treatAsGlobal    bool
+	totalTasks       *atomic.Int64
+	completedTasks   *atomic.Int64
+	waiterCount      *atomic.Int32
+	waiterGate       *sync.Mutex
+	exitLock         *sync.Mutex
+	allQueuedFlag    bool
+	parentWorkerPool *WorkerPool
+}
+
+type WorkerPool struct {
+	maxWorkers     *atomic.Int64 // Max allowed worker count
+	currentWorkers *atomic.Int64 // Currnet worker count
+	busyCount      *atomic.Int64 // Number of workers currently executing a task
+
+	lifetimeQueuedCount *atomic.Int64
+
+	taskStream workChannel
+	hitStream  hitChannel
+
+	exitFlag int
+}
+
+// Internal types //
+
 type ScanMetadata struct {
 	File         *dataStore.WeblensFile
 	Recursive    bool
@@ -56,8 +99,8 @@ type ScanMetadata struct {
 	PartialMedia *dataStore.Media
 }
 
+// Override marshal function for ScanMetadata
 func (s *ScanMetadata) MarshalJSON() ([]byte, error) {
-	util.Debug.Println("WOOO HERE")
 	data := map[string]any{
 		"FileId":    s.File.Id(),
 		"Recursive": s.Recursive,
@@ -77,36 +120,15 @@ type MoveMeta struct {
 	NewFilename         string
 }
 
-type PreloadMetaMeta struct { // Naming is hard
-	Files         []*dataStore.WeblensFile
-	ExifThumbType string
-}
-
 type FileChunk struct {
-	// ByteStart int64
-	// Size      int64
 	Chunk        []byte
-	Chunk64      string
 	ContentRange string
-	// UploadBytes []byte
-}
-
-type uploadedFile struct {
-	File64         string `json:"file64"`
-	FileName       string `json:"fileName"`
-	ParentFolderId string `json:"parentFolderId"`
 }
 
 type WriteFileMeta struct {
 	ChunkStream    chan FileChunk `json:"-"`
 	Filename       string
 	ParentFolderId string
-}
-
-type BroadcasterAgent interface {
-	PushTaskUpdate(taskId string, status string, result any)
-	PushFileCreate(updatedFile *dataStore.WeblensFile)
-	PushFileUpdate(updatedFile *dataStore.WeblensFile)
 }
 
 // Misc

@@ -96,18 +96,29 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)
 
+	// Allow publically creating folders
+	public.POST("/public/folder", pubMakeDir)
+
 	api.GET("/trash", getUserTrashInfo)
 
+	// Regular file upload endpoint
 	api.POST("/upload", newFileUpload)
-	api.PUT("/upload/:uploadId", handleUploadChunk)
-	// api.GET("/upload/:uploadId", findUpload)
+
+	// Allow publically creating file uploads for wormholes
+	public.POST("/public/upload", newSharedFileUpload)
+
+	// Allow public chunk upload to support wormhole drops
+	public.PUT("/upload/:uploadId", handleUploadChunk)
 
 	api.GET("/file/:fileId", getFile)
 	api.PATCH("/file", updateFile)
-	api.DELETE("/file", trashFile)
+	api.DELETE("/files", trashFiles)
 
+	api.GET("/share", getSharedFiles)
 	api.PATCH("/files", updateFiles)
 	api.PATCH("/files/share", shareFiles)
+	api.POST("/share", createShareLink)
+	public.GET("/share/:shareId", getShare)
 
 	api.GET("/download", downloadFile)
 
@@ -115,8 +126,6 @@ func AddApiRoutes(r *gin.Engine) {
 
 	api.GET("/user", getUserInfo)
 	api.GET("/users", searchUsers)
-
-	api.GET("/share", getSharedFiles)
 
 	api.GET("/albums", getAlbums)
 
@@ -133,6 +142,7 @@ func AddApiRoutes(r *gin.Engine) {
 	admin.GET("/users", getUsers)
 	admin.POST("/user", updateUser)
 	admin.DELETE("/user/:username", deleteUser)
+	admin.POST("/cleanup/medias", cleanupMedias)
 	admin.POST("/cache", clearCache)
 
 	websocket := r.Group("/api")

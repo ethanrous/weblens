@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { AlbumData, MediaData, MediaStateType, fileData } from '../../types/Types'
 import { notifications } from '@mantine/notifications'
 
@@ -6,6 +6,7 @@ type galleryAction = {
     type: string
     medias?: MediaData[]
     albums?: AlbumData[]
+    albumId?: string
     media?: MediaData
     albumNames?: string[]
     include?: boolean
@@ -35,7 +36,8 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
             }
             return {
                 ...state,
-                mediaMapUpdated: Date.now()
+                mediaMapUpdated: Date.now(),
+                loading: false
             }
         }
 
@@ -45,9 +47,16 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
             }
             state.albumsMap.clear()
             for (const a of action.albums) {
-                state.albumsMap.set(a.Name, a)
+                state.albumsMap.set(a.Id, a)
             }
             return { ...state }
+        }
+
+        case 'set_album_media': {
+            const album = state.albumsMap.get(action.albumId)
+            album.CoverMedia = action.media
+            state.albumsMap.set(action.albumId, album)
+            return {...state}
         }
 
         case 'set_albums_filter': {
@@ -170,13 +179,13 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
 
 export const useKeyDown = (blockSearchFocus, searchRef) => {
 
-    const onKeyDown = (event) => {
-        if (!blockSearchFocus && !event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key == "Backspace")) {
+    const onKeyDown = useCallback((event) => {
+        if (!blockSearchFocus && !event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key === "Backspace")) {
             searchRef.current.focus()
-        } else if (event.key == "Escape") {
+        } else if (event.key === "Escape") {
             searchRef.current.blur()
         }
-    };
+    }, [blockSearchFocus, searchRef])
     useEffect(() => {
         document.addEventListener('keydown', onKeyDown)
         return () => {

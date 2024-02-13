@@ -33,7 +33,7 @@ func getAlbum(ctx *gin.Context) {
 		return
 	}
 
-	medias, err := db.GetFilteredMedia("createDate", ctx.GetString("username"), 1, []string{albumId}, raw, false)
+	medias, err := db.GetFilteredMedia("createDate", ctx.GetString("username"), 1, []string{albumId}, raw)
 	if err != nil {
 		util.DisplayError(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get filtered media"})
@@ -93,9 +93,9 @@ func updateAlbum(ctx *gin.Context) {
 		return
 	}
 
-	ms := []string{}
+	var ms []string
 	if update.AddMedia != nil && len(update.AddMedia) != 0 {
-		ms := util.Filter(update.AddMedia, func(m string) bool { return m != "" })
+		ms = util.Filter(update.AddMedia, func(m string) bool { return m != "" })
 		if len(ms) == 0 {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
 			return
@@ -125,7 +125,6 @@ func updateAlbum(ctx *gin.Context) {
 
 	addedCount := 0
 	if len(ms) != 0 {
-
 		addedCount, err = a.AddMedia(ms)
 		if err != nil {
 			util.DisplayError(err)

@@ -74,6 +74,17 @@
       "IsVideo": false,
       "RawThumbExifKey": "PreviewImage"
     },
+    "image/heic": {
+      "FriendlyName": "HEIC",
+      "FileExtension": [
+        "heic",
+        "HEIC"
+      ],
+      "IsDisplayable": false,
+      "IsRaw": false,
+      "IsVideo": false,
+      "RawThumbExifKey": ""
+    },
     "video/mp4": {
       "FriendlyName": "MP4",
       "FileExtension": [

@@ -2,6 +2,7 @@ package dataProcess
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/util"
@@ -62,7 +63,6 @@ func (t *Task) ClearAndRecompute() {
 		t.err = nil
 	}
 	t.completed = false
-	t.queue = nil
 	t.waitMu.Lock()
 	t.queue.QueueTask(t)
 }
@@ -83,11 +83,13 @@ func (t *Task) GetMeta() any {
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
-	util.Error.Printf("Task %s exited with an error: %s", t.TaskId(), err.Error())
+	_, filename, line, _ := runtime.Caller(1)
+	util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s", t.TaskId(), filename, line, err.Error())
 	if t.completed {
 		return
 	}
 
+	// Run the cleanup routine for errors, if any
 	if t.errorCleanup != nil {
 		t.errorCleanup()
 	}
@@ -117,6 +119,10 @@ func (t *Task) success(msg ...any) {
 func (t *Task) setTimeout(timeout time.Time) {
 	t.timeout = timeout
 	t.queue.parentWorkerPool.hitStream <- hit{time: timeout, target: t}
+}
+
+func (t *Task) ClearTimeout() {
+	t.timeout = time.Unix(0, 0)
 }
 
 func (t *Task) setResult(fields ...KeyVal) {

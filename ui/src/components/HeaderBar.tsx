@@ -6,7 +6,7 @@ import WeblensLoader from './Loading'
 import { userContext } from '../Context'
 import { ActionIcon, Box, Input, Space, Text, Tooltip } from '@mantine/core'
 import { IconFolder, IconLogout, IconPhoto, IconSearch, IconTools } from '@tabler/icons-react'
-import { FlexColumnBox, FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles'
+import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 type HeaderBarProps = {
     searchContent: string
@@ -40,7 +40,7 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
     const spacing = "8px"
 
     return (
-        <Box style={{ zIndex: 3, height: 'max-content', width: '100vw', position: 'fixed' }}>
+        <Box style={{ zIndex: 3, height: 'max-content', width: '100vw' }}>
             <Box
                 style={{
                     display: "flex",
@@ -87,12 +87,12 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
                     />
                 </SearchBox>
                 <Space style={{ flexGrow: 1 }} />
-                <FlexColumnBox onClick={() => window.open(`https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}`, "_blank")}
-                    style={{cursor: 'pointer', width: 'max-content', alignItems: 'flex-end', justifyContent: 'center', margin: 15}}
+                <ColumnBox onClick={() => window.open(`https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}`, "_blank")}
+                    style={{ cursor: 'pointer', width: 'max-content', alignItems: 'flex-end', justifyContent: 'center', margin: 15 }}
                 >
-                    <Text style={{opacity: 0.20, zIndex: 0, userSelect: 'none'}}>{process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
-                    <Text lineClamp={1} style={{opacity: 0.20, zIndex: 0, userSelect: 'none', width: 'max-content'}}>Report an issue</Text>
-                </FlexColumnBox>
+                    <Text style={{ opacity: 0.20, zIndex: 0, userSelect: 'none' }}>{process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
+                    <Text lineClamp={1} style={{ opacity: 0.20, zIndex: 0, userSelect: 'none', width: 'max-content' }}>Report an issue</Text>
+                </ColumnBox>
                 {userInfo?.admin && (
                     <Tooltip label={"Admin Settings"} >
                         <ActionIcon color='#00000000' size={40} onClick={() => { nav("/admin") }} style={{ margin: spacing }}>
@@ -100,7 +100,7 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
                         </ActionIcon>
                     </Tooltip>
                 )}
-                <FlexRowBox style={{ margin: spacing, backgroundColor: '#444444', height: 'max-content', width: 'max-content', padding: 6, borderRadius: '8px' }}>
+                <RowBox style={{ margin: spacing, backgroundColor: '#444444', height: 'max-content', width: 'max-content', padding: 6, borderRadius: '8px' }}>
                     <Text size='30' c={'white'} style={{ lineHeight: '10px', paddingBottom: 5 }}>{userInfo?.username}</Text>
                     <Space w={10} />
                     <Tooltip label={"Logout"} >
@@ -108,7 +108,7 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
                             <IconLogout />
                         </ActionIcon>
                     </Tooltip>
-                </FlexRowBox>
+                </RowBox>
                 <Box style={{ paddingRight: '10px' }} />
             </Box>
             <WeblensLoader loading={loading} progress={progress} />

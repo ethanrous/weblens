@@ -12,60 +12,27 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-type workChannel chan *Task
-type hit struct {
-	time   time.Time
-	target *Task
-}
-type hitChannel chan hit
-
-type virtualTaskPool struct {
-	treatAsGlobal    bool
-	totalTasks       *atomic.Int64
-	completedTasks   *atomic.Int64
-	waiterCount      *atomic.Int32
-	waiterGate       *sync.Mutex
-	exitLock         *sync.Mutex
-	allQueuedFlag    bool
-	parentWorkerPool *WorkerPool
-}
-
-type WorkerPool struct {
-	maxWorkers     *atomic.Int64 // Max allowed worker count
-	currentWorkers *atomic.Int64 // Currnet worker count
-	busyCount      *atomic.Int64 // Number of workers currently executing a task
-
-	lifetimeQueuedCount *atomic.Int64
-
-	taskStream workChannel
-	hitStream  hitChannel
-
-	exitFlag int
-}
-
 func NewWorkerPool(initWorkers int) (*WorkerPool, *virtualTaskPool) {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
 	util.Info.Printf("Starting new worker pool with %d workers", initWorkers)
 
-	var maxWorkers atomic.Int64
-	var busyCount atomic.Int64
-	var startingWorkers atomic.Int64
-	var totalTasks atomic.Int64
-
 	newWp := &WorkerPool{
-		maxWorkers:          &maxWorkers,
-		currentWorkers:      &startingWorkers,
+		maxWorkers:          &atomic.Int64{},
+		currentWorkers:      &atomic.Int64{},
+		busyCount:           &atomic.Int64{},
+		lifetimeQueuedCount: &atomic.Int64{},
 		taskStream:          make(workChannel, initWorkers*1000),
 		hitStream:           make(hitChannel, initWorkers*2),
-		busyCount:           &busyCount,
-		lifetimeQueuedCount: &totalTasks,
-		exitFlag:            1,
+
+		// Worker pool starts disabled
+		exitFlag: 1,
 	}
 
 	newWp.maxWorkers.Add(int64(initWorkers))
 
+	// Worker pool always has one global queue
 	globalPool := newWp.NewVirtualTaskQueue()
 	globalPool.MarkGlobal()
 
@@ -105,7 +72,7 @@ func (wp *WorkerPool) executioner() {
 			// since it first queued it, we must check that we are past the
 			// timeout before cancelling the task. Also check that it
 			// has not already finished
-			if time.Until(task.timeout) <= 0 && !task.completed {
+			if !task.completed && time.Until(task.timeout) <= 0 && task.timeout.Unix() != 0 {
 				task.Cancel()
 				err := errors.New("timeout")
 				task.error(err)
@@ -114,22 +81,25 @@ func (wp *WorkerPool) executioner() {
 	}
 }
 
+// Launch the standard threads for this worker pool
 func (wp *WorkerPool) Run() {
 	wp.exitFlag = 0
+	// Spawn the timeout checker
 	go wp.executioner()
 
 	var i int64
 	for i = 0; i < wp.maxWorkers.Load(); i++ {
+		// These are the base, everpresent threads for this pool,
+		// so they are NOT replacement workers. See wp.execWorker
 		wp.execWorker(false)
 	}
 }
 
 // Main worker method, spawn a worker and loop over the task channel
 //
-// `replacement` defines if the worker is a temporary replacement for another
-// task that is parking for a long time. Replacement workers have a more limited
-// allowed ruleset to minimize parked time of the other task.
-// They and will be removed some time after the main task wakes up.
+// `replacement` specifies if the worker is a temporary replacement for another
+// task that is parking for a long time. Replacement workers behave a bit
+// different to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
 
@@ -138,6 +108,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 	WorkLoop:
 		for task := range wp.taskStream {
+
+			// Even if we get a new task, if the wp is marked for exit, we just exit
 			if wp.exitFlag == 1 {
 				// We don't care about the exitLock here, since the whole wp
 				// is going down anyway.
@@ -147,7 +119,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 				break WorkLoop
 			}
-			if replacement && task.taskType == "scan_directory" {
+			// Replacement workers are not allowed to do "scan_directory" tasks
+			if replacement && task.taskType == string(ScanDirectoryTask) {
 				wp.taskStream <- task
 				continue WorkLoop
 			}
@@ -157,8 +130,6 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			saftyWork(task, workerId)
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)
-
-			task.queue.completedTasks.Add(1)
 
 			// Wake any waiters on this task
 			task.waitMu.Unlock()
@@ -174,6 +145,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			// very rarely, attempt to unlock twice if two tasks finish at the same time.
 			// So we must treat this whole area as a critical section
 			task.queue.exitLock.Lock()
+
+			task.queue.completedTasks.Add(1)
 
 			// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
 			// we check if we are empty and finished, and if so wake any waiters.
@@ -193,31 +166,19 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					}
 				}
 			}
+			// If this is a replacement task, and we have more workers than the target for the pool, we exit
 			if replacement && wp.currentWorkers.Load() > wp.maxWorkers.Load() {
-				// Dec alive workers
+				// Important to decrement alive workers inside the exitLock, so
+				// we don't have multiple workers exiting when we only need the 1
 				wp.currentWorkers.Add(-1)
 
-				// Important to decrement alive workers inside the exit lock, so
-				// we don't have multiple workers exiting when we only need the 1
 				task.queue.exitLock.Unlock()
-				/*
-					Tasks can create "replacement" workers as to not create a deadlock.
-					e.g. all n `wp.maxWorkers` are parked "scan_directory" tasks waiting
-					for their "scan_file" children tasks to complete, but never will since
-					all worker threads are taken up by blocked tasks.
-
-					Replacement workers:
-					1. Are not allowed to execute "scan_directory" tasks
-					2. will exit once the main thread has woken up, and shrunk the worker pool back down
-
-					So, if this is a replacement task, and we have more workers than the pool allows, we exit
-				*/
 				break WorkLoop
 			}
 
 			// If we have already began running the task,
 			// we must finish and clean up before checking exitFlag again here.
-			// the task *could* be cancelled to speed things up, but that
+			// The task *could* be cancelled to speed things up, but that
 			// is not our job.
 			if wp.exitFlag == 1 {
 				// Dec alive workers
@@ -230,11 +191,21 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 		}
 
-		// If the number of alive workers is 4, we have worker ids from 0-3,
-		// so the number of workers (4, in this example) becomes the new worker id
+		// If currentWorkers is 4, we then have worker ids from 0-3,
+		// so currentWorkers becomes the new worker id as it's next
 	}(wp.currentWorkers.Load())
 }
 
+/*
+We can create "replacement" workers as to not create a deadlock.
+e.g. all n `wp.maxWorkers` are "scan_directory" tasks parked and waiting
+for their "scan_file" children tasks to complete, but never will since
+all worker threads are taken up by blocked tasks.
+
+Replacement workers:
+1. Are not allowed to pick up "scan_directory" tasks
+2. will exit once the main thread has woken up, and shrunk the worker pool back down
+*/
 func (wp *WorkerPool) addReplacementWorker() {
 	wp.maxWorkers.Add(1)
 	wp.execWorker(true)
@@ -245,40 +216,44 @@ func (wp *WorkerPool) removeWorker() {
 }
 
 func (wp *WorkerPool) NewVirtualTaskQueue() *virtualTaskPool {
-	var totalTasks atomic.Int64
-	var completedTasks atomic.Int64
-	var waiterCount atomic.Int32
-
 	newQueue := &virtualTaskPool{
-		totalTasks:     &totalTasks,
-		completedTasks: &completedTasks,
-		waiterCount:    &waiterCount,
-		waiterGate:     &sync.Mutex{},
-		exitLock:       &sync.Mutex{},
+		totalTasks:       &atomic.Int64{},
+		completedTasks:   &atomic.Int64{},
+		waiterCount:      &atomic.Int32{},
+		waiterGate:       &sync.Mutex{},
+		exitLock:         &sync.Mutex{},
+		parentWorkerPool: wp,
 	}
-	newQueue.waiterGate.Lock()
 
-	newQueue.parentWorkerPool = wp
+	// The waiterGate begins locked, and will only unlock when all
+	// tasks have been queued and finish, then the waiters are released
+	newQueue.waiterGate.Lock()
 
 	return newQueue
 }
 
 func (wq *virtualTaskPool) Cancel() {
-
+	// TODO
 }
 
-func (wq *virtualTaskPool) QueueTask(t *Task) {
+func (wq *virtualTaskPool) QueueTask(t *Task) (err error) {
 	if wq.parentWorkerPool.exitFlag == 1 {
+		util.Warning.Println("Not queuing task while worker pool is going down")
 		return
 	}
 
 	if t.err != nil {
+		// Tasks that have failed will not be re-tried. If the errored task is removed from the
+		// task map, then it will be re-tried because the previous error was lost. This can be
+		// sometimes be useful, some tasks auto-remove themselves after they finish.
 		util.Warning.Println("Not re-queueing task that has error set, please restart weblens to try again")
 		return
 	}
 
 	if t.queue != nil {
-		// Task is already queued, so we don't need to re-add to the queue
+		// Task is already queued, we are not allowed to move it to another queue.
+		// We can call .ClearAndRecompute() on the task and it will queue it
+		// again, but it cannot be transfered
 		if t.queue != wq {
 			util.Warning.Println("Attempted to re-assign task to another queue")
 		}
@@ -286,16 +261,24 @@ func (wq *virtualTaskPool) QueueTask(t *Task) {
 	}
 
 	if wq.allQueuedFlag {
-		panic(errors.New("attempting to add task to closed task queue"))
+		// We cannot add tasks to a queue that has been closed
+		return errors.New("attempting to add task to closed task queue")
 	}
 
 	wq.totalTasks.Add(1)
+
+	// Set the tasks queue
 	t.queue = wq
 
 	wq.parentWorkerPool.lifetimeQueuedCount.Add(1)
+
+	// Put the task in the queue
 	wq.parentWorkerPool.taskStream <- t
+
+	return
 }
 
+// Specifcy the work queue as being a "global" one
 func (wq *virtualTaskPool) MarkGlobal() {
 	wq.treatAsGlobal = true
 }
@@ -305,7 +288,14 @@ func (wq *virtualTaskPool) SignalAllQueued() {
 		util.Error.Println("Attempt to signal all queued for global queue")
 	}
 
+	wq.exitLock.Lock()
+	// If all tasks finish (e.g. early failure, etc.) before we signal that they are all queued,
+	// the final exiting task will not let the waiters out, so we must do it here
+	if wq.completedTasks.Load() == wq.totalTasks.Load() {
+		wq.waiterGate.Unlock()
+	}
 	wq.allQueuedFlag = true
+	wq.exitLock.Unlock()
 }
 
 func (wq *virtualTaskPool) ClearAllQueued() {

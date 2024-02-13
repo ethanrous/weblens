@@ -4,7 +4,7 @@ import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react';
 
 import { useMemo, useReducer } from "react"
 import { humanFileSize } from '../util';
-import { FlexColumnBox, FlexRowBox } from '../Pages/FileBrowser/FilebrowserStyles';
+import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
 
 
 function uploadReducer(state: UploadStateType, action) {
@@ -14,7 +14,7 @@ function uploadReducer(state: UploadStateType, action) {
             // if (existingUpload?.progress > 0) {
             //     return { ...state }
             // }
-            const newUploadMeta: UploadMeta = { key: action.key, isDir: action.isDir, friendlyName: action.name, parent: action?.parent, progress: 0, total: action.size ? action.size : 0, speed: [] }
+            const newUploadMeta: UploadMeta = { key: action.key, isDir: action.isDir, friendlyName: action.name, parent: action?.parent, progress: 0, subProgress: 0, total: action.size ? action.size : 0, speed: [] }
             if (action.parent) {
                 const parent = state.uploadsMap.get(action.parent)
                 parent.total += 1
@@ -22,6 +22,35 @@ function uploadReducer(state: UploadStateType, action) {
             }
             state.uploadsMap.set(newUploadMeta.key, newUploadMeta)
             return { ...state }
+        }
+        case 'finished_chunk': {
+            if (!state.uploadsMap.get(action.key)) {
+                console.error("Looking for upload key that doesn't exist")
+                return { ...state }
+            }
+            let newMap = new Map<string, UploadMeta>()
+
+            state.uploadsMap.forEach((val, key) => {
+                newMap.set(key, val)
+            })
+
+            let replaceItem = newMap.get(action.key)
+            // replaceItem.progress += action.chunkSize
+            replaceItem.subProgress = 0
+
+
+            // if (action.speed && replaceItem.speed.push(action.speed) >= 15) {
+            //     // replaceItem.speed.shift()
+            // }
+
+            if (replaceItem.progress === replaceItem.total && replaceItem.parent) {
+                const parent = state.uploadsMap.get(replaceItem.parent)
+                parent.progress += 1
+                state.uploadsMap.set(replaceItem.parent, parent)
+            }
+
+            newMap.set(action.key, replaceItem)
+            return { ...state, uploadsMap: newMap }
         }
         case 'update_progress': {
             if (!state.uploadsMap.get(action.key)) {
@@ -35,16 +64,12 @@ function uploadReducer(state: UploadStateType, action) {
             })
 
             let replaceItem = newMap.get(action.key)
+
             replaceItem.progress += action.progress
 
-            if (replaceItem.speed.push(action.speed) >= 6) {
+            const now = Date.now()
+            if (replaceItem.speed.push({ time: now, bytes: replaceItem.progress }) >= 100) {
                 replaceItem.speed.shift()
-            }
-
-            if (replaceItem.progress === replaceItem.total && replaceItem.parent) {
-                const parent = state.uploadsMap.get(replaceItem.parent)
-                parent.progress += 1
-                state.uploadsMap.set(replaceItem.parent, parent)
             }
 
             newMap.set(action.key, replaceItem)
@@ -64,9 +89,10 @@ type UploadMeta = {
     key: string
     isDir: boolean
     friendlyName: string
-    progress: number // 0-100 for files, 0-{n} where n is number of files for directories
+    subProgress: number // bytes written in current chunk, files only
+    progress: number
     total: number // total size in bytes of the file, or number of files in the dir
-    speed: number[]
+    speed: { time: number, bytes: number }[]
     parent: string // For files if they have a directory parent at the top level
 }
 type UploadStateType = {
@@ -81,7 +107,15 @@ export function useUploadStatus() {
     return { uploadState, uploadDispatch }
 }
 
-const average = (array) => { return (array.reduce((a, b) => a + b) / array.length) }
+const average = (array) => { if (!array || array.length === 0) { return 0 }; return (array.reduce((a, b) => a + b) / array.length) }
+const getSpeed = (stamps: { time: number, bytes: number }[]) => {
+    let speed = 0
+    if (stamps.length !== 0) {
+        speed = (stamps[stamps.length - 1].bytes - stamps[0].bytes) / (((stamps[stamps.length - 1].time - stamps[0].time) / 1000))
+    }
+
+    return speed
+}
 
 function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
     let prog = 0
@@ -93,15 +127,15 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
             prog = (uploadMetadata.progress / uploadMetadata.total) * 100
         }
         statusText = `${uploadMetadata.progress} of ${uploadMetadata.total} files`
-    } else if (uploadMetadata.progress) {
-        prog = (uploadMetadata.progress / uploadMetadata.total) * 100
-        const [val, unit] = humanFileSize(average(uploadMetadata.speed), true)
+    } else if (uploadMetadata.subProgress || uploadMetadata.progress) {
+        prog = ((uploadMetadata.subProgress + uploadMetadata.progress) / uploadMetadata.total) * 100
+        const [val, unit] = humanFileSize(getSpeed(uploadMetadata.speed), true)
         statusText = `${val}${unit}/s`
     }
 
     return (
-        <FlexRowBox style={{ width: 400, backgroundColor: "#444444", height: '40px' }}>
-            <Space w={2} />
+        <RowBox style={{ width: 400, height: 40 }}>
+            {/* <Space w={2} /> */}
             {(uploadMetadata.isDir && (
                 <IconFolder color='white' style={{ minHeight: '30px', minWidth: '30px' }} />
             ))}
@@ -146,11 +180,9 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
                 />
             )}
 
-        </FlexRowBox>
+        </RowBox>
     )
 }
-
-// const UploadStatus = ({ uploadState, uploadDispatch, count }: { uploadState: UploadStateType, uploadDispatch, count: number }) => {
 
 const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStateType, uploadDispatch }) => {
     const uploadCards = useMemo(() => {
@@ -159,13 +191,17 @@ const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStat
         const uploads = Array.from(uploadState.uploadsMap.values())
             .filter((val) => !val.parent)
             .sort((a, b) => {
-                if ((a.progress / a.total) !== 1 && (b.progress / b.total) === 1) { return -1 }
-                else if ((b.progress / b.total) !== 1 && (a.progress / a.total) === 1) { return 1 }
+                const aVal = a.progress / a.total
+                const bVal = b.progress / b.total
+                if (aVal === bVal) { return 0 }
+                else if (aVal !== 1 && bVal === 1) { return -1 }
+                else if (bVal !== 1 && aVal === 1) { return 1 }
+                else if (aVal >= 0 && aVal <= 1) { return 1 }
+
                 return 0
             })
 
         for (const uploadMeta of uploads) {
-            console.log(uploadMeta.progress / uploadMeta.total)
             uploadCards.push(<UploadCard key={uploadMeta.key} uploadMetadata={uploadMeta} />)
         }
         return uploadCards
@@ -179,17 +215,19 @@ const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStat
 
     const topLevelCount: number = Array.from(uploadState.uploadsMap.values()).filter((val) => !val.parent).length
     return (
-        <Paper pos={'fixed'} bottom={0} right={30} radius={10} style={{ backgroundColor: "#222222", zIndex: 2 }}>
+        <Paper pos={'fixed'} bottom={0} right={30} style={{ backgroundColor: "#222222", zIndex: 2 }}>
             <Paper pt={8} pb={25} radius={10} mb={-10} ml={10} mr={10} style={{ backgroundColor: "transparent", display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text c={'white'}>Uploading {topLevelCount} item{topLevelCount !== 1 ? 's' : ''}</Text>
                 <Tooltip label={"Close"}>
                     <CloseButton c={'white'} variant='transparent' onClick={() => uploadDispatch({ type: "clear" })} />
                 </Tooltip>
             </Paper>
-            <Card p={0} radius={0} style={{ backgroundColor: "transparent", height: height, maxHeight: 225, width: "400px" }}>
-                <ScrollArea type='never' mih={40} maw={400}>
+            <Card p={0} radius={0} style={{ backgroundColor: "transparent", height: height, maxHeight: 225, width: 420, overflow: 'hidden' }}>
+                <ScrollArea type='never' mih={40} maw={420}>
+                    <ColumnBox style={{ width: 420 }}>
+                        {uploadCards}
 
-                    {uploadCards}
+                    </ColumnBox>
 
                 </ScrollArea>
             </Card>

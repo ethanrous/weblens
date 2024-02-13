@@ -1,46 +1,56 @@
-import { ActionIcon, Box, Button, Combobox, Divider, Indicator, Modal, MultiSelect, ScrollArea, Slider, Space, Switch, Tabs, Text, TextInput, useCombobox } from '@mantine/core'
+import { Box, Button, Combobox, Divider, Indicator, Modal, Slider, Space, Switch, Tabs, Text, TextInput, useCombobox } from '@mantine/core'
 import { useEffect, useReducer, useMemo, useRef, useContext, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { IconCheck, IconFilter, IconPlus } from '@tabler/icons-react'
 
 import HeaderBar from "../../components/HeaderBar"
 import Presentation from '../../components/Presentation'
-import { GalleryBucket } from './MediaDisplay'
+import { PhotoGallery } from '../../components/MediaDisplay'
 import { mediaReducer, useKeyDown, handleWebsocket } from './GalleryLogic'
 import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi'
 import { AlbumData, MediaData, MediaStateType } from '../../types/Types'
 import useWeblensSocket from '../../api/Websocket'
 import { userContext } from '../../Context'
-import { FlexColumnBox, FlexRowBox } from '../FileBrowser/FilebrowserStyles'
+import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles'
 import { Albums } from './Albums'
-
-// styles
-
-const NoMediaContainer = ({ ...children }) => {
-    return (
-        <Box
-            style={{
-                display: "flex",
-                flexWrap: "wrap",
-                flexDirection: "column",
-                marginTop: "50px",
-                gap: "25px",
-                alignContent: "center"
-            }}
-            {...children}
-        />
-    )
-}
 
 const NoMediaDisplay = () => {
     const nav = useNavigate()
     return (
-        <NoMediaContainer>
-            <Text c='white' >No media to display</Text>
-            <Button style={{ border: `1px solid white` }} onClick={() => nav('/files')}>
-                Upload Media
-            </Button>
-        </NoMediaContainer>
+        <ColumnBox style={{ marginTop: 75, gap: 25, width: 'max-content' }}>
+            <Text c='white' fw={700} size='31px'>No media to display</Text>
+            <Text c='white' >Upload files then add them to an album</Text>
+            <RowBox style={{ height: 'max-content', width: '100%', gap: 10 }}>
+                <Button fullWidth color='#4444ff' onClick={() => nav('/files')}>
+                    Upload Media
+                </Button>
+                <Button fullWidth color='#4444ff' onClick={() => nav('/albums')}>
+                    View Albums
+                </Button>
+            </RowBox>
+        </ColumnBox>
+    )
+}
+
+const ImageSizeSlider = ({ imageSize, dispatch }) => {
+    return (
+        <Slider
+            color='#4444ff'
+            label={`Image Size`}
+            defaultValue={300}
+            value={imageSize}
+            w={200}
+            min={100}
+            max={500}
+            step={10}
+            marks={[
+                { value: 100, label: '10%' },
+                { value: 300, label: '50%' },
+                { value: 500, label: '100%' }
+            ]}
+            onChange={(e) => dispatch({ type: 'set_image_size', size: e })}
+            onDoubleClick={() => dispatch({ type: 'set_image_size', size: 300 })}
+        />
     )
 }
 
@@ -50,7 +60,7 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
         onDropdownClose: () => {
             combobox.resetSelectedOption()
             dispatch({ type: 'set_albums_filter', albumNames: selectedAlbums })
-            dispatch({ type: 'set_raw_toggle', raw: rawOn})
+            dispatch({ type: 'set_raw_toggle', raw: rawOn })
         }
     });
     const [selectedAlbums, setSelectedAlbums] = useState(albumsFilter)
@@ -60,12 +70,12 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
         const options = albumNames.map((name) => {
             return (
                 <Combobox.Option value={name} key={name}>
-                    <FlexRowBox style={{justifyContent: 'space-between'}}>
+                    <RowBox style={{ justifyContent: 'space-between' }}>
                         <Text>{name}</Text>
                         {selectedAlbums.includes(name) && (
                             <IconCheck />
                         )}
-                    </FlexRowBox>
+                    </RowBox>
                 </Combobox.Option>
             )
         })
@@ -73,8 +83,8 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
     }, [albumNames, selectedAlbums])
 
     return (
-        <FlexRowBox>
-            <Slider color='#4444ff' label={`Image Height: ${imageSize}px`} defaultValue={300} value={imageSize} w={200} min={100} max={500} step={10} onChange={(e) => dispatch({ type: 'set_image_size', size: e })} onDoubleClick={() => dispatch({ type: 'set_image_size', size: 300 })} />
+        <RowBox>
+            <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
             <Space w={20} />
             <Combobox
                 store={combobox}
@@ -89,7 +99,7 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
             >
                 <Combobox.Target>
                     <Indicator color='#4444ff' disabled={!selectedAlbums.length && !rawSelected}>
-                        <IconFilter onClick={() => combobox.toggleDropdown()} style={{cursor: 'pointer'}}/>
+                        <IconFilter onClick={() => combobox.toggleDropdown()} style={{ cursor: 'pointer' }} />
                     </Indicator>
                 </Combobox.Target>
 
@@ -111,7 +121,7 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
                 </Combobox.Dropdown>
 
             </Combobox>
-        </FlexRowBox>
+        </RowBox>
     )
 }
 
@@ -138,11 +148,11 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
         )
     } else {
         return (
-            <FlexRowBox style={{ width: '100%' }}>
+            <RowBox style={{ width: '100%' }}>
                 <Switch color='#4444ff' checked={rawSelected} label={'RAWs'} onChange={(e) => dispatch({ type: 'set_raw_toggle', raw: e.target.checked })} />
                 <Space w={20} />
-                <Slider color='#4444ff' defaultValue={300} value={imageSize} w={200} min={100} max={500} step={10} onChange={(e) => dispatch({ type: 'set_image_size', size: e })} onDoubleClick={() => dispatch({ type: 'set_image_size', size: 300 })} />
-            </FlexRowBox>
+                <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
+            </RowBox>
         )
     }
 
@@ -150,7 +160,7 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
 
 const GalleryControls = ({ mediaState, page, albumId, dispatch }: { mediaState: MediaStateType, page: string, albumId: string, dispatch }) => {
     return (
-        <FlexRowBox style={{ position: 'sticky', alignSelf: 'flex-stat', marginLeft: 225, height: 65, zIndex: 10 }}>
+        <RowBox style={{ position: 'sticky', alignSelf: 'flex-stat', marginLeft: 225, height: 65, zIndex: 10 }}>
             <Divider my={10} size={1} orientation='vertical' />
             <Space w={30} />
             <Box
@@ -167,7 +177,7 @@ const GalleryControls = ({ mediaState, page, albumId, dispatch }: { mediaState: 
                     <AlbumsControls albumId={albumId} imageSize={mediaState.imageSize} rawSelected={mediaState.includeRaw} dispatch={dispatch} />
                 )}
             </Box>
-        </FlexRowBox>
+        </RowBox>
     )
 }
 
@@ -192,83 +202,93 @@ function ViewSwitch({ page, timeline, albums, albumId }) {
                 </Tabs.Tab>
             </Tabs.List>
 
-            <Tabs.Panel value='timeline' style={{ height: "96%" }}>
-                <Space h={15} />
-                {timeline}
+            <Tabs.Panel value='timeline' style={{ height: "98%" }}>
+                <ColumnBox>
+                    {timeline}
+                </ColumnBox>
             </Tabs.Panel>
-            <Tabs.Panel value='albums' style={{ height: "96%" }}>
-                <Space h={15} />
-                {albums}
+            <Tabs.Panel value='albums' style={{ height: "98%" }}>
+                <ColumnBox style={{ alignItems: 'center' }}>
+                    {albums}
+                </ColumnBox>
             </Tabs.Panel>
         </Tabs>
     )
 }
 
-function InfiniteScroll({ mediaState, page, dispatch }: { mediaState: MediaStateType, page: string, dispatch: (value) => void }) {
+export function Timeline({ mediaState, page, dispatch }: { mediaState: MediaStateType, page: string, dispatch: (value) => void }) {
     const { authHeader } = useContext(userContext)
-    const scrollerRef = useRef(null)
-    useEffect(() => scrollerRef.current!.scrollTo({ top: 0, behavior: 'instant' }), [mediaState.includeRaw])
     useEffect(() => { FetchData(mediaState, dispatch, authHeader).then(() => dispatch({ type: 'set_loading', loading: false })) }, [mediaState.includeRaw, mediaState.albumsFilter, page, authHeader])
-
-    let groupBy = "date"
-
-    const groupMap: Map<string, Array<MediaData>> = useMemo(() => {
-        let groupMap = new Map<string, Array<MediaData>>()
-
-        if (mediaState.mediaMap.size === 0) {
-            return groupMap
-        }
-
-        for (let value of mediaState.mediaMap.values()) {
-            if (groupBy === "date") {
-                const dateObj = new Date(value.createDate.split("T")[0])
-                const dateString = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
-                if (groupMap.get(dateString) == null) {
-                    groupMap.set(dateString, [value])
-                } else {
-                    groupMap.get(dateString).push(value)
-                }
-            } else if (groupBy === "filetype") {
-                const ext = value.mediaType.FriendlyName
-                if (groupMap.get(ext) == null) {
-                    groupMap.set(ext, [value])
-                } else {
-                    groupMap.get(ext).push(value)
-                }
-            } else {
-                if (groupMap.get("") == null) {
-                    groupMap.set("", [])
-                }
-                groupMap.get("").push(value)
+    // useEffect(() => scrollerRef.current!.scrollTo({ top: 0, behavior: 'instant' }), [mediaState.includeRaw, mediaState.albumsFilter])
+    const medias = useMemo(() => {
+        return Array.from(mediaState.mediaMap.values()).filter(v => {
+            if (mediaState.searchContent === "") {
+                return true
             }
-        }
-        return groupMap
-    }, [mediaState.mediaMapUpdated, mediaState.mediaMap])
+            if (!v.recognitionTags) {
+                return false
+            }
+            for (const tag of v.recognitionTags) {
+                if (tag.includes(mediaState.searchContent)) {
+                    return true
+                }
+            }
+            return false
+        }).reverse()
+    }, [mediaState.mediaMap.size, mediaState.searchContent])
 
-    const [groups, numShownItems]: [JSX.Element[], number] = useMemo(() => {
-        if (!groupMap || !scrollerRef?.current) { return [[], 0] }
-        let counter = 0
-        const buckets = Array.from(groupMap.keys()).map((title) => {
-            const items = groupMap.get(title)//.filter((item) => { return mediaState.searchContent ? item.filename.toLowerCase().includes(mediaState.searchContent.toLowerCase()) : true })
-            if (items.length === 0) { return null }
-            counter += items.length
-            return (<GalleryBucket key={title} bucketTitle={title} scale={mediaState.imageSize} bucketData={items} scrollerRef={scrollerRef} dispatch={dispatch} />)
-        })
-        return [buckets, counter]
-    }, [groupMap, scrollerRef.current, mediaState.searchContent, mediaState.imageSize, dispatch])
+    // let groupBy = "date"
 
+    // const groupMap: Map<string, Array<MediaData>> = useMemo(() => {
+    //     let groupMap = new Map<string, Array<MediaData>>()
+
+    //     if (mediaState.mediaMap.size === 0) {
+    //         return groupMap
+    //     }
+    //     const limit: number = 1000
+    //     let counter = 0
+    //     for (let value of mediaState.mediaMap.values()) {
+    //         if (groupBy === "date") {
+    //             const dateObj = new Date(value.createDate.split("T")[0])
+    //             const dateString = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
+    //             if (groupMap.get(dateString) == null) {
+    //                 groupMap.set(dateString, [value])
+    //             } else {
+    //                 groupMap.get(dateString).push(value)
+    //             }
+    //         } else if (groupBy === "filetype") {
+    //             const ext = value.mediaType.FriendlyName
+    //             if (groupMap.get(ext) == null) {
+    //                 groupMap.set(ext, [value])
+    //             } else {
+    //                 groupMap.get(ext).push(value)
+    //             }
+    //         } else {
+    //             if (groupMap.get("") == null) {
+    //                 groupMap.set("", [])
+    //             }
+    //             groupMap.get("").push(value)
+    //         }
+    //         counter += 1
+    //         if (counter >= limit) {
+    //             break
+    //         }
+    //     }
+    //     return groupMap
+    // }, [mediaState.mediaMapUpdated, mediaState.mediaMap])
+
+    if (mediaState.loading) {
+        return null
+    }
+    if (medias.length === 0) {
+        return (
+            <NoMediaDisplay />
+        )
+    }
     return (
-        <ScrollArea viewportRef={scrollerRef} type='never' style={{ height: '100%', width: '100%', paddingLeft: 25, paddingRight: 25 }} onDoubleClick={() => console.log(`DEBUG: Showing ${numShownItems} images`)}>
-            <FlexColumnBox style={{minHeight: '100vh'}}>
-                {groups}
-                {!mediaState.loading && groups.length === 0 && (
-                    <NoMediaDisplay />
-                )}
-            </FlexColumnBox>
-            {!mediaState.loading && (
-                <Text c='white' style={{ textAlign: "center", paddingTop: "80px", paddingBottom: "10px", userSelect: 'none' }}> Wow, you scrolled this whole way? </Text>
-            )}
-        </ScrollArea>
+        <ColumnBox style={{ padding: 15 }}>
+            <PhotoGallery medias={medias} imageBaseScale={mediaState.imageSize} dispatch={dispatch} />
+        </ColumnBox>
     )
 }
 
@@ -284,6 +304,7 @@ const Gallery = () => {
         newAlbumDialogue: false,
         blockSearchFocus: false,
         imageSize: 300,
+        showingCount: 300,
         scanProgress: 0,
         searchContent: "",
     })
@@ -293,33 +314,35 @@ const Gallery = () => {
     const loc = useLocation()
     const page = loc.pathname === "/" || loc.pathname === "/timeline" ? 'timeline' : "albums"
     const albumId = useParams()["*"]
-    const { wsSend, lastMessage } = useWeblensSocket()
+    const { lastMessage } = useWeblensSocket()
+
+    const viewportRef: React.Ref<HTMLDivElement> = useRef()
 
     const searchRef = useRef()
     useKeyDown(mediaState.blockSearchFocus, searchRef)
     useEffect(() => { handleWebsocket(lastMessage, dispatch) }, [lastMessage])
 
     useEffect(() => {
-        if (authHeader.Authorization !== "") {
+        if (authHeader.Authorization !== "" && page !== "albums") {
             GetAlbums(authHeader)
                 .then((val) => {
                     dispatch({ type: 'set_albums', albums: val })
-                    dispatch({ type: 'set_loading', albums: false })
+                    dispatch({ type: 'set_loading', loading: false })
                 })
         }
-    }, [authHeader])
+    }, [authHeader, page])
 
     return (
         <Box>
             <HeaderBar searchContent={mediaState.searchContent} dispatch={dispatch} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
-            <Presentation mediaData={mediaState.presentingMedia} parents={null} dispatch={dispatch} />
-            <FlexRowBox style={{ height: "100vh", paddingTop: "70px", alignItems: 'normal' }}>
+            <Presentation mediaData={mediaState.presentingMedia} dispatch={dispatch} />
+            <RowBox style={{ height: "100vh", alignItems: 'normal' }}>
                 <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} />
-                <Box style={{ height: "calc(100% - 80px)", width: '100%', paddingTop: "15px", position: 'absolute' }}>
+                <Box ref={viewportRef} style={{ height: "calc(100% - 80px)", width: '100%', paddingTop: "15px", position: 'absolute' }}>
                     <ViewSwitch
                         page={page}
                         timeline={
-                            <InfiniteScroll mediaState={mediaState} page={page} dispatch={dispatch} />
+                            <Timeline mediaState={mediaState} page={page} dispatch={dispatch} />
                         }
                         albums={
                             <Albums mediaState={mediaState} selectedAlbum={albumId} dispatch={dispatch} />
@@ -327,7 +350,7 @@ const Gallery = () => {
                         albumId={albumId}
                     />
                 </Box>
-            </FlexRowBox>
+            </RowBox>
         </Box>
     )
 }
