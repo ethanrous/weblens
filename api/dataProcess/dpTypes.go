@@ -14,21 +14,24 @@ type BroadcasterAgent interface {
 	PushTaskUpdate(taskId string, status string, result any)
 	PushFileCreate(updatedFile *dataStore.WeblensFile)
 	PushFileUpdate(updatedFile *dataStore.WeblensFile)
+	PushFileDelete(deletedFile *dataStore.WeblensFile)
+	PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *dataStore.WeblensFile)
 }
 
 // Tasks //
 
 type taskTracker struct {
 	taskMu      sync.Mutex
-	taskMap     map[string]*Task
+	taskMap     map[string]*task
 	wp          *WorkerPool
 	globalQueue *virtualTaskPool
 }
 
-type Task struct {
+type task struct {
 	taskId    string
 	completed bool
 	queue     *virtualTaskPool
+	caster    BroadcasterAgent
 	work      func()
 	taskType  string
 	metadata  any
@@ -59,10 +62,10 @@ const (
 
 type hit struct {
 	time   time.Time
-	target *Task
+	target *task
 }
 
-type workChannel chan *Task
+type workChannel chan *task
 
 type hitChannel chan hit
 

@@ -67,7 +67,7 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 
 			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta)
 			if complete {
-				client.Send("zip_complete", subInfo.Key, []map[string]any{gin.H{"takeoutId": result}})
+				Caster.PushTaskUpdate(string(subInfo.Key), "zip_complete", gin.H{"takeoutId": result})
 			}
 		}
 
@@ -92,7 +92,7 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 				return
 			}
 
-			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan)
+			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan, Caster)
 			client.Subscribe(SubTask, subId(t.TaskId()), nil)
 		}
 

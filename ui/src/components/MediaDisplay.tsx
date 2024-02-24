@@ -1,51 +1,90 @@
-import { forwardRef, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { RawOn, Image, Folder, Theaters } from '@mui/icons-material'
-import { VariableSizeList as List } from 'react-window';
+import { VariableSizeList as List } from 'react-window'
 
-import { MediaImage } from './PhotoContainer'
-import { MediaData, MediaWrapperProps, GalleryBucketProps, fileData } from '../types/Types'
-import { Box, MantineStyleProp, Space, Text, Tooltip } from '@mantine/core'
+import { Box, Loader, MantineStyleProp, Menu, MenuTarget, Text, Tooltip } from '@mantine/core'
+
+import { MediaData, MediaWrapperProps, fileData } from '../types/Types'
 import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles'
-import { notifications } from '@mantine/notifications'
 import { GetFileInfo } from '../api/FileBrowserApi'
+import { useWindowSize } from './ItemScroller'
+import { MediaImage } from './PhotoContainer'
 import { userContext } from '../Context'
-import { useWindowSize } from './ItemScroller';
+import { IconHome, IconTrash } from '@tabler/icons-react'
+import { StyledLoaf } from './Crumbs'
+import './galleryStyle.css'
 
-const goToFolder = async (e, fileIds, authHeader) => {
+const MultiFileMenu = ({ filesInfo, loading, menuOpen, setMenuOpen }: { filesInfo: fileData[], loading, menuOpen, setMenuOpen }) => {
+    const [showLoader, setShowLoader] = useState(false)
+    if (!menuOpen) {
+        return null
+    }
+
+    if (loading) {
+        setTimeout(() => setShowLoader(true), 150)
+    }
+
+    const FileRows = filesInfo.map(v => {
+        const parts: any[] = v.pathFromHome.split("/")
+        parts[0] = parts[0] === "HOME" ? <IconHome /> : <IconTrash />
+        return StyledLoaf({ crumbs: parts })
+    })
+
+    return (
+        <Menu opened={menuOpen && (showLoader || !loading)} onClose={() => setMenuOpen(false)}>
+            <MenuTarget>
+                <Box style={{ height: 0, width: 0 }} />
+            </MenuTarget>
+
+            <Menu.Dropdown style={{ minHeight: 80 }} onClick={e => e.stopPropagation()}>
+                <Menu.Label>Multiple Files</Menu.Label>
+                {loading && showLoader && (
+                    <ColumnBox style={{ justifyContent: 'center', height: 40 }}>
+                        <Loader color='white' size={20} />
+                    </ColumnBox>
+                )}
+                {!loading && filesInfo.map((f, i) => {
+                    return (
+                        <Menu.Item key={f.id} onClick={e => { e.stopPropagation(); window.open(`/files/${f.parentFolderId}?jumpTo=${f.id}`, '_blank') }}>
+                            {FileRows[i]}
+                        </Menu.Item>
+                    )
+                })}
+            </Menu.Dropdown>
+
+        </Menu>
+    )
+}
+
+const goToFolder = async (e, fileIds: string[], filesInfo, setLoading, setMenuOpen, setFileInfo, authHeader) => {
     e.stopPropagation()
-    if (fileIds.length > 1) {
-        notifications.show({ title: "Failed to jump to folder", message: "This media has more than 1 file associated", color: 'red' })
-        return
-    }
-    const fileInfo: fileData = await GetFileInfo(fileIds[0], authHeader)
-    console.log(fileInfo)
-
-    if (!fileInfo.parentFolderId) {
-        console.error("File info:", fileInfo)
-        notifications.show({ title: "Failed to jump to folder", message: "Parent folder could not be identified", color: 'red' })
+    if (fileIds.length === 1) {
+        const fileInfo: fileData = await GetFileInfo(fileIds[0], authHeader)
+        window.open(`/files/${fileInfo.parentFolderId}?jumpTo=${fileInfo.id}`, '_blank')
         return
     }
 
-    window.open(`/files/${fileInfo.parentFolderId}?jumpTo=${fileInfo.id}`, '_blank')
+    setMenuOpen(true)
+    if (filesInfo.length === 0) {
+        setLoading(true)
+        const fileInfos = await Promise.all(fileIds.map(async v => await GetFileInfo(v, authHeader)))
+        setFileInfo(fileInfos)
+        setLoading(false)
+    }
+
 }
 
 const PreviewCardContainer = ({ reff, setPresentation, setHover, onContextMenu, children, style }: { reff, setPresentation, setHover, onContextMenu?, children, style: MantineStyleProp }) => {
     return (
         <Box
+            className='preview-card-container'
             ref={reff}
             children={children}
             onClick={setPresentation}
             onMouseOver={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
             onContextMenu={onContextMenu}
-            style={{
-                borderRadius: "2px",
-                margin: 2,
-                position: "relative",
-                overflow: "hidden",
-                cursor: "pointer",
-                ...style,
-            }}
+            style={style}
         />
     )
 }
@@ -68,32 +107,54 @@ const TypeIcon = (mediaData: MediaData) => {
 
 type mediaTypeProps = {
     Icon: any
-    ttText: string
+    filesCount?: number
     onClick?: React.MouseEventHandler<HTMLDivElement>
+    innerRef?: React.ForwardedRef<HTMLDivElement>
 }
 
-const StyledIcon = forwardRef((props: mediaTypeProps, ref) => {
+const StyledIcon = ({ Icon, filesCount, onClick, innerRef }: mediaTypeProps) => {
     return (
-        <Tooltip label={props.ttText} >
-            <props.Icon
+
+        <ColumnBox
+            reff={innerRef}
+            style={{ width: 'max-content', justifyContent: 'center', height: 'max-content' }}
+            onClick={e => { e.stopPropagation(); if (onClick) { onClick(e) } }}
+        >
+            {Boolean(filesCount) && filesCount > 1 && (
+                <Text c={'black'} size={'10px'} fw={700} style={{ position: 'absolute', userSelect: 'none' }}>{filesCount}</Text>
+            )}
+            <Icon
                 className="meta-icon"
-                onClick={e => { e.stopPropagation(); if (props.onClick) { props.onClick(e) } }}
                 style={{
-                    cursor: props.onClick ? "pointer" : "default"
+                    cursor: onClick ? "pointer" : "default"
                 }}
             />
-        </Tooltip>
+        </ColumnBox>
     )
-})
+}
 
-function MediaInfoDisplay({ mediaData }: { mediaData: MediaData }) {
+function MediaInfoDisplay({ mediaData, hovering }: { mediaData: MediaData, hovering: boolean }) {
     const { authHeader } = useContext(userContext)
     const [icon, name] = TypeIcon(mediaData)
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [filesInfo, setFilesInfo] = useState([])
+    const [loading, setLoading] = useState(false)
+
+    if (!hovering && !menuOpen) {
+        return null
+    }
 
     return (
         <Box className='media-meta-preview'>
-            <StyledIcon Icon={icon} ttText={name} />
-            <StyledIcon Icon={Folder} ttText={"Go To Folder"} onClick={e => goToFolder(e, mediaData.fileIds, authHeader)} />
+            <Tooltip label={name} refProp="innerRef">
+                <StyledIcon Icon={icon} />
+            </Tooltip>
+            <RowBox style={{ height: 32 }}>
+                <Tooltip label={mediaData.fileIds.length === 1 ? "Visit File" : "Visit Files"} refProp="innerRef">
+                    <StyledIcon Icon={Folder} filesCount={mediaData.fileIds.length} onClick={e => goToFolder(e, mediaData.fileIds, filesInfo, setLoading, setMenuOpen, setFilesInfo, authHeader)} />
+                </Tooltip>
+                <MultiFileMenu filesInfo={filesInfo} loading={loading} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+            </RowBox>
         </Box>
     )
 }
@@ -118,15 +179,17 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scale, menu, dispat
     }, [menuOpen, mediaData.fileHash, menu])
 
     return (
-        <PreviewCardContainer
-            reff={ref}
+        <Box
+            className='preview-card-container'
+            ref={ref}
+            onClick={() => { dispatch({ type: 'set_presentation', media: mediaData }) }}
+            onMouseOver={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
             style={{
                 height: scale,
                 width: width,
             }}
-            setPresentation={() => { dispatch({ type: 'set_presentation', media: mediaData }) }}
-            setHover={setHovering}
-            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
         >
             <MediaImage
                 media={mediaData}
@@ -134,13 +197,11 @@ const MediaWrapper = memo(function MediaWrapper({ mediaData, scale, menu, dispat
                 lazy={true}
                 containerStyle={{ height: scale, width: '100%' }}
             />
-            {hovering && (
-                <MediaInfoDisplay mediaData={mediaData} />
-            )}
+            <MediaInfoDisplay mediaData={mediaData} hovering={hovering} />
             <Box style={{ position: 'fixed', top: menuPos.y, left: menuPos.x }}>
                 {filledMenu}
             </Box>
-        </PreviewCardContainer>
+        </Box >
     )
 }, (prev: MediaWrapperProps, next: MediaWrapperProps) => {
     if (prev.scale !== next.scale) {
@@ -169,8 +230,10 @@ export const BucketCards = ({ medias, scale, dispatch, menu }: { medias, scale, 
     }, [medias, scale, dispatch, menu])
 
     return (
-        <RowBox style={{ height: scale + 4 }}>
-            {mediaCards}
+        <RowBox style={{ justifyContent: 'center' }}>
+            <RowBox style={{ height: scale + 4, width: '98%' }}>
+                {mediaCards}
+            </RowBox>
         </RowBox>
     )
 }
@@ -186,7 +249,7 @@ const TitleWrapper = ({ bucketTitle }) => {
     )
 }
 
-export function PhotoGallery({ medias, imageBaseScale, dispatch }) {
+export function PhotoGallery({ medias, imageBaseScale, title, dispatch }) {
     const listRef = useRef(null)
     const [, setWindowSize] = useState(null)
     const [boxNode, setBoxNode] = useState(null)
@@ -203,7 +266,7 @@ export function PhotoGallery({ medias, imageBaseScale, dispatch }) {
 
         const innerMedias = [...medias]
 
-        const rows: { rowScale: number, items: MediaData[] }[] = []
+        const rows: { rowScale: number, items: MediaData[], element?: JSX.Element }[] = []
         let currentRowWidth = 0
         let currentRow = []
 
@@ -247,6 +310,11 @@ export function PhotoGallery({ medias, imageBaseScale, dispatch }) {
             currentRowWidth += newWidth
 
         }
+        rows.unshift({ rowScale: 10, items: [] })
+        if (title) {
+            rows.unshift({ rowScale: 75, items: [], element: title })
+        }
+        rows.push({ rowScale: 40, items: [] })
         return rows
     }, [medias, imageBaseScale, boxWidth])
 
@@ -256,7 +324,10 @@ export function PhotoGallery({ medias, imageBaseScale, dispatch }) {
 
     const Cell = useCallback(({ data, index, style }) => (
         <Box style={{ ...style, height: data[index].rowScale + 4 }}>
-            <BucketCards key={data[index].items[0].fileHash} medias={data[index].items} scale={data[index].rowScale} dispatch={dispatch} />
+            {data[index].items.length > 0 && (
+                <BucketCards key={data[index].items[0].fileHash} medias={data[index].items} scale={data[index].rowScale} dispatch={dispatch} />
+            )}
+            {data[index].element}
         </Box>
     ), [dispatch])
 
@@ -283,20 +354,3 @@ export function PhotoGallery({ medias, imageBaseScale, dispatch }) {
         </ColumnBox>
     )
 }
-
-
-export const GalleryBucket = ({
-    bucketTitle,
-    bucketData,
-    scale,
-    dispatch
-}: GalleryBucketProps) => {
-    return (
-        <Box style={{ width: '100%' }}>
-            <Space h={"md"} />
-            <TitleWrapper bucketTitle={bucketTitle} />
-            <BucketCards medias={bucketData} scale={scale} dispatch={dispatch} />
-        </Box>
-    )
-}
-

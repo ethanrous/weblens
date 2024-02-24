@@ -463,6 +463,10 @@ func (f *WeblensFile) FormatFileInfo() (formattedInfo FileInfo, err error) {
 		return
 	}
 
+	pathString := GuaranteeRelativePath(f.absolutePath)
+	pathString = strings.Replace(pathString, "/"+f.Owner()+"/"+".user_trash", "TRASH", 1)
+	pathString = strings.Replace(pathString, "/"+f.Owner(), "HOME", 1)
+
 	formattedInfo = FileInfo{
 		Id:               f.Id(),
 		Imported:         imported,
@@ -473,10 +477,12 @@ func (f *WeblensFile) FormatFileInfo() (formattedInfo FileInfo, err error) {
 		ModTime:          modTime,
 		Filename:         f.Filename(),
 		ParentFolderId:   f.GetParent().Id(),
-		MediaData:        m,
 		FileFriendlyName: friendlyName,
 		Owner:            f.Owner(),
+		PathFromHome:     pathString,
+		MediaData:        m,
 		Shares:           shares,
+		Children:         util.Map(f.GetChildren(), func(wf *WeblensFile) string { return wf.Id() }),
 	}
 
 	return formattedInfo, nil

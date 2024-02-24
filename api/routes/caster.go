@@ -2,6 +2,7 @@ package routes
 
 import (
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -9,6 +10,36 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
+
+func NewCaster(recipientUsernames ...string) BroadcasterAgent {
+	recipients := util.Filter(util.MapToSlicePure(cmInstance.clientMap), func(c *Client) bool { return slices.Contains(recipientUsernames, c.username) })
+
+	newCaster := &unbufferedCaster{
+		enabled:    false,
+		recipients: recipients,
+	}
+	return newCaster
+}
+
+func (c *unbufferedCaster) Enable() {
+	c.enabled = true
+}
+
+func (c *unbufferedCaster) PushTaskUpdate(taskId string, status string, result any) {
+	if !c.enabled {
+		return
+	}
+
+	msg := wsResponse{
+		MessageStatus: status,
+		SubscribeKey:  subId(taskId),
+		Content:       []map[string]any{gin.H{"result": result}},
+
+		broadcastType: "task",
+	}
+
+	send(msg, c.recipients...)
+}
 
 func NewBufferedCaster() BufferedBroadcasterAgent {
 	newCaster := &bufferedCaster{
@@ -23,11 +54,13 @@ func NewBufferedCaster() BufferedBroadcasterAgent {
 	return newCaster
 }
 
-func (c *bufferedCaster) Enable(autoFlush bool) {
+func (c *bufferedCaster) AutoflushEnable() {
 	c.enabled = true
-	if autoFlush {
-		c.enableAutoflush()
-	}
+	c.enableAutoflush()
+}
+
+func (c *bufferedCaster) Enable() {
+	c.enabled = true
 }
 
 func (c *bufferedCaster) PushFileCreate(newFile *dataStore.WeblensFile) {
@@ -133,10 +166,25 @@ func (c *bufferedCaster) PushFileDelete(deletedFile *dataStore.WeblensFile) {
 
 		broadcastType: "folder",
 	}
+
 	c.bufferAndFlush(msg)
 }
 
-func (c *bufferedCaster) PushTaskUpdate(taskId string, status string, result any) {}
+func (c *bufferedCaster) PushTaskUpdate(taskId string, status string, result any) {
+	if !c.enabled {
+		return
+	}
+
+	msg := wsResponse{
+		MessageStatus: status,
+		SubscribeKey:  subId(taskId),
+		Content:       []map[string]any{gin.H{"result": result}},
+
+		broadcastType: "task",
+	}
+
+	c.bufferAndFlush(msg)
+}
 
 func (c *bufferedCaster) Flush() {
 	if !c.enabled {
@@ -189,7 +237,14 @@ func (c *bufferedCaster) bufferAndFlush(msg wsResponse) {
 	}
 }
 
-func send(r wsResponse) {
+func send(r wsResponse, recipients ...*Client) {
+	if len(recipients) != 0 {
+		for _, c := range recipients {
+			c._writeToClient(r)
+		}
+		return
+	}
+
 	if r.SubscribeKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return
@@ -204,6 +259,6 @@ func send(r wsResponse) {
 		}
 	} else {
 		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.
-		// util.Debug.Println("No subscribers to", dest.Type, dest.Key)
+		// util.Debug.Println("No subscribers to", r.SubscribeKey)
 	}
 }

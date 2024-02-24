@@ -15,7 +15,7 @@ import (
 	"github.com/saracen/fastzip"
 )
 
-func ScanFile(t *Task) {
+func ScanFile(t *task) {
 	meta := t.metadata.(ScanMetadata)
 
 	displayable, err := meta.File.IsDisplayable()
@@ -48,7 +48,7 @@ func ScanFile(t *Task) {
 	processMediaFile(t)
 }
 
-func createZipFromPaths(t *Task) {
+func createZipFromPaths(t *task) {
 	zipMeta := t.metadata.(ZipMetadata)
 
 	if len(zipMeta.Files) == 0 {
@@ -79,7 +79,7 @@ func createZipFromPaths(t *Task) {
 	}
 	if zipExists {
 		t.setResult(KeyVal{Key: "takeoutId", Val: zipFile.Id()})
-		caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
+		t.caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
@@ -108,23 +108,36 @@ func createZipFromPaths(t *Task) {
 	var entries int64
 	var bytes int64
 	var prevBytes int64 = -1
+	var sinceUpdate int64 = 0
 	totalFiles := len(filesInfoMap)
+
+	const UPDATE_INTERVAL int64 = 500 * int64(time.Millisecond)
 
 	// Update client over websocket until entire archive has been written, or an error is thrown
 	for int64(totalFiles) > entries {
 		if archiveErr != nil {
 			break
 		}
+		sinceUpdate++
 		bytes, entries = a.Written()
-		prevBytes = bytes
-		status := struct {
-			CompletedFiles int `json:"completedFiles"`
-			TotalFiles     int `json:"totalFiles"`
-			SpeedBytes     int `json:"speedBytes"`
-		}{CompletedFiles: int(entries), TotalFiles: totalFiles, SpeedBytes: int(bytes - prevBytes)}
-		caster.PushTaskUpdate(t.taskId, "create_zip_progress", status)
+		if bytes != prevBytes {
+			byteDiff := bytes - prevBytes
+			timeNs := UPDATE_INTERVAL * sinceUpdate
+			status := struct {
+				CompletedFiles int `json:"completedFiles"`
+				TotalFiles     int `json:"totalFiles"`
+				SpeedBytes     int `json:"speedBytes"`
+			}{
+				CompletedFiles: int(entries),
+				TotalFiles:     totalFiles,
+				SpeedBytes:     int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
+			}
+			t.caster.PushTaskUpdate(t.taskId, "create_zip_progress", status)
+			prevBytes = bytes
+			sinceUpdate = 0
+		}
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Duration(UPDATE_INTERVAL))
 	}
 	if archiveErr != nil {
 		t.error(*archiveErr)
@@ -132,11 +145,11 @@ func createZipFromPaths(t *Task) {
 	}
 
 	t.setResult(KeyVal{Key: "takeoutId", Val: zipFile.Id()})
-	caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
+	t.caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
 	t.success()
 }
 
-func moveFile(t *Task) {
+func moveFile(t *task) {
 	moveMeta := t.metadata.(MoveMeta)
 
 	file := dataStore.FsTreeGet(moveMeta.FileId)
@@ -151,7 +164,6 @@ func moveFile(t *Task) {
 		t.error(err)
 		return
 	}
-
 }
 
 func parseRangeHeader(contentRange string) (min, max, total int, err error) {
@@ -175,13 +187,7 @@ func parseRangeHeader(contentRange string) (min, max, total int, err error) {
 	return
 }
 
-type bufferChunk struct {
-	lowByte    int
-	highByte   int
-	chunkBytes []byte
-}
-
-func writeToFile(t *Task) {
+func writeToFile(t *task) {
 	meta := t.metadata.(WriteFileMeta)
 
 	parent := dataStore.FsTreeGet(meta.ParentFolderId)
@@ -203,8 +209,7 @@ func writeToFile(t *Task) {
 
 	file.AddTask(t)
 
-	var buffer []bufferChunk
-	var nextByte, min, max, total int
+	var min, max, total int
 
 WriterLoop:
 	for {
@@ -229,41 +234,10 @@ WriterLoop:
 				break WriterLoop
 			}
 			continue
-
-			currentBuf := bufferChunk{lowByte: min, highByte: max, chunkBytes: chunk.Chunk}
-
-			if nextByte != currentBuf.lowByte {
-				util.Debug.Println("Buffering", currentBuf.lowByte, "-", currentBuf.highByte)
-				buffer = append(buffer, currentBuf)
-				continue WriterLoop
-			}
-
-			for {
-				err = file.Append(currentBuf.chunkBytes)
-				if err != nil {
-					t.error(err)
-					return
-				}
-				nextByte = currentBuf.highByte + 1
-
-				if len(buffer) == 0 {
-					break
-				}
-
-				var exists bool
-				buffer, currentBuf, exists = util.YoinkFunc(buffer, func(b bufferChunk) bool { return b.lowByte == nextByte })
-				if !exists {
-					break
-				}
-			}
-
-			if nextByte == total {
-				break WriterLoop
-			}
 		}
 	}
 
-	caster.PushFileCreate(file)
+	globalCaster.PushFileCreate(file)
 	dataStore.Resize(parent)
 	file.RemoveTask(t.TaskId())
 	t.success()

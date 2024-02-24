@@ -818,3 +818,15 @@ func (db Weblensdb) getFolderByShare(shareId string) (shareFolder folderData, er
 
 	return
 }
+
+func (db Weblensdb) removeShare(shareId string) (err error) {
+	filter := bson.M{"shares.shareId": shareId}
+	update := bson.M{"$pull": bson.M{"shares": bson.M{"shareId": shareId}}}
+	_, err = db.mongo.Collection("folders").UpdateOne(mongo_ctx, filter, update)
+
+	if err == mongo.ErrNoDocuments {
+		err = ErrNoShare
+	}
+
+	return
+}

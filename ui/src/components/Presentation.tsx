@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MediaData } from '../types/Types'
 import { MediaImage } from './PhotoContainer'
-import { ColumnBox } from '../Pages/FileBrowser/FilebrowserStyles'
-import { Box, CloseButton, MantineStyleProp } from '@mantine/core'
+import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles'
+import { Box, CloseButton, MantineStyleProp, Space } from '@mantine/core'
 import { IconFile } from '@tabler/icons-react'
 import { useWindowSize } from './ItemScroller'
 
@@ -34,61 +34,62 @@ export const PresentationContainer = ({ shadeOpacity, onMouseMove, onClick, chil
     )
 }
 
-const StyledMediaImage = ({ mediaData, quality, lazy }: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean }) => {
+const ContainerMedia = ({ mediaData, containerRef }: { mediaData: MediaData, containerRef }) => {
+    const [boxSize, setBoxSize] = useState({ height: containerRef.current?.clientHeight || 0, width: containerRef.current?.clientWidth || 0 })
+    useWindowSize(() => setBoxSize({ height: containerRef.current?.clientHeight, width: containerRef.current?.clientWidth }))
+
+    useEffect(() => {
+        setBoxSize({ height: containerRef.current?.clientHeight, width: containerRef.current?.clientWidth })
+    }, [containerRef])
+
+    const [absHeight, absWidth] = useMemo(() => {
+        if (!mediaData || mediaData.mediaHeight === 0 || mediaData.mediaWidth === 0 || boxSize.height === 0 || boxSize.width === 0) {
+            return [0, 0]
+        }
+        const mediaRatio = mediaData.mediaWidth / mediaData.mediaHeight
+        const windowRatio = boxSize.width / boxSize.height
+        let absHeight = 0
+        let absWidth = 0
+        if (mediaRatio > windowRatio) {
+            absWidth = boxSize.width
+            absHeight = (absWidth / mediaData.mediaWidth) * mediaData.mediaHeight
+        } else {
+            absHeight = boxSize.height
+            absWidth = (absHeight / mediaData.mediaHeight) * mediaData.mediaWidth
+        }
+        return [absHeight, absWidth]
+    }, [mediaData, mediaData?.mediaHeight, mediaData?.mediaWidth, boxSize])
+
+    if (!mediaData || !containerRef.current) {
+        return null
+    }
 
     return (
-        <Box pos={'absolute'} style={{ height: "100%", width: "100%" }} onClick={(e) => e.stopPropagation()}>
-            <MediaImage media={mediaData} quality={quality} lazy={lazy} imgStyle={{ height: "calc(100% - 10px)", width: "calc(100% - 10px)", position: 'absolute', objectFit: "contain" }} />
+        <MediaImage media={mediaData} quality={"fullres"} lazy={false} containerStyle={{ height: absHeight, width: absWidth }} preventClick />
+    )
+}
+
+const PresentationVisual = ({ mediaData, Element }: { mediaData: MediaData, Element }) => {
+    const containerRef = useRef(null);
+    return (
+        <Box style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
+            {mediaData && (
+                <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: Element ? '60%' : '100%', height: '100%', marginLeft: Element ? '5%' : '0px' }} ref={containerRef}>
+                    <ContainerMedia mediaData={mediaData} containerRef={containerRef} />
+                </Box>
+            )}
+            {Element && (
+                <Element />
+            )}
+            {/* <Box style={{ width: mediaData ? '50%' : '100%', alignItems: 'center' }}>
+            </Box> */}
         </Box>
     )
 }
 
-const PresentationVisual = ({ mediaData }: { mediaData: MediaData }) => {
-    const [windowSize, setWindowSize] = useState({ height: window.innerHeight, width: window.innerWidth })
-    useWindowSize(() => { setWindowSize({ height: window.innerHeight, width: window.innerWidth }) })
-
-    const [absHeight, absWidth] = useMemo(() => {
-        if (mediaData.mediaHeight === 0 || mediaData.mediaWidth === 0 || windowSize.height === 0 || windowSize.width === 0) {
-            return [0, 0]
-        }
-        const mediaRatio = mediaData.mediaWidth / mediaData.mediaHeight
-        const windowRatio = windowSize.width / windowSize.height
-        let absHeight = 0
-        let absWidth = 0
-        if (mediaRatio > windowRatio) {
-            absWidth = windowSize.width * 0.95
-            absHeight = (absWidth / mediaData.mediaWidth) * mediaData.mediaHeight
-        } else {
-            absHeight = windowSize.height * 0.95
-            absWidth = (absHeight / mediaData.mediaHeight) * mediaData.mediaWidth
-        }
-        return [absHeight, absWidth]
-    }, [mediaData.mediaHeight, mediaData.mediaWidth, windowSize])
-
-    if (!mediaData) {
-        return
-    }
-    else if (mediaData.mediaType.IsVideo) {
-        return (
-            <StyledMediaImage key={`${mediaData.fileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
-        )
-    } else if (mediaData.mediaType?.FriendlyName === "File") {
-        return (
-            <IconFile />
-        )
-    } else {
-
-        return (
-            <ColumnBox style={{ height: absHeight, width: absWidth }} onClick={e => { e.stopPropagation(); console.log(mediaData.recognitionTags) }}>
-                <MediaImage media={mediaData} quality={"fullres"} lazy={false} imgStyle={{ height: absHeight, width: absWidth, objectFit: 'contain' }} />
-            </ColumnBox>
-        )
-    }
-}
-
-function useKeyDown(mediaData, dispatch) {
+function useKeyDown(itemId: string, dispatch) {
     const keyDownHandler = useCallback(event => {
-        if (!mediaData) {
+        if (!itemId) {
             return
         }
         else if (event.key === 'Escape') {
@@ -106,7 +107,7 @@ function useKeyDown(mediaData, dispatch) {
         else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
             event.preventDefault()
         }
-    }, [mediaData, dispatch])
+    }, [itemId, dispatch])
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
         return () => {
@@ -122,19 +123,19 @@ function handleTimeout(to, setTo, setGuiShown) {
     setTo(setTimeout(() => setGuiShown(false), 1000))
 }
 
-const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch: React.Dispatch<any> }) => {
-    useKeyDown(mediaData, dispatch)
+const Presentation = ({ itemId, mediaData, element, dispatch }: { itemId: string, mediaData: MediaData, dispatch: React.Dispatch<any>, element?}) => {
+    useKeyDown(itemId, dispatch)
 
     const [to, setTo] = useState(null)
     const [guiShown, setGuiShown] = useState(false)
 
-    if (!mediaData || !mediaData.mediaType.IsDisplayable) {
+    if (!mediaData && !element) {
         return null
     }
 
     return (
-        <PresentationContainer onMouseMove={(_) => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }} onClick={() => dispatch({ type: 'set_presentation', media: null })}>
-            <PresentationVisual mediaData={mediaData} />
+        <PresentationContainer onMouseMove={() => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }} onClick={() => dispatch({ type: 'set_presentation', media: null })}>
+            <PresentationVisual mediaData={mediaData} Element={element} />
             {/* <Text style={{ position: 'absolute', bottom: guiShown ? 15 : -100, left: '50vw' }} >{}</Text> */}
             <CloseButton c={'white'} style={{ position: 'absolute', top: guiShown ? 15 : -100, left: 15 }} onClick={() => dispatch({ type: 'set_presentation', presentingId: null })} />
         </PresentationContainer>

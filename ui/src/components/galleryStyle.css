@@ -1,0 +1,17 @@
+.preview-card-container{
+    overflow: 'hidden';
+    border-radius: 2px;
+    margin: 2px;
+    position: relative;
+    cursor: pointer;
+    outline: 1px;
+
+    transition: transform 0.15s ease-in-out, outline 0.2s ease-in-out;
+}
+
+.preview-card-container:hover{
+    /* overflow: 'visible'; */
+    transform: scale(1.04,1.04);
+    outline: 2px solid white;
+    z-index: 4;
+}

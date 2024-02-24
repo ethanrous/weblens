@@ -8,21 +8,25 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func (t *Task) TaskId() string {
+func (t *task) TaskId() string {
 	return t.taskId
 }
 
-func (t *Task) TaskType() string {
+func (t *task) TaskType() string {
 	return t.taskType
 }
 
 // Status returns a boolean represending if a task has completed, and a string describing its exit type, if completed.
-func (t *Task) Status() (bool, string) {
+func (t *task) Status() (bool, string) {
 	return t.completed, t.exitStatus
 }
 
+func (t *task) SetCaster(c BroadcasterAgent) {
+	t.caster = c
+}
+
 // Block until a task is finished. "Finished" can define success, failure, or cancel
-func (t *Task) Wait() {
+func (t *task) Wait() {
 	if t.completed {
 		return
 	}
@@ -40,7 +44,7 @@ func (t *Task) Wait() {
 // body of the task, either error or success should be called.
 // If a task finds itself not required to continue, success should
 // be returned
-func (t *Task) Cancel() {
+func (t *task) Cancel() {
 	if t.completed && t.exitStatus != "error" {
 		return
 	}
@@ -52,7 +56,7 @@ func (t *Task) Cancel() {
 	t.completed = true
 }
 
-func (t *Task) ClearAndRecompute() {
+func (t *task) ClearAndRecompute() {
 	t.Cancel()
 	t.Wait()
 	for k := range t.result {
@@ -67,14 +71,14 @@ func (t *Task) ClearAndRecompute() {
 	t.queue.QueueTask(t)
 }
 
-func (t *Task) GetResult(resultKey string) string {
+func (t *task) GetResult(resultKey string) string {
 	if t.result == nil {
 		return ""
 	}
 	return t.result[resultKey]
 }
 
-func (t *Task) GetMeta() any {
+func (t *task) GetMeta() any {
 	return t.metadata
 }
 
@@ -82,7 +86,7 @@ func (t *Task) GetMeta() any {
 // however, sometimes that is not possible, so we must check if the task has been cancelled before setting
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
-func (t *Task) error(err error) {
+func (t *task) error(err error) {
 	_, filename, line, _ := runtime.Caller(1)
 	util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s", t.TaskId(), filename, line, err.Error())
 	if t.completed {
@@ -101,31 +105,31 @@ func (t *Task) error(err error) {
 
 // Pass a function to run if the task throws an error, in theory
 // to cleanup any half-processed state that could litter if not finished
-func (t *Task) SetErrorCleanup(cleanup func()) {
+func (t *task) SetErrorCleanup(cleanup func()) {
 	t.errorCleanup = cleanup
 }
 
-func (t *Task) ReadError() any {
+func (t *task) ReadError() any {
 	return t.err
 }
 
-func (t *Task) success(msg ...any) {
+func (t *task) success(msg ...any) {
 	t.completed = true
 	if len(msg) != 0 {
 		util.Info.Println("Task succeeded with a message:", fmt.Sprint(msg...))
 	}
 }
 
-func (t *Task) setTimeout(timeout time.Time) {
+func (t *task) setTimeout(timeout time.Time) {
 	t.timeout = timeout
 	t.queue.parentWorkerPool.hitStream <- hit{time: timeout, target: t}
 }
 
-func (t *Task) ClearTimeout() {
+func (t *task) ClearTimeout() {
 	t.timeout = time.Unix(0, 0)
 }
 
-func (t *Task) setResult(fields ...KeyVal) {
+func (t *task) setResult(fields ...KeyVal) {
 	if t.result == nil {
 		t.result = make(map[string]string)
 	}

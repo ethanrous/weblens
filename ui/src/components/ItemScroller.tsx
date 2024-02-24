@@ -17,19 +17,16 @@ export const useWindowSize = (setWindowSize) => {
 }
 
 function FileCell({ data, columnIndex, rowIndex, style }: { data: ItemsContextType, columnIndex, rowIndex, style }) {
-    const thisData = useMemo(() => {
-        const index = (rowIndex * data.globalContext.numCols) + columnIndex
-        if (index >= data.items.length) {
-            return null
-        }
-        return data.items[index]
-    }, [rowIndex, columnIndex, data.items[(rowIndex * data.globalContext.numCols) + columnIndex]])
-    if (!thisData) {
+    let thisData
+    const index = (rowIndex * data.globalContext.numCols) + columnIndex
+    if (index < data.items.length) {
+        thisData = data.items[index]
+    } else {
         return null
     }
 
     return (
-        <Box style={style}>
+        <Box className="file-cell" style={style}>
             <ItemDisplay itemInfo={thisData} context={{ ...data.globalContext }} />
         </Box>
     )
@@ -37,7 +34,7 @@ function FileCell({ data, columnIndex, rowIndex, style }: { data: ItemsContextTy
 
 const FILE_BASE_SIZE = 250
 
-export const ItemScroller = ({ itemsContext, globalContext }: { itemsContext: ItemProps[], globalContext: GlobalContextType }) => {
+export const ItemScroller = ({ itemsContext, globalContext, dispatch }: { itemsContext: ItemProps[], globalContext: GlobalContextType, dispatch?}) => {
     const [boxNode, setBoxNode] = useState(null)
     const [, setWindowSize] = useState(null)
 
@@ -66,13 +63,19 @@ export const ItemScroller = ({ itemsContext, globalContext }: { itemsContext: It
         }
     }, [windowRef, globalContext.initialScrollIndex, globalContext.numCols])
 
+    useEffect(() => {
+        if (dispatch) {
+            dispatch({ type: 'set_col_count', numCols: globalContext.numCols })
+        }
+    }, [dispatch, globalContext.numCols])
+
     return (
         <Box ref={setBoxNode} style={{ width: '100%', height: '100%' }}>
             <WindowGrid
                 className="no-scrollbars"
 
                 ref={windowRef}
-                height={viewHeight}
+                height={viewHeight - 58}
                 width={viewWidth}
 
                 columnCount={globalContext.numCols}

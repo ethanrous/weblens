@@ -13,7 +13,8 @@
       "FileExtension": [],
       "IsDisplayable": false,
       "IsRaw": false,
-      "IsVideo": false
+      "IsVideo": false,
+      "SupportsImgRecog": false
     },
     "image/gif": {
       "FriendlyName": "Gif",
@@ -22,7 +23,8 @@
       ],
       "IsDisplayable": true,
       "IsRaw": false,
-      "IsVideo": false
+      "IsVideo": false,
+      "SupportsImgRecog": false
     },
     "image/jpeg": {
       "FriendlyName": "Jpeg",
@@ -32,7 +34,8 @@
       ],
       "IsDisplayable": true,
       "IsRaw": false,
-      "IsVideo": false
+      "IsVideo": false,
+      "SupportsImgRecog": true
     },
     "image/png": {
       "FriendlyName": "Png",
@@ -41,7 +44,8 @@
       ],
       "IsDisplayable": true,
       "IsRaw": false,
-      "IsVideo": false
+      "IsVideo": false,
+      "SupportsImgRecog": true
     },
     "image/x-nikon-nef": {
       "FriendlyName": "Nikon Raw",
@@ -52,7 +56,8 @@
       "IsDisplayable": true,
       "IsRaw": true,
       "IsVideo": false,
-      "RawThumbExifKey": "JpgFromRaw"
+      "RawThumbExifKey": "JpgFromRaw",
+      "SupportsImgRecog": true
     },
     "image/x-sony-arw": {
       "FriendlyName": "Sony ARW",
@@ -62,7 +67,8 @@
       "IsDisplayable": true,
       "IsRaw": true,
       "IsVideo": false,
-      "RawThumbExifKey": "JpgFromRaw"
+      "RawThumbExifKey": "JpgFromRaw",
+      "SupportsImgRecog": true
     },
     "image/x-canon-cr2": {
       "FriendlyName": "Cannon Raw",
@@ -72,7 +78,8 @@
       "IsDisplayable": true,
       "IsRaw": true,
       "IsVideo": false,
-      "RawThumbExifKey": "PreviewImage"
+      "RawThumbExifKey": "PreviewImage",
+      "SupportsImgRecog": true
     },
     "image/heic": {
       "FriendlyName": "HEIC",
@@ -83,7 +90,8 @@
       "IsDisplayable": false,
       "IsRaw": false,
       "IsVideo": false,
-      "RawThumbExifKey": ""
+      "RawThumbExifKey": "",
+      "SupportsImgRecog": true
     },
     "video/mp4": {
       "FriendlyName": "MP4",
@@ -92,6 +100,7 @@
       ],
       "IsDisplayable": false,
       "IsRaw": false,
-      "IsVideo": true
+      "IsVideo": true,
+      "SupportsImgRecog": false
     }
   }

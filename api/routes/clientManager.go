@@ -16,15 +16,15 @@ var cmInstance clientManager
 
 func VerifyClientManager() *clientManager {
 	if cmInstance.clientMap == nil {
-		cmInstance.clientMap = &map[string]*Client{}
+		cmInstance.clientMap = map[string]*Client{}
 		cmInstance.clientMu = &sync.Mutex{}
 	}
 	if cmInstance.folderSubs == nil {
-		cmInstance.folderSubs = &map[subId][]*Client{}
+		cmInstance.folderSubs = map[subId][]*Client{}
 		cmInstance.folderMu = &sync.Mutex{}
 	}
 	if cmInstance.taskSubs == nil {
-		cmInstance.taskSubs = &map[subId][]*Client{}
+		cmInstance.taskSubs = map[subId][]*Client{}
 		cmInstance.taskMu = &sync.Mutex{}
 	}
 
@@ -36,7 +36,7 @@ func (cm *clientManager) ClientConnect(conn *websocket.Conn, username string) *C
 	connectionId := uuid.New().String()
 	newClient := Client{connId: connectionId, conn: conn, username: username}
 	cm.clientMu.Lock()
-	(*cm.clientMap)[connectionId] = &newClient
+	cm.clientMap[connectionId] = &newClient
 	cm.clientMu.Unlock()
 	newClient.log("Connected", newClient.Username())
 	return &newClient
@@ -48,8 +48,14 @@ func (cm clientManager) ClientDisconnect(c *Client) {
 	}
 
 	cm.clientMu.Lock()
-	delete((*cm.clientMap), c.GetClientId())
+	delete(cm.clientMap, c.GetClientId())
 	cm.clientMu.Unlock()
+}
+
+func (cm clientManager) GetClient(clientId string) *Client {
+	cm.clientMu.Lock()
+	defer cm.clientMu.Unlock()
+	return cm.clientMap[clientId]
 }
 
 func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client) {
@@ -57,11 +63,11 @@ func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client
 	switch st {
 	case SubFolder:
 		{
-			clients = (*cm.folderSubs)[key]
+			clients = cm.folderSubs[key]
 		}
 	case SubTask:
 		{
-			clients = (*cm.taskSubs)[key]
+			clients = cm.taskSubs[key]
 		}
 	default:
 		util.Error.Println("Unknown subscriber type", st)
@@ -91,19 +97,19 @@ func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, mes
 	}
 }
 
-func (cm clientManager) AddSubscription(subInfo subscription, client *Client) {
+func (cm *clientManager) AddSubscription(subInfo subscription, client *Client) {
 	var subMap *map[subId][]*Client
 	var lock *sync.Mutex
 
 	switch subInfo.Type {
 	case SubFolder:
 		{
-			subMap = cm.folderSubs
+			subMap = &cm.folderSubs
 			lock = cm.folderMu
 		}
 	case SubTask:
 		{
-			subMap = cm.taskSubs
+			subMap = &cm.taskSubs
 			lock = cm.taskMu
 		}
 	default:
@@ -134,12 +140,12 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 	switch subInfo.Type {
 	case SubFolder:
 		{
-			subMap = cm.folderSubs
+			subMap = &cm.folderSubs
 			lock = cm.folderMu
 		}
 	case SubTask:
 		{
-			subMap = cm.taskSubs
+			subMap = &cm.taskSubs
 			lock = cm.taskMu
 		}
 	default:
@@ -160,15 +166,7 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 	(*subMap)[subInfo.Key] = subs
 }
 
-func (c caster) PushTaskUpdate(taskId, status string, result any) {
-	if !c.enabled {
-		return
-	}
-
-	cmInstance.Broadcast("task", subId(taskId), status, []map[string]any{gin.H{"result": result}})
-}
-
-func (c caster) PushFileCreate(newFile *dataStore.WeblensFile) {
+func (c unbufferedCaster) PushFileCreate(newFile *dataStore.WeblensFile) {
 	if !c.enabled {
 		return
 	}
@@ -181,7 +179,7 @@ func (c caster) PushFileCreate(newFile *dataStore.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", []map[string]any{gin.H{"fileInfo": fileInfo}})
 }
 
-func (c caster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
+func (c unbufferedCaster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
 	if !c.enabled {
 		return
 	}
@@ -204,7 +202,7 @@ func (c caster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(updatedFile.GetParent().Id()), "file_updated", []map[string]any{gin.H{"fileInfo": fileInfo}})
 }
 
-func (c caster) PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *dataStore.WeblensFile) {
+func (c unbufferedCaster) PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *dataStore.WeblensFile) {
 	if !c.enabled {
 		return
 	}
@@ -218,7 +216,7 @@ func (c caster) PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *d
 	c.PushFileDelete(preMoveFile)
 }
 
-func (c caster) PushFileDelete(deletedFile *dataStore.WeblensFile) {
+func (c unbufferedCaster) PushFileDelete(deletedFile *dataStore.WeblensFile) {
 	if !c.enabled {
 		return
 	}

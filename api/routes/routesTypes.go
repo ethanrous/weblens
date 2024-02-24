@@ -51,6 +51,10 @@ type newShareInfo struct {
 	FolderId string `json:"folderId"`
 }
 
+type deleteShareInfo struct {
+	ShareId string `json:"shareId"`
+}
+
 // Websocket
 
 type subType string
@@ -130,7 +134,7 @@ type scanInfo struct {
 	DeepScan  bool   `json:"full"`
 }
 
-// Physical type to pass BroadcasterAgent to children
+// Physical of broadcasters to inform clients of updates in real time
 
 type bufferedCaster struct {
 	bufLimit          int
@@ -141,25 +145,23 @@ type bufferedCaster struct {
 	bufLock           *sync.Mutex
 }
 
-type caster struct {
-	enabled bool
+type unbufferedCaster struct {
+	enabled    bool
+	recipients []*Client
 }
 
 // var Caster *caster = &caster{enabled: false}
 var Caster = NewBufferedCaster()
 
 // Broadcaster that is always disabled
-var VoidCaster *caster = &caster{enabled: false}
-
-func (c *caster) Enable() {
-	c.enabled = true
-}
+var VoidCaster *unbufferedCaster = &unbufferedCaster{enabled: false}
 
 type BufferedBroadcasterAgent interface {
 	BroadcasterAgent
 	DropBuffer()
 	DisableAutoflush()
-	Enable(autoFlush bool)
+	AutoflushEnable()
+	Flush()
 }
 
 type BroadcasterAgent interface {
@@ -169,11 +171,12 @@ type BroadcasterAgent interface {
 	PushFileDelete(deletedFile *dataStore.WeblensFile)
 
 	PushTaskUpdate(taskId string, status string, result any)
+	Enable()
 }
 
 // Tasker interface for queueing tasks in the task pool
 type TaskerAgent interface {
-	WriteToFile(filename, parentFolderId string) dataStore.Task
+	WriteToFile(filename, parentFolderId string, caster dataStore.BroadcasterAgent) dataStore.Task
 	MarkGlobal()
 }
 
@@ -201,7 +204,7 @@ type Client struct {
 
 type clientManager struct {
 	// Key: connection id, value: client instance
-	clientMap *map[string]*Client
+	clientMap map[string]*Client
 	clientMu  *sync.Mutex
 
 	// Key: subscription identifier, value: connection id
@@ -213,8 +216,8 @@ type clientManager struct {
 	// 		"clientId2": false
 	// 	}
 	// }
-	folderSubs *map[subId][]*Client
-	taskSubs   *map[subId][]*Client
+	folderSubs map[subId][]*Client
+	taskSubs   map[subId][]*Client
 	folderMu   *sync.Mutex
 	taskMu     *sync.Mutex
 }

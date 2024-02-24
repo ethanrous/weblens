@@ -10,10 +10,10 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-var caster BroadcasterAgent
+var globalCaster BroadcasterAgent
 
 func SetCaster(c BroadcasterAgent) {
-	caster = c
+	globalCaster = c
 }
 
 var ttInstance taskTracker
@@ -30,7 +30,7 @@ func taskWorkerPoolStatus() {
 
 func VerifyTaskTracker() *taskTracker {
 	if ttInstance.taskMap == nil {
-		ttInstance.taskMap = map[string]*Task{}
+		ttInstance.taskMap = map[string]*task{}
 		wp, wq := NewWorkerPool(runtime.NumCPU() - 1)
 		ttInstance.wp = wp
 		ttInstance.globalQueue = wq
@@ -46,10 +46,11 @@ func (tt *taskTracker) StartWP() {
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
 
-func newTask(taskType string, taskMeta any) *Task {
+func newTask(taskType string, taskMeta any, caster BroadcasterAgent) *task {
 	VerifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
+	util.Debug.Println(string(metaString))
 	util.FailOnError(err, "Failed to marshal task metadata when queuing new task")
 	taskId := util.GlobbyHash(8, string(metaString))
 
@@ -63,7 +64,7 @@ func newTask(taskType string, taskMeta any) *Task {
 		return existingTask
 	}
 	//										  signal chan must be buffered so caller doesn't block trying to close many tasks \/
-	newTask := &Task{taskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}, signalChan: make(chan int, 1)}
+	newTask := &task{taskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}, signalChan: make(chan int, 1), caster: caster}
 	newTask.waitMu.Lock()
 
 	ttInstance.taskMap[taskId] = newTask
@@ -83,7 +84,7 @@ func newTask(taskType string, taskMeta any) *Task {
 	return newTask
 }
 
-func GetTask(taskId string) *Task {
+func GetTask(taskId string) *task {
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()
 	return ttInstance.taskMap[taskId]
@@ -116,18 +117,18 @@ func NewWorkQueue() *virtualTaskPool {
 //   - `directory` : the weblens file descriptor representing the directory to scan
 //   - `recursive` : if true, scan all children of directory recursively
 //   - `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, recursive, deep bool) dataStore.Task {
+func (tskr *virtualTaskPool) ScanDirectory(directory *dataStore.WeblensFile, recursive, deep bool, caster dataStore.BroadcasterAgent) dataStore.Task {
 	// Partial media means nothing for a directory scan, so it's always nil
 	scanMeta := ScanMetadata{File: directory, Recursive: recursive, DeepScan: deep}
-	t := newTask("scan_directory", scanMeta)
+	t := newTask("scan_directory", scanMeta, caster)
 	tskr.QueueTask(t)
 
 	return t
 }
 
-func (tskr *virtualTaskPool) ScanFile(file *dataStore.WeblensFile, m *dataStore.Media) dataStore.Task {
+func (tskr *virtualTaskPool) ScanFile(file *dataStore.WeblensFile, m *dataStore.Media, caster dataStore.BroadcasterAgent) dataStore.Task {
 	scanMeta := ScanMetadata{File: file, PartialMedia: m}
-	t := newTask("scan_file", scanMeta)
+	t := newTask("scan_file", scanMeta, caster)
 	tskr.QueueTask(t)
 
 	file.AddTask(t)
@@ -138,30 +139,34 @@ func (tskr *virtualTaskPool) ScanFile(file *dataStore.WeblensFile, m *dataStore.
 // Parameters:
 //   - `filename` : the name of the new file to create
 //   - `fileSize` : the parent directory to upload the new file into
-func (tskr *virtualTaskPool) WriteToFile(filename, parentFolderId string) dataStore.Task {
+func (tskr *virtualTaskPool) WriteToFile(filename, parentFolderId string, caster dataStore.BroadcasterAgent) dataStore.Task {
 	writeMeta := WriteFileMeta{Filename: filename, ParentFolderId: parentFolderId, ChunkStream: make(chan FileChunk, 25)}
-	t := newTask("write_file", writeMeta)
-	tskr.QueueTask(t)
+	t := newTask("write_file", writeMeta, caster)
+	if !t.completed {
+		tskr.QueueTask(t)
+	}
 
 	return t
 }
 
-func (tskr *virtualTaskPool) MoveFile(fileId, destinationFolderId, newFilename string) dataStore.Task {
+func (tskr *virtualTaskPool) MoveFile(fileId, destinationFolderId, newFilename string, caster dataStore.BroadcasterAgent) dataStore.Task {
 	meta := MoveMeta{FileId: fileId, DestinationFolderId: destinationFolderId, NewFilename: newFilename}
-	t := newTask("move_file", meta)
+	t := newTask("move_file", meta, caster)
 	tskr.QueueTask(t)
 
 	return t
 }
 
-func (tskr *virtualTaskPool) CreateZip(files []*dataStore.WeblensFile, username string) dataStore.Task {
+func (tskr *virtualTaskPool) CreateZip(files []*dataStore.WeblensFile, username string, casters dataStore.BroadcasterAgent) dataStore.Task {
 	meta := ZipMetadata{Files: files, Username: username}
-	t := newTask("create_zip", meta)
-	tskr.QueueTask(t)
+	t := newTask("create_zip", meta, casters)
+	if !t.completed {
+		tskr.QueueTask(t)
+	}
 
 	return t
 }
 
-func WaitMany(ts []*Task) {
-	util.Each(ts, func(t *Task) { t.Wait() })
+func WaitMany(ts []*task) {
+	util.Each(ts, func(t *task) { t.Wait() })
 }

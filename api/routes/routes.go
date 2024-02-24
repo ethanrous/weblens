@@ -118,6 +118,7 @@ func AddApiRoutes(r *gin.Engine) {
 	api.PATCH("/files", updateFiles)
 	api.PATCH("/files/share", shareFiles)
 	api.POST("/share", createShareLink)
+	api.DELETE("/share", deleteShare)
 	public.GET("/share/:shareId", getShare)
 
 	api.GET("/download", downloadFile)

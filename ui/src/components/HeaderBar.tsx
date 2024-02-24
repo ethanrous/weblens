@@ -48,7 +48,7 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
                     alignItems: "center",
                     backgroundColor: "#222222",
 
-                    height: "70px"
+                    height: "60px"
                 }}
             >
                 <Box style={{ paddingLeft: '10px' }} />
@@ -90,7 +90,7 @@ const HeaderBar = ({ searchContent, dispatch, page, searchRef, loading, progress
                 <ColumnBox onClick={() => window.open(`https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}`, "_blank")}
                     style={{ cursor: 'pointer', width: 'max-content', alignItems: 'flex-end', justifyContent: 'center', margin: 15 }}
                 >
-                    <Text style={{ opacity: 0.20, zIndex: 0, userSelect: 'none' }}>{process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
+                    <Text style={{ opacity: 0.20, zIndex: 0, userSelect: 'none' }}>Build: {process.env.REACT_APP_BUILD_TAG ? process.env.REACT_APP_BUILD_TAG : "local"}</Text>
                     <Text lineClamp={1} style={{ opacity: 0.20, zIndex: 0, userSelect: 'none', width: 'max-content' }}>Report an issue</Text>
                 </ColumnBox>
                 {userInfo?.admin && (

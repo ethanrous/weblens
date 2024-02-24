@@ -3,7 +3,6 @@ package dataProcess
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"slices"
 	"strings"
 
@@ -37,7 +36,7 @@ func InitGExif(bufSize int64) *exiftool.Exiftool {
 	return gexift
 }
 
-func processMediaFile(t *Task) {
+func processMediaFile(t *task) {
 	meta := t.metadata.(ScanMetadata)
 	m := meta.PartialMedia
 	file := meta.File
@@ -75,16 +74,16 @@ func processMediaFile(t *Task) {
 		m.SetImported()
 	}
 
-	caster.PushFileUpdate(file)
+	globalCaster.PushFileUpdate(file)
 	t.success()
 }
 
-func scanDirectory(t *Task) {
+func scanDirectory(t *task) {
 	meta := t.metadata.(ScanMetadata)
 	scanDir := meta.File
 
 	if scanDir.Filename() == ".user_trash" {
-		caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
@@ -143,11 +142,11 @@ func scanDirectory(t *Task) {
 	}
 
 	for _, dir := range dirsToScan {
-		GetGlobalQueue().ScanDirectory(dir, recursive, deepScan)
+		GetGlobalQueue().ScanDirectory(dir, recursive, deepScan, t.caster)
 	}
 
 	if len(mediaToScan) == 0 {
-		caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
 		t.success("No media to scan: ", scanDir.String())
 		return
 	}
@@ -169,7 +168,7 @@ func scanDirectory(t *Task) {
 			util.DisplayError(err)
 			continue
 		}
-		wq.ScanFile(file, m)
+		wq.ScanFile(file, m, t.caster)
 	}
 
 	sw.Lap("Queued all tasks")
@@ -177,13 +176,13 @@ func scanDirectory(t *Task) {
 	wq.SignalAllQueued()
 	wq.Wait(true) // Park this thread and wait for the media to finish computing
 
-	runtime.GC()
-	util.PrintMemUsage("After directory scan")
+	// runtime.GC()
+	// util.PrintMemUsage("After directory scan")
 
 	sw.Lap("All tasks finished")
 	sw.Stop()
 	sw.PrintResults()
 
-	caster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+	globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
 	t.success()
 }

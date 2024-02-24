@@ -3,18 +3,18 @@ import { useNavigate } from "react-router-dom"
 
 import { notifications } from "@mantine/notifications"
 import { Box, Button, Divider, Menu, Popover, Space, Text } from "@mantine/core"
-import { IconClearAll, IconExclamationCircle, IconPencil, IconPhoto, IconTrash, IconUsersGroup } from "@tabler/icons-react"
+import { IconClearAll, IconExclamationCircle, IconPhoto, IconTrash, IconUsersGroup } from "@tabler/icons-react"
 
 import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles"
 import { CleanAlbum, DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum, RenameAlbum, SetAlbumCover, ShareAlbum } from "../../api/GalleryApi"
-import { AlbumData, FileBrowserDispatch, MediaData, MediaStateType, getBlankMedia } from "../../types/Types"
+import { AlbumData, MediaData, MediaStateType, getBlankMedia } from "../../types/Types"
 import { userContext } from "../../Context"
 import { PhotoGallery } from "../../components/MediaDisplay"
 import { ShareInput } from "../../components/Share"
 import NotFound from "../../components/NotFound"
 import { GlobalContextType, ItemProps } from "../../components/ItemDisplay"
 import { ItemScroller } from "../../components/ItemScroller"
-import { getMedia } from "../../api/ApiFetch"
+
 
 function ShareBox({ open, setOpen, pos, albumId, sharedWith, fetchAlbums }: { open: boolean, setOpen, pos: { x: number, y: number }, albumId, sharedWith, fetchAlbums }) {
     const { authHeader } = useContext(userContext)
@@ -98,10 +98,25 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
         if (!albumData) {
             return []
         }
-        // if (searchContent === "") {
-        // }
-        return albumData.media.reverse()
-    }, [albumData?.media])
+
+        const media = albumData.media.filter(v => {
+            if (searchContent === "") {
+                return true
+            }
+            if (!v.recognitionTags) {
+                return false
+            }
+            for (const tag of v.recognitionTags) {
+                if (tag.includes(searchContent)) {
+                    return true
+                }
+            }
+            return false
+        }).reverse()
+        media.unshift()
+
+        return media
+    }, [albumData?.media, searchContent])
 
     if (notFound) {
         return (
@@ -143,19 +158,20 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
     const endColor = albumData.albumMeta.SecondaryColor ? `#${albumData.albumMeta.SecondaryColor}` : '#ffffff'
 
     return (
-        <ColumnBox style={{ width: '98%' }}>
-            <ColumnBox style={{ height: 'max-content' }}>
-                <Text size={'75px'} fw={900} variant="gradient" gradient={{ from: startColor, to: endColor, deg: 45 }} style={{ display: 'flex', justifyContent: 'center', userSelect: 'none', lineHeight: 1.1 }}>
-                    {albumData.albumMeta.Name}
-                </Text>
-            </ColumnBox>
+        <ColumnBox >
             <Space h={10} />
-            <PhotoGallery medias={media} imageBaseScale={imageSize} dispatch={dispatch} />
+            <PhotoGallery medias={media} imageBaseScale={imageSize} title={(
+                <ColumnBox style={{ height: 'max-content' }}>
+                    <Text size={'75px'} fw={900} variant="gradient" gradient={{ from: startColor, to: endColor, deg: 45 }} style={{ display: 'flex', justifyContent: 'center', userSelect: 'none', lineHeight: 1.1 }}>
+                        {albumData.albumMeta.Name}
+                    </Text>
+                </ColumnBox>
+            )} dispatch={dispatch} />
         </ColumnBox>
     )
 }
 
-function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos }: { open, setMenuOpen: (o: boolean) => void, albumData, fetchAlbums, menuPos }) {
+function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos, dispatch }: { open, setMenuOpen: (o: boolean) => void, albumData, fetchAlbums, menuPos, dispatch }) {
     const { userInfo, authHeader } = useContext(userContext)
     const [shareOpen, setShareOpen] = useState(false)
 
@@ -171,11 +187,8 @@ function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos }: 
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Album Actions</Menu.Label>
-                    {/* <Menu.Item leftSection={<IconPencil />} onClick={() => setEditing(true)}>
-                        Rename
-                    </Menu.Item> */}
 
-                    <Menu.Item leftSection={<IconUsersGroup />} onClick={(e) => { e.stopPropagation(); setShareOpen(true) }}>
+                    <Menu.Item leftSection={<IconUsersGroup />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_block_focus', block: true }); setShareOpen(true) }}>
                         Share
                     </Menu.Item>
 
@@ -202,19 +215,19 @@ function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos }: 
                 </Menu.Dropdown>
             </Menu>
 
-            <ShareBox open={shareOpen} setOpen={setShareOpen} sharedWith={albumData.SharedWith} pos={menuPos} albumId={albumData.Id} fetchAlbums={fetchAlbums} />
+            <ShareBox open={shareOpen} setOpen={o => { setShareOpen(o); dispatch({ type: 'set_block_focus', block: o }) }} sharedWith={albumData.SharedWith} pos={menuPos} albumId={albumData.Id} fetchAlbums={fetchAlbums} />
         </Box>
     )
 }
 
-function AlbumCoverMenuFactory(albumsMap, fetchAlbums) {
+function AlbumCoverMenuFactory(albumsMap, fetchAlbums, dispatch) {
     return ({ open, setOpen, itemInfo, menuPos }: { open: boolean, setOpen: (o: boolean) => boolean, itemInfo: ItemProps, menuPos: { x: number, y: number } }) => {
         const albumData = albumsMap.get(itemInfo.itemId)
         if (!albumData) {
             return
         }
         return (
-            <AlbumCoverMenu open={open} setMenuOpen={setOpen} albumData={albumData} fetchAlbums={fetchAlbums} menuPos={menuPos} />
+            <AlbumCoverMenu open={open} setMenuOpen={setOpen} albumData={albumData} fetchAlbums={fetchAlbums} menuPos={menuPos} dispatch={dispatch} />
         )
     }
 }
@@ -239,22 +252,28 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
 
     const albums = useMemo(() => {
         const albums = Array.from(albumsMap.values()).filter(val => val.Name.toLowerCase().includes(searchContent.toLowerCase())).map(v => {
-            if (!v.CoverMedia && v.Cover) {
-                getMedia(v.Cover, authHeader).then(m => dispatch({ type: "set_album_media", albumId: v.Id, media: m }))
-            } else if (!v.Cover) {
-
+            if (!v.Cover || !v.CoverMedia) {
                 v.CoverMedia = getBlankMedia()
-                // dispatch({ type: "set_album_media", albumId: v.Id, media: m })
+                v.CoverMedia.fileHash = v.Cover
             }
+            // if (!v.CoverMedia && v.Cover) {
+            //     console.log("Getting cover", v.Id)
+            //     getMedia(v.Cover, authHeader).then(m => dispatch({ type: "set_album_media", albumId: v.Id, media: m }))
+            // } else if (!v.Cover) {
+
+            //     v.CoverMedia = getBlankMedia()
+            //     dispatch({ type: "set_album_media", albumId: v.Id, media: m })
+            // }
             const item: ItemProps = {
                 itemId: v.Id,
                 itemTitle: v.Name,
                 secondaryInfo: String(v.Medias.length),
-                selected: false,
+                selected: 0,
                 mediaData: v.CoverMedia,
                 droppable: false,
                 isDir: false,
-                imported: true
+                imported: true,
+                displayable: true
             }
             return item
         })
@@ -265,10 +284,11 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
         const ctx: GlobalContextType = {
             visitItem: (itemId: string) => nav(itemId),
             setDragging: () => { },
-            blockFocus: (b: boolean) => dispatch({ type: "set_block_search_focus", block: b }),
+            blockFocus: (b: boolean) => dispatch({ type: "set_block_focus", block: b }),
             setSelected: () => { },
-            menu: AlbumCoverMenuFactory(albumsMap, fetchAlbums),
-            rename: (itemId: string, newName: string) => { RenameAlbum(itemId, newName, authHeader).then(v => fetchAlbums()) }
+            menu: AlbumCoverMenuFactory(albumsMap, fetchAlbums, dispatch),
+            rename: (itemId: string, newName: string) => { RenameAlbum(itemId, newName, authHeader).then(v => fetchAlbums()) },
+            doMediaFetch: true
         }
         return ctx
     }, [albumsMap.size, nav, dispatch])

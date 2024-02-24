@@ -130,6 +130,10 @@ func FsTreeRemove(f *WeblensFile, casters ...BroadcasterAgent) (err error) {
 		return
 	}
 
+	if len(casters) == 0 {
+		casters = append(casters, globalCaster)
+	}
+
 	util.Each(casters, func(c BroadcasterAgent) { c.PushFileDelete(f) })
 
 	return
@@ -189,6 +193,10 @@ func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool, c
 
 	// Overwrite filename
 	f.filename = newFilename
+
+	if len(casters) == 0 {
+		casters = append(casters, globalCaster)
+	}
 
 	// Sync database and file tree with new move, including f and all of its children.
 	f.RecursiveMap(func(w *WeblensFile) {

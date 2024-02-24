@@ -79,14 +79,15 @@ export type MediaStateType = {
 export type FileBrowserAction = {
     type: string
 
+    dragging?: boolean
     selected?: boolean
-    loading?: boolean
     external?: boolean
+    loading?: boolean
     block?: boolean
     shift?: boolean
 
-    dragging?: boolean
     progress?: number
+    numCols?: number
 
     user?: string
     fileId?: string
@@ -94,6 +95,7 @@ export type FileBrowserAction = {
     fileName?: string
     search?: string
     presentingId?: string
+    direction?: string
 
     img?: ArrayBuffer
 
@@ -112,6 +114,7 @@ export type FileBrowserStateType = {
     uploadMap: Map<string, boolean>
     folderInfo: fileData
     parents: fileData[]
+    filesList: string[]
     draggingState: number
     loading: boolean
     waitingForNewName: string
@@ -120,11 +123,13 @@ export type FileBrowserStateType = {
     scanProgress: number
     homeDirSize: number
     trashDirSize: number
+    numCols: number
     holdingShift: boolean
     blockFocus: boolean
     lastSelected: string
     pasteImg: ArrayBuffer
     scrollTo: string
+    moveDest: string
 }
 
 export type fileData = {
@@ -140,8 +145,10 @@ export type fileData = {
     mediaData: MediaData
     fileFriendlyName: string
     owner: string
+    pathFromHome: string
     shares: any[]
     visible: boolean
+    children: string[]
 }
 
 export const getBlankFile = () => {
@@ -158,8 +165,10 @@ export const getBlankFile = () => {
         mediaData: null,
         fileFriendlyName: "",
         owner: "",
+        pathFromHome: "",
         shares: [],
         visible: false,
+        children: [],
     }
     return blank
 }

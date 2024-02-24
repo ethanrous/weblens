@@ -39,7 +39,7 @@ func NewWorkerPool(initWorkers int) (*WorkerPool, *virtualTaskPool) {
 	return newWp, globalPool
 }
 
-func workerRecover(task *Task, workerId int64) {
+func workerRecover(task *task, workerId int64) {
 	err := recover()
 	if err != nil {
 		// Make sure what we got is an error
@@ -53,7 +53,7 @@ func workerRecover(task *Task, workerId int64) {
 	}
 }
 
-func saftyWork(task *Task, workerId int64) {
+func saftyWork(task *task, workerId int64) {
 	defer workerRecover(task, workerId)
 	task.work()
 }
@@ -62,7 +62,7 @@ func saftyWork(task *Task, workerId int64) {
 // wait on some action from the client, it should queue a timeout with
 // the executioner so it doesn't hang forever
 func (wp *WorkerPool) executioner() {
-	timerStream := make(chan *Task)
+	timerStream := make(chan *task)
 	for {
 		select {
 		case newHit := <-wp.hitStream:
@@ -236,7 +236,7 @@ func (wq *virtualTaskPool) Cancel() {
 	// TODO
 }
 
-func (wq *virtualTaskPool) QueueTask(t *Task) (err error) {
+func (wq *virtualTaskPool) QueueTask(t *task) (err error) {
 	if wq.parentWorkerPool.exitFlag == 1 {
 		util.Warning.Println("Not queuing task while worker pool is going down")
 		return

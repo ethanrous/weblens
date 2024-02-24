@@ -11,12 +11,14 @@ import (
 )
 
 type mediaType struct {
-	FriendlyName    string
-	FileExtension   []string
-	IsDisplayable   bool
-	IsRaw           bool
-	IsVideo         bool
-	RawThumbExifKey string
+	MimeType         string
+	FriendlyName     string
+	FileExtension    []string
+	IsDisplayable    bool
+	IsRaw            bool
+	IsVideo          bool
+	SupportsImgRecog bool
+	RawThumbExifKey  string
 }
 
 var mediaTypeMap = map[string]mediaType{}
@@ -45,7 +47,9 @@ func InitMediaTypeMaps() error {
 }
 
 func initDisplayMap() {
-	for _, mediaType := range mediaTypeMap {
+	for mime, mediaType := range mediaTypeMap {
+		mediaType.MimeType = mime
+		mediaTypeMap[mime] = mediaType
 		for _, ext := range mediaType.FileExtension {
 			displayableMap[ext] = mediaType
 		}

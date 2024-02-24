@@ -2,6 +2,7 @@ import axios from 'axios'
 import { AlbumData, FileBrowserDispatch, fileData, getBlankFile } from '../types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 import { notifications } from '@mantine/notifications'
+import { humanFileSize } from '../util'
 
 export function DeleteFiles(fileIds: string[], authHeader) {
     var url = new URL(`${API_ENDPOINT}/files`)
@@ -166,8 +167,9 @@ export function downloadSingleFile(fileId: string, authHeader, dispatch: FileBro
         responseType: 'blob',
         headers: authHeader,
         onDownloadProgress: (p) => {
-            notifications.update({ id: notifId, message: `Downloading: (${(p.progress * 100).toFixed(0)}%)` })
             dispatch({ type: "set_scan_progress", progress: Number((p.progress * 100).toFixed(0)) })
+            const [speed, units] = humanFileSize(p.rate)
+            notifications.update({ id: notifId, message: `Downloading ${(p.progress * 100).toFixed(0)}% (${speed}${units}/s)` })
         },
     })
         .then(res => new Blob([res.data]))
@@ -182,11 +184,12 @@ export function requestZipCreate(fileIds, authHeader) {
 
     return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ fileIds: fileIds }) })
         .then(async (res) => {
-            if (res.status !== 200 && res.status !== 202) {
-                Promise.reject(res.statusText)
-            }
             const json = await res.json()
             return { json: json, status: res.status }
+        })
+        .catch(r => {
+            notifications.show({title: "Failed to request takeout", message: String(r), color: 'red'})
+            return {json: null, status: 0}
         })
 }
 
@@ -212,7 +215,6 @@ export async function AutocompleteAlbums(searchValue, authHeader): Promise<Album
 
 export async function ShareFiles(files: string[], users: string[], authHeader) {
     const url = new URL(`${API_ENDPOINT}/files/share`)
-    console.log(files, users)
     const body = {
         files: files,
         users: users
@@ -228,6 +230,17 @@ export async function NewWormhole(folderId: string, authHeader) {
         folderId: folderId
     }
     const res = await fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
+    return res
+}
+
+export async function DeleteWormhole(shareId, authHeader) {
+    console.log(shareId)
+    // return
+    const url = new URL(`${API_ENDPOINT}/share`)
+    const body = {
+        shareId: shareId
+    }
+    const res = await fetch(url.toString(), { headers: authHeader, method: "DELETE", body: JSON.stringify(body) })
     return res
 }
 

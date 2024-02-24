@@ -47,26 +47,33 @@ export default function Wormhole() {
                 .catch(r => { notifications.show({ title: "Failed to get wormhole info", message: String(r), color: "red" }) })
         }
     }, [wormholeId, authHeader])
-    // if (!wormholeInfo) {
-    //     return null
-    // }
+    const valid = Boolean(wormholeInfo)
 
     return (
         <Box>
             <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} />
-            <WormholeWrapper wormholeId={wormholeId} wormholeName={wormholeInfo?.filename} validWormhole={Boolean(wormholeInfo)} uploadDispatch={uploadDispatch}>
+            <WormholeWrapper wormholeId={wormholeId} wormholeName={wormholeInfo?.filename} validWormhole={valid} uploadDispatch={uploadDispatch}>
                 <RowBox style={{ height: '20vh', width: 'max-content' }}>
-                    <Text size="40" style={{ lineHeight: "40px" }}>
-                        {wormholeInfo?.filename ? "Wormhole to" : "Wormhole not found"}
-                    </Text>
-                    {wormholeInfo?.filename && (
+                    <ColumnBox style={{ height: 'max-content', width: 'max-content' }}>
+                        <Text size="40" style={{ lineHeight: "40px" }}>
+                            {valid ? "Wormhole to" : "Wormhole not found"}
+                        </Text>
+                        {!valid && (
+                            <Text size="20" style={{ lineHeight: "40px" }}>
+                                {"Wormhole does not exist or was closed"}
+                            </Text>
+                        )}
+                    </ColumnBox>
+                    {valid && (
                         <IconFolder size={40} style={{ marginLeft: '7px' }} />
                     )}
                     <Text fw={700} size="40" style={{ lineHeight: "40px", marginLeft: 3 }}>
                         {wormholeInfo?.filename}
                     </Text>
                 </RowBox>
-                <UploadPlaque wormholeId={wormholeId} uploadDispatch={uploadDispatch} />
+                {valid && (
+                    <UploadPlaque wormholeId={wormholeId} uploadDispatch={uploadDispatch} />
+                )}
             </WormholeWrapper>
         </Box>
     )

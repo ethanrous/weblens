@@ -118,7 +118,7 @@ func newFileUpload(ctx *gin.Context) {
 		return
 	}
 
-	t := UploadTasker.WriteToFile(filename, parentId)
+	t := UploadTasker.WriteToFile(filename, parentId, Caster)
 	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
 
@@ -162,10 +162,12 @@ func newSharedFileUpload(ctx *gin.Context) {
 		_, e = slices.BinarySearch(names, tmpname)
 		if !e {
 			filename = tmpname
+			break
 		}
+		counter++
 	}
 
-	t := UploadTasker.WriteToFile(filename, parentFolderId)
+	t := UploadTasker.WriteToFile(filename, parentFolderId, Caster)
 	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
 
@@ -208,6 +210,7 @@ func makeDir(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.Id()})
 
 	Caster.PushFileCreate(newDir)
+	Caster.Flush()
 }
 
 func pubMakeDir(ctx *gin.Context) {
@@ -347,6 +350,7 @@ func updateFile(ctx *gin.Context) {
 	file := dataStore.FsTreeGet(fileId)
 	if file == nil {
 		ctx.Status(http.StatusNotFound)
+		return
 	}
 
 	// If the directory does not change, just assume this is a rename
@@ -354,8 +358,7 @@ func updateFile(ctx *gin.Context) {
 		newParentId = file.GetParent().Id()
 	}
 
-	t := dataProcess.GetGlobalQueue().MoveFile(fileId, newParentId, newFilename)
-
+	t := dataProcess.GetGlobalQueue().MoveFile(fileId, newParentId, newFilename, Caster)
 	t.Wait()
 
 	if t.ReadError() != nil {
@@ -379,7 +382,7 @@ func updateFiles(ctx *gin.Context) {
 	wq := dataProcess.NewWorkQueue()
 
 	for _, fileId := range filesData.Files {
-		wq.MoveFile(fileId, filesData.NewParentId, "")
+		wq.MoveFile(fileId, filesData.NewParentId, "", Caster)
 	}
 	wq.SignalAllQueued()
 	wq.Wait(false)
@@ -403,7 +406,7 @@ func trashFiles(ctx *gin.Context) {
 	trashDir := dataStore.GetUserTrashDir(ctx.GetString("username"))
 
 	caster := NewBufferedCaster()
-	caster.Enable(false)
+	caster.AutoflushEnable()
 
 	for _, fileId := range fileIds {
 		file := dataStore.FsTreeGet(fileId)
@@ -471,8 +474,14 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
+	if len(takeoutRequest.FileIds) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot takeout 0 files"})
+		return
+	}
+
 	files := util.Map(takeoutRequest.FileIds, func(fileId string) *dataStore.WeblensFile { return dataStore.FsTreeGet(fileId) })
 	for _, file := range files {
+		_ = file.String() // Make sure directories have trailing slash
 		if file == nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Failed to find at least one file"})
 			return
@@ -480,10 +489,13 @@ func createTakeout(ctx *gin.Context) {
 	}
 
 	if len(files) == 1 && !files[0].IsDir() { // If we only have 1 file, and it is not a directory, we should have requested to just download that file
-		util.Warning.Println("Creating zip file with only 1 non-dir file")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Single non-directory file should not be zipped"})
+		return
 	}
 
-	t := dataProcess.GetGlobalQueue().CreateZip(files, username)
+	caster := NewCaster(username)
+	caster.Enable()
+	t := dataProcess.GetGlobalQueue().CreateZip(files, username, caster)
 
 	completed, _ := t.Status()
 	if completed {
@@ -692,6 +704,41 @@ func createShareLink(ctx *gin.Context) {
 	dataStore.CreateWormhole(f)
 	ctx.Status(http.StatusCreated)
 	Caster.PushFileUpdate(f)
+	Caster.Flush()
+}
+
+func deleteShare(ctx *gin.Context) {
+	body, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	var shareInfo deleteShareInfo
+	err = json.Unmarshal(body, &shareInfo)
+	if err != nil {
+		util.DisplayError(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	_, fId, err := dataStore.GetWormhole(shareInfo.ShareId)
+	if err != nil {
+		util.DisplayError(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	f := dataStore.FsTreeGet(fId)
+
+	err = dataStore.RemoveWormhole(shareInfo.ShareId)
+	if err != nil {
+		util.DisplayError(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+	Caster.PushFileUpdate(f)
+	Caster.Flush()
 }
 
 func getShare(ctx *gin.Context) {

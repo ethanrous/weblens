@@ -82,7 +82,8 @@ func (m *Media) LoadFromFile(f *WeblensFile) (media *Media, err error) {
 	m.Owner = f.Owner()
 	sw.Lap("Add file and set owner")
 
-	if m.BlurHash == "" || !cacheExists {
+	// if m.BlurHash == "" || !cacheExists {
+	if !cacheExists {
 		err = m.generateImage()
 		if err != nil {
 			return
@@ -106,7 +107,7 @@ func (m *Media) LoadFromFile(f *WeblensFile) (media *Media, err error) {
 		sw.Lap("Create cache")
 	}
 
-	if m.RecognitionTags == nil {
+	if m.RecognitionTags == nil && m.MediaType.SupportsImgRecog {
 		err = m.getImageRecognitionTags()
 		if err != nil {
 			util.DisplayError(err)
@@ -144,7 +145,7 @@ func (m *Media) IsFilledOut() (bool, string) {
 	if m.Owner == "" {
 		return false, "owner"
 	}
-	if m.RecognitionTags == nil {
+	if m.MediaType.SupportsImgRecog && m.RecognitionTags == nil {
 		return false, "recognition tags"
 	}
 
@@ -520,7 +521,7 @@ func (m *Media) getCacheFile(q quality, generateIfMissing bool) (f *WeblensFile,
 				return nil, err
 			}
 
-			t := tasker.ScanFile(realFile, m)
+			t := tasker.ScanFile(realFile, m, globalCaster)
 			t.Wait()
 			terr := t.ReadError()
 			if terr != nil {

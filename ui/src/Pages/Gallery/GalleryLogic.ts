@@ -73,7 +73,7 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
             }
         }
 
-        case 'set_block_search_focus': {
+        case 'set_block_focus': {
             return {
                 ...state,
                 blockSearchFocus: action.block

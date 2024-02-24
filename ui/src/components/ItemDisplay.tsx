@@ -1,8 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AspectRatio, Box, Divider, Text, Tooltip } from "@mantine/core"
+import { AspectRatio, Box, Divider, Loader, Text, Tooltip } from "@mantine/core"
 import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles"
 import { MediaImage } from "./PhotoContainer"
 import { MediaData } from "../types/Types"
+import "./filebrowserStyle.css"
 
 type ItemMenu = ({ open, setOpen, itemInfo, menuPos }: { open: boolean, setOpen: (o: boolean) => void, itemInfo: ItemProps, menuPos: { x: number, y: number } }) => JSX.Element
 
@@ -18,24 +19,25 @@ export type GlobalContextType = {
     moveSelected?: (itemId: string) => void
 
     iconDisplay?: ({ itemInfo }: { itemInfo: ItemProps }) => JSX.Element
+    setMoveDest?: (itemName) => void
 
     dragging?: number
     numCols?: number
     itemWidth?: number
     initialScrollIndex?: number
+    doMediaFetch?: boolean
 }
 
 export type ItemProps = {
     itemId: string
     itemTitle: string
     secondaryInfo?: string
-    selected: boolean
+    selected: number
     mediaData: MediaData
     droppable: boolean
     isDir: boolean
     imported: boolean
-    // useKeyDown?: () => void
-    // moveSelected?: (entryId: string) => void,
+    displayable: boolean
     dragging?: number
     dispatch?: any
 
@@ -47,11 +49,13 @@ type WrapperProps = {
     fileRef
 
     width: number
+    editing: boolean
     children
 
     visitItem
     setSelected: (itemId: string, selected?: boolean) => void
     moveSelected: (entryId: string) => void,
+    setMoveDest: (itemName: string) => void,
     ItemMenu: ItemMenu
 
     dragging: number// Allows for multiple dragging states
@@ -59,83 +63,105 @@ type WrapperProps = {
 }
 
 type TitleProps = {
-    blockFocus: (b: boolean) => void
-    rename: (itemId: string, newName: string) => void
     itemId: string
     itemTitle: string
     secondaryInfo?: string
+    editing: boolean
+    setEditing: (e: boolean) => void
     height: number
+    blockFocus: (b: boolean) => void
+    rename: (itemId: string, newName: string) => void
 }
 
 const MARGIN = 6
-// useKeyDown(dispatch, editing, setEditingPlus, fileData.parentFolderId, fileData.id, renameVal, fileData.imported, authHeader)
 
-const ItemWrapper = ({ itemInfo, fileRef, width, setSelected, dragging = 0, setDragging, visitItem, moveSelected, ItemMenu, children }: WrapperProps) => {
-    const [mouseDown, setMouseDown] = useState(false)
+const ItemWrapper = memo(({ itemInfo, fileRef, width, editing, setSelected, dragging = 0, setDragging, visitItem, moveSelected, ItemMenu, setMoveDest, children }: WrapperProps) => {
+    const [mouseDown, setMouseDown] = useState(null)
     const [hovering, setHovering] = useState(false)
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
 
     const [outline, backgroundColor] = useMemo(() => {
         let outline
-        let backgroundColor
+        let backgroundColor = "#222222"
         if (itemInfo.selected) {
-            outline = `1px solid #220088`
-            backgroundColor = "#331177"
+            if (itemInfo.selected & 0x01) {
+                backgroundColor = "#331177"
+            }
+            if (itemInfo.selected & 0x10) {
+                outline = `1px solid #777777`
+            }
         } else if (hovering && dragging && itemInfo.isDir) {
             outline = `2px solid #661199`
         } else if (hovering && !dragging) {
             backgroundColor = "#333333"
-        } else {
-            backgroundColor = "#222222"
         }
         return [outline, backgroundColor]
     }, [itemInfo.selected, hovering, dragging, itemInfo.isDir])
 
     return (
-        <Box draggable={false} ref={fileRef} style={{ margin: MARGIN }}>
+        <Box
+            ref={fileRef}
+            style={{ margin: MARGIN }}
+            onMouseOver={e => { e.stopPropagation(); setHovering(true); if (dragging && !itemInfo.selected && itemInfo.isDir) { setMoveDest(itemInfo.itemTitle) } }}
+            onMouseDown={e => { setMouseDown({ x: e.clientX, y: e.clientY }) }}
+            onMouseMove={e => { if (mouseDown && !dragging && (Math.abs(mouseDown.x - e.clientX) > 20 || Math.abs(mouseDown.y - e.clientY) > 20)) { setSelected(itemInfo.itemId, true); setDragging(true) } }}
+            onClick={e => { e.stopPropagation(); setSelected(itemInfo.itemId) }}
+            onMouseUp={e => {
+                e.stopPropagation();
+                if (dragging !== 0) {
+                    if (!itemInfo.selected && itemInfo.isDir) {
+                        moveSelected(itemInfo.itemId)
+                    }
+                    setMoveDest("")
+                    setDragging(false)
+                }
+                setMouseDown(null)
+            }}
+            onDoubleClick={e => { e.stopPropagation(); visitItem(itemInfo.itemId) }}
+            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
+            onMouseLeave={e => {
+                setHovering(false)
+                if (dragging && itemInfo.isDir) { setMoveDest("") }
+                if (mouseDown) { setMouseDown(null) }
+            }}
+        >
             <ItemMenu open={menuOpen} setOpen={setMenuOpen} itemInfo={itemInfo} menuPos={menuPos} />
             <Box
-                draggable={false}
+                className="item-child"
                 children={children}
-                onClick={(e) => { e.stopPropagation(); setSelected(itemInfo.itemId) }}
-                onMouseOver={(e) => { e.stopPropagation(); setHovering(true) }}
-                onMouseUp={() => { if (dragging !== 0) { moveSelected(itemInfo.itemId) }; setMouseDown(false) }}
-                onMouseDown={() => { setMouseDown(true) }}
-                onDoubleClick={(e) => { e.stopPropagation(); visitItem(itemInfo.itemId); }}
-                onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
-                onMouseLeave={() => {
-                    setHovering(false)
-                    // if (!fileData.imported && !fileData.isDir) { return }
-                    // if (!selected && mouseDown) { dispatch({ type: "clear_selected" }) }
-                    if (mouseDown) {
-                        setDragging(true)
-                        setSelected(itemInfo.itemId, true)
-                        setMouseDown(false)
-                    }
-                }}
-                variant='solid'
                 style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    overflow: 'hidden',
-                    borderRadius: '10px',
-                    justifyContent: 'center',
                     outline: outline,
                     backgroundColor: backgroundColor,
-                    padding: 1,
                     height: (width - (MARGIN * 2)) * 1.10,
                     width: width - (MARGIN * 2),
-                    cursor: (dragging !== 0 && !itemInfo.isDir) ? 'default' : 'pointer'
+                    cursor: (dragging !== 0 && !itemInfo.isDir) ? 'default' : 'pointer',
                 }}
             />
-            {(itemInfo.selected && dragging !== 0) && (
-                <Box style={{ height: (width - (MARGIN * 2)) * 1.10, width: width - (MARGIN * 2), position: 'absolute', backgroundColor: "#77777744", transform: 'translateY(-100%)', borderRadius: '10px' }} />
+            {((itemInfo.selected || !itemInfo.isDir) && dragging !== 0) && (
+                <Box
+                    className="no-drop-cover"
+                    style={{ height: (width - (MARGIN * 2)) * 1.10, width: width - (MARGIN * 2) }}
+                    onMouseLeave={e => setHovering(false)}
+                    onClick={e => e.stopPropagation()}
+                />
             )}
         </Box>
     )
-}
+}, (prev, next) => {
+    if (prev.itemInfo !== next.itemInfo) {
+        return false
+    } else if (prev.itemInfo.selected !== next.itemInfo.selected) {
+        return false
+    } else if (prev.editing !== next.editing) {
+        return false
+    } else if (prev.dragging !== next.dragging) {
+        return false
+    } else if (prev.width !== next.width) {
+        return false
+    }
+    return true
+})
 
 export const FileVisualWrapper = ({ children }) => {
     return (
@@ -168,23 +194,21 @@ const useKeyDown = (itemId, newName, editing, setEditing, rename) => {
     }, [onKeyDown])
 }
 
-const TextBox = ({ itemId, itemTitle, secondaryInfo, height, blockFocus, rename }: TitleProps) => {
+const TextBox = ({ itemId, itemTitle, secondaryInfo, editing, setEditing, height, blockFocus, rename }: TitleProps) => {
     const editRef: React.Ref<HTMLInputElement> = useRef()
-    const [editing, setEditing] = useState(itemId === "")
     const [renameVal, setRenameVal] = useState(itemTitle)
 
     const setEditingPlus = useCallback((b: boolean) => { setEditing(b); setRenameVal(cur => { if (cur === '') { return itemTitle } else { return cur } }); blockFocus(b) }, [itemTitle, setEditing, blockFocus])
     useKeyDown(itemId, renameVal, editing, setEditingPlus, rename)
 
     useEffect(() => {
-        if (editRef.current) {
+        if (editing && editRef.current) {
             editRef.current.select()
         }
-    }, [editing])
+    }, [editing, editRef])
 
     useEffect(() => {
-        if (itemId === "") {
-            console.log("He")
+        if (itemId === "NEW_DIR") {
             setEditingPlus(true)
         }
     }, [itemId, setEditingPlus])
@@ -222,6 +246,7 @@ const TextBox = ({ itemId, itemTitle, secondaryInfo, height, blockFocus, rename 
 
 export const ItemDisplay = memo(({ itemInfo, context }: { itemInfo: ItemProps, context: GlobalContextType }) => {
     const wrapRef = useRef()
+    const [editing, setEditing] = useState(false)
 
     const imgStyle = useMemo(() => {
         if (!itemInfo.mediaData) {
@@ -229,9 +254,9 @@ export const ItemDisplay = memo(({ itemInfo, context }: { itemInfo: ItemProps, c
         }
         let imgStyle
         if (itemInfo.mediaData.mediaHeight > itemInfo.mediaData.mediaWidth) {
-            imgStyle = { width: '100%', height: 'auto' }
+            imgStyle = { width: '100%', height: context.itemWidth, outline: 0, objectFit: 'cover' }
         } else {
-            imgStyle = { height: '100%', width: 'auto' }
+            imgStyle = { height: '100%', width: context.itemWidth, outline: 0, objectFit: 'cover' }
         }
         return imgStyle
     }, [itemInfo.mediaData])
@@ -246,22 +271,30 @@ export const ItemDisplay = memo(({ itemInfo, context }: { itemInfo: ItemProps, c
             moveSelected={context.moveSelected}
             dragging={context.dragging}
             setDragging={context.setDragging}
+            setMoveDest={context.setMoveDest}
             ItemMenu={context.menu}
+            editing={editing}
         >
             <FileVisualWrapper>
                 {itemInfo.mediaData && (
-                    <MediaImage media={itemInfo.mediaData} quality="thumbnail" imgStyle={imgStyle} />
+                    <MediaImage media={itemInfo.mediaData} quality="thumbnail" imgStyle={imgStyle} doFetch={context.doMediaFetch} />
                 )}
                 {!itemInfo.mediaData && context.iconDisplay && (
                     <context.iconDisplay itemInfo={itemInfo} />
                 )}
             </FileVisualWrapper>
 
-            <TextBox itemId={itemInfo.itemId} itemTitle={itemInfo.itemTitle} secondaryInfo={itemInfo.secondaryInfo} height={context.itemWidth * 0.10} blockFocus={context.blockFocus} rename={context.rename} />
+            <TextBox itemId={itemInfo.itemId} itemTitle={itemInfo.itemTitle} secondaryInfo={itemInfo.secondaryInfo} editing={editing} setEditing={setEditing} height={context.itemWidth * 0.10} blockFocus={context.blockFocus} rename={context.rename} />
+
+            {itemInfo.itemId === "NEW_DIR" && !editing && (
+                <Loader color="white" size={20} style={{ position: 'absolute', top: 20, right: 20 }} />
+            )}
         </ItemWrapper>
     )
 }, (prev, next) => {
-    if (prev.context !== next.context) {
+    if (prev.itemInfo.itemId !== next.itemInfo.itemId) {
+        return false
+    } else if (prev.context !== next.context) {
         return false
     } else if (prev.context.itemWidth !== next.context.itemWidth) {
         return false

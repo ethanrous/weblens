@@ -35,3 +35,9 @@ func GetWormhole(shareId string) (sd shareData, folderId string, err error) {
 
 	return
 }
+
+func RemoveWormhole(shareId string) (err error) {
+	err = fddb.removeShare(shareId)
+
+	return
+}

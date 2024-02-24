@@ -1,4 +1,4 @@
-import { Box, Button, Combobox, Divider, Indicator, Modal, Slider, Space, Switch, Tabs, Text, TextInput, useCombobox } from '@mantine/core'
+import { Box, Button, Combobox, Indicator, Modal, Slider, Space, Switch, Tabs, Text, TextInput, useCombobox } from '@mantine/core'
 import { useEffect, useReducer, useMemo, useRef, useContext, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { IconCheck, IconFilter, IconPlus } from '@tabler/icons-react'
@@ -83,7 +83,7 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
     }, [albumNames, selectedAlbums])
 
     return (
-        <RowBox>
+        <RowBox style={{ width: 'max-content', height: 50, alignItems: 'flex-start', paddingTop: 10 }}>
             <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
             <Space w={20} />
             <Combobox
@@ -103,9 +103,11 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
                     </Indicator>
                 </Combobox.Target>
 
-                <Combobox.Dropdown>
+                <Combobox.Dropdown style={{ padding: 10 }}>
                     <Combobox.Header>
-                        <Text>Timeline Filters</Text>
+                        <ColumnBox style={{ paddingBottom: 10 }}>
+                            <Text fw={600}>Timeline Filters</Text>
+                        </ColumnBox>
                     </Combobox.Header>
                     <Space h={10} />
                     <Switch color='#4444ff' checked={rawOn} label={'Show RAWs'} onChange={e => setRawOn(e.target.checked)} />
@@ -133,14 +135,14 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
     if (!albumId) {
         return (
             <Box>
-                <Button color='#4444ff' onClick={() => { dispatch({ type: 'set_block_search_focus', block: true }); setNewAlbumModal(true) }} leftSection={<IconPlus />}>
+                <Button color='#4444ff' onClick={() => { dispatch({ type: 'set_block_focus', block: true }); setNewAlbumModal(true) }} leftSection={<IconPlus />}>
                     New Album
                 </Button>
 
-                <Modal opened={newAlbumModal} onClose={() => { dispatch({ type: 'set_block_search_focus', block: false }); setNewAlbumModal(false) }} title="New Album">
+                <Modal opened={newAlbumModal} onClose={() => { dispatch({ type: 'set_block_focus', block: false }); setNewAlbumModal(false) }} title="New Album">
                     <TextInput value={newAlbumName} placeholder='Album name' onChange={(e) => setNewAlbumName(e.currentTarget.value)} />
                     <Space h={'md'} />
-                    <Button onClick={() => { CreateAlbum(newAlbumName, authHeader).then(() => GetAlbums(authHeader).then((val) => dispatch({ type: 'set_albums', albums: val }))); dispatch({ type: 'set_block_search_focus', block: false }); setNewAlbumModal(false) }}>
+                    <Button onClick={() => { CreateAlbum(newAlbumName, authHeader).then(() => GetAlbums(authHeader).then((val) => dispatch({ type: 'set_albums', albums: val }))); dispatch({ type: 'set_block_focus', block: false }); setNewAlbumModal(false) }}>
                         Create
                     </Button>
                 </Modal>
@@ -148,7 +150,7 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
         )
     } else {
         return (
-            <RowBox style={{ width: '100%' }}>
+            <RowBox style={{ width: 'max-content' }}>
                 <Switch color='#4444ff' checked={rawSelected} label={'RAWs'} onChange={(e) => dispatch({ type: 'set_raw_toggle', raw: e.target.checked })} />
                 <Space w={20} />
                 <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
@@ -158,30 +160,7 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
 
 }
 
-const GalleryControls = ({ mediaState, page, albumId, dispatch }: { mediaState: MediaStateType, page: string, albumId: string, dispatch }) => {
-    return (
-        <RowBox style={{ position: 'sticky', alignSelf: 'flex-stat', marginLeft: 225, height: 65, zIndex: 10 }}>
-            <Divider my={10} size={1} orientation='vertical' />
-            <Space w={30} />
-            <Box
-                style={{
-                    width: '100%',
-                    borderRadius: "6px",
-                }}
-            >
-                {page === "timeline" && (
-                    <TimelineControls rawSelected={mediaState.includeRaw} albumsFilter={mediaState.albumsFilter} imageSize={mediaState.imageSize} albumsMap={mediaState.albumsMap} dispatch={dispatch} />
-                )}
-
-                {page === "albums" && (
-                    <AlbumsControls albumId={albumId} imageSize={mediaState.imageSize} rawSelected={mediaState.includeRaw} dispatch={dispatch} />
-                )}
-            </Box>
-        </RowBox>
-    )
-}
-
-function ViewSwitch({ page, timeline, albums, albumId }) {
+function ViewSwitch({ mediaState, page, timeline, albums, albumId, dispatch }) {
     const nav = useNavigate()
     const [hovering, setHovering] = useState(false)
     let albumStyle = {}
@@ -193,14 +172,23 @@ function ViewSwitch({ page, timeline, albums, albumId }) {
     }
     return (
         <Tabs value={page} keepMounted={false} onChange={(p) => nav(`/${p}`)} variant='pills' style={{ height: "100%" }}>
-            <Tabs.List style={{ marginLeft: 20 }}>
-                <Tabs.Tab value='timeline' color='#4444ff'>
-                    Timeline
-                </Tabs.Tab>
-                <Tabs.Tab value='albums' color='#4444ff' onMouseOver={() => setHovering(true)} onMouseLeave={() => setHovering(false)} style={albumStyle}>
-                    Albums
-                </Tabs.Tab>
-            </Tabs.List>
+            <RowBox style={{ height: 60 }}>
+                <Tabs.List style={{ marginLeft: 20, flexDirection: 'row' }}>
+                    <Tabs.Tab value='timeline' color='#4444ff'>
+                        Timeline
+                    </Tabs.Tab>
+                    <Tabs.Tab value='albums' color='#4444ff' onMouseOver={() => setHovering(true)} onMouseLeave={() => setHovering(false)} style={albumStyle}>
+                        Albums
+                    </Tabs.Tab>
+                </Tabs.List>
+                <Space w={30} />
+                {page === "timeline" && (
+                    <TimelineControls rawSelected={mediaState.includeRaw} albumsFilter={mediaState.albumsFilter} imageSize={mediaState.imageSize} albumsMap={mediaState.albumsMap} dispatch={dispatch} />
+                )}
+                {page === "albums" && (
+                    <AlbumsControls albumId={albumId} imageSize={mediaState.imageSize} rawSelected={mediaState.includeRaw} dispatch={dispatch} />
+                )}
+            </RowBox>
 
             <Tabs.Panel value='timeline' style={{ height: "98%" }}>
                 <ColumnBox>
@@ -286,8 +274,8 @@ export function Timeline({ mediaState, page, dispatch }: { mediaState: MediaStat
         )
     }
     return (
-        <ColumnBox style={{ padding: 15 }}>
-            <PhotoGallery medias={medias} imageBaseScale={mediaState.imageSize} dispatch={dispatch} />
+        <ColumnBox>
+            <PhotoGallery medias={medias} imageBaseScale={mediaState.imageSize} title={null} dispatch={dispatch} />
         </ColumnBox>
     )
 }
@@ -335,11 +323,12 @@ const Gallery = () => {
     return (
         <Box>
             <HeaderBar searchContent={mediaState.searchContent} dispatch={dispatch} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
-            <Presentation mediaData={mediaState.presentingMedia} dispatch={dispatch} />
-            <RowBox style={{ height: "100vh", alignItems: 'normal' }}>
-                <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} />
-                <Box ref={viewportRef} style={{ height: "calc(100% - 80px)", width: '100%', paddingTop: "15px", position: 'absolute' }}>
+            <Presentation itemId={mediaState.presentingMedia?.fileHash} mediaData={mediaState.presentingMedia} element={null} dispatch={dispatch} />
+            <ColumnBox style={{ height: "100vh", alignItems: 'normal' }}>
+                {/* <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} /> */}
+                <Box ref={viewportRef} style={{ height: "calc(100% - 80px)", width: '100%', position: 'absolute' }}>
                     <ViewSwitch
+                        mediaState={mediaState}
                         page={page}
                         timeline={
                             <Timeline mediaState={mediaState} page={page} dispatch={dispatch} />
@@ -348,9 +337,10 @@ const Gallery = () => {
                             <Albums mediaState={mediaState} selectedAlbum={albumId} dispatch={dispatch} />
                         }
                         albumId={albumId}
+                        dispatch={dispatch}
                     />
                 </Box>
-            </RowBox>
+            </ColumnBox>
         </Box>
     )
 }

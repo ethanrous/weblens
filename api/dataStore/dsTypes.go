@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/barasher/go-exiftool"
+	"github.com/ethrousseau/weblens/api/util"
 	"github.com/go-redis/redis"
 	"github.com/h2non/bimg"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -100,7 +101,7 @@ type FileInfo struct {
 
 	// If the content of the file can be displayed visually.
 	// Say the file is a jpg, mov, arw, etc. and not a zip,
-	// txt, doc etc.
+	// txt, doc, directory etc.
 	Displayable bool `json:"displayable"`
 
 	IsDir            bool        `json:"isDir"`
@@ -109,10 +110,12 @@ type FileInfo struct {
 	ModTime          time.Time   `json:"modTime"`
 	Filename         string      `json:"filename"`
 	ParentFolderId   string      `json:"parentFolderId"`
-	MediaData        *Media      `json:"mediaData"`
 	FileFriendlyName string      `json:"fileFriendlyName"`
 	Owner            string      `json:"owner"`
+	PathFromHome     string      `json:"pathFromHome"`
+	MediaData        *Media      `json:"mediaData"`
 	Shares           []shareData `json:"shares"`
+	Children         []string    `json:"children"`
 }
 
 type folderData struct {
@@ -150,6 +153,7 @@ type Task interface {
 	GetResult(string) string
 	Wait()
 	Cancel()
+	// SetCaster(BroadcasterAgent)
 
 	ReadError() any
 }
@@ -164,9 +168,13 @@ type TaskerAgent interface {
 	//	- `recursive` : if true, scan all children of directory recursively
 	//
 	//	- `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-	ScanDirectory(directory *WeblensFile, recursive, deep bool) Task
+	ScanDirectory(directory *WeblensFile, recursive, deep bool, caster BroadcasterAgent) Task
 
-	ScanFile(file *WeblensFile, m *Media) Task
+	ScanFile(file *WeblensFile, m *Media, caster BroadcasterAgent) Task
+}
+
+func GimmeTask(t Task) {
+	util.Debug.Println("I have task")
 }
 
 type BroadcasterAgent interface {
@@ -174,6 +182,7 @@ type BroadcasterAgent interface {
 	PushFileUpdate(updatedFile *WeblensFile)
 	PushFileMove(preMoveFile *WeblensFile, postMoveFile *WeblensFile)
 	PushFileDelete(deletedFile *WeblensFile)
+	PushTaskUpdate(taskId string, status string, result any)
 }
 
 var tasker TaskerAgent

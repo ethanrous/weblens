@@ -60,7 +60,7 @@ func main() {
 	// initial loading of the filesystem (that was just done above) doesn't
 	// try to broadcast for every file that exists. So it must be enabled here
 	routes.Caster.DropBuffer()
-	routes.Caster.Enable(true)
+	routes.Caster.AutoflushEnable()
 	sw.Lap("Global caster enabled")
 
 	// 								100MB
