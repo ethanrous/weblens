@@ -297,6 +297,35 @@ func PermenantlyDeleteFile(file *WeblensFile, c ...BroadcasterAgent) error {
 	}
 }
 
+func RecursiveGetMedia(folderIds ...string) (ms []string) {
+	for _, dId := range folderIds {
+		d := FsTreeGet(dId)
+		if d == nil {
+			util.Warning.Println("Skipping recursive media lookup for non-existant folder")
+			continue
+		}
+		if !d.IsDir() {
+			util.Warning.Println("Skipping recursive media lookup for file that is not directoy")
+			continue
+		}
+		d.RecursiveMap(func(f *WeblensFile) {
+			dis, _ := f.IsDisplayable()
+			if !f.IsDir() && dis {
+				m, err := f.GetMedia()
+				if err != nil {
+					util.DisplayError(err)
+					return
+				}
+				if m != nil {
+					ms = append(ms, m.MediaId)
+				}
+			}
+		})
+	}
+
+	return
+}
+
 func GetCacheDir() *WeblensFile {
 	return &cacheRoot
 }

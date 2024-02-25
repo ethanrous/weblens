@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { IconChevronRight, IconCloud, IconDownload, IconFile, IconFileZip, IconFolder, IconFolderPlus, IconHome, IconPhotoPlus, IconShare, IconSpiral, IconTrash, IconUpload, IconUsers } from "@tabler/icons-react"
 
 // Mantine
-import { Box, Button, Text, Space, FileButton, Paper, Divider, Popover, Progress, Menu, Center, Skeleton } from '@mantine/core'
+import { Box, Button, Text, Space, FileButton, Divider, Popover, Progress, Menu, Center, Skeleton } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useDebouncedValue } from '@mantine/hooks'
 
@@ -76,7 +76,7 @@ function PasteImageDialogue({ img, dirMap, folderId, authHeader, dispatch, wsSen
             <ColumnBox style={{ position: 'absolute', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>
                 <Text fw={700} size='40px' style={{ paddingBottom: '50px' }}>Upload from clipboard?</Text>
                 <ColumnBox onClick={(e) => { e.stopPropagation() }} style={{ height: "50%", width: "max-content", backgroundColor: '#222277ee', padding: '10px', borderRadius: '8px', overflow: 'hidden' }}>
-                    <MediaImage media={media} quality='thumbnail' imgStyle={{ objectFit: "contain", maxHeight: "100%", height: "100%" }} />
+                    <MediaImage media={media} quality='thumbnail' />
                 </ColumnBox>
                 <RowBox style={{ justifyContent: 'space-between', width: '300px', height: '150px' }}>
                     <Button size='xl' variant='default' onClick={(e) => { e.stopPropagation(); dispatch({ type: "paste_image", img: null }) }}>Cancel</Button>
@@ -214,30 +214,50 @@ function DraggingCounter({ dragging, dirMap, selected, dispatch }) {
     )
 }
 
-function FileContextMenu({ fbState, open, setOpen, itemInfo, menuPos, dispatch, wsSend, authHeader }: { fbState: FileBrowserStateType, open, setOpen, itemInfo: ItemProps, menuPos, dispatch, wsSend, authHeader }) {
+function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, wsSend, authHeader }: { itemId: string, fbState: FileBrowserStateType, open, setOpen, menuPos, dispatch, wsSend, authHeader }) {
     const [shareMenu, setShareMenu] = useState(false)
     const [addToAlbumMenu, setAddToAlbumMenu] = useState(false)
+    const itemInfo: fileData = fbState.dirMap.get(itemId) || {} as fileData
+    const selected: boolean = Boolean(fbState.selected.get(itemId))
 
-    const getActionItems = useCallback(() => {
-        return itemInfo.selected ? Array.from(fbState.selected.keys()) : [itemInfo.itemId]
-    }, [itemInfo.selected, fbState.selected.size, itemInfo.itemId])
+    const { items, mediaCount } = useMemo(() => {
+        if (fbState.dirMap.size === 0) {
+            return { items: [], anyDisplayable: false }
+        }
+        const itemIds = selected ? Array.from(fbState.selected.keys()) : [itemId]
+        let mediaCount = 0
+        const items = itemIds.map(i => {
+            const item = fbState.dirMap.get(i)
+            if (!item) {
+                return null
+            }
+            if (item.displayable || item.isDir) {
+                mediaCount++
+            }
+            return item
+        })
+
+        return { items: items.filter(i => Boolean(i)), mediaCount }
+    }, [itemId, selected, fbState.selected.size])
 
     let extraString
-    if (itemInfo.selected && fbState.selected.size > 1) {
+    if (selected && fbState.selected.size > 1) {
         extraString = ` +${fbState.selected.size - 1} more`
     }
 
+    console.log(itemInfo?.shares)
+
     return (
-        <Menu opened={open || shareMenu} onClose={() => setOpen(false)} closeOnClickOutside={!addToAlbumMenu} closeOnItemClick={false} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+        <Menu opened={open || shareMenu} onClose={() => setOpen(false)} closeOnClickOutside={!addToAlbumMenu} position='right-start' closeOnItemClick={false} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
             <Menu.Target>
-                <Box style={{ position: 'relative', bottom: -100, left: 0 }} />
+                <Box style={{ position: 'absolute', top: menuPos.y, left: menuPos.x }} />
             </Menu.Target>
 
             <Menu.Dropdown onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
                 <Menu.Label>
                     <RowBox style={{ gap: 10 }}>
                         <Text truncate='end'>
-                            {itemInfo.itemTitle}
+                            {itemInfo.filename}
                         </Text>
                         {extraString}
                     </RowBox>
@@ -245,39 +265,39 @@ function FileContextMenu({ fbState, open, setOpen, itemInfo, menuPos, dispatch, 
 
                 <Menu opened={addToAlbumMenu} trigger='hover' offset={0} position="right-start" onOpen={() => { setAddToAlbumMenu(true); dispatch({ type: 'set_block_focus', block: true }) }} onClose={() => { setAddToAlbumMenu(false); dispatch({ type: 'set_block_focus', block: false }) }} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
                     <Menu.Target>
-                        <Menu.Item leftSection={<IconPhotoPlus />} rightSection={<IconChevronRight />} >
+                        <Menu.Item leftSection={<IconPhotoPlus />} rightSection={<IconChevronRight />} disabled={false}>
                             <Text>Add to Album</Text>
                         </Menu.Item>
                     </Menu.Target>
                     <Menu.Dropdown onMouseOver={e => e.stopPropagation()}>
-                        <AlbumScoller getSelected={() => { return { media: selectedMediaIds(fbState.dirMap, itemInfo.selected ? Array.from(fbState.selected.keys()) : [itemInfo.itemId]), folders: selectedFolderIds(fbState.dirMap, itemInfo.selected ? Array.from(fbState.selected.keys()) : [itemInfo.itemId]) } }} authHeader={authHeader} />
+                        <AlbumScoller candidates={{ media: items.filter(i => i.displayable).map(i => i.id), folders: items.filter(i => i.isDir).map(i => i.id) }} authHeader={authHeader} />
                     </Menu.Dropdown>
                 </Menu>
 
                 {itemInfo.isDir && (
-                    <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} disabled={(fbState.selected.size > 1 && Boolean(itemInfo.selected))} leftSection={<IconSpiral />} onClick={(e) => { e.stopPropagation(); if (itemInfo.extras.shares?.length === 0) { NewWormhole(itemInfo.itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${itemInfo.extras.shares[0].ShareId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
-                        <Text truncate='end'>{itemInfo.extras.shares?.length === 0 ? "Attach" : "Copy"} Wormhole</Text>
+                    <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} disabled={(fbState.selected.size > 1 && selected)} leftSection={<IconSpiral />} onClick={(e) => { e.stopPropagation(); if (itemInfo.shares?.length === 0) { NewWormhole(itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${itemInfo.shares[0].ShareId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
+                        <Text truncate='end'>{itemInfo.shares?.length === 0 ? "Attach" : "Copy"} Wormhole</Text>
                     </Menu.Item>
                 )}
 
                 <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconShare />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_block_focus', block: true }); setShareMenu(true) }}>
-                    <ShareBox open={shareMenu} setOpen={(open) => { setShareMenu(open); dispatch({ type: 'set_block_focus', block: open }) }} fileIds={getActionItems()} dragging={fbState.draggingState} numFilesIOwn={-1} menuPos={menuPos} />
+                    <ShareBox open={shareMenu} setOpen={(open) => { setShareMenu(open); dispatch({ type: 'set_block_focus', block: open }) }} fileIds={items.map(i => i.id)} dragging={fbState.draggingState} numFilesIOwn={-1} menuPos={menuPos} />
                     <Text>Share</Text>
                 </Menu.Item>
 
-                <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(itemInfo.selected ? Array.from(fbState.selected.keys()) : [itemInfo.itemId], fbState.dirMap, dispatch, wsSend, authHeader) }} >
+                <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(selected ? Array.from(fbState.selected.keys()) : [itemId], fbState.dirMap, dispatch, wsSend, authHeader) }} >
                     <Text>Download</Text>
                 </Menu.Item>
 
                 <Divider w={'100%'} my='sm' />
 
-                {itemInfo.extras.shares && itemInfo.extras.shares.length !== 0 && (
-                    <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} color={'red'} leftSection={<IconSpiral />} onClick={(e) => { e.stopPropagation(); DeleteWormhole(itemInfo.extras.shares[0].ShareId, authHeader) }}>
+                {itemInfo.shares && itemInfo.shares.length !== 0 && (
+                    <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} color={'red'} leftSection={<IconSpiral />} onClick={(e) => { e.stopPropagation(); DeleteWormhole(itemInfo.shares[0].ShareId, authHeader) }}>
                         <Text truncate='end'>Remove Wormhole</Text>
                     </Menu.Item>
                 )}
 
-                <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconTrash />} color='red' onClick={(e) => { e.stopPropagation(); DeleteFiles(getActionItems(), authHeader); setOpen(false) }}>
+                <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconTrash />} color='red' onClick={(e) => { e.stopPropagation(); DeleteFiles(items.map(i => i.id), authHeader); setOpen(false) }}>
                     <Text>Delete</Text>
                 </Menu.Item>
 
@@ -288,7 +308,7 @@ function FileContextMenu({ fbState, open, setOpen, itemInfo, menuPos, dispatch, 
 
 const IconDisplay = ({ itemInfo }: { itemInfo: ItemProps }) => {
     if (itemInfo.isDir) {
-        return (<FolderIcon shares={itemInfo.extras.shares} />)
+        return (<FolderIcon shares={itemInfo.shares} />)
     }
     if (!itemInfo.imported && itemInfo.displayable) {
         return (
@@ -312,7 +332,7 @@ const IconDisplay = ({ itemInfo }: { itemInfo: ItemProps }) => {
 }
 
 function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }:
-    { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend: (action: string, content: any) => void, uploadDispatch, authHeader }) {
+    { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch: (action: FileBrowserAction) => void, wsSend: (action: string, content: any) => void, uploadDispatch, authHeader }) {
     const { userInfo } = useContext(userContext)
     const nav = useNavigate()
     const [debouncedSearch] = useDebouncedValue(filebrowserState.searchContent, 200)
@@ -338,8 +358,7 @@ function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScann
                 isDir: v.isDir,
                 imported: v.imported,
                 displayable: v.displayable,
-
-                extras: { shares: v.shares }
+                shares: v.shares
             }
             if (!scanNeeded && !v.imported && v.displayable) {
                 setScanNeeded(true)
@@ -374,7 +393,10 @@ function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScann
             blockFocus: (b: boolean) => dispatch({ type: 'set_block_focus', block: b }),
             rename: (itemId: string, newName: string) => HandleRename(itemId, newName, folderId, filebrowserState.selected.size, dispatch, authHeader),
 
-            menu: ({ open, setOpen, itemInfo, menuPos }) => FileContextMenu({ fbState: filebrowserState, open, setOpen, itemInfo, menuPos, dispatch, wsSend, authHeader }),
+            setMenuOpen: (o: boolean) => dispatch({ type: 'set_menu_open', open: o }),
+            setMenuPos: (pos: { x: number, y: number }) => dispatch({ type: 'set_menu_pos', pos: pos }),
+            setMenuTarget: (target: string) => dispatch({ type: 'set_menu_target', fileId: target }),
+
             iconDisplay: IconDisplay,
             setMoveDest: (itemName) => dispatch({ type: 'set_move_dest', fileName: itemName }),
 
@@ -410,15 +432,11 @@ function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScann
                 ))
                 || ((!filebrowserState.loading && filebrowserState.folderInfo.id === "shared") && (
                     <ColumnBox>
-                        <Paper variant="solid" style={{ height: 'max-content', top: '40vh', position: 'fixed', padding: 40 }}>
-                            <ColumnBox style={{ alignItems: 'center', justifyContent: 'center' }}>
-                                <Text size='20px'>
-                                    You have no files shared with you
-                                </Text>
-                                <Space h={'lg'} />
-                                <Button color={'#4444ff'} fullWidth onClick={() => nav('/files/home')}>Return Home</Button>
-                            </ColumnBox>
-                        </Paper>
+                        <ColumnBox style={{ alignItems: 'center', marginTop: '20vh' }}>
+                            <Text size='28px'>
+                                No files are shared with you
+                            </Text>
+                        </ColumnBox>
                     </ColumnBox>
                 ))
                 || (!filebrowserState.loading && filebrowserState.searchContent !== "" && (
@@ -451,6 +469,7 @@ const FileBrowser = () => {
         dirMap: new Map<string, fileData>(),
         selected: new Map<string, boolean>(),
         uploadMap: new Map<string, boolean>(),
+        menuPos: { x: 0, y: 0 },
         pasteImg: null,
         folderInfo: getBlankFile(),
         parents: [],
@@ -460,6 +479,7 @@ const FileBrowser = () => {
         homeDirSize: 0,
         trashDirSize: 0,
         waitingForNewName: "",
+        menuTargetId: "",
         presentingId: "",
         searchContent: "",
         lastSelected: "",
@@ -468,6 +488,7 @@ const FileBrowser = () => {
         loading: true,
         holdingShift: false,
         blockFocus: false,
+        menuOpen: false,
         numCols: 0,
     })
 
@@ -578,7 +599,8 @@ const FileBrowser = () => {
             <Presentation itemId={filebrowserState.presentingId} mediaData={filebrowserState.dirMap.get(filebrowserState.presentingId)?.mediaData} element={PresentationFile({ file: filebrowserState.dirMap.get(filebrowserState.presentingId) })} dispatch={dispatch} />
             <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} />
             <PasteImageDialogue img={filebrowserState.pasteImg} folderId={realId} dirMap={filebrowserState.dirMap} authHeader={authHeader} dispatch={dispatch} wsSend={wsSend} />
-            <RowBox style={{ alignItems: 'flex-start', paddingTop: 15 }}>
+            <FileContextMenu itemId={filebrowserState.menuTargetId} fbState={filebrowserState} open={filebrowserState.menuOpen} setOpen={o => dispatch({ type: 'set_menu_open', open: o })} menuPos={filebrowserState.menuPos} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
+            <RowBox style={{ alignItems: 'flex-start' }}>
                 <GlobalActions fbState={filebrowserState} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} />
                 <DirViewWrapper
                     folderId={realId}

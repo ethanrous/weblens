@@ -101,26 +101,9 @@ func updateAlbum(ctx *gin.Context) {
 			return
 		}
 	}
+
 	if update.AddFolders != nil && len(update.AddFolders) != 0 {
-		for _, dId := range update.AddFolders {
-			d := dataStore.FsTreeGet(dId)
-			if d == nil {
-				ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid folder id"})
-				return
-			}
-			d.RecursiveMap(func(f *dataStore.WeblensFile) {
-				if !f.IsDir() {
-					m, err := f.GetMedia()
-					if err != nil {
-						util.DisplayError(err)
-						return
-					}
-					if m != nil {
-						ms = append(ms, m.MediaId)
-					}
-				}
-			})
-		}
+		ms = append(ms, dataStore.RecursiveGetMedia(update.AddFolders...)...)
 	}
 
 	addedCount := 0

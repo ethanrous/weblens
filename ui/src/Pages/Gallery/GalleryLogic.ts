@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react'
-import { AlbumData, MediaData, MediaStateType, fileData } from '../../types/Types'
+import { AlbumData, MediaData, MediaStateType } from '../../types/Types'
 import { notifications } from '@mantine/notifications'
 
 type galleryAction = {
@@ -17,6 +17,8 @@ type galleryAction = {
     open?: boolean
     size?: number
     raw?: boolean
+    targetId?: string
+    pos?: {x: number, y: number}
 }
 
 export function mediaReducer(state: MediaStateType, action: galleryAction): MediaStateType {
@@ -105,6 +107,18 @@ export function mediaReducer(state: MediaStateType, action: galleryAction): Medi
                 ...state,
                 loading: action.loading
             }
+        }
+
+        case 'set_menu_open': {
+            return {...state, menuOpen: action.open}
+        }
+
+        case 'set_menu_target': {
+            return {...state, menuTargetId: action.targetId}
+        }
+
+        case 'set_menu_pos': {
+            return {...state, menuPos: action.pos}
         }
 
         case 'set_raw_toggle': {

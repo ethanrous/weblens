@@ -41,8 +41,8 @@ export const MediaImage = memo(({
     preventClick = false,
     doFetch = true,
     containerStyle,
-    imgStyle,
-}: { media: MediaData, setMediaCallback?: (mediaId: string, quality: "thumbnail" | "fullres", data: ArrayBuffer) => void, quality: "thumbnail" | "fullres", lazy?: boolean, expectFailure?: boolean, preventClick?: boolean, doFetch?: boolean, containerStyle?: CSSProperties, imgStyle?: CSSProperties }
+    disabled = false,
+}: { media: MediaData, setMediaCallback?: (mediaId: string, quality: "thumbnail" | "fullres", data: ArrayBuffer) => void, quality: "thumbnail" | "fullres", lazy?: boolean, expectFailure?: boolean, preventClick?: boolean, doFetch?: boolean, containerStyle?: CSSProperties, disabled?: boolean }
 ) => {
     const [loaded, setLoaded] = useState(media?.fullres ? "fullres" : media?.thumbnail ? "thumbnail" : "")
     const [loadError, setLoadErr] = useState(false)
@@ -132,7 +132,7 @@ export const MediaImage = memo(({
                 className={quality === 'thumbnail' ? "media-thumbnail" : "media-fullres"}
                 draggable={false}
                 src={imgData}
-                style={{ display: imgData && !loadError ? "" : "none" }}
+                style={{ display: imgData && !loadError ? "" : "none", filter: disabled ? "grayscale(100%)" : '' }}
             />
 
             {quality === "fullres" && media?.mediaType?.IsVideo && (
@@ -153,10 +153,6 @@ export const MediaImage = memo(({
     if (last.media?.fileHash !== next.media?.fileHash) {
         return false
     } else if (last.containerStyle?.height !== next.containerStyle?.height) {
-        return false
-    } else if (last.imgStyle?.height !== next.imgStyle?.height) {
-        return false
-    } else if (last.imgStyle?.width !== next.imgStyle?.width) {
         return false
     } else if (last.media?.thumbnail !== next.media?.thumbnail) {
         return false

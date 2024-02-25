@@ -249,3 +249,8 @@ export async function GetWormholeInfo(shareId: string, authHeader) {
 
     return fetch(url.toString(), { headers: authHeader })
 }
+
+export async function GetMediasByFolder(folderId: string, authHeader) {
+    const url = new URL(`${API_ENDPOINT}/folder/${folderId}/media`)
+    return fetch(url.toString(), { headers: authHeader }).then(res => res.json())
+}

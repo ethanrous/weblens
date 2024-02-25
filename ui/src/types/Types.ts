@@ -1,6 +1,8 @@
 
 // Global Types
 
+import { ItemProps } from "../components/ItemDisplay"
+
 export type MediaData = {
     fileHash: string
     fileIds: string[]
@@ -67,11 +69,14 @@ export type MediaStateType = {
     includeRaw: boolean
     newAlbumDialogue: boolean
     blockSearchFocus: boolean
+    menuOpen: boolean
+    menuTargetId: string
     imageSize: number
     scanProgress: number
     showingCount: number
     searchContent: string
     presentingMedia: MediaData
+    menuPos: { x: number, y: number }
 }
 
 // File Browser Types
@@ -85,6 +90,7 @@ export type FileBrowserAction = {
     loading?: boolean
     block?: boolean
     shift?: boolean
+    open?: boolean
 
     progress?: number
     numCols?: number
@@ -98,8 +104,10 @@ export type FileBrowserAction = {
     direction?: string
 
     img?: ArrayBuffer
+    pos?: {x: number, y: number}
 
     fileInfo?: fileData
+    itemInfo?: ItemProps
     fileInfos?: fileData[]
     files?: { fileId: string, updateInfo: fileData }[]
 
@@ -112,12 +120,14 @@ export type FileBrowserStateType = {
     dirMap: Map<string, fileData>
     selected: Map<string, boolean>
     uploadMap: Map<string, boolean>
+    menuPos: { x: number, y: number },
     folderInfo: fileData
     parents: fileData[]
     filesList: string[]
     draggingState: number
     loading: boolean
     waitingForNewName: string
+    menuTargetId: string
     presentingId: string
     searchContent: string
     scanProgress: number
@@ -130,6 +140,7 @@ export type FileBrowserStateType = {
     pasteImg: ArrayBuffer
     scrollTo: string
     moveDest: string
+    menuOpen: boolean
 }
 
 export type fileData = {

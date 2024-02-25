@@ -171,7 +171,7 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
     )
 }
 
-function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos, dispatch }: { open, setMenuOpen: (o: boolean) => void, albumData, fetchAlbums, menuPos, dispatch }) {
+function AlbumCoverMenu({ albumData, open, setMenuOpen, fetchAlbums, menuPos, dispatch }: { albumData: AlbumData, open, setMenuOpen: (o: boolean) => void, fetchAlbums, menuPos, dispatch }) {
     const { userInfo, authHeader } = useContext(userContext)
     const [shareOpen, setShareOpen] = useState(false)
 
@@ -181,9 +181,9 @@ function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos, di
 
     return (
         <Box>
-            <Menu opened={open} onChange={setMenuOpen} transitionProps={{ transition: 'pop' }}>
+            <Menu opened={open} position="right-start" onChange={setMenuOpen} transitionProps={{ transition: 'pop' }}>
                 <Menu.Target>
-                    <Box style={{ position: 'fixed', top: menuPos.y - 125, left: menuPos.x }} />
+                    <Box style={{ position: 'absolute', top: menuPos.y - 60, left: menuPos.x }} />
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Album Actions</Menu.Label>
@@ -220,20 +220,8 @@ function AlbumCoverMenu({ open, setMenuOpen, albumData, fetchAlbums, menuPos, di
     )
 }
 
-function AlbumCoverMenuFactory(albumsMap, fetchAlbums, dispatch) {
-    return ({ open, setOpen, itemInfo, menuPos }: { open: boolean, setOpen: (o: boolean) => boolean, itemInfo: ItemProps, menuPos: { x: number, y: number } }) => {
-        const albumData = albumsMap.get(itemInfo.itemId)
-        if (!albumData) {
-            return
-        }
-        return (
-            <AlbumCoverMenu open={open} setMenuOpen={setOpen} albumData={albumData} fetchAlbums={fetchAlbums} menuPos={menuPos} dispatch={dispatch} />
-        )
-    }
-}
-
-function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map<string, AlbumData>, searchContent: string, dispatch }) {
-    const { authHeader } = useContext(userContext)
+function AlbumsHomeView({ albumsMap, menuOpen, menuTarget, menuPos, searchContent, dispatch }: { albumsMap: Map<string, AlbumData>, menuOpen, menuTarget, menuPos, searchContent: string, dispatch }) {
+    const { authHeader, userInfo } = useContext(userContext)
     const nav = useNavigate()
 
     const fetchAlbums = useCallback(() => {
@@ -256,14 +244,6 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
                 v.CoverMedia = getBlankMedia()
                 v.CoverMedia.fileHash = v.Cover
             }
-            // if (!v.CoverMedia && v.Cover) {
-            //     console.log("Getting cover", v.Id)
-            //     getMedia(v.Cover, authHeader).then(m => dispatch({ type: "set_album_media", albumId: v.Id, media: m }))
-            // } else if (!v.Cover) {
-
-            //     v.CoverMedia = getBlankMedia()
-            //     dispatch({ type: "set_album_media", albumId: v.Id, media: m })
-            // }
             const item: ItemProps = {
                 itemId: v.Id,
                 itemTitle: v.Name,
@@ -274,6 +254,9 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
                 isDir: false,
                 imported: true,
                 displayable: true
+            }
+            if (v.Owner !== userInfo.username) {
+                item.extraIcons = [IconUsersGroup]
             }
             return item
         })
@@ -286,7 +269,9 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
             setDragging: () => { },
             blockFocus: (b: boolean) => dispatch({ type: "set_block_focus", block: b }),
             setSelected: () => { },
-            menu: AlbumCoverMenuFactory(albumsMap, fetchAlbums, dispatch),
+            setMenuOpen: (o: boolean) => dispatch({ type: 'set_menu_open', open: o }),
+            setMenuPos: (pos) => { dispatch({ type: 'set_menu_pos', pos: pos }) },
+            setMenuTarget: (target: string) => { dispatch({ type: 'set_menu_target', targetId: target }) },
             rename: (itemId: string, newName: string) => { RenameAlbum(itemId, newName, authHeader).then(v => fetchAlbums()) },
             doMediaFetch: true
         }
@@ -303,6 +288,7 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
     } else {
         return (
             <Box style={{ width: '100%', height: '100%', padding: 10 }}>
+                <AlbumCoverMenu albumData={albumsMap.get(menuTarget)} open={menuOpen} setMenuOpen={o => dispatch({ type: 'set_menu_open', open: o })} fetchAlbums={fetchAlbums} menuPos={menuPos} dispatch={dispatch} />
                 <ItemScroller itemsContext={albums} globalContext={albumsContext} />
             </Box>
         )
@@ -312,7 +298,7 @@ function AlbumsHomeView({ albumsMap, searchContent, dispatch }: { albumsMap: Map
 export function Albums({ mediaState, selectedAlbum, dispatch }: { mediaState: MediaStateType, selectedAlbum: string, dispatch }) {
     if (selectedAlbum === "") {
         return (
-            <AlbumsHomeView albumsMap={mediaState.albumsMap} searchContent={mediaState.searchContent} dispatch={dispatch} />
+            <AlbumsHomeView albumsMap={mediaState.albumsMap} menuOpen={mediaState.menuOpen} menuTarget={mediaState.menuTargetId} menuPos={mediaState.menuPos} searchContent={mediaState.searchContent} dispatch={dispatch} />
         )
     } else {
         return (

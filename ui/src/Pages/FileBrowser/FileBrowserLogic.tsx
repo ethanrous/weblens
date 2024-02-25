@@ -210,7 +210,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
             for (const fileId of state.filesList) {
                 state.selected.set(fileId, true)
             }
-            return { ...state }
+            return { ...state, menuOpen: false }
         }
 
         case 'set_block_focus': {
@@ -275,6 +275,18 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
 
         case 'set_files_list': {
             return { ...state, filesList: action.fileIds }
+        }
+
+        case 'set_menu_open': {
+            return { ...state, menuOpen: action.open }
+        }
+
+        case 'set_menu_target': {
+            return { ...state, menuTargetId: action.fileId }
+        }
+
+        case 'set_menu_pos': {
+            return { ...state, menuPos: action.pos }
         }
 
         case 'presentation_next': {

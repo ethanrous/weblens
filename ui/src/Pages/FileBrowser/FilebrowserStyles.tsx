@@ -304,40 +304,38 @@ export const PresentationFile = ({ file }: { file: fileData }) => {
 export const GetStartedCard = ({ filebrowserState, moveSelectedTo, dispatch, uploadDispatch, authHeader, wsSend }) => {
     return (
         <ColumnBox>
-            <RowBox style={{ overflow: 'hidden', justifyContent: 'center' }}>
-                <Card variant="solid" style={{ height: 'max-content', top: '40vh', position: 'fixed', padding: '50px' }}>
-                    <Text size='20px'>
-                        This folder is empty
-                    </Text>
+            <ColumnBox style={{ width: 'max-content', height: 'max-content', marginTop: '20vh' }}>
+                <Text size='28px' style={{ width: 'max-content' }}>
+                    This folder is empty
+                </Text>
 
-                    {filebrowserState.folderInfo.modifiable && (
-                        <Card.Section style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', paddingTop: 15 }}>
-                            <FileButton onChange={(files) => { HandleUploadButton(files, filebrowserState.folderInfo.id, false, "", authHeader, uploadDispatch, wsSend) }} accept="file" multiple>
-                                {(props) => {
-                                    return (
-                                        <ColumnBox onClick={() => { props.onClick() }} style={{ cursor: 'pointer', marginTop: '0px' }}>
-                                            <IconUpload size={100} style={{ padding: "10px" }} />
-                                            <Text size='20px' fw={600}>
-                                                Upload
-                                            </Text>
-                                            <Space h={4}></Space>
-                                            <Text size='12px'>Click or Drop</Text>
-                                        </ColumnBox>
-                                    )
-                                }}
-                            </FileButton>
-                            <Divider orientation='vertical' m={20} />
+                {filebrowserState.folderInfo.modifiable && (
+                    <RowBox style={{ padding: 10 }}>
+                        <FileButton onChange={(files) => { HandleUploadButton(files, filebrowserState.folderInfo.id, false, "", authHeader, uploadDispatch, wsSend) }} accept="file" multiple>
+                            {(props) => {
+                                return (
+                                    <ColumnBox onClick={() => { props.onClick() }} style={{ cursor: 'pointer', padding: 10 }}>
+                                        <IconUpload size={100} style={{ padding: "10px" }} />
+                                        <Text size='20px' fw={600}>
+                                            Upload
+                                        </Text>
+                                        <Space h={4}></Space>
+                                        <Text size='12px'>Click or Drop</Text>
+                                    </ColumnBox>
+                                )
+                            }}
+                        </FileButton>
+                        <Divider orientation='vertical' m={30} />
 
-                            <ColumnBox onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }} style={{ cursor: 'pointer' }}>
-                                <IconFolderPlus size={100} style={{ padding: "10px" }} />
-                                <Text size='20px' fw={600}>
-                                    New Folder
-                                </Text>
-                            </ColumnBox>
-                        </Card.Section>
-                    )}
-                </Card>
-            </RowBox>
+                        <ColumnBox onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }} style={{ cursor: 'pointer', padding: 10 }}>
+                            <IconFolderPlus size={100} style={{ padding: "10px" }} />
+                            <Text size='20px' fw={600} style={{ width: 'max-content' }}>
+                                New Folder
+                            </Text>
+                        </ColumnBox>
+                    </RowBox>
+                )}
+            </ColumnBox>
         </ColumnBox>
     )
 }

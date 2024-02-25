@@ -312,6 +312,13 @@ func getFolderInfo(ctx *gin.Context) {
 	_getDirInfo(dir, ctx)
 }
 
+func getFolderMedia(ctx *gin.Context) {
+	folderId := ctx.Param("folderId")
+	medias := dataStore.RecursiveGetMedia(folderId)
+
+	ctx.JSON(http.StatusOK, gin.H{"medias": medias})
+}
+
 func getUserTrashInfo(ctx *gin.Context) {
 	trash := dataStore.GetUserTrashDir(ctx.GetString("username"))
 	if trash == nil {

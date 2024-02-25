@@ -4,6 +4,7 @@ import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles"
 import { MediaImage } from "./PhotoContainer"
 import { MediaData } from "../types/Types"
 import "./filebrowserStyle.css"
+import { IconUsersGroup } from "@tabler/icons-react"
 
 type ItemMenu = ({ open, setOpen, itemInfo, menuPos }: { open: boolean, setOpen: (o: boolean) => void, itemInfo: ItemProps, menuPos: { x: number, y: number } }) => JSX.Element
 
@@ -12,7 +13,10 @@ export type GlobalContextType = {
     setDragging: (d: boolean) => void
     blockFocus: (b: boolean) => void
     rename: (itemId: string, newName: string) => void
-    menu: ItemMenu
+
+    setMenuOpen: (o: boolean) => void,
+    setMenuPos: ({ x, y }: { x: number, y: number }) => void
+    setMenuTarget: (itemId: string) => void
 
     setSelected?: (itemId: string, selected?: boolean) => void
     selectAll?: (itemId: string, selected?: boolean) => void
@@ -40,8 +44,10 @@ export type ItemProps = {
     displayable: boolean
     dragging?: number
     dispatch?: any
+    shares?: any[]
 
-    extras?: any
+    extraIcons?: any[]
+
 }
 
 type WrapperProps = {
@@ -56,10 +62,13 @@ type WrapperProps = {
     setSelected: (itemId: string, selected?: boolean) => void
     moveSelected: (entryId: string) => void,
     setMoveDest: (itemName: string) => void,
-    ItemMenu: ItemMenu
 
     dragging: number// Allows for multiple dragging states
     setDragging: (d: boolean) => void
+
+    setMenuOpen: (o: boolean) => void,
+    setMenuPos: ({ x, y }: { x: number, y: number }) => void
+    setMenuTarget: (itemId: string) => void
 }
 
 type TitleProps = {
@@ -75,11 +84,9 @@ type TitleProps = {
 
 const MARGIN = 6
 
-const ItemWrapper = memo(({ itemInfo, fileRef, width, editing, setSelected, dragging = 0, setDragging, visitItem, moveSelected, ItemMenu, setMoveDest, children }: WrapperProps) => {
+const ItemWrapper = memo(({ itemInfo, fileRef, width, editing, setSelected, dragging = 0, setDragging, visitItem, moveSelected, setMenuOpen, setMenuPos, setMenuTarget, setMoveDest, children }: WrapperProps) => {
     const [mouseDown, setMouseDown] = useState(null)
     const [hovering, setHovering] = useState(false)
-    const [menuOpen, setMenuOpen] = useState(false)
-    const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
 
     const [outline, backgroundColor] = useMemo(() => {
         let outline
@@ -119,14 +126,20 @@ const ItemWrapper = memo(({ itemInfo, fileRef, width, editing, setSelected, drag
                 setMouseDown(null)
             }}
             onDoubleClick={e => { e.stopPropagation(); visitItem(itemInfo.itemId) }}
-            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true) }}
+            onContextMenu={e => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                setMenuTarget(itemInfo.itemId)
+                setMenuPos({ x: e.clientX, y: e.clientY })
+                setMenuOpen(true)
+            }}
             onMouseLeave={e => {
                 setHovering(false)
                 if (dragging && itemInfo.isDir) { setMoveDest("") }
                 if (mouseDown) { setMouseDown(null) }
             }}
         >
-            <ItemMenu open={menuOpen} setOpen={setMenuOpen} itemInfo={itemInfo} menuPos={menuPos} />
             <Box
                 className="item-child"
                 children={children}
@@ -248,19 +261,6 @@ export const ItemDisplay = memo(({ itemInfo, context }: { itemInfo: ItemProps, c
     const wrapRef = useRef()
     const [editing, setEditing] = useState(false)
 
-    const imgStyle = useMemo(() => {
-        if (!itemInfo.mediaData) {
-            return
-        }
-        let imgStyle
-        if (itemInfo.mediaData.mediaHeight > itemInfo.mediaData.mediaWidth) {
-            imgStyle = { width: '100%', height: context.itemWidth, outline: 0, objectFit: 'cover' }
-        } else {
-            imgStyle = { height: '100%', width: context.itemWidth, outline: 0, objectFit: 'cover' }
-        }
-        return imgStyle
-    }, [itemInfo.mediaData])
-
     return (
         <ItemWrapper
             itemInfo={itemInfo}
@@ -268,20 +268,31 @@ export const ItemDisplay = memo(({ itemInfo, context }: { itemInfo: ItemProps, c
             setSelected={context.setSelected}
             visitItem={context.visitItem}
             width={context.itemWidth}
+
             moveSelected={context.moveSelected}
             dragging={context.dragging}
             setDragging={context.setDragging}
             setMoveDest={context.setMoveDest}
-            ItemMenu={context.menu}
+
+            setMenuOpen={context.setMenuOpen}
+            setMenuPos={context.setMenuPos}
+            setMenuTarget={context.setMenuTarget}
+
             editing={editing}
         >
             <FileVisualWrapper>
                 {itemInfo.mediaData && (
-                    <MediaImage media={itemInfo.mediaData} quality="thumbnail" imgStyle={imgStyle} doFetch={context.doMediaFetch} />
+                    <MediaImage media={itemInfo.mediaData} quality="thumbnail" doFetch={context.doMediaFetch} />
                 )}
                 {!itemInfo.mediaData && context.iconDisplay && (
                     <context.iconDisplay itemInfo={itemInfo} />
                 )}
+                <RowBox style={{ position: 'absolute', alignItems: 'flex-start', padding: 5 }}>
+                    {itemInfo.extraIcons?.map((Icon, i) => (
+                        <Icon key={i} style={{ filter: 'drop-shadow(1px 2px 1.5px black)' }} />
+
+                    ))}
+                </RowBox>
             </FileVisualWrapper>
 
             <TextBox itemId={itemInfo.itemId} itemTitle={itemInfo.itemTitle} secondaryInfo={itemInfo.secondaryInfo} editing={editing} setEditing={setEditing} height={context.itemWidth * 0.10} blockFocus={context.blockFocus} rename={context.rename} />

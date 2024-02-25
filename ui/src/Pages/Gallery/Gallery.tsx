@@ -295,6 +295,9 @@ const Gallery = () => {
         showingCount: 300,
         scanProgress: 0,
         searchContent: "",
+        menuOpen: false,
+        menuTargetId: "",
+        menuPos: { x: 0, y: 0 },
     })
 
     const { authHeader } = useContext(userContext)

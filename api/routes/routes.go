@@ -96,6 +96,8 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/folder/:folderId", getFolderInfo)
 	api.POST("/folder", makeDir)
 
+	api.GET("/folder/:folderId/media", getFolderMedia)
+
 	// Allow publically creating folders
 	public.POST("/public/folder", pubMakeDir)
 
