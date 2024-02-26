@@ -290,7 +290,6 @@ export const ItemDisplay = memo(({ itemInfo, context }: { itemInfo: ItemProps, c
                 <RowBox style={{ position: 'absolute', alignItems: 'flex-start', padding: 5 }}>
                     {itemInfo.extraIcons?.map((Icon, i) => (
                         <Icon key={i} style={{ filter: 'drop-shadow(1px 2px 1.5px black)' }} />
-
                     ))}
                 </RowBox>
             </FileVisualWrapper>

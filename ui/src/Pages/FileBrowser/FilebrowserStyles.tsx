@@ -1,4 +1,4 @@
-import { Box, Card, MantineStyleProp, Text, Tooltip, ActionIcon, Space, Menu, Divider, FileButton } from '@mantine/core'
+import { Box, Card, MantineStyleProp, Text, Tooltip, ActionIcon, Space, Menu, Divider, FileButton, Center, Skeleton } from '@mantine/core'
 import { useCallback, useContext, useMemo, useState } from "react"
 import { FilebrowserDragOver, HandleDrop, HandleUploadButton } from "./FileBrowserLogic"
 import { FileBrowserDispatch, fileData } from "../../types/Types"
@@ -9,6 +9,7 @@ import '../../components/style.css'
 import '../../components/filebrowserStyle.css'
 import { humanFileSize } from '../../util'
 import Crumbs from '../../components/Crumbs'
+import { MediaImage } from '../../components/PhotoContainer'
 
 
 export const ColumnBox = ({ children, style, reff, className, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur, onDragOver }: { children?, style?: MantineStyleProp, reff?, className?: string, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?, onDragOver?}) => {
@@ -246,21 +247,52 @@ export const FolderIcon = ({ shares, size = '75%' }: { shares, size?}) => {
     )
 }
 
-const FileIcon = ({ file }: { file: fileData }) => {
+export const IconDisplay = ({ file, quality = 'thumbnail' }: { file: fileData, quality?: 'thumbnail' | 'fullres' }) => {
     if (file.isDir) {
-        return (<FolderIcon size={'60%'} shares={file.shares} />)
+        return (<FolderIcon shares={file.shares} />)
+    }
+    if (!file.imported && file.displayable) {
+        return (
+            <Center style={{ height: "100%", width: "100%" }}>
+                <Skeleton height={"100%"} width={"100%"} />
+                <Text pos={'absolute'} style={{ userSelect: 'none' }}>Processing...</Text>
+            </Center>
+        )
+    } else if (file.displayable) {
+        return (
+            <MediaImage media={file.mediaData} quality={quality} />
+        )
     }
     const ext = file.filename.slice(file.filename.indexOf('.') + 1, file.filename.length)
 
     switch (ext) {
-        case "zip": return (<IconFileZip size={'60%'} />)
+        case "zip": return (<IconFileZip size={'75%'} />)
         default: return (
             <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
-                <IconFile size={'75%'} />
-                <Text size='70px' fw={700} style={{ position: 'absolute', userSelect: 'none' }}>{ext}</Text>
+                <IconFile size={'75%'} stroke={1} />
+                <Text size='4vw' fw={700} style={{ position: 'absolute', userSelect: 'none', WebkitUserSelect: 'none' }}>{ext}</Text>
             </Box>
         )
     }
+}
+
+export const FileInfoDisplay = ({ file }: { file: fileData }) => {
+    let [size, units] = humanFileSize(file.size)
+    return (
+        <ColumnBox style={{ width: 'max-content', whiteSpace: 'nowrap', justifyContent: 'center' }}>
+            <Text fw={600} style={{ fontSize: '3vw' }}>{file.filename}</Text>
+            {file.isDir && (
+                <RowBox style={{ height: 'max-content', justifyContent: 'center', width: '50vw' }}>
+                    <Text style={{ fontSize: '25px' }}>{file.children.length} Item{file.children.length !== 1 ? 's' : ''}</Text>
+                    <Divider orientation="vertical" size={2} mx={10} />
+                    <Text style={{ fontSize: '25px' }}>{size}{units}</Text>
+                </RowBox>
+            )}
+            {!file.isDir && (
+                <Text style={{ fontSize: '25px' }}>{size}{units}</Text>
+            )}
+        </ColumnBox>
+    )
 }
 
 export const PresentationFile = ({ file }: { file: fileData }) => {
@@ -269,22 +301,22 @@ export const PresentationFile = ({ file }: { file: fileData }) => {
     }
     let [size, units] = humanFileSize(file.size)
     if (file.displayable && file.mediaData) {
-        return (() =>
+        return (
             <ColumnBox style={{ justifyContent: 'center', width: '40%', height: 'max-content' }} onClick={e => e.stopPropagation()}>
-                <Text fw={600} style={{ fontSize: '45px' }}>{file.filename}</Text>
+                <Text fw={600} style={{ fontSize: '2.5vw' }}>{file.filename}</Text>
                 <Text style={{ fontSize: '25px' }}>{size}{units}</Text>
                 <Text style={{ fontSize: '20px' }}>{new Date(Date.parse(file.mediaData.createDate)).toLocaleDateString('en-us', { year: "numeric", month: "short", day: "numeric" })}</Text>
             </ColumnBox>
         )
     } else {
-        return (() =>
+        return (
             <RowBox style={{ justifyContent: 'center', height: 'max-content' }} onClick={e => e.stopPropagation()}>
                 <Box style={{ width: '60%', display: 'flex', justifyContent: 'center' }}>
-                    <FileIcon file={file} />
+                    <IconDisplay file={file} />
                 </Box>
                 <Space w={30} />
                 <ColumnBox style={{ width: '40%', justifyContent: 'center' }}>
-                    <Text fw={600} style={{ fontSize: '45px' }}>{file.filename}</Text>
+                    <Text fw={600} style={{ width: '100%' }}>{file.filename}</Text>
                     {file.isDir && (
                         <RowBox style={{ height: 'max-content', justifyContent: 'center', width: '50vw' }}>
                             <Text style={{ fontSize: '25px' }}>{file.children.length} Item{file.children.length !== 1 ? 's' : ''}</Text>

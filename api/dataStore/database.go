@@ -830,3 +830,25 @@ func (db Weblensdb) removeShare(shareId string) (err error) {
 
 	return
 }
+
+func (db Weblensdb) newFileShare(shareInfo fileShareData) (err error) {
+
+	_, err = db.mongo.Collection("shares").InsertOne(mongo_ctx, shareInfo)
+
+	// This is not good and is not permenant
+	// Shares will eventually exist within the weblens file so it doesn't
+	// need to do a db lookup to find if it already exists
+	// TODO
+	if mongo.IsDuplicateKeyError(err) {
+		err = nil
+	}
+
+	return
+}
+
+func (db Weblensdb) getFileShare(shareId string) (s fileShareData, err error) {
+	filter := bson.M{"_id": shareId, "shareType": "file"}
+	ret := db.mongo.Collection("shares").FindOne(mongo_ctx, filter)
+	err = ret.Decode(&s)
+	return
+}

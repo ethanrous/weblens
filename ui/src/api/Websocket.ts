@@ -6,7 +6,7 @@ import { notifications } from '@mantine/notifications'
 
 export default function useWeblensSocket() {
     const [dcTimeout, setDcTimeout] = useState(null)
-    const { authHeader } = useContext(userContext)
+    const { userInfo, authHeader } = useContext(userContext)
 
     const { sendMessage, lastMessage, readyState } = useWebSocket(API_WS_ENDPOINT, {
         queryParams: authHeader,
@@ -15,7 +15,7 @@ export default function useWeblensSocket() {
             notifications.clean()
         },
         onClose: (event) => {
-            if (!event.wasClean && authHeader && !dcTimeout) {
+            if (!event.wasClean && authHeader && !dcTimeout && userInfo.username !== "") {
                 setDcTimeout(setTimeout(() => {
                     notifications.show({
                         id: "wsdc",
@@ -29,10 +29,10 @@ export default function useWeblensSocket() {
         },
         reconnectAttempts: 5,
         reconnectInterval: (last) => { return ((last + 1) ^ 2) * 1000 },
-        shouldReconnect: () => true,
+        shouldReconnect: () => userInfo.username !== "",
         onReconnectStop: () => {
             clearTimeout(dcTimeout)
-            notifications.show({ id: "wsdc", message: "Lost websocket connection, retrying...", autoClose: false })
+            notifications.show({ id: "wsdc", message: "Websocket connection lost, please refresh your page", autoClose: false, color: 'red' })
         }
     })
     const wsSend = useCallback((action: string, content: any) => {

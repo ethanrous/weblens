@@ -1,11 +1,12 @@
-import { DragEvent, useCallback, useEffect, useState } from 'react'
+import { DragEvent, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { notifications } from '@mantine/notifications'
 
 import Upload, { fileUploadMetadata } from "../../api/Upload"
 import { fileData, FileBrowserStateType, getBlankFile, FileBrowserAction, FileBrowserDispatch } from '../../types/Types'
-import { CreateFolder, DeleteFiles, MoveFiles, RenameFile, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
+import { CreateFolder, DeleteFiles, GetFileShare, MoveFiles, RenameFile, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
 import { humanFileSize } from '../../util'
+import useWeblensSocket from '../../api/Websocket'
 
 
 const handleSelect = (state: FileBrowserStateType, action: FileBrowserAction): FileBrowserStateType => {
@@ -391,12 +392,81 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
             return { ...state, moveDest: action.fileName }
         }
 
+        case 'set_is_share': {
+            return { ...state, isShare: action.isShare }
+        }
+
+        case 'set_real_id': {
+            return { ...state, realId: action.realId }
+        }
+
         default: {
             console.error("Got unexpected dispatch type: ", action.type)
             notifications.show({ title: "Unexpected filebrowser dispatch", message: action.type, color: 'red' })
             return { ...state }
         }
     }
+}
+
+export const useSubscribe = (realId, stateId, userInfo, dispatch, authHeader) => {
+    const { wsSend, lastMessage, readyState } = useWeblensSocket()
+
+    useEffect(() => {
+        if (readyState === 1 && realId != null && realId !== "shared" && userInfo.username !== "") {
+            if (stateId !== realId) {
+                return
+            }
+            if (realId === userInfo.homeFolderId) {
+                wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.trashFolderId, subscribeMeta: JSON.stringify({ recursive: false }) })
+                return (
+                    () => {
+                        wsSend("unsubscribe", { subscribeKey: userInfo.trashFolderId })
+                    }
+                )
+            }
+            wsSend("subscribe", { subscribeType: "folder", subscribeKey: realId, subscribeMeta: JSON.stringify({ recursive: false }) })
+            return (
+                () => wsSend("unsubscribe", { subscribeKey: realId })
+            )
+        }
+    }, [readyState, stateId, realId, userInfo.trashFolderId, wsSend])
+
+    // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
+    useEffect(() => {
+        if (userInfo.username === "" || readyState !== 1) {
+            return
+        }
+
+        wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.homeFolderId, subscribeMeta: JSON.stringify({ recursive: false }) })
+        return (
+            () => wsSend("unsubscribe", { subscribeKey: userInfo.homeFolderId })
+        )
+    }, [userInfo.homeFolderId, readyState])
+
+    // Listen for incoming websocket messages
+    useEffect(() => {
+        if (userInfo.username === "") {
+            return
+        }
+        HandleWebsocketMessage(lastMessage, userInfo, dispatch, authHeader)
+    }, [lastMessage, userInfo, authHeader])
+
+    return wsSend
+}
+
+export const getRealId = (folderId, userInfo, authHeader) => {
+    let realId
+
+    if (folderId === "home") {
+        realId = userInfo.homeFolderId
+    } else if (folderId === "trash") {
+        realId = userInfo.trashFolderId
+    } else {
+        realId = folderId
+    }
+
+
+    return realId
 }
 
 export const MapToList = (dirMap: Map<string, fileData>, limit?: number) => {
@@ -574,20 +644,17 @@ export function HandleUploadButton(files: File[], parentFolderId, isPublic: bool
     }
 }
 
-export function downloadSelected(files: string[], dirMap: Map<string, fileData>, dispatch: FileBrowserDispatch, wsSend: (action: string, content: any) => void, authHeader) {
+export function downloadSelected(files: fileData[], dispatch: FileBrowserDispatch, wsSend: (action: string, content: any) => void, authHeader, shareId?: string) {
     let taskId: string = ""
 
-    if (files.length === 1 && !dirMap.get(files[0]).isDir) {
-        const file = dirMap.get(files[0])
-        if (!file.isDir) {
-            downloadSingleFile(file.id, authHeader, dispatch, file.filename)
-            return
-        }
+    if (files.length === 1 && !files[0].isDir) {
+        downloadSingleFile(files[0].id, authHeader, dispatch, files[0].filename, undefined, shareId)
+        return
     }
 
-    requestZipCreate(files, authHeader).then(({ json, status }) => {
+    requestZipCreate(files.map(f => f.id), authHeader).then(({ json, status }) => {
         if (status === 200) {
-            downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, "zip")
+            downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, "zip", shareId)
         } else if (status === 202) {
             taskId = json.taskId
             notifications.show({ id: `zip_create_${taskId}`, message: `Requesting zip...`, autoClose: false })
@@ -636,7 +703,7 @@ export function HandleWebsocketMessage(lastMessage, userInfo, dispatch: FileBrow
             }
             case "zip_complete": {
                 notifications.hide(`zip_create_${msgData.subscribeKey}`)
-                downloadSingleFile(msgData.content[0].result["takeoutId"], authHeader, dispatch, undefined, "zip")
+                downloadSingleFile(msgData.content[0].result["takeoutId"], authHeader, dispatch, undefined, "zip", undefined)
                 return
             }
             case "error": {
@@ -811,4 +878,24 @@ export function selectedMediaIds(dirMap: Map<string, fileData>, selectedIds: str
 
 export function selectedFolderIds(dirMap: Map<string, fileData>, selectedIds: string[]): string[] {
     return selectedIds.filter(id => dirMap.get(id).isDir)
+}
+
+export function SetFileData(data: {self: fileData, children: fileData[], parents: fileData[], error: any}, dispatch, userInfo) {
+    if (data.error) {
+        return Promise.reject(data.error)
+    }
+    let children = data.children?.map((val: fileData) => { return { fileId: val.id, updateInfo: val } })
+    if (!children) {
+        children = []
+    }
+    let parents
+    if (!data.parents) {
+        parents = []
+    } else {
+        parents = data.parents.reverse()
+    }
+
+    dispatch({ type: 'set_folder_info', fileInfo: data.self })
+    dispatch({ type: 'update_many', files: children, user: userInfo })
+    dispatch({ type: 'set_parents_info', parents: parents })
 }

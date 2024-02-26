@@ -50,6 +50,7 @@ const Login = () => {
 
     useEffect(() => {
         if (loc.state == null && authHeader.Authorization !== "") {
+            console.log(authHeader.Authorization)
             nav("/")
         }
     }, [authHeader, loc.state, nav])

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/barasher/go-exiftool"
-	"github.com/ethrousseau/weblens/api/util"
 	"github.com/go-redis/redis"
 	"github.com/h2non/bimg"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -126,12 +125,36 @@ type folderData struct {
 	Shares         []shareData `bson:"shares"`
 }
 
+type shareType string
+
+const (
+	FileShare  shareType = "file"
+	AlbumShare shareType = "album"
+)
+
+type Share interface {
+	GetShareType() shareType
+	GetContentId() string
+	IsPublic() bool
+}
+
 type shareData struct {
 	ShareId   string `bson:"shareId"`
 	ShareName string `bson:"shareName"`
 	Public    bool
 	Wormhole  bool
 	Expires   time.Time
+}
+
+type fileShareData struct {
+	ShareId   string    `bson:"_id" json:"shareId"`
+	FileId    string    `bson:"fileId" json:"fileId"`
+	ShareName string    `bson:"shareName"`
+	Public    bool      `bson:"public"`
+	Wormhole  bool      `bson:"wormhole"`
+	Expires   time.Time `bson:"expires"`
+
+	ShareType shareType `bson:"shareType"`
 }
 
 type AlbumData struct {
@@ -171,10 +194,6 @@ type TaskerAgent interface {
 	ScanDirectory(directory *WeblensFile, recursive, deep bool, caster BroadcasterAgent) Task
 
 	ScanFile(file *WeblensFile, m *Media, caster BroadcasterAgent) Task
-}
-
-func GimmeTask(t Task) {
-	util.Debug.Println("I have task")
 }
 
 type BroadcasterAgent interface {

@@ -259,8 +259,11 @@ func _getDirInfo(dir *dataStore.WeblensFile, ctx *gin.Context) {
 		return
 	}
 
-	filteredDirInfo := dir.GetChildrenInfo()
-	filteredDirInfo = util.Filter(filteredDirInfo, func(t dataStore.FileInfo) bool { return t.Id != "R" })
+	var filteredDirInfo []dataStore.FileInfo
+	if dir.IsDir() {
+		filteredDirInfo = dir.GetChildrenInfo()
+		filteredDirInfo = util.Filter(filteredDirInfo, func(t dataStore.FileInfo) bool { return t.Id != "R" })
+	}
 
 	parentsInfo := []dataStore.FileInfo{}
 	parent := dir.GetParent()
@@ -513,6 +516,11 @@ func createTakeout(ctx *gin.Context) {
 }
 
 func downloadFile(ctx *gin.Context) {
+	if !CanUserAccessFile(ctx.Query("fileId"), ctx.GetString("username"), ctx.Query("shareId")) {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
+		return
+	}
+
 	file := dataStore.FsTreeGet(ctx.Query("fileId"))
 	if file == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
@@ -693,7 +701,7 @@ func cleanupMedias(ctx *gin.Context) {
 	dataStore.CleanOrphanedMedias()
 }
 
-func createShareLink(ctx *gin.Context) {
+func createFileShare(ctx *gin.Context) {
 	body, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -707,10 +715,19 @@ func createShareLink(ctx *gin.Context) {
 		return
 	}
 
-	f := dataStore.FsTreeGet(shareInfo.FolderId)
-	dataStore.CreateWormhole(f)
-	ctx.Status(http.StatusCreated)
-	Caster.PushFileUpdate(f)
+	// f := dataStore.FsTreeGet(shareInfo.FileId)
+	var newShareId string
+	if shareInfo.Public {
+		newShareId, err = dataStore.CreatePublicFileShare(shareInfo.FileIds[0])
+		if err != nil {
+			util.DisplayError(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// dataStore.CreateWormhole(f)
+	}
+	ctx.JSON(http.StatusCreated, gin.H{"shareId": newShareId})
 	Caster.Flush()
 }
 
@@ -750,29 +767,32 @@ func deleteShare(ctx *gin.Context) {
 
 func getShare(ctx *gin.Context) {
 	shareId := ctx.Param("shareId")
-	_, folderId, err := dataStore.GetWormhole(shareId)
-	if err == dataStore.ErrNoShare {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
+	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
+
+	// _, folderId, err := dataStore.GetWormhole(shareId)
+	// if err == dataStore.ErrNoShare {
+	// 	ctx.Status(http.StatusNotFound)
+	// 	return
+	// }
 	if err != nil {
 		util.DisplayError(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get share"})
 		return
 	}
 
-	shareFolder := dataStore.FsTreeGet(folderId)
-	if shareFolder == nil {
+	shareFile := dataStore.FsTreeGet(share.GetContentId())
+	if shareFile == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get share"})
 		return
 	}
 
-	formattedInfo, err := shareFolder.FormatFileInfo()
-	if err != nil {
-		util.DisplayError(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get share"})
-		return
-	}
+	_getDirInfo(shareFile, ctx)
+	// formattedInfo, err := shareFile.FormatFileInfo()
+	// if err != nil {
+	// 	util.DisplayError(err)
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get share"})
+	// 	return
+	// }
 
-	ctx.JSON(http.StatusOK, gin.H{"shareInfo": formattedInfo})
+	// ctx.JSON(http.StatusOK, gin.H{"shareInfo": formattedInfo})
 }

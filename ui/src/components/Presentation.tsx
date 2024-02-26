@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MediaData } from '../types/Types'
 import { MediaImage } from './PhotoContainer'
@@ -123,13 +123,13 @@ function handleTimeout(to, setTo, setGuiShown) {
     setTo(setTimeout(() => setGuiShown(false), 1000))
 }
 
-const Presentation = ({ itemId, mediaData, element, dispatch }: { itemId: string, mediaData: MediaData, dispatch: React.Dispatch<any>, element?}) => {
+const Presentation = memo(({ itemId, mediaData, element, dispatch }: { itemId: string, mediaData: MediaData, dispatch: React.Dispatch<any>, element?}) => {
     useKeyDown(itemId, dispatch)
 
     const [to, setTo] = useState(null)
     const [guiShown, setGuiShown] = useState(false)
 
-    if (!mediaData && !element) {
+    if (!mediaData) {
         return null
     }
 
@@ -140,6 +140,8 @@ const Presentation = ({ itemId, mediaData, element, dispatch }: { itemId: string
             <CloseButton c={'white'} style={{ position: 'absolute', top: guiShown ? 15 : -100, left: 15 }} onClick={() => dispatch({ type: 'set_presentation', presentingId: null })} />
         </PresentationContainer>
     )
-}
+}, (prev, next) => {
+    return true
+})
 
 export default Presentation

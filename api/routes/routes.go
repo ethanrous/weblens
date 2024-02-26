@@ -7,7 +7,6 @@ import (
 
 	"strings"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/util"
 
 	// "github.com/gin-contrib/pprof"
@@ -35,44 +34,6 @@ func CORSMiddleware() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
-
-		c.Next()
-	}
-}
-
-func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		db := dataStore.NewDB()
-		var authString string
-
-		if !websocket {
-			authHeader := c.Request.Header["Authorization"]
-			if len(authHeader) == 0 {
-				util.Info.Printf("Rejecting authorization for unknown user due to empty auth header")
-				c.AbortWithStatus(http.StatusUnauthorized)
-				return
-			}
-			authString = authHeader[0]
-		} else {
-			authString = c.Query("Authorization")
-		}
-
-		authList := strings.Split(authString, ",")
-
-		if len(authList) < 2 || !db.CheckToken(authList[0], authList[1]) { // {user, token}
-			util.Info.Printf("Rejecting authorization for %s due to invalid token", authList[0])
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		user, _ := db.GetUser(authList[0])
-		if requireAdmin && !user.Admin {
-			util.Info.Printf("Rejecting authorization for %s due to insufficient permissions on a privileged request", authList[0])
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		c.Set("username", authList[0])
 
 		c.Next()
 	}
@@ -119,11 +80,13 @@ func AddApiRoutes(r *gin.Engine) {
 	api.GET("/share", getSharedFiles)
 	api.PATCH("/files", updateFiles)
 	api.PATCH("/files/share", shareFiles)
-	api.POST("/share", createShareLink)
 	api.DELETE("/share", deleteShare)
 	public.GET("/share/:shareId", getShare)
 
-	api.GET("/download", downloadFile)
+	// api.GET("/share/files", getFileShare)
+	api.POST("/share/files", createFileShare)
+
+	public.GET("/download", downloadFile)
 
 	api.POST("/takeout", createTakeout)
 

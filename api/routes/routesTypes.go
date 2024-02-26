@@ -48,7 +48,9 @@ type fileShare struct {
 }
 
 type newShareInfo struct {
-	FolderId string `json:"folderId"`
+	FileIds []string `json:"fileIds"`
+	Users   []string `json:"users"`
+	Public  bool     `json:"public"`
 }
 
 type deleteShareInfo struct {

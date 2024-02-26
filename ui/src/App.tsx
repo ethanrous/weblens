@@ -54,6 +54,7 @@ const WeblensRoutes = () => {
     [
       ...["/", "/timeline", "/albums/*"].map(path => ({ path: path, element: galleryPage })),
       { path: "/files/*", element: filesPage },
+      { path: "/share/*", element: filesPage },
       { path: "/wormhole/*", element: wormholePage },
       { path: "/login", element: loginPage },
       { path: "/admin", element: adminPage },

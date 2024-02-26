@@ -91,6 +91,7 @@ export type FileBrowserAction = {
     block?: boolean
     shift?: boolean
     open?: boolean
+    isShare?: boolean
 
     progress?: number
     numCols?: number
@@ -102,6 +103,7 @@ export type FileBrowserAction = {
     search?: string
     presentingId?: string
     direction?: string
+    realId?: string
 
     img?: ArrayBuffer
     pos?: {x: number, y: number}
@@ -141,6 +143,8 @@ export type FileBrowserStateType = {
     scrollTo: string
     moveDest: string
     menuOpen: boolean
+    isShare: boolean
+    realId: string
 }
 
 export type fileData = {

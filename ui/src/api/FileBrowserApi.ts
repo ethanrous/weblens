@@ -80,25 +80,6 @@ export function GetFolderData(folderId, user, dispatch: FileBrowserDispatch, aut
                 }
             }
         })
-        .then((data: {self: fileData, children: fileData[], parents: fileData[], error: any}) => {
-            if (data.error) {
-                return Promise.reject(data.error)
-            }
-            let children = data.children?.map((val: fileData) => { return { fileId: val.id, updateInfo: val } })
-            if (!children) {
-                children = []
-            }
-            let parents
-            if (!data.parents) {
-                parents = []
-            } else {
-                parents = data.parents.reverse()
-            }
-
-            dispatch({ type: 'set_folder_info', fileInfo: data.self })
-            dispatch({ type: 'update_many', files: children, user: user })
-            dispatch({ type: 'set_parents_info', parents: parents })
-        })
 }
 
 export async function CreateFolder(parentFolderId, name, isPublic, shareId, authHeader): Promise<string> {
@@ -156,9 +137,12 @@ function downloadBlob(blob, filename) {
     return
 }
 
-export function downloadSingleFile(fileId: string, authHeader, dispatch: FileBrowserDispatch, filename?: string, ext?: string) {
+export function downloadSingleFile(fileId: string, authHeader, dispatch: FileBrowserDispatch, filename: string, ext: string, shareId: string) {
     const url = new URL(`${API_ENDPOINT}/download`)
     url.searchParams.append("fileId", fileId)
+    if (shareId) {
+        url.searchParams.append("shareId", shareId)
+    }
 
     const notifId = `download_${fileId}`
     notifications.show({ id: notifId, message: "Starting download", autoClose: false, loading: true })
@@ -179,7 +163,7 @@ export function downloadSingleFile(fileId: string, authHeader, dispatch: FileBro
         .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(notifId) })
 }
 
-export function requestZipCreate(fileIds, authHeader) {
+export function requestZipCreate(fileIds: string[], authHeader) {
     const url = new URL(`${API_ENDPOINT}/takeout`)
 
     return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ fileIds: fileIds }) })
@@ -213,16 +197,6 @@ export async function AutocompleteAlbums(searchValue, authHeader): Promise<Album
     return res.albums ? res.albums : []
 }
 
-export async function ShareFiles(files: string[], users: string[], authHeader) {
-    const url = new URL(`${API_ENDPOINT}/files/share`)
-    const body = {
-        files: files,
-        users: users
-    }
-    const res = await fetch(url.toString(), { headers: authHeader, method: "PATCH", body: JSON.stringify(body) })
-    return res
-}
-
 export async function NewWormhole(folderId: string, authHeader) {
     const url = new URL(`${API_ENDPOINT}/share`)
 
@@ -253,4 +227,21 @@ export async function GetWormholeInfo(shareId: string, authHeader) {
 export async function GetMediasByFolder(folderId: string, authHeader) {
     const url = new URL(`${API_ENDPOINT}/folder/${folderId}/media`)
     return fetch(url.toString(), { headers: authHeader }).then(res => res.json())
+}
+
+export async function ShareFiles(files: string[], isPublic: boolean, users: string[] = [], authHeader) {
+    const url = new URL(`${API_ENDPOINT}/share/files`)
+    const body = {
+        fileIds: files,
+        users: users,
+        public: isPublic
+    }
+    const res = await fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) }).then(res => res.json())
+    return res
+}
+
+export async function GetFileShare(shareId, authHeader) {
+    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
+    const res = await fetch(url.toString(), { headers: authHeader }).then(res => res.json())
+    return res
 }
