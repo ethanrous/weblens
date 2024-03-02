@@ -102,15 +102,6 @@ func (f *WeblensFile) Owner() string {
 	return f.owner
 }
 
-// Returns the slice of usernames who have been shared into the file.
-// This does not include the owner
-func (f *WeblensFile) Guests() []string {
-	if f.guests == nil {
-		f.guests = fddb.getFileGuests(f)
-	}
-	return f.guests
-}
-
 // Return a pointer to the media represented by this file,
 // or a non-nil error if the media cannot be found.
 func (f *WeblensFile) GetMedia() (m *Media, err error) {
@@ -404,14 +395,6 @@ func (f *WeblensFile) CreateSelf() error {
 	return nil
 }
 
-func (f *WeblensFile) CanUserAccess(username string) bool {
-	// Is owner or is shared into the file (guest)
-	if f.Owner() == username || slices.Contains(f.Guests(), username) {
-		return true
-	}
-	return false
-}
-
 func (f *WeblensFile) FormatFileInfo() (formattedInfo FileInfo, err error) {
 	if f == nil {
 		return formattedInfo, fmt.Errorf("cannot get file info of nil wf")
@@ -572,7 +555,7 @@ func (f *WeblensFile) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	m := marshalableWF{Id: f.Id(), AbsolutePath: f.absolutePath, Filename: f.Filename(), Owner: f.Owner(), ParentFolderId: f.parent.Id(), Guests: f.Guests(), Size: size, IsDir: f.IsDir()}
+	m := marshalableWF{Id: f.Id(), AbsolutePath: f.absolutePath, Filename: f.Filename(), Owner: f.Owner(), ParentFolderId: f.parent.Id(), Size: size, IsDir: f.IsDir()}
 	return json.Marshal(m)
 }
 
@@ -598,6 +581,30 @@ func (f *WeblensFile) RemoveTask(tId string) (exists bool) {
 	f.tasksLock.Lock()
 	f.tasksUsing, _, exists = util.YoinkFunc(f.tasksUsing, func(f Task) bool { return f.TaskId() == tId })
 	f.tasksLock.Unlock()
+	return
+}
+
+func (f *WeblensFile) GetShares() []fileShareData {
+	if f.shares == nil {
+		f.shares = []fileShareData{}
+	}
+	return f.shares
+}
+
+func (f *WeblensFile) AppendShare(s fileShareData) {
+	if f.shares == nil {
+		f.shares = []fileShareData{}
+	}
+	f.shares = append(f.shares, s)
+}
+
+func (f *WeblensFile) UpdateShare(s fileShareData) (err error) {
+	index := slices.IndexFunc(f.GetShares(), func(v fileShareData) bool { return v.ShareId == s.ShareId })
+	if index == -1 {
+		return ErrNoShare
+	}
+	f.shares[index] = s
+
 	return
 }
 

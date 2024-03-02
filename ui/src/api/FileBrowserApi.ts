@@ -1,8 +1,25 @@
-import axios from 'axios'
-import { AlbumData, FileBrowserDispatch, fileData, getBlankFile } from '../types/Types'
-import API_ENDPOINT from './ApiEndpoint'
 import { notifications } from '@mantine/notifications'
+import axios from 'axios'
+
+import { AlbumData, FileBrowserDispatch, fileData, getBlankFile } from '../types/Types'
 import { humanFileSize } from '../util'
+import API_ENDPOINT from './ApiEndpoint'
+
+export function SubToFolder(subId: string, recursive: boolean, wsSend) {
+    if (!subId) {
+        console.error("Trying to subscribe to empty id")
+        return
+    }
+    wsSend("subscribe", { subscribeType: "folder", subscribeKey: subId, subscribeMeta: JSON.stringify({ recursive: recursive }) })
+}
+
+export function UnsubFromFolder(subId: string, wsSend) {
+    if (!subId) {
+        console.error("Trying to unsub to empty id")
+        return
+    }
+    wsSend("unsubscribe", { subscribeKey: subId })
+}
 
 export function DeleteFiles(fileIds: string[], authHeader) {
     var url = new URL(`${API_ENDPOINT}/files`)
@@ -240,8 +257,18 @@ export async function ShareFiles(files: string[], isPublic: boolean, users: stri
     return res
 }
 
+export async function UpdateFileShare(shareId: string, isPublic: boolean, users: string[] = [], authHeader) {
+    const url = new URL(`${API_ENDPOINT}/file/share/${shareId}`)
+    const body = {
+        users: users,
+        public: isPublic
+    }
+    const res = await fetch(url.toString(), { headers: authHeader, method: "PATCH", body: JSON.stringify(body) })
+    return res
+}
+
 export async function GetFileShare(shareId, authHeader) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
+    const url = new URL(`${API_ENDPOINT}/file/${shareId}/shares`)
     const res = await fetch(url.toString(), { headers: authHeader }).then(res => res.json())
     return res
 }

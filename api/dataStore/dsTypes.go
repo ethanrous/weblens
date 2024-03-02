@@ -35,7 +35,7 @@ type WeblensFile struct {
 	tasksLock  *sync.Mutex
 	tasksUsing []Task
 
-	shares []shareData
+	shares []fileShareData
 }
 
 type Media struct {
@@ -144,16 +144,17 @@ type shareData struct {
 	Public    bool
 	Wormhole  bool
 	Expires   time.Time
+	Accessors []string
 }
 
 type fileShareData struct {
 	ShareId   string    `bson:"_id" json:"shareId"`
 	FileId    string    `bson:"fileId" json:"fileId"`
 	ShareName string    `bson:"shareName"`
+	Accessors []string  `bson:"accessors"`
 	Public    bool      `bson:"public"`
 	Wormhole  bool      `bson:"wormhole"`
 	Expires   time.Time `bson:"expires"`
-
 	ShareType shareType `bson:"shareType"`
 }
 
@@ -229,4 +230,5 @@ var ErrFileAlreadyExists = errors.New("trying create file that already exists")
 var ErrNoFile = errors.New("no file found")
 var ErrNoMedia = errors.New("no media found")
 var ErrNoShare = errors.New("no share found")
+var ErrBadShareType = errors.New("expected share type does not match given share type")
 var ErrUnsupportedImgType error = errors.New("image type is not supported by weblens")

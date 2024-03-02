@@ -1,5 +1,5 @@
 import { Box, Card, MantineStyleProp, Text, Tooltip, ActionIcon, Space, Menu, Divider, FileButton, Center, Skeleton } from '@mantine/core'
-import { useCallback, useContext, useMemo, useState } from "react"
+import { useCallback, useContext, useMemo, useRef, useState } from "react"
 import { FilebrowserDragOver, HandleDrop, HandleUploadButton } from "./FileBrowserLogic"
 import { FileBrowserDispatch, fileData } from "../../types/Types"
 
@@ -248,6 +248,13 @@ export const FolderIcon = ({ shares, size = '75%' }: { shares, size?}) => {
 }
 
 export const IconDisplay = ({ file, quality = 'thumbnail' }: { file: fileData, quality?: 'thumbnail' | 'fullres' }) => {
+    const [textRef, setTextRef] = useState(null)
+    const textSize = useMemo(() => {
+        return `${textRef?.clientWidth / 7}px`
+    }, [textRef?.clientWidth])
+    console.log(textRef?.clientWidth)
+
+
     if (file.isDir) {
         return (<FolderIcon shares={file.shares} />)
     }
@@ -268,9 +275,9 @@ export const IconDisplay = ({ file, quality = 'thumbnail' }: { file: fileData, q
     switch (ext) {
         case "zip": return (<IconFileZip size={'75%'} />)
         default: return (
-            <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
+            <Box ref={r => setTextRef(r)} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                 <IconFile size={'75%'} stroke={1} />
-                <Text size='4vw' fw={700} style={{ position: 'absolute', userSelect: 'none', WebkitUserSelect: 'none' }}>{ext}</Text>
+                <Text size={textSize} fw={700} style={{ position: 'absolute', userSelect: 'none', WebkitUserSelect: 'none' }}>{ext}</Text>
             </Box>
         )
     }

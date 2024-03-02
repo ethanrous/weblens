@@ -10,7 +10,6 @@ import { CleanAlbum, DeleteAlbum, GetAlbumMedia, GetAlbums, RemoveMediaFromAlbum
 import { AlbumData, MediaData, MediaStateType, getBlankMedia } from "../../types/Types"
 import { userContext } from "../../Context"
 import { PhotoGallery } from "../../components/MediaDisplay"
-import { ShareInput } from "../../components/Share"
 import NotFound from "../../components/NotFound"
 import { GlobalContextType, ItemProps } from "../../components/ItemDisplay"
 import { ItemScroller } from "../../components/ItemScroller"
@@ -30,7 +29,7 @@ function ShareBox({ open, setOpen, pos, albumId, sharedWith, fetchAlbums }: { op
                 <Box style={{ position: 'fixed', top: pos.y, left: pos.x }} />
             </Popover.Target>
             <Popover.Dropdown>
-                <ShareInput valueSetCallback={setValue} initValues={sharedWith} />
+                {/* <ShareInput valueSetCallback={setValue} initValues={sharedWith} /> */}
                 <Space h={10} />
                 <Button fullWidth disabled={JSON.stringify(value) === JSON.stringify(sharedWith)} color="#4444ff" onClick={() => { ShareAlbum(albumId, authHeader, value.filter((v) => !sharedWith.includes(v)), sharedWith.filter((v) => !value.includes(v))).then(() => fetchAlbums()); setOpen(false) }}>
                     Update

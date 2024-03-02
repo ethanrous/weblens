@@ -576,19 +576,6 @@ func (db Weblensdb) SearchUsers(searchStr string) []string {
 	})
 }
 
-func (db Weblensdb) ShareFiles(files []*WeblensFile, users []string) error {
-	for _, file := range files {
-		filter := bson.M{"_id": file.Id()}
-		update := bson.M{"$addToSet": bson.M{"sharedWith": bson.M{"$each": users}}}
-		_, err := db.mongo.Collection("folders").UpdateOne(mongo_ctx, filter, update)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (db Weblensdb) GetSharedWith(username string) []*WeblensFile {
 	opts := options.Find().SetProjection(bson.M{"sharedWith": 0})
 	filter := bson.M{"sharedWith": username}
@@ -808,6 +795,20 @@ func (db Weblensdb) getWormholes(f *WeblensFile) (whs []shareData, err error) {
 	return fd.Shares, err
 }
 
+func (db Weblensdb) getAllShares() (ss []Share, err error) {
+	ret, err := db.mongo.Collection("shares").Find(mongo_ctx, bson.M{"shareType": "file"})
+	if err != nil {
+		return
+	}
+	var fileShares []fileShareData
+	ret.All(mongo_ctx, &fileShares)
+
+	ss = append(ss, util.Map(fileShares, func(fs fileShareData) Share { return fs })...)
+
+	return
+
+}
+
 func (db Weblensdb) getFolderByShare(shareId string) (shareFolder folderData, err error) {
 	filter := bson.M{"shares.shareId": shareId}
 	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
@@ -843,6 +844,13 @@ func (db Weblensdb) newFileShare(shareInfo fileShareData) (err error) {
 		err = nil
 	}
 
+	return
+}
+
+func (db Weblensdb) updateFileShare(s fileShareData) (err error) {
+	filter := bson.M{"_id": s.ShareId, "shareType": "file"}
+	update := bson.M{"$set": s}
+	_, err = db.mongo.Collection("shares").UpdateOne(mongo_ctx, filter, update)
 	return
 }
 

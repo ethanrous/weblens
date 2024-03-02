@@ -43,11 +43,12 @@ func AddApiRoutes(r *gin.Engine) {
 	r.Use(CORSMiddleware())
 
 	public := r.Group("/api")
+	public.Use(WeblensAuth(false, true, false))
 	public.POST("/login", loginUser)
 	public.POST("/user", createUser)
 
 	api := r.Group("/api")
-	api.Use(WeblensAuth(false, false))
+	api.Use(WeblensAuth(false, false, false))
 
 	api.GET("/media", getMediaBatch)
 	api.GET("/media/:mediaId", getOneMedia)
@@ -77,9 +78,11 @@ func AddApiRoutes(r *gin.Engine) {
 	api.PATCH("/file", updateFile)
 	api.DELETE("/files", trashFiles)
 
+	api.GET("/file/:fileId/shares", getFileShare)
+	api.PATCH("/file/share/:shareId", updateFileShare)
+
 	api.GET("/share", getSharedFiles)
 	api.PATCH("/files", updateFiles)
-	api.PATCH("/files/share", shareFiles)
 	api.DELETE("/share", deleteShare)
 	public.GET("/share/:shareId", getShare)
 
@@ -101,7 +104,7 @@ func AddApiRoutes(r *gin.Engine) {
 	api.DELETE("/album/:albumId", deleteAlbum)
 
 	admin := r.Group("/api/admin")
-	admin.Use(WeblensAuth(false, true))
+	admin.Use(WeblensAuth(false, false, true))
 
 	public.GET("/fileTree", getFileTreeInfo)
 
@@ -112,7 +115,7 @@ func AddApiRoutes(r *gin.Engine) {
 	admin.POST("/cache", clearCache)
 
 	websocket := r.Group("/api")
-	websocket.Use(WeblensAuth(true, false))
+	websocket.Use(WeblensAuth(true, false, false))
 
 	websocket.GET("/ws", wsConnect)
 }

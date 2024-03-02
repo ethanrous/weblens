@@ -7,13 +7,10 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@fontsource/roboto": "^5.0.8",
-    "@mantine/core": "^7.2.2",
+    "@mantine/core": "^7.6.1",
     "@mantine/hooks": "^7.2.2",
     "@mantine/notifications": "^7.2.2",
-    "@mui/icons-material": "^5.14.16",
-    "@mui/joy": "^5.0.0-beta.13",
     "@tabler/icons-react": "^2.40.0",
-    "@tanstack/react-query": "^5.4.3",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -28,7 +25,6 @@
     "react-in-viewport": "^1.0.0-alpha.30",
     "react-infinite-scroll-component": "^6.1.0",
     "react-intersection-observer": "^9.5.2",
-    "react-lazyload": "github:twobin/react-lazyload",
     "react-native-blurhash": "^1.1.11",
     "react-player": "^2.13.0",
     "react-router-dom": "^6.15.0",
@@ -36,9 +32,6 @@
     "react-use-websocket": "^4.4.0",
     "react-window": "^1.8.10",
     "web-vitals": "^2.1.4"
-  },
-  "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -63,5 +56,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "react-refresh": "^0.11.0"
   }
 }

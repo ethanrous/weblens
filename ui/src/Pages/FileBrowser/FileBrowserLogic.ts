@@ -4,7 +4,7 @@ import { notifications } from '@mantine/notifications'
 
 import Upload, { fileUploadMetadata } from "../../api/Upload"
 import { fileData, FileBrowserStateType, getBlankFile, FileBrowserAction, FileBrowserDispatch } from '../../types/Types'
-import { CreateFolder, DeleteFiles, GetFileShare, MoveFiles, RenameFile, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
+import { CreateFolder, DeleteFiles, GetFileShare, MoveFiles, RenameFile, SubToFolder, UnsubFromFolder, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
 import { humanFileSize } from '../../util'
 import useWeblensSocket from '../../api/Websocket'
 
@@ -417,17 +417,11 @@ export const useSubscribe = (realId, stateId, userInfo, dispatch, authHeader) =>
                 return
             }
             if (realId === userInfo.homeFolderId) {
-                wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.trashFolderId, subscribeMeta: JSON.stringify({ recursive: false }) })
-                return (
-                    () => {
-                        wsSend("unsubscribe", { subscribeKey: userInfo.trashFolderId })
-                    }
-                )
+                SubToFolder(userInfo.trashFolderId, false, wsSend)
+                return ( () => UnsubFromFolder(userInfo.trashFolderId, wsSend) )
             }
-            wsSend("subscribe", { subscribeType: "folder", subscribeKey: realId, subscribeMeta: JSON.stringify({ recursive: false }) })
-            return (
-                () => wsSend("unsubscribe", { subscribeKey: realId })
-            )
+            SubToFolder(realId, false, wsSend)
+            return ( () => UnsubFromFolder(realId, wsSend) )
         }
     }, [readyState, stateId, realId, userInfo.trashFolderId, wsSend])
 
@@ -436,11 +430,8 @@ export const useSubscribe = (realId, stateId, userInfo, dispatch, authHeader) =>
         if (userInfo.username === "" || readyState !== 1) {
             return
         }
-
-        wsSend("subscribe", { subscribeType: "folder", subscribeKey: userInfo.homeFolderId, subscribeMeta: JSON.stringify({ recursive: false }) })
-        return (
-            () => wsSend("unsubscribe", { subscribeKey: userInfo.homeFolderId })
-        )
+        SubToFolder(userInfo.homeFolderId, false, wsSend)
+        return ( () => UnsubFromFolder(userInfo.homeFolderId, wsSend) )
     }, [userInfo.homeFolderId, readyState])
 
     // Listen for incoming websocket messages

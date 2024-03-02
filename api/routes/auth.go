@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
+func WeblensAuth(websocket, allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		db := dataStore.NewDB()
 		var authString string
@@ -17,8 +17,12 @@ func WeblensAuth(websocket, requireAdmin bool) gin.HandlerFunc {
 		if !websocket {
 			authHeader := c.Request.Header["Authorization"]
 			if len(authHeader) == 0 {
-				util.Info.Printf("Rejecting authorization for unknown user due to empty auth header")
-				c.AbortWithStatus(http.StatusUnauthorized)
+				if !allowEmptyAuth {
+					util.Info.Printf("Rejecting authorization for unknown user due to empty auth header")
+					c.AbortWithStatus(http.StatusUnauthorized)
+					return
+				}
+				c.Next()
 				return
 			}
 			authString = authHeader[0]
@@ -53,14 +57,16 @@ func CanUserAccessFile(fileId, username, shareId string) bool {
 		return false
 	}
 
-	s, err := dataStore.GetShare(shareId, dataStore.FileShare)
-	if err != nil {
-		return false
-	}
+	if shareId != "" {
+		s, err := dataStore.GetShare(shareId, dataStore.FileShare)
+		if err != nil {
+			return false
+		}
 
-	// Accessing a public share
-	if s.IsPublic() && s.GetContentId() == fileId {
-		return true
+		// Accessing a public share
+		if s.IsPublic() && s.GetContentId() == fileId {
+			return true
+		}
 	}
 
 	// Share is not public, so user must be logged in to access
@@ -68,13 +74,15 @@ func CanUserAccessFile(fileId, username, shareId string) bool {
 		return false
 	}
 
-	f := dataStore.FsTreeGet(fileId)
-	if f == nil {
-		return false
-	}
+	if fileId != "" {
+		f := dataStore.FsTreeGet(fileId)
+		if f == nil {
+			return false
+		}
 
-	if f.Owner() == username {
-		return true
+		if f.Owner() == username {
+			return true
+		}
 	}
 
 	return false

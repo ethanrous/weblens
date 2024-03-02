@@ -298,6 +298,8 @@ func PermenantlyDeleteFile(file *WeblensFile, c ...BroadcasterAgent) error {
 }
 
 func RecursiveGetMedia(folderIds ...string) (ms []string) {
+	ms = []string{}
+
 	for _, dId := range folderIds {
 		d := FsTreeGet(dId)
 		if d == nil {

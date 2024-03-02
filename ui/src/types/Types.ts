@@ -161,9 +161,19 @@ export type fileData = {
     fileFriendlyName: string
     owner: string
     pathFromHome: string
-    shares: any[]
+    shares: shareData[]
     visible: boolean
     children: string[]
+}
+
+export type shareData = {
+    Accessors: string[]
+    Expires: string
+    Public: boolean
+    shareId: string
+    fileId: string
+    ShareName: string
+    Wormhole: boolean
 }
 
 export const getBlankFile = () => {

@@ -56,6 +56,9 @@ func main() {
 	sw.Lap("Media init")
 	util.Info.Println("Initialized Media Map")
 
+	dataStore.LoadAllShares()
+	sw.Lap("Shares init")
+
 	// The global broadcaster is disbled by default so all of the
 	// initial loading of the filesystem (that was just done above) doesn't
 	// try to broadcast for every file that exists. So it must be enabled here

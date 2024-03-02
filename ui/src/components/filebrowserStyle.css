@@ -158,3 +158,41 @@
 .album-search::placeholder{
     color: #cccccc;
 }
+
+.menu-item{
+    height: 40px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 0;
+    /* justify-content: center; */
+    align-items: center;
+    cursor: pointer;
+    width: 100%;
+    padding: 8px;
+    color: white;
+}
+
+.menu-item:hover{
+    background-color: #373a40;
+}
+
+.menu-item-text{
+    width: 100%;
+    padding-left: 10px;
+}
+
+.xBox{
+    border-radius: 2px;
+    padding: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    height: 32px;
+    width: 32px;
+}
+.xBox:hover{
+    background-color: #00000055;
+}

@@ -1,17 +1,18 @@
-import { Box, Button, Typography } from "@mui/joy"
-import { useNavigate } from "react-router-dom"
+import { Button, Text } from '@mantine/core'
+import { ColumnBox } from '../FileBrowser/FilebrowserStyles'
 
 const Fourohfour = () => {
-    const nav = useNavigate()
+    // const nav = useNavigate()
+    const nav = null
     return (
-        <Box display={'flex'} flexDirection={'column'} height={'50vh'} alignItems={'center'} justifyContent={'center'}>
-            <Typography color={'primary'} padding={'20px'}>
+        <ColumnBox style={{ height: '50vh', justifyContent: 'center' }}>
+            <Text style={{ padding: 20 }}>
                 Page not found :(
-            </Typography>
+            </Text>
             <Button onClick={() => nav('/')} color="primary">
                 Go Home
             </Button>
-        </Box>
+        </ColumnBox>
     )
 }
 export default Fourohfour

@@ -3,26 +3,25 @@ import { useState, useEffect, useReducer, useMemo, useRef, useContext, useCallba
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 // Icons
-import { IconChevronRight, IconCloud, IconDownload, IconFile, IconFileZip, IconFolder, IconFolderPlus, IconHome, IconLogin, IconPhotoPlus, IconShare, IconSpiral, IconTrash, IconUpload, IconUsers } from "@tabler/icons-react"
+import { IconChevronRight, IconCloud, IconDownload, IconFile, IconFolder, IconFolderPlus, IconHome, IconLogin, IconPhotoPlus, IconShare, IconSpiral, IconTrash, IconUpload, IconUsers } from "@tabler/icons-react"
 
 // Mantine
-import { Box, Button, Text, Space, FileButton, Divider, Popover, Progress, Menu, Center, Skeleton } from '@mantine/core'
+import { Box, Button, Text, Space, FileButton, Divider, Progress, Menu } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useDebouncedValue } from '@mantine/hooks'
 
 // Weblens
-import { HandleDrop, HandleWebsocketMessage, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton, usePaste, UploadViaUrl, MapToList, HandleRename, selectedMediaIds, selectedFolderIds, useSubscribe, SetFileData, getRealId } from './FileBrowserLogic'
+import { HandleDrop, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton, usePaste, UploadViaUrl, MapToList, HandleRename, useSubscribe, SetFileData, getRealId } from './FileBrowserLogic'
 import { fileData, FileBrowserStateType, MediaData, FileBrowserAction, getBlankFile, FileBrowserDispatch } from '../../types/Types'
-import { DirViewWrapper, ColumnBox, RowBox, TransferCard, PresentationFile, FolderIcon, GetStartedCard, IconDisplay, FileInfoDisplay } from './FilebrowserStyles'
-import { DeleteFiles, DeleteWormhole, GetFileShare, GetFolderData, NewWormhole, ShareFiles } from '../../api/FileBrowserApi'
+import { DirViewWrapper, ColumnBox, RowBox, TransferCard, PresentationFile, GetStartedCard, IconDisplay, FileInfoDisplay } from './FilebrowserStyles'
+import { DeleteFiles, DeleteWormhole, GetFileShare, GetFolderData, NewWormhole } from '../../api/FileBrowserApi'
 import Presentation, { PresentationContainer } from '../../components/Presentation'
 import UploadStatus, { useUploadStatus } from '../../components/UploadStatus'
 import { GlobalContextType, ItemProps } from '../../components/ItemDisplay'
-import useWeblensSocket, { dispatchSync } from '../../api/Websocket'
+import { dispatchSync } from '../../api/Websocket'
 import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
 import { ItemScroller } from '../../components/ItemScroller'
 import { MediaImage } from '../../components/PhotoContainer'
-import { ShareInput } from '../../components/Share'
 import HeaderBar from "../../components/HeaderBar"
 import { AlbumScoller } from './FileBrowserAlbums'
 import NotFound from '../../components/NotFound'
@@ -199,6 +198,10 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
     const itemInfo: fileData = fbState.dirMap.get(itemId) || {} as fileData
     const selected: boolean = Boolean(fbState.selected.get(itemId))
 
+    useEffect(() => {
+        dispatch({ type: 'set_block_focus', block: open })
+    }, [dispatch, open])
+
     const { items, mediaCount } = useMemo(() => {
         if (fbState.dirMap.size === 0) {
             return { items: [], anyDisplayable: false }
@@ -225,26 +228,36 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
     }
 
     return (
-        <Menu opened={open || shareMenu} onClose={() => setOpen(false)} closeOnClickOutside={!addToAlbumMenu} position='right-start' closeOnItemClick={false} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+        <Menu opened={open} closeDelay={0} openDelay={0} onClose={() => setOpen(false)} closeOnClickOutside={!(addToAlbumMenu || shareMenu)} position='right-start' closeOnItemClick={false} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
             <Menu.Target>
                 <Box style={{ position: 'absolute', top: menuPos.y, left: menuPos.x }} />
             </Menu.Target>
 
             <Menu.Dropdown onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
                 <Menu.Label>
-                    <RowBox style={{ gap: 10 }}>
-                        <Text truncate='end'>
+                    <RowBox style={{ gap: 8, justifyContent: 'center' }}>
+                        {itemInfo.isDir && (
+                            <IconFolder />
+                        )}
+                        {!itemInfo.isDir && (
+                            <IconFile />
+                        )}
+                        <Text truncate='end' style={{}}>
                             {itemInfo.filename}
                         </Text>
                         {extraString}
                     </RowBox>
                 </Menu.Label>
 
-                <Menu opened={addToAlbumMenu} trigger='hover' offset={0} position="right-start" onOpen={() => { setAddToAlbumMenu(true); dispatch({ type: 'set_block_focus', block: true }) }} onClose={() => { setAddToAlbumMenu(false); dispatch({ type: 'set_block_focus', block: false }) }} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+                <Divider my={10} />
+
+                <Menu opened={addToAlbumMenu} trigger='hover' offset={0} position="right-start" onOpen={() => setAddToAlbumMenu(true)} onClose={() => setAddToAlbumMenu(false)} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
                     <Menu.Target>
-                        <Menu.Item leftSection={<IconPhotoPlus />} rightSection={<IconChevronRight />} disabled={false}>
-                            <Text>Add to Album</Text>
-                        </Menu.Item>
+                        <Box className='menu-item'>
+                            <IconPhotoPlus />
+                            <Text style={{ paddingLeft: 8, flexGrow: 1 }}>Add to Album</Text>
+                            <IconChevronRight />
+                        </Box>
                     </Menu.Target>
                     <Menu.Dropdown onMouseOver={e => e.stopPropagation()}>
                         <AlbumScoller candidates={{ media: items.filter(i => i.displayable).map(i => i.id), folders: items.filter(i => i.isDir).map(i => i.id) }} authHeader={authHeader} />
@@ -253,38 +266,46 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
 
                 {/* Wormhole menu */}
                 {itemInfo.isDir && (
-                    <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} disabled={(fbState.selected.size > 1 && selected)} leftSection={<IconSpiral />} onClick={(e) => { e.stopPropagation(); if (itemInfo.shares?.length === 0) { NewWormhole(itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${itemInfo.shares[0].ShareId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
-                        <Text truncate='end'>{itemInfo.shares?.length === 0 ? "Attach" : "Copy"} Wormhole</Text>
-                    </Menu.Item>
+                    // disabled={()}
+                    <Box className='menu-item' style={{ pointerEvents: fbState.selected.size > 1 && selected ? 'none' : 'all' }} onClick={(e) => { e.stopPropagation(); if (itemInfo.shares?.length === 0) { NewWormhole(itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${itemInfo.shares[0].shareId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
+                        <IconSpiral color={fbState.selected.size > 1 ? 'grey' : 'white'} />
+                        <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c={fbState.selected.size > 1 ? 'grey' : 'white'}>{itemInfo.shares?.length === 0 ? "Attach" : "Copy"} Wormhole</Text>
+                    </Box>
                 )}
 
                 {/* Share menu */}
-                <Menu opened={shareMenu} trigger='hover' offset={0} position="right-start" onOpen={() => { setShareMenu(true); dispatch({ type: 'set_block_focus', block: true }) }} onClose={() => { setShareMenu(false); dispatch({ type: 'set_block_focus', block: false }) }} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+                <Menu opened={shareMenu} trigger='hover' closeOnClickOutside={false} offset={0} position="right-start" onOpen={() => setShareMenu(true)} onClose={() => setShareMenu(false)} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 0, border: 0 } }}>
                     <Menu.Target>
-                        <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconShare />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'set_block_focus', block: true }); setShareMenu(true) }}>
-                            <Text>Share</Text>
-                        </Menu.Item>
+                        <Box className='menu-item'>
+                            <IconShare />
+                            <Text style={{ paddingLeft: 8, flexGrow: 1 }}>Share</Text>
+                            <IconChevronRight />
+                        </Box>
                     </Menu.Target>
-                    <Menu.Dropdown onMouseOver={e => e.stopPropagation()}>
-                        <ShareBox candidates={items.map(i => i.id)} authHeader={authHeader} />
+                    <Menu.Dropdown>
+                        <ShareBox candidates={items} authHeader={authHeader} />
                     </Menu.Dropdown>
                 </Menu>
 
-                <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconDownload />} onClick={(e) => { e.stopPropagation(); downloadSelected(selected ? Array.from(fbState.selected.keys()).map(fId => fbState.dirMap.get(fId)) : [fbState.dirMap.get(itemId)], dispatch, wsSend, authHeader) }} >
-                    <Text>Download</Text>
-                </Menu.Item>
+                <Box className='menu-item' onClick={(e) => { e.stopPropagation(); downloadSelected(selected ? Array.from(fbState.selected.keys()).map(fId => fbState.dirMap.get(fId)) : [fbState.dirMap.get(itemId)], dispatch, wsSend, authHeader) }}>
+                    <IconDownload />
+                    <Text style={{ paddingLeft: 8, flexGrow: 1 }}>Download</Text>
+
+                </Box>
 
                 <Divider w={'100%'} my='sm' />
 
                 {itemInfo.shares && itemInfo.shares.length !== 0 && (
-                    <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} color={'red'} leftSection={<IconSpiral />} onClick={(e) => { e.stopPropagation(); DeleteWormhole(itemInfo.shares[0].ShareId, authHeader) }}>
-                        <Text truncate='end'>Remove Wormhole</Text>
-                    </Menu.Item>
-                )}
+                    <Box className='menu-item' onClick={(e) => { e.stopPropagation(); DeleteWormhole(itemInfo.shares[0].shareId, authHeader) }}>
+                        <IconSpiral color='#ff8888' />
+                        <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c='#ff8888'>Remove Wormhole</Text>
+                    </Box>
 
-                <Menu.Item styles={{ itemLabel: { flex: 0, width: '90%' } }} leftSection={<IconTrash />} color='red' onClick={(e) => { e.stopPropagation(); DeleteFiles(items.map(i => i.id), authHeader); setOpen(false) }}>
-                    <Text>Delete</Text>
-                </Menu.Item>
+                )}
+                <Box className='menu-item' onClick={(e) => { e.stopPropagation(); DeleteFiles(items.map(i => i.id), authHeader); setOpen(false) }}>
+                    <IconTrash color='#ff8888' />
+                    <Text style={{ paddingLeft: 8, flexGrow: 1 }} c='#ff8888'>Delete</Text>
+                </Box>
 
             </Menu.Dropdown>
         </Menu>

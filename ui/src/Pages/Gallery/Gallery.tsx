@@ -13,6 +13,7 @@ import useWeblensSocket from '../../api/Websocket'
 import { userContext } from '../../Context'
 import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles'
 import { Albums } from './Albums'
+import { WeblensButton } from '../../components/WeblensButton'
 
 const NoMediaDisplay = () => {
     const nav = useNavigate()
@@ -106,11 +107,11 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
                 <Combobox.Dropdown style={{ padding: 10 }}>
                     <Combobox.Header>
                         <ColumnBox style={{ paddingBottom: 10 }}>
-                            <Text fw={600}>Timeline Filters</Text>
+                            <Text fw={600}>Gallery Filters</Text>
                         </ColumnBox>
                     </Combobox.Header>
                     <Space h={10} />
-                    <Switch color='#4444ff' checked={rawOn} label={'Show RAWs'} onChange={e => setRawOn(e.target.checked)} />
+                    <WeblensButton label='Show RAWs' toggleOn={rawOn} onToggle={setRawOn} />
                     <Space h={10} />
                     <Combobox.Options>
                         <Combobox.Group label="Albums">

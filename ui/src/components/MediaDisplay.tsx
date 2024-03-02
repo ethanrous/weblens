@@ -1,5 +1,4 @@
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { RawOn, Image, Folder, Theaters } from '@mui/icons-material'
 import { VariableSizeList as List } from 'react-window'
 
 import { Box, Loader, MantineStyleProp, Menu, MenuTarget, Text, Tooltip } from '@mantine/core'
@@ -10,7 +9,7 @@ import { GetFileInfo } from '../api/FileBrowserApi'
 import { useWindowSize } from './ItemScroller'
 import { MediaImage } from './PhotoContainer'
 import { userContext } from '../Context'
-import { IconHome, IconTrash } from '@tabler/icons-react'
+import { IconHome, IconTrash, IconFolder } from '@tabler/icons-react'
 import { StyledLoaf } from './Crumbs'
 import './galleryStyle.css'
 
@@ -93,11 +92,11 @@ const TypeIcon = (mediaData: MediaData) => {
     let icon
     const name = mediaData.mediaType.FriendlyName
     if (mediaData.mediaType.IsRaw) {
-        icon = RawOn
-        // name = "RAW"
+        // icon = RawOn
+
     } else if (mediaData.mediaType.IsVideo) {
-        icon = Theaters
-        // name = "Video"
+        // icon = Theaters
+
     } else {
         icon = Image
         // name = "Image"
@@ -151,7 +150,7 @@ function MediaInfoDisplay({ mediaData, hovering }: { mediaData: MediaData, hover
             </Tooltip>
             <RowBox style={{ height: 32 }}>
                 <Tooltip label={mediaData.fileIds.length === 1 ? "Visit File" : "Visit Files"} refProp="innerRef">
-                    <StyledIcon Icon={Folder} filesCount={mediaData.fileIds.length} onClick={e => goToFolder(e, mediaData.fileIds, filesInfo, setLoading, setMenuOpen, setFilesInfo, authHeader)} />
+                    <StyledIcon Icon={IconFolder} filesCount={mediaData.fileIds.length} onClick={e => goToFolder(e, mediaData.fileIds, filesInfo, setLoading, setMenuOpen, setFilesInfo, authHeader)} />
                 </Tooltip>
                 <MultiFileMenu filesInfo={filesInfo} loading={loading} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
             </RowBox>
