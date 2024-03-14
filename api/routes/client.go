@@ -128,8 +128,9 @@ func (c *Client) debug(msg ...any) {
 func (c *Client) _writeToClient(msg wsResponse) {
 	if c != nil {
 		c.mu.Lock()
-		c.conn.WriteJSON(msg)
+		err := c.conn.WriteJSON(msg)
 		c.mu.Unlock()
+		util.DisplayError(err)
 	}
 }
 

@@ -84,6 +84,22 @@
   color: white;
   font-weight: 500;
   outline-color: #4444ff00;
+  width: 90%;
+}
+
+.weblens-button-success{
+  margin: 8px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  cursor: pointer;
+  background-color: #00b123;
+  color: white;
+  font-weight: 500;
+  outline-color: #4444ff00;
+  transition: all 0.1s;
 }
 
 .weblens-toggle-button-on{

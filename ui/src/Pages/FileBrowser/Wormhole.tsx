@@ -3,7 +3,7 @@ import { ColumnBox, RowBox, WormholeWrapper } from "./FilebrowserStyles";
 import { useContext, useEffect, useState } from "react";
 import { GetWormholeInfo } from "../../api/FileBrowserApi";
 import { userContext } from "../../Context";
-import { fileData } from "../../types/Types";
+import { fileData, shareData } from "../../types/Types";
 import { Box, FileButton, Space, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import UploadStatus, { useUploadStatus } from "../../components/UploadStatus";
@@ -36,14 +36,16 @@ const UploadPlaque = ({ wormholeId, uploadDispatch }: { wormholeId: string, uplo
 export default function Wormhole() {
     const wormholeId = useParams()["*"]
     const { authHeader } = useContext(userContext)
-    const [wormholeInfo, setWormholeInfo]: [wormholeInfo: fileData, setWormholeInfo: any] = useState(null)
-
+    const [wormholeInfo, setWormholeInfo]: [wormholeInfo: shareData, setWormholeInfo: any] = useState(null)
     const { uploadState, uploadDispatch } = useUploadStatus()
+
+    console.log(wormholeInfo)
+
     useEffect(() => {
         if (wormholeId !== "" && authHeader.Authorization !== "") {
             GetWormholeInfo(wormholeId, authHeader)
                 .then(v => { if (v.status !== 200) { return Promise.reject(v.statusText) }; return v.json() })
-                .then(v => { setWormholeInfo(v.shareInfo) })
+                .then(v => { console.log(v); setWormholeInfo(v) })
                 .catch(r => { notifications.show({ title: "Failed to get wormhole info", message: String(r), color: "red" }) })
         }
     }, [wormholeId, authHeader])
@@ -52,7 +54,7 @@ export default function Wormhole() {
     return (
         <Box>
             <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} />
-            <WormholeWrapper wormholeId={wormholeId} wormholeName={wormholeInfo?.filename} validWormhole={valid} uploadDispatch={uploadDispatch}>
+            <WormholeWrapper wormholeId={wormholeId} wormholeName={wormholeInfo?.ShareName} fileId={wormholeInfo?.fileId} validWormhole={valid} uploadDispatch={uploadDispatch}>
                 <RowBox style={{ height: '20vh', width: 'max-content' }}>
                     <ColumnBox style={{ height: 'max-content', width: 'max-content' }}>
                         <Text size="40" style={{ lineHeight: "40px" }}>
@@ -68,7 +70,7 @@ export default function Wormhole() {
                         <IconFolder size={40} style={{ marginLeft: '7px' }} />
                     )}
                     <Text fw={700} size="40" style={{ lineHeight: "40px", marginLeft: 3 }}>
-                        {wormholeInfo?.filename}
+                        {wormholeInfo?.ShareName}
                     </Text>
                 </RowBox>
                 {valid && (

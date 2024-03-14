@@ -13,7 +13,7 @@ func envReadBool(s string) bool {
 	val := os.Getenv(string(s))
 	if val == "true" || val == "1" {
 		return true
-	} else if val == "false" || val == "0" {
+	} else if val == "" || val == "false" || val == "0" {
 		return false
 	} else {
 		panic(fmt.Errorf("failed to make boolean out of value: %s", val))
@@ -29,6 +29,24 @@ func GetConfigDir() string {
 	return configDir
 }
 
+func GetRouterIp() string {
+	ip := envReadString("SERVER_IP")
+	if ip == "" {
+		return "0.0.0.0"
+	} else {
+		return ip
+	}
+}
+
+func GetRouterPort() string {
+	port := envReadString("SERVER_PORT")
+	if port == "" {
+		return "8080"
+	} else {
+		return port
+	}
+}
+
 func GetMediaRoot() string {
 	return envReadString("MEDIA_ROOT_PATH")
 }
@@ -39,6 +57,10 @@ func GetImgRecognitionUrl() string {
 
 func IsDevMode() bool {
 	return envReadBool("DEV_MODE")
+}
+
+func DetachUi() bool {
+	return envReadBool("DETATCH_UI")
 }
 
 func ShouldUseRedis() bool {

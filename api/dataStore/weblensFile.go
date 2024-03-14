@@ -441,9 +441,9 @@ func (f *WeblensFile) FormatFileInfo() (formattedInfo FileInfo, err error) {
 		friendlyName = mType.FriendlyName
 	}
 
-	shares, err := fddb.getWormholes(f)
-	if err != nil {
-		return
+	shares := []*fileShareData{}
+	if f.shares != nil {
+		shares = f.shares
 	}
 
 	pathString := GuaranteeRelativePath(f.absolutePath)
@@ -540,7 +540,7 @@ Files are acted on in the order of their index number here, starting with the ca
 	f1 <- Called from
 */
 func (f *WeblensFile) BubbleMap(fn func(*WeblensFile)) {
-	if f == nil || f.Id() == "0" || f.Id() == "1" || f.Id() == "2" {
+	if f == nil || f.Id() == "0" || f.Id() == "1" || f.Id() == "2" || f.Id() == "3" {
 		return
 	}
 	fn(f)
@@ -584,26 +584,61 @@ func (f *WeblensFile) RemoveTask(tId string) (exists bool) {
 	return
 }
 
-func (f *WeblensFile) GetShares() []fileShareData {
+func (f *WeblensFile) GetShares() []Share {
 	if f.shares == nil {
-		f.shares = []fileShareData{}
+		f.shares = []*fileShareData{}
 	}
-	return f.shares
+	shs := util.Map(f.shares, func(sh *fileShareData) Share { return sh })
+	return shs
 }
 
-func (f *WeblensFile) AppendShare(s fileShareData) {
+func (f *WeblensFile) getShare(shareId string) (sh Share, err error) {
 	if f.shares == nil {
-		f.shares = []fileShareData{}
+		err = ErrNoShare
+		return
 	}
-	f.shares = append(f.shares, s)
+	index := slices.IndexFunc(f.GetShares(), func(v Share) bool { return v.(*fileShareData).ShareId == shareId })
+	if index == -1 {
+		err = ErrNoShare
+		return
+	}
+	sh = f.shares[index]
+	return
 }
 
-func (f *WeblensFile) UpdateShare(s fileShareData) (err error) {
-	index := slices.IndexFunc(f.GetShares(), func(v fileShareData) bool { return v.ShareId == s.ShareId })
+func (f *WeblensFile) AppendShare(s Share) {
+	if f.shares == nil {
+		f.shares = []*fileShareData{}
+	}
+	f.shares = append(f.shares, s.(*fileShareData))
+}
+
+func (f *WeblensFile) RemoveShare(sId string) (err error) {
+	if f.shares == nil {
+		return ErrNoShare
+	}
+
+	var e bool
+	f.shares, _, e = util.YoinkFunc(f.shares, func(fShare *fileShareData) bool { return fShare.ShareId == sId })
+	if !e {
+		err = ErrNoShare
+	}
+	return
+}
+
+func (f *WeblensFile) UpdateShare(s Share) (err error) {
+	index := slices.IndexFunc(f.GetShares(), func(v Share) bool { return v.(*fileShareData).ShareId == s.GetShareId() })
 	if index == -1 {
 		return ErrNoShare
 	}
-	f.shares[index] = s
+	err = fddb.updateFileShare(f.shares[index].ShareId, s.(*fileShareData))
+	if err != nil {
+		return
+	}
+	if f.shares[index] != s {
+		f.shares[index] = s.(*fileShareData)
+		util.Warning.Println("Replacing share in full on file")
+	}
 
 	return
 }
@@ -623,11 +658,9 @@ func (f *WeblensFile) recompSize(c ...BroadcasterAgent) (size int64, err error) 
 		size = stat.Size()
 	}
 
-	// util.Debug.Println(f.String(), "is now", size)
-
 	if origSize != size {
 		f.size = size
-		if len(c) == 0 {
+		if len(c) == 0 && globalCaster != nil {
 			c = append(c, globalCaster)
 		}
 		util.Each(c, func(c BroadcasterAgent) { c.PushFileUpdate(f) })

@@ -2,10 +2,9 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MediaData } from '../types/Types'
 import { MediaImage } from './PhotoContainer'
-import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles'
-import { Box, CloseButton, MantineStyleProp, Space } from '@mantine/core'
-import { IconFile } from '@tabler/icons-react'
+import { Box, CloseButton } from '@mantine/core'
 import { useWindowSize } from './ItemScroller'
+import { ColumnBox } from '../Pages/FileBrowser/FilebrowserStyles'
 
 export const PresentationContainer = ({ shadeOpacity, onMouseMove, onClick, children }: { shadeOpacity?, onMouseMove?, onClick?, children }) => {
     if (!shadeOpacity) {
@@ -34,7 +33,7 @@ export const PresentationContainer = ({ shadeOpacity, onMouseMove, onClick, chil
     )
 }
 
-const ContainerMedia = ({ mediaData, containerRef }: { mediaData: MediaData, containerRef }) => {
+export const ContainerMedia = ({ mediaData, containerRef }: { mediaData: MediaData, containerRef }) => {
     const [boxSize, setBoxSize] = useState({ height: containerRef.current?.clientHeight || 0, width: containerRef.current?.clientWidth || 0 })
     useWindowSize(() => setBoxSize({ height: containerRef.current?.clientHeight, width: containerRef.current?.clientWidth }))
 
@@ -64,9 +63,17 @@ const ContainerMedia = ({ mediaData, containerRef }: { mediaData: MediaData, con
         return null
     }
 
-    return (
-        <MediaImage media={mediaData} quality={"fullres"} lazy={false} containerStyle={{ height: absHeight, width: absWidth }} preventClick />
-    )
+    if (mediaData.pageCount > 1) {
+        return (
+            <ColumnBox style={{ overflow: 'scroll', gap: absHeight * 0.02 }}>
+                {[...Array(mediaData.pageCount).keys()].map(p => <MediaImage media={mediaData} quality={"fullres"} pageNumber={p} lazy={false} containerStyle={{ height: absHeight * 0.85, width: absWidth }} preventClick />)}
+            </ColumnBox>
+        )
+    } else {
+        return (
+            <MediaImage media={mediaData} quality={"fullres"} lazy={false} containerStyle={{ height: absHeight, width: absWidth }} preventClick />
+        )
+    }
 }
 
 const PresentationVisual = ({ mediaData, Element }: { mediaData: MediaData, Element }) => {
@@ -129,6 +136,8 @@ const Presentation = memo(({ itemId, mediaData, element, dispatch }: { itemId: s
     const [to, setTo] = useState(null)
     const [guiShown, setGuiShown] = useState(false)
 
+    console.log(mediaData)
+
     if (!mediaData) {
         return null
     }
@@ -141,6 +150,9 @@ const Presentation = memo(({ itemId, mediaData, element, dispatch }: { itemId: s
         </PresentationContainer>
     )
 }, (prev, next) => {
+    if (prev.itemId !== next.itemId) {
+        return false
+    }
     return true
 })
 

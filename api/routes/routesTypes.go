@@ -48,9 +48,10 @@ type fileShare struct {
 }
 
 type newShareInfo struct {
-	FileIds []string `json:"fileIds"`
-	Users   []string `json:"users"`
-	Public  bool     `json:"public"`
+	FileIds  []string `json:"fileIds"`
+	Users    []string `json:"users"`
+	Public   bool     `json:"public"`
+	Wormhole bool     `json:"wormhole"`
 }
 
 type deleteShareInfo struct {

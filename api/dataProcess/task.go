@@ -27,7 +27,7 @@ func (t *task) SetCaster(c BroadcasterAgent) {
 
 // Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *task) Wait() {
-	if t.completed {
+	if t == nil || t.completed {
 		return
 	}
 	t.waitMu.Lock()
@@ -82,8 +82,8 @@ func (t *task) GetMeta() any {
 	return t.metadata
 }
 
-// Set the error of the task. This *should* be the last operation performed before returning from the task
-// however, sometimes that is not possible, so we must check if the task has been cancelled before setting
+// Set the error of the task. This *should* be the last operation performed before returning from the task.
+// However, sometimes that is not possible, so we must check if the task has been cancelled before setting
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *task) error(err error) {
@@ -101,6 +101,9 @@ func (t *task) error(err error) {
 	t.err = err
 	t.exitStatus = "error"
 	t.completed = true
+
+	t.sw.Lap("Task exited due to error")
+	t.sw.Stop()
 }
 
 // Pass a function to run if the task throws an error, in theory
@@ -118,6 +121,8 @@ func (t *task) success(msg ...any) {
 	if len(msg) != 0 {
 		util.Info.Println("Task succeeded with a message:", fmt.Sprint(msg...))
 	}
+
+	t.sw.Stop()
 }
 
 func (t *task) setTimeout(timeout time.Time) {
@@ -137,4 +142,9 @@ func (t *task) setResult(fields ...KeyVal) {
 	for _, pair := range fields {
 		t.result[pair.Key] = pair.Val
 	}
+}
+
+// Add a lap in the tasks stopwatch
+func (t *task) SwLap(label string) {
+	t.sw.Lap(label)
 }

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/barasher/go-exiftool"
+	"github.com/ethanrous/bimg"
 	"github.com/go-redis/redis"
-	"github.com/h2non/bimg"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -23,7 +23,6 @@ type WeblensFile struct {
 	absolutePath string
 	filename     string
 	owner        string
-	guests       []string
 	size         int64
 	isDir        *bool
 	media        *Media
@@ -35,14 +34,14 @@ type WeblensFile struct {
 	tasksLock  *sync.Mutex
 	tasksUsing []Task
 
-	shares []fileShareData
+	shares []*fileShareData
 }
 
 type Media struct {
 	MediaId          string               `bson:"fileHash" json:"fileHash"`
 	FileIds          []string             `bson:"fileIds" json:"fileIds"`
 	ThumbnailCacheId string               `bson:"thumbnailCacheId" json:"thumbnailCacheId"`
-	FullresCacheId   string               `bson:"fullresCacheId" json:"fullresCacheId"`
+	FullresCacheIds  []string             `bson:"fullresCacheIds" json:"fullresCacheIds"`
 	BlurHash         string               `bson:"blurHash" json:"blurHash"`
 	Owner            string               `bson:"owner" json:"owner"`
 	MediaWidth       int                  `bson:"width" json:"mediaWidth"`
@@ -56,21 +55,24 @@ type Media struct {
 	SharedWith       []primitive.ObjectID `bson:"sharedWith" json:"sharedWith"`
 	RecognitionTags  []string             `bson:"recognitionTags" json:"recognitionTags"`
 
+	PageCount int `bson:"pageCount" json:"pageCount"` // for pdfs, etc.
+
 	imported bool
 	rotate   string
 	imgBytes []byte
 	image    *bimg.Image
-	// thumb            image.Image
-	rawExif          map[string]any
-	thumbCacheFile   *WeblensFile
-	fullresCacheFile *WeblensFile
+	images   []*bimg.Image
+
+	rawExif           map[string]any
+	thumbCacheFile    *WeblensFile
+	fullresCacheFiles []*WeblensFile
 }
 
-type quality string
+type Quality string
 
 const (
-	Thumbnail quality = "thumbnail"
-	Fullres   quality = "fullres"
+	Thumbnail Quality = "thumbnail"
+	Fullres   Quality = "fullres"
 )
 
 var gexift *exiftool.Exiftool
@@ -103,26 +105,26 @@ type FileInfo struct {
 	// txt, doc, directory etc.
 	Displayable bool `json:"displayable"`
 
-	IsDir            bool        `json:"isDir"`
-	Modifiable       bool        `json:"modifiable"`
-	Size             int64       `json:"size"`
-	ModTime          time.Time   `json:"modTime"`
-	Filename         string      `json:"filename"`
-	ParentFolderId   string      `json:"parentFolderId"`
-	FileFriendlyName string      `json:"fileFriendlyName"`
-	Owner            string      `json:"owner"`
-	PathFromHome     string      `json:"pathFromHome"`
-	MediaData        *Media      `json:"mediaData"`
-	Shares           []shareData `json:"shares"`
-	Children         []string    `json:"children"`
+	IsDir            bool             `json:"isDir"`
+	Modifiable       bool             `json:"modifiable"`
+	Size             int64            `json:"size"`
+	ModTime          time.Time        `json:"modTime"`
+	Filename         string           `json:"filename"`
+	ParentFolderId   string           `json:"parentFolderId"`
+	FileFriendlyName string           `json:"fileFriendlyName"`
+	Owner            string           `json:"owner"`
+	PathFromHome     string           `json:"pathFromHome"`
+	MediaData        *Media           `json:"mediaData"`
+	Shares           []*fileShareData `json:"shares"`
+	Children         []string         `json:"children"`
 }
 
 type folderData struct {
-	FolderId       string      `bson:"_id" json:"folderId"`
-	ParentFolderId string      `bson:"parentFolderId" json:"parentFolderId"`
-	RelPath        string      `bson:"relPath" json:"relPath"`
-	SharedWith     []string    `bson:"sharedWith" json:"sharedWith"`
-	Shares         []shareData `bson:"shares"`
+	FolderId       string          `bson:"_id" json:"folderId"`
+	ParentFolderId string          `bson:"parentFolderId" json:"parentFolderId"`
+	RelPath        string          `bson:"relPath" json:"relPath"`
+	SharedWith     []string        `bson:"sharedWith" json:"sharedWith"`
+	Shares         []fileShareData `bson:"shares"`
 }
 
 type shareType string
@@ -133,27 +135,28 @@ const (
 )
 
 type Share interface {
+	GetShareId() string
 	GetShareType() shareType
 	GetContentId() string
+	SetContentId(string)
 	IsPublic() bool
-}
-
-type shareData struct {
-	ShareId   string `bson:"shareId"`
-	ShareName string `bson:"shareName"`
-	Public    bool
-	Wormhole  bool
-	Expires   time.Time
-	Accessors []string
+	SetPublic(bool)
+	IsEnabled() bool
+	SetEnabled(bool)
+	GetAccessors() []string
+	AddAccessors([]string)
+	GetOwner() string
 }
 
 type fileShareData struct {
 	ShareId   string    `bson:"_id" json:"shareId"`
 	FileId    string    `bson:"fileId" json:"fileId"`
 	ShareName string    `bson:"shareName"`
+	Owner     string    `bson:"owner"`
 	Accessors []string  `bson:"accessors"`
 	Public    bool      `bson:"public"`
 	Wormhole  bool      `bson:"wormhole"`
+	Enabled   bool      `bson:"enabled"`
 	Expires   time.Time `bson:"expires"`
 	ShareType shareType `bson:"shareType"`
 }
@@ -177,6 +180,7 @@ type Task interface {
 	GetResult(string) string
 	Wait()
 	Cancel()
+	SwLap(string)
 	// SetCaster(BroadcasterAgent)
 
 	ReadError() any
@@ -226,9 +230,11 @@ type alreadyExists error
 
 var ErrNotUsingRedis = errors.New("not using redis")
 var ErrDirNotAllowed = errors.New("directory not allowed")
-var ErrFileAlreadyExists = errors.New("trying create file that already exists")
+var ErrFileAlreadyExists = errors.New("file already exists")
+var ErrDirAlreadyExists = errors.New("directory already exists")
 var ErrNoFile = errors.New("no file found")
 var ErrNoMedia = errors.New("no media found")
 var ErrNoShare = errors.New("no share found")
 var ErrBadShareType = errors.New("expected share type does not match given share type")
 var ErrUnsupportedImgType error = errors.New("image type is not supported by weblens")
+var ErrPageOutOfRange = errors.New("page number does not exist on media")

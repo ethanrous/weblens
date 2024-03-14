@@ -10,6 +10,7 @@ import '../../components/filebrowserStyle.css'
 import { humanFileSize } from '../../util'
 import Crumbs from '../../components/Crumbs'
 import { MediaImage } from '../../components/PhotoContainer'
+import { ContainerMedia } from '../../components/Presentation'
 
 
 export const ColumnBox = ({ children, style, reff, className, onClick, onMouseOver, onMouseLeave, onContextMenu, onBlur, onDragOver }: { children?, style?: MantineStyleProp, reff?, className?: string, onClick?, onMouseOver?, onMouseLeave?, onContextMenu?, onBlur?, onDragOver?}) => {
@@ -182,7 +183,7 @@ export const DirViewWrapper = ({ folderId, folderName, dragging, dispatch, onDro
     )
 }
 
-export const WormholeWrapper = ({ wormholeId, wormholeName, validWormhole, uploadDispatch, children }: { wormholeId: string, wormholeName: string, validWormhole: boolean, uploadDispatch, children }) => {
+export const WormholeWrapper = ({ wormholeId, wormholeName, fileId, validWormhole, uploadDispatch, children }: { wormholeId: string, wormholeName: string, fileId: string, validWormhole: boolean, uploadDispatch, children }) => {
     const { authHeader } = useContext(userContext)
     const [dragging, setDragging] = useState(0)
     const handleDrag = useCallback(e => { e.preventDefault(); if (e.type === "dragenter" || e.type === "dragover") { if (!dragging) { setDragging(2) } } else if (dragging) { setDragging(0) } }, [dragging])
@@ -197,7 +198,7 @@ export const WormholeWrapper = ({ wormholeId, wormholeName, validWormhole, uploa
             >
 
                 <Dropspot
-                    onDrop={(e => HandleDrop(e.dataTransfer.items, wormholeId, [], true, wormholeId, authHeader, uploadDispatch, () => { }))}
+                    onDrop={(e => HandleDrop(e.dataTransfer.items, fileId, [], true, wormholeId, authHeader, uploadDispatch, () => { }))}
                     dropspotTitle={wormholeName}
                     dragging={dragging}
                     dropAllowed={validWormhole}
@@ -230,10 +231,11 @@ export const ScanFolderButton = ({ folderId, holdingShift, doScan }) => {
 
 export const FolderIcon = ({ shares, size = '75%' }: { shares, size?}) => {
     const [copied, setCopied] = useState(false)
+    const wormholeId = useMemo(() => { if (shares) { const whs = shares.filter(s => s.Wormhole); if (whs.length !== 0) { return whs[0].shareId } } }, [shares])
     return (
         <RowBox style={{ justifyContent: 'center' }}>
             <IconFolder size={size} />
-            {shares.length !== 0 && (
+            {wormholeId && (
                 <Tooltip label={copied ? 'Copied' : 'Copy Wormhole'}>
                     <IconSpiral
                         color={copied ? '#4444ff' : 'white'}
@@ -247,13 +249,12 @@ export const FolderIcon = ({ shares, size = '75%' }: { shares, size?}) => {
     )
 }
 
-export const IconDisplay = ({ file, quality = 'thumbnail' }: { file: fileData, quality?: 'thumbnail' | 'fullres' }) => {
+export const IconDisplay = ({ file }: { file: fileData }) => {
+    const containerRef = useRef()
     const [textRef, setTextRef] = useState(null)
     const textSize = useMemo(() => {
         return `${textRef?.clientWidth / 7}px`
     }, [textRef?.clientWidth])
-    console.log(textRef?.clientWidth)
-
 
     if (file.isDir) {
         return (<FolderIcon shares={file.shares} />)
@@ -267,7 +268,10 @@ export const IconDisplay = ({ file, quality = 'thumbnail' }: { file: fileData, q
         )
     } else if (file.displayable) {
         return (
-            <MediaImage media={file.mediaData} quality={quality} />
+            <ColumnBox reff={containerRef}>
+                <ContainerMedia mediaData={file.mediaData} containerRef={containerRef} />
+            </ColumnBox>
+            // <MediaImage media={file.mediaData} quality={quality} />
         )
     }
     const ext = file.filename.slice(file.filename.indexOf('.') + 1, file.filename.length)

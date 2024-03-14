@@ -46,11 +46,11 @@ func main() {
 	util.FailOnError(err, "Failed to initialize media type map")
 	sw.Lap("Init type map")
 
-	// Load filesystem
-	util.Info.Println("Loading filesystem...")
-	dataStore.FsInit()
-	sw.Lap("FS init")
-	util.Info.Println("Initialized Filesystem")
+	// // Load filesystem
+	// util.Info.Println("Loading filesystem...")
+	// dataStore.FsInit()
+	// sw.Lap("FS init")
+	// util.Info.Println("Initialized Filesystem")
 
 	dataStore.MediaInit()
 	sw.Lap("Media init")
@@ -80,23 +80,19 @@ func main() {
 
 	router := gin.Default()
 
-	var ip string
-
 	routes.AddApiRoutes(router)
-	if !util.IsDevMode() {
-		ip = "0.0.0.0"
+	if !util.DetachUi() {
 		routes.AddUiRoutes(router)
-	} else {
-		ip = "127.0.0.1"
+	}
+	if util.IsDevMode() {
 		routes.AttachProfiler(router)
 	}
 	sw.Lap("Gin routes added")
 	sw.Stop()
-	if util.IsDevMode() {
-		sw.PrintResults()
-	}
+
+	sw.PrintResults()
 
 	util.Info.Println("Weblens loaded. Starting router...")
 
-	router.Run(ip + ":8080")
+	router.Run(util.GetRouterIp() + ":" + util.GetRouterPort())
 }

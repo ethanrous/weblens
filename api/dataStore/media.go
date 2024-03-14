@@ -10,7 +10,6 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
-	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,26 +17,24 @@ import (
 	"time"
 
 	"github.com/EdlinOrg/prominentcolor"
+	"github.com/ethanrous/bimg"
 	"github.com/ethrousseau/weblens/api/util"
-	"github.com/h2non/bimg"
 	"github.com/kolesa-team/go-webp/webp"
 )
 
-func (m *Media) LoadFromFile(f *WeblensFile) (media *Media, err error) {
-	sw := util.NewStopwatch("Load Media")
-
+func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error) {
 	err = m.parseExif(f)
 	if err != nil {
 		return
 	}
-	sw.Lap("Parse Exif")
+	task.SwLap("Parse Exif")
 
 	if m.imgBytes == nil {
 		err = m.readFileBytes(f)
 		if err != nil {
 			return
 		}
-		sw.Lap("Read File")
+		task.SwLap("Read File")
 	}
 
 	if m.MediaId == "" {
@@ -45,14 +42,14 @@ func (m *Media) LoadFromFile(f *WeblensFile) (media *Media, err error) {
 		if err != nil {
 			return
 		}
-		sw.Lap("Generate Filehash")
+		task.SwLap("Generate Filehash")
 	}
 
 	storedM, err := MediaMapGet(m.Id())
 	if err != nil && err != ErrNoMedia {
 		return
 	}
-	sw.Lap("Check if exists")
+	task.SwLap("Check if exists")
 
 	var cacheExists bool
 	if storedM != nil {
@@ -60,51 +57,57 @@ func (m *Media) LoadFromFile(f *WeblensFile) (media *Media, err error) {
 		if err != nil {
 			return
 		}
-		sw.Lap("Set file")
+		task.SwLap("Set file")
 
 		storedM.imgBytes = m.imgBytes
 		m = storedM
 
 		m.thumbCacheFile = FsTreeGet(m.ThumbnailCacheId)
-		m.fullresCacheFile = FsTreeGet(m.FullresCacheId)
+		for page := range m.PageCount {
+			m.fullresCacheFiles[page] = FsTreeGet(m.FullresCacheIds[page])
+		}
 
 		// Check cache files exist
-		if m.thumbCacheFile != nil && m.fullresCacheFile != nil {
+		if m.thumbCacheFile != nil && m.fullresCacheFiles[0] != nil {
 			cacheExists = true
-			// f.ClearMedia()
 		}
-		// util.Debug.Println("Media already exists, but cache files are missing, continuing...")
 
-		sw.Lap("Check cache exists")
+		task.SwLap("Check cache exists")
 	}
 
 	m.AddFile(f)
 	m.Owner = f.Owner()
-	sw.Lap("Add file and set owner")
+	task.SwLap("Add file and set owner")
 
 	// if m.BlurHash == "" || !cacheExists {
-	if !cacheExists {
-		err = m.generateImage()
-		if err != nil {
-			return
-		}
-		sw.Lap("Generate Image")
-	}
+	// if !cacheExists {
+
+	// }
 
 	// if m.BlurHash == "" {
 	// 	err = m.generateBlurhash()
 	// 	if err != nil {
 	// 		return
 	// 	}
-	// 	sw.Lap("Generate blurhash")
+	// 	task.SwLap("Generate blurhash")
 	// }
 
 	if !cacheExists {
+		if m.MediaType.MultiPage {
+			err = m.generateImages()
+		} else {
+			err = m.generateImage()
+		}
+		if err != nil {
+			util.DisplayError(err)
+			return
+		}
+		task.SwLap("Generate Image")
 		err = m.handleCacheCreation(f)
 		if err != nil {
 			return
 		}
-		sw.Lap("Create cache")
+		task.SwLap("Create cache")
 	}
 
 	if m.RecognitionTags == nil && m.MediaType.SupportsImgRecog {
@@ -112,11 +115,8 @@ func (m *Media) LoadFromFile(f *WeblensFile) (media *Media, err error) {
 		if err != nil {
 			util.DisplayError(err)
 		}
-		sw.Lap("Get img recognition tags")
+		task.SwLap("Get img recognition tags")
 	}
-
-	sw.Stop()
-	sw.PrintResults()
 
 	return m, nil
 }
@@ -178,12 +178,21 @@ func (m *Media) IsFilledOut() (bool, string) {
 	return true, ""
 }
 
-func (m *Media) ReadDisplayable(q quality) (data []byte, err error) {
+func (m *Media) ReadDisplayable(q Quality, index ...int) (data []byte, err error) {
 	defer m.Clean()
+
+	var pageNum int
+	if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
+		return nil, ErrPageOutOfRange
+	} else if len(index) != 0 {
+		pageNum = index[0]
+	} else {
+		pageNum = 0
+	}
 
 	var redisKey string
 	if util.ShouldUseRedis() {
-		redisKey = fmt.Sprintf("%s-%s", m.Id(), q)
+		redisKey = fmt.Sprintf("%s-%s_%d", m.Id(), q, pageNum)
 		var redisData string
 		redisData, err = fddb.RedisCacheGet(redisKey)
 		if err == nil {
@@ -192,14 +201,10 @@ func (m *Media) ReadDisplayable(q quality) (data []byte, err error) {
 		}
 	}
 
-	// util.Debug.Println("Reading file cached", q)
-
-	f, err := m.getCacheFile(q, true)
+	f, err := m.getCacheFile(q, true, pageNum)
 	if f == nil || err != nil {
-		if err == nil {
-			err = errors.New("failed to get cache file")
-		}
-		return
+		util.DisplayError(err)
+		return nil, ErrNoFile
 	}
 
 	data, err = f.ReadAll()
@@ -244,7 +249,7 @@ func (m *Media) Clean() {
 	m.imgBytes = nil
 	m.rawExif = nil
 	m.image = nil
-	// m.thumb = nil
+	m.images = nil
 }
 
 func (m *Media) SetImported() {
@@ -348,6 +353,12 @@ func (m *Media) parseExif(f *WeblensFile) error {
 		m.MediaType = ParseMimeType(mimeType)
 	}
 
+	if m.MediaType.FriendlyName == "PDF" {
+		m.PageCount = int(m.rawExif["PageCount"].(float64))
+	} else {
+		m.PageCount = 1
+	}
+
 	if m.rotate == "" {
 		rotate := m.rawExif["Orientation"]
 		if rotate != nil {
@@ -389,42 +400,53 @@ func (m *Media) generateImage() (err error) {
 		return errors.New("cannot generate media image with no imgBytes")
 	}
 
-	var bi *bimg.Image
-	if m.MediaType.FriendlyName == "HEIC" {
-		return ErrUnsupportedImgType
-		// Currently unable to find a cross platform way to support encoding HEIC files
-		// Libraries either borked on MacOS (where I dev), or on linux, the target of this
-		// app
-
-		// r := bytes.NewReader(m.imgBytes)
-		// i, err = goheif.Decode(r)
-		// if err != nil {
-		// 	return err
-		// }
-	} else {
-		bi = bimg.NewImage(m.imgBytes)
-		// i, err = imaging.Decode(bytes.NewReader(m.imgBytes))
-		// if err != nil {
-		// 	return err
-		// }
-	}
+	bi := bimg.NewImage(m.imgBytes)
 
 	// Rotation is backwards because imaging rotates CW, but exif stores CW rotation
 	switch m.rotate {
 	case "Rotate 270 CW":
-		bi.Rotate(90)
-		// i = imaging.Rotate90(i)
+		_, err = bi.Rotate(270)
 	case "Rotate 90 CW":
-		bi.Rotate(270)
-		// i = imaging.Rotate270(i)
+		_, err = bi.Rotate(90)
 	}
+	util.DisplayError(err)
 	m.image = bi
 
-	b, err := imageToWebp(bi)
+	b, err := bi.Process(bimg.Options{Type: bimg.WEBP})
 	if err != nil {
 		return
 	}
 	m.imgBytes = b
+
+	imgSize, err := bi.Size()
+	if err != nil {
+		return
+	}
+
+	m.MediaHeight = imgSize.Height
+	m.MediaWidth = imgSize.Width
+
+	return nil
+}
+
+func (m *Media) generateImages() (err error) {
+	if len(m.imgBytes) == 0 {
+		return errors.New("cannot generate media image with no imgBytes")
+	}
+	if m.PageCount == 0 {
+		return errors.New("cannot load multipage image without page count")
+	}
+
+	m.images = make([]*bimg.Image, m.PageCount)
+	var bi *bimg.Image
+	for page := range m.PageCount {
+		bi = bimg.NewImage(m.imgBytes)
+		_, err := bi.Process(bimg.Options{Type: bimg.WEBP, PageNum: page})
+		if err != nil {
+			return err
+		}
+		m.images[page] = bi
+	}
 
 	imgSize, err := bi.Size()
 	if err != nil {
@@ -454,33 +476,6 @@ func (m *Media) generateFileHash() (err error) {
 	return
 }
 
-func (m *Media) calculateThumbSize(thumb image.Image) {
-	dimentions := thumb.Bounds()
-	width, height := dimentions.Dx(), dimentions.Dy()
-	m.MediaHeight = height
-	m.MediaWidth = width
-
-	aspectRatio := float64(width) / float64(height)
-
-	var newWidth, newHeight float64
-
-	var bindSize = 800.0
-	if aspectRatio > 1 {
-		newWidth = bindSize
-		newHeight = math.Floor(bindSize / aspectRatio)
-	} else {
-		newWidth = math.Floor(bindSize * aspectRatio)
-		newHeight = bindSize
-	}
-
-	if newWidth == 0 || newHeight == 0 {
-		panic(fmt.Errorf("thumbnail width or height is 0"))
-	}
-	m.ThumbWidth = int(newWidth)
-	m.ThumbHeight = int(newHeight)
-
-}
-
 func (m *Media) generateBlurhash() (err error) {
 	return
 	// if m.BlurHash == "" {
@@ -489,30 +484,32 @@ func (m *Media) generateBlurhash() (err error) {
 	return
 }
 
-// func (m *Media) generateThumbnail() (err error) {
-// 	if m.image == nil {
-// 		err = errors.New("cannot generate thumbnail with no m.image")
-// 		return
-// 	}
-
-// 	m.calculateThumbSize(m.image)
-// 	thumb := imaging.Thumbnail(m.image, m.ThumbWidth, m.ThumbHeight, imaging.Lanczos)
-// 	m.thumb = thumb
-
-// 	return
-// }
-
-func (m *Media) getCacheFile(q quality, generateIfMissing bool) (f *WeblensFile, err error) {
+func (m *Media) getCacheFile(q Quality, generateIfMissing bool, pageNum int) (f *WeblensFile, err error) {
 	if q == Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 		f = m.thumbCacheFile
 		return
 	}
-	if q == Fullres && m.fullresCacheFile != nil && m.fullresCacheFile.Exists() {
-		f = m.fullresCacheFile
-		return
+
+	if pageNum >= m.PageCount {
+		return nil, ErrPageOutOfRange
 	}
 
-	cacheFileId := m.getCacheId(q)
+	var cacheFileId string
+	if q == Fullres && m.fullresCacheFiles[pageNum] != nil && m.fullresCacheFiles[pageNum].Exists() {
+		f = m.fullresCacheFiles[pageNum]
+		return
+	} else if q == Fullres {
+		if m.FullresCacheIds[pageNum] == "" {
+			m.FullresCacheIds[pageNum] = m.getCacheId(q, pageNum)
+		}
+		cacheFileId = m.FullresCacheIds[pageNum]
+	} else if q == Thumbnail {
+		if m.ThumbnailCacheId == "" {
+			m.ThumbnailCacheId = m.getCacheId(q, pageNum)
+		}
+		cacheFileId = m.ThumbnailCacheId
+	}
+
 	f = FsTreeGet(cacheFileId)
 	if f == nil || !f.Exists() {
 		if generateIfMissing {
@@ -537,11 +534,9 @@ func (m *Media) getCacheFile(q quality, generateIfMissing bool) (f *WeblensFile,
 	}
 
 	if q == Thumbnail {
-		m.ThumbnailCacheId = f.Id()
 		m.thumbCacheFile = f
 	} else if q == Fullres {
-		m.FullresCacheId = f.Id()
-		m.fullresCacheFile = f
+		m.fullresCacheFiles[pageNum] = f
 	}
 
 	return
@@ -550,72 +545,69 @@ func (m *Media) getCacheFile(q quality, generateIfMissing bool) (f *WeblensFile,
 const THUMBNAIL_HEIGHT float32 = 500
 
 func (m *Media) handleCacheCreation(f *WeblensFile) (err error) {
-	sw := util.NewStopwatch("Create cache")
 	if len(m.imgBytes) == 0 {
 		if m.MediaType.IsRaw {
 			err = m.parseExif(f)
 			if err != nil {
+				util.Debug.Println("Returning with err:", err)
 				return
 			}
 		} else {
 			err = m.readFileBytes(f)
 			if err != nil {
+				util.Debug.Println("Returning with err:", err)
 				return
 			}
 		}
 	}
-	sw.Lap("Got img bytes")
 
 	if m.image == nil {
 		err = m.generateImage()
 		if err != nil {
+			util.Debug.Println("Returning with err:", err)
 			return
 		}
 	}
-	sw.Lap("Got img")
 
 	thumbW := int((THUMBNAIL_HEIGHT / float32(m.MediaHeight)) * float32(m.MediaWidth))
-	thumbBytes, err := m.image.Resize(thumbW, int(THUMBNAIL_HEIGHT))
-	if err != nil {
-		return
+
+	var thumbBytes []byte
+	if m.image != nil {
+		thumbBytes, err = m.image.Resize(thumbW, int(THUMBNAIL_HEIGHT))
+		if err != nil {
+			util.Debug.Println("Returning with err:", err)
+			return
+		}
 	}
 
-	// if m.thumb == nil {
-	// 	err = m.generateThumbnail()
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// }
-	sw.Lap("Got thumbnail")
-
-	// thumbBytes, err := imageToWebp(m.thumb)
-	// if err != nil {
-	// 	return
-	// }
-	// sw.Lap("Got thumb bytes")
-
-	// We MUST call generate image before this runs, either preemptively
-	// or in the check a few lines above. That will ensure that m.imgBytes are
-	// webp encoded and of the fullres image
-	fullresBytes := m.imgBytes
-	sw.Lap("Got fullres bytes")
+	if len(m.images) != 0 && m.images[0] != nil {
+		thumbBytes, err = m.images[0].Resize(thumbW, int(THUMBNAIL_HEIGHT))
+		if err != nil {
+			util.Debug.Println("Returning with err:", err)
+			return
+		}
+	}
 
 	m.ThumbLength = len(thumbBytes)
-	m.cacheDisplayable(Thumbnail, thumbBytes)
-	sw.Lap("Cached thumb")
+	m.cacheDisplayable(Thumbnail, thumbBytes, 0)
 
-	m.FullresLength = len(fullresBytes)
-	m.cacheDisplayable(Fullres, fullresBytes)
-	sw.Lap("Cached fullres")
+	if m.PageCount != 1 {
+		for page := range m.PageCount {
+			m.cacheDisplayable(Fullres, m.images[page].Image(), page)
+		}
+	} else {
+		m.FullresLength = len(m.imgBytes)
+		m.cacheDisplayable(Fullres, m.imgBytes, 0)
+	}
 
-	sw.Stop()
-	// sw.PrintResults()
-
+	util.Debug.Println("Returning with err:", err)
 	return
 }
 
-func (m *Media) cacheDisplayable(q quality, data []byte) *WeblensFile {
-	f, err := Touch(GetCacheDir(), fmt.Sprintf("%s-%s.wlcache", m.Id(), q), true)
+func (m *Media) cacheDisplayable(q Quality, data []byte, pageNum int) *WeblensFile {
+	cacheFileName := m.getCacheFilename(q, pageNum)
+
+	f, err := Touch(GetCacheDir(), cacheFileName, true)
 	if err != nil && err != ErrFileAlreadyExists {
 		util.DisplayError(err)
 		return nil
@@ -629,37 +621,53 @@ func (m *Media) cacheDisplayable(q quality, data []byte) *WeblensFile {
 		return f
 	}
 
-	if q == Thumbnail {
+	if q == Fullres {
+		if m.fullresCacheFiles == nil {
+			m.fullresCacheFiles = make([]*WeblensFile, m.PageCount)
+		}
+		if m.FullresCacheIds == nil {
+			m.FullresCacheIds = make([]string, m.PageCount)
+		}
+	}
+
+	if q == Thumbnail && m.ThumbnailCacheId == "" {
 		m.ThumbnailCacheId = f.Id()
 		m.thumbCacheFile = f
-	} else if q == Fullres {
-		m.FullresCacheId = f.Id()
-		m.fullresCacheFile = f
+	} else if q == Fullres && m.FullresCacheIds[pageNum] == "" {
+		m.FullresCacheIds[pageNum] = f.Id()
+		m.fullresCacheFiles[pageNum] = f
 	}
 
 	return f
 }
 
-func imageToWebp(bi *bimg.Image) (data []byte, err error) {
-	data, err = bi.Convert(bimg.WEBP)
-	return
-}
-
-func (m *Media) getCacheId(q quality) string {
+func (m *Media) getCacheId(q Quality, pageNum int) string {
 	if q == Thumbnail && m.ThumbnailCacheId != "" {
 		return m.ThumbnailCacheId
-	} else if q == Fullres && m.FullresCacheId != "" {
-		return m.FullresCacheId
+	} else if q == Fullres && m.FullresCacheIds[pageNum] != "" {
+		return m.FullresCacheIds[pageNum]
 	}
-	absPath := filepath.Join(GetCacheDir().absolutePath, fmt.Sprintf("%s-%s.wlcache", m.Id(), q))
+	absPath := filepath.Join(GetCacheDir().absolutePath, m.getCacheFilename(q, pageNum))
 	return util.GlobbyHash(8, GuaranteeRelativePath(absPath))
+}
+
+func (m *Media) getCacheFilename(q Quality, pageNum int) string {
+	var cacheFileName string
+
+	if m.PageCount == 1 || q == Thumbnail {
+		cacheFileName = fmt.Sprintf("%s-%s.wlcache", m.Id(), q)
+	} else if q != Thumbnail {
+		cacheFileName = fmt.Sprintf("%s-%s_%d.wlcache", m.Id(), q, pageNum)
+	}
+
+	return cacheFileName
 }
 
 func (m *Media) getImageRecognitionTags() (err error) {
 	var imgBuf *bytes.Buffer
 	if m.imgBytes == nil {
 		var f *WeblensFile
-		f, err = m.getCacheFile(Thumbnail, false)
+		f, err = m.getCacheFile(Thumbnail, false, 0)
 		if err != nil {
 			return err
 		}

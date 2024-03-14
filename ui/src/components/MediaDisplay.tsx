@@ -9,7 +9,7 @@ import { GetFileInfo } from '../api/FileBrowserApi'
 import { useWindowSize } from './ItemScroller'
 import { MediaImage } from './PhotoContainer'
 import { userContext } from '../Context'
-import { IconHome, IconTrash, IconFolder } from '@tabler/icons-react'
+import { IconHome, IconTrash, IconFolder, IconPhoto } from '@tabler/icons-react'
 import { StyledLoaf } from './Crumbs'
 import './galleryStyle.css'
 
@@ -58,7 +58,7 @@ const MultiFileMenu = ({ filesInfo, loading, menuOpen, setMenuOpen }: { filesInf
 const goToFolder = async (e, fileIds: string[], filesInfo, setLoading, setMenuOpen, setFileInfo, authHeader) => {
     e.stopPropagation()
     if (fileIds.length === 1) {
-        const fileInfo: fileData = await GetFileInfo(fileIds[0], authHeader)
+        const fileInfo: fileData = await GetFileInfo(fileIds[0], "", authHeader)
         window.open(`/files/${fileInfo.parentFolderId}?jumpTo=${fileInfo.id}`, '_blank')
         return
     }
@@ -66,26 +66,11 @@ const goToFolder = async (e, fileIds: string[], filesInfo, setLoading, setMenuOp
     setMenuOpen(true)
     if (filesInfo.length === 0) {
         setLoading(true)
-        const fileInfos = await Promise.all(fileIds.map(async v => await GetFileInfo(v, authHeader)))
+        const fileInfos = await Promise.all(fileIds.map(async v => await GetFileInfo(v, "", authHeader)))
         setFileInfo(fileInfos)
         setLoading(false)
     }
 
-}
-
-const PreviewCardContainer = ({ reff, setPresentation, setHover, onContextMenu, children, style }: { reff, setPresentation, setHover, onContextMenu?, children, style: MantineStyleProp }) => {
-    return (
-        <Box
-            className='preview-card-container'
-            ref={reff}
-            children={children}
-            onClick={setPresentation}
-            onMouseOver={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            onContextMenu={onContextMenu}
-            style={style}
-        />
-    )
 }
 
 const TypeIcon = (mediaData: MediaData) => {
@@ -98,7 +83,7 @@ const TypeIcon = (mediaData: MediaData) => {
         // icon = Theaters
 
     } else {
-        icon = Image
+        icon = IconPhoto
         // name = "Image"
     }
     return [icon, name]

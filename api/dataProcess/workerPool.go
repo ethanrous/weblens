@@ -73,9 +73,9 @@ func (wp *WorkerPool) executioner() {
 			// timeout before cancelling the task. Also check that it
 			// has not already finished
 			if !task.completed && time.Until(task.timeout) <= 0 && task.timeout.Unix() != 0 {
-				task.Cancel()
 				err := errors.New("timeout")
 				task.error(err)
+				task.Cancel()
 			}
 		}
 	}
@@ -127,6 +127,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 			// Inc tasks being processed
 			wp.busyCount.Add(1)
+			task.SwLap("Task start")
 			saftyWork(task, workerId)
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)
@@ -138,6 +139,10 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			// if it wasn't done in the work body, we do it for them
 			if !task.completed {
 				task.success("closed by worker pool")
+			}
+
+			if task.exitStatus != "cancelled" {
+				task.sw.PrintResults()
 			}
 
 			// Updating the number of workers and then checking it's value is dangerous

@@ -50,7 +50,6 @@ func newTask(taskType string, taskMeta any, caster BroadcasterAgent) *task {
 	VerifyTaskTracker()
 
 	metaString, err := json.Marshal(taskMeta)
-	util.Debug.Println(string(metaString))
 	util.FailOnError(err, "Failed to marshal task metadata when queuing new task")
 	taskId := util.GlobbyHash(8, string(metaString))
 
@@ -63,8 +62,17 @@ func newTask(taskType string, taskMeta any, caster BroadcasterAgent) *task {
 		}
 		return existingTask
 	}
-	//										  signal chan must be buffered so caller doesn't block trying to close many tasks \/
-	newTask := &task{taskId: taskId, taskType: taskType, metadata: taskMeta, waitMu: &sync.Mutex{}, signalChan: make(chan int, 1), caster: caster}
+
+	newTask := &task{
+		taskId:     taskId,
+		taskType:   taskType,
+		metadata:   taskMeta,
+		waitMu:     &sync.Mutex{},
+		signalChan: make(chan int, 1), // signal chan must be buffered so caller doesn't block trying to close many tasks
+		sw:         util.NewStopwatch("Task " + taskId),
+		caster:     caster,
+	}
+
 	newTask.waitMu.Lock()
 
 	ttInstance.taskMap[taskId] = newTask
@@ -72,9 +80,10 @@ func newTask(taskType string, taskMeta any, caster BroadcasterAgent) *task {
 	case "scan_directory":
 		newTask.work = func() { scanDirectory(newTask); removeTask(newTask.taskId) }
 	case "create_zip":
+		// dont remove task when finished since we can just return the name of the already made zip file if asked for the same files again
 		newTask.work = func() { createZipFromPaths(newTask) }
 	case "scan_file":
-		newTask.work = func() { ScanFile(newTask); removeTask(newTask.taskId) }
+		newTask.work = func() { scanFile(newTask); removeTask(newTask.taskId) }
 	case "move_file":
 		newTask.work = func() { moveFile(newTask); removeTask(newTask.taskId) }
 	case "write_file":
@@ -157,8 +166,8 @@ func (tskr *virtualTaskPool) MoveFile(fileId, destinationFolderId, newFilename s
 	return t
 }
 
-func (tskr *virtualTaskPool) CreateZip(files []*dataStore.WeblensFile, username string, casters dataStore.BroadcasterAgent) dataStore.Task {
-	meta := ZipMetadata{Files: files, Username: username}
+func (tskr *virtualTaskPool) CreateZip(files []*dataStore.WeblensFile, username, shareId string, casters dataStore.BroadcasterAgent) dataStore.Task {
+	meta := ZipMetadata{Files: files, Username: username, ShareId: shareId}
 	t := newTask("create_zip", meta, casters)
 	if !t.completed {
 		tskr.QueueTask(t)

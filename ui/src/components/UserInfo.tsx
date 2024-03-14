@@ -36,7 +36,7 @@ const useR = () => {
             let url = new URL(`${API_ENDPOINT}/user`)
             fetch(url.toString(), { headers: authHeader })
                 .then(res => res.json())
-                .then(json => { console.log("setting data"); setUserInfo(json) })
+                .then(json => setUserInfo(json))
                 .catch(r => notifications.show({ message: String(r) }))
 
         } else if (authHeader.Authorization === "") {

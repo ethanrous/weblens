@@ -7,7 +7,7 @@ import API_ENDPOINT from './ApiEndpoint'
 
 export function SubToFolder(subId: string, recursive: boolean, wsSend) {
     if (!subId) {
-        console.error("Trying to subscribe to empty id")
+        // console.error("Trying to subscribe to empty id")
         return
     }
     wsSend("subscribe", { subscribeType: "folder", subscribeKey: subId, subscribeMeta: JSON.stringify({ recursive: recursive }) })
@@ -15,7 +15,7 @@ export function SubToFolder(subId: string, recursive: boolean, wsSend) {
 
 export function UnsubFromFolder(subId: string, wsSend) {
     if (!subId) {
-        console.error("Trying to unsub to empty id")
+        // console.error("Trying to unsub to empty id")
         return
     }
     wsSend("unsubscribe", { subscribeKey: subId })
@@ -68,8 +68,11 @@ function getMyTrash(user, dispatch: FileBrowserDispatch, authHeader) {
         })
 }
 
-export async function GetFileInfo(fileId, authHeader) {
+export async function GetFileInfo(fileId: string, shareId: string, authHeader) {
     var url = new URL(`${API_ENDPOINT}/file/${fileId}`)
+    if (shareId !== "") {
+        url.searchParams.append("shareId", shareId)
+    }
     return (await fetch(url.toString(), {headers: authHeader})).json()
 }
 
@@ -180,8 +183,11 @@ export function downloadSingleFile(fileId: string, authHeader, dispatch: FileBro
         .finally(() => { dispatch({ type: "set_scan_progress", progress: 0 }); notifications.hide(notifId) })
 }
 
-export function requestZipCreate(fileIds: string[], authHeader) {
+export function requestZipCreate(fileIds: string[], shareId: string, authHeader) {
     const url = new URL(`${API_ENDPOINT}/takeout`)
+    if (shareId !== "") {
+        url.searchParams.append("shareId", shareId)
+    }
 
     return fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify({ fileIds: fileIds }) })
         .then(async (res) => {
@@ -215,23 +221,19 @@ export async function AutocompleteAlbums(searchValue, authHeader): Promise<Album
 }
 
 export async function NewWormhole(folderId: string, authHeader) {
-    const url = new URL(`${API_ENDPOINT}/share`)
+    const url = new URL(`${API_ENDPOINT}/share/files`)
 
     const body = {
-        folderId: folderId
+        fileIds: [folderId],
+        wormhole: true
     }
     const res = await fetch(url.toString(), { headers: authHeader, method: "POST", body: JSON.stringify(body) })
     return res
 }
 
-export async function DeleteWormhole(shareId, authHeader) {
-    console.log(shareId)
-    // return
-    const url = new URL(`${API_ENDPOINT}/share`)
-    const body = {
-        shareId: shareId
-    }
-    const res = await fetch(url.toString(), { headers: authHeader, method: "DELETE", body: JSON.stringify(body) })
+export async function DeleteShare(shareId, authHeader) {
+    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
+    const res = await fetch(url.toString(), { headers: authHeader, method: "DELETE" })
     return res
 }
 
@@ -268,7 +270,6 @@ export async function UpdateFileShare(shareId: string, isPublic: boolean, users:
 }
 
 export async function GetFileShare(shareId, authHeader) {
-    const url = new URL(`${API_ENDPOINT}/file/${shareId}/shares`)
-    const res = await fetch(url.toString(), { headers: authHeader }).then(res => res.json())
-    return res
+    const url = new URL(`${API_ENDPOINT}/file/share/${shareId}`)
+    return await fetch(url.toString(), { headers: authHeader }).then(res => res.json()).catch(r => Promise.reject(r))
 }

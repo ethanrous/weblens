@@ -9,7 +9,7 @@ export default function useWeblensSocket() {
     const { userInfo, authHeader } = useContext(userContext)
 
     const { sendMessage, lastMessage, readyState } = useWebSocket(API_WS_ENDPOINT, {
-        queryParams: authHeader,
+        queryParams: authHeader.Authorization ? authHeader : [],
         onOpen: () => {
             clearTimeout(dcTimeout)
             notifications.clean()

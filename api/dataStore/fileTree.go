@@ -97,6 +97,7 @@ func FsTreeRemove(f *WeblensFile, casters ...BroadcasterAgent) (err error) {
 
 	f.RecursiveMap(func(file *WeblensFile) {
 		util.Each(f.GetTasks(), func(t Task) { t.Cancel() })
+		util.Each(f.GetShares(), func(s Share) { DeleteShare(s) })
 
 		displayable, err := file.IsDisplayable()
 		if err != nil && err != ErrDirNotAllowed && err != ErrNoMedia {
@@ -239,6 +240,11 @@ func FsTreeMove(f, newParent *WeblensFile, newFilename string, overwrite bool, c
 				m.AddFile(w)
 				m.RemoveFile(preFile.Id())
 			}
+		}
+
+		for _, s := range w.GetShares() {
+			s.SetContentId(w.Id())
+			w.UpdateShare(s)
 		}
 
 		util.Each(casters, func(c BroadcasterAgent) { c.PushFileMove(preFile, w) })

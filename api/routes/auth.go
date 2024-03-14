@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -16,7 +17,7 @@ func WeblensAuth(websocket, allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 
 		if !websocket {
 			authHeader := c.Request.Header["Authorization"]
-			if len(authHeader) == 0 {
+			if len(authHeader) == 0 || len(authHeader[0]) == 0 {
 				if !allowEmptyAuth {
 					util.Info.Printf("Rejecting authorization for unknown user due to empty auth header")
 					c.AbortWithStatus(http.StatusUnauthorized)
@@ -28,11 +29,18 @@ func WeblensAuth(websocket, allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 			authString = authHeader[0]
 		} else {
 			authString = c.Query("Authorization")
+			if len(authString) == 0 {
+				c.Next()
+				return
+			}
 		}
 
 		authList := strings.Split(authString, ",")
 
 		if len(authList) < 2 || !db.CheckToken(authList[0], authList[1]) { // {user, token}
+			// if (allowEmptyAuth) {
+
+			// }
 			util.Info.Printf("Rejecting authorization for %s due to invalid token", authList[0])
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
@@ -57,6 +65,15 @@ func CanUserAccessFile(fileId, username, shareId string) bool {
 		return false
 	}
 
+	f := dataStore.FsTreeGet(fileId)
+	if f == nil {
+		return false
+	}
+
+	if f.Owner() == username {
+		return true
+	}
+
 	if shareId != "" {
 		s, err := dataStore.GetShare(shareId, dataStore.FileShare)
 		if err != nil {
@@ -67,23 +84,18 @@ func CanUserAccessFile(fileId, username, shareId string) bool {
 		if s.IsPublic() && s.GetContentId() == fileId {
 			return true
 		}
-	}
 
-	// Share is not public, so user must be logged in to access
-	if username == "" {
-		return false
-	}
+		shares := f.GetShares()
+		shareIds := util.Map(shares, func(sh dataStore.Share) string { return sh.GetShareId() })
 
-	if fileId != "" {
-		f := dataStore.FsTreeGet(fileId)
-		if f == nil {
-			return false
-		}
-
-		if f.Owner() == username {
+		if slices.Contains(shareIds, shareId) {
 			return true
 		}
 	}
 
 	return false
+}
+
+func CanUserAccessShare(s dataStore.Share, username string) bool {
+	return s.IsEnabled() && (s.IsPublic() || s.GetOwner() == username || slices.Contains(s.GetAccessors(), username))
 }

@@ -9,11 +9,12 @@ import { PhotoGallery } from '../../components/MediaDisplay'
 import { mediaReducer, useKeyDown, handleWebsocket } from './GalleryLogic'
 import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi'
 import { AlbumData, MediaData, MediaStateType } from '../../types/Types'
-import useWeblensSocket from '../../api/Websocket'
 import { userContext } from '../../Context'
 import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles'
 import { Albums } from './Albums'
 import { WeblensButton } from '../../components/WeblensButton'
+import WeblensWebSocket from '../../api/Websocket'
+import useWeblensSocket from '../../api/Websocket'
 
 const NoMediaDisplay = () => {
     const nav = useNavigate()

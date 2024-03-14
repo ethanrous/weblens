@@ -51,7 +51,9 @@ func AddApiRoutes(r *gin.Engine) {
 	api.Use(WeblensAuth(false, false, false))
 
 	api.GET("/media", getMediaBatch)
-	api.GET("/media/:mediaId", getOneMedia)
+	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
+	api.GET("/media/:mediaId/fullres", getMediaFullres)
+	api.GET("/media/:mediaId/meta", getMediaMeta)
 	api.PUT("/media", updateMedias)
 	// api.GET("/stream/:mediaId", streamVideo)
 
@@ -74,24 +76,24 @@ func AddApiRoutes(r *gin.Engine) {
 	// Allow public chunk upload to support wormhole drops
 	public.PUT("/upload/:uploadId", handleUploadChunk)
 
-	api.GET("/file/:fileId", getFile)
+	public.GET("/file/:fileId", getFile)
 	api.PATCH("/file", updateFile)
+	api.PATCH("/files", updateFiles)
 	api.DELETE("/files", trashFiles)
 
-	api.GET("/file/:fileId/shares", getFileShare)
+	api.GET("/file/:fileId/shares", getFilesShares)
+	public.GET("/file/share/:shareId", getFileShare)
 	api.PATCH("/file/share/:shareId", updateFileShare)
 
 	api.GET("/share", getSharedFiles)
-	api.PATCH("/files", updateFiles)
-	api.DELETE("/share", deleteShare)
-	public.GET("/share/:shareId", getShare)
-
-	// api.GET("/share/files", getFileShare)
+	api.DELETE("/share/:shareId", deleteShare)
 	api.POST("/share/files", createFileShare)
+
+	// public.GET("/share/:shareId", getFileShare)
 
 	public.GET("/download", downloadFile)
 
-	api.POST("/takeout", createTakeout)
+	public.POST("/takeout", createTakeout)
 
 	api.GET("/user", getUserInfo)
 	api.GET("/users", searchUsers)
@@ -115,7 +117,7 @@ func AddApiRoutes(r *gin.Engine) {
 	admin.POST("/cache", clearCache)
 
 	websocket := r.Group("/api")
-	websocket.Use(WeblensAuth(true, false, false))
+	websocket.Use(WeblensAuth(true, true, false))
 
 	websocket.GET("/ws", wsConnect)
 }

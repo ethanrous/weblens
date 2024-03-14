@@ -36,13 +36,14 @@ export const MediaImage = memo(({
     media,
     setMediaCallback,
     quality,
+    pageNumber = undefined,
     lazy = true,
     expectFailure = false,
     preventClick = false,
     doFetch = true,
     containerStyle,
     disabled = false,
-}: { media: MediaData, setMediaCallback?: (mediaId: string, quality: "thumbnail" | "fullres", data: ArrayBuffer) => void, quality: "thumbnail" | "fullres", lazy?: boolean, expectFailure?: boolean, preventClick?: boolean, doFetch?: boolean, containerStyle?: CSSProperties, disabled?: boolean }
+}: { media: MediaData, setMediaCallback?: (mediaId: string, quality: "thumbnail" | "fullres", data: ArrayBuffer) => void, quality: "thumbnail" | "fullres", pageNumber?: number, lazy?: boolean, expectFailure?: boolean, preventClick?: boolean, doFetch?: boolean, containerStyle?: CSSProperties, disabled?: boolean }
 ) => {
     const [loaded, setLoaded] = useState(media?.fullres ? "fullres" : media?.thumbnail ? "thumbnail" : "")
     const [loadError, setLoadErr] = useState(false)
@@ -53,7 +54,11 @@ export const MediaImage = memo(({
     const abortController = new AbortController();
 
     const fetchFullres = useCallback(async () => {
-        const ret = await getImageData(`${API_ENDPOINT}/media/${media.fileHash}?fullres=true`, media.fileHash, authHeader, abortController.signal, setLoadErr)
+        const url = new URL(`${API_ENDPOINT}/media/${media.fileHash}/fullres`)
+        if (pageNumber !== undefined) {
+            url.searchParams.append("page", pageNumber.toString())
+        }
+        const ret = await getImageData(url.toString(), media.fileHash, authHeader, abortController.signal, setLoadErr)
         if (!ret) {
             return
         }
@@ -67,7 +72,7 @@ export const MediaImage = memo(({
     }, [media?.fileHash, authHeader])
 
     const fetchThumbnail = useCallback(async () => {
-        const ret = await getImageData(`${API_ENDPOINT}/media/${media.fileHash}?thumbnail=true`, media.fileHash, authHeader, abortController.signal, setLoadErr)
+        const ret = await getImageData(`${API_ENDPOINT}/media/${media.fileHash}/thumbnail`, media.fileHash, authHeader, abortController.signal, setLoadErr)
         if (!ret) {
             return
         }

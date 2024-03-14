@@ -143,9 +143,8 @@ const fetchAlbums = (doLoading, setLoading, setAlbums, authHeader) => {
     })
 }
 
-export const AlbumScoller = memo(({ candidates, authHeader }: {
-    candidates: { media: string[], folders: string[] },
-    authHeader
+export const AlbumScoller = memo(({ selectedMedia, selectedFolders, authHeader }: {
+    selectedMedia: string[], selectedFolders: string[], authHeader
 }) => {
     const [albums, setAlbums]: [albums: AlbumData[], setAlbums: any] = useState(null)
     const scrollboxRef = useRef(null)
@@ -159,7 +158,7 @@ export const AlbumScoller = memo(({ candidates, authHeader }: {
 
     const addMediaApiCall = useCallback((albumId) => {
         setLoadingAlbums(cur => [...cur, albumId])
-        AddMediaToAlbum(albumId, candidates.media, candidates.folders, authHeader)
+        AddMediaToAlbum(albumId, selectedMedia, selectedFolders, authHeader)
             .then((res) => {
                 if (res.errors.length === 0) {
                     setLoadingAlbums(cur => cur.filter(v => v !== albumId))
@@ -174,7 +173,7 @@ export const AlbumScoller = memo(({ candidates, authHeader }: {
                 }
             })
             .catch((r) => { notifications.show({ title: "Could not add media to album", message: String(r), color: 'red' }) })
-    }, [candidates, authHeader])
+    }, [selectedMedia, authHeader])
 
     const setMediaCallback = useCallback((mediaId: string, quality: "thumbnail" | "fullres", data: ArrayBuffer) => {
         setAlbums((prev: AlbumData[]) => {
@@ -194,16 +193,15 @@ export const AlbumScoller = memo(({ candidates, authHeader }: {
     }, [])
 
     useEffect(() => {
-        console.log("HERE")
         fetchAlbums(true, setLoading, setAlbums, authHeader)
     }, [authHeader])
 
     const allMedias = useMemo(() => {
         const allMedias = []
-        candidates.folders.forEach(f => GetMediasByFolder(f, authHeader).then(v => allMedias.push(...v.medias)))
-        allMedias.push(...candidates.media)
+        selectedFolders.forEach(f => GetMediasByFolder(f, authHeader).then(v => allMedias.push(...v.medias)))
+        allMedias.push(...selectedMedia)
         return allMedias
-    }, [candidates.folders])
+    }, [selectedFolders])
 
     const filteredAlbums = useMemo(() => albums?.filter(a => a.Name.toLowerCase().includes(searchStr)), [albums, searchStr])
 
@@ -235,6 +233,13 @@ export const AlbumScoller = memo(({ candidates, authHeader }: {
         </ColumnBox>
     )
 }, (prev, next) => {
+    if (prev.selectedMedia !== next.selectedMedia) {
+        return false
+    }
+    if (prev.selectedFolders !== next.selectedFolders) {
+        return false
+    }
+
     return true
 })
 

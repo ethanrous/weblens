@@ -1,11 +1,12 @@
-import { DragEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { DragEvent, useCallback, useEffect, useState } from 'react'
 
 import { notifications } from '@mantine/notifications'
 
 import Upload, { fileUploadMetadata } from "../../api/Upload"
-import { fileData, FileBrowserStateType, getBlankFile, FileBrowserAction, FileBrowserDispatch } from '../../types/Types'
+import { fileData, FileBrowserStateType, getBlankFile, FileBrowserAction, FileBrowserDispatch, shareData } from '../../types/Types'
 import { CreateFolder, DeleteFiles, GetFileShare, MoveFiles, RenameFile, SubToFolder, UnsubFromFolder, downloadSingleFile, requestZipCreate } from '../../api/FileBrowserApi'
 import { humanFileSize } from '../../util'
+import WeblensWebSocket from '../../api/Websocket'
 import useWeblensSocket from '../../api/Websocket'
 
 
@@ -224,6 +225,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
 
             return {
                 ...state,
+                folderInfo: getBlankFile(),
                 parents: [],
                 lastSelected: ""
             }
@@ -279,7 +281,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
         }
 
         case 'set_menu_open': {
-            return { ...state, menuOpen: action.open }
+            return { ...state, menuOpen: action.open, menuTargetId: action.open ? state.menuTargetId : '' }
         }
 
         case 'set_menu_target': {
@@ -396,6 +398,10 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
             return { ...state, isShare: action.isShare }
         }
 
+        case 'set_share_id': {
+            return { ...state, shareId: action.shareId }
+        }
+
         case 'set_real_id': {
             return { ...state, realId: action.realId }
         }
@@ -408,7 +414,7 @@ export const fileBrowserReducer = (state: FileBrowserStateType, action: FileBrow
     }
 }
 
-export const useSubscribe = (realId, stateId, userInfo, dispatch, authHeader) => {
+export const useSubscribe = (realId, stateId, shareId, userInfo, dispatch, authHeader) => {
     const { wsSend, lastMessage, readyState } = useWeblensSocket()
 
     useEffect(() => {
@@ -436,26 +442,25 @@ export const useSubscribe = (realId, stateId, userInfo, dispatch, authHeader) =>
 
     // Listen for incoming websocket messages
     useEffect(() => {
-        if (userInfo.username === "") {
-            return
-        }
-        HandleWebsocketMessage(lastMessage, userInfo, dispatch, authHeader)
+        HandleWebsocketMessage(lastMessage, shareId, userInfo, dispatch, authHeader)
     }, [lastMessage, userInfo, authHeader])
 
     return wsSend
 }
 
-export const getRealId = (folderId, userInfo, authHeader) => {
+export const getRealId = async (pathId, isShare, userInfo, authHeader) => {
     let realId
 
-    if (folderId === "home") {
+    if (isShare) {
+        const shareData: shareData = await GetFileShare(pathId, authHeader).catch(r => notifications.show({ message: String(r), color: 'red' }))
+        realId = shareData.fileId
+    } else if (pathId === "home") {
         realId = userInfo.homeFolderId
-    } else if (folderId === "trash") {
+    } else if (pathId === "trash") {
         realId = userInfo.trashFolderId
     } else {
-        realId = folderId
+        realId = pathId
     }
-
 
     return realId
 }
@@ -643,7 +648,7 @@ export function downloadSelected(files: fileData[], dispatch: FileBrowserDispatc
         return
     }
 
-    requestZipCreate(files.map(f => f.id), authHeader).then(({ json, status }) => {
+    requestZipCreate(files.map(f => f.id), shareId, authHeader).then(({ json, status }) => {
         if (status === 200) {
             downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, "zip", shareId)
         } else if (status === 202) {
@@ -659,7 +664,7 @@ export function downloadSelected(files: fileData[], dispatch: FileBrowserDispatc
 }
 
 
-export function HandleWebsocketMessage(lastMessage, userInfo, dispatch: FileBrowserDispatch, authHeader) {
+export function HandleWebsocketMessage(lastMessage, shareId, userInfo, dispatch: FileBrowserDispatch, authHeader) {
     if (lastMessage) {
         let msgData = JSON.parse(lastMessage.data)
         console.log("WSRecv", msgData)
@@ -694,7 +699,7 @@ export function HandleWebsocketMessage(lastMessage, userInfo, dispatch: FileBrow
             }
             case "zip_complete": {
                 notifications.hide(`zip_create_${msgData.subscribeKey}`)
-                downloadSingleFile(msgData.content[0].result["takeoutId"], authHeader, dispatch, undefined, "zip", undefined)
+                downloadSingleFile(msgData.content[0].result["takeoutId"], authHeader, dispatch, undefined, "zip", shareId)
                 return
             }
             case "error": {
@@ -735,7 +740,7 @@ export const useKeyDown = (fbState: FileBrowserStateType, userInfo, dispatch: (a
                         return
                     }
                     UploadViaUrl(fbState.pasteImg, fbState.folderInfo.id, fbState.dirMap, authHeader, dispatch, wsSend)
-                } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                } else if (!event.metaKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
                     event.preventDefault()
                     dispatch({ type: "move_selection", direction: event.key })
                 } else if (event.key === ' ' && fbState.lastSelected) {
@@ -872,8 +877,13 @@ export function selectedFolderIds(dirMap: Map<string, fileData>, selectedIds: st
 }
 
 export function SetFileData(data: {self: fileData, children: fileData[], parents: fileData[], error: any}, dispatch, userInfo) {
+    if (!data) {
+        console.error("Trying to set null file data")
+        return
+    }
     if (data.error) {
-        return Promise.reject(data.error)
+        console.error(data.error)
+        return
     }
     let children = data.children?.map((val: fileData) => { return { fileId: val.id, updateInfo: val } })
     if (!children) {

@@ -18,6 +18,7 @@ type mediaType struct {
 	IsRaw            bool
 	IsVideo          bool
 	SupportsImgRecog bool
+	MultiPage        bool
 	RawThumbExifKey  string
 }
 

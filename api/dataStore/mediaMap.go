@@ -40,6 +40,22 @@ func mediaMapAdd(m *Media) {
 		util.Error.Println(fmt.Errorf("attempt to re-add media already in map"))
 		return
 	}
+
+	if m.PageCount == 0 {
+		m.PageCount = 1
+		err := fddb.UpdateMedia(m)
+		if err != nil {
+			util.DisplayError(err)
+		}
+	}
+
+	if m.fullresCacheFiles == nil {
+		m.fullresCacheFiles = make([]*WeblensFile, m.PageCount)
+	}
+	if m.FullresCacheIds == nil {
+		m.FullresCacheIds = make([]string, m.PageCount)
+	}
+
 	mediaMap[m.MediaId] = m
 
 	mediaMapLock.Unlock()
@@ -111,14 +127,16 @@ func loadManyMedias(fs []*WeblensFile) (err error) {
 }
 
 func removeMedia(m *Media) {
-	f, err := m.getCacheFile(Thumbnail, false)
+	f, err := m.getCacheFile(Thumbnail, false, 0)
 	if err == nil {
 		PermenantlyDeleteFile(f, voidCaster)
 	}
 	f = nil
-	f, err = m.getCacheFile(Fullres, false)
-	if err == nil {
-		PermenantlyDeleteFile(f, voidCaster)
+	for page := range m.PageCount + 1 {
+		f, err = m.getCacheFile(Fullres, false, page)
+		if err == nil {
+			PermenantlyDeleteFile(f, voidCaster)
+		}
 	}
 
 	err = fddb.deleteMedia(m.Id())

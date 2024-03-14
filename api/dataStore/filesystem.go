@@ -1,7 +1,6 @@
 package dataStore
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -65,8 +64,7 @@ var takeoutRoot WeblensFile = WeblensFile{
 // Initial loading of folders from the database on first read
 var initFolderIds []string
 
-// Initialize the filesystem.
-func FsInit() {
+func init() {
 	fileTree["0"] = &mediaRoot
 	fileTree["1"] = &tmpRoot
 	fileTree["2"] = &takeoutRoot
@@ -177,12 +175,18 @@ func boolPointer(b bool) *bool {
 	return &b
 }
 
-func CreateUserHomeDir(username string) {
-	homeDir, err := MkDir(GetMediaDir(), username)
-	util.DisplayError(err)
+func CreateUserHomeDir(username string) error {
+	homeDir, err := MkDir(GetMediaDir(), strings.ToLower(username))
+	if err != nil {
+		return err
+	}
 
 	_, err = MkDir(homeDir, ".user_trash")
-	util.DisplayError(err)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func GetUserHomeDir(username string) *WeblensFile {
@@ -221,7 +225,6 @@ func MkDir(parentFolder *WeblensFile, newDirName string) (*WeblensFile, error) {
 	d.isDir = boolPointer(true)
 
 	if d.Exists() {
-		existsErr := fmt.Errorf("trying create dir that already exists").(alreadyExists)
 		existingFile := FsTreeGet(d.Id())
 
 		if existingFile == nil {
@@ -232,7 +235,7 @@ func MkDir(parentFolder *WeblensFile, newDirName string) (*WeblensFile, error) {
 			existingFile = d
 		}
 
-		return existingFile, existsErr
+		return existingFile, ErrDirAlreadyExists
 	}
 
 	err := d.CreateSelf()
@@ -283,6 +286,10 @@ func MoveFileToTrash(file *WeblensFile, c ...BroadcasterAgent) error {
 	err := FsTreeMove(file, GetUserTrashDir(file.Owner()), file.Filename()+time.Now().Format(".2006-01-02T15.04.05"), true, c...)
 	if err != nil {
 		return err
+	}
+	for _, s := range file.GetShares() {
+		s.SetEnabled(false)
+		UpdateFileShare(s)
 	}
 
 	return nil

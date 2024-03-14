@@ -14,7 +14,7 @@ import { useDebouncedValue } from '@mantine/hooks'
 import { HandleDrop, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton, usePaste, UploadViaUrl, MapToList, HandleRename, useSubscribe, SetFileData, getRealId } from './FileBrowserLogic'
 import { fileData, FileBrowserStateType, MediaData, FileBrowserAction, getBlankFile, FileBrowserDispatch } from '../../types/Types'
 import { DirViewWrapper, ColumnBox, RowBox, TransferCard, PresentationFile, GetStartedCard, IconDisplay, FileInfoDisplay } from './FilebrowserStyles'
-import { DeleteFiles, DeleteWormhole, GetFileShare, GetFolderData, NewWormhole } from '../../api/FileBrowserApi'
+import { DeleteFiles, DeleteShare, GetFileInfo, GetFolderData, NewWormhole } from '../../api/FileBrowserApi'
 import Presentation, { PresentationContainer } from '../../components/Presentation'
 import UploadStatus, { useUploadStatus } from '../../components/UploadStatus'
 import { GlobalContextType, ItemProps } from '../../components/ItemDisplay'
@@ -220,15 +220,19 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
         })
 
         return { items: items.filter(i => Boolean(i)), mediaCount }
-    }, [itemId, selected, fbState.selected.size])
+    }, [itemId, JSON.stringify(fbState.dirMap.get(itemId)), selected, fbState.selected.size])
 
     let extraString
     if (selected && fbState.selected.size > 1) {
         extraString = ` +${fbState.selected.size - 1} more`
     }
 
+    const wormholeId = useMemo(() => { if (itemInfo.shares) { const whs = itemInfo.shares.filter(s => s.Wormhole); if (whs.length !== 0) { return whs[0].shareId } } }, [itemInfo.shares])
+    const selectedMedia = useMemo(() => items.filter(i => i.displayable).map(i => i.id), [items])
+    const selectedFolders = useMemo(() => items.filter(i => i.isDir).map(i => i.id), [items])
+
     return (
-        <Menu opened={open} closeDelay={0} openDelay={0} onClose={() => setOpen(false)} closeOnClickOutside={!(addToAlbumMenu || shareMenu)} position='right-start' closeOnItemClick={false} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+        <Menu opened={open} closeDelay={0} openDelay={0} onClose={() => setOpen(false)} closeOnClickOutside={!(addToAlbumMenu || shareMenu)} position='right-start' closeOnItemClick={false} transitionProps={{ duration: 100, exitDuration: 0 }} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
             <Menu.Target>
                 <Box style={{ position: 'absolute', top: menuPos.y, left: menuPos.x }} />
             </Menu.Target>
@@ -260,16 +264,16 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
                         </Box>
                     </Menu.Target>
                     <Menu.Dropdown onMouseOver={e => e.stopPropagation()}>
-                        <AlbumScoller candidates={{ media: items.filter(i => i.displayable).map(i => i.id), folders: items.filter(i => i.isDir).map(i => i.id) }} authHeader={authHeader} />
+                        <AlbumScoller selectedMedia={selectedMedia} selectedFolders={selectedFolders} authHeader={authHeader} />
                     </Menu.Dropdown>
                 </Menu>
 
                 {/* Wormhole menu */}
                 {itemInfo.isDir && (
                     // disabled={()}
-                    <Box className='menu-item' style={{ pointerEvents: fbState.selected.size > 1 && selected ? 'none' : 'all' }} onClick={(e) => { e.stopPropagation(); if (itemInfo.shares?.length === 0) { NewWormhole(itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${itemInfo.shares[0].shareId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
+                    <Box className='menu-item' style={{ pointerEvents: fbState.selected.size > 1 && selected ? 'none' : 'all' }} onClick={(e) => { e.stopPropagation(); if (!wormholeId) { NewWormhole(itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${wormholeId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
                         <IconSpiral color={fbState.selected.size > 1 ? 'grey' : 'white'} />
-                        <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c={fbState.selected.size > 1 ? 'grey' : 'white'}>{itemInfo.shares?.length === 0 ? "Attach" : "Copy"} Wormhole</Text>
+                        <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c={fbState.selected.size > 1 ? 'grey' : 'white'}>{!wormholeId ? "Attach" : "Copy"} Wormhole</Text>
                     </Box>
                 )}
 
@@ -295,8 +299,8 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
 
                 <Divider w={'100%'} my='sm' />
 
-                {itemInfo.shares && itemInfo.shares.length !== 0 && (
-                    <Box className='menu-item' onClick={(e) => { e.stopPropagation(); DeleteWormhole(itemInfo.shares[0].shareId, authHeader) }}>
+                {wormholeId && (
+                    <Box className='menu-item' onClick={(e) => { e.stopPropagation(); DeleteShare(wormholeId, authHeader) }}>
                         <IconSpiral color='#ff8888' />
                         <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c='#ff8888'>Remove Wormhole</Text>
                     </Box>
@@ -313,16 +317,18 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
 }
 
 function SingleFile({ file, doDownload }: { file: fileData, doDownload: (file: fileData) => void }) {
-    if (file.id === "") {
-        return null
+    if (!file.id) {
+        return (
+            <NotFound resourceType='Share' link='/files/home' setNotFound={() => { }} />
+        )
     }
 
     return (
-        <RowBox style={{ height: "90vh" }}>
-            <Box style={{ display: 'flex', width: "55%", height: "100%", padding: 30 }}>
-                <IconDisplay file={file} quality='fullres' />
+        <RowBox style={{ height: "calc(99vh - 70px)" }}>
+            <Box style={{ display: 'flex', width: "55%", height: "100%", padding: 10 }}>
+                <IconDisplay file={file} />
             </Box>
-            <ColumnBox style={{ width: 'max-content', padding: 30 }}>
+            <ColumnBox style={{ width: 'initial', flexGrow: 1, padding: 10 }}>
                 <FileInfoDisplay file={file} />
                 <Box style={{ minHeight: '40%' }}>
                     <RowBox onClick={() => doDownload(file)} style={{ backgroundColor: '#4444ff', borderRadius: 4, padding: 10, height: 'max-content', cursor: 'pointer' }}>
@@ -436,13 +442,7 @@ function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScann
                     <GetStartedCard filebrowserState={filebrowserState} moveSelectedTo={moveSelectedTo} dispatch={dispatch} uploadDispatch={uploadDispatch} authHeader={authHeader} wsSend={wsSend} />
                 ))
                 || ((!filebrowserState.loading && filebrowserState.folderInfo.id === "shared") && (
-                    <ColumnBox>
-                        <ColumnBox style={{ alignItems: 'center', marginTop: '20vh' }}>
-                            <Text size='28px'>
-                                No files are shared with you
-                            </Text>
-                        </ColumnBox>
-                    </ColumnBox>
+                    <NotFound resourceType='any files shared with you' link='/files/home' setNotFound={setNotFound} />
                 ))
                 || (!filebrowserState.loading && filebrowserState.searchContent !== "" && (
                     <ColumnBox style={{ justifyContent: 'flex-end', height: '20%' }}>
@@ -456,16 +456,19 @@ function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScann
 
 function DirView({ filebrowserState, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }:
     { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch: (action: FileBrowserAction) => void, wsSend: (action: string, content: any) => void, uploadDispatch, authHeader }) {
+    const download = useCallback((file: fileData) => downloadSelected([file], dispatch, wsSend, authHeader, filebrowserState.isShare ? filebrowserState.shareId : undefined), [authHeader, wsSend, dispatch, filebrowserState.isShare, filebrowserState.realId])
 
-    const download = useCallback((file: fileData) => downloadSelected([file], dispatch, wsSend, authHeader, filebrowserState.isShare ? filebrowserState.realId : undefined), [authHeader, wsSend, dispatch, filebrowserState.isShare, filebrowserState.realId])
+    if (!filebrowserState.realId && !filebrowserState.shareId && filebrowserState.loading) {
+        return null
+    }
 
-    if (filebrowserState.folderInfo.isDir) {
+    if (filebrowserState.isShare) {
         return (
-            <Files filebrowserState={filebrowserState} folderId={folderId} notFound={notFound} setNotFound={setNotFound} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
+            <SingleFile file={filebrowserState.folderInfo} doDownload={download} />
         )
     } else {
         return (
-            <SingleFile file={filebrowserState.folderInfo} doDownload={download} />
+            <Files filebrowserState={filebrowserState} folderId={folderId} notFound={notFound} setNotFound={setNotFound} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
         )
     }
 }
@@ -512,15 +515,28 @@ const FileBrowser = () => {
         menuOpen: false,
         numCols: 0,
         isShare: false,
+        shareId: "",
         realId: "",
     })
 
     useEffect(() => {
-        dispatch({ type: 'set_is_share', isShare: window.location.pathname.startsWith("/share") })
-        dispatch({ type: 'set_real_id', realId: getRealId(folderId, userInfo, authHeader) })
+        const isShare = window.location.pathname.startsWith("/share")
+        dispatch({ type: "set_loading", loading: true })
+        dispatch({ type: 'set_share_id', shareId: folderId })
+        getRealId(folderId, isShare, userInfo, authHeader).then(realId => {
+            if (!realId) {
+                dispatch({ type: "clear_files" })
+                dispatch({ type: 'set_loading', loading: false })
+                dispatch({ type: 'set_real_id', realId: "" })
+                dispatch({ type: 'set_is_share', isShare: isShare })
+                return
+            }
+            dispatch({ type: 'set_is_share', isShare: isShare })
+            dispatch({ type: 'set_real_id', realId: realId })
+        })
     }, [folderId, dispatch, authHeader, userInfo])
 
-    const wsSend = useSubscribe(filebrowserState.realId, filebrowserState.folderInfo.id, userInfo, dispatch, authHeader)
+    const wsSend = useSubscribe(filebrowserState.realId, filebrowserState.folderInfo.id, filebrowserState.shareId, userInfo, dispatch, authHeader)
     useKeyDown(filebrowserState, userInfo, dispatch, authHeader, wsSend, searchRef)
 
     // Hook to handle uploading images from the clipboard
@@ -529,7 +545,7 @@ const FileBrowser = () => {
     // Reset most of the state when we change folders
     useEffect(() => {
         const syncState = async () => {
-            if (!folderId || folderId === userInfo?.homeFolderId || folderId === "undefined") {
+            if (!folderId || folderId === userInfo?.homeFolderId || folderId === undefined) {
                 navigate('/files/home', { replace: true })
             }
 
@@ -542,17 +558,17 @@ const FileBrowser = () => {
             dispatch({ type: "clear_files" })
             dispatch({ type: "set_search", search: "" })
             dispatch({ type: "set_scan_progress", progress: 0 })
-            dispatch({ type: "set_loading", loading: true })
 
-            let fileData
-            if (filebrowserState.isShare) {
-                fileData = await GetFileShare(filebrowserState.realId, authHeader)
+            if (!filebrowserState.isShare) {
+                const fileData = await GetFolderData(filebrowserState.realId, userInfo, dispatch, authHeader)
+                    .catch(r => { if (r === 400 || r === 404) { setNotFound(true) } else { notifications.show({ title: "Could not get folder info", message: String(r), color: 'red', autoClose: 5000 }) } })
+                console.log(fileData)
+                if (fileData) {
+                    SetFileData(fileData, dispatch, userInfo)
+                }
             } else {
-                fileData = await GetFolderData(filebrowserState.realId, userInfo, dispatch, authHeader)
-                    .catch(r => { if (r === 400) { setNotFound(true) } else { notifications.show({ title: "Could not get folder info", message: String(r), color: 'red', autoClose: 5000 }) }; return -1 })
+                await GetFileInfo(filebrowserState.realId, folderId, authHeader).then(d => SetFileData({ self: d, children: [], parents: [], error: null }, dispatch, userInfo)).catch(r => notifications.show({ title: "Failed to get file info", message: String(r), color: 'red' }))
             }
-
-            SetFileData(fileData, dispatch, userInfo)
 
             const jumpItem = query.get("jumpTo")
             if (jumpItem) {
@@ -566,11 +582,6 @@ const FileBrowser = () => {
     }, [userInfo.username, authHeader, filebrowserState.realId])
 
     // const doScan = useCallback(() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(realId, wsSend, filebrowserState.holdingShift, filebrowserState.holdingShift) }, [realId, wsSend, filebrowserState.holdingShift])
-
-    // if (userInfo.username === "") {
-    //     console.log("HERE!")
-    //     return null
-    // }
 
     return (
         <ColumnBox style={{ height: '100vh', backgroundColor: "#111418" }} >

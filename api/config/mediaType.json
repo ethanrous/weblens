@@ -87,11 +87,23 @@
         "heic",
         "HEIC"
       ],
-      "IsDisplayable": false,
+      "IsDisplayable": true,
       "IsRaw": false,
       "IsVideo": false,
       "RawThumbExifKey": "",
       "SupportsImgRecog": true
+    },
+    "application/pdf": {
+      "FriendlyName": "PDF",
+      "FileExtension": [
+        "pdf"
+      ],
+      "IsDisplayable": true,
+      "IsRaw": false,
+      "IsVideo": false,
+      "RawThumbExifKey": "",
+      "SupportsImgRecog": false,
+      "MultiPage": true
     },
     "video/mp4": {
       "FriendlyName": "MP4",

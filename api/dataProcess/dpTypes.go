@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/util"
 )
 
 // Caster
@@ -41,6 +42,8 @@ type task struct {
 	timeout      time.Time
 	exitStatus   string // "success", "error" or "cancelled"
 	errorCleanup func()
+
+	sw util.Stopwatch
 
 	// signal is used for signaling a task to change behavior after it has been queued,
 	// to exit prematurely, for example. The signalChan serves the same purpose, but is
@@ -115,6 +118,7 @@ func (s *ScanMetadata) MarshalJSON() ([]byte, error) {
 type ZipMetadata struct {
 	Files    []*dataStore.WeblensFile
 	Username string
+	ShareId  string
 }
 
 type MoveMeta struct {

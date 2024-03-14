@@ -20,6 +20,7 @@ export type MediaData = {
     mediaHeight: number
     thumbWidth: number
     thumbHeight: number
+    pageCount: number
     createDate: string
     owner: string
     recognitionTags: string[]
@@ -104,6 +105,7 @@ export type FileBrowserAction = {
     presentingId?: string
     direction?: string
     realId?: string
+    shareId?: string
 
     img?: ArrayBuffer
     pos?: {x: number, y: number}
@@ -144,6 +146,7 @@ export type FileBrowserStateType = {
     moveDest: string
     menuOpen: boolean
     isShare: boolean
+    shareId: string
     realId: string
 }
 
@@ -210,6 +213,7 @@ export const getBlankMedia = () => {
         mediaHeight: 0,
         thumbWidth: 0,
         thumbHeight: 0,
+        pageCount: 0,
         createDate: "",
         owner: "",
         recognitionTags: [],

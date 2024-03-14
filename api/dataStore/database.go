@@ -495,7 +495,7 @@ func (db Weblensdb) CreateUser(username, password string, admin bool) {
 }
 
 func (db Weblensdb) GetUser(username string) (User, error) {
-	filter := bson.D{{Key: "username", Value: username}}
+	filter := bson.M{"username": bson.M{"$regex": "^" + username + "$", "$options": "i"}}
 
 	ret := db.mongo.Collection("users").FindOne(mongo_ctx, filter)
 
@@ -562,7 +562,7 @@ func (db Weblensdb) FlushRedis() {
 }
 
 func (db Weblensdb) SearchUsers(searchStr string) []string {
-	ret, err := db.mongo.Collection("users").Find(mongo_ctx, bson.M{"username": bson.M{"$regex": searchStr}})
+	ret, err := db.mongo.Collection("users").Find(mongo_ctx, bson.M{"username": bson.M{"$regex": searchStr, "$options": "i"}})
 	util.DisplayError(err, "Failed to autocomplete user search")
 	var users []struct {
 		Username string `bson:"username"`
@@ -617,7 +617,7 @@ func (db Weblensdb) writeFolder(folder *WeblensFile) error {
 		ParentFolderId: folder.parent.Id(),
 		RelPath:        GuaranteeRelativePath(folder.absolutePath),
 		SharedWith:     []string{},
-		Shares:         []shareData{},
+		Shares:         []fileShareData{},
 	}
 
 	filter := bson.M{"_id": folder.Id()}
@@ -776,57 +776,28 @@ func (db Weblensdb) DeleteAlbum(albumId string) (err error) {
 	return
 }
 
-func (db Weblensdb) addShareToFolder(folder *WeblensFile, share shareData) (err error) {
-	filter := bson.M{"_id": folder.Id()}
-	update := bson.M{"$addToSet": bson.M{"shares": share}}
-	_, err = db.mongo.Collection("folders").UpdateOne(mongo_ctx, filter, update)
-	return
-}
-
-func (db Weblensdb) getWormholes(f *WeblensFile) (whs []shareData, err error) {
-	filter := bson.M{"_id": f.Id()}
-	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
-	if ret.Err() != nil {
-		return
-	}
-
-	var fd folderData
-	err = ret.Decode(&fd)
-	return fd.Shares, err
-}
-
 func (db Weblensdb) getAllShares() (ss []Share, err error) {
 	ret, err := db.mongo.Collection("shares").Find(mongo_ctx, bson.M{"shareType": "file"})
 	if err != nil {
 		return
 	}
-	var fileShares []fileShareData
+	var fileShares []*fileShareData
 	ret.All(mongo_ctx, &fileShares)
 
-	ss = append(ss, util.Map(fileShares, func(fs fileShareData) Share { return fs })...)
+	ss = append(ss, util.Map(fileShares, func(fs *fileShareData) Share { return fs })...)
 
 	return
 
 }
 
-func (db Weblensdb) getFolderByShare(shareId string) (shareFolder folderData, err error) {
-	filter := bson.M{"shares.shareId": shareId}
-	ret := db.mongo.Collection("folders").FindOne(mongo_ctx, filter)
-	err = ret.Decode(&shareFolder)
-	if err == mongo.ErrNoDocuments {
-		err = ErrNoShare
-	}
+func (db Weblensdb) removeFileShare(shareId string) (err error) {
+	filter := bson.M{"_id": shareId, "shareType": FileShare}
 
-	return
-}
-
-func (db Weblensdb) removeShare(shareId string) (err error) {
-	filter := bson.M{"shares.shareId": shareId}
-	update := bson.M{"$pull": bson.M{"shares": bson.M{"shareId": shareId}}}
-	_, err = db.mongo.Collection("folders").UpdateOne(mongo_ctx, filter, update)
+	_, err = db.mongo.Collection("shares").DeleteOne(mongo_ctx, filter)
 
 	if err == mongo.ErrNoDocuments {
 		err = ErrNoShare
+		return
 	}
 
 	return
@@ -847,8 +818,8 @@ func (db Weblensdb) newFileShare(shareInfo fileShareData) (err error) {
 	return
 }
 
-func (db Weblensdb) updateFileShare(s fileShareData) (err error) {
-	filter := bson.M{"_id": s.ShareId, "shareType": "file"}
+func (db Weblensdb) updateFileShare(shareId string, s *fileShareData) (err error) {
+	filter := bson.M{"_id": shareId, "shareType": "file"}
 	update := bson.M{"$set": s}
 	_, err = db.mongo.Collection("shares").UpdateOne(mongo_ctx, filter, update)
 	return

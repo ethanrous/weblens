@@ -352,7 +352,7 @@ func (s *sw) PrintResults() {
 
 	if len(s.laps) != 0 {
 		longest := len(slices.MaxFunc(s.laps, func(a, b lap) int { return len(a.tag) - len(b.tag) }).tag)
-		lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since start)", longest+5)
+		lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since creation)", longest+5)
 		for i, l := range s.laps {
 			var sinceLast time.Duration
 			if i != 0 {

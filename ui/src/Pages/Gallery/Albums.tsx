@@ -123,6 +123,7 @@ function Album({ albumId, includeRaw, imageSize, searchContent, dispatch }) {
         )
     }
 
+    console.log(albumData)
     if (!albumData) {
         return null
         return (

@@ -15,7 +15,7 @@ import (
 	"github.com/saracen/fastzip"
 )
 
-func ScanFile(t *task) {
+func scanFile(t *task) {
 	meta := t.metadata.(ScanMetadata)
 
 	displayable, err := meta.File.IsDisplayable()
@@ -82,6 +82,15 @@ func createZipFromPaths(t *task) {
 		t.caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
 		t.success()
 		return
+	}
+
+	if zipMeta.ShareId != "" {
+		s, err := dataStore.GetShare(zipMeta.ShareId, dataStore.FileShare)
+		if err != nil {
+			t.error(err)
+			return
+		}
+		zipFile.AppendShare(s)
 	}
 
 	fp, err := os.Create(zipFile.String())

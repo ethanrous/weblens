@@ -2,7 +2,6 @@ package dataProcess
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -59,7 +58,7 @@ func processMediaFile(t *task) {
 
 	defer m.Clean()
 
-	m, err = m.LoadFromFile(file)
+	m, err = m.LoadFromFile(file, t)
 	if err != nil {
 		t.error(err)
 		return
@@ -156,7 +155,7 @@ func scanDirectory(t *task) {
 
 	util.Info.Printf("Beginning directory scan for %s [M %d][R %t][D %t]\n", scanDir.String(), len(mediaToScan), recursive, deepScan)
 
-	sw := util.NewStopwatch(fmt.Sprint("Directory scan ", scanDir.String()))
+	t.SwLap("Pre-scan complete")
 
 	wq := NewWorkQueue()
 
@@ -171,17 +170,12 @@ func scanDirectory(t *task) {
 		wq.ScanFile(file, m, t.caster)
 	}
 
-	sw.Lap("Queued all tasks")
+	t.SwLap("Queued all tasks")
 
 	wq.SignalAllQueued()
 	wq.Wait(true) // Park this thread and wait for the media to finish computing
 
-	// runtime.GC()
-	// util.PrintMemUsage("After directory scan")
-
-	sw.Lap("All tasks finished")
-	sw.Stop()
-	sw.PrintResults()
+	t.SwLap("All sub-scans finished")
 
 	globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
 	t.success()
