@@ -8,6 +8,19 @@ then
     echo $docker_tag
 fi
 
+export VITE_APP_BUILD_TAG=$docker_tag
+if [ -z "$(docker images -q buildbuntu 2> /dev/null)" ]; then
+    echo "No buildbuntu image found, attempting to build now..."
+    docker build -t weblens-go-build -f GoBuild .
+fi
+
+cd ./ui
+npm run build
+cd ..
+
+docker run -v ./api:/source --platform linux/amd64 --rm weblens-go-build /bin/bash -c \
+'cd /source && export GIN_MODE=release && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o weblens'
+
 docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --build-arg build_tag="$docker_tag" .
 docker push ethrous/weblens:"$docker_tag"
 

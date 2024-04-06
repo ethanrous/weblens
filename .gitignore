@@ -10,6 +10,7 @@
 
 # production
 /build
+ui/build/
 
 # misc
 .DS_Store
@@ -32,3 +33,5 @@ api/.env
 
 __debug*
 __pycache__
+
+media_proc/

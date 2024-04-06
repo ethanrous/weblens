@@ -1,43 +1,82 @@
-import { Box, Button, Combobox, Indicator, Modal, Slider, Space, Switch, Tabs, Text, TextInput, useCombobox } from '@mantine/core'
-import { useEffect, useReducer, useMemo, useRef, useContext, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { IconCheck, IconFilter, IconPlus } from '@tabler/icons-react'
+import {
+    Box,
+    Button,
+    Combobox,
+    Indicator,
+    Modal,
+    Slider,
+    Space,
+    Switch,
+    Tabs,
+    Text,
+    TextInput,
+    useCombobox,
+} from '@mantine/core';
+import {
+    useEffect,
+    useReducer,
+    useMemo,
+    useRef,
+    useContext,
+    useState,
+    memo,
+} from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { IconCheck, IconFilter, IconPlus } from '@tabler/icons-react';
 
-import HeaderBar from "../../components/HeaderBar"
-import Presentation from '../../components/Presentation'
-import { PhotoGallery } from '../../components/MediaDisplay'
-import { mediaReducer, useKeyDown, handleWebsocket } from './GalleryLogic'
-import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi'
-import { AlbumData, MediaData, MediaStateType } from '../../types/Types'
-import { userContext } from '../../Context'
-import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles'
-import { Albums } from './Albums'
-import { WeblensButton } from '../../components/WeblensButton'
-import WeblensWebSocket from '../../api/Websocket'
-import useWeblensSocket from '../../api/Websocket'
+import HeaderBar from '../../components/HeaderBar';
+import Presentation from '../../components/Presentation';
+import { PhotoGallery } from '../../components/MediaDisplay';
+import {
+    mediaReducer,
+    useKeyDownGallery,
+    handleWebsocket,
+    GalleryAction,
+} from './GalleryLogic';
+import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi';
+import {
+    AlbumData,
+    MediaData,
+    MediaStateT,
+    UserContextT,
+    UserInfoT,
+} from '../../types/Types';
+import { userContext } from '../../Context';
+import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles';
+import { Albums } from './Albums';
+import { WeblensButton } from '../../components/WeblensButton';
+import useWeblensSocket from '../../api/Websocket';
+import { GalleryMenu } from './GalleryMenu';
+import { useMediaType } from '../../components/hooks';
 
 const NoMediaDisplay = () => {
-    const nav = useNavigate()
+    const nav = useNavigate();
     return (
         <ColumnBox style={{ marginTop: 75, gap: 25, width: 'max-content' }}>
-            <Text c='white' fw={700} size='31px'>No media to display</Text>
-            <Text c='white' >Upload files then add them to an album</Text>
+            <Text c="white" fw={700} size="31px">
+                No media to display
+            </Text>
+            <Text c="white">Upload files then add them to an album</Text>
             <RowBox style={{ height: 'max-content', width: '100%', gap: 10 }}>
-                <Button fullWidth color='#4444ff' onClick={() => nav('/files')}>
-                    Upload Media
-                </Button>
-                <Button fullWidth color='#4444ff' onClick={() => nav('/albums')}>
-                    View Albums
-                </Button>
+                <WeblensButton
+                    label="Upload Media"
+                    centerContent
+                    onClick={() => nav('/files')}
+                />
+                <WeblensButton
+                    label="View Albums"
+                    centerContent
+                    onClick={() => nav('/files')}
+                />
             </RowBox>
         </ColumnBox>
-    )
-}
+    );
+};
 
 const ImageSizeSlider = ({ imageSize, dispatch }) => {
     return (
         <Slider
-            color='#4444ff'
+            color="#4444ff"
             label={`Image Size`}
             defaultValue={300}
             value={imageSize}
@@ -48,44 +87,70 @@ const ImageSizeSlider = ({ imageSize, dispatch }) => {
             marks={[
                 { value: 100, label: '10%' },
                 { value: 300, label: '50%' },
-                { value: 500, label: '100%' }
+                { value: 500, label: '100%' },
             ]}
             onChange={(e) => dispatch({ type: 'set_image_size', size: e })}
-            onDoubleClick={() => dispatch({ type: 'set_image_size', size: 300 })}
+            onDoubleClick={() =>
+                dispatch({ type: 'set_image_size', size: 300 })
+            }
+            style={{ paddingBottom: 10 }}
         />
-    )
-}
+    );
+};
 
-const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dispatch }: { rawSelected: boolean, albumsFilter: string[], imageSize: number, albumsMap: Map<string, AlbumData>, dispatch }) => {
-    const albumNames = useMemo(() => Array.from(albumsMap.values()).map((v) => v.Name), [albumsMap.size])
+const TimelineControls = ({
+    rawSelected,
+    selecting,
+    albumsFilter,
+    imageSize,
+    albumsMap,
+    dispatch,
+}: {
+    rawSelected: boolean;
+    selecting: boolean;
+    albumsFilter: string[];
+    imageSize: number;
+    albumsMap: Map<string, AlbumData>;
+    dispatch: (action: GalleryAction) => void;
+}) => {
+    const albumNames = useMemo(
+        () => Array.from(albumsMap.values()).map((v) => v.Name),
+        [albumsMap.size, albumsMap]
+    );
     const combobox = useCombobox({
         onDropdownClose: () => {
-            combobox.resetSelectedOption()
-            dispatch({ type: 'set_albums_filter', albumNames: selectedAlbums })
-            dispatch({ type: 'set_raw_toggle', raw: rawOn })
-        }
+            combobox.resetSelectedOption();
+            dispatch({ type: 'set_albums_filter', albumNames: selectedAlbums });
+            dispatch({ type: 'set_raw_toggle', raw: rawOn });
+        },
     });
-    const [selectedAlbums, setSelectedAlbums] = useState(albumsFilter)
-    const [rawOn, setRawOn] = useState(rawSelected)
+    const [selectedAlbums, setSelectedAlbums] = useState(albumsFilter);
+    const [rawOn, setRawOn] = useState(rawSelected);
 
     const albumsOptions = useMemo(() => {
         const options = albumNames.map((name) => {
             return (
                 <Combobox.Option value={name} key={name}>
                     <RowBox style={{ justifyContent: 'space-between' }}>
-                        <Text>{name}</Text>
-                        {selectedAlbums.includes(name) && (
-                            <IconCheck />
-                        )}
+                        <Text className="menu-item-text">{name}</Text>
+                        {selectedAlbums.includes(name) && <IconCheck />}
                     </RowBox>
                 </Combobox.Option>
-            )
-        })
-        return options
-    }, [albumNames, selectedAlbums])
+            );
+        });
+        return options;
+    }, [albumNames, selectedAlbums]);
 
     return (
-        <RowBox style={{ width: 'max-content', height: 50, alignItems: 'flex-start', paddingTop: 10 }}>
+        <RowBox
+            style={{
+                flexGrow: 1,
+                marginRight: '2vw',
+                height: 55,
+                alignItems: 'center',
+                padding: 10,
+            }}
+        >
             <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
             <Space w={20} />
             <Combobox
@@ -96,12 +161,23 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
                 withinPortal={false}
                 positionDependencies={[selectedAlbums]}
                 onOptionSubmit={(val) => {
-                    setSelectedAlbums((current) => current.includes(val) ? current.filter((item) => item !== val) : [...current, val])
+                    setSelectedAlbums((current) =>
+                        current.includes(val)
+                            ? current.filter((item) => item !== val)
+                            : [...current, val]
+                    );
                 }}
             >
                 <Combobox.Target>
-                    <Indicator color='#4444ff' disabled={!selectedAlbums.length && !rawSelected}>
-                        <IconFilter onClick={() => combobox.toggleDropdown()} style={{ cursor: 'pointer' }} />
+                    <Indicator
+                        color="#4444ff"
+                        disabled={!selectedAlbums.length && !rawSelected}
+                        zIndex={3}
+                    >
+                        <IconFilter
+                            onClick={() => combobox.toggleDropdown()}
+                            style={{ cursor: 'pointer' }}
+                        />
                     </Indicator>
                 </Combobox.Target>
 
@@ -112,7 +188,11 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
                         </ColumnBox>
                     </Combobox.Header>
                     <Space h={10} />
-                    <WeblensButton label='Show RAWs' toggleOn={rawOn} onToggle={setRawOn} />
+                    <WeblensButton
+                        label="Show RAWs"
+                        toggleOn={rawOn}
+                        onClick={() => setRawOn(!rawOn)}
+                    />
                     <Space h={10} />
                     <Combobox.Options>
                         <Combobox.Group label="Albums">
@@ -123,223 +203,396 @@ const TimelineControls = ({ rawSelected, albumsFilter, imageSize, albumsMap, dis
                         </Combobox.Group>
                     </Combobox.Options>
                 </Combobox.Dropdown>
-
             </Combobox>
+            <Space w={1} flex={2} />
+            <WeblensButton
+                label="Select"
+                centerContent
+                toggleOn={selecting}
+                onClick={() =>
+                    dispatch({ type: 'set_selecting', selecting: !selecting })
+                }
+                style={{ width: 100, padding: 2 }}
+            />
         </RowBox>
-    )
-}
+    );
+};
 
 const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
-    const [newAlbumModal, setNewAlbumModal] = useState(false)
-    const [newAlbumName, setNewAlbumName] = useState("")
-    const { authHeader } = useContext(userContext)
+    const [newAlbumModal, setNewAlbumModal] = useState(false);
+    const [newAlbumName, setNewAlbumName] = useState('');
+    const { authHeader }: UserContextT = useContext(userContext);
 
     if (!albumId) {
         return (
             <Box>
-                <Button color='#4444ff' onClick={() => { dispatch({ type: 'set_block_focus', block: true }); setNewAlbumModal(true) }} leftSection={<IconPlus />}>
+                <Button
+                    color="#4444ff"
+                    onClick={() => {
+                        dispatch({ type: 'set_block_focus', block: true });
+                        setNewAlbumModal(true);
+                    }}
+                    leftSection={<IconPlus />}
+                >
                     New Album
                 </Button>
 
-                <Modal opened={newAlbumModal} onClose={() => { dispatch({ type: 'set_block_focus', block: false }); setNewAlbumModal(false) }} title="New Album">
-                    <TextInput value={newAlbumName} placeholder='Album name' onChange={(e) => setNewAlbumName(e.currentTarget.value)} />
+                <Modal
+                    opened={newAlbumModal}
+                    onClose={() => {
+                        dispatch({ type: 'set_block_focus', block: false });
+                        setNewAlbumModal(false);
+                    }}
+                    title="New Album"
+                >
+                    <TextInput
+                        value={newAlbumName}
+                        placeholder="Album name"
+                        onChange={(e) => setNewAlbumName(e.currentTarget.value)}
+                    />
                     <Space h={'md'} />
-                    <Button onClick={() => { CreateAlbum(newAlbumName, authHeader).then(() => GetAlbums(authHeader).then((val) => dispatch({ type: 'set_albums', albums: val }))); dispatch({ type: 'set_block_focus', block: false }); setNewAlbumModal(false) }}>
+                    <Button
+                        onClick={() => {
+                            CreateAlbum(newAlbumName, authHeader).then(() =>
+                                GetAlbums(authHeader).then((val) =>
+                                    dispatch({
+                                        type: 'set_albums',
+                                        albums: val,
+                                    })
+                                )
+                            );
+                            dispatch({ type: 'set_block_focus', block: false });
+                            setNewAlbumModal(false);
+                        }}
+                    >
                         Create
                     </Button>
                 </Modal>
             </Box>
-        )
+        );
     } else {
         return (
             <RowBox style={{ width: 'max-content' }}>
-                <Switch color='#4444ff' checked={rawSelected} label={'RAWs'} onChange={(e) => dispatch({ type: 'set_raw_toggle', raw: e.target.checked })} />
+                <Switch
+                    color="#4444ff"
+                    checked={rawSelected}
+                    label={'RAWs'}
+                    onChange={(e) =>
+                        dispatch({
+                            type: 'set_raw_toggle',
+                            raw: e.target.checked,
+                        })
+                    }
+                />
                 <Space w={20} />
                 <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
             </RowBox>
-        )
+        );
     }
+};
 
-}
-
-function ViewSwitch({ mediaState, page, timeline, albums, albumId, dispatch }) {
-    const nav = useNavigate()
-    const [hovering, setHovering] = useState(false)
-    let albumStyle = {}
+function ViewSwitch({
+    mediaState,
+    page,
+    timeline,
+    albums,
+    albumId,
+    dispatch,
+}: {
+    mediaState: MediaStateT;
+    page: string;
+    timeline;
+    albums;
+    albumId: string;
+    dispatch: (action: GalleryAction) => void;
+}) {
+    const nav = useNavigate();
+    const [hovering, setHovering] = useState(false);
+    let albumStyle = {};
     if (albumId && hovering) {
-        albumStyle = { backgroundColor: '#2e2e2e', outline: '1px solid #4444ff' }
-    }
-    else if (albumId) {
-        albumStyle = { backgroundColor: '#00000000', outline: '1px solid #4444ff' }
+        albumStyle = {
+            backgroundColor: '#2e2e2e',
+            outline: '1px solid #4444ff',
+        };
+    } else if (albumId) {
+        albumStyle = {
+            backgroundColor: '#00000000',
+            outline: '1px solid #4444ff',
+        };
     }
     return (
-        <Tabs value={page} keepMounted={false} onChange={(p) => nav(`/${p}`)} variant='pills' style={{ height: "100%" }}>
+        <Tabs
+            value={page}
+            keepMounted={false}
+            onChange={(p) => nav(`/${p}`)}
+            variant="pills"
+            style={{ height: '100%' }}
+        >
             <RowBox style={{ height: 60 }}>
-                <Tabs.List style={{ marginLeft: 20, flexDirection: 'row' }}>
-                    <Tabs.Tab value='timeline' color='#4444ff'>
+                <Tabs.List
+                    style={{
+                        marginLeft: 20,
+                        flexDirection: 'row',
+                        width: 175,
+                        flexShrink: 0,
+                    }}
+                >
+                    <Tabs.Tab value="timeline" color="#4444ff">
                         Timeline
                     </Tabs.Tab>
-                    <Tabs.Tab value='albums' color='#4444ff' onMouseOver={() => setHovering(true)} onMouseLeave={() => setHovering(false)} style={albumStyle}>
+                    <Tabs.Tab
+                        value="albums"
+                        color="#4444ff"
+                        onMouseOver={() => setHovering(true)}
+                        onMouseLeave={() => setHovering(false)}
+                        style={albumStyle}
+                    >
                         Albums
                     </Tabs.Tab>
                 </Tabs.List>
                 <Space w={30} />
-                {page === "timeline" && (
-                    <TimelineControls rawSelected={mediaState.includeRaw} albumsFilter={mediaState.albumsFilter} imageSize={mediaState.imageSize} albumsMap={mediaState.albumsMap} dispatch={dispatch} />
+                {page === 'timeline' && (
+                    <TimelineControls
+                        rawSelected={mediaState.includeRaw}
+                        selecting={mediaState.selecting}
+                        albumsFilter={mediaState.albumsFilter}
+                        imageSize={mediaState.imageSize}
+                        albumsMap={mediaState.albumsMap}
+                        dispatch={dispatch}
+                    />
                 )}
-                {page === "albums" && (
-                    <AlbumsControls albumId={albumId} imageSize={mediaState.imageSize} rawSelected={mediaState.includeRaw} dispatch={dispatch} />
+                {page === 'albums' && (
+                    <AlbumsControls
+                        albumId={albumId}
+                        imageSize={mediaState.imageSize}
+                        rawSelected={mediaState.includeRaw}
+                        dispatch={dispatch}
+                    />
                 )}
             </RowBox>
 
-            <Tabs.Panel value='timeline' style={{ height: "98%" }}>
-                <ColumnBox>
-                    {timeline}
-                </ColumnBox>
+            <Tabs.Panel value="timeline" style={{ height: '98%' }}>
+                <ColumnBox>{timeline}</ColumnBox>
             </Tabs.Panel>
-            <Tabs.Panel value='albums' style={{ height: "98%" }}>
-                <ColumnBox style={{ alignItems: 'center' }}>
-                    {albums}
-                </ColumnBox>
+            <Tabs.Panel value="albums" style={{ height: '98%' }}>
+                <ColumnBox style={{ alignItems: 'center' }}>{albums}</ColumnBox>
             </Tabs.Panel>
         </Tabs>
-    )
+    );
 }
 
-export function Timeline({ mediaState, page, dispatch }: { mediaState: MediaStateType, page: string, dispatch: (value) => void }) {
-    const { authHeader } = useContext(userContext)
-    useEffect(() => { FetchData(mediaState, dispatch, authHeader).then(() => dispatch({ type: 'set_loading', loading: false })) }, [mediaState.includeRaw, mediaState.albumsFilter, page, authHeader])
-    // useEffect(() => scrollerRef.current!.scrollTo({ top: 0, behavior: 'instant' }), [mediaState.includeRaw, mediaState.albumsFilter])
-    const medias = useMemo(() => {
-        return Array.from(mediaState.mediaMap.values()).filter(v => {
-            if (mediaState.searchContent === "") {
-                return true
+export const Timeline = memo(
+    ({
+        mediaState,
+        imageBaseScale,
+        selecting,
+        loading,
+        page,
+        dispatch,
+    }: {
+        mediaState: MediaStateT;
+        imageBaseScale: number;
+        selecting: boolean;
+        loading: boolean;
+        page: string;
+        dispatch: (value) => void;
+    }) => {
+        const { authHeader }: UserContextT = useContext(userContext);
+        const mediaTypeMap = useMediaType();
+        useEffect(() => {
+            if (!mediaTypeMap) {
+                return;
             }
-            if (!v.recognitionTags) {
-                return false
-            }
-            for (const tag of v.recognitionTags) {
-                if (tag.includes(mediaState.searchContent)) {
-                    return true
-                }
-            }
-            return false
-        }).reverse()
-    }, [mediaState.mediaMap.size, mediaState.searchContent])
+            dispatch({ type: 'add_loading', loading: 'media' });
+            FetchData(mediaState, dispatch, authHeader).then(() =>
+                dispatch({ type: 'remove_loading', loading: 'media' })
+            );
+        }, [
+            mediaState.includeRaw,
+            mediaState.albumsFilter,
+            page,
+            mediaTypeMap,
+            authHeader,
+        ]);
 
-    // let groupBy = "date"
+        const medias = useMemo(() => {
+            return Array.from(mediaState.mediaMap.values())
+                .filter((v) => {
+                    v.mediaType = mediaTypeMap.get(v.mimeType);
+                    if (v.selected === undefined) {
+                        v.selected = false;
+                    }
+                    if (mediaState.searchContent === '') {
+                        return true;
+                    }
+                    if (!v.recognitionTags) {
+                        return false;
+                    }
+                    for (const tag of v.recognitionTags) {
+                        if (tag.includes(mediaState.searchContent)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .reverse();
+        }, [mediaState.mediaMap.size, mediaState.searchContent]);
 
-    // const groupMap: Map<string, Array<MediaData>> = useMemo(() => {
-    //     let groupMap = new Map<string, Array<MediaData>>()
+        if (loading) {
+            return null;
+        }
+        if (medias.length === 0) {
+            return <NoMediaDisplay />;
+        }
 
-    //     if (mediaState.mediaMap.size === 0) {
-    //         return groupMap
-    //     }
-    //     const limit: number = 1000
-    //     let counter = 0
-    //     for (let value of mediaState.mediaMap.values()) {
-    //         if (groupBy === "date") {
-    //             const dateObj = new Date(value.createDate.split("T")[0])
-    //             const dateString = dateObj.toUTCString().split(" 00:00:00 GMT")[0]
-    //             if (groupMap.get(dateString) == null) {
-    //                 groupMap.set(dateString, [value])
-    //             } else {
-    //                 groupMap.get(dateString).push(value)
-    //             }
-    //         } else if (groupBy === "filetype") {
-    //             const ext = value.mediaType.FriendlyName
-    //             if (groupMap.get(ext) == null) {
-    //                 groupMap.set(ext, [value])
-    //             } else {
-    //                 groupMap.get(ext).push(value)
-    //             }
-    //         } else {
-    //             if (groupMap.get("") == null) {
-    //                 groupMap.set("", [])
-    //             }
-    //             groupMap.get("").push(value)
-    //         }
-    //         counter += 1
-    //         if (counter >= limit) {
-    //             break
-    //         }
-    //     }
-    //     return groupMap
-    // }, [mediaState.mediaMapUpdated, mediaState.mediaMap])
-
-    if (mediaState.loading) {
-        return null
-    }
-    if (medias.length === 0) {
         return (
-            <NoMediaDisplay />
-        )
+            <ColumnBox>
+                <PhotoGallery
+                    medias={medias}
+                    selecting={mediaState.selecting}
+                    imageBaseScale={imageBaseScale}
+                    title={null}
+                    dispatch={dispatch}
+                />
+            </ColumnBox>
+        );
+    },
+    (prev, next) => {
+        if (prev.mediaState.mediaMap !== next.mediaState.mediaMap) {
+            return false;
+        } else if (prev.selecting !== next.selecting) {
+            return false;
+        } else if (
+            prev.mediaState.albumsFilter !== next.mediaState.albumsFilter
+        ) {
+            return false;
+        } else if (prev.loading !== next.loading) {
+            return false;
+        } else if (prev.imageBaseScale !== next.imageBaseScale) {
+            return false;
+        }
+        return true;
     }
-    return (
-        <ColumnBox>
-            <PhotoGallery medias={medias} imageBaseScale={mediaState.imageSize} title={null} dispatch={dispatch} />
-        </ColumnBox>
-    )
-}
+);
 
 const Gallery = () => {
-    const [mediaState, dispatch]: [MediaStateType, React.Dispatch<any>] = useReducer(mediaReducer, {
-        mediaMap: new Map<string, MediaData>(),
-        mediaMapUpdated: 0,
-        albumsMap: new Map<string, AlbumData>(),
-        presentingMedia: null,
-        albumsFilter: [],
-        loading: true,
-        includeRaw: false,
-        newAlbumDialogue: false,
-        blockSearchFocus: false,
-        imageSize: 300,
-        showingCount: 300,
-        scanProgress: 0,
-        searchContent: "",
-        menuOpen: false,
-        menuTargetId: "",
-        menuPos: { x: 0, y: 0 },
-    })
+    const [mediaState, dispatch]: [MediaStateT, React.Dispatch<any>] =
+        useReducer(mediaReducer, {
+            mediaMap: new Map<string, MediaData>(),
+            selected: new Map<string, boolean>(),
+            mediaMapUpdated: 0,
+            albumsMap: new Map<string, AlbumData>(),
+            presentingMedia: null,
+            albumsFilter: [],
+            loading: [],
+            includeRaw: false,
+            newAlbumDialogue: false,
+            blockSearchFocus: false,
+            selecting: false,
+            imageSize: 300,
+            showingCount: 300,
+            scanProgress: 0,
+            searchContent: '',
+            menuOpen: false,
+            menuTargetId: '',
+            menuPos: { x: 0, y: 0 },
+        });
 
-    const { authHeader } = useContext(userContext)
+    const nav = useNavigate();
+    const { authHeader, usr }: { authHeader; usr: UserInfoT } =
+        useContext(userContext);
 
-    const loc = useLocation()
-    const page = loc.pathname === "/" || loc.pathname === "/timeline" ? 'timeline' : "albums"
-    const albumId = useParams()["*"]
-    const { lastMessage } = useWeblensSocket()
+    const loc = useLocation();
+    const page =
+        loc.pathname === '/' || loc.pathname === '/timeline'
+            ? 'timeline'
+            : 'albums';
+    const albumId = useParams()['*'];
+    const { lastMessage } = useWeblensSocket();
 
-    const viewportRef: React.Ref<HTMLDivElement> = useRef()
+    const viewportRef: React.Ref<HTMLDivElement> = useRef();
 
-    const searchRef = useRef()
-    useKeyDown(mediaState.blockSearchFocus, searchRef)
-    useEffect(() => { handleWebsocket(lastMessage, dispatch) }, [lastMessage])
+    const searchRef = useRef();
+    useKeyDownGallery(mediaState.blockSearchFocus, searchRef, dispatch);
+    useEffect(() => {
+        handleWebsocket(lastMessage, dispatch);
+    }, [lastMessage]);
 
     useEffect(() => {
-        if (authHeader.Authorization !== "" && page !== "albums") {
-            GetAlbums(authHeader)
-                .then((val) => {
-                    dispatch({ type: 'set_albums', albums: val })
-                    dispatch({ type: 'set_loading', loading: false })
-                })
+        if (usr.isLoggedIn) {
+            dispatch({ type: 'remove_loading', loading: 'login' });
+        } else if (usr.isLoggedIn === undefined) {
+            dispatch({ type: 'add_loading', loading: 'login' });
+        } else if (usr.isLoggedIn === false) {
+            nav('/login');
         }
-    }, [authHeader, page])
+    }, [usr]);
+
+    useEffect(() => {
+        if (authHeader.Authorization !== '' && page !== 'albums') {
+            dispatch({ type: 'add_loading', loading: 'albums' });
+            GetAlbums(authHeader).then((val) => {
+                dispatch({ type: 'set_albums', albums: val });
+                dispatch({ type: 'remove_loading', loading: 'albums' });
+            });
+        }
+    }, [authHeader, page]);
 
     return (
         <Box>
-            <HeaderBar searchContent={mediaState.searchContent} dispatch={dispatch} page={"gallery"} searchRef={searchRef} loading={mediaState.loading} progress={mediaState.scanProgress} />
-            <Presentation itemId={mediaState.presentingMedia?.fileHash} mediaData={mediaState.presentingMedia} element={null} dispatch={dispatch} />
-            <ColumnBox style={{ height: "100vh", alignItems: 'normal' }}>
+            <HeaderBar
+                // searchContent={mediaState.searchContent}
+                dispatch={dispatch}
+                page={'gallery'}
+                // searchRef={searchRef}
+                loading={mediaState.loading}
+                // progress={mediaState.scanProgress}
+            />
+            <Presentation
+                itemId={mediaState.presentingMedia?.mediaId}
+                mediaData={mediaState.presentingMedia}
+                element={null}
+                dispatch={dispatch}
+            />
+            <GalleryMenu
+                media={mediaState.mediaMap.get(mediaState.menuTargetId)}
+                menuPos={mediaState.menuPos}
+                open={mediaState.menuOpen}
+                setOpen={(o: boolean) =>
+                    dispatch({ type: 'set_menu_open', open: o })
+                }
+            />
+            <ColumnBox
+                style={{ height: '100vh', alignItems: 'normal', zIndex: 2 }}
+            >
                 {/* <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} /> */}
-                <Box ref={viewportRef} style={{ height: "calc(100% - 80px)", width: '100%', position: 'absolute' }}>
+                <Box
+                    ref={viewportRef}
+                    style={{
+                        height: 'calc(100% - 80px)',
+                        width: '100%',
+                        position: 'absolute',
+                    }}
+                >
                     <ViewSwitch
                         mediaState={mediaState}
                         page={page}
                         timeline={
-                            <Timeline mediaState={mediaState} page={page} dispatch={dispatch} />
+                            <Timeline
+                                mediaState={mediaState}
+                                imageBaseScale={mediaState.imageSize}
+                                selecting={mediaState.selecting}
+                                loading={mediaState.loading.length !== 0}
+                                page={page}
+                                dispatch={dispatch}
+                            />
                         }
                         albums={
-                            <Albums mediaState={mediaState} selectedAlbum={albumId} dispatch={dispatch} />
+                            <Albums
+                                mediaState={mediaState}
+                                selectedAlbum={albumId}
+                                dispatch={dispatch}
+                            />
                         }
                         albumId={albumId}
                         dispatch={dispatch}
@@ -347,7 +600,7 @@ const Gallery = () => {
                 </Box>
             </ColumnBox>
         </Box>
-    )
-}
+    );
+};
 
-export default Gallery
+export default Gallery;

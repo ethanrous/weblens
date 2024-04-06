@@ -1,118 +1,312 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom';
 
-import { Box, Text } from '@mantine/core'
-import { IconChevronRight } from '@tabler/icons-react'
+import { Box, Text } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
 
-import { RowBox, TransferCard } from '../Pages/FileBrowser/FilebrowserStyles'
-import { memo, useContext, useMemo, useState } from 'react'
-import { fileData, getBlankFile } from '../types/Types'
-import { userContext } from '../Context'
+import { RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
+import { memo, useContext, useEffect, useMemo, useState } from 'react';
+import {
+    UserInfoT,
+    FileInfoT,
+    getBlankFile,
+    UserContextT,
+} from '../types/Types';
+import { userContext } from '../Context';
+import { useResize } from './hooks';
 
 type breadcrumbProps = {
-    label: string
-    onClick?: React.MouseEventHandler<HTMLDivElement>
-    onMouseUp?: () => void
-    dragging?: number
-    fontSize?: number
-    compact?: boolean
-    alwaysOn?: boolean
-    setMoveDest?
-}
+    label: string;
+    onClick?: React.MouseEventHandler<HTMLDivElement>;
+    onMouseUp?: () => void;
+    dragging?: number;
+    fontSize?: number;
+    compact?: boolean;
+    alwaysOn?: boolean;
+    setMoveDest?;
+};
 
-export const StyledBreadcrumb = ({ label, onClick, dragging, onMouseUp, alwaysOn = false, fontSize = 25, compact = false, setMoveDest }: breadcrumbProps) => {
-    const [hovering, setHovering] = useState(false)
-    let outline
-    let bgColor = "transparent"
+export const StyledBreadcrumb = ({
+    label,
+    onClick,
+    dragging,
+    onMouseUp = () => {},
+    alwaysOn = false,
+    fontSize = 25,
+    compact = false,
+    setMoveDest,
+}: breadcrumbProps) => {
+    const [hovering, setHovering] = useState(false);
+    let outline;
+    let bgColor = 'transparent';
 
     if (alwaysOn) {
-        outline = '1px solid #aaaaaa'
-        bgColor = "rgba(30, 30, 30, 0.5)"
+        outline = '1px solid #aaaaaa';
+        bgColor = 'rgba(30, 30, 30, 0.5)';
     } else if (dragging === 1 && hovering) {
-        outline = "2px solid #661199"
+        outline = '2px solid #661199';
     } else if (dragging === 1) {
-        bgColor = "#333333"
+        bgColor = '#4444aa';
     }
     return (
-
         <Box
             className={compact ? 'crumb-box-compact' : 'crumb-box'}
-            onMouseOver={() => { setHovering(true); if (dragging && setMoveDest) { setMoveDest(label) } }}
-            onMouseLeave={() => { setHovering(false); if (dragging && setMoveDest) { setMoveDest("") } }}
-            onMouseUp={e => { onMouseUp(); setMoveDest("") }}
+            onMouseOver={() => {
+                setHovering(true);
+                if (dragging && setMoveDest) {
+                    setMoveDest(label);
+                }
+            }}
+            onMouseLeave={() => {
+                setHovering(false);
+                if (dragging && setMoveDest) {
+                    setMoveDest('');
+                }
+            }}
+            onMouseUp={(e) => {
+                onMouseUp();
+                setMoveDest('');
+            }}
             onClick={onClick}
-
-            style={{ outline: outline, backgroundColor: bgColor }}
+            style={{
+                outline: outline,
+                backgroundColor: bgColor,
+                flexShrink: 1,
+                minWidth: 0,
+            }}
         >
-            <Text lineClamp={1} c={'white'} truncate='end' style={{ fontSize: `${fontSize}px`, lineHeight: "1.2", userSelect: "none", width: '100%' }}>{label}</Text>
+            <Text
+                className="crumb-text"
+                truncate="end"
+                style={{
+                    fontSize: fontSize,
+                    width: 'max-content',
+                    maxWidth: '100%',
+                }}
+            >
+                {label}
+            </Text>
         </Box>
-
-    )
-}
+    );
+};
 
 // The crumb concatenator, the Crumbcatenator
-const Crumbcatenator = ({ crumb, last }) => {
+const Crumbcatenator = ({ crumb, index, squished, setWidth }) => {
+    const [crumbRef, setCrumbRef] = useState(null);
+    const size = useResize(crumbRef);
+    useEffect(() => {
+        setWidth(index, size.width);
+    }, [size]);
+
+    if (squished >= index + 1) {
+        return null;
+    }
+
     return (
-        <RowBox style={{ width: 'max-content' }}>
-            {crumb}
-            {!last && (
-                <IconChevronRight />
+        <Box
+            ref={setCrumbRef}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                width: 'max-content',
+            }}
+        >
+            {size.width > 10 && index !== 0 && (
+                <IconChevronRight style={{ width: '20px', minWidth: '20px' }} />
             )}
-        </RowBox>
-    )
-}
+            {crumb}
+        </Box>
+    );
+};
 
 export const StyledLoaf = ({ crumbs }) => {
+    const [widths, setWidths] = useState(new Array(crumbs.length));
+    const [squished, setSquished] = useState(0);
+    const [crumbsRef, setCrumbRef] = useState(null);
+    const size = useResize(crumbsRef);
+
+    useEffect(() => {
+        if (widths.length !== crumbs.length) {
+            const newWidths = [...widths.slice(0, crumbs.length)];
+            setWidths(newWidths);
+        }
+    }, [crumbs.length]);
+
+    useEffect(() => {
+        if (!widths || widths[0] == undefined) {
+            return;
+        }
+        let total = widths.reduce((acc, v) => acc + v);
+        let squishCount;
+
+        // - 20 to account for width of ... text
+        for (squishCount = 0; total > size.width - 20; squishCount++) {
+            total -= widths[squishCount];
+        }
+        setSquished(squishCount);
+    }, [size, widths]);
+
     return (
-        <RowBox style={{ height: 'max-content' }}>
-            {crumbs.map((c, i) => <Crumbcatenator key={i} crumb={c} last={i === crumbs.length - 1} />)}
-        </RowBox>
-    )
-}
+        <Box ref={setCrumbRef} className="loaf">
+            {squished !== 0 && <Text className="crumb-text">...</Text>}
 
-const Crumbs = memo(({ finalFile, parents, moveSelectedTo, navOnLast, setMoveDest, dragging }: { finalFile: fileData, parents: fileData[], navOnLast: boolean, moveSelectedTo?: (folderId: string) => void, setMoveDest?: (itemName: string) => void, dragging?: number }) => {
-    const navigate = useNavigate()
-    const { userInfo } = useContext(userContext)
+            {crumbs.map((c, i) => (
+                <Crumbcatenator
+                    key={i}
+                    crumb={c}
+                    index={i}
+                    squished={squished}
+                    setWidth={(index, width) =>
+                        setWidths((p) => {
+                            p[index] = width;
+                            return [...p];
+                        })
+                    }
+                />
+            ))}
+        </Box>
+    );
+};
 
-    const loaf = useMemo(() => {
-        if (!userInfo || !finalFile?.id) {
-            return null
-        }
+const Crumbs = memo(
+    ({
+        finalFile,
+        parents,
+        moveSelectedTo,
+        navOnLast,
+        setMoveDest,
+        dragging,
+    }: {
+        finalFile: FileInfoT;
+        parents: FileInfoT[];
+        navOnLast: boolean;
+        moveSelectedTo?: (folderId: string) => void;
+        setMoveDest?: (itemName: string) => void;
+        dragging?: number;
+    }) => {
+        const navigate = useNavigate();
+        const { usr }: UserContextT = useContext(userContext);
 
-        const parentsIds = parents.map(p => p.id)
-        if (parentsIds.includes("shared")) {
-            let sharedRoot = getBlankFile()
-            sharedRoot.filename = "Shared"
-            parents.unshift(sharedRoot)
-        } else if (finalFile.id === userInfo.trashFolderId || parentsIds.includes(userInfo.trashFolderId)) {
-            if (parents[0]?.id === userInfo.homeFolderId) {
-                parents.shift()
+        const loaf = useMemo(() => {
+            if (!usr || !finalFile?.id) {
+                return null;
             }
-            if (parents[0]?.id === userInfo.trashFolderId && parents[0].filename !== "Trash") {
-                parents[0].filename = "Trash"
+
+            const parentsIds = parents.map((p) => p.id);
+            if (parentsIds.includes('shared')) {
+                let sharedRoot = getBlankFile();
+                sharedRoot.filename = 'Shared';
+                parents.unshift(sharedRoot);
+            } else if (
+                finalFile.id === usr.trashId ||
+                parentsIds.includes(usr.trashId)
+            ) {
+                if (parents[0]?.id === usr.homeId) {
+                    parents.shift();
+                }
+                if (
+                    parents[0]?.id === usr.trashId &&
+                    parents[0].filename !== 'Trash'
+                ) {
+                    parents[0].filename = 'Trash';
+                }
+                if (
+                    finalFile.id === usr.trashId &&
+                    finalFile.filename !== 'Trash'
+                ) {
+                    finalFile.filename = 'Trash';
+                }
+            } else if (
+                finalFile.id === usr.homeId ||
+                parentsIds.includes(usr.homeId)
+            ) {
+                if (
+                    parents[0]?.id === usr.homeId &&
+                    parents[0].filename !== 'Home'
+                ) {
+                    parents[0].filename = 'Home';
+                }
+                if (
+                    finalFile.id === usr.homeId &&
+                    finalFile.filename !== 'Home'
+                ) {
+                    finalFile.filename = 'Home';
+                }
+            } else if (finalFile.id == 'EXTERNAL_ROOT') {
+                finalFile.filename = 'External';
+                finalFile.id = 'external';
+            } else if (parents[0]?.id == 'EXTERNAL_ROOT') {
+                parents[0].filename = 'External';
+                parents[0].id = 'external';
             }
-            if (finalFile.id === userInfo.trashFolderId && finalFile.filename !== "Trash") {
-                finalFile.filename = "Trash"
-            }
-        }
 
-        const crumbs = parents.map((parent) => {
-            const isHome = parent.id === userInfo.homeFolderId
-            return <StyledBreadcrumb key={parent.id} label={isHome ? "Home" : parent.filename} onClick={(e) => { e.stopPropagation(); navigate(`/files/${isHome ? "home" : parent.id}`) }} dragging={dragging} onMouseUp={() => { if (dragging !== 0) { moveSelectedTo(parent.id) } }} setMoveDest={setMoveDest} />
-        })
+            const crumbs = parents.map((parent) => {
+                return (
+                    <StyledBreadcrumb
+                        key={parent.id}
+                        label={parent.filename}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/files/${parent.id}`);
+                        }}
+                        dragging={dragging}
+                        onMouseUp={() => {
+                            if (dragging !== 0) {
+                                moveSelectedTo(parent.id);
+                            }
+                        }}
+                        setMoveDest={setMoveDest}
+                    />
+                );
+            });
 
-        crumbs.push(
-            <StyledBreadcrumb key={finalFile.id} label={finalFile.id === userInfo.homeFolderId ? "Home" : finalFile.filename} onClick={(e) => { e.stopPropagation(); if (!navOnLast) { return }; navigate(`/files/${finalFile.parentFolderId === userInfo.homeFolderId ? "home" : finalFile.parentFolderId}`) }} setMoveDest={setMoveDest} />
-        )
+            crumbs.push(
+                <StyledBreadcrumb
+                    key={finalFile.id}
+                    label={
+                        finalFile.id === usr.homeId
+                            ? 'Home'
+                            : finalFile.filename
+                    }
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (!navOnLast) {
+                            return;
+                        }
+                        navigate(
+                            `/files/${
+                                finalFile.parentFolderId === usr.homeId
+                                    ? 'home'
+                                    : finalFile.parentFolderId
+                            }`
+                        );
+                    }}
+                    setMoveDest={setMoveDest}
+                />
+            );
 
+            return <StyledLoaf crumbs={crumbs} />;
+        }, [
+            parents,
+            finalFile,
+            moveSelectedTo,
+            navOnLast,
+            dragging,
+            navigate,
+            usr,
+            setMoveDest,
+        ]);
+
+        return loaf;
+    },
+    (prev, next) => {
         return (
-            <StyledLoaf crumbs={crumbs} />
-        )
-    }, [parents, finalFile, moveSelectedTo, navOnLast, dragging, navigate, userInfo])
+            (prev.dragging === next.dragging &&
+                prev.parents === next.parents &&
+                prev.finalFile === next.finalFile) ||
+            next.parents === null ||
+            !next.finalFile?.id
+        );
+    }
+);
 
-    return loaf
-
-}, (prev, next) => {
-    return (prev.dragging === next.dragging && prev.parents === next.parents && prev.finalFile === next.finalFile) || next.parents === null || !next.finalFile?.id
-})
-
-export default Crumbs
+export default Crumbs;

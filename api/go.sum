@@ -17,8 +17,8 @@ github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ3
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/ethanrous/bimg v0.0.3 h1:6hdAyPJmQ0H+dh84uOna7htJABZR5hVECvHHFipY3yQ=
-github.com/ethanrous/bimg v0.0.3/go.mod h1:2sLTQBmvNxvg1GqqimHbnLKQ6oiDjsE37ZX99QC0TnA=
+github.com/ethanrous/bimg v0.0.4 h1:NrLiUkG3E8xliFHaqh9Wspglyyux01wiu2462/Yxtf4=
+github.com/ethanrous/bimg v0.0.4/go.mod h1:2sLTQBmvNxvg1GqqimHbnLKQ6oiDjsE37ZX99QC0TnA=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=

@@ -7,6 +7,7 @@ import (
 
 	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
@@ -20,14 +21,14 @@ func InitGExif(bufSize int64) *exiftool.Exiftool {
 	}
 	if gexift != nil {
 		err := gexift.Close()
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		gexift = nil
 		gexiftBufferSize = 0
 	}
 	gbuf := make([]byte, int(bufSize))
 	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"), exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(gbuf, int(bufSize)))
 	if err != nil {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return nil
 	}
 	gexift = et
@@ -37,19 +38,20 @@ func InitGExif(bufSize int64) *exiftool.Exiftool {
 
 func processMediaFile(t *task) {
 	meta := t.metadata.(ScanMetadata)
-	m := meta.PartialMedia
-	file := meta.File
+	m := meta.partialMedia
+	file := meta.file
 
+	file.AddTask(t)
 	defer file.RemoveTask(t.TaskId())
 
 	if m == nil {
-		t.error(errors.New("attempted to process nil media"))
+		t.ErrorAndExit(errors.New("attempted to process nil media"))
 		return
 	}
 
 	d, err := file.IsDisplayable()
 	if err != nil && err != dataStore.ErrNoMedia {
-		t.error(err)
+		t.ErrorAndExit(err)
 		return
 	}
 	if !d {
@@ -60,123 +62,176 @@ func processMediaFile(t *task) {
 
 	m, err = m.LoadFromFile(file, t)
 	if err != nil {
-		t.error(err)
+		t.ErrorAndExit(err)
 		return
 	}
 
-	err = m.WriteToDb()
+	t.CheckExit()
+
+	err = m.Save()
 	if err != nil {
-		t.error(err)
+		t.ErrorAndExit(err)
 		return
 	}
-	if !m.IsImported() {
-		m.SetImported()
-	}
+	m.SetImported(true)
 
-	globalCaster.PushFileUpdate(file)
+	t.CheckExit()
+
+	t.caster.PushFileUpdate(file)
+	t.taskPool.NotifyTaskComplete(t, t.caster)
+	if t.caster.IsBuffered() {
+		t.caster.(types.BufferedBroadcasterAgent).Flush()
+	}
 	t.success()
 }
 
 func scanDirectory(t *task) {
 	meta := t.metadata.(ScanMetadata)
-	scanDir := meta.File
+	scanDir := meta.file
 
 	if scanDir.Filename() == ".user_trash" {
-		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+		t.taskPool.NotifyTaskComplete(t, t.caster, "No media to scan")
+		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
 
-	recursive := meta.Recursive
-	deepScan := meta.DeepScan
-
-	mediaToScan := []*dataStore.WeblensFile{}
-	dirsToScan := []*dataStore.WeblensFile{}
-
 	// "deepScan" defines wether or not we should go sync
 	// with the real filesystem for this scan. Otherwise,
 	// just handle processing media we already know about
-	if deepScan {
+	if meta.deepScan {
 		scanDir.ReadDir()
 	}
+
+	// Wait for all tasks on this directory to be finished
+	// before getting children. Avoids issues with, say, scaning a directory
+	// while we are uploading into it. We might grab only the first half of
+	// the files that are uploaded, and lose the scan on the second half of the files.
+	// Upload tasks attach themselves to the parent dir, so we would see that here.
+	for {
+		tasks := scanDir.GetTasks()
+		if len(tasks) == 0 {
+			break
+		}
+		util.Warning.Println("Waiting on tasks before scanning directory!")
+		if tasks[len(tasks)-1] == t {
+			util.Error.Println("BAD BAD! WAITING ON CURRENT TASK! THIS IS A DEADLOCK! WEBLENS IS DEAD!")
+		}
+		tasks[len(tasks)-1].Wait()
+	}
+	scanDir.AddTask(t)
+	defer scanDir.RemoveTask(t.TaskId())
+
+	mediaToScan := []types.WeblensFile{}
+	dirsToScan := []types.WeblensFile{}
 
 	children := scanDir.GetChildren()
 	for _, c := range children {
 		// If this file is already being procecced, don't queue it again
-		if slices.ContainsFunc(c.GetTasks(), func(t dataStore.Task) bool { return t.TaskType() == "scan_file" || t.TaskType() == "scan_directory" }) {
+		if slices.ContainsFunc(c.GetTasks(), func(t types.Task) bool { return t.TaskType() == "scan_file" || t.TaskType() == "scan_directory" }) {
 			continue
 		}
 		if !c.IsDir() {
-			m, err := c.GetMedia()
-			if err != nil && err != dataStore.ErrNoMedia {
-				util.DisplayError(err)
-				continue
-			}
-
 			d, err := c.IsDisplayable()
 			if err != nil && err != dataStore.ErrNoMedia {
-				util.DisplayError(err)
+				util.ErrTrace(err)
+				continue
+			}
+			if !d {
 				continue
 			}
 
-			if m == nil {
-				mediaToScan = append(mediaToScan, c)
+			m, err := c.GetMedia()
+			if err != nil && err != dataStore.ErrNoMedia {
+				util.ErrTrace(err)
 				continue
 			}
-
-			if !m.IsImported() && d {
+			if m == nil || !m.IsImported() {
 				mediaToScan = append(mediaToScan, c)
 				continue
 			}
 
 			filled, _ := m.IsFilledOut()
-			if !filled && d {
+			if !filled {
 				mediaToScan = append(mediaToScan, c)
 				continue
 			}
 
-		} else if recursive && c != scanDir {
+		} else if meta.recursive && c.Owner() != dataStore.WEBLENS_ROOT_USER && c != scanDir {
 			dirsToScan = append(dirsToScan, c)
 		}
 	}
 
-	for _, dir := range dirsToScan {
-		GetGlobalQueue().ScanDirectory(dir, recursive, deepScan, t.caster)
-	}
-
-	if len(mediaToScan) == 0 {
-		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
-		t.success("No media to scan: ", scanDir.String())
+	if len(mediaToScan) == 0 && len(dirsToScan) == 0 {
+		t.success("No media to scan: ", scanDir.GetAbsPath())
+		t.taskPool.NotifyTaskComplete(t, t.caster, "No media to scan")
+		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
 		return
 	}
 
-	// Wait on all tasks on files as not to be destructive
-	util.Each(mediaToScan, func(wf *dataStore.WeblensFile) { util.Each(wf.GetTasks(), func(t dataStore.Task) { t.Wait() }) })
+	tp := NewTaskPool(true, t)
+	util.Info.Printf("Beginning directory scan for %s [M %d][R %t][D %t]\n", scanDir.GetAbsPath(), len(mediaToScan), meta.recursive, meta.deepScan)
 
-	util.Info.Printf("Beginning directory scan for %s [M %d][R %t][D %t]\n", scanDir.String(), len(mediaToScan), recursive, deepScan)
+	for _, dir := range dirsToScan {
+		tp.ScanDirectory(dir, meta.recursive, meta.deepScan, t.caster)
+	}
 
-	t.SwLap("Pre-scan complete")
+	if len(mediaToScan) != 0 {
+		// Wait on all tasks on files as not to be destructive
+		util.Each(mediaToScan, func(wf types.WeblensFile) {
+			util.Each(wf.GetTasks(), func(fTask types.Task) {
+				if fTask.TaskId() != t.TaskId() {
+					fTask.Wait()
+				}
+			})
+		})
 
-	wq := NewWorkQueue()
+		t.SwLap("Pre-scan complete")
 
-	slices.SortFunc(mediaToScan, func(a, b *dataStore.WeblensFile) int { return strings.Compare(a.Filename(), b.Filename()) })
+		slices.SortFunc(mediaToScan, func(a, b types.WeblensFile) int { return strings.Compare(a.Filename(), b.Filename()) })
 
-	for _, file := range mediaToScan {
-		m, err := file.GetMedia()
-		if err != nil && err != dataStore.ErrNoMedia {
-			util.DisplayError(err)
-			continue
+		for _, file := range mediaToScan {
+			m, err := file.GetMedia()
+			if err != nil && err != dataStore.ErrNoMedia {
+				util.ErrTrace(err)
+				continue
+			}
+			tp.ScanFile(file, m, t.caster)
 		}
-		wq.ScanFile(file, m, t.caster)
 	}
 
 	t.SwLap("Queued all tasks")
-
-	wq.SignalAllQueued()
-	wq.Wait(true) // Park this thread and wait for the media to finish computing
+	tp.SignalAllQueued()
+	tp.Wait(true) // Park this thread and wait for the media to finish computing
 
 	t.SwLap("All sub-scans finished")
 
-	globalCaster.PushTaskUpdate(t.taskId, "scan_complete", t.result) // Let any client subscribers know we are done
+	globalCaster.PushTaskUpdate(t.taskId, "scan_complete", types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
 	t.success()
+}
+
+func getScanResult(t *task) types.TaskResult {
+	var tp *virtualTaskPool
+
+	if t.taskPool != nil {
+		tp = t.taskPool.GetRootPool()
+	}
+
+	result := types.TaskResult{
+		"filename": t.metadata.(ScanMetadata).file.Filename(),
+	}
+
+	if tp != nil {
+		complete, total, progress := tp.status()
+		result["percent_progress"] = progress
+		result["tasks_complete"] = complete
+		result["tasks_total"] = total
+		result["task_job_name"] = tp.createdBy.TaskType()
+		result["task_job_target"] = tp.createdBy.metadata.(ScanMetadata).file.Filename()
+	} else {
+		result["task_job_name"] = t.TaskType()
+		result["task_job_target"] = t.metadata.(ScanMetadata).file.Filename()
+	}
+
+	return result
 }

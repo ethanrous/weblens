@@ -18,11 +18,13 @@ import (
 
 	"github.com/EdlinOrg/prominentcolor"
 	"github.com/ethanrous/bimg"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/kolesa-team/go-webp/webp"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error) {
+func (m *Media) LoadFromFile(f types.WeblensFile, task types.Task) (media types.Media, err error) {
 	err = m.parseExif(f)
 	if err != nil {
 		return
@@ -37,22 +39,23 @@ func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error
 		task.SwLap("Read File")
 	}
 
-	if m.MediaId == "" {
-		err = m.generateFileHash()
+	if m.mediaId == "" {
+		err = m.generateMediaId()
 		if err != nil {
 			return
 		}
-		task.SwLap("Generate Filehash")
+		task.SwLap("Generate MediaId")
 	}
 
-	storedM, err := MediaMapGet(m.Id())
+	tmpM, err := MediaMapGet(m.Id())
 	if err != nil && err != ErrNoMedia {
 		return
 	}
 	task.SwLap("Check if exists")
 
 	var cacheExists bool
-	if storedM != nil {
+	if tmpM != nil {
+		storedM := tmpM.(*Media)
 		err = f.SetMedia(storedM)
 		if err != nil {
 			return
@@ -62,9 +65,9 @@ func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error
 		storedM.imgBytes = m.imgBytes
 		m = storedM
 
-		m.thumbCacheFile = FsTreeGet(m.ThumbnailCacheId)
-		for page := range m.PageCount {
-			m.fullresCacheFiles[page] = FsTreeGet(m.FullresCacheIds[page])
+		m.thumbCacheFile = FsTreeGet(m.thumbnailCacheId)
+		for page := range m.pageCount {
+			m.fullresCacheFiles[page] = FsTreeGet(m.fullresCacheIds[page])
 		}
 
 		// Check cache files exist
@@ -76,7 +79,7 @@ func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error
 	}
 
 	m.AddFile(f)
-	m.Owner = f.Owner()
+	m.owner = f.Owner()
 	task.SwLap("Add file and set owner")
 
 	// if m.BlurHash == "" || !cacheExists {
@@ -93,13 +96,13 @@ func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error
 	// }
 
 	if !cacheExists {
-		if m.MediaType.MultiPage {
+		if m.mediaType.multiPage {
 			err = m.generateImages()
 		} else {
 			err = m.generateImage()
 		}
 		if err != nil {
-			util.DisplayError(err)
+			util.ErrTrace(err)
 			return
 		}
 		task.SwLap("Generate Image")
@@ -110,10 +113,10 @@ func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error
 		task.SwLap("Create cache")
 	}
 
-	if m.RecognitionTags == nil && m.MediaType.SupportsImgRecog {
+	if m.recognitionTags == nil && m.mediaType.supportsImgRecog {
 		err = m.getImageRecognitionTags()
 		if err != nil {
-			util.DisplayError(err)
+			util.ErrTrace(err)
 		}
 		task.SwLap("Get img recognition tags")
 	}
@@ -121,43 +124,43 @@ func (m *Media) LoadFromFile(f *WeblensFile, task Task) (media *Media, err error
 	return m, nil
 }
 
-func (m *Media) Id() string {
-	if m.MediaId == "" {
-		if len(m.FileIds) == 0 {
+func (m *Media) Id() types.MediaId {
+	if m.mediaId == "" {
+		if len(m.fileIds) == 0 {
 			err := errors.New("trying to generate mediaId for media with no FileId")
-			util.DisplayError(err)
+			util.ErrTrace(err)
 			return ""
 		}
-		err := m.generateFileHash()
-		util.DisplayError(err)
+		err := m.generateMediaId()
+		util.ErrTrace(err)
 	}
 
-	return m.MediaId
+	return m.mediaId
 }
 
 func (m *Media) IsFilledOut() (bool, string) {
-	if m.MediaId == "" {
-		return false, "filehash"
+	if m.mediaId == "" {
+		return false, "mediaId"
 	}
-	if len(m.FileIds) == 0 {
+	if len(m.fileIds) == 0 {
 		return false, "file id"
 	}
-	if m.Owner == "" {
+	if m.owner == nil {
 		return false, "owner"
 	}
-	if m.MediaType.SupportsImgRecog && m.RecognitionTags == nil {
+	if m.mediaType.supportsImgRecog && m.recognitionTags == nil {
 		return false, "recognition tags"
 	}
 
 	// Visual media specific properties
-	if m.MediaType != nil && m.MediaType.IsDisplayable {
+	if m.mediaType != nil && m.mediaType.IsDisplayable() {
 		// if m.BlurHash == "" {
 		// 	return false, "blurhash"
 		// }
-		if m.MediaWidth == 0 {
+		if m.mediaWidth == 0 {
 			return false, "media width"
 		}
-		if m.MediaHeight == 0 {
+		if m.mediaHeight == 0 {
 			return false, "media height"
 		}
 		// if m.ThumbWidth == 0 {
@@ -166,23 +169,29 @@ func (m *Media) IsFilledOut() (bool, string) {
 		// if m.ThumbHeight == 0 {
 		// 	return false, "thumb height"
 		// }
-		if m.ThumbLength == 0 {
-			return false, "thumb length"
-		}
+
 	}
 
-	if m.CreateDate.IsZero() {
+	if m.createDate.IsZero() {
 		return false, "create date"
 	}
 
 	return true, ""
 }
 
-func (m *Media) ReadDisplayable(q Quality, index ...int) (data []byte, err error) {
+func (m *Media) GetCreateDate() time.Time {
+	return m.createDate
+}
+
+func (m *Media) GetMediaType() types.MediaType {
+	return m.mediaType
+}
+
+func (m *Media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err error) {
 	defer m.Clean()
 
 	var pageNum int
-	if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
+	if len(index) != 0 && (index[0] != 0 && index[0] >= m.pageCount) {
 		return nil, ErrPageOutOfRange
 	} else if len(index) != 0 {
 		pageNum = index[0]
@@ -203,7 +212,7 @@ func (m *Media) ReadDisplayable(q Quality, index ...int) (data []byte, err error
 
 	f, err := m.getCacheFile(q, true, pageNum)
 	if f == nil || err != nil {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return nil, ErrNoFile
 	}
 
@@ -223,20 +232,20 @@ func (m *Media) ReadDisplayable(q Quality, index ...int) (data []byte, err error
 	return
 }
 
-func (m *Media) AddFile(f *WeblensFile) {
-	m.FileIds = util.AddToSet(m.FileIds, []string{f.Id()})
+func (m *Media) AddFile(f types.WeblensFile) {
+	m.fileIds = util.AddToSet(m.fileIds, []types.FileId{f.Id()})
 	fddb.addFileToMedia(m, f)
 }
 
-func (m *Media) RemoveFile(fId string) {
+func (m *Media) RemoveFile(fId types.FileId) {
 	var existed bool
-	m.FileIds, _, existed = util.YoinkFunc(m.FileIds, func(f string) bool { return f == fId })
+	m.fileIds, _, existed = util.YoinkFunc(m.fileIds, func(f types.FileId) bool { return f == fId })
 
 	if !existed {
 		util.Warning.Println("Attempted to remove file from media that did not have that file")
 	}
 
-	if len(m.FileIds) == 0 {
+	if len(m.fileIds) == 0 {
 		removeMedia(m)
 	} else {
 		fddb.removeFileFromMedia(m.Id(), fId)
@@ -252,10 +261,12 @@ func (m *Media) Clean() {
 	m.images = nil
 }
 
-func (m *Media) SetImported() {
-	if !m.imported {
+func (m *Media) SetImported(i bool) {
+	if !m.imported && i {
 		m.imported = true
 		mediaMapAdd(m)
+	} else if !i {
+		m.imported = false
 	}
 }
 
@@ -266,7 +277,7 @@ func (m *Media) IsImported() bool {
 	return m.imported
 }
 
-func (m *Media) WriteToDb() error {
+func (m *Media) Save() error {
 	if !m.imported {
 		return fddb.AddMedia(m)
 	} else {
@@ -274,7 +285,7 @@ func (m *Media) WriteToDb() error {
 	}
 }
 
-func (m *Media) GetProminentColors() (prom []string, err error) {
+func (m *Media) getProminentColors() (prom []string, err error) {
 	var i image.Image
 	thumbBytes, err := m.ReadDisplayable(Thumbnail)
 	if err != nil {
@@ -293,12 +304,12 @@ func (m *Media) GetProminentColors() (prom []string, err error) {
 
 // Private
 
-func (m *Media) loadExif(f *WeblensFile) error {
+func (m *Media) loadExif(f types.WeblensFile) error {
 	if gexift == nil {
 		err := errors.New("exiftool not initialized")
 		return err
 	}
-	fileInfos := gexift.ExtractMetadata(f.String())
+	fileInfos := gexift.ExtractMetadata(f.GetAbsPath())
 	if fileInfos[0].Err != nil {
 		return fileInfos[0].Err
 	}
@@ -307,9 +318,9 @@ func (m *Media) loadExif(f *WeblensFile) error {
 	return nil
 }
 
-func (m *Media) parseExif(f *WeblensFile) error {
+func (m *Media) parseExif(f types.WeblensFile) error {
 
-	if m.CreateDate.Unix() == 0 && m.MediaType != nil && m.imgBytes != nil {
+	if m.createDate.Unix() == 0 && m.mediaType != nil && m.imgBytes != nil {
 		return nil
 	}
 
@@ -324,39 +335,40 @@ func (m *Media) parseExif(f *WeblensFile) error {
 	}
 
 	var err error
-	if m.CreateDate.Unix() <= 0 {
+	if m.createDate.Unix() <= 0 {
 		r, ok := m.rawExif["SubSecCreateDate"]
 		if !ok {
 			r, ok = m.rawExif["MediaCreateDate"]
 		}
 		if ok {
-			m.CreateDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
+			m.createDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
 			if err != nil {
-				m.CreateDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
+				m.createDate, err = time.Parse("2006:01:02 15:04:05.00-07:00", r.(string))
 			}
 			if err != nil {
-				m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
+				m.createDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
 			}
 		} else {
-			m.CreateDate = f.ModTime()
+			m.createDate = f.ModTime()
 		}
 		if err != nil {
 			return err
 		}
 	}
 
-	if m.MediaType == nil {
+	if m.mediaType == nil {
 		mimeType, ok := m.rawExif["MIMEType"].(string)
 		if !ok {
 			mimeType = "generic"
 		}
-		m.MediaType = ParseMimeType(mimeType)
+		m.mimeType = mimeType
+		m.mediaType = ParseMimeType(mimeType)
 	}
 
-	if m.MediaType.FriendlyName == "PDF" {
-		m.PageCount = int(m.rawExif["PageCount"].(float64))
+	if m.mediaType.FriendlyName() == "PDF" {
+		m.pageCount = int(m.rawExif["PageCount"].(float64))
 	} else {
-		m.PageCount = 1
+		m.pageCount = 1
 	}
 
 	if m.rotate == "" {
@@ -366,11 +378,11 @@ func (m *Media) parseExif(f *WeblensFile) error {
 		}
 	}
 
-	if !m.MediaType.IsDisplayable || m.MediaType.RawThumbExifKey == "" {
+	if !m.mediaType.IsDisplayable() || m.mediaType.rawThumbExifKey == "" {
 		return nil
 	}
 
-	raw64 := m.rawExif[m.MediaType.RawThumbExifKey].(string)
+	raw64 := m.rawExif[m.mediaType.rawThumbExifKey].(string)
 	raw64 = raw64[strings.Index(raw64, ":")+1:]
 
 	imgBytes, err := base64.StdEncoding.DecodeString(raw64)
@@ -382,7 +394,7 @@ func (m *Media) parseExif(f *WeblensFile) error {
 	return nil
 }
 
-func (m *Media) readFileBytes(f *WeblensFile) (err error) {
+func (m *Media) readFileBytes(f types.WeblensFile) (err error) {
 	var fileBytes []byte
 	fileBytes, err = f.ReadAll()
 	if err != nil {
@@ -409,7 +421,7 @@ func (m *Media) generateImage() (err error) {
 	case "Rotate 90 CW":
 		_, err = bi.Rotate(90)
 	}
-	util.DisplayError(err)
+	util.ErrTrace(err)
 	m.image = bi
 
 	b, err := bi.Process(bimg.Options{Type: bimg.WEBP})
@@ -423,8 +435,8 @@ func (m *Media) generateImage() (err error) {
 		return
 	}
 
-	m.MediaHeight = imgSize.Height
-	m.MediaWidth = imgSize.Width
+	m.mediaHeight = imgSize.Height
+	m.mediaWidth = imgSize.Width
 
 	return nil
 }
@@ -433,19 +445,19 @@ func (m *Media) generateImages() (err error) {
 	if len(m.imgBytes) == 0 {
 		return errors.New("cannot generate media image with no imgBytes")
 	}
-	if m.PageCount == 0 {
+	if m.pageCount == 0 {
 		return errors.New("cannot load multipage image without page count")
 	}
 
-	m.images = make([]*bimg.Image, m.PageCount)
+	m.images = make([]*bimg.Image, m.pageCount)
 	var bi *bimg.Image
-	for page := range m.PageCount {
+	for page := range m.pageCount {
 		bi = bimg.NewImage(m.imgBytes)
-		_, err := bi.Process(bimg.Options{Type: bimg.WEBP, PageNum: page})
+		pageBytes, err := bi.Process(bimg.Options{Type: bimg.WEBP, PageNum: page})
 		if err != nil {
 			return err
 		}
-		m.images[page] = bi
+		m.images[page] = bimg.NewImage(pageBytes)
 	}
 
 	imgSize, err := bi.Size()
@@ -453,61 +465,60 @@ func (m *Media) generateImages() (err error) {
 		return
 	}
 
-	m.MediaHeight = imgSize.Height
-	m.MediaWidth = imgSize.Width
+	m.mediaHeight = imgSize.Height
+	m.mediaWidth = imgSize.Width
 
 	return nil
 }
 
-func (m *Media) generateFileHash() (err error) {
+func (m *Media) generateMediaId() (err error) {
 	if m.imgBytes == nil {
-		return errors.New("cannot generate media fileHash with no imgBytes")
+		return errors.New("cannot generate media mediaId with no imgBytes")
 	}
 
 	h := sha256.New()
 
 	_, err = io.Copy(h, bytes.NewReader(m.imgBytes))
 	if err != nil {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return
 	}
 
-	m.MediaId = base64.URLEncoding.EncodeToString(h.Sum(nil))[:8]
+	m.mediaId = types.MediaId(base64.URLEncoding.EncodeToString(h.Sum(nil))[:8])
 	return
 }
 
-func (m *Media) generateBlurhash() (err error) {
-	return
-	// if m.BlurHash == "" {
-	// 	m.BlurHash, err = blurhash.Encode(3, 3, m.image)
-	// }
-	return
-}
+// func (m *Media) generateBlurhash() (err error) {
+// 	return
+// if m.BlurHash == "" {
+// 	m.BlurHash, err = blurhash.Encode(3, 3, m.image)
+// }
+// }
 
-func (m *Media) getCacheFile(q Quality, generateIfMissing bool, pageNum int) (f *WeblensFile, err error) {
+func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum int) (f types.WeblensFile, err error) {
 	if q == Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 		f = m.thumbCacheFile
 		return
 	}
 
-	if pageNum >= m.PageCount {
+	if pageNum >= m.pageCount {
 		return nil, ErrPageOutOfRange
 	}
 
-	var cacheFileId string
+	var cacheFileId types.FileId
 	if q == Fullres && m.fullresCacheFiles[pageNum] != nil && m.fullresCacheFiles[pageNum].Exists() {
 		f = m.fullresCacheFiles[pageNum]
 		return
 	} else if q == Fullres {
-		if m.FullresCacheIds[pageNum] == "" {
-			m.FullresCacheIds[pageNum] = m.getCacheId(q, pageNum)
+		if m.fullresCacheIds[pageNum] == "" {
+			m.fullresCacheIds[pageNum] = m.getCacheId(q, pageNum)
 		}
-		cacheFileId = m.FullresCacheIds[pageNum]
+		cacheFileId = m.fullresCacheIds[pageNum]
 	} else if q == Thumbnail {
-		if m.ThumbnailCacheId == "" {
-			m.ThumbnailCacheId = m.getCacheId(q, pageNum)
+		if m.thumbnailCacheId == "" {
+			m.thumbnailCacheId = m.getCacheId(q, pageNum)
 		}
-		cacheFileId = m.ThumbnailCacheId
+		cacheFileId = m.thumbnailCacheId
 	}
 
 	f = FsTreeGet(cacheFileId)
@@ -544,72 +555,72 @@ func (m *Media) getCacheFile(q Quality, generateIfMissing bool, pageNum int) (f 
 
 const THUMBNAIL_HEIGHT float32 = 500
 
-func (m *Media) handleCacheCreation(f *WeblensFile) (err error) {
+func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 	if len(m.imgBytes) == 0 {
-		if m.MediaType.IsRaw {
+		if m.mediaType.IsRaw() {
 			err = m.parseExif(f)
 			if err != nil {
-				util.Debug.Println("Returning with err:", err)
 				return
 			}
 		} else {
 			err = m.readFileBytes(f)
 			if err != nil {
-				util.Debug.Println("Returning with err:", err)
 				return
 			}
 		}
 	}
 
-	if m.image == nil {
+	if m.image == nil && !m.mediaType.multiPage {
 		err = m.generateImage()
 		if err != nil {
-			util.Debug.Println("Returning with err:", err)
+			return
+		}
+	} else if m.mediaType.multiPage && (len(m.images) == 0 || m.images[0] == nil) {
+		err = m.generateImages()
+		if err != nil {
 			return
 		}
 	}
 
-	thumbW := int((THUMBNAIL_HEIGHT / float32(m.MediaHeight)) * float32(m.MediaWidth))
+	thumbW := int((THUMBNAIL_HEIGHT / float32(m.mediaHeight)) * float32(m.mediaWidth))
 
 	var thumbBytes []byte
-	if m.image != nil {
-		thumbBytes, err = m.image.Resize(thumbW, int(THUMBNAIL_HEIGHT))
+	if !m.mediaType.multiPage && m.image != nil {
+		thumbImg := bimg.NewImage(m.image.Image())
+		thumbBytes, err = thumbImg.Resize(thumbW, int(THUMBNAIL_HEIGHT))
 		if err != nil {
-			util.Debug.Println("Returning with err:", err)
 			return
 		}
 	}
 
-	if len(m.images) != 0 && m.images[0] != nil {
-		thumbBytes, err = m.images[0].Resize(thumbW, int(THUMBNAIL_HEIGHT))
+	if m.mediaType.multiPage && len(m.images) != 0 && m.images[0] != nil {
+		thumbImg := bimg.NewImage(m.images[0].Image())
+
+		thumbBytes, err = thumbImg.Resize(thumbW, int(THUMBNAIL_HEIGHT))
 		if err != nil {
-			util.Debug.Println("Returning with err:", err)
 			return
 		}
 	}
 
-	m.ThumbLength = len(thumbBytes)
 	m.cacheDisplayable(Thumbnail, thumbBytes, 0)
 
-	if m.PageCount != 1 {
-		for page := range m.PageCount {
+	if m.mediaType.multiPage {
+		for page := range m.pageCount {
 			m.cacheDisplayable(Fullres, m.images[page].Image(), page)
 		}
 	} else {
-		m.FullresLength = len(m.imgBytes)
 		m.cacheDisplayable(Fullres, m.imgBytes, 0)
 	}
 
-	util.Debug.Println("Returning with err:", err)
 	return
 }
 
-func (m *Media) cacheDisplayable(q Quality, data []byte, pageNum int) *WeblensFile {
+func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int) types.WeblensFile {
 	cacheFileName := m.getCacheFilename(q, pageNum)
 
 	f, err := Touch(GetCacheDir(), cacheFileName, true)
 	if err != nil && err != ErrFileAlreadyExists {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return nil
 	} else if err == ErrFileAlreadyExists {
 		return f
@@ -617,44 +628,44 @@ func (m *Media) cacheDisplayable(q Quality, data []byte, pageNum int) *WeblensFi
 
 	err = f.Write(data)
 	if err != nil {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return f
 	}
 
 	if q == Fullres {
 		if m.fullresCacheFiles == nil {
-			m.fullresCacheFiles = make([]*WeblensFile, m.PageCount)
+			m.fullresCacheFiles = make([]types.WeblensFile, m.pageCount)
 		}
-		if m.FullresCacheIds == nil {
-			m.FullresCacheIds = make([]string, m.PageCount)
+		if m.fullresCacheIds == nil {
+			m.fullresCacheIds = make([]types.FileId, m.pageCount)
 		}
 	}
 
-	if q == Thumbnail && m.ThumbnailCacheId == "" {
-		m.ThumbnailCacheId = f.Id()
+	if q == Thumbnail && m.thumbnailCacheId == "" {
+		m.thumbnailCacheId = f.Id()
 		m.thumbCacheFile = f
-	} else if q == Fullres && m.FullresCacheIds[pageNum] == "" {
-		m.FullresCacheIds[pageNum] = f.Id()
+	} else if q == Fullres && m.fullresCacheIds[pageNum] == "" {
+		m.fullresCacheIds[pageNum] = f.Id()
 		m.fullresCacheFiles[pageNum] = f
 	}
 
 	return f
 }
 
-func (m *Media) getCacheId(q Quality, pageNum int) string {
-	if q == Thumbnail && m.ThumbnailCacheId != "" {
-		return m.ThumbnailCacheId
-	} else if q == Fullres && m.FullresCacheIds[pageNum] != "" {
-		return m.FullresCacheIds[pageNum]
+func (m *Media) getCacheId(q types.Quality, pageNum int) types.FileId {
+	if q == Thumbnail && m.thumbnailCacheId != "" {
+		return m.thumbnailCacheId
+	} else if q == Fullres && m.fullresCacheIds[pageNum] != "" {
+		return m.fullresCacheIds[pageNum]
 	}
-	absPath := filepath.Join(GetCacheDir().absolutePath, m.getCacheFilename(q, pageNum))
-	return util.GlobbyHash(8, GuaranteeRelativePath(absPath))
+	absPath := filepath.Join(GetCacheDir().GetAbsPath(), m.getCacheFilename(q, pageNum))
+	return types.FileId(util.GlobbyHash(8, GuaranteeRelativePath(absPath)))
 }
 
-func (m *Media) getCacheFilename(q Quality, pageNum int) string {
+func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
 	var cacheFileName string
 
-	if m.PageCount == 1 || q == Thumbnail {
+	if m.pageCount == 1 || q == Thumbnail {
 		cacheFileName = fmt.Sprintf("%s-%s.wlcache", m.Id(), q)
 	} else if q != Thumbnail {
 		cacheFileName = fmt.Sprintf("%s-%s_%d.wlcache", m.Id(), q, pageNum)
@@ -666,7 +677,7 @@ func (m *Media) getCacheFilename(q Quality, pageNum int) string {
 func (m *Media) getImageRecognitionTags() (err error) {
 	var imgBuf *bytes.Buffer
 	if m.imgBytes == nil {
-		var f *WeblensFile
+		var f types.WeblensFile
 		f, err = m.getCacheFile(Thumbnail, false, 0)
 		if err != nil {
 			return err
@@ -706,7 +717,49 @@ func (m *Media) getImageRecognitionTags() (err error) {
 	// json.Unmarshal(bodyBytes, &regocTags)
 
 	// labels := util.Map(regocTags.Labels, func(i imageRegocTag) string { return i.Label })
-	m.RecognitionTags = regocTags
+	m.recognitionTags = regocTags
 
 	return
+}
+
+func (m *Media) toMarshalable() marshalableMedia {
+	return marshalableMedia{
+		MediaId:          m.mediaId,
+		FileIds:          m.fileIds,
+		ThumbnailCacheId: m.thumbnailCacheId,
+		FullresCacheIds:  m.fullresCacheIds,
+		BlurHash:         m.blurHash,
+		Owner:            m.owner.GetUsername(),
+		MediaWidth:       m.mediaWidth,
+		MediaHeight:      m.mediaHeight,
+		CreateDate:       m.createDate,
+		MimeType:         m.mimeType,
+		RecognitionTags:  m.recognitionTags,
+		PageCount:        m.pageCount,
+	}
+}
+
+func (m *Media) MarshalBSON() ([]byte, error) {
+	return bson.Marshal(m.toMarshalable())
+}
+
+func (m *Media) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.toMarshalable())
+}
+
+func marshalableToMedia(m marshalableMedia) *Media {
+	return &Media{
+		mediaId:          m.MediaId,
+		fileIds:          m.FileIds,
+		thumbnailCacheId: m.ThumbnailCacheId,
+		fullresCacheIds:  m.FullresCacheIds,
+		blurHash:         m.BlurHash,
+		owner:            GetUser(m.Owner),
+		mediaWidth:       m.MediaWidth,
+		mediaHeight:      m.MediaHeight,
+		createDate:       m.CreateDate,
+		mimeType:         m.MimeType,
+		recognitionTags:  m.RecognitionTags,
+		pageCount:        m.PageCount,
+	}
 }

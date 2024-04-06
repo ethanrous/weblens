@@ -1,18 +1,18 @@
 package routes
 
 import (
+	"encoding/base64"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
 
 func WeblensAuth(websocket, allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		db := dataStore.NewDB()
 		var authString string
 
 		if !websocket {
@@ -35,67 +35,59 @@ func WeblensAuth(websocket, allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 			}
 		}
 
-		authList := strings.Split(authString, ",")
-
-		if len(authList) < 2 || !db.CheckToken(authList[0], authList[1]) { // {user, token}
-			// if (allowEmptyAuth) {
-
-			// }
-			util.Info.Printf("Rejecting authorization for %s due to invalid token", authList[0])
-			c.AbortWithStatus(http.StatusUnauthorized)
+		authList := strings.Split(authString, " ")
+		if len(authList) < 2 {
+			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
 
-		user, _ := db.GetUser(authList[0])
-		if requireAdmin && !user.Admin {
-			util.Info.Printf("Rejecting authorization for %s due to insufficient permissions on a privileged request", authList[0])
-			c.AbortWithStatus(http.StatusUnauthorized)
+		scheme := authList[0]
+		cred := authList[1]
+
+		if scheme == "Bearer" {
+			if dataStore.CheckApiKey(authList[1]) {
+				c.Next()
+			} else {
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
 			return
+		} else if scheme == "Basic" {
+			credB, err := base64.StdEncoding.DecodeString(cred)
+			if err != nil {
+				util.ErrTrace(err)
+				c.AbortWithStatus(http.StatusBadRequest)
+			}
+			userAndToken := strings.Split(string(credB), ":")
+
+			if len(userAndToken) != 2 {
+				c.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+
+			user := dataStore.GetUser(types.Username(userAndToken[0]))
+			if user == nil {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+
+			if !dataStore.CheckUserToken(user, userAndToken[1]) { // {user, token}
+				util.Info.Printf("Rejecting authorization for %s due to invalid token", userAndToken[0])
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+
+			if requireAdmin && !user.IsAdmin() {
+				util.Info.Printf("Rejecting authorization for %s due to insufficient permissions on a privileged request", userAndToken[0])
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+
+			c.Set("username", userAndToken[0])
+			c.Next()
+		} else {
+			c.AbortWithStatus(http.StatusBadRequest)
 		}
 
-		c.Set("username", authList[0])
-
-		c.Next()
 	}
-}
-
-func CanUserAccessFile(fileId, username, shareId string) bool {
-	// There is no such thing as a public, non-shared file. Also, file id is required
-	if (username == "" && shareId == "") || fileId == "" {
-		return false
-	}
-
-	f := dataStore.FsTreeGet(fileId)
-	if f == nil {
-		return false
-	}
-
-	if f.Owner() == username {
-		return true
-	}
-
-	if shareId != "" {
-		s, err := dataStore.GetShare(shareId, dataStore.FileShare)
-		if err != nil {
-			return false
-		}
-
-		// Accessing a public share
-		if s.IsPublic() && s.GetContentId() == fileId {
-			return true
-		}
-
-		shares := f.GetShares()
-		shareIds := util.Map(shares, func(sh dataStore.Share) string { return sh.GetShareId() })
-
-		if slices.Contains(shareIds, shareId) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func CanUserAccessShare(s dataStore.Share, username string) bool {
-	return s.IsEnabled() && (s.IsPublic() || s.GetOwner() == username || slices.Contains(s.GetAccessors(), username))
 }

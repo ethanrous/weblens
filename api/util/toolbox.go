@@ -41,12 +41,24 @@ func FailOnError(err error, format string, fmtArgs ...any) {
 	}
 }
 
-func DisplayError(err error, extras ...string) {
+func ErrTrace(err error, extras ...string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		msg := strings.Join(extras, " ")
 		if ok {
 			ErrorCatcher.Printf("%s:%d %s: %s\n%s", file, line, msg, err, debug.Stack())
+		} else {
+			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
+		}
+	}
+}
+
+func ShowErr(err error, extras ...string) {
+	if err != nil {
+		_, file, line, ok := runtime.Caller(1)
+		msg := strings.Join(extras, " ")
+		if ok {
+			ErrorCatcher.Printf("%s:%d %s: %s", file, line, msg, err)
 		} else {
 			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
@@ -206,6 +218,15 @@ func YoinkFunc[T any](s []T, fn func(f T) bool) (rs []T, rt T, re bool) {
 	return
 }
 
+func OnlyUnique[T comparable](s []T) (rs []T) {
+	tmpMap := make(map[T]bool, len(s))
+	for _, t := range s {
+		tmpMap[t] = true
+	}
+	rs = MapToKeys(tmpMap)
+	return
+}
+
 // Banish removes the element at index, i, from the slice, s, in place and in constant time.
 //
 // Banish returns a slice of length len(s) - 1. The order of s will be modified
@@ -221,6 +242,20 @@ func AddToSet[T comparable](set []T, add []T) []T {
 		}
 	}
 	return set
+}
+
+func Diff[T comparable](s1 []T, s2 []T) []T {
+	if len(s1) < len(s2) {
+		s1, s2 = s2, s1
+	}
+	res := []T{}
+	for _, t := range s1 {
+		if !slices.Contains(s2, t) {
+			res = append(res, t)
+		}
+	}
+
+	return res
 }
 
 func Map[T, V any](ts []T, fn func(T) V) []V {
@@ -306,7 +341,8 @@ type lap struct {
 type Stopwatch interface {
 	Lap(tag ...any)
 	Stop() time.Duration
-	PrintResults()
+	PrintResults(firstLapIsStart bool)
+	GetTotalTime(bool) time.Duration
 }
 
 type sw struct {
@@ -318,9 +354,10 @@ type sw struct {
 
 type prod_sw bool
 
-func (prod_sw) Stop() (t time.Duration) { return }
-func (prod_sw) Lap(tag ...any)          {}
-func (prod_sw) PrintResults()           {}
+func (prod_sw) Stop() (t time.Duration)         { return }
+func (prod_sw) Lap(tag ...any)                  {}
+func (prod_sw) PrintResults(bool)               {}
+func (prod_sw) GetTotalTime(bool) time.Duration { return time.Millisecond * 0 }
 
 func NewStopwatch(name string) Stopwatch {
 	if IsDevMode() {
@@ -342,7 +379,26 @@ func (s *sw) Lap(tag ...any) {
 	s.laps = append(s.laps, l)
 }
 
-func (s *sw) PrintResults() {
+func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
+	var start time.Time
+	var end time.Time
+
+	if s.stop.Unix() < 0 {
+		end = time.Now()
+	} else {
+		end = s.stop
+	}
+
+	if firstLapIsStart && len(s.laps) > 0 {
+		start = s.laps[0].time
+	} else {
+		start = s.start
+	}
+
+	return end.Sub(start)
+}
+
+func (s *sw) PrintResults(firstLapIsStart bool) {
 	if s.stop.Unix() < 0 {
 		Error.Println("Stopwatch cannot provide results before being stopped")
 		return
@@ -350,9 +406,19 @@ func (s *sw) PrintResults() {
 
 	var res string = fmt.Sprintf("--- %s Stopwatch ---", s.name)
 
+	var startTime time.Time
+	if firstLapIsStart {
+		if len(s.laps) <= 1 {
+			return
+		}
+		startTime = s.laps[0].time
+	} else {
+		startTime = s.start
+	}
+
 	if len(s.laps) != 0 {
 		longest := len(slices.MaxFunc(s.laps, func(a, b lap) int { return len(a.tag) - len(b.tag) }).tag)
-		lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since creation)", longest+5)
+		lapFmt := fmt.Sprintf("\t%%-%ds %%-15s (%%s since start -- %%s since creation)", longest+5)
 		for i, l := range s.laps {
 			var sinceLast time.Duration
 			if i != 0 {
@@ -362,12 +428,12 @@ func (s *sw) PrintResults() {
 			}
 
 			if l.tag != "" {
-				res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf(lapFmt, l.tag, sinceLast, l.time.Sub(s.start)))
+				res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf(lapFmt, l.tag, sinceLast, l.time.Sub(startTime), l.time.Sub(s.start)))
 			}
 		}
 	}
 
-	fmt.Printf("%s\n%s\n", res, fmt.Sprintf("Stopped at %s", s.stop.Sub(s.start)))
+	fmt.Printf("%s\n%s\n", res, fmt.Sprintf("Stopped at %s", s.stop.Sub(startTime)))
 	// fmt.Println(res)
 }
 

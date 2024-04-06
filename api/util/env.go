@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 func envReadString(s string) string {
@@ -47,8 +48,12 @@ func GetRouterPort() string {
 	}
 }
 
-func GetMediaRoot() string {
+func GetMediaRootPath() string {
 	return envReadString("MEDIA_ROOT_PATH")
+}
+
+func GetExternalPaths() []string {
+	return strings.Split(envReadString("EXTERNAL_PATHS"), " ")
 }
 
 func GetImgRecognitionUrl() string {

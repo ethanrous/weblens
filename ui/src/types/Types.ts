@@ -1,186 +1,258 @@
-
 // Global Types
 
-import { ItemProps } from "../components/ItemDisplay"
+import { GalleryAction } from "../Pages/Gallery/GalleryLogic";
+import { ItemProps } from "../components/ItemDisplay";
+
+export type AuthHeaderT = {
+    Authorization: string;
+};
+
+export type UserInfoT = {
+    homeId: string;
+    trashId: string;
+    username: string;
+    admin: boolean;
+    owner: boolean;
+    activated: boolean;
+    isLoggedIn: boolean;
+};
+
+export type UserContextT = {
+    authHeader: AuthHeaderT;
+    usr: UserInfoT;
+    setCookie;
+    clear;
+}
 
 export type MediaData = {
-    fileHash: string
-    fileIds: string[]
-    mediaType: {
-        FileExtension: []
-        FriendlyName: string
-        IsRaw: boolean
-        IsVideo: boolean
-        IsDisplayable: boolean
-    }
-    blurHash: string
-    thumbnail: ArrayBuffer
-    fullres: ArrayBuffer
-    mediaWidth: number
-    mediaHeight: number
-    thumbWidth: number
-    thumbHeight: number
-    pageCount: number
-    createDate: string
-    owner: string
-    recognitionTags: string[]
+    mediaId: string;
+    fileIds: string[];
+    thumbnailCacheId: string;
+    fullresCacheIds: string;
+    blurHash: string;
+    owner: string;
+    mediaWidth: number;
+    mediaHeight: number;
+    thumbWidth: number;
+    thumbHeight: number;
+    thumbLength: number;
+    fullresLength: number;
+    createDate: string;
+    mimeType: string;
+    recognitionTags: string[];
+    pageCount: number;
 
-    // Local things
-    Previous: MediaData
-    Next: MediaData
+    // Non-api props
+    thumbnail: ArrayBuffer;
+    fullres: ArrayBuffer;
+    Previous: MediaData;
+    Next: MediaData;
+    selected: boolean;
+    mediaType;
     // Display: boolean
-    ImgRef: React.MutableRefObject<any>
-}
+    ImgRef: React.MutableRefObject<any>;
+};
+
+export type mediaType = {
+    FileExtension: [];
+    FriendlyName: string;
+    IsRaw: boolean;
+    IsVideo: boolean;
+    IsDisplayable: boolean;
+};
 
 export type AlbumData = {
-    Id: string
-    Medias: string[]
-    SharedWith: string[]
-    Name: string
-    Cover: string
-    CoverMedia: MediaData
-    PrimaryColor: string
-    SecondaryColor: string
-    Owner: string
-    ShowOnTimeline: boolean
-}
+    Id: string;
+    Medias: string[];
+    SharedWith: string[];
+    Name: string;
+    Cover: string;
+    CoverMedia: MediaData;
+    PrimaryColor: string;
+    SecondaryColor: string;
+    Owner: string;
+    ShowOnTimeline: boolean;
+};
 
 // Gallery Types
 
 export type GalleryBucketProps = {
-    bucketTitle: string
-    bucketData: MediaData[]
-    scale: number
-    dispatch: React.Dispatch<any>
-}
+    bucketTitle: string;
+    bucketData: MediaData[];
+    scale: number;
+    dispatch: React.Dispatch<any>;
+};
 
 export type MediaWrapperProps = {
-    mediaData: MediaData
-    scale: number
-    dispatch: (galleryAction) => void
-    menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element
-}
+    mediaData: MediaData;
+    selected: boolean;
+    selecting: boolean;
+    scale: number;
+    dispatch: GalleryDispatch;
+    menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element;
+};
 
-export type MediaStateType = {
-    mediaMap: Map<string, MediaData>
-    mediaMapUpdated: number
-    albumsMap: Map<string, AlbumData>
-    albumsFilter: string[]
-    loading: boolean
-    includeRaw: boolean
-    newAlbumDialogue: boolean
-    blockSearchFocus: boolean
-    menuOpen: boolean
-    menuTargetId: string
-    imageSize: number
-    scanProgress: number
-    showingCount: number
-    searchContent: string
-    presentingMedia: MediaData
-    menuPos: { x: number, y: number }
-}
+export type MediaStateT = {
+    mediaMap: Map<string, MediaData>;
+    selected: Map<string, boolean>;
+    mediaMapUpdated: number;
+    albumsMap: Map<string, AlbumData>;
+    albumsFilter: string[];
+    loading: string[];
+    includeRaw: boolean;
+    newAlbumDialogue: boolean;
+    blockSearchFocus: boolean;
+    menuOpen: boolean;
+    selecting: boolean;
+    menuTargetId: string;
+    imageSize: number;
+    scanProgress: number;
+    showingCount: number;
+    searchContent: string;
+    presentingMedia: MediaData;
+    menuPos: { x: number; y: number };
+};
 
 // File Browser Types
 
 export type FileBrowserAction = {
-    type: string
+    type: string;
 
-    dragging?: boolean
-    selected?: boolean
-    external?: boolean
-    loading?: boolean
-    block?: boolean
-    shift?: boolean
-    open?: boolean
-    isShare?: boolean
+    loading?: string;
+    taskId?: string;
+    fileId?: string;
+    fileName?: string;
+    search?: string;
+    presentingId?: string;
+    hovering?: string;
+    direction?: string;
+    realId?: string;
+    shareId?: string;
+    sortType?: string;
+    taskType?: string;
+    target?: string;
+    note?: string;
+    mode?: string;
 
-    progress?: number
-    numCols?: number
+    fileIds?: string[];
 
-    user?: string
-    fileId?: string
-    fileIds?: string[]
-    fileName?: string
-    search?: string
-    presentingId?: string
-    direction?: string
-    realId?: string
-    shareId?: string
+    dragging?: boolean;
+    selected?: boolean;
+    external?: boolean;
+    block?: boolean;
+    shift?: boolean;
+    open?: boolean;
 
-    img?: ArrayBuffer
-    pos?: {x: number, y: number}
+    progress?: number;
+    tasksComplete?: number;
+    tasksTotal?: number;
+    numCols?: number;
+    sortDirection?: number;
+    time?: number;
 
-    fileInfo?: fileData
-    itemInfo?: ItemProps
-    fileInfos?: fileData[]
-    files?: { fileId: string, updateInfo: fileData }[]
+    user?: UserInfoT;
 
-    parents?: any
-}
+    img?: ArrayBuffer;
+    pos?: { x: number; y: number };
 
-export type FileBrowserDispatch = (action: FileBrowserAction) => void
+    fileInfo?: FileInfoT;
+    itemInfo?: ItemProps;
+    fileInfos?: FileInfoT[];
+    files?: { fileId: string; updateInfo: FileInfoT }[];
 
-export type FileBrowserStateType = {
-    dirMap: Map<string, fileData>
-    selected: Map<string, boolean>
-    uploadMap: Map<string, boolean>
-    menuPos: { x: number, y: number },
-    folderInfo: fileData
-    parents: fileData[]
-    filesList: string[]
-    draggingState: number
-    loading: boolean
-    waitingForNewName: string
-    menuTargetId: string
-    presentingId: string
-    searchContent: string
-    scanProgress: number
-    homeDirSize: number
-    trashDirSize: number
-    numCols: number
-    holdingShift: boolean
-    blockFocus: boolean
-    lastSelected: string
-    pasteImg: ArrayBuffer
-    scrollTo: string
-    moveDest: string
-    menuOpen: boolean
-    isShare: boolean
-    shareId: string
-    realId: string
-}
+    parents?: any;
+};
 
-export type fileData = {
-    id: string
-    imported: boolean
-    displayable: boolean
-    isDir: boolean
-    modifiable: boolean
-    size: number
-    modTime: string
-    filename: string
-    parentFolderId: string
-    mediaData: MediaData
-    fileFriendlyName: string
-    owner: string
-    pathFromHome: string
-    shares: shareData[]
-    visible: boolean
-    children: string[]
-}
+export type FBDispatchT = (action: FileBrowserAction) => void;
+export type GalleryDispatch = (action: GalleryAction) => void;
+
+export type ScanMeta = {
+    taskId: string;
+    taskType: string;
+    target: string;
+    mostRecent: string;
+    note: string;
+
+    progress: number;
+    tasksComplete: number;
+    tasksTotal: number;
+    time: number;
+
+    complete: boolean;
+};
+
+export type FbStateT = {
+    dirMap: Map<string, FileInfoT>;
+    selected: Map<string, boolean>;
+    uploadMap: Map<string, boolean>;
+    menuPos: { x: number; y: number };
+    searchResults: FileInfoT[];
+    folderInfo: FileInfoT;
+    parents: FileInfoT[];
+    filesList: string[];
+    draggingState: number;
+    loading: string[];
+    waitingForNewName: string;
+    menuTargetId: string;
+    presentingId: string;
+    searchContent: string;
+    scanProgress: ScanMeta[];
+    homeDirSize: number;
+    trashDirSize: number;
+    numCols: number;
+    holdingShift: boolean;
+    blockFocus: boolean;
+    lastSelected: string;
+    hovering: string;
+    pasteImg: ArrayBuffer;
+    scrollTo: string;
+    moveDest: string;
+    menuOpen: boolean;
+
+    fbMode: string;
+    // isShare: boolean;
+    // isExternal: boolean;
+
+    shareId: string;
+    contentId: string;
+
+    sortDirection: number; // 1 or -1
+    sortFunc: string;
+};
+
+export type FileInfoT = {
+    id: string;
+    imported: boolean;
+    displayable: boolean;
+    isDir: boolean;
+    modifiable: boolean;
+    size: number;
+    modTime: string;
+    filename: string;
+    parentFolderId: string;
+    mediaData: MediaData;
+    fileFriendlyName: string;
+    owner: string;
+    pathFromHome: string;
+    shares: shareData[];
+    children: string[];
+
+    // Non-api props
+    visible: boolean;
+};
 
 export type shareData = {
-    Accessors: string[]
-    Expires: string
-    Public: boolean
-    shareId: string
-    fileId: string
-    ShareName: string
-    Wormhole: boolean
-}
+    Accessors: string[];
+    Expires: string;
+    Public: boolean;
+    shareId: string;
+    fileId: string;
+    ShareName: string;
+    Wormhole: boolean;
+};
 
 export const getBlankFile = () => {
-    const blank: fileData = {
+    const blank: FileInfoT = {
         id: "",
         imported: false,
         displayable: false,
@@ -197,31 +269,36 @@ export const getBlankFile = () => {
         shares: [],
         visible: false,
         children: [],
-    }
-    return blank
-}
+    };
+    return blank;
+};
 
 export const getBlankMedia = () => {
     const blank: MediaData = {
-        fileHash: "",
+        mediaId: "",
         fileIds: [""],
-        mediaType: null,
+        thumbnailCacheId: "",
+        fullresCacheIds: "",
         blurHash: "",
-        thumbnail: null,
-        fullres: null,
+        owner: "",
         mediaWidth: 0,
         mediaHeight: 0,
         thumbWidth: 0,
         thumbHeight: 0,
-        pageCount: 0,
+        thumbLength: 0,
+        fullresLength: 0,
         createDate: "",
-        owner: "",
+        mimeType: "",
         recognitionTags: [],
+        pageCount: 0,
 
+        selected: false,
+        thumbnail: null,
+        fullres: null,
         Previous: null,
+        mediaType: null,
         Next: null,
-
-        ImgRef: null
-    }
-    return blank
-}
+        ImgRef: null,
+    };
+    return blank;
+};

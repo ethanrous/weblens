@@ -1,10 +1,15 @@
 {
     "compilerOptions": {
+        "target": "ESNext",
+        "lib": ["DOM", "DOM.Iterable", "ESNext"],
+        "types": ["node", "vite/client"],
+        "allowJs": false,
+        "isolatedModules": true,
         "jsx": "react-jsx",
         //"downlevelIteration": true
-        "module": "es2022",
-        "target": "ES2022",
+        "module": "ESNext",
         "moduleResolution": "node",
         "allowSyntheticDefaultImports": true
     },
+    "include": ["**/*.tsx"]
 }

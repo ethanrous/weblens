@@ -1,252 +1,999 @@
 // React
-import { useState, useEffect, useReducer, useMemo, useRef, useContext, useCallback } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import {
+    memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 // Icons
-import { IconChevronRight, IconCloud, IconDownload, IconFile, IconFolder, IconFolderPlus, IconHome, IconLogin, IconPhotoPlus, IconShare, IconSpiral, IconTrash, IconUpload, IconUsers } from "@tabler/icons-react"
+import {
+    IconArrowBackUp,
+    IconArrowLeft,
+    IconChevronRight,
+    IconDownload,
+    IconFile,
+    IconFileAnalytics,
+    IconFolder,
+    IconFolderPlus,
+    IconHome,
+    IconLogin,
+    IconPhotoPlus,
+    IconScan,
+    IconSearch,
+    IconServer,
+    IconShare,
+    IconSortAscending2,
+    IconSortDescending2,
+    IconSpiral,
+    IconTrash,
+    IconUpload,
+    IconUserMinus,
+    IconUsers,
+} from '@tabler/icons-react';
 
 // Mantine
-import { Box, Button, Text, Space, FileButton, Divider, Progress, Menu } from '@mantine/core'
-import { notifications } from '@mantine/notifications'
-import { useDebouncedValue } from '@mantine/hooks'
+import {
+    Box,
+    Button,
+    Divider,
+    FileButton,
+    Input,
+    Menu,
+    Space,
+    Text,
+} from '@mantine/core';
+import { useDebouncedValue, useMouse } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 
 // Weblens
-import { HandleDrop, downloadSelected, fileBrowserReducer, useKeyDown, useMousePosition, moveSelected, HandleUploadButton, usePaste, UploadViaUrl, MapToList, HandleRename, useSubscribe, SetFileData, getRealId } from './FileBrowserLogic'
-import { fileData, FileBrowserStateType, MediaData, FileBrowserAction, getBlankFile, FileBrowserDispatch } from '../../types/Types'
-import { DirViewWrapper, ColumnBox, RowBox, TransferCard, PresentationFile, GetStartedCard, IconDisplay, FileInfoDisplay } from './FilebrowserStyles'
-import { DeleteFiles, DeleteShare, GetFileInfo, GetFolderData, NewWormhole } from '../../api/FileBrowserApi'
-import Presentation, { PresentationContainer } from '../../components/Presentation'
-import UploadStatus, { useUploadStatus } from '../../components/UploadStatus'
-import { GlobalContextType, ItemProps } from '../../components/ItemDisplay'
-import { dispatchSync } from '../../api/Websocket'
-import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs'
-import { ItemScroller } from '../../components/ItemScroller'
-import { MediaImage } from '../../components/PhotoContainer'
-import HeaderBar from "../../components/HeaderBar"
-import { AlbumScoller } from './FileBrowserAlbums'
-import NotFound from '../../components/NotFound'
-import '../../components/filebrowserStyle.css'
-import { userContext } from '../../Context'
-import { humanFileSize } from '../../util'
-import '../../components/style.css'
-import { ShareBox } from './FilebrowserShareMenu'
+import { userContext } from '../../Context';
+import {
+    DeleteFiles,
+    DeleteShare,
+    GetFileInfo,
+    GetFolderData,
+    NewWormhole,
+    SearchFolder,
+    TrashFiles,
+    UnTrashFiles,
+    UpdateFileShare,
+    moveFiles,
+} from '../../api/FileBrowserApi';
+import { dispatchSync } from '../../api/Websocket';
+import Crumbs, { StyledBreadcrumb } from '../../components/Crumbs';
+import HeaderBar from '../../components/HeaderBar';
+import { GlobalContextType, ItemProps } from '../../components/ItemDisplay';
+import { ItemScroller } from '../../components/ItemScroller';
+import NotFound from '../../components/NotFound';
+import { MediaImage } from '../../components/PhotoContainer';
+import Presentation, {
+    PresentationContainer,
+} from '../../components/Presentation';
+import UploadStatus, { useUploadStatus } from '../../components/UploadStatus';
+import '../../components/filebrowserStyle.css';
+import '../../components/style.css';
+import {
+    AuthHeaderT,
+    FileBrowserAction,
+    FBDispatchT,
+    FbStateT,
+    MediaData,
+    ScanMeta,
+    UserInfoT,
+    FileInfoT,
+    getBlankFile,
+    UserContextT,
+} from '../../types/Types';
+import { humanFileSize } from '../../util';
+import { AlbumScoller } from './FileBrowserAlbums';
+import {
+    getVisitRoute,
+    HandleDrop,
+    handleRename,
+    HandleUploadButton,
+    MoveSelected,
+    SetFileData,
+    uploadViaUrl,
+    downloadSelected,
+    fileBrowserReducer,
+    getRealId,
+    getSortFunc,
+    useKeyDownFileBrowser,
+    usePaste,
+    useSubscribe,
+} from './FileBrowserLogic';
+import { ShareBox } from './FilebrowserShareMenu';
+import {
+    ColumnBox,
+    DirViewWrapper,
+    FileInfoDisplay,
+    GetStartedCard,
+    IconDisplay,
+    PresentationFile,
+    RowBox,
+    TaskProgCard,
+    TransferCard,
+} from './FilebrowserStyles';
+import { WeblensButton } from '../../components/WeblensButton';
+import { FileRows } from './FileRows';
+import {
+    useResize,
+    useResizeDrag,
+    useWindowSize,
+} from '../../components/hooks';
+import { WeblensProgress } from '../../components/WeblensProgress';
+import { IconFiles } from '@tabler/icons-react';
+import FileInfoPane from './FileInfoPane';
+import { WeblensSelect } from '../../components/WeblensSelect';
+import { StatTree } from './FileStatTree';
 
-function PasteImageDialogue({ img, dirMap, folderId, authHeader, dispatch, wsSend }: { img: ArrayBuffer, dirMap: Map<string, fileData>, folderId, authHeader, dispatch, wsSend }) {
+function PasteImageDialogue({
+    img,
+    dirMap,
+    folderId,
+    authHeader,
+    dispatch,
+    wsSend,
+}: {
+    img: ArrayBuffer;
+    dirMap: Map<string, FileInfoT>;
+    folderId;
+    authHeader;
+    dispatch;
+    wsSend;
+}) {
     if (!img) {
-        return null
+        return null;
     }
-    const media: MediaData = {} as MediaData
-    media.fileHash = "paste"
-    media.thumbnail = img
+    const media: MediaData = {} as MediaData;
+    media.mediaId = 'paste';
+    media.thumbnail = img;
 
     return (
-        <PresentationContainer shadeOpacity={"0.25"} onClick={() => dispatch({ type: "paste_image", img: null })} >
-            <ColumnBox style={{ position: 'absolute', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>
-                <Text fw={700} size='40px' style={{ paddingBottom: '50px' }}>Upload from clipboard?</Text>
-                <ColumnBox onClick={(e) => { e.stopPropagation() }} style={{ height: "50%", width: "max-content", backgroundColor: '#222277ee', padding: '10px', borderRadius: '8px', overflow: 'hidden' }}>
-                    <MediaImage media={media} quality='thumbnail' />
+        <PresentationContainer
+            shadeOpacity={'0.25'}
+            onClick={() => dispatch({ type: 'paste_image', img: null })}
+        >
+            <ColumnBox
+                style={{
+                    position: 'absolute',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 2,
+                }}
+            >
+                <Text fw={700} size="40px" style={{ paddingBottom: '50px' }}>
+                    Upload from clipboard?
+                </Text>
+                <ColumnBox
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
+                    style={{
+                        height: '50%',
+                        width: 'max-content',
+                        backgroundColor: '#222277ee',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                    }}
+                >
+                    <MediaImage media={media} quality="thumbnail" />
                 </ColumnBox>
-                <RowBox style={{ justifyContent: 'space-between', width: '300px', height: '150px' }}>
-                    <Button size='xl' variant='default' onClick={(e) => { e.stopPropagation(); dispatch({ type: "paste_image", img: null }) }}>Cancel</Button>
-                    <Button size='xl' color='#4444ff' onClick={e => { e.stopPropagation(); UploadViaUrl(img, folderId, dirMap, authHeader, dispatch, wsSend) }}>Upload</Button>
+                <RowBox
+                    style={{
+                        justifyContent: 'space-between',
+                        width: '300px',
+                        height: '150px',
+                    }}
+                >
+                    <Button
+                        size="xl"
+                        variant="default"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch({ type: 'paste_image', img: null });
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        size="xl"
+                        color="#4444ff"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            uploadViaUrl(
+                                img,
+                                folderId,
+                                dirMap,
+                                authHeader,
+                                dispatch,
+                                wsSend
+                            );
+                        }}
+                    >
+                        Upload
+                    </Button>
                 </RowBox>
             </ColumnBox>
         </PresentationContainer>
-    )
+    );
 }
 
-function GlobalActions({ fbState, dispatch, wsSend, uploadDispatch }: { fbState: FileBrowserStateType, dispatch: FileBrowserDispatch, wsSend: (action: string, content: any) => void, uploadDispatch }) {
-    const nav = useNavigate()
-    const { userInfo, authHeader } = useContext(userContext)
-    const amHome = fbState.folderInfo.id === userInfo?.homeFolderId
+const SIDEBAR_BREAKPOINT = 650;
 
-    const BUTTON_WIDTH = 190
+const GlobalActions = memo(
+    ({
+        fbState: fb,
+        uploadState,
+        dispatch,
+        wsSend,
+        uploadDispatch,
+    }: {
+        fbState: FbStateT;
+        uploadState;
+        dispatch: FBDispatchT;
+        wsSend: (action: string, content: any) => void;
+        uploadDispatch;
+    }) => {
+        const nav = useNavigate();
+        const { usr, authHeader }: UserContextT = useContext(userContext);
+        const amHome = fb.folderInfo.id === usr?.homeId;
+        const windowSize = useWindowSize();
+        const [trashSize, trashUnits] = humanFileSize(fb.trashDirSize);
 
-    return (
-        <Box style={{ position: 'relative', paddingLeft: 15, paddingRight: 15, paddingTop: 60, width: 230, }}>
-            {userInfo.username === "" && (
-                <ColumnBox style={{ position: 'absolute', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(4px)', borderRadius: 10, margin: -10, zIndex: 1, justifyContent: 'center' }}>
-                    <RowBox onClick={() => nav("/login")} style={{ backgroundColor: '#4444ff', boxShadow: '5px 5px 10px 2px black', borderRadius: 4, padding: 10, height: 'max-content', width: 'max-content', cursor: 'pointer' }}>
-                        <IconLogin />
-                        <Text c='white' style={{ paddingLeft: 10 }}>Login</Text>
-                    </RowBox>
-                </ColumnBox>
-            )}
+        const [resizing, setResizing] = useState(false);
+        const [resizeOffset, setResizeOffset] = useState(
+            windowSize?.width > SIDEBAR_BREAKPOINT ? 300 : 75
+        );
+        useResizeDrag(resizing, setResizing, (s) => {
+            setResizeOffset(Math.min(s > 200 ? s : 75, 600));
+        });
 
-            <ColumnBox >
-                <Button style={{ width: BUTTON_WIDTH }} variant={amHome ? 'light' : 'subtle'} color={'#4444ff'} m={3} disabled={fbState.draggingState !== 0} justify='flex-start' leftSection={<IconHome />} onClick={() => { nav('/files/home') }} >
-                    My Files
-                </Button>
-                <Button style={{ width: BUTTON_WIDTH }} variant={fbState.folderInfo.id === "shared" ? 'light' : 'subtle'} color={'#4444ff'} m={3} disabled={fbState.draggingState !== 0} justify='flex-start' leftSection={<IconUsers />} onClick={() => { nav('/files/shared') }} >
-                    Shared With Me
-                </Button>
-                <Button style={{ width: BUTTON_WIDTH }} variant={fbState.folderInfo.id === userInfo?.trashFolderId ? 'light' : 'subtle'} color={'#4444ff'} m={3} disabled={fbState.draggingState !== 0} justify='flex-start' leftSection={<IconTrash />} onClick={() => { nav('/files/trash') }} >
-                    Trash
-                </Button>
-                <Space h={"md"} />
-                <Button style={{ width: BUTTON_WIDTH }} variant='subtle' color='#eeeeee' disabled={fbState.draggingState !== 0 || !fbState.folderInfo.modifiable} m={3} justify='flex-start' leftSection={<IconFolderPlus />} onClick={(e) => { e.stopPropagation(); dispatch({ type: 'new_dir' }) }}>
-                    New Folder
-                </Button>
-                <FileButton onChange={(files) => { HandleUploadButton(files, fbState.folderInfo.id, false, "", authHeader, uploadDispatch, wsSend) }} accept="file" multiple>
-                    {(props) => {
-                        return (
-                            <Button style={{ width: BUTTON_WIDTH }} variant='subtle' color='#eeeeee' disabled={fbState.draggingState !== 0 || !fbState.folderInfo.modifiable} m={3} justify='flex-start' leftSection={<IconUpload />} onClick={() => props.onClick()}>
-                                Upload
-                            </Button>
-                        )
-                    }}
-                </FileButton>
+        useEffect(() => {
+            if (windowSize.width < SIDEBAR_BREAKPOINT && resizeOffset >= 300) {
+                setResizeOffset(75);
+            } else if (
+                windowSize.width >= SIDEBAR_BREAKPOINT &&
+                resizeOffset < 300
+            ) {
+                setResizeOffset(300);
+            }
+        }, [windowSize.width]);
 
-
-                <Divider w={'100%'} my='lg' size={1.5} />
-
-                <UsageInfo inHome={fbState.folderInfo.id === userInfo.homeFolderId} homeDirSize={fbState.homeDirSize} currentFolderSize={fbState.folderInfo.size} displayCurrent={fbState.folderInfo.id !== "shared"} trashSize={fbState.trashDirSize} />
-            </ColumnBox>
-        </Box>
-    )
-}
-
-function UsageInfo({ inHome, homeDirSize, currentFolderSize, displayCurrent, trashSize }) {
-    if (!displayCurrent) {
-        currentFolderSize = homeDirSize
-    }
-    if (homeDirSize === 0) {
-        homeDirSize = currentFolderSize
-    }
-    if (!trashSize) {
-        trashSize = 0
-    }
-    if (inHome) {
-        currentFolderSize = currentFolderSize - trashSize
-    }
-
-    return (
-        <ColumnBox style={{ height: 'max-content', width: '100%', alignItems: 'flex-start' }}>
-            <Text fw={600} style={{ userSelect: 'none' }}>Usage</Text>
-            <Space h={10} />
-            <Progress radius={'xs'} color='#4444ff' value={(currentFolderSize / homeDirSize) * 100} style={{ height: 20, width: '100%', marginBottom: 10 }} />
-            <RowBox>
-                {displayCurrent && (
-                    <RowBox>
-                        <IconFolder size={20} />
-                        <Text style={{ userSelect: 'none' }} size='14px' pl={3}>{humanFileSize(currentFolderSize)}</Text>
-                    </RowBox>
+        return (
+            <RowBox
+                style={{
+                    width: resizeOffset,
+                    height: '100%',
+                    flexGrow: 0,
+                    flexShrink: 0,
+                    alignItems: 'flex-start',
+                }}
+            >
+                {usr.isLoggedIn === false && (
+                    <Box className="login-required-background">
+                        <WeblensButton
+                            label="Login"
+                            Left={<IconLogin />}
+                            centerContent
+                            onClick={() => nav('/login')}
+                            style={{ maxWidth: 300 }}
+                        />
+                    </Box>
                 )}
-                <RowBox style={{ justifyContent: 'right' }}>
-                    <Text style={{ userSelect: 'none' }} size='14px' pr={3}>{humanFileSize(homeDirSize)}</Text>
-                    <IconCloud size={20} />
-                </RowBox>
+
+                <ColumnBox style={{ flexShrink: 0, padding: 20 }}>
+                    <WeblensButton
+                        label="Home"
+                        toggleOn={amHome}
+                        allowRepeat={false}
+                        Left={<IconHome />}
+                        onMouseUp={(e) => {
+                            e.stopPropagation();
+                            if (fb.draggingState !== 0) {
+                                moveFiles(
+                                    Array.from(fb.selected.keys()),
+                                    usr.homeId,
+                                    authHeader
+                                );
+                                dispatch({
+                                    type: 'set_dragging',
+                                    dragging: false,
+                                });
+                            } else {
+                                nav('/files/home');
+                            }
+                        }}
+                    />
+
+                    <WeblensButton
+                        label="Shared"
+                        toggleOn={fb.fbMode === 'share'}
+                        disabled={fb.draggingState !== 0}
+                        allowRepeat={false}
+                        Left={<IconUsers />}
+                        onClick={() => {
+                            nav('/files/shared');
+                        }}
+                    />
+
+                    <WeblensButton
+                        label="Trash"
+                        toggleOn={fb.folderInfo.id === usr?.trashId}
+                        allowRepeat={false}
+                        Left={<IconTrash />}
+                        postScript={
+                            trashSize && resizeOffset >= 150
+                                ? `${trashSize}${trashUnits}`
+                                : ''
+                        }
+                        onMouseUp={(e) => {
+                            e.stopPropagation();
+                            if (fb.draggingState !== 0) {
+                                moveFiles(
+                                    Array.from(fb.selected.keys()),
+                                    usr.trashId,
+                                    authHeader
+                                );
+                                dispatch({
+                                    type: 'set_dragging',
+                                    dragging: false,
+                                });
+                            } else {
+                                nav('/files/trash');
+                            }
+                        }}
+                    />
+
+                    <Space h={'md'} />
+
+                    {usr.admin && (
+                        <ColumnBox style={{ height: 'max-content' }}>
+                            <WeblensButton
+                                label="External"
+                                toggleOn={fb.fbMode === 'external'}
+                                allowRepeat={false}
+                                Left={<IconServer />}
+                                disabled={fb.draggingState !== 0}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    nav('/files/external');
+                                }}
+                            />
+                            <Space h={'md'} />
+                        </ColumnBox>
+                    )}
+
+                    <WeblensButton
+                        label="New Folder"
+                        Left={<IconFolderPlus />}
+                        showSuccess={false}
+                        disabled={
+                            fb.draggingState !== 0 || !fb.folderInfo.modifiable
+                        }
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch({ type: 'new_dir' });
+                        }}
+                    />
+
+                    <FileButton
+                        onChange={(files) => {
+                            HandleUploadButton(
+                                files,
+                                fb.folderInfo.id,
+                                false,
+                                '',
+                                authHeader,
+                                uploadDispatch,
+                                wsSend
+                            );
+                        }}
+                        accept="file"
+                        multiple
+                    >
+                        {(props) => {
+                            return (
+                                <WeblensButton
+                                    label="Upload"
+                                    showSuccess={false}
+                                    disabled={
+                                        fb.draggingState !== 0 ||
+                                        !fb.folderInfo.modifiable
+                                    }
+                                    Left={<IconUpload />}
+                                    onClick={() => props.onClick()}
+                                />
+                            );
+                        }}
+                    </FileButton>
+
+                    <Divider w={'100%'} my="lg" size={1.5} />
+
+                    <UsageInfo
+                        inHome={fb.folderInfo.id === usr.homeId}
+                        homeDirSize={fb.homeDirSize}
+                        currentFolderSize={fb.folderInfo.size}
+                        displayCurrent={fb.folderInfo.id !== 'shared'}
+                        trashSize={fb.trashDirSize}
+                        selected={Array.from(fb.selected.keys()).map((v) =>
+                            fb.dirMap.get(v)
+                        )}
+                        dirId={fb.contentId}
+                        mode={fb.fbMode}
+                    />
+                    <TaskProgress
+                        scanProgress={fb.scanProgress}
+                        dispatch={dispatch}
+                    />
+                    <Box
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            height: '40px',
+                        }}
+                    />
+                    <UploadStatus
+                        uploadState={uploadState}
+                        uploadDispatch={uploadDispatch}
+                    />
+                </ColumnBox>
+                <Box
+                    draggable={false}
+                    className="resize-bar-wrapper"
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        setResizing(true);
+                    }}
+                >
+                    <Box className="resize-bar" />
+                </Box>
             </RowBox>
+        );
+    },
+    (p, n) => {
+        if (p.fbState.folderInfo !== n.fbState.folderInfo) {
+            return false;
+        } else if (p.fbState.scanProgress !== n.fbState.scanProgress) {
+            return false;
+        } else if (p.uploadState !== n.uploadState) {
+            return false;
+        } else if (p.fbState.selected !== n.fbState.selected) {
+            return false;
+        } else if (p.fbState.trashDirSize !== n.fbState.trashDirSize) {
+            return false;
+        } else if (p.fbState.draggingState !== n.fbState.draggingState) {
+            return false;
+        }
+        return true;
+    }
+);
+
+const UsageInfo = memo(
+    ({
+        inHome,
+        homeDirSize,
+        currentFolderSize,
+        displayCurrent,
+        trashSize,
+        selected,
+        mode,
+        dirId,
+    }: {
+        inHome: boolean;
+        homeDirSize: number;
+        currentFolderSize: number;
+        displayCurrent: boolean;
+        trashSize: number;
+        selected: FileInfoT[];
+        mode: string;
+        dirId: string;
+    }) => {
+        const [box, setBox] = useState(null);
+        const size = useResize(box);
+        const nav = useNavigate();
+
+        if (!displayCurrent) {
+            return null;
+        }
+        if (homeDirSize === 0) {
+            homeDirSize = currentFolderSize;
+        }
+        if (!trashSize) {
+            trashSize = 0;
+        }
+        if (inHome) {
+            currentFolderSize = currentFolderSize - trashSize;
+        }
+
+        const selectedSize = selected.reduce((acc: number, x: FileInfoT) => {
+            return acc + x.size;
+        }, 0);
+
+        let usagePercent =
+            selected.length === 0
+                ? (currentFolderSize / homeDirSize) * 100
+                : (selectedSize / currentFolderSize) * 100;
+        if (!usagePercent) {
+            usagePercent = 0;
+        }
+
+        const miniMode = size.width < 100;
+
+        let startIcon =
+            selected.length === 0 ? (
+                <IconFolder size={20} />
+            ) : (
+                <IconFiles size={20} />
+            );
+        let endIcon =
+            selected.length === 0 ? (
+                <IconHome size={20} />
+            ) : (
+                <IconFolder size={20} />
+            );
+        if (miniMode) {
+            [startIcon, endIcon] = [endIcon, startIcon];
+        }
+
+        return (
+            <Box
+                ref={setBox}
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: 'max-content',
+                    width: '100%',
+                    alignItems: miniMode ? 'center' : 'flex-start',
+                    gap: 10,
+                }}
+            >
+                <RowBox
+                    style={{
+                        height: 'max-content',
+                        display: miniMode ? 'none' : 'flex',
+                        gap: 8,
+                    }}
+                >
+                    <Text fw={600} style={{ userSelect: 'none' }}>
+                        Usage
+                    </Text>
+                    <Text fw={650} style={{ userSelect: 'none' }}>
+                        {usagePercent ? usagePercent.toFixed(2) : 0}%
+                    </Text>
+                    <Box style={{ flexGrow: 1 }} />
+                    <IconFileAnalytics
+                        style={{ cursor: 'pointer' }}
+                        onClick={() =>
+                            nav(
+                                `/files/stats/${
+                                    mode === 'external' ? mode : dirId
+                                }`
+                            )
+                        }
+                    />
+                </RowBox>
+                {miniMode && startIcon}
+                <WeblensProgress
+                    key={miniMode ? 'usage-vertical' : 'usage-horizontal'}
+                    color="#4444ff"
+                    value={usagePercent}
+                    orientation={miniMode ? 'vertical' : 'horizontal'}
+                    style={{
+                        height: miniMode ? 100 : 20,
+                        width: miniMode ? 20 : '100%',
+                    }}
+                />
+                <RowBox
+                    style={{
+                        height: 'max-content',
+                        width: miniMode ? 'max-content' : '98%',
+                    }}
+                >
+                    {displayCurrent && !miniMode && (
+                        <RowBox>
+                            {startIcon}
+                            <Text
+                                style={{
+                                    userSelect: 'none',
+                                    display: miniMode ? 'none' : 'block',
+                                }}
+                                size="14px"
+                                pl={3}
+                            >
+                                {selected.length === 0
+                                    ? humanFileSize(currentFolderSize)
+                                    : humanFileSize(selectedSize)}
+                            </Text>
+                        </RowBox>
+                    )}
+                    <RowBox
+                        style={{
+                            justifyContent: 'right',
+                            width: 'max-content',
+                        }}
+                    >
+                        <Text
+                            style={{
+                                userSelect: 'none',
+                                display: miniMode ? 'none' : 'block',
+                            }}
+                            size="14px"
+                            pr={3}
+                        >
+                            {selected.length === 0
+                                ? humanFileSize(homeDirSize)
+                                : humanFileSize(currentFolderSize)}
+                        </Text>
+                        {endIcon}
+                    </RowBox>
+                </RowBox>
+            </Box>
+        );
+    },
+    (p, n) => {
+        if (p.inHome !== n.inHome) {
+            return false;
+        }
+        if (p.homeDirSize !== n.homeDirSize) {
+            return false;
+        }
+        if (p.currentFolderSize !== n.currentFolderSize) {
+            return false;
+        }
+        if (p.displayCurrent !== n.displayCurrent) {
+            return false;
+        }
+        if (p.trashSize !== n.trashSize) {
+            return false;
+        }
+        if (p.selected.length !== n.selected.length) {
+            return false;
+        }
+        return true;
+    }
+);
+
+const TaskProgress = ({
+    scanProgress,
+    dispatch,
+}: {
+    scanProgress: ScanMeta[];
+    dispatch: FBDispatchT;
+}) => {
+    if (scanProgress.length == 0) {
+        return null;
+    }
+    const cards = useMemo(() => {
+        return scanProgress.map((sp) => (
+            <TaskProgCard key={sp.taskId} prog={sp} dispatch={dispatch} />
+        ));
+    }, [scanProgress]);
+    return <ColumnBox style={{ height: 'max-content' }}>{cards}</ColumnBox>;
+};
+
+function FileSearch({
+    fb,
+    defaultOpen = false,
+    searchRef,
+    dispatch,
+}: {
+    fb: FbStateT;
+    defaultOpen?: boolean;
+    searchRef;
+    dispatch;
+}) {
+    const [searchOpen, setSearchOpen] = useState(defaultOpen);
+    const [hintOpen, setHintOpen] = useState(false);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        if (Boolean(fb.searchContent) && !searchOpen) {
+            setSearchOpen(true);
+        }
+    }, [searchOpen, fb.searchContent]);
+
+    useEffect(() => {
+        if (fb.fbMode !== 'search') {
+            setHintOpen(false);
+            setSearchOpen(false);
+        }
+    }, [fb.fbMode]);
+
+    useEffect(() => {
+        if (
+            !Boolean(fb.searchContent) ||
+            document.activeElement !== searchRef.current
+        ) {
+            setHintOpen(false);
+            return;
+        }
+        try {
+            new RegExp(fb.searchContent);
+            setError(false);
+            setHintOpen(true);
+        } catch {
+            setHintOpen(false);
+        }
+    }, [setHintOpen, fb.searchContent]);
+
+    return (
+        <ColumnBox
+            style={{
+                height: 'max-content',
+                width: 'max-content',
+                alignItems: 'flex-start',
+            }}
+        >
+            <Box className="search-box">
+                <IconSearch
+                    color="white"
+                    className="search-icon"
+                    onClick={() => {
+                        setSearchOpen(true);
+                        searchRef.current.focus();
+                    }}
+                />
+                <Input
+                    mod={{ 'data-open': 'false' }}
+                    onBlur={() => {
+                        if (fb.searchContent === '') {
+                            setSearchOpen(false);
+                            setHintOpen(false);
+                            searchRef.current.blur();
+                        } else if (hintOpen) {
+                            setHintOpen(false);
+                        }
+                    }}
+                    onFocus={() => {
+                        if (fb.searchContent === '') {
+                            return;
+                        }
+                        try {
+                            new RegExp(fb.searchContent);
+                            setError(false);
+                            setHintOpen(true);
+                        } catch {
+                            setHintOpen(false);
+                        }
+                    }}
+                    classNames={{
+                        input: `search-input search-input-${
+                            searchOpen ? 'open' : 'closed'
+                        }`,
+                    }}
+                    unstyled
+                    value={fb.searchContent}
+                    ref={searchRef}
+                    placeholder=""
+                    onChange={(e) =>
+                        dispatch({
+                            type: 'set_search',
+                            search: e.target.value,
+                        })
+                    }
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !hintOpen) {
+                            e.stopPropagation();
+                            if (!Boolean(fb.searchContent)) {
+                                return;
+                            }
+                            setError(true);
+                            setTimeout(() => setError(false), 2000);
+                        }
+                    }}
+                />
+            </Box>
+            {hintOpen && (
+                <Box className="search-hint-box">
+                    <Box className="key-line">
+                        <Text>Press</Text>
+                        <Text className="key-display">Enter</Text>
+                        <Text>to search all files</Text>
+                    </Box>
+                </Box>
+            )}
+            {error && (
+                <Box className="search-hint-box" mod={{ 'data-error': 'true' }}>
+                    <Text>Not valid regex</Text>
+                </Box>
+            )}
         </ColumnBox>
-    )
+    );
 }
 
 function DraggingCounter({ dragging, dirMap, selected, dispatch }) {
-    const position = useMousePosition()
-    const selectedKeys = Array.from(selected.keys())
+    const position = useMouse();
+    const selectedKeys = Array.from(selected.keys());
     const { files, folders } = useMemo(() => {
-        let files = 0
-        let folders = 0
+        let files = 0;
+        let folders = 0;
 
         selectedKeys.forEach((k: string) => {
             if (dirMap.get(k)?.isDir) {
-                folders++
+                folders++;
             } else {
-                files++
+                files++;
             }
-        })
-        return { files, folders }
-    }, [JSON.stringify(selectedKeys)])
+        });
+        return { files, folders };
+    }, [JSON.stringify(selectedKeys)]);
 
     if (dragging !== 1) {
-        return null
+        return null;
     }
 
     return (
-        <Box
+        <ColumnBox
             style={{
-                display: 'flex',
-                flexDirection: 'column',
                 position: 'fixed',
                 top: position.y + 8,
                 left: position.x + 8,
-                zIndex: 10
+                zIndex: 10,
             }}
-            onMouseUp={() => { dispatch({ type: 'set_dragging', dragging: false }) }}
+            onMouseUp={() => {
+                dispatch({ type: 'set_dragging', dragging: false });
+            }}
         >
             {Boolean(files) && (
                 <RowBox style={{ height: 'max-content' }}>
                     <IconFile size={30} />
                     <Space w={10} />
-                    <StyledBreadcrumb label={files.toString()} fontSize={30} compact />
+                    <StyledBreadcrumb
+                        label={files.toString()}
+                        fontSize={30}
+                        compact
+                    />
                 </RowBox>
             )}
             {Boolean(folders) && (
                 <RowBox style={{ height: 'max-content' }}>
                     <IconFolder size={30} />
                     <Space w={10} />
-                    <StyledBreadcrumb label={folders.toString()} fontSize={30} compact />
+                    <StyledBreadcrumb
+                        label={folders.toString()}
+                        fontSize={30}
+                        compact
+                    />
                 </RowBox>
             )}
-        </Box>
-    )
+        </ColumnBox>
+    );
 }
 
-function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, wsSend, authHeader }: { itemId: string, fbState: FileBrowserStateType, open, setOpen, menuPos, dispatch, wsSend, authHeader }) {
-    const [shareMenu, setShareMenu] = useState(false)
-    const [addToAlbumMenu, setAddToAlbumMenu] = useState(false)
-    const itemInfo: fileData = fbState.dirMap.get(itemId) || {} as fileData
-    const selected: boolean = Boolean(fbState.selected.get(itemId))
+function FileContextMenu({
+    itemId,
+    fbState,
+    open,
+    setOpen,
+    menuPos,
+    dispatch,
+    wsSend,
+    authHeader,
+}: {
+    itemId: string;
+    fbState: FbStateT;
+    open;
+    setOpen;
+    menuPos;
+    dispatch;
+    wsSend;
+    authHeader;
+}) {
+    const { usr }: UserContextT = useContext(userContext);
+    const [shareMenu, setShareMenu] = useState(false);
+    const [addToAlbumMenu, setAddToAlbumMenu] = useState(false);
+    const itemInfo: FileInfoT = fbState.dirMap.get(itemId) || ({} as FileInfoT);
+    const selected: boolean = Boolean(fbState.selected.get(itemId));
 
     useEffect(() => {
-        dispatch({ type: 'set_block_focus', block: open })
-    }, [dispatch, open])
+        dispatch({ type: 'set_block_focus', block: open });
+    }, [dispatch, open]);
 
-    const { items, mediaCount } = useMemo(() => {
+    const { items } = useMemo(() => {
         if (fbState.dirMap.size === 0) {
-            return { items: [], anyDisplayable: false }
+            return { items: [], anyDisplayable: false };
         }
-        const itemIds = selected ? Array.from(fbState.selected.keys()) : [itemId]
-        let mediaCount = 0
-        const items = itemIds.map(i => {
-            const item = fbState.dirMap.get(i)
+        const itemIds = selected
+            ? Array.from(fbState.selected.keys())
+            : [itemId];
+        let mediaCount = 0;
+        const items = itemIds.map((i) => {
+            const item = fbState.dirMap.get(i);
             if (!item) {
-                return null
+                return null;
             }
             if (item.displayable || item.isDir) {
-                mediaCount++
+                mediaCount++;
             }
-            return item
-        })
+            return item;
+        });
 
-        return { items: items.filter(i => Boolean(i)), mediaCount }
-    }, [itemId, JSON.stringify(fbState.dirMap.get(itemId)), selected, fbState.selected.size])
+        return { items: items.filter((i) => Boolean(i)), mediaCount };
+    }, [
+        itemId,
+        JSON.stringify(fbState.dirMap.get(itemId)),
+        selected,
+        fbState.selected,
+    ]);
 
-    let extraString
+    let extraString;
     if (selected && fbState.selected.size > 1) {
-        extraString = ` +${fbState.selected.size - 1} more`
+        extraString = ` +${fbState.selected.size - 1} more`;
     }
 
-    const wormholeId = useMemo(() => { if (itemInfo.shares) { const whs = itemInfo.shares.filter(s => s.Wormhole); if (whs.length !== 0) { return whs[0].shareId } } }, [itemInfo.shares])
-    const selectedMedia = useMemo(() => items.filter(i => i.displayable).map(i => i.id), [items])
-    const selectedFolders = useMemo(() => items.filter(i => i.isDir).map(i => i.id), [items])
+    const wormholeId = useMemo(() => {
+        if (itemInfo.shares) {
+            const whs = itemInfo.shares.filter((s) => s.Wormhole);
+            if (whs.length !== 0) {
+                return whs[0].shareId;
+            }
+        }
+    }, [itemInfo.shares]);
+    const selectedMedia = useMemo(
+        () => items.filter((i) => i.displayable).map((i) => i.id),
+        [items]
+    );
+    const selectedFolders = useMemo(
+        () => items.filter((i) => i.isDir).map((i) => i.id),
+        [items]
+    );
+    const inTrash = fbState.folderInfo.id === usr.trashId;
+    const inShare = fbState.folderInfo.id === 'shared';
+    let trashName;
+    if (inTrash) {
+        trashName = 'Delete Forever';
+    } else if (inShare) {
+        trashName = 'Unshare Me';
+    } else {
+        trashName = 'Delete';
+    }
 
     return (
-        <Menu opened={open} closeDelay={0} openDelay={0} onClose={() => setOpen(false)} closeOnClickOutside={!(addToAlbumMenu || shareMenu)} position='right-start' closeOnItemClick={false} transitionProps={{ duration: 100, exitDuration: 0 }} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+        <Menu
+            opened={open}
+            closeDelay={0}
+            openDelay={0}
+            onClose={() => setOpen(false)}
+            closeOnClickOutside={!(addToAlbumMenu || shareMenu)}
+            position="right-start"
+            closeOnItemClick={false}
+            transitionProps={{ duration: 100, exitDuration: 0 }}
+            styles={{
+                dropdown: {
+                    boxShadow: '0px 0px 20px -5px black',
+                    width: 'max-content',
+                    padding: 10,
+                    border: 0,
+                },
+            }}
+        >
             <Menu.Target>
-                <Box style={{ position: 'absolute', top: menuPos.y, left: menuPos.x }} />
+                <Box
+                    style={{
+                        position: 'absolute',
+                        top: menuPos.y,
+                        left: menuPos.x,
+                    }}
+                />
             </Menu.Target>
 
-            <Menu.Dropdown onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+            <Menu.Dropdown
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+            >
                 <Menu.Label>
                     <RowBox style={{ gap: 8, justifyContent: 'center' }}>
-                        {itemInfo.isDir && (
-                            <IconFolder />
-                        )}
-                        {!itemInfo.isDir && (
-                            <IconFile />
-                        )}
-                        <Text truncate='end' style={{}}>
+                        {itemInfo.isDir && <IconFolder />}
+                        {!itemInfo.isDir && <IconFile />}
+                        <Text truncate="end" style={{ maxWidth: '250px' }}>
                             {itemInfo.filename}
                         </Text>
                         {extraString}
@@ -255,34 +1002,109 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
 
                 <Divider my={10} />
 
-                <Menu opened={addToAlbumMenu} trigger='hover' offset={0} position="right-start" onOpen={() => setAddToAlbumMenu(true)} onClose={() => setAddToAlbumMenu(false)} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 10, border: 0 } }}>
+                <Menu
+                    opened={addToAlbumMenu}
+                    trigger="hover"
+                    disabled={inTrash}
+                    offset={0}
+                    position="right-start"
+                    onOpen={() => setAddToAlbumMenu(true)}
+                    onClose={() => setAddToAlbumMenu(false)}
+                    styles={{
+                        dropdown: {
+                            boxShadow: '0px 0px 20px -5px black',
+                            width: 'max-content',
+                            padding: 10,
+                            border: 0,
+                        },
+                    }}
+                >
                     <Menu.Target>
-                        <Box className='menu-item'>
+                        {/* <Box className={`menu-item${inTrash ? '-disabled' : ''}`}> */}
+                        <Box
+                            className="menu-item"
+                            mod={{ 'data-disabled': inTrash.toString() }}
+                        >
                             <IconPhotoPlus />
-                            <Text style={{ paddingLeft: 8, flexGrow: 1 }}>Add to Album</Text>
+                            <Text className="menu-item-text">Add to Album</Text>
                             <IconChevronRight />
                         </Box>
                     </Menu.Target>
-                    <Menu.Dropdown onMouseOver={e => e.stopPropagation()}>
-                        <AlbumScoller selectedMedia={selectedMedia} selectedFolders={selectedFolders} authHeader={authHeader} />
+                    <Menu.Dropdown onMouseOver={(e) => e.stopPropagation()}>
+                        <AlbumScoller
+                            selectedMedia={selectedMedia}
+                            selectedFolders={selectedFolders}
+                            authHeader={authHeader}
+                        />
                     </Menu.Dropdown>
                 </Menu>
 
                 {/* Wormhole menu */}
                 {itemInfo.isDir && (
-                    // disabled={()}
-                    <Box className='menu-item' style={{ pointerEvents: fbState.selected.size > 1 && selected ? 'none' : 'all' }} onClick={(e) => { e.stopPropagation(); if (!wormholeId) { NewWormhole(itemId, authHeader) } else { navigator.clipboard.writeText(`${window.location.origin}/wormhole/${wormholeId}`); setOpen(false); notifications.show({ message: 'Link to wormhole copied', color: 'green' }) } }}>
-                        <IconSpiral color={fbState.selected.size > 1 ? 'grey' : 'white'} />
-                        <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c={fbState.selected.size > 1 ? 'grey' : 'white'}>{!wormholeId ? "Attach" : "Copy"} Wormhole</Text>
+                    <Box
+                        className="menu-item"
+                        mod={{ 'data-disabled': inTrash.toString() }}
+                        style={{
+                            pointerEvents:
+                                fbState.selected.size > 1 && selected
+                                    ? 'none'
+                                    : 'all',
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!wormholeId) {
+                                NewWormhole(itemId, authHeader);
+                            } else {
+                                navigator.clipboard.writeText(
+                                    `${window.location.origin}/wormhole/${wormholeId}`
+                                );
+                                setOpen(false);
+                                notifications.show({
+                                    message: 'Link to wormhole copied',
+                                    color: 'green',
+                                });
+                            }
+                        }}
+                    >
+                        <IconSpiral
+                            color={fbState.selected.size > 1 ? 'grey' : 'white'}
+                        />
+                        <Text
+                            className="menu-item-text"
+                            truncate="end"
+                            c={fbState.selected.size > 1 ? 'grey' : 'white'}
+                        >
+                            {!wormholeId ? 'Attach' : 'Copy'} Wormhole
+                        </Text>
                     </Box>
                 )}
 
                 {/* Share menu */}
-                <Menu opened={shareMenu} trigger='hover' closeOnClickOutside={false} offset={0} position="right-start" onOpen={() => setShareMenu(true)} onClose={() => setShareMenu(false)} styles={{ dropdown: { boxShadow: '0px 0px 20px -5px black', width: 'max-content', padding: 0, border: 0 } }}>
+                <Menu
+                    opened={shareMenu}
+                    disabled={inTrash}
+                    trigger="hover"
+                    closeOnClickOutside={false}
+                    offset={0}
+                    position="right-start"
+                    onOpen={() => setShareMenu(true)}
+                    onClose={() => setShareMenu(false)}
+                    styles={{
+                        dropdown: {
+                            boxShadow: '0px 0px 20px -5px black',
+                            width: 'max-content',
+                            padding: 0,
+                            border: 0,
+                        },
+                    }}
+                >
                     <Menu.Target>
-                        <Box className='menu-item'>
+                        <Box
+                            className="menu-item"
+                            mod={{ 'data-disabled': inTrash.toString() }}
+                        >
                             <IconShare />
-                            <Text style={{ paddingLeft: 8, flexGrow: 1 }}>Share</Text>
+                            <Text className="menu-item-text">Share</Text>
                             <IconChevronRight />
                         </Box>
                     </Menu.Target>
@@ -291,321 +1113,994 @@ function FileContextMenu({ itemId, fbState, open, setOpen, menuPos, dispatch, ws
                     </Menu.Dropdown>
                 </Menu>
 
-                <Box className='menu-item' onClick={(e) => { e.stopPropagation(); downloadSelected(selected ? Array.from(fbState.selected.keys()).map(fId => fbState.dirMap.get(fId)) : [fbState.dirMap.get(itemId)], dispatch, wsSend, authHeader) }}>
+                <Box
+                    className="menu-item"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        downloadSelected(
+                            selected
+                                ? Array.from(fbState.selected.keys()).map(
+                                      (fId) => fbState.dirMap.get(fId)
+                                  )
+                                : [fbState.dirMap.get(itemId)],
+                            dispatch,
+                            wsSend,
+                            authHeader,
+                            itemInfo.shares[0].shareId
+                        );
+                    }}
+                >
                     <IconDownload />
-                    <Text style={{ paddingLeft: 8, flexGrow: 1 }}>Download</Text>
-
+                    <Text className="menu-item-text">Download</Text>
                 </Box>
 
-                <Divider w={'100%'} my='sm' />
+                {itemInfo.isDir && (
+                    <Box
+                        className="menu-item"
+                        onClick={() =>
+                            dispatchSync(
+                                items.map((i: FileInfoT) => i.id),
+                                wsSend,
+                                true,
+                                true
+                            )
+                        }
+                    >
+                        <IconScan />
+                        <Text className="menu-item-text">Scan</Text>
+                    </Box>
+                )}
+
+                <Divider w={'100%'} my="sm" />
 
                 {wormholeId && (
-                    <Box className='menu-item' onClick={(e) => { e.stopPropagation(); DeleteShare(wormholeId, authHeader) }}>
-                        <IconSpiral color='#ff8888' />
-                        <Text truncate='end' style={{ paddingLeft: 8, flexGrow: 1 }} c='#ff8888'>Remove Wormhole</Text>
+                    <Box
+                        className="menu-item"
+                        mod={{ 'data-disabled': inTrash.toString() }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            DeleteShare(wormholeId, authHeader);
+                        }}
+                    >
+                        <IconSpiral color="#ff8888" />
+                        <Text
+                            className="menu-item-text"
+                            truncate="end"
+                            c="#ff8888"
+                        >
+                            Remove Wormhole
+                        </Text>
                     </Box>
-
                 )}
-                <Box className='menu-item' onClick={(e) => { e.stopPropagation(); DeleteFiles(items.map(i => i.id), authHeader); setOpen(false) }}>
-                    <IconTrash color='#ff8888' />
-                    <Text style={{ paddingLeft: 8, flexGrow: 1 }} c='#ff8888'>Delete</Text>
-                </Box>
+                {inTrash && (
+                    <Box
+                        className="menu-item"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            UnTrashFiles(
+                                items.map((i) => i.id),
+                                authHeader
+                            );
+                            setOpen(false);
+                        }}
+                    >
+                        <IconArrowBackUp />
+                        <Text className="menu-item-text">{'Put back'}</Text>
+                    </Box>
+                )}
+                <Box
+                    className="menu-item"
+                    onClick={(e) => {
+                        e.stopPropagation();
 
+                        if (inTrash) {
+                            DeleteFiles(
+                                items.map((i) => i.id),
+                                authHeader
+                            );
+                        } else if (inShare) {
+                            let thisShare =
+                                fbState.dirMap.get(itemId).shares[0];
+                            UpdateFileShare(
+                                thisShare.shareId,
+                                thisShare.Public,
+                                thisShare.Accessors.filter(
+                                    (u) => u !== usr.username
+                                ),
+                                authHeader
+                            );
+                        } else {
+                            TrashFiles(
+                                items.map((i: FileInfoT) => i.id),
+                                authHeader
+                            );
+                        }
+                        setOpen(false);
+                    }}
+                >
+                    {inShare ? (
+                        <IconUserMinus color="#ff4444" />
+                    ) : (
+                        <IconTrash color="#ff4444" />
+                    )}
+                    <Text className="menu-item-text" c="#ff4444">
+                        {trashName}
+                    </Text>
+                </Box>
             </Menu.Dropdown>
         </Menu>
-    )
+    );
 }
 
-function SingleFile({ file, doDownload }: { file: fileData, doDownload: (file: fileData) => void }) {
+function SingleFile({
+    file,
+    doDownload,
+}: {
+    file: FileInfoT;
+    doDownload: (file: FileInfoT) => void;
+}) {
     if (!file.id) {
         return (
-            <NotFound resourceType='Share' link='/files/home' setNotFound={() => { }} />
-        )
+            <NotFound
+                resourceType="Share"
+                link="/files/home"
+                setNotFound={() => {}}
+            />
+        );
     }
 
     return (
-        <RowBox style={{ height: "calc(99vh - 70px)" }}>
-            <Box style={{ display: 'flex', width: "55%", height: "100%", padding: 10 }}>
-                <IconDisplay file={file} />
+        <Box
+            style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-around',
+                paddingBottom: 8,
+            }}
+        >
+            <Box
+                className="icon-display-wrapper"
+                style={{
+                    display: 'flex',
+                    width: 150,
+                    maxWidth: '65%',
+                    flexGrow: 1,
+                    alignItems: 'center',
+                }}
+            >
+                <IconDisplay file={file} allowMedia size={'65%'} />
             </Box>
-            <ColumnBox style={{ width: 'initial', flexGrow: 1, padding: 10 }}>
+            <ColumnBox style={{ flexGrow: 1, maxWidth: '50%', padding: 10 }}>
                 <FileInfoDisplay file={file} />
                 <Box style={{ minHeight: '40%' }}>
-                    <RowBox onClick={() => doDownload(file)} style={{ backgroundColor: '#4444ff', borderRadius: 4, padding: 10, height: 'max-content', cursor: 'pointer' }}>
+                    <RowBox
+                        onClick={() => doDownload(file)}
+                        style={{
+                            backgroundColor: '#4444ff',
+                            borderRadius: 4,
+                            padding: 10,
+                            height: 'max-content',
+                            cursor: 'pointer',
+                        }}
+                    >
                         <IconDownload />
-                        <Text c='white' style={{ paddingLeft: 10 }}>Download {file.filename}</Text>
+                        <Text c="white" style={{ paddingLeft: 10 }}>
+                            Download {file.filename}
+                        </Text>
                     </RowBox>
-
                 </Box>
             </ColumnBox>
-        </RowBox>
-    )
+        </Box>
+    );
 }
 
-function Files({ filebrowserState, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }:
-    { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch: (action: FileBrowserAction) => void, wsSend: (action: string, content: any) => void, uploadDispatch, authHeader }) {
-    const { userInfo } = useContext(userContext)
-    const nav = useNavigate()
-    const [debouncedSearch] = useDebouncedValue(filebrowserState.searchContent, 200)
-    const [scanNeeded, setScanNeeded] = useState(false)
-    const boundRef = useRef(null)
-    const moveSelectedTo = useCallback(folderId => { moveSelected(filebrowserState.selected, folderId, authHeader); dispatch({ type: 'clear_selected' }) }, [filebrowserState.selected.size, folderId, authHeader])
+function Files({
+    fb: fb,
+    folderId,
+    notFound,
+    setNotFound,
+    alreadyScanned,
+    setAlreadyScanned,
+    searchRef,
+    dispatch,
+    wsSend,
+    uploadDispatch,
+    authHeader,
+}: {
+    fb: FbStateT;
+    folderId;
+    notFound;
+    setNotFound;
+    alreadyScanned;
+    setAlreadyScanned;
+    searchRef;
+    dispatch: (action: FileBrowserAction) => void;
+    wsSend: (action: string, content: any) => void;
+    uploadDispatch;
+    authHeader;
+}) {
+    const { usr }: UserContextT = useContext(userContext);
+    const nav = useNavigate();
+    const [debouncedSearch] = useDebouncedValue(fb.searchContent, 200);
+    const [scanNeeded, setScanNeeded] = useState(false);
+
+    const [boundRef, setBoundRef] = useState(null);
+    useResize(boundRef);
+
+    const moveSelectedTo = useCallback(
+        (folderId: string) => {
+            MoveSelected(fb.selected, folderId, authHeader);
+            dispatch({ type: 'clear_selected' });
+        },
+        [fb.selected.size, folderId, authHeader]
+    );
 
     const itemsList: ItemProps[] = useMemo(() => {
-        if (!userInfo) {
-            return []
+        if (usr.isLoggedIn === undefined) {
+            return [];
         }
-        let filesList = MapToList(filebrowserState.dirMap).filter((val) => { return val.filename.toLowerCase().includes(debouncedSearch.toLowerCase()) && val.id !== userInfo.trashFolderId })
-        const itemsList: ItemProps[] = filesList.map(v => {
-            const selected = Boolean(filebrowserState.selected.get(v.id))
-            const [size, uints] = humanFileSize(v.size)
+        let filesList = Array.from(fb.dirMap.values()).filter((val) => {
+            if (!val.filename) {
+                return false;
+            }
+            return (
+                val.filename
+                    .toLowerCase()
+                    .includes(debouncedSearch.toLowerCase()) &&
+                val.id !== usr.trashId
+            );
+        });
+        const itemsList: ItemProps[] = filesList.map((v) => {
+            const selected = Boolean(fb.selected.get(v.id));
+            const [size, units] = humanFileSize(v.size);
             const item: ItemProps = {
                 itemId: v.id,
                 itemTitle: v.filename,
-                secondaryInfo: String(size + " " + uints),
-                selected: (selected ? 0x1 : 0x0) | (filebrowserState.lastSelected === v.id ? 0x10 : 0x0),
+                itemSize: size,
+                itemSizeBytes: v.size,
+                itemSizeUnits: units,
+                modifyDate: new Date(v.modTime),
+                selected:
+                    (selected ? 0x1 : 0x0) |
+                    (fb.lastSelected === v.id ? 0x10 : 0x0),
                 mediaData: v.mediaData,
                 droppable: v.isDir && !selected,
                 isDir: v.isDir,
                 imported: v.imported,
                 displayable: v.displayable,
-                shares: v.shares
-            }
+                shares: v.shares,
+            };
             if (!scanNeeded && !v.imported && v.displayable) {
-                setScanNeeded(true)
+                setScanNeeded(true);
             }
-            return item
-        })
-        return itemsList
-    }, [JSON.stringify(Array.from(filebrowserState.dirMap.values())), JSON.stringify(Array.from(filebrowserState.selected.keys())), debouncedSearch, userInfo, filebrowserState.lastSelected])
+            return item;
+        });
+
+        try {
+            itemsList.sort(getSortFunc(fb.sortFunc, fb.sortDirection));
+        } catch (e) {
+            console.error(e);
+        }
+        return itemsList;
+    }, [
+        fb.dirMap,
+        fb.selected,
+        debouncedSearch,
+        usr,
+        fb.lastSelected,
+        fb.sortFunc,
+        fb.sortDirection,
+    ]);
 
     useEffect(() => {
-        dispatch({ type: "set_loading", loading: true })
-    }, [debouncedSearch])
+        dispatch({ type: 'add_loading', loading: 'fileSearch' });
+    }, [debouncedSearch]);
+
+    useEffect(() => {
+        const fileIds = itemsList.map((v) => v.itemId);
+        dispatch({
+            type: 'set_files_list',
+            fileIds: fileIds,
+        });
+        dispatch({ type: 'remove_loading', loading: 'fileSearch' });
+    }, [itemsList, dispatch]);
 
     useEffect(() => {
         if (scanNeeded && !alreadyScanned) {
-            setAlreadyScanned(true)
-            dispatchSync(folderId, wsSend, false, false)
+            setAlreadyScanned(true);
+            if (folderId !== 'shared' && folderId !== usr.trashId) {
+                dispatchSync(folderId, wsSend, false, false);
+            }
         }
-    }, [scanNeeded, alreadyScanned, folderId, wsSend, setAlreadyScanned])
+    }, [scanNeeded, alreadyScanned, folderId, wsSend, setAlreadyScanned]);
 
     const itemsCtx: GlobalContextType = useMemo(() => {
-        let scrollToIndex: number
-        if (filebrowserState.scrollTo) {
-            scrollToIndex = itemsList.findIndex((v) => v.itemId === filebrowserState.scrollTo)
+        let scrollToIndex: number;
+        if (fb.scrollTo) {
+            scrollToIndex = itemsList.findIndex(
+                (v) => v.itemId === fb.scrollTo
+            );
         }
+        const hoveringIndex = fb.holdingShift
+            ? itemsList.findIndex((v) => v.itemId === fb.hovering)
+            : -1;
 
+        const lastSelectedIndex = fb.holdingShift
+            ? itemsList.findIndex((v) => v.itemId === fb.lastSelected)
+            : -1;
         const context: GlobalContextType = {
-            setSelected: (itemId: string, selected?: boolean) => dispatch({ type: 'set_selected', fileId: itemId, selected: selected }),
-            visitItem: (itemId: string) => { const item = filebrowserState.dirMap.get(itemId); if (item.isDir) { nav(itemId) } else if (item.displayable) { dispatch({ type: 'set_presentation', presentingId: itemId }) } },
-            setDragging: (d: boolean) => dispatch({ type: 'set_dragging', dragging: d }),
-            moveSelected: (entryId: string) => { if (filebrowserState.dirMap.get(entryId).isDir) { moveSelected(filebrowserState.selected, entryId, authHeader).then(() => dispatch({ type: 'clear_selected' })) } },
-            blockFocus: (b: boolean) => dispatch({ type: 'set_block_focus', block: b }),
-            rename: (itemId: string, newName: string) => HandleRename(itemId, newName, folderId, filebrowserState.selected.size, dispatch, authHeader),
+            setSelected: (itemId: string, selected?: boolean) =>
+                dispatch({
+                    type: 'set_selected',
+                    fileId: itemId,
+                    selected: selected,
+                }),
+            visitItem: (itemId: string) => {
+                const item = fb.dirMap.get(itemId);
+                const jumpTo = getVisitRoute(
+                    fb.fbMode,
+                    itemId,
+                    fb.shareId || item.shares[0]?.shareId,
+                    item.isDir,
+                    item.displayable,
+                    dispatch
+                );
+                if (jumpTo) {
+                    nav(jumpTo);
+                }
+            },
+            setHovering: (i: string) =>
+                dispatch({ type: 'set_hovering', hovering: i }),
+            setDragging: (d: boolean) =>
+                dispatch({ type: 'set_dragging', dragging: d }),
+            doSelectMany: () =>
+                dispatch({
+                    type: 'select_ids',
+                    fileIds:
+                        hoveringIndex > lastSelectedIndex
+                            ? itemsList
+                                  .slice(lastSelectedIndex, hoveringIndex + 1)
+                                  .map((v) => v.itemId)
+                            : itemsList
+                                  .slice(hoveringIndex, lastSelectedIndex + 1)
+                                  .map((v) => v.itemId),
+                }),
+            moveSelected: (entryId: string) => {
+                if (fb.dirMap.get(entryId).isDir) {
+                    MoveSelected(fb.selected, entryId, authHeader).then(() =>
+                        dispatch({ type: 'clear_selected' })
+                    );
+                }
+            },
+            blockFocus: (b: boolean) =>
+                dispatch({ type: 'set_block_focus', block: b }),
+            rename: (itemId: string, newName: string) =>
+                handleRename(
+                    itemId,
+                    newName,
+                    folderId,
+                    fb.selected.size,
+                    dispatch,
+                    authHeader
+                ),
 
-            setMenuOpen: (o: boolean) => dispatch({ type: 'set_menu_open', open: o }),
-            setMenuPos: (pos: { x: number, y: number }) => dispatch({ type: 'set_menu_pos', pos: pos }),
-            setMenuTarget: (target: string) => dispatch({ type: 'set_menu_target', fileId: target }),
+            setMenuOpen: (o: boolean) =>
+                dispatch({ type: 'set_menu_open', open: o }),
+            setMenuPos: (pos: { x: number; y: number }) =>
+                dispatch({ type: 'set_menu_pos', pos: pos }),
+            setMenuTarget: (target: string) =>
+                dispatch({ type: 'set_menu_target', fileId: target }),
 
-            iconDisplay: ({ itemInfo }) => { const file = filebrowserState.dirMap.get(itemInfo.itemId); return (<IconDisplay file={file} />) },
-            setMoveDest: (itemName) => dispatch({ type: 'set_move_dest', fileName: itemName }),
+            iconDisplay: ({ itemInfo, size }) => {
+                const file = fb.dirMap.get(itemInfo.itemId);
 
-            dragging: filebrowserState.draggingState,
+                return <IconDisplay file={file} size={size} allowMedia />;
+            },
+            setMoveDest: (itemName) =>
+                dispatch({ type: 'set_move_dest', fileName: itemName }),
+
+            dragging: fb.draggingState,
             initialScrollIndex: scrollToIndex,
-        }
+            allowEditing: fb.folderInfo.id !== usr.trashId,
+            hoveringIndex: hoveringIndex,
+            lastSelectedIndex: lastSelectedIndex,
+        };
+        return context;
+    }, [
+        itemsList,
+        fb.dirMap,
+        fb.selected,
+        fb.fbMode,
+        fb.draggingState,
+        fb.hovering,
+        fb.holdingShift,
+        dispatch,
+        folderId,
+    ]);
 
-        return context
-    }, [itemsList, filebrowserState.selected.size, filebrowserState.draggingState, dispatch, folderId])
-
-    useEffect(() => {
-        dispatch({ type: 'set_files_list', fileIds: itemsList.map(v => v.itemId) })
-        dispatch({ type: 'set_loading', loading: false })
-    }, [itemsList, dispatch])
+    // console.log(itemsList);
 
     if (notFound) {
         return (
-            <NotFound resourceType='Folder' link='/files/home' setNotFound={setNotFound} />
-        )
+            <NotFound
+                resourceType="Folder"
+                link="/files/home"
+                setNotFound={setNotFound}
+            />
+        );
     }
 
     return (
-        <Box ref={boundRef} style={{ width: '100%', height: '100%' }}>
-            <TransferCard action='Move' destination={filebrowserState.moveDest} boundRef={boundRef} />
-            <Crumbs finalFile={filebrowserState.folderInfo} parents={filebrowserState.parents} navOnLast={false} dragging={filebrowserState.draggingState} moveSelectedTo={moveSelectedTo} setMoveDest={(itemName) => dispatch({ type: "set_move_dest", fileName: itemName })} />
+        <Box
+            ref={setBoundRef}
+            style={{ width: '100%', height: '100%', paddingLeft: 10 }}
+        >
+            <TransferCard
+                action="Move"
+                destination={fb.moveDest}
+                boundRef={boundRef}
+            />
+            <RowBox
+                style={{
+                    height: 'max-content',
+                    justifyContent: 'space-between',
+                    padding: 8,
+                }}
+            >
+                <Crumbs
+                    finalFile={fb.folderInfo}
+                    parents={fb.parents}
+                    navOnLast={false}
+                    dragging={fb.draggingState}
+                    moveSelectedTo={moveSelectedTo}
+                    setMoveDest={(itemName) =>
+                        dispatch({ type: 'set_move_dest', fileName: itemName })
+                    }
+                />
+                <RowBox style={{ width: 'max-content', flexShrink: 0 }}>
+                    <Box className="file-sort-box">
+                        <Box
+                            className="sort-direction-box"
+                            onClick={() =>
+                                dispatch({
+                                    type: 'set_sort',
+                                    sortDirection: fb.sortDirection * -1,
+                                })
+                            }
+                        >
+                            {fb.sortDirection === 1 && <IconSortDescending2 />}
+                            {fb.sortDirection === -1 && <IconSortAscending2 />}
+                        </Box>
+                        <WeblensSelect
+                            // classNames={{
+                            //     input: "file-sort-input",
+                            //     dropdown: "file-sort-dropdown",
+                            //     option: "file-sort-option",
+                            // }}
+                            // styles={{ input: { userSelect: 'none' }, dropdown: { userSelect: "none" } }}
+                            value={fb.sortFunc}
+                            data={['Name', 'Date Modified', 'Size']}
+                            onChange={(e) =>
+                                dispatch({ type: 'set_sort', sortType: e })
+                            }
+                        />
+                    </Box>
+                    <FileSearch
+                        fb={fb}
+                        searchRef={searchRef}
+                        dispatch={dispatch}
+                    />
+                </RowBox>
+            </RowBox>
 
-            {
-                (itemsList.length !== 0 && (
-                    <ItemScroller itemsContext={itemsList} globalContext={itemsCtx} dispatch={dispatch} />
-                ))
-                || ((!filebrowserState.loading && folderId !== "shared" && filebrowserState.searchContent === "" && filebrowserState.searchContent === debouncedSearch) && (
-                    <GetStartedCard filebrowserState={filebrowserState} moveSelectedTo={moveSelectedTo} dispatch={dispatch} uploadDispatch={uploadDispatch} authHeader={authHeader} wsSend={wsSend} />
-                ))
-                || ((!filebrowserState.loading && filebrowserState.folderInfo.id === "shared") && (
-                    <NotFound resourceType='any files shared with you' link='/files/home' setNotFound={setNotFound} />
-                ))
-                || (!filebrowserState.loading && filebrowserState.searchContent !== "" && (
-                    <ColumnBox style={{ justifyContent: 'flex-end', height: '20%' }}>
-                        <Text size='20px'>No items match your search</Text>
+            {(itemsList.length !== 0 && (
+                <ItemScroller
+                    itemsContext={itemsList}
+                    globalContext={itemsCtx}
+                    parentNode={boundRef}
+                    dispatch={dispatch}
+                />
+            )) ||
+                (fb.loading.length === 0 &&
+                    folderId !== 'shared' &&
+                    fb.searchContent === '' &&
+                    fb.searchContent === debouncedSearch && (
+                        <GetStartedCard
+                            fb={fb}
+                            moveSelectedTo={moveSelectedTo}
+                            dispatch={dispatch}
+                            uploadDispatch={uploadDispatch}
+                            authHeader={authHeader}
+                            wsSend={wsSend}
+                        />
+                    )) ||
+                (fb.loading.length === 0 && fb.folderInfo.id === 'shared' && (
+                    <NotFound
+                        resourceType="any files shared with you"
+                        link="/files/home"
+                        setNotFound={setNotFound}
+                    />
+                )) ||
+                (fb.loading.length === 0 && fb.searchContent !== '' && (
+                    <ColumnBox
+                        style={{
+                            justifyContent: 'flex-end',
+                            height: '20%',
+                        }}
+                    >
+                        <RowBox
+                            style={{
+                                height: 'max-content',
+                                width: 'max-content',
+                            }}
+                        >
+                            <Text size="20px">
+                                No items match your search in
+                            </Text>
+                            <IconFolder style={{ marginLeft: 4 }} />
+                            <Text size="20px">{fb.folderInfo.filename}</Text>
+                        </RowBox>
+                        <Space h={10} />
+
+                        <Box className="key-line">
+                            <Text size="16px">Press</Text>
+                            <Text className="key-display">Enter</Text>
+                            <Text>to search all files</Text>
+                        </Box>
                     </ColumnBox>
-                ))
-            }
+                ))}
         </Box>
-    )
+    );
 }
 
-function DirView({ filebrowserState, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch, wsSend, uploadDispatch, authHeader }:
-    { filebrowserState: FileBrowserStateType, folderId, notFound, setNotFound, alreadyScanned, setAlreadyScanned, dispatch: (action: FileBrowserAction) => void, wsSend: (action: string, content: any) => void, uploadDispatch, authHeader }) {
-    const download = useCallback((file: fileData) => downloadSelected([file], dispatch, wsSend, authHeader, filebrowserState.isShare ? filebrowserState.shareId : undefined), [authHeader, wsSend, dispatch, filebrowserState.isShare, filebrowserState.realId])
-
-    if (!filebrowserState.realId && !filebrowserState.shareId && filebrowserState.loading) {
-        return null
+function SearchResults({
+    fbState,
+    searchQuery,
+    filter,
+    searchRef,
+    dispatch,
+}: {
+    fbState: FbStateT;
+    searchQuery: string;
+    filter: string;
+    searchRef;
+    dispatch: FBDispatchT;
+}) {
+    const nav = useNavigate();
+    let titleString: string = 'Searching ';
+    if (searchQuery) {
+        titleString += `for ${searchQuery}`;
+    } else {
+        titleString += `all files`;
+    }
+    titleString += ` in ${fbState.folderInfo.filename}`;
+    if (filter) {
+        titleString += ` ending with .${filter}`;
     }
 
-    if (filebrowserState.isShare) {
+    return (
+        <ColumnBox>
+            <RowBox style={{ height: 58, flexShrink: 0 }}>
+                <IconArrowLeft
+                    style={{ width: 40, height: 32, cursor: 'pointer' }}
+                    onClick={() => nav(-1)}
+                />
+                <Text className="crumb-text">{titleString}</Text>
+
+                <Text
+                    className="crumb-text"
+                    c="#aaaaaa"
+                    style={{ fontSize: '14px', marginLeft: 10 }}
+                >
+                    {fbState.searchResults.length} results
+                </Text>
+                <Space flex={1} />
+                <FileSearch
+                    fb={fbState}
+                    defaultOpen
+                    searchRef={searchRef}
+                    dispatch={dispatch}
+                />
+            </RowBox>
+            <Space h={10} />
+            <FileRows files={fbState.searchResults} />
+        </ColumnBox>
+    );
+}
+
+function DirView({
+    fb: fb,
+    folderId,
+    notFound,
+    setNotFound,
+    alreadyScanned,
+    setAlreadyScanned,
+    searchRef,
+    searchQuery,
+    searchFilter,
+    dispatch,
+    wsSend,
+    uploadDispatch,
+    authHeader,
+}: {
+    fb: FbStateT;
+    folderId: string;
+    notFound: boolean;
+    setNotFound;
+    alreadyScanned: boolean;
+    setAlreadyScanned;
+    searchRef;
+    searchQuery: string;
+    searchFilter: string;
+    dispatch: FBDispatchT;
+    wsSend: (action: string, content: any) => void;
+    uploadDispatch;
+    authHeader: AuthHeaderT;
+}) {
+    const download = useCallback(
+        (file: FileInfoT) =>
+            downloadSelected([file], dispatch, wsSend, authHeader, fb.shareId),
+        [authHeader, wsSend, dispatch, fb.fbMode, fb.contentId, fb.shareId]
+    );
+
+    if (fb.loading.includes('files')) {
+        return null;
+    }
+
+    if (fb.fbMode === 'default' && fb.folderInfo.id && !fb.folderInfo.isDir) {
+        return <SingleFile file={fb.folderInfo} doDownload={download} />;
+    } else if (fb.fbMode === 'stats') {
+        return <StatTree folderId={fb.contentId} authHeader={authHeader} />;
+    } else if (fb.fbMode === 'search') {
         return (
-            <SingleFile file={filebrowserState.folderInfo} doDownload={download} />
-        )
+            <SearchResults
+                fbState={fb}
+                searchQuery={searchQuery}
+                filter={searchFilter}
+                searchRef={searchRef}
+                dispatch={dispatch}
+            />
+        );
     } else {
         return (
-            <Files filebrowserState={filebrowserState} folderId={folderId} notFound={notFound} setNotFound={setNotFound} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
-        )
+            <Files
+                fb={fb}
+                folderId={folderId}
+                notFound={notFound}
+                setNotFound={setNotFound}
+                alreadyScanned={alreadyScanned}
+                setAlreadyScanned={setAlreadyScanned}
+                searchRef={searchRef}
+                dispatch={dispatch}
+                wsSend={wsSend}
+                uploadDispatch={uploadDispatch}
+                authHeader={authHeader}
+            />
+        );
     }
 }
 
 function useQuery() {
     const { search } = useLocation();
-    return useMemo(() => new URLSearchParams(search), [search]);
+    const q = new URLSearchParams(search);
+    const getQuery = useCallback(
+        (s) => {
+            const r = q.get(s);
+            if (!r) {
+                return '';
+            }
+            return r;
+        },
+        [q]
+    );
+    return getQuery;
 }
 
 const FileBrowser = () => {
-    const folderId = useParams()["*"]
-    const query = useQuery()
-    const navigate = useNavigate()
-    const { authHeader, userInfo } = useContext(userContext)
-    const searchRef = useRef()
+    const urlPath = useParams()['*'];
+    const query = useQuery();
+    const searchQuery = query('query');
+    const searchFilter = query('filter');
+    const nav = useNavigate();
+    const { authHeader, usr }: UserContextT = useContext(userContext);
 
-    const [alreadyScanned, setAlreadyScanned] = useState(false)
-    const [notFound, setNotFound] = useState(false)
-    const { uploadState, uploadDispatch } = useUploadStatus()
+    const searchRef = useRef();
 
-    const [filebrowserState, dispatch]: [FileBrowserStateType, (action: FileBrowserAction) => void] = useReducer(fileBrowserReducer, {
-        dirMap: new Map<string, fileData>(),
-        selected: new Map<string, boolean>(),
-        uploadMap: new Map<string, boolean>(),
-        menuPos: { x: 0, y: 0 },
-        pasteImg: null,
-        folderInfo: getBlankFile(),
-        parents: [],
-        filesList: [],
-        draggingState: 0,
-        scanProgress: 0,
-        homeDirSize: 0,
-        trashDirSize: 0,
-        waitingForNewName: "",
-        menuTargetId: "",
-        presentingId: "",
-        searchContent: "",
-        lastSelected: "",
-        scrollTo: "",
-        moveDest: "",
-        loading: true,
-        holdingShift: false,
-        blockFocus: false,
-        menuOpen: false,
-        numCols: 0,
-        isShare: false,
-        shareId: "",
-        realId: "",
-    })
+    const [didScan, setDidScan] = useState(false);
+    const [notFound, setNotFound] = useState(false);
+    const { uploadState, uploadDispatch } = useUploadStatus();
+
+    const [fb, dispatch]: [FbStateT, (action: FileBrowserAction) => void] =
+        useReducer(fileBrowserReducer, {
+            uploadMap: new Map<string, boolean>(),
+            selected: new Map<string, boolean>(),
+            dirMap: new Map<string, FileInfoT>(),
+            folderInfo: getBlankFile(),
+            menuPos: { x: 0, y: 0 },
+            waitingForNewName: '',
+            holdingShift: false,
+            blockFocus: false,
+            searchResults: [],
+            searchContent: '',
+            lastSelected: '',
+            draggingState: 0,
+            scanProgress: [],
+            menuTargetId: '',
+            presentingId: '',
+            sortDirection: 1,
+            sortFunc: 'Name',
+            menuOpen: false,
+            trashDirSize: 0,
+            pasteImg: null,
+            homeDirSize: 0,
+            contentId: '',
+            filesList: [],
+            hovering: '',
+            scrollTo: '',
+            moveDest: '',
+            shareId: '',
+            parents: [],
+            loading: [],
+            numCols: 0,
+            fbMode: '',
+        });
+
+    if (fb.fbMode && fb.fbMode !== 'share' && usr.isLoggedIn === false) {
+        nav('/login');
+    }
 
     useEffect(() => {
-        const isShare = window.location.pathname.startsWith("/share")
-        dispatch({ type: "set_loading", loading: true })
-        dispatch({ type: 'set_share_id', shareId: folderId })
-        getRealId(folderId, isShare, userInfo, authHeader).then(realId => {
-            if (!realId) {
-                dispatch({ type: "clear_files" })
-                dispatch({ type: 'set_loading', loading: false })
-                dispatch({ type: 'set_real_id', realId: "" })
-                dispatch({ type: 'set_is_share', isShare: isShare })
-                return
-            }
-            dispatch({ type: 'set_is_share', isShare: isShare })
-            dispatch({ type: 'set_real_id', realId: realId })
-        })
-    }, [folderId, dispatch, authHeader, userInfo])
+        if (usr.isLoggedIn === undefined) {
+            return;
+        }
+        dispatch({ type: 'add_loading', loading: 'files' });
 
-    const wsSend = useSubscribe(filebrowserState.realId, filebrowserState.folderInfo.id, filebrowserState.shareId, userInfo, dispatch, authHeader)
-    useKeyDown(filebrowserState, userInfo, dispatch, authHeader, wsSend, searchRef)
+        let mode: string;
+        let contentId: string;
+        let shareId: string;
+        const splitPath = urlPath.split('/').filter((s) => s.length !== 0);
+
+        if (splitPath.length === 0) {
+            return;
+        }
+
+        if (splitPath[0] === 'shared') {
+            mode = 'share';
+            shareId = splitPath[1];
+            contentId = splitPath[2];
+        } else if (splitPath[0] === 'external') {
+            mode = 'external';
+            contentId = splitPath[1];
+        } else if (splitPath[0] === 'stats') {
+            mode = 'stats';
+            contentId = splitPath[1];
+        } else if (splitPath[0] === 'search') {
+            mode = 'search';
+            contentId = splitPath[1];
+        } else {
+            mode = 'default';
+            contentId = splitPath[0];
+        }
+
+        getRealId(contentId, mode, usr, authHeader).then((realId) => {
+            dispatch({
+                type: 'set_location_state',
+                realId: realId,
+                mode: mode,
+                shareId: shareId,
+            });
+            dispatch({ type: 'remove_loading', loading: 'files' });
+        });
+    }, [urlPath, dispatch, authHeader, usr]);
+
+    const wsSend = useSubscribe(
+        fb.contentId,
+        fb.folderInfo.id,
+        fb.fbMode,
+        usr,
+        dispatch,
+        authHeader
+    );
+
+    useKeyDownFileBrowser(
+        fb,
+        searchQuery,
+        usr,
+        dispatch,
+        authHeader,
+        wsSend,
+        searchRef
+    );
 
     // Hook to handle uploading images from the clipboard
-    usePaste(filebrowserState.realId, userInfo, searchRef, dispatch)
+    usePaste(fb.contentId, usr, searchRef, fb.blockFocus, dispatch);
 
     // Reset most of the state when we change folders
     useEffect(() => {
         const syncState = async () => {
-            if (!folderId || folderId === userInfo?.homeFolderId || folderId === undefined) {
-                navigate('/files/home', { replace: true })
+            if (!urlPath || urlPath === usr?.homeId || urlPath === undefined) {
+                nav('/files/home', { replace: true });
             }
 
-            if ((!filebrowserState.isShare && (!userInfo.username || authHeader.Authorization === '')) || !filebrowserState.realId) {
-                return
+            // If we're not ready, leave
+            if (!fb.fbMode || usr.isLoggedIn === undefined) {
+                return;
+            }
+
+            if (fb.fbMode === 'search') {
+                dispatch({
+                    type: 'set_search_results',
+                    fileInfos: [],
+                });
+
+                const folderData = await GetFileInfo(
+                    fb.contentId,
+                    '',
+                    authHeader
+                );
+                SetFileData({ self: folderData }, dispatch, usr);
+
+                const searchResults = await SearchFolder(
+                    fb.contentId,
+                    searchQuery,
+                    searchFilter,
+                    authHeader
+                );
+                console.log(searchResults);
+                dispatch({ type: 'set_search', search: searchQuery });
+                dispatch({
+                    type: 'set_search_results',
+                    fileInfos: searchResults,
+                });
+                dispatch({ type: 'remove_loading', loading: 'files' });
+                return;
             }
             // Kinda just reset everything...
-            setNotFound(false)
-            setAlreadyScanned(false)
-            dispatch({ type: "clear_files" })
-            dispatch({ type: "set_search", search: "" })
-            dispatch({ type: "set_scan_progress", progress: 0 })
+            setNotFound(false);
+            setDidScan(false);
+            dispatch({ type: 'clear_files' });
+            dispatch({ type: 'set_search', search: '' });
 
-            if (!filebrowserState.isShare) {
-                const fileData = await GetFolderData(filebrowserState.realId, userInfo, dispatch, authHeader)
-                    .catch(r => { if (r === 400 || r === 404) { setNotFound(true) } else { notifications.show({ title: "Could not get folder info", message: String(r), color: 'red', autoClose: 5000 }) } })
-                console.log(fileData)
-                if (fileData) {
-                    SetFileData(fileData, dispatch, userInfo)
+            const fileData = await GetFolderData(
+                fb.contentId,
+                fb.fbMode,
+                fb.shareId,
+                usr,
+                dispatch,
+                authHeader
+            ).catch((r) => {
+                if (r === 400 || r === 404) {
+                    setNotFound(true);
+                } else {
+                    notifications.show({
+                        title: 'Could not get folder info',
+                        message: String(r),
+                        color: 'red',
+                        autoClose: 5000,
+                    });
                 }
-            } else {
-                await GetFileInfo(filebrowserState.realId, folderId, authHeader).then(d => SetFileData({ self: d, children: [], parents: [], error: null }, dispatch, userInfo)).catch(r => notifications.show({ title: "Failed to get file info", message: String(r), color: 'red' }))
+            });
+            if (fileData) {
+                SetFileData(fileData, dispatch, usr);
             }
 
-            const jumpItem = query.get("jumpTo")
+            const jumpItem = query('jumpTo');
             if (jumpItem) {
-                dispatch({ type: 'set_scroll_to', fileId: jumpItem })
-                dispatch({ type: 'set_selected', fileId: jumpItem, selected: true })
+                dispatch({ type: 'set_scroll_to', fileId: jumpItem });
+                dispatch({
+                    type: 'set_selected',
+                    fileId: jumpItem,
+                    selected: true,
+                });
             }
 
-            dispatch({ type: "set_loading", loading: false })
-        }
-        syncState()
-    }, [userInfo.username, authHeader, filebrowserState.realId])
-
-    // const doScan = useCallback(() => { dispatch({ type: 'set_loading', loading: true }); dispatchSync(realId, wsSend, filebrowserState.holdingShift, filebrowserState.holdingShift) }, [realId, wsSend, filebrowserState.holdingShift])
+            dispatch({ type: 'remove_loading', loading: 'files' });
+        };
+        syncState();
+    }, [usr.username, authHeader, fb.contentId, fb.fbMode, searchQuery]);
 
     return (
-        <ColumnBox style={{ height: '100vh', backgroundColor: "#111418" }} >
-            <HeaderBar searchContent={filebrowserState.searchContent} dispatch={dispatch} page={"files"} searchRef={searchRef} loading={filebrowserState.loading} progress={filebrowserState.scanProgress} />
-            <DraggingCounter dragging={filebrowserState.draggingState} dirMap={filebrowserState.dirMap} selected={filebrowserState.selected} dispatch={dispatch} />
-            <Presentation itemId={filebrowserState.presentingId} mediaData={filebrowserState.dirMap.get(filebrowserState.presentingId)?.mediaData} element={() => PresentationFile({ file: filebrowserState.dirMap.get(filebrowserState.presentingId) })} dispatch={dispatch} />
-            <UploadStatus uploadState={uploadState} uploadDispatch={uploadDispatch} />
-            <PasteImageDialogue img={filebrowserState.pasteImg} folderId={filebrowserState.realId} dirMap={filebrowserState.dirMap} authHeader={authHeader} dispatch={dispatch} wsSend={wsSend} />
-            <FileContextMenu itemId={filebrowserState.menuTargetId} fbState={filebrowserState} open={filebrowserState.menuOpen} setOpen={o => dispatch({ type: 'set_menu_open', open: o })} menuPos={filebrowserState.menuPos} dispatch={dispatch} wsSend={wsSend} authHeader={authHeader} />
-            <RowBox style={{ alignItems: 'flex-start' }}>
-                <GlobalActions fbState={filebrowserState} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} />
+        <ColumnBox style={{ height: '100vh' }}>
+            <HeaderBar
+                dispatch={dispatch}
+                page={'files'}
+                loading={fb.loading}
+            />
+            <DraggingCounter
+                dragging={fb.draggingState}
+                dirMap={fb.dirMap}
+                selected={fb.selected}
+                dispatch={dispatch}
+            />
+            <Presentation
+                itemId={fb.presentingId}
+                mediaData={fb.dirMap.get(fb.presentingId)?.mediaData}
+                element={() =>
+                    PresentationFile({
+                        file: fb.dirMap.get(fb.presentingId),
+                    })
+                }
+                dispatch={dispatch}
+            />
+            <PasteImageDialogue
+                img={fb.pasteImg}
+                folderId={fb.contentId}
+                dirMap={fb.dirMap}
+                authHeader={authHeader}
+                dispatch={dispatch}
+                wsSend={wsSend}
+            />
+            <FileContextMenu
+                itemId={fb.menuTargetId}
+                fbState={fb}
+                open={fb.menuOpen}
+                setOpen={(o) => dispatch({ type: 'set_menu_open', open: o })}
+                menuPos={fb.menuPos}
+                dispatch={dispatch}
+                wsSend={wsSend}
+                authHeader={authHeader}
+            />
+            <RowBox
+                style={{
+                    alignItems: 'flex-start',
+                    height: '90vh',
+                    flexGrow: 1,
+                }}
+            >
+                <GlobalActions
+                    fbState={fb}
+                    uploadState={uploadState}
+                    dispatch={dispatch}
+                    wsSend={wsSend}
+                    uploadDispatch={uploadDispatch}
+                />
                 <DirViewWrapper
-                    folderId={filebrowserState.realId}
-                    folderName={filebrowserState.folderInfo?.filename}
-                    dragging={filebrowserState.draggingState}
-                    onDrop={(e => HandleDrop(e.dataTransfer.items, filebrowserState.realId, Array.from(filebrowserState.dirMap.values()).map((value: fileData) => value.filename), false, "", authHeader, uploadDispatch, wsSend))}
+                    fbState={fb}
+                    folderName={fb.folderInfo?.filename}
+                    dragging={fb.draggingState}
+                    onDrop={(e) =>
+                        HandleDrop(
+                            e.dataTransfer.items,
+                            fb.contentId,
+                            Array.from(fb.dirMap.values()).map(
+                                (value: FileInfoT) => value.filename
+                            ),
+                            false,
+                            '',
+                            authHeader,
+                            uploadDispatch,
+                            wsSend
+                        )
+                    }
                     dispatch={dispatch}
                 >
-                    <Space h={10} />
-                    <DirView filebrowserState={filebrowserState} folderId={filebrowserState.realId} notFound={notFound} setNotFound={setNotFound} alreadyScanned={alreadyScanned} setAlreadyScanned={setAlreadyScanned} dispatch={dispatch} wsSend={wsSend} uploadDispatch={uploadDispatch} authHeader={authHeader} />
+                    {/* <Space h={10} /> */}
+                    <DirView
+                        fb={fb}
+                        folderId={fb.contentId}
+                        notFound={notFound}
+                        setNotFound={setNotFound}
+                        alreadyScanned={didScan}
+                        setAlreadyScanned={setDidScan}
+                        searchRef={searchRef}
+                        searchQuery={searchQuery}
+                        searchFilter={searchFilter}
+                        dispatch={dispatch}
+                        wsSend={wsSend}
+                        uploadDispatch={uploadDispatch}
+                        authHeader={authHeader}
+                    />
                 </DirViewWrapper>
+                <FileInfoPane
+                    selectedFiles={Array.from(fb.selected.keys()).map((fId) =>
+                        fb.dirMap.get(fId)
+                    )}
+                />
             </RowBox>
         </ColumnBox>
-    )
-}
+    );
+};
 
-export default FileBrowser
+export default FileBrowser;

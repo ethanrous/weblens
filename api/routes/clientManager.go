@@ -1,13 +1,11 @@
 package routes
 
 import (
-	"path/filepath"
 	"slices"
 	"sync"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -16,7 +14,7 @@ var cmInstance clientManager
 
 func VerifyClientManager() *clientManager {
 	if cmInstance.clientMap == nil {
-		cmInstance.clientMap = map[string]*Client{}
+		cmInstance.clientMap = map[clientId]*Client{}
 		cmInstance.clientMu = &sync.Mutex{}
 	}
 	if cmInstance.folderSubs == nil {
@@ -31,20 +29,20 @@ func VerifyClientManager() *clientManager {
 	return &cmInstance
 }
 
-func (cm *clientManager) ClientConnect(conn *websocket.Conn, username string) *Client {
+func (cm *clientManager) ClientConnect(conn *websocket.Conn, username types.Username) *Client {
 	cm = VerifyClientManager()
-	connectionId := uuid.New().String()
+	connectionId := clientId(uuid.New().String())
 	newClient := Client{connId: connectionId, conn: conn, username: username}
 	cm.clientMu.Lock()
 	cm.clientMap[connectionId] = &newClient
 	cm.clientMu.Unlock()
-	newClient.log("Connected", newClient.Username())
+	newClient.log("Connected")
 	return &newClient
 }
 
 func (cm clientManager) ClientDisconnect(c *Client) {
 	for _, s := range c.subscriptions {
-		cm.RemoveSubscription(s, c)
+		cm.RemoveSubscription(s, c, true)
 	}
 
 	cm.clientMu.Lock()
@@ -52,7 +50,7 @@ func (cm clientManager) ClientDisconnect(c *Client) {
 	cm.clientMu.Unlock()
 }
 
-func (cm clientManager) GetClient(clientId string) *Client {
+func (cm clientManager) GetClient(clientId clientId) *Client {
 	cm.clientMu.Lock()
 	defer cm.clientMu.Unlock()
 	return cm.clientMap[clientId]
@@ -69,6 +67,11 @@ func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client
 		{
 			clients = cm.taskSubs[key]
 		}
+	case SubUser:
+		{
+			allClients := util.MapToSlicePure(cm.clientMap)
+			clients = util.Filter(allClients, func(c *Client) bool { return subId(c.username) == key })
+		}
 	default:
 		util.Error.Println("Unknown subscriber type", st)
 	}
@@ -76,7 +79,7 @@ func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client
 	return
 }
 
-func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, messageStatus string, content []map[string]any) {
+func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, messageStatus string, content []wsM) {
 	if broadcastKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return
@@ -89,11 +92,12 @@ func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, mes
 
 	if len(clients) != 0 {
 		for _, c := range clients {
-			c._writeToClient(msg)
+			c.writeToClient(msg)
 		}
 	} else {
 		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.
 		// util.Debug.Println("No subscribers to", dest.Type, dest.Key)
+		return
 	}
 }
 
@@ -126,14 +130,14 @@ func (cm *clientManager) AddSubscription(subInfo subscription, client *Client) {
 	if !ok {
 		subs = []*Client{}
 	}
-	if slices.Contains(subs, client) {
-		return
-	}
+	// if slices.Contains(subs, client) {
+	// 	return
+	// }
 
 	(*subMap)[subInfo.Key] = append(subs, client)
 }
 
-func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client) {
+func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client, removeAll bool) {
 	var subMap *map[subId][]*Client
 	var lock *sync.Mutex
 
@@ -162,65 +166,14 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 		util.Warning.Println("Tried to unsubscribe from non-existant key", string(subInfo.Key))
 		return
 	}
-	subs = util.Filter(subs, func(c *Client) bool { return c.connId != client.connId })
+	if removeAll {
+		subs = util.Filter(subs, func(c *Client) bool { return c.connId != client.connId })
+	} else {
+		index := slices.IndexFunc(subs, func(c *Client) bool { return c.connId == client.connId })
+		if index != -1 {
+			subs = util.Banish(subs, index)
+		}
+	}
 	(*subMap)[subInfo.Key] = subs
 }
 
-func (c unbufferedCaster) PushFileCreate(newFile *dataStore.WeblensFile) {
-	if !c.enabled {
-		return
-	}
-	fileInfo, err := newFile.FormatFileInfo()
-	if err != nil {
-		util.DisplayError(err)
-		return
-	}
-
-	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", []map[string]any{gin.H{"fileInfo": fileInfo}})
-}
-
-func (c unbufferedCaster) PushFileUpdate(updatedFile *dataStore.WeblensFile) {
-	if !c.enabled {
-		return
-	}
-
-	if dataStore.IsSystemDir(updatedFile) {
-		return
-	}
-
-	fileInfo, err := updatedFile.FormatFileInfo()
-	if err != nil {
-		util.DisplayError(err)
-		return
-	}
-
-	cmInstance.Broadcast("folder", subId(updatedFile.Id()), "file_updated", []map[string]any{gin.H{"fileInfo": fileInfo}})
-
-	if dataStore.IsSystemDir(updatedFile.GetParent()) {
-		return
-	}
-	cmInstance.Broadcast("folder", subId(updatedFile.GetParent().Id()), "file_updated", []map[string]any{gin.H{"fileInfo": fileInfo}})
-}
-
-func (c unbufferedCaster) PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *dataStore.WeblensFile) {
-	if !c.enabled {
-		return
-	}
-
-	if filepath.Dir(preMoveFile.String()) == filepath.Dir(postMoveFile.String()) {
-		util.Error.Println("This should've been a rename")
-		return
-	}
-
-	c.PushFileCreate(postMoveFile)
-	c.PushFileDelete(preMoveFile)
-}
-
-func (c unbufferedCaster) PushFileDelete(deletedFile *dataStore.WeblensFile) {
-	if !c.enabled {
-		return
-	}
-
-	content := []map[string]any{gin.H{"fileId": deletedFile.Id()}}
-	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
-}

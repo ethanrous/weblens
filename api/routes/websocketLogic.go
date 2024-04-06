@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
@@ -18,11 +19,11 @@ func wsConnect(ctx *gin.Context) {
 	ctx.Status(http.StatusSwitchingProtocols)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return
 	}
 
-	client := cmInstance.ClientConnect(conn, ctx.GetString("username"))
+	client := cmInstance.ClientConnect(conn, types.Username(ctx.GetString("username")))
 	go wsMain(client)
 }
 
@@ -39,13 +40,13 @@ func wsMain(client *Client) {
 }
 
 func wsReqSwitchboard(msgBuf []byte, client *Client) {
-	defer wsRecover(client.GetClientId())
+	defer wsRecover(client)
 	// defer util.RecoverPanic("[WS] Client %d panicked: %v", client.GetClientId())
 
 	var msg wsRequest
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
-		util.DisplayError(err)
+		util.ErrTrace(err)
 		return
 	}
 
@@ -54,9 +55,8 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 		{
 			var subInfo subscribeInfo
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
-
 			if err != nil {
-				util.DisplayError(err)
+				util.ErrTrace(err)
 				client.Error(errors.New("failed to parse subscribe request"))
 			}
 
@@ -67,7 +67,7 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 
 			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta)
 			if complete {
-				Caster.PushTaskUpdate(string(subInfo.Key), "zip_complete", gin.H{"takeoutId": result})
+				Caster.PushTaskUpdate(types.TaskId(subInfo.Key), "zip_complete", types.TaskResult{"takeoutId": result["takeoutId"]})
 			}
 		}
 
@@ -83,14 +83,16 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 			var scanInfo scanInfo
 			err := json.Unmarshal([]byte(msg.Content), &scanInfo)
 			if err != nil {
-				util.DisplayError(err)
+				util.ErrTrace(err)
 				return
 			}
 			folder := dataStore.FsTreeGet(scanInfo.FolderId)
 			if folder == nil {
-				util.Error.Println("Failed to get dir to scan:", scanInfo.FolderId)
+				client.Error(errors.New("could not find directory to scan"))
 				return
 			}
+
+			client.debug("Got scan directory for", folder.GetAbsPath(), "Recursive: ", scanInfo.Recursive, "Deep: ", scanInfo.DeepScan)
 
 			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan, Caster)
 			client.Subscribe(SubTask, subId(t.TaskId()), nil)
@@ -103,9 +105,9 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 	}
 }
 
-func wsRecover(clientId string) {
+func wsRecover(c *Client) {
 	err := recover()
 	if err != nil {
-		util.WsError.Println(clientId, err, debug.Stack())
+		c.err(err, string(debug.Stack()))
 	}
 }

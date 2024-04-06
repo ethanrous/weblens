@@ -3,12 +3,12 @@ package dataProcess
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
@@ -24,6 +24,8 @@ func NewWorkerPool(initWorkers int) (*WorkerPool, *virtualTaskPool) {
 		busyCount:           &atomic.Int64{},
 		lifetimeQueuedCount: &atomic.Int64{},
 		taskStream:          make(workChannel, initWorkers*1000),
+		taskBuffer:          []*task{},
+		taskBufferMu:        &sync.Mutex{},
 		hitStream:           make(hitChannel, initWorkers*2),
 
 		// Worker pool starts disabled
@@ -33,7 +35,7 @@ func NewWorkerPool(initWorkers int) (*WorkerPool, *virtualTaskPool) {
 	newWp.maxWorkers.Add(int64(initWorkers))
 
 	// Worker pool always has one global queue
-	globalPool := newWp.NewVirtualTaskQueue()
+	globalPool := newWp.NewVirtualTaskPool()
 	globalPool.MarkGlobal()
 
 	return newWp, globalPool
@@ -48,7 +50,11 @@ func workerRecover(task *task, workerId int64) {
 		default:
 			err = errors.New(fmt.Sprint(err))
 		}
-		util.Error.Printf("Worker %d recovered error: %s\n%s", workerId, err, debug.Stack())
+		if err == ErrTaskExit || err == ErrTaskError {
+			return
+		}
+
+		util.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, err, debug.Stack())
 		task.error(err.(error))
 	}
 }
@@ -63,7 +69,7 @@ func saftyWork(task *task, workerId int64) {
 // the executioner so it doesn't hang forever
 func (wp *WorkerPool) executioner() {
 	timerStream := make(chan *task)
-	for {
+	for wp.exitFlag == 0 {
 		select {
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
@@ -73,12 +79,31 @@ func (wp *WorkerPool) executioner() {
 			// timeout before cancelling the task. Also check that it
 			// has not already finished
 			if !task.completed && time.Until(task.timeout) <= 0 && task.timeout.Unix() != 0 {
-				err := errors.New("timeout")
-				task.error(err)
+				task.error(ErrTaskTimeout)
 				task.Cancel()
 			}
 		}
 	}
+}
+
+func (wp *WorkerPool) bufferDrainer() {
+	for wp.exitFlag == 0 {
+		if len(wp.taskBuffer) != 0 && len(wp.taskStream) == 0 {
+			wp.taskBufferMu.Lock()
+			for _, t := range wp.taskBuffer {
+				wp.taskStream <- t
+			}
+			wp.taskBuffer = []*task{}
+			wp.taskBufferMu.Unlock()
+		}
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func (wp *WorkerPool) addToTaskBuffer(tasks []*task) {
+	wp.taskBufferMu.Lock()
+	wp.taskBuffer = append(wp.taskBuffer, tasks...)
+	wp.taskBufferMu.Unlock()
 }
 
 // Launch the standard threads for this worker pool
@@ -87,13 +112,19 @@ func (wp *WorkerPool) Run() {
 	// Spawn the timeout checker
 	go wp.executioner()
 
+	// Spawn the buffer worker
+	go wp.bufferDrainer()
+
 	var i int64
 	for i = 0; i < wp.maxWorkers.Load(); i++ {
-		// These are the base, everpresent threads for this pool,
+		// These are the base, 'omnipresent' threads for this pool,
 		// so they are NOT replacement workers. See wp.execWorker
 		wp.execWorker(false)
 	}
 }
+
+// For debugging only. This does nothing if the DEV_MODE env var is set to false, as no stopwatch results will show then.
+const printStopwatchResults = false
 
 // Main worker method, spawn a worker and loop over the task channel
 //
@@ -107,7 +138,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 		wp.currentWorkers.Add(1)
 
 	WorkLoop:
-		for task := range wp.taskStream {
+		for t := range wp.taskStream {
 
 			// Even if we get a new task, if the wp is marked for exit, we just exit
 			if wp.exitFlag == 1 {
@@ -119,80 +150,90 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 				break WorkLoop
 			}
+
 			// Replacement workers are not allowed to do "scan_directory" tasks
-			if replacement && task.taskType == string(ScanDirectoryTask) {
-				wp.taskStream <- task
-				continue WorkLoop
+			if replacement && t.taskType == ScanDirectoryTask {
+
+				// If there are twice the number of free spaces in the chan, don't bother pulling
+				// everything into the waiting buffer, just put it at the end right now.
+				if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
+					wp.taskStream <- t
+					continue
+				}
+				tBuf := []*task{t}
+				for t = range wp.taskStream {
+					if t.taskType == ScanDirectoryTask {
+						tBuf = append(tBuf, t)
+					} else {
+						break
+					}
+				}
+				wp.addToTaskBuffer(tBuf)
 			}
 
 			// Inc tasks being processed
 			wp.busyCount.Add(1)
-			task.SwLap("Task start")
-			saftyWork(task, workerId)
+			t.SwLap("Task start")
+			saftyWork(t, workerId)
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)
 
 			// Wake any waiters on this task
-			task.waitMu.Unlock()
+			t.waitMu.Unlock()
 
 			// Tasks must set their completed flag before exiting
 			// if it wasn't done in the work body, we do it for them
-			if !task.completed {
-				task.success("closed by worker pool")
+			if !t.completed {
+				t.success("closed by worker pool")
 			}
 
-			if task.exitStatus != "cancelled" {
-				task.sw.PrintResults()
+			if printStopwatchResults {
+				t.sw.PrintResults(true)
+			} else if t.exitStatus != TaskSuccess {
+				util.Warning.Printf("T[%s] exited with non-success status: %s\n", t.taskId, t.exitStatus)
 			}
 
-			// Updating the number of workers and then checking it's value is dangerous
-			// to do concurrently. Specifically, the waiterGate lock on the queue will,
-			// very rarely, attempt to unlock twice if two tasks finish at the same time.
-			// So we must treat this whole area as a critical section
-			task.queue.exitLock.Lock()
-
-			task.queue.completedTasks.Add(1)
-
-			// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
-			// we check if we are empty and finished, and if so wake any waiters.
-			if !task.queue.treatAsGlobal {
-				uncompletedTasks := task.queue.totalTasks.Load() - task.queue.completedTasks.Load()
-
-				// Even if we are out of tasks, if we have not been told all tasks
-				// were queued, we do not wake the waiters
-				if uncompletedTasks == 0 && task.queue.waiterCount.Load() != 0 && task.queue.allQueuedFlag {
-					task.queue.waiterGate.Unlock()
-
-					// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
-					// Should only loop a handful of times, if at all, we just need to wait for the waiters to
-					// lock and then release immediately, should take nanoseconds each
-					for task.queue.waiterCount.Load() != 0 {
-						time.Sleep(10000000)
-					}
-				}
+			// Potentially find the task pool that houses this task pool. All child
+			// task pools report their status to the root task pool as well.
+			// Do not use any global pool as the root
+			rootTaskPool := t.taskPool
+			for rootTaskPool.parentTaskPool != nil && !rootTaskPool.parentTaskPool.treatAsGlobal {
+				rootTaskPool = rootTaskPool.parentTaskPool
 			}
-			// If this is a replacement task, and we have more workers than the target for the pool, we exit
-			if replacement && wp.currentWorkers.Load() > wp.maxWorkers.Load() {
-				// Important to decrement alive workers inside the exitLock, so
-				// we don't have multiple workers exiting when we only need the 1
-				wp.currentWorkers.Add(-1)
 
-				task.queue.exitLock.Unlock()
+			canContinue := true
+			if rootTaskPool == t.taskPool {
+				// Updating the number of workers and then checking it's value is dangerous
+				// to do concurrently. Specifically, the waiterGate lock on the queue will,
+				// very rarely, attempt to unlock twice if two tasks finish at the same time.
+				// So we must treat this whole area as a critical section
+				t.taskPool.exitLock.Lock()
+
+				// Set values and notifications now that task has completed. Returns
+				// a bool that specifies if this thread should continue and grab another
+				// task, or if it should exit
+				canContinue = t.taskPool.handleTaskExit(replacement)
+
+				t.taskPool.exitLock.Unlock()
+			} else {
+				// Must hold both locks (and must aquire root lock first) to enter a dual-update.
+				// Any other ordering will result in race conditions or deadlocks
+				rootTaskPool.exitLock.Lock()
+
+				t.taskPool.exitLock.Lock()
+				canContinue = t.taskPool.handleTaskExit(replacement)
+
+				// We *should* get the same canContinue value from here, so we do not
+				// check it a second time. If we *don't* get the same value, we can safely ignore it
+				rootTaskPool.handleTaskExit(replacement)
+
+				t.taskPool.exitLock.Unlock()
+				rootTaskPool.exitLock.Unlock()
+			}
+
+			if !canContinue {
 				break WorkLoop
 			}
-
-			// If we have already began running the task,
-			// we must finish and clean up before checking exitFlag again here.
-			// The task *could* be cancelled to speed things up, but that
-			// is not our job.
-			if wp.exitFlag == 1 {
-				// Dec alive workers
-				wp.currentWorkers.Add(-1)
-				task.queue.exitLock.Unlock()
-				break WorkLoop
-			}
-
-			task.queue.exitLock.Unlock()
 
 		}
 
@@ -220,14 +261,14 @@ func (wp *WorkerPool) removeWorker() {
 	wp.maxWorkers.Add(-1)
 }
 
-func (wp *WorkerPool) NewVirtualTaskQueue() *virtualTaskPool {
+func (wp *WorkerPool) NewVirtualTaskPool() *virtualTaskPool {
 	newQueue := &virtualTaskPool{
-		totalTasks:       &atomic.Int64{},
-		completedTasks:   &atomic.Int64{},
-		waiterCount:      &atomic.Int32{},
-		waiterGate:       &sync.Mutex{},
-		exitLock:         &sync.Mutex{},
-		parentWorkerPool: wp,
+		totalTasks:     &atomic.Int64{},
+		completedTasks: &atomic.Int64{},
+		waiterCount:    &atomic.Int32{},
+		waiterGate:     &sync.Mutex{},
+		exitLock:       &sync.Mutex{},
+		workerPool:     wp,
 	}
 
 	// The waiterGate begins locked, and will only unlock when all
@@ -237,12 +278,13 @@ func (wp *WorkerPool) NewVirtualTaskQueue() *virtualTaskPool {
 	return newQueue
 }
 
-func (wq *virtualTaskPool) Cancel() {
+func (tp *virtualTaskPool) Cancel() {
 	// TODO
 }
 
-func (wq *virtualTaskPool) QueueTask(t *task) (err error) {
-	if wq.parentWorkerPool.exitFlag == 1 {
+func (tp *virtualTaskPool) QueueTask(Task types.Task) (err error) {
+	t := Task.(*task)
+	if tp.workerPool.exitFlag == 1 {
 		util.Warning.Println("Not queuing task while worker pool is going down")
 		return
 	}
@@ -255,105 +297,71 @@ func (wq *virtualTaskPool) QueueTask(t *task) (err error) {
 		return
 	}
 
-	if t.queue != nil {
+	if t.taskPool != nil {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transfered
-		if t.queue != wq {
+		if t.taskPool != tp {
 			util.Warning.Println("Attempted to re-assign task to another queue")
 		}
 		return
 	}
 
-	if wq.allQueuedFlag {
+	if tp.allQueuedFlag {
 		// We cannot add tasks to a queue that has been closed
 		return errors.New("attempting to add task to closed task queue")
 	}
 
-	wq.totalTasks.Add(1)
+	tp.totalTasks.Add(1)
+
+	if tp.parentTaskPool != nil {
+		tmpTp := tp
+		for tmpTp.parentTaskPool != nil {
+			tmpTp = tmpTp.parentTaskPool
+		}
+		tmpTp.totalTasks.Add(1)
+	}
 
 	// Set the tasks queue
-	t.queue = wq
+	t.taskPool = tp
 
-	wq.parentWorkerPool.lifetimeQueuedCount.Add(1)
+	tp.workerPool.lifetimeQueuedCount.Add(1)
 
 	// Put the task in the queue
-	wq.parentWorkerPool.taskStream <- t
+	tp.workerPool.taskStream <- t
 
 	return
 }
 
 // Specifcy the work queue as being a "global" one
-func (wq *virtualTaskPool) MarkGlobal() {
-	wq.treatAsGlobal = true
+func (tp *virtualTaskPool) MarkGlobal() {
+	tp.treatAsGlobal = true
 }
 
-func (wq *virtualTaskPool) SignalAllQueued() {
-	if wq.treatAsGlobal {
+func (tp *virtualTaskPool) SignalAllQueued() {
+	if tp.treatAsGlobal {
 		util.Error.Println("Attempt to signal all queued for global queue")
 	}
 
-	wq.exitLock.Lock()
+	tp.exitLock.Lock()
 	// If all tasks finish (e.g. early failure, etc.) before we signal that they are all queued,
 	// the final exiting task will not let the waiters out, so we must do it here
-	if wq.completedTasks.Load() == wq.totalTasks.Load() {
-		wq.waiterGate.Unlock()
+	if tp.completedTasks.Load() == tp.totalTasks.Load() {
+		tp.waiterGate.Unlock()
 	}
-	wq.allQueuedFlag = true
-	wq.exitLock.Unlock()
-}
+	tp.allQueuedFlag = true
+	tp.exitLock.Unlock()
 
-func (wq *virtualTaskPool) ClearAllQueued() {
-	if wq.waiterCount.Load() != 0 {
-		util.Warning.Println("Clearing all queued flag on work queue that still has sleepers")
+	if tp.hasQueueThread {
+		tp.workerPool.removeWorker()
+		tp.hasQueueThread = false
 	}
-	wq.allQueuedFlag = false
 }
 
 // Returns the count of tasks in the queue, the total number of tasks accepted,
 // number of busy workers, and the total number of live workers in the worker pool
-func (wq *virtualTaskPool) Status() (int, int, int, int) {
-	var total int
-	if wq.treatAsGlobal {
-		total = int(wq.parentWorkerPool.lifetimeQueuedCount.Load())
-	} else {
-		total = int(wq.totalTasks.Load())
-	}
+func (wp *WorkerPool) Status() (int, int, int, int) {
+	total := int(wp.lifetimeQueuedCount.Load())
 
-	return len(wq.parentWorkerPool.taskStream), total, int(wq.parentWorkerPool.busyCount.Load()), int(wq.parentWorkerPool.currentWorkers.Load())
-}
-
-// Park the thread on the work queue until all the tasks have been queued and finish.
-// **If you never call wq.SignalAllQueued(), the waiters will never wake up**
-// Make sure that you SignalAllQueued before parking here if it is the only thread
-// loading tasks
-func (wq *virtualTaskPool) Wait(supplementWorker bool) {
-	// Waiting on global queues does not make sense, they are not meant to end
-	// or
-	// All the tasks were queued, and they have all finished,
-	// so no need to wait, we can "wake up" instantly.
-	if wq.treatAsGlobal || (wq.allQueuedFlag && wq.totalTasks.Load() == 0) {
-		return
-	}
-
-	// If we want to park another thread that is currently executing a task,
-	// e.g a directory scan waiting for the child filescans to complete,
-	// we want to add an additional worker to the pool temporarily to suppliment this one
-	if supplementWorker {
-		wq.parentWorkerPool.addReplacementWorker()
-	}
-
-	_, file, line, _ := runtime.Caller(1)
-	util.Debug.Printf("Parking on worker pool from %s:%d\n", file, line)
-
-	wq.waiterCount.Add(1)
-	wq.waiterGate.Lock()
-	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
-	wq.waiterGate.Unlock()
-	util.Debug.Printf("Woke up, returning to %s:%d\n", file, line)
-	wq.waiterCount.Add(-1)
-
-	if supplementWorker {
-		wq.parentWorkerPool.removeWorker()
-	}
+	return len(wp.taskStream), total, int(wp.busyCount.Load()), int(wp.currentWorkers.Load())
 }

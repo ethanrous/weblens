@@ -22,9 +22,9 @@ func main() {
 	sw.Lap()
 	routes.VerifyClientManager()
 	tt := dataProcess.VerifyTaskTracker()
-	dataStore.SetTasker(dataProcess.NewWorkQueue())
+	dataStore.SetTasker(dataProcess.NewTaskPool(false, nil))
 
-	routes.UploadTasker = dataProcess.NewWorkQueue()
+	routes.UploadTasker = dataProcess.NewTaskPool(false, nil)
 	routes.UploadTasker.MarkGlobal()
 
 	sw.Lap("Verify cm, tt and set routes and ds queue")
@@ -46,11 +46,16 @@ func main() {
 	util.FailOnError(err, "Failed to initialize media type map")
 	sw.Lap("Init type map")
 
-	// // Load filesystem
-	// util.Info.Println("Loading filesystem...")
-	// dataStore.FsInit()
-	// sw.Lap("FS init")
-	// util.Info.Println("Initialized Filesystem")
+	util.Info.Println("Loading users...")
+	err = dataStore.LoadUsers()
+	util.FailOnError(err, "Failed to load users")
+	sw.Lap("Users init")
+
+	// Load filesystem
+	util.Info.Println("Loading filesystem...")
+	dataStore.FsInit()
+	sw.Lap("FS init")
+	util.Info.Println("Initialized Filesystem")
 
 	dataStore.MediaInit()
 	sw.Lap("Media init")
@@ -90,8 +95,9 @@ func main() {
 	sw.Lap("Gin routes added")
 	sw.Stop()
 
-	sw.PrintResults()
+	sw.PrintResults(false)
 
+	util.Info.Printf("Loaded %d files and %d medias\n", dataStore.GetTreeSize(), dataStore.GetMediaMapSize())
 	util.Info.Println("Weblens loaded. Starting router...")
 
 	router.Run(util.GetRouterIp() + ":" + util.GetRouterPort())

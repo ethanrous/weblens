@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gorilla/websocket"
 )
@@ -13,22 +13,22 @@ import (
 // Endpoint logic
 
 type loginInfo struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username types.Username `json:"username"`
+	Password string         `json:"password"`
 }
 
-type updateMediasBody struct {
-	Owner      string   `json:"owner"`
-	FileHashes []string `json:"fileHashes"`
+type fileUpdateInfo struct {
+	NewName string `json:"newName"`
+	NewParentId types.FileId `json:"newParentId"`
 }
 
 type updateMany struct {
-	Files       []string `json:"fileIds"`
-	NewParentId string   `json:"newParentId"`
+	Files       []types.FileId `json:"fileIds"`
+	NewParentId types.FileId   `json:"newParentId"`
 }
 
 type takeoutFiles struct {
-	FileIds []string `json:"fileIds"`
+	FileIds []types.FileId `json:"fileIds"`
 }
 
 type tokenReturn struct {
@@ -36,38 +36,65 @@ type tokenReturn struct {
 }
 
 type newUserInfo struct {
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	Admin        bool   `json:"admin"`
-	AutoActivate bool   `json:"autoActivate"`
+	Username     types.Username `json:"username"`
+	Password     string         `json:"password"`
+	Admin        bool           `json:"admin"`
+	AutoActivate bool           `json:"autoActivate"`
 }
 
-type fileShare struct {
-	Files []string `json:"files"`
-	Users []string `json:"users"`
+type newFileInfo struct {
+	ParentFolderId types.FileId `json:"parentFolderId"`
+	NewFileName    string       `json:"newFileName"`
+	FileSize       int64        `json:"fileSize"`
 }
+
+type newUploadInfo struct {
+	RootFolderId    types.FileId `json:"rootFolderId"`
+	ChunkSize       int64        `json:"chunkSize"`
+	TotalUploadSize int64        `json:"totalUploadSize"`
+}
+
+type passwordUpdateInfo struct {
+	OldPass string `json:"oldPassword"`
+	NewPass string `json:"newPassword"`
+}
+
+// type fileShare struct {
+// 	Files []types.FileId   `json:"files"`
+// 	Users []types.Username `json:"users"`
+// }
 
 type newShareInfo struct {
-	FileIds  []string `json:"fileIds"`
-	Users    []string `json:"users"`
-	Public   bool     `json:"public"`
-	Wormhole bool     `json:"wormhole"`
+	FileIds  []types.FileId   `json:"fileIds"`
+	Users    []types.Username `json:"users"`
+	Public   bool             `json:"public"`
+	Wormhole bool             `json:"wormhole"`
 }
 
-type deleteShareInfo struct {
-	ShareId string `json:"shareId"`
-}
+// type deleteShareInfo struct {
+// 	ShareId types.ShareId `json:"shareId"`
+// }
+
+// type userInfo struct {
+// 	Username      types.Username `json:"username"`
+// 	HomeFolderId  types.FileId   `json:"homeId"`
+// 	TrashFolderId types.FileId   `json:"trashId"`
+// 	Admin         bool           `json:"admin"`
+// 	Activated     bool           `json:"activated"`
+// }
 
 // Websocket
 
 type subType string
 type subId string
 
+type wsM map[string]any
+
 type wsResponse struct {
-	MessageStatus string           `json:"messageStatus"`
-	SubscribeKey  subId            `json:"subscribeKey"`
-	Content       []map[string]any `json:"content"`
-	Error         string           `json:"error"`
+	MessageStatus string `json:"messageStatus"`
+	SubscribeKey  subId  `json:"subscribeKey"`
+	Content       []wsM  `json:"content"`
+	Error         string `json:"error"`
 
 	broadcastType subType
 }
@@ -108,7 +135,7 @@ func (s subscribeMetadata) Meta(t subType) subMeta {
 		meta := taskSubMetadata{}
 		err := json.Unmarshal([]byte(s), &meta)
 		if err != nil {
-			util.DisplayError(err)
+			util.ErrTrace(err)
 			return nil
 		}
 		ret = meta
@@ -131,10 +158,10 @@ func (task taskSubMetadata) ResultKeys() []string {
 }
 
 type scanInfo struct {
-	FolderId  string `json:"folderId"`
-	Filename  string `json:"filename"`
-	Recursive bool   `json:"recursive"`
-	DeepScan  bool   `json:"full"`
+	FolderId  types.FileId `json:"folderId"`
+	Filename  string       `json:"filename"`
+	Recursive bool         `json:"recursive"`
+	DeepScan  bool         `json:"full"`
 }
 
 // Physical of broadcasters to inform clients of updates in real time
@@ -159,37 +186,14 @@ var Caster = NewBufferedCaster()
 // Broadcaster that is always disabled
 var VoidCaster *unbufferedCaster = &unbufferedCaster{enabled: false}
 
-type BufferedBroadcasterAgent interface {
-	BroadcasterAgent
-	DropBuffer()
-	DisableAutoflush()
-	AutoflushEnable()
-	Flush()
-}
-
-type BroadcasterAgent interface {
-	PushFileCreate(newFile *dataStore.WeblensFile)
-	PushFileUpdate(updatedFile *dataStore.WeblensFile)
-	PushFileMove(preMoveFile *dataStore.WeblensFile, postMoveFile *dataStore.WeblensFile)
-	PushFileDelete(deletedFile *dataStore.WeblensFile)
-
-	PushTaskUpdate(taskId string, status string, result any)
-	Enable()
-}
-
-// Tasker interface for queueing tasks in the task pool
-type TaskerAgent interface {
-	WriteToFile(filename, parentFolderId string, caster dataStore.BroadcasterAgent) dataStore.Task
-	MarkGlobal()
-}
-
-var UploadTasker TaskerAgent
+var UploadTasker types.TaskerAgent
 
 // Client
 
 const (
 	SubFolder subType = "folder"
 	SubTask   subType = "task"
+	SubUser   subType = "user" // This one does not actually get "subscribed" to, it is automatically tracked for every websocket
 )
 
 type subscription struct {
@@ -197,17 +201,19 @@ type subscription struct {
 	Key  subId
 }
 
+type clientId string
+
 type Client struct {
-	connId        string
+	connId        clientId
 	conn          *websocket.Conn
 	mu            sync.Mutex
 	subscriptions []subscription
-	username      string
+	username      types.Username
 }
 
 type clientManager struct {
 	// Key: connection id, value: client instance
-	clientMap map[string]*Client
+	clientMap map[clientId]*Client
 	clientMu  *sync.Mutex
 
 	// Key: subscription identifier, value: connection id

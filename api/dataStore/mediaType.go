@@ -7,20 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
-
-type mediaType struct {
-	MimeType         string
-	FriendlyName     string
-	FileExtension    []string
-	IsDisplayable    bool
-	IsRaw            bool
-	IsVideo          bool
-	SupportsImgRecog bool
-	MultiPage        bool
-	RawThumbExifKey  string
-}
 
 var mediaTypeMap = map[string]mediaType{}
 var displayableMap = map[string]mediaType{}
@@ -37,9 +26,17 @@ func InitMediaTypeMaps() error {
 		return err
 	}
 
-	err = json.Unmarshal(typesBytes, &mediaTypeMap)
+	marshMap := map[string]marshalableMediaType{}
+	err = json.Unmarshal(typesBytes, &marshMap)
 	if err != nil {
 		return err
+	}
+
+	for _, key := range util.MapToKeys(marshMap) {
+		typeEntry := marshalableToMediaType(marshMap[key])
+		typeEntry.mimeType = key
+		mediaTypeMap[key] = typeEntry
+
 	}
 
 	initDisplayMap()
@@ -47,11 +44,15 @@ func InitMediaTypeMaps() error {
 	return nil
 }
 
+func GetMediaTypeMap() map[string]mediaType {
+	return mediaTypeMap
+}
+
 func initDisplayMap() {
 	for mime, mediaType := range mediaTypeMap {
-		mediaType.MimeType = mime
+		mediaType.mimeType = mime
 		mediaTypeMap[mime] = mediaType
-		for _, ext := range mediaType.FileExtension {
+		for _, ext := range mediaType.fileExtension {
 			displayableMap[ext] = mediaType
 		}
 	}
@@ -70,7 +71,7 @@ func ParseMimeType(mimeType string) *mediaType {
 // Get a pointer to the weblens media type of a file given the file extension
 func ParseExtType(ext string) *mediaType {
 	var mType mediaType
-	if ext == "" || displayableMap[ext].FriendlyName == "" {
+	if ext == "" || displayableMap[ext].friendlyName == "" {
 		mType = mediaTypeMap["generic"]
 	} else {
 		mType = displayableMap[ext]
@@ -78,35 +79,68 @@ func ParseExtType(ext string) *mediaType {
 	return &mType
 }
 
-func (f *WeblensFile) GetMediaType() (*mediaType, error) {
+func (mt *mediaType) IsRaw() bool {
+	return mt.isRaw
+}
+
+func (mt *mediaType) IsDisplayable() bool {
+	return mt.isDisplayable
+}
+
+func (mt *mediaType) FriendlyName() string {
+	return mt.friendlyName
+}
+
+func (f *weblensFile) GetMediaType() (types.MediaType, error) {
 	if f.IsDir() {
 		return nil, ErrDirNotAllowed
 	}
 
-	if f.media != nil && f.media.MediaType != nil {
-		return f.media.MediaType, nil
+	if f.media != nil && f.media.GetMediaType() != nil {
+		return f.media.GetMediaType(), nil
 	}
-
-	m, err := f.GetMedia()
-	if err != nil && err != ErrNoMedia {
-		util.DisplayError(err)
-		return nil, err
-	}
-
-	if m != nil && m.MediaType != nil {
-		return m.MediaType, nil
-	}
-	err = ErrNoMedia
 
 	mType := ParseExtType(f.Filename()[strings.Index(f.Filename(), ".")+1:])
-	return mType, err
+	return mType, nil
 }
 
-func (f *WeblensFile) IsDisplayable() (bool, error) {
+func (f *weblensFile) IsDisplayable() (bool, error) {
 	mType, err := f.GetMediaType()
 	if mType == nil {
 		return false, err
 	}
 
-	return mType.IsDisplayable, err
+	return mType.IsDisplayable(), err
+}
+
+func (m *mediaType) toMarshalable() marshalableMediaType {
+	return marshalableMediaType{
+		MimeType:         m.mimeType,
+		FriendlyName:     m.friendlyName,
+		FileExtension:    m.fileExtension,
+		IsDisplayable:    m.isDisplayable,
+		IsRaw:            m.isRaw,
+		IsVideo:          m.isVideo,
+		SupportsImgRecog: m.supportsImgRecog,
+		MultiPage:        m.multiPage,
+		RawThumbExifKey:  m.rawThumbExifKey,
+	}
+}
+
+func (m mediaType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.toMarshalable())
+}
+
+func marshalableToMediaType(m marshalableMediaType) mediaType {
+	return mediaType{
+		mimeType:         m.MimeType,
+		friendlyName:     m.FriendlyName,
+		fileExtension:    m.FileExtension,
+		isDisplayable:    m.IsDisplayable,
+		isRaw:            m.IsRaw,
+		isVideo:          m.IsVideo,
+		supportsImgRecog: m.SupportsImgRecog,
+		multiPage:        m.MultiPage,
+		rawThumbExifKey:  m.RawThumbExifKey,
+	}
 }

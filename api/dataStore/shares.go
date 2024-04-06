@@ -4,21 +4,27 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func (s fileShareData) GetShareId() string          { return s.ShareId }
-func (s fileShareData) GetShareType() shareType     { return FileShare }
-func (s fileShareData) GetContentId() string        { return s.FileId }
-func (s *fileShareData) SetContentId(fileId string) { s.FileId = fileId }
-func (s fileShareData) GetAccessors() []string      { return s.Accessors }
-func (s *fileShareData) AddAccessors(newUsers []string) {
-	s.Accessors = util.AddToSet(s.Accessors, newUsers)
+func (s fileShareData) GetShareId() types.ShareId      { return s.ShareId }
+func (s fileShareData) GetShareType() types.ShareType  { return FileShare }
+func (s fileShareData) GetContentId() string           { return s.FileId.String() }
+func (s *fileShareData) SetContentId(fileId string)    { s.FileId = types.FileId(fileId) }
+func (s fileShareData) GetAccessors() []types.Username { return s.Accessors }
+func (s *fileShareData) SetAccessors(newUsers []types.Username) {
+	userDiff := util.Diff(s.Accessors, newUsers)
+	s.Accessors = newUsers
+	for _, u := range userDiff {
+		globalCaster.PushShareUpdate(u, s)
+	}
+	// s.Accessors = util.AddToSet(s.Accessors, newUsers)
 }
-func (s fileShareData) GetOwner() string    { return s.Owner }
-func (s fileShareData) IsPublic() bool      { return s.Public }
-func (s *fileShareData) SetPublic(pub bool) { s.Public = pub }
+func (s fileShareData) GetOwner() types.Username { return s.Owner }
+func (s fileShareData) IsPublic() bool           { return s.Public }
+func (s *fileShareData) SetPublic(pub bool)      { s.Public = pub }
 
 func (s fileShareData) IsEnabled() bool       { return s.Enabled }
 func (s *fileShareData) SetEnabled(enab bool) { s.Enabled = enab }
@@ -44,14 +50,14 @@ func LoadAllShares() {
 	}
 }
 
-func DeleteShare(s Share) (err error) {
+func DeleteShare(s types.Share) (err error) {
 	switch s.GetShareType() {
 	case FileShare:
 		err = fddb.removeFileShare(s.GetShareId())
 		if err != nil {
 			return
 		}
-		f := FsTreeGet(s.GetContentId())
+		f := FsTreeGet(types.FileId(s.GetContentId()))
 		err = f.RemoveShare(s.GetShareId())
 		if err != nil {
 			return
@@ -65,8 +71,8 @@ func DeleteShare(s Share) (err error) {
 	return
 }
 
-func CreateFileShare(file *WeblensFile, owner string, users []string, public, wormhole bool) (newShare Share, err error) {
-	shareId := util.GlobbyHash(8, file.Id(), public)
+func CreateFileShare(file types.WeblensFile, owner types.Username, users []types.Username, public, wormhole bool) (newShare types.Share, err error) {
+	shareId := types.ShareId(util.GlobbyHash(8, file.Id(), public))
 
 	newShare = &fileShareData{
 		ShareId:   shareId,
@@ -74,7 +80,7 @@ func CreateFileShare(file *WeblensFile, owner string, users []string, public, wo
 		ShareName: file.Filename(), // This is temporary, we want to be able to rename shares for obfuscation
 		Owner:     owner,
 		Accessors: users,
-		Public:    public,
+		Public:    public || wormhole,
 		Enabled:   true,
 		Wormhole:  wormhole,
 		Expires:   time.Unix(0, 0),
@@ -88,7 +94,7 @@ func CreateFileShare(file *WeblensFile, owner string, users []string, public, wo
 	return
 }
 
-func UpdateFileShare(s Share) (err error) {
+func UpdateFileShare(s types.Share) (err error) {
 	switch s.(type) {
 	case *fileShareData:
 	default:
@@ -105,7 +111,7 @@ func UpdateFileShare(s Share) (err error) {
 	return
 }
 
-func GetShare(shareId string, shareType shareType) (s Share, err error) {
+func GetShare(shareId types.ShareId, shareType types.ShareType) (s types.Share, err error) {
 	switch shareType {
 	case FileShare:
 		var sObj fileShareData
@@ -121,7 +127,7 @@ func GetShare(shareId string, shareType shareType) (s Share, err error) {
 			err = ErrNoFile
 			return
 		}
-		return file.getShare(sObj.ShareId)
+		return file.GetShare(sObj.ShareId)
 	default:
 		err = errors.New("unexpected share type")
 	}
