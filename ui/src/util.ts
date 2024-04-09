@@ -145,3 +145,7 @@ export function hexToComplimentary(hex: string){
     const rgbFinal = b | (g << 8) | (r << 16);
     return "#" + (0x1000000 | rgbFinal).toString(16).substring(1);
 }
+
+export function getRandomInt(min, max) {
+    return Math.floor(min + (Math.random() * (max - min)));
+  }

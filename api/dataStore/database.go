@@ -50,7 +50,7 @@ func NewDB() *Weblensdb {
 	}
 }
 
-func (db Weblensdb) getAllMedia() (ms []*Media, err error) {
+func (db Weblensdb) getAllMedia() (ms []*media, err error) {
 	filter := bson.D{}
 	findRet, err := db.mongo.Collection("media").Find(mongo_ctx, filter)
 	if err != nil {
@@ -62,7 +62,7 @@ func (db Weblensdb) getAllMedia() (ms []*Media, err error) {
 		return
 	}
 
-	ms = util.Map(marshMs, func(mm marshalableMedia) *Media { m := marshalableToMedia(mm); m.SetImported(true); return m })
+	ms = util.Map(marshMs, func(mm marshalableMedia) *media { m := marshalableToMedia(mm); m.SetImported(true); return m })
 
 	return
 }
@@ -586,9 +586,9 @@ func (db Weblensdb) GetAlbumsByUser(user types.Username, nameFilter string, incl
 	return
 }
 
-func (db Weblensdb) CreateAlbum(name string, owner types.Username) {
-	a := AlbumData{Id: types.AlbumId(util.GlobbyHash(12, fmt.Sprintln(name, owner))), Name: name, Owner: owner, ShowOnTimeline: true, Medias: []types.MediaId{}, SharedWith: []types.Username{}}
-	db.mongo.Collection("albums").InsertOne(mongo_ctx, a)
+func (db Weblensdb) insertAlbum(a AlbumData) error {
+	_, err := db.mongo.Collection("albums").InsertOne(mongo_ctx, a)
+	return err
 }
 
 func (db Weblensdb) addMediaToAlbum(albumId types.AlbumId, mediaIds []types.MediaId) (addedCount int, err error) {
@@ -734,8 +734,13 @@ func (db Weblensdb) getFileShare(shareId types.ShareId) (s fileShareData, err er
 	return
 }
 
-func (db Weblensdb) newApiKey(key ApiKeyInfo) {
-	db.mongo.Collection("apiKeys").InsertOne(mongo_ctx, key)
+func (db Weblensdb) newApiKey(keyInfo ApiKeyInfo) {
+	db.mongo.Collection("apiKeys").InsertOne(mongo_ctx, keyInfo)
+}
+
+func (db Weblensdb) updateApiKey(keyInfo ApiKeyInfo) {
+	filter := bson.M{"key": keyInfo.Key}
+	db.mongo.Collection("apiKeys").UpdateOne(mongo_ctx, filter, keyInfo)
 }
 
 func (db Weblensdb) getApiKeysByUser(username types.Username) []ApiKeyInfo {
@@ -752,16 +757,55 @@ func (db Weblensdb) getApiKeysByUser(username types.Username) []ApiKeyInfo {
 	return keys
 }
 
-func (db Weblensdb) getApiKey(key string) ApiKeyInfo {
-	filter := bson.M{"key": key}
-	ret := db.mongo.Collection("apiKeys").FindOne(mongo_ctx, filter)
-	if ret.Err() != nil {
-		util.ErrTrace(ret.Err())
-		return ApiKeyInfo{}
+func (db Weblensdb) getApiKeys() []ApiKeyInfo {
+	ret, err := db.mongo.Collection("apiKeys").Find(mongo_ctx, bson.M{})
+	if err != nil {
+		util.ShowErr(err)
+		return nil
 	}
 
-	var k ApiKeyInfo
-	ret.Decode(&k)
+	var k []ApiKeyInfo
+	err = ret.All(mongo_ctx, &k)
+	if err != nil {
+		util.ShowErr(err)
+		return nil
+	}
 
 	return k
+}
+
+func (db Weblensdb) newServer(srvI srvInfo) {
+	db.mongo.Collection("servers").InsertOne(mongo_ctx, srvI)
+}
+
+func (db Weblensdb) getUsingKey(key types.WeblensApiKey) *srvInfo {
+	filter := bson.M{"usingKey": key}
+	ret := db.mongo.Collection("servers").FindOne(mongo_ctx, filter)
+	if ret.Err() != nil {
+		// util.ShowErr(ret.Err())
+		return nil
+	}
+
+	var remote srvInfo
+	ret.Decode(&remote)
+
+	return &remote
+}
+
+func (db Weblensdb) getThisServerInfo() *srvInfo {
+	ret := db.mongo.Collection("servers").FindOne(mongo_ctx, bson.M{"isThisServer": true})
+	if ret.Err() != nil {
+		util.ShowErr(ret.Err())
+		return nil
+	}
+	var si srvInfo
+	ret.Decode(&si)
+
+	return &si
+}
+
+func (db Weblensdb) updateThisServerInfo(si *srvInfo) error {
+	filter := bson.M{"isThisServer": true}
+	_, err := db.mongo.Collection("servers").UpdateOne(mongo_ctx, filter, si)
+	return err
 }

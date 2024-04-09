@@ -28,7 +28,7 @@ func GetMediaMapSize() int {
 	return len(mediaMap)
 }
 
-func mediaMapAdd(m *Media) {
+func mediaMapAdd(m *media) {
 	if m == nil {
 		util.ErrTrace(fmt.Errorf("attempt to set nil media in map"))
 		return
@@ -103,15 +103,15 @@ func MediaMapGet(mId types.MediaId) (m types.Media, err error) {
 	return
 }
 
-func removeMedia(media types.Media) {
-	m := media.(*Media)
-	f, err := m.getCacheFile(Thumbnail, false, 0)
+func removeMedia(m types.Media) {
+	realM := m.(*media)
+	f, err := realM.getCacheFile(Thumbnail, false, 0)
 	if err == nil {
 		PermenantlyDeleteFile(f, voidCaster)
 	}
 	f = nil
-	for page := range m.pageCount + 1 {
-		f, err = m.getCacheFile(Fullres, false, page)
+	for page := range realM.pageCount + 1 {
+		f, err = realM.getCacheFile(Fullres, false, page)
 		if err == nil {
 			PermenantlyDeleteFile(f, voidCaster)
 		}
@@ -128,9 +128,9 @@ func removeMedia(media types.Media) {
 	mediaMapLock.Unlock()
 }
 
-func GetRealFile(media types.Media) (types.WeblensFile, error) {
-	m := media.(*Media)
-	for _, fId := range m.fileIds {
+func GetRealFile(m types.Media) (types.WeblensFile, error) {
+	realM := m.(*media)
+	for _, fId := range realM.fileIds {
 		f := FsTreeGet(fId)
 		if f != nil {
 			return f, nil
@@ -138,7 +138,7 @@ func GetRealFile(media types.Media) (types.WeblensFile, error) {
 	}
 
 	// None of the files that this media uses are present any longer, delete media
-	removeMedia(m)
+	removeMedia(realM)
 	return nil, ErrNoFile
 }
 
@@ -148,10 +148,10 @@ func CleanOrphanedMedias() {
 	mediaMapLock.Unlock()
 
 	var orphaned []types.Media
-	for _, media := range allMedias {
-		m := media.(*Media)
+	for _, m := range allMedias {
+		realM := m.(*media)
 		isOrphan := true
-		for _, fId := range m.fileIds {
+		for _, fId := range realM.fileIds {
 			f := FsTreeGet(fId)
 			if f != nil {
 				isOrphan = false
@@ -159,10 +159,31 @@ func CleanOrphanedMedias() {
 			}
 		}
 		if isOrphan {
-			orphaned = append(orphaned, m)
+			orphaned = append(orphaned, realM)
 		}
 	}
 
 	// fddb.deleteManyMedias(util.Map(orphaned, func(m types.Media) string {return m.Id()})	)
 
+}
+
+func GetRandomMedia(limit int) []types.Media {
+	count := 0
+	medias := []types.Media{}
+	for _, m := range mediaMap {
+		if count == limit {
+			break
+		}
+		if m.PageCount() != 1 {
+			continue
+		}
+		medias = append(medias, m)
+		count++
+	}
+
+	return medias
+}
+
+func GetFilteredMedia(requester types.User, sort string, sortDirection int, albumFilter []types.AlbumId, raw bool) ([]types.Media, error) {
+	return fddb.GetFilteredMedia(sort, requester.GetUsername(), -1, albumFilter, raw)
 }

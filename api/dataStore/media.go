@@ -24,7 +24,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (m *Media) LoadFromFile(f types.WeblensFile, task types.Task) (media types.Media, err error) {
+func NewMedia() types.Media {
+	return &media{}
+}
+
+func (m *media) LoadFromFile(f types.WeblensFile, task types.Task) (retM types.Media, err error) {
 	err = m.parseExif(f)
 	if err != nil {
 		return
@@ -55,7 +59,8 @@ func (m *Media) LoadFromFile(f types.WeblensFile, task types.Task) (media types.
 
 	var cacheExists bool
 	if tmpM != nil {
-		storedM := tmpM.(*Media)
+		// storedM := tmpM.(*Media)
+		storedM := &media{}
 		err = f.SetMedia(storedM)
 		if err != nil {
 			return
@@ -124,7 +129,7 @@ func (m *Media) LoadFromFile(f types.WeblensFile, task types.Task) (media types.
 	return m, nil
 }
 
-func (m *Media) Id() types.MediaId {
+func (m *media) Id() types.MediaId {
 	if m.mediaId == "" {
 		if len(m.fileIds) == 0 {
 			err := errors.New("trying to generate mediaId for media with no FileId")
@@ -138,7 +143,7 @@ func (m *Media) Id() types.MediaId {
 	return m.mediaId
 }
 
-func (m *Media) IsFilledOut() (bool, string) {
+func (m *media) IsFilledOut() (bool, string) {
 	if m.mediaId == "" {
 		return false, "mediaId"
 	}
@@ -179,15 +184,19 @@ func (m *Media) IsFilledOut() (bool, string) {
 	return true, ""
 }
 
-func (m *Media) GetCreateDate() time.Time {
+func (m *media) GetCreateDate() time.Time {
 	return m.createDate
 }
 
-func (m *Media) GetMediaType() types.MediaType {
+func (m *media) GetMediaType() types.MediaType {
 	return m.mediaType
 }
 
-func (m *Media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err error) {
+func (m *media) PageCount() int {
+	return m.pageCount
+}
+
+func (m *media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err error) {
 	defer m.Clean()
 
 	var pageNum int
@@ -232,12 +241,12 @@ func (m *Media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err
 	return
 }
 
-func (m *Media) AddFile(f types.WeblensFile) {
+func (m *media) AddFile(f types.WeblensFile) {
 	m.fileIds = util.AddToSet(m.fileIds, []types.FileId{f.Id()})
 	fddb.addFileToMedia(m, f)
 }
 
-func (m *Media) RemoveFile(fId types.FileId) {
+func (m *media) RemoveFile(fId types.FileId) {
 	var existed bool
 	m.fileIds, _, existed = util.YoinkFunc(m.fileIds, func(f types.FileId) bool { return f == fId })
 
@@ -254,14 +263,14 @@ func (m *Media) RemoveFile(fId types.FileId) {
 
 // Toss the cached data for the media generated when parsing a file.
 // This will drastically reduce memory usage if used properly
-func (m *Media) Clean() {
+func (m *media) Clean() {
 	m.imgBytes = nil
 	m.rawExif = nil
 	m.image = nil
 	m.images = nil
 }
 
-func (m *Media) SetImported(i bool) {
+func (m *media) SetImported(i bool) {
 	if !m.imported && i {
 		m.imported = true
 		mediaMapAdd(m)
@@ -270,14 +279,14 @@ func (m *Media) SetImported(i bool) {
 	}
 }
 
-func (m *Media) IsImported() bool {
+func (m *media) IsImported() bool {
 	if m == nil {
 		return false
 	}
 	return m.imported
 }
 
-func (m *Media) Save() error {
+func (m *media) Save() error {
 	if !m.imported {
 		return fddb.AddMedia(m)
 	} else {
@@ -285,7 +294,7 @@ func (m *Media) Save() error {
 	}
 }
 
-func (m *Media) getProminentColors() (prom []string, err error) {
+func (m *media) getProminentColors() (prom []string, err error) {
 	var i image.Image
 	thumbBytes, err := m.ReadDisplayable(Thumbnail)
 	if err != nil {
@@ -304,7 +313,7 @@ func (m *Media) getProminentColors() (prom []string, err error) {
 
 // Private
 
-func (m *Media) loadExif(f types.WeblensFile) error {
+func (m *media) loadExif(f types.WeblensFile) error {
 	if gexift == nil {
 		err := errors.New("exiftool not initialized")
 		return err
@@ -318,7 +327,7 @@ func (m *Media) loadExif(f types.WeblensFile) error {
 	return nil
 }
 
-func (m *Media) parseExif(f types.WeblensFile) error {
+func (m *media) parseExif(f types.WeblensFile) error {
 
 	if m.createDate.Unix() == 0 && m.mediaType != nil && m.imgBytes != nil {
 		return nil
@@ -394,7 +403,7 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 	return nil
 }
 
-func (m *Media) readFileBytes(f types.WeblensFile) (err error) {
+func (m *media) readFileBytes(f types.WeblensFile) (err error) {
 	var fileBytes []byte
 	fileBytes, err = f.ReadAll()
 	if err != nil {
@@ -407,7 +416,7 @@ func (m *Media) readFileBytes(f types.WeblensFile) (err error) {
 	return
 }
 
-func (m *Media) generateImage() (err error) {
+func (m *media) generateImage() (err error) {
 	if len(m.imgBytes) == 0 {
 		return errors.New("cannot generate media image with no imgBytes")
 	}
@@ -441,7 +450,7 @@ func (m *Media) generateImage() (err error) {
 	return nil
 }
 
-func (m *Media) generateImages() (err error) {
+func (m *media) generateImages() (err error) {
 	if len(m.imgBytes) == 0 {
 		return errors.New("cannot generate media image with no imgBytes")
 	}
@@ -471,7 +480,7 @@ func (m *Media) generateImages() (err error) {
 	return nil
 }
 
-func (m *Media) generateMediaId() (err error) {
+func (m *media) generateMediaId() (err error) {
 	if m.imgBytes == nil {
 		return errors.New("cannot generate media mediaId with no imgBytes")
 	}
@@ -495,7 +504,7 @@ func (m *Media) generateMediaId() (err error) {
 // }
 // }
 
-func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum int) (f types.WeblensFile, err error) {
+func (m *media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum int) (f types.WeblensFile, err error) {
 	if q == Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 		f = m.thumbCacheFile
 		return
@@ -555,7 +564,7 @@ func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 
 const THUMBNAIL_HEIGHT float32 = 500
 
-func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
+func (m *media) handleCacheCreation(f types.WeblensFile) (err error) {
 	if len(m.imgBytes) == 0 {
 		if m.mediaType.IsRaw() {
 			err = m.parseExif(f)
@@ -615,7 +624,7 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 	return
 }
 
-func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int) types.WeblensFile {
+func (m *media) cacheDisplayable(q types.Quality, data []byte, pageNum int) types.WeblensFile {
 	cacheFileName := m.getCacheFilename(q, pageNum)
 
 	f, err := Touch(GetCacheDir(), cacheFileName, true)
@@ -652,7 +661,7 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int) type
 	return f
 }
 
-func (m *Media) getCacheId(q types.Quality, pageNum int) types.FileId {
+func (m *media) getCacheId(q types.Quality, pageNum int) types.FileId {
 	if q == Thumbnail && m.thumbnailCacheId != "" {
 		return m.thumbnailCacheId
 	} else if q == Fullres && m.fullresCacheIds[pageNum] != "" {
@@ -662,7 +671,7 @@ func (m *Media) getCacheId(q types.Quality, pageNum int) types.FileId {
 	return types.FileId(util.GlobbyHash(8, GuaranteeRelativePath(absPath)))
 }
 
-func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
+func (m *media) getCacheFilename(q types.Quality, pageNum int) string {
 	var cacheFileName string
 
 	if m.pageCount == 1 || q == Thumbnail {
@@ -674,7 +683,7 @@ func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
 	return cacheFileName
 }
 
-func (m *Media) getImageRecognitionTags() (err error) {
+func (m *media) getImageRecognitionTags() (err error) {
 	var imgBuf *bytes.Buffer
 	if m.imgBytes == nil {
 		var f types.WeblensFile
@@ -722,7 +731,7 @@ func (m *Media) getImageRecognitionTags() (err error) {
 	return
 }
 
-func (m *Media) toMarshalable() marshalableMedia {
+func (m *media) toMarshalable() marshalableMedia {
 	return marshalableMedia{
 		MediaId:          m.mediaId,
 		FileIds:          m.fileIds,
@@ -739,16 +748,16 @@ func (m *Media) toMarshalable() marshalableMedia {
 	}
 }
 
-func (m *Media) MarshalBSON() ([]byte, error) {
+func (m *media) MarshalBSON() ([]byte, error) {
 	return bson.Marshal(m.toMarshalable())
 }
 
-func (m *Media) MarshalJSON() ([]byte, error) {
+func (m *media) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.toMarshalable())
 }
 
-func marshalableToMedia(m marshalableMedia) *Media {
-	return &Media{
+func marshalableToMedia(m marshalableMedia) *media {
+	return &media{
 		mediaId:          m.MediaId,
 		fileIds:          m.FileIds,
 		thumbnailCacheId: m.ThumbnailCacheId,

@@ -211,7 +211,7 @@ func scanDirectory(t *task) {
 }
 
 func getScanResult(t *task) types.TaskResult {
-	var tp *virtualTaskPool
+	var tp *taskPool
 
 	if t.taskPool != nil {
 		tp = t.taskPool.GetRootPool()

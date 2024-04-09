@@ -3,16 +3,17 @@ import useWebSocket from "react-use-websocket";
 import { API_WS_ENDPOINT } from "./ApiEndpoint";
 import { userContext } from "../Context";
 import { notifications } from "@mantine/notifications";
+import { UserContextT } from "../types/Types";
 
 export default function useWeblensSocket() {
     const [dcTimeout, setDcTimeout] = useState(null);
     const { usr, authHeader }: UserContextT = useContext(userContext);
-
     const { sendMessage, lastMessage, readyState } = useWebSocket(API_WS_ENDPOINT, {
-        queryParams: authHeader.Authorization ? authHeader : [],
+        // queryParams: authHeader.Authorization ? authHeader : null,
         onOpen: () => {
             clearTimeout(dcTimeout);
             notifications.clean();
+            sendMessage(JSON.stringify({auth: authHeader.Authorization}))
         },
         onClose: (event) => {
             if (!event.wasClean && authHeader && !dcTimeout && usr.username !== "") {

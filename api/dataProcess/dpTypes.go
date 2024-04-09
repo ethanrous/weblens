@@ -17,18 +17,22 @@ type taskTracker struct {
 	taskMu      sync.Mutex
 	taskMap     map[types.TaskId]types.Task
 	wp          *WorkerPool
-	globalQueue *virtualTaskPool
+	globalQueue *taskPool
 }
 
+type taskHandler func(*task)
+
 type task struct {
-	taskId    types.TaskId
-	completed bool
-	taskPool  *virtualTaskPool
-	caster    types.BroadcasterAgent
-	work      func()
-	taskType  types.TaskType
-	metadata  any
-	result    types.TaskResult
+	taskId     types.TaskId
+	completed  bool
+	taskPool   *taskPool
+	caster     types.BroadcasterAgent
+	requester  types.Requester
+	work       taskHandler
+	taskType   types.TaskType
+	metadata   any
+	result     types.TaskResult
+	persistant bool
 
 	err          any
 	timeout      time.Time
@@ -60,6 +64,8 @@ const (
 	WriteFileTask     types.TaskType = "write_file"
 	CreateZipTask     types.TaskType = "create_zip"
 	GatherFsStatsTask types.TaskType = "gather_filesystem_stats"
+
+	BackupTask types.TaskType = "do_backup"
 )
 
 // Worker pool //
@@ -73,7 +79,7 @@ type workChannel chan *task
 
 type hitChannel chan hit
 
-type virtualTaskPool struct {
+type taskPool struct {
 	treatAsGlobal  bool
 	hasQueueThread bool
 	totalTasks     *atomic.Int64
@@ -84,7 +90,7 @@ type virtualTaskPool struct {
 	allQueuedFlag  bool
 	createdBy      *task
 	workerPool     *WorkerPool
-	parentTaskPool *virtualTaskPool
+	parentTaskPool *taskPool
 }
 
 type WorkerPool struct {
@@ -189,7 +195,7 @@ func (m WriteFileMeta) MetaString() string {
 	return string(bs)
 }
 
-type FsStatMeta struct{
+type FsStatMeta struct {
 	rootDir types.WeblensFile
 }
 

@@ -1,14 +1,14 @@
 import { useCallback, useEffect } from "react";
-import { AlbumData, MediaData, MediaStateT, UserInfoT } from "../../types/Types";
+import { AlbumData, MediaDataT, MediaStateT, UserInfoT } from "../../types/Types";
 import { notifications } from "@mantine/notifications";
 
 export type GalleryAction = {
     type: string;
-    medias?: MediaData[];
+    medias?: MediaDataT[];
     albums?: AlbumData[];
     albumId?: string;
     mediaId?: string;
-    media?: MediaData;
+    media?: MediaDataT;
     albumNames?: string[];
     include?: boolean;
     block?: boolean;
@@ -29,7 +29,7 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
         case "set_media": {
             state.mediaMap.clear();
             if (action.medias) {
-                let prev: MediaData;
+                let prev: MediaDataT;
                 for (const m of action.medias) {
                     state.mediaMap.set(m.mediaId, m);
                     if (prev) {

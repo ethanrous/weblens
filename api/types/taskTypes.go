@@ -7,6 +7,7 @@ type Task interface {
 	TaskType() TaskType
 	Status() (bool, TaskExitStatus)
 	GetResult(...string) map[string]any
+	Q(TaskPool) Task
 	Wait()
 	Cancel()
 	SwLap(string)
@@ -20,20 +21,18 @@ type Task interface {
 }
 
 // Tasker interface for queueing tasks in the task pool
-type TaskerAgent interface {
-
-	// Parameters:
-	//
-	//	- `directory` : the weblens file descriptor representing the directory to scan
-	//
-	//	- `recursive` : if true, scan all children of directory recursively
-	//
-	//	- `deep` : query and sync with the real underlying filesystem for changes not reflected in the current fileTree
-	ScanDirectory(WeblensFile, bool, bool, BroadcasterAgent) Task
-
-	ScanFile(file WeblensFile, m Media, caster BroadcasterAgent) Task
+type TaskPool interface {
 	MarkGlobal()
+	QueueTask(Task) error
+	SignalAllQueued()
+	Wait(bool)
+
+	ScanDirectory(WeblensFile, bool, bool, BroadcasterAgent) Task
+	ScanFile(WeblensFile, Media, BroadcasterAgent) Task
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
+	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
+	GatherFsStats(WeblensFile, BroadcasterAgent) Task
+	Backup() Task
 }
 
 type TaskId string

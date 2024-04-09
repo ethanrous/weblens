@@ -29,10 +29,10 @@ func VerifyClientManager() *clientManager {
 	return &cmInstance
 }
 
-func (cm *clientManager) ClientConnect(conn *websocket.Conn, username types.Username) *Client {
+func (cm *clientManager) ClientConnect(conn *websocket.Conn, user types.User) *Client {
 	cm = VerifyClientManager()
 	connectionId := clientId(uuid.New().String())
-	newClient := Client{connId: connectionId, conn: conn, username: username}
+	newClient := Client{connId: connectionId, conn: conn, user: user}
 	cm.clientMu.Lock()
 	cm.clientMap[connectionId] = &newClient
 	cm.clientMu.Unlock()
@@ -70,7 +70,7 @@ func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client
 	case SubUser:
 		{
 			allClients := util.MapToSlicePure(cm.clientMap)
-			clients = util.Filter(allClients, func(c *Client) bool { return subId(c.username) == key })
+			clients = util.Filter(allClients, func(c *Client) bool { return subId(c.user.GetUsername()) == key })
 		}
 	default:
 		util.Error.Println("Unknown subscriber type", st)
@@ -176,4 +176,3 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 	}
 	(*subMap)[subInfo.Key] = subs
 }
-

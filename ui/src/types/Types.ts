@@ -24,7 +24,7 @@ export type UserContextT = {
     clear;
 }
 
-export type MediaData = {
+export type MediaDataT = {
     mediaId: string;
     fileIds: string[];
     thumbnailCacheId: string;
@@ -33,10 +33,6 @@ export type MediaData = {
     owner: string;
     mediaWidth: number;
     mediaHeight: number;
-    thumbWidth: number;
-    thumbHeight: number;
-    thumbLength: number;
-    fullresLength: number;
     createDate: string;
     mimeType: string;
     recognitionTags: string[];
@@ -45,8 +41,8 @@ export type MediaData = {
     // Non-api props
     thumbnail: ArrayBuffer;
     fullres: ArrayBuffer;
-    Previous: MediaData;
-    Next: MediaData;
+    Previous: MediaDataT;
+    Next: MediaDataT;
     selected: boolean;
     mediaType;
     // Display: boolean
@@ -67,7 +63,7 @@ export type AlbumData = {
     SharedWith: string[];
     Name: string;
     Cover: string;
-    CoverMedia: MediaData;
+    CoverMedia: MediaDataT;
     PrimaryColor: string;
     SecondaryColor: string;
     Owner: string;
@@ -78,13 +74,13 @@ export type AlbumData = {
 
 export type GalleryBucketProps = {
     bucketTitle: string;
-    bucketData: MediaData[];
+    bucketData: MediaDataT[];
     scale: number;
     dispatch: React.Dispatch<any>;
 };
 
 export type MediaWrapperProps = {
-    mediaData: MediaData;
+    mediaData: MediaDataT;
     selected: boolean;
     selecting: boolean;
     scale: number;
@@ -93,7 +89,7 @@ export type MediaWrapperProps = {
 };
 
 export type MediaStateT = {
-    mediaMap: Map<string, MediaData>;
+    mediaMap: Map<string, MediaDataT>;
     selected: Map<string, boolean>;
     mediaMapUpdated: number;
     albumsMap: Map<string, AlbumData>;
@@ -109,7 +105,7 @@ export type MediaStateT = {
     scanProgress: number;
     showingCount: number;
     searchContent: string;
-    presentingMedia: MediaData;
+    presentingMedia: MediaDataT;
     menuPos: { x: number; y: number };
 };
 
@@ -230,7 +226,7 @@ export type FileInfoT = {
     modTime: string;
     filename: string;
     parentFolderId: string;
-    mediaData: MediaData;
+    mediaData: MediaDataT;
     fileFriendlyName: string;
     owner: string;
     pathFromHome: string;
@@ -274,7 +270,7 @@ export const getBlankFile = () => {
 };
 
 export const getBlankMedia = () => {
-    const blank: MediaData = {
+    const blank: MediaDataT = {
         mediaId: "",
         fileIds: [""],
         thumbnailCacheId: "",
@@ -283,10 +279,6 @@ export const getBlankMedia = () => {
         owner: "",
         mediaWidth: 0,
         mediaHeight: 0,
-        thumbWidth: 0,
-        thumbHeight: 0,
-        thumbLength: 0,
-        fullresLength: 0,
         createDate: "",
         mimeType: "",
         recognitionTags: [],

@@ -12,7 +12,7 @@ import { VariableSizeList as List } from 'react-window';
 import { Box, Loader, Menu, MenuTarget, Text, Tooltip } from '@mantine/core';
 
 import {
-    MediaData,
+    MediaDataT,
     MediaWrapperProps,
     FileInfoT,
     UserContextT,
@@ -145,7 +145,7 @@ const goToFolder = async (
     }
 };
 
-const TypeIcon = (mediaData: MediaData) => {
+const TypeIcon = (mediaData: MediaDataT) => {
     let icon;
 
     if (mediaData.mediaType.IsRaw) {
@@ -211,7 +211,7 @@ function MediaInfoDisplay({
     mediaData,
     hovering,
 }: {
-    mediaData: MediaData;
+    mediaData: MediaDataT;
     hovering: boolean;
 }) {
     const { authHeader }: UserContextT = useContext(userContext);
@@ -358,7 +358,7 @@ export const BucketCards = ({
     scale,
     dispatch,
 }: {
-    medias: MediaData[];
+    medias: MediaDataT[];
     selecting?: boolean;
     scale: number;
     dispatch;
@@ -367,7 +367,7 @@ export const BucketCards = ({
         medias = [];
     }
 
-    const mediaCards = medias.map((mediaData: MediaData) => {
+    const mediaCards = medias.map((mediaData: MediaDataT) => {
         return (
             <MediaWrapper
                 key={mediaData.mediaId}
@@ -407,7 +407,7 @@ const TitleWrapper = ({ bucketTitle }) => {
 
 type GalleryRow = {
     rowScale: number;
-    items: MediaData[];
+    items: MediaDataT[];
     element?: JSX.Element;
 };
 
@@ -462,7 +462,7 @@ export function PhotoGallery({
 
         const rows: {
             rowScale: number;
-            items: MediaData[];
+            items: MediaDataT[];
             element?: JSX.Element;
         }[] = [];
         let currentRowWidth = 0;
@@ -475,7 +475,7 @@ export function PhotoGallery({
                 }
                 break;
             }
-            const m: MediaData = innerMedias.pop();
+            const m: MediaDataT = innerMedias.pop();
             // Calculate width given height "imageBaseScale", keeping aspect ratio
             const newWidth =
                 Math.floor((imageBaseScale / m.mediaHeight) * m.mediaWidth) +

@@ -27,7 +27,7 @@ func scanFile(t *task) {
 	}
 
 	if meta.partialMedia == nil {
-		meta.partialMedia = &dataStore.Media{}
+		meta.partialMedia = dataStore.NewMedia()
 	}
 
 	t.CheckExit()
@@ -336,6 +336,8 @@ func gatherFilesystemStats(t *task) {
 
 	ret := util.MapToSliceMutate(filetypeSizeMap, func(name string, value int64) extSize { return extSize{Name: name, Value: value} })
 
-	t.setResult(types.TaskResult{"sizesByExtension": ret})
+	freeSpace := dataStore.GetFreeSpace(meta.rootDir.GetAbsPath())
+
+	t.setResult(types.TaskResult{"sizesByExtension": ret, "bytesFree": freeSpace})
 	t.success()
 }

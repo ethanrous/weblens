@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { MediaData } from '../types/Types';
+import { MediaDataT } from '../types/Types';
 import { MediaImage } from './PhotoContainer';
 import { Box, CloseButton } from '@mantine/core';
 import { ColumnBox } from '../Pages/FileBrowser/FilebrowserStyles';
@@ -47,7 +47,7 @@ export const ContainerMedia = ({
     mediaData,
     containerRef,
 }: {
-    mediaData: MediaData;
+    mediaData: MediaDataT;
     containerRef;
 }) => {
     const [boxSize, setBoxSize] = useState({
@@ -143,7 +143,7 @@ const PresentationVisual = ({
     mediaData,
     Element,
 }: {
-    mediaData: MediaData;
+    mediaData: MediaDataT;
     Element;
 }) => {
     const [containerRef, setContainerRef] = useState(null);
@@ -222,7 +222,7 @@ const Presentation = memo(
         dispatch,
     }: {
         itemId: string;
-        mediaData: MediaData;
+        mediaData: MediaDataT;
         dispatch: React.Dispatch<any>;
         element?;
     }) => {

@@ -11,7 +11,7 @@ import (
 )
 
 func NewCaster(recipientUsernames ...types.Username) types.BroadcasterAgent {
-	recipients := util.Filter(util.MapToSlicePure(cmInstance.clientMap), func(c *Client) bool { return slices.Contains(recipientUsernames, c.username) })
+	recipients := util.Filter(util.MapToSlicePure(cmInstance.clientMap), func(c *Client) bool { return slices.Contains(recipientUsernames, c.user.GetUsername()) })
 
 	newCaster := &unbufferedCaster{
 		enabled:    false,
@@ -129,7 +129,6 @@ func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
 }
 
-
 func NewBufferedCaster() types.BufferedBroadcasterAgent {
 	newCaster := &bufferedCaster{
 		bufLimit:          100,
@@ -240,11 +239,6 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 		return
 	}
 
-	// if filepath.Dir(preMoveFile.GetAbsPath()) == filepath.Dir(postMoveFile.GetAbsPath()) {
-	// 	util.Warning.Println("This should've been a rename")
-	// 	return
-	// }
-
 	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER.GetUsername()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
@@ -261,9 +255,6 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 	}
 
 	c.bufferAndFlush(msg)
-	return
-	c.PushFileCreate(postMoveFile)
-	c.PushFileDelete(preMoveFile)
 }
 
 func (c *bufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {

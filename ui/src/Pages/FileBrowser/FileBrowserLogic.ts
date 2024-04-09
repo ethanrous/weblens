@@ -56,8 +56,8 @@ const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
             }
         }
         // state.selected.get returns undefined if not selected,
-        // so we not (!) it to make boolean, and not the other to match... yay javascript :/
-        else if (!state.selected.get(action.fileId) === !action.selected) {
+        // so we not (!) it to make boolean, and again to match... yay javascript :/
+        else if (!!state.selected.get(action.fileId) === action.selected) {
             // If the file is already in the correct state, we do nothing.
             // Specifically, we do not overwrite lastSelected
         } else {
@@ -90,14 +90,14 @@ function createFile(dirMap: Map<string, FileInfoT>, user, newData: FileInfoT, cu
     }
 }
 
-function updateFile(state: FbStateT, user, existingId: string, newData: FileInfoT) {
+function updateFile(state: FbStateT, user: UserInfoT, existingId: string, newData: FileInfoT) {
     let existingFile: FileInfoT = state.dirMap.get(existingId);
     if (!newData) {
         return;
     }
 
-    if (newData.id === user.trashFolderId) {
-        if (state.folderInfo.id === user.trashFolderId) {
+    if (newData.id === user.trashId) {
+        if (state.folderInfo.id === user.trashId) {
             return {
                 ...state,
                 folderInfo: newData,
@@ -108,7 +108,7 @@ function updateFile(state: FbStateT, user, existingId: string, newData: FileInfo
         return { ...state, trashDirSize: newData.size };
     }
 
-    if (newData.id === user.homeFolderId) {
+    if (newData.id === user.homeId) {
         if (newData.id === state.folderInfo.id) {
             return { ...state, folderInfo: newData, homeDirSize: newData.size };
         }
@@ -182,9 +182,12 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "set_folder_info": {
-            if (!action.fileInfo) {
-                console.error("Trying to set undefined file info");
+            if (!action.fileInfo || !action.user) {
+                console.error("Trying to set undefined file info or user");
                 return { ...state };
+            }
+            if (action.fileInfo.id === action.user.homeId) {
+                action.fileInfo.filename = "Home"
             }
             return { ...state, folderInfo: action.fileInfo };
         }
@@ -1306,7 +1309,7 @@ export function SetFileData(
         parents = data.parents.reverse();
     }
 
-    dispatch({ type: "set_folder_info", fileInfo: data.self });
+    dispatch({ type: "set_folder_info", fileInfo: data.self, user: usr });
     dispatch({ type: "update_many", files: children, user: usr });
     dispatch({ type: "set_parents_info", parents: parents });
 }

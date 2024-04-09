@@ -1,8 +1,8 @@
-import { Ref, memo, useCallback, useContext, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import WeblensLoader from './Loading';
+import { Ref, memo, useCallback, useContext, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import WeblensLoader from "./Loading";
 
-import { userContext } from '../Context';
+import { userContext } from "../Context";
 import {
     ActionIcon,
     Box,
@@ -12,7 +12,7 @@ import {
     Space,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from "@mantine/core";
 import {
     IconFolder,
     IconInfoCircle,
@@ -23,15 +23,15 @@ import {
     IconTools,
     IconUser,
     IconX,
-} from '@tabler/icons-react';
-import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { IconSettings } from '@tabler/icons-react';
-import { WeblensButton } from './WeblensButton';
-import { useKeyDown } from './hooks';
-import { UpdatePassword } from '../api/UserApi';
-import { AuthHeaderT, UserInfoT } from '../types/Types';
-import { IconArrowLeft } from '@tabler/icons-react';
-import Admin from '../Pages/Admin Settings/Admin';
+} from "@tabler/icons-react";
+import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { IconSettings } from "@tabler/icons-react";
+import { WeblensButton } from "./WeblensButton";
+import { useKeyDown } from "./hooks";
+import { UpdatePassword } from "../api/UserApi";
+import { AuthHeaderT, UserInfoT } from "../types/Types";
+import { IconArrowLeft } from "@tabler/icons-react";
+import Admin from "../Pages/Admin Settings/Admin";
 
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>;
@@ -50,11 +50,11 @@ const SettingsMenu = ({
     usr: UserInfoT;
     authHeader: AuthHeaderT;
 }) => {
-    const [oldP, setOldP] = useState('');
-    const [newP, setNewP] = useState('');
-    useKeyDown('Escape', () => {
-        setNewP('');
-        setOldP('');
+    const [oldP, setOldP] = useState("");
+    const [newP, setNewP] = useState("");
+    useKeyDown("Escape", () => {
+        setNewP("");
+        setOldP("");
         setClosed();
     });
 
@@ -63,8 +63,8 @@ const SettingsMenu = ({
             (await UpdatePassword(usr.username, oldP, newP, authHeader))
                 .status === 200;
         if (res) {
-            setOldP('');
-            setNewP('');
+            setOldP("");
+            setNewP("");
         }
         setTimeout(() => setClosed(), 2000);
         return res;
@@ -78,10 +78,10 @@ const SettingsMenu = ({
             <Box className="settings-menu" onClick={(e) => e.stopPropagation()}>
                 <Box
                     style={{
-                        width: 'max-content',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
+                        width: "max-content",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
                         gap: 10,
                         padding: 100,
                     }}
@@ -89,7 +89,7 @@ const SettingsMenu = ({
                     <Text
                         size="20px"
                         fw={600}
-                        style={{ padding: 7, width: '90%', textWrap: 'nowrap' }}
+                        style={{ padding: 7, width: "90%", textWrap: "nowrap" }}
                     >
                         Change Password
                     </Text>
@@ -112,16 +112,17 @@ const SettingsMenu = ({
                     <WeblensButton
                         label="Update Password"
                         showSuccess
-                        disabled={oldP == '' || newP == '' || oldP === newP}
+                        disabled={oldP == "" || newP == "" || oldP === newP}
+                        width={"100%"}
                         onClick={updateFunc}
                     />
                 </Box>
                 <IconX
                     style={{
-                        position: 'absolute',
+                        position: "absolute",
                         top: 0,
                         left: 0,
-                        cursor: 'pointer',
+                        cursor: "pointer",
                         margin: 10,
                     }}
                     onClick={setClosed}
@@ -143,16 +144,16 @@ const HeaderBar = memo(
         const [userMenu, setUserMenu] = useState(false);
         const [settings, setSettings] = useState(false);
         const [admin, setAdmin] = useState(false);
-        const spacing = '8px';
+        const spacing = "8px";
 
         return (
-            <Box style={{ zIndex: 3, height: 'max-content', width: '100vw' }}>
+            <Box style={{ zIndex: 3, height: "max-content", width: "100vw" }}>
                 <SettingsMenu
                     open={settings}
                     usr={usr}
                     setClosed={() => {
                         setSettings(false);
-                        dispatch({ type: 'set_block_focus', block: false });
+                        dispatch({ type: "set_block_focus", block: false });
                     }}
                     authHeader={authHeader}
                 />
@@ -166,10 +167,10 @@ const HeaderBar = memo(
                 )}
                 <Box
                     style={{
-                        position: 'absolute',
-                        float: 'right',
-                        right: '40px',
-                        bottom: '30px',
+                        position: "absolute",
+                        float: "right",
+                        right: "40px",
+                        bottom: "30px",
                         zIndex: 10,
                     }}
                 >
@@ -188,30 +189,32 @@ const HeaderBar = memo(
                         height: 56,
                         paddingTop: 8,
                         paddingBottom: 8,
-                        borderBottom: '2px solid #222222',
+                        borderBottom: "2px solid #222222",
                     }}
                 >
-                    <Box style={{ paddingLeft: '10px' }} />
-                    {page === 'gallery' && (
+                    <Box style={{ paddingLeft: "10px" }} />
+                    {page === "gallery" && (
                         <WeblensButton
                             label="Files"
                             centerContent
-                            toggleOn={false}
-                            Left={<IconArrowLeft style={{ marginRight: -5 }} />}
-                            Right={<IconFolder />}
-                            onClick={() => nav('/files/')}
-                            style={{ maxWidth: 115, padding: 2 }}
+                            subtle
+                            Left={<IconArrowLeft className="button-icon" />}
+                            Right={<IconFolder className="button-icon" />}
+                            onClick={() => nav("/files/")}
+                            width={"max-content"}
+                            height={"40px"}
                         />
                     )}
-                    {page === 'files' && usr.isLoggedIn !== undefined && (
+                    {page === "files" && usr.isLoggedIn !== undefined && (
                         <WeblensButton
                             label="Gallery"
                             centerContent
-                            toggleOn={false}
-                            Left={<IconArrowLeft style={{ marginRight: -5 }} />}
-                            Right={<IconPhoto />}
-                            onClick={() => nav('/')}
-                            style={{ maxWidth: 115, padding: 2 }}
+                            subtle
+                            Left={<IconArrowLeft className="button-icon" />}
+                            Right={<IconPhoto className="button-icon" />}
+                            onClick={() => nav("/")}
+                            width={"max-content"}
+                            height={"40px"}
                         />
                     )}
                     <Space style={{ flexGrow: 2 }} />
@@ -222,10 +225,10 @@ const HeaderBar = memo(
                                 <Text
                                     size="20px"
                                     fw={600}
-                                    style={{ paddingBottom: '8px' }}
+                                    style={{ paddingBottom: "8px" }}
                                 >
                                     {import.meta.env.VITE_APP_BUILD_TAG ||
-                                        'local'}
+                                        "local"}
                                 </Text>
                                 <Text size="12px">
                                     Click to report an issue
@@ -236,8 +239,8 @@ const HeaderBar = memo(
                         <IconInfoCircle
                             size={28}
                             style={{
-                                cursor: 'pointer',
-                                display: 'flex',
+                                cursor: "pointer",
+                                display: "flex",
                                 flexShrink: 0,
                             }}
                             onClick={() =>
@@ -245,55 +248,55 @@ const HeaderBar = memo(
                                     `https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${
                                         import.meta.env.VITE_APP_BUILD_TAG
                                             ? import.meta.env.VITE_APP_BUILD_TAG
-                                            : 'local'
+                                            : "local"
                                     }`,
-                                    '_blank'
+                                    "_blank"
                                 )
                             }
                         />
                     </Tooltip>
                     {usr?.admin && (
-                        <Tooltip label={'Admin Settings'} color="#222222">
+                        <Tooltip label={"Admin Settings"} color="#222222">
                             <IconServerCog
                                 size={32}
                                 onClick={() => {
                                     dispatch({
-                                        type: 'set_block_focus',
+                                        type: "set_block_focus",
                                         block: true,
                                     });
                                     setAdmin(true);
                                 }}
-                                style={{ margin: spacing, cursor: 'pointer' }}
+                                style={{ margin: spacing, cursor: "pointer" }}
                             />
                         </Tooltip>
                     )}
                     <Menu opened={userMenu} onClose={() => setUserMenu(false)}>
                         <Menu.Target>
-                            <Tooltip label={'User Settings'} color="#222222">
+                            <Tooltip label={"User Settings"} color="#222222">
                                 <IconUser
                                     size={32}
                                     onClick={() => setUserMenu(true)}
-                                    style={{ cursor: 'pointer' }}
+                                    style={{ cursor: "pointer" }}
                                 />
                             </Tooltip>
                         </Menu.Target>
 
                         <Menu.Dropdown>
                             <Menu.Label>
-                                {usr.username ? usr.username : 'Not logged in'}
+                                {usr.username ? usr.username : "Not logged in"}
                             </Menu.Label>
                             <Box
                                 className="menu-item"
                                 mod={{
-                                    'data-disabled': (
-                                        usr.username === ''
+                                    "data-disabled": (
+                                        usr.username === ""
                                     ).toString(),
                                 }}
                                 onClick={() => {
                                     setUserMenu(false);
                                     setSettings(true);
                                     dispatch({
-                                        type: 'set_block_focus',
+                                        type: "set_block_focus",
                                         block: true,
                                     });
                                 }}
@@ -305,11 +308,11 @@ const HeaderBar = memo(
                                 />
                                 <Text className="menu-item-text">Settings</Text>
                             </Box>
-                            {usr.username === '' && (
+                            {usr.username === "" && (
                                 <Box
                                     className="menu-item"
                                     onClick={() => {
-                                        nav('/login', {
+                                        nav("/login", {
                                             state: { doLogin: false },
                                         });
                                     }}
@@ -324,12 +327,12 @@ const HeaderBar = memo(
                                     </Text>
                                 </Box>
                             )}
-                            {usr.username !== '' && (
+                            {usr.username !== "" && (
                                 <Box
                                     className="menu-item"
                                     onClick={() => {
                                         clear(); // Clears cred cookies from browser
-                                        nav('/login', {
+                                        nav("/login", {
                                             state: { doLogin: false },
                                         });
                                     }}
@@ -347,7 +350,7 @@ const HeaderBar = memo(
                         </Menu.Dropdown>
                     </Menu>
 
-                    <Box style={{ paddingRight: '10px' }} />
+                    <Box style={{ paddingRight: "10px" }} />
                 </RowBox>
             </Box>
         );

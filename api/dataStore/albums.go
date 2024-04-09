@@ -8,6 +8,25 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
+func CreateAlbum(albumName string, owner types.User) error {
+	albumId := types.AlbumId(util.GlobbyHash(12, fmt.Sprintln(albumName, owner.GetUsername())))
+	a := AlbumData{
+		Id: albumId, Name: albumName,
+		Owner:          owner.GetUsername(),
+		ShowOnTimeline: true,
+		Medias:         []types.MediaId{},
+		SharedWith:     []types.Username{},
+	}
+
+	err := fddb.insertAlbum(a)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func GetAlbum(albumId types.AlbumId) (a *AlbumData, err error) {
 	a, err = fddb.GetAlbum(albumId)
 	return
@@ -40,7 +59,7 @@ func (a *AlbumData) SetCover(mediaId types.MediaId) error {
 	if err != nil {
 		return err
 	}
-	colors, err := m.(*Media).getProminentColors()
+	colors, err := m.(*media).getProminentColors()
 	if err != nil {
 		return err
 	}

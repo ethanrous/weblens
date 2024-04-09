@@ -6,7 +6,7 @@ import {
     useMemo,
     useRef,
     useState,
-} from 'react';
+} from "react";
 
 import {
     Box,
@@ -17,33 +17,33 @@ import {
     TextInput,
     Tooltip,
     TooltipFloating,
-} from '@mantine/core';
+} from "@mantine/core";
 import {
     IconExternalLink,
     IconPhoto,
     IconPlus,
     IconSearch,
     IconUsersGroup,
-} from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
+} from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 
-import { AddMediaToAlbum, CreateAlbum, GetAlbums } from '../../api/GalleryApi';
-import { MediaImage } from '../../components/PhotoContainer';
+import { AddMediaToAlbum, CreateAlbum, GetAlbums } from "../../api/GalleryApi";
+import { MediaImage } from "../../components/PhotoContainer";
 import {
     AlbumData,
     AuthHeaderT,
     getBlankMedia,
     UserContextT,
-} from '../../types/Types';
-import { ColumnBox, RowBox } from './FilebrowserStyles';
-import { userContext } from '../../Context';
-import { VariableSizeList } from 'react-window';
-import { GetMediasByFolder } from '../../api/FileBrowserApi';
+} from "../../types/Types";
+import { ColumnBox, RowBox } from "./FilebrowserStyles";
+import { userContext } from "../../Context";
+import { VariableSizeList } from "react-window";
+import { GetMediasByFolder } from "../../api/FileBrowserApi";
 
 const useEnter = (cb) => {
     const onEnter = useCallback(
         (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === "Enter") {
                 cb();
             }
         },
@@ -51,9 +51,9 @@ const useEnter = (cb) => {
     );
 
     useEffect(() => {
-        document.addEventListener('keydown', onEnter);
+        document.addEventListener("keydown", onEnter);
         return () => {
-            document.removeEventListener('keydown', onEnter);
+            document.removeEventListener("keydown", onEnter);
         };
     }, [onEnter]);
 };
@@ -80,10 +80,10 @@ function NewAlbum({
     return (
         <Box
             className="album-preview-row"
-            style={{ height: '40px', margin: 0 }}
+            style={{ height: "40px", margin: 0 }}
             onClick={() => {
                 if (newAlbumName === null) {
-                    setNewAlbumName('');
+                    setNewAlbumName("");
                 }
             }}
         >
@@ -106,7 +106,7 @@ function NewAlbum({
                 <RowBox>
                     <Box
                         className="media-placeholder"
-                        style={{ height: '50px', width: '50px' }}
+                        style={{ height: "50px", width: "50px" }}
                     >
                         <IconPhoto />
                     </Box>
@@ -122,8 +122,8 @@ function NewAlbum({
                         placeholder="Album name"
                         value={newAlbumName}
                         onChange={(e) => setNewAlbumName(e.target.value)}
-                        styles={{ input: { height: '30px' } }}
-                        style={{ lineHeight: 20, width: '100%' }}
+                        styles={{ input: { height: "30px" } }}
+                        style={{ lineHeight: 20, width: "100%" }}
                     />
                 </RowBox>
             )}
@@ -141,7 +141,7 @@ const SingleAlbum = memo(
         album: AlbumData;
         setMediaCallback: (
             mediaId: string,
-            quality: 'thumbnail' | 'fullres',
+            quality: "thumbnail" | "fullres",
             data: ArrayBuffer
         ) => void;
         PartialApiCall: (albumId: string) => void;
@@ -152,8 +152,8 @@ const SingleAlbum = memo(
             <Box
                 className="album-preview-row"
                 style={{
-                    cursor: disabled ? 'default' : 'pointer',
-                    backgroundColor: disabled ? '#00000000' : '',
+                    cursor: disabled ? "default" : "pointer",
+                    backgroundColor: disabled ? "#00000000" : "",
                 }}
                 onClick={(e) => {
                     if (disabled) {
@@ -167,38 +167,38 @@ const SingleAlbum = memo(
                     media={album.CoverMedia}
                     setMediaCallback={setMediaCallback}
                     quality="thumbnail"
-                    expectFailure={album.Cover === ''}
+                    expectFailure={album.Cover === ""}
                     containerStyle={{
-                        borderRadius: '5px',
-                        overflow: 'hidden',
-                        width: '65px',
-                        height: '65px',
+                        borderRadius: "5px",
+                        overflow: "hidden",
+                        width: "65px",
+                        height: "65px",
                     }}
                     disabled={disabled}
                 />
                 <RowBox
                     style={{
-                        width: '235px',
-                        justifyContent: 'space-evenly',
+                        width: "235px",
+                        justifyContent: "space-evenly",
                         flexGrow: 0,
                     }}
                 >
                     <ColumnBox
                         style={{
-                            height: 'max-content',
-                            width: '50%',
-                            alignItems: 'flex-start',
+                            height: "max-content",
+                            width: "50%",
+                            alignItems: "flex-start",
                             flexGrow: 1,
                         }}
                     >
                         <Box
                             style={{
-                                display: 'flex',
+                                display: "flex",
                                 flexGrow: 0,
-                                width: 'max-content',
-                                maxWidth: '100%',
-                                alignItems: 'center',
-                                paddingBottom: '10px',
+                                width: "max-content",
+                                maxWidth: "100%",
+                                alignItems: "center",
+                                paddingBottom: "10px",
                             }}
                         >
                             <Tooltip
@@ -207,11 +207,11 @@ const SingleAlbum = memo(
                                 label={album.Name}
                             >
                                 <Text
-                                    c={disabled ? '#777777' : 'white'}
+                                    c={disabled ? "#777777" : "white"}
                                     size="16px"
                                     fw={disabled ? 450 : 550}
                                     truncate="end"
-                                    styles={{ root: { width: '100%' } }}
+                                    styles={{ root: { width: "100%" } }}
                                 >
                                     {album.Name}
                                 </Text>
@@ -219,8 +219,8 @@ const SingleAlbum = memo(
                             {album.Owner !== usr.username && (
                                 <Tooltip label={`Shared by ${album.Owner}`}>
                                     <IconUsersGroup
-                                        color={disabled ? '#777777' : 'white'}
-                                        size={'20px'}
+                                        color={disabled ? "#777777" : "white"}
+                                        size={"20px"}
                                         style={{ marginLeft: 10 }}
                                     />
                                 </Tooltip>
@@ -229,12 +229,12 @@ const SingleAlbum = memo(
                         <RowBox>
                             <RowBox>
                                 <IconPhoto
-                                    color={disabled ? '#777777' : 'white'}
-                                    size={'15px'}
+                                    color={disabled ? "#777777" : "white"}
+                                    size={"15px"}
                                 />
                                 <Text
                                     size="15px"
-                                    c={disabled ? '#777777' : 'white'}
+                                    c={disabled ? "#777777" : "white"}
                                     style={{ paddingLeft: 5 }}
                                 >
                                     {album.Medias.length}
@@ -244,23 +244,23 @@ const SingleAlbum = memo(
                     </ColumnBox>
                     <RowBox
                         style={{
-                            position: 'absolute',
-                            width: 'max-content',
-                            alignItems: 'flex-end',
-                            justifyContent: 'flex-end',
+                            position: "absolute",
+                            width: "max-content",
+                            alignItems: "flex-end",
+                            justifyContent: "flex-end",
                             padding: 4,
                             right: 0,
-                            cursor: 'pointer',
+                            cursor: "pointer",
                         }}
                     >
                         <TooltipFloating position="right" label="Open Album">
                             <IconExternalLink
-                                size={'15px'}
+                                size={"15px"}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     window.open(
                                         `/albums/${album.Id}`,
-                                        '_blank'
+                                        "_blank"
                                     );
                                 }}
                                 onMouseOver={(e) => {
@@ -283,7 +283,7 @@ const SingleAlbum = memo(
 );
 
 const fetchAlbums = (doLoading, setLoading, setAlbums, authHeader) => {
-    if (authHeader.Authorization === '') {
+    if (authHeader.Authorization === "") {
         return;
     }
     if (doLoading) {
@@ -333,7 +333,7 @@ const AlbumsHeader = ({ allMedias }) => {
         return (
             <Text size="20px" style={{ paddingBottom: 10 }}>
                 Add {allMedias.length} item
-                {allMedias.length === 1 ? '' : 's'} to albums
+                {allMedias.length === 1 ? "" : "s"} to albums
             </Text>
         );
     }
@@ -354,7 +354,7 @@ export const AlbumScoller = memo(
         const scrollboxRef = useRef(null);
         // This is for the state if we are waiting for the list of albums
         const [loading, setLoading] = useState(false);
-        const [searchStr, setSearchStr] = useState('');
+        const [searchStr, setSearchStr] = useState("");
         const [allMedias, setAllMedias] = useState([]);
 
         // This is for tracking which album(s) are waiting
@@ -384,12 +384,12 @@ export const AlbumScoller = memo(
                             if (res.addedCount === 0) {
                                 notifications.show({
                                     message: `No new media to add to album`,
-                                    color: 'orange',
+                                    color: "orange",
                                 });
                             } else {
                                 notifications.show({
                                     message: `Added ${res.addedCount} medias to album`,
-                                    color: 'green',
+                                    color: "green",
                                 });
                             }
                         } else {
@@ -398,9 +398,9 @@ export const AlbumScoller = memo(
                     })
                     .catch((r) => {
                         notifications.show({
-                            title: 'Could not add media to album',
+                            title: "Could not add media to album",
                             message: String(r),
-                            color: 'red',
+                            color: "red",
                         });
                     });
             },
@@ -410,7 +410,7 @@ export const AlbumScoller = memo(
         const setMediaCallback = useCallback(
             (
                 mediaId: string,
-                quality: 'thumbnail' | 'fullres',
+                quality: "thumbnail" | "fullres",
                 data: ArrayBuffer
             ) => {
                 setAlbums((prev: AlbumData[]) => {
@@ -454,7 +454,7 @@ export const AlbumScoller = memo(
 
         return (
             <ColumnBox
-                style={{ maxHeight: 660, height: 'max-content', width: 320 }}
+                style={{ maxHeight: 660, height: "max-content", width: 320 }}
             >
                 <AlbumsHeader allMedias={allMedias} />
                 <Input
@@ -466,15 +466,16 @@ export const AlbumScoller = memo(
                     leftSection={
                         <IconSearch
                             color="#cccccc"
-                            size={'18px'}
-                            style={{ marginLeft: 8 }}
+                            size={"18px"}
+                            // style={{ marginLeft: 8 }}
                         />
                     }
-                    classNames={{ input: 'album-search' }}
+                    classNames={{ input: "album-search" }}
                     style={{
-                        width: '100%',
-                        boxShadow: '0px 0px 0px 0px #00000000',
-                        backgroundColor: '#00000000',
+                        width: "100%",
+                        paddingLeft: "0px",
+                        boxShadow: "0px 0px 0px 0px #00000000",
+                        backgroundColor: "#00000000",
                     }}
                 />
                 <NewAlbum
@@ -482,11 +483,11 @@ export const AlbumScoller = memo(
                         fetchAlbums(l, setLoading, setAlbums, authHeader)
                     }
                 />
-                <Divider my={10} w={'100%'} />
+                <Divider my={10} w={"100%"} />
                 {loading && (
                     <Loader
                         color="white"
-                        style={{ height: 'max-content', padding: 20 }}
+                        style={{ height: "max-content", padding: 20 }}
                     />
                 )}
                 <VariableSizeList
@@ -502,7 +503,7 @@ export const AlbumScoller = memo(
                             ? 75 * filteredAlbums.length
                             : 500
                     }
-                    width={'100%'}
+                    width={"100%"}
                     itemKey={(index: number, data: AlbumData[]) =>
                         data[index]?.Id
                     }

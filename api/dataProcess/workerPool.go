@@ -12,7 +12,7 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func NewWorkerPool(initWorkers int) (*WorkerPool, *virtualTaskPool) {
+func NewWorkerPool(initWorkers int) (*WorkerPool, *taskPool) {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
@@ -61,7 +61,7 @@ func workerRecover(task *task, workerId int64) {
 
 func saftyWork(task *task, workerId int64) {
 	defer workerRecover(task, workerId)
-	task.work()
+	task.work(task)
 }
 
 // The executioner handles timed cancellation of tasks. If a task might
@@ -201,6 +201,10 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				rootTaskPool = rootTaskPool.parentTaskPool
 			}
 
+			if !t.persistant {
+				removeTask(t.taskId)
+			}
+
 			canContinue := true
 			if rootTaskPool == t.taskPool {
 				// Updating the number of workers and then checking it's value is dangerous
@@ -261,8 +265,8 @@ func (wp *WorkerPool) removeWorker() {
 	wp.maxWorkers.Add(-1)
 }
 
-func (wp *WorkerPool) NewVirtualTaskPool() *virtualTaskPool {
-	newQueue := &virtualTaskPool{
+func (wp *WorkerPool) NewVirtualTaskPool() *taskPool {
+	newQueue := &taskPool{
 		totalTasks:     &atomic.Int64{},
 		completedTasks: &atomic.Int64{},
 		waiterCount:    &atomic.Int32{},
@@ -278,11 +282,11 @@ func (wp *WorkerPool) NewVirtualTaskPool() *virtualTaskPool {
 	return newQueue
 }
 
-func (tp *virtualTaskPool) Cancel() {
+func (tp *taskPool) Cancel() {
 	// TODO
 }
 
-func (tp *virtualTaskPool) QueueTask(Task types.Task) (err error) {
+func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 	t := Task.(*task)
 	if tp.workerPool.exitFlag == 1 {
 		util.Warning.Println("Not queuing task while worker pool is going down")
@@ -334,11 +338,11 @@ func (tp *virtualTaskPool) QueueTask(Task types.Task) (err error) {
 }
 
 // Specifcy the work queue as being a "global" one
-func (tp *virtualTaskPool) MarkGlobal() {
+func (tp *taskPool) MarkGlobal() {
 	tp.treatAsGlobal = true
 }
 
-func (tp *virtualTaskPool) SignalAllQueued() {
+func (tp *taskPool) SignalAllQueued() {
 	if tp.treatAsGlobal {
 		util.Error.Println("Attempt to signal all queued for global queue")
 	}

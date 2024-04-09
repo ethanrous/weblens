@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react';
-import { useCookies } from 'react-cookie';
-import API_ENDPOINT from '../api/ApiEndpoint';
-import { notifications } from '@mantine/notifications';
-import { UserContextT, UserInfoT } from '../types/Types';
+import { useEffect, useState } from "react";
+import { useCookies } from "react-cookie";
+import API_ENDPOINT from "../api/ApiEndpoint";
+import { notifications } from "@mantine/notifications";
+import { UserContextT, UserInfoT } from "../types/Types";
+import { useNavigate } from "react-router-dom";
+import { getServerInfo } from "../api/ApiFetch";
 
 const useR = () => {
+    const nav = useNavigate();
     const [cookies, setCookie, removeCookie] = useCookies([
-        'weblens-username',
-        'weblens-login-token',
+        "weblens-username",
+        "weblens-login-token",
     ]);
     const [authHeader, setAuthHeader] = useState<{ Authorization: string }>({
-        Authorization: '',
+        Authorization: "",
     });
     const [usr, setUserInfo]: [usr: UserInfoT, setUserInfo: any] = useState({
-        homeId: '',
-        trashId: '',
-        username: '',
+        homeId: "",
+        trashId: "",
+        username: "",
         admin: false,
         owner: false,
         activated: false,
@@ -23,50 +26,66 @@ const useR = () => {
     });
 
     const clear = () => {
-        setAuthHeader({ Authorization: '' });
+        setAuthHeader({ Authorization: "" });
         setUserInfo({
             admin: false,
-            homeId: '',
-            trashId: '',
-            username: '',
+            homeId: "",
+            trashId: "",
+            username: "",
             activated: false,
             owner: false,
             isLoggedIn: false,
         } as UserInfoT);
-        removeCookie('weblens-username');
-        removeCookie('weblens-login-token');
+        removeCookie("weblens-username");
+        removeCookie("weblens-login-token");
     };
+
+    const inSetup = window.location.pathname === "/setup";
+    useEffect(() => {
+        getServerInfo().then((r) => {
+            console.log(r);
+            if (r === 307 && !inSetup) {
+                nav("/setup");
+            } else if (r !== 307 && inSetup) {
+                nav("/");
+            }
+        });
+    }, []);
 
     useEffect(() => {
         if (
-            authHeader.Authorization === '' &&
-            cookies['weblens-username'] &&
-            cookies['weblens-login-token']
+            authHeader.Authorization === "" &&
+            cookies["weblens-username"] &&
+            cookies["weblens-login-token"]
         ) {
             // Auth header unset, but the cookies are ready
-            const loginStr = `${cookies['weblens-username']}:${cookies['weblens-login-token']}`;
+            const loginStr = `${cookies["weblens-username"]}:${cookies["weblens-login-token"]}`;
             // console.log(loginStr.replace(/-/g, '+').replace(/_/g, '/'));
             const login64 = window.btoa(loginStr);
             setAuthHeader({
                 Authorization: `Basic ${login64.toString()}`,
             });
         } else if (
-            authHeader.Authorization !== '' &&
-            (usr.username === '' || Object.keys(usr).length === 0)
+            authHeader.Authorization !== "" &&
+            (usr.username === "" || Object.keys(usr).length === 0)
         ) {
             // Auth header set, but no user data, go get the user data
-
             let url = new URL(`${API_ENDPOINT}/user`);
             fetch(url.toString(), { headers: authHeader })
-                .then((res) => res.json())
+                .then((res) => {
+                    if (res.status === 307 && !inSetup) {
+                        nav("/setup");
+                    }
+                    return res.json();
+                })
                 .then((json) => {
                     if (!json) {
-                        return Promise.reject('Invalid user data');
+                        return Promise.reject("Invalid user data");
                     }
                     setUserInfo({ ...json, isLoggedIn: true });
                 })
                 .catch((r) => notifications.show({ message: String(r) }));
-        } else if (authHeader.Authorization === '') {
+        } else if (authHeader.Authorization === "") {
             setUserInfo((p) => {
                 p.isLoggedIn = false;
                 return { ...p };

@@ -15,6 +15,7 @@ type Media interface {
 	AddFile(WeblensFile)
 	RemoveFile(FileId)
 	ReadDisplayable(Quality, ...int) ([]byte, error)
+	PageCount() int
 }
 
 type MediaId string

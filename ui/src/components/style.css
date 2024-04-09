@@ -77,14 +77,16 @@
 .weblens-button {
     margin: 4px;
     border-radius: 4px;
-    height: 55px;
-    width: 100%;
+    height: max-content;
+    width: max-content;
     max-height: 100%;
+    max-width: 100%;
     display: flex;
-    flex-shrink: 1;
+    /* flex-shrink: 1; */
     justify-content: center;
     align-items: center;
     padding: 10px;
+    /* padding: 4px; */
     cursor: pointer;
     color: white;
     font-weight: 500;
@@ -93,56 +95,100 @@
     box-shadow: 0 0 10px 2px #00000044;
 }
 
-.weblens-button:where([data-subtle='false']) {
+.weblens-button:where([data-subtle="false"]) {
     background-color: #4444ff;
 }
 
-.weblens-button:where([data-success='true']) {
+.weblens-button:where([data-subtle="true"]) {
+    background-color: #1c1049;
+}
+
+.weblens-button:where([data-success="true"]) {
     background-color: #00b123;
     outline: none;
     cursor: default;
     pointer-events: none;
 }
 
-.weblens-button:where([data-success='true']):hover {
+.weblens-button:where([data-success="true"]):hover {
     background-color: #00b123;
     outline: none;
     cursor: default;
     pointer-events: none;
 }
 
-.weblens-button:where([data-fail='true']) {
+.weblens-button:where([data-fail="true"]) {
     background-color: #ff3333;
     outline: none;
     cursor: default;
     pointer-events: none;
 }
 
-.weblens-button:where([data-fail='true']):hover {
+.weblens-button:where([data-fail="true"]):hover {
     background-color: #ff3333;
     outline: none;
     cursor: default;
     pointer-events: none;
 }
 
-.weblens-button:where([data-danger='true']) {
+.weblens-button:where([data-danger="true"]) {
     background-color: #ff3333;
     outline: none;
 }
 
-.weblens-button.weblens-button:where([data-danger='true']):hover {
+.weblens-button.weblens-button:where([data-danger="true"]):hover {
     background-color: #521f22;
     outline: 1px solid #ff3333;
 }
 
-.weblens-button:hover:not([data-success='true']):not([data-fail='true']):not(
-        [data-danger='true']
+@keyframes rainbow {
+    0% {
+        background-position: 75% 100%;
+    }
+    12.5% {
+        background-position: 100% 100%;
+    }
+    62.5% {
+        background-position: 0% 100%;
+    }
+    100% {
+        background-position: 75% 100%;
+    }
+}
+
+.weblens-button:hover:not(
+        [data-super="true"],
+        [data-success="true"],
+        [data-fail="true"],
+        [data-danger="true"]
     ) {
     background-color: #1c1049;
     outline: 1px solid #4444ff;
 }
 
-.weblens-button:where([data-disabled='true']) {
+.weblens-button:hover:where([data-super="true"]):not(
+        [data-success="true"],
+        [data-fail="true"],
+        [data-danger="true"]
+    ) {
+    animation: rainbow 15s ease-in-out infinite;
+    background: linear-gradient(
+        90deg,
+        #ff2400,
+        #e81d1d,
+        #e8b71d,
+        #e3e81d,
+        #1de840,
+        #1ddde8,
+        #2b1de8,
+        #dd00f3,
+        #dd00f3
+    );
+    background-size: 2000% 100%;
+    outline: 0px solid #000000;
+}
+
+.weblens-button:where([data-disabled="true"]) {
     box-shadow: none;
     background-color: #ffffff11;
     pointer-events: none;
@@ -151,6 +197,11 @@
 }
 
 .weblens-toggle-button {
+    height: max-content;
+    width: max-content;
+    max-height: 100%;
+    max-width: 100%;
+
     margin: 4px;
     display: flex;
     border-radius: 4px;
@@ -159,41 +210,63 @@
     padding: 10px;
     cursor: pointer;
     transition: all 0.1s;
-    /* height: 100%; */
-    width: 100%;
 }
 
-.weblens-toggle-button:where([data-toggled='true']) {
+.weblens-toggle-button:where([data-toggled="true"]) {
     font-weight: 600;
     background-color: #3600cc;
     outline-color: #00000000;
     color: white;
 }
 
-.weblens-toggle-button:where([data-toggled='false']) {
+.weblens-toggle-button:where([data-toggled="false"]) {
     font-weight: 400;
-    color: #cfcfcf;
+    color: #efefef;
     background-color: #3600cc22;
-    outline: 1px solid #3600ccaa;
+    outline: 1px solid #4444ff;
 }
 
-.weblens-toggle-button:where([data-toggled='true'][data-repeat='true']):hover {
+.weblens-toggle-button:where([data-toggled="true"][data-repeat="true"]):hover {
     background-color: #3600cccc;
 }
 
-.weblens-toggle-button:where([data-toggled='false']):hover {
-    color: white;
-    background-color: #3600cc01;
-    outline: 1.9px solid #4444ff;
+.weblens-toggle-button:where([data-toggled="true"][data-repeat="false"]):hover {
+    cursor: default;
 }
 
-.weblens-toggle-button:where([data-disabled='true']) {
+.weblens-toggle-button:where([data-toggled="false"]):hover {
+    color: white;
+    background-color: #3600cc01;
+    outline: 2px solid #4444ff;
+}
+
+.weblens-toggle-button:where([data-disabled="true"]) {
     box-shadow: none;
     background-color: #ffffff11;
     pointer-events: none;
     cursor: default;
     color: #aaaaaa;
     outline: 0;
+}
+
+.weblens-select-icon {
+    position: relative;
+    padding: 6px;
+    cursor: pointer;
+    transition: 100ms background-color ease-in-out;
+    border-radius: 4px;
+}
+
+/* .weblens-select-icon:not([data-selected]):hover { */
+/* background-color: #4444ff66; */
+
+/* border- */
+/* } */
+
+.weblens-select-icon:where([data-selected]) {
+    background-color: #4444ff;
+    border-radius: 0px;
+    transition: 100ms border-radius;
 }
 
 .key-display {
@@ -253,7 +326,7 @@
     color: white;
 }
 
-.menu-tab:where([data-active='true']) {
+.menu-tab:where([data-active="true"]) {
     background-color: #4444ff;
 }
 
@@ -274,7 +347,7 @@
     display: flex;
     flex-direction: column;
     position: absolute;
-    padding: 6px;
+    padding: 8px;
     height: max-content;
     max-height: 600px;
     overflow-y: scroll;
@@ -286,12 +359,12 @@
     width: 200px;
     margin-left: -35px;
     margin-top: 5px;
-    gap: 4px;
+    gap: 6px;
     box-shadow: 0 0 10px 2px #00000044;
 }
 
 .weblens-dropdown-input-item {
-    padding: 4px;
+    padding: 6px;
     border-radius: 4px;
     height: max-content;
     user-select: none;
@@ -300,11 +373,11 @@
     cursor: pointer;
 }
 
-.weblens-dropdown-input-item:where([data-selected='true']) {
+.weblens-dropdown-input-item:where([data-selected="true"]) {
     background-color: #4444ff;
 }
 
-.weblens-dropdown-input-item:hover:where([data-selected='false']) {
+.weblens-dropdown-input-item:hover:where([data-selected="false"]) {
     background-color: #333333;
 }
 
@@ -314,5 +387,18 @@
     line-height: 28px;
     user-select: none;
     text-wrap: nowrap;
+    color: white;
+}
+
+.scattered-photo {
+    position: absolute;
+    box-shadow: rgba(0, 0, 0, 0.5) 4px 4px 50px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.button-icon {
+    height: 100%;
+    width: 100%;
     color: white;
 }

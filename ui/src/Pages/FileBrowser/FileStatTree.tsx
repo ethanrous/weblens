@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import * as d3 from 'd3';
-import { humanFileSize } from '../../util';
-import { Box, Text } from '@mantine/core';
-import { WeblensButton } from '../../components/WeblensButton';
-import { useResize } from '../../components/hooks';
-import { GetFileInfo, getFilesystemStats } from '../../api/FileBrowserApi';
-import { useNavigate } from 'react-router-dom';
-import { FileInfoT } from '../../types/Types';
-import { IconFolder } from '@tabler/icons-react';
+import { useEffect, useMemo, useState } from "react";
+import * as d3 from "d3";
+import { humanFileSize } from "../../util";
+import { Box, Text } from "@mantine/core";
+import { WeblensButton } from "../../components/WeblensButton";
+import { useResize } from "../../components/hooks";
+import { GetFileInfo, getFilesystemStats } from "../../api/FileBrowserApi";
+import { useNavigate } from "react-router-dom";
+import { AuthHeaderT, FileInfoT } from "../../types/Types";
+import { IconFolder } from "@tabler/icons-react";
 
 export type TreeNode = {
-    type: 'node';
+    type: "node";
     value: number;
     name: string;
     children: Tree[];
 };
 export type TreeLeaf = {
-    type: 'leaf';
+    type: "leaf";
     name: string;
     value: number;
 };
@@ -27,26 +27,28 @@ type extSize = {
     value: number;
 };
 
-export const StatTree = ({ folderId, authHeader }) => {
+export const StatTree = ({
+    folderInfo,
+    authHeader,
+}: {
+    folderInfo: FileInfoT;
+    authHeader: AuthHeaderT;
+}) => {
     const nav = useNavigate();
     const [stats, setStats]: [stats: extSize[], setStats: (s) => void] =
         useState([]);
     const [boxRef, setBoxRef] = useState(null);
     const size = useResize(boxRef);
     const [statFilter, setStatsFilter] = useState([]);
-    const [folderInfo, setFolderInfo]: [
-        folderInfo: FileInfoT,
-        setFolderInfo: any
-    ] = useState(null);
 
     useEffect(() => {
-        GetFileInfo(folderId, '', authHeader)
-            // .then((r) => r.json())
-            .then((f) => setFolderInfo(f));
-        getFilesystemStats(folderId, authHeader).then((s) =>
+        if (!folderInfo.id) {
+            return;
+        }
+        getFilesystemStats(folderInfo.id, authHeader).then((s) =>
             setStats(s.sizesByExtension)
         );
-    }, []);
+    }, [folderInfo.id]);
 
     if (!folderInfo) {
         return null;
@@ -55,33 +57,36 @@ export const StatTree = ({ folderId, authHeader }) => {
     return (
         <Box
             style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                width: '100%',
-                height: '100%',
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                width: "100%",
+                height: "100%",
             }}
         >
             <Box
                 style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    height: '58px',
-                    width: '100%',
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    height: "58px",
+                    width: "100%",
                     padding: 5,
                 }}
             >
                 <Box
                     style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        cursor: 'pointer',
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        cursor: "pointer",
                     }}
-                    onClick={() => nav(`/files/${folderId}`)}
+                    onClick={() => nav(`/files/${folderInfo.id}`)}
                 >
-                    <IconFolder size={'28px'} style={{ marginLeft: 10 }} />
+                    <IconFolder
+                        size={"28px"}
+                        style={{ marginLeft: 10, marginRight: 4 }}
+                    />
                     <Text className="crumb-text">{folderInfo.filename}</Text>
                 </Box>
                 <Box style={{ flexGrow: 1 }} />
@@ -93,7 +98,7 @@ export const StatTree = ({ folderId, authHeader }) => {
                         label={`Clear Filter`}
                         postScript={
                             statFilter.length === 0
-                                ? 'Right click to hide a block'
+                                ? "Right click to hide a block"
                                 : `${statFilter.length} blocks hidden`
                         }
                     />
@@ -103,11 +108,11 @@ export const StatTree = ({ folderId, authHeader }) => {
                 <Box
                     ref={setBoxRef}
                     style={{
-                        display: 'flex',
-                        backgroundColor: '#222222',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        height: '100%',
+                        display: "flex",
+                        backgroundColor: "#222222",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height: "100%",
                         borderRadius: 4,
                         margin: 10,
                     }}
@@ -119,7 +124,7 @@ export const StatTree = ({ folderId, authHeader }) => {
                             return !statFilter.includes(s.name);
                         })}
                         doSearch={(name) =>
-                            nav(`/files/search/${folderId}?filter=${name}`)
+                            nav(`/files/search/${folderInfo.id}?filter=${name}`)
                         }
                         statFilter={statFilter}
                         setStatsFilter={setStatsFilter}
@@ -156,8 +161,8 @@ export const Tree = ({
         });
 
         const data: Tree = {
-            type: 'node',
-            name: 'FileType',
+            type: "node",
+            name: "FileType",
             value: 0,
             children: stats
                 .filter((k) => {
@@ -165,7 +170,7 @@ export const Tree = ({
                 })
                 .map((k: extSize) => {
                     return {
-                        type: 'leaf',
+                        type: "leaf",
                         name: k.name,
                         value: k.value,
                     };
@@ -200,17 +205,17 @@ export const Tree = ({
         // '#ff4444',
         // '#44ff44',
         // '#4444ff',
-        '#264653',
-        '#2A9D8F',
-        '#E9C46A',
-        '#F4A261',
-        '#E76F51',
-        '#ea2f86',
-        '#f09c0a',
-        '#fae000',
-        '#93e223',
-        '#4070d3',
-        '#493c9e',
+        "#264653",
+        "#2A9D8F",
+        "#E9C46A",
+        "#F4A261",
+        "#E76F51",
+        "#ea2f86",
+        "#f09c0a",
+        "#fae000",
+        "#93e223",
+        "#4070d3",
+        "#493c9e",
     ]);
 
     const allShapes = root.leaves().map((leaf) => {
@@ -226,11 +231,11 @@ export const Tree = ({
             <g
                 key={leaf.data.name}
                 style={{
-                    cursor: 'pointer',
+                    cursor: "pointer",
                     opacity:
                         hovering && hovering !== leaf.data.name
-                            ? '20%'
-                            : '100%',
+                            ? "20%"
+                            : "100%",
                 }}
                 className="file-type-block"
                 onContextMenu={(e) => {
@@ -270,7 +275,7 @@ export const Tree = ({
                     fontSize={16}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill={'white'}
+                    fill={"white"}
                     fontWeight={600}
                 >
                     {leaf.data.name}
@@ -282,7 +287,7 @@ export const Tree = ({
                     fontSize={16}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill={'white'}
+                    fill={"white"}
                 >
                     {sizeStr}
                 </text>

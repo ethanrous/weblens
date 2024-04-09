@@ -18,11 +18,11 @@ type user struct {
 	Tokens    []string           `bson:"tokens" json:"-"`
 	Admin     bool               `bson:"admin" json:"admin"`
 	Activated bool               `bson:"activated" json:"activated"`
-	Owner bool               `bson:"owner" json:"owner"`
+	Owner     bool               `bson:"owner" json:"owner"`
 
 	// non-database types
-	HomeFolder  types.WeblensFile
-	TrashFolder types.WeblensFile
+	HomeFolder  types.WeblensFile `bson:"-"`
+	TrashFolder types.WeblensFile `bson:"-"`
 }
 
 var userMap = map[types.Username]*user{}
@@ -38,11 +38,15 @@ func CreateUser(username types.Username, password string, isAdmin, autoActivate 
 	passHash := string(passHashBytes)
 
 	newUser := user{
-		Username: username,
-		Password: passHash,
-		Tokens: []string{},
-		Admin: isAdmin,
+		Username:  username,
+		Password:  passHash,
+		Tokens:    []string{},
+		Admin:     isAdmin,
 		Activated: autoActivate,
+	}
+
+	if len(userMap) == 0 {
+		newUser.Owner = true
 	}
 
 	if err := fddb.CreateUser(newUser); err != nil {
@@ -59,10 +63,6 @@ func GetUser(username types.Username) types.User {
 		return nil
 	}
 	return u
-}
-
-func AreThereUsers() bool {
-	return len(userMap) != 0
 }
 
 func LoadUsers() error {
@@ -183,6 +183,12 @@ func UpdateAdmin(username types.Username, isAdmin bool) error {
 	return nil
 }
 
+func MakeOwner(u types.User) error {
+	realU := u.(*user)
+	realU.Owner = true
+	return fddb.updateUser(realU)
+}
+
 func ShareGrantsFileAccess(share types.Share, file types.WeblensFile) bool {
 	if share == nil {
 		return false
@@ -212,13 +218,13 @@ func DeleteUser(user types.User) {
 }
 
 func (u user) MarshalJSON() ([]byte, error) {
-	m := map[string]any {
-		"username": u.Username,
-		"admin": u.Admin,
+	m := map[string]any{
+		"username":  u.Username,
+		"admin":     u.Admin,
 		"activated": u.Activated,
-		"owner": u.Owner,
-		"homeId": u.HomeFolder.Id(),
-		"trashId": u.TrashFolder.Id(),
+		"owner":     u.Owner,
+		"homeId":    u.HomeFolder.Id(),
+		"trashId":   u.TrashFolder.Id(),
 	}
 
 	return json.Marshal(m)

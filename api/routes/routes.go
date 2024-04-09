@@ -44,68 +44,64 @@ func CORSMiddleware() gin.HandlerFunc {
 func AddApiRoutes(r *gin.Engine) {
 	r.Use(CORSMiddleware())
 
-	public := r.Group("/api")
-	public.Use(WeblensAuth(false, true, false))
+	public := r.Group("/api/public")
+	public.Use(WeblensAuth(true, false))
+
+	r.GET("/ping", ping)
+
+	public.GET("/info", getServerInfo)
+	public.GET("/media/types", getMediaTypes)
+	public.GET("/media/random", getRandomMedias)
+	public.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
+	public.GET("/file/:fileId", getFile)
+	public.GET("/file/share/:shareId", getFileShare)
+	public.GET("/share/:shareId", getFileShare)
+	public.GET("/download", downloadFile)
+	public.GET("/users", publicGetUsers)
+
+	public.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
+
+	public.POST("/initialize", initializeServer)
+
 	public.POST("/login", loginUser)
 	public.POST("/user", createUser)
+	public.POST("/folder", pubMakeDir)
+	public.POST("/upload", newSharedUploadTask)
+	public.POST("/upload/:uploadId", newFileUpload)
+	public.POST("/takeout", createTakeout)
 
 	api := r.Group("/api")
-	api.Use(WeblensAuth(false, false, false))
-
-	api.PATCH("/user/:username/password", updateUserPassword)
+	api.Use(WeblensAuth(false, false))
 
 	api.GET("/user", getUserInfo)
 	api.GET("/users", searchUsers)
+	api.PATCH("/user/:username/password", updateUserPassword)
 
 	api.GET("/media", getMediaBatch)
-	public.GET("/media/types", getMediaTypes)
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
 	api.GET("/media/:mediaId/meta", getMediaMeta)
-	// api.PUT("/media", updateMedias)
-	// api.GET("/stream/:mediaId", streamVideo)
 
-	api.GET("/folder/:folderId", getFolderInfo)
-	api.GET("/files/:folderId/stats", getFolderStats)
-	api.GET("/folder/:folderId/search", searchFolder)
-	api.GET("/folder/:folderId/media", getFolderMedia)
-	api.POST("/folder", makeDir)
-
-	// Allow publically creating folders
-	public.POST("/public/folder", pubMakeDir)
-
+	api.GET("/file/:fileId/shares", getFilesShares)
 	api.PATCH("/file/:fileId", updateFile)
+	api.PATCH("/file/share/:shareId", updateFileShare)
+
+	api.GET("/files/:folderId/stats", getFolderStats)
+	api.GET("/files/shared", getSharedFiles)
 	api.PATCH("/files", updateFiles)
 	api.PATCH("/files/trash", trashFiles)
 	api.PATCH("/files/untrash", unTrashFiles)
 	api.DELETE("/files", deleteFiles)
 
-	api.GET("/files/shared", getSharedFiles)
+	api.GET("/folder/:folderId", getFolderInfo)
+	api.GET("/folder/:folderId/search", searchFolder)
+	api.GET("/folder/:folderId/media", getFolderMedia)
+	api.POST("/folder", makeDir)
 
-	api.GET("/file/:fileId/shares", getFilesShares)
-	api.PATCH("/file/share/:shareId", updateFileShare)
-
-	public.GET("/file/:fileId", getFile)
-	public.GET("/file/share/:shareId", getFileShare)
-
-	api.GET("/trash", getUserTrashInfo)
-
-	// Regular file upload endpoint
 	api.POST("/upload", newUploadTask)
-
-	// Allow publically creating file uploads for wormholes
-	public.POST("/public/upload", newSharedUploadTask)
-	public.POST("/upload/:uploadId", newFileUpload)
-	public.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
 
 	api.DELETE("/share/:shareId", deleteShare)
 	api.POST("/share/files", createFileShare)
-
-	public.GET("/share/:shareId", getFileShare)
-
-	public.GET("/download", downloadFile)
-
-	public.POST("/takeout", createTakeout)
 
 	api.GET("/albums", getAlbums)
 	api.GET("/album/:albumId", getAlbum)
@@ -114,25 +110,30 @@ func AddApiRoutes(r *gin.Engine) {
 	api.DELETE("/album/:albumId", deleteAlbum)
 
 	admin := r.Group("/api/admin")
-	admin.Use(WeblensAuth(false, false, true))
+	admin.Use(WeblensAuth(false, true))
 
 	admin.GET("/files/external", getExternalDirs)
 	admin.GET("/files/external/:folderId", getExternalFolderInfo)
 
 	admin.GET("/users", getUsers)
 	admin.POST("/user", activateUser)
-	admin.POST("/scan", recursiveScanDir)
+	admin.PATCH("/user/:username/admin", setUserAdmin)
 	admin.DELETE("/user/:username", deleteUser)
+
+	admin.GET("/apiKeys", getApiKeys)
+	admin.POST("/scan", recursiveScanDir)
 	admin.POST("/cleanup/medias", cleanupMedias)
 	admin.POST("/cache", clearCache)
 	admin.POST("/apiKey", newApiKey)
-	admin.GET("/apiKeys", getApiKeys)
-	admin.PATCH("/user/:username/admin", setUserAdmin)
 
 	websocket := r.Group("/api")
-	websocket.Use(WeblensAuth(true, true, false))
-
 	websocket.GET("/ws", wsConnect)
+
+	keyOnly := r.Group("/api")
+	keyOnly.Use(KeyOnlyAuth)
+
+	keyOnly.POST("/remote", attachRemote)
+	keyOnly.GET("/snapshot", getBackupSnapshot)
 }
 
 func AddUiRoutes(r *gin.Engine) {

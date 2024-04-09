@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/routes"
@@ -64,6 +66,9 @@ func main() {
 	dataStore.LoadAllShares()
 	sw.Lap("Shares init")
 
+	dataStore.InitApiKeyMap()
+	sw.Lap("Api key map init")
+
 	// The global broadcaster is disbled by default so all of the
 	// initial loading of the filesystem (that was just done above) doesn't
 	// try to broadcast for every file that exists. So it must be enabled here
@@ -79,11 +84,17 @@ func main() {
 	dataStore.SetExiftool(et)
 	sw.Lap("Init global exiftool")
 
+	go dataProcess.BackupD(time.Minute, routes.NewRequester())
+	sw.Lap("Init backup sleeper")
+
 	// Enable the worker pool heald by the task tracker
 	tt.StartWP()
 	sw.Lap("Global worker pool enabled")
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(routes.WeblensLogger)
+	gin.Logger()
 
 	routes.AddApiRoutes(router)
 	if !util.DetachUi() {

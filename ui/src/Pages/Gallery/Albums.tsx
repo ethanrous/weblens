@@ -1,7 +1,7 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { notifications } from '@mantine/notifications';
+import { notifications } from "@mantine/notifications";
 import {
     Box,
     Button,
@@ -10,15 +10,15 @@ import {
     Popover,
     Space,
     Text,
-} from '@mantine/core';
+} from "@mantine/core";
 import {
     IconClearAll,
     IconPhoto,
     IconTrash,
     IconUsersGroup,
-} from '@tabler/icons-react';
+} from "@tabler/icons-react";
 
-import { ColumnBox } from '../FileBrowser/FilebrowserStyles';
+import { ColumnBox } from "../FileBrowser/FilebrowserStyles";
 import {
     CleanAlbum,
     DeleteAlbum,
@@ -28,20 +28,22 @@ import {
     RenameAlbum,
     SetAlbumCover,
     ShareAlbum,
-} from '../../api/GalleryApi';
+} from "../../api/GalleryApi";
 import {
     AlbumData,
     AuthHeaderT,
-    MediaData,
+    MediaDataT,
     MediaStateT,
+    UserContextT,
     getBlankMedia,
-} from '../../types/Types';
-import { userContext } from '../../Context';
-import { PhotoGallery } from '../../components/MediaDisplay';
-import NotFound from '../../components/NotFound';
-import { GlobalContextType, ItemProps } from '../../components/ItemDisplay';
-import { ItemScroller } from '../../components/ItemScroller';
-import { GalleryAction } from './GalleryLogic';
+} from "../../types/Types";
+import { userContext } from "../../Context";
+import { PhotoGallery } from "../../components/MediaDisplay";
+import NotFound from "../../components/NotFound";
+import { GlobalContextType, ItemProps } from "../../components/ItemDisplay";
+import { ItemScroller } from "../../components/ItemScroller";
+import { GalleryAction } from "./GalleryLogic";
+import { useMediaType } from "../../components/hooks";
 
 function ShareBox({
     open,
@@ -72,7 +74,7 @@ function ShareBox({
             closeOnClickOutside
         >
             <Popover.Target>
-                <Box style={{ position: 'fixed', top: pos.y, left: pos.x }} />
+                <Box style={{ position: "fixed", top: pos.y, left: pos.x }} />
             </Popover.Target>
             <Popover.Dropdown>
                 {/* <ShareInput valueSetCallback={setValue} initValues={sharedWith} /> */}
@@ -118,7 +120,7 @@ function AlbumMediaContextMenu({
     return (
         <Menu opened={open} onClose={() => setOpen(false)} closeOnClickOutside>
             <Menu.Target>
-                <Box style={{ position: 'absolute' }} />
+                <Box style={{ position: "absolute" }} />
             </Menu.Target>
 
             <Menu.Dropdown>
@@ -188,18 +190,26 @@ function Album({
 }) {
     const { authHeader }: UserContextT = useContext(userContext);
     const [albumData, setAlbumData]: [
-        albumData: { albumMeta: AlbumData; media: MediaData[] },
+        albumData: { albumMeta: AlbumData; media: MediaDataT[] },
         setAlbumData: any
     ] = useState(null);
+    const mType = useMediaType();
     const [notFound, setNotFound] = useState(false);
     const nav = useNavigate();
 
     const fetchAlbum = useCallback(() => {
-        dispatch({ type: 'add_loading', loading: 'album_media' });
+        if (!mType) {
+            return;
+        }
+        dispatch({ type: "add_loading", loading: "album_media" });
         GetAlbumMedia(albumId, includeRaw, authHeader)
             .then((m) => {
-                dispatch({ type: 'set_media', medias: m.media });
-
+                let ms: MediaDataT[] = [];
+                for (const me of m.media) {
+                    me.mediaType = mType.get(me.mimeType);
+                    ms.push(me);
+                }
+                dispatch({ type: "set_media", medias: ms });
                 setAlbumData(m);
             })
             .catch((r) => {
@@ -208,15 +218,15 @@ function Album({
                     return;
                 }
                 notifications.show({
-                    title: 'Failed to load album',
+                    title: "Failed to load album",
                     message: String(r),
-                    color: 'red',
+                    color: "red",
                 });
             })
             .finally(() =>
-                dispatch({ type: 'remove_loading', loading: 'album_media' })
+                dispatch({ type: "remove_loading", loading: "album_media" })
             );
-    }, [albumId, includeRaw]);
+    }, [albumId, includeRaw, mType]);
 
     useEffect(() => {
         fetchAlbum();
@@ -229,7 +239,7 @@ function Album({
 
         const media = albumData.media
             .filter((v) => {
-                if (searchContent === '') {
+                if (searchContent === "") {
                     return true;
                 }
                 if (!v.recognitionTags) {
@@ -281,20 +291,20 @@ function Album({
         return (
             <ColumnBox>
                 <Text
-                    size={'75px'}
+                    size={"75px"}
                     fw={900}
                     variant="gradient"
                     style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        userSelect: 'none',
+                        display: "flex",
+                        justifyContent: "center",
+                        userSelect: "none",
                         lineHeight: 1.1,
                     }}
                 >
                     {albumData.albumMeta.Name}
                 </Text>
                 <ColumnBox
-                    style={{ paddingTop: '150px', width: 'max-content' }}
+                    style={{ paddingTop: "150px", width: "max-content" }}
                 >
                     <Text fw={800} size="30px">
                         This album has no media
@@ -305,7 +315,7 @@ function Album({
                     <Button
                         fullWidth
                         color="#4444ff"
-                        onClick={() => nav('/files/home')}
+                        onClick={() => nav("/files/home")}
                     >
                         Filebrowser
                     </Button>
@@ -315,10 +325,10 @@ function Album({
     }
     const startColor = albumData.albumMeta.PrimaryColor
         ? `#${albumData.albumMeta.PrimaryColor}`
-        : '#ffffff';
+        : "#ffffff";
     const endColor = albumData.albumMeta.SecondaryColor
         ? `#${albumData.albumMeta.SecondaryColor}`
-        : '#ffffff';
+        : "#ffffff";
 
     return (
         <ColumnBox>
@@ -328,9 +338,9 @@ function Album({
                 selecting={false}
                 imageBaseScale={imageSize}
                 title={
-                    <ColumnBox style={{ height: 'max-content' }}>
+                    <ColumnBox style={{ height: "max-content" }}>
                         <Text
-                            size={'75px'}
+                            size={"75px"}
                             fw={900}
                             variant="gradient"
                             gradient={{
@@ -339,9 +349,9 @@ function Album({
                                 deg: 45,
                             }}
                             style={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                userSelect: 'none',
+                                display: "flex",
+                                justifyContent: "center",
+                                userSelect: "none",
                                 lineHeight: 1.1,
                             }}
                         >
@@ -383,12 +393,12 @@ function AlbumCoverMenu({
                 opened={open}
                 position="right-start"
                 onChange={setMenuOpen}
-                transitionProps={{ transition: 'pop' }}
+                transitionProps={{ transition: "pop" }}
             >
                 <Menu.Target>
                     <Box
                         style={{
-                            position: 'absolute',
+                            position: "absolute",
                             top: menuPos.y - 60,
                             left: menuPos.x,
                         }}
@@ -401,7 +411,7 @@ function AlbumCoverMenu({
                         leftSection={<IconUsersGroup />}
                         onClick={(e) => {
                             e.stopPropagation();
-                            dispatch({ type: 'set_block_focus', block: true });
+                            dispatch({ type: "set_block_focus", block: true });
                             setShareOpen(true);
                         }}
                     >
@@ -409,14 +419,14 @@ function AlbumCoverMenu({
                     </Menu.Item>
 
                     <ColumnBox
-                        style={{ height: 'max-content', padding: '3px' }}
+                        style={{ height: "max-content", padding: "3px" }}
                     >
-                        <Divider w={'90%'} />
+                        <Divider w={"90%"} />
                     </ColumnBox>
 
                     {albumData.Owner === usr.username && (
                         <Menu.Item
-                            c={'red'}
+                            c={"red"}
                             leftSection={<IconClearAll />}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -430,7 +440,7 @@ function AlbumCoverMenu({
                     )}
                     {albumData.Owner === usr.username && (
                         <Menu.Item
-                            c={'red'}
+                            c={"red"}
                             leftSection={<IconTrash />}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -444,7 +454,7 @@ function AlbumCoverMenu({
                     )}
                     {albumData.Owner !== usr.username && (
                         <Menu.Item
-                            c={'red'}
+                            c={"red"}
                             leftSection={<IconTrash />}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -463,7 +473,7 @@ function AlbumCoverMenu({
                 open={shareOpen}
                 setOpen={(o) => {
                     setShareOpen(o);
-                    dispatch({ type: 'set_block_focus', block: o });
+                    dispatch({ type: "set_block_focus", block: o });
                 }}
                 sharedWith={albumData.SharedWith}
                 pos={menuPos}
@@ -494,10 +504,10 @@ function AlbumsHomeView({
     const nav = useNavigate();
 
     const fetchAlbums = useCallback(() => {
-        dispatch({ type: 'add_loading', loading: 'albums' });
+        dispatch({ type: "add_loading", loading: "albums" });
         GetAlbums(authHeader).then((val) => {
-            dispatch({ type: 'set_albums', albums: val });
-            dispatch({ type: 'remove_loading', loading: 'albums' });
+            dispatch({ type: "set_albums", albums: val });
+            dispatch({ type: "remove_loading", loading: "albums" });
         });
     }, [authHeader, dispatch]);
 
@@ -541,15 +551,15 @@ function AlbumsHomeView({
             visitItem: (itemId: string) => nav(itemId),
             setDragging: () => {},
             blockFocus: (b: boolean) =>
-                dispatch({ type: 'set_block_focus', block: b }),
+                dispatch({ type: "set_block_focus", block: b }),
             setSelected: () => {},
             setMenuOpen: (o: boolean) =>
-                dispatch({ type: 'set_menu_open', open: o }),
+                dispatch({ type: "set_menu_open", open: o }),
             setMenuPos: (pos) => {
-                dispatch({ type: 'set_menu_pos', pos: pos });
+                dispatch({ type: "set_menu_pos", pos: pos });
             },
             setMenuTarget: (target: string) => {
-                dispatch({ type: 'set_menu_target', targetId: target });
+                dispatch({ type: "set_menu_target", targetId: target });
             },
             rename: (itemId: string, newName: string) => {
                 RenameAlbum(itemId, newName, authHeader).then((v) =>
@@ -573,13 +583,13 @@ function AlbumsHomeView({
         return (
             <Box
                 ref={setBoxRef}
-                style={{ width: '100%', height: '100%', padding: 10 }}
+                style={{ width: "100%", height: "100%", padding: 10 }}
             >
                 <AlbumCoverMenu
                     albumData={albumsMap.get(menuTarget)}
                     open={menuOpen}
                     setMenuOpen={(o) =>
-                        dispatch({ type: 'set_menu_open', open: o })
+                        dispatch({ type: "set_menu_open", open: o })
                     }
                     fetchAlbums={fetchAlbums}
                     menuPos={menuPos}
@@ -604,7 +614,7 @@ export function Albums({
     selectedAlbum: string;
     dispatch;
 }) {
-    if (selectedAlbum === '') {
+    if (selectedAlbum === "") {
         return (
             <AlbumsHomeView
                 albumsMap={mediaState.albumsMap}

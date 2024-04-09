@@ -3,7 +3,7 @@ import axios from "axios";
 
 import { AlbumData, AuthHeaderT, FBDispatchT, UserInfoT, FileInfoT, getBlankFile } from "../types/Types";
 import { humanFileSize } from "../util";
-import API_ENDPOINT, { ADMIN_ENDPOINT } from "./ApiEndpoint";
+import API_ENDPOINT, { ADMIN_ENDPOINT, PUBLIC_ENDPOINT } from "./ApiEndpoint";
 
 export function SubToFolder(subId: string, recursive: boolean, wsSend) {
     if (!subId || subId === "shared") {
@@ -112,29 +112,8 @@ async function getExternalFiles(
         });
 }
 
-async function getMyTrash(user: UserInfoT, dispatch: FBDispatchT, authHeader: AuthHeaderT) {
-    let url = new URL(`${API_ENDPOINT}/trash`);
-    return fetch(url.toString(), { headers: authHeader })
-        .then((res) => res.json())
-        .then((data) => {
-            let children = data.children?.map((val: FileInfoT) => {
-                return { fileId: val.id, updateInfo: val };
-            });
-            if (!children) {
-                children = [];
-            }
-            let parents = data.parents.reverse();
-            parents.shift();
-
-            data.self.filename = "Trash";
-            dispatch({ type: "set_folder_info", fileInfo: data.self });
-            dispatch({ type: "update_many", files: children, user: user });
-            dispatch({ type: "set_parents_info", parents: parents });
-        });
-}
-
 export async function GetFileInfo(fileId: string, shareId: string, authHeader: AuthHeaderT) {
-    var url = new URL(`${API_ENDPOINT}/file/${fileId}`);
+    var url = new URL(`${PUBLIC_ENDPOINT}/file/${fileId}`);
     if (shareId !== "") {
         url.searchParams.append("shareId", shareId);
     }
@@ -154,9 +133,6 @@ export async function GetFolderData(
     }
     if (fbMode === "external") {
         return getExternalFiles(contentId, authHeader);
-    }
-    if (contentId === "trash") {
-        return getMyTrash(user, dispatch, authHeader);
     }
 
     let url = new URL(`${API_ENDPOINT}/folder/${contentId}`);

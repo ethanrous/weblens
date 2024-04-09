@@ -26,6 +26,19 @@ func (t *task) SetCaster(c types.BroadcasterAgent) {
 	t.caster = c
 }
 
+// Queue task on given taskPool tp,
+// if tp is nil, will default to the global task pool.
+// Essentially an alias for tp.QueueTask(t), so you can
+// NewTask(...).Q(). Returns the given task to further support this
+func (t *task) Q(tp types.TaskPool) types.Task {
+	if tp == nil {
+		tp = GetGlobalQueue()
+	}
+	tp.QueueTask(t)
+
+	return t
+}
+
 // Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *task) Wait() {
 	if t == nil || t.completed {

@@ -1,0 +1,54 @@
+package routes
+
+import (
+	"net/http"
+
+	"github.com/ethrousseau/weblens/api/dataProcess"
+	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
+	"github.com/gin-gonic/gin"
+)
+
+func ping(ctx *gin.Context) {
+	si := dataStore.GetServerInfo()
+	if si == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "weblens not initialized"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"id": si.ServerId()})
+}
+
+func attachRemote(ctx *gin.Context) {
+	si := dataStore.GetServerInfo()
+	if si.ServerRole() == types.BackupMode {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"})
+		return
+	}
+
+	nr, err := readCtxBody[newServerInfo](ctx)
+	if err != nil {
+		return
+	}
+	err = dataStore.NewRemote(nr.Name, types.WeblensApiKey(nr.UsingKey))
+	if err != nil {
+		util.ErrTrace(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+}
+
+func getBackupSnapshot(ctx *gin.Context) {
+	t := dataProcess.GetGlobalQueue().Backup()
+	t.Wait()
+
+	_, status := t.Status()
+	if status == dataProcess.TaskSuccess {
+		res := t.GetResult()
+		ctx.JSON(http.StatusOK, res)
+	} else {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+}

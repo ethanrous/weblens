@@ -12,6 +12,24 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+type srvInfo struct {
+	Id   string `json:"id" bson:"_id"`
+	Name string `json:"name" bson:"name"`
+
+	// apiKey that remote server is using to connect to local, if local is core. Empty otherwise
+	UsingKey types.WeblensApiKey `json:"-" bson:"usingKey"`
+
+	// Core or Backup
+	Role types.ServerRole `json:"role" bson:"serverRole"`
+
+	// If this server info represents this local server
+	IsThisServer bool `json:"-" bson:"isThisServer"`
+
+	// Address of the remote server, only if the remote is a core.
+	// Not set for any remotes/backups on core server, as it IS the core
+	CoreAddress string `json:"coreAddress" bson:"coreAddress"`
+}
+
 type Weblensdb struct {
 	mongo    *mongo.Database
 	useRedis bool
@@ -44,7 +62,7 @@ type weblensFile struct {
 	readOnly bool
 }
 
-type Media struct {
+type media struct {
 	mediaId          types.MediaId
 	fileIds          []types.FileId
 	thumbnailCacheId types.FileId
@@ -120,17 +138,6 @@ func SetExiftool(et *exiftool.Exiftool) {
 	gexift = et
 }
 
-type marshalableWF struct {
-	Id             string
-	AbsolutePath   string
-	Filename       string
-	Owner          string
-	ParentFolderId string
-	Guests         []string
-	Size           int64
-	IsDir          bool
-}
-
 type folderData struct {
 	FolderId       types.FileId     `bson:"_id" json:"folderId"`
 	ParentFolderId types.FileId     `bson:"parentFolderId" json:"parentFolderId"`
@@ -171,12 +178,14 @@ const (
 	// out updates where the user has already subscribed
 	// elsewhere, and we just need to format the data for them
 	WebsocketFileUpdate types.RequestMode = "wsFileUpdate"
-	MarshalFile types.RequestMode = "marshalFile"
+	MarshalFile         types.RequestMode = "marshalFile"
 
 	FileSubscribeRequest types.RequestMode = "fileSub"
 
 	ApiKeyCreate types.RequestMode = "apiKeyCreate"
 	ApiKeyGet    types.RequestMode = "apiKeyGet"
+
+	BackupFileScan types.RequestMode = "backupFileScan"
 )
 
 type trashEntry struct {
@@ -198,16 +207,18 @@ type AlbumData struct {
 }
 
 type ApiKeyInfo struct {
+	Id          string              `bson:"_id"`
 	Key         types.WeblensApiKey `bson:"key"`
 	Owner       types.Username      `bson:"owner"`
 	CreatedTime time.Time           `bson:"createdTime"`
+	RemoteUsing string              `bson:"remoteUsing"`
 }
 
-var tasker types.TaskerAgent
+var tasker types.TaskPool
 var globalCaster types.BroadcasterAgent
 var voidCaster types.BroadcasterAgent
 
-func SetTasker(d types.TaskerAgent) {
+func SetTasker(d types.TaskPool) {
 	tasker = d
 }
 
@@ -250,3 +261,9 @@ var ErrBadShareType = errors.New("expected share type does not match given share
 
 var ErrUnsupportedImgType error = errors.New("image type is not supported by weblens")
 var ErrPageOutOfRange = errors.New("page number does not exist on media")
+
+var ErrNoKey = errors.New("api key is does not exist")
+var ErrKeyInUse = errors.New("api key is already being used to identify another remote server")
+
+var ErrAlreadyCore = errors.New("core server does not have a remote core")
+var ErrNotCore = errors.New("core server does not have a remote core")

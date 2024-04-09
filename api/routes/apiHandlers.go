@@ -19,14 +19,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func readRequestBody(ctx *gin.Context, obj any) (err error) {
+func readCtxBody[T any](ctx *gin.Context) (obj T, err error) {
 	jsonData, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not read request body"})
 		return
 	}
-	err = json.Unmarshal(jsonData, obj)
+	err = json.Unmarshal(jsonData, &obj)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Request body is not in expected JSON format"})
@@ -36,13 +36,51 @@ func readRequestBody(ctx *gin.Context, obj any) (err error) {
 	return
 }
 
+func readRespBody[T any](resp *http.Response) (obj T, err error) {
+	var bodyB []byte
+	_, err = resp.Body.Read(bodyB)
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(bodyB, obj)
+	return
+}
+
+// func readRequestBody(ctx *gin.Context, obj any) (err error) {
+// 	jsonData, err := io.ReadAll(ctx.Request.Body)
+// 	if err != nil {
+// 		util.ShowErr(err)
+// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not read request body"})
+// 		return
+// 	}
+// 	err = json.Unmarshal(jsonData, obj)
+// 	if err != nil {
+// 		util.ShowErr(err)
+// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Request body is not in expected JSON format"})
+// 		return
+// 	}
+
+// 	return
+// }
+
 func getUserFromCtx(ctx *gin.Context) types.User {
-	return dataStore.GetUser(types.Username(ctx.GetString("username")))
+	user, ok := ctx.Get("user")
+	if !ok {
+		return nil
+	}
+	return user.(types.User)
+	// return dataStore.GetUser(types.Username(user.GetUsername()))
 }
 
 /* ================ */
 
 func getMediaBatch(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	sort := ctx.Query("sort")
 	if sort == "" {
 		sort = "createDate"
@@ -51,11 +89,14 @@ func getMediaBatch(ctx *gin.Context) {
 	raw := ctx.Query("raw") == "true"
 
 	albumFilter := []types.AlbumId{}
-	json.Unmarshal([]byte(ctx.Query("albums")), &albumFilter)
+	err := json.Unmarshal([]byte(ctx.Query("albums")), &albumFilter)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
 
-	db := dataStore.NewDB()
-
-	media, err := db.GetFilteredMedia(sort, types.Username(ctx.GetString("username")), -1, albumFilter, raw)
+	media, err := dataStore.GetFilteredMedia(user, sort, -1, albumFilter, raw)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media"})
@@ -135,6 +176,11 @@ func getMediaMeta(ctx *gin.Context) {
 
 func newSharedUploadTask(ctx *gin.Context) {
 	shareId := types.ShareId(ctx.Param("shareId"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
 	if err != nil {
 		if err != dataStore.ErrNoShare {
@@ -146,7 +192,7 @@ func newSharedUploadTask(ctx *gin.Context) {
 			return
 		}
 	}
-	if !dataStore.CanUserAccessShare(share, types.Username(ctx.GetString("username"))) {
+	if !dataStore.CanUserAccessShare(share, types.Username(user.GetUsername())) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -156,8 +202,10 @@ func newSharedUploadTask(ctx *gin.Context) {
 
 // Create new file upload task, and wait for data
 func newUploadTask(ctx *gin.Context) {
-	var upInfo newUploadInfo
-	readRequestBody(ctx, &upInfo)
+	upInfo, err := readCtxBody[newUploadInfo](ctx)
+	if err != nil {
+		return
+	}
 	c := NewBufferedCaster()
 	c.Enable()
 	t := UploadTasker.WriteToFile(upInfo.RootFolderId, upInfo.ChunkSize, upInfo.TotalUploadSize, c)
@@ -166,8 +214,10 @@ func newUploadTask(ctx *gin.Context) {
 
 func newFileUpload(ctx *gin.Context) {
 	uploadTaskId := types.TaskId(ctx.Param("uploadId"))
-	var newFInfo newFileInfo
-	readRequestBody(ctx, &newFInfo)
+	newFInfo, err := readCtxBody[newFileInfo](ctx)
+	if err != nil {
+		return
+	}
 
 	handleNewFile(uploadTaskId, newFInfo, ctx)
 }
@@ -211,6 +261,11 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileInfo, ctx *gin.Con
 
 func newSharedFileUpload(ctx *gin.Context) {
 	shareId := types.ShareId(ctx.Param("shareId"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 
 	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
 	if err != nil {
@@ -218,13 +273,15 @@ func newSharedFileUpload(ctx *gin.Context) {
 		return
 	}
 
-	if !dataStore.CanUserAccessShare(share, types.Username(ctx.GetString("username"))) {
+	if !dataStore.CanUserAccessShare(share, types.Username(user.GetUsername())) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	var newFInfo newFileInfo
-	readRequestBody(ctx, &newFInfo)
+	newFInfo, err := readCtxBody[newFileInfo](ctx)
+	if err != nil {
+		return
+	}
 
 	uploadTaskId := types.TaskId(ctx.Param("uploadId"))
 	handleNewFile(uploadTaskId, newFInfo, ctx)
@@ -289,8 +346,13 @@ func makeDir(ctx *gin.Context) {
 }
 
 func pubMakeDir(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	share, err := dataStore.GetShare(types.ShareId(ctx.Param("shareId")), dataStore.FileShare)
-	if err != nil || !dataStore.CanUserAccessShare(share, types.Username(ctx.GetString("username"))) {
+	if err != nil || !dataStore.CanUserAccessShare(share, types.Username(user.GetUsername())) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Share not found"})
 		return
 	}
@@ -347,7 +409,6 @@ func searchFolder(ctx *gin.Context) {
 		return
 	}
 
-
 	acc := dataStore.NewAccessMeta(user.GetUsername())
 	if !dataStore.CanAccessFile(dir, acc) {
 		ctx.Status(http.StatusNotFound)
@@ -383,21 +444,6 @@ func searchFolder(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"files": filesData})
 }
 
-func getUserTrashInfo(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
-		return
-	}
-
-	trash := dataStore.GetUserTrashDir(user.GetUsername())
-	if trash == nil {
-		util.Error.Println("Could not get trash directory for ", user.GetUsername())
-		return
-	}
-	acc := dataStore.NewAccessMeta(user.GetUsername())
-	formatRespondFolderInfo(trash, acc, ctx)
-}
-
 func getFile(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 	if user == nil {
@@ -424,8 +470,10 @@ func getFile(ctx *gin.Context) {
 
 func updateFile(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
-	var updateInfo fileUpdateInfo
-	readRequestBody(ctx, &updateInfo)
+	updateInfo, err := readCtxBody[fileUpdateInfo](ctx)
+	if err != nil {
+		return
+	}
 
 	if fileId == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "fileId is required to update file"})
@@ -462,8 +510,7 @@ func updateFile(ctx *gin.Context) {
 }
 
 func updateFiles(ctx *gin.Context) {
-	var filesData updateMany
-	err := readRequestBody(ctx, &filesData)
+	filesData, err := readCtxBody[updateMany](ctx)
 	if err != nil {
 		return
 	}
@@ -481,8 +528,7 @@ func updateFiles(ctx *gin.Context) {
 }
 
 func trashFiles(ctx *gin.Context) {
-	var fileIds []types.FileId
-	err := readRequestBody(ctx, &fileIds)
+	fileIds, err := readCtxBody[[]types.FileId](ctx)
 	if err != nil {
 		return
 	}
@@ -526,12 +572,10 @@ func trashFiles(ctx *gin.Context) {
 
 func deleteFiles(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
-	var fileIds []types.FileId
-	err := readRequestBody(ctx, &fileIds)
+	fileIds, err := readCtxBody[[]types.FileId](ctx)
 	if err != nil {
 		return
 	}
-
 	var failed []types.FileId
 
 	caster := NewBufferedCaster()
@@ -567,7 +611,11 @@ func deleteFiles(ctx *gin.Context) {
 }
 
 func unTrashFiles(ctx *gin.Context) {
-	user := dataStore.GetUser(types.Username(ctx.GetString("username")))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	bodyBytes, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		util.ErrTrace(err)
@@ -609,15 +657,17 @@ func unTrashFiles(ctx *gin.Context) {
 }
 
 func createTakeout(ctx *gin.Context) {
-	username := types.Username(ctx.GetString("username"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	shareId := types.ShareId(ctx.Query("shareId"))
 
-	var takeoutRequest takeoutFiles
-	err := readRequestBody(ctx, &takeoutRequest)
+	takeoutRequest, err := readCtxBody[takeoutFiles](ctx)
 	if err != nil {
 		return
 	}
-
 	if len(takeoutRequest.FileIds) == 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot takeout 0 files"})
 		return
@@ -627,7 +677,7 @@ func createTakeout(ctx *gin.Context) {
 	for _, file := range files {
 		_ = file.GetAbsPath() // Make sure directories have trailing slash
 
-		acc := dataStore.NewAccessMeta(username).AddShareId(shareId, dataStore.FileShare)
+		acc := dataStore.NewAccessMeta(user.GetUsername()).AddShareId(shareId, dataStore.FileShare)
 		if file == nil || !dataStore.CanAccessFile(file, acc) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Failed to find at least one file"})
 			return
@@ -639,9 +689,9 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	caster := NewCaster(username)
+	caster := NewCaster(user.GetUsername())
 	caster.Enable()
-	t := dataProcess.GetGlobalQueue().CreateZip(files, username, shareId, caster)
+	t := dataProcess.GetGlobalQueue().CreateZip(files, user.GetUsername(), shareId, caster)
 
 	completed, _ := t.Status()
 	if completed {
@@ -652,8 +702,12 @@ func createTakeout(ctx *gin.Context) {
 }
 
 func downloadFile(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	fileId := types.FileId(ctx.Query("fileId"))
-	username := types.Username(ctx.GetString("username"))
 	shareId := types.ShareId(ctx.Param("shareId"))
 
 	file := dataStore.FsTreeGet(fileId)
@@ -662,7 +716,7 @@ func downloadFile(ctx *gin.Context) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(username).AddShareId(shareId, dataStore.FileShare)
+	acc := dataStore.NewAccessMeta(user.GetUsername()).AddShareId(shareId, dataStore.FileShare)
 	if !dataStore.CanAccessFile(file, acc) {
 		util.Debug.Println("No auth")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
@@ -694,10 +748,8 @@ func createUser(ctx *gin.Context) {
 }
 
 func loginUser(ctx *gin.Context) {
-	var usrCreds loginInfo
-	err := readRequestBody(ctx, &usrCreds)
+	usrCreds, err := readCtxBody[loginInfo](ctx)
 	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -713,7 +765,6 @@ func loginUser(ctx *gin.Context) {
 		}
 	} else {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
-		return
 	}
 
 }
@@ -721,6 +772,11 @@ func loginUser(ctx *gin.Context) {
 func getUserInfo(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 	if user == nil {
+		si := dataStore.GetServerInfo()
+		if si == nil {
+			ctx.Status(http.StatusTemporaryRedirect)
+			return
+		}
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -734,8 +790,14 @@ func getUsers(ctx *gin.Context) {
 }
 
 func updateUserPassword(ctx *gin.Context) {
-	var passUpd passwordUpdateInfo
-	if err := readRequestBody(ctx, &passUpd); err != nil {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
+	passUpd, err := readCtxBody[passwordUpdateInfo](ctx)
+	if err != nil {
 		return
 	}
 
@@ -743,7 +805,7 @@ func updateUserPassword(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Both oldPassword and newPassword fields are required"})
 		return
 	}
-	err := dataStore.UpdatePassword(types.Username(ctx.GetString("username")), passUpd.OldPass, passUpd.NewPass)
+	err = dataStore.UpdatePassword(user.GetUsername(), passUpd.OldPass, passUpd.NewPass)
 	if err != nil {
 		util.ShowErr(err)
 		switch err {
@@ -762,12 +824,14 @@ func setUserAdmin(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	var update newUserInfo
-	readRequestBody(ctx, &update)
+	update, err := readCtxBody[newUserInfo](ctx)
+	if err != nil {
+		return
+	}
 
 	username := types.Username(ctx.Param("username"))
 
-	err := dataStore.UpdateAdmin(username, update.Admin)
+	err = dataStore.UpdateAdmin(username, update.Admin)
 	if err != nil {
 		if err == dataStore.ErrNoUser {
 			ctx.Status(http.StatusNotFound)
@@ -782,12 +846,10 @@ func setUserAdmin(ctx *gin.Context) {
 }
 
 func activateUser(ctx *gin.Context) {
-	var username types.Username
-	err := readRequestBody(ctx, &username)
+	username, err := readCtxBody[types.Username](ctx)
 	if err != nil {
 		return
 	}
-
 	db := dataStore.NewDB()
 	err = dataStore.CreateUserHomeDir(username)
 	if err != nil {
@@ -838,11 +900,15 @@ func searchUsers(ctx *gin.Context) {
 }
 
 func getSharedFiles(ctx *gin.Context) {
-	username := types.Username(ctx.GetString("username"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 	db := dataStore.NewDB()
-	shares := db.GetSharedWith(username)
+	shares := db.GetSharedWith(user.GetUsername())
 
-	acc := dataStore.NewAccessMeta(username)
+	acc := dataStore.NewAccessMeta(user.GetUsername())
 	filesInfos := util.Map(shares, func(sh types.Share) types.FileInfo {
 		acc.AddShare(sh)
 		f := dataStore.FsTreeGet(types.FileId(sh.GetContentId()))
@@ -858,19 +924,23 @@ func cleanupMedias(ctx *gin.Context) {
 }
 
 func createFileShare(ctx *gin.Context) {
-	var shareInfo newShareInfo
-	err := readRequestBody(ctx, &shareInfo)
-	if err != nil {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
+	shareInfo, err := readCtxBody[newShareInfo](ctx)
+	if err != nil {
+		return
+	}
 	if len(shareInfo.Users) != 0 && shareInfo.Public {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cannot create public share and specify users"})
 		return
 	}
 
 	f := dataStore.FsTreeGet(shareInfo.FileIds[0])
-	newShare, err := dataStore.CreateFileShare(f, types.Username(ctx.GetString("username")), shareInfo.Users, shareInfo.Public, shareInfo.Wormhole)
+	newShare, err := dataStore.CreateFileShare(f, user.GetUsername(), shareInfo.Users, shareInfo.Public, shareInfo.Wormhole)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -948,9 +1018,15 @@ func getFilesShares(ctx *gin.Context) {
 }
 
 func getFileShare(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
 	shareId := types.ShareId(ctx.Param("shareId"))
 	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
-	if err != nil || !dataStore.CanUserAccessShare(share, types.Username(ctx.GetString("username"))) {
+	if err != nil || !dataStore.CanUserAccessShare(share, user.GetUsername()) {
 		if err != nil && err != dataStore.ErrNoShare {
 			util.ErrTrace(err)
 		}
@@ -962,7 +1038,12 @@ func getFileShare(ctx *gin.Context) {
 }
 
 func newApiKey(ctx *gin.Context) {
-	username := types.Username(ctx.GetString("username"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+	username := types.Username(user.GetUsername())
 	acc := dataStore.NewAccessMeta(username).SetRequestMode(dataStore.ApiKeyCreate)
 	newKey, err := dataStore.GenerateApiKey(acc)
 	if err != nil {
@@ -975,7 +1056,12 @@ func newApiKey(ctx *gin.Context) {
 }
 
 func getApiKeys(ctx *gin.Context) {
-	acc := dataStore.NewAccessMeta(types.Username(ctx.GetString("username"))).SetRequestMode(dataStore.ApiKeyGet)
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+	acc := dataStore.NewAccessMeta(user.GetUsername()).SetRequestMode(dataStore.ApiKeyGet)
 	keys, err := dataStore.GetApiKeys(acc)
 	if err != nil {
 		util.ShowErr(err)
@@ -1002,4 +1088,84 @@ func getFolderStats(ctx *gin.Context) {
 	res := t.GetResult("sizesByExtension")
 
 	ctx.JSON(http.StatusOK, res)
+}
+
+func getRandomMedias(ctx *gin.Context) {
+	numStr := ctx.Query("count")
+	numPhotos, err := strconv.Atoi(numStr)
+	if err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	media := dataStore.GetRandomMedia(numPhotos)
+	ctx.JSON(http.StatusOK, gin.H{"medias": media})
+}
+
+func initializeServer(ctx *gin.Context) {
+	if dataStore.GetOwner() != nil && dataStore.GetServerInfo() != nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	si, err := readCtxBody[initServer](ctx)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	dataStore.InitServer(si.Name, si.Role)
+
+	if si.Role == types.CoreMode {
+		user := dataStore.GetUser(si.Username)
+
+		// Init with existing user
+		if user != nil {
+			if !dataStore.CheckLogin(user, si.Password) {
+				ctx.Status(http.StatusUnauthorized)
+				return
+			} else if !user.IsAdmin() {
+				err := dataStore.MakeOwner(user)
+				if err != nil {
+					util.ShowErr(err)
+					ctx.Status(http.StatusInternalServerError)
+					return
+				}
+			}
+
+		} else { // create new user, this will be the case 99% of the time
+			err := dataStore.CreateUser(si.Username, si.Password, true, true)
+			if err != nil {
+				util.ShowErr(err)
+				ctx.Status(http.StatusInternalServerError)
+				return
+			}
+		}
+
+		ctx.Status(http.StatusCreated)
+	} else if si.Role == types.BackupMode {
+		err := PingCore(si.CoreAddress)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not ping core server"})
+			return
+		} else {
+			err := dataStore.SetCoreAddress(si.CoreAddress)
+			if err != nil {
+				ctx.Status(http.StatusInternalServerError)
+				util.ShowErr(err)
+				return
+			}
+		}
+	}
+}
+
+func getServerInfo(ctx *gin.Context) {
+	si := dataStore.GetServerInfo()
+	if si == nil {
+		ctx.Status(http.StatusTemporaryRedirect)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"info": si})
 }

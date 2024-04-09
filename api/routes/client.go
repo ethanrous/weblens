@@ -20,12 +20,12 @@ func (c *Client) GetShortId() clientId {
 	return c.connId[28:]
 }
 
-func (c *Client) SetUser(username types.Username) {
-	c.username = username
+func (c *Client) SetUser(user types.User) {
+	c.user = user
 }
 
 func (c *Client) Username() types.Username {
-	return c.username
+	return c.user.GetUsername()
 }
 
 func (c *Client) Disconnect() {
@@ -60,7 +60,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 			} else {
 				folder = dataStore.FsTreeGet(fileId)
 			}
-			acc := dataStore.NewAccessMeta(c.username).SetRequestMode(dataStore.FileSubscribeRequest)
+			acc := dataStore.NewAccessMeta(c.user.GetUsername()).SetRequestMode(dataStore.FileSubscribeRequest)
 			if folder == nil {
 				err := fmt.Errorf("could not find folder with ID %s", key)
 				c.Error(err)
@@ -157,7 +157,7 @@ func (c *Client) Error(err error) {
 }
 
 func (c *Client) PushFileUpdate(updatedFile types.WeblensFile) {
-	acc := dataStore.NewAccessMeta(c.username).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(c.user.GetUsername()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -179,7 +179,7 @@ func (c *Client) writeToClient(msg wsResponse) {
 }
 
 func (c *Client) clientMsgFormat(msg ...any) string {
-	return fmt.Sprintf("| %s %s | %s", c.GetShortId(), "("+c.username+")", fmt.Sprintln(msg...))
+	return fmt.Sprintf("| %s %s | %s", c.GetShortId(), "("+c.user.GetUsername()+")", fmt.Sprintln(msg...))
 }
 
 func (c *Client) log(msg ...any) {

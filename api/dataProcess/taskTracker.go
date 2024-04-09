@@ -45,10 +45,15 @@ func (tt *taskTracker) StartWP() {
 // Pass params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
 
-func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.BroadcasterAgent) types.Task {
+func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.BroadcasterAgent, requester types.Requester) types.Task {
 	VerifyTaskTracker()
 
-	taskId := types.TaskId(util.GlobbyHash(8, taskMeta.MetaString(), taskType))
+	var taskId types.TaskId
+	if taskMeta == nil {
+		taskId = types.TaskId(util.GlobbyHash(8, time.Now().String()))
+	} else {
+		taskId = types.TaskId(util.GlobbyHash(8, taskMeta.MetaString(), taskType))
+	}
 
 	ttInstance.taskMu.Lock()
 	defer ttInstance.taskMu.Unlock()
@@ -68,6 +73,7 @@ func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.Broadc
 		signalChan: make(chan int, 1), // signal chan must be buffered so caller doesn't block trying to close many tasks
 		sw:         util.NewStopwatch("Task " + taskId.String()),
 		caster:     caster,
+		requester:  requester,
 	}
 
 	newTask.waitMu.Lock()
@@ -75,20 +81,21 @@ func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.Broadc
 	ttInstance.taskMap[taskId] = newTask
 	switch newTask.taskType {
 	case ScanDirectoryTask:
-		newTask.work = func() { scanDirectory(newTask); removeTask(newTask.taskId) }
+		newTask.work = scanDirectory
 	case CreateZipTask:
 		// dont remove task when finished since we can just return the name of the already made zip file if asked for the same files again
-		newTask.work = func() { createZipFromPaths(newTask) }
+		newTask.persistant = true
+		newTask.work = createZipFromPaths
 	case ScanFileTask:
-		newTask.work = func() { scanFile(newTask); removeTask(newTask.taskId) }
+		newTask.work = scanFile
 	case MoveFileTask:
-		newTask.work = func() { moveFile(newTask); removeTask(newTask.taskId) }
+		newTask.work = moveFile
 	case WriteFileTask:
-		// parent := dataStore.FsTreeGet(newTask.metadata.(WriteFileMeta).parentFolderId)
-		// parent.AddTask(newTask)
-		newTask.work = func() { writeToFile(newTask); removeTask(newTask.taskId) }
+		newTask.work = writeToFile
 	case GatherFsStatsTask:
-		newTask.work = func() { gatherFilesystemStats(newTask); removeTask(newTask.taskId) }
+		newTask.work = gatherFilesystemStats
+	case BackupTask:
+		newTask.work = doBackup
 	}
 
 	return newTask
@@ -114,7 +121,7 @@ func FlushCompleteTasks() {
 	}
 }
 
-func GetGlobalQueue() *virtualTaskPool {
+func GetGlobalQueue() *taskPool {
 	return ttInstance.globalQueue
 }
 
@@ -124,7 +131,7 @@ func GetGlobalQueue() *virtualTaskPool {
 // `parent` allows chaining of task pools for floating updates to the top. This makes
 // it possible for clients to subscribe to a single task, and get notified about
 // all of the sub-updates of that task
-func NewTaskPool(replace bool, createdBy *task) *virtualTaskPool {
+func NewTaskPool(replace bool, createdBy *task) types.TaskPool {
 	tp := ttInstance.wp.NewVirtualTaskPool()
 	if createdBy != nil {
 		tp.createdBy = createdBy

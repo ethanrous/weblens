@@ -49,6 +49,8 @@ type WeblensFile interface {
 	RecursiveMap(func(WeblensFile))
 	LeafMap(func(WeblensFile))
 	BubbleMap(func(WeblensFile))
+
+	MarshalJSON() ([]byte, error)
 }
 
 type FileId string

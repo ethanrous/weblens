@@ -9,6 +9,8 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
+var apiKeyMap map[types.WeblensApiKey]*ApiKeyInfo = map[types.WeblensApiKey]*ApiKeyInfo{}
+
 func (a accessMeta) Shares() []types.Share {
 	return a.shares
 }
@@ -38,28 +40,34 @@ func (a *accessMeta) SetRequestMode(r types.RequestMode) types.AccessMeta {
 	return a
 }
 
-func (a *accessMeta) RequestMode() types.RequestMode {
-	return a.requestMode
+func (acc *accessMeta) RequestMode() types.RequestMode {
+	return acc.requestMode
 }
 
-func (a *accessMeta) AddShareId(sId types.ShareId, st types.ShareType) types.AccessMeta {
+func (acc *accessMeta) AddShareId(sId types.ShareId, st types.ShareType) types.AccessMeta {
+	if sId == "" {
+		return acc
+	}
+
 	s, _ := GetShare(sId, st)
-	a.shares = append(a.shares, s)
+	if s == nil {
+		return acc
+	}
+	acc.shares = append(acc.shares, s)
 
-	return a
+	return acc
 }
 
-func (a *accessMeta) UsingShare() types.Share {
-	return a.usingShare
+func (acc *accessMeta) UsingShare() types.Share {
+	return acc.usingShare
 }
 
-func (a *accessMeta) setUsingShare(s types.Share) {
-	a.usingShare = s
+func (acc *accessMeta) setUsingShare(s types.Share) {
+	acc.usingShare = s
 }
 
 func GetRelevantShare(file types.WeblensFile, acc types.AccessMeta) types.Share {
-	shares := acc.Shares()
-	if len(shares) == 0 {
+	if len(acc.Shares()) == 0 {
 		return nil
 	}
 
@@ -122,6 +130,17 @@ func CanUserAccessShare(s types.Share, username types.Username) bool {
 	return s.IsEnabled() && (s.IsPublic() || s.GetOwner() == username || slices.Contains(s.GetAccessors(), username))
 }
 
+func InitApiKeyMap() {
+	keys := fddb.getApiKeys()
+	for _, keyInfo := range keys {
+		apiKeyMap[keyInfo.Key] = &keyInfo
+	}
+}
+
+func GetApiKeyInfo(key types.WeblensApiKey) *ApiKeyInfo {
+	return apiKeyMap[key]
+}
+
 func GenerateApiKey(acc types.AccessMeta) (key ApiKeyInfo, err error) {
 	if !acc.User().IsAdmin() {
 		err = ErrUserNotAuthorized
@@ -156,7 +175,18 @@ func GetApiKeys(acc types.AccessMeta) ([]ApiKeyInfo, error) {
 	return keys, nil
 }
 
-func CheckApiKey(key string) bool {
-	keyInfo := fddb.getApiKey(key)
-	return keyInfo.Key != ""
+func CheckApiKey(key types.WeblensApiKey) bool {
+	keyInfo := GetApiKeyInfo(key)
+	return keyInfo != nil
+}
+
+func SetKeyRemote(key types.WeblensApiKey, remoteName string) error {
+	kInfo := GetApiKeyInfo(key)
+	if kInfo == nil {
+		return ErrNoKey
+	}
+	kInfo.RemoteUsing = remoteName
+	fddb.updateApiKey(*kInfo)
+
+	return nil
 }

@@ -23,6 +23,12 @@ type albumUpdateData struct {
 }
 
 func getAlbum(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	albumId := types.AlbumId(ctx.Param("albumId"))
 
 	raw := ctx.Query("raw") == "true"
@@ -34,7 +40,7 @@ func getAlbum(ctx *gin.Context) {
 		return
 	}
 
-	medias, err := db.GetFilteredMedia("createDate", types.Username(ctx.GetString("username")), 1, []types.AlbumId{albumId}, raw)
+	medias, err := db.GetFilteredMedia("createDate", user.GetUsername(), 1, []types.AlbumId{albumId}, raw)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get filtered media"})
@@ -44,14 +50,25 @@ func getAlbum(ctx *gin.Context) {
 }
 
 func getAlbums(ctx *gin.Context) {
-	username := types.Username(ctx.GetString("username"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	filter := ctx.Query("filter")
 	db := dataStore.NewDB()
-	albums := db.GetAlbumsByUser(username, filter, true)
+	albums := db.GetAlbumsByUser(user.GetUsername(), filter, true)
 	ctx.JSON(http.StatusOK, gin.H{"albums": albums})
 }
 
 func createAlbum(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	jsonData, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
@@ -68,9 +85,11 @@ func createAlbum(ctx *gin.Context) {
 		return
 	}
 
-	db := dataStore.NewDB()
-	username := types.Username(ctx.GetString("username"))
-	db.CreateAlbum(albumData.Name, username)
+	err = dataStore.CreateAlbum(albumData.Name, user)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+	}
 }
 
 func updateAlbum(ctx *gin.Context) {
@@ -198,21 +217,26 @@ func updateAlbum(ctx *gin.Context) {
 }
 
 func deleteAlbum(ctx *gin.Context) {
-	username := types.Username(ctx.GetString("username"))
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	albumId := types.AlbumId(ctx.Param("albumId"))
 	db := dataStore.NewDB()
 	a, err := db.GetAlbum(albumId)
 
 	// err or user does not have access to this album, claim not found
-	if a == nil || err != nil || !a.CanUserAccess(username) {
+	if a == nil || err != nil || !a.CanUserAccess(user.GetUsername()) {
 		util.ErrTrace(err)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
 
 	// If the user is not the owner, then unshare themself from it
-	if a.Owner != username {
-		a.RemoveUsers([]types.Username{username})
+	if a.Owner != user.GetUsername() {
+		a.RemoveUsers([]types.Username{user.GetUsername()})
 		ctx.Status(http.StatusOK)
 		return
 	}

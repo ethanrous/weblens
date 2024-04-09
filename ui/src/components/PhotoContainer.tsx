@@ -10,8 +10,8 @@ import {
 import { userContext } from '../Context';
 import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react';
 import { Box, CSSProperties, Loader } from '@mantine/core';
-import API_ENDPOINT from '../api/ApiEndpoint';
-import { AuthHeaderT, MediaData, UserContextT } from '../types/Types';
+import API_ENDPOINT, { PUBLIC_ENDPOINT } from '../api/ApiEndpoint';
+import { AuthHeaderT, MediaDataT, UserContextT } from '../types/Types';
 import './style.css';
 
 function getImageData(
@@ -55,10 +55,12 @@ export const MediaImage = memo(
         expectFailure = false,
         preventClick = false,
         doFetch = true,
+        imgStyle,
         containerStyle,
+        doPublic = false,
         disabled = false,
     }: {
-        media: MediaData;
+        media: MediaDataT;
         setMediaCallback?: (
             mediaId: string,
             quality: 'thumbnail' | 'fullres',
@@ -70,7 +72,9 @@ export const MediaImage = memo(
         expectFailure?: boolean;
         preventClick?: boolean;
         doFetch?: boolean;
+        imgStyle?: CSSProperties;
         containerStyle?: CSSProperties;
+        doPublic?: boolean;
         disabled?: boolean;
     }) => {
         const [loaded, setLoaded] = useState(
@@ -85,7 +89,9 @@ export const MediaImage = memo(
 
         const fetchFullres = useCallback(async () => {
             const url = new URL(
-                `${API_ENDPOINT}/media/${media.mediaId}/fullres`
+                `${doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT}/media/${
+                    media.mediaId
+                }/fullres`
             );
             if (pageNumber !== undefined) {
                 url.searchParams.append('page', pageNumber.toString());
@@ -114,7 +120,9 @@ export const MediaImage = memo(
                 return;
             }
             const ret = await getImageData(
-                `${API_ENDPOINT}/media/${media.mediaId}/thumbnail`,
+                `${doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT}/media/${
+                    media.mediaId
+                }/thumbnail`,
                 media.mediaId,
                 authHeader,
                 abortController.signal,
@@ -209,6 +217,7 @@ export const MediaImage = memo(
                     style={{
                         display: imgData && !loadError ? '' : 'none',
                         filter: disabled ? 'grayscale(100%)' : '',
+                        ...imgStyle,
                     }}
                 />
 

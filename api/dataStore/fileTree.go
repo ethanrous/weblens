@@ -267,6 +267,10 @@ func GetTreeSize() int {
 	return len(fileTree)
 }
 
+func GetAllFiles() []types.WeblensFile {
+	return util.MapToSlicePure(fileTree)
+}
+
 func ResizeUp(f types.WeblensFile, c ...types.BroadcasterAgent) {
 	f.BubbleMap(func(w types.WeblensFile) {
 		w.(*weblensFile).loadStat(c...)

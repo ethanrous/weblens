@@ -184,7 +184,7 @@
     color: white;
 }
 
-.menu-item:where([data-disabled='true']) {
+.menu-item:where([data-disabled="true"]) {
     color: #777777;
     cursor: default;
     pointer-events: none;
@@ -315,7 +315,7 @@
     outline: 1px solid #333333;
 }
 
-.search-hint-box:where([data-error='true']) {
+.search-hint-box:where([data-error="true"]) {
     outline: 1px solid #880000;
 
     background-color: #440000;
@@ -325,12 +325,15 @@
     display: flex;
     flex-shrink: 0;
     flex-direction: row;
+    align-items: center;
     border-radius: 4px;
     background-color: #222222;
     box-shadow: 0 0 10px 2px #00000044;
     margin-right: 10px;
-    width: 200px;
+    width: max-content;
+    height: 42px;
     color: white;
+    overflow: hidden;
 }
 
 .sort-direction-box {
@@ -338,8 +341,16 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    width: 36px;
+    width: 42px;
     flex-shrink: 0;
+}
+
+.sort-func-selector {
+    position: relative;
+    width: max-content;
+    display: flex;
+
+    /* justify-content: space-between; */
 }
 
 .file-sort-dropdown {
@@ -355,11 +366,11 @@
     user-select: none;
 }
 
-.file-sort-option:hover:not([data-combobox-active='true']) {
+.file-sort-option:hover:not([data-combobox-active="true"]) {
     background-color: #333333;
 }
 
-.file-sort-option:where([data-combobox-active='true']) {
+.file-sort-option:where([data-combobox-active="true"]) {
     background-color: #4444ff !important;
 }
 
@@ -395,7 +406,7 @@
     transition: 200ms width ease-out;
 }
 
-.file-info-pane:where([data-resizing='true']) {
+.file-info-pane:where([data-resizing="true"]) {
     transition: 0ms width;
 }
 

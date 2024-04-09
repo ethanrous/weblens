@@ -1,6 +1,6 @@
 import { notifications } from "@mantine/notifications";
-import API_ENDPOINT, { ADMIN_ENDPOINT } from "./ApiEndpoint";
-import { AuthHeaderT, MediaData } from "../types/Types";
+import API_ENDPOINT, { ADMIN_ENDPOINT, PUBLIC_ENDPOINT } from "./ApiEndpoint";
+import { AuthHeaderT, MediaDataT } from "../types/Types";
 
 export function login(user: string, pass: string) {
     var url = new URL(`${API_ENDPOINT}/login`);
@@ -65,7 +65,7 @@ export function cleanMedias(authHeader) {
     });
 }
 
-export async function getMedia(mediaId, authHeader: AuthHeaderT): Promise<MediaData> {
+export async function getMedia(mediaId, authHeader: AuthHeaderT): Promise<MediaDataT> {
     if (!mediaId) {
         console.error("trying to get media with no mediaId");
         notifications.show({
@@ -77,12 +77,12 @@ export async function getMedia(mediaId, authHeader: AuthHeaderT): Promise<MediaD
     }
     const url = new URL(`${API_ENDPOINT}/media/${mediaId}`);
     url.searchParams.append("meta", "true");
-    const mediaMeta: MediaData = await fetch(url, { headers: authHeader }).then((r) => r.json());
+    const mediaMeta: MediaDataT = await fetch(url, { headers: authHeader }).then((r) => r.json());
     return mediaMeta;
 }
 
 export async function fetchMediaTypes() {
-    const url = new URL(`${API_ENDPOINT}/media/types`);
+    const url = new URL(`${PUBLIC_ENDPOINT}/media/types`);
     return await fetch(url).then((r) => r.json());
 }
 
@@ -94,4 +94,36 @@ export async function newApiKey(authHeader) {
 export async function getApiKeys(authHeader) {
     const url = new URL(`${ADMIN_ENDPOINT}/apiKeys`);
     return await fetch(url, {headers: authHeader}).then((r) => r.json());
+}
+
+export async function getRandomThumbs() {
+    const url = new URL(`${PUBLIC_ENDPOINT}/media/random`);
+    url.searchParams.append("count", "50")
+    return await fetch(url).then((r) => r.json());
+}
+
+export async function attachToCore(remoteAddress: string, serverName: string, apiKey: string) {
+    const url = new URL(`${remoteAddress}/api/remote`);
+    return await fetch(url, {headers: {Authorization: `Bearer ${apiKey}`}, body: JSON.stringify({name: serverName, usingKey: apiKey}), method: "POST"}).then((r) => r.json());
+}
+
+export async function initServer(serverName: string, role: "core" | "backup", username?: string, password?: string) {
+    const url = new URL(`${PUBLIC_ENDPOINT}/initialize`);
+    const body = {name: serverName, role: role, username: "", password: ""}
+    if (username) {
+        body.username = username
+        body.password = password
+    }
+
+    return await fetch(url,{ body: JSON.stringify(body), method: "POST"});
+}
+
+export async function getServerInfo() {
+    const url = new URL(`${PUBLIC_ENDPOINT}/info`);
+    return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function getUsersPublic() {
+    const url = new URL(`${PUBLIC_ENDPOINT}/users`);
+    return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }

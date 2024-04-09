@@ -11,7 +11,7 @@ import {
     Text,
     TextInput,
     useCombobox,
-} from '@mantine/core';
+} from "@mantine/core";
 import {
     useEffect,
     useReducer,
@@ -20,53 +20,53 @@ import {
     useContext,
     useState,
     memo,
-} from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { IconCheck, IconFilter, IconPlus } from '@tabler/icons-react';
+} from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { IconCheck, IconFilter, IconPlus } from "@tabler/icons-react";
 
-import HeaderBar from '../../components/HeaderBar';
-import Presentation from '../../components/Presentation';
-import { PhotoGallery } from '../../components/MediaDisplay';
+import HeaderBar from "../../components/HeaderBar";
+import Presentation from "../../components/Presentation";
+import { PhotoGallery } from "../../components/MediaDisplay";
 import {
     mediaReducer,
     useKeyDownGallery,
     handleWebsocket,
     GalleryAction,
-} from './GalleryLogic';
-import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi';
+} from "./GalleryLogic";
+import { CreateAlbum, FetchData, GetAlbums } from "../../api/GalleryApi";
 import {
     AlbumData,
-    MediaData,
+    MediaDataT,
     MediaStateT,
     UserContextT,
     UserInfoT,
-} from '../../types/Types';
-import { userContext } from '../../Context';
-import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles';
-import { Albums } from './Albums';
-import { WeblensButton } from '../../components/WeblensButton';
-import useWeblensSocket from '../../api/Websocket';
-import { GalleryMenu } from './GalleryMenu';
-import { useMediaType } from '../../components/hooks';
+} from "../../types/Types";
+import { userContext } from "../../Context";
+import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles";
+import { Albums } from "./Albums";
+import { WeblensButton } from "../../components/WeblensButton";
+import useWeblensSocket from "../../api/Websocket";
+import { GalleryMenu } from "./GalleryMenu";
+import { useMediaType } from "../../components/hooks";
 
 const NoMediaDisplay = () => {
     const nav = useNavigate();
     return (
-        <ColumnBox style={{ marginTop: 75, gap: 25, width: 'max-content' }}>
+        <ColumnBox style={{ marginTop: 75, gap: 25, width: "max-content" }}>
             <Text c="white" fw={700} size="31px">
                 No media to display
             </Text>
             <Text c="white">Upload files then add them to an album</Text>
-            <RowBox style={{ height: 'max-content', width: '100%', gap: 10 }}>
+            <RowBox style={{ height: "max-content", width: "100%", gap: 10 }}>
                 <WeblensButton
                     label="Upload Media"
                     centerContent
-                    onClick={() => nav('/files')}
+                    onClick={() => nav("/files")}
                 />
                 <WeblensButton
                     label="View Albums"
                     centerContent
-                    onClick={() => nav('/files')}
+                    onClick={() => nav("/files")}
                 />
             </RowBox>
         </ColumnBox>
@@ -85,13 +85,13 @@ const ImageSizeSlider = ({ imageSize, dispatch }) => {
             max={500}
             step={10}
             marks={[
-                { value: 100, label: '10%' },
-                { value: 300, label: '50%' },
-                { value: 500, label: '100%' },
+                { value: 100, label: "10%" },
+                { value: 300, label: "50%" },
+                { value: 500, label: "100%" },
             ]}
-            onChange={(e) => dispatch({ type: 'set_image_size', size: e })}
+            onChange={(e) => dispatch({ type: "set_image_size", size: e })}
             onDoubleClick={() =>
-                dispatch({ type: 'set_image_size', size: 300 })
+                dispatch({ type: "set_image_size", size: 300 })
             }
             style={{ paddingBottom: 10 }}
         />
@@ -120,8 +120,8 @@ const TimelineControls = ({
     const combobox = useCombobox({
         onDropdownClose: () => {
             combobox.resetSelectedOption();
-            dispatch({ type: 'set_albums_filter', albumNames: selectedAlbums });
-            dispatch({ type: 'set_raw_toggle', raw: rawOn });
+            dispatch({ type: "set_albums_filter", albumNames: selectedAlbums });
+            dispatch({ type: "set_raw_toggle", raw: rawOn });
         },
     });
     const [selectedAlbums, setSelectedAlbums] = useState(albumsFilter);
@@ -131,7 +131,7 @@ const TimelineControls = ({
         const options = albumNames.map((name) => {
             return (
                 <Combobox.Option value={name} key={name}>
-                    <RowBox style={{ justifyContent: 'space-between' }}>
+                    <RowBox style={{ justifyContent: "space-between" }}>
                         <Text className="menu-item-text">{name}</Text>
                         {selectedAlbums.includes(name) && <IconCheck />}
                     </RowBox>
@@ -145,9 +145,9 @@ const TimelineControls = ({
         <RowBox
             style={{
                 flexGrow: 1,
-                marginRight: '2vw',
+                marginRight: "2vw",
                 height: 55,
-                alignItems: 'center',
+                alignItems: "center",
                 padding: 10,
             }}
         >
@@ -176,7 +176,7 @@ const TimelineControls = ({
                     >
                         <IconFilter
                             onClick={() => combobox.toggleDropdown()}
-                            style={{ cursor: 'pointer' }}
+                            style={{ cursor: "pointer" }}
                         />
                     </Indicator>
                 </Combobox.Target>
@@ -210,7 +210,7 @@ const TimelineControls = ({
                 centerContent
                 toggleOn={selecting}
                 onClick={() =>
-                    dispatch({ type: 'set_selecting', selecting: !selecting })
+                    dispatch({ type: "set_selecting", selecting: !selecting })
                 }
                 style={{ width: 100, padding: 2 }}
             />
@@ -220,7 +220,7 @@ const TimelineControls = ({
 
 const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
     const [newAlbumModal, setNewAlbumModal] = useState(false);
-    const [newAlbumName, setNewAlbumName] = useState('');
+    const [newAlbumName, setNewAlbumName] = useState("");
     const { authHeader }: UserContextT = useContext(userContext);
 
     if (!albumId) {
@@ -229,7 +229,7 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
                 <Button
                     color="#4444ff"
                     onClick={() => {
-                        dispatch({ type: 'set_block_focus', block: true });
+                        dispatch({ type: "set_block_focus", block: true });
                         setNewAlbumModal(true);
                     }}
                     leftSection={<IconPlus />}
@@ -240,7 +240,7 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
                 <Modal
                     opened={newAlbumModal}
                     onClose={() => {
-                        dispatch({ type: 'set_block_focus', block: false });
+                        dispatch({ type: "set_block_focus", block: false });
                         setNewAlbumModal(false);
                     }}
                     title="New Album"
@@ -250,18 +250,18 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
                         placeholder="Album name"
                         onChange={(e) => setNewAlbumName(e.currentTarget.value)}
                     />
-                    <Space h={'md'} />
+                    <Space h={"md"} />
                     <Button
                         onClick={() => {
                             CreateAlbum(newAlbumName, authHeader).then(() =>
                                 GetAlbums(authHeader).then((val) =>
                                     dispatch({
-                                        type: 'set_albums',
+                                        type: "set_albums",
                                         albums: val,
                                     })
                                 )
                             );
-                            dispatch({ type: 'set_block_focus', block: false });
+                            dispatch({ type: "set_block_focus", block: false });
                             setNewAlbumModal(false);
                         }}
                     >
@@ -272,20 +272,20 @@ const AlbumsControls = ({ albumId, imageSize, rawSelected, dispatch }) => {
         );
     } else {
         return (
-            <RowBox style={{ width: 'max-content' }}>
-                <Switch
-                    color="#4444ff"
-                    checked={rawSelected}
-                    label={'RAWs'}
-                    onChange={(e) =>
+            <RowBox style={{ width: "max-content" }}>
+                <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
+                <Space w={20} />
+                <WeblensButton
+                    label="RAWs"
+                    toggleOn={rawSelected}
+                    onClick={() =>
                         dispatch({
-                            type: 'set_raw_toggle',
-                            raw: e.target.checked,
+                            type: "set_raw_toggle",
+                            raw: !rawSelected,
                         })
                     }
+                    width={"70px"}
                 />
-                <Space w={20} />
-                <ImageSizeSlider imageSize={imageSize} dispatch={dispatch} />
             </RowBox>
         );
     }
@@ -311,13 +311,13 @@ function ViewSwitch({
     let albumStyle = {};
     if (albumId && hovering) {
         albumStyle = {
-            backgroundColor: '#2e2e2e',
-            outline: '1px solid #4444ff',
+            backgroundColor: "#2e2e2e",
+            outline: "1px solid #4444ff",
         };
     } else if (albumId) {
         albumStyle = {
-            backgroundColor: '#00000000',
-            outline: '1px solid #4444ff',
+            backgroundColor: "#00000000",
+            outline: "1px solid #4444ff",
         };
     }
     return (
@@ -326,13 +326,13 @@ function ViewSwitch({
             keepMounted={false}
             onChange={(p) => nav(`/${p}`)}
             variant="pills"
-            style={{ height: '100%' }}
+            style={{ height: "100%" }}
         >
             <RowBox style={{ height: 60 }}>
                 <Tabs.List
                     style={{
                         marginLeft: 20,
-                        flexDirection: 'row',
+                        flexDirection: "row",
                         width: 175,
                         flexShrink: 0,
                     }}
@@ -351,7 +351,7 @@ function ViewSwitch({
                     </Tabs.Tab>
                 </Tabs.List>
                 <Space w={30} />
-                {page === 'timeline' && (
+                {page === "timeline" && (
                     <TimelineControls
                         rawSelected={mediaState.includeRaw}
                         selecting={mediaState.selecting}
@@ -361,7 +361,7 @@ function ViewSwitch({
                         dispatch={dispatch}
                     />
                 )}
-                {page === 'albums' && (
+                {page === "albums" && (
                     <AlbumsControls
                         albumId={albumId}
                         imageSize={mediaState.imageSize}
@@ -371,11 +371,11 @@ function ViewSwitch({
                 )}
             </RowBox>
 
-            <Tabs.Panel value="timeline" style={{ height: '98%' }}>
+            <Tabs.Panel value="timeline" style={{ height: "98%" }}>
                 <ColumnBox>{timeline}</ColumnBox>
             </Tabs.Panel>
-            <Tabs.Panel value="albums" style={{ height: '98%' }}>
-                <ColumnBox style={{ alignItems: 'center' }}>{albums}</ColumnBox>
+            <Tabs.Panel value="albums" style={{ height: "98%" }}>
+                <ColumnBox style={{ alignItems: "center" }}>{albums}</ColumnBox>
             </Tabs.Panel>
         </Tabs>
     );
@@ -393,7 +393,7 @@ export const Timeline = memo(
         mediaState: MediaStateT;
         imageBaseScale: number;
         selecting: boolean;
-        loading: boolean;
+        loading: string[];
         page: string;
         dispatch: (value) => void;
     }) => {
@@ -403,9 +403,9 @@ export const Timeline = memo(
             if (!mediaTypeMap) {
                 return;
             }
-            dispatch({ type: 'add_loading', loading: 'media' });
+            dispatch({ type: "add_loading", loading: "media" });
             FetchData(mediaState, dispatch, authHeader).then(() =>
-                dispatch({ type: 'remove_loading', loading: 'media' })
+                dispatch({ type: "remove_loading", loading: "media" })
             );
         }, [
             mediaState.includeRaw,
@@ -416,13 +416,17 @@ export const Timeline = memo(
         ]);
 
         const medias = useMemo(() => {
+            if (!mediaTypeMap) {
+                return [];
+            }
+
             return Array.from(mediaState.mediaMap.values())
                 .filter((v) => {
                     v.mediaType = mediaTypeMap.get(v.mimeType);
                     if (v.selected === undefined) {
                         v.selected = false;
                     }
-                    if (mediaState.searchContent === '') {
+                    if (mediaState.searchContent === "") {
                         return true;
                     }
                     if (!v.recognitionTags) {
@@ -436,11 +440,12 @@ export const Timeline = memo(
                     return false;
                 })
                 .reverse();
-        }, [mediaState.mediaMap.size, mediaState.searchContent]);
+        }, [mediaState.mediaMap.size, mediaState.searchContent, mediaTypeMap]);
 
-        if (loading) {
+        if (loading.includes("media")) {
             return null;
         }
+
         if (medias.length === 0) {
             return <NoMediaDisplay />;
         }
@@ -478,7 +483,7 @@ export const Timeline = memo(
 const Gallery = () => {
     const [mediaState, dispatch]: [MediaStateT, React.Dispatch<any>] =
         useReducer(mediaReducer, {
-            mediaMap: new Map<string, MediaData>(),
+            mediaMap: new Map<string, MediaDataT>(),
             selected: new Map<string, boolean>(),
             mediaMapUpdated: 0,
             albumsMap: new Map<string, AlbumData>(),
@@ -492,9 +497,9 @@ const Gallery = () => {
             imageSize: 300,
             showingCount: 300,
             scanProgress: 0,
-            searchContent: '',
+            searchContent: "",
             menuOpen: false,
-            menuTargetId: '',
+            menuTargetId: "",
             menuPos: { x: 0, y: 0 },
         });
 
@@ -504,10 +509,10 @@ const Gallery = () => {
 
     const loc = useLocation();
     const page =
-        loc.pathname === '/' || loc.pathname === '/timeline'
-            ? 'timeline'
-            : 'albums';
-    const albumId = useParams()['*'];
+        loc.pathname === "/" || loc.pathname === "/timeline"
+            ? "timeline"
+            : "albums";
+    const albumId = useParams()["*"];
     const { lastMessage } = useWeblensSocket();
 
     const viewportRef: React.Ref<HTMLDivElement> = useRef();
@@ -520,20 +525,20 @@ const Gallery = () => {
 
     useEffect(() => {
         if (usr.isLoggedIn) {
-            dispatch({ type: 'remove_loading', loading: 'login' });
+            dispatch({ type: "remove_loading", loading: "login" });
         } else if (usr.isLoggedIn === undefined) {
-            dispatch({ type: 'add_loading', loading: 'login' });
+            dispatch({ type: "add_loading", loading: "login" });
         } else if (usr.isLoggedIn === false) {
-            nav('/login');
+            nav("/login");
         }
     }, [usr]);
 
     useEffect(() => {
-        if (authHeader.Authorization !== '' && page !== 'albums') {
-            dispatch({ type: 'add_loading', loading: 'albums' });
+        if (authHeader.Authorization !== "" && page !== "albums") {
+            dispatch({ type: "add_loading", loading: "albums" });
             GetAlbums(authHeader).then((val) => {
-                dispatch({ type: 'set_albums', albums: val });
-                dispatch({ type: 'remove_loading', loading: 'albums' });
+                dispatch({ type: "set_albums", albums: val });
+                dispatch({ type: "remove_loading", loading: "albums" });
             });
         }
     }, [authHeader, page]);
@@ -543,7 +548,7 @@ const Gallery = () => {
             <HeaderBar
                 // searchContent={mediaState.searchContent}
                 dispatch={dispatch}
-                page={'gallery'}
+                page={"gallery"}
                 // searchRef={searchRef}
                 loading={mediaState.loading}
                 // progress={mediaState.scanProgress}
@@ -559,19 +564,19 @@ const Gallery = () => {
                 menuPos={mediaState.menuPos}
                 open={mediaState.menuOpen}
                 setOpen={(o: boolean) =>
-                    dispatch({ type: 'set_menu_open', open: o })
+                    dispatch({ type: "set_menu_open", open: o })
                 }
             />
             <ColumnBox
-                style={{ height: '100vh', alignItems: 'normal', zIndex: 2 }}
+                style={{ height: "100vh", alignItems: "normal", zIndex: 2 }}
             >
                 {/* <GalleryControls mediaState={mediaState} page={page} albumId={albumId} dispatch={dispatch} /> */}
                 <Box
                     ref={viewportRef}
                     style={{
-                        height: 'calc(100% - 80px)',
-                        width: '100%',
-                        position: 'absolute',
+                        height: "calc(100% - 80px)",
+                        width: "100%",
+                        position: "absolute",
                     }}
                 >
                     <ViewSwitch
@@ -582,7 +587,7 @@ const Gallery = () => {
                                 mediaState={mediaState}
                                 imageBaseScale={mediaState.imageSize}
                                 selecting={mediaState.selecting}
-                                loading={mediaState.loading.length !== 0}
+                                loading={mediaState.loading}
                                 page={page}
                                 dispatch={dispatch}
                             />

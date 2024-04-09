@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
 import { MediaImage } from './PhotoContainer';
-import { MediaData } from '../types/Types';
+import { MediaDataT } from '../types/Types';
 import './filebrowserStyle.css';
 
 type ItemMenu = ({
@@ -67,7 +67,7 @@ export type ItemProps = {
     itemSizeUnits?: string;
     modifyDate?: Date;
     selected: number;
-    mediaData: MediaData;
+    mediaData: MediaDataT;
     droppable: boolean;
     isDir: boolean;
     imported: boolean;

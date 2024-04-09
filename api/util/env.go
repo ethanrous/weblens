@@ -33,8 +33,10 @@ func GetConfigDir() string {
 func GetRouterIp() string {
 	ip := envReadString("SERVER_IP")
 	if ip == "" {
+		Warning.Println("SERVER_IP not provided, falling back to 0.0.0.0")
 		return "0.0.0.0"
 	} else {
+		Info.Printf("Using SERVER_IP: %s\n", ip)
 		return ip
 	}
 }
@@ -42,14 +44,20 @@ func GetRouterIp() string {
 func GetRouterPort() string {
 	port := envReadString("SERVER_PORT")
 	if port == "" {
+		Warning.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
 	} else {
+		Info.Printf("Using SERVER_PORT: %s\n", port)
 		return port
 	}
 }
 
 func GetMediaRootPath() string {
-	return envReadString("MEDIA_ROOT_PATH")
+	path := envReadString("MEDIA_ROOT_PATH")
+	if path == "" {
+		panic("MEDIA_ROOT_PATH not set! This is required as it is the primary storage location for weblens files")
+	}
+	return path
 }
 
 func GetExternalPaths() []string {
@@ -60,32 +68,45 @@ func GetImgRecognitionUrl() string {
 	return envReadString("IMG_RECOGNITION_URI")
 }
 
+// Enables debug logging and puts the router in development mode
 func IsDevMode() bool {
 	return envReadBool("DEV_MODE")
 }
 
+// Controls if we host UI routes on this server. UI can be hosted elsewhere and
+// must proxy any /api/* requests back to this server
 func DetachUi() bool {
 	return envReadBool("DETATCH_UI")
 }
 
+// Enable use of redis on this server. If true, "REDIS_URL" must also be set
 func ShouldUseRedis() bool {
 	return envReadBool("USE_REDIS")
 }
 
+// Directory for storing cached files. This includes photo thumbnails,
+// temp uploaded files, and zip files.
 func GetCacheDir() string {
 	cacheString := envReadString("CACHES_PATH") + "/cache"
 	_, err := os.Stat(cacheString)
 	if err != nil {
-		os.Mkdir(cacheString, 0755)
+		err = os.Mkdir(cacheString, 0755)
+		if err != nil {
+			panic("CACHES_PATH provided, but the cache dir (`CACHES_PATH`/cache) does not exist and Weblens failed to create it")
+		}
 	}
 	return cacheString
 }
 
+// Takeout directory, stores zip files after creation
 func GetTakeoutDir() string {
 	takeoutString := envReadString("CACHES_PATH") + "/takeout"
 	_, err := os.Stat(takeoutString)
 	if err != nil {
-		os.Mkdir(takeoutString, 0755)
+		err = os.Mkdir(takeoutString, 0755)
+		if err != nil {
+			panic("CACHES_PATH provided, but the takeout dir (`CACHES_PATH`/takeout) does not exist and Weblens failed to create it")
+		}
 	}
 	return takeoutString
 }
@@ -94,19 +115,23 @@ func GetTmpDir() string {
 	tmpString := envReadString("CACHES_PATH") + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
-		os.Mkdir(tmpString, 0755)
+		err = os.Mkdir(tmpString, 0755)
+		if err != nil {
+			panic("CACHES_PATH provided, but the tmp dir (`CACHES_PATH`/tmp) does not exist and Weblens failed to create it")
+		}
 	}
 	return tmpString
 }
 
 func GetMongoURI() string {
-	return envReadString("MONGODB_URI")
+	mongoStr := envReadString("MONGODB_URI")
+	if mongoStr == "" {
+		Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
+	}
+	Info.Printf("Using MONGODB_URI: %s\n", mongoStr)
+	return mongoStr
 }
 
 func GetRedisUrl() string {
 	return envReadString("REDIS_URL")
-}
-
-func GetLibRawPath() string {
-	return envReadString("LIBRAW_PATH")
 }

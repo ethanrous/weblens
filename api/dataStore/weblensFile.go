@@ -495,7 +495,7 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 		Imported:         imported,
 		Displayable:      displayable,
 		IsDir:            f.IsDir(),
-		Modifiable:       f.Filename() != ".user_trash" && f.Owner() != WEBLENS_ROOT_USER,
+		Modifiable:       f.Filename() != ".user_trash" && f.Owner() != WEBLENS_ROOT_USER && f != &externalRoot,
 		Size:             size,
 		ModTime:          f.ModTime(),
 		Filename:         f.Filename(),

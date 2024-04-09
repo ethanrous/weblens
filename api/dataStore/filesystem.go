@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"golang.org/x/sys/unix"
 )
 
 var WEBLENS_ROOT_USER *user = &user{
@@ -444,4 +445,12 @@ var ROOT_IDS []string = []string{"0", "1", "2", "3"}
 
 func IsSystemDir(wf types.WeblensFile) bool {
 	return slices.Contains(ROOT_IDS, wf.Id().String())
+}
+
+func GetFreeSpace(path string) uint64 {
+	var stat unix.Statfs_t
+	unix.Statfs(path, &stat)
+
+	spaceBytes := stat.Bavail * uint64(stat.Bsize)
+	return spaceBytes
 }

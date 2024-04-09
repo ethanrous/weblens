@@ -1,5 +1,5 @@
 import { Box, Menu, Text } from "@mantine/core";
-import { MediaData } from "../../types/Types";
+import { MediaDataT } from "../../types/Types";
 
 export const GalleryMenu = ({
     media,
@@ -7,7 +7,7 @@ export const GalleryMenu = ({
     open,
     setOpen,
 }: {
-    media: MediaData;
+    media: MediaDataT;
     menuPos: { x: number; y: number };
     open: boolean;
     setOpen: (o: boolean) => void;
@@ -29,7 +29,7 @@ export const GalleryMenu = ({
 
             <Menu.Dropdown>
                 <Menu.Item>
-                    <Text>Yo</Text>
+                    <Text>Not impl</Text>
                     {/* <Box
                         style={{
                             height: "100px",

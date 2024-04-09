@@ -61,6 +61,11 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 
 func getFolderInfo(ctx *gin.Context) {
 	start := time.Now()
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
 
 	folderId := types.FileId(ctx.Param("folderId"))
 	dir := dataStore.FsTreeGet(folderId)
@@ -78,9 +83,8 @@ func getFolderInfo(ctx *gin.Context) {
 		return
 	}
 
-	username := types.Username(ctx.GetString("username"))
 	shareId := types.ShareId(ctx.Query("shareId"))
-	acc := dataStore.NewAccessMeta(username).AddShareId(shareId, dataStore.FileShare)
+	acc := dataStore.NewAccessMeta(user.GetUsername()).AddShareId(shareId, dataStore.FileShare)
 	if !dataStore.CanAccessFile(dir, acc) {
 		util.Debug.Println("Not auth")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
@@ -97,8 +101,12 @@ func getFolderInfo(ctx *gin.Context) {
 
 func getExternalDirs(ctx *gin.Context) {
 	externalRoot := dataStore.GetExternalDir()
-	username := types.Username(ctx.GetString("username"))
-	acc := dataStore.NewAccessMeta(username).SetRequestMode(dataStore.FileGet)
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+	acc := dataStore.NewAccessMeta(user.GetUsername()).SetRequestMode(dataStore.FileGet)
 	formatRespondFolderInfo(externalRoot, acc, ctx)
 }
 
@@ -121,8 +129,12 @@ func getExternalFolderInfo(ctx *gin.Context) {
 		return
 	}
 
-	username := types.Username(ctx.GetString("username"))
-	acc := dataStore.NewAccessMeta(username)
+	user := getUserFromCtx(ctx)
+	if user == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+	acc := dataStore.NewAccessMeta(user.GetUsername())
 	formatRespondFolderInfo(dir, acc, ctx)
 }
 

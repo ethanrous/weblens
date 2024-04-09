@@ -18,6 +18,7 @@ import { RowBox } from '../FileBrowser/FilebrowserStyles';
 import { WeblensButton } from '../../components/WeblensButton';
 import { useKeyDown } from '../../components/hooks';
 import { UserContextT } from '../../types/Types';
+import { ScatteredPhotos } from '../../components/ScatteredPhotos';
 
 async function CheckCreds(username: string, password: string, setCookie, nav) {
     return await login(username, password)
@@ -108,6 +109,7 @@ const Login = () => {
                     'linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)',
             }}
         >
+            <ScatteredPhotos />
             <Box
                 style={{
                     width: 400,

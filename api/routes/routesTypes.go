@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
@@ -18,7 +19,7 @@ type loginInfo struct {
 }
 
 type fileUpdateInfo struct {
-	NewName string `json:"newName"`
+	NewName     string       `json:"newName"`
 	NewParentId types.FileId `json:"newParentId"`
 }
 
@@ -71,6 +72,22 @@ type newShareInfo struct {
 	Wormhole bool             `json:"wormhole"`
 }
 
+type initServer struct {
+	Name string           `json:"name"`
+	Role types.ServerRole `json:"role"`
+
+	Username    types.Username `json:"username"`
+	Password    string         `json:"password"`
+	CoreAddress string         `json:"coreAddress"`
+}
+
+type newServerInfo struct {
+	Id       string           `json:"serverId"`
+	Role     types.ServerRole `json:"role"`
+	Name     string           `json:"name"`
+	UsingKey string           `json:"usingKey"`
+}
+
 // type deleteShareInfo struct {
 // 	ShareId types.ShareId `json:"shareId"`
 // }
@@ -89,6 +106,10 @@ type subType string
 type subId string
 
 type wsM map[string]any
+
+type wsAuthorize struct {
+	Auth string `json:"auth"`
+}
 
 type wsResponse struct {
 	MessageStatus string `json:"messageStatus"`
@@ -186,7 +207,7 @@ var Caster = NewBufferedCaster()
 // Broadcaster that is always disabled
 var VoidCaster *unbufferedCaster = &unbufferedCaster{enabled: false}
 
-var UploadTasker types.TaskerAgent
+var UploadTasker types.TaskPool
 
 // Client
 
@@ -208,7 +229,7 @@ type Client struct {
 	conn          *websocket.Conn
 	mu            sync.Mutex
 	subscriptions []subscription
-	username      types.Username
+	user          types.User
 }
 
 type clientManager struct {
@@ -230,3 +251,8 @@ type clientManager struct {
 	folderMu   *sync.Mutex
 	taskMu     *sync.Mutex
 }
+
+var ErrBadAuthScheme types.WeblensError = errors.New("invalid authorization scheme")
+var ErrBasicAuthFormat types.WeblensError = errors.New("did not get expected encoded basic auth format")
+var ErrEmptyAuth types.WeblensError = errors.New("empty auth header not allowed on endpoint")
+var ErrCoreOriginate types.WeblensError = errors.New("core server attempted to ping remote server")

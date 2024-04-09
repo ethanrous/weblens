@@ -15,7 +15,6 @@ import (
 )
 
 func wsConnect(ctx *gin.Context) {
-
 	ctx.Status(http.StatusSwitchingProtocols)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
@@ -23,7 +22,27 @@ func wsConnect(ctx *gin.Context) {
 		return
 	}
 
-	client := cmInstance.ClientConnect(conn, types.Username(ctx.GetString("username")))
+	_, buf, err := conn.ReadMessage()
+	if err != nil {
+		util.ErrTrace(err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	var auth wsAuthorize
+	err = json.Unmarshal(buf, &auth)
+	if err != nil {
+		util.ErrTrace(err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	user, err := WebsocketAuth(ctx, []string{auth.Auth})
+	if err != nil {
+		util.ShowErr(err)
+		return
+	}
+
+	client := cmInstance.ClientConnect(conn, user)
 	go wsMain(client)
 }
 

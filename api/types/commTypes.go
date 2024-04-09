@@ -22,3 +22,7 @@ type BufferedBroadcasterAgent interface {
 	AutoflushEnable()
 	Flush()
 }
+
+type Requester interface {
+	GetCoreSnapshot() error
+}

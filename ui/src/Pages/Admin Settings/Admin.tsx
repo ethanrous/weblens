@@ -6,33 +6,33 @@ import {
     Space,
     Text,
     TextInput,
-} from '@mantine/core';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { userContext } from '../../Context';
+} from "@mantine/core";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { userContext } from "../../Context";
 import {
     clearCache,
     adminCreateUser,
     cleanMedias,
     newApiKey,
     getApiKeys,
-} from '../../api/ApiFetch';
+} from "../../api/ApiFetch";
 import {
     ActivateUser,
     DeleteUser,
     GetUsersInfo,
     SetUserAdmin,
-} from '../../api/UserApi';
-import { notifications } from '@mantine/notifications';
-import { ColumnBox, RowBox } from '../FileBrowser/FilebrowserStyles';
-import { IconClipboard, IconRefresh, IconX } from '@tabler/icons-react';
-import { RecurScanFolder } from '../../api/FileBrowserApi';
+} from "../../api/UserApi";
+import { notifications } from "@mantine/notifications";
+import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles";
+import { IconClipboard, IconRefresh, IconX } from "@tabler/icons-react";
+import { RecurScanFolder } from "../../api/FileBrowserApi";
 import {
     AuthHeaderT as AuthHeaderT,
     UserContextT,
     UserInfoT as UserInfoT,
-} from '../../types/Types';
-import { WeblensButton } from '../../components/WeblensButton';
-import { useKeyDown } from '../../components/hooks';
+} from "../../types/Types";
+import { WeblensButton } from "../../components/WeblensButton";
+import { useKeyDown } from "../../components/hooks";
 
 function CreateUserBox({
     setAllUsersInfo,
@@ -41,15 +41,15 @@ function CreateUserBox({
     setAllUsersInfo;
     authHeader: AuthHeaderT;
 }) {
-    const [userInput, setUserInput] = useState('');
-    const [passInput, setPassInput] = useState('');
+    const [userInput, setUserInput] = useState("");
+    const [passInput, setPassInput] = useState("");
     const [makeAdmin, setMakeAdmin] = useState(false);
     return (
         <ColumnBox
             style={{
-                backgroundColor: '#222222',
+                backgroundColor: "#222222",
                 padding: 20,
-                height: 'max-content',
+                height: "max-content",
                 width: 450,
             }}
         >
@@ -58,7 +58,7 @@ function CreateUserBox({
                 variant="unstyled"
                 value={userInput}
                 placeholder="Username"
-                style={{ margin: '8px' }}
+                style={{ margin: "8px" }}
                 onChange={(e) => setUserInput(e.target.value)}
             />
             <Input
@@ -66,7 +66,7 @@ function CreateUserBox({
                 variant="unstyled"
                 value={passInput}
                 placeholder="Password"
-                style={{ margin: '8px' }}
+                style={{ margin: "8px" }}
                 onChange={(e) => setPassInput(e.target.value)}
             />
             <Checkbox
@@ -87,8 +87,8 @@ function CreateUserBox({
                         authHeader
                     ).then(() => {
                         GetUsersInfo(setAllUsersInfo, authHeader);
-                        setUserInput('');
-                        setPassInput('');
+                        setUserInput("");
+                        setPassInput("");
                     });
                     return true;
                 }}
@@ -112,37 +112,37 @@ const UserRow = ({
         <RowBox
             key={rowUser.username}
             style={{
-                width: '95%',
-                height: '65px',
-                alignItems: 'center',
-                outline: '1px solid #888888',
-                borderRadius: '2px',
+                width: "95%",
+                height: "65px",
+                alignItems: "center",
+                outline: "1px solid #888888",
+                borderRadius: "2px",
                 padding: 15,
                 margin: 5,
             }}
         >
             <IconRefresh
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: "pointer" }}
                 onClick={() => RecurScanFolder(rowUser.homeId, authHeader)}
             />
             <ColumnBox
                 style={{
-                    justifyContent: 'center',
-                    width: 'max-content',
-                    paddingLeft: '10px',
+                    justifyContent: "center",
+                    width: "max-content",
+                    paddingLeft: "10px",
                 }}
             >
-                <Text c={'white'} fw={600} style={{ width: 'max-content' }}>
+                <Text c={"white"} fw={600} style={{ width: "max-content" }}>
                     {rowUser.username}
                 </Text>
                 {rowUser.admin && !rowUser.owner && !accessor.owner && (
-                    <Text c={'#aaaaaa'}>Admin</Text>
+                    <Text c={"#aaaaaa"}>Admin</Text>
                 )}
-                {rowUser.owner && <Text c={'#aaaaaa'}>Owner</Text>}
+                {rowUser.owner && <Text c={"#aaaaaa"}>Owner</Text>}
                 {!rowUser.admin && accessor.owner && (
                     <WeblensButton
                         label="Make Admin"
-                        width={'max-content'}
+                        width={"max-content"}
                         height={20}
                         fontSize="8px"
                         style={{ padding: 4 }}
@@ -160,7 +160,7 @@ const UserRow = ({
                 {!rowUser.owner && rowUser.admin && accessor.admin && (
                     <WeblensButton
                         label="Remove Admin"
-                        width={'max-content'}
+                        width={"max-content"}
                         height={20}
                         fontSize="8px"
                         style={{ padding: 4 }}
@@ -176,7 +176,7 @@ const UserRow = ({
                     />
                 )}
             </ColumnBox>
-            <Space style={{ display: 'flex', flexGrow: 1 }} />
+            <Space style={{ display: "flex", flexGrow: 1 }} />
             {rowUser.activated === false && (
                 <WeblensButton
                     label="Activate"
@@ -187,11 +187,11 @@ const UserRow = ({
                     }}
                 />
             )}
-            <Space style={{ display: 'flex', flexGrow: 1 }} />
+            <Space style={{ display: "flex", flexGrow: 1 }} />
 
             <WeblensButton
                 label="Delete"
-                width={'max-content'}
+                width={"max-content"}
                 danger
                 centerContent
                 disabled={rowUser.admin}
@@ -239,17 +239,17 @@ function UsersBox({
     return (
         <ColumnBox
             style={{
-                padding: '10px',
-                backgroundColor: '#222222',
-                height: 'max-content',
-                width: '450px',
+                padding: "10px",
+                backgroundColor: "#222222",
+                height: "max-content",
+                width: "450px",
             }}
         >
-            <Text size={'20px'} fw={800} c={'white'}>
+            <Text size={"20px"} fw={800} c={"white"}>
                 Users
             </Text>
-            <Space h={'10px'} />
-            <ScrollArea w={'100%'} type="never" maw={450} mah={400}>
+            <Space h={"10px"} />
+            <ScrollArea w={"100%"} type="never" maw={450} mah={400}>
                 {usersList}
             </ScrollArea>
         </ColumnBox>
@@ -276,50 +276,54 @@ export function ApiKeys({ authHeader }) {
             style={{
                 width: 450,
                 padding: 5,
-                backgroundColor: '#222222',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
+                backgroundColor: "#222222",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
             }}
         >
             {keys.length !== 0 && (
                 <Box
                     style={{
-                        backgroundColor: '#333333',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
+                        backgroundColor: "#333333",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
                         padding: 10,
                         borderRadius: 4,
                         margin: 20,
-                        maxWidth: '100%',
+                        maxWidth: "100%",
                     }}
                 >
                     {keys.map((k) => {
                         return (
                             <Box
                                 style={{
-                                    display: 'flex',
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    maxWidth: '100%',
+                                    display: "flex",
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    maxWidth: "100%",
                                 }}
                             >
                                 <Text
                                     truncate="end"
-                                    style={{ textWrap: 'nowrap' }}
+                                    style={{ textWrap: "nowrap" }}
                                 >
                                     {k.Key}
                                 </Text>
                                 <IconClipboard
-                                    size={'40px'}
+                                    size={"40px"}
                                     style={{
                                         flexShrink: 0,
                                         margin: 4,
-                                        backgroundColor: '#222222',
+                                        backgroundColor: "#222222",
                                         borderRadius: 2,
                                         padding: 4,
+                                        cursor: "pointer",
                                     }}
+                                    onClick={() =>
+                                        navigator.clipboard.writeText(k.Key)
+                                    }
                                 />
                             </Box>
                         );
@@ -345,10 +349,10 @@ export function ApiKeys({ authHeader }) {
 export function Admin({ close }) {
     const { authHeader, usr }: UserContextT = useContext(userContext);
     const [allUsersInfo, setAllUsersInfo] = useState(null);
-    useKeyDown('Escape', close);
+    useKeyDown("Escape", close);
 
     useEffect(() => {
-        if (authHeader.Authorization !== '') {
+        if (authHeader.Authorization !== "") {
             GetUsersInfo(setAllUsersInfo, authHeader);
         }
     }, [authHeader]);
@@ -359,24 +363,24 @@ export function Admin({ close }) {
 
     return (
         <Box className="settings-menu" onClick={(e) => e.stopPropagation()}>
-            <RowBox style={{ position: 'relative', height: 'max-content' }}>
+            <RowBox style={{ position: "relative", height: "max-content" }}>
                 <IconX
                     style={{
                         margin: 10,
-                        cursor: 'pointer',
+                        cursor: "pointer",
                     }}
                     onClick={close}
                 />
             </RowBox>
             <ColumnBox
                 style={{
-                    marginTop: '50px',
-                    paddingBottom: '50px',
-                    height: 'max-content',
-                    maxHeight: '80vh',
+                    marginTop: "50px",
+                    paddingBottom: "50px",
+                    height: "max-content",
+                    maxHeight: "80vh",
                     padding: 140,
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    justifyContent: "center",
+                    alignItems: "center",
                 }}
             >
                 <UsersBox
@@ -395,29 +399,29 @@ export function Admin({ close }) {
                 <ApiKeys authHeader={authHeader} />
                 <RowBox
                     style={{
-                        height: 'max-content',
-                        justifyContent: 'center',
+                        height: "max-content",
+                        justifyContent: "center",
                     }}
                 >
                     <WeblensButton
                         label="Clean Orphaned Media"
-                        width={'200px'}
+                        width={"200px"}
                         onClick={() => {
                             cleanMedias(authHeader).then(() =>
                                 notifications.show({
-                                    message: 'Removed medias',
+                                    message: "Removed medias",
                                 })
                             );
                         }}
                     />
                     <WeblensButton
                         label="Clear Cache"
-                        width={'200px'}
+                        width={"200px"}
                         danger
                         onClick={() => {
                             clearCache(authHeader).then(() =>
                                 notifications.show({
-                                    message: 'Cache cleared',
+                                    message: "Cache cleared",
                                 })
                             );
                         }}

@@ -1,15 +1,15 @@
-import { Box, Loader, Text } from '@mantine/core';
-import { CSSProperties, memo, useMemo, useState } from 'react';
-import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { IconCheck, IconX } from '@tabler/icons-react';
-import { useResize } from './hooks';
+import { Box, Loader, Text } from "@mantine/core";
+import { createElement, CSSProperties, memo, useMemo, useState } from "react";
+import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { IconCheck, IconX } from "@tabler/icons-react";
+import { useResize } from "./hooks";
 
 type ButtonActionHandler = (
     e: React.MouseEvent<HTMLElement, MouseEvent>
 ) => void | boolean | Promise<boolean>;
 
 type buttonProps = {
-    label: string;
+    label?: string;
     postScript?: string;
     showSuccess?: boolean;
     toggleOn?: boolean;
@@ -18,8 +18,9 @@ type buttonProps = {
     centerContent?: boolean;
     danger?: boolean;
     disabled?: boolean;
-    Left?;
-    Right?;
+    doSuper?: boolean;
+    Left?: JSX.Element;
+    Right?: JSX.Element;
 
     // Style
     width?: string | number;
@@ -41,7 +42,14 @@ const ButtonContent = ({
     fontSize,
     showText,
     centerContent,
-    setTextRef,
+}: {
+    label: string;
+    postScript: string;
+    Left: JSX.Element;
+    Right: JSX.Element;
+    fontSize: string;
+    showText: boolean;
+    centerContent: boolean;
 }) => {
     let leftWidth;
     if (Left && showText) {
@@ -51,46 +59,57 @@ const ButtonContent = ({
     } else if (Left) {
         leftWidth = 24;
     }
+    const [textRef, setTextRef] = useState(null);
+    const textSize = useResize(textRef);
 
     return (
-        <RowBox
+        <Box
             style={{
-                justifyContent:
-                    showText && !centerContent ? 'flex-start' : 'center',
+                height: "100%",
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: centerContent ? "center" : "flex-start",
+                alignItems: "center",
             }}
         >
             <Box
                 style={{
-                    height: 24,
-                    width: leftWidth,
-                    paddingRight: showText && Left ? 4 : 0,
-                    paddingLeft: showText && Left ? 4 : 0,
+                    flexShrink: 0,
+                    maxHeight: "100%",
+                    height: showText ? textSize.height : 24,
+                    width: showText ? textSize.height : 24,
+                    marginRight: showText && Left ? 4 : 0,
+                    marinLeft: showText && Left ? 4 : 0,
+                    display: Left ? "block" : "none",
                 }}
             >
                 {Left}
             </Box>
             <ColumnBox
                 style={{
-                    width: '100%',
-                    height: 'max-content',
-                    alignItems:
-                        showText && !centerContent ? 'flex-start' : 'center',
-                    justifyContent: 'center',
+                    width: "max-content",
+                    height: "100%",
+                    alignItems: centerContent ? "center" : "flex-start",
+                    justifyContent: "center",
                 }}
             >
+                {/* <p>AHHHHHHH</p> */}
                 <Text
                     ref={setTextRef}
                     truncate="end"
-                    fw={'inherit'}
-                    size="inherit"
+                    // size="inherit"
                     style={{
-                        width: '100%',
-                        padding: 2,
-                        userSelect: 'none',
-                        textWrap: 'nowrap',
+                        fontWeight: "inherit",
+                        width: "max-content",
+                        height: "max-content",
+                        flexShrink: 0,
+                        padding: "2px",
+                        userSelect: "none",
+                        textWrap: "nowrap",
+                        lineHeight: "reset",
                         flexGrow: 1,
                         fontSize: fontSize,
-                        display: showText ? 'block' : 'none',
+                        display: showText ? "block" : "none",
                     }}
                 >
                     {label}
@@ -101,23 +120,28 @@ const ButtonContent = ({
                         fw={300}
                         size="10px"
                         truncate="end"
-                        style={{ padding: 2, textWrap: 'nowrap' }}
+                        style={{ padding: 2, textWrap: "nowrap" }}
                     >
                         {postScript}
                     </Text>
                 )}
             </ColumnBox>
-            <Box
-                style={{
-                    height: 24,
-                    width: leftWidth,
-                    paddingRight: showText && Right ? 4 : 0,
-                    paddingLeft: showText && Right ? 4 : 0,
-                }}
-            >
-                {Right}
-            </Box>
-        </RowBox>
+            {Boolean(Right) && (
+                <Box
+                    style={{
+                        flexShrink: 0,
+                        maxHeight: "100%",
+                        height: textSize.height,
+                        width: textSize.height,
+                        marginRight: Right ? 4 : 0,
+                        marginLeft: showText && Right ? 4 : 0,
+                        display: Right ? "block" : "none",
+                    }}
+                >
+                    {Right}
+                </Box>
+            )}
+        </Box>
     );
 };
 
@@ -135,9 +159,13 @@ const handleButtonEvent = async (
     if (!handler) {
         return;
     }
-    try {
+    const tm = setTimeout(() => {
         setLoading(true);
+    }, 150);
+    try {
+        // Dont flash loading if handler returns instantly
         const res = await handler(e);
+        clearTimeout(tm);
         setLoading(false);
         if (res === true && showSuccess) {
             setSuccess(true);
@@ -147,7 +175,9 @@ const handleButtonEvent = async (
             setTimeout(() => setFail(false), 2000);
         }
     } catch (e) {
+        clearTimeout(tm);
         setLoading(false);
+        console.error(e);
         if (showSuccess) {
             setSuccess(false);
             setFail(true);
@@ -167,13 +197,14 @@ export const WeblensButton = memo(
         centerContent = false,
         disabled = false,
         danger = false,
+        doSuper = false,
         Left = null,
         Right = null,
         onClick,
 
         width,
         height,
-        fontSize = '16px',
+        fontSize = "16px",
 
         onMouseUp,
         onMouseOver,
@@ -190,19 +221,16 @@ export const WeblensButton = memo(
         ] = useState(null);
         const buttonSize = useResize(sizeRef);
 
-        const [textRef, setTextRef]: [
-            textRef: HTMLDivElement,
-            setTextRef: any
-        ] = useState(null);
-        const [textSize, setTextSize] = useState({ height: null, width: null });
-
         const showText = useMemo(() => {
             if ((!Left && !Right) || buttonSize.width == null) {
                 return true;
             }
+            if (!label) {
+                return false;
+            }
 
-            return buttonSize.width > textSize.width + 60;
-        }, [Left, Right, buttonSize.width, textSize.width]);
+            return buttonSize.width > 24;
+        }, [Left, Right, buttonSize.width]);
 
         return (
             <Box
@@ -212,18 +240,19 @@ export const WeblensButton = memo(
                 }}
                 className={
                     toggleOn === undefined
-                        ? 'weblens-button'
-                        : 'weblens-toggle-button'
+                        ? "weblens-button"
+                        : "weblens-toggle-button"
                 }
                 mod={{
-                    'data-toggled':
-                        toggleOn !== undefined ? toggleOn.toString() : '',
-                    'data-repeat': allowRepeat.toString(),
-                    'data-success': success.toString(),
-                    'data-fail': fail.toString(),
-                    'data-subtle': subtle.toString(),
-                    'data-disabled': disabled.toString(),
-                    'data-danger': danger.toString(),
+                    "data-toggled":
+                        toggleOn !== undefined ? toggleOn.toString() : "",
+                    "data-repeat": allowRepeat.toString(),
+                    "data-success": success.toString(),
+                    "data-fail": fail.toString(),
+                    "data-subtle": subtle.toString(),
+                    "data-disabled": disabled.toString(),
+                    "data-super": doSuper.toString(),
+                    "data-danger": danger.toString(),
                 }}
                 style={{ width: width, height: height, ...style }}
                 onClick={(e) =>
@@ -266,28 +295,31 @@ export const WeblensButton = memo(
                         fontSize={fontSize}
                         showText={showText}
                         centerContent={centerContent}
-                        setTextRef={setTextRef}
                     />
                 )}
                 {success && showSuccess && (
-                    <ColumnBox style={{ width: 'max-content', height: '28px' }}>
+                    <ColumnBox
+                        style={{ width: "max-content", height: "max-content" }}
+                    >
                         <IconCheck />
                     </ColumnBox>
                 )}
                 {fail && showSuccess && (
-                    <ColumnBox style={{ width: 'max-content', height: '28px' }}>
+                    <ColumnBox
+                        style={{ width: "max-content", height: "max-content" }}
+                    >
                         <IconX />
                     </ColumnBox>
                 )}
                 {loading && showSuccess && (
                     <ColumnBox
                         style={{
-                            width: 'max-content',
-                            height: '28px',
-                            justifyContent: 'center',
+                            width: "max-content",
+                            height: "max-content",
+                            justifyContent: "center",
                         }}
                     >
-                        <Loader size={'20px'} color={'white'} />
+                        <Loader size={"20px"} color={"white"} />
                     </ColumnBox>
                 )}
             </Box>
@@ -382,3 +414,104 @@ export const WeblensButton = memo(
         return true;
     }
 );
+
+export const SelectIcon = ({
+    size,
+    expandSize,
+    label,
+    icon,
+    selected,
+    index,
+    selectedIndex,
+    onClick,
+}: {
+    size: number;
+    expandSize?: number;
+    label?: string;
+    icon: JSX.Element;
+    selected: boolean;
+    index?: number;
+    selectedIndex?: number;
+    onClick?;
+}) => {
+    const [hover, setHover] = useState(false);
+    return (
+        <Box>
+            <Box
+                className="weblens-select-icon"
+                mod={{ "data-selected": selected }}
+                style={{ height: size, width: size }}
+                onClick={(e) => {
+                    onClick(e);
+                }}
+                onMouseOver={(e) => setHover(true)}
+                onMouseLeave={(e) => setHover(false)}
+            >
+                {icon}
+            </Box>
+            {hover && expandSize && (
+                <Box
+                    style={{
+                        pointerEvents: "none",
+                        position: "absolute",
+                        display: "flex",
+                        alignItems: "center",
+
+                        left: 0,
+                        top: 0,
+                        zIndex: 1,
+                        width: expandSize,
+                        height: size,
+                        backgroundColor: "#222222",
+                    }}
+                >
+                    <Box
+                        style={{
+                            height: size,
+                            width: size,
+                            display: "flex",
+                            padding: 6,
+                            flexShrink: 0,
+                        }}
+                    >
+                        {icon}
+                    </Box>
+                    <Text
+                        size="11px"
+                        fw={600}
+                        style={{ flexShrink: 0, pointerEvents: "none" }}
+                    >
+                        {label}
+                    </Text>
+                    <Box
+                        style={{
+                            position: "absolute",
+                            bottom: -5,
+                            display: "flex",
+                            width: expandSize,
+                            justifyContent: "space-around",
+                        }}
+                    >
+                        {[...Array(Math.ceil(expandSize / size)).keys()].map(
+                            (n) => {
+                                return (
+                                    <Text
+                                        fw={n === index ? 800 : ""}
+                                        c={
+                                            n === selectedIndex
+                                                ? "#4444ff"
+                                                : "white"
+                                        }
+                                        key={n}
+                                    >
+                                        _
+                                    </Text>
+                                );
+                            }
+                        )}
+                    </Box>
+                </Box>
+            )}
+        </Box>
+    );
+};

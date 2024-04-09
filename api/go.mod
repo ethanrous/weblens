@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/EdlinOrg/prominentcolor v1.0.0
 	github.com/barasher/go-exiftool v1.10.0
+	github.com/dustin/go-humanize v1.0.1
 	github.com/ethanrous/bimg v0.0.4
 	github.com/gin-gonic/contrib v0.0.0-20221130124618-7e01895a63f2
 	github.com/gin-gonic/gin v1.9.1
@@ -17,6 +18,7 @@ require (
 	github.com/saracen/fastzip v0.1.11
 	go.mongodb.org/mongo-driver v1.14.0
 	golang.org/x/crypto v0.21.0
+	golang.org/x/sys v0.18.0
 )
 
 require (
@@ -57,7 +59,6 @@ require (
 	golang.org/x/arch v0.7.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect

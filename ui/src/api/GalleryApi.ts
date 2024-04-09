@@ -1,5 +1,5 @@
 import { notifications } from "@mantine/notifications";
-import { AlbumData, AuthHeaderT, MediaData, MediaStateT } from "../types/Types";
+import { AlbumData, AuthHeaderT, MediaDataT, MediaStateT } from "../types/Types";
 import API_ENDPOINT from "./ApiEndpoint";
 
 export async function FetchData(mediaState: MediaStateT, dispatch, authHeader: AuthHeaderT) {
@@ -71,7 +71,7 @@ export async function GetAlbumMedia(
     albumId,
     includeRaw,
     authHeader,
-): Promise<{ albumMeta: AlbumData; media: MediaData[] }> {
+): Promise<{ albumMeta: AlbumData; media: MediaDataT[] }> {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
     url.searchParams.append("raw", includeRaw);
     const res = await fetch(url.toString(), { headers: authHeader });
