@@ -115,6 +115,7 @@
     box-shadow: 0 0 10px 2px #00000044;
     /* border: 1px solid #ffff00; */
     border-radius: 4px;
+    gap: 8px;
 }
 
 .caution-header {

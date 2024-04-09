@@ -792,16 +792,19 @@ func (db Weblensdb) getUsingKey(key types.WeblensApiKey) *srvInfo {
 	return &remote
 }
 
-func (db Weblensdb) getThisServerInfo() *srvInfo {
+func (db Weblensdb) getThisServerInfo() (*srvInfo, error) {
 	ret := db.mongo.Collection("servers").FindOne(mongo_ctx, bson.M{"isThisServer": true})
 	if ret.Err() != nil {
-		util.ShowErr(ret.Err())
-		return nil
+		if ret.Err() == mongo.ErrNoDocuments {
+			return nil, types.ErrServerNotInit
+		}
+		util.ErrTrace(ret.Err())
+		return nil, ret.Err()
 	}
 	var si srvInfo
 	ret.Decode(&si)
 
-	return &si
+	return &si, nil
 }
 
 func (db Weblensdb) updateThisServerInfo(si *srvInfo) error {

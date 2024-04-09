@@ -22,6 +22,7 @@ export type UserContextT = {
     usr: UserInfoT;
     setCookie;
     clear;
+    serverInfo;
 }
 
 export type MediaDataT = {

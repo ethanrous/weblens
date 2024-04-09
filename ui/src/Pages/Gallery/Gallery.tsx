@@ -536,6 +536,7 @@ const Gallery = () => {
     useEffect(() => {
         if (authHeader.Authorization !== "" && page !== "albums") {
             dispatch({ type: "add_loading", loading: "albums" });
+            console.log("HERE?");
             GetAlbums(authHeader).then((val) => {
                 dispatch({ type: "set_albums", albums: val });
                 dispatch({ type: "remove_loading", loading: "albums" });

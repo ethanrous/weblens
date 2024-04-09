@@ -24,6 +24,7 @@ const useR = () => {
         activated: false,
         isLoggedIn: undefined,
     });
+    const [serverInfo, setServerInfo] = useState(null);
 
     const clear = () => {
         setAuthHeader({ Authorization: "" });
@@ -43,11 +44,12 @@ const useR = () => {
     const inSetup = window.location.pathname === "/setup";
     useEffect(() => {
         getServerInfo().then((r) => {
-            console.log(r);
-            if (r === 307 && !inSetup) {
+            if ((r === 307 || r.info.userCount === 0) && !inSetup) {
                 nav("/setup");
-            } else if (r !== 307 && inSetup) {
+            } else if (r !== 307 && r.info.userCount !== 0 && inSetup) {
                 nav("/");
+            } else {
+                setServerInfo({ ...r.info });
             }
         });
     }, []);
@@ -93,7 +95,7 @@ const useR = () => {
         }
     }, [authHeader, cookies]);
 
-    return { authHeader, usr, setCookie, clear } as UserContextT;
+    return { authHeader, usr, setCookie, clear, serverInfo } as UserContextT;
 };
 
 export default useR;

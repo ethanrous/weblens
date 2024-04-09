@@ -15,21 +15,21 @@ var thisOwner types.User
 // do their best to re-direct to the setup page
 func GetServerInfo() types.ServerInfo {
 	if thisServer == nil {
-		ret := fddb.getThisServerInfo()
-		if ret != nil {
+		ret, err := fddb.getThisServerInfo()
+		if err == nil {
 			thisServer = ret
 		} else {
 			return nil
 		}
 	}
-
+	thisServer.UserCount = UserCount()
 	return thisServer
 }
 
 func GetOwner() types.User {
 	if thisOwner != nil {
 		return thisOwner
-	} else if thisOwner == nil && thisServer.Role != types.BackupMode {
+	} else if thisOwner == nil && (thisServer == nil || thisServer.Role != types.BackupMode) {
 		i := slices.IndexFunc(GetUsers(), func(u types.User) bool { return u.IsOwner() })
 		if i != -1 {
 			thisOwner = GetUsers()[i]

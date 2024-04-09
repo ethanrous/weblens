@@ -754,6 +754,10 @@ func loginUser(ctx *gin.Context) {
 	}
 
 	u := dataStore.GetUser(usrCreds.Username)
+	if u == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
 
 	if dataStore.CheckLogin(u, usrCreds.Password) {
 		util.Info.Printf("Valid login for [%s]\n", usrCreds.Username)
@@ -764,7 +768,7 @@ func loginUser(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, tokenReturn{Token: token})
 		}
 	} else {
-		ctx.AbortWithStatus(http.StatusUnauthorized)
+		ctx.AbortWithStatus(http.StatusNotFound)
 	}
 
 }
@@ -774,7 +778,7 @@ func getUserInfo(ctx *gin.Context) {
 	if user == nil {
 		si := dataStore.GetServerInfo()
 		if si == nil {
-			ctx.Status(http.StatusTemporaryRedirect)
+			ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 			return
 		}
 		ctx.Status(http.StatusNotFound)
@@ -851,7 +855,7 @@ func activateUser(ctx *gin.Context) {
 		return
 	}
 	db := dataStore.NewDB()
-	err = dataStore.CreateUserHomeDir(username)
+	_, err = dataStore.CreateUserHomeDir(username) //TODO
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -1163,7 +1167,7 @@ func initializeServer(ctx *gin.Context) {
 func getServerInfo(ctx *gin.Context) {
 	si := dataStore.GetServerInfo()
 	if si == nil {
-		ctx.Status(http.StatusTemporaryRedirect)
+		ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 		return
 	}
 

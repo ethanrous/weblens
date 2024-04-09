@@ -94,6 +94,13 @@ func FsInit() {
 	fileTree[externalRoot.id] = &externalRoot
 	externalRoot.parent = &externalRoot
 
+	if !mediaRoot.Exists() {
+		err := mediaRoot.CreateSelf()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	users := GetUsers()
 
 	for _, user := range users {
@@ -200,18 +207,18 @@ func boolPointer(b bool) *bool {
 	return &b
 }
 
-func CreateUserHomeDir(username types.Username) error {
+func CreateUserHomeDir(username types.Username) (types.WeblensFile, error) {
 	homeDir, err := MkDir(GetMediaDir(), strings.ToLower(username.String()))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_, err = MkDir(homeDir, ".user_trash")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return homeDir, nil
 }
 
 func generateFileId(path string) types.FileId {

@@ -37,28 +37,31 @@ func parseAuthHeader(authHeaderParts []string, allowEmptyAuth bool) (string, str
 	return authList[0], authList[1], nil
 }
 
-func validateBasicAuth(c *gin.Context, cred string) (types.User, error) {
+func validateBasicAuth(cred string) (types.User, error) {
 	credB, err := base64.StdEncoding.DecodeString(cred)
 	if err != nil {
 		util.ErrTrace(err)
-		c.AbortWithStatus(http.StatusBadRequest)
+		return nil, err
 	}
 	userAndToken := strings.Split(string(credB), ":")
 
 	if len(userAndToken) != 2 {
-		c.AbortWithStatus(http.StatusBadRequest)
 		return nil, ErrBasicAuthFormat
 	}
 
 	user := dataStore.GetUser(types.Username(userAndToken[0]))
 	if user == nil {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		if dataStore.UserCount() == 0 {
+			// c.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
+			return nil, dataStore.ErrNoUser
+		}
+		// c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return nil, dataStore.ErrNoUser
 	}
 
 	if !dataStore.CheckUserToken(user, userAndToken[1]) { // {user, token}
 		util.Info.Printf("Rejecting authorization for %s due to invalid token", userAndToken[0])
-		c.AbortWithStatus(http.StatusUnauthorized)
+		// c.AbortWithStatus(http.StatusUnauthorized)
 		return nil, ErrBasicAuthFormat
 	}
 
@@ -75,9 +78,15 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 		return nil, ErrBadAuthScheme
 	}
 
-	user, err := validateBasicAuth(c, cred)
+	user, err := validateBasicAuth(cred)
 	if err != nil {
-		return nil, err
+		switch err.(type) {
+		case types.WeblensError:
+			return nil, err
+		default:
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return nil, err
+		}
 	}
 
 	return user, nil
@@ -101,7 +110,7 @@ func WeblensAuth(allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 				return
 			}
 		} else if scheme == "Basic" {
-			user, err := validateBasicAuth(c, cred)
+			user, err := validateBasicAuth(cred)
 			if err != nil {
 				return
 			}
@@ -115,6 +124,9 @@ func WeblensAuth(allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 			c.Set("user", user)
 			c.Next()
 		} else {
+			if allowEmptyAuth {
+				c.Next()
+			}
 			return
 		}
 

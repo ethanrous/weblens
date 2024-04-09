@@ -3,7 +3,7 @@ import API_ENDPOINT, { ADMIN_ENDPOINT, PUBLIC_ENDPOINT } from "./ApiEndpoint";
 import { AuthHeaderT, MediaDataT } from "../types/Types";
 
 export function login(user: string, pass: string) {
-    var url = new URL(`${API_ENDPOINT}/login`);
+    var url = new URL(`${PUBLIC_ENDPOINT}/login`);
     let data = {
         username: user,
         password: pass,

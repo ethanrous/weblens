@@ -1,8 +1,8 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { createUser, login } from '../../api/ApiFetch';
-import { userContext } from '../../Context';
-import { notifications } from '@mantine/notifications';
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { createUser, login } from "../../api/ApiFetch";
+import { userContext } from "../../Context";
+import { notifications } from "@mantine/notifications";
 import {
     Box,
     Button,
@@ -13,32 +13,32 @@ import {
     Space,
     Tabs,
     TextInput,
-} from '@mantine/core';
-import { RowBox } from '../FileBrowser/FilebrowserStyles';
-import { WeblensButton } from '../../components/WeblensButton';
-import { useKeyDown } from '../../components/hooks';
-import { UserContextT } from '../../types/Types';
-import { ScatteredPhotos } from '../../components/ScatteredPhotos';
+} from "@mantine/core";
+import { RowBox } from "../FileBrowser/FilebrowserStyles";
+import { WeblensButton } from "../../components/WeblensButton";
+import { useKeyDown } from "../../components/hooks";
+import { UserContextT } from "../../types/Types";
+import { ScatteredPhotos } from "../../components/ScatteredPhotos";
 
 async function CheckCreds(username: string, password: string, setCookie, nav) {
     return await login(username, password)
         .then((res) => {
             if (res.status !== 200) {
-                return Promise.reject('Incorrect username or password');
+                return Promise.reject("Incorrect username or password");
             } else {
                 return res.json();
             }
         })
         .then((data) => {
-            setCookie('weblens-username', username, { sameSite: 'strict' });
-            setCookie('weblens-login-token', data.token, {
-                sameSite: 'strict',
+            setCookie("weblens-username", username, { sameSite: "strict" });
+            setCookie("weblens-login-token", data.token, {
+                sameSite: "strict",
             });
-            nav('/');
+            nav("/");
             return true;
         })
         .catch((r) => {
-            notifications.show({ message: String(r), color: 'red' });
+            notifications.show({ message: String(r), color: "red" });
             return false;
         });
 }
@@ -48,13 +48,13 @@ function CreateUser(username: string, password: string) {
         .then((x) => {
             notifications.show({
                 message:
-                    'Account created! Once an administrator activates your account you may login',
+                    "Account created! Once an administrator activates your account you may login",
             });
         })
         .catch((reason) => {
             notifications.show({
                 message: `Failed to create new user: ${String(reason)}`,
-                color: 'red',
+                color: "red",
             });
         });
 }
@@ -62,7 +62,7 @@ function CreateUser(username: string, password: string) {
 export const useKeyDownLogin = (login) => {
     const onKeyDown = useCallback(
         (event) => {
-            if (event.key === 'Enter') {
+            if (event.key === "Enter") {
                 login();
             }
         },
@@ -70,29 +70,29 @@ export const useKeyDownLogin = (login) => {
     );
 
     useEffect(() => {
-        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener("keydown", onKeyDown);
         return () => {
-            document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener("keydown", onKeyDown);
         };
     }, [onKeyDown]);
 };
 
 const Login = () => {
-    const [userInput, setUserInput] = useState('');
-    const [passInput, setPassInput] = useState('');
-    const [tab, setTab] = useState('login');
+    const [userInput, setUserInput] = useState("");
+    const [passInput, setPassInput] = useState("");
+    const [tab, setTab] = useState("login");
     const nav = useNavigate();
     const loc = useLocation();
     const { authHeader, setCookie }: UserContextT = useContext(userContext);
 
     useEffect(() => {
-        if (loc.state == null && authHeader.Authorization !== '') {
-            nav('/');
+        if (loc.state == null && authHeader.Authorization !== "") {
+            nav("/");
         }
     }, [authHeader, loc.state, nav]);
 
     const [buttonRef, setButtonRef] = useState(null);
-    useKeyDown('Enter', (e) => {
+    useKeyDown("Enter", (e) => {
         if (buttonRef) {
             buttonRef.click();
         }
@@ -102,24 +102,24 @@ const Login = () => {
     return (
         <RowBox
             style={{
-                height: '100vh',
-                width: '100vw',
-                justifyContent: 'center',
+                height: "100vh",
+                width: "100vw",
+                justifyContent: "center",
                 background:
-                    'linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)',
+                    "linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)",
             }}
         >
-            <ScatteredPhotos />
+            {/*<ScatteredPhotos />*/}
             <Box
                 style={{
                     width: 400,
                     maxWidth: 600,
                     maxHeight: 400,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: '#111111aa',
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "#111111aa",
                     borderRadius: 8,
                     padding: 24,
                 }}
@@ -130,16 +130,16 @@ const Login = () => {
                     keepMounted={false}
                     variant="pills"
                     style={{
-                        width: '100%',
-                        height: '90%',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
+                        width: "100%",
+                        height: "90%",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        display: "flex",
+                        flexDirection: "column",
                         gap: 20,
                     }}
                 >
-                    <Tabs.List grow style={{ width: '100%' }}>
+                    <Tabs.List grow style={{ width: "100%" }}>
                         <Tabs.Tab value="login" className="menu-tab">
                             Login
                         </Tabs.Tab>
@@ -150,11 +150,11 @@ const Login = () => {
                     <Tabs.Panel
                         value="login"
                         style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '100%',
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            width: "100%",
                         }}
                     >
                         <Input
@@ -162,7 +162,7 @@ const Login = () => {
                             variant="unstyled"
                             value={userInput}
                             placeholder="Username"
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                             onChange={(event) =>
                                 setUserInput(event.currentTarget.value)
                             }
@@ -173,31 +173,31 @@ const Login = () => {
                             type="password"
                             value={passInput}
                             placeholder="Password"
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                             onChange={(event) =>
                                 setPassInput(event.currentTarget.value)
                             }
                         />
-                        <Space h={'md'} />
+                        <Space h={"md"} />
                         <WeblensButton
                             label="Login"
-                            disabled={userInput === '' || passInput === ''}
+                            disabled={userInput === "" || passInput === ""}
                             centerContent
                             onClick={() =>
                                 CheckCreds(userInput, passInput, setCookie, nav)
                             }
                             setButtonRef={setButtonRef}
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                         />
                     </Tabs.Panel>
                     <Tabs.Panel
                         value="signup"
                         style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '100%',
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            width: "100%",
                         }}
                     >
                         <Input
@@ -208,7 +208,7 @@ const Login = () => {
                             onChange={(event) =>
                                 setUserInput(event.currentTarget.value)
                             }
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                         />
                         <Input
                             className="weblens-input"
@@ -219,16 +219,16 @@ const Login = () => {
                             onChange={(event) =>
                                 setPassInput(event.currentTarget.value)
                             }
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                         />
-                        <Space h={'md'} />
+                        <Space h={"md"} />
                         <WeblensButton
                             label="Sign Up"
-                            disabled={userInput === '' || passInput === ''}
+                            disabled={userInput === "" || passInput === ""}
                             centerContent
                             onClick={() => CreateUser(userInput, passInput)}
                             setButtonRef={setButtonRef}
-                            style={{ width: '100%' }}
+                            style={{ width: "100%" }}
                         />
                     </Tabs.Panel>
                 </Tabs>

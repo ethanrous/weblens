@@ -28,6 +28,8 @@ type srvInfo struct {
 	// Address of the remote server, only if the remote is a core.
 	// Not set for any remotes/backups on core server, as it IS the core
 	CoreAddress string `json:"coreAddress" bson:"coreAddress"`
+
+	UserCount int `json:"userCount" bson:"-"`
 }
 
 type Weblensdb struct {

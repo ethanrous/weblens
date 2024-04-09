@@ -17,6 +17,9 @@ func BackupD(interval time.Duration, r types.Requester) {
 
 func doBackup(t *task) {
 	srvInfo := dataStore.GetServerInfo()
+	if srvInfo == nil {
+		t.ErrorAndExit(types.ErrServerNotInit)
+	}
 	if srvInfo.ServerRole() == types.CoreMode {
 		packageBackup(t)
 	} else if srvInfo.ServerRole() == types.BackupMode {

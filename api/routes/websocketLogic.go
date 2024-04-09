@@ -33,7 +33,7 @@ func wsConnect(ctx *gin.Context) {
 	err = json.Unmarshal(buf, &auth)
 	if err != nil {
 		util.ErrTrace(err)
-		ctx.Status(http.StatusBadRequest)
+		// ctx.Status(http.StatusBadRequest)
 		return
 	}
 	user, err := WebsocketAuth(ctx, []string{auth.Auth})

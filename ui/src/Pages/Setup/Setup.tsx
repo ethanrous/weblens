@@ -9,10 +9,11 @@ import {
     IconPackage,
     IconRocket,
 } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { attachToCore, getUsersPublic, initServer } from "../../api/ApiFetch";
 import { useNavigate } from "react-router-dom";
 import { UserInfoT } from "../../types/Types";
+import { userContext } from "../../Context";
 
 const UserSelect = ({
     users,
@@ -116,13 +117,15 @@ const UserSelect = ({
 const Core = ({
     page,
     setPage,
+    existingName,
 }: {
     page: string;
     setPage: (page: string) => void;
+    existingName: string;
 }) => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [serverName, setServerName] = useState("");
+    const [serverName, setServerName] = useState(existingName);
     const [users, setUsers] = useState([]);
     const nav = useNavigate();
 
@@ -160,7 +163,7 @@ const Core = ({
                 <Text className="header-text">Weblens Core</Text>
             </Box>
             {users.length === 0 && (
-                <Box>
+                <Box style={{ width: "100%" }}>
                     <Text className="body-text">Create the Owner Account</Text>
                     <Input
                         className="weblens-input"
@@ -191,15 +194,49 @@ const Core = ({
 
             <Divider />
 
-            <Text className="body-text">Name This Weblens Server</Text>
-            <Input
-                className="weblens-input"
-                variant="unstyled"
-                placeholder="My Radical Weblens Server"
-                onChange={(e) => {
-                    setServerName(e.target.value);
-                }}
-            />
+            {existingName && (
+                <Box className="caution-box">
+                    <Box className="caution-header">
+                        <Text
+                            className="subheader-text"
+                            c="#ffffff"
+                            style={{ paddingTop: 0 }}
+                        >
+                            This server already has a name
+                        </Text>
+                        <IconExclamationCircle color="white" />
+                    </Box>
+
+                    <Input
+                        className="weblens-input"
+                        styles={{
+                            input: {
+                                backgroundColor: "#00000000",
+                                color: "white",
+                            },
+                        }}
+                        variant="unstyled"
+                        disabled
+                        value={serverName}
+                    />
+                </Box>
+            )}
+            {!existingName && (
+                <Box>
+                    <Text className="body-text">Name This Weblens Server</Text>
+                    <Input
+                        className="weblens-input"
+                        classNames={{ input: "weblens-input" }}
+                        variant="unstyled"
+                        disabled={existingName !== ""}
+                        value={serverName}
+                        placeholder="My Radical Weblens Server"
+                        onChange={(e) => {
+                            setServerName(e.target.value);
+                        }}
+                    />
+                </Box>
+            )}
 
             <WeblensButton
                 label="Start Weblens"
@@ -361,14 +398,25 @@ const Landing = ({
 };
 
 const Setup = () => {
+    const { serverInfo } = useContext(userContext);
     const [page, setPage] = useState("landing");
+
+    if (!serverInfo) {
+        return null;
+    }
+
+    console.log(serverInfo.name);
 
     return (
         <Box className="setup-container">
             {/* <Box className="background-strip"></Box> */}
             <Box className="setup-content-pane" mod={{ "data-active": true }}>
                 <Landing page={page} setPage={setPage} />
-                <Core page={page} setPage={setPage} />
+                <Core
+                    page={page}
+                    setPage={setPage}
+                    existingName={serverInfo.name}
+                />
                 <Backup page={page} setPage={setPage} />
             </Box>
             {/* <ScatteredPhotos /> */}

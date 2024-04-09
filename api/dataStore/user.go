@@ -37,12 +37,20 @@ func CreateUser(username types.Username, password string, isAdmin, autoActivate 
 	}
 	passHash := string(passHashBytes)
 
+	homeDir, err := CreateUserHomeDir(username)
+	if err != nil {
+		return err
+	}
+
 	newUser := user{
 		Username:  username,
 		Password:  passHash,
 		Tokens:    []string{},
 		Admin:     isAdmin,
 		Activated: autoActivate,
+
+		HomeFolder:  homeDir,
+		TrashFolder: homeDir.GetChildren()[0],
 	}
 
 	if len(userMap) == 0 {
@@ -52,6 +60,8 @@ func CreateUser(username types.Username, password string, isAdmin, autoActivate 
 	if err := fddb.CreateUser(newUser); err != nil {
 		return err
 	}
+
+	userMap[username] = &newUser
 
 	return nil
 }
@@ -87,6 +97,10 @@ func loadUsersStaticFolders() {
 		u.HomeFolder = FsTreeGet(generateFileId("/" + string(u.Username)))
 		u.TrashFolder = FsTreeGet(generateFileId("/" + string(u.Username) + "/" + ".user_trash"))
 	}
+}
+
+func UserCount() int {
+	return len(userMap)
 }
 
 func GetUsers() []types.User {
