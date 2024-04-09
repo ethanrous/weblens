@@ -102,19 +102,9 @@ export async function getRandomThumbs() {
     return await fetch(url).then((r) => r.json());
 }
 
-export async function attachToCore(remoteAddress: string, serverName: string, apiKey: string) {
-    const url = new URL(`${remoteAddress}/api/remote`);
-    return await fetch(url, {headers: {Authorization: `Bearer ${apiKey}`}, body: JSON.stringify({name: serverName, usingKey: apiKey}), method: "POST"}).then((r) => r.json());
-}
-
-export async function initServer(serverName: string, role: "core" | "backup", username?: string, password?: string) {
+export async function initServer(serverName: string, role: "core" | "backup", username: string, password: string, coreAddress: string, coreKey: string) {
     const url = new URL(`${PUBLIC_ENDPOINT}/initialize`);
-    const body = {name: serverName, role: role, username: "", password: ""}
-    if (username) {
-        body.username = username
-        body.password = password
-    }
-
+    const body = {name: serverName, role: role, username: username, password: password, coreAddress: coreAddress, coreKey: coreKey}
     return await fetch(url,{ body: JSON.stringify(body), method: "POST"});
 }
 
@@ -125,5 +115,10 @@ export async function getServerInfo() {
 
 export async function getUsersPublic() {
     const url = new URL(`${PUBLIC_ENDPOINT}/users`);
+    return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function doBackup() {
+    const url = new URL(`${ADMIN_ENDPOINT}/backup`);
     return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }

@@ -126,6 +126,8 @@ func AddApiRoutes(r *gin.Engine) {
 	admin.POST("/cache", clearCache)
 	admin.POST("/apiKey", newApiKey)
 
+	admin.POST("/backup", getBackupSnapshot)
+
 	websocket := r.Group("/api")
 	websocket.GET("/ws", wsConnect)
 

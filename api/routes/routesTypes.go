@@ -76,9 +76,10 @@ type initServer struct {
 	Name string           `json:"name"`
 	Role types.ServerRole `json:"role"`
 
-	Username    types.Username `json:"username"`
-	Password    string         `json:"password"`
-	CoreAddress string         `json:"coreAddress"`
+	Username    types.Username      `json:"username"`
+	Password    string              `json:"password"`
+	CoreAddress string              `json:"coreAddress"`
+	CoreKey     types.WeblensApiKey `json:"coreKey"`
 }
 
 type newServerInfo struct {

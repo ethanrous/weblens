@@ -25,4 +25,5 @@ type BufferedBroadcasterAgent interface {
 
 type Requester interface {
 	GetCoreSnapshot() error
+	AttachToCore(coreAddress string, name string, key WeblensApiKey) error
 }

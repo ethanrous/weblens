@@ -1148,7 +1148,9 @@ func initializeServer(ctx *gin.Context) {
 
 		ctx.Status(http.StatusCreated)
 	} else if si.Role == types.BackupMode {
-		err := PingCore(si.CoreAddress)
+		rq := NewRequester()
+		err := rq.AttachToCore(si.CoreAddress, si.Name, si.CoreKey)
+		// err := PingCore(si.CoreAddress)
 		if err != nil {
 			util.ShowErr(err)
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not ping core server"})

@@ -36,6 +36,8 @@ func attachRemote(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
+
+	ctx.Status(http.StatusCreated)
 }
 
 func getBackupSnapshot(ctx *gin.Context) {

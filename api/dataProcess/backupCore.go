@@ -34,6 +34,7 @@ func receiveBackup(t *task) {
 	// fsStatT.Wait()
 
 	t.requester.GetCoreSnapshot()
+	t.setResult(types.TaskResult{"yay": "cool"})
 
 	// util.Debug.Println("Free Space", humanize.Bytes(fsStatT.GetResult("bytesFree")["bytesFree"].(uint64)))
 

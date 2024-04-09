@@ -15,6 +15,7 @@ import {
     cleanMedias,
     newApiKey,
     getApiKeys,
+    doBackup,
 } from "../../api/ApiFetch";
 import {
     ActivateUser,
@@ -424,6 +425,14 @@ export function Admin({ close }) {
                                     message: "Cache cleared",
                                 })
                             );
+                        }}
+                    />
+                    <WeblensButton
+                        label="Backup now"
+                        width={"200px"}
+                        onClick={async () => {
+                            await doBackup();
+                            return true;
                         }}
                     />
                 </RowBox>

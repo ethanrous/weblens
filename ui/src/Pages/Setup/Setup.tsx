@@ -10,7 +10,7 @@ import {
     IconRocket,
 } from "@tabler/icons-react";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { attachToCore, getUsersPublic, initServer } from "../../api/ApiFetch";
+import { getUsersPublic, initServer } from "../../api/ApiFetch";
 import { useNavigate } from "react-router-dom";
 import { UserInfoT } from "../../types/Types";
 import { userContext } from "../../Context";
@@ -250,7 +250,9 @@ const Core = ({
                         serverName,
                         "core",
                         username,
-                        password
+                        password,
+                        "",
+                        ""
                     );
                     if (ret.status !== 201) {
                         console.error(ret.statusText);
@@ -334,17 +336,14 @@ const Backup = ({
                 }
                 doSuper
                 onClick={async () => {
-                    let ret = await attachToCore(
-                        coreAddress,
+                    const ret = await initServer(
                         serverName,
+                        "backup",
+                        "",
+                        "",
+                        coreAddress,
                         apiKey
                     );
-                    if (ret.error) {
-                        console.error(ret.error);
-                        return false;
-                    }
-
-                    ret = initServer(serverName, "backup");
                     if (ret.status !== 201) {
                         console.error(ret.statusText);
                         return false;

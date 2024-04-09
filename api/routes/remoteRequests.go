@@ -1,11 +1,15 @@
 package routes
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/gin-gonic/gin"
 )
 
 type requester struct {
@@ -35,6 +39,25 @@ func PingCore(coreAddress string) error {
 
 type filesResp struct {
 	Files map[string]types.WeblensFile `json:"files"`
+}
+
+func (r *requester) AttachToCore(coreAddress string, name string, apiKey types.WeblensApiKey) error {
+	body := gin.H{"name": name, "usingKey": apiKey}
+	bs, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	buf := bytes.NewBuffer(bs)
+	resp, err := http.NewRequest("POST", coreAddress+"/api/remote", buf)
+	if err != nil {
+		return err
+	}
+
+	if resp.Response.StatusCode == 201 {
+		return nil
+	} else {
+		return errors.New("failed to attch to remote core")
+	}
 }
 
 func (r *requester) GetCoreSnapshot() error {
