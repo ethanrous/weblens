@@ -112,11 +112,16 @@ func GetTakeoutDir() string {
 }
 
 func GetTmpDir() string {
-	tmpString := envReadString("CACHES_PATH") + "/tmp"
+	caches := envReadString("CACHES_PATH")
+	if caches == "" {
+		panic("CACHES_PATH not provided")
+	}
+	tmpString := caches + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
 		err = os.Mkdir(tmpString, 0755)
 		if err != nil {
+			ShowErr(err)
 			panic("CACHES_PATH provided, but the tmp dir (`CACHES_PATH`/tmp) does not exist and Weblens failed to create it")
 		}
 	}
