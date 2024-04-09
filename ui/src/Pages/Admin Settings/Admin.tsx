@@ -270,8 +270,6 @@ export function ApiKeys({ authHeader }) {
         getKeys();
     }, []);
 
-    console.log(keys);
-
     return (
         <Box
             style={{
@@ -299,6 +297,7 @@ export function ApiKeys({ authHeader }) {
                     {keys.map((k) => {
                         return (
                             <Box
+                                key={k.Key.slice(0, 6)}
                                 style={{
                                     display: "flex",
                                     flexDirection: "row",
@@ -322,8 +321,13 @@ export function ApiKeys({ authHeader }) {
                                         padding: 4,
                                         cursor: "pointer",
                                     }}
-                                    onClick={() =>
+                                    onClick={() => {
+                                        if (!window.isSecureContext) {
+                                            notifications.show({message: 'Browser context is not secure, are you not using HTTPS?', color: 'red'})
+                                            return
+                                        }
                                         navigator.clipboard.writeText(k.Key)
+                                    }
                                     }
                                 />
                             </Box>

@@ -912,7 +912,7 @@ export function HandleWebsocketMessage(
 ) {
     if (lastMessage) {
         let msgData = JSON.parse(lastMessage.data);
-        // console.log("WSRecv", msgData);
+        console.log("WSRecv", msgData);
         switch (msgData.messageStatus) {
             case "file_created": {
                 dispatch({

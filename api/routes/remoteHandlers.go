@@ -32,7 +32,16 @@ func attachRemote(ctx *gin.Context) {
 	}
 	err = dataStore.NewRemote(nr.Name, types.WeblensApiKey(nr.UsingKey))
 	if err != nil {
-		util.ErrTrace(err)
+		if err == dataStore.ErrKeyInUse {
+			ctx.Status(http.StatusConflict)
+			return
+		}
+		switch err.(type) {
+		case types.WeblensError:
+			util.ShowErr(err)
+		default:
+			util.ErrTrace(err)
+		}
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

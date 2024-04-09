@@ -51,7 +51,7 @@ export default function useWeblensSocket() {
                 action: action,
                 content: JSON.stringify(content),
             };
-            // console.log("WSSend", msg);
+            console.log("WSSend", msg);
             sendMessage(JSON.stringify(msg));
         },
         [sendMessage],

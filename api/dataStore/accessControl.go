@@ -160,6 +160,7 @@ func GenerateApiKey(acc types.AccessMeta) (key ApiKeyInfo, err error) {
 	}
 
 	fddb.newApiKey(newKey)
+	apiKeyMap[hash] = &newKey
 
 	return newKey, nil
 }
