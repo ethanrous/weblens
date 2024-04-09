@@ -807,8 +807,9 @@ func (db Weblensdb) getThisServerInfo() (*srvInfo, error) {
 	return &si, nil
 }
 
-func (db Weblensdb) updateThisServerInfo(si *srvInfo) error {
+func (db Weblensdb) updateCoreAddress(coreAddress string) error {
 	filter := bson.M{"isThisServer": true}
-	_, err := db.mongo.Collection("servers").UpdateOne(mongo_ctx, filter, si)
+	update := bson.M{"$set": bson.M{"coreAddress": coreAddress}}
+	_, err := db.mongo.Collection("servers").UpdateOne(mongo_ctx, filter, update)
 	return err
 }

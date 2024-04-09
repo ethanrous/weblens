@@ -67,6 +67,7 @@ func InitServer(name string, role types.ServerRole) {
 	}
 
 	fddb.newServer(srv)
+	thisServer = &srv
 }
 
 func SetCoreAddress(core string) error {
@@ -74,7 +75,10 @@ func SetCoreAddress(core string) error {
 		return ErrAlreadyCore
 	}
 
+	err := fddb.updateCoreAddress(core)
+	if err != nil {
+		return err
+	}
 	thisServer.CoreAddress = core
-	err := fddb.updateThisServerInfo(thisServer)
 	return err
 }

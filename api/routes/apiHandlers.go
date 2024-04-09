@@ -1118,9 +1118,9 @@ func initializeServer(ctx *gin.Context) {
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
-	dataStore.InitServer(si.Name, si.Role)
 
 	if si.Role == types.CoreMode {
+		dataStore.InitServer(si.Name, si.Role)
 		user := dataStore.GetUser(si.Username)
 
 		// Init with existing user
@@ -1155,14 +1155,17 @@ func initializeServer(ctx *gin.Context) {
 			util.ShowErr(err)
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not ping core server"})
 			return
-		} else {
-			err := dataStore.SetCoreAddress(si.CoreAddress)
-			if err != nil {
-				ctx.Status(http.StatusInternalServerError)
-				util.ShowErr(err)
-				return
-			}
 		}
+		dataStore.InitServer(si.Name, si.Role)
+		err = dataStore.SetCoreAddress(si.CoreAddress)
+		if err != nil {
+			ctx.Status(http.StatusInternalServerError)
+			util.ShowErr(err)
+			return
+		}
+
+		ctx.Status(http.StatusCreated)
+
 	}
 }
 

@@ -48,12 +48,18 @@ func (r *requester) AttachToCore(coreAddress string, name string, apiKey types.W
 		return err
 	}
 	buf := bytes.NewBuffer(bs)
-	resp, err := http.NewRequest("POST", coreAddress+"/api/remote", buf)
+	req, err := http.NewRequest("POST", coreAddress+"/api/remote", buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+string(apiKey))
+	cli := &http.Client{}
+	resp, err := cli.Do(req)
 	if err != nil {
 		return err
 	}
 
-	if resp.Response.StatusCode == 201 {
+	if resp.StatusCode == 201 {
 		return nil
 	} else {
 		return errors.New("failed to attch to remote core")
