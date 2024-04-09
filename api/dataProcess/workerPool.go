@@ -64,10 +64,10 @@ func saftyWork(task *task, workerId int64) {
 	task.work(task)
 }
 
-// The executioner handles timed cancellation of tasks. If a task might
+// The reaper handles timed cancellation of tasks. If a task might
 // wait on some action from the client, it should queue a timeout with
-// the executioner so it doesn't hang forever
-func (wp *WorkerPool) executioner() {
+// the reaper so it doesn't hang forever
+func (wp *WorkerPool) reaper() {
 	timerStream := make(chan *task)
 	for wp.exitFlag == 0 {
 		select {
@@ -110,7 +110,7 @@ func (wp *WorkerPool) addToTaskBuffer(tasks []*task) {
 func (wp *WorkerPool) Run() {
 	wp.exitFlag = 0
 	// Spawn the timeout checker
-	go wp.executioner()
+	go wp.reaper()
 
 	// Spawn the buffer worker
 	go wp.bufferDrainer()
