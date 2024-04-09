@@ -1,4 +1,4 @@
-import API_ENDPOINT from "./ApiEndpoint";
+import API_ENDPOINT, { PUBLIC_ENDPOINT } from "./ApiEndpoint";
 import axios, { AxiosError } from "axios";
 import { dispatchSync } from "./Websocket";
 import { notifications } from "@mantine/notifications";
@@ -74,7 +74,7 @@ async function uploadChunk(
     onFinish: (rate: number) => void,
 ) {
     let chunk = await readFile(fileData.slice(low, high));
-    const url = `${API_ENDPOINT}/upload/${uploadId}/file/${fileId}`;
+    const url = `${PUBLIC_ENDPOINT}/upload/${uploadId}/file/${fileId}`;
 
     const start = Date.now();
     await axios
@@ -107,7 +107,7 @@ async function queueChunks(
 
     let url;
     let body;
-    url = new URL(`${API_ENDPOINT}/upload/${uploadId}`);
+    url = new URL(`${PUBLIC_ENDPOINT}/upload/${uploadId}`);
     body = { parentFolderId: uploadMeta.parentId };
     // if (isPublic) {
     //     url = new URL(`${API_ENDPOINT}/public/upload`);
