@@ -51,7 +51,7 @@ func (f *weblensFile) Copy() types.WeblensFile {
 		c.tasksLock = &sync.Mutex{}
 	}
 
-	// Return pointer to copy
+	// WeblensFile interface requires pointer
 	return &c
 }
 

@@ -97,7 +97,8 @@ func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
 		return false
 	}
 
-	if acc.RequestMode() == WebsocketFileUpdate {
+	switch acc.RequestMode() {
+	case WebsocketFileUpdate, MarshalFile:
 		return true
 	}
 

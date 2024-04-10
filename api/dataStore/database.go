@@ -26,7 +26,8 @@ var redisc *redis.Client
 func NewDB() *Weblensdb {
 	if mongoc == nil {
 		var uri = util.GetMongoURI()
-		clientOptions := options.Client().ApplyURI(uri)
+
+		clientOptions := options.Client().ApplyURI(uri).SetTimeout(time.Second)
 		var err error
 		mongoc, err = mongo.Connect(mongo_ctx, clientOptions)
 		if err != nil {
