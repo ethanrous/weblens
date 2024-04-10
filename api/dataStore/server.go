@@ -43,6 +43,10 @@ func (si *srvInfo) ServerId() string {
 	return si.Id
 }
 
+func (si *srvInfo) GetUsingKey() types.WeblensApiKey {
+	return si.UsingKey
+}
+
 func (si *srvInfo) ServerRole() types.ServerRole {
 	return si.Role
 }
@@ -54,31 +58,74 @@ func (si *srvInfo) GetCoreAddress() (string, error) {
 	return si.CoreAddress, nil
 }
 
-func InitServer(name string, role types.ServerRole) {
+func InitServerCore(name string, username types.Username, password string) error {
+	user := GetUser(username)
+
+	// Init with existing user
+	if user != nil {
+		if !CheckLogin(user, password) {
+			return ErrUserNotAuthenticated
+		} else if !user.IsAdmin() {
+			err := MakeOwner(user)
+			if err != nil {
+				return err
+			}
+		}
+
+	} else { // create new user, this will be the case 99% of the time
+		err := CreateUser(username, password, true, true)
+		if err != nil {
+			return err
+		}
+	}
+
 	srvId := util.GlobbyHash(12, name, time.Now().String())
 	srv := srvInfo{
 		Id:   srvId,
 		Name: name,
 
-		// Key is always empty when IsThisServer
-		UsingKey:     "",
 		IsThisServer: true,
-		Role:         role,
+		Role:         types.CoreMode,
 	}
 
 	fddb.newServer(srv)
 	thisServer = &srv
+
+	return nil
 }
 
-func SetCoreAddress(core string) error {
-	if thisServer.Role == types.CoreMode {
-		return ErrAlreadyCore
-	}
-
-	err := fddb.updateCoreAddress(core)
+func InitServerForBackup(name, coreAddress string, key types.WeblensApiKey, rq types.Requester) error {
+	err := rq.AttachToCore(coreAddress, name, key)
 	if err != nil {
 		return err
 	}
-	thisServer.CoreAddress = core
-	return err
+
+	srvId := util.GlobbyHash(12, name, time.Now().String())
+	srv := srvInfo{
+		Id:   srvId,
+		Name: name,
+
+		// Key is key used for remote core when IsThisServer
+		UsingKey:     key,
+		Role:         types.BackupMode,
+		IsThisServer: true,
+		CoreAddress:  coreAddress,
+	}
+
+	fddb.newServer(srv)
+	thisServer = &srv
+	return nil
 }
+
+// func SetCoreAddress(core string, key types.WeblensApiKey) error {
+// 	if thisServer.Role == types.CoreMode {
+// 		return ErrAlreadyCore
+// 	}
+
+// 	err := fddb.updateCoreAddress(core, key)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	thisServer.CoreAddress = core
+// 	return err
+// }

@@ -202,7 +202,7 @@ func newSharedUploadTask(ctx *gin.Context) {
 
 // Create new file upload task, and wait for data
 func newUploadTask(ctx *gin.Context) {
-	upInfo, err := readCtxBody[newUploadInfo](ctx)
+	upInfo, err := readCtxBody[newUploadBody](ctx)
 	if err != nil {
 		return
 	}
@@ -214,7 +214,7 @@ func newUploadTask(ctx *gin.Context) {
 
 func newFileUpload(ctx *gin.Context) {
 	uploadTaskId := types.TaskId(ctx.Param("uploadId"))
-	newFInfo, err := readCtxBody[newFileInfo](ctx)
+	newFInfo, err := readCtxBody[newFileBody](ctx)
 	if err != nil {
 		return
 	}
@@ -222,7 +222,7 @@ func newFileUpload(ctx *gin.Context) {
 	handleNewFile(uploadTaskId, newFInfo, ctx)
 }
 
-func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileInfo, ctx *gin.Context) {
+func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Context) {
 	uTask := dataProcess.GetTask(uploadTaskId)
 	if uTask == nil {
 		ctx.Status(http.StatusNotFound)
@@ -278,7 +278,7 @@ func newSharedFileUpload(ctx *gin.Context) {
 		return
 	}
 
-	newFInfo, err := readCtxBody[newFileInfo](ctx)
+	newFInfo, err := readCtxBody[newFileBody](ctx)
 	if err != nil {
 		return
 	}
@@ -409,7 +409,7 @@ func searchFolder(ctx *gin.Context) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user.GetUsername())
+	acc := dataStore.NewAccessMeta(user)
 	if !dataStore.CanAccessFile(dir, acc) {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -457,7 +457,7 @@ func getFile(ctx *gin.Context) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user.GetUsername())
+	acc := dataStore.NewAccessMeta(user)
 	formattedInfo, err := file.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -470,7 +470,7 @@ func getFile(ctx *gin.Context) {
 
 func updateFile(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
-	updateInfo, err := readCtxBody[fileUpdateInfo](ctx)
+	updateInfo, err := readCtxBody[fileUpdateBody](ctx)
 	if err != nil {
 		return
 	}
@@ -677,7 +677,7 @@ func createTakeout(ctx *gin.Context) {
 	for _, file := range files {
 		_ = file.GetAbsPath() // Make sure directories have trailing slash
 
-		acc := dataStore.NewAccessMeta(user.GetUsername()).AddShareId(shareId, dataStore.FileShare)
+		acc := dataStore.NewAccessMeta(user).AddShareId(shareId, dataStore.FileShare)
 		if file == nil || !dataStore.CanAccessFile(file, acc) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Failed to find at least one file"})
 			return
@@ -716,7 +716,7 @@ func downloadFile(ctx *gin.Context) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user.GetUsername()).AddShareId(shareId, dataStore.FileShare)
+	acc := dataStore.NewAccessMeta(user).AddShareId(shareId, dataStore.FileShare)
 	if !dataStore.CanAccessFile(file, acc) {
 		util.Debug.Println("No auth")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
@@ -732,7 +732,7 @@ func createUser(ctx *gin.Context) {
 		panic(err)
 	}
 
-	var userInfo newUserInfo
+	var userInfo newUserBody
 	json.Unmarshal(jsonData, &userInfo)
 
 	err = dataStore.CreateUser(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate)
@@ -748,7 +748,7 @@ func createUser(ctx *gin.Context) {
 }
 
 func loginUser(ctx *gin.Context) {
-	usrCreds, err := readCtxBody[loginInfo](ctx)
+	usrCreds, err := readCtxBody[loginBody](ctx)
 	if err != nil {
 		return
 	}
@@ -800,7 +800,7 @@ func updateUserPassword(ctx *gin.Context) {
 		return
 	}
 
-	passUpd, err := readCtxBody[passwordUpdateInfo](ctx)
+	passUpd, err := readCtxBody[passwordUpdateBody](ctx)
 	if err != nil {
 		return
 	}
@@ -828,7 +828,7 @@ func setUserAdmin(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	update, err := readCtxBody[newUserInfo](ctx)
+	update, err := readCtxBody[newUserBody](ctx)
 	if err != nil {
 		return
 	}
@@ -912,7 +912,7 @@ func getSharedFiles(ctx *gin.Context) {
 	db := dataStore.NewDB()
 	shares := db.GetSharedWith(user.GetUsername())
 
-	acc := dataStore.NewAccessMeta(user.GetUsername())
+	acc := dataStore.NewAccessMeta(user)
 	filesInfos := util.Map(shares, func(sh types.Share) types.FileInfo {
 		acc.AddShare(sh)
 		f := dataStore.FsTreeGet(types.FileId(sh.GetContentId()))
@@ -923,10 +923,6 @@ func getSharedFiles(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"files": filesInfos})
 }
 
-func cleanupMedias(ctx *gin.Context) {
-	dataStore.CleanOrphanedMedias()
-}
-
 func createFileShare(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 	if user == nil {
@@ -934,7 +930,7 @@ func createFileShare(ctx *gin.Context) {
 		return
 	}
 
-	shareInfo, err := readCtxBody[newShareInfo](ctx)
+	shareInfo, err := readCtxBody[newShareBody](ctx)
 	if err != nil {
 		return
 	}
@@ -989,7 +985,7 @@ func updateFileShare(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
-	var shareInfo newShareInfo
+	var shareInfo newShareBody
 	err = json.Unmarshal(body, &shareInfo)
 	if err != nil {
 		util.ErrTrace(err)
@@ -1043,12 +1039,7 @@ func getFileShare(ctx *gin.Context) {
 
 func newApiKey(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-	username := types.Username(user.GetUsername())
-	acc := dataStore.NewAccessMeta(username).SetRequestMode(dataStore.ApiKeyCreate)
+	acc := dataStore.NewAccessMeta(user).SetRequestMode(dataStore.ApiKeyCreate)
 	newKey, err := dataStore.GenerateApiKey(acc)
 	if err != nil {
 		util.ShowErr(err)
@@ -1065,7 +1056,7 @@ func getApiKeys(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	acc := dataStore.NewAccessMeta(user.GetUsername()).SetRequestMode(dataStore.ApiKeyGet)
+	acc := dataStore.NewAccessMeta(user).SetRequestMode(dataStore.ApiKeyGet)
 	keys, err := dataStore.GetApiKeys(acc)
 	if err != nil {
 		util.ShowErr(err)
@@ -1074,6 +1065,14 @@ func getApiKeys(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"keys": keys})
+}
+
+func deleteApiKey(ctx *gin.Context) {
+	keyBody, err := readCtxBody[deleteKeyBody](ctx)
+	if err != nil {
+		return
+	}
+	dataStore.DeleteApiKey(keyBody.Key)
 }
 
 func getFolderStats(ctx *gin.Context) {
@@ -1107,6 +1106,7 @@ func getRandomMedias(ctx *gin.Context) {
 }
 
 func initializeServer(ctx *gin.Context) {
+	// Can't init server if already initialized
 	if dataStore.GetOwner() != nil && dataStore.GetServerInfo() != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -1120,53 +1120,24 @@ func initializeServer(ctx *gin.Context) {
 	}
 
 	if si.Role == types.CoreMode {
-		dataStore.InitServer(si.Name, si.Role)
-		user := dataStore.GetUser(si.Username)
-
-		// Init with existing user
-		if user != nil {
-			if !dataStore.CheckLogin(user, si.Password) {
-				ctx.Status(http.StatusUnauthorized)
-				return
-			} else if !user.IsAdmin() {
-				err := dataStore.MakeOwner(user)
-				if err != nil {
-					util.ShowErr(err)
-					ctx.Status(http.StatusInternalServerError)
-					return
-				}
-			}
-
-		} else { // create new user, this will be the case 99% of the time
-			err := dataStore.CreateUser(si.Username, si.Password, true, true)
-			if err != nil {
-				util.ShowErr(err)
-				ctx.Status(http.StatusInternalServerError)
-				return
-			}
+		err := dataStore.InitServerCore(si.Name, si.Username, si.Password)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusBadRequest)
+			return
 		}
-
 		ctx.Status(http.StatusCreated)
+
 	} else if si.Role == types.BackupMode {
 		rq := NewRequester()
-		err := rq.AttachToCore(si.CoreAddress, si.Name, si.CoreKey)
-		// err := PingCore(si.CoreAddress)
+		err := dataStore.InitServerForBackup(si.Name, si.CoreAddress, si.CoreKey, rq)
 		if err != nil {
 			util.ShowErr(err)
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "could not ping core server"})
+			ctx.Status(http.StatusBadRequest)
 			return
 		}
-		dataStore.InitServer(si.Name, si.Role)
-		err = dataStore.SetCoreAddress(si.CoreAddress)
-		if err != nil {
-			ctx.Status(http.StatusInternalServerError)
-			util.ShowErr(err)
-			return
-		}
-
-		ctx.Status(http.StatusCreated)
-
 	}
+	ctx.Status(http.StatusCreated)
 }
 
 func getServerInfo(ctx *gin.Context) {

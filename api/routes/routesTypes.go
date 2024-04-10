@@ -13,12 +13,12 @@ import (
 
 // Endpoint logic
 
-type loginInfo struct {
+type loginBody struct {
 	Username types.Username `json:"username"`
 	Password string         `json:"password"`
 }
 
-type fileUpdateInfo struct {
+type fileUpdateBody struct {
 	NewName     string       `json:"newName"`
 	NewParentId types.FileId `json:"newParentId"`
 }
@@ -36,36 +36,31 @@ type tokenReturn struct {
 	Token string `json:"token"`
 }
 
-type newUserInfo struct {
+type newUserBody struct {
 	Username     types.Username `json:"username"`
 	Password     string         `json:"password"`
 	Admin        bool           `json:"admin"`
 	AutoActivate bool           `json:"autoActivate"`
 }
 
-type newFileInfo struct {
+type newFileBody struct {
 	ParentFolderId types.FileId `json:"parentFolderId"`
 	NewFileName    string       `json:"newFileName"`
 	FileSize       int64        `json:"fileSize"`
 }
 
-type newUploadInfo struct {
+type newUploadBody struct {
 	RootFolderId    types.FileId `json:"rootFolderId"`
 	ChunkSize       int64        `json:"chunkSize"`
 	TotalUploadSize int64        `json:"totalUploadSize"`
 }
 
-type passwordUpdateInfo struct {
+type passwordUpdateBody struct {
 	OldPass string `json:"oldPassword"`
 	NewPass string `json:"newPassword"`
 }
 
-// type fileShare struct {
-// 	Files []types.FileId   `json:"files"`
-// 	Users []types.Username `json:"users"`
-// }
-
-type newShareInfo struct {
+type newShareBody struct {
 	FileIds  []types.FileId   `json:"fileIds"`
 	Users    []types.Username `json:"users"`
 	Public   bool             `json:"public"`
@@ -82,24 +77,16 @@ type initServer struct {
 	CoreKey     types.WeblensApiKey `json:"coreKey"`
 }
 
-type newServerInfo struct {
+type newServerBody struct {
 	Id       string           `json:"serverId"`
 	Role     types.ServerRole `json:"role"`
 	Name     string           `json:"name"`
 	UsingKey string           `json:"usingKey"`
 }
 
-// type deleteShareInfo struct {
-// 	ShareId types.ShareId `json:"shareId"`
-// }
-
-// type userInfo struct {
-// 	Username      types.Username `json:"username"`
-// 	HomeFolderId  types.FileId   `json:"homeId"`
-// 	TrashFolderId types.FileId   `json:"trashId"`
-// 	Admin         bool           `json:"admin"`
-// 	Activated     bool           `json:"activated"`
-// }
+type deleteKeyBody struct {
+	Key types.WeblensApiKey `json:"key"`
+}
 
 // Websocket
 
@@ -140,13 +127,13 @@ type subMeta interface {
 
 type subscribeMetadata string
 
-type subscribeInfo struct {
+type subscribeBody struct {
 	SubType subType           `json:"subscribeType"`
 	Key     subId             `json:"subscribeKey"`
 	Meta    subscribeMetadata `json:"subscribeMeta"`
 }
 
-type unsubscribeInfo struct {
+type unsubscribeBody struct {
 	Key subId `json:"subscribeKey"`
 }
 
@@ -179,7 +166,7 @@ func (task taskSubMetadata) ResultKeys() []string {
 	return task.LookingFor
 }
 
-type scanInfo struct {
+type scanBody struct {
 	FolderId  types.FileId `json:"folderId"`
 	Filename  string       `json:"filename"`
 	Recursive bool         `json:"recursive"`
@@ -257,3 +244,5 @@ var ErrBadAuthScheme types.WeblensError = errors.New("invalid authorization sche
 var ErrBasicAuthFormat types.WeblensError = errors.New("did not get expected encoded basic auth format")
 var ErrEmptyAuth types.WeblensError = errors.New("empty auth header not allowed on endpoint")
 var ErrCoreOriginate types.WeblensError = errors.New("core server attempted to ping remote server")
+var ErrNoAddress types.WeblensError = errors.New("trying to make request to core without a core address")
+var ErrNoKey types.WeblensError = errors.New("trying to make request to core without an api key")

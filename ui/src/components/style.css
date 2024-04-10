@@ -309,6 +309,7 @@
     overflow-y: scroll;
     background-color: #111418;
     box-shadow: 0 0 10px 2px #00000044;
+    border-radius: 6px;
 }
 
 .weblens-input {

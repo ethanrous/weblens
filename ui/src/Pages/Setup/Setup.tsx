@@ -400,11 +400,10 @@ const Setup = () => {
     const { serverInfo } = useContext(userContext);
     const [page, setPage] = useState("landing");
 
+    console.log(serverInfo);
     if (!serverInfo) {
         return null;
     }
-
-    console.log(serverInfo.name);
 
     return (
         <Box className="setup-container">

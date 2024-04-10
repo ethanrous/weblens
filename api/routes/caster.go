@@ -101,7 +101,7 @@ func (c unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFi
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER.GetUsername()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
 
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
@@ -160,7 +160,7 @@ func (c *bufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta("").SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(nil).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -186,7 +186,7 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER.GetUsername()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -239,7 +239,7 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER.GetUsername()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)

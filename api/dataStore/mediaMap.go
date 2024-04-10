@@ -142,31 +142,6 @@ func GetRealFile(m types.Media) (types.WeblensFile, error) {
 	return nil, ErrNoFile
 }
 
-func CleanOrphanedMedias() {
-	mediaMapLock.Lock()
-	allMedias := util.MapToSlicePure(mediaMap)
-	mediaMapLock.Unlock()
-
-	var orphaned []types.Media
-	for _, m := range allMedias {
-		realM := m.(*media)
-		isOrphan := true
-		for _, fId := range realM.fileIds {
-			f := FsTreeGet(fId)
-			if f != nil {
-				isOrphan = false
-				break
-			}
-		}
-		if isOrphan {
-			orphaned = append(orphaned, realM)
-		}
-	}
-
-	// fddb.deleteManyMedias(util.Map(orphaned, func(m types.Media) string {return m.Id()})	)
-
-}
-
 func GetRandomMedia(limit int) []types.Media {
 	count := 0
 	medias := []types.Media{}

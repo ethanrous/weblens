@@ -51,15 +51,8 @@ export function adminCreateUser(username, password, admin, authHeader?: AuthHead
         });
 }
 
-export function clearCache(authHeader) {
+export function clearCache(authHeader: AuthHeaderT) {
     return fetch(`${ADMIN_ENDPOINT}/cache`, {
-        method: "POST",
-        headers: authHeader,
-    });
-}
-
-export function cleanMedias(authHeader) {
-    return fetch(`${ADMIN_ENDPOINT}/cleanup/medias`, {
         method: "POST",
         headers: authHeader,
     });
@@ -86,12 +79,17 @@ export async function fetchMediaTypes() {
     return await fetch(url).then((r) => r.json());
 }
 
-export async function newApiKey(authHeader) {
+export async function newApiKey(authHeader: AuthHeaderT) {
     const url = new URL(`${ADMIN_ENDPOINT}/apiKey`);
     return await fetch(url, {headers: authHeader, method: "POST"}).then((r) => r.json());
 }
 
-export async function getApiKeys(authHeader) {
+export async function deleteApiKey(key: string, authHeader: AuthHeaderT) {
+    const url = new URL(`${ADMIN_ENDPOINT}/apiKey`);
+    return await fetch(url, {headers: authHeader, method: "DELETE", body: JSON.stringify({key: key})});
+}
+
+export async function getApiKeys(authHeader: AuthHeaderT) {
     const url = new URL(`${ADMIN_ENDPOINT}/apiKeys`);
     return await fetch(url, {headers: authHeader}).then((r) => r.json());
 }
@@ -118,7 +116,7 @@ export async function getUsersPublic() {
     return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }
 
-export async function doBackup() {
+export async function doBackup(authHeader: AuthHeaderT) {
     const url = new URL(`${ADMIN_ENDPOINT}/backup`);
-    return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    return await fetch(url, {method: "POST", headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }

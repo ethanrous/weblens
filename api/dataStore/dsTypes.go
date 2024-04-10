@@ -251,6 +251,7 @@ var ErrWriteOnReadOnly WeblensFileError = errors.New("tried to write to read-onl
 var ErrNoUser WeblensUserError = errors.New("user does not exist")
 var ErrUserAlreadyExists WeblensUserError = errors.New("cannot create two users with the same username")
 var ErrUserNotAuthorized WeblensUserError = errors.New("user does not have access the requested resource")
+var ErrUserNotAuthenticated WeblensUserError = errors.New("user credentials are invalid")
 var ErrNoFileAccess WeblensUserError = errors.New("user does not have access to file")
 var ErrBadPassword WeblensUserError = errors.New("password provided does not authenticate user")
 
@@ -267,5 +268,6 @@ var ErrPageOutOfRange = errors.New("page number does not exist on media")
 var ErrNoKey = errors.New("api key is does not exist")
 var ErrKeyInUse = errors.New("api key is already being used to identify another remote server")
 
-var ErrAlreadyCore = errors.New("core server does not have a remote core")
-var ErrNotCore = errors.New("core server does not have a remote core")
+var ErrAlreadyCore = errors.New("core server cannot have a remote core")
+var ErrNotCore = errors.New("tried to perform core only action on non-core server")
+var ErrAlreadyInit = errors.New("server is already initilized, cannot re-initilize server")

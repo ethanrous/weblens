@@ -122,9 +122,9 @@ func AddApiRoutes(r *gin.Engine) {
 
 	admin.GET("/apiKeys", getApiKeys)
 	admin.POST("/scan", recursiveScanDir)
-	admin.POST("/cleanup/medias", cleanupMedias)
 	admin.POST("/cache", clearCache)
 	admin.POST("/apiKey", newApiKey)
+	admin.DELETE("/apiKey", deleteApiKey)
 
 	admin.POST("/backup", getBackupSnapshot)
 

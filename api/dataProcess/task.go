@@ -145,7 +145,10 @@ func (t *task) error(err error) {
 
 func (t *task) ErrorAndExit(err error, info ...any) {
 	_, filename, line, _ := runtime.Caller(1)
-	util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\nTask reports: %s", t.TaskId(), filename, line, err.Error(), fmt.Sprint(info...))
+	util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\n", t.TaskId(), filename, line, err.Error())
+	if len(info) != 0 {
+		util.ErrorCatcher.Printf("Reported by task: %s", fmt.Sprint(info...))
+	}
 	t.error(err)
 	panic(ErrTaskError)
 }

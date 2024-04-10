@@ -26,7 +26,7 @@ func attachRemote(ctx *gin.Context) {
 		return
 	}
 
-	nr, err := readCtxBody[newServerInfo](ctx)
+	nr, err := readCtxBody[newServerBody](ctx)
 	if err != nil {
 		return
 	}
@@ -50,7 +50,8 @@ func attachRemote(ctx *gin.Context) {
 }
 
 func getBackupSnapshot(ctx *gin.Context) {
-	t := dataProcess.GetGlobalQueue().Backup()
+	rq := NewRequester()
+	t := dataProcess.GetGlobalQueue().Backup(rq)
 	t.Wait()
 
 	_, status := t.Status()

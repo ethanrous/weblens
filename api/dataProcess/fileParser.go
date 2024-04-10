@@ -92,7 +92,7 @@ func scanDirectory(t *task) {
 	if scanDir.Filename() == ".user_trash" {
 		t.taskPool.NotifyTaskComplete(t, t.caster, "No media to scan")
 		globalCaster.PushTaskUpdate(t.taskId, "scan_complete", types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
-		t.success()
+		t.success("No media to scan")
 		return
 	}
 

@@ -13,10 +13,51 @@ import (
 )
 
 type requester struct {
+	ApiKey      types.WeblensApiKey
+	CoreAddress string
 }
 
 func NewRequester() types.Requester {
-	return &requester{}
+	srvInfo := dataStore.GetServerInfo()
+	if srvInfo == nil {
+		return &requester{}
+	}
+	addr, _ := srvInfo.GetCoreAddress()
+
+	return &requester{
+		ApiKey:      srvInfo.GetUsingKey(),
+		CoreAddress: addr,
+	}
+}
+
+func (r *requester) coreRequest(method string, addrExt string, body any) (*http.Response, error) {
+	if r.CoreAddress == "" {
+		return nil, ErrNoAddress
+	}
+	if r.ApiKey == "" {
+		return nil, ErrNoKey
+	}
+
+	buf := &bytes.Buffer{}
+	if body != nil {
+		bs, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		buf = bytes.NewBuffer(bs)
+	}
+	req, err := http.NewRequest(method, r.CoreAddress+addrExt, buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Bearer "+string(r.ApiKey))
+	cli := &http.Client{}
+	resp, err := cli.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, err
 }
 
 func PingCore(coreAddress string) error {
@@ -42,19 +83,11 @@ type filesResp struct {
 }
 
 func (r *requester) AttachToCore(coreAddress string, name string, apiKey types.WeblensApiKey) error {
+	r.CoreAddress = coreAddress
+	r.ApiKey = apiKey
+
 	body := gin.H{"name": name, "usingKey": apiKey}
-	bs, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-	buf := bytes.NewBuffer(bs)
-	req, err := http.NewRequest("POST", coreAddress+"/api/remote", buf)
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Authorization", "Bearer "+string(apiKey))
-	cli := &http.Client{}
-	resp, err := cli.Do(req)
+	resp, err := r.coreRequest("POST", "/api/remote", body)
 	if err != nil {
 		return err
 	}
@@ -67,14 +100,11 @@ func (r *requester) AttachToCore(coreAddress string, name string, apiKey types.W
 }
 
 func (r *requester) GetCoreSnapshot() error {
-	address, err := dataStore.GetServerInfo().GetCoreAddress()
+	resp, err := r.coreRequest("GET", "/api/snapshot", nil)
 	if err != nil {
-		util.ShowErr(err)
 		return err
-	}
-
-	resp, err := http.Get(address + "/snapshot")
-	if err != nil {
+	} else if resp.StatusCode != 200 {
+		err = errors.New("bad status: " + resp.Status)
 		return err
 	}
 

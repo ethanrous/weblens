@@ -29,7 +29,7 @@ import { IconSettings } from "@tabler/icons-react";
 import { WeblensButton } from "./WeblensButton";
 import { useKeyDown } from "./hooks";
 import { UpdatePassword } from "../api/UserApi";
-import { AuthHeaderT, UserInfoT } from "../types/Types";
+import { AuthHeaderT, UserContextT, UserInfoT } from "../types/Types";
 import { IconArrowLeft } from "@tabler/icons-react";
 import Admin from "../Pages/Admin Settings/Admin";
 
@@ -134,11 +134,7 @@ const SettingsMenu = ({
 
 const HeaderBar = memo(
     ({ dispatch, page, loading }: HeaderBarProps) => {
-        const {
-            usr,
-            authHeader,
-            clear,
-        }: { usr: UserInfoT; authHeader: AuthHeaderT; clear } =
+        const { usr, authHeader, clear, serverInfo }: UserContextT =
             useContext(userContext);
         const nav = useNavigate();
         const [userMenu, setUserMenu] = useState(false);
@@ -176,14 +172,6 @@ const HeaderBar = memo(
                 >
                     <WeblensLoader loading={loading} />
                 </Box>
-                {/* {loading.length !== 0 && (
-
-                    <Loader
-                        type="bars"
-                        color="#4444ff"
-                        style={{ position: 'fixed', bottom: 25, right: 25 }}
-                    />
-                )} */}
                 <RowBox
                     style={{
                         height: 56,
@@ -218,6 +206,20 @@ const HeaderBar = memo(
                         />
                     )}
                     <Space style={{ flexGrow: 2 }} />
+                    <Box
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-end",
+                            height: "max-content",
+                            width: "max-content",
+                            paddingRight: 10,
+                            color: "#575757",
+                        }}
+                    >
+                        <Text size="12px">{serverInfo.name}</Text>
+                        <Text size="12px">({serverInfo.role})</Text>
+                    </Box>
                     <Tooltip
                         color="#222222"
                         label={

@@ -60,7 +60,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 			} else {
 				folder = dataStore.FsTreeGet(fileId)
 			}
-			acc := dataStore.NewAccessMeta(c.user.GetUsername()).SetRequestMode(dataStore.FileSubscribeRequest)
+			acc := dataStore.NewAccessMeta(c.user).SetRequestMode(dataStore.FileSubscribeRequest)
 			if folder == nil {
 				err := fmt.Errorf("could not find folder with ID %s", key)
 				c.Error(err)
@@ -157,7 +157,7 @@ func (c *Client) Error(err error) {
 }
 
 func (c *Client) PushFileUpdate(updatedFile types.WeblensFile) {
-	acc := dataStore.NewAccessMeta(c.user.GetUsername()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(c.user).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)

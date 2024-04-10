@@ -45,12 +45,13 @@ const useR = () => {
     useEffect(() => {
         getServerInfo().then((r) => {
             if ((r === 307 || r.info.userCount === 0) && !inSetup) {
+                setServerInfo({ name: "" });
                 nav("/setup");
+                return;
             } else if (r !== 307 && r.info.userCount !== 0 && inSetup) {
                 nav("/");
-            } else {
-                setServerInfo({ ...r.info });
             }
+            setServerInfo({ ...r.info });
         });
     }, []);
 

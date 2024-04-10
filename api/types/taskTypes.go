@@ -32,7 +32,7 @@ type TaskPool interface {
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
-	Backup() Task
+	Backup(Requester) Task
 }
 
 type TaskId string
