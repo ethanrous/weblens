@@ -121,10 +121,12 @@ func AddApiRoutes(r *gin.Engine) {
 	admin.DELETE("/user/:username", deleteUser)
 
 	admin.GET("/apiKeys", getApiKeys)
+	admin.GET("/remotes", getRemotes)
 	admin.POST("/scan", recursiveScanDir)
 	admin.POST("/cache", clearCache)
 	admin.POST("/apiKey", newApiKey)
 	admin.DELETE("/apiKey", deleteApiKey)
+	admin.DELETE("/remote", removeRemote)
 
 	admin.POST("/backup", getBackupSnapshot)
 

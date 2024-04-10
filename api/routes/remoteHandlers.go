@@ -30,7 +30,7 @@ func attachRemote(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	err = dataStore.NewRemote(nr.Name, types.WeblensApiKey(nr.UsingKey))
+	err = dataStore.NewRemote(nr.Id, nr.Name, types.WeblensApiKey(nr.UsingKey))
 	if err != nil {
 		if err == dataStore.ErrKeyInUse {
 			ctx.Status(http.StatusConflict)
@@ -63,4 +63,24 @@ func getBackupSnapshot(ctx *gin.Context) {
 		return
 	}
 
+}
+
+func getRemotes(ctx *gin.Context) {
+	srvs, err := dataStore.GetRemotes()
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"remotes": srvs})
+}
+
+func removeRemote(ctx *gin.Context) {
+	body, err := readCtxBody[deleteRemoteBody](ctx)
+	if err != nil {
+		return
+	}
+	dataStore.DeleteRemote(body.RemoteId)
+
+	ctx.Status(http.StatusOK)
 }

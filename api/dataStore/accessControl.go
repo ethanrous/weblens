@@ -189,12 +189,12 @@ func DeleteApiKey(key types.WeblensApiKey) {
 	fddb.removeApiKey(key)
 }
 
-func SetKeyRemote(key types.WeblensApiKey, remoteName string) error {
+func SetKeyRemote(key types.WeblensApiKey, remoteId string) error {
 	kInfo := GetApiKeyInfo(key)
 	if kInfo == nil {
 		return ErrNoKey
 	}
-	kInfo.RemoteUsing = remoteName
+	kInfo.RemoteUsing = remoteId
 	fddb.updateApiKey(*kInfo)
 
 	return nil

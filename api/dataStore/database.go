@@ -742,7 +742,8 @@ func (db Weblensdb) newApiKey(keyInfo ApiKeyInfo) error {
 
 func (db Weblensdb) updateApiKey(keyInfo ApiKeyInfo) {
 	filter := bson.M{"key": keyInfo.Key}
-	db.mongo.Collection("apiKeys").UpdateOne(mongo_ctx, filter, keyInfo)
+	update := bson.M{"$set": keyInfo}
+	db.mongo.Collection("apiKeys").UpdateOne(mongo_ctx, filter, update)
 }
 
 func (db Weblensdb) removeApiKey(key types.WeblensApiKey) {
@@ -790,6 +791,24 @@ func (db Weblensdb) newServer(srvI srvInfo) error {
 	}
 	db.mongo.Collection("servers").InsertOne(mongo_ctx, srvI)
 	return nil
+}
+
+func (db Weblensdb) getServers() ([]*srvInfo, error) {
+	ret, err := db.mongo.Collection("servers").Find(mongo_ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	var srvs []*srvInfo
+	err = ret.All(mongo_ctx, &srvs)
+	if err != nil {
+		return nil, err
+	}
+
+	return srvs, nil
+}
+
+func (db Weblensdb) removeServer(remoteId string) {
+	db.mongo.Collection("servers").DeleteOne(mongo_ctx, bson.M{"_id": remoteId})
 }
 
 func (db Weblensdb) getUsingKey(key types.WeblensApiKey) *srvInfo {

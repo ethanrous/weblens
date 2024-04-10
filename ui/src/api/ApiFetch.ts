@@ -120,3 +120,13 @@ export async function doBackup(authHeader: AuthHeaderT) {
     const url = new URL(`${ADMIN_ENDPOINT}/backup`);
     return await fetch(url, {method: "POST", headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }
+
+export async function getRemotes(authHeader: AuthHeaderT) {
+    const url = new URL(`${ADMIN_ENDPOINT}/remotes`);
+    return await fetch(url, {method: "GET", headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function deleteRemote(remoteId: string, authHeader: AuthHeaderT) {
+    const url = new URL(`${ADMIN_ENDPOINT}/remote`);
+    return await fetch(url, {method: "DELETE", headers: authHeader, body: JSON.stringify({remoteId: remoteId})})
+}

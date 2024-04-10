@@ -5,18 +5,28 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func NewRemote(name string, key types.WeblensApiKey) error {
+func NewRemote(id, name string, key types.WeblensApiKey) error {
 	if existing := fddb.getUsingKey(key); existing != nil {
 		util.Error.Println("Using server:", existing.Name)
 		return ErrKeyInUse
 	}
 
 	remote := srvInfo{
+		Id:       id,
 		Name:     name,
 		Role:     types.BackupMode,
 		UsingKey: key,
 	}
 	fddb.newServer(remote)
+	SetKeyRemote(key, remote.Id)
 
 	return nil
+}
+
+func GetRemotes() ([]*srvInfo, error) {
+	return fddb.getServers()
+}
+
+func DeleteRemote(remoteId string) {
+	fddb.removeServer(remoteId)
 }

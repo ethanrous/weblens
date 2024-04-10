@@ -16,6 +16,8 @@ import {
     getApiKeys,
     doBackup,
     deleteApiKey,
+    getRemotes,
+    deleteRemote,
 } from "../../api/ApiFetch";
 import {
     ActivateUser,
@@ -264,6 +266,7 @@ function UsersBox({
 }
 
 export function ApiKeys({ authHeader }) {
+    const { serverInfo }: UserContextT = useContext(userContext);
     const [keys, setKeys] = useState([]);
 
     const getKeys = useCallback(() => {
@@ -274,6 +277,16 @@ export function ApiKeys({ authHeader }) {
 
     useEffect(() => {
         getKeys();
+    }, []);
+
+    const [remotes, setRemotes] = useState([]);
+    useEffect(() => {
+        getRemotes(authHeader).then((r) => {
+            if (r >= 400) {
+                return;
+            }
+            setRemotes(r.remotes);
+        });
     }, []);
 
     return (
@@ -397,6 +410,63 @@ export function ApiKeys({ authHeader }) {
                     );
                 }}
             />
+            <Box
+                style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: 5,
+                    paddingLeft: 10,
+                    borderRadius: 4,
+                    margin: 20,
+                    width: "100%",
+                    gap: 10,
+                }}
+            >
+                {remotes.map((r) => {
+                    if (r.id === serverInfo.id) {
+                        return null;
+                    }
+                    return (
+                        <Box
+                            key={r.name}
+                            style={{
+                                backgroundColor: "#333333",
+                                display: "flex",
+                                flexDirection: "row",
+                                alignItems: "center",
+                                width: "100%",
+                                borderRadius: 4,
+                                paddingLeft: 20,
+                                justifyContent: "space-between",
+                            }}
+                        >
+                            <Text>{r.name}</Text>
+                            <IconTrash
+                                size={"40px"}
+                                style={{
+                                    flexShrink: 0,
+                                    margin: 4,
+                                    backgroundColor: "#222222",
+                                    borderRadius: 2,
+                                    padding: 4,
+                                    cursor: "pointer",
+                                }}
+                                onClick={() => {
+                                    deleteRemote(r.id, authHeader).then(() => {
+                                        getRemotes(authHeader).then((r) => {
+                                            if (r >= 400) {
+                                                return;
+                                            }
+                                            setRemotes(r.remotes);
+                                        });
+                                    });
+                                }}
+                            />
+                        </Box>
+                    );
+                })}
+            </Box>
         </Box>
     );
 }

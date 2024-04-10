@@ -88,6 +88,10 @@ type deleteKeyBody struct {
 	Key types.WeblensApiKey `json:"key"`
 }
 
+type deleteRemoteBody struct {
+	RemoteId string `json:"remoteId"`
+}
+
 // Websocket
 
 type subType string
