@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/bimg"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/go-redis/redis"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -140,13 +141,13 @@ func SetExiftool(et *exiftool.Exiftool) {
 	gexift = et
 }
 
-type folderData struct {
-	FolderId       types.FileId     `bson:"_id" json:"folderId"`
-	ParentFolderId types.FileId     `bson:"parentFolderId" json:"parentFolderId"`
-	RelPath        string           `bson:"relPath" json:"relPath"`
-	SharedWith     []types.Username `bson:"sharedWith" json:"sharedWith"`
-	Shares         []fileShareData  `bson:"shares"`
-}
+// type folderData struct {
+// 	FolderId       types.FileId     `bson:"_id" json:"folderId"`
+// 	ParentFolderId types.FileId     `bson:"parentFolderId" json:"parentFolderId"`
+// 	RelPath        string           `bson:"relPath" json:"relPath"`
+// 	SharedWith     []types.Username `bson:"sharedWith" json:"sharedWith"`
+// 	Shares         []fileShareData  `bson:"shares"`
+// }
 
 const (
 	FileShare  types.ShareType = "file"
@@ -209,7 +210,7 @@ type AlbumData struct {
 }
 
 type ApiKeyInfo struct {
-	Id          string              `bson:"_id"`
+	Id          primitive.ObjectID  `bson:"_id"`
 	Key         types.WeblensApiKey `bson:"key"`
 	Owner       types.Username      `bson:"owner"`
 	CreatedTime time.Time           `bson:"createdTime"`

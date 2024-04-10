@@ -17,10 +17,13 @@ func NewRemote(id, name string, key types.WeblensApiKey) error {
 		Role:     types.BackupMode,
 		UsingKey: key,
 	}
-	fddb.newServer(remote)
-	SetKeyRemote(key, remote.Id)
+	err := fddb.newServer(remote)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	err = SetKeyRemote(key, remote.Id)
+	return err
 }
 
 func GetRemotes() ([]*srvInfo, error) {

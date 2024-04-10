@@ -736,14 +736,17 @@ func (db Weblensdb) getFileShare(shareId types.ShareId) (s fileShareData, err er
 }
 
 func (db Weblensdb) newApiKey(keyInfo ApiKeyInfo) error {
+	keyInfo.Id = primitive.NewObjectID()
 	_, err := db.mongo.Collection("apiKeys").InsertOne(mongo_ctx, keyInfo)
 	return err
 }
 
-func (db Weblensdb) updateApiKey(keyInfo ApiKeyInfo) {
+func (db Weblensdb) updateApiKey(keyInfo ApiKeyInfo) error {
 	filter := bson.M{"key": keyInfo.Key}
-	update := bson.M{"$set": keyInfo}
-	db.mongo.Collection("apiKeys").UpdateOne(mongo_ctx, filter, update)
+	// update := bson.M{"$set": keyInfo}
+
+	res := db.mongo.Collection("apiKeys").FindOneAndReplace(mongo_ctx, filter, keyInfo)
+	return res.Err()
 }
 
 func (db Weblensdb) removeApiKey(key types.WeblensApiKey) {

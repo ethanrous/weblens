@@ -3,6 +3,7 @@ package dataStore
 import (
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -10,6 +11,7 @@ import (
 )
 
 var apiKeyMap map[types.WeblensApiKey]*ApiKeyInfo = map[types.WeblensApiKey]*ApiKeyInfo{}
+var keyMapMu = &sync.Mutex{}
 
 func (a accessMeta) Shares() []types.Share {
 	return a.shares
@@ -132,12 +134,16 @@ func CanUserAccessShare(s types.Share, username types.Username) bool {
 
 func InitApiKeyMap() {
 	keys := fddb.getApiKeys()
+	keyMapMu.Lock()
+	defer keyMapMu.Unlock()
 	for _, keyInfo := range keys {
 		apiKeyMap[keyInfo.Key] = &keyInfo
 	}
 }
 
 func GetApiKeyInfo(key types.WeblensApiKey) *ApiKeyInfo {
+	keyMapMu.Lock()
+	defer keyMapMu.Unlock()
 	return apiKeyMap[key]
 }
 
@@ -163,7 +169,9 @@ func GenerateApiKey(acc types.AccessMeta) (key *ApiKeyInfo, err error) {
 	if err != nil {
 		return nil, err
 	}
+	keyMapMu.Lock()
 	apiKeyMap[hash] = newKey
+	keyMapMu.Unlock()
 
 	return newKey, nil
 }
@@ -185,7 +193,9 @@ func CheckApiKey(key types.WeblensApiKey) bool {
 }
 
 func DeleteApiKey(key types.WeblensApiKey) {
+	keyMapMu.Lock()
 	delete(apiKeyMap, key)
+	keyMapMu.Unlock()
 	fddb.removeApiKey(key)
 }
 
@@ -195,7 +205,7 @@ func SetKeyRemote(key types.WeblensApiKey, remoteId string) error {
 		return ErrNoKey
 	}
 	kInfo.RemoteUsing = remoteId
-	fddb.updateApiKey(*kInfo)
+	err := fddb.updateApiKey(*kInfo)
 
-	return nil
+	return err
 }
