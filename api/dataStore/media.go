@@ -712,7 +712,10 @@ func (m *media) getImageRecognitionTags() (err error) {
 		imgBuf = bytes.NewBuffer(m.imgBytes)
 	}
 
-	resp, err := http.Post(util.GetImgRecognitionUrl(), "application/jpeg", imgBuf)
+	// resp, err := http.Get(util.GetImgRecognitionUrl() + "/ping")
+	// util.Debug.Println(resp.Status, err)
+
+	resp, err := http.Post(util.GetImgRecognitionUrl()+"/recognize", "application/jpeg", imgBuf)
 	if err != nil {
 		return
 	}

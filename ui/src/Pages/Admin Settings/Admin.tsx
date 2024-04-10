@@ -12,10 +12,10 @@ import { userContext } from "../../Context";
 import {
     clearCache,
     adminCreateUser,
-    cleanMedias,
     newApiKey,
     getApiKeys,
     doBackup,
+    deleteApiKey,
 } from "../../api/ApiFetch";
 import {
     ActivateUser,
@@ -25,7 +25,12 @@ import {
 } from "../../api/UserApi";
 import { notifications } from "@mantine/notifications";
 import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles";
-import { IconClipboard, IconRefresh, IconX } from "@tabler/icons-react";
+import {
+    IconClipboard,
+    IconRefresh,
+    IconTrash,
+    IconX,
+} from "@tabler/icons-react";
 import { RecurScanFolder } from "../../api/FileBrowserApi";
 import {
     AuthHeaderT as AuthHeaderT,
@@ -109,6 +114,7 @@ const UserRow = ({
     setAllUsersInfo;
     authHeader: AuthHeaderT;
 }) => {
+    console.log(rowUser);
     return (
         <RowBox
             key={rowUser.username}
@@ -158,7 +164,7 @@ const UserRow = ({
                         }}
                     />
                 )}
-                {!rowUser.owner && rowUser.admin && accessor.admin && (
+                {!rowUser.owner && rowUser.admin && accessor.owner && (
                     <WeblensButton
                         label="Remove Admin"
                         width={"max-content"}
@@ -288,7 +294,8 @@ export function ApiKeys({ authHeader }) {
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
-                        padding: 10,
+                        padding: 5,
+                        paddingLeft: 10,
                         borderRadius: 4,
                         margin: 20,
                         maxWidth: "100%",
@@ -305,12 +312,28 @@ export function ApiKeys({ authHeader }) {
                                     maxWidth: "100%",
                                 }}
                             >
-                                <Text
-                                    truncate="end"
-                                    style={{ textWrap: "nowrap" }}
+                                <Box
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "flex-start",
+                                        flexGrow: 1,
+                                        width: "50%",
+                                    }}
                                 >
-                                    {k.Key}
-                                </Text>
+                                    <Text
+                                        truncate="end"
+                                        style={{
+                                            textWrap: "nowrap",
+                                            width: "100%",
+                                        }}
+                                    >
+                                        {k.Key}
+                                    </Text>
+                                    {k.RemoteUsing !== "" && (
+                                        <Text>{k.RemoteUsing}</Text>
+                                    )}
+                                </Box>
                                 <IconClipboard
                                     size={"40px"}
                                     style={{
@@ -323,12 +346,39 @@ export function ApiKeys({ authHeader }) {
                                     }}
                                     onClick={() => {
                                         if (!window.isSecureContext) {
-                                            notifications.show({message: 'Browser context is not secure, are you not using HTTPS?', color: 'red'})
-                                            return
+                                            notifications.show({
+                                                message:
+                                                    "Browser context is not secure, are you not using HTTPS?",
+                                                color: "red",
+                                            });
+                                            return;
                                         }
-                                        navigator.clipboard.writeText(k.Key)
-                                    }
-                                    }
+                                        navigator.clipboard.writeText(k.Key);
+                                    }}
+                                />
+                                <IconTrash
+                                    size={"40px"}
+                                    style={{
+                                        flexShrink: 0,
+                                        margin: 4,
+                                        backgroundColor: "#222222",
+                                        borderRadius: 2,
+                                        padding: 4,
+                                        cursor: "pointer",
+                                    }}
+                                    onClick={() => {
+                                        deleteApiKey(k.Key, authHeader).then(
+                                            () => {
+                                                setKeys((ks) => {
+                                                    ks = ks.filter(
+                                                        (i) => i !== k
+                                                    );
+                                                    console.log(ks);
+                                                    return [...ks];
+                                                });
+                                            }
+                                        );
+                                    }}
                                 />
                             </Box>
                         );
@@ -379,13 +429,14 @@ export function Admin({ close }) {
             </RowBox>
             <ColumnBox
                 style={{
-                    marginTop: "50px",
-                    paddingBottom: "50px",
+                    // marginTop: "50px",
+                    // paddingBottom: "50px",
                     height: "max-content",
                     maxHeight: "80vh",
-                    padding: 140,
+                    padding: 30,
                     justifyContent: "center",
                     alignItems: "center",
+                    borderRadius: 8,
                 }}
             >
                 <UsersBox
@@ -409,17 +460,6 @@ export function Admin({ close }) {
                     }}
                 >
                     <WeblensButton
-                        label="Clean Orphaned Media"
-                        width={"200px"}
-                        onClick={() => {
-                            cleanMedias(authHeader).then(() =>
-                                notifications.show({
-                                    message: "Removed medias",
-                                })
-                            );
-                        }}
-                    />
-                    <WeblensButton
                         label="Clear Cache"
                         width={"200px"}
                         danger
@@ -435,7 +475,10 @@ export function Admin({ close }) {
                         label="Backup now"
                         width={"200px"}
                         onClick={async () => {
-                            await doBackup();
+                            const res = await doBackup(authHeader);
+                            if (res >= 300) {
+                                return false;
+                            }
                             return true;
                         }}
                     />

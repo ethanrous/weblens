@@ -19,10 +19,9 @@ func (a accessMeta) User() types.User {
 	return a.user
 }
 
-func NewAccessMeta(u types.Username) types.AccessMeta {
-	user := GetUser(u)
+func NewAccessMeta(u types.User) types.AccessMeta {
 	return &accessMeta{
-		user: user,
+		user: u,
 	}
 }
 
@@ -142,7 +141,7 @@ func GetApiKeyInfo(key types.WeblensApiKey) *ApiKeyInfo {
 	return apiKeyMap[key]
 }
 
-func GenerateApiKey(acc types.AccessMeta) (key ApiKeyInfo, err error) {
+func GenerateApiKey(acc types.AccessMeta) (key *ApiKeyInfo, err error) {
 	if !acc.User().IsAdmin() {
 		err = ErrUserNotAuthorized
 		return
@@ -154,14 +153,17 @@ func GenerateApiKey(acc types.AccessMeta) (key ApiKeyInfo, err error) {
 	createTime := time.Now()
 	hash := types.WeblensApiKey(util.GlobbyHash(0, acc.User().GetUsername(), strconv.Itoa(int(createTime.Unix()))))
 
-	newKey := ApiKeyInfo{
+	newKey := &ApiKeyInfo{
 		Key:         hash,
 		Owner:       acc.User().GetUsername(),
 		CreatedTime: createTime,
 	}
 
-	fddb.newApiKey(newKey)
-	apiKeyMap[hash] = &newKey
+	err = fddb.newApiKey(*newKey)
+	if err != nil {
+		return nil, err
+	}
+	apiKeyMap[hash] = newKey
 
 	return newKey, nil
 }
@@ -180,6 +182,11 @@ func GetApiKeys(acc types.AccessMeta) ([]ApiKeyInfo, error) {
 func CheckApiKey(key types.WeblensApiKey) bool {
 	keyInfo := GetApiKeyInfo(key)
 	return keyInfo != nil
+}
+
+func DeleteApiKey(key types.WeblensApiKey) {
+	delete(apiKeyMap, key)
+	fddb.removeApiKey(key)
 }
 
 func SetKeyRemote(key types.WeblensApiKey, remoteName string) error {

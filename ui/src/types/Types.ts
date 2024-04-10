@@ -17,12 +17,20 @@ export type UserInfoT = {
     isLoggedIn: boolean;
 };
 
+export type ServerInfoT = {
+    id: string;
+    name: string;
+    role: string;
+    coreAddress: string;
+    userCount: number;
+}
+
 export type UserContextT = {
     authHeader: AuthHeaderT;
     usr: UserInfoT;
     setCookie;
     clear;
-    serverInfo;
+    serverInfo: ServerInfoT;
 }
 
 export type MediaDataT = {

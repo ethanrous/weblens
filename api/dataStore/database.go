@@ -735,13 +735,19 @@ func (db Weblensdb) getFileShare(shareId types.ShareId) (s fileShareData, err er
 	return
 }
 
-func (db Weblensdb) newApiKey(keyInfo ApiKeyInfo) {
-	db.mongo.Collection("apiKeys").InsertOne(mongo_ctx, keyInfo)
+func (db Weblensdb) newApiKey(keyInfo ApiKeyInfo) error {
+	_, err := db.mongo.Collection("apiKeys").InsertOne(mongo_ctx, keyInfo)
+	return err
 }
 
 func (db Weblensdb) updateApiKey(keyInfo ApiKeyInfo) {
 	filter := bson.M{"key": keyInfo.Key}
 	db.mongo.Collection("apiKeys").UpdateOne(mongo_ctx, filter, keyInfo)
+}
+
+func (db Weblensdb) removeApiKey(key types.WeblensApiKey) {
+	filter := bson.M{"key": key}
+	db.mongo.Collection("apiKeys").DeleteOne(mongo_ctx, filter)
 }
 
 func (db Weblensdb) getApiKeysByUser(username types.Username) []ApiKeyInfo {
@@ -775,8 +781,15 @@ func (db Weblensdb) getApiKeys() []ApiKeyInfo {
 	return k
 }
 
-func (db Weblensdb) newServer(srvI srvInfo) {
+func (db Weblensdb) newServer(srvI srvInfo) error {
+	if srvI.IsThisServer {
+		existing, _ := db.getThisServerInfo()
+		if existing != nil {
+			return ErrAlreadyInit
+		}
+	}
 	db.mongo.Collection("servers").InsertOne(mongo_ctx, srvI)
+	return nil
 }
 
 func (db Weblensdb) getUsingKey(key types.WeblensApiKey) *srvInfo {
@@ -806,11 +819,4 @@ func (db Weblensdb) getThisServerInfo() (*srvInfo, error) {
 	ret.Decode(&si)
 
 	return &si, nil
-}
-
-func (db Weblensdb) updateCoreAddress(coreAddress string) error {
-	filter := bson.M{"isThisServer": true}
-	update := bson.M{"$set": bson.M{"coreAddress": coreAddress}}
-	_, err := db.mongo.Collection("servers").UpdateOne(mongo_ctx, filter, update)
-	return err
 }

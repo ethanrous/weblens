@@ -71,7 +71,7 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 	switch msg.Action {
 	case Subscribe:
 		{
-			var subInfo subscribeInfo
+			var subInfo subscribeBody
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 			if err != nil {
 				util.ErrTrace(err)
@@ -91,14 +91,14 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 
 	case Unsubscribe:
 		{
-			var unsubInfo unsubscribeInfo
+			var unsubInfo unsubscribeBody
 			json.Unmarshal([]byte(msg.Content), &unsubInfo)
 			client.Unsubscribe(unsubInfo.Key)
 		}
 
 	case ScanDirectory:
 		{
-			var scanInfo scanInfo
+			var scanInfo scanBody
 			err := json.Unmarshal([]byte(msg.Content), &scanInfo)
 			if err != nil {
 				util.ErrTrace(err)

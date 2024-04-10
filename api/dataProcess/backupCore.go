@@ -8,6 +8,11 @@ import (
 )
 
 func BackupD(interval time.Duration, r types.Requester) {
+	srvInfo := dataStore.GetServerInfo()
+	if srvInfo == nil || srvInfo.ServerRole() != types.BackupMode {
+		return
+	}
+	return
 	for {
 		time.Sleep(interval)
 		newTask(BackupTask, nil, globalCaster, r).Q(nil)
@@ -33,7 +38,11 @@ func receiveBackup(t *task) {
 	// fsStatT := tp.GatherFsStats(dataStore.GetMediaDir(), globalCaster).Q(tp)
 	// fsStatT.Wait()
 
-	t.requester.GetCoreSnapshot()
+	err := t.requester.GetCoreSnapshot()
+	if err != nil {
+		t.ErrorAndExit(err)
+		// util.ShowErr(err)
+	}
 	t.setResult(types.TaskResult{"yay": "cool"})
 
 	// util.Debug.Println("Free Space", humanize.Bytes(fsStatT.GetResult("bytesFree")["bytesFree"].(uint64)))

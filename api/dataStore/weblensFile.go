@@ -403,7 +403,7 @@ func (f *weblensFile) CreateSelf() error {
 }
 
 func (f *weblensFile) MarshalJSON() ([]byte, error) {
-	acc := NewAccessMeta("").SetRequestMode(MarshalFile)
+	acc := NewAccessMeta(nil).SetRequestMode(MarshalFile)
 	format, err := f.FormatFileInfo(acc)
 	if err != nil {
 		return nil, err

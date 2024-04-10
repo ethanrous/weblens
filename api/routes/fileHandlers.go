@@ -84,7 +84,7 @@ func getFolderInfo(ctx *gin.Context) {
 	}
 
 	shareId := types.ShareId(ctx.Query("shareId"))
-	acc := dataStore.NewAccessMeta(user.GetUsername()).AddShareId(shareId, dataStore.FileShare)
+	acc := dataStore.NewAccessMeta(user).AddShareId(shareId, dataStore.FileShare)
 	if !dataStore.CanAccessFile(dir, acc) {
 		util.Debug.Println("Not auth")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
@@ -106,7 +106,7 @@ func getExternalDirs(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	acc := dataStore.NewAccessMeta(user.GetUsername()).SetRequestMode(dataStore.FileGet)
+	acc := dataStore.NewAccessMeta(user).SetRequestMode(dataStore.FileGet)
 	formatRespondFolderInfo(externalRoot, acc, ctx)
 }
 
@@ -134,7 +134,7 @@ func getExternalFolderInfo(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	acc := dataStore.NewAccessMeta(user.GetUsername())
+	acc := dataStore.NewAccessMeta(user)
 	formatRespondFolderInfo(dir, acc, ctx)
 }
 
@@ -144,7 +144,7 @@ func recursiveScanDir(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
-	var scanInfo scanInfo
+	var scanInfo scanBody
 	err = json.Unmarshal(body, &scanInfo)
 	if err != nil {
 		util.ErrTrace(err)
