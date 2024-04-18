@@ -13,6 +13,26 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+type coreStore struct {
+}
+
+type backupStore struct {
+	req types.Requester
+}
+
+func NewStore(req types.Requester) types.Store {
+	if thisServer == nil {
+		panic("No store for u")
+	}
+	if thisServer.Role == types.Core {
+		return &coreStore{}
+	} else {
+		return &backupStore{
+			req: req,
+		}
+	}
+}
+
 type srvInfo struct {
 	Id   string `json:"id" bson:"_id"`
 	Name string `json:"name" bson:"name"`
@@ -50,41 +70,69 @@ type weblensFile struct {
 	media        types.Media
 	parent       types.WeblensFile
 
+	// If we already have added the file to the watcher
+	// See fileWatch.go
+	watching bool
+
 	childLock *sync.Mutex
 	children  map[types.FileId]types.WeblensFile
 
-	tasksLock  *sync.Mutex
+	// array of tasks that currently claim are using this file.
+	// TODO: allow single task-claiming of a file for file
+	// operations required to be "atomic"
 	tasksUsing []types.Task
+	tasksLock  *sync.Mutex
 
-	shares []*fileShareData
+	// the shares that this file belongs to
+	shares []types.Share
 
 	// Mark file as read-only internally.
 	// This should be checked before any write action is to be taken
 	// this should not be changed during run-time, only set in FsInit
 	// if a directory is `readOnly`, all children are as well
 	readOnly bool
+
+	// this file represents a file possibly not on the filesystem
+	// anymore, but was at some point in the past
+	pastFile bool
+
+	// This is the file id of the file in the .content folder that either holds
+	// or points to the real bytes on disk content that this file should read from
+	contentId string
+}
+
+// Way of storing paths to have the prefix translated to an absolute
+// path if needed, per the config of the specific system.
+// When sending as a string (as JSON, etc.) format will be
+// PREFIX:POSTFIX - where postfix does not have a leading slash.
+// The prefix should have a trailing slash (as the prefix will always
+// be a directory) when translated back to an absolute path.
+// e.g. MEDIA:gary/photos/italy2018 -> /data/media/gary/italy2018
+type portablePath struct {
+	prefix  string // i.e. MEDIA or EXTERNAL
+	postfix string // i.e. gary/photos/italy2018
 }
 
 type media struct {
-	mediaId          types.MediaId
-	fileIds          []types.FileId
-	thumbnailCacheId types.FileId
-	fullresCacheIds  []types.FileId
-	blurHash         string
-	owner            types.User
-	mediaWidth       int
-	mediaHeight      int
-	createDate       time.Time
-	mimeType         string
-	recognitionTags  []string
-	pageCount        int
+	MediaId          types.MediaId  `json:"mediaId"`
+	FileIds          []types.FileId `json:"fileIds"`
+	ThumbnailCacheId types.FileId   `json:"thumbnailCacheId"`
+	FullresCacheIds  []types.FileId `json:"thumbnailCacheIds"`
+	BlurHash         string         `json:"blurHash"`
+	Owner            *user          `json:"owner"`
+	MediaWidth       int            `json:"mediaWidth"`
+	MediaHeight      int            `json:"mediaHeight"`
+	CreateDate       time.Time      `json:"createDate"`
+	MimeType         string         `json:"mimeType"`
+	RecognitionTags  []string       `json:"recognitionTags"`
+	PageCount        int            `json:"pageCount"`
+	MediaType        *mediaType     `json:"mediaType"`
+	Imported         bool           `json:"imported"`
 
-	mediaType *mediaType
-	imported  bool
-	rotate    string
-	imgBytes  []byte
-	image     *bimg.Image
-	images    []*bimg.Image
+	rotate   string
+	imgBytes []byte
+	image    *bimg.Image
+	images   []*bimg.Image
 
 	rawExif           map[string]any
 	thumbCacheFile    types.WeblensFile
@@ -172,6 +220,7 @@ type accessMeta struct {
 	user        types.User
 	usingShare  types.Share
 	requestMode types.RequestMode
+	accessAt    time.Time
 }
 
 const (
@@ -233,6 +282,10 @@ func SetVoidCaster(b types.BroadcasterAgent) {
 	voidCaster = b
 }
 
+type JournalResp struct {
+	Journal []*fileJournalEntry `json:"journal"`
+}
+
 // Errors
 type WeblensUserError types.WeblensError
 type WeblensFileError types.WeblensError
@@ -271,4 +324,10 @@ var ErrKeyInUse = errors.New("api key is already being used to identify another 
 
 var ErrAlreadyCore = errors.New("core server cannot have a remote core")
 var ErrNotCore = errors.New("tried to perform core only action on non-core server")
+var ErrNotBackup = errors.New("tried to perform backup only action on non-backup server")
 var ErrAlreadyInit = errors.New("server is already initilized, cannot re-initilize server")
+
+var ErrNoBackup = errors.New("no prior backups exist")
+var ErrBadJournalAction = errors.New("unknown journal action type")
+
+var ErrAlreadyWatching = errors.New("trying to watch directory that is already being watched")

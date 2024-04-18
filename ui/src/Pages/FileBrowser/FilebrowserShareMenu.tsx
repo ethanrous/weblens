@@ -1,22 +1,24 @@
-import { Autocomplete, Box, Space, Text } from '@mantine/core';
-import {
-    AutocompleteUsers,
-    ShareFiles,
-    UpdateFileShare,
-} from '../../api/FileBrowserApi';
+import { Autocomplete, Box, Space, Text } from "@mantine/core";
+import { ShareFiles, UpdateFileShare } from "../../api/FileBrowserApi";
 import {
     IconLink,
     IconUser,
     IconUserCancel,
     IconUsersGroup,
     IconX,
-} from '@tabler/icons-react';
-import { WeblensButton } from '../../components/WeblensButton';
+} from "@tabler/icons-react";
+import { WeblensButton } from "../../components/WeblensButton";
 
-import { useCallback, useContext, useEffect, useState } from 'react';
-import { userContext } from '../../Context';
-import { ColumnBox, RowBox } from './FilebrowserStyles';
-import { AuthHeaderT, FileInfoT, shareData } from '../../types/Types';
+import { useCallback, useContext, useEffect, useState } from "react";
+import { userContext } from "../../Context";
+import { ColumnBox, RowBox } from "./FilebrowserStyles";
+import {
+    AuthHeaderT,
+    FileInfoT,
+    shareData,
+    UserContextT,
+} from "../../types/Types";
+import { AutocompleteUsers } from "../../api/ApiFetch";
 
 export function ShareInput({
     isPublic,
@@ -29,7 +31,7 @@ export function ShareInput({
 }) {
     const { usr, authHeader }: UserContextT = useContext(userContext);
     const [userSearchResult, setUserSearch] = useState([]);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState("");
 
     const searchUsers = useCallback(
         async (query: string) => {
@@ -51,7 +53,7 @@ export function ShareInput({
         ({ option }) => {
             return (
                 <Box
-                    style={{ height: '100%', width: '100%' }}
+                    style={{ height: "100%", width: "100%" }}
                     onClick={(e) => {
                         e.stopPropagation();
                         setSharedUsers((v) => {
@@ -63,8 +65,8 @@ export function ShareInput({
                     <Text
                         style={{
                             color: sharedUsers.includes(option.value)
-                                ? '#555555'
-                                : 'white',
+                                ? "#555555"
+                                : "white",
                         }}
                     >
                         {option.value}
@@ -88,27 +90,27 @@ export function ShareInput({
                 }}
                 comboboxProps={{ dropdownPadding: 0 }}
                 placeholder="Add people"
-                style={{ width: '100%', padding: 8 }}
+                style={{ width: "100%", padding: 8 }}
             />
             <Text
-                c={isPublic ? '#777777' : 'white'}
+                c={isPublic ? "#777777" : "white"}
                 style={{
-                    width: '100%',
-                    textAlign: 'center',
+                    width: "100%",
+                    textAlign: "center",
                     marginTop: 10,
-                    userSelect: 'none',
+                    userSelect: "none",
                 }}
             >
                 Shared with
             </Text>
             <ColumnBox
                 style={{
-                    height: 'max-content',
-                    minHeight: '33px',
-                    backgroundColor: '#00000044',
+                    height: "max-content",
+                    minHeight: "33px",
+                    backgroundColor: "#00000044",
                     marginTop: 5,
-                    paddingTop: '10px',
-                    paddingBottom: '10px',
+                    paddingTop: "10px",
+                    paddingBottom: "10px",
                 }}
             >
                 {sharedUsers.map((v) => {
@@ -116,25 +118,25 @@ export function ShareInput({
                         <RowBox
                             key={v}
                             style={{
-                                width: '90%',
-                                height: '33px',
+                                width: "90%",
+                                height: "33px",
                                 padding: 10,
                             }}
                         >
-                            <IconUser color={isPublic ? '#777777' : 'white'} />
+                            <IconUser color={isPublic ? "#777777" : "white"} />
                             <Space w={10} />
                             <Text
-                                c={isPublic ? '#777777' : 'white'}
-                                style={{ userSelect: 'none' }}
+                                c={isPublic ? "#777777" : "white"}
+                                style={{ userSelect: "none" }}
                                 size="20px"
                             >
                                 {v}
                             </Text>
-                            <Space style={{ display: 'flex', flexGrow: 1 }} />
+                            <Space style={{ display: "flex", flexGrow: 1 }} />
                             <Box
                                 className="xBox"
                                 style={{
-                                    pointerEvents: isPublic ? 'none' : 'all',
+                                    pointerEvents: isPublic ? "none" : "all",
                                 }}
                                 onClick={() => {
                                     setSharedUsers((u) => {
@@ -144,15 +146,15 @@ export function ShareInput({
                                 }}
                             >
                                 <IconX
-                                    scale={'3px'}
-                                    color={isPublic ? '#777777' : 'white'}
+                                    scale={"3px"}
+                                    color={isPublic ? "#777777" : "white"}
                                 />
                             </Box>
                         </RowBox>
                     );
                 })}
                 {sharedUsers.length === 0 && (
-                    <Text style={{ height: '100%', userSelect: 'none' }}>
+                    <Text style={{ height: "100%", userSelect: "none" }}>
                         Not shared
                     </Text>
                 )}
@@ -226,17 +228,17 @@ export function ShareBox({
             <WeblensButton
                 toggleOn={pub}
                 onClick={() => setPublic(!pub)}
-                label={pub ? 'Public' : 'Private'}
+                label={pub ? "Public" : "Private"}
                 postScript={
                     pub
-                        ? 'Anyone with link can access'
-                        : 'Only shared users can access'
+                        ? "Anyone with link can access"
+                        : "Only shared users can access"
                 }
                 Left={pub ? <IconUsersGroup /> : <IconUserCancel />}
             />
 
             <RowBox
-                style={{ justifyContent: 'space-between', maxWidth: '95%' }}
+                style={{ justifyContent: "space-between", maxWidth: "95%" }}
             >
                 <WeblensButton
                     label="Copy link"
@@ -251,7 +253,7 @@ export function ShareBox({
                         });
                         return true;
                     }}
-                    style={{ width: '50%' }}
+                    style={{ width: "50%" }}
                 />
                 <WeblensButton
                     label="Save"
@@ -261,7 +263,7 @@ export function ShareBox({
                         shareOrUpdate();
                         return true;
                     }}
-                    style={{ width: '50%' }}
+                    style={{ width: "50%" }}
                 />
             </RowBox>
         </ColumnBox>

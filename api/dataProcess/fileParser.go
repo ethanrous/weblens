@@ -49,18 +49,13 @@ func processMediaFile(t *task) {
 		return
 	}
 
-	d, err := file.IsDisplayable()
-	if err != nil && err != dataStore.ErrNoMedia {
-		t.ErrorAndExit(err)
-		return
-	}
-	if !d {
+	if !file.IsDisplayable() {
 		return
 	}
 
 	defer m.Clean()
 
-	m, err = m.LoadFromFile(file, t)
+	m, err := m.LoadFromFile(file, t)
 	if err != nil {
 		t.ErrorAndExit(err)
 		return
@@ -79,9 +74,9 @@ func processMediaFile(t *task) {
 
 	t.caster.PushFileUpdate(file)
 	t.taskPool.NotifyTaskComplete(t, t.caster)
-	if t.caster.IsBuffered() {
-		t.caster.(types.BufferedBroadcasterAgent).Flush()
-	}
+	// if t.caster.IsBuffered() {
+	// 	t.caster.(types.BufferedBroadcasterAgent).Flush()
+	// }
 	t.success()
 }
 
@@ -132,12 +127,7 @@ func scanDirectory(t *task) {
 			continue
 		}
 		if !c.IsDir() {
-			d, err := c.IsDisplayable()
-			if err != nil && err != dataStore.ErrNoMedia {
-				util.ErrTrace(err)
-				continue
-			}
-			if !d {
+			if !c.IsDisplayable() {
 				continue
 			}
 

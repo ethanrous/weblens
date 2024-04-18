@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     AspectRatio,
     Box,
@@ -6,11 +6,11 @@ import {
     Loader,
     Text,
     Tooltip,
-} from '@mantine/core';
-import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { MediaImage } from './PhotoContainer';
-import { MediaDataT } from '../types/Types';
-import './filebrowserStyle.css';
+} from "@mantine/core";
+import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { MediaImage } from "./PhotoContainer";
+import { MediaDataT } from "../types/Types";
+// import "../";
 
 type ItemMenu = ({
     open,
@@ -46,7 +46,7 @@ export type GlobalContextType = {
     }: {
         itemInfo: ItemProps;
         size?: number | string;
-    }) => JSX.Element;
+    }) => JSX.Element | null;
     setMoveDest?: (itemName) => void;
 
     dragging?: number;
@@ -146,10 +146,10 @@ const ItemWrapper = memo(
 
         const [outline, backgroundColor] = useMemo(() => {
             let outline: string;
-            let backgroundColor = '#222222';
+            let backgroundColor = "#222222";
             if (itemInfo.selected) {
                 if (itemInfo.selected & 0x01) {
-                    backgroundColor = '#331177bb';
+                    backgroundColor = "#331177bb";
                 }
                 if (itemInfo.selected & 0x10) {
                     outline = `2px solid #442299`;
@@ -162,9 +162,9 @@ const ItemWrapper = memo(
                 ((index <= hoverIndex && index > lastSelectedIndex) ||
                     (index >= hoverIndex && index < lastSelectedIndex))
             ) {
-                backgroundColor = '#373365';
+                backgroundColor = "#373365";
             } else if (hovering && !dragging) {
-                backgroundColor = '#333333';
+                backgroundColor = "#333333";
             }
             return [outline, backgroundColor];
         }, [
@@ -216,7 +216,7 @@ const ItemWrapper = memo(
                         if (!itemInfo.selected && itemInfo.isDir) {
                             moveSelected(itemInfo.itemId);
                         }
-                        setMoveDest('');
+                        setMoveDest("");
                         setDragging(false);
                     }
                     setMouseDown(null);
@@ -235,9 +235,9 @@ const ItemWrapper = memo(
                 }}
                 onMouseLeave={(e) => {
                     setH(false);
-                    setHovering('');
+                    setHovering("");
                     if (dragging && itemInfo.isDir) {
-                        setMoveDest('');
+                        setMoveDest("");
                     }
                     if (mouseDown) {
                         setMouseDown(null);
@@ -254,8 +254,8 @@ const ItemWrapper = memo(
                         width: width - MARGIN * 2,
                         cursor:
                             dragging !== 0 && !itemInfo.isDir
-                                ? 'default'
-                                : 'pointer',
+                                ? "default"
+                                : "pointer",
                     }}
                 />
                 {(itemInfo.selected || !itemInfo.isDir) && dragging !== 0 && (
@@ -267,7 +267,7 @@ const ItemWrapper = memo(
                         }}
                         onMouseLeave={(e) => {
                             setH(false);
-                            setHovering('');
+                            setHovering("");
                         }}
                         onClick={(e) => e.stopPropagation()}
                     />
@@ -299,10 +299,10 @@ const ItemWrapper = memo(
 
 export const FileVisualWrapper = ({ children }) => {
     return (
-        <AspectRatio ratio={1} w={'94%'} display={'flex'} m={'6px'}>
+        <AspectRatio ratio={1} w={"94%"} display={"flex"} m={"6px"}>
             <Box
                 children={children}
-                style={{ overflow: 'hidden', borderRadius: '5px' }}
+                style={{ overflow: "hidden", borderRadius: "5px" }}
             />
         </AspectRatio>
     );
@@ -321,12 +321,12 @@ const useKeyDown = (
             if (!editing) {
                 return;
             }
-            if (event.key === 'Enter') {
+            if (event.key === "Enter") {
                 if (oldName !== newName) {
                     rename(itemId, newName);
                 }
                 setEditing(false);
-            } else if (event.key === 'Escape') {
+            } else if (event.key === "Escape") {
                 setEditing(false);
 
                 // Rename with empty name is a "cancel" to the rename
@@ -337,9 +337,9 @@ const useKeyDown = (
     );
 
     useEffect(() => {
-        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener("keydown", onKeyDown);
         return () => {
-            document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener("keydown", onKeyDown);
         };
     }, [onKeyDown]);
 };
@@ -362,7 +362,7 @@ const TextBox = ({
         (b: boolean) => {
             setEditing(b);
             setRenameVal((cur) => {
-                if (cur === '') {
+                if (cur === "") {
                     return itemTitle;
                 } else {
                     return cur;
@@ -381,7 +381,7 @@ const TextBox = ({
     }, [editing, editRef]);
 
     useEffect(() => {
-        if (itemId === 'NEW_DIR') {
+        if (itemId === "NEW_DIR") {
             setEditingPlus(true);
         }
     }, [itemId, setEditingPlus]);
@@ -391,9 +391,9 @@ const TextBox = ({
             <ColumnBox
                 style={{
                     height: height,
-                    width: '100%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    width: "100%",
+                    justifyContent: "center",
+                    alignItems: "center",
                 }}
                 onBlur={() => {
                     setEditingPlus(false);
@@ -412,8 +412,8 @@ const TextBox = ({
                         setRenameVal(e.target.value);
                     }}
                     style={{
-                        width: '90%',
-                        backgroundColor: '#00000000',
+                        width: "90%",
+                        backgroundColor: "#00000000",
                         border: 0,
                         outline: 0,
                     }}
@@ -425,10 +425,10 @@ const TextBox = ({
             <ColumnBox
                 style={{
                     height: height,
-                    width: '100%',
-                    cursor: allowEditing ? 'text' : 'default',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    width: "100%",
+                    cursor: allowEditing ? "text" : "default",
+                    justifyContent: "center",
+                    alignItems: "center",
                     paddingBottom: MARGIN / 2,
                 }}
                 onClick={(e) => {
@@ -441,17 +441,17 @@ const TextBox = ({
             >
                 <RowBox
                     style={{
-                        justifyContent: 'space-between',
-                        width: '90%',
-                        height: '90%',
+                        justifyContent: "space-between",
+                        width: "90%",
+                        height: "90%",
                     }}
                 >
                     <Text
                         size={`${height - MARGIN * 2}px`}
-                        truncate={'end'}
+                        truncate={"end"}
                         style={{
-                            color: 'white',
-                            userSelect: 'none',
+                            color: "white",
+                            userSelect: "none",
                             lineHeight: 1.5,
                         }}
                     >
@@ -460,30 +460,30 @@ const TextBox = ({
                     <Divider orientation="vertical" my={1} mx={6} />
                     <ColumnBox
                         style={{
-                            width: 'max-content',
-                            justifyContent: 'center',
+                            width: "max-content",
+                            justifyContent: "center",
                         }}
                     >
                         <Text
                             size={`${height - (MARGIN * 2 + 4)}px`}
                             lineClamp={1}
                             style={{
-                                color: 'white',
-                                overflow: 'visible',
-                                userSelect: 'none',
-                                width: 'max-content',
+                                color: "white",
+                                overflow: "visible",
+                                userSelect: "none",
+                                width: "max-content",
                             }}
                         >
-                            {' '}
-                            {secondaryInfo}{' '}
+                            {" "}
+                            {secondaryInfo}{" "}
                         </Text>
                     </ColumnBox>
                 </RowBox>
                 <Tooltip openDelay={300} label={itemTitle}>
                     <Box
                         style={{
-                            position: 'absolute',
-                            width: '90%',
+                            position: "absolute",
+                            width: "90%",
                             height: height,
                         }}
                     />
@@ -534,12 +534,12 @@ export const ItemDisplay = memo(
                         />
                     )}
                     {!itemInfo.mediaData && context.iconDisplay && (
-                        <context.iconDisplay itemInfo={itemInfo} size={'70%'} />
+                        <context.iconDisplay itemInfo={itemInfo} size={"70%"} />
                     )}
                     <RowBox
                         style={{
-                            position: 'absolute',
-                            alignItems: 'flex-start',
+                            position: "absolute",
+                            alignItems: "flex-start",
                             padding: 5,
                         }}
                     >
@@ -547,7 +547,7 @@ export const ItemDisplay = memo(
                             <Icon
                                 key={i}
                                 style={{
-                                    filter: 'drop-shadow(1px 2px 1.5px black)',
+                                    filter: "drop-shadow(1px 2px 1.5px black)",
                                 }}
                             />
                         ))}
@@ -559,8 +559,8 @@ export const ItemDisplay = memo(
                     itemTitle={itemInfo.itemTitle}
                     secondaryInfo={
                         String(itemInfo.itemSize) +
-                        ' ' +
-                        (itemInfo.itemSizeUnits ? itemInfo.itemSizeUnits : '')
+                        " " +
+                        (itemInfo.itemSizeUnits ? itemInfo.itemSizeUnits : "")
                     }
                     editing={editing}
                     setEditing={(e) => {
@@ -575,11 +575,11 @@ export const ItemDisplay = memo(
                     rename={context.rename}
                 />
 
-                {itemInfo.itemId === 'NEW_DIR' && !editing && (
+                {itemInfo.itemId === "NEW_DIR" && !editing && (
                     <Loader
                         color="white"
                         size={20}
-                        style={{ position: 'absolute', top: 20, right: 20 }}
+                        style={{ position: "absolute", top: 20, right: 20 }}
                     />
                 )}
             </ItemWrapper>

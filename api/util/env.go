@@ -36,7 +36,7 @@ func GetRouterIp() string {
 		Warning.Println("SERVER_IP not provided, falling back to 0.0.0.0")
 		return "0.0.0.0"
 	} else {
-		Info.Printf("Using SERVER_IP: %s\n", ip)
+		Debug.Printf("Using SERVER_IP: %s\n", ip)
 		return ip
 	}
 }
@@ -47,7 +47,7 @@ func GetRouterPort() string {
 		Warning.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
 	} else {
-		Info.Printf("Using SERVER_PORT: %s\n", port)
+		Debug.Printf("Using SERVER_PORT: %s\n", port)
 		return port
 	}
 }
@@ -84,13 +84,17 @@ func ShouldUseRedis() bool {
 	return envReadBool("USE_REDIS")
 }
 
+func GetCachesPath() string {
+	return envReadString("CACHES_PATH")
+}
+
 // Directory for storing cached files. This includes photo thumbnails,
 // temp uploaded files, and zip files.
 func GetCacheDir() string {
 	cacheString := envReadString("CACHES_PATH") + "/cache"
 	_, err := os.Stat(cacheString)
 	if err != nil {
-		err = os.Mkdir(cacheString, 0755)
+		err = os.MkdirAll(cacheString, 0755)
 		if err != nil {
 			panic("CACHES_PATH provided, but the cache dir (`CACHES_PATH`/cache) does not exist and Weblens failed to create it")
 		}
@@ -103,7 +107,7 @@ func GetTakeoutDir() string {
 	takeoutString := envReadString("CACHES_PATH") + "/takeout"
 	_, err := os.Stat(takeoutString)
 	if err != nil {
-		err = os.Mkdir(takeoutString, 0755)
+		err = os.MkdirAll(takeoutString, 0755)
 		if err != nil {
 			panic("CACHES_PATH provided, but the takeout dir (`CACHES_PATH`/takeout) does not exist and Weblens failed to create it")
 		}
@@ -119,7 +123,7 @@ func GetTmpDir() string {
 	tmpString := caches + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
-		err = os.Mkdir(tmpString, 0755)
+		err = os.MkdirAll(tmpString, 0755)
 		if err != nil {
 			ShowErr(err)
 			panic("CACHES_PATH provided, but the tmp dir (`CACHES_PATH`/tmp) does not exist and Weblens failed to create it")
@@ -135,6 +139,14 @@ func GetMongoURI() string {
 	}
 	Info.Printf("Using MONGODB_URI: %s\n", mongoStr)
 	return mongoStr
+}
+
+func GetMongoDBName() string {
+	mongoDBName := envReadString("MONGODB_NAME")
+	if mongoDBName == "" {
+		mongoDBName = "weblens"
+	}
+	return mongoDBName
 }
 
 func GetRedisUrl() string {

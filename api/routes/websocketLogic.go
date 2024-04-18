@@ -24,7 +24,6 @@ func wsConnect(ctx *gin.Context) {
 
 	_, buf, err := conn.ReadMessage()
 	if err != nil {
-		util.ErrTrace(err)
 		return
 	}
 

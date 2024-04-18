@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
@@ -13,14 +15,6 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
-
-// func getFileTreeInfo(ctx *gin.Context) {
-// 	user := getUserFromCtx(ctx)
-// 	if !user.IsAdmin() {
-// 		return
-// 	}
-// 	util.Debug.Println("File tree size: ", dataStore.GetTreeSize())
-// }
 
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *gin.Context) {
@@ -37,8 +31,17 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 
 	var filteredDirInfo []types.FileInfo
 	if dir.IsDir() {
-		filteredDirInfo = dir.GetChildrenInfo(acc)
-		filteredDirInfo = util.Filter(filteredDirInfo, func(t types.FileInfo) bool { return t.Id != "R" })
+		if acc.GetTime().Unix() > 0 {
+			filteredDirInfo, err = dataStore.GetPastFileInfo(dir, acc)
+			if err != nil {
+				util.ShowErr(err)
+				ctx.Status(http.StatusInternalServerError)
+				return
+			}
+		} else {
+			filteredDirInfo = dir.GetChildrenInfo(acc)
+		}
+		// filteredDirInfo = util.Filter(filteredDirInfo, func(t types.FileInfo) bool { return t.Id != "R" })
 	}
 
 	parentsInfo := []types.FileInfo{}
@@ -56,6 +59,14 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 
 	packagedInfo := gin.H{"self": selfData, "children": filteredDirInfo, "parents": parentsInfo}
 	ctx.JSON(http.StatusOK, packagedInfo)
+
+	if slices.ContainsFunc(filteredDirInfo, func(i types.FileInfo) bool { return !i.Imported }) {
+		c := NewBufferedCaster()
+		t := dataProcess.GetGlobalQueue().ScanDirectory(dir, false, true, c)
+		t.SetCleanup(func() {
+			c.Close()
+		})
+	}
 
 }
 
@@ -159,4 +170,38 @@ func recursiveScanDir(ctx *gin.Context) {
 	dataProcess.GetGlobalQueue().ScanDirectory(dir, true, true, Caster)
 
 	ctx.Status(http.StatusOK)
+}
+
+func getPastFolderInfo(ctx *gin.Context) {
+	folderId := types.FileId(ctx.Param("folderId"))
+	milliStr := ctx.Query("before")
+	user := getUserFromCtx(ctx)
+
+	millis, err := strconv.ParseInt(milliStr, 10, 64)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	before := time.UnixMilli(millis)
+	acc := dataStore.NewAccessMeta(user).SetTime(before)
+
+	folder := dataStore.FsTreeGet(folderId)
+	formatRespondFolderInfo(folder, acc, ctx)
+}
+
+func getFileHistory(ctx *gin.Context) {
+	fileId := types.FileId(ctx.Param("fileId"))
+	events, err := dataStore.GetFileHistory(fileId)
+	if err != nil {
+		if err == dataStore.ErrNoFile {
+			ctx.Status(http.StatusNotFound)
+		} else {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"events": events})
 }

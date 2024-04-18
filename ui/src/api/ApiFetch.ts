@@ -1,5 +1,5 @@
 import { notifications } from "@mantine/notifications";
-import API_ENDPOINT, { ADMIN_ENDPOINT, PUBLIC_ENDPOINT } from "./ApiEndpoint";
+import API_ENDPOINT, { PUBLIC_ENDPOINT } from "./ApiEndpoint";
 import { AuthHeaderT, MediaDataT } from "../types/Types";
 
 export function login(user: string, pass: string) {
@@ -28,7 +28,7 @@ export function createUser(username, password) {
 }
 
 export function adminCreateUser(username, password, admin, authHeader?: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/user`);
+    const url = new URL(`${API_ENDPOINT}/user`);
     return fetch(url, {
         headers: authHeader,
         method: "POST",
@@ -52,7 +52,7 @@ export function adminCreateUser(username, password, admin, authHeader?: AuthHead
 }
 
 export function clearCache(authHeader: AuthHeaderT) {
-    return fetch(`${ADMIN_ENDPOINT}/cache`, {
+    return fetch(`${API_ENDPOINT}/cache`, {
         method: "POST",
         headers: authHeader,
     });
@@ -80,17 +80,17 @@ export async function fetchMediaTypes() {
 }
 
 export async function newApiKey(authHeader: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/apiKey`);
+    const url = new URL(`${API_ENDPOINT}/apiKey`);
     return await fetch(url, {headers: authHeader, method: "POST"}).then((r) => r.json());
 }
 
 export async function deleteApiKey(key: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/apiKey`);
+    const url = new URL(`${API_ENDPOINT}/apiKey`);
     return await fetch(url, {headers: authHeader, method: "DELETE", body: JSON.stringify({key: key})});
 }
 
 export async function getApiKeys(authHeader: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/apiKeys`);
+    const url = new URL(`${API_ENDPOINT}/apiKeys`);
     return await fetch(url, {headers: authHeader}).then((r) => r.json());
 }
 
@@ -101,7 +101,7 @@ export async function getRandomThumbs() {
 }
 
 export async function initServer(serverName: string, role: "core" | "backup", username: string, password: string, coreAddress: string, coreKey: string) {
-    const url = new URL(`${PUBLIC_ENDPOINT}/initialize`);
+    const url = new URL(`${API_ENDPOINT}/initialize`);
     const body = {name: serverName, role: role, username: username, password: password, coreAddress: coreAddress, coreKey: coreKey}
     return await fetch(url,{ body: JSON.stringify(body), method: "POST"});
 }
@@ -111,22 +111,32 @@ export async function getServerInfo() {
     return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }
 
-export async function getUsersPublic() {
-    const url = new URL(`${PUBLIC_ENDPOINT}/users`);
-    return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+export async function getUsers(authHeader) {
+    const url = new URL(`${API_ENDPOINT}/users`);
+    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function AutocompleteUsers(searchValue, authHeader: AuthHeaderT) {
+    if (searchValue.length < 2) {
+        return [];
+    }
+    const url = new URL(`${API_ENDPOINT}/users/search`);
+    url.searchParams.append("filter", searchValue);
+    const res = await fetch(url.toString(), { headers: authHeader }).then((res) => res.json());
+    return res.users ? res.users : [];
 }
 
 export async function doBackup(authHeader: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/backup`);
-    return await fetch(url, {method: "POST", headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    const url = new URL(`${API_ENDPOINT}/backup`);
+    return await fetch(url, {method: "POST", headers: authHeader}).then(r => r.status)
 }
 
 export async function getRemotes(authHeader: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/remotes`);
+    const url = new URL(`${API_ENDPOINT}/remotes`);
     return await fetch(url, {method: "GET", headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }
 
 export async function deleteRemote(remoteId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${ADMIN_ENDPOINT}/remote`);
+    const url = new URL(`${API_ENDPOINT}/remote`);
     return await fetch(url, {method: "DELETE", headers: authHeader, body: JSON.stringify({remoteId: remoteId})})
 }

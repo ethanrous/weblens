@@ -14,4 +14,8 @@ type User interface {
 	GetToken() string
 	GetHomeFolder() WeblensFile
 	GetTrashFolder() WeblensFile
+
+	MarshalJSON() ([]byte, error)
+	UnmarshalJSON(data []byte) error
+	// UnmarshalJSON(data []byte) error
 }

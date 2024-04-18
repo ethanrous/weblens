@@ -40,14 +40,14 @@ func mediaMapAdd(m *media) {
 
 	mediaMapLock.Lock()
 
-	if mediaMap[m.mediaId] != nil {
+	if mediaMap[m.MediaId] != nil {
 		mediaMapLock.Unlock()
 		util.Error.Println(fmt.Errorf("attempt to re-add media already in map"))
 		return
 	}
 
-	if m.pageCount == 0 {
-		m.pageCount = 1
+	if m.PageCount == 0 {
+		m.PageCount = 1
 		err := fddb.UpdateMedia(m)
 		if err != nil {
 			util.ErrTrace(err)
@@ -55,13 +55,13 @@ func mediaMapAdd(m *media) {
 	}
 
 	if m.fullresCacheFiles == nil {
-		m.fullresCacheFiles = make([]types.WeblensFile, m.pageCount)
+		m.fullresCacheFiles = make([]types.WeblensFile, m.PageCount)
 	}
-	if m.fullresCacheIds == nil {
-		m.fullresCacheIds = make([]types.FileId, m.pageCount)
+	if m.FullresCacheIds == nil {
+		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 	}
-	if m.mediaType == nil {
-		m.mediaType = ParseMimeType(m.mimeType)
+	if m.MediaType == nil {
+		m.MediaType = ParseMimeType(m.MimeType)
 	}
 
 	mediaMap[m.Id()] = m
@@ -69,7 +69,7 @@ func mediaMapAdd(m *media) {
 	mediaMapLock.Unlock()
 
 	orphaned := true
-	for _, fId := range m.fileIds {
+	for _, fId := range m.FileIds {
 		f := FsTreeGet(fId)
 		if f == nil {
 			m.RemoveFile(fId)
@@ -78,7 +78,7 @@ func mediaMapAdd(m *media) {
 		orphaned = false
 		f.SetMedia(m)
 	}
-	if orphaned && len(m.fileIds) != 0 {
+	if orphaned && len(m.FileIds) != 0 {
 		removeMedia(m)
 	}
 }
@@ -110,7 +110,7 @@ func removeMedia(m types.Media) {
 		PermenantlyDeleteFile(f, voidCaster)
 	}
 	f = nil
-	for page := range realM.pageCount + 1 {
+	for page := range realM.PageCount + 1 {
 		f, err = realM.getCacheFile(Fullres, false, page)
 		if err == nil {
 			PermenantlyDeleteFile(f, voidCaster)
@@ -130,7 +130,7 @@ func removeMedia(m types.Media) {
 
 func GetRealFile(m types.Media) (types.WeblensFile, error) {
 	realM := m.(*media)
-	for _, fId := range realM.fileIds {
+	for _, fId := range realM.FileIds {
 		f := FsTreeGet(fId)
 		if f != nil {
 			return f, nil
@@ -149,7 +149,7 @@ func GetRandomMedia(limit int) []types.Media {
 		if count == limit {
 			break
 		}
-		if m.PageCount() != 1 {
+		if m.GetPageCount() != 1 {
 			continue
 		}
 		medias = append(medias, m)

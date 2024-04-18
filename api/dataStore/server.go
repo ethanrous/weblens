@@ -29,10 +29,11 @@ func GetServerInfo() types.ServerInfo {
 func GetOwner() types.User {
 	if thisOwner != nil {
 		return thisOwner
-	} else if thisOwner == nil && (thisServer == nil || thisServer.Role != types.BackupMode) {
-		i := slices.IndexFunc(GetUsers(), func(u types.User) bool { return u.IsOwner() })
+	} else if thisOwner == nil && (thisServer == nil || thisServer.Role != types.Backup) {
+		users := getUsers()
+		i := slices.IndexFunc(users, func(u types.User) bool { return u.IsOwner() })
 		if i != -1 {
-			thisOwner = GetUsers()[i]
+			thisOwner = users[i]
 			return thisOwner
 		}
 	}
@@ -51,8 +52,15 @@ func (si *srvInfo) ServerRole() types.ServerRole {
 	return si.Role
 }
 
+func (si *srvInfo) IsCore() bool {
+	if si == nil {
+		return false
+	}
+	return si.Role == types.Core
+}
+
 func (si *srvInfo) GetCoreAddress() (string, error) {
-	if si.Role == types.CoreMode {
+	if si.Role == types.Core {
 		return "", ErrAlreadyCore
 	}
 	return si.CoreAddress, nil
@@ -85,7 +93,7 @@ func InitServerCore(name string, username types.Username, password string) error
 		Name: name,
 
 		IsThisServer: true,
-		Role:         types.CoreMode,
+		Role:         types.Core,
 	}
 
 	fddb.newServer(srv)
@@ -95,19 +103,19 @@ func InitServerCore(name string, username types.Username, password string) error
 }
 
 func InitServerForBackup(name, coreAddress string, key types.WeblensApiKey, rq types.Requester) error {
-	err := rq.AttachToCore(coreAddress, name, key)
+	srvId := util.GlobbyHash(12, name, time.Now().String())
+	err := rq.AttachToCore(srvId, coreAddress, name, key)
 	if err != nil {
 		return err
 	}
 
-	srvId := util.GlobbyHash(12, name, time.Now().String())
 	srv := srvInfo{
 		Id:   srvId,
 		Name: name,
 
 		// Key is key used for remote core when IsThisServer
 		UsingKey:     key,
-		Role:         types.BackupMode,
+		Role:         types.Backup,
 		IsThisServer: true,
 		CoreAddress:  coreAddress,
 	}

@@ -53,7 +53,7 @@ def main():
         if port:
             port = int(port)
         else:
-            port = 8081
+            port = 8082
         app.run(debug=True, host="0.0.0.0", port=port)
     except Exception as e:
         print("Dead", e)

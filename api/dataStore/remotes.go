@@ -14,7 +14,7 @@ func NewRemote(id, name string, key types.WeblensApiKey) error {
 	remote := srvInfo{
 		Id:       id,
 		Name:     name,
-		Role:     types.BackupMode,
+		Role:     types.Backup,
 		UsingKey: key,
 	}
 	err := fddb.newServer(remote)

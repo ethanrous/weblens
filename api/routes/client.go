@@ -62,11 +62,11 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 			}
 			acc := dataStore.NewAccessMeta(c.user).SetRequestMode(dataStore.FileSubscribeRequest)
 			if folder == nil {
-				err := fmt.Errorf("could not find folder with ID %s", key)
+				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
 				c.Error(err)
 				return
 			} else if !dataStore.CanAccessFile(folder, acc) {
-				err := fmt.Errorf("could not find folder with ID %s", key)
+				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
 				c.Error(err)
 
 				// dont tell the client they don't have access instead of *actually* not found

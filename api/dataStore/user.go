@@ -2,6 +2,7 @@ package dataStore
 
 import (
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -24,6 +25,8 @@ type user struct {
 	HomeFolder  types.WeblensFile `bson:"-"`
 	TrashFolder types.WeblensFile `bson:"-"`
 }
+
+type UserArray []types.User
 
 var userMap = map[types.Username]*user{}
 
@@ -75,12 +78,9 @@ func GetUser(username types.Username) types.User {
 	return u
 }
 
-func LoadUsers() error {
-	if len(userMap) != 0 {
-		return types.ErrAlreadyInitialized
-	}
-
-	users, err := fddb.getUsers()
+func (store coreStore) LoadUsers() (err error) {
+	var users []user
+	users, err = fddb.getUsers()
 	if err != nil {
 		util.ErrTrace(err)
 		return err
@@ -88,14 +88,30 @@ func LoadUsers() error {
 	for _, u := range users {
 		userMap[u.Username] = &u
 	}
+	return
+}
 
-	return nil
+func (store backupStore) LoadUsers() (err error) {
+	var users []types.User
+	users, err = store.req.GetCoreUsers()
+	if err != nil {
+		return
+	}
+	for _, u := range users {
+		realU := u.(*user)
+		userMap[realU.Username] = realU
+	}
+	return
 }
 
 func loadUsersStaticFolders() {
 	for _, u := range userMap {
-		u.HomeFolder = FsTreeGet(generateFileId("/" + string(u.Username)))
-		u.TrashFolder = FsTreeGet(generateFileId("/" + string(u.Username) + "/" + ".user_trash"))
+		u.HomeFolder = FsTreeGet(generateFileId(filepath.Join(mediaRoot.absolutePath, string(u.Username)) + "/"))
+		trash, err := getChildByName(u.HomeFolder, ".user_trash")
+		if err != nil || trash == nil {
+			panic(err)
+		}
+		u.TrashFolder = trash
 	}
 }
 
@@ -103,10 +119,18 @@ func UserCount() int {
 	return len(userMap)
 }
 
-func GetUsers() []types.User {
+func getUsers() []types.User {
 	return util.MapToSliceMutate(userMap, func(un types.Username, u *user) types.User { return u })
 	// users := fddb.GetUsers()
 	// return util.Map(users, func(u user) types.User { return types.User(&u) })
+}
+
+func (store coreStore) GetUsers() []types.User {
+	return getUsers()
+}
+
+func (store backupStore) GetUsers() []types.User {
+	return getUsers()
 }
 
 func (u *user) GetUsername() types.Username {
@@ -242,4 +266,54 @@ func (u user) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(m)
+}
+
+func (u *user) UnmarshalJSON(data []byte) error {
+	obj := map[string]any{}
+	err := json.Unmarshal(data, &obj)
+	if err != nil {
+		return err
+	}
+
+	u.Activated = obj["activated"].(bool)
+	u.Admin = obj["admin"].(bool)
+	u.Owner = obj["owner"].(bool)
+	u.HomeFolder = FsTreeGet(types.FileId(obj["homeId"].(string)))
+	u.TrashFolder = FsTreeGet(types.FileId(obj["trashId"].(string)))
+	u.Username = types.Username(obj["username"].(string))
+
+	return nil
+}
+
+func (ua *UserArray) UnmarshalJSON(data []byte) error {
+	realUsers := []*user{}
+	err := json.Unmarshal(data, &realUsers)
+	if err != nil {
+		return err
+	}
+
+	*ua = UserArray(util.Map(realUsers, func(u *user) types.User { return u }))
+
+	return nil
+}
+
+func (ua UserArray) MarshalArchive() []map[string]any {
+	m := []map[string]any{}
+	for _, ui := range ua {
+		u := ui.(*user)
+		m = append(m, map[string]any{
+			"id":        u.Id,
+			"username":  u.Username,
+			"password":  u.Password,
+			"tokens":    u.Tokens,
+			"admin":     u.Admin,
+			"activated": u.Activated,
+			"owner":     u.Owner,
+
+			"homeId":  u.HomeFolder.Id(),
+			"trashId": u.TrashFolder.Id(),
+		})
+	}
+
+	return m
 }

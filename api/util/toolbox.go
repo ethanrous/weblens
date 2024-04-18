@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"path/filepath"
@@ -119,41 +120,44 @@ func PrintMemUsage(contextTag string) {
 	fmt.Printf("\tNumGC = %v\n", mem.NumGC)
 }
 
+type WeblensHash struct {
+	hash hash.Hash
+}
+
+func NewWeblensHash() *WeblensHash {
+	return &WeblensHash{hash: sha256.New()}
+}
+
+func (h *WeblensHash) Add(data []byte) {
+	h.hash.Write(data)
+}
+
+func (h *WeblensHash) Done(len int) string {
+	return base64.URLEncoding.EncodeToString(h.hash.Sum(nil))[:len]
+}
+
 // Set charLimit to 0 to disable
 func GlobbyHash(charLimit int, dataToHash ...any) string {
-	h := sha256.New()
+	h := NewWeblensHash()
 
 	s := fmt.Sprint(dataToHash...)
-	h.Write([]byte(s))
+	h.Add([]byte(s))
 
-	hash := base64.URLEncoding.EncodeToString(h.Sum(nil))
-
-	if charLimit != 0 {
-		return hash[:charLimit]
+	if charLimit != 0 && charLimit < 16 {
+		return h.Done(charLimit)
 	} else {
-		return hash
+		return h.Done(16)
 	}
 }
 
-func StructFromMap(inputMap map[string]any, target any) error {
+func StructFromMap[T any](inputMap map[string]any) (obj T, err error) {
 	jsonString, err := json.Marshal(inputMap)
 	if err != nil {
-		return err
+		return
 	}
-	return json.Unmarshal(jsonString, target)
-}
+	err = json.Unmarshal(jsonString, &obj)
 
-func FileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func LazyStackTrace() {
-	Debug.Println("\n----- Lazy Stack Trace (most recent last, showing 5) -----")
-	for i := 5; i > 0; i-- {
-		_, file, line, _ := runtime.Caller(i)
-		Debug.Printf("%s:%d\n", file, line)
-	}
+	return
 }
 
 func IdentifyPanic() string {
@@ -199,7 +203,8 @@ func RecoverPanic(preText ...any) {
 }
 
 // See Banish. Yoink is the same as Banish, but returns the value at i
-// in addition to the shortened slice
+// in addition to the shortened slice.
+// Yoink *does not* maintain slice ordering
 func Yoink[T any](s []T, i int) ([]T, T) {
 	y := s[i]
 	s[i] = s[len(s)-1]
@@ -333,6 +338,16 @@ func FilterMap[T, V any](ts []T, fn func(T) (V, bool)) []V {
 	return result
 }
 
+// Perform type asertion on slice
+func SliceConvert[V, T any](ts []T) []V {
+	vs := make([]V, len(ts))
+	for i := range ts {
+		vs[i] = any(ts[i]).(V)
+	}
+
+	return vs
+}
+
 type lap struct {
 	tag  string
 	time time.Time
@@ -377,7 +392,9 @@ func (s *sw) Lap(tag ...any) {
 		time: time.Now(),
 	}
 	s.laps = append(s.laps, l)
-	Debug.Println(l.tag)
+	// if l.tag != "" {
+	// 	Debug.Println(l.tag)
+	// }
 }
 
 func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {

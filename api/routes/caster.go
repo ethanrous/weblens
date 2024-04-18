@@ -11,6 +11,10 @@ import (
 )
 
 func NewCaster(recipientUsernames ...types.Username) types.BroadcasterAgent {
+	if !dataStore.GetServerInfo().IsCore() {
+		return &unbufferedCaster{enabled: false}
+	}
+
 	recipients := util.Filter(util.MapToSlicePure(cmInstance.clientMap), func(c *Client) bool { return slices.Contains(recipientUsernames, c.user.GetUsername()) })
 
 	newCaster := &unbufferedCaster{
@@ -25,7 +29,7 @@ func (c *unbufferedCaster) Enable() {
 }
 
 func (c unbufferedCaster) IsBuffered() bool {
-	return true
+	return false
 }
 
 func (c *unbufferedCaster) PushTaskUpdate(taskId types.TaskId, status string, result types.TaskResult) {
@@ -129,15 +133,22 @@ func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
 }
 
+// Get a new buffered caster with the autoflusher pre-enabled.
+// c.Close() must be called when this caster is no longer in use to
+// release the flusher
 func NewBufferedCaster() types.BufferedBroadcasterAgent {
+	if !dataStore.GetServerInfo().IsCore() {
+		return &bufferedCaster{enabled: false, autoFlushInterval: time.Hour}
+	}
 	newCaster := &bufferedCaster{
+		enabled:           true,
 		bufLimit:          100,
 		buffer:            []wsResponse{},
-		autoFlush:         false,
 		autoFlushInterval: time.Second,
 		bufLock:           &sync.Mutex{},
-		enabled:           false,
 	}
+
+	newCaster.enableAutoflush()
 
 	return newCaster
 }
@@ -149,6 +160,12 @@ func (c *bufferedCaster) AutoflushEnable() {
 
 func (c *bufferedCaster) Enable() {
 	c.enabled = true
+}
+
+func (c *bufferedCaster) Close() {
+	c.Flush()
+	c.autoFlush = false
+	c.enabled = false
 }
 
 func (c bufferedCaster) IsBuffered() bool {
@@ -213,23 +230,6 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 
 		broadcastType: "folder",
 	}
-
-	// This is potentially problematic, if you are seeing issues with files not getting
-	// websocket updates when they should START HERE
-
-	// Immediately didn't work, I was right. Might revisit
-
-	// var e bool
-	// var em wsResponse
-	// c.bufLock.Lock()
-	// c.buffer, em, e = util.YoinkFunc(c.buffer, func(m wsResponse) bool {
-	// 	return m.MessageStatus == "file_updated" && m.SubscribeKey == msg.SubscribeKey
-	// })
-	// c.bufLock.Unlock()
-
-	// if e && len(em.Content) > 1 {
-	// 	util.Error.Println("MIGHT BE BAD, REMOVED:", em)
-	// }
 
 	c.bufferAndFlush(msg)
 }

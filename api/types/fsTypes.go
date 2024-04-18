@@ -16,7 +16,7 @@ type WeblensFile interface {
 	ModTime() time.Time
 
 	FormatFileInfo(AccessMeta) (FileInfo, error)
-	IsDisplayable() (bool, error)
+	IsDisplayable() bool
 
 	GetMedia() (Media, error)
 	SetMedia(Media) error
@@ -35,7 +35,7 @@ type WeblensFile interface {
 
 	CreateSelf() error
 	Write([]byte) error
-	WriteAt([]byte, int64) error
+	WriteAt([]byte, int64, bool) error
 	Read() (*os.File, error)
 	ReadAll() ([]byte, error)
 	ReadDir() error
@@ -51,6 +51,8 @@ type WeblensFile interface {
 	BubbleMap(func(WeblensFile))
 
 	MarshalJSON() ([]byte, error)
+	UnmarshalJSON(data []byte) error
+	MarshalArchive() map[string]any
 }
 
 type FileId string
@@ -84,4 +86,5 @@ type FileInfo struct {
 	PathFromHome     string    `json:"pathFromHome"`
 	Shares           []Share   `json:"shares"`
 	Children         []FileId  `json:"children"`
+	PastFile         bool      `json:"pastFile"`
 }

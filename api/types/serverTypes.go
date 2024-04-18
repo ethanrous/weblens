@@ -3,6 +3,7 @@ package types
 type ServerInfo interface {
 	ServerId() string
 	ServerRole() ServerRole
+	IsCore() bool
 	GetCoreAddress() (string, error)
 	GetUsingKey() WeblensApiKey
 }
@@ -10,6 +11,6 @@ type ServerInfo interface {
 type ServerRole string
 
 const (
-	CoreMode   ServerRole = "core"
-	BackupMode ServerRole = "backup"
+	Core   ServerRole = "core"
+	Backup ServerRole = "backup"
 )

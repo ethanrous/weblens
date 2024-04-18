@@ -33,7 +33,7 @@ func NewDB() *Weblensdb {
 		if err != nil {
 			panic(err)
 		}
-		mongodb = mongoc.Database("weblens")
+		mongodb = mongoc.Database(util.GetMongoDBName())
 	}
 	if redisc == nil && util.ShouldUseRedis() {
 		redisc = redis.NewClient(&redis.Options{
@@ -741,12 +741,12 @@ func (db Weblensdb) newApiKey(keyInfo ApiKeyInfo) error {
 	return err
 }
 
-func (db Weblensdb) updateApiKey(keyInfo ApiKeyInfo) error {
-	filter := bson.M{"key": keyInfo.Key}
-	// update := bson.M{"$set": keyInfo}
+func (db Weblensdb) updateUsingKey(key types.WeblensApiKey, serverId string) error {
+	filter := bson.M{"key": key}
+	update := bson.M{"$set": bson.M{"remoteUsing": serverId}}
 
-	res := db.mongo.Collection("apiKeys").FindOneAndReplace(mongo_ctx, filter, keyInfo)
-	return res.Err()
+	_, err := db.mongo.Collection("apiKeys").UpdateOne(mongo_ctx, filter, update)
+	return err
 }
 
 func (db Weblensdb) removeApiKey(key types.WeblensApiKey) {
@@ -841,4 +841,211 @@ func (db Weblensdb) getThisServerInfo() (*srvInfo, error) {
 	ret.Decode(&si)
 
 	return &si, nil
+}
+
+func (db Weblensdb) writeJournalEntries(jes []types.JournalEntry) error {
+	if len(jes) == 0 {
+		return nil
+	}
+	docs := util.SliceConvert[any](jes)
+	_, err := db.mongo.Collection("journal").InsertMany(mongo_ctx, docs)
+	return err
+}
+
+func (db Weblensdb) journalSince(since time.Time) ([]types.JournalEntry, error) {
+	filter := bson.M{"timestamp": bson.M{
+		"$gt": primitive.NewDateTimeFromTime(since),
+	}}
+	opts := options.Find().SetSort(bson.M{"timestamp": -1})
+	ret, err := db.mongo.Collection("journal").Find(mongo_ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	obj := []*fileJournalEntry{}
+	err = ret.All(mongo_ctx, &obj)
+
+	return util.SliceConvert[types.JournalEntry](obj), err
+}
+
+func (db Weblensdb) getJournaledFiles() ([]types.FileId, error) {
+	opts := options.Find().SetProjection(bson.M{"fileId": 1})
+	res, err := db.mongo.Collection("fileHistory").Find(mongo_ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var jes []fileJournalEntry
+	err = res.All(mongo_ctx, &jes)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := util.Map(jes, func(je fileJournalEntry) types.FileId {
+		return je.FileId
+	})
+
+	return ids, err
+}
+
+func (db Weblensdb) getLatestBackup() (*backupFile, error) {
+	pipe := bson.A{bson.M{"$sort": bson.M{"events.timestamp": -1}}, bson.M{"$limit": 1}}
+	ret, err := db.mongo.Collection("backupHistory").Aggregate(mongo_ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	if !ret.Next(mongo_ctx) {
+		return nil, ErrNoBackup
+	}
+
+	obj := backupFile{}
+	err = ret.Decode(&obj)
+	return &obj, err
+}
+
+func (db Weblensdb) newBackupFileRecord(bf *backupFile) error {
+	_, err := db.mongo.Collection("fileHistory").InsertOne(mongo_ctx, bf)
+	return err
+}
+
+func (db Weblensdb) backupFileAddHist(newFd, oldFd types.FileId, newHistory []types.FileJournalEntry) error {
+	filter := bson.M{"fileId": oldFd}
+	update := bson.M{"$push": bson.M{"events": bson.M{"$each": newHistory}}, "$set": bson.M{"fileId": newFd}}
+	_, err := db.mongo.Collection("fileHistory").UpdateOne(mongo_ctx, filter, update)
+	return err
+}
+
+func (db Weblensdb) getSnapshots() (jes []types.JournalEntry, err error) {
+	filter := bson.M{"action": "backup"}
+	res, err := db.mongo.Collection("journal").Find(mongo_ctx, filter)
+	if err != nil {
+		return
+	}
+
+	var bjes []*backupJournalEntry
+	err = res.All(mongo_ctx, &bjes)
+	if err != nil {
+		return
+	}
+
+	jes = util.SliceConvert[types.JournalEntry](bjes)
+
+	return
+}
+
+func (db Weblensdb) fileEventsByPath(folderPath string) (files []backupFile, err error) {
+	regex := "^" + folderPath + "[^/]*$"
+	filter := bson.M{"events.path": bson.M{"$regex": regex}}
+	ret, err := db.mongo.Collection("backupHistory").Find(mongo_ctx, filter)
+	if err != nil {
+		return
+	}
+
+	err = ret.All(mongo_ctx, &files)
+	return
+}
+
+func (db Weblensdb) getFilesPathAndTime(folderPath string, before time.Time) (files []backupFile, err error) {
+	regex := "^" + folderPath + "[^/]+$"
+	pipe := bson.A{
+		bson.M{
+			"$match": bson.M{
+				"events": bson.M{
+					"$elemMatch": bson.M{
+						"path": bson.M{
+							"$regex": regex,
+						},
+					},
+					"$not": bson.M{
+						"$elemMatch": bson.M{
+							"action": "fileDelete",
+							"timestamp": bson.M{
+								"$lt": before,
+							},
+						},
+					},
+				},
+				"$expr": bson.M{
+					"$let": bson.M{
+						"vars": bson.M{
+							"lastMove": bson.M{
+								"$last": bson.M{
+									"$filter": bson.M{
+										"input": "$events",
+										"as":    "event",
+										"cond": bson.M{
+											"$and": bson.A{
+												bson.M{
+													"$eq": bson.A{
+														"$$event.action",
+														"fileMove",
+													},
+												},
+												bson.M{
+													"$lt": bson.A{
+														"$$event.timestamp",
+														before,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						"in": bson.M{
+							"$or": bson.A{
+								bson.M{
+									"$ne": bson.A{
+										"$$lastMove.action",
+										"fileMove",
+									},
+								},
+								bson.M{
+									"$regexMatch": bson.M{
+										"input": "$$lastMove.path",
+										"regex": regex,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		bson.M{
+			"$addFields": bson.M{
+				"events": bson.M{
+					"$filter": bson.M{
+						"input": "$events",
+						"as":    "event",
+						"cond": bson.M{
+							"$lt": bson.A{
+								"$$event.timestamp",
+								before,
+							},
+						},
+					},
+				},
+			},
+		},
+		bson.M{
+			"$match": bson.M{
+				"events": bson.M{
+					"$exists": true,
+					"$not":    bson.M{"$size": 0},
+				},
+			},
+		},
+	}
+
+	ret, err := db.mongo.Collection("backupHistory").Aggregate(mongo_ctx, pipe)
+	if err != nil {
+		return
+	}
+
+	// var thing []any
+	err = ret.All(mongo_ctx, &files)
+	return
 }

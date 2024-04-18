@@ -18,11 +18,7 @@ import (
 func scanFile(t *task) {
 	meta := t.metadata.(ScanMetadata)
 
-	displayable, err := meta.file.IsDisplayable()
-	if err != nil && !errors.Is(err, dataStore.ErrNoMedia) {
-		t.ErrorAndExit(err)
-	}
-	if !displayable {
+	if !meta.file.IsDisplayable() {
 		t.ErrorAndExit(ErrNonDisplayable)
 	}
 
@@ -199,7 +195,7 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 	return
 }
 
-func writeToFile(t *task) {
+func handleFileUploads(t *task) {
 	meta := t.metadata.(WriteFileMeta)
 
 	t.CheckExit()
@@ -241,24 +237,19 @@ WriterLoop:
 			// We use `0-0/SIZE` as a fake "range header" to init the file into the map.
 			// This is so we can load them in quickly to avoid a premature exit due to the writer
 			// thinking its finished
-			if min == 0 && max == 0 {
-				fileMap[chunk.FileId] = &fileUploadProgress{file: dataStore.FsTreeGet(chunk.FileId), bytesWritten: 0, fileSizeTotal: total}
-				fileMap[chunk.FileId].file.AddTask(t)
-				fileMap[chunk.FileId].file.GetParent().AddTask(t)
+			if chunk.newFile != nil {
+				fileMap[chunk.newFile.Id()] = &fileUploadProgress{file: chunk.newFile, bytesWritten: 0, fileSizeTotal: total}
+				chunk.newFile.AddTask(t)
+				chunk.newFile.GetParent().AddTask(t)
 				continue WriterLoop
-			} else {
-				fileMap[chunk.FileId].bytesWritten += (max - min) + 1
 			}
 
-			fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, int64(min))
+			fileMap[chunk.FileId].bytesWritten += (max - min) + 1
 
-			// Uploading an entire 100 byte file would have the content range header
-			// 0-99/100, so max is 99 and total is 100, so we -1.
-
-			// util.Debug.Println(fileMap)
+			fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, int64(min), true)
 
 			if fileMap[chunk.FileId].bytesWritten >= fileMap[chunk.FileId].fileSizeTotal {
-				bufCaster.PushFileCreate(fileMap[chunk.FileId].file)
+				dataStore.AttachFile(fileMap[chunk.FileId].file, bufCaster)
 				fileMap[chunk.FileId].file.RemoveTask(t.TaskId())
 				fileMap[chunk.FileId].file.GetParent().RemoveTask(t.TaskId())
 				delete(fileMap, chunk.FileId)
@@ -277,8 +268,24 @@ WriterLoop:
 	t.CheckExit()
 	rootFile := dataStore.FsTreeGet(meta.rootFolderId)
 	dataStore.ResizeDown(rootFile, bufCaster)
-	bufCaster.Flush()
+	dataStore.ResizeUp(rootFile, bufCaster)
+	bufCaster.Close()
 	t.success()
+}
+
+func (t *task) NewFileInStream(file types.WeblensFile, fileSize int64) error {
+	switch t.metadata.(type) {
+	case WriteFileMeta:
+	default:
+		return ErrBadTaskMetaType
+	}
+	t.metadata.(WriteFileMeta).chunkStream <- FileChunk{newFile: file, ContentRange: "0-0/" + strconv.FormatInt(fileSize, 10)}
+
+	if t.taskPool == nil {
+		GetGlobalQueue().QueueTask(t)
+	}
+
+	return nil
 }
 
 func (t *task) AddChunkToStream(fileId types.FileId, chunk []byte, contentRange string) error {
@@ -289,10 +296,6 @@ func (t *task) AddChunkToStream(fileId types.FileId, chunk []byte, contentRange 
 	}
 	chunkData := FileChunk{FileId: fileId, Chunk: chunk, ContentRange: contentRange}
 	t.metadata.(WriteFileMeta).chunkStream <- chunkData
-
-	if t.taskPool == nil {
-		GetGlobalQueue().QueueTask(t)
-	}
 
 	return nil
 }

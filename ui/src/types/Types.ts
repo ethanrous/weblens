@@ -166,6 +166,7 @@ export type FileBrowserAction = {
     files?: { fileId: string; updateInfo: FileInfoT }[];
 
     parents?: any;
+    past?: Date;
 };
 
 export type FBDispatchT = (action: FileBrowserAction) => void;
@@ -213,6 +214,7 @@ export type FbStateT = {
     scrollTo: string;
     moveDest: string;
     menuOpen: boolean;
+    fileInfoMenu: boolean;
 
     fbMode: string;
     // isShare: boolean;
@@ -223,6 +225,7 @@ export type FbStateT = {
 
     sortDirection: number; // 1 or -1
     sortFunc: string;
+    viewingPast: Date;
 };
 
 export type FileInfoT = {
@@ -241,6 +244,7 @@ export type FileInfoT = {
     pathFromHome: string;
     shares: shareData[];
     children: string[];
+    pastFile: boolean;
 
     // Non-api props
     visible: boolean;
@@ -272,8 +276,10 @@ export const getBlankFile = () => {
         owner: "",
         pathFromHome: "",
         shares: [],
-        visible: false,
         children: [],
+        pastFile: false,
+
+        visible: false,
     };
     return blank;
 };

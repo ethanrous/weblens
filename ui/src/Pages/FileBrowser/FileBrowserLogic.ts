@@ -115,7 +115,7 @@ function updateFile(state: FbStateT, user: UserInfoT, existingId: string, newDat
         return { ...state, homeDirSize: newData.size };
     }
 
-    if (newData.id === "EXTERNAL_ROOT") {
+    if (newData.id === "EXTERNAL") {
         newData.id = newData.filename
         newData.filename = "External"
     }
@@ -124,8 +124,8 @@ function updateFile(state: FbStateT, user: UserInfoT, existingId: string, newDat
         return { ...state, folderInfo: newData };
     }
 
-    if (!existingFile) {
-        console.warn("Not upserting file", existingId);
+    if (!existingFile && newData.parentFolderId !== state.contentId) {
+        console.warn("Not upserting file not in view", existingId);
         return { ...state };
     }
 
@@ -165,12 +165,15 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         case "replace_file": {
             state.dirMap.delete(action.fileId)
             const sel = state.selected.delete(action.fileId)
+            if (action.fileInfo.parentFolderId !== state.folderInfo.id) {
+                return { ...state, dirMap: new Map(state.dirMap), selected: new Map(state.selected) };
+            }
             state.dirMap.set(action.fileInfo.id, action.fileInfo)
             if (sel) {
                 state.selected.set(action.fileInfo.id, true)
             }
 
-            return { ...state, dirMap: new Map(state.dirMap) };
+            return { ...state, dirMap: new Map(state.dirMap), selected: new Map(state.selected) };
         }
 
         case "update_many": {
@@ -550,6 +553,14 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
             }
         }
 
+        case "set_past_time": {
+            return {...state, viewingPast: action.past}
+        }
+
+        case "set_file_info_menu": {
+            return {...state, fileInfoMenu: action.open}
+        }
+
         default: {
             console.error("Got unexpected dispatch type: ", action.type);
             notifications.show({
@@ -606,7 +617,7 @@ export const useSubscribe = (cId: string, sId: string, mode: string, usr: UserIn
         HandleWebsocketMessage(lastMessage, cId, mode, usr, dispatch, authHeader);
     }, [lastMessage, usr, authHeader]);
 
-    return wsSend;
+    return {wsSend, readyState};
 };
 
 export const getRealId = async (
@@ -617,7 +628,7 @@ export const getRealId = async (
 ) => {
 
     if (mode === "stats" && contentId === "external") {
-        return "EXTERNAL_ROOT"
+        return "EXTERNAL"
     }
 
     if (contentId === "home") {
@@ -1046,8 +1057,12 @@ export const useKeyDownFileBrowser = (
             if (!fbState.blockFocus) {
                 if (document.activeElement === searchRef.current) {
                     if (event.key === "Enter") {
+                        console.log("HERE")
                         if (!Boolean(fbState.searchContent)) {
-                            return;
+                            if (fbState.fbMode === "search") {
+                                nav(`/files/${fbState.contentId}`);
+                            }
+                            return
                         }
                         nav(`/files/search/${fbState.contentId}?query=${fbState.searchContent}`, {
                             replace: Boolean(searchQuery),

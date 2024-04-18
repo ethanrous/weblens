@@ -1,9 +1,11 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 
-	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -21,7 +23,7 @@ func ping(ctx *gin.Context) {
 
 func attachRemote(ctx *gin.Context) {
 	si := dataStore.GetServerInfo()
-	if si.ServerRole() == types.BackupMode {
+	if si.ServerRole() == types.Backup {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"})
 		return
 	}
@@ -50,19 +52,61 @@ func attachRemote(ctx *gin.Context) {
 }
 
 func getBackupSnapshot(ctx *gin.Context) {
-	rq := NewRequester()
-	t := dataProcess.GetGlobalQueue().Backup(rq)
-	t.Wait()
-
-	_, status := t.Status()
-	if status == dataProcess.TaskSuccess {
-		res := t.GetResult()
-		ctx.JSON(http.StatusOK, res)
-	} else {
+	ts, err := strconv.Atoi(ctx.Query("since"))
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	since := time.UnixMilli(int64(ts))
+	jes, err := dataStore.JournalSince(since)
+	// jes[0].JournaledAt().String()
+	if err != nil {
+		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
+	_, err = json.Marshal(gin.H{"journal": jes})
+	util.ShowErr(err)
+
+	ctx.JSON(http.StatusOK, gin.H{"journal": jes})
+}
+
+// /api/core/file/jfIjGtsl/content
+// /api/core/file/jfIjGtsl/content
+
+func getFileBytes(ctx *gin.Context) {
+	fileId := types.FileId(ctx.Param("fileId"))
+	f := dataStore.FsTreeGet(fileId)
+	if f == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+	if f.IsDir() {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	ctx.File(f.GetAbsPath())
+}
+
+func getFilesMeta(ctx *gin.Context) {
+	fIds, err := readCtxBody[[]types.FileId](ctx)
+	if err != nil {
+		return
+	}
+	files := []map[string]any{}
+	notFound := []types.FileId{}
+	for _, id := range fIds {
+		f := dataStore.FsTreeGet(id)
+		if f == nil {
+			notFound = append(notFound, id)
+		} else {
+			files = append(files, f.MarshalArchive())
+		}
+	}
+	ctx.JSON(http.StatusOK, gin.H{"files": files, "notFound": notFound})
 }
 
 func getRemotes(ctx *gin.Context) {

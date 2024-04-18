@@ -3,7 +3,7 @@ import axios from "axios";
 
 import { AlbumData, AuthHeaderT, FBDispatchT, UserInfoT, FileInfoT, getBlankFile } from "../types/Types";
 import { humanFileSize } from "../util";
-import API_ENDPOINT, { ADMIN_ENDPOINT, PUBLIC_ENDPOINT } from "./ApiEndpoint";
+import API_ENDPOINT, { PUBLIC_ENDPOINT } from "./ApiEndpoint";
 
 export function SubToFolder(subId: string, recursive: boolean, wsSend) {
     if (!subId || subId === "shared") {
@@ -97,7 +97,7 @@ async function getExternalFiles(
     authHeader: AuthHeaderT,
 ) {
     let url: URL;
-    url = new URL(`${ADMIN_ENDPOINT}/files/external/${contentId}`);
+    url = new URL(`${API_ENDPOINT}/files/external/${contentId}`);
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
@@ -302,16 +302,6 @@ export async function requestZipCreate(fileIds: string[], shareId: string, authH
         });
 }
 
-export async function AutocompleteUsers(searchValue, authHeader: AuthHeaderT) {
-    if (searchValue.length < 2) {
-        return [];
-    }
-    const url = new URL(`${API_ENDPOINT}/users`);
-    url.searchParams.append("filter", searchValue);
-    const res = await fetch(url.toString(), { headers: authHeader }).then((res) => res.json());
-    return res.users ? res.users : [];
-}
-
 export async function AutocompleteAlbums(searchValue, authHeader: AuthHeaderT): Promise<AlbumData[]> {
     if (searchValue.length < 2) {
         return [];
@@ -442,4 +432,20 @@ export async function getFilesystemStats(folderId: string, authHeader: AuthHeade
     return await fetch(`${API_ENDPOINT}/files/${folderId}/stats`, {
         headers: authHeader,
     }).then(d => d.json());
+}
+
+export async function getFileHistory(fileId: string, authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`);
+    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function getSnapshots(authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/snapshots`);
+    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function getPastFolderInfo(folderId: string, timestamp: Date, authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/past/${folderId}`);
+    url.searchParams.append("before", String(timestamp.getTime()))
+    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
 }

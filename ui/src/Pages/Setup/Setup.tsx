@@ -10,7 +10,7 @@ import {
     IconRocket,
 } from "@tabler/icons-react";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { getUsersPublic, initServer } from "../../api/ApiFetch";
+import { getUsers, initServer } from "../../api/ApiFetch";
 import { useNavigate } from "react-router-dom";
 import { UserInfoT } from "../../types/Types";
 import { userContext } from "../../Context";
@@ -54,7 +54,7 @@ const UserSelect = ({
                 </Text>
                 <Input
                     variant="unstyled"
-                    className="weblens-input"
+                    className="weblens-input-wrapper"
                     type="password"
                     placeholder="Password"
                     style={{ width: "100%" }}
@@ -102,7 +102,7 @@ const UserSelect = ({
                     </Text>
                     <Input
                         variant="unstyled"
-                        className="weblens-input"
+                        className="weblens-input-wrapper"
                         type="password"
                         placeholder="Password"
                         style={{ width: "100%" }}
@@ -130,7 +130,7 @@ const Core = ({
     const nav = useNavigate();
 
     useEffect(() => {
-        getUsersPublic().then((r) => {
+        getUsers(null).then((r) => {
             setUsers(r.users);
         });
     }, []);
@@ -166,7 +166,7 @@ const Core = ({
                 <Box style={{ width: "100%" }}>
                     <Text className="body-text">Create the Owner Account</Text>
                     <Input
-                        className="weblens-input"
+                        className="weblens-input-wrapper"
                         variant="unstyled"
                         placeholder="Username"
                         onChange={(e) => {
@@ -174,7 +174,7 @@ const Core = ({
                         }}
                     />
                     <Input
-                        className="weblens-input"
+                        className="weblens-input-wrapper"
                         variant="unstyled"
                         type="password"
                         placeholder="Password"
@@ -208,7 +208,7 @@ const Core = ({
                     </Box>
 
                     <Input
-                        className="weblens-input"
+                        className="weblens-input-wrapper"
                         styles={{
                             input: {
                                 backgroundColor: "#00000000",
@@ -225,8 +225,8 @@ const Core = ({
                 <Box>
                     <Text className="body-text">Name This Weblens Server</Text>
                     <Input
-                        className="weblens-input"
-                        classNames={{ input: "weblens-input" }}
+                        className="weblens-input-wrapper"
+                        classNames={{ input: "weblens-input-wrapper" }}
                         variant="unstyled"
                         disabled={existingName !== ""}
                         value={serverName}
@@ -301,7 +301,7 @@ const Backup = ({
             </Box>
             <Text className="body-text">Name Local (Backup) Server</Text>
             <Input
-                className="weblens-input"
+                className="weblens-input-wrapper"
                 variant="unstyled"
                 placeholder="Rad Backup Server"
                 onChange={(e) => {
@@ -310,7 +310,7 @@ const Backup = ({
             />
             <Text className="body-text">Remote (Core) Weblens Address</Text>
             <Input
-                className="weblens-input"
+                className="weblens-input-wrapper"
                 variant="unstyled"
                 placeholder="https://myremoteweblens.net/"
                 onChange={(e) => {
@@ -319,7 +319,7 @@ const Backup = ({
             />
             <Text className="body-text">API Key</Text>
             <Input
-                className="weblens-input"
+                className="weblens-input-wrapper"
                 variant="unstyled"
                 type="password"
                 placeholder="RUH8gHMH4EgQvw_n2..."

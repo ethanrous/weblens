@@ -1,6 +1,6 @@
 import { Box, Loader, Text } from "@mantine/core";
-import { createElement, CSSProperties, memo, useMemo, useState } from "react";
-import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { CSSProperties, memo, useEffect, useMemo, useState } from "react";
+import { ColumnBox } from "../Pages/FileBrowser/FilebrowserStyles";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import { useResize } from "./hooks";
 
@@ -40,7 +40,7 @@ const ButtonContent = ({
     Left,
     Right,
     fontSize,
-    showText,
+    // showText,
     centerContent,
 }: {
     label: string;
@@ -51,25 +51,28 @@ const ButtonContent = ({
     showText: boolean;
     centerContent: boolean;
 }) => {
-    let leftWidth;
-    if (Left && showText) {
-        leftWidth = 34;
-    } else if (showText) {
-        leftWidth = 0;
-    } else if (Left) {
-        leftWidth = 24;
-    }
+    const [showText, setShowText] = useState(true);
     const [textRef, setTextRef] = useState(null);
     const textSize = useResize(textRef);
+    useEffect(() => {
+        if (textSize.width < 100) {
+            setShowText(false);
+        } else {
+            setShowText(true);
+        }
+    }, [textSize.width]);
 
     return (
         <Box
+            ref={setTextRef}
             style={{
                 height: "100%",
                 display: "flex",
                 flexDirection: "row",
                 justifyContent: centerContent ? "center" : "flex-start",
                 alignItems: "center",
+                width: "100%",
+                minWidth: 24,
             }}
         >
             <Box
@@ -93,34 +96,37 @@ const ButtonContent = ({
                     justifyContent: "center",
                 }}
             >
-                {/* <p>AHHHHHHH</p> */}
-                <Text
-                    ref={setTextRef}
-                    truncate="end"
-                    // size="inherit"
+                <p
+                    // ref={setTextRef}
+                    // truncate="end"
                     style={{
                         fontWeight: "inherit",
                         width: "max-content",
                         height: "max-content",
-                        flexShrink: 0,
+                        flexShrink: 1,
                         padding: "2px",
                         userSelect: "none",
                         textWrap: "nowrap",
-                        lineHeight: "reset",
-                        flexGrow: 1,
+                        lineHeight: "10px",
+                        flexGrow: 0,
                         fontSize: fontSize,
                         display: showText ? "block" : "none",
+                        margin: 0,
                     }}
                 >
                     {label}
-                </Text>
+                </p>
 
                 {postScript && (
                     <Text
                         fw={300}
                         size="10px"
                         truncate="end"
-                        style={{ padding: 2, textWrap: "nowrap" }}
+                        style={{
+                            padding: 2,
+                            textWrap: "nowrap",
+                            overflow: "visible",
+                        }}
                     >
                         {postScript}
                     </Text>
@@ -193,7 +199,7 @@ export const WeblensButton = memo(
         showSuccess = true,
         toggleOn = undefined,
         subtle = false,
-        allowRepeat = true,
+        allowRepeat = false,
         centerContent = false,
         disabled = false,
         danger = false,

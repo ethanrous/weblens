@@ -91,7 +91,7 @@ func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.Broadc
 	case MoveFileTask:
 		newTask.work = moveFile
 	case WriteFileTask:
-		newTask.work = writeToFile
+		newTask.work = handleFileUploads
 	case GatherFsStatsTask:
 		newTask.work = gatherFilesystemStats
 	case BackupTask:

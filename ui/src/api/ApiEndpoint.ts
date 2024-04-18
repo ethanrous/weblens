@@ -3,7 +3,7 @@ const API_ENDPOINT =
         ? (import.meta.env.VITE_APP_API_ENDPOINT as string)
         : `${window.location.origin}/api`;
 
-export const ADMIN_ENDPOINT = `${API_ENDPOINT}/admin`;
+// export const ADMIN_ENDPOINT = `${API_ENDPOINT}/admin`;
 export const PUBLIC_ENDPOINT = `${API_ENDPOINT}/public`;
 
 export const API_WS_ENDPOINT =

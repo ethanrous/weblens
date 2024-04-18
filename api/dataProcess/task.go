@@ -124,6 +124,12 @@ func (t *task) error(err error) {
 	// Run the cleanup routine for errors, if any
 	if t.errorCleanup != nil {
 		t.errorCleanup()
+		t.errorCleanup = nil
+	}
+
+	if t.cleanup != nil {
+		t.cleanup()
+		t.cleanup = nil
 	}
 
 	// If we have already called cancel, do not set any error
@@ -159,11 +165,20 @@ func (t *task) SetErrorCleanup(cleanup func()) {
 	t.errorCleanup = cleanup
 }
 
+func (t *task) SetCleanup(cleanup func()) {
+	t.cleanup = cleanup
+}
+
 func (t *task) ReadError() any {
 	return t.err
 }
 
 func (t *task) success(msg ...any) {
+	if t.cleanup != nil {
+		t.cleanup()
+		t.cleanup = nil
+	}
+
 	t.completed = true
 	t.exitStatus = TaskSuccess
 	if len(msg) != 0 {

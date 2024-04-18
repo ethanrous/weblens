@@ -458,7 +458,7 @@ export const AlbumScoller = memo(
             >
                 <AlbumsHeader allMedias={allMedias} />
                 <Input
-                    className="weblens-input"
+                    className="weblens-input-wrapper"
                     variant="unstyled"
                     value={searchStr}
                     onChange={(e) => setSearchStr(e.target.value.toLowerCase())}

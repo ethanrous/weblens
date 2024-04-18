@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box } from '@mantine/core';
-import { FixedSizeGrid as WindowGrid } from 'react-window';
-import './style.css';
-import { GlobalContextType, ItemDisplay, ItemProps } from './ItemDisplay';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Box } from "@mantine/core";
+import { FixedSizeGrid as WindowGrid } from "react-window";
+import "./style.css";
+import { GlobalContextType, ItemDisplay, ItemProps } from "./ItemDisplay";
+import { useResize } from "./hooks";
 
 type ItemsContextType = {
     items: ItemProps[];
@@ -56,20 +57,21 @@ export const ItemScroller = ({
     const [viewWidth, setViewWidth] = useState(0);
     const [viewHeight, setViewHeight] = useState(0);
     const windowRef = useRef(null);
+    const parentSize = useResize(parentNode);
 
     globalContext = useMemo(() => {
-        const viewWidth = parentNode?.clientWidth ? parentNode.clientWidth : 0;
+        const viewWidth = parentSize?.width ? parentSize.width : 0;
         setViewWidth(viewWidth);
         var numCols = Math.floor((viewWidth - 1) / FILE_BASE_SIZE);
         numCols = numCols ? numCols : 1;
-        setViewHeight(parentNode?.clientHeight ? parentNode.clientHeight : 0);
+        setViewHeight(parentSize.height ? parentSize.height : 0);
         const itemWidth = Math.floor(viewWidth / numCols);
 
         globalContext.numCols = numCols;
         globalContext.itemWidth = itemWidth;
 
         return globalContext;
-    }, [parentNode?.clientWidth, parentNode?.clientHeight, globalContext]);
+    }, [parentSize.width, parentSize.height, globalContext]);
 
     useEffect(() => {
         if (
@@ -78,7 +80,7 @@ export const ItemScroller = ({
             globalContext.numCols
         ) {
             windowRef.current.scrollToItem({
-                align: 'smart',
+                align: "smart",
                 rowIndex: Math.floor(
                     globalContext.initialScrollIndex / globalContext.numCols
                 ),
@@ -88,16 +90,16 @@ export const ItemScroller = ({
 
     useEffect(() => {
         if (dispatch) {
-            dispatch({ type: 'set_col_count', numCols: globalContext.numCols });
+            dispatch({ type: "set_col_count", numCols: globalContext.numCols });
         }
     }, [dispatch, globalContext.numCols]);
 
     return (
-        <Box style={{ width: '100%', height: '100%' }}>
+        <Box style={{ width: "100%", height: "100%" }}>
             <WindowGrid
                 className="no-scrollbars"
                 ref={windowRef}
-                height={viewHeight - 58}
+                height={viewHeight}
                 width={viewWidth}
                 columnCount={globalContext.numCols}
                 columnWidth={globalContext.itemWidth}

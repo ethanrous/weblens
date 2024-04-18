@@ -2,7 +2,6 @@ package routes
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -38,12 +37,30 @@ func readCtxBody[T any](ctx *gin.Context) (obj T, err error) {
 
 func readRespBody[T any](resp *http.Response) (obj T, err error) {
 	var bodyB []byte
-	_, err = resp.Body.Read(bodyB)
+	if resp.ContentLength == 0 {
+		return obj, ErrNoBody
+	} else if resp.ContentLength == -1 {
+		util.Warning.Println("Reading body with unknown content length")
+		bodyB, err = io.ReadAll(resp.Body)
+	} else {
+		bodyB, err = util.OracleReader(resp.Body, resp.ContentLength)
+	}
 	if err != nil {
 		return
 	}
+	err = json.Unmarshal(bodyB, &obj)
+	return
+}
 
-	err = json.Unmarshal(bodyB, obj)
+func readRespBodyRaw(resp *http.Response) (bodyB []byte, err error) {
+	if resp.ContentLength == 0 {
+		return nil, ErrNoBody
+	} else if resp.ContentLength == -1 {
+		util.Warning.Println("Reading body with unknown content length")
+		bodyB, err = io.ReadAll(resp.Body)
+	} else {
+		bodyB, err = util.OracleReader(resp.Body, resp.ContentLength)
+	}
 	return
 }
 
@@ -207,7 +224,7 @@ func newUploadTask(ctx *gin.Context) {
 		return
 	}
 	c := NewBufferedCaster()
-	c.Enable()
+	defer c.Close()
 	t := UploadTasker.WriteToFile(upInfo.RootFolderId, upInfo.ChunkSize, upInfo.TotalUploadSize, c)
 	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
@@ -253,8 +270,12 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 		return
 	}
 
-	// newF.AddTask(uTask)
-	uTask.AddChunkToStream(newF.Id(), []byte{}, "0-0/"+fmt.Sprint(newFInfo.FileSize))
+	err = uTask.NewFileInStream(newF, newFInfo.FileSize)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
 
 	ctx.JSON(http.StatusCreated, gin.H{"fileId": newF.Id()})
 }
@@ -332,7 +353,10 @@ func makeDir(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Parent folder not found"})
 		return
 	}
-	newDir, err := dataStore.MkDir(parentFolder, ctx.Query("folderName"))
+
+	caster := NewBufferedCaster()
+	defer caster.Close()
+	newDir, err := dataStore.MkDir(parentFolder, ctx.Query("folderName"), caster)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -340,9 +364,6 @@ func makeDir(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.Id()})
-
-	Caster.PushFileCreate(newDir)
-	Caster.Flush()
 }
 
 func pubMakeDir(ctx *gin.Context) {
@@ -496,9 +517,10 @@ func updateFile(ctx *gin.Context) {
 		updateInfo.NewParentId = file.GetParent().Id()
 	}
 
-	t := dataProcess.GetGlobalQueue().MoveFile(fileId, types.FileId(updateInfo.NewParentId), updateInfo.NewName, Caster)
+	caster := NewBufferedCaster()
+	defer caster.Close()
+	t := dataProcess.GetGlobalQueue().MoveFile(fileId, types.FileId(updateInfo.NewParentId), updateInfo.NewName, caster)
 	t.Wait()
-	Caster.Flush()
 
 	if t.ReadError() != nil {
 		util.Error.Println(t.ReadError())
@@ -517,12 +539,14 @@ func updateFiles(ctx *gin.Context) {
 
 	tp := dataProcess.NewTaskPool(false, nil)
 
+	caster := NewBufferedCaster()
+	defer caster.Close()
+
 	for _, fileId := range filesData.Files {
-		tp.MoveFile(fileId, filesData.NewParentId, "", Caster)
+		tp.MoveFile(fileId, filesData.NewParentId, "", caster)
 	}
 	tp.SignalAllQueued()
 	tp.Wait(false)
-	Caster.Flush()
 
 	ctx.Status(http.StatusOK)
 }
@@ -535,7 +559,7 @@ func trashFiles(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 
 	caster := NewBufferedCaster()
-	caster.AutoflushEnable()
+	defer caster.Close()
 
 	var failed []types.FileId
 
@@ -561,8 +585,6 @@ func trashFiles(ctx *gin.Context) {
 
 	}
 
-	caster.Flush()
-
 	if len(failed) != 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"failedIds": failed})
 		return
@@ -579,7 +601,7 @@ func deleteFiles(ctx *gin.Context) {
 	var failed []types.FileId
 
 	caster := NewBufferedCaster()
-	caster.AutoflushEnable()
+	defer caster.Close()
 
 	for _, fileId := range fileIds {
 		file := dataStore.FsTreeGet(fileId)
@@ -600,8 +622,6 @@ func deleteFiles(ctx *gin.Context) {
 		}
 		dataStore.ResizeUp(file.GetParent(), caster)
 	}
-
-	caster.Flush()
 
 	if len(failed) != 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"failedIds": failed})
@@ -627,7 +647,7 @@ func unTrashFiles(ctx *gin.Context) {
 	json.Unmarshal(bodyBytes, &fileIds)
 
 	caster := NewBufferedCaster()
-	caster.AutoflushEnable()
+	defer caster.Close()
 
 	var failed []types.FileId
 
@@ -646,8 +666,6 @@ func unTrashFiles(ctx *gin.Context) {
 		err = dataStore.ReturnFileFromTrash(file, caster)
 		util.ErrTrace(err)
 	}
-
-	caster.Flush()
 
 	if len(failed) != 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"failedIds": failed})
@@ -789,8 +807,7 @@ func getUserInfo(ctx *gin.Context) {
 }
 
 func getUsers(ctx *gin.Context) {
-	users := dataStore.GetUsers()
-	ctx.JSON(http.StatusOK, users)
+	ctx.JSON(http.StatusOK, Store.GetUsers())
 }
 
 func updateUserPassword(ctx *gin.Context) {
@@ -948,7 +965,6 @@ func createFileShare(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{"shareData": newShare})
-	Caster.Flush()
 }
 
 func deleteShare(ctx *gin.Context) {
@@ -966,7 +982,6 @@ func deleteShare(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
-	Caster.Flush()
 
 	ctx.Status(http.StatusOK)
 }
@@ -1119,7 +1134,7 @@ func initializeServer(ctx *gin.Context) {
 		return
 	}
 
-	if si.Role == types.CoreMode {
+	if si.Role == types.Core {
 		err := dataStore.InitServerCore(si.Name, si.Username, si.Password)
 		if err != nil {
 			util.ShowErr(err)
@@ -1128,7 +1143,7 @@ func initializeServer(ctx *gin.Context) {
 		}
 		ctx.Status(http.StatusCreated)
 
-	} else if si.Role == types.BackupMode {
+	} else if si.Role == types.Backup {
 		rq := NewRequester()
 		err := dataStore.InitServerForBackup(si.Name, si.CoreAddress, si.CoreKey, rq)
 		if err != nil {
@@ -1137,7 +1152,15 @@ func initializeServer(ctx *gin.Context) {
 			return
 		}
 	}
+
 	ctx.Status(http.StatusCreated)
+
+	store := GetStore()
+	store.LoadUsers()
+
+	util.Debug.Println("Initilization succeeded. Restarting router...")
+	go DoRoutes()
+
 }
 
 func getServerInfo(ctx *gin.Context) {

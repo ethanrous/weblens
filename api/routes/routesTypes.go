@@ -6,10 +6,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gorilla/websocket"
 )
+
+var Store = GetStore()
+
+func GetStore() types.Store {
+	rq := NewRequester()
+	return dataStore.NewStore(rq)
+}
 
 // Endpoint logic
 
@@ -90,6 +98,11 @@ type deleteKeyBody struct {
 
 type deleteRemoteBody struct {
 	RemoteId string `json:"remoteId"`
+}
+
+type getFilesResp struct {
+	Files    dataStore.FileArray `json:"files"`
+	NotFound []types.FileId      `json:"notFound"`
 }
 
 // Websocket
@@ -250,3 +263,4 @@ var ErrEmptyAuth types.WeblensError = errors.New("empty auth header not allowed 
 var ErrCoreOriginate types.WeblensError = errors.New("core server attempted to ping remote server")
 var ErrNoAddress types.WeblensError = errors.New("trying to make request to core without a core address")
 var ErrNoKey types.WeblensError = errors.New("trying to make request to core without an api key")
+var ErrNoBody types.WeblensError = errors.New("trying to read http body with no content")

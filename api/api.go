@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
@@ -10,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
+
+const retries = 10
 
 func main() {
 	sw := util.NewStopwatch("Initialization")
@@ -22,6 +25,26 @@ func main() {
 	}
 
 	sw.Lap()
+
+	rq := routes.NewRequester()
+	srvInfo := dataStore.GetServerInfo()
+	if !srvInfo.IsCore() {
+		connected := false
+		i := 0
+		for i = range retries {
+			if rq.PingCore() {
+				connected = true
+				break
+			}
+			time.Sleep(time.Millisecond * 500)
+		}
+		if !connected {
+			util.Error.Println("Failed to ping core server")
+			os.Exit(1)
+		}
+		sw.Lap("Connected to core server after ", i, " retries")
+	}
+
 	routes.VerifyClientManager()
 	tt := dataProcess.VerifyTaskTracker()
 	dataStore.SetTasker(dataProcess.NewTaskPool(false, nil))
@@ -48,8 +71,10 @@ func main() {
 	util.FailOnError(err, "Failed to initialize media type map")
 	sw.Lap("Init type map")
 
+	store := dataStore.NewStore(rq)
+
 	util.Info.Println("Loading users...")
-	err = dataStore.LoadUsers()
+	err = store.LoadUsers()
 	util.FailOnError(err, "Failed to load users")
 	sw.Lap("Users init")
 
@@ -73,7 +98,6 @@ func main() {
 	// initial loading of the filesystem (that was just done above) doesn't
 	// try to broadcast for every file that exists. So it must be enabled here
 	routes.Caster.DropBuffer()
-	routes.Caster.AutoflushEnable()
 	sw.Lap("Global caster enabled")
 
 	// 								100MB
@@ -84,32 +108,20 @@ func main() {
 	dataStore.SetExiftool(et)
 	sw.Lap("Init global exiftool")
 
-	go dataProcess.BackupD(time.Minute, routes.NewRequester())
+	go dataProcess.BackupD(time.Minute, rq)
 	sw.Lap("Init backup sleeper")
 
 	// Enable the worker pool heald by the task tracker
 	tt.StartWP()
 	sw.Lap("Global worker pool enabled")
 
-	router := gin.New()
-	router.Use(gin.Recovery())
-	router.Use(routes.WeblensLogger)
-	gin.Logger()
-
-	routes.AddApiRoutes(router)
-	if !util.DetachUi() {
-		routes.AddUiRoutes(router)
-	}
-	if util.IsDevMode() {
-		routes.AttachProfiler(router)
-	}
-	sw.Lap("Gin routes added")
 	sw.Stop()
-
 	sw.PrintResults(false)
 
-	util.Info.Printf("Loaded %d files and %d medias\n", dataStore.GetTreeSize(), dataStore.GetMediaMapSize())
-	util.Info.Println("Weblens loaded. Starting router...")
+	util.Info.Printf("Weblens loaded. %d files and %d medias\n", dataStore.GetTreeSize(), dataStore.GetMediaMapSize())
 
-	router.Run(util.GetRouterIp() + ":" + util.GetRouterPort())
+	for {
+		routes.DoRoutes()
+	}
+
 }

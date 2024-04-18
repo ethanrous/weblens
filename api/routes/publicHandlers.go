@@ -10,7 +10,7 @@ import (
 )
 
 func publicGetUsers(ctx *gin.Context) {
-	users := dataStore.GetUsers()
+	users := Store.GetUsers()
 	if slices.ContainsFunc(users, func(u types.User) bool { return u.IsOwner() }) && dataStore.GetServerInfo() != nil {
 		ctx.Status(http.StatusNotFound)
 		return

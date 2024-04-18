@@ -96,21 +96,24 @@ func (f *weblensFile) GetMediaType() (types.MediaType, error) {
 		return nil, ErrDirNotAllowed
 	}
 
-	if f.media != nil && f.media.GetMediaType() != nil {
-		return f.media.GetMediaType(), nil
+	if f.media != nil {
+		mt := f.media.GetMediaType()
+		if mt != nil {
+			return mt, nil
+		}
 	}
 
 	mType := ParseExtType(f.Filename()[strings.Index(f.Filename(), ".")+1:])
 	return mType, nil
 }
 
-func (f *weblensFile) IsDisplayable() (bool, error) {
-	mType, err := f.GetMediaType()
+func (f *weblensFile) IsDisplayable() bool {
+	mType, _ := f.GetMediaType()
 	if mType == nil {
-		return false, err
+		return false
 	}
 
-	return mType.IsDisplayable(), err
+	return mType.IsDisplayable()
 }
 
 func (m *mediaType) toMarshalable() marshalableMediaType {

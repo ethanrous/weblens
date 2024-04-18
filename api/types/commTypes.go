@@ -20,10 +20,17 @@ type BufferedBroadcasterAgent interface {
 	DropBuffer()
 	DisableAutoflush()
 	AutoflushEnable()
-	Flush()
+	// Flush()
+
+	// flush, release the auto-flusher, and disable the caster
+	Close()
 }
 
 type Requester interface {
-	GetCoreSnapshot() error
-	AttachToCore(coreAddress string, name string, key WeblensApiKey) error
+	RequestCoreSnapshot() ([]FileJournalEntry, error)
+	AttachToCore(srvId, coreAddress, name string, key WeblensApiKey) error
+	GetCoreUsers() (us []User, err error)
+	PingCore() bool
+	GetCoreFileBin(f WeblensFile) ([][]byte, error)
+	GetCoreFileInfos(fIds []FileId) ([]WeblensFile, error)
 }

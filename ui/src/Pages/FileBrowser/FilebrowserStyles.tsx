@@ -11,22 +11,26 @@ import {
     FileButton,
     Center,
     Skeleton,
-} from '@mantine/core';
-import { useCallback, useContext, useMemo, useState } from 'react';
+    Loader,
+} from "@mantine/core";
+import { useCallback, useContext, useMemo, useState } from "react";
 import {
     handleDragOver,
     HandleDrop,
     HandleUploadButton,
-} from './FileBrowserLogic';
+} from "./FileBrowserLogic";
 import {
     FBDispatchT,
     ScanMeta,
     FileInfoT,
     FbStateT,
     UserContextT,
-} from '../../types/Types';
+    AuthHeaderT,
+} from "../../types/Types";
 
 import {
+    IconCircle,
+    IconCircleFilled,
     IconFile,
     IconFileZip,
     IconFolder,
@@ -36,15 +40,15 @@ import {
     IconRefresh,
     IconSpiral,
     IconUpload,
-} from '@tabler/icons-react';
-import { userContext } from '../../Context';
-import '../../components/style.css';
-import '../../components/filebrowserStyle.css';
-import { humanFileSize, nsToHumanTime } from '../../util';
-import { ContainerMedia } from '../../components/Presentation';
-import { IconX } from '@tabler/icons-react';
-import { WeblensProgress } from '../../components/WeblensProgress';
-import { useResize } from '../../components/hooks';
+} from "@tabler/icons-react";
+import { userContext } from "../../Context";
+import "../../components/style.css";
+import "./style/filebrowserStyle.css";
+import { humanFileSize, nsToHumanTime } from "../../util";
+import { ContainerMedia } from "../../components/Presentation";
+import { IconX } from "@tabler/icons-react";
+import { WeblensProgress } from "../../components/WeblensProgress";
+import { useResize } from "../../components/hooks";
 
 export const ColumnBox = ({
     children,
@@ -85,14 +89,14 @@ export const ColumnBox = ({
             onDragOver={onDragOver}
             onMouseUp={onMouseUp}
             style={{
-                display: 'flex',
-                height: '100%',
-                width: '100%',
-                flexDirection: 'column',
-                alignItems: 'center',
+                display: "flex",
+                height: "100%",
+                width: "100%",
+                flexDirection: "column",
+                alignItems: "center",
                 ...style,
             }}
-            className={`column-box ${className ? className : ''}`}
+            className={`column-box ${className ? className : ""}`}
         />
     );
 };
@@ -116,11 +120,11 @@ export const RowBox = ({
             onBlur={onBlur}
             onDrag={(e) => e.preventDefault()}
             style={{
-                height: '100%',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
                 ...style,
             }}
         />
@@ -140,7 +144,7 @@ export const TransferCard = ({
     let left;
     if (boundRef) {
         width = boundRef.clientWidth;
-        left = boundRef.getBoundingClientRect()['left'];
+        left = boundRef.getBoundingClientRect()["left"];
     }
     if (!destination) {
         return;
@@ -150,18 +154,18 @@ export const TransferCard = ({
         <Box
             className="transfer-info-box"
             style={{
-                pointerEvents: 'none',
-                width: width ? width : '100%',
+                pointerEvents: "none",
+                width: width ? width : "100%",
                 left: left ? left : 0,
             }}
         >
-            <Card style={{ height: 'max-content' }}>
+            <Card style={{ height: "max-content" }}>
                 <RowBox>
-                    <Text style={{ userSelect: 'none' }}>{action} to</Text>
-                    <IconFolder style={{ marginLeft: '7px' }} />
+                    <Text style={{ userSelect: "none" }}>{action} to</Text>
+                    <IconFolder style={{ marginLeft: "7px" }} />
                     <Text
                         fw={700}
-                        style={{ marginLeft: 3, userSelect: 'none' }}
+                        style={{ marginLeft: 3, userSelect: "none" }}
                     >
                         {destination}
                     </Text>
@@ -186,6 +190,7 @@ const Dropspot = ({
     handleDrag: React.DragEventHandler<HTMLDivElement>;
     wrapperRef?;
 }) => {
+    const wrapperSize = useResize(wrapperRef);
     return (
         <Box
             draggable={false}
@@ -196,10 +201,10 @@ const Dropspot = ({
                 }
             }}
             style={{
-                pointerEvents: dragging === 2 ? 'all' : 'none',
-                cursor: !dropAllowed && dragging === 2 ? 'no-drop' : 'auto',
-                height: wrapperRef ? wrapperRef.clientHeight : '100%',
-                width: wrapperRef ? wrapperRef.clientWidth : '100%',
+                pointerEvents: dragging === 2 ? "all" : "none",
+                cursor: !dropAllowed && dragging === 2 ? "no-drop" : "auto",
+                height: wrapperSize ? wrapperSize.height - 2 : "100%",
+                width: wrapperSize ? wrapperSize.width - 2 : "100%",
             }}
             onDragLeave={handleDrag}
         >
@@ -217,19 +222,19 @@ const Dropspot = ({
                     // required for onDrop to work https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
                     onDragOver={(e) => e.preventDefault()}
                     style={{
-                        outlineColor: `${dropAllowed ? '#ffffff' : '#dd2222'}`,
+                        outlineColor: `${dropAllowed ? "#ffffff" : "#dd2222"}`,
                         cursor:
-                            !dropAllowed && dragging === 2 ? 'no-drop' : 'auto',
+                            !dropAllowed && dragging === 2 ? "no-drop" : "auto",
                     }}
                 >
                     {!dropAllowed && (
                         <ColumnBox
                             style={{
-                                position: 'relative',
-                                justifyContent: 'center',
-                                cursor: 'no-drop',
-                                width: 'max-content',
-                                pointerEvents: 'none',
+                                position: "relative",
+                                justifyContent: "center",
+                                cursor: "no-drop",
+                                width: "max-content",
+                                pointerEvents: "none",
                             }}
                         >
                             <IconFolderCancel size={100} color="#dd2222" />
@@ -259,7 +264,7 @@ const FilebrowserMenu = ({
             <Menu.Target>
                 <Box
                     style={{
-                        position: 'fixed',
+                        position: "fixed",
                         top: menuPos.y,
                         left: menuPos.x,
                     }}
@@ -301,17 +306,21 @@ export const DirViewWrapper = ({
     const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
     const [wrapperRef, setWrapperRef] = useState(null);
     const dropAllowed = useMemo(() => {
-        return !(
-            fbState.fbMode === 'share' || fbState.contentId === usr.trashId
+        console.log("In");
+        return (
+            fbState.folderInfo.modifiable &&
+            !(fbState.fbMode === "share" || fbState.contentId === usr.trashId)
         );
-    }, [fbState.contentId, usr.trashId, fbState.fbMode]);
+    }, [fbState.contentId, usr.trashId, fbState.fbMode, fbState.folderInfo]);
+
+    console.log("Out");
 
     return (
         <Box
             draggable={false}
             style={{
                 // marginRight: 10,
-                height: '100%',
+                height: "100%",
                 flexShrink: 0,
                 minWidth: 400,
                 flexGrow: 1,
@@ -331,7 +340,7 @@ export const DirViewWrapper = ({
                 if (dragging) {
                     setTimeout(
                         () =>
-                            dispatch({ type: 'set_dragging', dragging: false }),
+                            dispatch({ type: "set_dragging", dragging: false }),
                         10
                     );
                 }
@@ -340,11 +349,11 @@ export const DirViewWrapper = ({
                 if (dragging) {
                     return;
                 }
-                dispatch({ type: 'clear_selected' });
+                dispatch({ type: "clear_selected" });
             }}
             onContextMenu={(e) => {
                 e.preventDefault();
-                if (fbState.fbMode === 'share') {
+                if (fbState.fbMode === "share") {
                     return;
                 }
                 setMenuPos({ x: e.clientX, y: e.clientY });
@@ -352,16 +361,16 @@ export const DirViewWrapper = ({
             }}
         >
             <FilebrowserMenu
-                folderName={folderName === usr.username ? 'Home' : folderName}
+                folderName={folderName === usr.username ? "Home" : folderName}
                 menuPos={menuPos}
                 menuOpen={menuOpen}
                 setMenuOpen={setMenuOpen}
-                newFolder={() => dispatch({ type: 'new_dir' })}
+                newFolder={() => dispatch({ type: "new_dir" })}
             />
             <Dropspot
                 onDrop={(e) => {
                     onDrop(e);
-                    dispatch({ type: 'set_dragging', dragging: false });
+                    dispatch({ type: "set_dragging", dragging: false });
                 }}
                 dropspotTitle={folderName}
                 dragging={dragging}
@@ -372,7 +381,7 @@ export const DirViewWrapper = ({
                 wrapperRef={wrapperRef}
             />
             <ColumnBox
-                style={{ width: '100%', padding: 8 }}
+                style={{ width: "100%", padding: 8 }}
                 onDragOver={(event) => {
                     if (!dragging) {
                         handleDragOver(event, dispatch, dragging);
@@ -405,7 +414,7 @@ export const WormholeWrapper = ({
     const handleDrag = useCallback(
         (e) => {
             e.preventDefault();
-            if (e.type === 'dragenter' || e.type === 'dragover') {
+            if (e.type === "dragenter" || e.type === "dragover") {
                 if (!dragging) {
                     setDragging(2);
                 }
@@ -419,7 +428,7 @@ export const WormholeWrapper = ({
     return (
         <Box className="wormhole-wrapper">
             <Box
-                style={{ position: 'relative', width: '98%', height: '98%' }}
+                style={{ position: "relative", width: "98%", height: "98%" }}
                 //                    See DirViewWrapper \/
                 onMouseMove={(e) => {
                     if (dragging) {
@@ -446,7 +455,7 @@ export const WormholeWrapper = ({
                     handleDrag={handleDrag}
                 />
                 <ColumnBox
-                    style={{ justifyContent: 'center' }}
+                    style={{ justifyContent: "center" }}
                     onDragOver={handleDrag}
                 >
                     {children}
@@ -459,19 +468,19 @@ export const WormholeWrapper = ({
 export const ScanFolderButton = ({ folderId, holdingShift, doScan }) => {
     return (
         <Box>
-            {folderId !== 'shared' && folderId !== 'trash' && (
+            {folderId !== "shared" && folderId !== "trash" && (
                 <Tooltip
-                    label={holdingShift ? 'Deep scan folder' : 'Scan folder'}
+                    label={holdingShift ? "Deep scan folder" : "Scan folder"}
                 >
                     <ActionIcon color="#00000000" size={35} onClick={doScan}>
                         <IconRefresh
-                            color={holdingShift ? '#4444ff' : 'white'}
+                            color={holdingShift ? "#4444ff" : "white"}
                             size={35}
                         />
                     </ActionIcon>
                 </Tooltip>
             )}
-            {(folderId === 'shared' || folderId === 'trash') && (
+            {(folderId === "shared" || folderId === "trash") && (
                 <Space w={35} />
             )}
         </Box>
@@ -489,13 +498,13 @@ export const FolderIcon = ({ shares, size }: { shares; size }) => {
         }
     }, [shares]);
     return (
-        <RowBox style={{ justifyContent: 'center', width: '100%' }}>
+        <RowBox style={{ justifyContent: "center", width: "100%" }}>
             <IconFolder size={size} />
             {wormholeId && (
-                <Tooltip label={copied ? 'Copied' : 'Copy Wormhole'}>
+                <Tooltip label={copied ? "Copied" : "Copy Wormhole"}>
                     <IconSpiral
-                        color={copied ? '#4444ff' : 'white'}
-                        style={{ position: 'absolute', right: 0, top: 0 }}
+                        color={copied ? "#4444ff" : "white"}
+                        style={{ position: "absolute", right: 0, top: 0 }}
                         onClick={(e) => {
                             e.stopPropagation();
                             navigator.clipboard.writeText(
@@ -534,9 +543,9 @@ export const IconDisplay = ({
 
     if (!file.imported && file.displayable && allowMedia) {
         return (
-            <Center style={{ height: '100%', width: '100%' }}>
-                <Skeleton height={'100%'} width={'100%'} />
-                <Text pos={'absolute'} style={{ userSelect: 'none' }}>
+            <Center style={{ height: "100%", width: "100%" }}>
+                <Skeleton height={"100%"} width={"100%"} />
+                <Text pos={"absolute"} style={{ userSelect: "none" }}>
                     Processing...
                 </Text>
             </Center>
@@ -545,7 +554,7 @@ export const IconDisplay = ({
         return (
             <ColumnBox
                 reff={setContainerRef}
-                style={{ justifyContent: 'center' }}
+                style={{ justifyContent: "center" }}
             >
                 <ContainerMedia
                     mediaData={file.mediaData}
@@ -557,23 +566,23 @@ export const IconDisplay = ({
     } else if (file.displayable) {
         return <IconPhoto />;
     }
-    const extIndex = file.filename.lastIndexOf('.');
+    const extIndex = file.filename.lastIndexOf(".");
     const ext = file.filename.slice(extIndex + 1, file.filename.length);
     const textSize = `${Math.floor(containerSize?.width / (ext.length + 5))}px`;
 
     switch (ext) {
-        case 'zip':
+        case "zip":
             return <IconFileZip />;
         default:
             return (
                 <Box
                     ref={setContainerRef}
                     style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        width: '100%',
-                        height: '100%',
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        width: "100%",
+                        height: "100%",
                     }}
                 >
                     <IconFile size={size} />
@@ -582,9 +591,9 @@ export const IconDisplay = ({
                             size={textSize}
                             fw={700}
                             style={{
-                                position: 'absolute',
-                                userSelect: 'none',
-                                WebkitUserSelect: 'none',
+                                position: "absolute",
+                                userSelect: "none",
+                                WebkitUserSelect: "none",
                             }}
                         >
                             .{ext}
@@ -600,36 +609,36 @@ export const FileInfoDisplay = ({ file }: { file: FileInfoT }) => {
     return (
         <ColumnBox
             style={{
-                width: 'max-content',
-                whiteSpace: 'nowrap',
-                justifyContent: 'center',
-                maxWidth: '100%',
+                width: "max-content",
+                whiteSpace: "nowrap",
+                justifyContent: "center",
+                maxWidth: "100%",
             }}
         >
-            <Text fw={600} style={{ fontSize: '2.5vw', maxWidth: '100%' }}>
+            <Text fw={600} style={{ fontSize: "2.5vw", maxWidth: "100%" }}>
                 {file.filename}
             </Text>
             {file.isDir && (
                 <RowBox
                     style={{
-                        height: 'max-content',
-                        justifyContent: 'center',
-                        width: '100%',
+                        height: "max-content",
+                        justifyContent: "center",
+                        width: "100%",
                     }}
                 >
-                    <Text style={{ fontSize: '25px', maxWidth: '100%' }}>
+                    <Text style={{ fontSize: "25px", maxWidth: "100%" }}>
                         {file.children.length} Item
-                        {file.children.length !== 1 ? 's' : ''}
+                        {file.children.length !== 1 ? "s" : ""}
                     </Text>
                     <Divider orientation="vertical" size={2} mx={10} />
-                    <Text style={{ fontSize: '25px' }}>
+                    <Text style={{ fontSize: "25px" }}>
                         {size}
                         {units}
                     </Text>
                 </RowBox>
             )}
             {!file.isDir && (
-                <Text style={{ fontSize: '25px' }}>
+                <Text style={{ fontSize: "25px" }}>
                     {size}
                     {units}
                 </Text>
@@ -647,40 +656,40 @@ export const PresentationFile = ({ file }: { file: FileInfoT }) => {
         return (
             <ColumnBox
                 style={{
-                    justifyContent: 'center',
-                    width: '40%',
-                    height: 'max-content',
+                    justifyContent: "center",
+                    width: "40%",
+                    height: "max-content",
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 <Text
                     fw={600}
-                    style={{ fontSize: '2.1vw', wordBreak: 'break-all' }}
+                    style={{ fontSize: "2.1vw", wordBreak: "break-all" }}
                 >
                     {file.filename}
                 </Text>
-                <Text style={{ fontSize: '25px' }}>
+                <Text style={{ fontSize: "25px" }}>
                     {size}
                     {units}
                 </Text>
-                <Text style={{ fontSize: '20px' }}>
+                <Text style={{ fontSize: "20px" }}>
                     {new Date(Date.parse(file.modTime)).toLocaleDateString(
-                        'en-us',
+                        "en-us",
                         {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
                         }
                     )}
                 </Text>
                 <Divider />
-                <Text style={{ fontSize: '20px' }}>
+                <Text style={{ fontSize: "20px" }}>
                     {new Date(
                         Date.parse(file.mediaData.createDate)
-                    ).toLocaleDateString('en-us', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
+                    ).toLocaleDateString("en-us", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
                     })}
                 </Text>
             </ColumnBox>
@@ -688,44 +697,44 @@ export const PresentationFile = ({ file }: { file: FileInfoT }) => {
     } else {
         return (
             <RowBox
-                style={{ justifyContent: 'center', height: 'max-content' }}
+                style={{ justifyContent: "center", height: "max-content" }}
                 onClick={(e) => e.stopPropagation()}
             >
                 <Box
                     style={{
-                        width: '60%',
-                        display: 'flex',
-                        justifyContent: 'center',
+                        width: "60%",
+                        display: "flex",
+                        justifyContent: "center",
                     }}
                 >
                     <IconDisplay file={file} allowMedia />
                 </Box>
                 <Space w={30} />
-                <ColumnBox style={{ width: '40%', justifyContent: 'center' }}>
-                    <Text fw={600} style={{ width: '100%' }}>
+                <ColumnBox style={{ width: "40%", justifyContent: "center" }}>
+                    <Text fw={600} style={{ width: "100%" }}>
                         {file.filename}
                     </Text>
                     {file.isDir && (
                         <RowBox
                             style={{
-                                height: 'max-content',
-                                justifyContent: 'center',
-                                width: '50vw',
+                                height: "max-content",
+                                justifyContent: "center",
+                                width: "50vw",
                             }}
                         >
-                            <Text style={{ fontSize: '25px' }}>
+                            <Text style={{ fontSize: "25px" }}>
                                 {file.children.length} Item
-                                {file.children.length !== 1 ? 's' : ''}
+                                {file.children.length !== 1 ? "s" : ""}
                             </Text>
                             <Divider orientation="vertical" size={2} mx={10} />
-                            <Text style={{ fontSize: '25px' }}>
+                            <Text style={{ fontSize: "25px" }}>
                                 {size}
                                 {units}
                             </Text>
                         </RowBox>
                     )}
                     {!file.isDir && (
-                        <Text style={{ fontSize: '25px' }}>
+                        <Text style={{ fontSize: "25px" }}>
                             {size}
                             {units}
                         </Text>
@@ -743,21 +752,33 @@ export const GetStartedCard = ({
     uploadDispatch,
     authHeader,
     wsSend,
+}: {
+    fb: FbStateT;
+    moveSelectedTo;
+    dispatch: FBDispatchT;
+    uploadDispatch;
+    authHeader: AuthHeaderT;
+    wsSend;
 }) => {
     return (
         <ColumnBox>
             <ColumnBox
                 style={{
-                    width: 'max-content',
-                    height: 'max-content',
-                    marginTop: '20vh',
+                    width: "max-content",
+                    height: "max-content",
+                    marginTop: "20vh",
                 }}
             >
-                <Text size="28px" style={{ width: 'max-content' }}>
-                    This folder is empty
+                <Text
+                    size="28px"
+                    style={{ width: "max-content", userSelect: "none" }}
+                >
+                    {`This folder ${
+                        fb.folderInfo.pastFile ? "was" : "is"
+                    } empty`}
                 </Text>
 
-                {fb.folderInfo.modifiable && (
+                {fb.folderInfo.modifiable && !fb.viewingPast && (
                     <RowBox style={{ padding: 10 }}>
                         <FileButton
                             onChange={(files) => {
@@ -765,7 +786,7 @@ export const GetStartedCard = ({
                                     files,
                                     fb.folderInfo.id,
                                     false,
-                                    '',
+                                    "",
                                     authHeader,
                                     uploadDispatch,
                                     wsSend
@@ -781,13 +802,13 @@ export const GetStartedCard = ({
                                             props.onClick();
                                         }}
                                         style={{
-                                            cursor: 'pointer',
+                                            cursor: "pointer",
                                             padding: 10,
                                         }}
                                     >
                                         <IconUpload
                                             size={100}
-                                            style={{ padding: '10px' }}
+                                            style={{ padding: "10px" }}
                                         />
                                         <Text size="20px" fw={600}>
                                             Upload
@@ -803,18 +824,18 @@ export const GetStartedCard = ({
                         <ColumnBox
                             onClick={(e) => {
                                 e.stopPropagation();
-                                dispatch({ type: 'new_dir' });
+                                dispatch({ type: "new_dir" });
                             }}
-                            style={{ cursor: 'pointer', padding: 10 }}
+                            style={{ cursor: "pointer", padding: 10 }}
                         >
                             <IconFolderPlus
                                 size={100}
-                                style={{ padding: '10px' }}
+                                style={{ padding: "10px" }}
                             />
                             <Text
                                 size="20px"
                                 fw={600}
-                                style={{ width: 'max-content' }}
+                                style={{ width: "max-content" }}
                             >
                                 New Folder
                             </Text>
@@ -837,8 +858,8 @@ export const TaskProgCard = ({
 
     return (
         <Box className="task-progress-box">
-            <RowBox style={{ height: 'max-content' }}>
-                <Box style={{ width: '100%' }}>
+            <RowBox style={{ height: "max-content" }}>
+                <Box style={{ width: "100%" }}>
                     <Text size="12px">{prog.taskType}</Text>
                     <Text size="16px" fw={600}>
                         {prog.target}
@@ -846,28 +867,28 @@ export const TaskProgCard = ({
                 </Box>
                 <IconX
                     size={20}
-                    cursor={'pointer'}
+                    cursor={"pointer"}
                     onClick={() =>
                         dispatch({
-                            type: 'remove_task_progress',
+                            type: "remove_task_progress",
                             taskId: prog.taskId,
                         })
                     }
                 />
             </RowBox>
             <Box
-                style={{ height: 25, flexShrink: 0, width: '100%', margin: 10 }}
+                style={{ height: 25, flexShrink: 0, width: "100%", margin: 10 }}
             >
                 <WeblensProgress
                     value={prog.complete ? 100 : prog.progress}
-                    color={prog.complete ? '#22bb33' : '#4444ff'}
+                    color={prog.complete ? "#22bb33" : "#4444ff"}
                 />
             </Box>
             {!prog.complete && (
                 <RowBox
                     style={{
-                        justifyContent: 'space-between',
-                        height: 'max-content',
+                        justifyContent: "space-between",
+                        height: "max-content",
                         gap: 10,
                     }}
                 >
@@ -884,22 +905,53 @@ export const TaskProgCard = ({
             {prog.complete && (
                 <RowBox
                     style={{
-                        justifyContent: 'space-between',
-                        height: 'max-content',
+                        justifyContent: "space-between",
+                        height: "max-content",
                         gap: 10,
                     }}
                 >
-                    <Text size="10px" style={{ width: 'max-content' }}>
+                    <Text size="10px" style={{ width: "max-content" }}>
                         Finished in {timeString}
                     </Text>
                     <Text
                         size="10px"
-                        style={{ width: 'max-content', textWrap: 'nowrap' }}
+                        style={{ width: "max-content", textWrap: "nowrap" }}
                     >
                         {prog.note}
                     </Text>
                 </RowBox>
             )}
+        </Box>
+    );
+};
+
+export const WebsocketStatus = ({ ready }) => {
+    let color;
+    let status;
+
+    switch (ready) {
+        case 1:
+            color = "#00ff0055";
+            status = "Connected";
+            break;
+        case 2:
+            color = "orange";
+            status = "Connecting";
+            break;
+        case -1:
+        case 3:
+            color = "red";
+            status = "Not Connected";
+            break;
+    }
+
+    return (
+        <Box style={{ position: "absolute", bottom: 0, left: 5 }}>
+            <Tooltip label={status} color="#222222">
+                <svg width="24" height="24" fill={color}>
+                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                </svg>
+            </Tooltip>
         </Box>
     );
 };

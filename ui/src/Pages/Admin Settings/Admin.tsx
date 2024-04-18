@@ -62,7 +62,7 @@ function CreateUserBox({
             }}
         >
             <Input
-                className="weblens-input"
+                className="weblens-input-wrapper"
                 variant="unstyled"
                 value={userInput}
                 placeholder="Username"
@@ -70,7 +70,7 @@ function CreateUserBox({
                 onChange={(e) => setUserInput(e.target.value)}
             />
             <Input
-                className="weblens-input"
+                className="weblens-input-wrapper"
                 variant="unstyled"
                 value={passInput}
                 placeholder="Password"
@@ -87,6 +87,7 @@ function CreateUserBox({
             <WeblensButton
                 label="Create User"
                 width={185}
+                disabled={userInput === "" || passInput === ""}
                 onClick={async () => {
                     await adminCreateUser(
                         userInput,
@@ -472,7 +473,8 @@ export function ApiKeys({ authHeader }) {
 }
 
 export function Admin({ close }) {
-    const { authHeader, usr }: UserContextT = useContext(userContext);
+    const { authHeader, usr, serverInfo }: UserContextT =
+        useContext(userContext);
     const [allUsersInfo, setAllUsersInfo] = useState(null);
     useKeyDown("Escape", close);
 
@@ -544,6 +546,12 @@ export function Admin({ close }) {
                     <WeblensButton
                         label="Backup now"
                         width={"200px"}
+                        disabled={serverInfo.role === "core"}
+                        postScript={
+                            serverInfo.role === "core"
+                                ? "Core servers do not support backup"
+                                : ""
+                        }
                         onClick={async () => {
                             const res = await doBackup(authHeader);
                             if (res >= 300) {

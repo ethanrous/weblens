@@ -97,7 +97,7 @@ const Login = () => {
             buttonRef.click();
         }
     });
-    // useKeyDownLogin(login);
+    const badUsername = userInput[0] === "." || userInput.includes("/");
 
     return (
         <RowBox
@@ -158,7 +158,8 @@ const Login = () => {
                         }}
                     >
                         <Input
-                            className="weblens-input"
+                            className="weblens-input-wrapper"
+                            classNames={{ input: "weblens-input" }}
                             variant="unstyled"
                             value={userInput}
                             placeholder="Username"
@@ -168,7 +169,8 @@ const Login = () => {
                             }
                         />
                         <Input
-                            className="weblens-input"
+                            className="weblens-input-wrapper"
+                            classNames={{ input: "weblens-input" }}
                             variant="unstyled"
                             type="password"
                             value={passInput}
@@ -201,17 +203,26 @@ const Login = () => {
                         }}
                     >
                         <Input
-                            className="weblens-input"
+                            className="weblens-input-wrapper"
+                            classNames={{ input: "weblens-input" }}
                             variant="unstyled"
                             value={userInput}
                             placeholder="Username"
+                            error={badUsername}
                             onChange={(event) =>
                                 setUserInput(event.currentTarget.value)
                             }
                             style={{ width: "100%" }}
                         />
+                        {badUsername && (
+                            <Input.Error style={{ width: "100%" }}>
+                                Username must not begin with '.' and cannot
+                                include '/'
+                            </Input.Error>
+                        )}
                         <Input
-                            className="weblens-input"
+                            className="weblens-input-wrapper"
+                            classNames={{ input: "weblens-input" }}
                             variant="unstyled"
                             type="password"
                             value={passInput}
@@ -224,7 +235,11 @@ const Login = () => {
                         <Space h={"md"} />
                         <WeblensButton
                             label="Sign Up"
-                            disabled={userInput === "" || passInput === ""}
+                            disabled={
+                                userInput === "" ||
+                                passInput === "" ||
+                                badUsername
+                            }
                             centerContent
                             onClick={() => CreateUser(userInput, passInput)}
                             setButtonRef={setButtonRef}

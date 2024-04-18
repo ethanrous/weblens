@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type Share interface {
 	GetShareId() ShareId
 	GetShareType() ShareType
@@ -18,10 +20,12 @@ type AccessMeta interface {
 	AddShare(Share) AccessMeta
 	AddShareId(ShareId, ShareType) AccessMeta
 	SetRequestMode(RequestMode) AccessMeta
+	SetTime(t time.Time) AccessMeta
 
 	User() User
 	Shares() []Share
 	RequestMode() RequestMode
+	GetTime() time.Time
 
 	UsingShare() Share
 }

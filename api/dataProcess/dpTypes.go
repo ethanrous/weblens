@@ -34,9 +34,14 @@ type task struct {
 	result     types.TaskResult
 	persistant bool
 
-	err          any
-	timeout      time.Time
-	exitStatus   types.TaskExitStatus // "success", "error" or "cancelled"
+	err        any
+	timeout    time.Time
+	exitStatus types.TaskExitStatus // "success", "error" or "cancelled"
+
+	// Function to be run to cleanup when the task completes, no matter the exit status
+	cleanup func()
+
+	// Function to be run to cleanup if the task errors
 	errorCleanup func()
 
 	sw util.Stopwatch
@@ -174,6 +179,8 @@ type FileChunk struct {
 	FileId       types.FileId
 	Chunk        []byte
 	ContentRange string
+
+	newFile types.WeblensFile
 }
 
 type WriteFileMeta struct {
@@ -213,6 +220,20 @@ type fileUploadProgress struct {
 	file          types.WeblensFile
 	bytesWritten  int64
 	fileSizeTotal int64
+}
+
+type BackupMeta struct {
+	remoteId string
+}
+
+func (m BackupMeta) MetaString() string {
+	data := map[string]any{
+		"remoteId": m.remoteId,
+	}
+	bs, err := json.Marshal(data)
+	util.ErrTrace(err)
+
+	return string(bs)
 }
 
 // Misc

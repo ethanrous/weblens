@@ -1,18 +1,18 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
-import { Box, Text } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { Box, Text } from "@mantine/core";
+import { IconChevronRight } from "@tabler/icons-react";
 
-import { RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { memo, useContext, useEffect, useMemo, useState } from 'react';
+import { RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { memo, useContext, useEffect, useMemo, useState } from "react";
 import {
     UserInfoT,
     FileInfoT,
     getBlankFile,
     UserContextT,
-} from '../types/Types';
-import { userContext } from '../Context';
-import { useResize } from './hooks';
+} from "../types/Types";
+import { userContext } from "../Context";
+import { useResize } from "./hooks";
 
 type breadcrumbProps = {
     label: string;
@@ -37,19 +37,19 @@ export const StyledBreadcrumb = ({
 }: breadcrumbProps) => {
     const [hovering, setHovering] = useState(false);
     let outline;
-    let bgColor = 'transparent';
+    let bgColor = "transparent";
 
     if (alwaysOn) {
-        outline = '1px solid #aaaaaa';
-        bgColor = 'rgba(30, 30, 30, 0.5)';
+        outline = "1px solid #aaaaaa";
+        bgColor = "rgba(30, 30, 30, 0.5)";
     } else if (dragging === 1 && hovering) {
-        outline = '2px solid #661199';
+        outline = "2px solid #661199";
     } else if (dragging === 1) {
-        bgColor = '#4444aa';
+        bgColor = "#4444aa";
     }
     return (
         <Box
-            className={compact ? 'crumb-box-compact' : 'crumb-box'}
+            className={compact ? "crumb-box-compact" : "crumb-box"}
             onMouseOver={() => {
                 setHovering(true);
                 if (dragging && setMoveDest) {
@@ -59,12 +59,12 @@ export const StyledBreadcrumb = ({
             onMouseLeave={() => {
                 setHovering(false);
                 if (dragging && setMoveDest) {
-                    setMoveDest('');
+                    setMoveDest("");
                 }
             }}
             onMouseUp={(e) => {
                 onMouseUp();
-                setMoveDest('');
+                setMoveDest("");
             }}
             onClick={onClick}
             style={{
@@ -79,8 +79,8 @@ export const StyledBreadcrumb = ({
                 truncate="end"
                 style={{
                     fontSize: fontSize,
-                    width: 'max-content',
-                    maxWidth: '100%',
+                    width: "max-content",
+                    maxWidth: "100%",
                 }}
             >
                 {label}
@@ -105,20 +105,20 @@ const Crumbcatenator = ({ crumb, index, squished, setWidth }) => {
         <Box
             ref={setCrumbRef}
             style={{
-                display: 'flex',
-                alignItems: 'center',
-                width: 'max-content',
+                display: "flex",
+                alignItems: "center",
+                width: "max-content",
             }}
         >
             {size.width > 10 && index !== 0 && (
-                <IconChevronRight style={{ width: '20px', minWidth: '20px' }} />
+                <IconChevronRight style={{ width: "20px", minWidth: "20px" }} />
             )}
             {crumb}
         </Box>
     );
 };
 
-export const StyledLoaf = ({ crumbs }) => {
+export const StyledLoaf = ({ crumbs, postText }) => {
     const [widths, setWidths] = useState(new Array(crumbs.length));
     const [squished, setSquished] = useState(0);
     const [crumbsRef, setCrumbRef] = useState(null);
@@ -163,6 +163,17 @@ export const StyledLoaf = ({ crumbs }) => {
                     }
                 />
             ))}
+            <Text
+                className="crumb-text"
+                truncate="end"
+                style={{
+                    marginLeft: 20,
+                    color: "#c4c4c4",
+                    fontSize: 20,
+                }}
+            >
+                {postText}
+            </Text>
         </Box>
     );
 };
@@ -171,6 +182,7 @@ const Crumbs = memo(
     ({
         finalFile,
         parents,
+        postText,
         moveSelectedTo,
         navOnLast,
         setMoveDest,
@@ -178,6 +190,7 @@ const Crumbs = memo(
     }: {
         finalFile: FileInfoT;
         parents: FileInfoT[];
+        postText?: string;
         navOnLast: boolean;
         moveSelectedTo?: (folderId: string) => void;
         setMoveDest?: (itemName: string) => void;
@@ -192,9 +205,9 @@ const Crumbs = memo(
             }
 
             const parentsIds = parents.map((p) => p.id);
-            if (parentsIds.includes('shared')) {
+            if (parentsIds.includes("shared")) {
                 let sharedRoot = getBlankFile();
-                sharedRoot.filename = 'Shared';
+                sharedRoot.filename = "Shared";
                 parents.unshift(sharedRoot);
             } else if (
                 finalFile.id === usr.trashId ||
@@ -205,15 +218,15 @@ const Crumbs = memo(
                 }
                 if (
                     parents[0]?.id === usr.trashId &&
-                    parents[0].filename !== 'Trash'
+                    parents[0].filename !== "Trash"
                 ) {
-                    parents[0].filename = 'Trash';
+                    parents[0].filename = "Trash";
                 }
                 if (
                     finalFile.id === usr.trashId &&
-                    finalFile.filename !== 'Trash'
+                    finalFile.filename !== "Trash"
                 ) {
-                    finalFile.filename = 'Trash';
+                    finalFile.filename = "Trash";
                 }
             } else if (
                 finalFile.id === usr.homeId ||
@@ -221,22 +234,22 @@ const Crumbs = memo(
             ) {
                 if (
                     parents[0]?.id === usr.homeId &&
-                    parents[0].filename !== 'Home'
+                    parents[0].filename !== "Home"
                 ) {
-                    parents[0].filename = 'Home';
+                    parents[0].filename = "Home";
                 }
                 if (
                     finalFile.id === usr.homeId &&
-                    finalFile.filename !== 'Home'
+                    finalFile.filename !== "Home"
                 ) {
-                    finalFile.filename = 'Home';
+                    finalFile.filename = "Home";
                 }
-            } else if (finalFile.id == 'EXTERNAL_ROOT') {
-                finalFile.filename = 'External';
-                finalFile.id = 'external';
-            } else if (parents[0]?.id == 'EXTERNAL_ROOT') {
-                parents[0].filename = 'External';
-                parents[0].id = 'external';
+            } else if (finalFile.id == "EXTERNAL_ROOT") {
+                finalFile.filename = "External";
+                finalFile.id = "external";
+            } else if (parents[0]?.id == "EXTERNAL_ROOT") {
+                parents[0].filename = "External";
+                parents[0].id = "external";
             }
 
             const crumbs = parents.map((parent) => {
@@ -264,7 +277,7 @@ const Crumbs = memo(
                     key={finalFile.id}
                     label={
                         finalFile.id === usr.homeId
-                            ? 'Home'
+                            ? "Home"
                             : finalFile.filename
                     }
                     onClick={(e) => {
@@ -275,7 +288,7 @@ const Crumbs = memo(
                         navigate(
                             `/files/${
                                 finalFile.parentFolderId === usr.homeId
-                                    ? 'home'
+                                    ? "home"
                                     : finalFile.parentFolderId
                             }`
                         );
@@ -284,7 +297,7 @@ const Crumbs = memo(
                 />
             );
 
-            return <StyledLoaf crumbs={crumbs} />;
+            return <StyledLoaf crumbs={crumbs} postText={postText} />;
         }, [
             parents,
             finalFile,

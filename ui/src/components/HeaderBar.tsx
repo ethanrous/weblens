@@ -98,7 +98,7 @@ const SettingsMenu = ({
                         variant="unstyled"
                         type="password"
                         placeholder="Old Password"
-                        className="weblens-input"
+                        className="weblens-input-wrapper"
                         onChange={(v) => setOldP(v.target.value)}
                     />
                     <Input
@@ -106,7 +106,7 @@ const SettingsMenu = ({
                         variant="unstyled"
                         type="password"
                         placeholder="New Password"
-                        className="weblens-input"
+                        className="weblens-input-wrapper"
                         onChange={(v) => setNewP(v.target.value)}
                     />
                     <WeblensButton
@@ -217,8 +217,8 @@ const HeaderBar = memo(
                             color: "#575757",
                         }}
                     >
-                        <Text size="12px">{serverInfo.name}</Text>
-                        <Text size="12px">({serverInfo.role})</Text>
+                        <Text size="12px">{serverInfo?.name}</Text>
+                        <Text size="12px">({serverInfo?.role})</Text>
                     </Box>
                     <Tooltip
                         color="#222222"

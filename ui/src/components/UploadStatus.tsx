@@ -56,7 +56,11 @@ function uploadReducer(state: UploadStateType, action) {
             //     // replaceItem.speed.shift()
             // }
 
-            if (!replaceItem.complete && replaceItem.progress === replaceItem.total && replaceItem.parent) {
+            if (
+                !replaceItem.complete &&
+                replaceItem.progress === replaceItem.total &&
+                replaceItem.parent
+            ) {
                 const parent = state.uploadsMap.get(replaceItem.parent);
                 parent.progress += 1;
                 replaceItem.complete = true;
@@ -77,7 +81,12 @@ function uploadReducer(state: UploadStateType, action) {
             replaceItem.progress += action.progress;
 
             const now = Date.now();
-            if (replaceItem.speed.push({ time: now, bytes: replaceItem.progress }) >= 100) {
+            if (
+                replaceItem.speed.push({
+                    time: now,
+                    bytes: replaceItem.progress,
+                }) >= 100
+            ) {
                 replaceItem.speed.shift();
             }
 
@@ -111,7 +120,10 @@ type UploadStateType = {
 };
 
 export function useUploadStatus() {
-    const [uploadState, uploadDispatch]: [UploadStateType, React.Dispatch<any>] = useReducer(uploadReducer, {
+    const [uploadState, uploadDispatch]: [
+        UploadStateType,
+        React.Dispatch<any>
+    ] = useReducer(uploadReducer, {
         uploadsMap: new Map<string, UploadMeta>(),
     });
 
@@ -140,15 +152,36 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
         }
         statusText = `${uploadMetadata.progress} of ${uploadMetadata.total} files`;
     } else if (uploadMetadata.subProgress || uploadMetadata.progress) {
-        prog = ((uploadMetadata.subProgress + uploadMetadata.progress) / uploadMetadata.total) * 100;
+        prog =
+            ((uploadMetadata.subProgress + uploadMetadata.progress) /
+                uploadMetadata.total) *
+            100;
         const [val, unit] = humanFileSize(getSpeed(uploadMetadata.speed), true);
         statusText = `${val}${unit}/s`;
     }
 
     return (
-        <RowBox style={{ height: "max-content", minHeight: 60, flexShrink: 0, padding: 6, margin: 1 }}>
-            {uploadMetadata.isDir && <IconFolder color="white" style={{ minHeight: "25px", minWidth: "25px" }} />}
-            {!uploadMetadata.isDir && <IconFile color="white" style={{ minHeight: "25px", minWidth: "25px" }} />}
+        <RowBox
+            style={{
+                height: "max-content",
+                minHeight: 60,
+                flexShrink: 0,
+                padding: 6,
+                margin: 1,
+            }}
+        >
+            {uploadMetadata.isDir && (
+                <IconFolder
+                    color="white"
+                    style={{ minHeight: "25px", minWidth: "25px" }}
+                />
+            )}
+            {!uploadMetadata.isDir && (
+                <IconFile
+                    color="white"
+                    style={{ minHeight: "25px", minWidth: "25px" }}
+                />
+            )}
 
             <ColumnBox
                 style={{
@@ -160,11 +193,23 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
                     flexGrow: 2,
                 }}
             >
-                <Text truncate={"end"} c="white" size="15px" fw={600} style={{ width: "100%", lineHeight: "20px" }}>
+                <Text
+                    truncate={"end"}
+                    c="white"
+                    size="15px"
+                    fw={600}
+                    style={{ width: "100%", lineHeight: "20px" }}
+                >
                     {uploadMetadata.friendlyName}
                 </Text>
                 {statusText && prog !== 100 && prog !== -1 && (
-                    <Text c="#dddddd" pr={5} size="13px" truncate={"end"} style={{ textWrap: "nowrap", marginTop: 2 }}>
+                    <Text
+                        c="#dddddd"
+                        pr={5}
+                        size="13px"
+                        truncate={"end"}
+                        style={{ textWrap: "nowrap", marginTop: 2 }}
+                    >
                         {statusText}
                     </Text>
                 )}
@@ -208,7 +253,13 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
     );
 }
 
-const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStateType; uploadDispatch }) => {
+const UploadStatus = ({
+    uploadState,
+    uploadDispatch,
+}: {
+    uploadState: UploadStateType;
+    uploadDispatch;
+}) => {
     const uploadCards = useMemo(() => {
         let uploadCards = [];
 
@@ -231,7 +282,9 @@ const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStat
             });
 
         for (const uploadMeta of uploads) {
-            uploadCards.push(<UploadCard key={uploadMeta.key} uploadMetadata={uploadMeta} />);
+            uploadCards.push(
+                <UploadCard key={uploadMeta.key} uploadMetadata={uploadMeta} />
+            );
         }
         return uploadCards;
     }, [uploadState.uploadsMap]);
@@ -240,9 +293,18 @@ const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStat
         return null;
     }
 
-    const topLevelCount: number = Array.from(uploadState.uploadsMap.values()).filter((val) => !val.parent).length;
+    const topLevelCount: number = Array.from(
+        uploadState.uploadsMap.values()
+    ).filter((val) => !val.parent).length;
     return (
-        <ColumnBox style={{ flexGrow: 1, height: 0, justifyContent: "flex-end" }}>
+        <ColumnBox
+            style={{
+                flexGrow: 1,
+                height: 0,
+                justifyContent: "flex-end",
+                zIndex: 2,
+            }}
+        >
             <ColumnBox
                 style={{
                     height: "max-content",
@@ -267,15 +329,23 @@ const UploadStatus = ({ uploadState, uploadDispatch }: { uploadState: UploadStat
                         padding: 4,
                     }}
                 >
-                    <RowBox style={{ justifyContent: "space-between", width: "97%" }}>
+                    <RowBox
+                        style={{
+                            justifyContent: "space-between",
+                            width: "97%",
+                        }}
+                    >
                         <Text c={"white"} fw={600} size="16px">
-                            Uploading {topLevelCount} item{topLevelCount !== 1 ? "s" : ""}
+                            Uploading {topLevelCount} item
+                            {topLevelCount !== 1 ? "s" : ""}
                         </Text>
                         <Tooltip label={"Clear"}>
                             <CloseButton
                                 c={"white"}
                                 variant="transparent"
-                                onClick={() => uploadDispatch({ type: "clear" })}
+                                onClick={() =>
+                                    uploadDispatch({ type: "clear" })
+                                }
                             />
                         </Tooltip>
                     </RowBox>

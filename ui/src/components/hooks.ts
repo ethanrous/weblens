@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import { fetchMediaTypes } from "../api/ApiFetch";
 import { mediaType } from "../types/Types";
 
@@ -86,11 +86,19 @@ export const useMediaType = (): Map<string, mediaType> => {
     }, [])
     return typeMap
 }
-// export async function VerifyMediaTypeMap() {
-//     if (MediaTypes.size === 0) {
-//     }
-// }
 
-// export function GetMediaType(mimeType: string): mediaType {
-//     return MediaTypes.get(mimeType);
-// }
+export const useClick = (handler: (e) => void, ignore) => {
+    const callback = useCallback(e => {
+        if (!ignore || ignore.contains(e.target)) {
+            return
+        }
+
+        handler(e)
+    }, [handler, ignore])
+
+    useEffect(() => {
+        console.log("Re-doin")
+        window.addEventListener("click", callback)
+        return () => window.removeEventListener("click", handler)
+    }, [callback])
+}

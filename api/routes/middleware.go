@@ -3,6 +3,7 @@ package routes
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -187,4 +188,13 @@ func WeblensLogger(c *gin.Context) {
 	method := c.Request.Method
 
 	fmt.Printf("\u001B[0m[API] %s | %s | %12s | %s %s %s\n", start.Format("Jan 02 15:04:05"), remote, colorTime(timeTotal), colorStatus(status), method, path)
+}
+
+func initSafty(c *gin.Context) {
+	ip := net.ParseIP(c.ClientIP())
+	if !ip.IsPrivate() {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.Next()
 }

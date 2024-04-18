@@ -41,7 +41,16 @@ func (a *accessMeta) SetRequestMode(r types.RequestMode) types.AccessMeta {
 	return a
 }
 
-func (acc *accessMeta) RequestMode() types.RequestMode {
+func (acc *accessMeta) SetTime(t time.Time) types.AccessMeta {
+	acc.accessAt = t
+	return acc
+}
+
+func (acc accessMeta) GetTime() time.Time {
+	return acc.accessAt
+}
+
+func (acc accessMeta) RequestMode() types.RequestMode {
 	return acc.requestMode
 }
 
@@ -59,7 +68,7 @@ func (acc *accessMeta) AddShareId(sId types.ShareId, st types.ShareType) types.A
 	return acc
 }
 
-func (acc *accessMeta) UsingShare() types.Share {
+func (acc accessMeta) UsingShare() types.Share {
 	return acc.usingShare
 }
 
@@ -107,11 +116,6 @@ func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
 		return true
 	} else if file.Owner() == EXTERNAL_ROOT_USER {
 		return acc.User().IsAdmin()
-		// util.Debug.Println("REQUEST:", acc.RequestMode(), "ID:", file.Id())
-
-		// Clients are only allowed to subscribe to root folders, nothing else
-		// TODO. This is quite a hack, will generalize later. Only allow external folder to be subbed to
-		// return acc.RequestMode() == FileSubscribeRequest && file.Id() == "EXTERNAL_ROOT"
 	}
 
 	shares := acc.Shares()
@@ -200,12 +204,12 @@ func DeleteApiKey(key types.WeblensApiKey) {
 }
 
 func SetKeyRemote(key types.WeblensApiKey, remoteId string) error {
-	kInfo := GetApiKeyInfo(key)
-	if kInfo == nil {
-		return ErrNoKey
-	}
-	kInfo.RemoteUsing = remoteId
-	err := fddb.updateApiKey(*kInfo)
+	// kInfo := GetApiKeyInfo(key)
+	// if kInfo == nil {
+	// 	return ErrNoKey
+	// }
+	// kInfo.RemoteUsing = remoteId
+	err := fddb.updateUsingKey(key, remoteId)
 
 	return err
 }

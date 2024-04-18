@@ -1,14 +1,10 @@
 import axios from "axios";
-import API_ENDPOINT, { ADMIN_ENDPOINT } from "./ApiEndpoint";
+import API_ENDPOINT from "./ApiEndpoint";
 import { notifications } from "@mantine/notifications";
-import { AuthHeaderT, UserInfoT } from "../types/Types";
-
-const userApiUrl = `${API_ENDPOINT}/user`;
-const adminUserApiUrl = `${API_ENDPOINT}/admin/user`;
-const adminUsersApiUrl = `${API_ENDPOINT}/admin/users`;
+import { AuthHeaderT} from "../types/Types";
 
 export function GetUsersInfo(setAllUsersInfo, authHeader: AuthHeaderT) {
-    fetch(adminUsersApiUrl, { headers: authHeader, method: "GET" })
+    fetch(`${API_ENDPOINT}/users`, { headers: authHeader, method: "GET" })
         .then((res) => {
             if (res.status !== 200) {
                 return Promise.reject(`Could not get user info list: ${res.statusText}`);
@@ -21,15 +17,15 @@ export function GetUsersInfo(setAllUsersInfo, authHeader: AuthHeaderT) {
 }
 
 export function ActivateUser(username: string, authHeader: AuthHeaderT) {
-    return axios.post(adminUserApiUrl, JSON.stringify({ username: username }), { headers: authHeader });
+    return axios.post(`${API_ENDPOINT}/user`, JSON.stringify({ username: username }), { headers: authHeader });
 }
 
 export function DeleteUser(username: string, authHeader: AuthHeaderT) {
-    return axios.delete(`${adminUserApiUrl}/${username}`, { headers: authHeader });
+    return axios.delete(`${API_ENDPOINT}/user/${username}`, { headers: authHeader });
 }
 
 export function UpdatePassword(username: string, oldPassword: string, newPassword: string, authHeader: AuthHeaderT) {
-    return fetch(`${userApiUrl}/${username}/password`, {
+    return fetch(`${API_ENDPOINT}/user/${username}/password`, {
         method: "PATCH",
         body: JSON.stringify({ oldPassword: oldPassword, newPassword: newPassword }),
         headers: authHeader,
@@ -37,7 +33,7 @@ export function UpdatePassword(username: string, oldPassword: string, newPasswor
 }
 
 export async function SetUserAdmin(username: string, admin: boolean, authHeader: AuthHeaderT) {
-    return fetch(`${ADMIN_ENDPOINT}/user/${username}/admin`, {
+    return fetch(`${API_ENDPOINT}/user/${username}/admin`, {
         method: "PATCH",
         body: JSON.stringify({ admin: admin }),
         headers: authHeader,

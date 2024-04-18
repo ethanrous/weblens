@@ -1,4 +1,4 @@
-import { FileInfoT } from "./types/Types";
+import { FileInfoT, UserInfoT } from "./types/Types";
 
 export function humanFileSize(bytes, si = true, dp = 1) {
     if (!bytes) {
@@ -149,3 +149,16 @@ export function hexToComplimentary(hex: string){
 export function getRandomInt(min, max) {
     return Math.floor(min + (Math.random() * (max - min)));
   }
+
+export function friendlyFolderName(folderName: string, folderId: string, usr: UserInfoT): string {
+    if (folderId === usr.homeId) {
+        return "Home"
+    } else if (folderId === usr.trashId) {
+        return "Trash"
+    } else if (folderName === usr.username) {
+        return "Home"
+    } else if (folderName === ".user_trash") {
+        return "Trash"
+    }
+    return folderName
+}
