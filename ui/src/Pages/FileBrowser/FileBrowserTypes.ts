@@ -1,15 +1,17 @@
 export type FileEventT = {
     Action: string;
-    At: number;
+    // At: number;
     FileId: string;
     Path: string;
-    SecondaryFileId: string;
-    Size: number
-    SnapshotId: string;
+    FromFileId: string;
+    FromPath: string;
+    // Size: number
+    // SnapshotId: string;
     Timestamp: string;
+
+    millis: number;
 
     // Non-api fields
     fileName: string
-    millis: number
-    oldPath: string
+    // oldPath: string
 }

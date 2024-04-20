@@ -83,8 +83,8 @@ func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.Broadc
 	case ScanDirectoryTask:
 		newTask.work = scanDirectory
 	case CreateZipTask:
-		// dont remove task when finished since we can just return the name of the already made zip file if asked for the same files again
-		newTask.persistant = true
+		// don't remove task when finished since we can just return the name of the already made zip file if asked for the same files again
+		newTask.persistent = true
 		newTask.work = createZipFromPaths
 	case ScanFileTask:
 		newTask.work = scanFile

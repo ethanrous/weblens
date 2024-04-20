@@ -2,7 +2,7 @@ import { GlobalContextType, ItemProps } from "../../components/ItemDisplay";
 import { AuthHeaderT, FBDispatchT, FbStateT, UserInfoT } from "../../types/Types";
 import { humanFileSize } from "../../util";
 import { getSortFunc, getVisitRoute, handleRename, MoveSelected } from "./FileBrowserLogic";
-import { IconDisplay } from "./FilebrowserStyles";
+import { IconDisplay } from "./FileBrowserStyles";
 
 export function GetFilesContext(fb: FbStateT, itemsList: ItemProps[], nav, authHeader: AuthHeaderT, dispatch: FBDispatchT) {
     let scrollToIndex: number = null;
@@ -107,7 +107,7 @@ export function GetFilesContext(fb: FbStateT, itemsList: ItemProps[], nav, authH
     return context;
 }
 
-export function GetItemsList(fb: FbStateT, usr: UserInfoT, debouncedSearch: string, ) {
+export function GetItemsList(fb: FbStateT, usr: UserInfoT, debouncedSearch: string) {
     if (usr.isLoggedIn === undefined) {
         return [];
     }

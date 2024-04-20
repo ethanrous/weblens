@@ -1,10 +1,10 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
-import { MediaDataT } from '../types/Types';
-import { MediaImage } from './PhotoContainer';
-import { Box, CloseButton } from '@mantine/core';
-import { ColumnBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { useMediaType } from './hooks';
+import { MediaDataT } from "../types/Types";
+import { MediaImage } from "./PhotoContainer";
+import { Box, CloseButton } from "@mantine/core";
+import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
+import { useMediaType } from "./hooks";
 
 export const PresentationContainer = ({
     shadeOpacity,
@@ -18,25 +18,25 @@ export const PresentationContainer = ({
     children;
 }) => {
     if (!shadeOpacity) {
-        shadeOpacity = '0.90';
+        shadeOpacity = "0.90";
     }
     return (
         <Box
             onMouseMove={onMouseMove}
             onClick={onClick}
             style={{
-                position: 'fixed',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
+                position: "fixed",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
                 top: 0,
                 left: 0,
-                padding: '25px',
-                height: '100%',
-                width: '100%',
+                padding: "25px",
+                height: "100%",
+                width: "100%",
                 zIndex: 100,
                 backgroundColor: `rgb(0, 0, 0, ${shadeOpacity})`,
-                backdropFilter: 'blur(4px)',
+                backdropFilter: "blur(4px)",
             }}
             children={children}
         />
@@ -111,13 +111,13 @@ export const ContainerMedia = ({
         return (
             <ColumnBox
                 className="no-scrollbars"
-                style={{ overflow: 'scroll', gap: absHeight * 0.02 }}
+                style={{ overflow: "scroll", gap: absHeight * 0.02 }}
             >
                 {[...Array(mediaData.pageCount).keys()].map((p) => (
                     <MediaImage
                         key={p}
                         media={mediaData}
-                        quality={'fullres'}
+                        quality={"fullres"}
                         pageNumber={p}
                         lazy={false}
                         containerStyle={{ height: absHeight, width: absWidth }}
@@ -130,7 +130,7 @@ export const ContainerMedia = ({
         return (
             <MediaImage
                 media={mediaData}
-                quality={'fullres'}
+                quality={"fullres"}
                 lazy={false}
                 containerStyle={{ height: absHeight, width: absWidth }}
                 preventClick
@@ -150,21 +150,21 @@ const PresentationVisual = ({
     return (
         <Box
             style={{
-                height: '100%',
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-around',
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-around",
             }}
         >
             {mediaData && (
                 <Box
                     style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: Element ? '50%' : '100%',
-                        height: '100%',
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: Element ? "50%" : "100%",
+                        height: "100%",
                     }}
                     ref={setContainerRef}
                 >
@@ -184,25 +184,25 @@ function useKeyDownPresentation(itemId: string, dispatch) {
         (event) => {
             if (!itemId) {
                 return;
-            } else if (event.key === 'Escape') {
+            } else if (event.key === "Escape") {
                 event.preventDefault();
-                dispatch({ type: 'stop_presenting' });
-            } else if (event.key === 'ArrowLeft') {
+                dispatch({ type: "stop_presenting" });
+            } else if (event.key === "ArrowLeft") {
                 event.preventDefault();
-                dispatch({ type: 'presentation_previous' });
-            } else if (event.key === 'ArrowRight') {
+                dispatch({ type: "presentation_previous" });
+            } else if (event.key === "ArrowRight") {
                 event.preventDefault();
-                dispatch({ type: 'presentation_next' });
-            } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                dispatch({ type: "presentation_next" });
+            } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
                 event.preventDefault();
             }
         },
         [itemId, dispatch]
     );
     useEffect(() => {
-        window.addEventListener('keydown', keyDownHandler);
+        window.addEventListener("keydown", keyDownHandler);
         return () => {
-            window.removeEventListener('keydown', keyDownHandler);
+            window.removeEventListener("keydown", keyDownHandler);
         };
     }, [keyDownHandler]);
 }
@@ -245,21 +245,21 @@ const Presentation = memo(
                     handleTimeout(to, setTo, setGuiShown);
                 }}
                 onClick={() =>
-                    dispatch({ type: 'set_presentation', media: null })
+                    dispatch({ type: "set_presentation", media: null })
                 }
             >
                 <PresentationVisual mediaData={mediaData} Element={element} />
                 {/* <Text style={{ position: 'absolute', bottom: guiShown ? 15 : -100, left: '50vw' }} >{}</Text> */}
                 <CloseButton
-                    c={'white'}
+                    c={"white"}
                     style={{
-                        position: 'absolute',
+                        position: "absolute",
                         top: guiShown ? 15 : -100,
                         left: 15,
                     }}
                     onClick={() =>
                         dispatch({
-                            type: 'set_presentation',
+                            type: "set_presentation",
                             presentingId: null,
                         })
                     }

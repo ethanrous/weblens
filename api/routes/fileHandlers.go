@@ -205,3 +205,21 @@ func getFileHistory(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"events": events})
 }
+
+func restorePastFiles(ctx *gin.Context) {
+	body, err := readCtxBody[restoreBody](ctx)
+	if err != nil {
+		return
+	}
+
+	t := time.UnixMilli(body.Timestamp)
+
+	err = dataStore.RestoreFiles(body.FileIds, t)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}

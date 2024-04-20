@@ -322,9 +322,12 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         case "new_dir": {
             let newDir: FileInfoT = getBlankFile();
             newDir.id = "NEW_DIR";
+            newDir.filename = "New Folder";
             newDir.isDir = true;
+            newDir.modifiable = true;
             newDir.parentFolderId = state.folderInfo.id;
             state.dirMap.set(newDir.id, newDir);
+            console.log("HERE!", state.dirMap)
             return { ...state, dirMap: new Map(state.dirMap) };
         }
 
@@ -924,7 +927,7 @@ export function HandleWebsocketMessage(
     if (lastMessage) {
         let msgData = JSON.parse(lastMessage.data);
         console.log("WSRecv", msgData);
-        switch (msgData.messageStatus) {
+        switch (msgData.eventTag) {
             case "file_created": {
                 dispatch({
                     type: "create_file",

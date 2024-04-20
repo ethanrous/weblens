@@ -12,11 +12,12 @@ import (
 //////////
 
 const (
-	FileCreate types.JournalAction = "fileCreate"
-	FileMove   types.JournalAction = "fileMove"
-	FileDelete types.JournalAction = "fileDelete"
-	FileWrite  types.JournalAction = "fileWrite"
-	Backup     types.JournalAction = "backup"
+	FileCreate  types.JournalAction = "fileCreate"
+	FileRestore types.JournalAction = "fileRestore"
+	FileMove    types.JournalAction = "fileMove"
+	FileDelete  types.JournalAction = "fileDelete"
+	FileWrite   types.JournalAction = "fileWrite"
+	Backup      types.JournalAction = "backup"
 )
 
 type fileJournalEntry struct {
@@ -90,7 +91,7 @@ type backupFile struct {
 	IsDir   bool               `bson:"isDir" json:"isDir"`
 	FileId  types.FileId       `bson:"fileId" json:"fileId"`
 
-	// ContentId is the hash of the file contents. Conveniently this is also the mediaId
+	// ContentId is the hash of the file contents. Conveniently this also contains the mediaId
 	ContentId string `bson:"contentId,omitempty" json:"contentId"`
 
 	LastUpdate types.SafeTime      `bson:"lastUpdate" json:"lastUpdate"`

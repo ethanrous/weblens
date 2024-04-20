@@ -1,6 +1,6 @@
 import { Box, Loader, Text } from "@mantine/core";
 import { CSSProperties, memo, useEffect, useMemo, useState } from "react";
-import { ColumnBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import { useResize } from "./hooks";
 
@@ -30,6 +30,7 @@ type buttonProps = {
     onClick?: ButtonActionHandler;
     onMouseUp?: ButtonActionHandler;
     onMouseOver?: ButtonActionHandler;
+    onMouseLeave?: ButtonActionHandler;
     style?: CSSProperties;
     setButtonRef?;
 };
@@ -126,6 +127,7 @@ const ButtonContent = ({
                             padding: 2,
                             textWrap: "nowrap",
                             overflow: "visible",
+                            userSelect: "none",
                         }}
                     >
                         {postScript}
@@ -169,7 +171,7 @@ const handleButtonEvent = async (
         setLoading(true);
     }, 150);
     try {
-        // Dont flash loading if handler returns instantly
+        // Don't flash loading if handler returns instantly
         const res = await handler(e);
         clearTimeout(tm);
         setLoading(false);
@@ -214,6 +216,7 @@ export const WeblensButton = memo(
 
         onMouseUp,
         onMouseOver,
+        onMouseLeave,
         style,
         setButtonRef = (r) => {},
     }: buttonProps) => {
@@ -285,6 +288,16 @@ export const WeblensButton = memo(
                     handleButtonEvent(
                         e,
                         onMouseOver,
+                        showSuccess,
+                        setLoading,
+                        setSuccess,
+                        setFail
+                    )
+                }
+                onMouseLeave={(e) =>
+                    handleButtonEvent(
+                        e,
+                        onMouseLeave,
                         showSuccess,
                         setLoading,
                         setSuccess,

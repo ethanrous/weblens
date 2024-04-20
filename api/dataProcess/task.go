@@ -17,7 +17,7 @@ func (t *task) TaskType() types.TaskType {
 	return t.taskType
 }
 
-// Status returns a boolean represending if a task has completed, and a string describing its exit type, if completed.
+// Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
 func (t *task) Status() (bool, types.TaskExitStatus) {
 	return t.completed, t.exitStatus
 }
@@ -49,12 +49,12 @@ func (t *task) Wait() {
 	t.waitMu.Unlock()
 }
 
-// Unknowably the last operation of a task, so t.success()
+// Unknowable if this is the last operation of a task, so t.success()
 // will not have an effect after a task is cancelled. t.error() may
 // override the exit status in special cases, such as a timeout,
 // which is both an error and a reason for cancellation.
 //
-// Cancelations are always external to the task. From within the
+// Cancellations are always external to the task. From within the
 // body of the task, either error or success should be called.
 // If a task finds itself not required to continue, success should
 // be returned
@@ -70,8 +70,8 @@ func (t *task) Cancel() {
 	t.completed = true
 }
 
-// This should be used intermitantly to check if the task should exit.
-// If the task should exit, it panics back to the top of safty work
+// This should be used intermittently to check if the task should exit.
+// If the task should exit, it panics back to the top of safety work
 func (t *task) CheckExit() {
 	if t.signal != 0 {
 		panic(ErrTaskExit)

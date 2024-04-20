@@ -2,33 +2,15 @@ import { useCallback, useContext, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { API_WS_ENDPOINT } from "./ApiEndpoint";
 import { userContext } from "../Context";
-import { notifications } from "@mantine/notifications";
 import { UserContextT } from "../types/Types";
 
 export default function useWeblensSocket() {
-    const [dcTimeout, setDcTimeout] = useState(null);
     const { usr, authHeader }: UserContextT = useContext(userContext);
+    const [givenUp, setGivenUp] = useState(false)
     const { sendMessage, lastMessage, readyState } = useWebSocket(API_WS_ENDPOINT, {
-        // queryParams: authHeader.Authorization ? authHeader : null,
         onOpen: () => {
-            clearTimeout(dcTimeout);
-            notifications.clean();
+            setGivenUp(false)
             sendMessage(JSON.stringify({auth: authHeader.Authorization}))
-        },
-        onClose: (event) => {
-            if (!event.wasClean && authHeader && !dcTimeout && usr.username !== "") {
-                setDcTimeout(
-                    setTimeout(() => {
-                        notifications.show({
-                            id: "wsdc",
-                            message: "Lost websocket connection, retrying...",
-                            color: "red",
-                            // icon: <IconCheck style={{ width: rem(18), height: rem(18) }} />,
-                            loading: false,
-                        });
-                    }, 2000),
-                );
-            }
         },
         reconnectAttempts: 5,
         reconnectInterval: (last) => {
@@ -36,13 +18,7 @@ export default function useWeblensSocket() {
         },
         shouldReconnect: () => usr.username !== "",
         onReconnectStop: () => {
-            clearTimeout(dcTimeout);
-            notifications.show({
-                id: "wsdc",
-                message: "Websocket connection lost, please refresh your page",
-                autoClose: false,
-                color: "red",
-            });
+            setGivenUp(true)
         },
     });
     const wsSend = useCallback(
@@ -60,7 +36,7 @@ export default function useWeblensSocket() {
     return {
         wsSend,
         lastMessage,
-        readyState,
+        readyState: givenUp ? -1 : readyState,
     };
 }
 

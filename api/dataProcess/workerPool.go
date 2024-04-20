@@ -59,7 +59,7 @@ func workerRecover(task *task, workerId int64) {
 	}
 }
 
-func saftyWork(task *task, workerId int64) {
+func safetyWork(task *task, workerId int64) {
 	defer workerRecover(task, workerId)
 	task.work(task)
 }
@@ -174,7 +174,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			// Inc tasks being processed
 			wp.busyCount.Add(1)
 			t.SwLap("Task start")
-			saftyWork(t, workerId)
+			safetyWork(t, workerId)
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)
 
@@ -201,7 +201,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				rootTaskPool = rootTaskPool.parentTaskPool
 			}
 
-			if !t.persistant {
+			if !t.persistent {
 				removeTask(t.taskId)
 			}
 
@@ -220,7 +220,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 				t.taskPool.exitLock.Unlock()
 			} else {
-				// Must hold both locks (and must aquire root lock first) to enter a dual-update.
+				// Must hold both locks (and must acquire root lock first) to enter a dual-update.
 				// Any other ordering will result in race conditions or deadlocks
 				rootTaskPool.exitLock.Lock()
 
@@ -304,7 +304,7 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 	if t.taskPool != nil {
 		// Task is already queued, we are not allowed to move it to another queue.
 		// We can call .ClearAndRecompute() on the task and it will queue it
-		// again, but it cannot be transfered
+		// again, but it cannot be transferred
 		if t.taskPool != tp {
 			util.Warning.Println("Attempted to re-assign task to another queue")
 		}
@@ -337,7 +337,7 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 	return
 }
 
-// Specifcy the work queue as being a "global" one
+// Specify the work queue as being a "global" one
 func (tp *taskPool) MarkGlobal() {
 	tp.treatAsGlobal = true
 }

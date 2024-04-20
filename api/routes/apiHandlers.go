@@ -224,7 +224,6 @@ func newUploadTask(ctx *gin.Context) {
 		return
 	}
 	c := NewBufferedCaster()
-	defer c.Close()
 	t := UploadTasker.WriteToFile(upInfo.RootFolderId, upInfo.ChunkSize, upInfo.TotalUploadSize, c)
 	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
@@ -447,14 +446,20 @@ func searchFolder(ctx *gin.Context) {
 	}
 
 	files := []types.WeblensFile{}
-	dir.RecursiveMap(func(w types.WeblensFile) {
+	err = dir.RecursiveMap(func(w types.WeblensFile) error {
 		if r.MatchString(w.Filename()) {
 			if w.Filename() == ".user_trash" {
-				return
+				return nil
 			}
 			files = append(files, w)
 		}
+		return nil
 	})
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
 
 	filesData := util.Map(files, func(w types.WeblensFile) types.FileInfo {
 		d, err := w.FormatFileInfo(acc)
@@ -614,7 +619,7 @@ func deleteFiles(ctx *gin.Context) {
 			return
 		}
 
-		err := dataStore.PermenantlyDeleteFile(file, caster)
+		err := dataStore.PermanentlyDeleteFile(file, caster)
 		if err != nil {
 			util.ErrTrace(err)
 			failed = append(failed, fileId)
@@ -905,7 +910,7 @@ func clearCache(ctx *gin.Context) {
 	dataProcess.FlushCompleteTasks()
 
 	cacheFiles := dataStore.GetCacheDir().GetChildren()
-	util.Each(cacheFiles, func(wf types.WeblensFile) { util.ErrTrace(dataStore.PermenantlyDeleteFile(wf)) })
+	util.Each(cacheFiles, func(wf types.WeblensFile) { util.ErrTrace(dataStore.PermanentlyDeleteFile(wf)) })
 }
 
 func searchUsers(ctx *gin.Context) {

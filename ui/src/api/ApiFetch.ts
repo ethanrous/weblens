@@ -76,7 +76,7 @@ export async function getMedia(mediaId, authHeader: AuthHeaderT): Promise<MediaD
 
 export async function fetchMediaTypes() {
     const url = new URL(`${PUBLIC_ENDPOINT}/media/types`);
-    return await fetch(url).then((r) => r.json());
+    return await fetch(url).then((r) => {if (r.status === 200) {return r.json()} else {return Promise.reject(r.status)}});
 }
 
 export async function newApiKey(authHeader: AuthHeaderT) {
@@ -108,12 +108,12 @@ export async function initServer(serverName: string, role: "core" | "backup", us
 
 export async function getServerInfo() {
     const url = new URL(`${PUBLIC_ENDPOINT}/info`);
-    return await fetch(url).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    return await fetch(url).then((r) => {if (r.status === 200) {return r.json()} else {return Promise.reject(r.statusText)}});
 }
 
 export async function getUsers(authHeader) {
     const url = new URL(`${API_ENDPOINT}/users`);
-    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    return await fetch(url, {headers: authHeader}).then((r) => {if (r.status === 200) {return r.json()} else {return Promise.reject(r.statusText)}});
 }
 
 export async function AutocompleteUsers(searchValue, authHeader: AuthHeaderT) {

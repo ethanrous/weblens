@@ -15,7 +15,7 @@ import { IconCheck, IconFile, IconFolder, IconX } from "@tabler/icons-react";
 
 import { useMemo, useReducer } from "react";
 import { humanFileSize } from "../util";
-import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { ColumnBox, RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
 
 function uploadReducer(state: UploadStateType, action) {
     switch (action.type) {
@@ -164,9 +164,9 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
         <RowBox
             style={{
                 height: "max-content",
-                minHeight: 60,
+                minHeight: 50,
                 flexShrink: 0,
-                padding: 6,
+                padding: 4,
                 margin: 1,
             }}
         >
@@ -324,9 +324,8 @@ const UploadStatus = ({
                 <RowBox
                     style={{
                         justifyContent: "center",
-                        height: 40,
-
-                        padding: 4,
+                        height: "max-content",
+                        padding: 10,
                     }}
                 >
                     <RowBox

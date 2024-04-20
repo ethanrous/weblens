@@ -22,8 +22,12 @@ func scanFile(t *task) {
 		t.ErrorAndExit(ErrNonDisplayable)
 	}
 
+	var err error
 	if meta.partialMedia == nil {
-		meta.partialMedia = dataStore.NewMedia()
+		meta.partialMedia, err = dataStore.NewMedia(meta.file)
+		if err != nil {
+			t.ErrorAndExit(err)
+		}
 	}
 
 	t.CheckExit()
@@ -57,14 +61,14 @@ func createZipFromPaths(t *task) {
 
 	util.Map(zipMeta.files,
 		func(file types.WeblensFile) error {
-			file.RecursiveMap(func(f types.WeblensFile) {
+			return file.RecursiveMap(func(f types.WeblensFile) error {
 				stat, err := os.Stat(f.GetAbsPath())
 				if err != nil {
 					t.ErrorAndExit(err)
 				}
 				filesInfoMap[f.GetAbsPath()] = stat
+				return nil
 			})
-			return nil
 		},
 	)
 
@@ -167,7 +171,7 @@ func moveFile(t *task) {
 		}
 		return
 	}
-	err := dataStore.FsTreeMove(file, destinationFolder, moveMeta.newFilename, false, t.caster)
+	err := dataStore.FsTreeMove(file, destinationFolder, moveMeta.newFilename, false, t.caster.(types.BufferedBroadcasterAgent))
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
@@ -216,7 +220,7 @@ func handleFileUploads(t *task) {
 		t.ErrorAndExit(ErrBadCaster)
 	}
 
-	bufCaster.DisableAutoflush()
+	bufCaster.DisableAutoFlush()
 
 WriterLoop:
 	for {
@@ -246,7 +250,7 @@ WriterLoop:
 
 			fileMap[chunk.FileId].bytesWritten += (max - min) + 1
 
-			fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, int64(min), true)
+			fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, int64(min))
 
 			if fileMap[chunk.FileId].bytesWritten >= fileMap[chunk.FileId].fileSizeTotal {
 				dataStore.AttachFile(fileMap[chunk.FileId].file, bufCaster)
@@ -315,27 +319,29 @@ func gatherFilesystemStats(t *task) {
 	// external := dataStore.GetExternalDir()
 	// dataStore.ResizeDown(media)
 
-	sizeFunc := func(wf types.WeblensFile) {
+	sizeFunc := func(wf types.WeblensFile) error {
 		if wf.IsDir() {
 			folderCount++
-			return
+			return nil
 		}
 		index := strings.LastIndex(wf.Filename(), ".")
 		size, err := wf.Size()
 		if err != nil {
-			util.ErrTrace(err)
-			return
+			return err
 		}
 		if index == -1 {
 			filetypeSizeMap["other"] += size
 		} else {
 			filetypeSizeMap[wf.Filename()[index+1:]] += size
 		}
+
+		return nil
 	}
 
-	// media.RecursiveMap(sizeFunc)
-	// external.RecursiveMap(sizeFunc)
-	meta.rootDir.RecursiveMap(sizeFunc)
+	err := meta.rootDir.RecursiveMap(sizeFunc)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
 
 	ret := util.MapToSliceMutate(filetypeSizeMap, func(name string, value int64) extSize { return extSize{Name: name, Value: value} })
 

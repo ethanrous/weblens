@@ -1,9 +1,9 @@
-import { Space, Text } from '@mantine/core';
-import { ColumnBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { useNavigate } from 'react-router-dom';
-import { WeblensButton } from './WeblensButton';
-import { useContext } from 'react';
-import { userContext } from '../Context';
+import { Space, Text } from "@mantine/core";
+import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
+import { useNavigate } from "react-router-dom";
+import { WeblensButton } from "./WeblensButton";
+import { useContext } from "react";
+import { userContext } from "../Context";
 
 function NotFound({
     resourceType,
@@ -17,15 +17,15 @@ function NotFound({
     const { usr }: UserContextT = useContext(userContext);
     const nav = useNavigate();
     return (
-        <ColumnBox style={{ justifyContent: 'center' }}>
+        <ColumnBox style={{ justifyContent: "center" }}>
             <ColumnBox
                 style={{
-                    height: 'max-content',
-                    width: 'max-content',
+                    height: "max-content",
+                    width: "max-content",
                     padding: 50,
-                    marginBottom: '40vh',
-                    backgroundColor: '#4444ff33',
-                    outline: '1px solid #222277',
+                    marginBottom: "40vh",
+                    backgroundColor: "#4444ff33",
+                    outline: "1px solid #222277",
                     borderRadius: 6,
                 }}
             >
@@ -38,10 +38,10 @@ function NotFound({
 
                 <WeblensButton
                     centerContent
-                    label={usr.username ? 'Go Back' : 'Login'}
+                    label={usr.username ? "Go Back" : "Login"}
                     onClick={(e) => {
                         setNotFound(false);
-                        nav(usr.username ? link : '/login');
+                        nav(usr.username ? link : "/login");
                     }}
                 />
             </ColumnBox>

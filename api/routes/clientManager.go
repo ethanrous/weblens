@@ -79,14 +79,14 @@ func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client
 	return
 }
 
-func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, messageStatus string, content []wsM) {
+func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, eventTag string, content []wsM) {
 	if broadcastKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return
 	}
 	defer util.RecoverPanic("Panic caught while broadcasting: %v")
 
-	msg := wsResponse{MessageStatus: messageStatus, SubscribeKey: broadcastKey, Content: content}
+	msg := wsResponse{EventTag: eventTag, SubscribeKey: broadcastKey, Content: content}
 
 	clients := cmInstance.GetSubscribers(subType(broadcastType), subId(broadcastKey))
 

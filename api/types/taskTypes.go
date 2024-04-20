@@ -32,7 +32,7 @@ type TaskPool interface {
 	Wait(bool)
 
 	ScanDirectory(WeblensFile, bool, bool, BroadcasterAgent) Task
-	ScanFile(WeblensFile, Media, BroadcasterAgent) Task
+	ScanFile(file WeblensFile, media Media, broadcaster BroadcasterAgent) Task
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task

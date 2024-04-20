@@ -69,7 +69,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
 				c.Error(err)
 
-				// dont tell the client they don't have access instead of *actually* not found
+				// don't tell the client they don't have access instead of *actually* not found
 				c.err("User does not have access to ", key)
 				return
 			}
@@ -138,9 +138,9 @@ func (c *Client) Unsubscribe(key subId) {
 	c.debug("Unsubscribed from", subToRemove.Type, subToRemove.Key)
 }
 
-func (c *Client) Send(messageStatus string, key subId, content []wsM) {
-	msg := wsResponse{MessageStatus: messageStatus, SubscribeKey: key, Content: content}
-	// c.debug(fmt.Sprintf("Sending %s %s", messageStatus, key))
+func (c *Client) Send(eventTag string, key subId, content []wsM) {
+	msg := wsResponse{EventTag: eventTag, SubscribeKey: key, Content: content}
+	// c.debug(fmt.Sprintf("Sending %s %s", eventTag, key))
 	c.writeToClient(msg)
 }
 
@@ -152,7 +152,7 @@ func (c *Client) Error(err error) {
 		c.errTrace(err)
 	}
 
-	msg := wsResponse{MessageStatus: "error", Error: err.Error()}
+	msg := wsResponse{EventTag: "error", Error: err.Error()}
 	c.writeToClient(msg)
 }
 

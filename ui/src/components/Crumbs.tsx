@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Box, Text } from "@mantine/core";
 import { IconChevronRight } from "@tabler/icons-react";
 
-import { RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
+import { RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
 import { memo, useContext, useEffect, useMemo, useState } from "react";
 import {
     UserInfoT,
@@ -201,7 +201,8 @@ const Crumbs = memo(
 
         const loaf = useMemo(() => {
             if (!usr || !finalFile?.id) {
-                return null;
+                return <StyledLoaf crumbs={[]} postText={""} />;
+                // return null;
             }
 
             const parentsIds = parents.map((p) => p.id);

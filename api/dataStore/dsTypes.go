@@ -53,7 +53,7 @@ type srvInfo struct {
 	UserCount int `json:"userCount" bson:"-"`
 }
 
-type Weblensdb struct {
+type WeblensDB struct {
 	mongo    *mongo.Database
 	useRedis bool
 	redis    *redis.Client
@@ -68,14 +68,14 @@ type weblensFile struct {
 	isDir        *bool
 	modifyDate   time.Time
 	media        types.Media
-	parent       types.WeblensFile
+	parent       *weblensFile
 
 	// If we already have added the file to the watcher
 	// See fileWatch.go
 	watching bool
 
 	childLock *sync.Mutex
-	children  map[types.FileId]types.WeblensFile
+	children  []*weblensFile
 
 	// array of tasks that currently claim are using this file.
 	// TODO: allow single task-claiming of a file for file
@@ -88,17 +88,25 @@ type weblensFile struct {
 
 	// Mark file as read-only internally.
 	// This should be checked before any write action is to be taken
-	// this should not be changed during run-time, only set in FsInit
-	// if a directory is `readOnly`, all children are as well
+	// this should not be changed during run-time, only set in FsInit.
+	// If a directory is `readOnly`, all children are as well
 	readOnly bool
 
 	// this file represents a file possibly not on the filesystem
 	// anymore, but was at some point in the past
 	pastFile bool
 
+	// If the file is a past file, and existed at the real id above, this
+	// current fileId is the location of the content right now, not in the past.
+	currentId types.FileId
+
 	// This is the file id of the file in the .content folder that either holds
 	// or points to the real bytes on disk content that this file should read from
 	contentId string
+
+	// this file is currently existing outside of the file tree, most likely
+	// in the /tmp directory
+	detached bool
 }
 
 // Way of storing paths to have the prefix translated to an absolute
@@ -116,6 +124,7 @@ type portablePath struct {
 type media struct {
 	MediaId          types.MediaId  `json:"mediaId"`
 	FileIds          []types.FileId `json:"fileIds"`
+	ContentId        string         `json:"contentId"`
 	ThumbnailCacheId types.FileId   `json:"thumbnailCacheId"`
 	FullresCacheIds  []types.FileId `json:"thumbnailCacheIds"`
 	BlurHash         string         `json:"blurHash"`
@@ -325,7 +334,7 @@ var ErrKeyInUse = errors.New("api key is already being used to identify another 
 var ErrAlreadyCore = errors.New("core server cannot have a remote core")
 var ErrNotCore = errors.New("tried to perform core only action on non-core server")
 var ErrNotBackup = errors.New("tried to perform backup only action on non-backup server")
-var ErrAlreadyInit = errors.New("server is already initilized, cannot re-initilize server")
+var ErrAlreadyInit = errors.New("server is already initialized, cannot re-initialize server")
 
 var ErrNoBackup = errors.New("no prior backups exist")
 var ErrBadJournalAction = errors.New("unknown journal action type")

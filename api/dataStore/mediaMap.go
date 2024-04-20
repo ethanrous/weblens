@@ -104,16 +104,20 @@ func MediaMapGet(mId types.MediaId) (m types.Media, err error) {
 }
 
 func removeMedia(m types.Media) {
+
+	util.Error.Println("actually no")
+	return
+
 	realM := m.(*media)
 	f, err := realM.getCacheFile(Thumbnail, false, 0)
 	if err == nil {
-		PermenantlyDeleteFile(f, voidCaster)
+		PermanentlyDeleteFile(f, voidCaster)
 	}
 	f = nil
 	for page := range realM.PageCount + 1 {
 		f, err = realM.getCacheFile(Fullres, false, page)
 		if err == nil {
-			PermenantlyDeleteFile(f, voidCaster)
+			PermanentlyDeleteFile(f, voidCaster)
 		}
 	}
 

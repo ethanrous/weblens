@@ -19,7 +19,7 @@ var fsTreeLock = &sync.Mutex{}
 // Mainly just for init of the fs, then is disabled for the rest of runtime
 var safety bool = false
 
-var existingJournals []types.FileId
+var existingBackups []backupFile
 
 func fsTreeInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error {
 	if f.Filename() == ".DS_Store" {
@@ -36,17 +36,30 @@ func initInsert(f, parent types.WeblensFile) error {
 	if f.Id() == "" {
 		return fmt.Errorf("not inserting file with empty file id")
 	}
+
+	fsTreeLock.Lock()
+	if fileTree[f.Id()] != nil {
+		fsTreeLock.Unlock()
+		return ErrFileAlreadyExists
+	}
+
 	fileTree[f.Id()] = f
-	parent.AddChild(f)
+	fsTreeLock.Unlock()
+	err := parent.AddChild(f)
+	if err != nil {
+		return err
+	}
 
 	if f.IsDir() {
 		watcherAddDirectory(f)
 		f.ReadDir()
 	}
 
-	if thisServer.IsCore() {
-		if _, exist := slices.BinarySearch(existingJournals, f.Id()); !exist {
-			JournalFileCreate(f)
+	if thisServer.IsCore() && f.Owner() != WEBLENS_ROOT_USER && f.Owner() != EXTERNAL_ROOT_USER {
+		if bi, exist := slices.BinarySearchFunc(existingBackups, f.Id(), func(b backupFile, t types.FileId) int { return strings.Compare(string(b.FileId), t.String()) }); !exist {
+			jeStream <- fileEvent{action: FileCreate, postFilePath: f.GetAbsPath()}
+		} else {
+			f.(*weblensFile).setContentId(existingBackups[bi].ContentId)
 		}
 	}
 
@@ -54,10 +67,8 @@ func initInsert(f, parent types.WeblensFile) error {
 }
 
 func mainInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error {
-	if f.Id() == "" {
-		return fmt.Errorf("not inserting file with empty file id")
-	}
-
+	// Generate fileId outside of lock section to avoid deadlock
+	f.Id()
 	fsTreeLock.Lock()
 	if fileTree[f.Id()] != nil {
 		fsTreeLock.Unlock()
@@ -66,7 +77,10 @@ func mainInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error 
 	fileTree[f.Id()] = f
 	fsTreeLock.Unlock()
 
-	parent.AddChild(f)
+	err := parent.AddChild(f)
+	if err != nil {
+		return err
+	}
 
 	if f.IsDir() {
 		// if !f.Exists() {
@@ -88,55 +102,75 @@ func mainInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error 
 func fsTreeRemove(f types.WeblensFile, casters ...types.BroadcasterAgent) (err error) {
 	// If the file does not already have an id, generating the id can lock the file tree,
 	// so we must do that outside of the lock here to avoid deadlock
-	if f.Id() == "" {
-		return ErrNoFile
-	}
+	f.Id()
+
+	realF := f.(*weblensFile)
 
 	fsTreeLock.Lock()
-	if fileTree[f.Id()] == nil {
+	if fileTree[realF.id] == nil {
 		fsTreeLock.Unlock()
 		util.Warning.Println("Tried to remove key not in FsTree", f.Id())
 		return ErrNoFile
 	}
 	fsTreeLock.Unlock()
 
-	f.GetParent().(*weblensFile).removeChild(f.Id())
+	err = realF.parent.removeChild(f)
+	if err != nil {
+		return
+	}
 
 	tasks := []types.Task{}
 
-	f.RecursiveMap(func(file types.WeblensFile) {
+	err = f.RecursiveMap(func(file types.WeblensFile) error {
 		ts := file.GetTasks()
 		tasks = append(tasks, ts...)
 		util.Each(ts, func(t types.Task) { t.Cancel() })
 		util.Each(file.GetShares(), func(s types.Share) { DeleteShare(s) })
 
-		if file.IsDisplayable() {
-			var m types.Media
-			m, err = file.GetMedia()
-			if err != nil {
-				return
-			}
-			if m != nil {
-				m.RemoveFile(file.Id())
-				file.ClearMedia()
+		if !file.IsDir() {
+
+			//
+			// possibly bug: when a single delete action is deleting multiple of the same content id you get a collision in the content folder
+			//
+
+			backupF, _ := contentRoot.GetChild(file.GetContentId())
+			if backupF == nil {
+				backupF = newWeblensFile(&contentRoot, file.GetContentId(), false)
+				fsTreeInsert(backupF, &contentRoot, casters...)
+				err = os.Rename(file.GetAbsPath(), backupF.GetAbsPath())
+				if err != nil {
+					return err
+				}
+			} else {
+				err := os.Remove(file.GetAbsPath())
+				if err != nil {
+					return err
+				}
 			}
 		}
+
+		file.Id()
 
 		fsTreeLock.Lock()
 		delete(fileTree, file.Id())
 		fsTreeLock.Unlock()
-		if file.Owner() != WEBLENS_ROOT_USER {
-			JournalFileDelete(file)
-		}
+
+		return nil
 	})
+
+	if err != nil {
+		return
+	}
 
 	for _, t := range tasks {
 		t.Wait()
 	}
 
-	err = os.RemoveAll(f.GetAbsPath())
-	if err != nil {
-		return
+	if !f.IsDir() {
+		err = os.RemoveAll(f.GetAbsPath())
+		if err != nil {
+			return
+		}
 	}
 
 	if len(casters) == 0 {
@@ -156,7 +190,7 @@ func FsTreeGet(fileId types.FileId) (f types.WeblensFile) {
 	return
 }
 
-func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bool, casters ...types.BroadcasterAgent) error {
+func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bool, casters ...types.BufferedBroadcasterAgent) error {
 	if f.Owner() != newParent.Owner() {
 		return ErrIllegalFileMove
 	}
@@ -187,67 +221,72 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 	}
 
 	var allTasks []types.Task
-	f.RecursiveMap(func(w types.WeblensFile) {
+	f.RecursiveMap(func(w types.WeblensFile) error {
 		for _, t := range w.GetTasks() {
 			allTasks = append(allTasks, t)
 			t.Cancel()
 		}
+
+		return nil
 	})
 
 	for _, t := range allTasks {
 		t.Wait()
 	}
 
-	// Point of no return
-	err := os.Rename(f.GetAbsPath(), newAbsPath)
-	if err != nil {
-		util.ErrTrace(err)
-		return err
-	}
-
+	oldAbsPath := f.GetAbsPath()
 	oldParent := f.GetParent()
+
+	// Point of no return //
 
 	// Overwrite filename
 	f.(*weblensFile).filename = newFilename
 
-	if len(casters) == 0 {
-		casters = append(casters, globalCaster)
-	}
+	// Disable casters because we need to wait to move the files before stat-ing them for the updates
+	util.Each(casters, func(c types.BufferedBroadcasterAgent) { c.DisableAutoFlush() })
 
 	// Sync file tree with new move, including f and all of its children.
-	f.RecursiveMap(func(w types.WeblensFile) {
+	f.RecursiveMap(func(w types.WeblensFile) error {
 		preFile := w.Copy()
 
+		realW := w.(*weblensFile)
 		if f == w {
-			w.(*weblensFile).parent = newParent
+			realW.parent = newParent.(*weblensFile)
 		}
 
-		preFile.GetParent().(*weblensFile).removeChild(w.Id())
-
-		fsTreeLock.Lock()
-		delete(fileTree, w.Id())
-		fsTreeLock.Unlock()
-
-		w.(*weblensFile).id = ""
-		w.(*weblensFile).absolutePath = filepath.Join(w.GetParent().GetAbsPath(), w.Filename())
+		preFile.GetParent().(*weblensFile).removeChild(w)
 
 		// The file no longer has an id, so generating the id will lock the file tree,
-		// we must do that outside of the lock here to avoid deadlock
+		// we must do that outside the lock below to avoid deadlock
+		w.Id()
+		w.Size()
+
+		fsTreeLock.Lock()
+		delete(fileTree, realW.id)
+		fsTreeLock.Unlock()
+
+		realW.id = ""
+		realW.absolutePath = filepath.Join(w.GetParent().GetAbsPath(), w.Filename())
+		if realW.IsDir() {
+			realW.absolutePath += "/"
+		}
+
 		w.Id()
 
 		fsTreeLock.Lock()
-		fileTree[w.Id()] = w
+		fileTree[realW.id] = w
 		fsTreeLock.Unlock()
 
-		w.GetParent().AddChild(w)
+		err := w.GetParent().AddChild(w)
+		if err != nil {
+			return err
+		}
 
 		if w.IsDisplayable() {
-			var m types.Media
-			m, err = preFile.GetMedia()
+			m, err := preFile.GetMedia()
 
 			if err != nil && err != ErrNoMedia {
-				util.ErrTrace(err)
-				return
+				return err
 			} else if err != ErrNoMedia {
 				// Add new file first so the media doesn't get deleted if there is only 1 file
 				m.AddFile(w)
@@ -257,35 +296,48 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 
 		for _, s := range w.GetShares() {
 			s.SetContentId(w.Id().String())
-			w.UpdateShare(s)
+			err := w.UpdateShare(s)
+			if err != nil {
+				return err
+			}
 		}
 
-		JournalFileMove(preFile, w)
-		util.Each(casters, func(c types.BroadcasterAgent) { c.PushFileMove(preFile, w) })
+		util.Each(casters, func(c types.BufferedBroadcasterAgent) { c.PushFileMove(preFile, w) })
+		return nil
 	})
 
-	resizeMultiple(oldParent, f.GetParent(), casters...)
+	err := os.Rename(oldAbsPath, newAbsPath)
+	if err != nil {
+		util.ErrTrace(err)
+		return err
+	}
+
+	resizeMultiple(oldParent, f.GetParent(), util.SliceConvert[types.BroadcasterAgent](casters)...)
+
+	util.Each(casters, func(c types.BufferedBroadcasterAgent) { c.AutoFlushEnable() })
 
 	return nil
 }
 
+// Gets the number of files loaded into weblens.
+// This does not lock the file tree, and therefore
+// cannot be trusted to be microsecond accurate, but
+// it's quite close
 func GetTreeSize() int {
 	return len(fileTree)
 }
 
-func getAllFiles() []types.WeblensFile {
-	return util.MapToSlicePure(fileTree)
-}
-
 func ResizeUp(f types.WeblensFile, c ...types.BroadcasterAgent) {
-	f.BubbleMap(func(w types.WeblensFile) {
+	f.BubbleMap(func(w types.WeblensFile) error {
 		w.(*weblensFile).loadStat(c...)
+		return nil
 	})
 }
 
 func ResizeDown(f types.WeblensFile, c ...types.BroadcasterAgent) {
-	f.LeafMap(func(w types.WeblensFile) {
+	f.LeafMap(func(w types.WeblensFile) error {
 		w.(*weblensFile).loadStat(c...)
+		return nil
 	})
 }
 

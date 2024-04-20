@@ -7,10 +7,9 @@ import {
     Text,
     Tooltip,
 } from "@mantine/core";
-import { ColumnBox, RowBox } from "../Pages/FileBrowser/FilebrowserStyles";
 import { MediaImage } from "./PhotoContainer";
 import { MediaDataT } from "../types/Types";
-// import "../";
+import { ColumnBox, RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
 
 type ItemMenu = ({
     open,
@@ -328,9 +327,8 @@ const useKeyDown = (
                 setEditing(false);
             } else if (event.key === "Escape") {
                 setEditing(false);
-
                 // Rename with empty name is a "cancel" to the rename
-                // rename(itemId, '');
+                rename(itemId, "");
             }
         },
         [itemId, oldName, newName, editing, setEditing, rename]
@@ -572,7 +570,12 @@ export const ItemDisplay = memo(
                     allowEditing={context.allowEditing}
                     height={context.itemWidth * 0.1}
                     blockFocus={context.blockFocus}
-                    rename={context.rename}
+                    rename={(id, newName) => {
+                        if (newName === itemInfo.itemTitle || newName === "") {
+                            return;
+                        }
+                        context.rename(id, newName);
+                    }}
                 />
 
                 {itemInfo.itemId === "NEW_DIR" && !editing && (

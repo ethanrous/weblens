@@ -94,7 +94,7 @@ func main() {
 	dataStore.InitApiKeyMap()
 	sw.Lap("Api key map init")
 
-	// The global broadcaster is disbled by default so all of the
+	// The global broadcaster is disabled by default so all of the
 	// initial loading of the filesystem (that was just done above) doesn't
 	// try to broadcast for every file that exists. So it must be enabled here
 	routes.Caster.DropBuffer()
@@ -111,7 +111,7 @@ func main() {
 	go dataProcess.BackupD(time.Minute, rq)
 	sw.Lap("Init backup sleeper")
 
-	// Enable the worker pool heald by the task tracker
+	// Enable the worker pool held by the task tracker
 	tt.StartWP()
 	sw.Lap("Global worker pool enabled")
 

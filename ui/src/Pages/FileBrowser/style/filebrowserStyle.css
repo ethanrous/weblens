@@ -491,3 +491,19 @@
     width: 20px;
     flex-shrink: 0;
 }
+
+.get-started-box {
+    width: 125px;
+    color: #cccccc;
+    cursor: pointer;
+    padding: 10px;
+    font-weight: 400;
+    stroke-width: 1.5;
+    transition: all 100ms;
+}
+
+.get-started-box:hover {
+    color: white;
+    font-weight: 600;
+    stroke-width: 2;
+}

@@ -23,8 +23,19 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func NewMedia() types.Media {
-	return &media{}
+func NewMedia(f types.WeblensFile) (types.Media, error) {
+	return &media{}, nil
+
+	m, err := MediaMapGet(types.MediaId(f.GetContentId()[:8]))
+	if err != nil {
+		util.ShowErr(err)
+	}
+	if m == nil {
+		return &media{
+			ContentId: f.GetContentId(),
+		}, nil
+	}
+	return m, nil
 }
 
 func (m *media) LoadFromFile(f types.WeblensFile, task types.Task) (retM types.Media, err error) {

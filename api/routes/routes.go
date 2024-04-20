@@ -44,10 +44,10 @@ func DoRoutes() {
 
 	srvInfo := dataStore.GetServerInfo()
 	if srvInfo == nil {
-		util.Debug.Println("Weblens not initilized, only adding initilization routes...")
-		AddInitilizationRoutes()
-		util.Info.Println("Ignoring requessts from public IPs until weblens is initilized")
-		router.Use(initSafty)
+		util.Debug.Println("Weblens not initialized, only adding initialization routes...")
+		AddInitializationRoutes()
+		util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
+		router.Use(initSafety)
 	} else {
 		api := router.Group("/api")
 		api.Use(WeblensAuth(false, false))
@@ -118,7 +118,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-func AddInitilizationRoutes() {
+func AddInitializationRoutes() {
 	api := router.Group("/api")
 
 	api.POST("/initialize", initializeServer)
@@ -133,6 +133,10 @@ func AddSharedRoutes(api, public *gin.RouterGroup) {
 
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
+
+	api.GET("/file/:fileId/history", getFileHistory)
+	api.GET("/history/:folderId", getPastFolderInfo)
+	api.POST("/history/restore", restorePastFiles)
 }
 
 func AddApiRoutes(api, public *gin.RouterGroup) {
@@ -212,9 +216,6 @@ func AddAdminRoutes(admin *gin.RouterGroup) {
 
 func AddBackupRoutes(api, admin *gin.RouterGroup) {
 	api.GET("/snapshots", getSnapshots)
-
-	api.GET("/past/:folderId", getPastFolderInfo)
-	api.GET("/file/:fileId/history", getFileHistory)
 
 	admin.GET("/remotes", getRemotes)
 	admin.POST("/backup", launchBackup)

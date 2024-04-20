@@ -14,7 +14,7 @@ import {
     Tabs,
     TextInput,
 } from "@mantine/core";
-import { RowBox } from "../FileBrowser/FilebrowserStyles";
+import { RowBox } from "../FileBrowser/FileBrowserStyles";
 import { WeblensButton } from "../../components/WeblensButton";
 import { useKeyDown } from "../../components/hooks";
 import { UserContextT } from "../../types/Types";

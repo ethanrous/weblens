@@ -32,7 +32,7 @@ type task struct {
 	taskType   types.TaskType
 	metadata   any
 	result     types.TaskResult
-	persistant bool
+	persistent bool
 
 	err        any
 	timeout    time.Time
@@ -100,7 +100,7 @@ type taskPool struct {
 
 type WorkerPool struct {
 	maxWorkers     *atomic.Int64 // Max allowed worker count
-	currentWorkers *atomic.Int64 // Currnet worker count
+	currentWorkers *atomic.Int64 // Current worker count
 	busyCount      *atomic.Int64 // Number of workers currently executing a task
 
 	lifetimeQueuedCount *atomic.Int64

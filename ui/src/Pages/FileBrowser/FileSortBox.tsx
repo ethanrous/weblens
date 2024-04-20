@@ -1,5 +1,5 @@
 import { Box } from "@mantine/core";
-import { RowBox } from "./FilebrowserStyles";
+import { RowBox } from "./FileBrowserStyles";
 import {
     IconCalendar,
     IconFileAnalytics,

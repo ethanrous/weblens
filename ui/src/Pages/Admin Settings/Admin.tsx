@@ -26,7 +26,7 @@ import {
     SetUserAdmin,
 } from "../../api/UserApi";
 import { notifications } from "@mantine/notifications";
-import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles";
+import { ColumnBox, RowBox } from "../FileBrowser/FileBrowserStyles";
 import {
     IconClipboard,
     IconRefresh,

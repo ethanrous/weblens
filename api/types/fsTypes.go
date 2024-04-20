@@ -26,7 +26,8 @@ type WeblensFile interface {
 	GetParent() WeblensFile
 	GetChildren() []WeblensFile
 	GetChildrenInfo(AccessMeta) []FileInfo
-	AddChild(WeblensFile)
+	GetChild(childName string) (WeblensFile, error)
+	AddChild(child WeblensFile) error
 	IsReadOnly() bool
 
 	AddTask(Task)
@@ -35,10 +36,11 @@ type WeblensFile interface {
 
 	CreateSelf() error
 	Write([]byte) error
-	WriteAt([]byte, int64, bool) error
+	WriteAt([]byte, int64) error
 	Read() (*os.File, error)
 	ReadAll() ([]byte, error)
 	ReadDir() error
+	GetContentId() string
 
 	GetShare(ShareId) (Share, error)
 	GetShares() []Share
@@ -46,9 +48,9 @@ type WeblensFile interface {
 	AppendShare(Share)
 	RemoveShare(ShareId) error
 
-	RecursiveMap(func(WeblensFile))
-	LeafMap(func(WeblensFile))
-	BubbleMap(func(WeblensFile))
+	RecursiveMap(FileMapFunc) error
+	LeafMap(FileMapFunc) error
+	BubbleMap(FileMapFunc) error
 
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
@@ -60,6 +62,8 @@ type FileId string
 func (fId FileId) String() string {
 	return string(fId)
 }
+
+type FileMapFunc func(WeblensFile) error
 
 // Structure for safely sending file information to the client
 type FileInfo struct {

@@ -82,8 +82,9 @@ func GetRelevantShare(file types.WeblensFile, acc types.AccessMeta) types.Share 
 	}
 
 	ancestors := []types.FileId{}
-	file.BubbleMap(func(wf types.WeblensFile) {
+	file.BubbleMap(func(wf types.WeblensFile) error {
 		ancestors = append(ancestors, wf.Id())
+		return nil
 	})
 
 	var foundShare types.Share

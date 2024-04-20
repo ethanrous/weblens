@@ -18,8 +18,8 @@ type TaskBroadcaster interface {
 type BufferedBroadcasterAgent interface {
 	BroadcasterAgent
 	DropBuffer()
-	DisableAutoflush()
-	AutoflushEnable()
+	DisableAutoFlush()
+	AutoFlushEnable()
 	// Flush()
 
 	// flush, release the auto-flusher, and disable the caster

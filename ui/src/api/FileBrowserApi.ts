@@ -66,7 +66,7 @@ export function UnTrashFiles(fileIds: string[], authHeader: AuthHeaderT) {
         body: JSON.stringify(fileIds),
     }).catch((r) =>
         notifications.show({
-            title: "Failed to undelete file",
+            title: "Failed to un-delete file",
             message: String(r),
             color: "red",
         }),
@@ -237,7 +237,7 @@ export function downloadSingleFile(
     ext: string,
     shareId: string,
 ) {
-    const url = new URL(`${API_ENDPOINT}/download`);
+    const url = new URL(`${PUBLIC_ENDPOINT}/download`);
     url.searchParams.append("fileId", fileId);
     if (shareId) {
         url.searchParams.append("shareId", shareId);
@@ -278,8 +278,8 @@ export function downloadSingleFile(
 }
 
 export async function requestZipCreate(fileIds: string[], shareId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/takeout`);
-    if (shareId !== "") {
+    const url = new URL(`${PUBLIC_ENDPOINT}/takeout`);
+    if (shareId) {
         url.searchParams.append("shareId", shareId);
     }
 
@@ -445,7 +445,12 @@ export async function getSnapshots(authHeader: AuthHeaderT) {
 }
 
 export async function getPastFolderInfo(folderId: string, timestamp: Date, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/past/${folderId}`);
+    const url = new URL(`${API_ENDPOINT}/history/${folderId}`);
     url.searchParams.append("before", String(timestamp.getTime()))
     return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+}
+
+export async function restoreFiles(fileIds: string[], timestamp: Date, authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/history/restore`);
+    return await fetch(url, {headers: authHeader, method: "POST", body: JSON.stringify({fileIds: fileIds, timestamp: timestamp.getTime()})}).then(r => {if (r.status !== 200) {return Promise.reject(r.statusText)} else {return}})
 }

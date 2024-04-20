@@ -64,23 +64,43 @@
     flex-direction: row;
     align-items: center;
     height: 50px;
-    padding-top: 20px;
     justify-content: space-between;
     width: 100%;
+}
+
+.file-history-accordion-header {
     cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    user-select: none;
+    width: max-content;
+}
+
+.event-time-string {
+    width: 155px;
+    display: flex;
+    cursor: pointer;
+    user-select: none;
+    text-wrap: nowrap;
+    justify-content: center;
+    transition: all 100ms ease-in-out;
+}
+
+.event-time-string:hover {
+    font-weight: 600 !important;
+    color: white;
 }
 
 .file-history-detail-accordion {
-    display: flex;
     width: 100%;
-    flex-direction: column;
-    /* transition: height 500ms ease-in-out; */
+    display: flex;
+
     overflow: hidden;
-    max-height: 300px;
-    border: 0px solid #ffffff34;
+    max-height: 500px;
     border-radius: 8px;
+    flex-direction: column;
+    border: 0px solid #ffffff34;
     transition: border-width 0ms 500ms, height 500ms ease-in-out;
-    margin-top: 10px;
 }
 
 .file-history-detail-accordion:where([data-open="true"]) {

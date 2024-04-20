@@ -11,7 +11,6 @@ import {
     FileButton,
     Center,
     Skeleton,
-    Loader,
 } from "@mantine/core";
 import { useCallback, useContext, useMemo, useState } from "react";
 import {
@@ -29,26 +28,31 @@ import {
 } from "../../types/Types";
 
 import {
-    IconCircle,
-    IconCircleFilled,
+    IconDatabase,
     IconFile,
     IconFileZip,
     IconFolder,
     IconFolderCancel,
     IconFolderPlus,
+    IconHome,
+    IconHome2,
     IconPhoto,
     IconRefresh,
+    IconServer,
+    IconServer2,
     IconSpiral,
+    IconTrash,
     IconUpload,
+    IconUser,
+    IconUsers,
 } from "@tabler/icons-react";
 import { userContext } from "../../Context";
-import "../../components/style.css";
-import "./style/filebrowserStyle.css";
 import { humanFileSize, nsToHumanTime } from "../../util";
 import { ContainerMedia } from "../../components/Presentation";
 import { IconX } from "@tabler/icons-react";
 import { WeblensProgress } from "../../components/WeblensProgress";
 import { useResize } from "../../components/hooks";
+import { BackdropMenu } from "./FileMenu";
 
 export const ColumnBox = ({
     children,
@@ -252,38 +256,6 @@ const Dropspot = ({
     );
 };
 
-const FilebrowserMenu = ({
-    folderName,
-    menuPos,
-    menuOpen,
-    setMenuOpen,
-    newFolder,
-}) => {
-    return (
-        <Menu opened={menuOpen} onClose={() => setMenuOpen(false)}>
-            <Menu.Target>
-                <Box
-                    style={{
-                        position: "fixed",
-                        top: menuPos.y,
-                        left: menuPos.x,
-                    }}
-                />
-            </Menu.Target>
-
-            <Menu.Dropdown>
-                <Menu.Label>{folderName}</Menu.Label>
-                <Menu.Item
-                    leftSection={<IconFolderPlus />}
-                    onClick={() => newFolder()}
-                >
-                    New Folder
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
-    );
-};
-
 type DirViewWrapperProps = {
     fbState: FbStateT;
     folderName: string;
@@ -306,14 +278,11 @@ export const DirViewWrapper = ({
     const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
     const [wrapperRef, setWrapperRef] = useState(null);
     const dropAllowed = useMemo(() => {
-        console.log("In");
         return (
             fbState.folderInfo.modifiable &&
             !(fbState.fbMode === "share" || fbState.contentId === usr.trashId)
         );
     }, [fbState.contentId, usr.trashId, fbState.fbMode, fbState.folderInfo]);
-
-    console.log("Out");
 
     return (
         <Box
@@ -360,7 +329,7 @@ export const DirViewWrapper = ({
                 setMenuOpen(true);
             }}
         >
-            <FilebrowserMenu
+            <BackdropMenu
                 folderName={folderName === usr.username ? "Home" : folderName}
                 menuPos={menuPos}
                 menuOpen={menuOpen}
@@ -745,30 +714,48 @@ export const PresentationFile = ({ file }: { file: FileInfoT }) => {
     }
 };
 
+const EmptyIcon = ({ folderId, usr }) => {
+    if (folderId === usr.homeId) {
+        return <IconHome size={500} color="#16181d" />;
+    }
+    if (folderId === usr.trashId) {
+        return <IconTrash size={500} color="#16181d" />;
+    }
+    if (folderId === "shared") {
+        return <IconUsers size={500} color="#16181d" />;
+    }
+    if (folderId === "EXTERNAL") {
+        return <IconServer size={500} color="#16181d" />;
+    }
+    return null;
+};
+
 export const GetStartedCard = ({
     fb,
-    moveSelectedTo,
     dispatch,
     uploadDispatch,
-    authHeader,
     wsSend,
 }: {
     fb: FbStateT;
-    moveSelectedTo;
     dispatch: FBDispatchT;
     uploadDispatch;
-    authHeader: AuthHeaderT;
     wsSend;
 }) => {
+    const { authHeader, usr } = useContext(userContext);
     return (
         <ColumnBox>
             <ColumnBox
                 style={{
                     width: "max-content",
                     height: "max-content",
-                    marginTop: "20vh",
+                    marginTop: "25vh",
+                    justifyContent: "center",
                 }}
             >
+                <Box style={{ padding: 30, position: "absolute", zIndex: -1 }}>
+                    <EmptyIcon folderId={fb.folderInfo.id} usr={usr} />
+                </Box>
+
                 <Text
                     size="28px"
                     style={{ width: "max-content", userSelect: "none" }}
@@ -779,7 +766,7 @@ export const GetStartedCard = ({
                 </Text>
 
                 {fb.folderInfo.modifiable && !fb.viewingPast && (
-                    <RowBox style={{ padding: 10 }}>
+                    <RowBox style={{ padding: 10, width: 350 }}>
                         <FileButton
                             onChange={(files) => {
                                 HandleUploadButton(
@@ -798,23 +785,23 @@ export const GetStartedCard = ({
                             {(props) => {
                                 return (
                                     <ColumnBox
+                                        className="get-started-box"
                                         onClick={() => {
                                             props.onClick();
-                                        }}
-                                        style={{
-                                            cursor: "pointer",
-                                            padding: 10,
                                         }}
                                     >
                                         <IconUpload
                                             size={100}
+                                            stroke={"inherit"}
                                             style={{ padding: "10px" }}
                                         />
-                                        <Text size="20px" fw={600}>
+                                        <Text size="20px" fw={"inherit"}>
                                             Upload
                                         </Text>
                                         <Space h={4}></Space>
-                                        <Text size="12px">Click or Drop</Text>
+                                        <Text size="12px" fw={"inherit"}>
+                                            Click or Drop
+                                        </Text>
                                     </ColumnBox>
                                 );
                             }}
@@ -822,19 +809,20 @@ export const GetStartedCard = ({
                         <Divider orientation="vertical" m={30} />
 
                         <ColumnBox
+                            className="get-started-box"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 dispatch({ type: "new_dir" });
                             }}
-                            style={{ cursor: "pointer", padding: 10 }}
                         >
                             <IconFolderPlus
                                 size={100}
+                                stroke={"inherit"}
                                 style={{ padding: "10px" }}
                             />
                             <Text
                                 size="20px"
-                                fw={600}
+                                fw={"inherit"}
                                 style={{ width: "max-content" }}
                             >
                                 New Folder
@@ -860,8 +848,10 @@ export const TaskProgCard = ({
         <Box className="task-progress-box">
             <RowBox style={{ height: "max-content" }}>
                 <Box style={{ width: "100%" }}>
-                    <Text size="12px">{prog.taskType}</Text>
-                    <Text size="16px" fw={600}>
+                    <Text size="12px" style={{ userSelect: "none" }}>
+                        {prog.taskType}
+                    </Text>
+                    <Text size="16px" fw={600} style={{ userSelect: "none" }}>
                         {prog.target}
                     </Text>
                 </Box>
@@ -892,11 +882,15 @@ export const TaskProgCard = ({
                         gap: 10,
                     }}
                 >
-                    <Text size="10px" truncate="end">
+                    <Text
+                        size="10px"
+                        truncate="end"
+                        style={{ userSelect: "none" }}
+                    >
                         {prog.mostRecent}
                     </Text>
                     {prog.tasksTotal > 0 && (
-                        <Text size="10px">
+                        <Text size="10px" style={{ userSelect: "none" }}>
                             {prog.tasksComplete}/{prog.tasksTotal}
                         </Text>
                     )}
@@ -910,12 +904,19 @@ export const TaskProgCard = ({
                         gap: 10,
                     }}
                 >
-                    <Text size="10px" style={{ width: "max-content" }}>
+                    <Text
+                        size="10px"
+                        style={{ width: "max-content", userSelect: "none" }}
+                    >
                         Finished in {timeString}
                     </Text>
                     <Text
                         size="10px"
-                        style={{ width: "max-content", textWrap: "nowrap" }}
+                        style={{
+                            width: "max-content",
+                            textWrap: "nowrap",
+                            userSelect: "none",
+                        }}
                     >
                         {prog.note}
                     </Text>
@@ -935,14 +936,13 @@ export const WebsocketStatus = ({ ready }) => {
             status = "Connected";
             break;
         case 2:
+        case 3:
             color = "orange";
             status = "Connecting";
             break;
         case -1:
-        case 3:
             color = "red";
-            status = "Not Connected";
-            break;
+            status = "Disconnected, try refreshing your page";
     }
 
     return (

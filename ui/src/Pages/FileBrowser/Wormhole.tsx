@@ -1,14 +1,14 @@
-import { useParams } from 'react-router-dom';
-import { ColumnBox, RowBox, WormholeWrapper } from './FilebrowserStyles';
-import { useContext, useEffect, useState } from 'react';
-import { GetWormholeInfo } from '../../api/FileBrowserApi';
-import { userContext } from '../../Context';
-import { FileInfoT, shareData } from '../../types/Types';
-import { Box, FileButton, Space, Text } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import UploadStatus, { useUploadStatus } from '../../components/UploadStatus';
-import { IconFolder, IconUpload } from '@tabler/icons-react';
-import { HandleUploadButton } from './FileBrowserLogic';
+import { useParams } from "react-router-dom";
+import { ColumnBox, RowBox, WormholeWrapper } from "./FileBrowserStyles";
+import { useContext, useEffect, useState } from "react";
+import { GetWormholeInfo } from "../../api/FileBrowserApi";
+import { userContext } from "../../Context";
+import { FileInfoT, shareData } from "../../types/Types";
+import { Box, FileButton, Space, Text } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import UploadStatus, { useUploadStatus } from "../../components/UploadStatus";
+import { IconFolder, IconUpload } from "@tabler/icons-react";
+import { HandleUploadButton } from "./FileBrowserLogic";
 
 const UploadPlaque = ({
     wormholeId,
@@ -18,7 +18,7 @@ const UploadPlaque = ({
     uploadDispatch;
 }) => {
     return (
-        <ColumnBox style={{ height: '45vh' }}>
+        <ColumnBox style={{ height: "45vh" }}>
             <FileButton
                 onChange={(files) => {
                     HandleUploadButton(
@@ -26,7 +26,7 @@ const UploadPlaque = ({
                         wormholeId,
                         true,
                         wormholeId,
-                        { Authorization: '' },
+                        { Authorization: "" },
                         uploadDispatch,
                         () => {}
                     );
@@ -38,12 +38,12 @@ const UploadPlaque = ({
                     return (
                         <ColumnBox
                             style={{
-                                backgroundColor: '#111111',
-                                height: '20vh',
-                                width: '20vw',
+                                backgroundColor: "#111111",
+                                height: "20vh",
+                                width: "20vw",
                                 padding: 10,
                                 borderRadius: 4,
-                                justifyContent: 'center',
+                                justifyContent: "center",
                             }}
                         >
                             <ColumnBox
@@ -51,14 +51,14 @@ const UploadPlaque = ({
                                     props.onClick();
                                 }}
                                 style={{
-                                    cursor: 'pointer',
-                                    height: 'max-content',
-                                    width: 'max-content',
+                                    cursor: "pointer",
+                                    height: "max-content",
+                                    width: "max-content",
                                 }}
                             >
                                 <IconUpload
                                     size={100}
-                                    style={{ padding: '10px' }}
+                                    style={{ padding: "10px" }}
                                 />
                                 <Text size="20px" fw={600}>
                                     Upload
@@ -75,7 +75,7 @@ const UploadPlaque = ({
 };
 
 export default function Wormhole() {
-    const wormholeId = useParams()['*'];
+    const wormholeId = useParams()["*"];
     const { authHeader }: UserContextT = useContext(userContext);
     const [wormholeInfo, setWormholeInfo]: [
         wormholeInfo: shareData,
@@ -84,7 +84,7 @@ export default function Wormhole() {
     const { uploadState, uploadDispatch } = useUploadStatus();
 
     useEffect(() => {
-        if (wormholeId !== '') {
+        if (wormholeId !== "") {
             GetWormholeInfo(wormholeId, authHeader)
                 .then((v) => {
                     if (v.status !== 200) {
@@ -97,9 +97,9 @@ export default function Wormhole() {
                 })
                 .catch((r) => {
                     notifications.show({
-                        title: 'Failed to get wormhole info',
+                        title: "Failed to get wormhole info",
                         message: String(r),
-                        color: 'red',
+                        color: "red",
                     });
                 });
         }
@@ -119,26 +119,26 @@ export default function Wormhole() {
                 validWormhole={valid}
                 uploadDispatch={uploadDispatch}
             >
-                <RowBox style={{ height: '20vh', width: 'max-content' }}>
+                <RowBox style={{ height: "20vh", width: "max-content" }}>
                     <ColumnBox
-                        style={{ height: 'max-content', width: 'max-content' }}
+                        style={{ height: "max-content", width: "max-content" }}
                     >
-                        <Text size="40" style={{ lineHeight: '40px' }}>
-                            {valid ? 'Wormhole to' : 'Wormhole not found'}
+                        <Text size="40" style={{ lineHeight: "40px" }}>
+                            {valid ? "Wormhole to" : "Wormhole not found"}
                         </Text>
                         {!valid && (
-                            <Text size="20" style={{ lineHeight: '40px' }}>
-                                {'Wormhole does not exist or was closed'}
+                            <Text size="20" style={{ lineHeight: "40px" }}>
+                                {"Wormhole does not exist or was closed"}
                             </Text>
                         )}
                     </ColumnBox>
                     {valid && (
-                        <IconFolder size={40} style={{ marginLeft: '7px' }} />
+                        <IconFolder size={40} style={{ marginLeft: "7px" }} />
                     )}
                     <Text
                         fw={700}
                         size="40"
-                        style={{ lineHeight: '40px', marginLeft: 3 }}
+                        style={{ lineHeight: "40px", marginLeft: 3 }}
                     >
                         {wormholeInfo?.ShareName}
                     </Text>

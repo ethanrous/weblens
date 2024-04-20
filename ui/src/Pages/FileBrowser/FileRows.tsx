@@ -1,10 +1,10 @@
-import { Box, Space, Text } from '@mantine/core';
-import { FixedSizeList as ScrollList } from 'react-window';
-import { FileInfoT } from '../../types/Types';
-import { useState } from 'react';
-import { IconDisplay } from './FilebrowserStyles';
-import { useNavigate } from 'react-router-dom';
-import { humanFileSize } from '../../util';
+import { Box, Space, Text } from "@mantine/core";
+import { FixedSizeList as ScrollList } from "react-window";
+import { FileInfoT } from "../../types/Types";
+import { useState } from "react";
+import { IconDisplay } from "./FileBrowserStyles";
+import { useNavigate } from "react-router-dom";
+import { humanFileSize } from "../../util";
 
 function FileRow({
     data,
@@ -24,7 +24,7 @@ function FileRow({
             style={{
                 ...style,
                 borderBottom:
-                    index === data.length - 1 ? '1px solid #555555' : '',
+                    index === data.length - 1 ? "1px solid #555555" : "",
             }}
             onDoubleClick={() => {
                 if (data[index].isDir) {

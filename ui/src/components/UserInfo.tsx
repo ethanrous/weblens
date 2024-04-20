@@ -78,6 +78,8 @@ const useR = () => {
                 .then((res) => {
                     if (res.status === 307 && !inSetup) {
                         nav("/setup");
+                    } else if (res.status !== 200) {
+                        return Promise.reject(res.statusText);
                     }
                     return res.json();
                 })
@@ -87,7 +89,13 @@ const useR = () => {
                     }
                     setUserInfo({ ...json, isLoggedIn: true });
                 })
-                .catch((r) => notifications.show({ message: String(r) }));
+                .catch((r) =>
+                    notifications.show({
+                        title: "Failed to fetch user info",
+                        message: String(r),
+                        color: "red",
+                    })
+                );
         } else if (authHeader.Authorization === "") {
             setUserInfo((p) => {
                 p.isLoggedIn = false;

@@ -11,7 +11,7 @@ import { WeblensButton } from "../../components/WeblensButton";
 
 import { useCallback, useContext, useEffect, useState } from "react";
 import { userContext } from "../../Context";
-import { ColumnBox, RowBox } from "./FilebrowserStyles";
+import { ColumnBox, RowBox } from "./FileBrowserStyles";
 import {
     AuthHeaderT,
     FileInfoT,

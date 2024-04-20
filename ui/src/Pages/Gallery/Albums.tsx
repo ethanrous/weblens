@@ -18,7 +18,7 @@ import {
     IconUsersGroup,
 } from "@tabler/icons-react";
 
-import { ColumnBox } from "../FileBrowser/FilebrowserStyles";
+import { ColumnBox } from "../FileBrowser/FileBrowserStyles";
 import {
     CleanAlbum,
     DeleteAlbum,

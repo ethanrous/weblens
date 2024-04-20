@@ -38,9 +38,9 @@ func (c *unbufferedCaster) PushTaskUpdate(taskId types.TaskId, status string, re
 	}
 
 	msg := wsResponse{
-		MessageStatus: status,
-		SubscribeKey:  subId(taskId),
-		Content:       []wsM{{"result": result}},
+		EventTag:     status,
+		SubscribeKey: subId(taskId),
+		Content:      []wsM{{"result": result}},
 
 		broadcastType: "task",
 	}
@@ -54,7 +54,7 @@ func (c *unbufferedCaster) PushShareUpdate(username types.Username, newShareInfo
 	}
 
 	msg := wsResponse{
-		MessageStatus: "share_updated",
+		EventTag:      "share_updated",
 		SubscribeKey:  subId(username),
 		Content:       []wsM{{"newShareInfo": newShareInfo}},
 		Error:         "",
@@ -114,7 +114,7 @@ func (c unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFi
 	}
 
 	msg := wsResponse{
-		MessageStatus: "file_moved",
+		EventTag:      "file_moved",
 		SubscribeKey:  subId(preMoveFile.GetParent().Id()),
 		Content:       []wsM{{"oldId": preMoveFile.Id(), "newFile": postInfo}},
 		Error:         "",
@@ -133,7 +133,7 @@ func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
 }
 
-// Get a new buffered caster with the autoflusher pre-enabled.
+// Get a new buffered caster with the auto-flusher pre-enabled.
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
 func NewBufferedCaster() types.BufferedBroadcasterAgent {
@@ -148,14 +148,14 @@ func NewBufferedCaster() types.BufferedBroadcasterAgent {
 		bufLock:           &sync.Mutex{},
 	}
 
-	newCaster.enableAutoflush()
+	newCaster.enableAutoFlush()
 
 	return newCaster
 }
 
-func (c *bufferedCaster) AutoflushEnable() {
+func (c *bufferedCaster) AutoFlushEnable() {
 	c.enabled = true
-	c.enableAutoflush()
+	c.enableAutoFlush()
 }
 
 func (c *bufferedCaster) Enable() {
@@ -163,6 +163,11 @@ func (c *bufferedCaster) Enable() {
 }
 
 func (c *bufferedCaster) Close() {
+	if !c.enabled {
+		util.ErrTrace(ErrCasterDoubleClose)
+		return
+	}
+
 	c.Flush()
 	c.autoFlush = false
 	c.enabled = false
@@ -185,9 +190,9 @@ func (c *bufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	}
 
 	msg := wsResponse{
-		MessageStatus: "file_created",
-		SubscribeKey:  subId(newFile.GetParent().Id()),
-		Content:       []wsM{{"fileInfo": fileInfo}},
+		EventTag:     "file_created",
+		SubscribeKey: subId(newFile.GetParent().Id()),
+		Content:      []wsM{{"fileInfo": fileInfo}},
 
 		broadcastType: "folder",
 	}
@@ -211,9 +216,9 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 	}
 
 	msg := wsResponse{
-		MessageStatus: "file_updated",
-		SubscribeKey:  subId(updatedFile.Id()),
-		Content:       []wsM{{"fileInfo": fileInfo}},
+		EventTag:     "file_updated",
+		SubscribeKey: subId(updatedFile.Id()),
+		Content:      []wsM{{"fileInfo": fileInfo}},
 
 		broadcastType: "folder",
 	}
@@ -224,9 +229,9 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 	}
 
 	msg = wsResponse{
-		MessageStatus: "file_updated",
-		SubscribeKey:  subId(updatedFile.GetParent().Id()),
-		Content:       []wsM{{"fileInfo": fileInfo}},
+		EventTag:     "file_updated",
+		SubscribeKey: subId(updatedFile.GetParent().Id()),
+		Content:      []wsM{{"fileInfo": fileInfo}},
 
 		broadcastType: "folder",
 	}
@@ -247,7 +252,7 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 	}
 
 	msg := wsResponse{
-		MessageStatus: "file_moved",
+		EventTag:      "file_moved",
 		SubscribeKey:  subId(preMoveFile.GetParent().Id()),
 		Content:       []wsM{{"oldId": preMoveFile.Id(), "newFile": postInfo}},
 		Error:         "",
@@ -263,7 +268,7 @@ func (c *bufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	}
 
 	msg := wsResponse{
-		MessageStatus: "file_deleted",
+		EventTag:      "file_deleted",
 		SubscribeKey:  subId(deletedFile.GetParent().Id()),
 		Content:       []wsM{{"fileId": deletedFile.Id()}},
 		Error:         "",
@@ -279,7 +284,7 @@ func (c *bufferedCaster) PushTaskUpdate(taskId types.TaskId, status string, resu
 	}
 
 	msg := wsResponse{
-		MessageStatus: status,
+		EventTag:      status,
 		SubscribeKey:  subId(taskId),
 		Content:       []wsM{wsM(result)},
 		Error:         "",
@@ -295,7 +300,7 @@ func (c *bufferedCaster) PushShareUpdate(username types.Username, newShareInfo t
 	}
 
 	msg := wsResponse{
-		MessageStatus: "share_updated",
+		EventTag:      "share_updated",
 		SubscribeKey:  subId(username),
 		Content:       []wsM{{"newShareInfo": newShareInfo}},
 		Error:         "",
@@ -323,11 +328,11 @@ func (c *bufferedCaster) DropBuffer() {
 	c.buffer = []wsResponse{}
 }
 
-func (c *bufferedCaster) DisableAutoflush() {
+func (c *bufferedCaster) DisableAutoFlush() {
 	c.autoFlush = false
 }
 
-func (c *bufferedCaster) enableAutoflush() {
+func (c *bufferedCaster) enableAutoFlush() {
 	c.autoFlush = true
 	go c.flusher()
 }
@@ -342,7 +347,7 @@ func (c *bufferedCaster) flusher() {
 func (c *bufferedCaster) bufferAndFlush(msg wsResponse) {
 	c.bufLock.Lock()
 	index := util.Find(c.buffer, func(m wsResponse) bool {
-		return m.MessageStatus == msg.MessageStatus && m.SubscribeKey == msg.SubscribeKey
+		return m.EventTag == msg.EventTag && m.SubscribeKey == msg.SubscribeKey
 	})
 	if index == -1 {
 		c.buffer = append(c.buffer, msg)

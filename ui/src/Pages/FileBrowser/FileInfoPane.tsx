@@ -1,5 +1,10 @@
 import { Box, Divider, Text } from "@mantine/core";
-import { FileInfoT, UserContextT, UserInfoT } from "../../types/Types";
+import {
+    FBDispatchT,
+    FileInfoT,
+    UserContextT,
+    UserInfoT,
+} from "../../types/Types";
 import { useResizeDrag, useWindowSize } from "../../components/hooks";
 import { memo, useContext, useEffect, useMemo, useState } from "react";
 import {
@@ -7,11 +12,10 @@ import {
     IconCaretDown,
     IconCaretRight,
     IconFile,
-    IconFileImport,
     IconFileMinus,
     IconFilePlus,
     IconFolder,
-    IconFolderShare,
+    IconReorder,
 } from "@tabler/icons-react";
 import { ColumnBox, RowBox } from "./FilebrowserStyles";
 import { clamp, friendlyFolderName } from "../../util";
@@ -19,6 +23,7 @@ import { WeblensButton } from "../../components/WeblensButton";
 import { getFileHistory } from "../../api/FileBrowserApi";
 import { userContext } from "../../Context";
 import { FileEventT } from "./FileBrowserTypes";
+import "./style/history.css";
 
 const SIDEBAR_BREAKPOINT = 650;
 
@@ -27,11 +32,15 @@ export const FilesPane = memo(
         open,
         selectedFiles,
         contentId,
+        timestamp,
+        dispatch,
     }: {
         open: boolean;
         setOpen: (o) => void;
         selectedFiles: FileInfoT[];
         contentId: string;
+        timestamp: number;
+        dispatch: FBDispatchT;
     }) => {
         const windowSize = useWindowSize();
         const [resizing, setResizing] = useState(false);
@@ -66,7 +75,14 @@ export const FilesPane = memo(
                 >
                     <Box className="resize-bar" />
                 </Box>
-                <Box style={{ width: 75, flexGrow: 1 }}>
+                <Box
+                    style={{
+                        width: 75,
+                        flexGrow: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                >
                     <Box
                         style={{
                             display: "flex",
@@ -94,26 +110,34 @@ export const FilesPane = memo(
                     {tab === "info" && (
                         <FileInfo selectedFiles={selectedFiles} />
                     )}
-                    {tab === "history" && <FileHistory fileId={contentId} />}
+                    {tab === "history" && (
+                        <FileHistory
+                            fileId={contentId}
+                            timestamp={timestamp}
+                            dispatch={dispatch}
+                        />
+                    )}
                 </Box>
             </Box>
         );
     },
     (prev, next) => {
         if (prev.open !== next.open) {
-            console.log(1);
             return false;
         }
 
         if (prev.contentId !== next.contentId) {
-            console.log(2);
             return false;
         }
 
         if (prev.selectedFiles !== next.selectedFiles) {
-            console.log(3);
             return false;
         }
+
+        if (prev.timestamp !== next.timestamp) {
+            return false;
+        }
+
         return true;
     }
 );
@@ -183,10 +207,85 @@ const historyDate = (timestamp: number) => {
     return dateObj.toLocaleDateString("en-US", options);
 };
 
+const portableToFolderName = (path: string) => {
+    const folderPath = path.slice(path.indexOf(":") + 1, path.lastIndexOf("/"));
+    const folderName = folderPath.slice(folderPath.lastIndexOf("/") + 1);
+    return folderName;
+};
+const fileBase = (path: string) => {
+    if (path[path.length - 1] === "/") {
+        path = path.slice(0, path.length - 1);
+    }
+    return path.slice(path.lastIndexOf("/") + 1);
+};
+
+const FileIcon = ({
+    fileName,
+    id,
+    Icon,
+    usr,
+    as,
+}: {
+    fileName: string;
+    id: string;
+    Icon;
+    usr: UserInfoT;
+    as?: string;
+}) => {
+    return (
+        <Box
+            style={{
+                display: "flex",
+                alignItems: "center",
+            }}
+        >
+            <Icon className="icon-noshrink" />
+            <Text
+                fw={550}
+                c="white"
+                truncate="end"
+                style={{
+                    fontFamily: "monospace",
+                    textWrap: "nowrap",
+                    padding: 6,
+                    flexShrink: 1,
+                }}
+            >
+                {friendlyFolderName(fileName, id, usr)}
+            </Text>
+            {as && (
+                <Box
+                    style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                    }}
+                >
+                    <Text size="12px">as</Text>
+                    <Text
+                        size="12px"
+                        truncate="end"
+                        style={{
+                            fontFamily: "monospace",
+                            textWrap: "nowrap",
+                            padding: 3,
+                            flexShrink: 2,
+                        }}
+                    >
+                        {as}
+                    </Text>
+                </Box>
+            )}
+        </Box>
+    );
+};
+
 const HistoryRow = ({
     eventGroup,
-    filePath,
+    folderPath,
+    viewing,
     usr,
+    dispatch,
 }: {
     eventGroup: {
         count: number;
@@ -194,22 +293,15 @@ const HistoryRow = ({
         time: number;
         events: FileEventT[];
     };
-    filePath: string;
+    viewing: boolean;
+    folderPath: string;
     usr: UserInfoT;
+    dispatch: FBDispatchT;
 }) => {
     const [open, setOpen] = useState(false);
     const timeStr = historyDate(eventGroup.time);
 
-    if (filePath.lastIndexOf("/") === filePath.length - 1) {
-        filePath = filePath.slice(0, -1);
-    }
-    let folderName;
-    let slashIndex = filePath.lastIndexOf("/");
-    if (slashIndex === -1) {
-        folderName = filePath.slice(filePath.indexOf(":") + 1);
-    } else {
-        folderName = filePath.slice(slashIndex + 1);
-    }
+    const folderName = portableToFolderName(folderPath);
 
     return (
         <Box
@@ -217,112 +309,155 @@ const HistoryRow = ({
                 width: "100%",
                 display: "flex",
                 flexDirection: "column",
+                justifyContent: "center",
                 height: "max-content",
+                padding: 10,
+                borderRadius: 8,
+                backgroundColor: viewing ? "#1c1049" : "",
+                outline: viewing ? "1px solid #4444ff" : "",
             }}
         >
-            <Box
-                key={eventGroup.time}
-                className="file-history-summary"
-                onClick={() => setOpen(!open)}
-            >
-                {open ? (
-                    <IconCaretDown size={20} style={{ flexShrink: 0 }} />
-                ) : (
-                    <IconCaretRight size={20} style={{ flexShrink: 0 }} />
-                )}
-                <Text
-                    c="white"
-                    truncate="end"
-                    style={{
-                        lineHeight: "20px",
-                        fontSize: "20px",
-                        width: "100%",
-                        padding: "0px 5px 0px 5px",
-
-                        textWrap: "nowrap",
-                    }}
-                    fw={600}
+            <Box key={eventGroup.time} className="file-history-summary">
+                <Box
+                    className="file-history-accordion-header"
+                    onClick={() => setOpen(!open)}
                 >
-                    {eventGroup.count} File{eventGroup.count !== 1 ? "s" : ""}{" "}
-                    {eventGroup.action.slice(4)}d
+                    {open ? (
+                        <IconCaretDown size={20} style={{ flexShrink: 0 }} />
+                    ) : (
+                        <IconCaretRight size={20} style={{ flexShrink: 0 }} />
+                    )}
+                    <Text
+                        c="white"
+                        truncate="end"
+                        style={{
+                            lineHeight: "20px",
+                            fontSize: "20px",
+                            width: "max-content",
+                            padding: "0px 5px 0px 5px",
+
+                            textWrap: "nowrap",
+                        }}
+                        fw={600}
+                    >
+                        {eventGroup.count} File
+                        {eventGroup.count !== 1 ? "s" : ""}{" "}
+                        {eventGroup.action.slice(4)}d
+                    </Text>
+                </Box>
+                <Box style={{ flexGrow: 1 }} />
+                <Text
+                    className="event-time-string"
+                    fw={viewing ? 600 : 400}
+                    c={viewing ? "white" : ""}
+                    onClick={() =>
+                        dispatch({
+                            type: "set_past_time",
+                            past: viewing
+                                ? null
+                                : new Date(eventGroup.events[0].Timestamp),
+                        })
+                    }
+                >
+                    {timeStr}
                 </Text>
-                <Text style={{ textWrap: "nowrap" }}>{timeStr}</Text>
             </Box>
             <Box
                 className="file-history-detail-accordion"
                 mod={{ "data-open": open.toString() }}
-                style={{ height: open ? eventGroup.count * 30 + 25 : 0 }}
+                style={{ height: open ? eventGroup.count * 30 + 35 : 0 }}
             >
                 <Box className={"file-history-detail"}>
                     {eventGroup.events.map((e) => {
-                        const fileFolderPath = e.Path.slice(
-                            e.Path.indexOf(":") + 1,
-                            e.Path.lastIndexOf("/")
-                        );
-                        console.log(e.Path);
+                        const fromFolder = portableToFolderName(e.FromPath);
+                        const toFolder = portableToFolderName(e.Path);
 
-                        const fileFolderName = fileFolderPath.slice(
-                            fileFolderPath.lastIndexOf("/") + 1
-                        );
-
-                        const fileName = e.Path.slice(
-                            e.Path.lastIndexOf("/") + 1
-                        );
-
-                        let moveDirection;
-                        console.log(fileFolderName);
-                        if (
-                            e.Action === "fileCreate" &&
-                            fileFolderName === filePath
-                        ) {
-                        }
+                        const fromFile = fileBase(e.FromPath);
+                        const toFile = fileBase(e.Path);
 
                         return (
                             <Box
                                 key={`${e.Path}-${e.millis}`}
                                 className="history-detail-action-row"
                             >
-                                {e.Action === "fileMove" && (
-                                    <IconFile className="icon-noshrink" />
-                                )}
-                                <Text
-                                    fw={550}
-                                    c="white"
-                                    truncate="end"
-                                    style={{
-                                        textWrap: "nowrap",
-                                        paddingRight: 6,
-                                        flexShrink: 1,
-                                    }}
-                                >
-                                    {e.fileName}
-                                </Text>
+                                {e.Action === "fileMove" &&
+                                    folderName === fromFolder && (
+                                        <FileIcon
+                                            id={e.FromFileId}
+                                            fileName={fromFile}
+                                            Icon={IconFile}
+                                            usr={usr}
+                                        />
+                                    )}
+                                {e.Action === "fileMove" &&
+                                    folderName !== fromFolder && (
+                                        <FileIcon
+                                            id={e.FromFileId}
+                                            fileName={fromFolder}
+                                            Icon={IconFolder}
+                                            usr={usr}
+                                            as={
+                                                toFile !== fromFile
+                                                    ? fromFile
+                                                    : ""
+                                            }
+                                        />
+                                    )}
                                 {e.Action === "fileCreate" && (
-                                    <IconFilePlus className="icon-noshrink" />
+                                    <FileIcon
+                                        id={e.FileId}
+                                        fileName={toFile}
+                                        Icon={IconFilePlus}
+                                        usr={usr}
+                                    />
                                 )}
                                 {e.Action === "fileDelete" && (
-                                    <IconFileMinus className="icon-noshrink" />
+                                    <FileIcon
+                                        fileName={fromFile}
+                                        Icon={IconFileMinus}
+                                        id={e.FromFileId}
+                                        usr={usr}
+                                    />
+                                    // <IconFileMinus className="icon-noshrink" />
+                                )}
+                                {e.Action === "fileRestore" && (
+                                    <FileIcon
+                                        fileName={toFile}
+                                        Icon={IconReorder}
+                                        id={e.FileId}
+                                        usr={usr}
+                                    />
+                                    // <IconFileMinus className="icon-noshrink" />
                                 )}
                                 {e.Action === "fileMove" && (
                                     <IconArrowRight className="icon-noshrink" />
                                 )}
-                                {e.Action === "fileMove" && (
-                                    <IconFolder className="icon-noshrink" />
-                                )}
-                                <Text
-                                    fw={550}
-                                    c="white"
-                                    style={{ flexGrow: 1, paddingLeft: 2 }}
-                                    truncate="end"
-                                >
-                                    {eventGroup.action === "fileMove"
-                                        ? friendlyFolderName(
-                                              fileFolderName,
-                                              "",
-                                              usr
-                                          )
-                                        : fileName}
-                                </Text>
+
+                                {e.Action === "fileMove" &&
+                                    folderName === toFolder && (
+                                        <FileIcon
+                                            id={e.FileId}
+                                            fileName={toFile}
+                                            Icon={IconFile}
+                                            usr={usr}
+                                        />
+                                    )}
+
+                                {e.Action === "fileMove" &&
+                                    folderName !== toFolder && (
+                                        <FileIcon
+                                            id={e.FileId}
+                                            fileName={toFolder}
+                                            Icon={IconFolder}
+                                            usr={usr}
+                                            as={
+                                                toFile !== fromFile
+                                                    ? toFile
+                                                    : ""
+                                            }
+                                        />
+                                    )}
+
                                 <Text style={{ textWrap: "nowrap" }}>
                                     {new Date(e.millis).toLocaleTimeString()}
                                 </Text>
@@ -335,7 +470,15 @@ const HistoryRow = ({
     );
 };
 
-function FileHistory({ fileId }: { fileId: string }) {
+function FileHistory({
+    fileId,
+    timestamp,
+    dispatch,
+}: {
+    fileId: string;
+    timestamp: number;
+    dispatch: FBDispatchT;
+}) {
     const { authHeader, usr }: UserContextT = useContext(userContext);
     const [fileHistory, setFileHistory]: [
         fileHistory: FileEventT[],
@@ -347,7 +490,7 @@ function FileHistory({ fileId }: { fileId: string }) {
         getFileHistory(fileId, authHeader).then((r) =>
             setFileHistory(r.events)
         );
-    }, [fileId]);
+    }, [fileId, timestamp]);
 
     const { createEvent, eventGroups } = useMemo(() => {
         if (!fileHistory || !fileHistory.length) {
@@ -355,67 +498,38 @@ function FileHistory({ fileId }: { fileId: string }) {
         }
 
         const createEvent = fileHistory.shift();
-        if (createEvent.FileId === usr.homeId) {
-            createEvent.fileName = "Home";
-        } else if (createEvent.FileId === usr.trashId) {
-            createEvent.fileName = "Trash";
-        } else {
-            let lastSlash = createEvent.Path.lastIndexOf("/");
 
-            createEvent.fileName =
-                lastSlash !== createEvent.Path.length
-                    ? createEvent.Path.slice(lastSlash + 1)
-                    : createEvent.Path.slice(createEvent.Path.indexOf(":") + 1);
-        }
-
-        const groupMap = new Map<number, FileEventT[]>();
-        const filenameMap = new Map<string, string>();
+        const groupMap = new Map<string, FileEventT[]>();
         fileHistory.forEach((e) => {
             let millis = Date.parse(e.Timestamp);
-            let groupMillis =
-                Math.floor((millis - (millis % 1000)) / 6000) * 6000;
+            let groupMillis = millis - (millis % 60000);
 
             e.millis = millis;
-            let group = groupMap.get(groupMillis);
+            const groupKey = `${groupMillis}-${e.Action}`;
+            let group = groupMap.get(groupKey);
             if (group === undefined) {
                 group = [e];
             } else {
                 group.push(e);
             }
-            groupMap.set(groupMillis, group);
-            if (e.Path !== "") {
-                let name = e.Path.slice(e.Path.lastIndexOf("/") + 1);
-                if (e.Action === "fileCreate") {
-                    filenameMap.set(e.FileId, name);
-                } else if (e.Action === "fileMove") {
-                    let dir = e.Path.slice(0, e.Path.lastIndexOf("/"));
-                    if (dir !== createEvent.Path) {
-                        e.Path = e.fileName = filenameMap.get(e.FileId);
-                        e.fileName = e.fileName?.slice(
-                            e.fileName?.lastIndexOf("/") + 1
-                        );
-                    } else {
-                        e.oldPath = filenameMap.get(e.FileId);
-                    }
-                    filenameMap.set(e.SecondaryFileId, name);
-                }
-            } else {
-                e.Path = filenameMap.get(e.FileId);
-            }
+            groupMap.set(groupKey, group);
         });
 
         const groups = Array.from(groupMap.values());
 
         return {
             createEvent: createEvent,
-            eventGroups: groups.map((g) => {
-                return {
-                    count: g.length,
-                    action: g[0].Action,
-                    time: g[0].millis,
-                    events: g,
-                };
-            }),
+            eventGroups: groups
+                .map((g) => {
+                    g.sort((a, b) => b.millis - a.millis);
+                    return {
+                        count: g.length,
+                        action: g[0].Action,
+                        time: g[0].millis,
+                        events: g,
+                    };
+                })
+                .sort((a, b) => b.time - a.time),
         };
     }, [fileHistory]);
 
@@ -432,34 +546,43 @@ function FileHistory({ fileId }: { fileId: string }) {
                 flexDirection: "column",
                 alignItems: "center",
                 padding: 10,
+                overflow: "scroll",
+                height: 200,
+                flexGrow: 1,
             }}
         >
+            {eventGroups.map((eg) => {
+                return (
+                    <HistoryRow
+                        key={eg.events[0].FileId + eg.time}
+                        eventGroup={eg}
+                        folderPath={createEvent.Path}
+                        viewing={eg.time === timestamp}
+                        usr={usr}
+                        dispatch={dispatch}
+                    />
+                );
+            })}
             <Box
                 style={{
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
                     padding: 10,
+                    paddingTop: 40,
                 }}
             >
-                <IconFolder />
-                <Text fw={600} style={{ padding: 5 }}>
-                    {createEvent.fileName}
-                </Text>
+                <FileIcon
+                    id={createEvent.FileId}
+                    fileName={createEvent.Path}
+                    Icon={IconFolder}
+                    usr={usr}
+                />
+
                 <Text style={{ textWrap: "nowrap" }}>
                     created on {createTimeString}
                 </Text>
             </Box>
-            {eventGroups.map((eg) => {
-                return (
-                    <HistoryRow
-                        key={eg.events[0].FileId + eg.time}
-                        eventGroup={eg}
-                        filePath={createEvent.Path}
-                        usr={usr}
-                    />
-                );
-            })}
         </Box>
     );
 }

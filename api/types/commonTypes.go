@@ -54,7 +54,7 @@ func (t *SafeTime) UnmarshalBSONValue(bt bsontype.Type, data []byte) error {
 	return nil
 }
 
-func FromSaftTimeStr(timeStr string) (t time.Time, err error) {
+func FromSafeTimeStr(timeStr string) (t time.Time, err error) {
 	ti, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", timeStr)
 	if err != nil {
 		return

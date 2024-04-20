@@ -6,21 +6,21 @@ import {
     useMemo,
     useRef,
     useState,
-} from 'react';
-import { VariableSizeList as List } from 'react-window';
+} from "react";
+import { VariableSizeList as List } from "react-window";
 
-import { Box, Loader, Menu, MenuTarget, Text, Tooltip } from '@mantine/core';
+import { Box, Loader, Menu, MenuTarget, Text, Tooltip } from "@mantine/core";
 
 import {
     MediaDataT,
     MediaWrapperProps,
     FileInfoT,
     UserContextT,
-} from '../types/Types';
-import { ColumnBox, RowBox } from '../Pages/FileBrowser/FilebrowserStyles';
-import { GetFileInfo } from '../api/FileBrowserApi';
-import { MediaImage } from './PhotoContainer';
-import { userContext } from '../Context';
+} from "../types/Types";
+import { ColumnBox, RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
+import { GetFileInfo } from "../api/FileBrowserApi";
+import { MediaImage } from "./PhotoContainer";
+import { userContext } from "../Context";
 import {
     IconHome,
     IconTrash,
@@ -28,11 +28,11 @@ import {
     IconPhoto,
     IconPhotoScan,
     IconUser,
-} from '@tabler/icons-react';
-import { StyledLoaf } from './Crumbs';
-import './galleryStyle.css';
-import { useResize } from './hooks';
-import { GalleryAction } from '../Pages/Gallery/GalleryLogic';
+} from "@tabler/icons-react";
+import { StyledLoaf } from "./Crumbs";
+import "./galleryStyle.css";
+import { useResize } from "./hooks";
+import { GalleryAction } from "../Pages/Gallery/GalleryLogic";
 
 const MultiFileMenu = ({
     filesInfo,
@@ -55,15 +55,15 @@ const MultiFileMenu = ({
     }
 
     const FileRows = filesInfo.map((v) => {
-        const parts: any[] = v.pathFromHome.split('/');
-        if (parts[0] === 'HOME') {
+        const parts: any[] = v.pathFromHome.split("/");
+        if (parts[0] === "HOME") {
             parts[0] = <IconHome />;
-        } else if (parts[0] === 'TRASH') {
+        } else if (parts[0] === "TRASH") {
             parts[0] = <IconTrash />;
-        } else if (parts[0] === 'SHARE') {
+        } else if (parts[0] === "SHARE") {
             parts[0] = <IconUser />;
         } else {
-            console.error('Unknown filepath base type');
+            console.error("Unknown filepath base type");
             return;
         }
 
@@ -85,7 +85,7 @@ const MultiFileMenu = ({
             >
                 <Menu.Label>Multiple Files</Menu.Label>
                 {loading && showLoader && (
-                    <ColumnBox style={{ justifyContent: 'center', height: 40 }}>
+                    <ColumnBox style={{ justifyContent: "center", height: 40 }}>
                         <Loader color="white" size={20} />
                     </ColumnBox>
                 )}
@@ -98,7 +98,7 @@ const MultiFileMenu = ({
                                     e.stopPropagation();
                                     window.open(
                                         `/files/${f.parentFolderId}?jumpTo=${f.id}`,
-                                        '_blank'
+                                        "_blank"
                                     );
                                 }}
                             >
@@ -124,12 +124,12 @@ const goToFolder = async (
     if (fileIds.length === 1) {
         const fileInfo: FileInfoT = await GetFileInfo(
             fileIds[0],
-            '',
+            "",
             authHeader
         );
         window.open(
             `/files/${fileInfo.parentFolderId}?jumpTo=${fileInfo.id}`,
-            '_blank'
+            "_blank"
         );
         return;
     }
@@ -138,7 +138,7 @@ const goToFolder = async (
     if (filesInfo.length === 0) {
         setLoading(true);
         const fileInfos = await Promise.all(
-            fileIds.map(async (v) => await GetFileInfo(v, '', authHeader))
+            fileIds.map(async (v) => await GetFileInfo(v, "", authHeader))
         );
         setFileInfo(fileInfos);
         setLoading(false);
@@ -176,9 +176,9 @@ const StyledIcon = ({
         <ColumnBox
             reff={innerRef}
             style={{
-                width: 'max-content',
-                justifyContent: 'center',
-                height: 'max-content',
+                width: "max-content",
+                justifyContent: "center",
+                height: "max-content",
             }}
             onClick={(e) => {
                 e.stopPropagation();
@@ -189,10 +189,10 @@ const StyledIcon = ({
         >
             {Boolean(filesCount) && filesCount > 1 && (
                 <Text
-                    c={'black'}
-                    size={'10px'}
+                    c={"black"}
+                    size={"10px"}
                     fw={700}
-                    style={{ position: 'absolute', userSelect: 'none' }}
+                    style={{ position: "absolute", userSelect: "none" }}
                 >
                     {filesCount}
                 </Text>
@@ -200,7 +200,7 @@ const StyledIcon = ({
             <Icon
                 className="meta-icon"
                 style={{
-                    cursor: onClick ? 'pointer' : 'default',
+                    cursor: onClick ? "pointer" : "default",
                 }}
             />
         </ColumnBox>
@@ -233,8 +233,8 @@ function MediaInfoDisplay({
                 <Tooltip
                     label={
                         mediaData.fileIds.length === 1
-                            ? 'Visit File'
-                            : 'Visit Files'
+                            ? "Visit File"
+                            : "Visit Files"
                     }
                     refProp="innerRef"
                 >
@@ -289,20 +289,20 @@ const MediaWrapper = memo(
             <Box
                 className="preview-card-container"
                 mod={{
-                    'data-selecting': selecting.toString(),
-                    'data-selected': mediaData.selected.toString(),
+                    "data-selecting": selecting.toString(),
+                    "data-selected": mediaData.selected.toString(),
                 }}
                 ref={ref}
                 onClick={() => {
                     if (selecting) {
                         dispatch({
-                            type: 'set_selected',
+                            type: "set_selected",
                             mediaId: mediaData.mediaId,
                             selected: !mediaData.selected,
                         });
                         return;
                     }
-                    dispatch({ type: 'set_presentation', media: mediaData });
+                    dispatch({ type: "set_presentation", media: mediaData });
                 }}
                 onMouseOver={() => setHovering(true)}
                 onMouseLeave={() => setHovering(false)}
@@ -310,11 +310,11 @@ const MediaWrapper = memo(
                     e.stopPropagation();
                     e.preventDefault();
                     dispatch({
-                        type: 'set_menu_pos',
+                        type: "set_menu_pos",
                         pos: { x: e.clientX, y: e.clientY },
                     });
                     dispatch({
-                        type: 'set_menu_target',
+                        type: "set_menu_target",
                         targetId: mediaData.mediaId,
                     });
                 }}
@@ -325,11 +325,11 @@ const MediaWrapper = memo(
             >
                 <MediaImage
                     media={mediaData}
-                    quality={'thumbnail'}
+                    quality={"thumbnail"}
                     lazy={true}
                     containerStyle={{
                         height: scale,
-                        width: '100%',
+                        width: "100%",
                     }}
                 />
                 <MediaInfoDisplay
@@ -381,8 +381,8 @@ export const BucketCards = ({
     });
 
     return (
-        <RowBox style={{ justifyContent: 'center' }}>
-            <RowBox style={{ height: scale + 4, width: '98%' }}>
+        <RowBox style={{ justifyContent: "center" }}>
+            <RowBox style={{ height: scale + 4, width: "98%" }}>
                 {mediaCards}
             </RowBox>
         </RowBox>
@@ -390,13 +390,13 @@ export const BucketCards = ({
 };
 
 const TitleWrapper = ({ bucketTitle }) => {
-    if (bucketTitle === '') {
+    if (bucketTitle === "") {
         return null;
     }
     return (
         <Text
             style={{ fontSize: 20, fontWeight: 600 }}
-            c={'white'}
+            c={"white"}
             mt={1}
             pl={0.5}
         >

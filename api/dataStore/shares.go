@@ -26,8 +26,8 @@ func (s fileShareData) GetOwner() types.Username { return s.Owner }
 func (s fileShareData) IsPublic() bool           { return s.Public }
 func (s *fileShareData) SetPublic(pub bool)      { s.Public = pub }
 
-func (s fileShareData) IsEnabled() bool       { return s.Enabled }
-func (s *fileShareData) SetEnabled(enab bool) { s.Enabled = enab }
+func (s fileShareData) IsEnabled() bool         { return s.Enabled }
+func (s *fileShareData) SetEnabled(enable bool) { s.Enabled = enable }
 
 // This should only be called once per execution of weblens, on initialization
 func LoadAllShares() {

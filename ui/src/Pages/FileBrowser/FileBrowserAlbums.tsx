@@ -35,7 +35,7 @@ import {
     getBlankMedia,
     UserContextT,
 } from "../../types/Types";
-import { ColumnBox, RowBox } from "./FilebrowserStyles";
+import { ColumnBox, RowBox } from "./FileBrowserStyles";
 import { userContext } from "../../Context";
 import { VariableSizeList } from "react-window";
 import { GetMediasByFolder } from "../../api/FileBrowserApi";

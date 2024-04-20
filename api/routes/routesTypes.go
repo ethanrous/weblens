@@ -100,6 +100,11 @@ type deleteRemoteBody struct {
 	RemoteId string `json:"remoteId"`
 }
 
+type restoreBody struct {
+	FileIds   []types.FileId `json:"fileIds"`
+	Timestamp int64          `json:"timestamp"`
+}
+
 type getFilesResp struct {
 	Files    dataStore.FileArray `json:"files"`
 	NotFound []types.FileId      `json:"notFound"`
@@ -117,10 +122,10 @@ type wsAuthorize struct {
 }
 
 type wsResponse struct {
-	MessageStatus string `json:"messageStatus"`
-	SubscribeKey  subId  `json:"subscribeKey"`
-	Content       []wsM  `json:"content"`
-	Error         string `json:"error"`
+	EventTag     string `json:"eventTag"`
+	SubscribeKey subId  `json:"subscribeKey"`
+	Content      []wsM  `json:"content"`
+	Error        string `json:"error"`
 
 	broadcastType subType
 }
@@ -264,3 +269,4 @@ var ErrCoreOriginate types.WeblensError = errors.New("core server attempted to p
 var ErrNoAddress types.WeblensError = errors.New("trying to make request to core without a core address")
 var ErrNoKey types.WeblensError = errors.New("trying to make request to core without an api key")
 var ErrNoBody types.WeblensError = errors.New("trying to read http body with no content")
+var ErrCasterDoubleClose types.WeblensError = errors.New("trying to close an already disabled caster")

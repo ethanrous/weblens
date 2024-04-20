@@ -13,28 +13,19 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 // Icons
 import {
-    IconArrowBackUp,
     IconArrowLeft,
-    IconCalendar,
-    IconChevronRight,
     IconDownload,
     IconFile,
     IconFileAnalytics,
     IconFolder,
     IconFolderPlus,
-    IconHistory,
     IconHome,
     IconInfoCircle,
     IconLogin,
-    IconPhotoPlus,
-    IconScan,
     IconSearch,
     IconServer,
-    IconShare,
-    IconSpiral,
     IconTrash,
     IconUpload,
-    IconUserMinus,
     IconUsers,
     IconX,
 } from "@tabler/icons-react";
@@ -56,19 +47,12 @@ import { notifications } from "@mantine/notifications";
 // Weblens
 import { userContext } from "../../Context";
 import {
-    DeleteFiles,
-    DeleteShare,
     GetFileInfo,
     GetFolderData,
-    NewWormhole,
     SearchFolder,
-    TrashFiles,
-    UnTrashFiles,
-    UpdateFileShare,
     getPastFolderInfo,
     moveFiles,
 } from "../../api/FileBrowserApi";
-import { dispatchSync } from "../../api/Websocket";
 import Crumbs, { StyledBreadcrumb } from "../../components/Crumbs";
 import HeaderBar from "../../components/HeaderBar";
 import { GlobalContextType, ItemProps } from "../../components/ItemDisplay";
@@ -79,7 +63,7 @@ import Presentation, {
     PresentationContainer,
 } from "../../components/Presentation";
 import UploadStatus, { useUploadStatus } from "../../components/UploadStatus";
-import "./style/filebrowserStyle.css";
+import "./style/fileBrowserStyle.css";
 import "../../components/style.css";
 import {
     AuthHeaderT,
@@ -93,7 +77,7 @@ import {
     UserContextT,
 } from "../../types/Types";
 import { humanFileSize } from "../../util";
-import { AlbumScoller } from "./FileBrowserAlbums";
+
 import {
     HandleDrop,
     HandleUploadButton,
@@ -103,12 +87,11 @@ import {
     downloadSelected,
     fileBrowserReducer,
     getRealId,
-    getSortFunc,
     useKeyDownFileBrowser,
     usePaste,
     useSubscribe,
 } from "./FileBrowserLogic";
-import { ShareBox } from "./FilebrowserShareMenu";
+
 import { GetFilesContext, GetItemsList } from "./FilesContext";
 import {
     ColumnBox,
@@ -121,8 +104,8 @@ import {
     TaskProgCard,
     TransferCard,
     WebsocketStatus,
-} from "./FilebrowserStyles";
-import { SelectIcon, WeblensButton } from "../../components/WeblensButton";
+} from "./FileBrowserStyles";
+import { WeblensButton } from "../../components/WeblensButton";
 import { FileRows } from "./FileRows";
 import {
     useResize,
@@ -133,8 +116,8 @@ import { WeblensProgress } from "../../components/WeblensProgress";
 import { IconFiles } from "@tabler/icons-react";
 import { FilesPane } from "./FileInfoPane";
 import { StatTree } from "./FileStatTree";
-import FileHistoryMenu, { SnapshotMenu } from "./FileHistory";
 import { FileSortBox } from "./FileSortBox";
+import { FileContextMenu } from "./FileMenu";
 
 function PasteImageDialogue({
     img,
@@ -299,7 +282,7 @@ const GlobalActions = memo(
                         flexDirection: "column",
                         alignItems: "center",
                         flexShrink: 0,
-                        padding: 20,
+                        padding: "10px 20px 5px 20px",
                     }}
                 >
                     <WeblensButton
@@ -311,8 +294,28 @@ const GlobalActions = memo(
                         width={"100%"}
                         allowRepeat={false}
                         Left={<IconHome className="button-icon" />}
+                        onMouseOver={() => {
+                            if (fb.draggingState !== 0) {
+                                dispatch({
+                                    type: "set_move_dest",
+                                    fileName: "Home",
+                                });
+                            }
+                        }}
+                        onMouseLeave={() => {
+                            if (fb.draggingState !== 0) {
+                                dispatch({
+                                    type: "set_move_dest",
+                                    fileName: "",
+                                });
+                            }
+                        }}
                         onMouseUp={(e) => {
                             e.stopPropagation();
+                            dispatch({
+                                type: "set_move_dest",
+                                fileName: "",
+                            });
                             if (fb.draggingState !== 0) {
                                 moveFiles(
                                     Array.from(fb.selected.keys()),
@@ -343,7 +346,15 @@ const GlobalActions = memo(
 
                     <WeblensButton
                         label="Trash"
-                        toggleOn={fb.folderInfo.id === usr?.trashId}
+                        toggleOn={
+                            fb.folderInfo.id === usr?.trashId &&
+                            fb.fbMode === "default"
+                        }
+                        disabled={
+                            fb.draggingState &&
+                            fb.folderInfo.id === usr?.trashId &&
+                            fb.fbMode === "default"
+                        }
                         allowRepeat={false}
                         Left={<IconTrash className="button-icon" />}
                         width={"100%"}
@@ -352,8 +363,28 @@ const GlobalActions = memo(
                                 ? `${trashSize}${trashUnits}`
                                 : ""
                         }
+                        onMouseOver={() => {
+                            if (fb.draggingState !== 0) {
+                                dispatch({
+                                    type: "set_move_dest",
+                                    fileName: "Trash",
+                                });
+                            }
+                        }}
+                        onMouseLeave={() => {
+                            if (fb.draggingState !== 0) {
+                                dispatch({
+                                    type: "set_move_dest",
+                                    fileName: "",
+                                });
+                            }
+                        }}
                         onMouseUp={(e) => {
                             e.stopPropagation();
+                            dispatch({
+                                type: "set_move_dest",
+                                fileName: "",
+                            });
                             if (fb.draggingState !== 0) {
                                 moveFiles(
                                     Array.from(fb.selected.keys()),
@@ -538,7 +569,7 @@ const UsageInfo = memo(
         }
 
         const selectedSize = selected.reduce((acc: number, x: FileInfoT) => {
-            return acc + x.size;
+            return acc + (x ? x.size : 0);
         }, 0);
 
         if (homeDirSize < currentFolderSize) {
@@ -898,383 +929,6 @@ function DraggingCounter({ dragging, dirMap, selected, dispatch }) {
     );
 }
 
-function FileContextMenu({
-    itemId,
-    fbState,
-    open,
-    setOpen,
-    menuPos,
-    dispatch,
-    wsSend,
-    authHeader,
-}: {
-    itemId: string;
-    fbState: FbStateT;
-    open;
-    setOpen;
-    menuPos;
-    dispatch;
-    wsSend;
-    authHeader;
-}) {
-    const { usr }: UserContextT = useContext(userContext);
-    const [shareMenu, setShareMenu] = useState(false);
-    const [historyMenu, setHistoryMenu] = useState(false);
-    const [addToAlbumMenu, setAddToAlbumMenu] = useState(false);
-    const itemInfo: FileInfoT = fbState.dirMap.get(itemId) || ({} as FileInfoT);
-    const selected: boolean = Boolean(fbState.selected.get(itemId));
-
-    useEffect(() => {
-        dispatch({ type: "set_block_focus", block: open });
-    }, [dispatch, open]);
-
-    const { items } = useMemo(() => {
-        if (fbState.dirMap.size === 0) {
-            return { items: [], anyDisplayable: false };
-        }
-        const itemIds = selected
-            ? Array.from(fbState.selected.keys())
-            : [itemId];
-        let mediaCount = 0;
-        const items = itemIds.map((i) => {
-            const item = fbState.dirMap.get(i);
-            if (!item) {
-                return null;
-            }
-            if (item.displayable || item.isDir) {
-                mediaCount++;
-            }
-            return item;
-        });
-
-        return { items: items.filter((i) => Boolean(i)), mediaCount };
-    }, [
-        itemId,
-        JSON.stringify(fbState.dirMap.get(itemId)),
-        selected,
-        fbState.selected,
-    ]);
-
-    let extraString;
-    if (selected && fbState.selected.size > 1) {
-        extraString = ` +${fbState.selected.size - 1} more`;
-    }
-
-    const wormholeId = useMemo(() => {
-        if (itemInfo.shares) {
-            const whs = itemInfo.shares.filter((s) => s.Wormhole);
-            if (whs.length !== 0) {
-                return whs[0].shareId;
-            }
-        }
-    }, [itemInfo.shares]);
-    const selectedMedia = useMemo(
-        () => items.filter((i) => i.displayable).map((i) => i.id),
-        [items]
-    );
-    const selectedFolders = useMemo(
-        () => items.filter((i) => i.isDir).map((i) => i.id),
-        [items]
-    );
-    const inTrash = fbState.folderInfo.id === usr.trashId;
-    const inShare = fbState.folderInfo.id === "shared";
-    let trashName;
-    if (inTrash) {
-        trashName = "Delete Forever";
-    } else if (inShare) {
-        trashName = "Unshare Me";
-    } else {
-        trashName = "Delete";
-    }
-
-    return (
-        <Menu
-            opened={open}
-            closeDelay={0}
-            openDelay={0}
-            onClose={() => setOpen(false)}
-            closeOnClickOutside={!(addToAlbumMenu || shareMenu)}
-            position="right-start"
-            closeOnItemClick={false}
-            transitionProps={{ duration: 100, exitDuration: 0 }}
-            styles={{
-                dropdown: {
-                    boxShadow: "0px 0px 20px -5px black",
-                    width: "max-content",
-                    padding: 10,
-                    border: 0,
-                },
-            }}
-        >
-            <Menu.Target>
-                <Box
-                    style={{
-                        position: "absolute",
-                        top: menuPos.y,
-                        left: menuPos.x,
-                    }}
-                />
-            </Menu.Target>
-
-            <Menu.Dropdown
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-            >
-                <Menu.Label>
-                    <RowBox style={{ gap: 8, justifyContent: "center" }}>
-                        {itemInfo.isDir && <IconFolder />}
-                        {!itemInfo.isDir && <IconFile />}
-                        <Text truncate="end" style={{ maxWidth: "250px" }}>
-                            {itemInfo.filename}
-                        </Text>
-                        {extraString}
-                    </RowBox>
-                </Menu.Label>
-
-                <Divider my={10} />
-
-                <Menu
-                    opened={addToAlbumMenu}
-                    trigger="hover"
-                    disabled={inTrash}
-                    offset={0}
-                    position="right-start"
-                    onOpen={() => setAddToAlbumMenu(true)}
-                    onClose={() => setAddToAlbumMenu(false)}
-                    styles={{
-                        dropdown: {
-                            boxShadow: "0px 0px 20px -5px black",
-                            width: "max-content",
-                            padding: 10,
-                            border: 0,
-                        },
-                    }}
-                >
-                    <Menu.Target>
-                        {/* <Box className={`menu-item${inTrash ? '-disabled' : ''}`}> */}
-                        <Box
-                            className="menu-item"
-                            mod={{ "data-disabled": inTrash.toString() }}
-                        >
-                            <IconPhotoPlus />
-                            <Text className="menu-item-text">Add to Album</Text>
-                            <IconChevronRight />
-                        </Box>
-                    </Menu.Target>
-                    <Menu.Dropdown onMouseOver={(e) => e.stopPropagation()}>
-                        <AlbumScoller
-                            selectedMedia={selectedMedia}
-                            selectedFolders={selectedFolders}
-                            authHeader={authHeader}
-                        />
-                    </Menu.Dropdown>
-                </Menu>
-
-                {/* Wormhole menu */}
-                {itemInfo.isDir && (
-                    <Box
-                        className="menu-item"
-                        mod={{ "data-disabled": inTrash.toString() }}
-                        style={{
-                            pointerEvents:
-                                fbState.selected.size > 1 && selected
-                                    ? "none"
-                                    : "all",
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (!wormholeId) {
-                                NewWormhole(itemId, authHeader);
-                            } else {
-                                navigator.clipboard.writeText(
-                                    `${window.location.origin}/wormhole/${wormholeId}`
-                                );
-                                setOpen(false);
-                                notifications.show({
-                                    message: "Link to wormhole copied",
-                                    color: "green",
-                                });
-                            }
-                        }}
-                    >
-                        <IconSpiral
-                            color={fbState.selected.size > 1 ? "grey" : "white"}
-                        />
-                        <Text
-                            className="menu-item-text"
-                            truncate="end"
-                            c={fbState.selected.size > 1 ? "grey" : "white"}
-                        >
-                            {!wormholeId ? "Attach" : "Copy"} Wormhole
-                        </Text>
-                    </Box>
-                )}
-
-                {/* Share menu */}
-                <Menu
-                    opened={shareMenu}
-                    disabled={inTrash}
-                    trigger="hover"
-                    closeOnClickOutside={false}
-                    offset={0}
-                    position="right-start"
-                    onOpen={() => setShareMenu(true)}
-                    onClose={() => setShareMenu(false)}
-                    styles={{
-                        dropdown: {
-                            boxShadow: "0px 0px 20px -5px black",
-                            width: "max-content",
-                            padding: 0,
-                            border: 0,
-                        },
-                    }}
-                >
-                    <Menu.Target>
-                        <Box
-                            className="menu-item"
-                            mod={{ "data-disabled": inTrash.toString() }}
-                        >
-                            <IconShare />
-                            <Text className="menu-item-text">Share</Text>
-                            <IconChevronRight />
-                        </Box>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <ShareBox candidates={items} authHeader={authHeader} />
-                    </Menu.Dropdown>
-                </Menu>
-
-                <Box
-                    className="menu-item"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        downloadSelected(
-                            selected
-                                ? Array.from(fbState.selected.keys()).map(
-                                      (fId) => fbState.dirMap.get(fId)
-                                  )
-                                : [fbState.dirMap.get(itemId)],
-                            dispatch,
-                            wsSend,
-                            authHeader,
-                            itemInfo.shares[0].shareId
-                        );
-                    }}
-                >
-                    <IconDownload />
-                    <Text className="menu-item-text">Download</Text>
-                </Box>
-                {historyMenu && <FileHistoryMenu fileId={itemInfo.id} />}
-                <Box
-                    className="menu-item"
-                    onClick={(e) => {
-                        e.stopPropagation();
-
-                        setHistoryMenu(true);
-                    }}
-                >
-                    <IconHistory />
-                    <Text className="menu-item-text">File History</Text>
-                </Box>
-
-                {itemInfo.isDir && (
-                    <Box
-                        className="menu-item"
-                        onClick={() =>
-                            dispatchSync(
-                                items.map((i: FileInfoT) => i.id),
-                                wsSend,
-                                true,
-                                true
-                            )
-                        }
-                    >
-                        <IconScan />
-                        <Text className="menu-item-text">Scan</Text>
-                    </Box>
-                )}
-
-                <Divider w={"100%"} my="sm" />
-
-                {wormholeId && (
-                    <Box
-                        className="menu-item"
-                        mod={{ "data-disabled": inTrash.toString() }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            DeleteShare(wormholeId, authHeader);
-                        }}
-                    >
-                        <IconSpiral color="#ff8888" />
-                        <Text
-                            className="menu-item-text"
-                            truncate="end"
-                            c="#ff8888"
-                        >
-                            Remove Wormhole
-                        </Text>
-                    </Box>
-                )}
-                {inTrash && (
-                    <Box
-                        className="menu-item"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            UnTrashFiles(
-                                items.map((i) => i.id),
-                                authHeader
-                            );
-                            setOpen(false);
-                        }}
-                    >
-                        <IconArrowBackUp />
-                        <Text className="menu-item-text">{"Put back"}</Text>
-                    </Box>
-                )}
-                <Box
-                    className="menu-item"
-                    onClick={(e) => {
-                        e.stopPropagation();
-
-                        if (inTrash) {
-                            DeleteFiles(
-                                items.map((i) => i.id),
-                                authHeader
-                            );
-                        } else if (inShare) {
-                            let thisShare =
-                                fbState.dirMap.get(itemId).shares[0];
-                            UpdateFileShare(
-                                thisShare.shareId,
-                                thisShare.Public,
-                                thisShare.Accessors.filter(
-                                    (u) => u !== usr.username
-                                ),
-                                authHeader
-                            );
-                        } else {
-                            TrashFiles(
-                                items.map((i: FileInfoT) => i.id),
-                                authHeader
-                            );
-                        }
-                        setOpen(false);
-                    }}
-                >
-                    {inShare ? (
-                        <IconUserMinus color="#ff4444" />
-                    ) : (
-                        <IconTrash color="#ff4444" />
-                    )}
-                    <Text className="menu-item-text" c="#ff4444">
-                        {trashName}
-                    </Text>
-                </Box>
-            </Menu.Dropdown>
-        </Menu>
-    );
-}
-
 function SingleFile({
     file,
     doDownload,
@@ -1358,7 +1012,7 @@ function Files({
     uploadDispatch;
     authHeader;
 }) {
-    const { usr, serverInfo }: UserContextT = useContext(userContext);
+    const { usr }: UserContextT = useContext(userContext);
     const nav = useNavigate();
     const [debouncedSearch] = useDebouncedValue(fb.searchContent, 200);
 
@@ -1465,9 +1119,7 @@ function Files({
                         dispatch({ type: "set_move_dest", fileName: itemName })
                     }
                 />
-                {serverInfo.role === "backup" && (
-                    <SnapshotMenu dispatch={dispatch} />
-                )}
+
                 <FileSearch fb={fb} searchRef={searchRef} dispatch={dispatch} />
                 <FileSortBox fb={fb} dispatch={dispatch} />
                 <WeblensButton
@@ -1515,10 +1167,8 @@ function Files({
                             fb.searchContent === debouncedSearch && (
                                 <GetStartedCard
                                     fb={fb}
-                                    moveSelectedTo={moveSelectedTo}
                                     dispatch={dispatch}
                                     uploadDispatch={uploadDispatch}
-                                    authHeader={authHeader}
                                     wsSend={wsSend}
                                 />
                             )) ||
@@ -1567,7 +1217,9 @@ function Files({
                         dispatch({ type: "set_file_info_menu", open: o })
                     }
                     selectedFiles={selectedInfo}
+                    timestamp={fb.viewingPast?.getTime()}
                     contentId={fb.contentId}
+                    dispatch={dispatch}
                 />
             </Box>
         </Box>
@@ -1851,6 +1503,9 @@ const FileBrowser = () => {
                     "",
                     authHeader
                 );
+                if (!folderData) {
+                    return;
+                }
                 SetFileData({ self: folderData }, dispatch, usr);
 
                 const searchResults = await SearchFolder(

@@ -204,11 +204,10 @@ func RecoverPanic(preText ...any) {
 
 // See Banish. Yoink is the same as Banish, but returns the value at i
 // in addition to the shortened slice.
-// Yoink *does not* maintain slice ordering
 func Yoink[T any](s []T, i int) ([]T, T) {
-	y := s[i]
-	s[i] = s[len(s)-1]
-	return s[:len(s)-1], y
+	t := s[i]
+	n := append(s[:i], s[i+1:]...)
+	return n, t
 }
 
 func YoinkFunc[T any](s []T, fn func(f T) bool) (rs []T, rt T, re bool) {
@@ -234,7 +233,7 @@ func OnlyUnique[T comparable](s []T) (rs []T) {
 
 // Banish removes the element at index, i, from the slice, s, in place and in constant time.
 //
-// Banish returns a slice of length len(s) - 1. The order of s will be modified
+// Banish returns a slice of length len(s) - 1
 func Banish[T any](s []T, i int) []T {
 	s, _ = Yoink(s, i)
 	return s
@@ -247,6 +246,11 @@ func AddToSet[T comparable](set []T, add []T) []T {
 		}
 	}
 	return set
+}
+
+func InsertFunc[S ~[]T, T any](ts S, t T, cmp func(a T, b T) int) S {
+	i, _ := slices.BinarySearchFunc(ts, t, cmp) // find slot
+	return slices.Insert(ts, i, t)
 }
 
 func Diff[T comparable](s1 []T, s2 []T) []T {
@@ -338,7 +342,7 @@ func FilterMap[T, V any](ts []T, fn func(T) (V, bool)) []V {
 	return result
 }
 
-// Perform type asertion on slice
+// Perform type assertion on slice
 func SliceConvert[V, T any](ts []T) []V {
 	vs := make([]V, len(ts))
 	for i := range ts {

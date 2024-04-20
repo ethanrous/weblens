@@ -42,7 +42,7 @@ import {
     UserInfoT,
 } from "../../types/Types";
 import { userContext } from "../../Context";
-import { ColumnBox, RowBox } from "../FileBrowser/FilebrowserStyles";
+import { ColumnBox, RowBox } from "../FileBrowser/FileBrowserStyles";
 import { Albums } from "./Albums";
 import { WeblensButton } from "../../components/WeblensButton";
 import useWeblensSocket from "../../api/Websocket";
