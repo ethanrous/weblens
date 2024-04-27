@@ -16,11 +16,18 @@ func (tp *taskPool) ScanDirectory(directory types.WeblensFile, recursive, deep b
 	t := newTask(ScanDirectoryTask, scanMeta, caster, nil)
 	tp.QueueTask(t)
 
+	if caster != nil {
+		caster.PushTaskUpdate(t.TaskId(), TaskCreated, types.TaskResult{
+			"taskType":      ScanDirectoryTask,
+			"directoryName": directory.Filename(),
+		})
+	}
+
 	return t
 }
 
-func (tp *taskPool) ScanFile(file types.WeblensFile, m types.Media, caster types.BroadcasterAgent) types.Task {
-	scanMeta := ScanMetadata{file: file, partialMedia: m}
+func (tp *taskPool) ScanFile(file types.WeblensFile, fileBytes []byte, caster types.BroadcasterAgent) types.Task {
+	scanMeta := ScanMetadata{file: file, fileBytes: fileBytes}
 	t := newTask(ScanFileTask, scanMeta, caster, nil)
 	tp.QueueTask(t)
 
@@ -78,6 +85,13 @@ func (tp *taskPool) Backup(remoteId string, requester types.Requester) types.Tas
 	return t
 }
 
+func (tp *taskPool) HashFile(f types.WeblensFile) types.Task {
+	t := newTask(HashFile, HashFileMeta{file: f}, nil, nil)
+	tp.QueueTask(t)
+
+	return t
+}
+
 func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 
 	tp.completedTasks.Add(1)
@@ -86,10 +100,14 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 	// we check if we are empty and finished, and if so wake any waiters.
 	if !tp.treatAsGlobal {
 		uncompletedTasks := tp.totalTasks.Load() - tp.completedTasks.Load()
+		// util.Debug.Println("Uncompleted tasks:", uncompletedTasks)
+		// util.Debug.Println("Waiter count:", tp.waiterCount.Load())
+		// util.Debug.Println("All queued:", tp.allQueuedFlag)
 
 		// Even if we are out of tasks, if we have not been told all tasks
 		// were queued, we do not wake the waiters
 		if uncompletedTasks == 0 && tp.waiterCount.Load() != 0 && tp.allQueuedFlag {
+			util.Debug.Println("Waking sleepers!")
 			tp.waiterGate.Unlock()
 
 			// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
@@ -151,11 +169,11 @@ func (tp *taskPool) ClearAllQueued() {
 
 func (tp *taskPool) NotifyTaskComplete(t *task, c types.BroadcasterAgent, note ...any) {
 	rp := t.taskPool.GetRootPool()
-	var rt *task
+	var rootTask *task
 	if rp != nil && rp.createdBy != nil {
-		rt = rp.createdBy
+		rootTask = rp.createdBy
 	} else {
-		rt = t
+		rootTask = t
 	}
 
 	var result types.TaskResult
@@ -170,7 +188,7 @@ func (tp *taskPool) NotifyTaskComplete(t *task, c types.BroadcasterAgent, note .
 		result["note"] = fmt.Sprint(note...)
 	}
 
-	c.PushTaskUpdate(rt.TaskId(), "sub_task_complete", result)
+	c.PushTaskUpdate(rootTask.TaskId(), SubTaskComplete, result)
 
 }
 
@@ -183,13 +201,13 @@ func (tp *taskPool) Wait(supplementWorker bool) {
 	// or
 	// All the tasks were queued, and they have all finished,
 	// so no need to wait, we can "wake up" instantly.
-	if tp.treatAsGlobal || (tp.allQueuedFlag && tp.totalTasks.Load() == 0) {
+	if tp.treatAsGlobal || (tp.allQueuedFlag && tp.totalTasks.Load()-tp.completedTasks.Load() == 0) {
 		return
 	}
 
 	// If we want to park another thread that is currently executing a task,
-	// e.g a directory scan waiting for the child filescans to complete,
-	// we want to add an additional worker to the pool temporarily to suppliment this one
+	// e.g a directory scan waiting for the child file scans to complete,
+	// we want to add an additional worker to the pool temporarily to supplement this one
 	if supplementWorker {
 		tp.workerPool.addReplacementWorker()
 	}
@@ -197,12 +215,15 @@ func (tp *taskPool) Wait(supplementWorker bool) {
 	_, file, line, _ := runtime.Caller(1)
 	util.Debug.Printf("Parking on worker pool from %s:%d\n", file, line)
 
+	tp.workerPool.busyCount.Add(-1)
 	tp.waiterCount.Add(1)
 	tp.waiterGate.Lock()
 	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
 	tp.waiterGate.Unlock()
-	util.Debug.Printf("Woke up, returning to %s:%d\n", file, line)
 	tp.waiterCount.Add(-1)
+	tp.workerPool.busyCount.Add(1)
+
+	util.Debug.Printf("Woke up, returning to %s:%d\n", file, line)
 
 	if supplementWorker {
 		tp.workerPool.removeWorker()

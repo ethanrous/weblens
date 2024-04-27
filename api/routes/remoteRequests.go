@@ -180,9 +180,10 @@ func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {
 	bs = append(bs, origFileBs)
 
 	if f.IsDisplayable() {
-		m, err := f.GetMedia()
-		if err != nil {
-			return nil, err
+		m := dataStore.MediaMapGet(f.GetContentId())
+
+		if m == nil {
+			return nil, dataStore.ErrNoMedia
 		}
 
 		resp, err := r.coreRequest("GET", "/media/"+string(m.Id())+"/thumbnail", nil, "/api")

@@ -17,7 +17,7 @@ export function GetUsersInfo(setAllUsersInfo, authHeader: AuthHeaderT) {
 }
 
 export function ActivateUser(username: string, authHeader: AuthHeaderT) {
-    return axios.post(`${API_ENDPOINT}/user`, JSON.stringify({ username: username }), { headers: authHeader });
+    return axios.post(`${API_ENDPOINT}/user`, JSON.stringify(username), { headers: authHeader });
 }
 
 export function DeleteUser(username: string, authHeader: AuthHeaderT) {

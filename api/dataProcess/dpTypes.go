@@ -34,8 +34,11 @@ type task struct {
 	result     types.TaskResult
 	persistent bool
 
-	err        any
-	timeout    time.Time
+	err any
+
+	timeout   time.Time
+	timerLock *sync.Mutex
+
 	exitStatus types.TaskExitStatus // "success", "error" or "cancelled"
 
 	// Function to be run to cleanup when the task completes, no matter the exit status
@@ -60,6 +63,7 @@ const (
 	TaskSuccess  types.TaskExitStatus = "success"
 	TaskCanceled types.TaskExitStatus = "cancelled"
 	TaskError    types.TaskExitStatus = "error"
+	TaskNoStatus types.TaskExitStatus = ""
 )
 
 const (
@@ -69,8 +73,15 @@ const (
 	WriteFileTask     types.TaskType = "write_file"
 	CreateZipTask     types.TaskType = "create_zip"
 	GatherFsStatsTask types.TaskType = "gather_filesystem_stats"
+	BackupTask        types.TaskType = "do_backup"
+	HashFile          types.TaskType = "hash_file"
+)
 
-	BackupTask types.TaskType = "do_backup"
+const (
+	TaskCreated     types.TaskEvent = "task_created"
+	TaskComplete    types.TaskEvent = "scan_complete"
+	SubTaskComplete types.TaskEvent = "sub_task_complete"
+	TaskProgress    types.TaskEvent = "task_progress_update"
 )
 
 // Worker pool //
@@ -123,6 +134,7 @@ type ScanMetadata struct {
 	file         types.WeblensFile
 	recursive    bool
 	deepScan     bool
+	fileBytes    []byte
 	partialMedia types.Media
 }
 
@@ -229,6 +241,20 @@ type BackupMeta struct {
 func (m BackupMeta) MetaString() string {
 	data := map[string]any{
 		"remoteId": m.remoteId,
+	}
+	bs, err := json.Marshal(data)
+	util.ErrTrace(err)
+
+	return string(bs)
+}
+
+type HashFileMeta struct {
+	file types.WeblensFile
+}
+
+func (m HashFileMeta) MetaString() string {
+	data := map[string]any{
+		"fileId": m.file.Id(),
 	}
 	bs, err := json.Marshal(data)
 	util.ErrTrace(err)

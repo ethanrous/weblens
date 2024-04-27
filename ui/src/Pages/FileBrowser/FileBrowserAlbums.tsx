@@ -29,16 +29,12 @@ import { notifications } from "@mantine/notifications";
 
 import { AddMediaToAlbum, CreateAlbum, GetAlbums } from "../../api/GalleryApi";
 import { MediaImage } from "../../components/PhotoContainer";
-import {
-    AlbumData,
-    AuthHeaderT,
-    getBlankMedia,
-    UserContextT,
-} from "../../types/Types";
+import { AlbumData, AuthHeaderT, UserContextT } from "../../types/Types";
 import { ColumnBox, RowBox } from "./FileBrowserStyles";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import { VariableSizeList } from "react-window";
 import { GetMediasByFolder } from "../../api/FileBrowserApi";
+import WeblensMedia from "../../classes/Media";
 
 const useEnter = (cb) => {
     const onEnter = useCallback(
@@ -63,7 +59,7 @@ function NewAlbum({
 }: {
     refreshAlbums: (doLoading) => Promise<void>;
 }) {
-    const { authHeader }: UserContextT = useContext(userContext);
+    const { authHeader }: UserContextT = useContext(UserContext);
 
     const [newAlbumName, setNewAlbumName] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -147,7 +143,7 @@ const SingleAlbum = memo(
         PartialApiCall: (albumId: string) => void;
         disabled?: boolean;
     }) => {
-        const { usr }: UserContextT = useContext(userContext);
+        const { usr }: UserContextT = useContext(UserContext);
         return (
             <Box
                 className="album-preview-row"
@@ -293,9 +289,7 @@ const fetchAlbums = (doLoading, setLoading, setAlbums, authHeader) => {
         setAlbums((prev: AlbumData[]) => {
             if (!prev) {
                 ret = ret.map((a) => {
-                    a.CoverMedia = getBlankMedia();
-                    a.CoverMedia.mediaId = a.Cover;
-
+                    a.CoverMedia = new WeblensMedia({ mediaId: a.Cover });
                     return a;
                 });
                 return ret;
@@ -307,11 +301,14 @@ const fetchAlbums = (doLoading, setLoading, setAlbums, authHeader) => {
                     const mediaSave = prev[i].CoverMedia;
                     prev[i] = album;
                     prev[i].CoverMedia = mediaSave;
-                    prev[i].CoverMedia.mediaId = album.Cover;
+                    prev[i].CoverMedia = new WeblensMedia({
+                        mediaId: album.Cover,
+                    });
                 } else {
                     if (!album.CoverMedia) {
-                        album.CoverMedia = getBlankMedia();
-                        album.CoverMedia.mediaId = album.Cover;
+                        album.CoverMedia = new WeblensMedia({
+                            mediaId: album.Cover,
+                        });
                     }
                     prev.push(album);
                 }
@@ -421,8 +418,9 @@ export const AlbumScoller = memo(
                     }
 
                     if (!prev[i].CoverMedia) {
-                        prev[i].CoverMedia = getBlankMedia();
-                        prev[i].CoverMedia.mediaId = mediaId;
+                        prev[i].CoverMedia = new WeblensMedia({
+                            mediaId: mediaId,
+                        });
                     }
                     prev[i].CoverMedia[quality] = data;
                     return [...prev];

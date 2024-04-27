@@ -14,7 +14,7 @@ func CreateAlbum(albumName string, owner types.User) error {
 		Id: albumId, Name: albumName,
 		Owner:          owner.GetUsername(),
 		ShowOnTimeline: true,
-		Medias:         []types.MediaId{},
+		Medias:         []types.ContentId{},
 		SharedWith:     []types.Username{},
 	}
 
@@ -24,7 +24,28 @@ func CreateAlbum(albumName string, owner types.User) error {
 	}
 
 	return nil
+}
 
+func VerifyAlbumsMedia() {
+	as := fddb.getAllAlbums()
+	if len(as) == 0 {
+		return
+	}
+
+	for _, a := range as {
+		deadMs := util.Filter(a.Medias, func(m types.ContentId) bool { return MediaMapGet(m) == nil })
+		err := fddb.removeMediaFromAlbum(a.Id, deadMs)
+		if err != nil {
+			panic(err)
+		}
+
+		if MediaMapGet(a.Cover) == nil {
+			err = fddb.SetAlbumCover(a.Id, "", "", "")
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 }
 
 func GetAlbum(albumId types.AlbumId) (a *AlbumData, err error) {
@@ -37,7 +58,7 @@ func (a AlbumData) CanUserAccess(username types.Username) bool {
 }
 
 func (a *AlbumData) AddMedia(ms []types.Media) (addedCount int, err error) {
-	mIds := util.Map(ms, func(m types.Media) types.MediaId { return m.Id() })
+	mIds := util.Map(ms, func(m types.Media) types.ContentId { return m.Id() })
 	a.Medias = util.AddToSet(a.Medias, mIds)
 	addedCount, err = fddb.addMediaToAlbum(a.Id, mIds)
 	return
@@ -48,16 +69,16 @@ func (a *AlbumData) Rename(newName string) (err error) {
 	return
 }
 
-func (a *AlbumData) RemoveMedia(ms []types.MediaId) (err error) {
-	a.Medias = util.Filter(a.Medias, func(s types.MediaId) bool { return !slices.Contains(ms, s) })
+func (a *AlbumData) RemoveMedia(ms []types.ContentId) (err error) {
+	a.Medias = util.Filter(a.Medias, func(s types.ContentId) bool { return !slices.Contains(ms, s) })
 	err = fddb.removeMediaFromAlbum(a.Id, ms)
 	return
 }
 
-func (a *AlbumData) SetCover(mediaId types.MediaId) error {
-	m, err := MediaMapGet(mediaId)
-	if err != nil {
-		return err
+func (a *AlbumData) SetCover(mediaId types.ContentId) error {
+	m := MediaMapGet(mediaId)
+	if m == nil {
+		return ErrNoMedia
 	}
 	colors, err := m.(*media).getProminentColors()
 	if err != nil {
@@ -80,30 +101,5 @@ func (a *AlbumData) AddUsers(usernames []types.Username) (err error) {
 func (a *AlbumData) RemoveUsers(usernames []types.Username) (err error) {
 	a.SharedWith = util.Filter(a.SharedWith, func(s types.Username) bool { return !slices.Contains(usernames, s) })
 	err = fddb.unshareAlbum(a.Id, usernames)
-	return
-}
-
-func (a *AlbumData) CleanMissingMedia() (err error) {
-	missing := util.Filter(a.Medias, func(s types.MediaId) bool { _, err := MediaMapGet(s); return err == ErrNoMedia })
-	if len(missing) != 0 {
-		err = fddb.removeMediaFromAlbum(a.Id, missing)
-		if err != nil {
-			return
-		}
-	}
-	a.Medias = util.Filter(a.Medias, func(s types.MediaId) bool { return !slices.Contains(missing, s) })
-
-	// If the cover is missing, reset to the first media, or none if no more media
-	if !slices.Contains(a.Medias, a.Cover) {
-		if len(a.Medias) != 0 {
-			err = a.SetCover(a.Medias[0])
-			if err != nil {
-				return
-			}
-		} else {
-			fddb.SetAlbumCover(a.Id, "", "", "")
-		}
-	}
-
 	return
 }

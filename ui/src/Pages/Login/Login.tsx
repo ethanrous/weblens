@@ -1,19 +1,9 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createUser, login } from "../../api/ApiFetch";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import { notifications } from "@mantine/notifications";
-import {
-    Box,
-    Button,
-    Fieldset,
-    Input,
-    Loader,
-    PasswordInput,
-    Space,
-    Tabs,
-    TextInput,
-} from "@mantine/core";
+import { Box, Input, Space, Tabs } from "@mantine/core";
 import { RowBox } from "../FileBrowser/FileBrowserStyles";
 import { WeblensButton } from "../../components/WeblensButton";
 import { useKeyDown } from "../../components/hooks";
@@ -83,7 +73,7 @@ const Login = () => {
     const [tab, setTab] = useState("login");
     const nav = useNavigate();
     const loc = useLocation();
-    const { authHeader, setCookie }: UserContextT = useContext(userContext);
+    const { authHeader, setCookie }: UserContextT = useContext(UserContext);
 
     useEffect(() => {
         if (loc.state == null && authHeader.Authorization !== "") {
@@ -109,7 +99,7 @@ const Login = () => {
                     "linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)",
             }}
         >
-            {/*<ScatteredPhotos />*/}
+            {/* <ScatteredPhotos /> */}
             <Box
                 style={{
                     width: 400,

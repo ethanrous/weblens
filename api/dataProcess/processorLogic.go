@@ -2,7 +2,12 @@ package dataProcess
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -17,31 +22,37 @@ import (
 
 func scanFile(t *task) {
 	meta := t.metadata.(ScanMetadata)
+	// util.Debug.Println("Starting scan file task", meta.file.GetAbsPath())
 
 	if !meta.file.IsDisplayable() {
 		t.ErrorAndExit(ErrNonDisplayable)
 	}
 
-	var err error
-	if meta.partialMedia == nil {
-		meta.partialMedia, err = dataStore.NewMedia(meta.file)
-		if err != nil {
-			t.ErrorAndExit(err)
-		}
+	contentId := meta.file.GetContentId()
+	if contentId == "" {
+		t.ErrorAndExit(fmt.Errorf("trying to scan file with no content id: %s", meta.file.GetAbsPath()))
+	}
+
+	meta.partialMedia = dataStore.NewMedia(contentId)
+	if meta.partialMedia.IsImported() && meta.file.Owner() == meta.partialMedia.GetOwner() {
+		meta.partialMedia.AddFile(meta.file)
+		t.success("Media already imported")
+		return
 	}
 
 	t.CheckExit()
 
 	t.SetErrorCleanup(func() {
-		media, err := meta.file.GetMedia()
-		if err != nil && err != dataStore.ErrNoMedia {
-			util.ErrTrace(err)
-		}
-		if media != nil {
-			media.Clean()
-		}
+		meta.partialMedia.Clean()
+		// media, err := meta.file.GetMedia()
+		// if err != nil && err != dataStore.ErrNoMedia {
+		// 	util.ErrTrace(err)
+		// }
+		// if media != nil {
+		// 	media.Clean()
+		// }
 
-		meta.file.ClearMedia()
+		// meta.file.ClearMedia()
 	})
 
 	t.metadata = meta
@@ -81,7 +92,7 @@ func createZipFromPaths(t *task) {
 	}
 	if zipExists {
 		t.setResult(types.TaskResult{"takeoutId": zipFile.Id().String()})
-		t.caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
+		t.caster.PushTaskUpdate(t.taskId, TaskComplete, t.result) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
@@ -133,7 +144,7 @@ func createZipFromPaths(t *task) {
 			byteDiff := bytes - prevBytes
 			timeNs := UPDATE_INTERVAL * sinceUpdate
 
-			t.caster.PushTaskUpdate(t.taskId, "create_zip_progress", types.TaskResult{"completedFiles": int(entries), "totalFiles": totalFiles, "speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second))})
+			t.caster.PushTaskUpdate(t.taskId, TaskProgress, types.TaskResult{"completedFiles": int(entries), "totalFiles": totalFiles, "speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second))})
 			prevBytes = bytes
 			sinceUpdate = 0
 		}
@@ -145,7 +156,7 @@ func createZipFromPaths(t *task) {
 	}
 
 	t.setResult(types.TaskResult{"takeoutId": zipFile.Id()})
-	t.caster.PushTaskUpdate(t.taskId, "zip_complete", t.result) // Let any client subscribers know we are done
+	t.caster.PushTaskUpdate(t.taskId, TaskComplete, t.result) // Let any client subscribers know we are done
 	t.success()
 }
 
@@ -221,10 +232,19 @@ func handleFileUploads(t *task) {
 	}
 
 	bufCaster.DisableAutoFlush()
+	usingFiles := []types.FileId{}
+	defer func() {
+		for _, fId := range usingFiles {
+			f := dataStore.FsTreeGet(fId)
+			if f != nil {
+				f.RemoveTask(t.TaskId())
+			}
+		}
+	}()
 
 WriterLoop:
 	for {
-		t.setTimeout(time.Now().Add(time.Second * 10))
+		t.setTimeout(time.Now().Add(time.Second))
 		select {
 		case signal := <-t.signalChan: // Listen for cancellation
 			if signal == 1 {
@@ -238,14 +258,17 @@ WriterLoop:
 				t.ErrorAndExit(err)
 			}
 
-			// We use `0-0/SIZE` as a fake "range header" to init the file into the map.
-			// This is so we can load them in quickly to avoid a premature exit due to the writer
-			// thinking its finished
 			if chunk.newFile != nil {
 				fileMap[chunk.newFile.Id()] = &fileUploadProgress{file: chunk.newFile, bytesWritten: 0, fileSizeTotal: total}
 				chunk.newFile.AddTask(t)
-				chunk.newFile.GetParent().AddTask(t)
+				util.InsertFunc(usingFiles, chunk.newFile.Id(), func(a, b types.FileId) int { return strings.Compare(a.String(), b.String()) })
 				continue WriterLoop
+			}
+
+			// We use `0-0/-1` as a fake "range header" to indicate that the upload for
+			// the specific file has had an error or been canceled, and should be removed.
+			if total == -1 {
+				delete(fileMap, chunk.FileId)
 			}
 
 			fileMap[chunk.FileId].bytesWritten += (max - min) + 1
@@ -255,17 +278,17 @@ WriterLoop:
 			if fileMap[chunk.FileId].bytesWritten >= fileMap[chunk.FileId].fileSizeTotal {
 				dataStore.AttachFile(fileMap[chunk.FileId].file, bufCaster)
 				fileMap[chunk.FileId].file.RemoveTask(t.TaskId())
-				fileMap[chunk.FileId].file.GetParent().RemoveTask(t.TaskId())
+				i, e := slices.BinarySearchFunc(usingFiles, chunk.FileId, func(a, b types.FileId) int { return strings.Compare(a.String(), b.String()) })
+				if e {
+					util.Banish(usingFiles, i)
+				}
 				delete(fileMap, chunk.FileId)
 			}
 			if len(fileMap) == 0 && len(meta.chunkStream) == 0 {
 				break WriterLoop
 			}
-
 			t.CheckExit()
-
 			continue WriterLoop
-
 		}
 	}
 
@@ -348,5 +371,48 @@ func gatherFilesystemStats(t *task) {
 	freeSpace := dataStore.GetFreeSpace(meta.rootDir.GetAbsPath())
 
 	t.setResult(types.TaskResult{"sizesByExtension": ret, "bytesFree": freeSpace})
+	t.success()
+}
+
+func hashFile(t *task) {
+	meta := t.metadata.(HashFileMeta)
+
+	if meta.file.IsDir() {
+		t.ErrorAndExit(dataStore.ErrDirNotAllowed, meta.file.GetAbsPath())
+	}
+
+	fileSize, err := meta.file.Size()
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
+	if fileSize == 0 {
+		t.success("Skipping file with no content", meta.file.GetAbsPath())
+		return
+	}
+
+	var contentId types.ContentId
+	fp, err := meta.file.Read()
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+	defer fp.Close()
+
+	// Read up to 1MB at a time
+	bufSize := math.Min(float64(fileSize), 1000*1000)
+
+	buf := make([]byte, int64(bufSize))
+
+	newHash := sha256.New()
+	_, err = io.CopyBuffer(newHash, fp, buf)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+	contentId = types.ContentId(base64.URLEncoding.EncodeToString(newHash.Sum(nil)))[:20]
+	err = dataStore.SetContentId(meta.file, contentId)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
 	t.success()
 }

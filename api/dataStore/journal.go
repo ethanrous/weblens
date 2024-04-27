@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,10 +33,14 @@ var eventMasks = []eventMask{}
 var masksLock = &sync.Mutex{}
 
 func journalWorker() {
-	log, err := os.OpenFile("/Users/ethan/Downloads/journal.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
-	if err != nil {
-		panic(err)
-	}
+	// var log *os.File
+	// var err error
+	// if util.IsDevMode() {
+	// 	log, err = os.OpenFile("/Users/ethan/Downloads/journal.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
 	for e := range jeStream {
 		masksLock.Lock()
 		index := slices.IndexFunc(eventMasks, func(m eventMask) bool { return m.path == e.postFilePath })
@@ -46,13 +51,25 @@ func journalWorker() {
 		}
 		masksLock.Unlock()
 
-		_, err := log.Write([]byte(fmt.Sprintf("[%s] %s %s -> %s\n", time.Now().Format("2-1-06 15:04:05"), e.action, e.preFilePath, e.postFilePath)))
-		if err != nil {
-			util.ShowErr(err)
-		}
+		// if log != nil {
+		// 	_, err := log.Write([]byte(fmt.Sprintf("[%s] %s %s -> %s\n", time.Now().Format("2-1-06 15:04:05"), e.action, e.preFilePath, e.postFilePath)))
+		// 	if err != nil {
+		// 		util.ShowErr(err)
+		// 	}
+		// }
 
 		switch e.action {
 		case FileCreate:
+			isD, err := isDirByPath(e.postFilePath)
+			if err != nil {
+				util.ShowErr(err)
+				continue
+			}
+
+			if isD && !strings.HasSuffix(e.postFilePath, "/") {
+				e.postFilePath += "/"
+			}
+
 			newFileId := generateFileId(e.postFilePath)
 			newFile := FsTreeGet(newFileId)
 			if newFile == nil {
@@ -87,17 +104,32 @@ func journalWorker() {
 				continue
 			}
 
-			fddb.newBackupFileRecord(backup)
+			err = fddb.newBackupFileRecord(backup)
+			if err != nil {
+				util.ShowErr(err)
+				continue
+			}
+
+			if !newFile.IsDir() {
+				tasker.HashFile(newFile)
+			}
 
 		case FileMove:
-			// oldFileId := generateFileId(e.preFilePath)
-			// oldFile := FsTreeGet(oldFileId)
+			isD, err := isDirByPath(e.postFilePath)
+			if err != nil {
+				util.ShowErr(err)
+				continue
+			}
+
+			if isD && !strings.HasSuffix(e.postFilePath, "/") {
+				e.postFilePath += "/"
+			}
 
 			newFileId := generateFileId(e.postFilePath)
 			newFile := FsTreeGet(newFileId)
 
 			if newFile == nil {
-				util.Error.Printf("failed to find file at %s while writing a file move journal", e.postFilePath)
+				util.Error.Printf("failed to find file with Id %s (%s) while writing a file move journal", newFileId, e.postFilePath)
 				continue
 			}
 
@@ -129,22 +161,23 @@ func newBackupFile(f types.WeblensFile, createEntry *fileJournalEntry) (*backupF
 		return nil, ErrBadJournalAction
 	}
 
-	contentId, err := handleFileContent(f)
-	if err != nil {
-		return nil, err
-	}
-
 	return &backupFile{
-		LocalId:    primitive.NewObjectID(),
-		IsDir:      f.IsDir(),
-		FileId:     f.Id(),
-		ContentId:  contentId,
+		LocalId: primitive.NewObjectID(),
+		IsDir:   f.IsDir(),
+		FileId:  f.Id(),
+		// ContentId:  contentId,
 		LastUpdate: createEntry.Timestamp,
 		Events:     []*fileJournalEntry{createEntry},
 	}, nil
 }
 
+func SetContentId(f types.WeblensFile, contentId types.ContentId) error {
+	f.(*weblensFile).contentId = contentId
+	return fddb.setContentId(f.Id(), contentId)
+}
+
 func journalFileCreate(newFile types.WeblensFile) *fileJournalEntry {
+	util.Debug.Println("Journal Create", newFile.GetAbsPath())
 	if newFile.Owner() == WEBLENS_ROOT_USER {
 		return nil
 	}
@@ -240,7 +273,7 @@ func GetPastFileInfo(folder types.WeblensFile, acc types.AccessMeta) ([]types.Fi
 	}
 
 	infos := util.FilterMap(backups, func(b backupFile) (types.FileInfo, bool) {
-		m, err := MediaMapGet(types.MediaId(b.ContentId[:8]))
+		// m, err := MediaMapGet(types.ContentId(b.ContentId[:8]))
 		if err != nil {
 			util.ShowErr(err)
 		}
@@ -248,11 +281,11 @@ func GetPastFileInfo(folder types.WeblensFile, acc types.AccessMeta) ([]types.Fi
 		tmpF := newWeblensFile(folder, filepath.Base(absPath), b.IsDir)
 		tmpF.pastFile = true
 		tmpF.contentId = b.ContentId
-		tmpF.media = m
+		// tmpF.media = m
 		if b.FileId != "" {
 			tmpF.currentId = b.FileId
 		} else {
-			child, err := contentRoot.GetChild(b.ContentId)
+			child, err := contentRoot.GetChild(string(b.ContentId))
 			if err != nil {
 				util.ErrTrace(err)
 				return types.FileInfo{}, false
@@ -398,7 +431,7 @@ func RestoreFiles(fileIds []types.FileId, timestamp time.Time) error {
 
 		addEventMask(eventMask{action: FileRestore, path: abs, backupId: backupFile.LocalId.Hex()})
 
-		os.Rename(filepath.Join(contentRoot.absolutePath, backupFile.ContentId), abs)
+		os.Rename(filepath.Join(contentRoot.absolutePath, string(backupFile.ContentId)), abs)
 		fsTreeInsert(restoredF, parent)
 		util.Debug.Println(latestEvent, backupFile.ContentId)
 	}

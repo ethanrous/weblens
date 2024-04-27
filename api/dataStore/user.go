@@ -40,11 +40,6 @@ func CreateUser(username types.Username, password string, isAdmin, autoActivate 
 	}
 	passHash := string(passHashBytes)
 
-	homeDir, err := CreateUserHomeDir(username)
-	if err != nil {
-		return err
-	}
-
 	newUser := user{
 		Username:  username,
 		Password:  passHash,
@@ -52,9 +47,17 @@ func CreateUser(username types.Username, password string, isAdmin, autoActivate 
 		Admin:     isAdmin,
 		Activated: autoActivate,
 
-		HomeFolder:  homeDir,
-		TrashFolder: homeDir.GetChildren()[0],
+		// HomeFolder:  homeDir,
+		// TrashFolder: homeDir.GetChildren()[0],
 	}
+
+	homeDir, err := CreateUserHomeDir(&newUser)
+	if err != nil {
+		return err
+	}
+
+	newUser.HomeFolder = homeDir
+	newUser.TrashFolder = homeDir.GetChildren()[0]
 
 	if len(userMap) == 0 {
 		newUser.Owner = true
@@ -119,6 +122,23 @@ func UserCount() int {
 	return len(userMap)
 }
 
+func ActivateUser(username types.Username) (err error) {
+	u := GetUser(username)
+	if u == nil {
+		return ErrNoUser
+	}
+
+	u.(*user).Activated = true
+
+	_, err = CreateUserHomeDir(u)
+	if err != nil {
+		return err
+	}
+
+	fddb.activateUser(username)
+	return
+}
+
 func getUsers() []types.User {
 	return util.MapToSliceMutate(userMap, func(un types.Username, u *user) types.User { return u })
 	// users := fddb.GetUsers()
@@ -134,6 +154,9 @@ func (store backupStore) GetUsers() []types.User {
 }
 
 func (u *user) GetUsername() types.Username {
+	if u == nil {
+		return ""
+	}
 	return u.Username
 }
 

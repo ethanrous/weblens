@@ -13,7 +13,7 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { getUsers, initServer } from "../../api/ApiFetch";
 import { useNavigate } from "react-router-dom";
 import { UserInfoT } from "../../types/Types";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 
 const UserSelect = ({
     users,
@@ -76,11 +76,17 @@ const UserSelect = ({
                 </Text>
                 <IconExclamationCircle color="white" />
             </Box>
-            <Text className="body-text" c="#ffffff">
+            <Text className="body-text" c="#ffffff" style={{ padding: 0 }}>
                 Select a user to make owner
             </Text>
             <Box
-                style={{ width: "100%", height: "max-content", flexShrink: 0 }}
+                style={{
+                    width: "100%",
+                    height: "max-content",
+                    maxHeight: 100,
+                    flexShrink: 0,
+                    overflow: "scroll",
+                }}
             >
                 {users.map((u) => {
                     return (
@@ -125,32 +131,35 @@ const Core = ({
 }) => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [serverName, setServerName] = useState(existingName);
+    const [serverName, setServerName] = useState(
+        existingName ? existingName : ""
+    );
     const [users, setUsers] = useState([]);
     const nav = useNavigate();
 
     useEffect(() => {
         getUsers(null).then((r) => {
-            setUsers(r.users);
+            setUsers(r);
         });
     }, []);
 
     const owner = useMemo(() => {
-        const owner = users.filter((u) => u.owner)[0];
+        const owner: UserInfoT = users.filter((u) => u.owner)[0];
         if (owner) {
-            setUsername(owner);
+            setUsername(owner.username);
         }
         return owner;
     }, [users]);
 
-    let ondeck;
+    let onDeck;
     if (page === "core") {
-        ondeck = "active";
+        onDeck = "active";
     } else if (page === "landing") {
-        ondeck = "next";
+        onDeck = "next";
     }
+
     return (
-        <Box className="setup-content-box" mod={{ "data-ondeck": ondeck }}>
+        <Box className="setup-content-box" mod={{ "data-onDeck": onDeck }}>
             <Box style={{ width: "100%" }}>
                 <WeblensButton
                     Left={<IconArrowLeft />}
@@ -226,9 +235,9 @@ const Core = ({
                     <Text className="body-text">Name This Weblens Server</Text>
                     <Input
                         className="weblens-input-wrapper"
-                        classNames={{ input: "weblens-input-wrapper" }}
+                        // classNames={{ input: "weblens-input-wrapper" }}
                         variant="unstyled"
-                        disabled={existingName !== ""}
+                        disabled={Boolean(existingName)}
                         value={serverName}
                         placeholder="My Radical Weblens Server"
                         onChange={(e) => {
@@ -280,14 +289,14 @@ const Backup = ({
     const [apiKey, setApiKey] = useState("");
     const nav = useNavigate();
 
-    let ondeck;
+    let onDeck;
     if (page === "backup") {
-        ondeck = "active";
+        onDeck = "active";
     } else if (page === "landing" || page === "core") {
-        ondeck = "next";
+        onDeck = "next";
     }
     return (
-        <Box className="setup-content-box" mod={{ "data-ondeck": ondeck }}>
+        <Box className="setup-content-box" mod={{ "data-onDeck": onDeck }}>
             <Box style={{ width: "100%" }}>
                 <WeblensButton
                     Left={<IconArrowLeft />}
@@ -365,22 +374,24 @@ const Landing = ({
     page: string;
     setPage: (page: string) => void;
 }) => {
-    let ondeck;
+    let onDeck;
     if (page === "landing") {
-        ondeck = "active";
+        onDeck = "active";
     } else if (page === "core" || page === "backup") {
-        ondeck = "prev";
+        onDeck = "prev";
     }
 
     return (
-        <Box className="setup-content-box" mod={{ "data-ondeck": ondeck }}>
+        <Box className="setup-content-box" mod={{ "data-onDeck": onDeck }}>
             <Text className="title-text">WEBLENS</Text>
             {/* <Text className="content-title-text">Set Up Weblens</Text> */}
             <WeblensButton
-                Left={<IconPackage size={"100%"} />}
+                Left={<IconPackage size={"100%"} style={{ flexShrink: 0 }} />}
                 label="Set Up Weblens Core"
                 centerContent
                 fontSize="40px"
+                width={450}
+                height={75}
                 onClick={() => setPage("core")}
             />
             <Text>Or...</Text>
@@ -397,10 +408,9 @@ const Landing = ({
 };
 
 const Setup = () => {
-    const { serverInfo } = useContext(userContext);
+    const { serverInfo } = useContext(UserContext);
     const [page, setPage] = useState("landing");
 
-    console.log(serverInfo);
     if (!serverInfo) {
         return null;
     }

@@ -13,6 +13,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// type initStore struct {
+// }
+
 type coreStore struct {
 }
 
@@ -21,10 +24,7 @@ type backupStore struct {
 }
 
 func NewStore(req types.Requester) types.Store {
-	if thisServer == nil {
-		panic("No store for u")
-	}
-	if thisServer.Role == types.Core {
+	if thisServer == nil || thisServer.Role == types.Core || thisServer.Role == types.Initialization {
 		return &coreStore{}
 	} else {
 		return &backupStore{
@@ -60,28 +60,48 @@ type WeblensDB struct {
 }
 
 type weblensFile struct {
-	id           types.FileId
+	// the main way to identify a file. A file id is generated via a hash of its relative filepath
+	id types.FileId
+
+	// The absolute path of the real file on disk
 	absolutePath string
-	filename     string
-	owner        types.User
-	size         int64
-	isDir        *bool
-	modifyDate   time.Time
-	media        types.Media
-	parent       *weblensFile
+
+	// Base of the filepath, the actual name of the file.
+	filename string
+
+	// The user to whom the file belongs.
+	owner types.User
+
+	// size in bytes of the file on the disk
+	size int64
+
+	// is the real file on disk a directory or regular file
+	isDir *bool
+
+	// The most recent time that this file was changes on the real filesystem
+	modifyDate time.Time
+
+	// media        types.Media
+	// This is the file id of the file in the .content folder that either holds
+	// or points to the real bytes on disk content that this file should read from
+	contentId types.ContentId
+
+	// Pointer to the directory that this file belongs
+	parent *weblensFile
 
 	// If we already have added the file to the watcher
 	// See fileWatch.go
 	watching bool
 
+	// If this file is a directory, these are the files that are housed by this directory.
 	childLock *sync.Mutex
 	children  []*weblensFile
 
 	// array of tasks that currently claim are using this file.
 	// TODO: allow single task-claiming of a file for file
 	// operations required to be "atomic"
-	tasksUsing []types.Task
-	tasksLock  *sync.Mutex
+	taskUsing types.Task
+	tasksLock *sync.Mutex
 
 	// the shares that this file belongs to
 	shares []types.Share
@@ -99,10 +119,6 @@ type weblensFile struct {
 	// If the file is a past file, and existed at the real id above, this
 	// current fileId is the location of the content right now, not in the past.
 	currentId types.FileId
-
-	// This is the file id of the file in the .content folder that either holds
-	// or points to the real bytes on disk content that this file should read from
-	contentId string
 
 	// this file is currently existing outside of the file tree, most likely
 	// in the /tmp directory
@@ -122,21 +138,23 @@ type portablePath struct {
 }
 
 type media struct {
-	MediaId          types.MediaId  `json:"mediaId"`
-	FileIds          []types.FileId `json:"fileIds"`
-	ContentId        string         `json:"contentId"`
-	ThumbnailCacheId types.FileId   `json:"thumbnailCacheId"`
-	FullresCacheIds  []types.FileId `json:"thumbnailCacheIds"`
-	BlurHash         string         `json:"blurHash"`
-	Owner            *user          `json:"owner"`
-	MediaWidth       int            `json:"mediaWidth"`
-	MediaHeight      int            `json:"mediaHeight"`
-	CreateDate       time.Time      `json:"createDate"`
-	MimeType         string         `json:"mimeType"`
-	RecognitionTags  []string       `json:"recognitionTags"`
-	PageCount        int            `json:"pageCount"`
-	MediaType        *mediaType     `json:"mediaType"`
-	Imported         bool           `json:"imported"`
+	MediaId          primitive.ObjectID `json:"-" bson:"_id"`
+	ContentId        types.ContentId    `json:"mediaId" bson:"mediaId"`
+	FileIds          []types.FileId     `json:"fileIds" bson:"fileIds"`
+	FullresCacheIds  []types.FileId     `json:"fullresCacheIds" bson:"fullresCacheIds"`
+	ThumbnailCacheId types.FileId       `json:"thumbnailCacheId" bson:"thumbnailCacheId"`
+	CreateDate       time.Time          `json:"createDate" bson:"createDate"`
+	Owner            *user              `json:"owner" bson:"owner"`
+	MediaWidth       int                `json:"mediaWidth" bson:"mediaWidth"`
+	MediaHeight      int                `json:"mediaHeight" bson:"mediaHeight"`
+	PageCount        int                `json:"pageCount" bson:"pageCount"`
+	BlurHash         string             `json:"blurHash" bson:"blurHash"`
+	MimeType         string             `json:"mimeType" bson:"mimeType"`
+	RecognitionTags  []string           `json:"recognitionTags" bson:"recognitionTags"`
+	Imported         bool               `json:"imported" bson:"imported"`
+	Hidden           bool               `json:"hidden" bson:"hidden"`
+
+	mediaType *mediaType
 
 	rotate   string
 	imgBytes []byte
@@ -149,18 +167,19 @@ type media struct {
 }
 
 type marshalableMedia struct {
-	MediaId          types.MediaId  `bson:"mediaId" json:"mediaId"`
-	FileIds          []types.FileId `bson:"fileIds" json:"fileIds"`
-	ThumbnailCacheId types.FileId   `bson:"thumbnailCacheId" json:"thumbnailCacheId"`
-	FullresCacheIds  []types.FileId `bson:"fullresCacheIds" json:"fullresCacheIds"`
-	BlurHash         string         `bson:"blurHash" json:"blurHash"`
-	Owner            types.Username `bson:"owner" json:"owner"`
-	MediaWidth       int            `bson:"width" json:"mediaWidth"`
-	MediaHeight      int            `bson:"height" json:"mediaHeight"`
-	CreateDate       time.Time      `bson:"createDate" json:"createDate"`
-	MimeType         string         `bson:"mimeType" json:"mimeType"`
-	RecognitionTags  []string       `bson:"recognitionTags" json:"recognitionTags"`
-	PageCount        int            `bson:"pageCount" json:"pageCount"` // for pdfs, etc.
+	MediaId          types.ContentId `bson:"mediaId" json:"mediaId"`
+	FileIds          []types.FileId  `bson:"fileIds" json:"fileIds"`
+	ThumbnailCacheId types.FileId    `bson:"thumbnailCacheId" json:"thumbnailCacheId"`
+	FullresCacheIds  []types.FileId  `bson:"fullresCacheIds" json:"fullresCacheIds"`
+	BlurHash         string          `bson:"blurHash" json:"blurHash"`
+	Owner            types.Username  `bson:"owner" json:"owner"`
+	MediaWidth       int             `bson:"width" json:"mediaWidth"`
+	MediaHeight      int             `bson:"height" json:"mediaHeight"`
+	CreateDate       time.Time       `bson:"createDate" json:"createDate"`
+	MimeType         string          `bson:"mimeType" json:"mimeType"`
+	RecognitionTags  []string        `bson:"recognitionTags" json:"recognitionTags"`
+	PageCount        int             `bson:"pageCount" json:"pageCount"` // for pdfs, etc.
+	Hidden           bool            `bson:"hidden" json:"hidden"`
 }
 
 type mediaType struct {
@@ -256,15 +275,15 @@ type trashEntry struct {
 }
 
 type AlbumData struct {
-	Id             types.AlbumId    `bson:"_id"`
-	Name           string           `bson:"name"`
-	Owner          types.Username   `bson:"owner"`
-	Cover          types.MediaId    `bson:"cover"`
-	PrimaryColor   string           `bson:"primaryColor"`
-	SecondaryColor string           `bson:"secondaryColor"`
-	Medias         []types.MediaId  `bson:"medias"`
-	SharedWith     []types.Username `bson:"sharedWith"`
-	ShowOnTimeline bool             `bson:"showOnTimeline"`
+	Id             types.AlbumId     `bson:"_id"`
+	Name           string            `bson:"name"`
+	Owner          types.Username    `bson:"owner"`
+	Cover          types.ContentId   `bson:"cover"`
+	PrimaryColor   string            `bson:"primaryColor"`
+	SecondaryColor string            `bson:"secondaryColor"`
+	Medias         []types.ContentId `bson:"medias"`
+	SharedWith     []types.Username  `bson:"sharedWith"`
+	ShowOnTimeline bool              `bson:"showOnTimeline"`
 }
 
 type ApiKeyInfo struct {
@@ -302,7 +321,7 @@ type AlreadyExistsError WeblensFileError
 
 var ErrNotUsingRedis = errors.New("not using redis")
 
-var ErrDirNotAllowed WeblensFileError = errors.New("attempted to perform action on directory that does not accept directories")
+var ErrDirNotAllowed WeblensFileError = errors.New("attempted to perform action using a directory, where the action does not support directories")
 var ErrDirectoryRequired WeblensFileError = errors.New("attempted to perform an action that requires a directory, but found regular file")
 var ErrDirAlreadyExists AlreadyExistsError = errors.New("directory already exists in destination location")
 
@@ -340,3 +359,5 @@ var ErrNoBackup = errors.New("no prior backups exist")
 var ErrBadJournalAction = errors.New("unknown journal action type")
 
 var ErrAlreadyWatching = errors.New("trying to watch directory that is already being watched")
+
+var ErrBadTask = errors.New("did not get expected task id while trying to unlock file")

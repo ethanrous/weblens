@@ -11,16 +11,10 @@ import {
     Space,
     Text,
 } from "@mantine/core";
-import {
-    IconClearAll,
-    IconPhoto,
-    IconTrash,
-    IconUsersGroup,
-} from "@tabler/icons-react";
+import { IconPhoto, IconTrash, IconUsersGroup } from "@tabler/icons-react";
 
 import { ColumnBox } from "../FileBrowser/FileBrowserStyles";
 import {
-    CleanAlbum,
     DeleteAlbum,
     GetAlbumMedia,
     GetAlbums,
@@ -32,18 +26,17 @@ import {
 import {
     AlbumData,
     AuthHeaderT,
-    MediaDataT,
     MediaStateT,
     UserContextT,
-    getBlankMedia,
 } from "../../types/Types";
-import { userContext } from "../../Context";
+import WeblensMedia from "../../classes/Media";
+import { UserContext } from "../../Context";
 import { PhotoGallery } from "../../components/MediaDisplay";
 import NotFound from "../../components/NotFound";
-import { GlobalContextType, ItemProps } from "../../components/ItemDisplay";
-import { ItemScroller } from "../../components/ItemScroller";
+import { GlobalContextType } from "../../components/ItemDisplay";
 import { GalleryAction } from "./GalleryLogic";
 import { useMediaType } from "../../components/hooks";
+import { AlbumPreview } from "./AlbumDisplay";
 
 function ShareBox({
     open,
@@ -60,7 +53,7 @@ function ShareBox({
     sharedWith;
     fetchAlbums;
 }) {
-    const { authHeader }: UserContextT = useContext(userContext);
+    const { authHeader }: UserContextT = useContext(UserContext);
     const [value, setValue] = useState(sharedWith);
 
     useEffect(() => {
@@ -157,25 +150,7 @@ function AlbumMediaContextMenu({
     );
 }
 
-// function MenuFactory(albumId, fetchAlbum, authHeader: AuthHeaderType): AuthHeaderType {
-//     const partialMenu = (
-//         mediaId: string,
-//         open: boolean,
-//         setOpen: (open: boolean) => void,
-//     ) => (
-//         <AlbumMediaContextMenu
-//             albumId={albumId}
-//             fetchAlbum={fetchAlbum}
-//             mediaId={mediaId}
-//             open={open}
-//             setOpen={setOpen}
-//             authHeader={authHeader}
-//         />
-//     );
-//     return partialMenu;
-// }
-
-function Album({
+function AlbumContent({
     albumId,
     includeRaw,
     imageSize,
@@ -188,9 +163,10 @@ function Album({
     searchContent: string;
     dispatch: (action: GalleryAction) => void;
 }) {
-    const { authHeader }: UserContextT = useContext(userContext);
+    const { authHeader }: UserContextT = useContext(UserContext);
+
     const [albumData, setAlbumData]: [
-        albumData: { albumMeta: AlbumData; media: MediaDataT[] },
+        albumData: { albumMeta: AlbumData; media: WeblensMedia[] },
         setAlbumData: any
     ] = useState(null);
     const mType = useMediaType();
@@ -204,12 +180,12 @@ function Album({
         dispatch({ type: "add_loading", loading: "album_media" });
         GetAlbumMedia(albumId, includeRaw, authHeader)
             .then((m) => {
-                let ms: MediaDataT[] = [];
-                for (const me of m.media) {
-                    me.mediaType = mType.get(me.mimeType);
-                    ms.push(me);
-                }
-                dispatch({ type: "set_media", medias: ms });
+                // let ms: WeblensMedia[] = [];
+                // for (const me of m.media) {
+                //     me.mediaType = mType.get(me.mimeType);
+                //     ms.push(me);
+                // }
+                dispatch({ type: "set_media", medias: m.media });
                 setAlbumData(m);
             })
             .catch((r) => {
@@ -242,15 +218,7 @@ function Album({
                 if (searchContent === "") {
                     return true;
                 }
-                if (!v.recognitionTags) {
-                    return false;
-                }
-                for (const tag of v.recognitionTags) {
-                    if (tag.includes(searchContent)) {
-                        return true;
-                    }
-                }
-                return false;
+                return v.MatchRecogTag(searchContent);
             })
             .reverse();
         media.unshift();
@@ -270,21 +238,6 @@ function Album({
 
     if (!albumData) {
         return null;
-        // return (
-        //     <RowBox
-        //         style={{
-        //             height: "max-content",
-        //             justifyContent: "center",
-        //             paddingTop: "25vh",
-        //         }}
-        //     >
-        //         <IconExclamationCircle color="red" />
-        //         <Space w={8} />
-        //         <Text c="red" fw={600} size={"30px"}>
-        //             Album failed to load
-        //         </Text>
-        //     </RowBox>
-        // );
     }
 
     if (media.length === 0) {
@@ -310,25 +263,19 @@ function Album({
                         This album has no media
                     </Text>
                     <Space h={5} />
-                    <Text size="23px">You can add some in the filebrowser</Text>
+                    <Text size="23px">You can add some in the FileBrowser</Text>
                     <Space h={20} />
                     <Button
                         fullWidth
                         color="#4444ff"
                         onClick={() => nav("/files/home")}
                     >
-                        Filebrowser
+                        FileBrowser
                     </Button>
                 </ColumnBox>
             </ColumnBox>
         );
     }
-    const startColor = albumData.albumMeta.PrimaryColor
-        ? `#${albumData.albumMeta.PrimaryColor}`
-        : "#ffffff";
-    const endColor = albumData.albumMeta.SecondaryColor
-        ? `#${albumData.albumMeta.SecondaryColor}`
-        : "#ffffff";
 
     return (
         <ColumnBox>
@@ -337,29 +284,9 @@ function Album({
                 medias={media}
                 selecting={false}
                 imageBaseScale={imageSize}
-                title={
-                    <ColumnBox style={{ height: "max-content" }}>
-                        <Text
-                            size={"75px"}
-                            fw={900}
-                            variant="gradient"
-                            gradient={{
-                                from: startColor,
-                                to: endColor,
-                                deg: 45,
-                            }}
-                            style={{
-                                display: "flex",
-                                justifyContent: "center",
-                                userSelect: "none",
-                                lineHeight: 1.1,
-                            }}
-                        >
-                            {albumData.albumMeta.Name}
-                        </Text>
-                    </ColumnBox>
-                }
+                album={albumData.albumMeta}
                 dispatch={dispatch}
+                fetchAlbum={fetchAlbum}
             />
         </ColumnBox>
     );
@@ -380,7 +307,7 @@ function AlbumCoverMenu({
     menuPos;
     dispatch;
 }) {
-    const { usr, authHeader }: UserContextT = useContext(userContext);
+    const { usr, authHeader }: UserContextT = useContext(UserContext);
     const [shareOpen, setShareOpen] = useState(false);
 
     if (!albumData) {
@@ -424,20 +351,6 @@ function AlbumCoverMenu({
                         <Divider w={"90%"} />
                     </ColumnBox>
 
-                    {albumData.Owner === usr.username && (
-                        <Menu.Item
-                            c={"red"}
-                            leftSection={<IconClearAll />}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                CleanAlbum(albumData.Id, authHeader).then(() =>
-                                    fetchAlbums()
-                                );
-                            }}
-                        >
-                            Clean Missing
-                        </Menu.Item>
-                    )}
                     {albumData.Owner === usr.username && (
                         <Menu.Item
                             c={"red"}
@@ -499,7 +412,7 @@ function AlbumsHomeView({
     searchContent: string;
     dispatch: (action: GalleryAction) => void;
 }) {
-    const { authHeader, usr }: UserContextT = useContext(userContext);
+    const { authHeader, usr }: UserContextT = useContext(UserContext);
     const [boxRef, setBoxRef] = useState(null);
     const nav = useNavigate();
 
@@ -517,60 +430,67 @@ function AlbumsHomeView({
         }
     }, [fetchAlbums, albumsMap.size]);
 
-    const albums = useMemo(() => {
-        const albums = Array.from(albumsMap.values())
-            .filter((val) =>
-                val.Name.toLowerCase().includes(searchContent.toLowerCase())
-            )
-            .map((v) => {
-                if (!v.Cover || !v.CoverMedia) {
-                    v.CoverMedia = getBlankMedia();
-                    v.CoverMedia.mediaId = v.Cover;
-                }
-                const item: ItemProps = {
-                    itemId: v.Id,
-                    itemTitle: v.Name,
-                    itemSize: v.Medias.length,
-                    selected: 0,
-                    mediaData: v.CoverMedia,
-                    droppable: false,
-                    isDir: false,
-                    imported: true,
-                    displayable: true,
-                };
-                if (v.Owner !== usr.username) {
-                    item.extraIcons = [IconUsersGroup];
-                }
-                return item;
-            });
-        return albums;
-    }, [JSON.stringify(Array.from(albumsMap.values())), searchContent]);
+    const albums = Array.from(albumsMap.values()).map((a) => {
+        if (!a.CoverMedia) {
+            a.CoverMedia = new WeblensMedia({ mediaId: a.Cover });
+        }
 
-    const albumsContext = useMemo(() => {
-        const ctx: GlobalContextType = {
-            visitItem: (itemId: string) => nav(itemId),
-            setDragging: () => {},
-            blockFocus: (b: boolean) =>
-                dispatch({ type: "set_block_focus", block: b }),
-            setSelected: () => {},
-            setMenuOpen: (o: boolean) =>
-                dispatch({ type: "set_menu_open", open: o }),
-            setMenuPos: (pos) => {
-                dispatch({ type: "set_menu_pos", pos: pos });
-            },
-            setMenuTarget: (target: string) => {
-                dispatch({ type: "set_menu_target", targetId: target });
-            },
-            rename: (itemId: string, newName: string) => {
-                RenameAlbum(itemId, newName, authHeader).then((v) =>
-                    fetchAlbums()
-                );
-            },
-            setHovering: (i) => {},
-            doMediaFetch: true,
-        };
-        return ctx;
-    }, [albumsMap.size, nav, dispatch]);
+        return a;
+    });
+
+    // const albums = useMemo(() => {
+    //     const albums = Array.from(albumsMap.values())
+    //         .filter((val) =>
+    //             val.Name.toLowerCase().includes(searchContent.toLowerCase())
+    //         )
+    //         .map((v) => {
+    //             if (!v.Cover || !v.CoverMedia) {
+    //                 v.CoverMedia = new WeblensMedia({ mediaId: v.Cover });
+    //             }
+    //             const item: ItemProps = {
+    //                 itemId: v.Id,
+    //                 itemTitle: v.Name,
+    //                 itemSize: v.Medias.length,
+    //                 selected: 0,
+    //                 mediaData: v.CoverMedia,
+    //                 droppable: false,
+    //                 isDir: false,
+    //                 imported: true,
+    //                 displayable: true,
+    //             };
+    //             if (v.Owner !== usr.username) {
+    //                 item.extraIcons = [IconUsersGroup];
+    //             }
+    //             return item;
+    //         });
+    //     return albums;
+    // }, [JSON.stringify(Array.from(albumsMap.values())), searchContent]);
+
+    // const albumsContext = useMemo(() => {
+    //     const ctx: GlobalContextType = {
+    //         // visitItem: (itemId: string) => nav(itemId),
+    //         setDragging: () => {},
+    //         blockFocus: (b: boolean) =>
+    //             dispatch({ type: "set_block_focus", block: b }),
+    //         setSelected: () => {},
+    //         setMenuOpen: (o: boolean) =>
+    //             dispatch({ type: "set_menu_open", open: o }),
+    //         setMenuPos: (pos) => {
+    //             dispatch({ type: "set_menu_pos", pos: pos });
+    //         },
+    //         setMenuTarget: (target: string) => {
+    //             dispatch({ type: "set_menu_target", targetId: target });
+    //         },
+    //         rename: (itemId: string, newName: string) => {
+    //             RenameAlbum(itemId, newName, authHeader).then((v) =>
+    //                 fetchAlbums()
+    //             );
+    //         },
+    //         setHovering: (i) => {},
+    //         doMediaFetch: true,
+    //     };
+    //     return ctx;
+    // }, [albumsMap.size, nav, dispatch]);
 
     if (albums.length === 0) {
         return (
@@ -595,11 +515,16 @@ function AlbumsHomeView({
                     menuPos={menuPos}
                     dispatch={dispatch}
                 />
-                <ItemScroller
+                <Box>
+                    {albums.map((a) => {
+                        return <AlbumPreview album={a} />;
+                    })}
+                </Box>
+                {/* <ItemScroller
                     itemsContext={albums}
                     parentNode={boxRef}
                     globalContext={albumsContext}
-                />
+                /> */}
             </Box>
         );
     }
@@ -627,7 +552,7 @@ export function Albums({
         );
     } else {
         return (
-            <Album
+            <AlbumContent
                 albumId={selectedAlbum}
                 includeRaw={mediaState.includeRaw}
                 imageSize={mediaState.imageSize}

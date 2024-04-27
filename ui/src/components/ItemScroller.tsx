@@ -2,11 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@mantine/core";
 import { FixedSizeGrid as WindowGrid } from "react-window";
 import "./style.css";
-import { GlobalContextType, ItemDisplay, ItemProps } from "./ItemDisplay";
+import { GlobalContextType, FileDisplay, SelectedState } from "./ItemDisplay";
 import { useResize } from "./hooks";
+import { WeblensFile } from "../classes/File";
 
-type ItemsContextType = {
-    items: ItemProps[];
+export type FileContextT = {
+    file: WeblensFile;
+    selected: SelectedState;
+};
+
+type ScrollerDataT = {
+    items: FileContextT[];
     globalContext: GlobalContextType;
 };
 
@@ -16,25 +22,26 @@ function FileCell({
     rowIndex,
     style,
 }: {
-    data: ItemsContextType;
+    data: ScrollerDataT;
     columnIndex;
     rowIndex;
     style;
 }) {
-    let thisData: ItemProps;
+    let thisData: FileContextT;
     const index = rowIndex * data.globalContext.numCols + columnIndex;
     if (index < data.items.length) {
         thisData = data.items[index];
-        thisData.index = index;
     } else {
         return null;
     }
 
     return (
-        <Box key={thisData.itemId} className="file-cell" style={style}>
-            <ItemDisplay
-                key={thisData.itemId}
-                itemInfo={thisData}
+        <Box key={thisData.file.Id()} className="file-cell" style={style}>
+            <FileDisplay
+                key={thisData.file.Id()}
+                file={thisData.file}
+                selected={thisData.selected}
+                index={index}
                 context={{ ...data.globalContext }}
             />
         </Box>
@@ -49,7 +56,7 @@ export const ItemScroller = ({
     parentNode,
     dispatch,
 }: {
-    itemsContext: ItemProps[];
+    itemsContext: FileContextT[];
     globalContext: GlobalContextType;
     parentNode;
     dispatch?;

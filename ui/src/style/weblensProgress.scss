@@ -1,0 +1,59 @@
+.weblens-progress {
+    display: flex;
+    background-color: #1c1049;
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 4px 4px 1px #001;
+    width: 100%;
+    height: 100%;
+}
+
+.weblens-progress:not([data-loading="true"],[data-complete="true"]) {
+    border: 1px solid #44f;
+}
+
+.weblens-progress:where([data-loading="true"]) {
+    display: grid;
+    place-content: center;
+    --border-angle: 0turn;
+    --main-bg: conic-gradient(
+        from var(--border-angle),
+        #114,
+        #114 0%,
+        #114 100%,
+        #114 0%
+    );
+
+    border: solid 2px transparent;
+    --gradient-border: conic-gradient(from var(--border-angle), transparent 50%, #44f, rgb(123, 0, 0) 99%, transparent);
+
+    background:
+        var(--main-bg) padding-box,
+        var(--gradient-border) border-box,
+        var(--main-bg) border-box;
+    background-position: center center;
+
+    animation: bg-spin 4s linear infinite;
+    @keyframes bg-spin {
+      to {
+        --border-angle: 1turn;
+      }
+    }
+}
+
+@property --border-angle {
+    syntax: "<angle>";
+    inherits: true;
+    initial-value: 0turn;
+  }
+
+.weblens-progress-bar {
+    background-color: #4444ff;
+    transition:
+        width 0.2s ease-in-out,
+        height 0.2s ease-in-out;
+}
+
+.weblens-progress-bar:where([data-complete]) {
+    background-color: #22bb33;
+}

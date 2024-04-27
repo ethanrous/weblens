@@ -186,17 +186,10 @@ func receiveBackup(t *task) {
 					t.ErrorAndExit(err)
 				}
 			}
-			var m types.Media
-			mId := types.MediaId("")
-			if newF.IsDisplayable() {
-				m, _ = newF.GetMedia()
-				if m != nil {
-					mId = m.Id()
-				}
-			}
+			m := dataStore.MediaMapGet(newF.GetContentId())
 
 			// baseF, err := dataStore.NewBackupFile(chain, meta.remoteId, bs, newF.IsDir(), mId)
-			_, baseF, err := dataStore.CacheBaseMedia(mId, bs)
+			_, baseF, err := dataStore.CacheBaseMedia(newF.GetContentId(), bs)
 			if err != nil {
 				t.ErrorAndExit(err)
 			}
@@ -212,10 +205,10 @@ func receiveBackup(t *task) {
 
 				m.SetImported(true)
 
-				err = baseF.SetMedia(m)
-				if err != nil {
-					t.ErrorAndExit(err)
-				}
+				// err = baseF.SetMedia(m)
+				// if err != nil {
+				// 	t.ErrorAndExit(err)
+				// }
 			}
 		} else {
 			// dataStore.BackupFileAddEvents(chain)

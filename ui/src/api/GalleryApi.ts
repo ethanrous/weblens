@@ -1,8 +1,13 @@
 import { notifications } from "@mantine/notifications";
-import { AlbumData, AuthHeaderT, MediaDataT, MediaStateT } from "../types/Types";
+import { AlbumData, AuthHeaderT, MediaStateT } from "../types/Types";
 import API_ENDPOINT from "./ApiEndpoint";
+import WeblensMedia from "../classes/Media";
 
-export async function FetchData(mediaState: MediaStateT, dispatch, authHeader: AuthHeaderT) {
+export async function FetchData(
+    mediaState: MediaStateT,
+    dispatch,
+    authHeader: AuthHeaderT
+) {
     if (!authHeader || authHeader.Authorization === "") {
         return;
     }
@@ -16,24 +21,33 @@ export async function FetchData(mediaState: MediaStateT, dispatch, authHeader: A
                 JSON.stringify(
                     Array.from(mediaState.albumsMap.values())
                         .filter((v) => mediaState.albumsFilter.includes(v.Name))
-                        .map((v) => v.Id),
-                ),
+                        .map((v) => v.Id)
+                )
             );
         }
-        const data = await fetch(url.toString(), { headers: authHeader }).then((res) => {
-            if (res.status !== 200) {
-                return Promise.reject("Failed to get media");
-            } else {
-                return res.json();
+        const data = await fetch(url.toString(), { headers: authHeader }).then(
+            (res) => {
+                if (res.status !== 200) {
+                    return Promise.reject("Failed to get media");
+                } else {
+                    return res.json();
+                }
             }
+        );
+
+        console.log(data.Media);
+        const medias = data.Media.map((m) => {
+            return new WeblensMedia(m);
         });
 
         dispatch({
             type: "set_media",
-            medias: data.Media,
+            medias: medias,
         });
     } catch (error) {
-        console.error("Error fetching data - Ethan you wrote this, its not a js err");
+        console.error(
+            "Error fetching data - Ethan you wrote this, its not a js err"
+        );
     }
 }
 
@@ -52,7 +66,9 @@ export async function CreateAlbum(albumName, authHeader: AuthHeaderT) {
 export async function GetAlbums(authHeader): Promise<AlbumData[]> {
     const url = new URL(`${API_ENDPOINT}/albums`);
 
-    const res = await fetch(url.toString(), { headers: authHeader }).catch((r) => console.error(r));
+    const res = await fetch(url.toString(), { headers: authHeader }).catch(
+        (r) => console.error(r)
+    );
     if (!res) {
         return;
     }
@@ -70,8 +86,8 @@ export async function GetAlbums(authHeader): Promise<AlbumData[]> {
 export async function GetAlbumMedia(
     albumId,
     includeRaw,
-    authHeader,
-): Promise<{ albumMeta: AlbumData; media: MediaDataT[] }> {
+    authHeader
+): Promise<{ albumMeta: AlbumData; media: WeblensMedia[] }> {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
     url.searchParams.append("raw", includeRaw);
     const res = await fetch(url.toString(), { headers: authHeader });
@@ -82,10 +98,18 @@ export async function GetAlbumMedia(
     }
 
     const data = await res.json();
-    return { albumMeta: data.albumMeta, media: data.medias };
+    const medias = data.medias.map((m) => {
+        return new WeblensMedia(m);
+    });
+    return { albumMeta: data.albumMeta, media: medias };
 }
 
-export async function AddMediaToAlbum(albumId, mediaIds, folderIds, authHeader: AuthHeaderT) {
+export async function AddMediaToAlbum(
+    albumId,
+    mediaIds,
+    folderIds,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
     const body = {
         newMedia: mediaIds,
@@ -100,7 +124,11 @@ export async function AddMediaToAlbum(albumId, mediaIds, folderIds, authHeader: 
     ).json();
 }
 
-export async function RemoveMediaFromAlbum(albumId, mediaIds, authHeader: AuthHeaderT) {
+export async function RemoveMediaFromAlbum(
+    albumId,
+    mediaIds,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
     const body = {
         removeMedia: mediaIds,
@@ -116,7 +144,7 @@ export async function ShareAlbum(
     albumId: string,
     authHeader: AuthHeaderT,
     users?: string[],
-    removeUsers?: string[],
+    removeUsers?: string[]
 ) {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
     const body = {
@@ -130,7 +158,11 @@ export async function ShareAlbum(
     });
 }
 
-export async function SetAlbumCover(albumId, coverMediaId, authHeader: AuthHeaderT) {
+export async function SetAlbumCover(
+    albumId,
+    coverMediaId,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
     const body = {
         cover: coverMediaId,
@@ -167,7 +199,7 @@ export async function RenameAlbum(albumId, newName, authHeader: AuthHeaderT) {
                 title: "Failed to rename album",
                 message: String(r),
                 color: "red",
-            }),
+            })
         );
 }
 
@@ -177,17 +209,6 @@ export async function DeleteAlbum(albumId, authHeader: AuthHeaderT) {
     let ret = await fetch(url.toString(), {
         method: "DELETE",
         headers: authHeader,
-    });
-    return ret;
-}
-
-export async function CleanAlbum(albumId, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/album/${albumId}`);
-
-    let ret = await fetch(url.toString(), {
-        method: "PATCH",
-        headers: authHeader,
-        body: JSON.stringify({ cleanMissing: true }),
     });
     return ret;
 }

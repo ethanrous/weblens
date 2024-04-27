@@ -1,14 +1,16 @@
 import { useParams } from "react-router-dom";
-import { ColumnBox, RowBox, WormholeWrapper } from "./FileBrowserStyles";
-import { useContext, useEffect, useState } from "react";
+import { ColumnBox, Dropspot, RowBox } from "./FileBrowserStyles";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { GetWormholeInfo } from "../../api/FileBrowserApi";
-import { userContext } from "../../Context";
-import { FileInfoT, shareData } from "../../types/Types";
+import { UserContext } from "../../Context";
+import { shareData, UserContextT } from "../../types/Types";
 import { Box, FileButton, Space, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import UploadStatus, { useUploadStatus } from "../../components/UploadStatus";
 import { IconFolder, IconUpload } from "@tabler/icons-react";
-import { HandleUploadButton } from "./FileBrowserLogic";
+import { HandleDrop, HandleUploadButton } from "./FileBrowserLogic";
+
+import "./style/fileBrowserStyle.css";
 
 const UploadPlaque = ({
     wormholeId,
@@ -74,9 +76,83 @@ const UploadPlaque = ({
     );
 };
 
+const WormholeWrapper = ({
+    wormholeId,
+    wormholeName,
+    fileId,
+    validWormhole,
+    uploadDispatch,
+    children,
+}: {
+    wormholeId: string;
+    wormholeName: string;
+    fileId: string;
+    validWormhole: boolean;
+    uploadDispatch;
+    children;
+}) => {
+    const { authHeader }: UserContextT = useContext(UserContext);
+    const [dragging, setDragging] = useState(0);
+    const [dropSpotRef, setDropSpotRef] = useState(null);
+    const handleDrag = useCallback(
+        (e) => {
+            e.preventDefault();
+            if (e.type === "dragenter" || e.type === "dragover") {
+                if (!dragging) {
+                    setDragging(2);
+                }
+            } else if (dragging) {
+                setDragging(0);
+            }
+        },
+        [dragging]
+    );
+
+    return (
+        <Box className="wormhole-wrapper">
+            <Box
+                ref={setDropSpotRef}
+                style={{ position: "relative", width: "98%", height: "98%" }}
+                //                    See DirViewWrapper \/
+                onMouseMove={(e) => {
+                    if (dragging) {
+                        setTimeout(() => setDragging(0), 10);
+                    }
+                }}
+            >
+                <Dropspot
+                    onDrop={(e) =>
+                        HandleDrop(
+                            e.dataTransfer.items,
+                            fileId,
+                            [],
+                            true,
+                            wormholeId,
+                            authHeader,
+                            uploadDispatch,
+                            () => {}
+                        )
+                    }
+                    dropspotTitle={wormholeName}
+                    dragging={dragging}
+                    dropAllowed={validWormhole}
+                    handleDrag={handleDrag}
+                    wrapperRef={dropSpotRef}
+                />
+                <ColumnBox
+                    style={{ justifyContent: "center" }}
+                    onDragOver={handleDrag}
+                >
+                    {children}
+                </ColumnBox>
+            </Box>
+        </Box>
+    );
+};
+
 export default function Wormhole() {
     const wormholeId = useParams()["*"];
-    const { authHeader }: UserContextT = useContext(userContext);
+    const { authHeader }: UserContextT = useContext(UserContext);
     const [wormholeInfo, setWormholeInfo]: [
         wormholeInfo: shareData,
         setWormholeInfo: any

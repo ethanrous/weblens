@@ -84,7 +84,7 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 
 			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta)
 			if complete {
-				Caster.PushTaskUpdate(types.TaskId(subInfo.Key), "zip_complete", types.TaskResult{"takeoutId": result["takeoutId"]})
+				Caster.PushTaskUpdate(types.TaskId(subInfo.Key), dataProcess.TaskComplete, types.TaskResult{"takeoutId": result["takeoutId"]})
 			}
 		}
 

@@ -18,9 +18,9 @@ type WeblensFile interface {
 	FormatFileInfo(AccessMeta) (FileInfo, error)
 	IsDisplayable() bool
 
-	GetMedia() (Media, error)
-	SetMedia(Media) error
-	ClearMedia()
+	// GetMedia() (Media, error)
+	// SetMedia(Media) error
+	// ClearMedia()
 
 	Copy() WeblensFile
 	GetParent() WeblensFile
@@ -31,8 +31,8 @@ type WeblensFile interface {
 	IsReadOnly() bool
 
 	AddTask(Task)
-	GetTasks() []Task
-	RemoveTask(TaskId) bool
+	GetTask() Task
+	RemoveTask(TaskId) error
 
 	CreateSelf() error
 	Write([]byte) error
@@ -40,7 +40,7 @@ type WeblensFile interface {
 	Read() (*os.File, error)
 	ReadAll() ([]byte, error)
 	ReadDir() error
-	GetContentId() string
+	GetContentId() ContentId
 
 	GetShare(ShareId) (Share, error)
 	GetShares() []Share

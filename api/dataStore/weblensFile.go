@@ -2,13 +2,13 @@ package dataStore
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -109,44 +109,44 @@ func (f *weblensFile) Owner() types.User {
 
 // Return a pointer to the media represented by this file,
 // or a non-nil error if the media cannot be found.
-func (f *weblensFile) GetMedia() (_ types.Media, err error) {
-	if f.media != nil {
-		return f.media, nil
-	} else {
-		return nil, ErrNoMedia
-	}
+// func (f *weblensFile) GetMedia() (_ types.Media, err error) {
+// 	if f.media != nil {
+// 		return f.media, nil
+// 	} else {
+// 		return nil, ErrNoMedia
+// 	}
 
-	// if f.IsDir() {
-	// 	return nil, ErrDirNotAllowed
-	// }
+// 	if f.IsDir() {
+// 		return nil, ErrDirNotAllowed
+// 	}
 
-	// err = loadMediaByFile(f)
-	// m = f.media
+// 	err = loadMediaByFile(f)
+// 	m = f.media
 
-	// return
-}
+// 	return
+// }
 
-func (f *weblensFile) SetMedia(m types.Media) error {
-	if f.media != nil && f.media.Id() != "" {
-		if f.media != m {
-			return errors.New("attempted to reassign media on file descriptor that already has media")
-		}
-		return nil
-	}
-	mediaMapLock.Lock()
-	if mediaMap[m.Id()] == nil {
-		mediaMapLock.Unlock()
-		return errors.New("attempted to assign media to file that is not in media map")
-	}
-	mediaMapLock.Unlock()
-	f.media = m
+// func (f *weblensFile) SetMedia(m types.Media) error {
+// 	if f.media != nil && f.media.Id() != "" {
+// 		if f.media != m {
+// 			return errors.New("attempted to reassign media on file descriptor that already has media")
+// 		}
+// 		return nil
+// 	}
+// 	mediaMapLock.Lock()
+// 	if mediaMap[m.Id()] == nil {
+// 		mediaMapLock.Unlock()
+// 		return errors.New("attempted to assign media to file that is not in media map")
+// 	}
+// 	mediaMapLock.Unlock()
+// 	f.media = m
 
-	return nil
-}
+// 	return nil
+// }
 
-func (f *weblensFile) ClearMedia() {
-	f.media = nil
-}
+// func (f *weblensFile) ClearMedia() {
+// 	f.media = nil
+// }
 
 // Check if the file exists on the real filesystem below
 func (f *weblensFile) Exists() bool {
@@ -304,12 +304,8 @@ func (f *weblensFile) ReadDir() error {
 	return nil
 }
 
-func (f *weblensFile) GetContentId() string {
+func (f *weblensFile) GetContentId() types.ContentId {
 	return f.contentId
-}
-
-func (f *weblensFile) setContentId(contentId string) {
-	f.contentId = contentId
 }
 
 var searchWfByFilename = func(a *weblensFile, b string) int {
@@ -321,7 +317,7 @@ var sortWfByFilename = func(a *weblensFile, b *weblensFile) int {
 }
 
 func (f *weblensFile) GetChild(childName string) (types.WeblensFile, error) {
-	if f.children == nil {
+	if f.children == nil || childName == "" {
 		return nil, ErrNoFile
 	}
 
@@ -388,7 +384,7 @@ func (f *weblensFile) CreateSelf() error {
 
 	var err error
 	if f.IsDir() {
-		err = os.Mkdir(f.absolutePath, os.FileMode(0777))
+		err = os.Mkdir(f.GetAbsPath(), os.FileMode(0777))
 		if err != nil {
 			return err
 		}
@@ -397,7 +393,7 @@ func (f *weblensFile) CreateSelf() error {
 		if f.detached {
 			osFile, err = os.Create("/tmp/" + f.filename)
 		} else {
-			osFile, err = os.Create(f.absolutePath)
+			osFile, err = os.Create(f.GetAbsPath())
 		}
 		if err != nil {
 			return err
@@ -450,13 +446,13 @@ func (f *weblensFile) UnmarshalJSON(data []byte) error {
 	}
 	f.modifyDate = t
 
-	if tmp["media"] != nil {
-		m, err := util.StructFromMap[media](tmp["media"].(map[string]any))
-		if err != nil {
-			return err
-		}
-		f.media = &m
-	}
+	// if tmp["media"] != nil {
+	// 	m, err := util.StructFromMap[media](tmp["media"].(map[string]any))
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	f.media = &m
+	// }
 
 	parent := FsTreeGet(types.FileId(tmp["parentId"].(string)))
 	if parent == nil {
@@ -483,7 +479,7 @@ func (f *weblensFile) UnmarshalJSON(data []byte) error {
 }
 
 func (f *weblensFile) MarshalArchive() map[string]any {
-	m, _ := f.GetMedia()
+	// m, _ := f.GetMedia()
 	// var mId types.MediaId
 	// if m != nil {
 	// 	mId = m.Id()
@@ -507,19 +503,19 @@ func (f *weblensFile) MarshalArchive() map[string]any {
 		"size":         f.size,
 		"isDir":        f.IsDir(),
 		"modifyDate":   types.SafeTime(f.modifyDate),
-		"media":        m,
-		"parentId":     f.parent.Id(),
-		"childrenIds":  util.Map(f.GetChildren(), func(c types.WeblensFile) types.FileId { return c.Id() }),
-		"shareIds":     util.Map(f.GetShares(), func(s types.Share) types.ShareId { return s.GetShareId() }),
+		// "media":        m,
+		"parentId":    f.parent.Id(),
+		"childrenIds": util.Map(f.GetChildren(), func(c types.WeblensFile) types.FileId { return c.Id() }),
+		"shareIds":    util.Map(f.GetShares(), func(s types.Share) types.ShareId { return s.GetShareId() }),
 	}
 }
 
-func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo types.FileInfo, err error) {
+func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.FileInfo, err error) {
 	if f == nil {
 		return formattedInfo, fmt.Errorf("cannot get file info of nil wf")
 	}
 
-	if access == nil {
+	if acc == nil {
 		return formattedInfo, fmt.Errorf("cannot get file info without access context")
 	}
 
@@ -527,7 +523,7 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 		return formattedInfo, fmt.Errorf("filename in blocklist")
 	}
 
-	if !CanAccessFile(f, access) {
+	if !CanAccessFile(f, acc) {
 		err = ErrNoFileAccess
 		return
 	}
@@ -536,8 +532,8 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 	var m types.Media
 
 	if !f.IsDir() {
-		m, err = f.GetMedia()
-		if err != nil {
+		m = MediaMapGet(f.GetContentId())
+		if m == nil {
 			imported = false
 		}
 	}
@@ -549,25 +545,23 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 		return
 	}
 
-	var displayable bool
 	var friendlyName string
 	mType, _ := f.GetMediaType()
 	if mType != nil {
-		displayable = mType.IsDisplayable()
 		friendlyName = mType.FriendlyName()
 	}
 
 	// shares := f.GetShares()
 	var parentId types.FileId
-	if f.Owner() != WEBLENS_ROOT_USER && CanAccessFile(f.GetParent(), access) {
+	if f.Owner() != WEBLENS_ROOT_USER && CanAccessFile(f.GetParent(), acc) {
 		parentId = f.GetParent().Id()
 	}
-	if access == nil {
+	if acc == nil {
 		util.Warning.Println("NIL ACCESS")
 	}
 
 	shares := util.Filter(f.GetShares(), func(s types.Share) bool {
-		return slices.Contains(s.GetAccessors(), access.User().GetUsername())
+		return CanAccessShare(s, acc)
 	})
 
 	tmpF := types.WeblensFile(f)
@@ -576,7 +570,7 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 		if tmpF.GetParent() == &mediaRoot {
 			pathBits = append(pathBits, "HOME")
 			break
-		} else if access.UsingShare() != nil && tmpF.Id() == types.FileId(access.UsingShare().GetContentId()) {
+		} else if acc.UsingShare() != nil && tmpF.Id() == types.FileId(acc.UsingShare().GetContentId()) {
 			pathBits = append(pathBits, "SHARE")
 			break
 		} else if IsFileInTrash(tmpF) {
@@ -592,9 +586,9 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 	formattedInfo = types.FileInfo{
 		Id:               f.Id(),
 		Imported:         imported,
-		Displayable:      displayable,
+		Displayable:      f.IsDisplayable(),
 		IsDir:            f.IsDir(),
-		Modifiable:       access.GetTime().Unix() <= 0 && f.Filename() != ".user_trash" && f.Owner() != WEBLENS_ROOT_USER && f != &externalRoot,
+		Modifiable:       acc.GetTime().Unix() <= 0 && f.Filename() != ".user_trash" && f.Owner() != WEBLENS_ROOT_USER && f != &externalRoot,
 		Size:             size,
 		ModTime:          f.ModTime(),
 		Filename:         f.Filename(),
@@ -605,7 +599,7 @@ func (f *weblensFile) FormatFileInfo(access types.AccessMeta) (formattedInfo typ
 		MediaData:        m,
 		Shares:           shares,
 		Children:         util.Map(f.GetChildren(), func(wf types.WeblensFile) types.FileId { return wf.Id() }),
-		PastFile:         access.GetTime().Unix() > 0,
+		PastFile:         acc.GetTime().Unix() > 0,
 	}
 
 	return formattedInfo, nil
@@ -708,22 +702,38 @@ func (f *weblensFile) BubbleMap(fn types.FileMapFunc) error {
 	return parent.BubbleMap(fn)
 }
 
+var sleeperCount atomic.Int64 = atomic.Int64{}
+
 func (f *weblensFile) AddTask(t types.Task) {
+	// util.Debug.Printf("Task %s is trying to claim file %s (Sleepers: %d)", t.TaskId(), f.GetAbsPath(), sleeperCount.Load())
+	sleeperCount.Add(1)
 	f.tasksLock.Lock()
-	f.tasksUsing = util.AddToSet(f.tasksUsing, []types.Task{t})
-	f.tasksLock.Unlock()
+	sleeperCount.Add(-1)
+	// util.Debug.Printf("Task %s has claimed file %s", t.TaskId(), f.GetAbsPath())
+	f.taskUsing = t
 }
 
-// Returns the tasks currently using this file
-func (f *weblensFile) GetTasks() []types.Task {
-	return f.tasksUsing
+// Returns the task currently using this file
+func (f *weblensFile) GetTask() types.Task {
+	return f.taskUsing
 }
 
-func (f *weblensFile) RemoveTask(tId types.TaskId) (exists bool) {
-	f.tasksLock.Lock()
-	f.tasksUsing, _, exists = util.YoinkFunc(f.tasksUsing, func(t types.Task) bool { return t.TaskId() == tId })
+func (f *weblensFile) RemoveTask(tId types.TaskId) error {
+	if f.taskUsing == nil {
+		util.Error.Printf("Task Id %s tried giving up file %s, but the file does not have a task", tId, f.GetAbsPath())
+		panic(ErrBadTask)
+	}
+	if f.taskUsing.TaskId() != tId {
+		util.Error.Printf("Task Id %s tried giving up file %s, but the file is owned by %s does not own it", tId, f.GetAbsPath(), f.taskUsing.TaskId())
+		panic(ErrBadTask)
+		return ErrBadTask
+	}
+
+	f.taskUsing = nil
 	f.tasksLock.Unlock()
-	return
+	// util.Debug.Printf("Task %s has released file %s", tId, f.GetAbsPath())
+
+	return nil
 }
 
 func (f *weblensFile) GetShares() []types.Share {
@@ -803,7 +813,7 @@ func (f *weblensFile) loadStat(c ...types.BroadcasterAgent) (err error) {
 		if f.currentId != "" {
 			statPath = FsTreeGet(f.currentId).GetAbsPath()
 		} else {
-			statPath = filepath.Join(contentRoot.absolutePath, f.contentId)
+			statPath = filepath.Join(contentRoot.absolutePath, string(f.contentId))
 		}
 
 		stat, err := os.Stat(statPath)

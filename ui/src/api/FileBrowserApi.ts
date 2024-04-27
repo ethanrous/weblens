@@ -1,8 +1,8 @@
 import { notifications } from "@mantine/notifications";
 import axios from "axios";
 
-import { AlbumData, AuthHeaderT, FBDispatchT, UserInfoT, FileInfoT, getBlankFile } from "../types/Types";
-import { humanFileSize } from "../util";
+import { AlbumData, AuthHeaderT, FBDispatchT, UserInfoT } from "../types/Types";
+import { FileInitT, WeblensFile } from "../classes/File";
 import API_ENDPOINT, { PUBLIC_ENDPOINT } from "./ApiEndpoint";
 
 export function SubToFolder(subId: string, recursive: boolean, wsSend) {
@@ -37,7 +37,7 @@ export function TrashFiles(fileIds: string[], authHeader: AuthHeaderT) {
             title: "Failed to trash file",
             message: String(r),
             color: "red",
-        }),
+        })
     );
 }
 
@@ -53,7 +53,7 @@ export function DeleteFiles(fileIds: string[], authHeader: AuthHeaderT) {
             title: "Failed to delete file",
             message: String(r),
             color: "red",
-        }),
+        })
     );
 }
 
@@ -69,50 +69,52 @@ export function UnTrashFiles(fileIds: string[], authHeader: AuthHeaderT) {
             title: "Failed to un-delete file",
             message: String(r),
             color: "red",
-        }),
+        })
     );
 }
 
-async function getSharedWithMe(user, dispatch: FBDispatchT, authHeader: AuthHeaderT) {
+async function getSharedWithMe(authHeader: AuthHeaderT) {
     let url = new URL(`${API_ENDPOINT}/files/shared`);
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
-
-            const sharedFolder = getBlankFile();
-            sharedFolder.isDir = true;
-            sharedFolder.id = "shared";
-            sharedFolder.filename = "Shared";
-
-            return {children: data.files, self: sharedFolder}
-
+            const sharedFolder = new WeblensFile({
+                id: "shared",
+                isDir: true,
+                filename: "Shared",
+            });
+            return { children: data.files, self: sharedFolder };
 
             // dispatch({ type: "set_folder_info", fileInfo: sharedFolder });
             // dispatch({ type: "update_many", files: files, user: user });
         });
 }
 
-async function getExternalFiles(
-    contentId: string,
-    authHeader: AuthHeaderT,
-) {
+async function getExternalFiles(contentId: string, authHeader: AuthHeaderT) {
     let url: URL;
     url = new URL(`${API_ENDPOINT}/files/external/${contentId}`);
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
         .then((data) => {
-            const ret = {self: data.self, parents: data.parents, children: []}
+            const ret = {
+                self: data.self,
+                parents: data.parents,
+                children: [],
+            };
             if (data.children) {
-                ret.children = data.children
+                ret.children = data.children;
+            } else if (data.files) {
+                ret.children = data.files;
             }
-            else if (data.files) {
-                ret.children = data.files
-            }
-            return ret
+            return ret;
         });
 }
 
-export async function GetFileInfo(fileId: string, shareId: string, authHeader: AuthHeaderT) {
+export async function GetFileInfo(
+    fileId: string,
+    shareId: string,
+    authHeader: AuthHeaderT
+): Promise<FileInitT> {
     var url = new URL(`${PUBLIC_ENDPOINT}/file/${fileId}`);
     if (shareId !== "") {
         url.searchParams.append("shareId", shareId);
@@ -124,12 +126,10 @@ export async function GetFolderData(
     contentId: string,
     fbMode: string,
     shareId: string,
-    user: UserInfoT,
-    dispatch: FBDispatchT,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ) {
     if (fbMode === "share" && !shareId) {
-        return getSharedWithMe(user, dispatch, authHeader);
+        return getSharedWithMe(authHeader);
     }
     if (fbMode === "external") {
         return getExternalFiles(contentId, authHeader);
@@ -160,7 +160,7 @@ export async function CreateFolder(
     name: string,
     isPublic: boolean,
     shareId: string,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ): Promise<string> {
     if (isPublic && !shareId) {
         throw new Error("Attempting to do public upload with no shareId");
@@ -191,7 +191,12 @@ export async function CreateFolder(
     return dirInfo?.folderId;
 }
 
-export function moveFile(currentParentId, newParentId, currentFilename, authHeader: AuthHeaderT) {
+export function moveFile(
+    currentParentId,
+    newParentId,
+    currentFilename,
+    authHeader: AuthHeaderT
+) {
     var url = new URL(`${API_ENDPOINT}/file`);
     url.searchParams.append("currentParentId", currentParentId);
     url.searchParams.append("newParentId", newParentId);
@@ -199,7 +204,11 @@ export function moveFile(currentParentId, newParentId, currentFilename, authHead
     return fetch(url.toString(), { method: "PUT", headers: authHeader });
 }
 
-export function moveFiles(fileIds: string[], newParentId: string, authHeader: AuthHeaderT) {
+export function moveFiles(
+    fileIds: string[],
+    newParentId: string,
+    authHeader: AuthHeaderT
+) {
     var url = new URL(`${API_ENDPOINT}/files`);
     const body = {
         fileIds: fileIds,
@@ -213,9 +222,17 @@ export function moveFiles(fileIds: string[], newParentId: string, authHeader: Au
     });
 }
 
-export async function RenameFile(fileId: string, newName: string, authHeader: AuthHeaderT) {
+export async function RenameFile(
+    fileId: string,
+    newName: string,
+    authHeader: AuthHeaderT
+) {
     var url = new URL(`${API_ENDPOINT}/file/${fileId}`);
-    fetch(url.toString(), { method: "PATCH", body: JSON.stringify({newName: newName}), headers: authHeader });
+    fetch(url.toString(), {
+        method: "PATCH",
+        body: JSON.stringify({ newName: newName }),
+        headers: authHeader,
+    });
 }
 
 function downloadBlob(blob, filename) {
@@ -235,7 +252,7 @@ export function downloadSingleFile(
     dispatch: FBDispatchT,
     filename: string,
     ext: string,
-    shareId: string,
+    shareId: string
 ) {
     const url = new URL(`${PUBLIC_ENDPOINT}/download`);
     url.searchParams.append("fileId", fileId);
@@ -277,7 +294,11 @@ export function downloadSingleFile(
         });
 }
 
-export async function requestZipCreate(fileIds: string[], shareId: string, authHeader: AuthHeaderT) {
+export async function requestZipCreate(
+    fileIds: string[],
+    shareId: string,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${PUBLIC_ENDPOINT}/takeout`);
     if (shareId) {
         url.searchParams.append("shareId", shareId);
@@ -302,13 +323,18 @@ export async function requestZipCreate(fileIds: string[], shareId: string, authH
         });
 }
 
-export async function AutocompleteAlbums(searchValue, authHeader: AuthHeaderT): Promise<AlbumData[]> {
+export async function AutocompleteAlbums(
+    searchValue,
+    authHeader: AuthHeaderT
+): Promise<AlbumData[]> {
     if (searchValue.length < 2) {
         return [];
     }
     const url = new URL(`${API_ENDPOINT}/albums`);
     url.searchParams.append("filter", searchValue);
-    const res = await fetch(url.toString(), { headers: authHeader }).then((res) => res.json());
+    const res = await fetch(url.toString(), { headers: authHeader }).then(
+        (res) => res.json()
+    );
     return res.albums ? res.albums : [];
 }
 
@@ -336,18 +362,31 @@ export async function DeleteShare(shareId: string, authHeader: AuthHeaderT) {
     return res;
 }
 
-export async function GetWormholeInfo(shareId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}`);
+export async function GetWormholeInfo(
+    shareId: string,
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${PUBLIC_ENDPOINT}/share/${shareId}`);
 
     return fetch(url.toString(), { headers: authHeader });
 }
 
-export async function GetMediasByFolder(folderId: string, authHeader: AuthHeaderT) {
+export async function GetMediasByFolder(
+    folderId: string,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/folder/${folderId}/media`);
-    return fetch(url.toString(), { headers: authHeader }).then((res) => res.json());
+    return fetch(url.toString(), { headers: authHeader }).then((res) =>
+        res.json()
+    );
 }
 
-export async function ShareFiles(files: string[], isPublic: boolean, users: string[] = [], authHeader: AuthHeaderT) {
+export async function ShareFiles(
+    files: string[],
+    isPublic: boolean,
+    users: string[] = [],
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/share/files`);
     const body = {
         fileIds: files,
@@ -366,7 +405,7 @@ export async function UpdateFileShare(
     shareId: string,
     isPublic: boolean,
     users: string[] = [],
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ) {
     const url = new URL(`${API_ENDPOINT}/file/share/${shareId}`);
     const body = {
@@ -388,7 +427,10 @@ export async function GetFileShare(shareId: string, authHeader: AuthHeaderT) {
         .catch((r) => Promise.reject(r));
 }
 
-export async function RecurScanFolder(folderId: string, authHeader: AuthHeaderT) {
+export async function RecurScanFolder(
+    folderId: string,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/admin/scan`);
     return await fetch(url.toString(), {
         headers: authHeader,
@@ -401,13 +443,13 @@ export async function SearchFolder(
     folderId: string,
     searchString: string,
     filter: string,
-    authHeader: AuthHeaderT,
-): Promise<FileInfoT[]> {
+    authHeader: AuthHeaderT
+): Promise<FileInitT[]> {
     const url = new URL(`${API_ENDPOINT}/folder/${folderId}/search`);
     url.searchParams.append("search", searchString);
     url.searchParams.append("filter", filter);
 
-    const files: { files: FileInfoT[] } = await fetch(url.toString(), {
+    const files: { files: FileInitT[] } = await fetch(url.toString(), {
         headers: authHeader,
     })
         .then((v) => v.json())
@@ -428,29 +470,71 @@ export async function SearchFolder(
     return files.files;
 }
 
-export async function getFilesystemStats(folderId: string, authHeader: AuthHeaderT) {
+export async function getFilesystemStats(
+    folderId: string,
+    authHeader: AuthHeaderT
+) {
     return await fetch(`${API_ENDPOINT}/files/${folderId}/stats`, {
         headers: authHeader,
-    }).then(d => d.json());
+    }).then((d) => d.json());
 }
 
 export async function getFileHistory(fileId: string, authHeader: AuthHeaderT) {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`);
-    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    return await fetch(url, { headers: authHeader }).then((r) => {
+        if (r.status !== 200) {
+            return r.status;
+        } else {
+            return r.json();
+        }
+    });
 }
 
 export async function getSnapshots(authHeader: AuthHeaderT) {
     const url = new URL(`${API_ENDPOINT}/snapshots`);
-    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    return await fetch(url, { headers: authHeader }).then((r) => {
+        if (r.status !== 200) {
+            return r.status;
+        } else {
+            return r.json();
+        }
+    });
 }
 
-export async function getPastFolderInfo(folderId: string, timestamp: Date, authHeader: AuthHeaderT) {
+export async function getPastFolderInfo(
+    folderId: string,
+    timestamp: Date,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/history/${folderId}`);
-    url.searchParams.append("before", String(timestamp.getTime()))
-    return await fetch(url, {headers: authHeader}).then(r => {if (r.status !== 200) {return r.status} else {return r.json()}})
+    url.searchParams.append("before", String(timestamp.getTime()));
+    return await fetch(url, { headers: authHeader }).then((r) => {
+        if (r.status !== 200) {
+            return r.status;
+        } else {
+            return r.json();
+        }
+    });
 }
 
-export async function restoreFiles(fileIds: string[], timestamp: Date, authHeader: AuthHeaderT) {
+export async function restoreFiles(
+    fileIds: string[],
+    timestamp: Date,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/history/restore`);
-    return await fetch(url, {headers: authHeader, method: "POST", body: JSON.stringify({fileIds: fileIds, timestamp: timestamp.getTime()})}).then(r => {if (r.status !== 200) {return Promise.reject(r.statusText)} else {return}})
+    return await fetch(url, {
+        headers: authHeader,
+        method: "POST",
+        body: JSON.stringify({
+            fileIds: fileIds,
+            timestamp: timestamp.getTime(),
+        }),
+    }).then((r) => {
+        if (r.status !== 200) {
+            return Promise.reject(r.statusText);
+        } else {
+            return;
+        }
+    });
 }

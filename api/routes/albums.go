@@ -12,14 +12,13 @@ import (
 )
 
 type albumUpdateData struct {
-	AddMedia    []types.FileId   `json:"newMedia"`
-	AddFolders  []types.FileId   `json:"newFolders"`
-	RemoveMedia []types.MediaId  `json:"removeMedia"`
-	Cover       types.MediaId    `json:"cover"`
-	NewName     string           `json:"newName"`
-	Users       []types.Username `json:"users"`
-	RemoveUsers []types.Username `json:"removeUsers"`
-	CleanMedia  bool             `json:"cleanMissing"`
+	AddMedia    []types.FileId    `json:"newMedia"`
+	AddFolders  []types.FileId    `json:"newFolders"`
+	RemoveMedia []types.ContentId `json:"removeMedia"`
+	Cover       types.ContentId   `json:"cover"`
+	NewName     string            `json:"newName"`
+	Users       []types.Username  `json:"users"`
+	RemoveUsers []types.Username  `json:"removeUsers"`
 }
 
 func getAlbum(ctx *gin.Context) {
@@ -117,8 +116,8 @@ func updateAlbum(ctx *gin.Context) {
 	ms := []types.Media{}
 	if update.AddMedia != nil && len(update.AddMedia) != 0 {
 		ms = util.Map(update.AddMedia, func(fId types.FileId) types.Media {
-			m, err := dataStore.FsTreeGet(fId).GetMedia()
-			util.ErrTrace(err)
+			f := dataStore.FsTreeGet(fId)
+			m := dataStore.MediaMapGet(f.GetContentId())
 			return m
 		})
 		ms = util.Filter(ms, func(m types.Media) bool { return m != nil })
@@ -130,9 +129,8 @@ func updateAlbum(ctx *gin.Context) {
 
 	if update.AddFolders != nil && len(update.AddFolders) != 0 {
 
-		ms = append(ms, util.Map(dataStore.RecursiveGetMedia(update.AddFolders...), func(mId types.MediaId) types.Media {
-			m, err := dataStore.MediaMapGet(mId)
-			util.ErrTrace(err)
+		ms = append(ms, util.Map(dataStore.RecursiveGetMedia(update.AddFolders...), func(mId types.ContentId) types.Media {
+			m := dataStore.MediaMapGet(mId)
 			return m
 		})...)
 	}
@@ -166,14 +164,6 @@ func updateAlbum(ctx *gin.Context) {
 			util.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
 			return
-		}
-	}
-
-	if update.CleanMedia {
-		err = a.CleanMissingMedia()
-		if err != nil {
-			util.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed clean missing album media"})
 		}
 	}
 

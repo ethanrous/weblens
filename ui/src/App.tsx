@@ -1,14 +1,17 @@
-import React, { Suspense } from "react";
+import React, { Component, Suspense, useEffect, useState } from "react";
 import { BrowserRouter as Router, useRoutes } from "react-router-dom";
 import { Box, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 
 import WeblensLoader from "./components/Loading";
 import useR from "./components/UserInfo";
-import { userContext } from "./Context";
+import { MediaTypeContext, UserContext } from "./Context";
 
 import "@mantine/notifications/styles.css";
 import "@mantine/core/styles.css";
+import { fetchMediaTypes } from "./api/ApiFetch";
+import { mediaType } from "./types/Types";
+import ErrorBoundary, { ErrorDisplay } from "./components/Error";
 
 const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"));
 const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"));
@@ -18,6 +21,18 @@ const Setup = React.lazy(() => import("./Pages/Setup/Setup"));
 
 const WeblensRoutes = () => {
     const { authHeader, usr, setCookie, clear, serverInfo } = useR();
+
+    const [typeMap, setTypeMap] = useState(null);
+    useEffect(() => {
+        const mediaTypes = new Map<string, mediaType>();
+        fetchMediaTypes().then((mt) => {
+            const mimes: string[] = Array.from(Object.keys(mt));
+            for (const mime of mimes) {
+                mediaTypes.set(mime, mt[mime]);
+            }
+            setTypeMap(mediaTypes);
+        });
+    }, []);
 
     const galleryPage = (
         <Suspense fallback={<PageLoader />}>
@@ -60,12 +75,23 @@ const WeblensRoutes = () => {
         { path: "/login", element: loginPage },
         { path: "/setup", element: setupPage },
     ]);
+
     return (
-        <userContext.Provider
-            value={{ authHeader, usr, setCookie, clear, serverInfo }}
-        >
-            {Gal}
-        </userContext.Provider>
+        <ErrorBoundary fallback={ErrorDisplay}>
+            <UserContext.Provider
+                value={{
+                    authHeader,
+                    usr,
+                    setCookie,
+                    clear,
+                    serverInfo,
+                }}
+            >
+                <MediaTypeContext.Provider value={typeMap}>
+                    {Gal}
+                </MediaTypeContext.Provider>
+            </UserContext.Provider>
+        </ErrorBoundary>
     );
 };
 

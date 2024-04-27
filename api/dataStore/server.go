@@ -11,7 +11,7 @@ import (
 var thisServer *srvInfo
 var thisOwner types.User
 
-// Can return nil. When nil is returned, all hanlders must
+// Can return nil. When nil is returned, all handlers must
 // do their best to re-direct to the setup page
 func GetServerInfo() types.ServerInfo {
 	if thisServer == nil {
@@ -19,7 +19,10 @@ func GetServerInfo() types.ServerInfo {
 		if err == nil {
 			thisServer = ret
 		} else {
-			return nil
+			thisServer = &srvInfo{
+				Role: types.Initialization,
+			}
+
 		}
 	}
 	thisServer.UserCount = UserCount()
@@ -52,11 +55,12 @@ func (si *srvInfo) ServerRole() types.ServerRole {
 	return si.Role
 }
 
-func (si *srvInfo) IsCore() bool {
-	if si == nil {
-		return false
-	}
-	return si.Role == types.Core
+func (si *srvInfo) GetRole() types.ServerRole {
+	return si.Role
+	// if si == nil {
+	// 	return false
+	// }
+	// return si.Role == types.Core
 }
 
 func (si *srvInfo) GetCoreAddress() (string, error) {

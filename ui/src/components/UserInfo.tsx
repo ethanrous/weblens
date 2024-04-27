@@ -63,7 +63,6 @@ const useR = () => {
         ) {
             // Auth header unset, but the cookies are ready
             const loginStr = `${cookies["weblens-username"]}:${cookies["weblens-login-token"]}`;
-            // console.log(loginStr.replace(/-/g, '+').replace(/_/g, '/'));
             const login64 = window.btoa(loginStr);
             setAuthHeader({
                 Authorization: `Basic ${login64.toString()}`,

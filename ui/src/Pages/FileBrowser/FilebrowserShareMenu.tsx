@@ -10,14 +10,10 @@ import {
 import { WeblensButton } from "../../components/WeblensButton";
 
 import { useCallback, useContext, useEffect, useState } from "react";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import { ColumnBox, RowBox } from "./FileBrowserStyles";
-import {
-    AuthHeaderT,
-    FileInfoT,
-    shareData,
-    UserContextT,
-} from "../../types/Types";
+import { AuthHeaderT, shareData, UserContextT } from "../../types/Types";
+import { WeblensFile } from "../../classes/File";
 import { AutocompleteUsers } from "../../api/ApiFetch";
 
 export function ShareInput({
@@ -29,7 +25,7 @@ export function ShareInput({
     sharedUsers: string[];
     setSharedUsers: (v) => void;
 }) {
-    const { usr, authHeader }: UserContextT = useContext(userContext);
+    const { usr, authHeader }: UserContextT = useContext(UserContext);
     const [userSearchResult, setUserSearch] = useState([]);
     const [search, setSearch] = useState("");
 
@@ -167,7 +163,7 @@ export function ShareBox({
     candidates,
     authHeader,
 }: {
-    candidates: FileInfoT[];
+    candidates: WeblensFile[];
     authHeader: AuthHeaderT;
 }) {
     const [sharedUsers, setSharedUsers] = useState([]);
@@ -180,11 +176,11 @@ export function ShareBox({
         if (
             !candidates ||
             candidates.length === 0 ||
-            candidates[0].shares.length === 0
+            candidates[0].GetShares().length === 0
         ) {
             return;
         }
-        setShareData(candidates[0].shares.filter((s) => !s.Wormhole));
+        setShareData(candidates[0].GetShares().filter((s) => !s.Wormhole));
         // GetFileShare(candidates[0].id, authHeader).then((v: shareData[]) => ).catch(r => notifications.show({ title: "Failed to get share data", message: String(r), color: 'red' }))
     }, [candidates, authHeader]);
 
@@ -201,7 +197,7 @@ export function ShareBox({
     const shareOrUpdate = useCallback(async () => {
         if (!shareData || shareData.length === 0) {
             const res = await ShareFiles(
-                candidates.map((v) => v.id),
+                candidates.map((v) => v.Id()),
                 pub,
                 sharedUsers,
                 authHeader
@@ -219,14 +215,18 @@ export function ShareBox({
     }, [candidates, shareData, pub, sharedUsers, authHeader]);
 
     return (
-        <ColumnBox style={{ gap: 4 }}>
+        <ColumnBox style={{ gap: 5, padding: 4 }}>
             <ShareInput
                 isPublic={pub}
                 sharedUsers={sharedUsers}
                 setSharedUsers={setSharedUsers}
             />
             <WeblensButton
+                key={"public-button"}
                 toggleOn={pub}
+                allowRepeat
+                height={40}
+                width={"90%"}
                 onClick={() => setPublic(!pub)}
                 label={pub ? "Public" : "Private"}
                 postScript={
@@ -237,12 +237,18 @@ export function ShareBox({
                 Left={pub ? <IconUsersGroup /> : <IconUserCancel />}
             />
 
-            <RowBox
-                style={{ justifyContent: "space-between", maxWidth: "95%" }}
+            <Box
+                style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    // maxWidth: "95%",
+                }}
             >
                 <WeblensButton
                     label="Copy link"
-                    showSuccess
+                    height={40}
                     Left={<IconLink />}
                     onClick={(e) => {
                         e.stopPropagation();
@@ -257,7 +263,7 @@ export function ShareBox({
                 />
                 <WeblensButton
                     label="Save"
-                    showSuccess
+                    height={40}
                     onClick={(e) => {
                         e.stopPropagation();
                         shareOrUpdate();
@@ -265,7 +271,7 @@ export function ShareBox({
                     }}
                     style={{ width: "50%" }}
                 />
-            </RowBox>
+            </Box>
         </ColumnBox>
     );
 }

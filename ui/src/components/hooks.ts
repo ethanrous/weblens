@@ -25,7 +25,7 @@ export const useKeyDown = (key: string, callback: (e) => void) => {
                 callback(event);
             }
         },
-        [key, callback],
+        [key, callback]
     );
 
     useEffect(() => {
@@ -37,8 +37,15 @@ export const useKeyDown = (key: string, callback: (e) => void) => {
 };
 
 export const useWindowSize = () => {
-    const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
-    const onResize = (e) => setWindowSize({ width: e.target.innerWidth, height: e.target.innerHeight });
+    const [windowSize, setWindowSize] = useState({
+        width: window.innerWidth,
+        height: window.innerHeight,
+    });
+    const onResize = (e) =>
+        setWindowSize({
+            width: e.target.innerWidth,
+            height: e.target.innerHeight,
+        });
     useEffect(() => {
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
@@ -47,7 +54,12 @@ export const useWindowSize = () => {
     return windowSize;
 };
 
-export const useResizeDrag = (resizing: boolean, setResizing, setResizeOffset, flip?: boolean) => {
+export const useResizeDrag = (
+    resizing: boolean,
+    setResizing,
+    setResizeOffset,
+    flip?: boolean
+) => {
     const windowSize = useWindowSize();
     window.addEventListener("mouseup", (e) => {
         if (resizing) {
@@ -72,33 +84,46 @@ export const useResizeDrag = (resizing: boolean, setResizing, setResizeOffset, f
 };
 
 export const useMediaType = (): Map<string, mediaType> => {
-    const [typeMap, setTypeMap] = useState(null)
+    const [typeMap, setTypeMap] = useState(null);
 
     useEffect(() => {
-        const mediaTypes = new Map<string, mediaType>()
+        const mediaTypes = new Map<string, mediaType>();
         fetchMediaTypes().then((mt) => {
             const mimes: string[] = Array.from(Object.keys(mt));
             for (const mime of mimes) {
                 mediaTypes.set(mime, mt[mime]);
             }
-            setTypeMap(mediaTypes)
+            setTypeMap(mediaTypes);
         });
-    }, [])
-    return typeMap
-}
+    }, []);
+    return typeMap;
+};
 
-export const useClick = (handler: (e) => void, ignore) => {
-    const callback = useCallback(e => {
-        if (!ignore || ignore.contains(e.target)) {
-            return
-        }
+export const useClick = (handler: (e) => void, ignore?, disable?: boolean) => {
+    const callback = useCallback(
+        (e) => {
+            if (disable) {
+                return;
+            }
 
-        handler(e)
-    }, [handler, ignore])
+            if (ignore && ignore.contains(e.target)) {
+                return;
+            }
+
+            handler(e);
+        },
+        [handler, ignore, disable]
+    );
 
     useEffect(() => {
-        console.log("Re-doin")
-        window.addEventListener("click", callback)
-        return () => window.removeEventListener("click", handler)
-    }, [callback])
-}
+        if (!disable) {
+            window.addEventListener("click", callback, true);
+            window.addEventListener("contextmenu", callback, true);
+            return;
+        }
+        return () => {
+            window.removeEventListener("click", handler, true);
+            window.removeEventListener("contextmenu", handler, true);
+        };
+    }, [callback, disable]);
+};

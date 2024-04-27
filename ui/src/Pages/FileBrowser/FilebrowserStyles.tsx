@@ -12,7 +12,7 @@ import {
     Center,
     Skeleton,
 } from "@mantine/core";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import {
     handleDragOver,
     HandleDrop,
@@ -20,12 +20,11 @@ import {
 } from "./FileBrowserLogic";
 import {
     FBDispatchT,
-    ScanMeta,
-    FileInfoT,
     FbStateT,
     UserContextT,
-    AuthHeaderT,
+    UserInfoT,
 } from "../../types/Types";
+import { WeblensFile } from "../../classes/File";
 
 import {
     IconDatabase,
@@ -46,13 +45,16 @@ import {
     IconUser,
     IconUsers,
 } from "@tabler/icons-react";
-import { userContext } from "../../Context";
-import { humanFileSize, nsToHumanTime } from "../../util";
+import { UserContext } from "../../Context";
+import { friendlyFolderName, humanFileSize, nsToHumanTime } from "../../util";
 import { ContainerMedia } from "../../components/Presentation";
 import { IconX } from "@tabler/icons-react";
 import { WeblensProgress } from "../../components/WeblensProgress";
 import { useResize } from "../../components/hooks";
 import { BackdropMenu } from "./FileMenu";
+
+import "./style/fileBrowserStyle.css";
+import { DraggingState } from "./FileBrowser";
 
 export const ColumnBox = ({
     children,
@@ -179,7 +181,7 @@ export const TransferCard = ({
     );
 };
 
-const Dropspot = ({
+export const Dropspot = ({
     onDrop,
     dropspotTitle,
     dragging,
@@ -189,7 +191,7 @@ const Dropspot = ({
 }: {
     onDrop;
     dropspotTitle;
-    dragging;
+    dragging: DraggingState;
     dropAllowed;
     handleDrag: React.DragEventHandler<HTMLDivElement>;
     wrapperRef?;
@@ -261,7 +263,6 @@ type DirViewWrapperProps = {
     folderName: string;
     dragging: number;
     dispatch: FBDispatchT;
-    onDrop: (e: any) => void;
     children: JSX.Element;
 };
 
@@ -270,19 +271,12 @@ export const DirViewWrapper = ({
     folderName,
     dragging,
     dispatch,
-    onDrop,
+
     children,
 }: DirViewWrapperProps) => {
-    const { usr }: UserContextT = useContext(userContext);
+    const { usr }: UserContextT = useContext(UserContext);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
-    const [wrapperRef, setWrapperRef] = useState(null);
-    const dropAllowed = useMemo(() => {
-        return (
-            fbState.folderInfo.modifiable &&
-            !(fbState.fbMode === "share" || fbState.contentId === usr.trashId)
-        );
-    }, [fbState.contentId, usr.trashId, fbState.fbMode, fbState.folderInfo]);
 
     return (
         <Box
@@ -299,17 +293,14 @@ export const DirViewWrapper = ({
                 e.preventDefault();
                 e.stopPropagation();
             }}
-            ref={setWrapperRef}
-            // If dropping is not allowed, and we drop, we want to clear the window when we detect the mouse moving again
-            // We have to wait (a very short time, 10ms) to make sure the drop event fires and gets captured by the dropbox, otherwise
-            // we set dragging to 0 too early, the dropbox gets removed, and chrome handles the drop event, opening the image in another tab
-            // onMouseMove={e => { if (dragging) { setTimeout(() => dispatch({ type: 'set_dragging', dragging: false }), 10) } }}
-
             onMouseUp={(e) => {
                 if (dragging) {
                     setTimeout(
                         () =>
-                            dispatch({ type: "set_dragging", dragging: false }),
+                            dispatch({
+                                type: "set_dragging",
+                                dragging: DraggingState.NoDrag,
+                            }),
                         10
                     );
                 }
@@ -336,19 +327,7 @@ export const DirViewWrapper = ({
                 setMenuOpen={setMenuOpen}
                 newFolder={() => dispatch({ type: "new_dir" })}
             />
-            <Dropspot
-                onDrop={(e) => {
-                    onDrop(e);
-                    dispatch({ type: "set_dragging", dragging: false });
-                }}
-                dropspotTitle={folderName}
-                dragging={dragging}
-                dropAllowed={dropAllowed}
-                handleDrag={(event) =>
-                    handleDragOver(event, dispatch, dragging)
-                }
-                wrapperRef={wrapperRef}
-            />
+
             <ColumnBox
                 style={{ width: "100%", padding: 8 }}
                 onDragOver={(event) => {
@@ -359,77 +338,6 @@ export const DirViewWrapper = ({
             >
                 {children}
             </ColumnBox>
-        </Box>
-    );
-};
-
-export const WormholeWrapper = ({
-    wormholeId,
-    wormholeName,
-    fileId,
-    validWormhole,
-    uploadDispatch,
-    children,
-}: {
-    wormholeId: string;
-    wormholeName: string;
-    fileId: string;
-    validWormhole: boolean;
-    uploadDispatch;
-    children;
-}) => {
-    const { authHeader }: UserContextT = useContext(userContext);
-    const [dragging, setDragging] = useState(0);
-    const handleDrag = useCallback(
-        (e) => {
-            e.preventDefault();
-            if (e.type === "dragenter" || e.type === "dragover") {
-                if (!dragging) {
-                    setDragging(2);
-                }
-            } else if (dragging) {
-                setDragging(0);
-            }
-        },
-        [dragging]
-    );
-
-    return (
-        <Box className="wormhole-wrapper">
-            <Box
-                style={{ position: "relative", width: "98%", height: "98%" }}
-                //                    See DirViewWrapper \/
-                onMouseMove={(e) => {
-                    if (dragging) {
-                        setTimeout(() => setDragging(0), 10);
-                    }
-                }}
-            >
-                <Dropspot
-                    onDrop={(e) =>
-                        HandleDrop(
-                            e.dataTransfer.items,
-                            fileId,
-                            [],
-                            true,
-                            wormholeId,
-                            authHeader,
-                            uploadDispatch,
-                            () => {}
-                        )
-                    }
-                    dropspotTitle={wormholeName}
-                    dragging={dragging}
-                    dropAllowed={validWormhole}
-                    handleDrag={handleDrag}
-                />
-                <ColumnBox
-                    style={{ justifyContent: "center" }}
-                    onDragOver={handleDrag}
-                >
-                    {children}
-                </ColumnBox>
-            </Box>
         </Box>
     );
 };
@@ -456,6 +364,69 @@ export const ScanFolderButton = ({ folderId, holdingShift, doScan }) => {
     );
 };
 
+export const FileIcon = ({
+    fileName,
+    id,
+    Icon,
+    usr,
+    as,
+    includeText = true,
+}: {
+    fileName: string;
+    id: string;
+    Icon;
+    usr: UserInfoT;
+    as?: string;
+    includeText?: boolean;
+}) => {
+    return (
+        <Box
+            style={{
+                display: "flex",
+                alignItems: "center",
+            }}
+        >
+            <Icon className="icon-noshrink" />
+            <Text
+                fw={550}
+                c="white"
+                truncate="end"
+                style={{
+                    fontFamily: "monospace",
+                    textWrap: "nowrap",
+                    padding: 6,
+                    flexShrink: 1,
+                }}
+            >
+                {friendlyFolderName(fileName, id, usr)}
+            </Text>
+            {as && (
+                <Box
+                    style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                    }}
+                >
+                    <Text size="12px">as</Text>
+                    <Text
+                        size="12px"
+                        truncate="end"
+                        style={{
+                            fontFamily: "monospace",
+                            textWrap: "nowrap",
+                            padding: 3,
+                            flexShrink: 2,
+                        }}
+                    >
+                        {as}
+                    </Text>
+                </Box>
+            )}
+        </Box>
+    );
+};
+
 export const FolderIcon = ({ shares, size }: { shares; size }) => {
     const [copied, setCopied] = useState(false);
     const wormholeId = useMemo(() => {
@@ -467,7 +438,15 @@ export const FolderIcon = ({ shares, size }: { shares; size }) => {
         }
     }, [shares]);
     return (
-        <RowBox style={{ justifyContent: "center", width: "100%" }}>
+        <Box
+            style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                width: "100%",
+                height: "100%",
+            }}
+        >
             <IconFolder size={size} />
             {wormholeId && (
                 <Tooltip label={copied ? "Copied" : "Copy Wormhole"}>
@@ -482,11 +461,11 @@ export const FolderIcon = ({ shares, size }: { shares; size }) => {
                             setCopied(true);
                             setTimeout(() => setCopied(false), 1000);
                         }}
-                        onDoubleClick={(e) => e.stopPropagation()}
+                        // onDoubleClick={(e) => e.stopPropagation()}
                     />
                 </Tooltip>
             )}
-        </RowBox>
+        </Box>
     );
 };
 
@@ -495,7 +474,7 @@ export const IconDisplay = ({
     size = 24,
     allowMedia = false,
 }: {
-    file: FileInfoT;
+    file: WeblensFile;
     size?: string | number;
     allowMedia?: boolean;
 }) => {
@@ -513,10 +492,11 @@ export const IconDisplay = ({
     if (!file.imported && file.displayable && allowMedia) {
         return (
             <Center style={{ height: "100%", width: "100%" }}>
-                <Skeleton height={"100%"} width={"100%"} />
+                {/* <Skeleton height={"100%"} width={"100%"} />
                 <Text pos={"absolute"} style={{ userSelect: "none" }}>
                     Processing...
-                </Text>
+                </Text> */}
+                <IconPhoto />
             </Center>
         );
     } else if (file.displayable && allowMedia) {
@@ -573,7 +553,7 @@ export const IconDisplay = ({
     }
 };
 
-export const FileInfoDisplay = ({ file }: { file: FileInfoT }) => {
+export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
     let [size, units] = humanFileSize(file.size);
     return (
         <ColumnBox
@@ -616,7 +596,7 @@ export const FileInfoDisplay = ({ file }: { file: FileInfoT }) => {
     );
 };
 
-export const PresentationFile = ({ file }: { file: FileInfoT }) => {
+export const PresentationFile = ({ file }: { file: WeblensFile }) => {
     if (!file) {
         return null;
     }
@@ -741,7 +721,7 @@ export const GetStartedCard = ({
     uploadDispatch;
     wsSend;
 }) => {
-    const { authHeader, usr } = useContext(userContext);
+    const { authHeader, usr } = useContext(UserContext);
     return (
         <ColumnBox>
             <ColumnBox
@@ -832,97 +812,6 @@ export const GetStartedCard = ({
                 )}
             </ColumnBox>
         </ColumnBox>
-    );
-};
-
-export const TaskProgCard = ({
-    prog,
-    dispatch,
-}: {
-    prog: ScanMeta;
-    dispatch: FBDispatchT;
-}) => {
-    const timeString = useMemo(() => nsToHumanTime(prog.time), [prog.time]);
-
-    return (
-        <Box className="task-progress-box">
-            <RowBox style={{ height: "max-content" }}>
-                <Box style={{ width: "100%" }}>
-                    <Text size="12px" style={{ userSelect: "none" }}>
-                        {prog.taskType}
-                    </Text>
-                    <Text size="16px" fw={600} style={{ userSelect: "none" }}>
-                        {prog.target}
-                    </Text>
-                </Box>
-                <IconX
-                    size={20}
-                    cursor={"pointer"}
-                    onClick={() =>
-                        dispatch({
-                            type: "remove_task_progress",
-                            taskId: prog.taskId,
-                        })
-                    }
-                />
-            </RowBox>
-            <Box
-                style={{ height: 25, flexShrink: 0, width: "100%", margin: 10 }}
-            >
-                <WeblensProgress
-                    value={prog.complete ? 100 : prog.progress}
-                    color={prog.complete ? "#22bb33" : "#4444ff"}
-                />
-            </Box>
-            {!prog.complete && (
-                <RowBox
-                    style={{
-                        justifyContent: "space-between",
-                        height: "max-content",
-                        gap: 10,
-                    }}
-                >
-                    <Text
-                        size="10px"
-                        truncate="end"
-                        style={{ userSelect: "none" }}
-                    >
-                        {prog.mostRecent}
-                    </Text>
-                    {prog.tasksTotal > 0 && (
-                        <Text size="10px" style={{ userSelect: "none" }}>
-                            {prog.tasksComplete}/{prog.tasksTotal}
-                        </Text>
-                    )}
-                </RowBox>
-            )}
-            {prog.complete && (
-                <RowBox
-                    style={{
-                        justifyContent: "space-between",
-                        height: "max-content",
-                        gap: 10,
-                    }}
-                >
-                    <Text
-                        size="10px"
-                        style={{ width: "max-content", userSelect: "none" }}
-                    >
-                        Finished in {timeString}
-                    </Text>
-                    <Text
-                        size="10px"
-                        style={{
-                            width: "max-content",
-                            textWrap: "nowrap",
-                            userSelect: "none",
-                        }}
-                    >
-                        {prog.note}
-                    </Text>
-                </RowBox>
-            )}
-        </Box>
     );
 };
 

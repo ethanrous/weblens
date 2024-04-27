@@ -1,10 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
-import { MediaDataT } from "../types/Types";
 import { MediaImage } from "./PhotoContainer";
 import { Box, CloseButton } from "@mantine/core";
 import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
 import { useMediaType } from "./hooks";
+import WeblensMedia from "../classes/Media";
+import { IconX } from "@tabler/icons-react";
 
 export const PresentationContainer = ({
     shadeOpacity,
@@ -47,7 +48,7 @@ export const ContainerMedia = ({
     mediaData,
     containerRef,
 }: {
-    mediaData: MediaDataT;
+    mediaData: WeblensMedia;
     containerRef;
 }) => {
     const [boxSize, setBoxSize] = useState({
@@ -69,7 +70,10 @@ export const ContainerMedia = ({
         let newWidth;
         if (!containerRef) {
             newWidth = 0;
-        } else if (containerRef.clientWidth < 150 && mediaData.pageCount > 1) {
+        } else if (
+            containerRef.clientWidth < 150 &&
+            mediaData.GetPageCount() > 1
+        ) {
             newWidth = 150;
         } else {
             newWidth = containerRef.clientWidth;
@@ -80,40 +84,40 @@ export const ContainerMedia = ({
     const [absHeight, absWidth] = useMemo(() => {
         if (
             !mediaData ||
-            !mediaData.mediaHeight ||
-            !mediaData.mediaWidth ||
+            !mediaData.GetHeight() ||
+            !mediaData.GetWidth() ||
             !boxSize.height ||
             !boxSize.width
         ) {
             return [0, 0];
         }
-        const mediaRatio = mediaData.mediaWidth / mediaData.mediaHeight;
+        const mediaRatio = mediaData.GetWidth() / mediaData.GetHeight();
         const windowRatio = boxSize.width / boxSize.height;
         let absHeight = 0;
         let absWidth = 0;
         if (mediaRatio > windowRatio) {
             absWidth = boxSize.width;
             absHeight =
-                (absWidth / mediaData.mediaWidth) * mediaData.mediaHeight;
+                (absWidth / mediaData.GetWidth()) * mediaData.GetHeight();
         } else {
             absHeight = boxSize.height;
             absWidth =
-                (absHeight / mediaData.mediaHeight) * mediaData.mediaWidth;
+                (absHeight / mediaData.GetHeight()) * mediaData.GetWidth();
         }
         return [absHeight, absWidth];
-    }, [mediaData, mediaData?.mediaHeight, mediaData?.mediaWidth, boxSize]);
+    }, [mediaData, mediaData.GetHeight(), mediaData.GetWidth(), boxSize]);
 
     if (!mediaData || !containerRef) {
         return null;
     }
 
-    if (mediaData.pageCount > 1) {
+    if (mediaData.GetPageCount() > 1) {
         return (
             <ColumnBox
                 className="no-scrollbars"
                 style={{ overflow: "scroll", gap: absHeight * 0.02 }}
             >
-                {[...Array(mediaData.pageCount).keys()].map((p) => (
+                {[...Array(mediaData.GetPageCount()).keys()].map((p) => (
                     <MediaImage
                         key={p}
                         media={mediaData}
@@ -143,7 +147,7 @@ const PresentationVisual = ({
     mediaData,
     Element,
 }: {
-    mediaData: MediaDataT;
+    mediaData: WeblensMedia;
     Element;
 }) => {
     const [containerRef, setContainerRef] = useState(null);
@@ -222,7 +226,7 @@ const Presentation = memo(
         dispatch,
     }: {
         itemId: string;
-        mediaData: MediaDataT;
+        mediaData: WeblensMedia;
         dispatch: React.Dispatch<any>;
         element?;
     }) => {
@@ -234,8 +238,6 @@ const Presentation = memo(
 
         if (!mediaData) {
             return null;
-        } else if (!mediaData.mediaType) {
-            mediaData.mediaType = typeMap.get(mediaData.mimeType);
         }
 
         return (
@@ -250,20 +252,19 @@ const Presentation = memo(
             >
                 <PresentationVisual mediaData={mediaData} Element={element} />
                 {/* <Text style={{ position: 'absolute', bottom: guiShown ? 15 : -100, left: '50vw' }} >{}</Text> */}
-                <CloseButton
-                    c={"white"}
-                    style={{
-                        position: "absolute",
-                        top: guiShown ? 15 : -100,
-                        left: 15,
-                    }}
+
+                <Box
+                    className="close-icon"
+                    mod={{ shown: guiShown.toString() }}
                     onClick={() =>
                         dispatch({
                             type: "set_presentation",
                             presentingId: null,
                         })
                     }
-                />
+                >
+                    <IconX />
+                </Box>
             </PresentationContainer>
         );
     },

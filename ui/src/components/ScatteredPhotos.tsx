@@ -1,21 +1,20 @@
-import { Box } from '@mantine/core';
-import { getRandomInt } from '../util';
-import { useEffect, useMemo, useState } from 'react';
-import { MediaDataT } from '../types/Types';
-import { getRandomThumbs, newApiKey } from '../api/ApiFetch';
-import { useResize } from './hooks';
-import { MediaImage } from './PhotoContainer';
+import { Box } from "@mantine/core";
+import { getRandomInt } from "../util";
+import { useEffect, useMemo, useState } from "react";
+import { WeblensMedia } from "../classes/Media";
+import { getRandomThumbs, newApiKey } from "../api/ApiFetch";
+import { useResize } from "./hooks";
+import { MediaImage } from "./PhotoContainer";
 
 const ScatteredPhoto = ({
     media,
     attribute,
 }: {
-    media: MediaDataT;
+    media: WeblensMedia;
     attribute: attribute;
 }) => {
     const [mData, setMData] = useState(media);
 
-    console.log(attribute.blur);
     return (
         <Box
             className="scattered-photo"
@@ -35,7 +34,7 @@ const ScatteredPhoto = ({
                 doPublic
                 setMediaCallback={(id, quality, data) => {
                     setMData((p) => {
-                        if (quality == 'thumbnail') {
+                        if (quality == "thumbnail") {
                             p.thumbnail = data;
                         } else {
                             p.fullres = data;
@@ -78,7 +77,7 @@ const doesCollide = (box1: attribute, box2: attribute) => {
 };
 
 export const ScatteredPhotos = () => {
-    const [medias, setMedias]: [medias: MediaDataT[], setMedias: any] =
+    const [medias, setMedias]: [medias: WeblensMedia[], setMedias: any] =
         useState([]);
     useEffect(() => {
         getRandomThumbs().then((r) => setMedias(r.medias));
@@ -158,9 +157,9 @@ export const ScatteredPhotos = () => {
         <Box
             ref={setPageRef}
             style={{
-                position: 'absolute',
-                width: '100vw',
-                height: '100vh',
+                position: "absolute",
+                width: "100vw",
+                height: "100vh",
                 zIndex: 0,
             }}
         >

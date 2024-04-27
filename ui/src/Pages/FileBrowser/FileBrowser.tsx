@@ -45,7 +45,7 @@ import { useDebouncedValue, useMouse } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 
 // Weblens
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import {
     GetFileInfo,
     GetFolderData,
@@ -55,8 +55,8 @@ import {
 } from "../../api/FileBrowserApi";
 import Crumbs, { StyledBreadcrumb } from "../../components/Crumbs";
 import HeaderBar from "../../components/HeaderBar";
-import { GlobalContextType, ItemProps } from "../../components/ItemDisplay";
-import { ItemScroller } from "../../components/ItemScroller";
+import { GlobalContextType } from "../../components/ItemDisplay";
+import { FileContextT, ItemScroller } from "../../components/ItemScroller";
 import NotFound from "../../components/NotFound";
 import { MediaImage } from "../../components/PhotoContainer";
 import Presentation, {
@@ -70,12 +70,10 @@ import {
     FileBrowserAction,
     FBDispatchT,
     FbStateT,
-    MediaDataT,
-    ScanMeta,
-    FileInfoT,
-    getBlankFile,
     UserContextT,
 } from "../../types/Types";
+import WeblensMedia from "../../classes/Media";
+import { WeblensFile } from "../../classes/File";
 import { humanFileSize } from "../../util";
 
 import {
@@ -89,19 +87,19 @@ import {
     getRealId,
     useKeyDownFileBrowser,
     usePaste,
-    useSubscribe,
+    handleDragOver,
 } from "./FileBrowserLogic";
 
 import { GetFilesContext, GetItemsList } from "./FilesContext";
 import {
     ColumnBox,
     DirViewWrapper,
+    Dropspot,
     FileInfoDisplay,
     GetStartedCard,
     IconDisplay,
     PresentationFile,
     RowBox,
-    TaskProgCard,
     TransferCard,
     WebsocketStatus,
 } from "./FileBrowserStyles";
@@ -118,6 +116,17 @@ import { FilesPane } from "./FileInfoPane";
 import { StatTree } from "./FileStatTree";
 import { FileSortBox } from "./FileSortBox";
 import { FileContextMenu } from "./FileMenu";
+import { useSubscribe } from "../../api/Websocket";
+import { TasksDisplay } from "./TaskProgress";
+
+export enum DraggingState {
+    NoDrag, // No dragging is taking place
+    InternalDrag, // Dragging is of only internal elements
+
+    // Dragging is from external source, such as
+    // dragging files from your computer over the browser
+    ExternalDrag,
+}
 
 function PasteImageDialogue({
     img,
@@ -128,7 +137,7 @@ function PasteImageDialogue({
     wsSend,
 }: {
     img: ArrayBuffer;
-    dirMap: Map<string, FileInfoT>;
+    dirMap: Map<string, WeblensFile>;
     folderId;
     authHeader;
     dispatch;
@@ -137,9 +146,8 @@ function PasteImageDialogue({
     if (!img) {
         return null;
     }
-    const media: MediaDataT = {} as MediaDataT;
-    media.mediaId = "paste";
-    media.thumbnail = img;
+    const media = new WeblensMedia({ mediaId: "paste" });
+    media.SetThumbnailBytes(img);
 
     return (
         <PresentationContainer
@@ -229,7 +237,7 @@ const GlobalActions = memo(
         uploadDispatch;
     }) => {
         const nav = useNavigate();
-        const { usr, authHeader }: UserContextT = useContext(userContext);
+        const { usr, authHeader }: UserContextT = useContext(UserContext);
         const windowSize = useWindowSize();
         const [trashSize, trashUnits] = humanFileSize(fb.trashDirSize);
 
@@ -266,6 +274,7 @@ const GlobalActions = memo(
                     <Box className="login-required-background">
                         <WeblensButton
                             label="Login"
+                            height={48}
                             Left={<IconLogin className="button-icon" />}
                             centerContent
                             onClick={() => nav("/login")}
@@ -287,15 +296,16 @@ const GlobalActions = memo(
                 >
                     <WeblensButton
                         label="Home"
+                        height={48}
                         toggleOn={
-                            fb.folderInfo.id === usr?.homeId &&
+                            fb.folderInfo.Id() === usr?.homeId &&
                             fb.fbMode === "default"
                         }
                         width={"100%"}
                         allowRepeat={false}
                         Left={<IconHome className="button-icon" />}
                         onMouseOver={() => {
-                            if (fb.draggingState !== 0) {
+                            if (fb.draggingState !== DraggingState.NoDrag) {
                                 dispatch({
                                     type: "set_move_dest",
                                     fileName: "Home",
@@ -303,7 +313,7 @@ const GlobalActions = memo(
                             }
                         }}
                         onMouseLeave={() => {
-                            if (fb.draggingState !== 0) {
+                            if (fb.draggingState !== DraggingState.NoDrag) {
                                 dispatch({
                                     type: "set_move_dest",
                                     fileName: "",
@@ -316,7 +326,7 @@ const GlobalActions = memo(
                                 type: "set_move_dest",
                                 fileName: "",
                             });
-                            if (fb.draggingState !== 0) {
+                            if (fb.draggingState !== DraggingState.NoDrag) {
                                 moveFiles(
                                     Array.from(fb.selected.keys()),
                                     usr.homeId,
@@ -324,7 +334,7 @@ const GlobalActions = memo(
                                 );
                                 dispatch({
                                     type: "set_dragging",
-                                    dragging: false,
+                                    dragging: DraggingState.NoDrag,
                                 });
                             } else {
                                 nav("/files/home");
@@ -334,8 +344,9 @@ const GlobalActions = memo(
 
                     <WeblensButton
                         label="Shared"
+                        height={48}
                         toggleOn={fb.fbMode === "share"}
-                        disabled={fb.draggingState !== 0}
+                        disabled={fb.draggingState !== DraggingState.NoDrag}
                         allowRepeat={false}
                         Left={<IconUsers className="button-icon" />}
                         width={"100%"}
@@ -346,13 +357,14 @@ const GlobalActions = memo(
 
                     <WeblensButton
                         label="Trash"
+                        height={48}
                         toggleOn={
-                            fb.folderInfo.id === usr?.trashId &&
+                            fb.folderInfo.Id() === usr?.trashId &&
                             fb.fbMode === "default"
                         }
                         disabled={
-                            fb.draggingState &&
-                            fb.folderInfo.id === usr?.trashId &&
+                            fb.draggingState !== DraggingState.NoDrag &&
+                            fb.folderInfo.Id() === usr?.trashId &&
                             fb.fbMode === "default"
                         }
                         allowRepeat={false}
@@ -364,7 +376,7 @@ const GlobalActions = memo(
                                 : ""
                         }
                         onMouseOver={() => {
-                            if (fb.draggingState !== 0) {
+                            if (fb.draggingState !== DraggingState.NoDrag) {
                                 dispatch({
                                     type: "set_move_dest",
                                     fileName: "Trash",
@@ -372,7 +384,7 @@ const GlobalActions = memo(
                             }
                         }}
                         onMouseLeave={() => {
-                            if (fb.draggingState !== 0) {
+                            if (fb.draggingState !== DraggingState.NoDrag) {
                                 dispatch({
                                     type: "set_move_dest",
                                     fileName: "",
@@ -385,7 +397,7 @@ const GlobalActions = memo(
                                 type: "set_move_dest",
                                 fileName: "",
                             });
-                            if (fb.draggingState !== 0) {
+                            if (fb.draggingState !== DraggingState.NoDrag) {
                                 moveFiles(
                                     Array.from(fb.selected.keys()),
                                     usr.trashId,
@@ -393,7 +405,7 @@ const GlobalActions = memo(
                                 );
                                 dispatch({
                                     type: "set_dragging",
-                                    dragging: false,
+                                    dragging: DraggingState.NoDrag,
                                 });
                             } else {
                                 nav("/files/trash");
@@ -407,11 +419,14 @@ const GlobalActions = memo(
                         <ColumnBox style={{ height: "max-content" }}>
                             <WeblensButton
                                 label="External"
+                                height={48}
                                 toggleOn={fb.fbMode === "external"}
                                 allowRepeat={false}
                                 Left={<IconServer className="button-icon" />}
                                 width={"100%"}
-                                disabled={fb.draggingState !== 0}
+                                disabled={
+                                    fb.draggingState !== DraggingState.NoDrag
+                                }
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     nav("/files/external");
@@ -423,10 +438,12 @@ const GlobalActions = memo(
 
                     <WeblensButton
                         label="New Folder"
+                        height={48}
                         Left={<IconFolderPlus className="button-icon" />}
                         showSuccess={false}
                         disabled={
-                            fb.draggingState !== 0 || !fb.folderInfo.modifiable
+                            fb.draggingState !== 0 ||
+                            !fb.folderInfo.IsModifiable()
                         }
                         onClick={(e) => {
                             e.stopPropagation();
@@ -439,7 +456,7 @@ const GlobalActions = memo(
                         onChange={(files) => {
                             HandleUploadButton(
                                 files,
-                                fb.folderInfo.id,
+                                fb.folderInfo.Id(),
                                 false,
                                 "",
                                 authHeader,
@@ -454,16 +471,16 @@ const GlobalActions = memo(
                             return (
                                 <WeblensButton
                                     label="Upload"
+                                    height={48}
                                     showSuccess={false}
                                     disabled={
                                         fb.draggingState !== 0 ||
-                                        !fb.folderInfo.modifiable
+                                        !fb.folderInfo.IsModifiable()
                                     }
                                     Left={
                                         <IconUpload className="button-icon" />
                                     }
                                     width={"100%"}
-                                    // height={"48px"}
                                     onClick={() => props.onClick()}
                                 />
                             );
@@ -473,18 +490,19 @@ const GlobalActions = memo(
                     <Divider w={"100%"} my="lg" size={1.5} />
 
                     <UsageInfo
-                        inHome={fb.folderInfo.id === usr.homeId}
+                        inHome={fb.folderInfo.Id() === usr.homeId}
                         homeDirSize={fb.homeDirSize}
-                        currentFolderSize={fb.folderInfo.size}
-                        displayCurrent={fb.folderInfo.id !== "shared"}
+                        currentFolderSize={fb.folderInfo.GetSize()}
+                        displayCurrent={fb.folderInfo.Id() !== "shared"}
                         trashSize={fb.trashDirSize}
+                        inStats={fb.fbMode === "stats"}
                         selected={Array.from(fb.selected.keys()).map((v) =>
                             fb.dirMap.get(v)
                         )}
                         dirId={fb.contentId}
                         mode={fb.fbMode}
                     />
-                    <TaskProgress
+                    <TasksDisplay
                         scanProgress={fb.scanProgress}
                         dispatch={dispatch}
                     />
@@ -538,6 +556,7 @@ const UsageInfo = memo(
         currentFolderSize,
         displayCurrent,
         trashSize,
+        inStats,
         selected,
         mode,
         dirId,
@@ -547,7 +566,8 @@ const UsageInfo = memo(
         currentFolderSize: number;
         displayCurrent: boolean;
         trashSize: number;
-        selected: FileInfoT[];
+        inStats: boolean;
+        selected: WeblensFile[];
         mode: string;
         dirId: string;
     }) => {
@@ -568,8 +588,8 @@ const UsageInfo = memo(
             currentFolderSize = currentFolderSize - trashSize;
         }
 
-        const selectedSize = selected.reduce((acc: number, x: FileInfoT) => {
-            return acc + (x ? x.size : 0);
+        const selectedSize = selected.reduce((acc: number, x: WeblensFile) => {
+            return acc + (x ? x.GetSize() : 0);
         }, 0);
 
         if (homeDirSize < currentFolderSize) {
@@ -623,12 +643,22 @@ const UsageInfo = memo(
                     <Text fw={600} style={{ userSelect: "none" }}>
                         Usage
                     </Text>
-                    <Text fw={650} style={{ userSelect: "none" }}>
+                    <Text
+                        fw={650}
+                        truncate="end"
+                        style={{ userSelect: "none" }}
+                    >
                         {usagePercent ? usagePercent.toFixed(2) : 0}%
                     </Text>
                     <Box style={{ flexGrow: 1 }} />
-                    <IconFileAnalytics
-                        style={{ cursor: "pointer" }}
+                    <WeblensButton
+                        centerContent
+                        toggleOn={inStats}
+                        height={35}
+                        Left={
+                            <IconFileAnalytics width={"100%"} height={"100%"} />
+                        }
+                        style={{ padding: 4 }}
                         onClick={() =>
                             nav(
                                 `/files/stats/${
@@ -641,7 +671,6 @@ const UsageInfo = memo(
                 {miniMode && startIcon}
                 <WeblensProgress
                     key={miniMode ? "usage-vertical" : "usage-horizontal"}
-                    color="#4444ff"
                     value={usagePercent}
                     orientation={miniMode ? "vertical" : "horizontal"}
                     style={{
@@ -718,24 +747,6 @@ const UsageInfo = memo(
         return true;
     }
 );
-
-const TaskProgress = ({
-    scanProgress,
-    dispatch,
-}: {
-    scanProgress: ScanMeta[];
-    dispatch: FBDispatchT;
-}) => {
-    if (scanProgress.length == 0) {
-        return null;
-    }
-    const cards = useMemo(() => {
-        return scanProgress.map((sp) => (
-            <TaskProgCard key={sp.taskId} prog={sp} dispatch={dispatch} />
-        ));
-    }, [scanProgress]);
-    return <ColumnBox style={{ height: "max-content" }}>{cards}</ColumnBox>;
-};
 
 function FileSearch({
     fb,
@@ -840,7 +851,6 @@ function FileSearch({
                     }
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !hintOpen) {
-                            console.log("HE?");
                             e.stopPropagation();
                             if (!Boolean(fb.searchContent)) {
                                 nav(`/files/${fb.contentId}`);
@@ -878,7 +888,7 @@ function DraggingCounter({ dragging, dirMap, selected, dispatch }) {
         let folders = 0;
 
         selectedKeys.forEach((k: string) => {
-            if (dirMap.get(k)?.isDir) {
+            if (dirMap.get(k)?.IsFolder()) {
                 folders++;
             } else {
                 files++;
@@ -933,10 +943,10 @@ function SingleFile({
     file,
     doDownload,
 }: {
-    file: FileInfoT;
-    doDownload: (file: FileInfoT) => void;
+    file: WeblensFile;
+    doDownload: (file: WeblensFile) => void;
 }) {
-    if (!file.id) {
+    if (!file.Id()) {
         return (
             <NotFound
                 resourceType="Share"
@@ -984,7 +994,7 @@ function SingleFile({
                     >
                         <IconDownload />
                         <Text c="white" style={{ paddingLeft: 10 }}>
-                            Download {file.filename}
+                            Download {file.GetFilename()}
                         </Text>
                     </RowBox>
                 </Box>
@@ -1012,7 +1022,7 @@ function Files({
     uploadDispatch;
     authHeader;
 }) {
-    const { usr }: UserContextT = useContext(userContext);
+    const { usr }: UserContextT = useContext(UserContext);
     const nav = useNavigate();
     const [debouncedSearch] = useDebouncedValue(fb.searchContent, 200);
 
@@ -1028,11 +1038,13 @@ function Files({
         [fb.selected.size, fb.contentId, authHeader]
     );
 
-    const itemsList: ItemProps[] = useMemo(() => {
+    const { files, hoveringIndex, lastSelectedIndex } = useMemo(() => {
         return GetItemsList(fb, usr, debouncedSearch);
     }, [
         fb.dirMap,
+        fb.holdingShift,
         fb.selected,
+        fb.hovering,
         debouncedSearch,
         usr,
         fb.lastSelected,
@@ -1045,22 +1057,29 @@ function Files({
     }, [debouncedSearch]);
 
     useEffect(() => {
-        const fileIds = itemsList.map((v) => v.itemId);
+        const fileIds = files.map((v) => v.file.Id());
         dispatch({
             type: "set_files_list",
             fileIds: fileIds,
         });
         dispatch({ type: "remove_loading", loading: "fileSearch" });
-    }, [itemsList, dispatch]);
+    }, [files, dispatch]);
 
     const selectedInfo = useMemo(() => {
         return Array.from(fb.selected.keys()).map((fId) => fb.dirMap.get(fId));
     }, [fb.selected]);
 
     const itemsCtx: GlobalContextType = useMemo(() => {
-        return GetFilesContext(fb, itemsList, nav, authHeader, dispatch);
+        return GetFilesContext(
+            fb,
+            files,
+            hoveringIndex,
+            lastSelectedIndex,
+            authHeader,
+            dispatch
+        );
     }, [
-        itemsList,
+        files,
         fb.contentId,
         fb.dirMap,
         fb.selected,
@@ -1070,6 +1089,12 @@ function Files({
         fb.holdingShift,
         dispatch,
     ]);
+    const dropAllowed = useMemo(() => {
+        return (
+            fb.folderInfo.IsModifiable() &&
+            !(fb.fbMode === "share" || fb.contentId === usr.trashId)
+        );
+    }, [fb.contentId, usr.trashId, fb.fbMode, fb.folderInfo]);
 
     if (notFound) {
         return (
@@ -1106,7 +1131,6 @@ function Files({
             >
                 <Crumbs
                     finalFile={fb.folderInfo}
-                    parents={fb.parents}
                     postText={
                         fb.viewingPast
                             ? `@ ${fb.viewingPast.toDateString()} ${fb.viewingPast.toLocaleTimeString()}`
@@ -1154,9 +1178,36 @@ function Files({
                     ref={setContentViewRef}
                     style={{ flexGrow: 1, flexShrink: 1, width: 0 }}
                 >
-                    {(itemsList.length !== 0 && (
+                    <Dropspot
+                        onDrop={(e) => {
+                            HandleDrop(
+                                e.dataTransfer.items,
+                                fb.contentId,
+                                Array.from(fb.dirMap.values()).map(
+                                    (value: WeblensFile) => value.GetFilename()
+                                ),
+                                false,
+                                "",
+                                authHeader,
+                                uploadDispatch,
+                                wsSend
+                            );
+                            dispatch({
+                                type: "set_dragging",
+                                dragging: DraggingState.NoDrag,
+                            });
+                        }}
+                        dropspotTitle={fb.folderInfo.GetFilename()}
+                        dragging={fb.draggingState}
+                        dropAllowed={dropAllowed}
+                        handleDrag={(event) =>
+                            handleDragOver(event, dispatch, fb.draggingState)
+                        }
+                        wrapperRef={contentViewRef}
+                    />
+                    {(files.length !== 0 && (
                         <ItemScroller
-                            itemsContext={itemsList}
+                            itemsContext={files}
                             globalContext={itemsCtx}
                             parentNode={contentViewRef}
                             dispatch={dispatch}
@@ -1173,7 +1224,7 @@ function Files({
                                 />
                             )) ||
                         (fb.loading.length === 0 &&
-                            fb.folderInfo.id === "shared" && (
+                            fb.folderInfo.Id() === "shared" && (
                                 <NotFound
                                     resourceType="any files shared with you"
                                     link="/files/home"
@@ -1198,7 +1249,7 @@ function Files({
                                     </Text>
                                     <IconFolder style={{ marginLeft: 4 }} />
                                     <Text size="20px">
-                                        {fb.folderInfo.filename}
+                                        {fb.folderInfo.GetFilename()}
                                     </Text>
                                 </RowBox>
                                 <Space h={10} />
@@ -1227,13 +1278,13 @@ function Files({
 }
 
 function SearchResults({
-    fbState,
+    fb,
     searchQuery,
     filter,
     searchRef,
     dispatch,
 }: {
-    fbState: FbStateT;
+    fb: FbStateT;
     searchQuery: string;
     filter: string;
     searchRef;
@@ -1246,7 +1297,7 @@ function SearchResults({
     } else {
         titleString += `all files`;
     }
-    titleString += ` in ${fbState.folderInfo.filename}`;
+    titleString += ` in ${fb.folderInfo.GetFilename()}`;
     if (filter) {
         titleString += ` ending with .${filter}`;
     }
@@ -1265,18 +1316,18 @@ function SearchResults({
                     c="#aaaaaa"
                     style={{ fontSize: "14px", marginLeft: 10 }}
                 >
-                    {fbState.searchResults.length} results
+                    {fb.dirMap.size} results
                 </Text>
                 <Space flex={1} />
                 <FileSearch
-                    fb={fbState}
+                    fb={fb}
                     defaultOpen
                     searchRef={searchRef}
                     dispatch={dispatch}
                 />
             </RowBox>
             <Space h={10} />
-            <FileRows files={fbState.searchResults} />
+            <FileRows fb={fb} dispatch={dispatch} />
         </ColumnBox>
     );
 }
@@ -1305,7 +1356,7 @@ function DirView({
     authHeader: AuthHeaderT;
 }) {
     const download = useCallback(
-        (file: FileInfoT) =>
+        (file: WeblensFile) =>
             downloadSelected([file], dispatch, wsSend, authHeader, fb.shareId),
         [authHeader, wsSend, dispatch, fb.fbMode, fb.contentId, fb.shareId]
     );
@@ -1314,14 +1365,18 @@ function DirView({
         return null;
     }
 
-    if (fb.fbMode === "default" && fb.folderInfo.id && !fb.folderInfo.isDir) {
+    if (
+        fb.fbMode === "default" &&
+        fb.folderInfo.Id() &&
+        !fb.folderInfo.IsFolder()
+    ) {
         return <SingleFile file={fb.folderInfo} doDownload={download} />;
     } else if (fb.fbMode === "stats") {
         return <StatTree folderInfo={fb.folderInfo} authHeader={authHeader} />;
     } else if (fb.fbMode === "search") {
         return (
             <SearchResults
-                fbState={fb}
+                fb={fb}
                 searchQuery={searchQuery}
                 filter={searchFilter}
                 searchRef={searchRef}
@@ -1366,7 +1421,7 @@ const FileBrowser = () => {
     const searchQuery = query("query");
     const searchFilter = query("filter");
     const nav = useNavigate();
-    const { authHeader, usr }: UserContextT = useContext(userContext);
+    const { authHeader, usr }: UserContextT = useContext(UserContext);
 
     const searchRef = useRef();
 
@@ -1377,9 +1432,9 @@ const FileBrowser = () => {
         useReducer(fileBrowserReducer, {
             uploadMap: new Map<string, boolean>(),
             selected: new Map<string, boolean>(),
-            dirMap: new Map<string, FileInfoT>(),
+            dirMap: new Map<string, WeblensFile>(),
             viewingPast: null,
-            folderInfo: getBlankFile(),
+            folderInfo: new WeblensFile({ isDir: true }),
             menuPos: { x: 0, y: 0 },
             waitingForNewName: "",
             holdingShift: false,
@@ -1460,7 +1515,7 @@ const FileBrowser = () => {
 
     const { wsSend, readyState } = useSubscribe(
         fb.contentId,
-        fb.folderInfo.id,
+        fb.folderInfo.Id(),
         fb.fbMode,
         usr,
         dispatch,
@@ -1483,8 +1538,17 @@ const FileBrowser = () => {
     // Reset most of the state when we change folders
     useEffect(() => {
         const syncState = async () => {
-            if (!urlPath || urlPath === usr?.homeId || urlPath === undefined) {
+            if (!urlPath) {
                 nav("/files/home", { replace: true });
+            }
+
+            if (urlPath === usr?.homeId) {
+                let redirect = "/files/home";
+                const jumpItem = query("jumpTo");
+                if (jumpItem) {
+                    redirect += `?jumpTo=${jumpItem}`;
+                }
+                nav(redirect, { replace: true });
             }
 
             // If we're not ready, leave
@@ -1492,12 +1556,10 @@ const FileBrowser = () => {
                 return;
             }
 
-            if (fb.fbMode === "search") {
-                dispatch({
-                    type: "set_search_results",
-                    fileInfos: [],
-                });
+            setNotFound(false);
+            dispatch({ type: "clear_files" });
 
+            if (fb.fbMode === "search") {
                 const folderData = await GetFileInfo(
                     fb.contentId,
                     "",
@@ -1506,7 +1568,6 @@ const FileBrowser = () => {
                 if (!folderData) {
                     return;
                 }
-                SetFileData({ self: folderData }, dispatch, usr);
 
                 const searchResults = await SearchFolder(
                     fb.contentId,
@@ -1516,17 +1577,15 @@ const FileBrowser = () => {
                 );
 
                 dispatch({ type: "set_search", search: searchQuery });
-                dispatch({
-                    type: "set_search_results",
-                    fileInfos: searchResults,
-                });
+                SetFileData(
+                    { children: searchResults, self: folderData },
+                    dispatch,
+                    usr
+                );
                 dispatch({ type: "remove_loading", loading: "files" });
                 return;
             }
-            // Kinda just reset everything...
-            setNotFound(false);
 
-            dispatch({ type: "clear_files" });
             dispatch({ type: "set_search", search: "" });
 
             let fileData;
@@ -1541,8 +1600,6 @@ const FileBrowser = () => {
                     fb.contentId,
                     fb.fbMode,
                     fb.shareId,
-                    usr,
-                    dispatch,
                     authHeader
                 ).catch((r) => {
                     if (r === 400 || r === 404) {
@@ -1599,7 +1656,7 @@ const FileBrowser = () => {
             />
             <Presentation
                 itemId={fb.presentingId}
-                mediaData={fb.dirMap.get(fb.presentingId)?.mediaData}
+                mediaData={fb.dirMap.get(fb.presentingId)?.GetMedia()}
                 element={() =>
                     PresentationFile({
                         file: fb.dirMap.get(fb.presentingId),
@@ -1642,22 +1699,8 @@ const FileBrowser = () => {
                 />
                 <DirViewWrapper
                     fbState={fb}
-                    folderName={fb.folderInfo?.filename}
+                    folderName={fb.folderInfo?.GetFilename()}
                     dragging={fb.draggingState}
-                    onDrop={(e) =>
-                        HandleDrop(
-                            e.dataTransfer.items,
-                            fb.contentId,
-                            Array.from(fb.dirMap.values()).map(
-                                (value: FileInfoT) => value.filename
-                            ),
-                            false,
-                            "",
-                            authHeader,
-                            uploadDispatch,
-                            wsSend
-                        )
-                    }
                     dispatch={dispatch}
                 >
                     {/* <Space h={10} /> */}

@@ -9,11 +9,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func (s fileShareData) GetShareId() types.ShareId      { return s.ShareId }
-func (s fileShareData) GetShareType() types.ShareType  { return FileShare }
-func (s fileShareData) GetContentId() string           { return s.FileId.String() }
-func (s *fileShareData) SetContentId(fileId string)    { s.FileId = types.FileId(fileId) }
-func (s fileShareData) GetAccessors() []types.Username { return s.Accessors }
+func (s fileShareData) GetShareId() types.ShareId     { return s.ShareId }
+func (s fileShareData) GetShareType() types.ShareType { return FileShare }
+func (s fileShareData) GetContentId() string          { return s.FileId.String() }
+func (s *fileShareData) SetContentId(fileId string)   { s.FileId = types.FileId(fileId) }
+func (s fileShareData) GetAccessors() []types.User {
+	return util.Map(s.Accessors, func(un types.Username) types.User { return GetUser(un) })
+}
 func (s *fileShareData) SetAccessors(newUsers []types.Username) {
 	userDiff := util.Diff(s.Accessors, newUsers)
 	s.Accessors = newUsers
@@ -22,9 +24,9 @@ func (s *fileShareData) SetAccessors(newUsers []types.Username) {
 	}
 	// s.Accessors = util.AddToSet(s.Accessors, newUsers)
 }
-func (s fileShareData) GetOwner() types.Username { return s.Owner }
-func (s fileShareData) IsPublic() bool           { return s.Public }
-func (s *fileShareData) SetPublic(pub bool)      { s.Public = pub }
+func (s fileShareData) GetOwner() types.User { return GetUser(s.Owner) }
+func (s fileShareData) IsPublic() bool       { return s.Public }
+func (s *fileShareData) SetPublic(pub bool)  { s.Public = pub }
 
 func (s fileShareData) IsEnabled() bool         { return s.Enabled }
 func (s *fileShareData) SetEnabled(enable bool) { s.Enabled = enable }

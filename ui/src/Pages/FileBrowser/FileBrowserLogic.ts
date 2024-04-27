@@ -4,55 +4,64 @@ import { notifications } from "@mantine/notifications";
 
 import Upload, { fileUploadMetadata } from "../../api/Upload";
 import {
-    FileInfoT,
     FbStateT,
-    getBlankFile,
     FileBrowserAction,
     FBDispatchT,
     UserInfoT,
     AuthHeaderT,
-    ScanMeta,
 } from "../../types/Types";
+import { FileInitT, WeblensFile } from "../../classes/File";
 import {
     CreateFolder,
     DeleteFiles,
     moveFiles,
     RenameFile,
-    SubToFolder,
-    UnsubFromFolder,
     downloadSingleFile,
     requestZipCreate,
 } from "../../api/FileBrowserApi";
-import { humanFileSize } from "../../util";
-import useWeblensSocket from "../../api/Websocket";
+
 import { useNavigate } from "react-router-dom";
-import { ItemProps } from "../../components/ItemDisplay";
+import { TaskProgress, TaskStage } from "./TaskProgress";
+import { DraggingState } from "./FileBrowser";
 
 const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
     let numSelected = state.selected.size;
     if (state.holdingShift && numSelected > 0 && state.lastSelected !== "") {
         const dirList = Array.from(state.dirMap.values());
-        let startIndex = dirList.findIndex((val) => val.id === state.lastSelected);
-        let endIndex = dirList.findIndex((val) => val.id === action.fileId);
+        let startIndex = dirList.findIndex(
+            (val) => val.Id() === state.lastSelected
+        );
+        let endIndex = dirList.findIndex((val) => val.Id() === action.fileId);
 
         if (endIndex < startIndex) {
             [startIndex, endIndex] = [endIndex, startIndex];
         }
 
         for (const val of dirList.slice(startIndex, endIndex + 1)) {
-            state.selected.set(val.id, true);
+            val.SetSelected(true);
+            state.selected.set(val.Id(), true);
         }
 
-        return { ...state, lastSelected: action.fileId };
+        return {
+            ...state,
+            lastSelected: action.fileId,
+            selected: new Map(state.selected),
+        };
     } else {
+        const file = state.dirMap.get(action.fileId);
         // If action.selected is undefined, i.e. not passed to the request,
         // we treat that as a request to toggle the selection
         if (action.selected === undefined) {
+            file.SetSelected();
             if (state.selected.get(action.fileId)) {
                 state.selected.delete(action.fileId);
             } else {
                 state.selected.set(action.fileId, true);
-                return { ...state, lastSelected: action.fileId };
+                return {
+                    ...state,
+                    lastSelected: action.fileId,
+                    selected: new Map(state.selected),
+                };
             }
         }
         // state.selected.get returns undefined if not selected,
@@ -61,7 +70,9 @@ const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
             // If the file is already in the correct state, we do nothing.
             // Specifically, we do not overwrite lastSelected
         } else {
+            file.SetSelected();
             if (action.selected) {
+                state.lastSelected = action.fileId;
                 state.selected.set(action.fileId, true);
             } else {
                 state.selected.delete(action.fileId);
@@ -69,138 +80,150 @@ const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
         }
 
         if (state.selected.size === 0) {
-            return { ...state, lastSelected: "" };
+            state.lastSelected = "";
         }
     }
-    return { ...state };
+
+    return { ...state, selected: new Map(state.selected) };
 };
 
-function createFile(dirMap: Map<string, FileInfoT>, user, newData: FileInfoT, currentFolderId) {
-    if (dirMap.get(newData.id)) {
-        console.warn("Taking no action creating file that already exists", newData.id);
-        return;
-    }
-
-    if (newData.id === user.trashFolderId) {
-        return;
-    }
-
-    if (newData.parentFolderId === currentFolderId || user.username !== newData.owner) {
-        dirMap.set(newData.id, newData);
-    }
-}
-
-function updateFile(state: FbStateT, user: UserInfoT, existingId: string, newData: FileInfoT) {
-    let existingFile: FileInfoT = state.dirMap.get(existingId);
+function updateFile(
+    state: FbStateT,
+    user: UserInfoT,
+    existingId: string,
+    newData: WeblensFile
+) {
+    let existingFile: WeblensFile = state.dirMap.get(existingId);
     if (!newData) {
         return;
     }
 
-    if (newData.id === user.trashId) {
-        if (state.folderInfo.id === user.trashId) {
+    if (newData.Id() === user.trashId) {
+        if (state.folderInfo.Id() === user.trashId) {
             return {
                 ...state,
                 folderInfo: newData,
-                trashDirSize: newData.size,
+                trashDirSize: newData.GetSize(),
             };
         }
 
-        return { ...state, trashDirSize: newData.size };
+        return { ...state, trashDirSize: newData.GetSize() };
     }
 
-    if (newData.id === user.homeId) {
-        if (newData.id === state.folderInfo.id) {
-            return { ...state, folderInfo: newData, homeDirSize: newData.size };
+    if (newData.Id() === user.homeId) {
+        if (newData.Id() === state.folderInfo.Id()) {
+            return {
+                ...state,
+                folderInfo: newData,
+                homeDirSize: newData.GetSize(),
+            };
         }
-        return { ...state, homeDirSize: newData.size };
+        return { ...state, homeDirSize: newData.GetSize() };
     }
 
-    if (newData.id === "EXTERNAL") {
-        newData.id = newData.filename
-        newData.filename = "External"
-    }
+    // if (newData.Id() === "EXTERNAL") {
+    //     newData.Id() = newData.filename;
+    //     newData.filename = "External";
+    // }
 
-    if (newData.id === state.folderInfo.id) {
+    if (newData.Id() === state.folderInfo.Id()) {
         return { ...state, folderInfo: newData };
     }
 
-    if (!existingFile && newData.parentFolderId !== state.contentId) {
+    if (!existingFile && newData.ParentId() !== state.contentId) {
         console.warn("Not upserting file not in view", existingId);
         return { ...state };
     }
 
-    if (existingFile && existingFile.id !== newData.id) {
-        state.dirMap.delete(existingFile.id);
+    if (existingFile && existingFile.Id() !== newData.Id()) {
+        state.dirMap.delete(existingFile.Id());
     }
 
-    if (newData.parentFolderId === state.folderInfo.id || user.username !== newData.owner) {
-        state.dirMap.set(newData.id, newData);
+    if (
+        newData.ParentId() === state.folderInfo.Id() ||
+        user.username !== newData.GetOwner()
+    ) {
+        state.dirMap.set(newData.Id(), newData);
     }
 
     return { ...state };
 }
 
-export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): FbStateT => {
+export const fileBrowserReducer = (
+    state: FbStateT,
+    action: FileBrowserAction
+): FbStateT => {
     switch (action.type) {
         case "create_file": {
-            for (const fileInfo of action.fileInfos) {
-                if (fileInfo.filename === state.waitingForNewName) {
+            for (const newFileInfo of action.files) {
+                if (newFileInfo === state.waitingForNewName) {
+                    const file = state.dirMap.get("NEW_DIR");
+                    file.Update(newFileInfo);
+
                     state.dirMap.delete("NEW_DIR");
-                    state.dirMap.set(fileInfo.id, fileInfo);
+                    state.dirMap.set(file.Id(), file);
                     return { ...state, waitingForNewName: "" };
                 }
-                createFile(state.dirMap, action.user, fileInfo, state.folderInfo.id);
-            }
-            return { ...state, dirMap: new Map(state.dirMap) };
-        }
 
-        case "update_file": {
-            for (const fileInfo of action.fileInfos) {
-                state = updateFile(state, action.user, fileInfo.id, fileInfo);
+                const file = new WeblensFile(newFileInfo);
+                state.dirMap.set(file.Id(), file);
             }
-
             return { ...state, dirMap: new Map(state.dirMap) };
         }
 
         case "replace_file": {
-            state.dirMap.delete(action.fileId)
-            const sel = state.selected.delete(action.fileId)
-            if (action.fileInfo.parentFolderId !== state.folderInfo.id) {
-                return { ...state, dirMap: new Map(state.dirMap), selected: new Map(state.selected) };
-            }
-            state.dirMap.set(action.fileInfo.id, action.fileInfo)
-            if (sel) {
-                state.selected.set(action.fileInfo.id, true)
+            state.dirMap.delete(action.fileId);
+
+            // save if it was previously selected
+            const sel = state.selected.delete(action.fileId);
+
+            if (action.fileInfo.parentFolderId !== state.folderInfo.Id()) {
+                return {
+                    ...state,
+                    dirMap: new Map(state.dirMap),
+                    selected: new Map(state.selected),
+                };
             }
 
-            return { ...state, dirMap: new Map(state.dirMap), selected: new Map(state.selected) };
+            const newFile = new WeblensFile(action.fileInfo);
+            state.dirMap.set(newFile.Id(), newFile);
+            if (sel) {
+                state.selected.set(newFile.Id(), true);
+            }
+
+            return {
+                ...state,
+                dirMap: new Map(state.dirMap),
+                selected: new Map(state.selected),
+            };
         }
 
         case "update_many": {
-            const filesMeta: { fileId: string; updateInfo: FileInfoT }[] = action.files;
-            for (const fileMeta of filesMeta) {
-                createFile(state.dirMap, action.user, fileMeta.updateInfo, state.folderInfo.id);
+            for (const newFileInfo of action.files) {
+                let file = state.dirMap.get(newFileInfo.id);
+                if (file) {
+                    file.Update(newFileInfo);
+                } else {
+                    file = new WeblensFile(newFileInfo);
+                    state.dirMap.set(file.Id(), file);
+                }
             }
             return { ...state, dirMap: new Map(state.dirMap) };
         }
 
         case "set_folder_info": {
-            if (!action.fileInfo || !action.user) {
+            if (!action.file || !action.user) {
                 console.error("Trying to set undefined file info or user");
                 return { ...state };
             }
-            if (action.fileInfo.id === action.user.homeId) {
-                action.fileInfo.filename = "Home"
-            }
-            return { ...state, folderInfo: action.fileInfo };
-        }
 
-        case "set_parents_info": {
-            return { ...state, parents: action.parents };
+            return { ...state, folderInfo: action.file };
         }
 
         case "add_loading": {
-            const newLoading = state.loading.filter((v) => v !== action.loading);
+            const newLoading = state.loading.filter(
+                (v) => v !== action.loading
+            );
             newLoading.push(action.loading);
             return {
                 ...state,
@@ -209,7 +232,9 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "remove_loading": {
-            const newLoading = state.loading.filter((v) => v !== action.loading);
+            const newLoading = state.loading.filter(
+                (v) => v !== action.loading
+            );
             // (action.loading)
             return {
                 ...state,
@@ -217,30 +242,49 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
             };
         }
 
+        case "new_task": {
+            let index = state.scanProgress.findIndex(
+                (s, i, a) => s.GetTaskId() === action.taskId
+            );
+            if (index !== -1) {
+                return state;
+            }
+
+            const prog = new TaskProgress(
+                action.taskId,
+                action.taskType,
+                action.target
+            );
+
+            state.scanProgress.push(prog);
+
+            return {
+                ...state,
+                scanProgress: [...state.scanProgress],
+            };
+        }
+
         case "scan_complete": {
-            let index = state.scanProgress.findIndex((s, i, a) => s.taskId === action.taskId);
-            let sm: ScanMeta;
+            let index = state.scanProgress.findIndex(
+                (s, i, a) => s.GetTaskId() === action.taskId
+            );
+
             if (index === -1) {
-                sm = {
-                    taskId: action.taskId,
-                    taskType: action.taskType,
-                    target: action.target,
-                    tasksTotal: 0,
-                    tasksComplete: 0,
-                    progress: 0,
-                    mostRecent: "",
-                    complete: false,
-                    time: 0,
-                    note: "",
-                };
+                const newProg = new TaskProgress(
+                    action.taskId,
+                    action.taskType,
+                    action.target
+                );
                 index = state.scanProgress.length;
-                state.scanProgress.push(sm);
+                state.scanProgress.push(newProg);
             }
-            state.scanProgress[index].complete = true;
-            state.scanProgress[index].time = action.time;
+
+            state.scanProgress[index].stage = TaskStage.Complete;
+            state.scanProgress[index].timeNs = action.time;
             if (action.note) {
-                sm.note = action.note;
+                state.scanProgress[index].note = action.note;
             }
+
             return {
                 ...state,
                 scanProgress: [...state.scanProgress],
@@ -248,34 +292,28 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "update_scan_progress": {
-            let index = state.scanProgress.findIndex((s, i, a) => s.taskId === action.taskId);
-            let sm: ScanMeta;
+            let index = state.scanProgress.findIndex(
+                (s, i, a) => s.taskId === action.taskId
+            );
+
             if (index === -1) {
-                sm = {
-                    taskId: action.taskId,
-                    taskType: action.taskType,
-                    target: action.target,
-                    tasksTotal: 0,
-                    tasksComplete: 0,
-                    progress: 0,
-                    mostRecent: "",
-                    complete: false,
-                    time: 0,
-                    note: "",
-                };
+                const newProg = new TaskProgress(
+                    action.taskId,
+                    action.taskType,
+                    action.target
+                );
                 index = state.scanProgress.length;
-                state.scanProgress.push(sm);
-            } else {
-                sm = state.scanProgress[index];
+                state.scanProgress.push(newProg);
             }
-            sm.progress = action.progress;
-            sm.mostRecent = action.fileName;
-            sm.tasksComplete = action.tasksComplete;
-            sm.tasksTotal = action.tasksTotal;
+
+            state.scanProgress[index].progressPercent = action.progress;
+            state.scanProgress[index].workingOn = action.fileName;
+            state.scanProgress[index].tasksComplete = action.tasksComplete;
+            state.scanProgress[index].tasksTotal = action.tasksTotal;
+            state.scanProgress[index].stage = TaskStage.InProgress;
             if (action.note) {
-                sm.note = action.note;
+                state.scanProgress[index].note = action.note;
             }
-            state.scanProgress[index] = sm;
 
             return {
                 ...state,
@@ -284,9 +322,9 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "remove_task_progress": {
-            state.scanProgress = state.scanProgress.filter((p) => Boolean(p.taskId));
-            let index = state.scanProgress.findIndex((s, i, a) => s.taskId === action.taskId);
-            state.scanProgress.splice(index, 1);
+            state.scanProgress = state.scanProgress.filter(
+                (p) => Boolean(p.taskId) && p.taskId !== action.taskId
+            );
 
             return { ...state, scanProgress: [...state.scanProgress] };
         }
@@ -320,27 +358,31 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "new_dir": {
-            let newDir: FileInfoT = getBlankFile();
-            newDir.id = "NEW_DIR";
-            newDir.filename = "New Folder";
-            newDir.isDir = true;
-            newDir.modifiable = true;
-            newDir.parentFolderId = state.folderInfo.id;
-            state.dirMap.set(newDir.id, newDir);
-            console.log("HERE!", state.dirMap)
+            let newDir: WeblensFile = new WeblensFile({
+                id: "NEW_DIR",
+                filename: "New Folder",
+                isDir: true,
+                modifiable: true,
+                parentFolderId: state.folderInfo.Id(),
+            });
+            state.dirMap.set(newDir.Id(), newDir);
             return { ...state, dirMap: new Map(state.dirMap) };
         }
 
         case "set_selected": {
             state = handleSelect(state, action);
-            return { ...state, selected: new Map(state.selected) };
+            return state;
         }
 
         case "select_all": {
             for (const fileId of state.filesList) {
                 state.selected.set(fileId, true);
             }
-            return { ...state, menuOpen: false, selected: new Map(state.selected) };
+            return {
+                ...state,
+                menuOpen: false,
+                selected: new Map(state.selected),
+            };
         }
 
         case "select_ids": {
@@ -360,7 +402,7 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
 
             return {
                 ...state,
-                folderInfo: getBlankFile(),
+                folderInfo: new WeblensFile({}),
                 parents: [],
                 lastSelected: "",
             };
@@ -384,7 +426,11 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
                 state.selected.delete(fileId);
             }
 
-            return { ...state, dirMap: new Map(state.dirMap), selected: new Map(state.selected) };
+            return {
+                ...state,
+                dirMap: new Map(state.dirMap),
+                selected: new Map(state.selected),
+            };
         }
 
         case "holding_shift": {
@@ -465,7 +511,9 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
                 return { ...state };
             }
             let lastSelected = state.lastSelected;
-            const prevIndex = state.lastSelected ? state.filesList.indexOf(state.lastSelected) : -1;
+            const prevIndex = state.lastSelected
+                ? state.filesList.indexOf(state.lastSelected)
+                : -1;
             let finalIndex = -1;
             if (action.direction === "ArrowDown") {
                 if (prevIndex === -1) {
@@ -489,7 +537,10 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
             } else if (action.direction === "ArrowRight") {
                 if (prevIndex === -1) {
                     finalIndex = 0;
-                } else if (prevIndex + 1 < state.filesList.length && prevIndex % state.numCols !== state.numCols - 1) {
+                } else if (
+                    prevIndex + 1 < state.filesList.length &&
+                    prevIndex % state.numCols !== state.numCols - 1
+                ) {
                     finalIndex = prevIndex + 1;
                 }
             }
@@ -500,11 +551,17 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
                     state.selected.set(state.filesList[finalIndex], true);
                 } else {
                     if (prevIndex < finalIndex) {
-                        for (const file of state.filesList.slice(prevIndex, finalIndex + 1)) {
+                        for (const file of state.filesList.slice(
+                            prevIndex,
+                            finalIndex + 1
+                        )) {
                             state.selected.set(file, true);
                         }
                     } else {
-                        for (const file of state.filesList.slice(finalIndex, prevIndex + 1)) {
+                        for (const file of state.filesList.slice(
+                            finalIndex,
+                            prevIndex + 1
+                        )) {
                             state.selected.set(file, true);
                         }
                     }
@@ -539,11 +596,12 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "set_location_state": {
-            return { ...state, contentId: action.realId, fbMode: action.mode, shareId: action.shareId };
-        }
-
-        case "set_search_results": {
-            return { ...state, searchResults: action.fileInfos };
+            return {
+                ...state,
+                contentId: action.realId,
+                fbMode: action.mode,
+                shareId: action.shareId,
+            };
         }
 
         case "set_sort": {
@@ -557,11 +615,11 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
         }
 
         case "set_past_time": {
-            return {...state, viewingPast: action.past}
+            return { ...state, viewingPast: action.past };
         }
 
         case "set_file_info_menu": {
-            return {...state, fileInfoMenu: action.open}
+            return { ...state, fileInfoMenu: action.open };
         }
 
         default: {
@@ -579,59 +637,29 @@ export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): 
 export function getSortFunc(sortType: string, sortDirection: number) {
     switch (sortType) {
         case "Name":
-            return (a: ItemProps, b: ItemProps) => a.itemTitle.localeCompare(b.itemTitle) * sortDirection;
+            return (a: WeblensFile, b: WeblensFile) =>
+                a.GetFilename().localeCompare(b.GetFilename()) * sortDirection;
         case "Date Modified":
-            return (a: ItemProps, b: ItemProps) => {
-                return (b.modifyDate.getTime() - a.modifyDate.getTime()) * sortDirection;
+            return (a: WeblensFile, b: WeblensFile) => {
+                return (
+                    (b.GetModified().getTime() - a.GetModified().getTime()) *
+                    sortDirection
+                );
             };
         case "Size":
-            return (a: ItemProps, b: ItemProps) => (b.itemSizeBytes - a.itemSizeBytes) * sortDirection;
+            return (a: WeblensFile, b: WeblensFile) =>
+                (b.GetSize() - a.GetSize()) * sortDirection;
     }
 }
-
-export const useSubscribe = (cId: string, sId: string, mode: string, usr: UserInfoT, dispatch: FBDispatchT, authHeader: AuthHeaderT) => {
-    const { wsSend, lastMessage, readyState } = useWeblensSocket();
-
-    useEffect(() => {
-        if (readyState === 1 && cId != null && cId !== "shared" && usr.isLoggedIn) {
-            if (sId !== cId) {
-                return;
-            }
-            if (cId === usr.homeId) {
-                SubToFolder(usr.trashId, false, wsSend);
-                return () => UnsubFromFolder(usr.trashId, wsSend);
-            }
-            SubToFolder(cId, false, wsSend);
-            return () => UnsubFromFolder(cId, wsSend);
-        }
-    }, [readyState, sId, cId, usr.homeId, usr.trashId, wsSend]);
-
-    // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
-    useEffect(() => {
-        if (!usr.isLoggedIn || readyState !== 1) {
-            return;
-        }
-        SubToFolder(usr.homeId, false, wsSend);
-        return () => UnsubFromFolder(usr.homeId, wsSend);
-    }, [usr.homeId, readyState]);
-
-    // Listen for incoming websocket messages
-    useEffect(() => {
-        HandleWebsocketMessage(lastMessage, cId, mode, usr, dispatch, authHeader);
-    }, [lastMessage, usr, authHeader]);
-
-    return {wsSend, readyState};
-};
 
 export const getRealId = async (
     contentId: string,
     mode: string,
     usr: UserInfoT,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ) => {
-
     if (mode === "stats" && contentId === "external") {
-        return "EXTERNAL"
+        return "EXTERNAL";
     }
 
     if (contentId === "home") {
@@ -639,13 +667,17 @@ export const getRealId = async (
     } else if (contentId === "trash") {
         return usr.trashId;
     } else if (!contentId) {
-        return ''
+        return "";
     } else {
         return contentId;
     }
 };
 
-export const handleDragOver = (event: DragEvent, dispatch: FBDispatchT, dragging: number) => {
+export const handleDragOver = (
+    event: DragEvent,
+    dispatch: FBDispatchT,
+    dragging: number
+) => {
     event.preventDefault();
     event.stopPropagation();
 
@@ -653,11 +685,11 @@ export const handleDragOver = (event: DragEvent, dispatch: FBDispatchT, dragging
         !dragging &&
             dispatch({
                 type: "set_dragging",
-                dragging: true,
+                dragging: DraggingState.ExternalDrag,
                 external: Boolean(event.dataTransfer.types.length),
             });
     } else {
-        dispatch({ type: "set_dragging", dragging: false });
+        dispatch({ type: "set_dragging", dragging: DraggingState.NoDrag });
     }
 };
 
@@ -667,7 +699,7 @@ export const handleRename = (
     folderId: string,
     selectedCount: number,
     dispatch: FBDispatchT,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ) => {
     // When we are creating a new folder, the id is initially ""
     if (itemId === "NEW_DIR") {
@@ -688,7 +720,7 @@ export const handleRename = (
     } else {
         dispatch({ type: "add_loading", loading: "renameFile" });
         RenameFile(itemId, newName, authHeader).then((_) =>
-            dispatch({ type: "remove_loading", loading: "renameFile" }),
+            dispatch({ type: "remove_loading", loading: "renameFile" })
         );
     }
 };
@@ -699,7 +731,9 @@ async function getFile(file): Promise<File> {
         return f;
         // return new Promise((resolve, reject) => file.file(resolve, reject));
     } catch (err) {
-        return await new Promise((resolve, reject) => file.file(resolve, reject));
+        return await new Promise((resolve, reject) =>
+            file.file(resolve, reject)
+        );
 
         // return new Promise((resolve, reject) => file)
     }
@@ -712,12 +746,21 @@ async function addDir(
     rootFolderId: string,
     isPublic: boolean,
     shareId: string,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ): Promise<any> {
     return await new Promise(
-        async (resolve: (value: fileUploadMetadata[]) => void, reject): Promise<fileUploadMetadata[]> => {
+        async (
+            resolve: (value: fileUploadMetadata[]) => void,
+            reject
+        ): Promise<fileUploadMetadata[]> => {
             if (fsEntry.isDirectory === true) {
-                const folderId = await CreateFolder(parentFolderId, fsEntry.name, isPublic, shareId, authHeader);
+                const folderId = await CreateFolder(
+                    parentFolderId,
+                    fsEntry.name,
+                    isPublic,
+                    shareId,
+                    authHeader
+                );
                 if (!folderId) {
                     reject();
                 }
@@ -736,28 +779,30 @@ async function addDir(
 
                 let dirReader = fsEntry.createReader();
                 // addDir(entry, parentFolderId, topFolderKey, rootFolderId, authHeader)
-                const entriesPromise = new Promise((resolve: (value: any[]) => void, reject) => {
-                    let allEntries = [];
+                const entriesPromise = new Promise(
+                    (resolve: (value: any[]) => void, reject) => {
+                        let allEntries = [];
 
-                    const reader = (callback) => (entries) => {
-                        if (entries.length === 0) {
-                            resolve(allEntries);
-                            return;
-                        }
+                        const reader = (callback) => (entries) => {
+                            if (entries.length === 0) {
+                                resolve(allEntries);
+                                return;
+                            }
 
-                        for (const entry of entries) {
-                            allEntries.push(entry);
-                        }
+                            for (const entry of entries) {
+                                allEntries.push(entry);
+                            }
 
-                        if (entries.length !== 100) {
-                            resolve(allEntries);
-                            return;
-                        }
-                        dirReader.readEntries(callback(callback));
-                    };
+                            if (entries.length !== 100) {
+                                resolve(allEntries);
+                                return;
+                            }
+                            dirReader.readEntries(callback(callback));
+                        };
 
-                    dirReader.readEntries(reader(reader));
-                });
+                        dirReader.readEntries(reader(reader));
+                    }
+                );
 
                 let allResults = [];
                 if (e !== null) {
@@ -765,7 +810,15 @@ async function addDir(
                 }
                 for (const entry of await entriesPromise) {
                     allResults.push(
-                        ...(await addDir(entry, folderId, topFolderKey, rootFolderId, isPublic, shareId, authHeader)),
+                        ...(await addDir(
+                            entry,
+                            folderId,
+                            topFolderKey,
+                            rootFolderId,
+                            isPublic,
+                            shareId,
+                            authHeader
+                        ))
                     );
                 }
                 resolve(allResults);
@@ -784,7 +837,7 @@ async function addDir(
                 };
                 resolve([e]);
             }
-        },
+        }
     );
 }
 
@@ -796,7 +849,7 @@ export async function HandleDrop(
     shareId: string,
     authHeader: AuthHeaderT,
     uploadDispatch,
-    wsSend: (action: string, content: any) => void,
+    wsSend: (action: string, content: any) => void
 ) {
     let files: fileUploadMetadata[] = [];
     let topLevels = [];
@@ -815,14 +868,23 @@ export async function HandleDrop(
             if (conflictNames.includes(file.name)) {
                 notifications.show({
                     title: `Cannot upload "${file.name}"`,
-                    message: "A file or folder with that name already exists in this folder",
+                    message:
+                        "A file or folder with that name already exists in this folder",
                     autoClose: 10000,
                     color: "red",
                 });
                 continue;
             }
             topLevels.push(
-                addDir(file, rootFolderId, null, rootFolderId, isPublic, shareId, authHeader)
+                addDir(
+                    file,
+                    rootFolderId,
+                    null,
+                    rootFolderId,
+                    isPublic,
+                    shareId,
+                    authHeader
+                )
                     .then((newFiles) => {
                         files.push(...newFiles);
                     })
@@ -831,7 +893,7 @@ export async function HandleDrop(
                             message: String(r),
                             color: "red",
                         });
-                    }),
+                    })
             );
         }
     }
@@ -839,7 +901,15 @@ export async function HandleDrop(
     await Promise.all(topLevels);
 
     if (files.length !== 0) {
-        Upload(files, isPublic, shareId, rootFolderId, authHeader, uploadDispatch, wsSend);
+        Upload(
+            files,
+            isPublic,
+            shareId,
+            rootFolderId,
+            authHeader,
+            uploadDispatch,
+            wsSend
+        );
     }
 }
 
@@ -850,7 +920,7 @@ export function HandleUploadButton(
     shareId: string,
     authHeader: AuthHeaderT,
     uploadDispatch,
-    wsSend: (action: string, content: any) => void,
+    wsSend: (action: string, content: any) => void
 ) {
     let uploads: fileUploadMetadata[] = [];
     for (const f of files) {
@@ -864,39 +934,56 @@ export function HandleUploadButton(
     }
 
     if (uploads.length !== 0) {
-        Upload(uploads, isPublic, shareId, parentFolderId, authHeader, uploadDispatch, wsSend);
+        Upload(
+            uploads,
+            isPublic,
+            shareId,
+            parentFolderId,
+            authHeader,
+            uploadDispatch,
+            wsSend
+        );
     }
 }
 
 export function downloadSelected(
-    files: FileInfoT[],
+    files: WeblensFile[],
     dispatch: FBDispatchT,
     wsSend: (action: string, content: any) => void,
     authHeader: AuthHeaderT,
-    shareId?: string,
+    shareId?: string
 ) {
     let taskId: string = "";
 
-    if (files.length === 1 && !files[0].isDir) {
-        downloadSingleFile(files[0].id, authHeader, dispatch, files[0].filename, undefined, shareId);
+    if (files.length === 1 && !files[0].IsFolder()) {
+        downloadSingleFile(
+            files[0].Id(),
+            authHeader,
+            dispatch,
+            files[0].GetFilename(),
+            undefined,
+            shareId
+        );
         return;
     }
 
     requestZipCreate(
-        files.map((f) => f.id),
+        files.map((f) => f.Id()),
         shareId,
-        authHeader,
+        authHeader
     )
         .then(({ json, status }) => {
             if (status === 200) {
-                downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, "zip", shareId);
+                downloadSingleFile(
+                    json.takeoutId,
+                    authHeader,
+                    dispatch,
+                    undefined,
+                    "zip",
+                    shareId
+                );
             } else if (status === 202) {
                 taskId = json.taskId;
-                notifications.show({
-                    id: `zip_create_${taskId}`,
-                    message: `Requesting zip...`,
-                    autoClose: false,
-                });
                 wsSend("subscribe", {
                     subscribeType: "task",
                     subscribeMeta: JSON.stringify({
@@ -916,135 +1003,6 @@ export function downloadSelected(
         .catch((r) => console.error(r));
 }
 
-export function HandleWebsocketMessage(
-    lastMessage,
-    contentId: string,
-    fbMode: string,
-    usr: UserInfoT,
-    dispatch: FBDispatchT,
-    authHeader: AuthHeaderT,
-) {
-    if (lastMessage) {
-        let msgData = JSON.parse(lastMessage.data);
-        console.log("WSRecv", msgData);
-        switch (msgData.eventTag) {
-            case "file_created": {
-                dispatch({
-                    type: "create_file",
-                    fileInfos: msgData.content.map((v) => v.fileInfo),
-                    user: usr,
-                });
-                return;
-            }
-            case "file_updated": {
-                dispatch({
-                    type: "update_file",
-                    fileInfos: msgData.content.map((v) => v.fileInfo),
-                    user: usr,
-                });
-                return;
-            }
-            // moved is different from updated because the Id of the file will change
-            case "file_moved": {
-                msgData.content.map(m => {
-                    dispatch({
-                        type: "replace_file",
-                        fileId: m.oldId,
-                        fileInfo: m.newFile,
-                    });
-                })
-                return;
-            }
-            case "file_deleted": {
-                dispatch({
-                    type: "delete_from_map",
-                    fileIds: msgData.content.map((v) => v.fileId),
-                });
-                return;
-            }
-            case "scan_complete": {
-                dispatch({
-                    type: "scan_complete",
-                    taskId: msgData.subscribeKey,
-                    time: msgData.content[0].execution_time,
-                    note: msgData.content[0].note,
-                });
-                return;
-            }
-            case "sub_task_complete": {
-                const jobName = msgData.content[0].task_job_name
-                    .replace("_", " ")
-                    .split(" ")
-                    .map((s) => {
-                        return s.charAt(0).toUpperCase() + s.slice(1);
-                    })
-                    .join(" ")
-                    .replace("Directory", "Folder");
-
-                dispatch({
-                    type: "update_scan_progress",
-                    progress: msgData.content[0].percent_progress,
-                    taskId: msgData.subscribeKey,
-                    taskType: jobName,
-                    target: msgData.content[0].task_job_target,
-                    fileName: msgData.content[0].filename,
-                    tasksComplete: msgData.content[0].tasks_complete,
-                    tasksTotal: msgData.content[0].tasks_total,
-                    note: msgData.content[0].note,
-                });
-                return;
-            }
-            case "scan_directory_progress": {
-                dispatch({
-                    type: "set_scan_progress",
-                    progress: (1 - msgData.content["remainingTasks"] / msgData.content["totalTasks"]) * 100,
-                });
-                return;
-            }
-            case "create_zip_progress": {
-                let content = msgData.content[0].result;
-                let [speed, units] = humanFileSize(content["speedBytes"]);
-                notifications.update({
-                    id: `zip_create_${msgData.subscribeKey}`,
-                    message: `Compressing ${content["totalFiles"]} files: ${content["completedFiles"]} / ${content["totalFiles"]} (${speed}${units}/s)`,
-                    autoClose: false,
-                    loading: true,
-                });
-                dispatch({
-                    type: "set_scan_progress",
-                    progress: (content["completedFiles"] / content["totalFiles"]) * 100,
-                });
-                return;
-            }
-            case "zip_complete": {
-                notifications.hide(`zip_create_${msgData.subscribeKey}`);
-                downloadSingleFile(
-                    msgData.content[0].result["takeoutId"],
-                    authHeader,
-                    dispatch,
-                    undefined,
-                    "zip",
-                    fbMode === "share" ? contentId : ""
-
-                );
-                return;
-            }
-            case "error": {
-                notifications.show({
-                    title: "Websocket error",
-                    message: msgData.error,
-                    color: "red",
-                });
-                return;
-            }
-            default: {
-                console.error("Could not parse websocket message type: ", msgData);
-                return;
-            }
-        }
-    }
-}
-
 export const useKeyDownFileBrowser = (
     fbState: FbStateT,
     searchQuery: string,
@@ -1052,7 +1010,7 @@ export const useKeyDownFileBrowser = (
     dispatch: (action: FileBrowserAction) => void,
     authHeader,
     wsSend,
-    searchRef,
+    searchRef
 ) => {
     const nav = useNavigate();
     useEffect(() => {
@@ -1060,16 +1018,18 @@ export const useKeyDownFileBrowser = (
             if (!fbState.blockFocus) {
                 if (document.activeElement === searchRef.current) {
                     if (event.key === "Enter") {
-                        console.log("HERE")
                         if (!Boolean(fbState.searchContent)) {
                             if (fbState.fbMode === "search") {
                                 nav(`/files/${fbState.contentId}`);
                             }
-                            return
+                            return;
                         }
-                        nav(`/files/search/${fbState.contentId}?query=${fbState.searchContent}`, {
-                            replace: Boolean(searchQuery),
-                        });
+                        nav(
+                            `/files/search/${fbState.contentId}?query=${fbState.searchContent}`,
+                            {
+                                replace: Boolean(searchQuery),
+                            }
+                        );
                     } else if (event.key === "Escape") {
                         searchRef.current.blur();
                     } else {
@@ -1080,7 +1040,6 @@ export const useKeyDownFileBrowser = (
 
                     return;
                 }
-
                 if (event.metaKey && event.key === "a") {
                     event.preventDefault();
                     dispatch({ type: "select_all" });
@@ -1099,7 +1058,8 @@ export const useKeyDownFileBrowser = (
                 } else if (
                     !event.metaKey &&
                     ((event.which >= 49 && event.which <= 90) ||
-                        (event.key === "Backspace" && Boolean(fbState.searchContent)))
+                        (event.key === "Backspace" &&
+                            Boolean(fbState.searchContent)))
                 ) {
                     searchRef.current.focus();
                 } else if (event.key === "Escape") {
@@ -1112,15 +1072,26 @@ export const useKeyDownFileBrowser = (
                 } else if (event.key === "Shift") {
                     dispatch({ type: "holding_shift", shift: true });
                 } else if (event.key === "Enter" && fbState.pasteImg) {
-                    if (fbState.folderInfo.id === "shared" || fbState.folderInfo.id === usr.trashFolderId) {
+                    if (
+                        fbState.folderInfo.Id() === "shared" ||
+                        fbState.folderInfo.Id() === usr.trashFolderId
+                    ) {
                         notifications.show({
                             title: "Paste blocked",
-                            message: "This folder does not allow paste-to-upload",
+                            message:
+                                "This folder does not allow paste-to-upload",
                             color: "red",
                         });
                         return;
                     }
-                    uploadViaUrl(fbState.pasteImg, fbState.folderInfo.id, fbState.dirMap, authHeader, dispatch, wsSend);
+                    uploadViaUrl(
+                        fbState.pasteImg,
+                        fbState.folderInfo.Id(),
+                        fbState.dirMap,
+                        authHeader,
+                        dispatch,
+                        wsSend
+                    );
                 } else if (event.key === " ") {
                     event.preventDefault();
                     if (fbState.lastSelected && !fbState.presentingId) {
@@ -1181,7 +1152,7 @@ export const usePaste = (
     usr: UserInfoT,
     searchRef,
     blockFocus: boolean,
-    dispatch: (Action: FileBrowserAction) => void,
+    dispatch: (Action: FileBrowserAction) => void
 ) => {
     const handlePaste = useCallback(
         async (e) => {
@@ -1197,7 +1168,8 @@ export const usePaste = (
                           console.error(v);
                           notifications.show({
                               title: "Could not paste",
-                              message: "Does your browser block clipboard for Weblens?",
+                              message:
+                                  "Does your browser block clipboard for Weblens?",
                               color: "red",
                           });
                       })
@@ -1211,7 +1183,8 @@ export const usePaste = (
                         if (folderId === "shared" || folderId === usr.trashId) {
                             notifications.show({
                                 title: "Paste blocked",
-                                message: "This folder does not allow paste-to-upload",
+                                message:
+                                    "This folder does not allow paste-to-upload",
                                 color: "red",
                             });
                             return;
@@ -1219,7 +1192,9 @@ export const usePaste = (
                         const img = await item.getType(mime);
                         dispatch({ type: "paste_image", img: img });
                     } else if (mime === "text/plain") {
-                        const text = await (await item.getType("text/plain"))?.text();
+                        const text = await (
+                            await item.getType("text/plain")
+                        )?.text();
                         if (!text) {
                             continue;
                         }
@@ -1231,7 +1206,7 @@ export const usePaste = (
                 }
             }
         },
-        [folderId, blockFocus],
+        [folderId, blockFocus]
     );
 
     useEffect(() => {
@@ -1244,32 +1219,40 @@ export const usePaste = (
 
 export function deleteSelected(
     selectedMap: Map<string, boolean>,
-    dirMap: Map<string, FileInfoT>,
-    authHeader: AuthHeaderT,
+    dirMap: Map<string, WeblensFile>,
+    authHeader: AuthHeaderT
 ) {
     const fileIds = Array.from(selectedMap.keys());
     DeleteFiles(fileIds, authHeader);
 }
 
-export function MoveSelected(selectedMap: Map<string, boolean>, destinationId: string, authHeader: AuthHeaderT) {
-    return moveFiles(Array.from(selectedMap.keys()), destinationId, authHeader).catch((r) =>
+export function MoveSelected(
+    selectedMap: Map<string, boolean>,
+    destinationId: string,
+    authHeader: AuthHeaderT
+) {
+    return moveFiles(
+        Array.from(selectedMap.keys()),
+        destinationId,
+        authHeader
+    ).catch((r) =>
         notifications.show({
             title: "Failed to move files",
             message: String(r),
             color: "red",
-        }),
+        })
     );
 }
 
 export async function uploadViaUrl(
     img: ArrayBuffer,
     folderId: string,
-    dirMap: Map<string, FileInfoT>,
+    dirMap: Map<string, WeblensFile>,
     authHeader: AuthHeaderT,
     dispatch: (Action: FileBrowserAction) => void,
-    wsSend,
+    wsSend
 ) {
-    const names = Array.from(dirMap.values()).map((v) => v.filename);
+    const names = Array.from(dirMap.values()).map((v) => v.GetFilename());
     let imgNumber = 1;
     let imgName = `image${imgNumber}.jpg`;
     while (names.includes(imgName)) {
@@ -1288,23 +1271,31 @@ export async function uploadViaUrl(
     dispatch({ type: "paste_image", img: null });
 }
 
-export function selectedMediaIds(dirMap: Map<string, FileInfoT>, selectedIds: string[]): string[] {
-    return selectedIds.map((id) => dirMap.get(id)?.mediaData?.mediaId).filter((v) => Boolean(v));
+export function selectedMediaIds(
+    dirMap: Map<string, WeblensFile>,
+    selectedIds: string[]
+): string[] {
+    return selectedIds
+        .map((id) => dirMap.get(id)?.GetMedia()?.Id())
+        .filter((v) => Boolean(v));
 }
 
-export function selectedFolderIds(dirMap: Map<string, FileInfoT>, selectedIds: string[]): string[] {
-    return selectedIds.filter((id) => dirMap.get(id).isDir);
+export function selectedFolderIds(
+    dirMap: Map<string, WeblensFile>,
+    selectedIds: string[]
+): string[] {
+    return selectedIds.filter((id) => dirMap.get(id).IsFolder());
 }
 
 export function SetFileData(
     data: {
-        self?: FileInfoT;
-        children?: FileInfoT[];
-        parents?: FileInfoT[];
+        self?: FileInitT;
+        children?: FileInitT[];
+        parents?: FileInitT[];
         error?: any;
     },
-    dispatch,
-    usr,
+    dispatch: FBDispatchT,
+    usr: UserInfoT
 ) {
     if (!data) {
         console.error("Trying to set null file data");
@@ -1314,36 +1305,45 @@ export function SetFileData(
         console.error(data.error);
         return;
     }
-    let children = data.children?.map((val: FileInfoT) => {
-        return { fileId: val.id, updateInfo: val };
-    });
-    if (!children) {
-        children = [];
-    }
-    let parents;
+
+    let parents: WeblensFile[];
     if (!data.parents) {
         parents = [];
     } else {
-        parents = data.parents.reverse();
+        parents = data.parents.map((f) => new WeblensFile(f));
+        parents.reverse();
     }
 
-    dispatch({ type: "set_folder_info", fileInfo: data.self, user: usr });
-    dispatch({ type: "update_many", files: children, user: usr });
-    dispatch({ type: "set_parents_info", parents: parents });
+    const self = new WeblensFile(data.self);
+    self.SetParents(parents);
+
+    dispatch({
+        type: "set_folder_info",
+        file: self,
+        user: usr,
+    });
+
+    dispatch({ type: "update_many", files: data.children, user: usr });
 }
 
-export function getVisitRoute(fbMode: string, cId: string, sId: string, isDir: boolean, isDisplayable: boolean, dispatch: FBDispatchT) {
-    if (fbMode === 'share' && !sId) {
-
-    } else if (fbMode === 'share') {
-        return `/files/shared/${sId}/${cId}`
-    } else if (fbMode === 'external') {
-        return `/files/external/${cId}`
+export function getVisitRoute(
+    fbMode: string,
+    cId: string,
+    sId: string,
+    isDir: boolean,
+    isDisplayable: boolean,
+    dispatch: FBDispatchT
+) {
+    if (fbMode === "share" && !sId) {
+    } else if (fbMode === "share") {
+        return `/files/shared/${sId}/${cId}`;
+    } else if (fbMode === "external") {
+        return `/files/external/${cId}`;
     } else if (isDir) {
-        return cId
+        return cId;
     } else if (isDisplayable) {
         dispatch({
-            type: 'set_presentation',
+            type: "set_presentation",
             presentingId: cId,
         });
     }

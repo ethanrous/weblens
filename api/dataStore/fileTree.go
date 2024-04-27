@@ -50,17 +50,21 @@ func initInsert(f, parent types.WeblensFile) error {
 		return err
 	}
 
+	if thisServer.ServerRole() == types.Core && f.Owner() != WEBLENS_ROOT_USER && f.Owner() != EXTERNAL_ROOT_USER {
+		bi, exist := slices.BinarySearchFunc(existingBackups, f.Id(), func(b backupFile, t types.FileId) int { return strings.Compare(string(b.FileId), t.String()) })
+		if !exist {
+			util.Debug.Println("ADDING", f.GetAbsPath())
+			jeStream <- fileEvent{action: FileCreate, postFilePath: f.GetAbsPath()}
+		} else if !f.IsDir() && existingBackups[bi].ContentId == "" {
+			tasker.HashFile(f)
+		} else {
+			f.(*weblensFile).contentId = existingBackups[bi].ContentId
+		}
+	}
+
 	if f.IsDir() {
 		watcherAddDirectory(f)
 		f.ReadDir()
-	}
-
-	if thisServer.IsCore() && f.Owner() != WEBLENS_ROOT_USER && f.Owner() != EXTERNAL_ROOT_USER {
-		if bi, exist := slices.BinarySearchFunc(existingBackups, f.Id(), func(b backupFile, t types.FileId) int { return strings.Compare(string(b.FileId), t.String()) }); !exist {
-			jeStream <- fileEvent{action: FileCreate, postFilePath: f.GetAbsPath()}
-		} else {
-			f.(*weblensFile).setContentId(existingBackups[bi].ContentId)
-		}
 	}
 
 	return nil
@@ -83,13 +87,6 @@ func mainInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error 
 	}
 
 	if f.IsDir() {
-		// if !f.Exists() {
-		// 	util.Warning.Println("Creating directory that doesn't exist during insert to file tree")
-		// 	err := f.CreateSelf()
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
 		watcherAddDirectory(f)
 	}
 
@@ -122,9 +119,11 @@ func fsTreeRemove(f types.WeblensFile, casters ...types.BroadcasterAgent) (err e
 	tasks := []types.Task{}
 
 	err = f.RecursiveMap(func(file types.WeblensFile) error {
-		ts := file.GetTasks()
-		tasks = append(tasks, ts...)
-		util.Each(ts, func(t types.Task) { t.Cancel() })
+		t := file.GetTask()
+		if t != nil {
+			tasks = append(tasks, t)
+			t.Cancel()
+		}
 		util.Each(file.GetShares(), func(s types.Share) { DeleteShare(s) })
 
 		if !file.IsDir() {
@@ -133,9 +132,10 @@ func fsTreeRemove(f types.WeblensFile, casters ...types.BroadcasterAgent) (err e
 			// possibly bug: when a single delete action is deleting multiple of the same content id you get a collision in the content folder
 			//
 
-			backupF, _ := contentRoot.GetChild(file.GetContentId())
-			if backupF == nil {
-				backupF = newWeblensFile(&contentRoot, file.GetContentId(), false)
+			contentId := file.GetContentId()
+			backupF, _ := contentRoot.GetChild(string(contentId))
+			if contentId != "" && backupF == nil {
+				backupF = newWeblensFile(&contentRoot, string(contentId), false)
 				fsTreeInsert(backupF, &contentRoot, casters...)
 				err = os.Rename(file.GetAbsPath(), backupF.GetAbsPath())
 				if err != nil {
@@ -166,7 +166,7 @@ func fsTreeRemove(f types.WeblensFile, casters ...types.BroadcasterAgent) (err e
 		t.Wait()
 	}
 
-	if !f.IsDir() {
+	if f.IsDir() {
 		err = os.RemoveAll(f.GetAbsPath())
 		if err != nil {
 			return
@@ -222,7 +222,8 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 
 	var allTasks []types.Task
 	f.RecursiveMap(func(w types.WeblensFile) error {
-		for _, t := range w.GetTasks() {
+		t := w.GetTask()
+		if t != nil {
 			allTasks = append(allTasks, t)
 			t.Cancel()
 		}
@@ -246,7 +247,7 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 	util.Each(casters, func(c types.BufferedBroadcasterAgent) { c.DisableAutoFlush() })
 
 	// Sync file tree with new move, including f and all of its children.
-	f.RecursiveMap(func(w types.WeblensFile) error {
+	err := f.RecursiveMap(func(w types.WeblensFile) error {
 		preFile := w.Copy()
 
 		realW := w.(*weblensFile)
@@ -283,11 +284,8 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 		}
 
 		if w.IsDisplayable() {
-			m, err := preFile.GetMedia()
-
-			if err != nil && err != ErrNoMedia {
-				return err
-			} else if err != ErrNoMedia {
+			m := MediaMapGet(preFile.GetContentId())
+			if m != nil {
 				// Add new file first so the media doesn't get deleted if there is only 1 file
 				m.AddFile(w)
 				m.RemoveFile(preFile.Id())
@@ -306,7 +304,11 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 		return nil
 	})
 
-	err := os.Rename(oldAbsPath, newAbsPath)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(oldAbsPath, newAbsPath)
 	if err != nil {
 		util.ErrTrace(err)
 		return err

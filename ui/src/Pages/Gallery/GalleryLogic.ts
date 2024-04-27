@@ -1,14 +1,14 @@
 import { useCallback, useEffect } from "react";
-import { AlbumData, MediaDataT, MediaStateT, UserInfoT } from "../../types/Types";
-import { notifications } from "@mantine/notifications";
+import { AlbumData, MediaStateT } from "../../types/Types";
+import WeblensMedia from "../../classes/Media";
 
 export type GalleryAction = {
     type: string;
-    medias?: MediaDataT[];
+    medias?: WeblensMedia[];
     albums?: AlbumData[];
     albumId?: string;
     mediaId?: string;
-    media?: MediaDataT;
+    media?: WeblensMedia;
     albumNames?: string[];
     include?: boolean;
     block?: boolean;
@@ -24,17 +24,20 @@ export type GalleryAction = {
     pos?: { x: number; y: number };
 };
 
-export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaStateT {
+export function mediaReducer(
+    state: MediaStateT,
+    action: GalleryAction
+): MediaStateT {
     switch (action.type) {
         case "set_media": {
             state.mediaMap.clear();
             if (action.medias) {
-                let prev: MediaDataT;
+                let prev: WeblensMedia;
                 for (const m of action.medias) {
-                    state.mediaMap.set(m.mediaId, m);
+                    state.mediaMap.set(m.Id(), m);
                     if (prev) {
-                        prev.Next = m;
-                        m.Previous = prev;
+                        prev.SetNextLink(m);
+                        m.SetPrevLink(prev);
                     }
                     prev = m;
                 }
@@ -51,7 +54,7 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
                 console.warn("Trying to select media that does not exist");
                 return { ...state };
             }
-            item.selected = action.selected;
+            item.SetSelected(action.selected);
             state.mediaMap.set(action.mediaId, item);
             return { ...state, mediaMap: new Map(state.mediaMap) };
         }
@@ -59,21 +62,26 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
         case "set_selecting": {
             if (!action.selecting) {
                 for (const key of state.mediaMap.keys()) {
-                    state.mediaMap.get(key).selected = false;
+                    state.mediaMap.get(key).SetSelected(false);
                 }
             }
-            return { ...state, selecting: action.selecting, mediaMap: new Map(state.mediaMap) };
+            return {
+                ...state,
+                selecting: action.selecting,
+                mediaMap: new Map(state.mediaMap),
+            };
         }
 
         case "set_albums": {
             if (!action.albums) {
-                return { ...state };
+                return state;
             }
-            state.albumsMap.clear();
+
+            const newMap = new Map<string, AlbumData>();
             for (const a of action.albums) {
-                state.albumsMap.set(a.Id, a);
+                newMap.set(a.Id, a);
             }
-            return { ...state };
+            return { ...state, albumsMap: newMap };
         }
 
         case "set_album_media": {
@@ -113,7 +121,7 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
         }
 
         case "delete_from_map": {
-            state.mediaMap.delete(action.media.mediaId);
+            state.mediaMap.delete(action.media.Id());
             return { ...state, mediaMap: new Map(state.mediaMap) };
         }
 
@@ -125,7 +133,9 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
         }
 
         case "add_loading": {
-            const newLoading = state.loading.filter((v) => v !== action.loading);
+            const newLoading = state.loading.filter(
+                (v) => v !== action.loading
+            );
             newLoading.push(action.loading);
             return {
                 ...state,
@@ -134,7 +144,9 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
         }
 
         case "remove_loading": {
-            const newLoading = state.loading.filter((v) => v !== action.loading);
+            const newLoading = state.loading.filter(
+                (v) => v !== action.loading
+            );
             return {
                 ...state,
                 loading: newLoading,
@@ -186,15 +198,17 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
         case "presentation_next": {
             return {
                 ...state,
-                presentingMedia: state.presentingMedia.Next ? state.presentingMedia.Next : state.presentingMedia,
+                presentingMedia: state.presentingMedia.Next()
+                    ? state.presentingMedia.Next()
+                    : state.presentingMedia,
             };
         }
 
         case "presentation_previous": {
             return {
                 ...state,
-                presentingMedia: state.presentingMedia.Previous
-                    ? state.presentingMedia.Previous
+                presentingMedia: state.presentingMedia.Prev()
+                    ? state.presentingMedia.Prev()
                     : state.presentingMedia,
             };
         }
@@ -206,7 +220,7 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
                 };
             }
             try {
-                state.presentingMedia.ImgRef.current.scrollIntoView({
+                state.presentingMedia.GetImgRef().current.scrollIntoView({
                     behavior: "smooth",
                     block: "nearest",
                     inline: "start",
@@ -229,13 +243,18 @@ export function mediaReducer(state: MediaStateT, action: GalleryAction): MediaSt
     }
 }
 
-export const useKeyDownGallery = (blockSearchFocus: boolean, searchRef, dispatch: (action: GalleryAction) => void) => {
+export const useKeyDownGallery = (
+    blockSearchFocus: boolean,
+    searchRef,
+    dispatch: (action: GalleryAction) => void
+) => {
     const onKeyDown = useCallback(
         (event) => {
             if (
                 !blockSearchFocus &&
                 !event.metaKey &&
-                ((event.which >= 65 && event.which <= 90) || event.key === "Backspace")
+                ((event.which >= 65 && event.which <= 90) ||
+                    event.key === "Backspace")
             ) {
                 searchRef.current.focus();
             } else if (event.key === "Escape" && searchRef.current) {
@@ -244,7 +263,7 @@ export const useKeyDownGallery = (blockSearchFocus: boolean, searchRef, dispatch
                 dispatch({ type: "set_selecting", selecting: false });
             }
         },
-        [blockSearchFocus, searchRef],
+        [blockSearchFocus, searchRef]
     );
     useEffect(() => {
         document.addEventListener("keydown", onKeyDown);
@@ -253,36 +272,3 @@ export const useKeyDownGallery = (blockSearchFocus: boolean, searchRef, dispatch
         };
     }, [onKeyDown]);
 };
-
-export function handleWebsocket(lastMessage, dispatch) {
-    if (lastMessage) {
-        const msgData = JSON.parse(lastMessage.data);
-        switch (msgData["type"]) {
-            case "item_update": {
-                return;
-            }
-            case "item_deleted": {
-                dispatch({
-                    type: "delete_from_map",
-                    media: msgData["content"].hash,
-                });
-                return;
-            }
-            case "scan_directory_progress": {
-                dispatch({
-                    type: "set_scan_progress",
-                    progress: (1 - msgData["remainingTasks"] / msgData["totalTasks"]) * 100,
-                });
-                return;
-            }
-            case "error": {
-                notifications.show({ message: msgData["error"], color: "red" });
-                return;
-            }
-            default: {
-                console.error("Got unexpected websocket message: ", msgData);
-                return;
-            }
-        }
-    }
-}

@@ -1,7 +1,10 @@
 package dataStore
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -116,7 +119,8 @@ func FsInit() {
 	contentRoot.parent = &mediaRoot
 	fileTree[contentRoot.id] = &contentRoot
 	fileTree[generateFileId(contentRoot.absolutePath)] = &contentRoot
-	if GetServerInfo().IsCore() {
+
+	if GetServerInfo().ServerRole() == types.Core {
 		externalRoot.parent = &externalRoot
 	}
 
@@ -339,8 +343,8 @@ func generateFileId(absPath string) types.FileId {
 	return fileHash
 }
 
-func CreateUserHomeDir(username types.Username) (types.WeblensFile, error) {
-	homeDir, err := MkDir(GetMediaDir(), strings.ToLower(username.String()))
+func CreateUserHomeDir(user types.User) (types.WeblensFile, error) {
+	homeDir, err := MkDir(GetMediaDir(), strings.ToLower(string(user.GetUsername())))
 	if err != nil && err != ErrDirAlreadyExists {
 		return homeDir, err
 	}
@@ -414,12 +418,14 @@ func MkDir(parentFolder types.WeblensFile, newDirName string, c ...types.Broadca
 		return existingFile, ErrDirAlreadyExists
 	}
 
-	err := d.CreateSelf()
+	d.size = 0
+
+	err := fsTreeInsert(d, parentFolder, c...)
 	if err != nil {
 		return d, err
 	}
 
-	err = fsTreeInsert(d, parentFolder)
+	err = d.CreateSelf()
 	if err != nil {
 		return d, err
 	}
@@ -501,19 +507,7 @@ func MoveFileToTrash(file types.WeblensFile, c ...types.BroadcasterAgent) error 
 	}
 
 	trash := file.Owner().GetTrashFolder()
-
-	dupeCount := 0
-	_, e := trash.GetChild(file.Filename())
-	for e != ErrNoFile {
-		dupeCount++
-		tmp := fmt.Sprintf("%s (%d)", file.Filename(), dupeCount)
-		_, e = trash.GetChild(tmp)
-	}
-
-	newFilename := file.Filename()
-	if dupeCount != 0 {
-		newFilename = fmt.Sprintf("%s (%d)", newFilename, dupeCount)
-	}
+	newFilename := MakeUniqueChildName(trash, file.Filename())
 
 	buffered := util.SliceConvert[types.BufferedBroadcasterAgent](util.Filter(c, func(b types.BroadcasterAgent) bool { return b.IsBuffered() }))
 	err := FsTreeMove(file, trash, newFilename, false, buffered...)
@@ -581,8 +575,8 @@ func PermanentlyDeleteFile(file types.WeblensFile, c ...types.BroadcasterAgent) 
 	return
 }
 
-func RecursiveGetMedia(folderIds ...types.FileId) (ms []types.MediaId) {
-	ms = []types.MediaId{}
+func RecursiveGetMedia(folderIds ...types.FileId) (ms []types.ContentId) {
+	ms = []types.ContentId{}
 
 	for _, dId := range folderIds {
 		d := FsTreeGet(dId)
@@ -596,10 +590,9 @@ func RecursiveGetMedia(folderIds ...types.FileId) (ms []types.MediaId) {
 		}
 		err := d.RecursiveMap(func(f types.WeblensFile) error {
 			if !f.IsDir() && f.IsDisplayable() {
-				m, err := f.GetMedia()
-				if err != nil && err != ErrNoMedia {
-					return err
-				} else if m != nil {
+				m := MediaMapGet(f.GetContentId())
+
+				if m != nil {
 					ms = append(ms, m.Id())
 				}
 			}
@@ -637,16 +630,31 @@ func GetFreeSpace(path string) uint64 {
 	return spaceBytes
 }
 
-func handleFileContent(f types.WeblensFile) (string, error) {
-	contentId := ""
-	if !f.IsDir() {
-		bs, err := f.ReadAll()
-		if err != nil {
-			return "", err
-		}
-		contentId = util.GlobbyHash(0, bs)
+func generateContentId(f types.WeblensFile) (types.ContentId, error) {
+	if f.IsDir() {
+		return "", nil
 	}
 
+	fileSize, err := f.Size()
+	if err != nil {
+		return "", err
+	}
+
+	// Read up to 1MB at a time
+	bufSize := math.Min(float64(fileSize), 1000*1000)
+	buf := make([]byte, int64(bufSize))
+	newHash := sha256.New()
+	fp, err := f.Read()
+	if err != nil {
+		return "", err
+	}
+	defer fp.Close()
+	_, err = io.CopyBuffer(newHash, fp, buf)
+	if err != nil {
+		return "", err
+	}
+
+	contentId := types.ContentId(newHash.Sum(nil))
 	f.(*weblensFile).contentId = contentId
 
 	return contentId, nil
@@ -682,7 +690,7 @@ func BackupBaseFile(remoteId string, data []byte) (baseF types.WeblensFile, err 
 	return
 }
 
-func CacheBaseMedia(mediaId types.MediaId, data [][]byte) (newThumb, newFullres types.WeblensFile, err error) {
+func CacheBaseMedia(mediaId types.ContentId, data [][]byte) (newThumb, newFullres types.WeblensFile, err error) {
 	newThumb, err = Touch(&cacheRoot, string(mediaId)+"-thumbnail.wlcache", false)
 	if err != nil && err != ErrFileAlreadyExists {
 		return nil, nil, err
@@ -729,4 +737,21 @@ func isDirByPath(absPath string) (bool, error) {
 	}
 
 	return stat.IsDir(), nil
+}
+
+func MakeUniqueChildName(parent types.WeblensFile, childName string) string {
+	dupeCount := 0
+	_, e := parent.GetChild(childName)
+	for e != ErrNoFile {
+		dupeCount++
+		tmp := fmt.Sprintf("%s (%d)", childName, dupeCount)
+		_, e = parent.GetChild(tmp)
+	}
+
+	newFilename := childName
+	if dupeCount != 0 {
+		newFilename = fmt.Sprintf("%s (%d)", newFilename, dupeCount)
+	}
+
+	return newFilename
 }

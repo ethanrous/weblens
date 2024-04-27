@@ -5,14 +5,16 @@ import {
     useContext,
     memo,
     useCallback,
-} from 'react';
+} from "react";
 // import { Blurhash } from "react-blurhash";
-import { userContext } from '../Context';
-import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react';
-import { Box, CSSProperties, Loader } from '@mantine/core';
-import API_ENDPOINT, { PUBLIC_ENDPOINT } from '../api/ApiEndpoint';
-import { AuthHeaderT, MediaDataT, UserContextT } from '../types/Types';
-import './style.css';
+import { MediaTypeContext, UserContext } from "../Context";
+import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react";
+import { Box, CSSProperties, Loader } from "@mantine/core";
+import API_ENDPOINT, { PUBLIC_ENDPOINT } from "../api/ApiEndpoint";
+import { AuthHeaderT, UserContextT } from "../types/Types";
+import WeblensMedia from "../classes/Media";
+
+import "./style.css";
 
 function getImageData(
     url: string,
@@ -30,14 +32,14 @@ function getImageData(
         })
         .then((buf) => {
             if (buf.byteLength === 0) {
-                Promise.reject('Empty blob');
+                Promise.reject("Empty blob");
             }
 
             return { data: buf, hash: mediaId };
         })
         .catch((r) => {
             if (!signal.aborted) {
-                console.error('Failed to get image from server:', r);
+                console.error("Failed to get image from server:", r);
                 setLoadErr(true);
             }
         });
@@ -60,13 +62,13 @@ export const MediaImage = memo(
         doPublic = false,
         disabled = false,
     }: {
-        media: MediaDataT;
+        media: WeblensMedia;
         setMediaCallback?: (
             mediaId: string,
-            quality: 'thumbnail' | 'fullres',
+            quality: "thumbnail" | "fullres",
             data: ArrayBuffer
         ) => void;
-        quality: 'thumbnail' | 'fullres';
+        quality: "thumbnail" | "fullres";
         pageNumber?: number;
         lazy?: boolean;
         expectFailure?: boolean;
@@ -77,28 +79,32 @@ export const MediaImage = memo(
         doPublic?: boolean;
         disabled?: boolean;
     }) => {
-        const [loaded, setLoaded] = useState(
-            media?.fullres ? 'fullres' : media?.thumbnail ? 'thumbnail' : ''
-        );
         const [loadError, setLoadErr] = useState(false);
-        const { authHeader }: UserContextT = useContext(userContext);
+        const { authHeader }: UserContextT = useContext(UserContext);
+        const typeMap = useContext(MediaTypeContext);
         const [imgData, setImgData] = useState(null);
         const visibleRef = useRef(null);
-        const hashRef = useRef('');
+        const hashRef = useRef("");
         const abortController = new AbortController();
+
+        if (!media) {
+            media = new WeblensMedia({ mediaId: "" });
+        }
+
+        console.log(media);
 
         const fetchFullres = useCallback(async () => {
             const url = new URL(
-                `${doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT}/media/${
-                    media.mediaId
-                }/fullres`
+                `${
+                    doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT
+                }/media/${media.Id()}/fullres`
             );
             if (pageNumber !== undefined) {
-                url.searchParams.append('page', pageNumber.toString());
+                url.searchParams.append("page", pageNumber.toString());
             }
             const ret = await getImageData(
                 url.toString(),
-                media.mediaId,
+                media.Id(),
                 authHeader,
                 abortController.signal,
                 setLoadErr
@@ -107,23 +113,22 @@ export const MediaImage = memo(
                 return;
             }
             if (setMediaCallback) {
-                setMediaCallback(media.mediaId, 'fullres', ret.data);
+                setMediaCallback(media.Id(), "fullres", ret.data);
             } else if (pageNumber === undefined) {
-                media.fullres = ret.data;
+                media.SetFullresBytes(ret.data);
             }
             setImgData(URL.createObjectURL(new Blob([ret.data])));
-            setLoaded('fullres');
-        }, [media?.mediaId, authHeader]);
+        }, [media.Id(), authHeader]);
 
         const fetchThumbnail = useCallback(async () => {
             if (pageNumber !== undefined && pageNumber > 0) {
                 return;
             }
             const ret = await getImageData(
-                `${doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT}/media/${
-                    media.mediaId
-                }/thumbnail`,
-                media.mediaId,
+                `${
+                    doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT
+                }/media/${media.Id()}/thumbnail`,
+                media.Id(),
                 authHeader,
                 abortController.signal,
                 setLoadErr
@@ -132,47 +137,53 @@ export const MediaImage = memo(
                 return;
             }
             if (setMediaCallback) {
-                setMediaCallback(media.mediaId, 'thumbnail', ret.data);
+                setMediaCallback(media.Id(), "thumbnail", ret.data);
             } else if (pageNumber === undefined) {
-                media.thumbnail = ret.data;
+                media.SetThumbnailBytes(ret.data);
             }
             setImgData((prev) =>
-                prev === '' ? URL.createObjectURL(new Blob([ret.data])) : prev
+                prev === "" ? URL.createObjectURL(new Blob([ret.data])) : prev
             );
-            setLoaded((prev) => (prev === '' ? 'thumbnail' : prev));
-        }, [media?.mediaId, authHeader]);
+            // setLoaded((prev) => (prev === "" ? "thumbnail" : prev));
+        }, [media.Id(), authHeader]);
 
         useEffect(() => {
             setLoadErr(false);
-            if (!media?.mediaId) {
+            if (!media.Id()) {
                 return;
             }
-            hashRef.current = media.mediaId;
-            setLoaded('');
+            hashRef.current = media.Id();
 
-            if (media.fullres && quality === 'fullres') {
-                setImgData(URL.createObjectURL(new Blob([media.fullres])));
-                setLoaded('fullres');
+            if (
+                media.HighestQualityLoaded() == "fullres" &&
+                quality === "fullres"
+            ) {
+                setImgData(media.GetImgUrl("fullres"));
+                // setLoaded("fullres");
             } else if (
-                media.thumbnail &&
+                media.HighestQualityLoaded() == "thumbnail" &&
                 (pageNumber === undefined || pageNumber === 0)
             ) {
-                setImgData(URL.createObjectURL(new Blob([media.thumbnail])));
-                setLoaded('thumbnail');
+                setImgData(media.GetImgUrl("thumbnail"));
+                // setLoaded("thumbnail");
             } else {
-                setImgData('');
+                setImgData("");
             }
 
-            if (!media.fullres && doFetch && quality === 'fullres') {
+            if (
+                media.HighestQualityLoaded() !== "fullres" &&
+                doFetch &&
+                quality === "fullres"
+            ) {
                 fetchFullres();
             }
 
-            if (!media.thumbnail && doFetch) {
+            if (!media.HighestQualityLoaded() && doFetch) {
                 fetchThumbnail();
             }
 
             return () => abortController.abort();
-        }, [media?.mediaId]);
+        }, [media.Id()]);
 
         return (
             <Box
@@ -190,38 +201,38 @@ export const MediaImage = memo(
                 {loadError && !expectFailure && (
                     <IconExclamationCircle color="red" />
                 )}
-                {((loadError && expectFailure) || !media?.mediaId) && (
-                    <IconPhoto />
-                )}
-                {quality === 'fullres' &&
-                    loaded !== 'fullres' &&
+                {((loadError && expectFailure) || !media.Id()) && <IconPhoto />}
+                {quality === "fullres" &&
+                    media.HighestQualityLoaded() !== "fullres" &&
                     !loadError && (
                         <Loader
                             color="white"
                             bottom={40}
                             right={40}
                             size={20}
-                            style={{ position: 'absolute' }}
+                            style={{ position: "absolute" }}
                         />
                     )}
 
                 <img
                     alt=""
                     className={
-                        quality === 'thumbnail'
-                            ? 'media-thumbnail'
-                            : 'media-fullres'
+                        quality === "thumbnail"
+                            ? "media-thumbnail"
+                            : "media-fullres"
                     }
                     draggable={false}
                     src={imgData}
                     style={{
-                        display: imgData && !loadError ? '' : 'none',
-                        filter: disabled ? 'grayscale(100%)' : '',
+                        display: imgData && !loadError ? "" : "none",
+                        filter: disabled ? "grayscale(100%)" : "",
+                        zIndex: "inherit",
+                        position: "relative",
                         ...imgStyle,
                     }}
                 />
 
-                {quality === 'fullres' && media.mediaType.IsVideo && (
+                {quality === "fullres" && media.GetMediaType().IsVideo && (
                     <video src="" controls />
                 )}
 
@@ -237,18 +248,16 @@ export const MediaImage = memo(
         );
     },
     (last, next) => {
-        if (last.media?.mediaId !== next.media?.mediaId) {
+        if (last.media?.Id() !== next.media?.Id()) {
+            return false;
+        } else if (last.containerStyle !== next.containerStyle) {
             return false;
         } else if (
-            last.containerStyle?.height !== next.containerStyle?.height
+            last.media?.HighestQualityLoaded() !==
+            next.media?.HighestQualityLoaded()
         ) {
             return false;
-        } else if (last.media?.thumbnail !== next.media?.thumbnail) {
-            return false;
-        } else if (last.media?.fullres !== next.media?.fullres) {
-            return false;
         }
-
         return true;
     }
 );

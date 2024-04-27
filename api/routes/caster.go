@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"slices"
 	"sync"
 	"time"
 
@@ -10,16 +9,14 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func NewCaster(recipientUsernames ...types.Username) types.BroadcasterAgent {
-	if !dataStore.GetServerInfo().IsCore() {
+func NewCaster() types.BroadcasterAgent {
+	serverInfo := dataStore.GetServerInfo()
+	if serverInfo == nil || serverInfo.ServerRole() != types.Core {
 		return &unbufferedCaster{enabled: false}
 	}
 
-	recipients := util.Filter(util.MapToSlicePure(cmInstance.clientMap), func(c *Client) bool { return slices.Contains(recipientUsernames, c.user.GetUsername()) })
-
 	newCaster := &unbufferedCaster{
-		enabled:    false,
-		recipients: recipients,
+		enabled: true,
 	}
 	return newCaster
 }
@@ -32,20 +29,20 @@ func (c unbufferedCaster) IsBuffered() bool {
 	return false
 }
 
-func (c *unbufferedCaster) PushTaskUpdate(taskId types.TaskId, status string, result types.TaskResult) {
+func (c *unbufferedCaster) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
 	if !c.enabled {
 		return
 	}
 
 	msg := wsResponse{
-		EventTag:     status,
+		EventTag:     string(event),
 		SubscribeKey: subId(taskId),
 		Content:      []wsM{{"result": result}},
 
 		broadcastType: "task",
 	}
 
-	send(msg, c.recipients...)
+	send(msg)
 }
 
 func (c *unbufferedCaster) PushShareUpdate(username types.Username, newShareInfo types.Share) {
@@ -61,14 +58,16 @@ func (c *unbufferedCaster) PushShareUpdate(username types.Username, newShareInfo
 		broadcastType: "user",
 	}
 
-	send(msg, c.recipients...)
+	send(msg)
 }
 
 func (c unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	if !c.enabled {
 		return
 	}
-	fileInfo, err := newFile.FormatFileInfo(nil)
+
+	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return
@@ -86,7 +85,8 @@ func (c unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	fileInfo, err := updatedFile.FormatFileInfo(nil)
+	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return
@@ -137,7 +137,8 @@ func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
 func NewBufferedCaster() types.BufferedBroadcasterAgent {
-	if !dataStore.GetServerInfo().IsCore() {
+	srvInfo := dataStore.GetServerInfo()
+	if srvInfo == nil || srvInfo.ServerRole() != types.Core {
 		return &bufferedCaster{enabled: false, autoFlushInterval: time.Hour}
 	}
 	newCaster := &bufferedCaster{
@@ -278,13 +279,13 @@ func (c *bufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	c.bufferAndFlush(msg)
 }
 
-func (c *bufferedCaster) PushTaskUpdate(taskId types.TaskId, status string, result types.TaskResult) {
+func (c *bufferedCaster) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
 	if !c.enabled {
 		return
 	}
 
 	msg := wsResponse{
-		EventTag:      status,
+		EventTag:      string(event),
 		SubscribeKey:  subId(taskId),
 		Content:       []wsM{wsM(result)},
 		Error:         "",
@@ -362,14 +363,7 @@ func (c *bufferedCaster) bufferAndFlush(msg wsResponse) {
 	}
 }
 
-func send(r wsResponse, recipients ...*Client) {
-	if len(recipients) != 0 {
-		for _, c := range recipients {
-			c.writeToClient(r)
-		}
-		return
-	}
-
+func send(r wsResponse) {
 	if r.SubscribeKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return

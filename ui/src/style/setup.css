@@ -52,6 +52,7 @@
     flex-shrink: 0;
     transition: 200ms opacity ease-in-out, 200ms transform ease-in-out;
     gap: 10px;
+    overflow: scroll;
 }
 
 .setup-content-box:where([data-ondeck="active"]) {

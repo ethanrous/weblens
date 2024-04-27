@@ -1,0 +1,92 @@
+.options-dropdown {
+    padding: 10px;
+    background-color: #222222;
+    border: 0;
+    box-shadow: 6px 6px 2px #000000cc;
+}
+
+.preview-card-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2px;
+    position: relative;
+    cursor: pointer;
+    outline: 2px solid #ffffff00;
+    border-radius: 4px;
+    transform-style: preserve-3d;
+    transition:
+        transform 100ms,
+        outline 200ms ease-in-out;
+}
+
+.preview-card-container:where([data-selected="true"]) {
+    transform: scale(1, 1);
+    transform: outline 100ms ease-in-out;
+
+    outline: 0px solid #4444ee;
+}
+
+.preview-card-container:where([data-selecting="true"]):where(
+        [data-selected="false"]
+    ) {
+    transform: scale(0.9, 0.9);
+    opacity: 50%;
+    border-radius: 8px;
+    transition:
+        transform 0.15s ease-in-out,
+        opacity 1s ease-in-out;
+}
+
+.preview-card-container:where([data-selecting="true"]):where(
+        [data-selected="false"]
+    ):hover {
+        border: 2px solid white;
+    transform: scale(0.95, 0.95);
+    opacity: 90%;
+}
+
+.preview-card-container:where([data-selecting="true"]):where(
+        [data-selected="true"]
+    ):hover {
+        border: 2px solid white;
+    transition:
+        transform 150ms ease-in-out,
+        outline 100ms ease-in-out;
+}
+
+.preview-card-container:where([data-selecting="false"]):hover, .preview-card-container:where([data-menu-open="true"]) {
+    transform: scale(105%);
+
+    box-shadow: 0px 0px 15px black;
+    // border: 2px solid white;
+    z-index: 3;
+}
+
+.media-menu-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    z-index: 4;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 0px;
+    width: 100%;
+    cursor: default;
+    background-color: #00000000;
+    height: 100%;
+    backdrop-filter: blur(0px);
+    pointer-events: none;
+    outline: 3px solid #1c104900;
+
+    transition: all 200ms;
+
+    &[data-open='true'] {
+        outline-offset: 0px;
+        outline: 3px solid #1c1049;
+        background-color: #00000044;
+        pointer-events: all;
+        backdrop-filter: blur(6px);
+    }
+}

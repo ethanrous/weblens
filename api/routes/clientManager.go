@@ -32,10 +32,12 @@ func VerifyClientManager() *clientManager {
 func (cm *clientManager) ClientConnect(conn *websocket.Conn, user types.User) *Client {
 	cm = VerifyClientManager()
 	connectionId := clientId(uuid.New().String())
-	newClient := Client{connId: connectionId, conn: conn, user: user}
+	newClient := Client{Active: true, connId: connectionId, conn: conn, user: user}
+
 	cm.clientMu.Lock()
 	cm.clientMap[connectionId] = &newClient
 	cm.clientMu.Unlock()
+
 	newClient.log("Connected")
 	return &newClient
 }

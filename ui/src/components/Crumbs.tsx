@@ -1,17 +1,12 @@
 import { useNavigate } from "react-router-dom";
 
 import { Box, Text } from "@mantine/core";
-import { IconChevronRight } from "@tabler/icons-react";
+import { IconChevronRight, IconHome, IconTrash } from "@tabler/icons-react";
 
-import { RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
+import { WeblensFile } from "../classes/File";
 import { memo, useContext, useEffect, useMemo, useState } from "react";
-import {
-    UserInfoT,
-    FileInfoT,
-    getBlankFile,
-    UserContextT,
-} from "../types/Types";
-import { userContext } from "../Context";
+import { UserContextT } from "../types/Types";
+import { UserContext } from "../Context";
 import { useResize } from "./hooks";
 
 type breadcrumbProps = {
@@ -23,6 +18,33 @@ type breadcrumbProps = {
     compact?: boolean;
     alwaysOn?: boolean;
     setMoveDest?;
+};
+
+const CrumbText = ({ label, fontSize }) => {
+    if (label === "Home") {
+        return (
+            <Box style={{ height: 30, width: 30 }}>
+                <IconHome style={{ width: "100%", height: "100%" }} />
+            </Box>
+        );
+    }
+    if (label === "Trash") {
+        return <IconTrash />;
+    }
+
+    return (
+        <Text
+            className="crumb-text"
+            truncate="end"
+            style={{
+                fontSize: fontSize,
+                width: "max-content",
+                maxWidth: "100%",
+            }}
+        >
+            {label}
+        </Text>
+    );
 };
 
 export const StyledBreadcrumb = ({
@@ -74,17 +96,7 @@ export const StyledBreadcrumb = ({
                 minWidth: 0,
             }}
         >
-            <Text
-                className="crumb-text"
-                truncate="end"
-                style={{
-                    fontSize: fontSize,
-                    width: "max-content",
-                    maxWidth: "100%",
-                }}
-            >
-                {label}
-            </Text>
+            <CrumbText label={label} fontSize={fontSize} />
         </Box>
     );
 };
@@ -110,7 +122,7 @@ const Crumbcatenator = ({ crumb, index, squished, setWidth }) => {
                 width: "max-content",
             }}
         >
-            {size.width > 10 && index !== 0 && (
+            {size.width > 10 && (
                 <IconChevronRight style={{ width: "20px", minWidth: "20px" }} />
             )}
             {crumb}
@@ -147,9 +159,23 @@ export const StyledLoaf = ({ crumbs, postText }) => {
 
     return (
         <Box ref={setCrumbRef} className="loaf">
+            <Box
+                ref={setCrumbRef}
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    width: "max-content",
+                }}
+            >
+                {crumbs[0]}
+            </Box>
+
+            {squished !== 0 && (
+                <IconChevronRight style={{ width: "20px", minWidth: "20px" }} />
+            )}
             {squished !== 0 && <Text className="crumb-text">...</Text>}
 
-            {crumbs.map((c, i) => (
+            {crumbs.slice(1).map((c, i) => (
                 <Crumbcatenator
                     key={i}
                     crumb={c}
@@ -181,15 +207,13 @@ export const StyledLoaf = ({ crumbs, postText }) => {
 const Crumbs = memo(
     ({
         finalFile,
-        parents,
         postText,
         moveSelectedTo,
         navOnLast,
         setMoveDest,
         dragging,
     }: {
-        finalFile: FileInfoT;
-        parents: FileInfoT[];
+        finalFile: WeblensFile;
         postText?: string;
         navOnLast: boolean;
         moveSelectedTo?: (folderId: string) => void;
@@ -197,75 +221,27 @@ const Crumbs = memo(
         dragging?: number;
     }) => {
         const navigate = useNavigate();
-        const { usr }: UserContextT = useContext(userContext);
+        const { usr }: UserContextT = useContext(UserContext);
 
         const loaf = useMemo(() => {
-            if (!usr || !finalFile?.id) {
+            if (!usr || !finalFile?.Id()) {
                 return <StyledLoaf crumbs={[]} postText={""} />;
-                // return null;
             }
 
-            const parentsIds = parents.map((p) => p.id);
-            if (parentsIds.includes("shared")) {
-                let sharedRoot = getBlankFile();
-                sharedRoot.filename = "Shared";
-                parents.unshift(sharedRoot);
-            } else if (
-                finalFile.id === usr.trashId ||
-                parentsIds.includes(usr.trashId)
-            ) {
-                if (parents[0]?.id === usr.homeId) {
-                    parents.shift();
-                }
-                if (
-                    parents[0]?.id === usr.trashId &&
-                    parents[0].filename !== "Trash"
-                ) {
-                    parents[0].filename = "Trash";
-                }
-                if (
-                    finalFile.id === usr.trashId &&
-                    finalFile.filename !== "Trash"
-                ) {
-                    finalFile.filename = "Trash";
-                }
-            } else if (
-                finalFile.id === usr.homeId ||
-                parentsIds.includes(usr.homeId)
-            ) {
-                if (
-                    parents[0]?.id === usr.homeId &&
-                    parents[0].filename !== "Home"
-                ) {
-                    parents[0].filename = "Home";
-                }
-                if (
-                    finalFile.id === usr.homeId &&
-                    finalFile.filename !== "Home"
-                ) {
-                    finalFile.filename = "Home";
-                }
-            } else if (finalFile.id == "EXTERNAL_ROOT") {
-                finalFile.filename = "External";
-                finalFile.id = "external";
-            } else if (parents[0]?.id == "EXTERNAL_ROOT") {
-                parents[0].filename = "External";
-                parents[0].id = "external";
-            }
-
+            const parents = finalFile.FormatParents();
             const crumbs = parents.map((parent) => {
                 return (
                     <StyledBreadcrumb
-                        key={parent.id}
-                        label={parent.filename}
+                        key={parent.Id()}
+                        label={parent.GetFilename()}
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/files/${parent.id}`);
+                            navigate(`/files/${parent.Id()}`);
                         }}
                         dragging={dragging}
                         onMouseUp={() => {
                             if (dragging !== 0) {
-                                moveSelectedTo(parent.id);
+                                moveSelectedTo(parent.Id());
                             }
                         }}
                         setMoveDest={setMoveDest}
@@ -275,12 +251,8 @@ const Crumbs = memo(
 
             crumbs.push(
                 <StyledBreadcrumb
-                    key={finalFile.id}
-                    label={
-                        finalFile.id === usr.homeId
-                            ? "Home"
-                            : finalFile.filename
-                    }
+                    key={finalFile.Id()}
+                    label={finalFile.GetFilename()}
                     onClick={(e) => {
                         e.stopPropagation();
                         if (!navOnLast) {
@@ -288,9 +260,9 @@ const Crumbs = memo(
                         }
                         navigate(
                             `/files/${
-                                finalFile.parentFolderId === usr.homeId
+                                finalFile.ParentId() === usr.homeId
                                     ? "home"
-                                    : finalFile.parentFolderId
+                                    : finalFile.ParentId()
                             }`
                         );
                     }}
@@ -300,7 +272,6 @@ const Crumbs = memo(
 
             return <StyledLoaf crumbs={crumbs} postText={postText} />;
         }, [
-            parents,
             finalFile,
             moveSelectedTo,
             navOnLast,
@@ -313,13 +284,14 @@ const Crumbs = memo(
         return loaf;
     },
     (prev, next) => {
-        return (
-            (prev.dragging === next.dragging &&
-                prev.parents === next.parents &&
-                prev.finalFile === next.finalFile) ||
-            next.parents === null ||
-            !next.finalFile?.id
-        );
+        if (
+            prev.dragging !== next.dragging ||
+            prev.finalFile !== next.finalFile
+        ) {
+            return false;
+        }
+
+        return true;
     }
 );
 

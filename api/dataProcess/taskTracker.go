@@ -70,6 +70,7 @@ func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.Broadc
 		taskType:   taskType,
 		metadata:   taskMeta,
 		waitMu:     &sync.Mutex{},
+		timerLock:  &sync.Mutex{},
 		signalChan: make(chan int, 1), // signal chan must be buffered so caller doesn't block trying to close many tasks
 		sw:         util.NewStopwatch("Task " + taskId.String()),
 		caster:     caster,
@@ -96,6 +97,8 @@ func newTask(taskType types.TaskType, taskMeta TaskMetadata, caster types.Broadc
 		newTask.work = gatherFilesystemStats
 	case BackupTask:
 		newTask.work = doBackup
+	case HashFile:
+		newTask.work = hashFile
 	}
 
 	return newTask

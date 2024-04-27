@@ -1,10 +1,6 @@
 import { Box, Divider, Text } from "@mantine/core";
-import {
-    FBDispatchT,
-    FileInfoT,
-    UserContextT,
-    UserInfoT,
-} from "../../types/Types";
+import { FBDispatchT, UserContextT, UserInfoT } from "../../types/Types";
+import { WeblensFile } from "../../classes/File";
 import { useResizeDrag, useWindowSize } from "../../components/hooks";
 import { memo, useContext, useEffect, useMemo, useState } from "react";
 import {
@@ -17,11 +13,11 @@ import {
     IconFolder,
     IconReorder,
 } from "@tabler/icons-react";
-import { ColumnBox, RowBox } from "./FilebrowserStyles";
+import { ColumnBox, FileIcon, RowBox } from "./FileBrowserStyles";
 import { clamp, friendlyFolderName } from "../../util";
 import { WeblensButton } from "../../components/WeblensButton";
 import { getFileHistory } from "../../api/FileBrowserApi";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import { FileEventT } from "./FileBrowserTypes";
 import "./style/history.css";
 
@@ -37,7 +33,7 @@ export const FilesPane = memo(
     }: {
         open: boolean;
         setOpen: (o) => void;
-        selectedFiles: FileInfoT[];
+        selectedFiles: WeblensFile[];
         contentId: string;
         timestamp: number;
         dispatch: FBDispatchT;
@@ -217,67 +213,6 @@ const fileBase = (path: string) => {
         path = path.slice(0, path.length - 1);
     }
     return path.slice(path.lastIndexOf("/") + 1);
-};
-
-const FileIcon = ({
-    fileName,
-    id,
-    Icon,
-    usr,
-    as,
-}: {
-    fileName: string;
-    id: string;
-    Icon;
-    usr: UserInfoT;
-    as?: string;
-}) => {
-    return (
-        <Box
-            style={{
-                display: "flex",
-                alignItems: "center",
-            }}
-        >
-            <Icon className="icon-noshrink" />
-            <Text
-                fw={550}
-                c="white"
-                truncate="end"
-                style={{
-                    fontFamily: "monospace",
-                    textWrap: "nowrap",
-                    padding: 6,
-                    flexShrink: 1,
-                }}
-            >
-                {friendlyFolderName(fileName, id, usr)}
-            </Text>
-            {as && (
-                <Box
-                    style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                    }}
-                >
-                    <Text size="12px">as</Text>
-                    <Text
-                        size="12px"
-                        truncate="end"
-                        style={{
-                            fontFamily: "monospace",
-                            textWrap: "nowrap",
-                            padding: 3,
-                            flexShrink: 2,
-                        }}
-                    >
-                        {as}
-                    </Text>
-                </Box>
-            )}
-        </Box>
-    );
 };
 
 const HistoryRow = ({
@@ -479,7 +414,7 @@ function FileHistory({
     timestamp: number;
     dispatch: FBDispatchT;
 }) {
-    const { authHeader, usr }: UserContextT = useContext(userContext);
+    const { authHeader, usr }: UserContextT = useContext(UserContext);
     const [fileHistory, setFileHistory]: [
         fileHistory: FileEventT[],
         setFileHistory: any

@@ -5,7 +5,7 @@ type BroadcasterAgent interface {
 	PushFileUpdate(updatedFile WeblensFile)
 	PushFileMove(preMoveFile WeblensFile, postMoveFile WeblensFile)
 	PushFileDelete(deletedFile WeblensFile)
-	PushTaskUpdate(taskId TaskId, status string, result TaskResult)
+	PushTaskUpdate(taskId TaskId, event TaskEvent, result TaskResult)
 	PushShareUpdate(username Username, newShareInfo Share)
 	Enable()
 	IsBuffered() bool

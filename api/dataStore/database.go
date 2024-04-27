@@ -34,6 +34,7 @@ func NewDB() *WeblensDB {
 			panic(err)
 		}
 		mongodb = mongoc.Database(util.GetMongoDBName())
+		verifyIndexes(mongodb)
 	}
 	if redisc == nil && util.ShouldUseRedis() {
 		redisc = redis.NewClient(&redis.Options{
@@ -48,6 +49,35 @@ func NewDB() *WeblensDB {
 		mongo:    mongodb,
 		redis:    redisc,
 		useRedis: util.ShouldUseRedis(),
+	}
+}
+
+func verifyIndexes(mdb *mongo.Database) {
+	i := mongo.IndexModel{
+		Keys: bson.M{"contentId": 1},
+		Options: &options.IndexOptions{
+			Sparse: boolPointer(true),
+		},
+	}
+
+	// indexes := mdb.Collection("fileHistory").SearchIndexes()
+	// util.Debug.Println(indexes)
+
+	_, err := mdb.Collection("fileHistory").Indexes().CreateOne(context.TODO(), i)
+	if err != nil {
+		panic(err)
+	}
+
+	i = mongo.IndexModel{
+		Keys:    bson.M{"mediaId": 1},
+		Options: &options.IndexOptions{
+			// Unique: boolPointer(true),
+		},
+	}
+
+	_, err = mdb.Collection("media").Indexes().CreateOne(context.TODO(), i)
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -66,6 +96,13 @@ func (db WeblensDB) getAllMedia() (ms []*media, err error) {
 	ms = util.Map(marshMs, func(mm marshalableMedia) *media { m := marshalableToMedia(mm); m.SetImported(true); return m })
 
 	return
+}
+
+func (db WeblensDB) setMediaHidden(m types.Media, hidden bool) error {
+	filter := bson.M{"mediaId": m.Id()}
+	update := bson.M{"$set": bson.M{"hidden": hidden}}
+	_, err := db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
+	return err
 }
 
 func (db WeblensDB) GetFilteredMedia(sort string, requester types.Username, sortDirection int, albumIds []types.AlbumId, raw bool) (res []types.Media, err error) {
@@ -90,16 +127,16 @@ func (db WeblensDB) GetFilteredMedia(sort string, requester types.Username, sort
 		return
 	}
 
-	var mediaIds []types.MediaId
+	var mediaIds []types.ContentId
 	util.Each(matchedAlbums, func(a AlbumData) { mediaIds = append(mediaIds, a.Medias...) })
 
 	if len(mediaIds) == 0 {
 		return
 	}
 
-	res = util.Map(mediaIds, func(mId types.MediaId) types.Media {
-		m, err := MediaMapGet(mId)
-		util.ShowErr(err, fmt.Sprint("Failed to get media ", mId))
+	res = util.Map(mediaIds, func(mId types.ContentId) types.Media {
+		m := MediaMapGet(mId)
+		// util.ShowErr(err, fmt.Sprint("Failed to get media ", mId))
 		return m
 	})
 
@@ -145,13 +182,6 @@ func (db WeblensDB) RedisCacheGet(key string) (string, error) {
 	return data, err
 }
 
-func (db WeblensDB) RedisCacheBust(key string) {
-	if !db.useRedis {
-		return
-	}
-	db.redis.Del(key)
-}
-
 func (db WeblensDB) AddMedia(m types.Media) error {
 	filled, reason := m.IsFilledOut()
 	if !filled {
@@ -176,7 +206,7 @@ func (db WeblensDB) UpdateMedia(m types.Media) error {
 	return err
 }
 
-func (db WeblensDB) deleteMedia(mId types.MediaId) error {
+func (db WeblensDB) deleteMedia(mId types.ContentId) error {
 	filter := bson.M{"mediaId": mId}
 	_, err := db.mongo.Collection("media").DeleteOne(mongo_ctx, filter)
 	if err != nil {
@@ -200,17 +230,6 @@ func (db WeblensDB) deleteMedia(mId types.MediaId) error {
 	return nil
 }
 
-func (db WeblensDB) UpdateMediasById(mediaIds []types.MediaId, newOwner types.Username) {
-	user, err := db.GetUser(newOwner)
-	util.FailOnError(err, "Failed to get user to update media owner")
-
-	filter := bson.M{"mediaId": bson.M{"$in": mediaIds}}
-	update := bson.M{"$set": bson.M{"owner": user.Id}}
-
-	_, err = db.mongo.Collection("media").UpdateMany(mongo_ctx, filter, update)
-	util.FailOnError(err, "Failed to update media by mediaId")
-}
-
 func (db WeblensDB) addFileToMedia(m types.Media, f types.WeblensFile) (err error) {
 	filter := bson.M{"mediaId": m.Id()}
 	update := bson.M{"$addToSet": bson.M{"fileIds": f.Id()}}
@@ -219,7 +238,7 @@ func (db WeblensDB) addFileToMedia(m types.Media, f types.WeblensFile) (err erro
 	return
 }
 
-func (db WeblensDB) removeFileFromMedia(mId types.MediaId, fId types.FileId) (err error) {
+func (db WeblensDB) removeFileFromMedia(mId types.ContentId, fId types.FileId) (err error) {
 	filter := bson.M{"mediaId": mId}
 	update := bson.M{"$pull": bson.M{"fileIds": fId}}
 
@@ -278,7 +297,7 @@ func (db WeblensDB) GetUser(username types.Username) (user, error) {
 	return user, nil
 }
 
-func (db WeblensDB) ActivateUser(username types.Username) {
+func (db WeblensDB) activateUser(username types.Username) {
 	filter := bson.M{"username": username}
 	update := bson.M{"$set": bson.M{"activated": true}}
 
@@ -378,6 +397,19 @@ func (db WeblensDB) GetAlbum(albumId types.AlbumId) (a *AlbumData, err error) {
 	return
 }
 
+func (db WeblensDB) getAllAlbums() (as []AlbumData) {
+	res, err := db.mongo.Collection("albums").Find(mongo_ctx, bson.M{})
+	if err != nil {
+		return
+	}
+
+	res.All(mongo_ctx, &as)
+	if as == nil {
+		as = []AlbumData{}
+	}
+	return
+}
+
 func (db WeblensDB) GetAlbumsByUser(user types.Username, nameFilter string, includeShared bool) (as []AlbumData) {
 	var filter bson.M
 	if includeShared {
@@ -402,7 +434,7 @@ func (db WeblensDB) insertAlbum(a AlbumData) error {
 	return err
 }
 
-func (db WeblensDB) addMediaToAlbum(albumId types.AlbumId, mediaIds []types.MediaId) (addedCount int, err error) {
+func (db WeblensDB) addMediaToAlbum(albumId types.AlbumId, mediaIds []types.ContentId) (addedCount int, err error) {
 	if mediaIds == nil {
 		return addedCount, fmt.Errorf("nil media ids")
 	}
@@ -436,7 +468,7 @@ func (db WeblensDB) addMediaToAlbum(albumId types.AlbumId, mediaIds []types.Medi
 	return
 }
 
-func (db WeblensDB) removeMediaFromAlbum(albumId types.AlbumId, mediaIds []types.MediaId) error {
+func (db WeblensDB) removeMediaFromAlbum(albumId types.AlbumId, mediaIds []types.ContentId) error {
 	if mediaIds == nil {
 		return fmt.Errorf("nil media ids")
 	}
@@ -462,7 +494,7 @@ func (db WeblensDB) setAlbumName(albumId types.AlbumId, newName string) (err err
 	return
 }
 
-func (db WeblensDB) SetAlbumCover(albumId types.AlbumId, coverMediaId types.MediaId, prom1, prom2 string) (err error) {
+func (db WeblensDB) SetAlbumCover(albumId types.AlbumId, coverMediaId types.ContentId, prom1, prom2 string) (err error) {
 	match := bson.M{"_id": albumId}
 	update := bson.M{"$set": bson.M{"cover": coverMediaId, "primaryColor": prom1, "secondaryColor": prom2}}
 	_, err = db.mongo.Collection("albums").UpdateOne(mongo_ctx, match, update)
@@ -697,6 +729,13 @@ func (db WeblensDB) getLatestBackup() (*backupFile, error) {
 
 func (db WeblensDB) newBackupFileRecord(bf *backupFile) error {
 	_, err := db.mongo.Collection("fileHistory").InsertOne(mongo_ctx, bf)
+	return err
+}
+
+func (db WeblensDB) setContentId(fileId types.FileId, contentId types.ContentId) error {
+	filter := bson.M{"fileId": fileId}
+	update := bson.M{"$set": bson.M{"contentId": contentId}}
+	_, err := db.mongo.Collection("fileHistory").UpdateOne(mongo_ctx, filter, update)
 	return err
 }
 

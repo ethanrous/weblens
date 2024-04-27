@@ -59,12 +59,16 @@ func (t *task) Wait() {
 // If a task finds itself not required to continue, success should
 // be returned
 func (t *task) Cancel() {
+	if t == nil {
+		return
+	}
+
 	if t.completed || t.signal != 0 {
 		return
 	}
 	t.signal = 1
 	t.signalChan <- 1
-	if t.exitStatus == "" {
+	if t.exitStatus == TaskNoStatus {
 		t.exitStatus = TaskCanceled
 	}
 	t.completed = true
@@ -150,6 +154,10 @@ func (t *task) error(err error) {
 }
 
 func (t *task) ErrorAndExit(err error, info ...any) {
+	if err == nil {
+		return
+	}
+
 	_, filename, line, _ := runtime.Caller(1)
 	util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\n", t.TaskId(), filename, line, err.Error())
 	if len(info) != 0 {
@@ -189,11 +197,15 @@ func (t *task) success(msg ...any) {
 }
 
 func (t *task) setTimeout(timeout time.Time) {
+	t.timerLock.Lock()
+	defer t.timerLock.Unlock()
 	t.timeout = timeout
 	t.taskPool.workerPool.hitStream <- hit{time: timeout, target: t}
 }
 
 func (t *task) ClearTimeout() {
+	t.timerLock.Lock()
+	defer t.timerLock.Unlock()
 	t.timeout = time.Unix(0, 0)
 }
 

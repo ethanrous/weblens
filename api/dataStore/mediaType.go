@@ -95,9 +95,9 @@ func (f *weblensFile) GetMediaType() (types.MediaType, error) {
 	if f.IsDir() {
 		return nil, ErrDirNotAllowed
 	}
-
-	if f.media != nil {
-		mt := f.media.GetMediaType()
+	m := MediaMapGet(f.GetContentId())
+	if m != nil {
+		mt := m.GetMediaType()
 		if mt != nil {
 			return mt, nil
 		}

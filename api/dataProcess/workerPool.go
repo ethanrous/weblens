@@ -79,8 +79,9 @@ func (wp *WorkerPool) reaper() {
 			// timeout before cancelling the task. Also check that it
 			// has not already finished
 			if !task.completed && time.Until(task.timeout) <= 0 && task.timeout.Unix() != 0 {
-				task.error(ErrTaskTimeout)
+				util.Warning.Printf("Sending timeout signal to T[%s]\n", task.taskId)
 				task.Cancel()
+				task.error(ErrTaskTimeout)
 			}
 		}
 	}
@@ -90,6 +91,7 @@ func (wp *WorkerPool) bufferDrainer() {
 	for wp.exitFlag == 0 {
 		if len(wp.taskBuffer) != 0 && len(wp.taskStream) == 0 {
 			wp.taskBufferMu.Lock()
+			util.Debug.Println("Draining the buffer!")
 			for _, t := range wp.taskBuffer {
 				wp.taskStream <- t
 			}
@@ -98,12 +100,15 @@ func (wp *WorkerPool) bufferDrainer() {
 		}
 		time.Sleep(time.Second * 10)
 	}
+
+	util.ErrTrace(errors.New("buffer drainer exited"))
 }
 
 func (wp *WorkerPool) addToTaskBuffer(tasks []*task) {
 	wp.taskBufferMu.Lock()
+	defer wp.taskBufferMu.Unlock()
+	util.Debug.Printf("Adding %d tasks to the buffer!", len(tasks))
 	wp.taskBuffer = append(wp.taskBuffer, tasks...)
-	wp.taskBufferMu.Unlock()
 }
 
 // Launch the standard threads for this worker pool
@@ -136,6 +141,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 		// Inc alive workers
 		wp.currentWorkers.Add(1)
+		defer wp.currentWorkers.Add(-1)
+		util.Debug.Printf("Worker %d reporting for duty o7", workerId)
 
 	WorkLoop:
 		for t := range wp.taskStream {
@@ -144,9 +151,6 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			if wp.exitFlag == 1 {
 				// We don't care about the exitLock here, since the whole wp
 				// is going down anyway.
-
-				// Dec alive workers
-				wp.currentWorkers.Add(-1)
 
 				break WorkLoop
 			}
@@ -157,6 +161,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				// If there are twice the number of free spaces in the chan, don't bother pulling
 				// everything into the waiting buffer, just put it at the end right now.
 				if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
+					// util.Debug.Println("Replacement worker putting scan dir task back")
 					wp.taskStream <- t
 					continue
 				}
@@ -225,6 +230,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				rootTaskPool.exitLock.Lock()
 
 				t.taskPool.exitLock.Lock()
+				uncompletedTasks := t.taskPool.totalTasks.Load() - t.taskPool.completedTasks.Load()
+				util.Debug.Printf("Uncompleted tasks on tp created by %s: %d", t.taskPool.createdBy.taskId, uncompletedTasks-1)
 				canContinue = t.taskPool.handleTaskExit(replacement)
 
 				// We *should* get the same canContinue value from here, so we do not

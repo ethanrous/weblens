@@ -128,8 +128,9 @@ func NewWeblensHash() *WeblensHash {
 	return &WeblensHash{hash: sha256.New()}
 }
 
-func (h *WeblensHash) Add(data []byte) {
-	h.hash.Write(data)
+func (h *WeblensHash) Add(data []byte) error {
+	_, err := h.hash.Write(data)
+	return err
 }
 
 func (h *WeblensHash) Done(len int) string {
@@ -231,7 +232,7 @@ func OnlyUnique[T comparable](s []T) (rs []T) {
 	return
 }
 
-// Banish removes the element at index, i, from the slice, s, in place and in constant time.
+// Banish removes the element at index, i, from the slice, s, in place
 //
 // Banish returns a slice of length len(s) - 1
 func Banish[T any](s []T, i int) []T {
@@ -321,7 +322,7 @@ func MapToKeys[T comparable, V any](tMap map[T]V) []T {
 	return result
 }
 
-func Filter[T any](ts []T, fn func(T) bool) []T {
+func Filter[S ~[]T, T any](ts S, fn func(t T) bool) []T {
 	var result []T = []T{}
 	for _, t := range ts {
 		if fn(t) {

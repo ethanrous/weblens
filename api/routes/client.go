@@ -29,6 +29,7 @@ func (c *Client) Username() types.Username {
 }
 
 func (c *Client) Disconnect() {
+	c.Active = false
 	cmInstance.ClientDisconnect(c)
 
 	c.mu.Lock()
@@ -79,8 +80,13 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 
 			// Subscribe to tasks on children in this folder
 			for _, ch := range folder.GetChildren() {
-				for _, t := range ch.GetTasks() {
+				t := ch.GetTask()
+				if t != nil {
 					c.Subscribe(SubTask, subId(t.TaskId()), nil)
+					c.PushTaskUpdate(t.TaskId(), dataProcess.TaskCreated, types.TaskResult{
+						"taskType":      t.TaskType(),
+						"directoryName": ch.Filename(),
+					})
 				}
 			}
 		}
@@ -140,7 +146,6 @@ func (c *Client) Unsubscribe(key subId) {
 
 func (c *Client) Send(eventTag string, key subId, content []wsM) {
 	msg := wsResponse{EventTag: eventTag, SubscribeKey: key, Content: content}
-	// c.debug(fmt.Sprintf("Sending %s %s", eventTag, key))
 	c.writeToClient(msg)
 }
 
@@ -165,6 +170,10 @@ func (c *Client) PushFileUpdate(updatedFile types.WeblensFile) {
 	}
 
 	c.Send("file_updated", subId(updatedFile.Id()), []wsM{{"fileInfo": fileInfo}})
+}
+
+func (c *Client) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
+	c.Send(string(event), subId(taskId), []wsM{wsM(result)})
 }
 
 func (c *Client) writeToClient(msg wsResponse) {

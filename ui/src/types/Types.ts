@@ -1,7 +1,10 @@
 // Global Types
 
+import { DraggingState } from "../Pages/FileBrowser/FileBrowser";
+import { TaskProgress } from "../Pages/FileBrowser/TaskProgress";
 import { GalleryAction } from "../Pages/Gallery/GalleryLogic";
-import { ItemProps } from "../components/ItemDisplay";
+import { FileInitT, WeblensFile } from "../classes/File";
+import WeblensMedia from "../classes/Media";
 
 export type AuthHeaderT = {
     Authorization: string;
@@ -23,7 +26,7 @@ export type ServerInfoT = {
     role: string;
     coreAddress: string;
     userCount: number;
-}
+};
 
 export type UserContextT = {
     authHeader: AuthHeaderT;
@@ -31,31 +34,38 @@ export type UserContextT = {
     setCookie;
     clear;
     serverInfo: ServerInfoT;
-}
+};
 
-export type MediaDataT = {
-    mediaId: string;
-    fileIds: string[];
-    thumbnailCacheId: string;
-    fullresCacheIds: string;
-    blurHash: string;
-    owner: string;
-    mediaWidth: number;
-    mediaHeight: number;
-    createDate: string;
-    mimeType: string;
-    recognitionTags: string[];
-    pageCount: number;
+// export type WeblensMedia = {
+//     mediaId: string;
+//     fileIds: string[];
+//     thumbnailCacheId: string;
+//     fullresCacheIds: string;
+//     blurHash: string;
+//     owner: string;
+//     mediaWidth: number;
+//     mediaHeight: number;
+//     createDate: string;
+//     mimeType: string;
+//     recognitionTags: string[];
+//     pageCount: number;
 
-    // Non-api props
-    thumbnail: ArrayBuffer;
-    fullres: ArrayBuffer;
-    Previous: MediaDataT;
-    Next: MediaDataT;
-    selected: boolean;
-    mediaType;
-    // Display: boolean
-    ImgRef: React.MutableRefObject<any>;
+//     // Non-api props
+//     thumbnail: ArrayBuffer;
+//     fullres: ArrayBuffer;
+//     Previous: WeblensMedia;
+//     Next: WeblensMedia;
+//     selected: boolean;
+//     mediaType;
+//     // Display: boolean
+//     ImgRef: React.MutableRefObject<any>;
+// };
+
+export type WsMessageT = {
+    subscribeKey: string;
+    eventTag: string;
+    error: string;
+    content: any[];
 };
 
 export type mediaType = {
@@ -72,7 +82,7 @@ export type AlbumData = {
     SharedWith: string[];
     Name: string;
     Cover: string;
-    CoverMedia: MediaDataT;
+    CoverMedia: WeblensMedia;
     PrimaryColor: string;
     SecondaryColor: string;
     Owner: string;
@@ -83,22 +93,28 @@ export type AlbumData = {
 
 export type GalleryBucketProps = {
     bucketTitle: string;
-    bucketData: MediaDataT[];
+    bucketData: WeblensMedia[];
     scale: number;
     dispatch: React.Dispatch<any>;
 };
 
 export type MediaWrapperProps = {
-    mediaData: MediaDataT;
+    mediaData: WeblensMedia;
     selected: boolean;
     selecting: boolean;
     scale: number;
-    dispatch: GalleryDispatch;
-    menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element;
+    dispatch: GalleryDispatchT;
+    albumId?: string;
+    fetchAlbum?: () => void;
+    menu?: (
+        mediaId: string,
+        open: boolean,
+        setOpen: (open: boolean) => void
+    ) => JSX.Element;
 };
 
 export type MediaStateT = {
-    mediaMap: Map<string, MediaDataT>;
+    mediaMap: Map<string, WeblensMedia>;
     selected: Map<string, boolean>;
     mediaMapUpdated: number;
     albumsMap: Map<string, AlbumData>;
@@ -114,7 +130,7 @@ export type MediaStateT = {
     scanProgress: number;
     showingCount: number;
     searchContent: string;
-    presentingMedia: MediaDataT;
+    presentingMedia: WeblensMedia;
     menuPos: { x: number; y: number };
 };
 
@@ -141,7 +157,7 @@ export type FileBrowserAction = {
 
     fileIds?: string[];
 
-    dragging?: boolean;
+    dragging?: DraggingState;
     selected?: boolean;
     external?: boolean;
     block?: boolean;
@@ -160,17 +176,15 @@ export type FileBrowserAction = {
     img?: ArrayBuffer;
     pos?: { x: number; y: number };
 
-    fileInfo?: FileInfoT;
-    itemInfo?: ItemProps;
-    fileInfos?: FileInfoT[];
-    files?: { fileId: string; updateInfo: FileInfoT }[];
+    file?: WeblensFile;
+    fileInfo?: FileInitT;
+    files?: FileInitT[];
 
-    parents?: any;
     past?: Date;
 };
 
 export type FBDispatchT = (action: FileBrowserAction) => void;
-export type GalleryDispatch = (action: GalleryAction) => void;
+export type GalleryDispatchT = (action: GalleryAction) => void;
 
 export type ScanMeta = {
     taskId: string;
@@ -188,13 +202,13 @@ export type ScanMeta = {
 };
 
 export type FbStateT = {
-    dirMap: Map<string, FileInfoT>;
+    dirMap: Map<string, WeblensFile>;
     selected: Map<string, boolean>;
     uploadMap: Map<string, boolean>;
     menuPos: { x: number; y: number };
-    searchResults: FileInfoT[];
-    folderInfo: FileInfoT;
-    parents: FileInfoT[];
+    searchResults: WeblensFile[];
+    folderInfo: WeblensFile;
+    parents: WeblensFile[];
     filesList: string[];
     draggingState: number;
     loading: string[];
@@ -202,7 +216,7 @@ export type FbStateT = {
     menuTargetId: string;
     presentingId: string;
     searchContent: string;
-    scanProgress: ScanMeta[];
+    scanProgress: TaskProgress[];
     homeDirSize: number;
     trashDirSize: number;
     numCols: number;
@@ -228,27 +242,28 @@ export type FbStateT = {
     viewingPast: Date;
 };
 
-export type FileInfoT = {
-    id: string;
-    imported: boolean;
-    displayable: boolean;
-    isDir: boolean;
-    modifiable: boolean;
-    size: number;
-    modTime: string;
-    filename: string;
-    parentFolderId: string;
-    mediaData: MediaDataT;
-    fileFriendlyName: string;
-    owner: string;
-    pathFromHome: string;
-    shares: shareData[];
-    children: string[];
-    pastFile: boolean;
+// export type WeblensFile = {
+//     id: string;
+//     imported: boolean;
+//     displayable: boolean;
+//     isDir: boolean;
+//     modifiable: boolean;
+//     size: number;
+//     modTime: string;
+//     filename: string;
+//     parentFolderId: string;
+//     mediaData: WeblensMedia;
+//     fileFriendlyName: string;
+//     owner: string;
+//     pathFromHome: string;
+//     shares: shareData[];
+//     children: string[];
+//     pastFile: boolean;
 
-    // Non-api props
-    visible: boolean;
-};
+//     // Non-api props
+//     visible: boolean;
+//     selected: boolean;
+// };
 
 export type shareData = {
     Accessors: string[];
@@ -260,52 +275,53 @@ export type shareData = {
     Wormhole: boolean;
 };
 
-export const getBlankFile = () => {
-    const blank: FileInfoT = {
-        id: "",
-        imported: false,
-        displayable: false,
-        isDir: false,
-        modifiable: false,
-        size: 0,
-        modTime: new Date().toString(),
-        filename: "",
-        parentFolderId: "",
-        mediaData: null,
-        fileFriendlyName: "",
-        owner: "",
-        pathFromHome: "",
-        shares: [],
-        children: [],
-        pastFile: false,
+// export const getBlankFile = () => {
+//     const blank: WeblensFile = {
+//         id: "",
+//         imported: false,
+//         displayable: false,
+//         isDir: false,
+//         modifiable: false,
+//         size: 0,
+//         modTime: new Date().toString(),
+//         filename: "",
+//         parentFolderId: "",
+//         mediaData: null,
+//         fileFriendlyName: "",
+//         owner: "",
+//         pathFromHome: "",
+//         shares: [],
+//         children: [],
+//         pastFile: false,
 
-        visible: false,
-    };
-    return blank;
-};
+//         visible: false,
+//         selected: false,
+//     };
+//     return blank;
+// };
 
-export const getBlankMedia = () => {
-    const blank: MediaDataT = {
-        mediaId: "",
-        fileIds: [""],
-        thumbnailCacheId: "",
-        fullresCacheIds: "",
-        blurHash: "",
-        owner: "",
-        mediaWidth: 0,
-        mediaHeight: 0,
-        createDate: "",
-        mimeType: "",
-        recognitionTags: [],
-        pageCount: 0,
+// export const getBlankMedia = () => {
+//     const blank: WeblensMedia = {
+//         mediaId: "",
+//         fileIds: [""],
+//         thumbnailCacheId: "",
+//         fullresCacheIds: "",
+//         blurHash: "",
+//         owner: "",
+//         mediaWidth: 0,
+//         mediaHeight: 0,
+//         createDate: "",
+//         mimeType: "",
+//         recognitionTags: [],
+//         pageCount: 0,
 
-        selected: false,
-        thumbnail: null,
-        fullres: null,
-        Previous: null,
-        mediaType: null,
-        Next: null,
-        ImgRef: null,
-    };
-    return blank;
-};
+//         selected: false,
+//         thumbnail: null,
+//         fullres: null,
+//         Previous: null,
+//         mediaType: null,
+//         Next: null,
+//         ImgRef: null,
+//     };
+//     return blank;
+// };

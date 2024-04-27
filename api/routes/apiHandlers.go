@@ -5,9 +5,9 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -124,7 +124,7 @@ func getMediaBatch(ctx *gin.Context) {
 }
 
 func getProcessedMedia(ctx *gin.Context, q types.Quality) {
-	mediaId := types.MediaId(ctx.Param("mediaId"))
+	mediaId := types.ContentId(ctx.Param("mediaId"))
 
 	var pageNum int
 	var err error
@@ -137,8 +137,8 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		}
 	}
 
-	m, err := dataStore.MediaMapGet(mediaId)
-	if err != nil {
+	m := dataStore.MediaMapGet(mediaId)
+	if m == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given Id not found"})
 		return
 	}
@@ -161,55 +161,22 @@ func getMediaFullres(ctx *gin.Context) {
 
 func getMediaTypes(ctx *gin.Context) {
 	typeMap := dataStore.GetMediaTypeMap()
-	// for _, t := range typeMap {
-
-	// }
 	ctx.JSON(http.StatusOK, typeMap)
 }
 
-func getMediaMeta(ctx *gin.Context) {
-	mediaId := types.MediaId(ctx.Param("mediaId"))
-
-	m, err := dataStore.MediaMapGet(mediaId)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given Id not found"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, m)
-}
-
-// func updateMedias(ctx *gin.Context) {
-// 	jsonData, err := io.ReadAll(ctx.Request.Body)
-// 	util.FailOnError(err, "Failed to read body of media update")
-
-// 	var updateBody updateMediasBody
-// 	err = json.Unmarshal(jsonData, &updateBody)
-// 	util.FailOnError(err, "Failed to unmarshal body of media update")
-
-// 	db := dataStore.NewDB()
-// 	db.UpdateMediasById(updateBody.MediaIdes, updateBody.Owner)
-// }
-
 func newSharedUploadTask(ctx *gin.Context) {
-	shareId := types.ShareId(ctx.Param("shareId"))
+	shareId := types.ShareId(ctx.Query("shareId"))
 	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
+
 	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
 	if err != nil {
-		if err != dataStore.ErrNoShare {
-			util.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
-			return
-		} else {
-			ctx.Status(http.StatusNotFound)
-			return
-		}
+		ctx.Status(http.StatusNotFound)
+		return
 	}
-	if !dataStore.CanUserAccessShare(share, types.Username(user.GetUsername())) {
+
+	acc := dataStore.NewAccessMeta(user)
+	err = acc.AddShare(share)
+	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -244,6 +211,7 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 		ctx.Status(http.StatusNotFound)
 		return
 	}
+
 	completed, _ := uTask.Status()
 	if completed {
 		ctx.Status(http.StatusNotFound)
@@ -256,13 +224,9 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 		return
 	}
 
-	children := parent.GetChildren()
-	if slices.ContainsFunc(children, func(wf types.WeblensFile) bool { return wf.Filename() == newFInfo.NewFileName }) {
-		ctx.AbortWithStatus(http.StatusConflict)
-		return
-	}
+	newName := dataStore.MakeUniqueChildName(parent, newFInfo.NewFileName)
 
-	newF, err := dataStore.Touch(parent, newFInfo.NewFileName, true, VoidCaster)
+	newF, err := dataStore.Touch(parent, newName, true, VoidCaster)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -282,10 +246,6 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 func newSharedFileUpload(ctx *gin.Context) {
 	shareId := types.ShareId(ctx.Param("shareId"))
 	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
 
 	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
 	if err != nil {
@@ -293,7 +253,9 @@ func newSharedFileUpload(ctx *gin.Context) {
 		return
 	}
 
-	if !dataStore.CanUserAccessShare(share, types.Username(user.GetUsername())) {
+	acc := dataStore.NewAccessMeta(user)
+	err = acc.AddShare(share)
+	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -317,23 +279,15 @@ func handleUploadChunk(ctx *gin.Context) {
 	}
 
 	fileId := types.FileId(ctx.Param("fileId"))
-	// f := dataStore.FsTreeGet(fileId)
-	// if f == nil {
-	// 	ctx.JSON(http.StatusNotFound, gin.H{"error": "No file exists with given id"})
-	// 	return
-	// }
 
-	// This request has come through, but might take time to read the body,
-	// so we clear the timeout. The task must re-enable it when it goes to wait
-	// for the next chunk
-	// t.ClearTimeout()
-
-	// start := time.Now()
+	start := time.Now()
 	chunk, err := util.OracleReader(ctx.Request.Body, ctx.Request.ContentLength)
 	if err != nil {
-		util.ErrTrace(err)
+		util.ShowErr(err)
+		t.AddChunkToStream(fileId, nil, "0-0/-1")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
 	}
+	util.Debug.Println("Read chunk in", time.Since(start))
 
 	err = t.AddChunkToStream(fileId, chunk, ctx.GetHeader("Content-Range"))
 	if err != nil {
@@ -353,8 +307,7 @@ func makeDir(ctx *gin.Context) {
 		return
 	}
 
-	caster := NewBufferedCaster()
-	defer caster.Close()
+	caster := NewCaster()
 	newDir, err := dataStore.MkDir(parentFolder, ctx.Query("folderName"), caster)
 	if err != nil {
 		util.ShowErr(err)
@@ -371,9 +324,17 @@ func pubMakeDir(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
+
 	share, err := dataStore.GetShare(types.ShareId(ctx.Param("shareId")), dataStore.FileShare)
-	if err != nil || !dataStore.CanUserAccessShare(share, types.Username(user.GetUsername())) {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Share not found"})
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	acc := dataStore.NewAccessMeta(user)
+	err = acc.AddShare(share)
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
@@ -712,13 +673,12 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	caster := NewCaster(user.GetUsername())
-	caster.Enable()
+	caster := NewCaster()
 	t := dataProcess.GetGlobalQueue().CreateZip(files, user.GetUsername(), shareId, caster)
 
-	completed, _ := t.Status()
-	if completed {
-		ctx.JSON(http.StatusOK, gin.H{"takeoutId": t.GetResult("takeoutId"), "single": false})
+	completed, status := t.Status()
+	if completed && status == dataProcess.TaskSuccess {
+		ctx.JSON(http.StatusOK, gin.H{"takeoutId": t.GetResult("takeoutId")["takeoutId"], "single": false})
 	} else {
 		ctx.JSON(http.StatusAccepted, gin.H{"taskId": t.TaskId()})
 	}
@@ -876,15 +836,12 @@ func activateUser(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	db := dataStore.NewDB()
-	_, err = dataStore.CreateUserHomeDir(username) //TODO
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+
+	if err = dataStore.ActivateUser(username); err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
-
-	db.ActivateUser(username)
 
 	ctx.Status(http.StatusOK)
 }
@@ -1039,18 +996,19 @@ func getFilesShares(ctx *gin.Context) {
 
 func getFileShare(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
 
 	shareId := types.ShareId(ctx.Param("shareId"))
 	share, err := dataStore.GetShare(shareId, dataStore.FileShare)
-	if err != nil || !dataStore.CanUserAccessShare(share, user.GetUsername()) {
-		if err != nil && err != dataStore.ErrNoShare {
-			util.ErrTrace(err)
-		}
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file share"})
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	acc := dataStore.NewAccessMeta(user)
+	err = acc.AddShare(share)
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
@@ -1127,7 +1085,7 @@ func getRandomMedias(ctx *gin.Context) {
 
 func initializeServer(ctx *gin.Context) {
 	// Can't init server if already initialized
-	if dataStore.GetOwner() != nil && dataStore.GetServerInfo() != nil {
+	if dataStore.GetOwner() != nil && dataStore.GetServerInfo().ServerRole() != types.Initialization {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -1163,14 +1121,14 @@ func initializeServer(ctx *gin.Context) {
 	store := GetStore()
 	store.LoadUsers()
 
-	util.Debug.Println("Initilization succeeded. Restarting router...")
+	util.Info.Println("Initialization succeeded. Restarting router...")
 	go DoRoutes()
 
 }
 
 func getServerInfo(ctx *gin.Context) {
 	si := dataStore.GetServerInfo()
-	if si == nil {
+	if si.ServerRole() == types.Initialization {
 		ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 		return
 	}

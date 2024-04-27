@@ -92,7 +92,7 @@ type backupFile struct {
 	FileId  types.FileId       `bson:"fileId" json:"fileId"`
 
 	// ContentId is the hash of the file contents. Conveniently this also contains the mediaId
-	ContentId string `bson:"contentId,omitempty" json:"contentId"`
+	ContentId types.ContentId `bson:"contentId,omitempty" json:"contentId"`
 
 	LastUpdate types.SafeTime      `bson:"lastUpdate" json:"lastUpdate"`
 	Events     []*fileJournalEntry `bson:"events" json:"events"`

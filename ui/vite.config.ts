@@ -4,7 +4,10 @@ import viteTsconfigPaths from "vite-tsconfig-paths";
 
 export default ({mode}) => {
     process.env = {...process.env, ...loadEnv(mode, process.cwd())};
-    console.log(process.env.VITE_PORT)
+    console.log("VITE:", process.env.VITE_PORT, "PROXY_PORT:", process.env.VITE_PROXY_PORT)
+    if ((!process.env.VITE_PROXY_HOST || !process.env.VITE_PROXY_PORT) && process.env.VITE_BUILD !== "true") {
+        throw new Error("VITE_PROXY_HOST or VITE_PROXY_PORT not set in vite.config.ts")
+    }
 
     return defineConfig({
         // depending on your application, base can also be "/"
@@ -18,10 +21,10 @@ export default ({mode}) => {
             port: Number(process.env.VITE_PORT) ? Number(process.env.VITE_PORT) : 3000,
             proxy: {
                 "/api": {
-                    target: `http://localhost:${process.env.VITE_PROXY_PORT}`,
+                    target: `http://${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`,
                 },
                 "/api/ws": {
-                    target: `ws://localhost:${process.env.VITE_PROXY_PORT}`,
+                    target: `ws://${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`,
                     ws: true,
                 },
             },

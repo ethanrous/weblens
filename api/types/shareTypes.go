@@ -11,13 +11,13 @@ type Share interface {
 	SetPublic(bool)
 	IsEnabled() bool
 	SetEnabled(bool)
-	GetAccessors() []Username
+	GetAccessors() []User
 	SetAccessors([]Username)
-	GetOwner() Username
+	GetOwner() User
 }
 
 type AccessMeta interface {
-	AddShare(Share) AccessMeta
+	AddShare(Share) error
 	AddShareId(ShareId, ShareType) AccessMeta
 	SetRequestMode(RequestMode) AccessMeta
 	SetTime(t time.Time) AccessMeta

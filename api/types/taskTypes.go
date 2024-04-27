@@ -32,11 +32,12 @@ type TaskPool interface {
 	Wait(bool)
 
 	ScanDirectory(WeblensFile, bool, bool, BroadcasterAgent) Task
-	ScanFile(file WeblensFile, media Media, broadcaster BroadcasterAgent) Task
+	ScanFile(file WeblensFile, fileBytes []byte, broadcaster BroadcasterAgent) Task
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
 	Backup(string, Requester) Task
+	HashFile(file WeblensFile) Task
 }
 
 type TaskId string
@@ -47,4 +48,5 @@ func (tId TaskId) String() string {
 
 type TaskType string
 type TaskExitStatus string
+type TaskEvent string
 type TaskResult map[string]any

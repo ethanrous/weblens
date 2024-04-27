@@ -13,7 +13,7 @@ type watcherPathMod struct {
 	add  bool
 }
 
-var pathModChan = make(chan (watcherPathMod), 20)
+var pathModChan = make(chan (watcherPathMod), 5)
 
 func fileWatcher() {
 	watcher, err := fsnotify.NewWatcher()
@@ -39,7 +39,6 @@ WatcherLoop:
 			}
 
 			// util.Debug.Println("Got file event", event.Name)
-
 			if event.Has(fsnotify.Create) {
 				// Move events show up as a distinct "Create" in the destination
 				// followed by a "Rename" in the old location, so we hold on to

@@ -7,6 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/routes"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -28,21 +29,8 @@ func main() {
 
 	rq := routes.NewRequester()
 	srvInfo := dataStore.GetServerInfo()
-	if !srvInfo.IsCore() {
-		connected := false
-		i := 0
-		for i = range retries {
-			if rq.PingCore() {
-				connected = true
-				break
-			}
-			time.Sleep(time.Millisecond * 500)
-		}
-		if !connected {
-			util.Error.Println("Failed to ping core server")
-			os.Exit(1)
-		}
-		sw.Lap("Connected to core server after ", i, " retries")
+	if srvInfo.ServerRole() == types.Backup {
+		checkCoreExists(rq, sw)
 	}
 
 	routes.VerifyClientManager()
@@ -78,6 +66,20 @@ func main() {
 	util.FailOnError(err, "Failed to load users")
 	sw.Lap("Users init")
 
+	// 								100MB
+	et := dataProcess.InitGExif(1000 * 1000 * 100)
+	if et == nil {
+		panic("Exiftool is nil")
+	}
+	dataStore.SetExiftool(et)
+	sw.Lap("Init global exiftool")
+
+	// Enable the worker pool held by the task tracker
+	// loading the filesystem might dispatch tasks,
+	// so we have to start the pool first
+	tt.StartWP()
+	sw.Lap("Global worker pool enabled")
+
 	// Load filesystem
 	util.Info.Println("Loading filesystem...")
 	dataStore.FsInit()
@@ -87,6 +89,9 @@ func main() {
 	dataStore.MediaInit()
 	sw.Lap("Media init")
 	util.Info.Println("Initialized Media Map")
+
+	dataStore.VerifyAlbumsMedia()
+	sw.Lap("Albums init")
 
 	dataStore.LoadAllShares()
 	sw.Lap("Shares init")
@@ -100,20 +105,10 @@ func main() {
 	routes.Caster.DropBuffer()
 	sw.Lap("Global caster enabled")
 
-	// 								100MB
-	et := dataProcess.InitGExif(1000 * 1000 * 100)
-	if et == nil {
-		panic("Exiftool is nil")
+	if srvInfo.ServerRole() == types.Backup {
+		go dataProcess.BackupD(time.Minute, rq)
+		sw.Lap("Init backup sleeper")
 	}
-	dataStore.SetExiftool(et)
-	sw.Lap("Init global exiftool")
-
-	go dataProcess.BackupD(time.Minute, rq)
-	sw.Lap("Init backup sleeper")
-
-	// Enable the worker pool held by the task tracker
-	tt.StartWP()
-	sw.Lap("Global worker pool enabled")
 
 	sw.Stop()
 	sw.PrintResults(false)
@@ -124,4 +119,21 @@ func main() {
 		routes.DoRoutes()
 	}
 
+}
+
+func checkCoreExists(rq types.Requester, sw util.Stopwatch) {
+	connected := false
+	i := 0
+	for i = range retries {
+		if rq.PingCore() {
+			connected = true
+			break
+		}
+		time.Sleep(time.Millisecond * 500)
+	}
+	if !connected {
+		util.Error.Println("Failed to ping core server")
+		os.Exit(1)
+	}
+	sw.Lap("Connected to core server after ", i, " retries")
 }

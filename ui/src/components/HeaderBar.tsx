@@ -1,18 +1,9 @@
-import { Ref, memo, useCallback, useContext, useRef, useState } from "react";
+import { Ref, memo, useCallback, useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import WeblensLoader from "./Loading";
 
-import { userContext } from "../Context";
-import {
-    ActionIcon,
-    Box,
-    Input,
-    Loader,
-    Menu,
-    Space,
-    Text,
-    Tooltip,
-} from "@mantine/core";
+import { UserContext } from "../Context";
+import { Box, Input, Menu, Space, Text, Tooltip } from "@mantine/core";
 import {
     IconFolder,
     IconInfoCircle,
@@ -20,7 +11,6 @@ import {
     IconLogout,
     IconPhoto,
     IconServerCog,
-    IconTools,
     IconUser,
     IconX,
 } from "@tabler/icons-react";
@@ -32,6 +22,7 @@ import { UpdatePassword } from "../api/UserApi";
 import { AuthHeaderT, UserContextT, UserInfoT } from "../types/Types";
 import { IconArrowLeft } from "@tabler/icons-react";
 import Admin from "../Pages/Admin Settings/Admin";
+import "../components/style.css";
 
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>;
@@ -52,7 +43,7 @@ const SettingsMenu = ({
 }) => {
     const [oldP, setOldP] = useState("");
     const [newP, setNewP] = useState("");
-    useKeyDown("Escape", () => {
+    useKeyDown("Escape", (e) => {
         setNewP("");
         setOldP("");
         setClosed();
@@ -135,7 +126,7 @@ const SettingsMenu = ({
 const HeaderBar = memo(
     ({ dispatch, page, loading }: HeaderBarProps) => {
         const { usr, authHeader, clear, serverInfo }: UserContextT =
-            useContext(userContext);
+            useContext(UserContext);
         const nav = useNavigate();
         const [userMenu, setUserMenu] = useState(false);
         const [settings, setSettings] = useState(false);
@@ -144,15 +135,17 @@ const HeaderBar = memo(
 
         return (
             <Box style={{ zIndex: 3, height: "max-content", width: "100vw" }}>
-                <SettingsMenu
-                    open={settings}
-                    usr={usr}
-                    setClosed={() => {
-                        setSettings(false);
-                        dispatch({ type: "set_block_focus", block: false });
-                    }}
-                    authHeader={authHeader}
-                />
+                {settings && (
+                    <SettingsMenu
+                        open={settings}
+                        usr={usr}
+                        setClosed={() => {
+                            setSettings(false);
+                            dispatch({ type: "set_block_focus", block: false });
+                        }}
+                        authHeader={authHeader}
+                    />
+                )}
                 {admin && (
                     <Box
                         className="settings-menu-container"

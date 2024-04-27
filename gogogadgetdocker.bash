@@ -15,6 +15,7 @@ if [ -z "$(docker images -q buildbuntu 2> /dev/null)" ]; then
 fi
 
 cd ./ui
+export VITE_BUILD=true
 npm run build
 cd ..
 

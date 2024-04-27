@@ -207,8 +207,7 @@ type bufferedCaster struct {
 }
 
 type unbufferedCaster struct {
-	enabled    bool
-	recipients []*Client
+	enabled bool
 }
 
 // var Caster *caster = &caster{enabled: false}
@@ -235,6 +234,7 @@ type subscription struct {
 type clientId string
 
 type Client struct {
+	Active        bool
 	connId        clientId
 	conn          *websocket.Conn
 	mu            sync.Mutex

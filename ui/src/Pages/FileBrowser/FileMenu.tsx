@@ -23,9 +23,10 @@ import {
     UnTrashFiles,
     UpdateFileShare,
 } from "../../api/FileBrowserApi";
-import { FbStateT, FileInfoT, UserContextT } from "../../types/Types";
+import { FbStateT, UserContextT } from "../../types/Types";
+import { WeblensFile } from "../../classes/File";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import { Box, Divider, Menu, Text } from "@mantine/core";
 import { RowBox } from "./FileBrowserStyles";
 import { notifications } from "@mantine/notifications";
@@ -33,6 +34,9 @@ import { dispatchSync } from "../../api/Websocket";
 import { AlbumScoller } from "./FileBrowserAlbums";
 import { downloadSelected } from "./FileBrowserLogic";
 import { ShareBox } from "./FilebrowserShareMenu";
+import { useClick, useKeyDown } from "../../components/hooks";
+import { useClickOutside } from "@mantine/hooks";
+import { WeblensButton } from "../../components/WeblensButton";
 
 export function FileContextMenu({
     itemId,
@@ -119,11 +123,12 @@ function StandardFileMenu({
     wsSend;
     authHeader;
 }) {
-    const { usr }: UserContextT = useContext(userContext);
+    const { usr }: UserContextT = useContext(UserContext);
     const [shareMenu, setShareMenu] = useState(false);
     const [historyMenu, setHistoryMenu] = useState(false);
     const [addToAlbumMenu, setAddToAlbumMenu] = useState(false);
-    const itemInfo: FileInfoT = fbState.dirMap.get(itemId) || ({} as FileInfoT);
+    const itemInfo: WeblensFile =
+        fbState.dirMap.get(itemId) || ({} as WeblensFile);
     const selected: boolean = Boolean(fbState.selected.get(itemId));
 
     useEffect(() => {
@@ -354,30 +359,19 @@ function StandardFileMenu({
                     <IconDownload />
                     <Text className="menu-item-text">Download</Text>
                 </Box>
-                {/* {historyMenu && <FileHistoryMenu fileId={itemInfo.id} />} */}
-                <Box
-                    className="menu-item"
-                    onClick={(e) => {
-                        e.stopPropagation();
-
-                        setHistoryMenu(true);
-                    }}
-                >
-                    <IconHistory />
-                    <Text className="menu-item-text">File History</Text>
-                </Box>
 
                 {itemInfo.isDir && (
                     <Box
                         className="menu-item"
-                        onClick={() =>
+                        onClick={() => {
                             dispatchSync(
-                                items.map((i: FileInfoT) => i.id),
+                                items.map((i: WeblensFile) => i.id),
                                 wsSend,
                                 true,
                                 true
-                            )
-                        }
+                            );
+                            setOpen(false);
+                        }}
                     >
                         <IconScan />
                         <Text className="menu-item-text">Scan</Text>
@@ -444,7 +438,7 @@ function StandardFileMenu({
                             );
                         } else {
                             TrashFiles(
-                                items.map((i: FileInfoT) => i.id),
+                                items.map((i: WeblensFile) => i.id),
                                 authHeader
                             );
                         }
@@ -484,7 +478,8 @@ function FileHistoryMenu({
     wsSend;
     authHeader;
 }) {
-    const itemInfo: FileInfoT = fbState.dirMap.get(itemId) || ({} as FileInfoT);
+    const itemInfo: WeblensFile =
+        fbState.dirMap.get(itemId) || ({} as WeblensFile);
     const selected: boolean = Boolean(fbState.selected.get(itemId));
     let extraString;
     if (selected && fbState.selected.size > 1) {
@@ -540,27 +535,55 @@ export const BackdropMenu = ({
     setMenuOpen,
     newFolder,
 }) => {
+    useKeyDown("Escape", (e) => {
+        if (menuOpen) {
+            e.stopPropagation();
+            setMenuOpen(false);
+        }
+    });
+    useClick(() => {
+        if (menuOpen) {
+            setMenuOpen(false);
+        }
+    });
     return (
-        <Menu opened={menuOpen} onClose={() => setMenuOpen(false)}>
-            <Menu.Target>
-                <Box
-                    style={{
-                        position: "fixed",
-                        top: menuPos.y,
-                        left: menuPos.x,
-                    }}
-                />
-            </Menu.Target>
+        <Box
+            key={"backdrop-menu"}
+            className={`backdrop-menu backdrop-menu-${
+                menuOpen ? "open" : "closed"
+            }`}
+            style={{
+                top: menuPos.y,
+                left: menuPos.x - 100,
+            }}
+        >
+            <WeblensButton
+                Left={
+                    <IconFolderPlus style={{ width: "100%", height: "100%" }} />
+                }
+                subtle
+                width={80}
+                height={80}
+                style={{ margin: 10 }}
+                onClick={() => {
+                    newFolder();
+                    setMenuOpen(false);
+                }}
+            />
 
-            <Menu.Dropdown>
-                <Menu.Label>{folderName}</Menu.Label>
-                <Menu.Item
-                    leftSection={<IconFolderPlus />}
-                    onClick={() => newFolder()}
-                >
-                    New Folder
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
+            {/* <Text fw={600}>New Folder</Text> */}
+        </Box>
+        // <Menu opened={true} onClose={() => setMenuOpen(false)}>
+        //     <Menu.Target>
+        //         <Box
+        //             style={{
+        //                 position: "fixed",
+        //                 top: menuPos.y,
+        //                 left: menuPos.x,
+        //             }}
+        //         />
+        //     </Menu.Target>
+
+        // </Menu>
     );
 };

@@ -3,7 +3,7 @@ import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
 import { useNavigate } from "react-router-dom";
 import { WeblensButton } from "./WeblensButton";
 import { useContext } from "react";
-import { userContext } from "../Context";
+import { UserContext } from "../Context";
 
 function NotFound({
     resourceType,
@@ -14,7 +14,7 @@ function NotFound({
     link: string;
     setNotFound: (b: boolean) => void;
 }) {
-    const { usr }: UserContextT = useContext(userContext);
+    const { usr }: UserContextT = useContext(UserContext);
     const nav = useNavigate();
     return (
         <ColumnBox style={{ justifyContent: "center" }}>

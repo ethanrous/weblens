@@ -1,7 +1,18 @@
+@keyframes imageFadeIn {
+    from {
+        opacity: 0%;
+    }
+
+    to {
+        opacity: 100%;
+    }
+}
+
 .media-thumbnail {
     height: 100%;
     width: 100%;
-    transition: all 0.2s ease-in-out;
+    /* transition: all 0.2s ease-in-out; */
+    animation: imageFadeIn 200ms forwards;
     transform-origin: center center;
     object-fit: cover;
     user-select: none;
@@ -19,7 +30,7 @@
 .media-meta-preview {
     height: 100%;
     width: 100%;
-    z-index: 5;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -65,190 +76,13 @@
     width: 100%;
     align-items: center;
     justify-content: center;
-    /* transition: all 0.2s ease-in-out; */
+    overflow: hidden;
 }
 
 .weblens-menu {
     max-width: 300px;
     border: 0;
     box-shadow: 1px 1px 1px 1px black;
-}
-
-.weblens-button {
-    margin: 4px;
-    border-radius: 4px;
-    height: 50px;
-    width: max-content;
-    max-height: 100%;
-    max-width: 100%;
-    display: flex;
-    /* flex-shrink: 1; */
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    /* padding: 4px; */
-    cursor: pointer;
-    color: white;
-    font-weight: 500;
-    outline-color: #4444ff00;
-    transition: all 0.1s;
-    box-shadow: 0 0 10px 2px #00000044;
-}
-
-.weblens-toggle-button {
-    margin: 4px;
-    border-radius: 4px;
-
-    height: 50px;
-    width: max-content;
-    max-height: 100%;
-    max-width: 100%;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px;
-    cursor: pointer;
-    transition: all 0.1s;
-}
-
-.weblens-button:where([data-subtle="false"]) {
-    background-color: #4444ff;
-}
-
-.weblens-button:where([data-subtle="true"]) {
-    background-color: #1c1049;
-}
-
-.weblens-button:where([data-success="true"]) {
-    background-color: #00b123;
-    outline: none;
-    cursor: default;
-    pointer-events: none;
-}
-
-.weblens-button:where([data-success="true"]):hover {
-    background-color: #00b123;
-    outline: none;
-    cursor: default;
-    pointer-events: none;
-}
-
-.weblens-button:where([data-fail="true"]) {
-    background-color: #ff3333;
-    outline: none;
-    cursor: default;
-    pointer-events: none;
-}
-
-.weblens-button:where([data-fail="true"]):hover {
-    background-color: #ff3333;
-    outline: none;
-    cursor: default;
-    pointer-events: none;
-}
-
-.weblens-button:where([data-danger="true"]) {
-    background-color: #ff3333;
-    outline: none;
-}
-
-.weblens-button.weblens-button:where([data-danger="true"]):hover {
-    background-color: #521f22;
-    outline: 1px solid #ff3333;
-}
-
-@keyframes rainbow {
-    0% {
-        background-position: 75% 100%;
-    }
-    12.5% {
-        background-position: 100% 100%;
-    }
-    62.5% {
-        background-position: 0% 100%;
-    }
-    100% {
-        background-position: 75% 100%;
-    }
-}
-
-.weblens-button:hover:not(
-        [data-super="true"],
-        [data-success="true"],
-        [data-fail="true"],
-        [data-danger="true"]
-    ) {
-    background-color: #1c1049;
-    outline: 1px solid #4444ff;
-}
-
-.weblens-button:hover:where([data-super="true"]):not(
-        [data-success="true"],
-        [data-fail="true"],
-        [data-danger="true"]
-    ) {
-    animation: rainbow 15s ease-in-out infinite;
-    background: linear-gradient(
-        90deg,
-        #ff2400,
-        #e81d1d,
-        #e8b71d,
-        #e3e81d,
-        #1de840,
-        #1ddde8,
-        #2b1de8,
-        #dd00f3,
-        #dd00f3
-    );
-    background-size: 2000% 100%;
-    outline: 0px solid #000000;
-}
-
-.weblens-button:where([data-disabled="true"]) {
-    box-shadow: none;
-    background-color: #ffffff11;
-    pointer-events: none;
-    cursor: default;
-    color: #aaaaaa;
-}
-
-.weblens-toggle-button:where([data-toggled="true"]) {
-    font-weight: 600;
-    background-color: #3600cc;
-    outline: 1px solid #3600cc;
-    color: white;
-}
-
-.weblens-toggle-button:where([data-toggled="false"]) {
-    font-weight: 400;
-    color: #efefef;
-    background-color: #1c1049;
-    outline: 1px solid #3600cc;
-}
-
-.weblens-toggle-button:where([data-toggled="true"][data-repeat="true"]):hover {
-    background-color: #3600cccc;
-}
-
-.weblens-toggle-button:where([data-toggled="true"][data-repeat="false"]):hover {
-    cursor: default;
-    outline: 1px solid #3600cc;
-}
-
-.weblens-toggle-button:where([data-toggled="false"]):hover {
-    color: white;
-    background-color: #3600cc01;
-    outline: 2px solid #4444ff;
-}
-
-.weblens-toggle-button:where([data-disabled="true"]) {
-    box-shadow: none;
-    background-color: #ffffff11;
-    pointer-events: none;
-    cursor: default;
-    color: #aaaaaa;
-    outline: 0;
 }
 
 .weblens-select-icon {
@@ -323,7 +157,7 @@
     background-color: #222222;
     box-shadow: 0 0 10px 2px #00000044;
 
-    /* padding: 4px; */
+    padding: 4px 8px 4px 8px;
     /* padding-left: 16px; */
     width: 100%;
     margin: 4px;
@@ -416,4 +250,93 @@
     height: 100%;
     width: 100%;
     color: white;
+}
+
+.menu-item {
+    height: 40px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 0;
+    /* justify-content: center; */
+    align-items: center;
+    cursor: pointer;
+    width: 100%;
+    padding: 8px;
+    color: white;
+}
+
+.menu-item:where([data-disabled="true"]) {
+    color: #777777;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* .menu-item-disabled{
+    height: 40px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 0;
+    /* justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 8px;
+    color: #777777;
+} */
+
+.menu-item:hover {
+    background-color: #373a40;
+}
+
+.menu-item-text {
+    width: 100%;
+    padding-left: 8px !important;
+    flex-grow: 1;
+    user-select: none;
+}
+
+.hover-icon {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    color: white;
+    height: 28px;
+    width: 28px;
+    background-color: #00000055;
+    border-radius: 4px;
+    margin: 5px;
+    padding: 2px;
+    transition: width 150ms ease-in-out, background-color 100ms ease-in-out, opacity 150ms ease-in-out;
+    overflow: hidden;
+    opacity: 0%;
+
+    &[data-visible='true'] {
+        opacity: 100%;
+    }
+}
+
+.hover-icon:hover {
+    justify-content: flex-start;
+    background-color: #000000aa;
+}
+
+.close-icon {
+    position: absolute;
+    left: 15px;
+    top: 15px;
+    cursor: pointer;
+    color: white;
+    opacity: 0%;
+    transition: opacity 200ms ease-in-out;
+    pointer-events: none;
+
+    &[data-shown='true'], &:hover {
+        pointer-events: all;
+        opacity: 100%;
+    }
+
+
 }

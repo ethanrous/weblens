@@ -8,7 +8,7 @@ import {
     TextInput,
 } from "@mantine/core";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { userContext } from "../../Context";
+import { UserContext } from "../../Context";
 import {
     clearCache,
     adminCreateUser,
@@ -86,6 +86,7 @@ function CreateUserBox({
             <Space h={20} />
             <WeblensButton
                 label="Create User"
+                height={40}
                 width={185}
                 disabled={userInput === "" || passInput === ""}
                 onClick={async () => {
@@ -117,7 +118,6 @@ const UserRow = ({
     setAllUsersInfo;
     authHeader: AuthHeaderT;
 }) => {
-    console.log(rowUser);
     return (
         <RowBox
             key={rowUser.username}
@@ -154,7 +154,6 @@ const UserRow = ({
                         label="Make Admin"
                         width={"max-content"}
                         height={20}
-                        fontSize="8px"
                         style={{ padding: 4 }}
                         onClick={() => {
                             SetUserAdmin(
@@ -172,7 +171,6 @@ const UserRow = ({
                         label="Remove Admin"
                         width={"max-content"}
                         height={20}
-                        fontSize="8px"
                         style={{ padding: 4 }}
                         onClick={() => {
                             SetUserAdmin(
@@ -190,6 +188,7 @@ const UserRow = ({
             {rowUser.activated === false && (
                 <WeblensButton
                     label="Activate"
+                    height={20}
                     onClick={() => {
                         ActivateUser(rowUser.username, authHeader).then(() =>
                             GetUsersInfo(setAllUsersInfo, authHeader)
@@ -201,6 +200,7 @@ const UserRow = ({
 
             <WeblensButton
                 label="Delete"
+                height={20}
                 width={"max-content"}
                 danger
                 centerContent
@@ -267,7 +267,7 @@ function UsersBox({
 }
 
 export function ApiKeys({ authHeader }) {
-    const { serverInfo }: UserContextT = useContext(userContext);
+    const { serverInfo }: UserContextT = useContext(UserContext);
     const [keys, setKeys] = useState([]);
 
     const getKeys = useCallback(() => {
@@ -387,7 +387,6 @@ export function ApiKeys({ authHeader }) {
                                                     ks = ks.filter(
                                                         (i) => i !== k
                                                     );
-                                                    console.log(ks);
                                                     return [...ks];
                                                 });
                                             }
@@ -401,6 +400,7 @@ export function ApiKeys({ authHeader }) {
             )}
             <WeblensButton
                 width={200}
+                height={40}
                 label="New Api Key"
                 onClick={() => {
                     newApiKey(authHeader).then((k) =>
@@ -474,7 +474,7 @@ export function ApiKeys({ authHeader }) {
 
 export function Admin({ close }) {
     const { authHeader, usr, serverInfo }: UserContextT =
-        useContext(userContext);
+        useContext(UserContext);
     const [allUsersInfo, setAllUsersInfo] = useState(null);
     useKeyDown("Escape", close);
 
@@ -533,6 +533,7 @@ export function Admin({ close }) {
                 >
                     <WeblensButton
                         label="Clear Cache"
+                        height={40}
                         width={"200px"}
                         danger
                         onClick={() => {
@@ -545,6 +546,7 @@ export function Admin({ close }) {
                     />
                     <WeblensButton
                         label="Backup now"
+                        height={40}
                         width={"200px"}
                         disabled={serverInfo.role === "core"}
                         postScript={

@@ -3,23 +3,31 @@ package types
 import "time"
 
 type Media interface {
-	Id() MediaId
+	Id() ContentId
 	IsImported() bool
 	IsFilledOut() (bool, string)
+	IsHidden() bool
+	GetOwner() User
+
+	SetOwner(User)
 	SetImported(bool)
+
 	GetMediaType() MediaType
 	GetCreateDate() time.Time
+
 	Clean()
-	LoadFromFile(WeblensFile, Task) (Media, error)
 	Save() error
 	AddFile(WeblensFile)
 	RemoveFile(FileId)
+	GetFiles() []FileId
+
+	LoadFromFile(WeblensFile, []byte, Task) (Media, error)
+
 	ReadDisplayable(Quality, ...int) ([]byte, error)
 	GetPageCount() int
-	SetOwner(User)
 }
 
-type MediaId string
+type ContentId string
 type Quality string
 
 type MediaType interface {

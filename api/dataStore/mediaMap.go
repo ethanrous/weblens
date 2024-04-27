@@ -2,13 +2,15 @@ package dataStore
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-var mediaMap map[types.MediaId]types.Media = map[types.MediaId]types.Media{}
+var mediaMap map[types.ContentId]types.Media = map[types.ContentId]types.Media{}
 var mediaMapLock *sync.Mutex = &sync.Mutex{}
 
 func MediaInit() error {
@@ -40,7 +42,7 @@ func mediaMapAdd(m *media) {
 
 	mediaMapLock.Lock()
 
-	if mediaMap[m.MediaId] != nil {
+	if mediaMap[m.ContentId] != nil {
 		mediaMapLock.Unlock()
 		util.Error.Println(fmt.Errorf("attempt to re-add media already in map"))
 		return
@@ -60,8 +62,8 @@ func mediaMapAdd(m *media) {
 	if m.FullresCacheIds == nil {
 		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 	}
-	if m.MediaType == nil {
-		m.MediaType = ParseMimeType(m.MimeType)
+	if m.mediaType == nil {
+		m.mediaType = ParseMimeType(m.MimeType)
 	}
 
 	mediaMap[m.Id()] = m
@@ -76,31 +78,23 @@ func mediaMapAdd(m *media) {
 			continue
 		}
 		orphaned = false
-		f.SetMedia(m)
+		// f.SetMedia(m)
 	}
 	if orphaned && len(m.FileIds) != 0 {
 		removeMedia(m)
 	}
 }
 
-func MediaMapGet(mId types.MediaId) (m types.Media, err error) {
+func MediaMapGet(mId types.ContentId) types.Media {
+	if mId == "" {
+		return nil
+	}
+
 	mediaMapLock.Lock()
-	m = mediaMap[mId]
+	m := mediaMap[mId]
 	mediaMapLock.Unlock()
 
-	if m == nil {
-		err = ErrNoMedia
-	}
-	// if m == nil {
-	// 	m = fddb.getMedia(mId)
-	// 	if m == nil {
-	// 		return m, ErrNoMedia
-	// 	}
-	// 	m.imported = true
-	// 	mediaMapAdd(m)
-	// }
-
-	return
+	return m
 }
 
 func removeMedia(m types.Media) {
@@ -130,6 +124,13 @@ func removeMedia(m types.Media) {
 	mediaMapLock.Lock()
 	delete(mediaMap, m.Id())
 	mediaMapLock.Unlock()
+}
+
+func HideMedia(m types.Media) error {
+	realM := m.(*media)
+	realM.Hidden = true
+
+	return fddb.setMediaHidden(m, true)
 }
 
 func GetRealFile(m types.Media) (types.WeblensFile, error) {
@@ -163,6 +164,44 @@ func GetRandomMedia(limit int) []types.Media {
 	return medias
 }
 
+func sortMediaByOwner(a, b types.Media) int {
+	return strings.Compare(string(a.GetOwner().GetUsername()), string(b.GetOwner().GetUsername()))
+}
+
+func findOwner(m types.Media, o types.User) int {
+	return strings.Compare(string(m.GetOwner().GetUsername()), string(o.GetUsername()))
+}
+
 func GetFilteredMedia(requester types.User, sort string, sortDirection int, albumFilter []types.AlbumId, raw bool) ([]types.Media, error) {
-	return fddb.GetFilteredMedia(sort, requester.GetUsername(), -1, albumFilter, raw)
+	// old version
+	// return fddb.GetFilteredMedia(sort, requester.GetUsername(), -1, albumFilter, raw)
+	albums := util.Map(albumFilter, func(a types.AlbumId) *AlbumData { album, err := fddb.GetAlbum(a); util.ShowErr(err); return album })
+
+	mediaMask := []types.ContentId{}
+	for _, a := range albums {
+		mediaMask = append(mediaMask, a.Medias...)
+	}
+	slices.Sort(mediaMask)
+
+	allMs := util.MapToSlicePure(mediaMap)
+	allMs = util.Filter(allMs, func(m types.Media) bool {
+		mt := m.GetMediaType()
+		if mt == nil {
+			return false
+		}
+
+		// Exclude media if it is present in the filter
+		_, e := slices.BinarySearch(mediaMask, m.Id())
+
+		return len(m.GetFiles()) != 0 && (!mt.IsRaw() || raw) && mt.FriendlyName() != "PDF" && !e
+	})
+
+	allMs = util.Filter(allMs, func(m types.Media) bool {
+		return m.GetOwner() == requester && !m.IsHidden()
+	})
+
+	// Sort in timeline format, where most recent media is at the beginning of the slice
+	slices.SortFunc(allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) })
+
+	return allMs, nil
 }

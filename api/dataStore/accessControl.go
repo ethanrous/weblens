@@ -27,9 +27,12 @@ func NewAccessMeta(u types.User) types.AccessMeta {
 	}
 }
 
-func (a *accessMeta) AddShare(s types.Share) types.AccessMeta {
+func (a *accessMeta) AddShare(s types.Share) error {
+	if !CanAccessShare(s, a) {
+		return ErrUserNotAuthorized
+	}
 	a.shares = append(a.shares, s)
-	return a
+	return nil
 }
 
 func (a *accessMeta) SetRequestMode(r types.RequestMode) types.AccessMeta {
@@ -89,12 +92,12 @@ func GetRelevantShare(file types.WeblensFile, acc types.AccessMeta) types.Share 
 
 	var foundShare types.Share
 	if len(ancestors) != 0 {
-		for _, s := range acc.Shares() {
-			if slices.Contains(ancestors, types.FileId(s.GetContentId())) && (s.IsPublic() || slices.Contains(s.GetAccessors(), acc.User().GetUsername())) {
-				foundShare = s
-				break
-			}
-		}
+		// for _, s := range acc.Shares() {
+		// 	if slices.Contains(ancestors, types.FileId(s.GetContentId())) && (s.IsPublic() || slices.Contains(s.GetAccessors(), acc.User().GetUsername())) {
+		// 		foundShare = s
+		// 		break
+		// 	}
+		// }
 	}
 
 	if foundShare != nil {
@@ -133,8 +136,24 @@ func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
 	return GetRelevantShare(file, acc) != nil
 }
 
-func CanUserAccessShare(s types.Share, username types.Username) bool {
-	return s.IsEnabled() && (s.IsPublic() || s.GetOwner() == username || slices.Contains(s.GetAccessors(), username))
+func CanAccessShare(s types.Share, acc types.AccessMeta) bool {
+	if !s.IsEnabled() {
+		return false
+	}
+
+	if s.IsPublic() {
+		return true
+	}
+
+	if s.GetOwner() == acc.User() {
+		return true
+	}
+
+	if slices.Contains(s.GetAccessors(), acc.User()) {
+		return true
+	}
+
+	return false
 }
 
 func InitApiKeyMap() {

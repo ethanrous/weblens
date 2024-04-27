@@ -12,15 +12,17 @@ import { VariableSizeList as List } from "react-window";
 import { Box, Loader, Menu, MenuTarget, Text, Tooltip } from "@mantine/core";
 
 import {
-    MediaDataT,
+    AlbumData,
+    GalleryDispatchT,
     MediaWrapperProps,
-    FileInfoT,
     UserContextT,
 } from "../types/Types";
+import { WeblensFile } from "../classes/File";
+import WeblensMedia from "../classes/Media";
 import { ColumnBox, RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
 import { GetFileInfo } from "../api/FileBrowserApi";
 import { MediaImage } from "./PhotoContainer";
-import { userContext } from "../Context";
+import { MediaTypeContext, UserContext } from "../Context";
 import {
     IconHome,
     IconTrash,
@@ -28,11 +30,14 @@ import {
     IconPhoto,
     IconPhotoScan,
     IconUser,
+    IconTheater,
 } from "@tabler/icons-react";
 import { StyledLoaf } from "./Crumbs";
-import "./galleryStyle.css";
 import { useResize } from "./hooks";
 import { GalleryAction } from "../Pages/Gallery/GalleryLogic";
+import { GalleryMenu } from "../Pages/Gallery/GalleryMenu";
+
+import "../Pages/Gallery/galleryStyle.scss";
 
 const MultiFileMenu = ({
     filesInfo,
@@ -40,7 +45,7 @@ const MultiFileMenu = ({
     menuOpen,
     setMenuOpen,
 }: {
-    filesInfo: FileInfoT[];
+    filesInfo: WeblensFile[];
     loading;
     menuOpen;
     setMenuOpen;
@@ -55,19 +60,7 @@ const MultiFileMenu = ({
     }
 
     const FileRows = filesInfo.map((v) => {
-        const parts: any[] = v.pathFromHome.split("/");
-        if (parts[0] === "HOME") {
-            parts[0] = <IconHome />;
-        } else if (parts[0] === "TRASH") {
-            parts[0] = <IconTrash />;
-        } else if (parts[0] === "SHARE") {
-            parts[0] = <IconUser />;
-        } else {
-            console.error("Unknown filepath base type");
-            return;
-        }
-
-        return StyledLoaf({ crumbs: parts });
+        return StyledLoaf({ crumbs: v.GetPathParts(), postText: "" });
     });
 
     return (
@@ -93,11 +86,11 @@ const MultiFileMenu = ({
                     filesInfo.map((f, i) => {
                         return (
                             <Menu.Item
-                                key={f.id}
+                                key={f.Id()}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     window.open(
-                                        `/files/${f.parentFolderId}?jumpTo=${f.id}`,
+                                        `/files/${f.ParentId()}?jumpTo=${f.Id()}`,
                                         "_blank"
                                     );
                                 }}
@@ -122,15 +115,15 @@ const goToFolder = async (
 ) => {
     e.stopPropagation();
     if (fileIds.length === 1) {
-        const fileInfo: FileInfoT = await GetFileInfo(
+        const fileInfo: WeblensFile = await GetFileInfo(
             fileIds[0],
             "",
             authHeader
         );
-        window.open(
-            `/files/${fileInfo.parentFolderId}?jumpTo=${fileInfo.id}`,
-            "_blank"
-        );
+
+        const newUrl = `/files/${fileInfo.ParentId()}?jumpTo=${fileIds[0]}`;
+
+        window.open(newUrl, "_blank");
         return;
     }
 
@@ -145,22 +138,24 @@ const goToFolder = async (
     }
 };
 
-const TypeIcon = (mediaData: MediaDataT) => {
+const TypeIcon = (mediaData: WeblensMedia) => {
+    const typeMap = useContext(MediaTypeContext);
     let icon;
 
-    if (mediaData.mediaType.IsRaw) {
+    if (mediaData.GetMediaType(typeMap).IsRaw) {
         icon = IconPhotoScan;
-    } else if (mediaData.mediaType.IsVideo) {
-        // icon = Theaters
+    } else if (mediaData.GetMediaType(typeMap).IsVideo) {
+        <IconTheater />;
     } else {
         icon = IconPhoto;
-        // name = "Image"
     }
-    return [icon, mediaData.mediaType.FriendlyName];
+    return [icon, mediaData.GetMediaType(typeMap).FriendlyName];
 };
 
 type mediaTypeProps = {
     Icon: any;
+    label: string;
+    visible: boolean;
     filesCount?: number;
     onClick?: React.MouseEventHandler<HTMLDivElement>;
     innerRef?: React.ForwardedRef<HTMLDivElement>;
@@ -169,9 +164,39 @@ type mediaTypeProps = {
 const StyledIcon = ({
     Icon,
     filesCount,
+    visible,
     onClick,
     innerRef,
+    label,
 }: mediaTypeProps) => {
+    const [hover, setHover] = useState(false);
+    const [textRef, setTextRef] = useState(null);
+    const textSize = useResize(textRef);
+
+    return (
+        <Box
+            className="hover-icon"
+            onMouseOver={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            onClick={onClick}
+            mod={{ visible: visible }}
+            style={{ width: hover ? textSize.width + 33 : 28 }}
+        >
+            <Icon style={{ flexShrink: 0 }} />
+            <Text
+                fw={600}
+                ref={setTextRef}
+                style={{
+                    paddingLeft: 5,
+                    textWrap: "nowrap",
+                    userSelect: "none",
+                }}
+            >
+                {label}
+            </Text>
+        </Box>
+    );
+
     return (
         <ColumnBox
             reff={innerRef}
@@ -209,58 +234,56 @@ const StyledIcon = ({
 
 function MediaInfoDisplay({
     mediaData,
+    mediaMenuOpen,
+    tooSmall,
     hovering,
 }: {
-    mediaData: MediaDataT;
+    mediaData: WeblensMedia;
+    mediaMenuOpen: boolean;
+    tooSmall: boolean;
     hovering: boolean;
 }) {
-    const { authHeader }: UserContextT = useContext(userContext);
+    const { authHeader }: UserContextT = useContext(UserContext);
     const [icon, name] = TypeIcon(mediaData);
     const [menuOpen, setMenuOpen] = useState(false);
     const [filesInfo, setFilesInfo] = useState([]);
-    const [loading, setLoading] = useState(false);
 
-    if ((!hovering && !menuOpen) || !icon) {
-        return null;
-    }
+    const visible = hovering && Boolean(icon) && !mediaMenuOpen && !tooSmall;
 
     return (
         <Box className="media-meta-preview">
-            <Tooltip label={name} refProp="innerRef">
-                <StyledIcon Icon={icon} />
-            </Tooltip>
-            <RowBox style={{ height: 32 }}>
-                <Tooltip
-                    label={
-                        mediaData.fileIds.length === 1
-                            ? "Visit File"
-                            : "Visit Files"
-                    }
-                    refProp="innerRef"
-                >
-                    <StyledIcon
-                        Icon={IconFolder}
-                        filesCount={mediaData.fileIds.length}
-                        onClick={(e) =>
-                            goToFolder(
-                                e,
-                                mediaData.fileIds,
-                                filesInfo,
-                                setLoading,
-                                setMenuOpen,
-                                setFilesInfo,
-                                authHeader
-                            )
-                        }
-                    />
-                </Tooltip>
+            <StyledIcon
+                Icon={icon}
+                label={name}
+                visible={visible}
+                onClick={(e) => e.stopPropagation()}
+            />
+
+            <StyledIcon
+                Icon={IconFolder}
+                label="Visit File"
+                filesCount={mediaData.GetFileIds().length}
+                visible={visible}
+                onClick={(e) =>
+                    goToFolder(
+                        e,
+                        mediaData.GetFileIds(),
+                        filesInfo,
+                        () => {},
+                        setMenuOpen,
+                        setFilesInfo,
+                        authHeader
+                    )
+                }
+            />
+            {/* <RowBox style={{ height: 32 }}>
                 <MultiFileMenu
                     filesInfo={filesInfo}
                     loading={loading}
                     menuOpen={menuOpen}
                     setMenuOpen={setMenuOpen}
                 />
-            </RowBox>
+            </RowBox> */}
         </Box>
     );
 }
@@ -271,18 +294,21 @@ const MediaWrapper = memo(
         selected,
         selecting,
         scale,
+        albumId,
+        fetchAlbum,
         dispatch,
     }: MediaWrapperProps) => {
         const ref = useRef();
         const [hovering, setHovering] = useState(false);
+        const [menuOpen, setMenuOpen] = useState(false);
 
         const width = useMemo(() => {
-            mediaData.ImgRef = ref;
-            return mediaData.mediaWidth * (scale / mediaData.mediaHeight);
+            mediaData.SetImgRef(ref);
+            return mediaData.GetWidth() * (scale / mediaData.GetHeight());
         }, [scale, mediaData]);
 
-        if (mediaData.selected === undefined) {
-            mediaData.selected = false;
+        if (mediaData.IsSelected() === undefined) {
+            mediaData.SetSelected(false);
         }
 
         return (
@@ -290,15 +316,16 @@ const MediaWrapper = memo(
                 className="preview-card-container"
                 mod={{
                     "data-selecting": selecting.toString(),
-                    "data-selected": mediaData.selected.toString(),
+                    "data-selected": mediaData.IsSelected().toString(),
+                    "data-menu-open": menuOpen.toString(),
                 }}
                 ref={ref}
                 onClick={() => {
                     if (selecting) {
                         dispatch({
                             type: "set_selected",
-                            mediaId: mediaData.mediaId,
-                            selected: !mediaData.selected,
+                            mediaId: mediaData.Id(),
+                            selected: !mediaData.IsSelected(),
                         });
                         return;
                     }
@@ -309,13 +336,13 @@ const MediaWrapper = memo(
                 onContextMenu={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    dispatch({
-                        type: "set_menu_pos",
-                        pos: { x: e.clientX, y: e.clientY },
-                    });
+                    if (menuOpen || scale < 200) {
+                        return;
+                    }
+                    setMenuOpen(true);
                     dispatch({
                         type: "set_menu_target",
-                        targetId: mediaData.mediaId,
+                        targetId: mediaData.Id(),
                     });
                 }}
                 style={{
@@ -328,13 +355,25 @@ const MediaWrapper = memo(
                     quality={"thumbnail"}
                     lazy={true}
                     containerStyle={{
+                        borderRadius: 4,
                         height: scale,
                         width: "100%",
                     }}
                 />
                 <MediaInfoDisplay
                     mediaData={mediaData}
+                    mediaMenuOpen={menuOpen}
+                    tooSmall={scale < 200}
                     hovering={hovering && !selecting}
+                />
+                <GalleryMenu
+                    media={mediaData}
+                    albumId={albumId}
+                    open={menuOpen}
+                    setOpen={setMenuOpen}
+                    height={scale}
+                    width={width}
+                    updateAlbum={fetchAlbum}
                 />
             </Box>
         );
@@ -349,32 +388,38 @@ const MediaWrapper = memo(
         if (prev.selected !== next.selected) {
             return false;
         }
-        return prev.mediaData.mediaId === next.mediaData.mediaId;
+        return prev.mediaData.Id() === next.mediaData.Id();
     }
 );
 export const BucketCards = ({
     medias,
     selecting = false,
     scale,
+    albumId,
+    fetchAlbum,
     dispatch,
 }: {
-    medias: MediaDataT[];
+    medias: WeblensMedia[];
     selecting?: boolean;
     scale: number;
-    dispatch;
+    albumId: string;
+    fetchAlbum: () => void;
+    dispatch: GalleryDispatchT;
 }) => {
     if (!medias) {
         medias = [];
     }
 
-    const mediaCards = medias.map((mediaData: MediaDataT) => {
+    const mediaCards = medias.map((media: WeblensMedia) => {
         return (
             <MediaWrapper
-                key={mediaData.mediaId}
-                mediaData={mediaData}
-                selected={mediaData.selected}
+                key={media.Id()}
+                mediaData={media}
+                selected={media.IsSelected()}
                 selecting={selecting}
                 scale={scale}
+                albumId={albumId}
+                fetchAlbum={fetchAlbum}
                 dispatch={dispatch}
             />
         );
@@ -389,25 +434,9 @@ export const BucketCards = ({
     );
 };
 
-const TitleWrapper = ({ bucketTitle }) => {
-    if (bucketTitle === "") {
-        return null;
-    }
-    return (
-        <Text
-            style={{ fontSize: 20, fontWeight: 600 }}
-            c={"white"}
-            mt={1}
-            pl={0.5}
-        >
-            {bucketTitle}
-        </Text>
-    );
-};
-
 type GalleryRow = {
     rowScale: number;
-    items: MediaDataT[];
+    items: WeblensMedia[];
     element?: JSX.Element;
 };
 
@@ -419,6 +448,8 @@ const Cell = ({
     data: {
         rows: GalleryRow[];
         selecting: boolean;
+        albumId: string;
+        fetchAlbum: () => void;
         dispatch: (action: GalleryAction) => void;
     };
     index: number;
@@ -428,10 +459,12 @@ const Cell = ({
         <Box style={{ ...style }}>
             {data.rows[index].items.length > 0 && (
                 <BucketCards
-                    key={data.rows[index].items[0].mediaId}
+                    key={data.rows[index].items[0].Id()}
                     selecting={data.selecting}
                     medias={data.rows[index].items}
                     scale={data.rows[index].rowScale}
+                    albumId={data.albumId}
+                    fetchAlbum={data.fetchAlbum}
                     dispatch={data.dispatch}
                 />
             )}
@@ -440,12 +473,47 @@ const Cell = ({
     );
 };
 
+const AlbumTitle = ({ startColor, endColor, title }) => {
+    const sc = startColor ? `#${startColor}` : "#ffffff";
+    const ec = endColor ? `#${endColor}` : "#ffffff";
+    return (
+        <ColumnBox style={{ height: "max-content" }}>
+            <Text
+                size={"75px"}
+                fw={900}
+                variant="gradient"
+                gradient={{
+                    from: sc,
+                    to: ec,
+                    deg: 45,
+                }}
+                style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    userSelect: "none",
+                    lineHeight: 1.1,
+                }}
+            >
+                {title}
+            </Text>
+        </ColumnBox>
+    );
+};
+
 export function PhotoGallery({
     medias,
     selecting,
     imageBaseScale,
-    title,
+    album,
+    fetchAlbum,
     dispatch,
+}: {
+    medias: WeblensMedia[];
+    selecting: boolean;
+    imageBaseScale: number;
+    album?: AlbumData;
+    fetchAlbum?: () => void;
+    dispatch;
 }) {
     const listRef = useRef(null);
     const [boxNode, setBoxNode] = useState(null);
@@ -462,7 +530,7 @@ export function PhotoGallery({
 
         const rows: {
             rowScale: number;
-            items: MediaDataT[];
+            items: WeblensMedia[];
             element?: JSX.Element;
         }[] = [];
         let currentRowWidth = 0;
@@ -475,10 +543,10 @@ export function PhotoGallery({
                 }
                 break;
             }
-            const m: MediaDataT = innerMedias.pop();
+            const m: WeblensMedia = innerMedias.pop();
             // Calculate width given height "imageBaseScale", keeping aspect ratio
             const newWidth =
-                Math.floor((imageBaseScale / m.mediaHeight) * m.mediaWidth) +
+                Math.floor((imageBaseScale / m.GetHeight()) * m.GetWidth()) +
                 MARGIN_SIZE;
 
             // If we are out of media, and the image does not overflow this row, add it and break
@@ -519,12 +587,22 @@ export function PhotoGallery({
             currentRowWidth += newWidth;
         }
         rows.unshift({ rowScale: 10, items: [] });
-        if (title) {
-            rows.unshift({ rowScale: 75, items: [], element: title });
+        if (album) {
+            rows.unshift({
+                rowScale: 75,
+                items: [],
+                element: (
+                    <AlbumTitle
+                        startColor={album.PrimaryColor}
+                        endColor={album.SecondaryColor}
+                        title={album.Name}
+                    />
+                ),
+            });
         }
         rows.push({ rowScale: 40, items: [] });
         return rows;
-    }, [medias, imageBaseScale, boxSize.width, title]);
+    }, [medias, imageBaseScale, boxSize.width, album]);
 
     useEffect(() => {
         listRef.current?.resetAfterIndex(0);
@@ -549,6 +627,8 @@ export function PhotoGallery({
                     rows: rows,
                     selecting: selecting,
                     dispatch: dispatch,
+                    albumId: album?.Id,
+                    fetchAlbum: fetchAlbum,
                 }}
             >
                 {Cell}

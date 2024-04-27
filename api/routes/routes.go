@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 
 	// "github.com/gin-contrib/pprof"
@@ -42,43 +43,46 @@ func DoRoutes() {
 	router.Use(WeblensLogger)
 	router.Use(CORSMiddleware())
 
+	api := router.Group("/api")
+	api.Use(WeblensAuth(false, false))
+
+	public := router.Group("/api/public")
+	public.Use(WeblensAuth(true, false))
+
+	admin := router.Group("/api")
+	admin.Use(WeblensAuth(false, true))
+
+	core := router.Group("/api/core")
+	core.Use(KeyOnlyAuth)
+
 	srvInfo := dataStore.GetServerInfo()
-	if srvInfo == nil {
+	if srvInfo.ServerRole() == types.Initialization {
 		util.Debug.Println("Weblens not initialized, only adding initialization routes...")
-		AddInitializationRoutes()
+		init := router.Group("/api")
+		init.Use(WeblensAuth(true, false))
+		AddInitializationRoutes(init)
 		util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
 		router.Use(initSafety)
 	} else {
-		api := router.Group("/api")
-		api.Use(WeblensAuth(false, false))
-
-		public := router.Group("/api/public")
-		public.Use(WeblensAuth(true, false))
-
-		admin := router.Group("/api")
-		admin.Use(WeblensAuth(false, true))
-
-		core := router.Group("/api/core")
-		core.Use(KeyOnlyAuth)
-
 		AddSharedRoutes(api, public)
-		if srvInfo.IsCore() {
+		if srvInfo.ServerRole() == types.Core {
 			AddApiRoutes(api, public)
 			AddAdminRoutes(admin)
 			AddCoreRoutes(core)
-		} else {
+		} else if srvInfo.ServerRole() == types.Backup {
 			AddBackupRoutes(api, admin)
 
 			addr, err := srvInfo.GetCoreAddress()
 			util.ShowErr(err)
 			router.Use(ReverseProxyToCore(addr))
 		}
-		if !util.DetachUi() {
-			AddUiRoutes()
-		}
 		if util.IsDevMode() {
 			AttachProfiler()
 		}
+	}
+
+	if !util.DetachUi() {
+		AddUiRoutes()
 	}
 
 	srv = &http.Server{
@@ -102,25 +106,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
-	}
-}
-
-func AddInitializationRoutes() {
-	api := router.Group("/api")
-
+func AddInitializationRoutes(api *gin.RouterGroup) {
 	api.POST("/initialize", initializeServer)
 	api.GET("/public/info", getServerInfo)
 	api.GET("/users", getUsers)
@@ -143,6 +129,7 @@ func AddApiRoutes(api, public *gin.RouterGroup) {
 	public.GET("/media/types", getMediaTypes)
 	public.GET("/media/random", getRandomMedias)
 	public.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
+
 	public.GET("/file/:fileId", getFile)
 	public.GET("/file/share/:shareId", getFileShare)
 	public.GET("/share/:shareId", getFileShare)
@@ -162,8 +149,7 @@ func AddApiRoutes(api, public *gin.RouterGroup) {
 	api.PATCH("/user/:username/password", updateUserPassword)
 
 	api.GET("/media", getMediaBatch)
-
-	// api.GET("/media/:mediaId/meta", getMediaMeta)
+	api.PATCH("/media/:mediaId/hide", hideMedia)
 
 	api.GET("/file/:fileId/shares", getFilesShares)
 	api.PATCH("/file/:fileId", updateFile)
@@ -233,7 +219,7 @@ func AddCoreRoutes(core *gin.RouterGroup) {
 }
 
 func ReverseProxyToCore(coreAddress string) gin.HandlerFunc {
-	util.Debug.Println("Proxying not found routes to", coreAddress)
+	util.Debug.Println("Proxy-ing not found routes to", coreAddress)
 	index := strings.Index(coreAddress, "//")
 	coreHost := coreAddress[index+2:]
 	return func(c *gin.Context) {
