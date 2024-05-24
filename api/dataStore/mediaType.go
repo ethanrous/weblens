@@ -79,8 +79,12 @@ func ParseExtType(ext string) *mediaType {
 	return &mType
 }
 
-func (mt *mediaType) IsRaw() bool {
+func (mt mediaType) IsRaw() bool {
 	return mt.isRaw
+}
+
+func (mt mediaType) IsMime(mime string) bool {
+	return mt.mimeType == mime
 }
 
 func (mt *mediaType) IsDisplayable() bool {

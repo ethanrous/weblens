@@ -133,7 +133,7 @@ const Login = () => {
                         <Tabs.Tab value="login" className="menu-tab">
                             Login
                         </Tabs.Tab>
-                        <Tabs.Tab value="signup" className="menu-tab">
+                        <Tabs.Tab value="sign-up" className="menu-tab">
                             Sign Up
                         </Tabs.Tab>
                     </Tabs.List>
@@ -173,6 +173,7 @@ const Login = () => {
                         <Space h={"md"} />
                         <WeblensButton
                             label="Login"
+                            height={50}
                             disabled={userInput === "" || passInput === ""}
                             centerContent
                             onClick={() =>
@@ -183,7 +184,7 @@ const Login = () => {
                         />
                     </Tabs.Panel>
                     <Tabs.Panel
-                        value="signup"
+                        value="sign-up"
                         style={{
                             display: "flex",
                             flexDirection: "column",
@@ -225,6 +226,7 @@ const Login = () => {
                         <Space h={"md"} />
                         <WeblensButton
                             label="Sign Up"
+                            height={50}
                             disabled={
                                 userInput === "" ||
                                 passInput === "" ||

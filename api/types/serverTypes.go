@@ -3,7 +3,6 @@ package types
 type ServerInfo interface {
 	ServerId() string
 	ServerRole() ServerRole
-	// Role() serv
 	GetCoreAddress() (string, error)
 	GetUsingKey() WeblensApiKey
 }

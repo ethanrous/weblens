@@ -1,43 +1,31 @@
-import {
-    memo,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import { VariableSizeList as List } from "react-window";
+import { memo, useCallback, useContext, useMemo, useRef, useState } from 'react'
 
-import { Box, Loader, Menu, MenuTarget, Text, Tooltip } from "@mantine/core";
+import { Box, Loader, Menu, MenuTarget, Text } from '@mantine/core'
 
 import {
     AlbumData,
-    GalleryDispatchT,
     MediaWrapperProps,
+    PresentType,
+    SizeT,
     UserContextT,
-} from "../types/Types";
-import { WeblensFile } from "../classes/File";
-import WeblensMedia from "../classes/Media";
-import { ColumnBox, RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
-import { GetFileInfo } from "../api/FileBrowserApi";
-import { MediaImage } from "./PhotoContainer";
-import { MediaTypeContext, UserContext } from "../Context";
+} from '../types/Types'
+import { FileInitT, WeblensFile } from '../classes/File'
+import WeblensMedia from '../classes/Media'
+import { GetFileInfo } from '../api/FileBrowserApi'
+import { MediaImage } from './PhotoContainer'
+import { UserContext } from '../Context'
 import {
-    IconHome,
-    IconTrash,
     IconFolder,
     IconPhoto,
     IconPhotoScan,
-    IconUser,
     IconTheater,
-} from "@tabler/icons-react";
-import { StyledLoaf } from "./Crumbs";
-import { useResize } from "./hooks";
-import { GalleryAction } from "../Pages/Gallery/GalleryLogic";
-import { GalleryMenu } from "../Pages/Gallery/GalleryMenu";
+} from '@tabler/icons-react'
+import { StyledLoaf } from './Crumbs'
+import { useResize } from './hooks'
+import { GalleryMenu } from '../Pages/Gallery/GalleryMenu'
 
-import "../Pages/Gallery/galleryStyle.scss";
+import '../Pages/Gallery/galleryStyle.scss'
+import { GalleryContext } from '../Pages/Gallery/Gallery'
 
 const MultiFileMenu = ({
     filesInfo,
@@ -45,23 +33,23 @@ const MultiFileMenu = ({
     menuOpen,
     setMenuOpen,
 }: {
-    filesInfo: WeblensFile[];
-    loading;
-    menuOpen;
-    setMenuOpen;
+    filesInfo: WeblensFile[]
+    loading: boolean
+    menuOpen: boolean
+    setMenuOpen: (o: boolean) => void
 }) => {
-    const [showLoader, setShowLoader] = useState(false);
+    const [showLoader, setShowLoader] = useState(false)
     if (!menuOpen) {
-        return null;
+        return null
     }
 
     if (loading) {
-        setTimeout(() => setShowLoader(true), 150);
+        setTimeout(() => setShowLoader(true), 150)
     }
 
     const FileRows = filesInfo.map((v) => {
-        return StyledLoaf({ crumbs: v.GetPathParts(), postText: "" });
-    });
+        return StyledLoaf({ crumbs: v.GetPathParts(), postText: '' })
+    })
 
     return (
         <Menu
@@ -78,9 +66,9 @@ const MultiFileMenu = ({
             >
                 <Menu.Label>Multiple Files</Menu.Label>
                 {loading && showLoader && (
-                    <ColumnBox style={{ justifyContent: "center", height: 40 }}>
+                    <Box style={{ justifyContent: 'center', height: 40 }}>
                         <Loader color="white" size={20} />
-                    </ColumnBox>
+                    </Box>
                 )}
                 {!loading &&
                     filesInfo.map((f, i) => {
@@ -88,21 +76,21 @@ const MultiFileMenu = ({
                             <Menu.Item
                                 key={f.Id()}
                                 onClick={(e) => {
-                                    e.stopPropagation();
+                                    e.stopPropagation()
                                     window.open(
                                         `/files/${f.ParentId()}?jumpTo=${f.Id()}`,
-                                        "_blank"
-                                    );
+                                        '_blank'
+                                    )
                                 }}
                             >
                                 {FileRows[i]}
                             </Menu.Item>
-                        );
+                        )
                     })}
             </Menu.Dropdown>
         </Menu>
-    );
-};
+    )
+}
 
 const goToFolder = async (
     e,
@@ -113,373 +101,478 @@ const goToFolder = async (
     setFileInfo,
     authHeader
 ) => {
-    e.stopPropagation();
+    e.stopPropagation()
     if (fileIds.length === 1) {
-        const fileInfo: WeblensFile = await GetFileInfo(
+        const fileInfo: FileInitT = await GetFileInfo(
             fileIds[0],
-            "",
+            '',
             authHeader
-        );
+        )
 
-        const newUrl = `/files/${fileInfo.ParentId()}?jumpTo=${fileIds[0]}`;
+        const newFile = new WeblensFile(fileInfo)
 
-        window.open(newUrl, "_blank");
-        return;
+        const newUrl = `/files/${newFile.ParentId()}?jumpTo=${fileIds[0]}`
+
+        window.open(newUrl, '_blank')
+        return
     }
 
-    setMenuOpen(true);
+    setMenuOpen(true)
     if (filesInfo.length === 0) {
-        setLoading(true);
+        setLoading(true)
         const fileInfos = await Promise.all(
-            fileIds.map(async (v) => await GetFileInfo(v, "", authHeader))
-        );
-        setFileInfo(fileInfos);
-        setLoading(false);
+            fileIds.map(async (v) => await GetFileInfo(v, '', authHeader))
+        )
+        setFileInfo(fileInfos)
+        setLoading(false)
     }
-};
+}
 
 const TypeIcon = (mediaData: WeblensMedia) => {
-    const typeMap = useContext(MediaTypeContext);
-    let icon;
+    let icon
 
-    if (mediaData.GetMediaType(typeMap).IsRaw) {
-        icon = IconPhotoScan;
-    } else if (mediaData.GetMediaType(typeMap).IsVideo) {
-        <IconTheater />;
+    if (mediaData.GetMediaType().IsRaw) {
+        icon = IconPhotoScan
+    } else if (mediaData.GetMediaType().IsVideo) {
+        icon = IconTheater
     } else {
-        icon = IconPhoto;
+        icon = IconPhoto
     }
-    return [icon, mediaData.GetMediaType(typeMap).FriendlyName];
-};
+    return [icon, mediaData.GetMediaType().FriendlyName]
+}
 
 type mediaTypeProps = {
-    Icon: any;
-    label: string;
-    visible: boolean;
-    filesCount?: number;
-    onClick?: React.MouseEventHandler<HTMLDivElement>;
-    innerRef?: React.ForwardedRef<HTMLDivElement>;
-};
+    Icon: any
+    label: string
+    visible: boolean
 
-const StyledIcon = ({
-    Icon,
-    filesCount,
-    visible,
-    onClick,
-    innerRef,
-    label,
-}: mediaTypeProps) => {
-    const [hover, setHover] = useState(false);
-    const [textRef, setTextRef] = useState(null);
-    const textSize = useResize(textRef);
-
-    return (
-        <Box
-            className="hover-icon"
-            onMouseOver={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            onClick={onClick}
-            mod={{ visible: visible }}
-            style={{ width: hover ? textSize.width + 33 : 28 }}
-        >
-            <Icon style={{ flexShrink: 0 }} />
-            <Text
-                fw={600}
-                ref={setTextRef}
-                style={{
-                    paddingLeft: 5,
-                    textWrap: "nowrap",
-                    userSelect: "none",
-                }}
-            >
-                {label}
-            </Text>
-        </Box>
-    );
-
-    return (
-        <ColumnBox
-            reff={innerRef}
-            style={{
-                width: "max-content",
-                justifyContent: "center",
-                height: "max-content",
-            }}
-            onClick={(e) => {
-                e.stopPropagation();
-                if (onClick) {
-                    onClick(e);
-                }
-            }}
-        >
-            {Boolean(filesCount) && filesCount > 1 && (
-                <Text
-                    c={"black"}
-                    size={"10px"}
-                    fw={700}
-                    style={{ position: "absolute", userSelect: "none" }}
-                >
-                    {filesCount}
-                </Text>
-            )}
-            <Icon
-                className="meta-icon"
-                style={{
-                    cursor: onClick ? "pointer" : "default",
-                }}
-            />
-        </ColumnBox>
-    );
-};
-
-function MediaInfoDisplay({
-    mediaData,
-    mediaMenuOpen,
-    tooSmall,
-    hovering,
-}: {
-    mediaData: WeblensMedia;
-    mediaMenuOpen: boolean;
-    tooSmall: boolean;
-    hovering: boolean;
-}) {
-    const { authHeader }: UserContextT = useContext(UserContext);
-    const [icon, name] = TypeIcon(mediaData);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [filesInfo, setFilesInfo] = useState([]);
-
-    const visible = hovering && Boolean(icon) && !mediaMenuOpen && !tooSmall;
-
-    return (
-        <Box className="media-meta-preview">
-            <StyledIcon
-                Icon={icon}
-                label={name}
-                visible={visible}
-                onClick={(e) => e.stopPropagation()}
-            />
-
-            <StyledIcon
-                Icon={IconFolder}
-                label="Visit File"
-                filesCount={mediaData.GetFileIds().length}
-                visible={visible}
-                onClick={(e) =>
-                    goToFolder(
-                        e,
-                        mediaData.GetFileIds(),
-                        filesInfo,
-                        () => {},
-                        setMenuOpen,
-                        setFilesInfo,
-                        authHeader
-                    )
-                }
-            />
-            {/* <RowBox style={{ height: 32 }}>
-                <MultiFileMenu
-                    filesInfo={filesInfo}
-                    loading={loading}
-                    menuOpen={menuOpen}
-                    setMenuOpen={setMenuOpen}
-                />
-            </RowBox> */}
-        </Box>
-    );
+    onClick?: React.MouseEventHandler<HTMLDivElement>
 }
+
+const StyledIcon = memo(
+    ({ Icon, visible, onClick, label }: mediaTypeProps) => {
+        const [hover, setHover] = useState(false)
+        const [textRef, setTextRef] = useState(null)
+        const textSize = useResize(textRef)
+
+        const style = useMemo(() => {
+            return { width: hover ? textSize.width + 33 : 28 }
+        }, [hover, visible])
+
+        return (
+            <div
+                className="hover-icon"
+                onMouseOver={() => setHover(true)}
+                onMouseLeave={() => setHover(false)}
+                onClick={onClick}
+                style={style}
+            >
+                <Icon style={{ flexShrink: 0 }} />
+                <Text
+                    fw={600}
+                    ref={setTextRef}
+                    style={{
+                        paddingLeft: 5,
+                        textWrap: 'nowrap',
+                        userSelect: 'none',
+                    }}
+                >
+                    {label}
+                </Text>
+            </div>
+        )
+    },
+    (prev, next) => {
+        return true
+    }
+)
+
+const MediaInfoDisplay = memo(
+    ({
+        mediaData,
+        mediaMenuOpen,
+        tooSmall,
+    }: {
+        mediaData: WeblensMedia
+        mediaMenuOpen: boolean
+        tooSmall: boolean
+    }) => {
+        const { authHeader }: UserContextT = useContext(UserContext)
+        const [icon, name] = useMemo(() => {
+            return TypeIcon(mediaData)
+        }, [])
+
+        const [menuOpen, setMenuOpen] = useState(false)
+        const [filesInfo, setFilesInfo] = useState([])
+
+        const visible = Boolean(icon) && !mediaMenuOpen && !tooSmall
+
+        const goto = useCallback(
+            (e) =>
+                goToFolder(
+                    e,
+                    mediaData.GetFileIds(),
+                    filesInfo,
+                    () => {},
+                    setMenuOpen,
+                    setFilesInfo,
+                    authHeader
+                ),
+            []
+        )
+
+        const stopProp = useCallback((e) => e.stopPropagation(), [])
+
+        return (
+            <div className="media-meta-preview">
+                <StyledIcon
+                    Icon={icon}
+                    label={name}
+                    visible={visible}
+                    onClick={stopProp}
+                />
+
+                <StyledIcon
+                    Icon={IconFolder}
+                    label="Visit File"
+                    visible={visible}
+                    onClick={goto}
+                />
+                {/* <Box style={{ height: 32 }}>
+                    <MultiFileMenu
+                        filesInfo={filesInfo}
+                        loading={false}
+                        menuOpen={menuOpen}
+                        setMenuOpen={setMenuOpen}
+                    />
+                </Box> */}
+            </div>
+        )
+    },
+    (prev, next) => {
+        return true
+    }
+)
+
+const MARGIN_SIZE = 4
 
 const MediaWrapper = memo(
     ({
         mediaData,
-        selected,
-        selecting,
         scale,
+        width,
+        showMedia,
         albumId,
         fetchAlbum,
-        dispatch,
     }: MediaWrapperProps) => {
-        const ref = useRef();
-        const [hovering, setHovering] = useState(false);
-        const [menuOpen, setMenuOpen] = useState(false);
+        const ref = useRef()
 
-        const width = useMemo(() => {
-            mediaData.SetImgRef(ref);
-            return mediaData.GetWidth() * (scale / mediaData.GetHeight());
-        }, [scale, mediaData]);
+        const { galleryState, galleryDispatch } = useContext(GalleryContext)
+        const [menuOpen, setMenuOpen] = useState(false)
 
-        if (mediaData.IsSelected() === undefined) {
-            mediaData.SetSelected(false);
-        }
+        const menuSwitch = useCallback(
+            (o: boolean) => {
+                if (o) {
+                    galleryDispatch({
+                        type: 'set_menu_target',
+                        targetId: mediaData.Id(),
+                    })
+                } else {
+                    galleryDispatch({ type: 'set_menu_target', targetId: '' })
+                }
+                setMenuOpen(o)
+            },
+            [mediaData, galleryDispatch]
+        )
+
+        const style = useMemo(() => {
+            // mediaData.SetImgRef(ref);
+            return {
+                height: scale,
+                width: width - MARGIN_SIZE,
+            }
+        }, [
+            scale,
+            mediaData,
+            galleryState.presentingMedia,
+            galleryState.presentingMode,
+        ])
+
+        const click = useCallback(() => {
+            if (galleryState.selecting) {
+                galleryDispatch({
+                    type: 'set_selected',
+                    mediaIndex: mediaData.GetAbsIndex(),
+                    mediaId: mediaData.Id(),
+                    selected: !mediaData.IsSelected(),
+                })
+                return
+            }
+            galleryDispatch({
+                type: 'set_presentation',
+                media: mediaData,
+                presentMode: PresentType.Fullscreen,
+            })
+        }, [galleryState.selecting, galleryState.presentingMedia === mediaData])
+
+        const mouseOver = useCallback(() => {
+            if (galleryState.selecting) {
+                galleryDispatch({
+                    type: 'set_hover_target',
+                    mediaIndex: mediaData.GetAbsIndex(),
+                })
+            }
+        }, [galleryState.selecting])
+
+        const mouseLeave = useCallback(() => {
+            if (galleryState.selecting) {
+                galleryDispatch({
+                    type: 'set_hover_target',
+                    mediaIndex: -1,
+                })
+            }
+        }, [galleryState.selecting])
+
+        const contextMenu = useCallback(
+            (e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                if (menuOpen) {
+                    return
+                }
+                galleryDispatch({
+                    type: 'set_menu_target',
+                    targetId: mediaData.Id(),
+                })
+                menuSwitch(true)
+            },
+            [menuOpen, style.width]
+        )
+
+        const mod = useMemo(() => {
+            return {
+                presenting:
+                    galleryState.presentingMedia === mediaData &&
+                    galleryState.presentingMode === PresentType.InLine,
+                selecting: galleryState.selecting.toString(),
+                choosing: (
+                    galleryState.selecting &&
+                    galleryState.hoverIndex !== -1 &&
+                    galleryState.lastSelIndex !== -1 &&
+                    galleryState.holdingShift &&
+                    mediaData.GetAbsIndex() >= 0 &&
+                    (mediaData.GetAbsIndex() - galleryState.lastSelIndex) *
+                        (mediaData.GetAbsIndex() - galleryState.hoverIndex) <=
+                        0
+                ).toString(),
+                selected: (!!mediaData.IsSelected()).toString(),
+                'menu-open': menuOpen.toString(),
+            }
+        }, [
+            galleryState.selecting,
+            galleryState.presentingMedia === mediaData,
+            galleryState.presentingMode,
+            menuOpen,
+            mediaData.IsSelected(),
+            galleryState.hoverIndex,
+            galleryState.holdingShift,
+        ])
 
         return (
-            <Box
-                className="preview-card-container"
-                mod={{
-                    "data-selecting": selecting.toString(),
-                    "data-selected": mediaData.IsSelected().toString(),
-                    "data-menu-open": menuOpen.toString(),
-                }}
+            <div
+                key={`preview-card-container-${mediaData.Id()}`}
+                className={`preview-card-container bg-gray-900 ${mediaData.Id()}`}
+                data-selecting={mod.selecting}
+                data-selected={mod.selected}
+                data-choosing={mod.choosing}
+                data-presenting={mod.presenting}
                 ref={ref}
-                onClick={() => {
-                    if (selecting) {
-                        dispatch({
-                            type: "set_selected",
-                            mediaId: mediaData.Id(),
-                            selected: !mediaData.IsSelected(),
-                        });
-                        return;
-                    }
-                    dispatch({ type: "set_presentation", media: mediaData });
-                }}
-                onMouseOver={() => setHovering(true)}
-                onMouseLeave={() => setHovering(false)}
-                onContextMenu={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (menuOpen || scale < 200) {
-                        return;
-                    }
-                    setMenuOpen(true);
-                    dispatch({
-                        type: "set_menu_target",
-                        targetId: mediaData.Id(),
-                    });
-                }}
-                style={{
-                    height: scale,
-                    width: width,
-                }}
+                onClick={click}
+                onMouseOver={mouseOver}
+                onMouseLeave={mouseLeave}
+                onContextMenu={contextMenu}
+                style={style}
             >
                 <MediaImage
                     media={mediaData}
-                    quality={"thumbnail"}
-                    lazy={true}
-                    containerStyle={{
-                        borderRadius: 4,
-                        height: scale,
-                        width: "100%",
-                    }}
+                    quality={mod.presenting ? 'fullres' : 'thumbnail'}
+                    imageClass="gallery-image"
+                    doFetch={showMedia}
+                    containerStyle={style}
                 />
-                <MediaInfoDisplay
-                    mediaData={mediaData}
-                    mediaMenuOpen={menuOpen}
-                    tooSmall={scale < 200}
-                    hovering={hovering && !selecting}
-                />
+
+                {showMedia && (
+                    <MediaInfoDisplay
+                        mediaData={mediaData}
+                        mediaMenuOpen={menuOpen}
+                        tooSmall={galleryState.imageSize < 200}
+                    />
+                )}
+
                 <GalleryMenu
                     media={mediaData}
                     albumId={albumId}
                     open={menuOpen}
-                    setOpen={setMenuOpen}
-                    height={scale}
-                    width={width}
+                    setOpen={menuSwitch}
                     updateAlbum={fetchAlbum}
                 />
-            </Box>
-        );
+            </div>
+        )
     },
     (prev: MediaWrapperProps, next: MediaWrapperProps) => {
         if (prev.scale !== next.scale) {
-            return false;
+            return false
         }
-        if (prev.selecting !== next.selecting) {
-            return false;
+        if (prev.hoverIndex !== next.hoverIndex) {
+            return false
         }
-        if (prev.selected !== next.selected) {
-            return false;
+        if (prev.showMedia !== next.showMedia) {
+            return false
         }
-        return prev.mediaData.Id() === next.mediaData.Id();
+        if (prev.hoverIndex !== next.hoverIndex) {
+            return false
+        }
+        if (prev.viewSize !== next.viewSize) {
+            return false
+        }
+
+        return prev.mediaData.Id() === next.mediaData.Id()
     }
-);
+)
 export const BucketCards = ({
     medias,
-    selecting = false,
+    widths,
+    index,
     scale,
+    showMedia,
+    viewSize,
     albumId,
     fetchAlbum,
-    dispatch,
 }: {
-    medias: WeblensMedia[];
-    selecting?: boolean;
-    scale: number;
-    albumId: string;
-    fetchAlbum: () => void;
-    dispatch: GalleryDispatchT;
+    medias: WeblensMedia[]
+    widths: number[]
+    index: number
+    scale: number
+    showMedia: boolean
+    viewSize: SizeT
+    albumId: string
+    fetchAlbum: () => void
 }) => {
     if (!medias) {
-        medias = [];
+        medias = []
     }
 
-    const mediaCards = medias.map((media: WeblensMedia) => {
-        return (
-            <MediaWrapper
-                key={media.Id()}
-                mediaData={media}
-                selected={media.IsSelected()}
-                selecting={selecting}
-                scale={scale}
-                albumId={albumId}
-                fetchAlbum={fetchAlbum}
-                dispatch={dispatch}
-            />
-        );
-    });
+    const placeholders = useMemo(() => {
+        return medias.map((m, i) => {
+            return (
+                <div
+                    key={`media-placeholder-${index}-${i}`}
+                    className="bg-gray-900 m-[2px]"
+                    style={{ height: scale, width: widths[i] }}
+                />
+            )
+        })
+    }, [medias])
+
+    const mediaCards = useMemo(() => {
+        return medias.map((media: WeblensMedia, i: number) => {
+            if (!showMedia) {
+                media.CancelLoad()
+                return placeholders[i]
+            }
+
+            return (
+                <MediaWrapper
+                    key={media.Id()}
+                    mediaData={media}
+                    scale={scale}
+                    width={widths[i]}
+                    showMedia={showMedia}
+                    rowIndex={index}
+                    colIndex={i}
+                    viewSize={viewSize}
+                    albumId={albumId}
+                    fetchAlbum={fetchAlbum}
+                />
+            )
+        })
+    }, [medias, showMedia])
+
+    const style = useMemo(() => {
+        return { height: scale + 4 }
+    }, [scale])
 
     return (
-        <RowBox style={{ justifyContent: "center" }}>
-            <RowBox style={{ height: scale + 4, width: "98%" }}>
+        <Box className="flex justify-center">
+            <Box className="flex w-full" style={style}>
                 {mediaCards}
-            </RowBox>
-        </RowBox>
-    );
-};
+            </Box>
+        </Box>
+    )
+}
 
 type GalleryRow = {
-    rowScale: number;
-    items: WeblensMedia[];
-    element?: JSX.Element;
-};
+    rowScale: number
+    items: { m: WeblensMedia; w: number }[]
+    element?: JSX.Element
+}
 
-const Cell = ({
-    data,
-    index,
-    style,
-}: {
-    data: {
-        rows: GalleryRow[];
-        selecting: boolean;
-        albumId: string;
-        fetchAlbum: () => void;
-        dispatch: (action: GalleryAction) => void;
-    };
-    index: number;
-    style;
-}) => {
-    return (
-        <Box style={{ ...style }}>
-            {data.rows[index].items.length > 0 && (
-                <BucketCards
-                    key={data.rows[index].items[0].Id()}
-                    selecting={data.selecting}
-                    medias={data.rows[index].items}
-                    scale={data.rows[index].rowScale}
-                    albumId={data.albumId}
-                    fetchAlbum={data.fetchAlbum}
-                    dispatch={data.dispatch}
-                />
-            )}
-            {data.rows[index].element}
-        </Box>
-    );
-};
+const Cell = memo(
+    ({
+        data,
+        showMedia,
+        index,
+    }: {
+        data: {
+            rows: GalleryRow[]
+            selecting: boolean
+            albumId: string
+            viewSize: SizeT
+            fetchAlbum: () => void
+        }
+        showMedia: boolean
+        index: number
+    }) => {
+        return (
+            <div className="z-1">
+                {data.rows[index].items.length > 0 && (
+                    <BucketCards
+                        key={data.rows[index].items[0].m.Id()}
+                        index={index}
+                        medias={data.rows[index].items.map((v) => v.m)}
+                        widths={data.rows[index].items.map((v) => v.w)}
+                        scale={data.rows[index].rowScale}
+                        showMedia={showMedia}
+                        viewSize={data.viewSize}
+                        albumId={data.albumId}
+                        fetchAlbum={data.fetchAlbum}
+                    />
+                )}
+                {data.rows[index].element}
+            </div>
+        )
+    },
+    (prev, next) => {
+        if (prev.index !== next.index) {
+            return false
+        }
+        if (prev.data !== next.data) {
+            return false
+        }
+        if (prev.showMedia !== next.showMedia) {
+            return false
+        }
+        return true
+    }
+)
 
 const AlbumTitle = ({ startColor, endColor, title }) => {
-    const sc = startColor ? `#${startColor}` : "#ffffff";
-    const ec = endColor ? `#${endColor}` : "#ffffff";
+    const sc = startColor ? `#${startColor}` : '#ffffff'
+    const ec = endColor ? `#${endColor}` : '#ffffff'
     return (
-        <ColumnBox style={{ height: "max-content" }}>
+        <Box style={{ height: 'max-content' }}>
             <Text
-                size={"75px"}
+                size={'75px'}
                 fw={900}
                 variant="gradient"
                 gradient={{
@@ -488,105 +581,135 @@ const AlbumTitle = ({ startColor, endColor, title }) => {
                     deg: 45,
                 }}
                 style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    userSelect: "none",
+                    display: 'flex',
+                    justifyContent: 'center',
+                    userSelect: 'none',
                     lineHeight: 1.1,
                 }}
             >
                 {title}
             </Text>
-        </ColumnBox>
-    );
-};
+        </Box>
+    )
+}
 
 export function PhotoGallery({
     medias,
-    selecting,
-    imageBaseScale,
     album,
     fetchAlbum,
-    dispatch,
 }: {
-    medias: WeblensMedia[];
-    selecting: boolean;
-    imageBaseScale: number;
-    album?: AlbumData;
-    fetchAlbum?: () => void;
-    dispatch;
+    medias: WeblensMedia[]
+    album?: AlbumData
+    fetchAlbum?: () => void
 }) {
-    const listRef = useRef(null);
-    const [boxNode, setBoxNode] = useState(null);
-    const boxSize = useResize(boxNode);
+    const [scrollRef, setScrollRef] = useState(null)
+    const [viewRef, setViewRef] = useState(null)
+    const [scroll, setScroll] = useState(0)
+    const [resizing, setResizing] = useState(null)
+    const scrollSize = useResize(scrollRef)
+    const viewSize = useResize(viewRef)
+    const { galleryState } = useContext(GalleryContext)
 
-    const rows = useMemo(() => {
-        const MARGIN_SIZE = 4;
+    // useEffect(() => {
+    //     if (resizing) {
+    //         clearTimeout(resizing);
+    //     }
+    //     setResizing(
+    //         setTimeout(() => {
+    //             setResizing(null);
+    //         }, 200)
+    //     );
+    // }, [scrollSize.width, galleryState.imageSize]);
 
-        if (medias.length === 0 || !boxSize.width) {
-            return [];
+    const rows: GalleryRow[] = useMemo(() => {
+        if (medias.length === 0 || !scrollSize.width) {
+            return []
         }
 
-        const innerMedias = [...medias];
+        const innerMedias = [...medias]
 
-        const rows: {
-            rowScale: number;
-            items: WeblensMedia[];
-            element?: JSX.Element;
-        }[] = [];
-        let currentRowWidth = 0;
-        let currentRow = [];
+        const rows: GalleryRow[] = []
+        let currentRowWidth = 0
+        let currentRow: {
+            m: WeblensMedia
+            w: number
+        }[] = []
+
+        let absIndex = 0
 
         while (true) {
             if (innerMedias.length === 0) {
                 if (currentRow.length !== 0) {
-                    rows.push({ rowScale: imageBaseScale, items: currentRow });
+                    rows.push({
+                        rowScale: galleryState.imageSize,
+                        items: currentRow,
+                    })
                 }
-                break;
+                break
             }
-            const m: WeblensMedia = innerMedias.pop();
+            const m: WeblensMedia = innerMedias.pop()
+
+            if (m.GetHeight() === 0) {
+                console.error('Attempt to display media with 0 height:', m.Id())
+                continue
+            }
+
+            m.SetAbsIndex(absIndex)
+            absIndex++
+
             // Calculate width given height "imageBaseScale", keeping aspect ratio
             const newWidth =
-                Math.floor((imageBaseScale / m.GetHeight()) * m.GetWidth()) +
-                MARGIN_SIZE;
+                Math.floor(
+                    (galleryState.imageSize / m.GetHeight()) * m.GetWidth()
+                ) + MARGIN_SIZE
 
             // If we are out of media, and the image does not overflow this row, add it and break
             if (
                 innerMedias.length === 0 &&
-                !(currentRowWidth + newWidth > boxSize.width)
+                !(currentRowWidth + newWidth > scrollSize.width)
             ) {
-                currentRow.push(m);
-                rows.push({ rowScale: imageBaseScale, items: currentRow });
-                break;
+                currentRow.push({ m: m, w: newWidth })
+                rows.push({
+                    rowScale: galleryState.imageSize,
+                    items: currentRow,
+                })
+                break
             }
 
-            // If the image would overflow the window
-            else if (currentRowWidth + newWidth > boxSize.width) {
-                const leftover = boxSize.width - currentRowWidth;
-                let consuming = false;
+            // If the image will overflow the window
+            else if (currentRowWidth + newWidth > scrollSize.width) {
+                const leftover = scrollSize.width - currentRowWidth
+                let consuming = false
                 if (newWidth / 2 < leftover || currentRow.length === 0) {
-                    currentRow.push(m);
-                    currentRowWidth += newWidth;
-                    consuming = true;
+                    currentRow.push({ m: m, w: newWidth })
+                    currentRowWidth += newWidth
+                    consuming = true
                 }
-                const marginTotal = currentRow.length * MARGIN_SIZE;
+                const marginTotal = currentRow.length * MARGIN_SIZE
+                let rowScale =
+                    ((scrollSize.width - marginTotal) /
+                        (currentRowWidth - marginTotal)) *
+                    galleryState.imageSize
+
+                currentRow = currentRow.map((v) => {
+                    v.w = v.w * (rowScale / galleryState.imageSize)
+                    return v
+                })
                 rows.push({
-                    rowScale:
-                        ((boxSize.width - marginTotal) /
-                            (currentRowWidth - marginTotal)) *
-                        imageBaseScale,
+                    rowScale: rowScale,
                     items: currentRow,
-                });
-                currentRow = [];
-                currentRowWidth = 0;
+                })
+                currentRow = []
+                currentRowWidth = 0
 
                 if (consuming) {
-                    continue;
+                    continue
                 }
             }
-            currentRow.push(m);
-            currentRowWidth += newWidth;
+            currentRow.push({ m: m, w: newWidth })
+            currentRowWidth += newWidth
         }
-        rows.unshift({ rowScale: 10, items: [] });
+
         if (album) {
             rows.unshift({
                 rowScale: 75,
@@ -598,41 +721,102 @@ export function PhotoGallery({
                         title={album.Name}
                     />
                 ),
-            });
+            })
         }
-        rows.push({ rowScale: 40, items: [] });
-        return rows;
-    }, [medias, imageBaseScale, boxSize.width, album]);
+        // rows.push({ rowScale: 40, items: [] });
+        return rows
+    }, [medias, galleryState.imageSize, scrollSize.width, album])
 
-    useEffect(() => {
-        listRef.current?.resetAfterIndex(0);
-    }, [boxSize.width, imageBaseScale, medias.length, selecting]);
-    const itemSizeFunc = useCallback(
-        (i: number) => rows[i].rowScale + 4,
-        [rows]
-    );
+    const data = useMemo(() => {
+        return {
+            rows: rows,
+            selecting: galleryState.selecting,
+            albumId: album?.Id,
+            viewSize: viewSize,
+            fetchAlbum: fetchAlbum,
+        }
+    }, [rows, galleryState.selecting, album, fetchAlbum])
+
+    const rendered = useMemo(() => {
+        return rows.map((r, i) => {
+            return (
+                <div
+                    key={`fake-media-row-${i}`}
+                    style={{ height: r.rowScale, visibility: 'hidden' }}
+                />
+            )
+        })
+    }, [rows.length])
+
+    const { beforeCount, inViewCount } = useMemo(() => {
+        let space = 0
+        let beforeCount = 0
+        for (; space < scroll; beforeCount++) {
+            if (!rows[beforeCount]) {
+                break
+            }
+            space += rows[beforeCount].rowScale
+        }
+        space = 0
+        let inViewCount = 0
+
+        for (; space < viewSize.height; inViewCount++) {
+            if (!rows[beforeCount + inViewCount]) {
+                break
+            }
+            space += rows[beforeCount + inViewCount].rowScale
+        }
+
+        return {
+            beforeCount: beforeCount - 2,
+            inViewCount: inViewCount,
+        }
+    }, [scroll, rows, viewSize.height])
+
+    // Controls how many rows before and after the viewport are fully rendered
+    const overScan = 10
+
+    // Controls how many rows before and after the viewport are *partially* rendered
+    // i.e. only the background block is shown per image, and the media does not load
+    // until you reach the regular over-scan range, as above
+    const overScanLite = 50
 
     return (
-        <ColumnBox reff={setBoxNode}>
-            <List
-                className="no-scrollbars"
-                ref={listRef}
-                height={boxSize.height}
-                overscanRowCount={150}
-                width={boxSize.width}
-                itemCount={rows.length}
-                estimatedItemSize={imageBaseScale}
-                itemSize={itemSizeFunc}
-                itemData={{
-                    rows: rows,
-                    selecting: selecting,
-                    dispatch: dispatch,
-                    albumId: album?.Id,
-                    fetchAlbum: fetchAlbum,
-                }}
-            >
-                {Cell}
-            </List>
-        </ColumnBox>
-    );
+        <div
+            className="gallery-wrapper no-scrollbar"
+            ref={setViewRef}
+            onScroll={(e) => {
+                if (
+                    Math.abs((e.target as HTMLElement).scrollTop - scroll) >
+                    galleryState.imageSize
+                ) {
+                    setScroll((e.target as HTMLElement).scrollTop)
+                }
+            }}
+        >
+            <div ref={setScrollRef} className="gallery-scroll-box">
+                {data.rows.map((r, i) => {
+                    if (
+                        i < beforeCount - overScanLite ||
+                        i > beforeCount + inViewCount + overScanLite
+                    ) {
+                        return rendered[i]
+                    }
+
+                    const show =
+                        beforeCount - overScan <= i &&
+                        i <= beforeCount + inViewCount + overScan
+
+                    return (
+                        <Cell
+                            key={`media-row-${i}`}
+                            data={data}
+                            index={i}
+                            showMedia={show && !resizing}
+                        />
+                    )
+                })}
+            </div>
+        </div>
+    )
 }

@@ -133,6 +133,20 @@ func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
 }
 
+func (c unbufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
+	subs := cmInstance.GetSubscribers(SubFolder, subId(folder))
+	for _, s := range subs {
+		s.Subscribe(SubTask, subId(task), nil)
+	}
+}
+
+func (c unbufferedCaster) UnsubTask(task types.Task) {
+	subs := cmInstance.GetSubscribers(SubFolder, subId(task.TaskId()))
+	for _, s := range subs {
+		s.Unsubscribe(subId(task.TaskId()))
+	}
+}
+
 // Get a new buffered caster with the auto-flusher pre-enabled.
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
@@ -331,6 +345,21 @@ func (c *bufferedCaster) DropBuffer() {
 
 func (c *bufferedCaster) DisableAutoFlush() {
 	c.autoFlush = false
+}
+
+// Subscribe any subscribers of a folder to a task (presumably one that pertains to that folder)
+func (c bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
+	subs := cmInstance.GetSubscribers(SubFolder, subId(folder))
+	for _, s := range subs {
+		s.Subscribe(SubTask, subId(task), nil)
+	}
+}
+
+func (c bufferedCaster) UnsubTask(task types.Task) {
+	subs := cmInstance.GetSubscribers(SubFolder, subId(task.TaskId()))
+	for _, s := range subs {
+		s.Unsubscribe(subId(task.TaskId()))
+	}
 }
 
 func (c *bufferedCaster) enableAutoFlush() {

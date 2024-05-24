@@ -112,7 +112,7 @@ func (r *requester) AttachToCore(srvId, coreAddress, name string, apiKey types.W
 	if resp.StatusCode == 201 {
 		return nil
 	} else {
-		return errors.New("failed to attch to remote core")
+		return errors.New("failed to attach to remote core")
 	}
 }
 

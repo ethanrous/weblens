@@ -53,7 +53,6 @@ func initInsert(f, parent types.WeblensFile) error {
 	if thisServer.ServerRole() == types.Core && f.Owner() != WEBLENS_ROOT_USER && f.Owner() != EXTERNAL_ROOT_USER {
 		bi, exist := slices.BinarySearchFunc(existingBackups, f.Id(), func(b backupFile, t types.FileId) int { return strings.Compare(string(b.FileId), t.String()) })
 		if !exist {
-			util.Debug.Println("ADDING", f.GetAbsPath())
 			jeStream <- fileEvent{action: FileCreate, postFilePath: f.GetAbsPath()}
 		} else if !f.IsDir() && existingBackups[bi].ContentId == "" {
 			tasker.HashFile(f)
@@ -128,15 +127,23 @@ func fsTreeRemove(f types.WeblensFile, casters ...types.BroadcasterAgent) (err e
 
 		if !file.IsDir() {
 
+			contentId := file.GetContentId()
+			m := MediaMapGet(contentId)
+			if m != nil {
+				m.RemoveFile(file.Id())
+			}
+
 			//
 			// possibly bug: when a single delete action is deleting multiple of the same content id you get a collision in the content folder
 			//
 
-			contentId := file.GetContentId()
 			backupF, _ := contentRoot.GetChild(string(contentId))
 			if contentId != "" && backupF == nil {
 				backupF = newWeblensFile(&contentRoot, string(contentId), false)
-				fsTreeInsert(backupF, &contentRoot, casters...)
+				err = fsTreeInsert(backupF, &contentRoot, casters...)
+				if err != nil {
+					return err
+				}
 				err = os.Rename(file.GetAbsPath(), backupF.GetAbsPath())
 				if err != nil {
 					return err

@@ -1,13 +1,13 @@
-import { useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 
-import { Box, Text } from "@mantine/core";
-import { IconChevronRight, IconHome, IconTrash } from "@tabler/icons-react";
+import {Box, Text} from "@mantine/core";
+import {IconChevronRight, IconHome, IconTrash} from "@tabler/icons-react";
 
-import { WeblensFile } from "../classes/File";
-import { memo, useContext, useEffect, useMemo, useState } from "react";
-import { UserContextT } from "../types/Types";
-import { UserContext } from "../Context";
-import { useResize } from "./hooks";
+import {WeblensFile} from "../classes/File";
+import {memo, useContext, useEffect, useMemo, useState} from "react";
+import {UserContextT} from "../types/Types";
+import {UserContext} from "../Context";
+import {useResize} from "./hooks";
 
 type breadcrumbProps = {
     label: string;
@@ -181,7 +181,7 @@ export const StyledLoaf = ({ crumbs, postText }) => {
                     crumb={c}
                     index={i}
                     squished={squished}
-                    setWidth={(index, width) =>
+                    setWidth={(index: string | number, width: any) =>
                         setWidths((p) => {
                             p[index] = width;
                             return [...p];
@@ -223,31 +223,35 @@ const Crumbs = memo(
         const navigate = useNavigate();
         const { usr }: UserContextT = useContext(UserContext);
 
-        const loaf = useMemo(() => {
+        return useMemo(() => {
             if (!usr || !finalFile?.Id()) {
-                return <StyledLoaf crumbs={[]} postText={""} />;
+                return <StyledLoaf crumbs={[]} postText={""}/>;
             }
 
-            const parents = finalFile.FormatParents();
-            const crumbs = parents.map((parent) => {
-                return (
-                    <StyledBreadcrumb
-                        key={parent.Id()}
-                        label={parent.GetFilename()}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/files/${parent.Id()}`);
-                        }}
-                        dragging={dragging}
-                        onMouseUp={() => {
-                            if (dragging !== 0) {
-                                moveSelectedTo(parent.Id());
-                            }
-                        }}
-                        setMoveDest={setMoveDest}
-                    />
-                );
-            });
+            let crumbs = []
+
+            if (!finalFile.IsTrash()) {
+                const parents = finalFile.FormatParents();
+                crumbs = parents.map((parent) => {
+                    return (
+                        <StyledBreadcrumb
+                            key={parent.Id()}
+                            label={parent.GetFilename()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/files/${parent.Id()}`);
+                            }}
+                            dragging={dragging}
+                            onMouseUp={() => {
+                                if (dragging !== 0) {
+                                    moveSelectedTo(parent.Id());
+                                }
+                            }}
+                            setMoveDest={setMoveDest}
+                        />
+                    );
+                });
+            }
 
             crumbs.push(
                 <StyledBreadcrumb
@@ -270,7 +274,7 @@ const Crumbs = memo(
                 />
             );
 
-            return <StyledLoaf crumbs={crumbs} postText={postText} />;
+            return <StyledLoaf crumbs={crumbs} postText={postText}/>;
         }, [
             finalFile,
             moveSelectedTo,
@@ -280,18 +284,10 @@ const Crumbs = memo(
             usr,
             setMoveDest,
         ]);
-
-        return loaf;
     },
     (prev, next) => {
-        if (
-            prev.dragging !== next.dragging ||
-            prev.finalFile !== next.finalFile
-        ) {
-            return false;
-        }
-
-        return true;
+        return !(prev.dragging !== next.dragging ||
+            prev.finalFile !== next.finalFile);
     }
 );
 

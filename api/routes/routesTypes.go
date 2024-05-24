@@ -40,6 +40,16 @@ type takeoutFiles struct {
 	FileIds []types.FileId `json:"fileIds"`
 }
 
+type mediaIdsBody struct {
+	MediaIds []types.ContentId `json:"mediaIds"`
+}
+
+type mediaTimeBody struct {
+	AnchorId types.ContentId   `json:"anchorId"`
+	NewTime  time.Time         `json:"newTime"`
+	MediaIds []types.ContentId `json:"mediaIds"`
+}
+
 type tokenReturn struct {
 	Token string `json:"token"`
 }

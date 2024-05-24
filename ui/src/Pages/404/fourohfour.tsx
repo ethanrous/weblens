@@ -1,16 +1,14 @@
 import { Button, Text } from "@mantine/core";
-import { ColumnBox } from "../FileBrowser/FileBrowserStyles";
-
 const Fourohfour = () => {
     // const nav = useNavigate()
     const nav = null;
     return (
-        <ColumnBox style={{ height: "50vh", justifyContent: "center" }}>
+        <div style={{ height: "50vh", justifyContent: "center" }}>
             <Text style={{ padding: 20 }}>Page not found :(</Text>
             <Button onClick={() => nav("/")} color="primary">
                 Go Home
             </Button>
-        </ColumnBox>
+        </div>
     );
 };
 export default Fourohfour;

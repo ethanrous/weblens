@@ -42,7 +42,7 @@ func (cm *clientManager) ClientConnect(conn *websocket.Conn, user types.User) *C
 	return &newClient
 }
 
-func (cm clientManager) ClientDisconnect(c *Client) {
+func (cm *clientManager) ClientDisconnect(c *Client) {
 	for _, s := range c.subscriptions {
 		cm.RemoveSubscription(s, c, true)
 	}
@@ -165,7 +165,7 @@ func (cm *clientManager) RemoveSubscription(subInfo subscription, client *Client
 	defer lock.Unlock()
 	subs, ok := (*subMap)[subInfo.Key]
 	if !ok {
-		util.Warning.Println("Tried to unsubscribe from non-existant key", string(subInfo.Key))
+		util.Warning.Println("Tried to unsubscribe from non-existent key", string(subInfo.Key))
 		return
 	}
 	if removeAll {

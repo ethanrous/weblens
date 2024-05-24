@@ -1,230 +1,154 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-import { notifications } from "@mantine/notifications";
+import { notifications } from '@mantine/notifications'
+import { Divider, Space, Text } from '@mantine/core'
 import {
-    Box,
-    Button,
-    Divider,
-    Menu,
-    Popover,
-    Space,
-    Text,
-} from "@mantine/core";
-import { IconPhoto, IconTrash, IconUsersGroup } from "@tabler/icons-react";
+    IconArrowLeft,
+    IconFolder,
+    IconLibraryPlus,
+    IconPlus,
+} from '@tabler/icons-react'
 
-import { ColumnBox } from "../FileBrowser/FileBrowserStyles";
-import {
-    DeleteAlbum,
-    GetAlbumMedia,
-    GetAlbums,
-    RemoveMediaFromAlbum,
-    RenameAlbum,
-    SetAlbumCover,
-    ShareAlbum,
-} from "../../api/GalleryApi";
-import {
-    AlbumData,
-    AuthHeaderT,
-    MediaStateT,
-    UserContextT,
-} from "../../types/Types";
-import WeblensMedia from "../../classes/Media";
-import { UserContext } from "../../Context";
-import { PhotoGallery } from "../../components/MediaDisplay";
-import NotFound from "../../components/NotFound";
-import { GlobalContextType } from "../../components/ItemDisplay";
-import { GalleryAction } from "./GalleryLogic";
-import { useMediaType } from "../../components/hooks";
-import { AlbumPreview } from "./AlbumDisplay";
+import { CreateAlbum, GetAlbumMedia, GetAlbums } from '../../api/GalleryApi'
+import { AlbumData, AuthHeaderT, UserContextT } from '../../types/Types'
+import WeblensMedia from '../../classes/Media'
+import { UserContext } from '../../Context'
+import { PhotoGallery } from '../../components/MediaDisplay'
+import NotFound from '../../components/NotFound'
 
-function ShareBox({
-    open,
-    setOpen,
-    pos,
-    albumId,
-    sharedWith,
-    fetchAlbums,
-}: {
-    open: boolean;
-    setOpen;
-    pos: { x: number; y: number };
-    albumId;
-    sharedWith;
-    fetchAlbums;
-}) {
-    const { authHeader }: UserContextT = useContext(UserContext);
-    const [value, setValue] = useState(sharedWith);
+import { GalleryContextT } from './Gallery'
+import { useMediaType } from '../../components/hooks'
+import { AlbumScroller } from './AlbumDisplay'
+import { GalleryContext } from './Gallery'
+import { WeblensButton } from '../../components/WeblensButton'
+import WeblensInput from '../../components/WeblensInput'
+import WeblensSlider from '../../components/WeblensSlider'
 
-    useEffect(() => {
-        setValue(sharedWith);
-    }, [sharedWith]);
+// function ShareBox({
+//     open,
+//     setOpen,
+//     albumId,
+//     sharedWith,
+//     fetchAlbums,
+// }: {
+//     open: boolean;
+//     setOpen;
+//     albumId;
+//     sharedWith;
+//     fetchAlbums;
+// }) {
+//     const { galleryState } = useContext(GalleryContext);
+//     const { authHeader }: UserContextT = useContext(UserContext);
+//     const [value, setValue] = useState(sharedWith);
 
-    return (
-        <Popover
-            opened={open}
-            onClose={() => setOpen(false)}
-            closeOnClickOutside
-        >
-            <Popover.Target>
-                <Box style={{ position: "fixed", top: pos.y, left: pos.x }} />
-            </Popover.Target>
-            <Popover.Dropdown>
-                {/* <ShareInput valueSetCallback={setValue} initValues={sharedWith} /> */}
-                <Space h={10} />
-                <Button
-                    fullWidth
-                    disabled={
-                        JSON.stringify(value) === JSON.stringify(sharedWith)
-                    }
-                    color="#4444ff"
-                    onClick={() => {
-                        ShareAlbum(
-                            albumId,
-                            authHeader,
-                            value.filter((v) => !sharedWith.includes(v)),
-                            sharedWith.filter((v) => !value.includes(v))
-                        ).then(() => fetchAlbums());
-                        setOpen(false);
-                    }}
-                >
-                    Update
-                </Button>
-            </Popover.Dropdown>
-        </Popover>
-    );
-}
+//     useEffect(() => {
+//         setValue(sharedWith);
+//     }, [sharedWith]);
 
-function AlbumMediaContextMenu({
-    albumId,
-    fetchAlbum,
-    mediaId,
-    open,
-    setOpen,
-    authHeader,
-}: {
-    albumId: string;
-    fetchAlbum;
-    mediaId: string;
-    open: boolean;
-    setOpen;
-    authHeader: AuthHeaderT;
-}) {
-    return (
-        <Menu opened={open} onClose={() => setOpen(false)} closeOnClickOutside>
-            <Menu.Target>
-                <Box style={{ position: "absolute" }} />
-            </Menu.Target>
+//     return (
+//         <Popover
+//             opened={open}
+//             onClose={() => setOpen(false)}
+//             closeOnClickOutside
+//         >
+//             <Popover.Target>
+//                 <Box
+//                     style={{
+//                         position: "fixed",
+//                         top: galleryState.menuPos.y,
+//                         left: galleryState.menuPos.x,
+//                     }}
+//                 />
+//             </Popover.Target>
+//             <Popover.Dropdown>
+//                 {/* <ShareInput valueSetCallback={setValue} initValues={sharedWith} /> */}
+//                 <Space h={10} />
+//                 <Button
+//                     fullWidth
+//                     disabled={
+//                         JSON.stringify(value) === JSON.stringify(sharedWith)
+//                     }
+//                     color="#4444ff"
+//                     onClick={() => {
+//                         ShareAlbum(
+//                             albumId,
+//                             authHeader,
+//                             value.filter((v) => !sharedWith.includes(v)),
+//                             sharedWith.filter((v) => !value.includes(v))
+//                         ).then(() => fetchAlbums());
+//                         setOpen(false);
+//                     }}
+//                 >
+//                     Update
+//                 </Button>
+//             </Popover.Dropdown>
+//         </Popover>
+//     );
+// }
 
-            <Menu.Dropdown>
-                <Menu.Label>Media Actions</Menu.Label>
-
-                <Menu.Item
-                    leftSection={<IconPhoto />}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        SetAlbumCover(albumId, mediaId, authHeader).then(
-                            fetchAlbum
-                        );
-                    }}
-                >
-                    Make Cover Photo
-                </Menu.Item>
-
-                <Menu.Item
-                    leftSection={<IconTrash />}
-                    color="red"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        RemoveMediaFromAlbum(
-                            albumId,
-                            [mediaId],
-                            authHeader
-                        ).then(fetchAlbum);
-                    }}
-                >
-                    Remove From Album
-                </Menu.Item>
-            </Menu.Dropdown>
-        </Menu>
-    );
-}
-
-function AlbumContent({
-    albumId,
-    includeRaw,
-    imageSize,
-    searchContent,
-    dispatch,
-}: {
-    albumId;
-    includeRaw;
-    imageSize;
-    searchContent: string;
-    dispatch: (action: GalleryAction) => void;
-}) {
-    const { authHeader }: UserContextT = useContext(UserContext);
+function AlbumContent({ albumId }: { albumId: string }) {
+    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const { authHeader }: UserContextT = useContext(UserContext)
 
     const [albumData, setAlbumData]: [
         albumData: { albumMeta: AlbumData; media: WeblensMedia[] },
-        setAlbumData: any
-    ] = useState(null);
-    const mType = useMediaType();
-    const [notFound, setNotFound] = useState(false);
-    const nav = useNavigate();
+        setAlbumData: any,
+    ] = useState(null)
+    const mType = useMediaType()
+    const [notFound, setNotFound] = useState(false)
+    const nav = useNavigate()
 
     const fetchAlbum = useCallback(() => {
         if (!mType) {
-            return;
+            return
         }
-        dispatch({ type: "add_loading", loading: "album_media" });
-        GetAlbumMedia(albumId, includeRaw, authHeader)
+        galleryDispatch({ type: 'add_loading', loading: 'album_media' })
+        GetAlbumMedia(albumId, galleryState.includeRaw, authHeader)
             .then((m) => {
-                // let ms: WeblensMedia[] = [];
-                // for (const me of m.media) {
-                //     me.mediaType = mType.get(me.mimeType);
-                //     ms.push(me);
-                // }
-                dispatch({ type: "set_media", medias: m.media });
-                setAlbumData(m);
+                galleryDispatch({ type: 'set_media', medias: m.media })
+                setAlbumData(m)
             })
             .catch((r) => {
                 if (r === 404) {
-                    setNotFound(true);
-                    return;
+                    setNotFound(true)
+                    return
                 }
                 notifications.show({
-                    title: "Failed to load album",
+                    title: 'Failed to load album',
                     message: String(r),
-                    color: "red",
-                });
+                    color: 'red',
+                })
             })
             .finally(() =>
-                dispatch({ type: "remove_loading", loading: "album_media" })
-            );
-    }, [albumId, includeRaw, mType]);
+                galleryDispatch({
+                    type: 'remove_loading',
+                    loading: 'album_media',
+                })
+            )
+    }, [albumId, galleryState.includeRaw, mType])
 
     useEffect(() => {
-        fetchAlbum();
-    }, [fetchAlbum]);
+        fetchAlbum()
+    }, [fetchAlbum])
 
     const media = useMemo(() => {
         if (!albumData) {
-            return [];
+            return []
         }
 
         const media = albumData.media
             .filter((v) => {
-                if (searchContent === "") {
-                    return true;
+                if (galleryState.searchContent === '') {
+                    return true
                 }
-                return v.MatchRecogTag(searchContent);
+                return v.MatchRecogTag(galleryState.searchContent)
             })
-            .reverse();
-        media.unshift();
+            .reverse()
+        media.unshift()
 
-        return media;
-    }, [albumData?.media, searchContent]);
+        return media
+    }, [albumData?.media, galleryState.searchContent])
 
     if (notFound) {
         return (
@@ -233,332 +157,222 @@ function AlbumContent({
                 link="/albums"
                 setNotFound={setNotFound}
             />
-        );
+        )
     }
 
     if (!albumData) {
-        return null;
+        return null
     }
 
     if (media.length === 0) {
         return (
-            <ColumnBox>
+            <div className="flex flex-col w-full items-center">
                 <Text
-                    size={"75px"}
+                    size={'75px'}
                     fw={900}
                     variant="gradient"
                     style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        userSelect: "none",
+                        display: 'flex',
+                        justifyContent: 'center',
+                        userSelect: 'none',
                         lineHeight: 1.1,
                     }}
                 >
                     {albumData.albumMeta.Name}
                 </Text>
-                <ColumnBox
-                    style={{ paddingTop: "150px", width: "max-content" }}
-                >
-                    <Text fw={800} size="30px">
-                        This album has no media
-                    </Text>
-                    <Space h={5} />
-                    <Text size="23px">You can add some in the FileBrowser</Text>
-                    <Space h={20} />
-                    <Button
-                        fullWidth
-                        color="#4444ff"
-                        onClick={() => nav("/files/home")}
-                    >
-                        FileBrowser
-                    </Button>
-                </ColumnBox>
-            </ColumnBox>
-        );
+                <div className="flex flex-col pt-40 w-max items-center">
+                    {albumData.albumMeta.Medias.length !== 0 && (
+                        <div className="flex flex-col items-center">
+                            <p className="font-extrabold text-3xl">
+                                No media in current filters
+                            </p>
+                            <Space h={5} />
+                            <p className="font-medium text-xl">
+                                Adjust the filters
+                            </p>
+                            <Space h={5} />
+                            <Divider label="or" mx={30} />
+                        </div>
+                    )}
+                    {albumData.albumMeta.Medias.length === 0 && (
+                        <p className="font-extrabold text-3xl">
+                            This album has no media
+                        </p>
+                    )}
+                    <Space h={10} />
+                    <WeblensButton
+                        height={40}
+                        centerContent
+                        label="FileBrowser"
+                        Left={<IconFolder />}
+                        // postScript="Upload new media"
+                        width={400}
+                        onClick={() => nav('/files/home')}
+                    />
+                </div>
+            </div>
+        )
     }
 
     return (
-        <ColumnBox>
+        <div className="w-full">
             <Space h={10} />
+            <AlbumsControls albumId={albumId} />
             <PhotoGallery
                 medias={media}
-                selecting={false}
-                imageBaseScale={imageSize}
                 album={albumData.albumMeta}
-                dispatch={dispatch}
                 fetchAlbum={fetchAlbum}
             />
-        </ColumnBox>
-    );
+        </div>
+    )
 }
 
-function AlbumCoverMenu({
-    albumData,
-    open,
-    setMenuOpen,
-    fetchAlbums,
-    menuPos,
-    dispatch,
-}: {
-    albumData: AlbumData;
-    open;
-    setMenuOpen: (o: boolean) => void;
-    fetchAlbums;
-    menuPos;
-    dispatch;
-}) {
-    const { usr, authHeader }: UserContextT = useContext(UserContext);
-    const [shareOpen, setShareOpen] = useState(false);
+const AlbumsControls = ({ albumId }) => {
+    const [newAlbumModal, setNewAlbumModal] = useState(false)
+    const [newAlbumName, setNewAlbumName] = useState('')
+    const {
+        galleryState: mediaState,
+        galleryDispatch: mediaDispatch,
+    }: GalleryContextT = useContext(GalleryContext)
+    const { authHeader }: UserContextT = useContext(UserContext)
 
-    if (!albumData) {
-        return;
-    }
+    const click = useCallback(
+        () =>
+            mediaDispatch({
+                type: 'set_raw_toggle',
+                raw: !mediaState.includeRaw,
+            }),
+        [mediaDispatch, mediaState.includeRaw]
+    )
+
+    // useEffect(() => {}, [mediaDispatch, mediaState.includeRaw, click]);
+
+    const setSize = useCallback(
+        (s) => mediaDispatch({ type: 'set_image_size', size: s }),
+        [mediaDispatch]
+    )
 
     return (
-        <Box>
-            <Menu
-                opened={open}
-                position="right-start"
-                onChange={setMenuOpen}
-                transitionProps={{ transition: "pop" }}
-            >
-                <Menu.Target>
-                    <Box
-                        style={{
-                            position: "absolute",
-                            top: menuPos.y - 60,
-                            left: menuPos.x,
-                        }}
+        <div className="flex flex-row w-full h-max items-center">
+            {albumId !== '' && (
+                <div className="mr-10 ml-3">
+                    <WeblensButton
+                        height={40}
+                        width={40}
+                        centerContent
+                        Left={<IconArrowLeft width={24} height={24} />}
                     />
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Label>Album Actions</Menu.Label>
-
-                    <Menu.Item
-                        leftSection={<IconUsersGroup />}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            dispatch({ type: "set_block_focus", block: true });
-                            setShareOpen(true);
-                        }}
-                    >
-                        Share
-                    </Menu.Item>
-
-                    <ColumnBox
-                        style={{ height: "max-content", padding: "3px" }}
-                    >
-                        <Divider w={"90%"} />
-                    </ColumnBox>
-
-                    {albumData.Owner === usr.username && (
-                        <Menu.Item
-                            c={"red"}
-                            leftSection={<IconTrash />}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                DeleteAlbum(albumData.Id, authHeader).then(() =>
-                                    fetchAlbums()
-                                );
-                            }}
-                        >
-                            Delete
-                        </Menu.Item>
-                    )}
-                    {albumData.Owner !== usr.username && (
-                        <Menu.Item
-                            c={"red"}
-                            leftSection={<IconTrash />}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                DeleteAlbum(albumData.Id, authHeader).then(() =>
-                                    fetchAlbums()
-                                );
-                            }}
-                        >
-                            Leave
-                        </Menu.Item>
-                    )}
-                </Menu.Dropdown>
-            </Menu>
-
-            <ShareBox
-                open={shareOpen}
-                setOpen={(o) => {
-                    setShareOpen(o);
-                    dispatch({ type: "set_block_focus", block: o });
-                }}
-                sharedWith={albumData.SharedWith}
-                pos={menuPos}
-                albumId={albumData.Id}
-                fetchAlbums={fetchAlbums}
+                </div>
+            )}
+            <WeblensSlider
+                value={mediaState.imageSize}
+                width={200}
+                height={35}
+                min={150}
+                max={500}
+                callback={setSize}
             />
-        </Box>
-    );
+
+            <Space w={20} />
+            <WeblensButton
+                label="RAWs"
+                allowRepeat
+                toggleOn={mediaState.includeRaw}
+                centerContent
+                height={35}
+                width={80}
+                onClick={click}
+            />
+        </div>
+    )
 }
 
-function AlbumsHomeView({
-    albumsMap,
-    menuOpen,
-    menuTarget,
-    menuPos,
-    searchContent,
-    dispatch,
-}: {
-    albumsMap: Map<string, AlbumData>;
-    menuOpen;
-    menuTarget;
-    menuPos;
-    searchContent: string;
-    dispatch: (action: GalleryAction) => void;
-}) {
-    const { authHeader, usr }: UserContextT = useContext(UserContext);
-    const [boxRef, setBoxRef] = useState(null);
-    const nav = useNavigate();
+function AlbumsHomeView({}) {
+    const { authHeader }: UserContextT = useContext(UserContext)
+    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const [newAlbumName, setNewAlbumName] = useState(null)
 
     const fetchAlbums = useCallback(() => {
-        dispatch({ type: "add_loading", loading: "albums" });
+        galleryDispatch({ type: 'add_loading', loading: 'albums' })
         GetAlbums(authHeader).then((val) => {
-            dispatch({ type: "set_albums", albums: val });
-            dispatch({ type: "remove_loading", loading: "albums" });
-        });
-    }, [authHeader, dispatch]);
+            galleryDispatch({ type: 'set_albums', albums: val })
+            galleryDispatch({ type: 'remove_loading', loading: 'albums' })
+        })
+    }, [authHeader, galleryDispatch])
 
     useEffect(() => {
-        if (albumsMap.size === 0) {
-            fetchAlbums();
-        }
-    }, [fetchAlbums, albumsMap.size]);
+        fetchAlbums()
+    }, [])
 
-    const albums = Array.from(albumsMap.values()).map((a) => {
+    const albums = Array.from(galleryState.albumsMap.values()).map((a) => {
         if (!a.CoverMedia) {
-            a.CoverMedia = new WeblensMedia({ mediaId: a.Cover });
+            a.CoverMedia = new WeblensMedia({ mediaId: a.Cover })
         }
 
-        return a;
-    });
-
-    // const albums = useMemo(() => {
-    //     const albums = Array.from(albumsMap.values())
-    //         .filter((val) =>
-    //             val.Name.toLowerCase().includes(searchContent.toLowerCase())
-    //         )
-    //         .map((v) => {
-    //             if (!v.Cover || !v.CoverMedia) {
-    //                 v.CoverMedia = new WeblensMedia({ mediaId: v.Cover });
-    //             }
-    //             const item: ItemProps = {
-    //                 itemId: v.Id,
-    //                 itemTitle: v.Name,
-    //                 itemSize: v.Medias.length,
-    //                 selected: 0,
-    //                 mediaData: v.CoverMedia,
-    //                 droppable: false,
-    //                 isDir: false,
-    //                 imported: true,
-    //                 displayable: true,
-    //             };
-    //             if (v.Owner !== usr.username) {
-    //                 item.extraIcons = [IconUsersGroup];
-    //             }
-    //             return item;
-    //         });
-    //     return albums;
-    // }, [JSON.stringify(Array.from(albumsMap.values())), searchContent]);
-
-    // const albumsContext = useMemo(() => {
-    //     const ctx: GlobalContextType = {
-    //         // visitItem: (itemId: string) => nav(itemId),
-    //         setDragging: () => {},
-    //         blockFocus: (b: boolean) =>
-    //             dispatch({ type: "set_block_focus", block: b }),
-    //         setSelected: () => {},
-    //         setMenuOpen: (o: boolean) =>
-    //             dispatch({ type: "set_menu_open", open: o }),
-    //         setMenuPos: (pos) => {
-    //             dispatch({ type: "set_menu_pos", pos: pos });
-    //         },
-    //         setMenuTarget: (target: string) => {
-    //             dispatch({ type: "set_menu_target", targetId: target });
-    //         },
-    //         rename: (itemId: string, newName: string) => {
-    //             RenameAlbum(itemId, newName, authHeader).then((v) =>
-    //                 fetchAlbums()
-    //             );
-    //         },
-    //         setHovering: (i) => {},
-    //         doMediaFetch: true,
-    //     };
-    //     return ctx;
-    // }, [albumsMap.size, nav, dispatch]);
+        return a
+    })
 
     if (albums.length === 0) {
         return (
-            <ColumnBox>
-                <Space h={200} />
-                <Text> You have no albums </Text>
-            </ColumnBox>
-        );
+            <div className="flex justify-center items-center w-full h-80">
+                <div className="flex flex-col items-center w-52 gap-1">
+                    <p className="w-max text-xl"> You have no albums </p>
+                    <div className="h-[50px]">
+                        {newAlbumName === null && (
+                            <WeblensButton
+                                height={40}
+                                label="New Album"
+                                centerContent
+                                Left={<IconLibraryPlus />}
+                                onClick={(e) => {
+                                    setNewAlbumName('')
+                                }}
+                            />
+                        )}
+                        {newAlbumName !== null && (
+                            <div className="flex flex-row items-center justify-center bg-dark-paper rounded p-2">
+                                <WeblensInput
+                                    value={newAlbumName}
+                                    onComplete={(val) =>
+                                        CreateAlbum(val, authHeader)
+                                    }
+                                    closeInput={() => setNewAlbumName(null)}
+                                />
+                                {/*<input*/}
+                                {/*    autoFocus*/}
+                                {/*    value={newAlbumName}*/}
+                                {/*    onChange={(event) =>*/}
+                                {/*        setNewAlbumName(event.target.value)*/}
+                                {/*    }*/}
+                                {/*    onBlur={(event) => setNewAlbumName(null)}*/}
+                                {/*    className="weblens-input h-[40px]"*/}
+                                {/*/>*/}
+                                <WeblensButton
+                                    height={40}
+                                    Left={<IconPlus />}
+                                    centerContent
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )
     } else {
         return (
-            <Box
-                ref={setBoxRef}
-                style={{ width: "100%", height: "100%", padding: 10 }}
-            >
-                <AlbumCoverMenu
-                    albumData={albumsMap.get(menuTarget)}
-                    open={menuOpen}
-                    setMenuOpen={(o) =>
-                        dispatch({ type: "set_menu_open", open: o })
-                    }
-                    fetchAlbums={fetchAlbums}
-                    menuPos={menuPos}
-                    dispatch={dispatch}
-                />
-                <Box>
-                    {albums.map((a) => {
-                        return <AlbumPreview album={a} />;
-                    })}
-                </Box>
-                {/* <ItemScroller
-                    itemsContext={albums}
-                    parentNode={boxRef}
-                    globalContext={albumsContext}
-                /> */}
-            </Box>
-        );
+            <div style={{ width: '100%', height: '100%', padding: 10 }}>
+                <AlbumsControls albumId={''} />
+                {/* <AlbumCoverMenu fetchAlbums={fetchAlbums} /> */}
+                <AlbumScroller albums={albums} />
+            </div>
+        )
     }
 }
 
-export function Albums({
-    mediaState,
-    selectedAlbum,
-    dispatch,
-}: {
-    mediaState: MediaStateT;
-    selectedAlbum: string;
-    dispatch;
-}) {
-    if (selectedAlbum === "") {
-        return (
-            <AlbumsHomeView
-                albumsMap={mediaState.albumsMap}
-                menuOpen={mediaState.menuOpen}
-                menuTarget={mediaState.menuTargetId}
-                menuPos={mediaState.menuPos}
-                searchContent={mediaState.searchContent}
-                dispatch={dispatch}
-            />
-        );
+export function Albums({ selectedAlbum }: { selectedAlbum: string }) {
+    if (selectedAlbum === '') {
+        return <AlbumsHomeView />
     } else {
-        return (
-            <AlbumContent
-                albumId={selectedAlbum}
-                includeRaw={mediaState.includeRaw}
-                imageSize={mediaState.imageSize}
-                searchContent={mediaState.searchContent}
-                dispatch={dispatch}
-            />
-        );
+        return <AlbumContent albumId={selectedAlbum} />
     }
 }

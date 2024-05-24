@@ -13,7 +13,7 @@ import {
     IconFolder,
     IconReorder,
 } from "@tabler/icons-react";
-import { ColumnBox, FileIcon, RowBox } from "./FileBrowserStyles";
+import { FileIcon, RowBox } from "./FileBrowserStyles";
 import { clamp, friendlyFolderName } from "../../util";
 import { WeblensButton } from "../../components/WeblensButton";
 import { getFileHistory } from "../../api/FileBrowserApi";
@@ -90,6 +90,7 @@ export const FilesPane = memo(
                     >
                         <WeblensButton
                             label="File Info"
+                            height={50}
                             width={"50%"}
                             toggleOn={tab === "info"}
                             onClick={() => setTab("info")}
@@ -97,6 +98,7 @@ export const FilesPane = memo(
                         />
                         <WeblensButton
                             label="History"
+                            height={50}
                             width={"50%"}
                             toggleOn={tab === "history"}
                             onClick={() => setTab("history")}
@@ -169,7 +171,7 @@ function FileInfo({ selectedFiles }) {
                 </Text>
             </RowBox>
             {selectedFiles.length > 0 && (
-                <ColumnBox style={{ height: "max-content" }}>
+                <Box style={{ height: "max-content" }}>
                     <RowBox>
                         {singleItem && itemIsFolder && (
                             <IconFolder size={"48px"} />
@@ -183,7 +185,7 @@ function FileInfo({ selectedFiles }) {
                         </Text>
                     </RowBox>
                     <Divider h={2} w={"90%"} m={10} />
-                </ColumnBox>
+                </Box>
             )}
         </Box>
     );
@@ -248,7 +250,7 @@ const HistoryRow = ({
                 height: "max-content",
                 padding: 10,
                 borderRadius: 8,
-                backgroundColor: viewing ? "#1c1049" : "",
+                backgroundColor: viewing ? "$dark-paper" : "",
                 outline: viewing ? "1px solid #4444ff" : "",
             }}
         >

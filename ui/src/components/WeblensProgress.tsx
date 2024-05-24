@@ -7,6 +7,7 @@ type progressProps = {
     complete?: boolean;
     orientation?: "horizontal" | "vertical";
     loading?: boolean;
+    failure?: boolean;
     style?: CSSProperties;
 };
 
@@ -16,14 +17,16 @@ export const WeblensProgress = memo(
         complete = false,
         orientation = "horizontal",
         loading = false,
+        failure = false,
         style,
     }: progressProps) => {
         return (
             <Box
                 className="weblens-progress"
                 mod={{
-                    "data-loading": Boolean(loading).toString(),
-                    "data-complete": Boolean(complete),
+                    loading: Boolean(loading),
+                    complete: Boolean(complete),
+                    failed: Boolean(failure),
                 }}
                 style={{
                     justifyContent:
@@ -55,6 +58,9 @@ export const WeblensProgress = memo(
             return false;
         }
         if (prev.complete !== next.complete) {
+            return false;
+        }
+        if (prev.failure !== next.failure) {
             return false;
         }
         if (prev.orientation !== next.orientation) {

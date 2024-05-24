@@ -1,238 +1,138 @@
-import {
-    useState,
-    useEffect,
-    useRef,
-    useContext,
-    memo,
-    useCallback,
-} from "react";
-// import { Blurhash } from "react-blurhash";
-import { MediaTypeContext, UserContext } from "../Context";
-import { IconExclamationCircle, IconPhoto } from "@tabler/icons-react";
-import { Box, CSSProperties, Loader } from "@mantine/core";
-import API_ENDPOINT, { PUBLIC_ENDPOINT } from "../api/ApiEndpoint";
-import { AuthHeaderT, UserContextT } from "../types/Types";
-import WeblensMedia from "../classes/Media";
+import { useState, useEffect, useContext, memo, useCallback } from 'react'
+import { UserContext } from '../Context'
+import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react'
+import { CSSProperties, Loader } from '@mantine/core'
+import { UserContextT } from '../types/Types'
+import WeblensMedia, { PhotoQuality } from '../classes/Media'
 
-import "./style.css";
-
-function getImageData(
-    url: string,
-    mediaId: string,
-    authHeader: AuthHeaderT,
-    signal,
-    setLoadErr
-) {
-    const res = fetch(url, { headers: authHeader, signal })
-        .then((res) => {
-            if (res.status !== 200) {
-                return Promise.reject(res.statusText);
-            }
-            return res.arrayBuffer();
-        })
-        .then((buf) => {
-            if (buf.byteLength === 0) {
-                Promise.reject("Empty blob");
-            }
-
-            return { data: buf, hash: mediaId };
-        })
-        .catch((r) => {
-            if (!signal.aborted) {
-                console.error("Failed to get image from server:", r);
-                setLoadErr(true);
-            }
-        });
-
-    return res;
-}
+import './style.scss'
+import * as url from 'node:url'
 
 export const MediaImage = memo(
     ({
         media,
-        setMediaCallback,
         quality,
+        fitLogic = 'cover',
         pageNumber = undefined,
-        lazy = true,
         expectFailure = false,
         preventClick = false,
         doFetch = true,
         imgStyle,
+        imageClass = '',
         containerStyle,
-        doPublic = false,
+        containerClass = '',
+
         disabled = false,
     }: {
-        media: WeblensMedia;
-        setMediaCallback?: (
-            mediaId: string,
-            quality: "thumbnail" | "fullres",
-            data: ArrayBuffer
-        ) => void;
-        quality: "thumbnail" | "fullres";
-        pageNumber?: number;
-        lazy?: boolean;
-        expectFailure?: boolean;
-        preventClick?: boolean;
-        doFetch?: boolean;
-        imgStyle?: CSSProperties;
-        containerStyle?: CSSProperties;
-        doPublic?: boolean;
-        disabled?: boolean;
+        media: WeblensMedia
+        quality: PhotoQuality
+        fitLogic?: 'contain' | 'cover'
+        pageNumber?: number
+        expectFailure?: boolean
+        preventClick?: boolean
+        doFetch?: boolean
+        imgStyle?: CSSProperties
+        imageClass?: string
+        containerStyle?: CSSProperties
+        containerClass?: string
+
+        disabled?: boolean
     }) => {
-        const [loadError, setLoadErr] = useState(false);
-        const { authHeader }: UserContextT = useContext(UserContext);
-        const typeMap = useContext(MediaTypeContext);
-        const [imgData, setImgData] = useState(null);
-        const visibleRef = useRef(null);
-        const hashRef = useRef("");
-        const abortController = new AbortController();
+        const [loadError, setLoadErr] = useState('')
+        const [src, setUrl] = useState({ url: '', id: media.Id() })
+        const { authHeader }: UserContextT = useContext(UserContext)
 
         if (!media) {
-            media = new WeblensMedia({ mediaId: "" });
+            media = new WeblensMedia({ mediaId: '' })
         }
 
-        console.log(media);
-
-        const fetchFullres = useCallback(async () => {
-            const url = new URL(
-                `${
-                    doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT
-                }/media/${media.Id()}/fullres`
-            );
-            if (pageNumber !== undefined) {
-                url.searchParams.append("page", pageNumber.toString());
-            }
-            const ret = await getImageData(
-                url.toString(),
-                media.Id(),
-                authHeader,
-                abortController.signal,
-                setLoadErr
-            );
-            if (!ret) {
-                return;
-            }
-            if (setMediaCallback) {
-                setMediaCallback(media.Id(), "fullres", ret.data);
-            } else if (pageNumber === undefined) {
-                media.SetFullresBytes(ret.data);
-            }
-            setImgData(URL.createObjectURL(new Blob([ret.data])));
-        }, [media.Id(), authHeader]);
-
-        const fetchThumbnail = useCallback(async () => {
-            if (pageNumber !== undefined && pageNumber > 0) {
-                return;
-            }
-            const ret = await getImageData(
-                `${
-                    doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT
-                }/media/${media.Id()}/thumbnail`,
-                media.Id(),
-                authHeader,
-                abortController.signal,
-                setLoadErr
-            );
-            if (!ret) {
-                return;
-            }
-            if (setMediaCallback) {
-                setMediaCallback(media.Id(), "thumbnail", ret.data);
-            } else if (pageNumber === undefined) {
-                media.SetThumbnailBytes(ret.data);
-            }
-            setImgData((prev) =>
-                prev === "" ? URL.createObjectURL(new Blob([ret.data])) : prev
-            );
-            // setLoaded((prev) => (prev === "" ? "thumbnail" : prev));
-        }, [media.Id(), authHeader]);
-
         useEffect(() => {
-            setLoadErr(false);
-            if (!media.Id()) {
-                return;
+            if (doFetch && media.Id() && !media.HasQualityLoaded(quality)) {
+                media.LoadBytes(
+                    quality,
+                    authHeader,
+                    pageNumber,
+                    () => {
+                        setUrl({
+                            url: media.GetImgUrl(quality),
+                            id: media.Id(),
+                        })
+                        setLoadErr(media.HasLoadError())
+                    },
+                    () => {
+                        setUrl({
+                            url: media.GetImgUrl(quality),
+                            id: media.Id(),
+                        })
+                        setLoadErr(media.HasLoadError())
+                    }
+                )
             }
-            hashRef.current = media.Id();
 
-            if (
-                media.HighestQualityLoaded() == "fullres" &&
-                quality === "fullres"
-            ) {
-                setImgData(media.GetImgUrl("fullres"));
-                // setLoaded("fullres");
+            if (!doFetch) {
+                media.CancelLoad()
             } else if (
-                media.HighestQualityLoaded() == "thumbnail" &&
-                (pageNumber === undefined || pageNumber === 0)
+                (media.HasQualityLoaded(quality) && src.url === '') ||
+                src.id !== media.Id()
             ) {
-                setImgData(media.GetImgUrl("thumbnail"));
-                // setLoaded("thumbnail");
-            } else {
-                setImgData("");
+                setUrl({ url: media.GetImgUrl(quality), id: media.Id() })
             }
+        }, [media, quality, doFetch])
 
-            if (
-                media.HighestQualityLoaded() !== "fullres" &&
-                doFetch &&
-                quality === "fullres"
-            ) {
-                fetchFullres();
-            }
-
-            if (!media.HighestQualityLoaded() && doFetch) {
-                fetchThumbnail();
-            }
-
-            return () => abortController.abort();
-        }, [media.Id()]);
+        const containerClick = useCallback(
+            (e) => {
+                preventClick && e.stopPropagation()
+            },
+            [preventClick]
+        )
 
         return (
-            <Box
-                className="photo-container"
-                ref={visibleRef}
-                style={{ ...containerStyle }}
-                onDrag={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }}
-                onClick={(e) => {
-                    preventClick && e.stopPropagation();
-                }}
+            <div
+                className={`photo-container ${containerClass}`}
+                style={containerStyle}
+                onClick={containerClick}
             >
                 {loadError && !expectFailure && (
                     <IconExclamationCircle color="red" />
                 )}
-                {((loadError && expectFailure) || !media.Id()) && <IconPhoto />}
-                {quality === "fullres" &&
-                    media.HighestQualityLoaded() !== "fullres" &&
+                {((loadError && expectFailure) ||
+                    !media.Id() ||
+                    !media.HighestQualityLoaded()) && <IconPhoto />}
+                {media.Id() !== '' &&
+                    quality === 'fullres' &&
+                    media.HighestQualityLoaded() !== 'fullres' &&
                     !loadError && (
                         <Loader
                             color="white"
                             bottom={40}
                             right={40}
                             size={20}
-                            style={{ position: "absolute" }}
+                            style={{ position: 'absolute' }}
                         />
                     )}
 
                 <img
                     alt=""
                     className={
-                        quality === "thumbnail"
-                            ? "media-thumbnail"
-                            : "media-fullres"
+                        (fitLogic === 'cover'
+                            ? 'media-thumbnail'
+                            : 'media-fullres') + ` ${imageClass}`
                     }
                     draggable={false}
-                    src={imgData}
+                    src={src.url}
                     style={{
-                        display: imgData && !loadError ? "" : "none",
-                        filter: disabled ? "grayscale(100%)" : "",
-                        zIndex: "inherit",
-                        position: "relative",
+                        display:
+                            src.url !== '' && !media.HasLoadError()
+                                ? ''
+                                : 'none',
+                        filter: disabled ? 'grayscale(100%)' : '',
+                        zIndex: 'inherit',
+                        position: 'relative',
                         ...imgStyle,
                     }}
                 />
 
-                {quality === "fullres" && media.GetMediaType().IsVideo && (
+                {quality === 'fullres' && media.GetMediaType()?.IsVideo && (
                     <video src="" controls />
                 )}
 
@@ -244,20 +144,25 @@ export const MediaImage = memo(
                         hash={media.blurHash}
                     />
                 )} */}
-            </Box>
-        );
+            </div>
+        )
     },
     (last, next) => {
+        if (last.doFetch !== next.doFetch) {
+            return false
+        }
         if (last.media?.Id() !== next.media?.Id()) {
-            return false;
+            return false
         } else if (last.containerStyle !== next.containerStyle) {
-            return false;
+            return false
         } else if (
             last.media?.HighestQualityLoaded() !==
             next.media?.HighestQualityLoaded()
         ) {
-            return false;
+            return false
+        } else if (last.quality !== next.quality) {
+            return false
         }
-        return true;
+        return true
     }
-);
+)

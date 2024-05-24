@@ -1,153 +1,275 @@
-import { useContext } from "react";
-import { hideMedia } from "../api/ApiFetch";
-import { AuthHeaderT, mediaType } from "../types/Types";
-import { MediaTypeContext } from "../Context";
+import API_ENDPOINT from '../api/ApiEndpoint'
+import { AuthHeaderT, mediaType } from '../types/Types'
 
 export interface MediaDataT {
-    mediaId: string;
-    mimeType?: string;
+    mediaId: string
+    mimeType?: string
 
-    fileIds?: string[];
-    thumbnailCacheId?: string;
-    fullresCacheIds?: string;
-    blurHash?: string;
-    owner?: string;
-    mediaWidth?: number;
-    mediaHeight?: number;
-    createDate?: string;
-    recognitionTags?: string[];
-    pageCount?: number;
-    hidden?: boolean;
+    fileIds?: string[]
+    thumbnailCacheId?: string
+    fullresCacheIds?: string
+    blurHash?: string
+    owner?: string
+    mediaWidth?: number
+    mediaHeight?: number
+    createDate?: string
+    recognitionTags?: string[]
+    pageCount?: number
+    hidden?: boolean
 
-    // Non-api props
-    thumbnail?: ArrayBuffer;
-    fullres?: ArrayBuffer;
+    // Non-api props //
 
-    Previous?: WeblensMedia;
-    Next?: WeblensMedia;
-    selected?: boolean;
-    mediaType?: mediaType;
+    // Object URLs
+    thumbnail?: string
+    fullres?: string
+
+    Previous?: WeblensMedia
+    Next?: WeblensMedia
+    selected?: boolean
+    mediaType?: mediaType
     // Display: boolean
-    ImgRef?: any;
+    ImgRef?: any
+
+    abort?: AbortController
+    index?: number
 }
 
+export type PhotoQuality = 'thumbnail' | 'fullres'
+
 class WeblensMedia {
-    private data: MediaDataT;
+    private data: MediaDataT
+    private loadError: PhotoQuality
 
     constructor(init: MediaDataT) {
-        this.data = init;
+        this.data = init
+        this.data.selected = false
     }
 
     Id(): string {
-        return this.data.mediaId;
+        return this.data.mediaId
     }
 
     IsHidden(): boolean {
-        return this.data.hidden;
+        return this.data.hidden
     }
 
-    HighestQualityLoaded(): "fullres" | "thumbnail" | "" {
+    HighestQualityLoaded(): 'fullres' | 'thumbnail' | '' {
         if (Boolean(this.data.fullres)) {
-            return "fullres";
+            return 'fullres'
         } else if (Boolean(this.data.thumbnail)) {
-            return "thumbnail";
+            return 'thumbnail'
         } else {
-            return "";
+            return ''
+        }
+    }
+
+    HasQualityLoaded(q: 'fullres' | 'thumbnail'): boolean {
+        if (q == 'fullres') {
+            return Boolean(this.data.fullres)
+        } else {
+            return Boolean(this.data.thumbnail)
         }
     }
 
     GetMediaType(): mediaType {
-        const typeMap = useContext(MediaTypeContext);
         if (!this.data.mediaType) {
-            this.data.mediaType = typeMap.get(this.data.mimeType);
+            const typeMap = JSON.parse(localStorage.getItem('mediaTypeMap'))
+            this.data.mediaType = typeMap.typeMap[this.data.mimeType]
         }
-        return this.data.mediaType;
+        return this.data.mediaType
     }
 
     SetThumbnailBytes(buf: ArrayBuffer) {
-        this.data.thumbnail = buf;
+        // this.data.thumbnail = buf;
     }
 
     SetFullresBytes(buf: ArrayBuffer) {
-        this.data.fullres = buf;
+        // this.data.fullres = buf;
     }
 
     GetFileIds(): string[] {
         if (!this.data.fileIds) {
-            return [];
+            return []
         }
 
-        return this.data.fileIds;
+        return this.data.fileIds
     }
 
     SetSelected(s: boolean) {
-        this.data.selected = s;
+        this.data.selected = s
     }
 
     IsSelected(): boolean {
-        return this.data.selected;
+        return this.data.selected
     }
 
     IsDisplayable(): boolean {
-        return this.GetMediaType().IsDisplayable;
+        return this.GetMediaType().IsDisplayable
+    }
+
+    HasLoadError(): PhotoQuality {
+        return this.loadError
     }
 
     SetImgRef(r) {
-        this.data.ImgRef = r;
+        this.data.ImgRef = r
     }
 
     GetImgRef() {
-        return this.data.ImgRef;
+        return this.data.ImgRef
     }
 
     GetHeight(): number {
-        return this.data.mediaHeight;
+        return this.data.mediaHeight
     }
 
     GetWidth(): number {
-        return this.data.mediaWidth;
+        return this.data.mediaWidth
     }
 
     SetNextLink(next: WeblensMedia) {
-        this.data.Next = next;
+        this.data.Next = next
     }
 
     Next(): WeblensMedia {
-        return this.data.Next;
+        return this.data.Next
     }
 
     SetPrevLink(prev: WeblensMedia) {
-        this.data.Previous = prev;
+        this.data.Previous = prev
     }
 
     Prev(): WeblensMedia {
-        return this.data.Previous;
+        return this.data.Previous
     }
 
     MatchRecogTag(searchTag: string): boolean {
         if (!this.data.recognitionTags) {
-            return false;
+            return false
         }
 
-        return this.data.recognitionTags.includes(searchTag);
+        return this.data.recognitionTags.includes(searchTag)
     }
 
     GetPageCount(): number {
-        return this.data.pageCount;
+        return this.data.pageCount
     }
 
-    async Hide(authHeader: AuthHeaderT) {
-        this.data.hidden = true;
-        return await hideMedia(this.data.mediaId, authHeader);
+    GetCreateDate(): string {
+        return this.data.createDate
     }
 
-    GetImgUrl(quality: "thumbnail" | "fullres"): string {
-        if (quality == "thumbnail") {
-            return URL.createObjectURL(new Blob([this.data.thumbnail]));
-        } else if (quality == "fullres") {
-            return URL.createObjectURL(new Blob([this.data.fullres]));
+    GetAbsIndex(): number {
+        return this.data.index
+    }
+
+    SetAbsIndex(index: number) {
+        this.data.index = index
+    }
+
+    GetImgUrl(quality: 'thumbnail' | 'fullres'): string {
+        if (quality == 'thumbnail' || !this.data.fullres) {
+            return this.data.thumbnail
+        } else if (quality == 'fullres') {
+            return this.data.fullres
         }
+    }
+
+    async LoadBytes(
+        maxQuality: PhotoQuality,
+        authHeader: AuthHeaderT,
+        pageNumber?,
+        thumbFinished?: () => void,
+        fullresFinished?: () => void
+    ) {
+        if (!this.data.abort || this.data.abort.signal.aborted) {
+            this.data.abort = new AbortController()
+        }
+
+        let thumb
+        if (!this.data.thumbnail) {
+            thumb = this.getImageData(
+                'thumbnail',
+                authHeader,
+                this.data.abort.signal,
+                pageNumber
+            )
+        }
+        let fullres
+        if (maxQuality === 'fullres') {
+            fullres = this.getImageData(
+                'fullres',
+                authHeader,
+                this.data.abort.signal,
+                pageNumber
+            )
+        }
+        if (thumb) {
+            await thumb.then((updated: boolean) => {
+                if (updated) {
+                    thumbFinished()
+                }
+            })
+        }
+
+        if (fullres) {
+            await fullres.then((updated: boolean) => {
+                if (updated) {
+                    fullresFinished()
+                }
+            })
+        }
+    }
+
+    CancelLoad() {
+        if (this.data.abort) {
+            this.data.abort.abort('Cancelled')
+        }
+    }
+
+    private async getImageData(
+        quality: PhotoQuality,
+        authHeader: AuthHeaderT,
+        signal: AbortSignal,
+        pageNumber?: number
+    ) {
+        if (!this.data.mediaId) {
+            console.error('Trying to get image of media without id')
+            return
+        }
+        const url = new URL(
+            `${
+                // doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT
+                API_ENDPOINT
+            }/media/${this.data.mediaId}/${quality}`
+        )
+
+        if (pageNumber !== undefined) {
+            url.searchParams.append('page', pageNumber.toString())
+        }
+
+        const res = fetch(url, { headers: authHeader, signal })
+            .then((res) => {
+                if (res.status !== 200) {
+                    return Promise.reject(res.statusText)
+                }
+
+                return res.arrayBuffer()
+            })
+            .then((r) => {
+                this.data[quality] = URL.createObjectURL(new Blob([r]))
+                return true
+            })
+            .catch((r) => {
+                if (!signal.aborted) {
+                    console.error('Failed to get image from server:', r)
+                    this.loadError = quality
+                }
+                return false
+            })
+
+        return res
     }
 }
 
-export default WeblensMedia;
+export default WeblensMedia

@@ -214,10 +214,48 @@ export async function deleteRemote(remoteId: string, authHeader: AuthHeaderT) {
     });
 }
 
-export async function hideMedia(mediaId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/media/${mediaId}/hide`);
+export async function hideMedia(mediaIds: string[], authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/media/hide`);
+    return await fetch(url, {
+        body: JSON.stringify({ mediaIds: mediaIds }),
+        method: "PATCH",
+        headers: authHeader,
+    });
+}
+
+export async function getAlbumPreview(
+    albumId: string,
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/album/${albumId}/preview`);
+    return await fetch(url, {
+        method: "GET",
+        headers: authHeader,
+    }).then((r) => {
+        return r.json();
+    });
+}
+
+export async function adjustMediaTime(
+    mediaId: string,
+    newDate: Date,
+    extraMedias: string[],
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/media/date`);
+    console.log(extraMedias);
     return await fetch(url, {
         method: "PATCH",
         headers: authHeader,
+        body: JSON.stringify({
+            anchorId: mediaId,
+            newTime: newDate,
+            mediaIds: extraMedias,
+        }),
+    }).then((r) => {
+        if (r.status !== 200) {
+            return Promise.reject(r.statusText);
+        }
+        return r.statusText;
     });
 }

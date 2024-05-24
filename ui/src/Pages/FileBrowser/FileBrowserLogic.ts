@@ -49,6 +49,13 @@ const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
         };
     } else {
         const file = state.dirMap.get(action.fileId);
+        if (!file) {
+            console.error(
+                "Failed to handle select: file does not exist:  ",
+                action.fileId
+            );
+            return { ...state };
+        }
         // If action.selected is undefined, i.e. not passed to the request,
         // we treat that as a request to toggle the selection
         if (action.selected === undefined) {
@@ -200,6 +207,20 @@ export const fileBrowserReducer = (
 
         case "update_many": {
             for (const newFileInfo of action.files) {
+                if (newFileInfo.id === state.contentId) {
+                    state.folderInfo.SetSize(newFileInfo.size);
+                }
+                if (newFileInfo.id === action.user.homeId) {
+                    state.homeDirSize = newFileInfo.size;
+                }
+                if (newFileInfo.id === action.user.trashId) {
+                    state.trashDirSize = newFileInfo.size;
+                }
+
+                if (newFileInfo.parentFolderId !== state.contentId) {
+                    continue;
+                }
+
                 let file = state.dirMap.get(newFileInfo.id);
                 if (file) {
                     file.Update(newFileInfo);
@@ -289,6 +310,24 @@ export const fileBrowserReducer = (
                 ...state,
                 scanProgress: [...state.scanProgress],
             };
+        }
+
+        case "task_failure": {
+            let index = state.scanProgress.findIndex(
+                (s, i, a) => s.GetTaskId() === action.taskId
+            );
+
+            if (index < 0) {
+                console.warn("Skipping task failure on unknown task");
+                return { ...state };
+            }
+
+            state.scanProgress[index].stage = TaskStage.Failure;
+            if (action.note) {
+                state.scanProgress[index].note = action.note;
+            }
+
+            return { ...state };
         }
 
         case "update_scan_progress": {
@@ -625,7 +664,7 @@ export const fileBrowserReducer = (
         default: {
             console.error("Got unexpected dispatch type: ", action.type);
             notifications.show({
-                title: "Unexpected filebrowser dispatch",
+                title: "Unexpected fileBrowser dispatch",
                 message: action.type,
                 color: "red",
             });

@@ -2,12 +2,12 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -123,6 +123,8 @@ func getMediaBatch(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"Media": media})
 }
 
+var writerStations chan bool = make(chan bool, 3)
+
 func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 	mediaId := types.ContentId(ctx.Param("mediaId"))
 
@@ -142,13 +144,31 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given Id not found"})
 		return
 	}
-	bs, err := m.ReadDisplayable(types.Quality(q), pageNum)
+	bs, err := m.ReadDisplayable(q, pageNum)
+
+	if errors.Is(err, dataStore.ErrNoCache) {
+		util.Warning.Println("Did not find cache for media file")
+		f := dataStore.FsTreeGet(m.GetFiles()[0])
+		if f != nil {
+			dataProcess.GetGlobalQueue().ScanDirectory(f.GetParent(), false, false, nil)
+			ctx.Status(http.StatusNoContent)
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
+			return
+		}
+	}
 	if err != nil {
 		util.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fullres image"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 		return
 	}
-	ctx.Writer.Write(bs)
+
+	_, err = ctx.Writer.Write(bs)
+
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
 }
 
 func getMediaThumbnail(ctx *gin.Context) {
@@ -280,14 +300,20 @@ func handleUploadChunk(ctx *gin.Context) {
 
 	fileId := types.FileId(ctx.Param("fileId"))
 
-	start := time.Now()
+	// We are about to read from the client, which could take a while.
+	// Since we actually got this request, we know the client is not abandoning us,
+	// so we can safely clear the timeout, which the task will re-enable if needed.
+	t.ClearTimeout()
+
 	chunk, err := util.OracleReader(ctx.Request.Body, ctx.Request.ContentLength)
 	if err != nil {
 		util.ShowErr(err)
-		t.AddChunkToStream(fileId, nil, "0-0/-1")
+		err = t.AddChunkToStream(fileId, nil, "0-0/-1")
+		if err != nil {
+			util.ShowErr(err)
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
 	}
-	util.Debug.Println("Read chunk in", time.Since(start))
 
 	err = t.AddChunkToStream(fileId, chunk, ctx.GetHeader("Content-Range"))
 	if err != nil {
@@ -862,18 +888,13 @@ func deleteUser(ctx *gin.Context) {
 }
 
 func clearCache(ctx *gin.Context) {
-	db := dataStore.NewDB()
-	db.FlushRedis()
-	dataProcess.FlushCompleteTasks()
-
-	cacheFiles := dataStore.GetCacheDir().GetChildren()
-	util.Each(cacheFiles, func(wf types.WeblensFile) { util.ErrTrace(dataStore.PermanentlyDeleteFile(wf)) })
+	dataStore.ClearCache()
 }
 
 func searchUsers(ctx *gin.Context) {
 	filter := ctx.Query("filter")
 	if len(filter) < 2 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User autcomplete must contain at least 2 characters"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User autocomplete must contain at least 2 characters"})
 		return
 	}
 

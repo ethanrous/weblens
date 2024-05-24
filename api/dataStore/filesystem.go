@@ -2,6 +2,7 @@ package dataStore
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"math"
@@ -460,7 +461,7 @@ func Touch(parentFolder types.WeblensFile, newFileName string, detach bool, c ..
 	return f, nil
 }
 
-// When a detached file is ready to be inserted to the tree, we attach it
+// AttachFile takes a detached file when it is ready to be inserted to the tree, and attaches it
 func AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 	if FsTreeGet(f.Id()) != nil {
 		return ErrFileAlreadyExists
@@ -471,7 +472,17 @@ func AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 		return err
 	}
 
-	err = os.Rename("/tmp/"+f.Filename(), f.GetAbsPath())
+	tmpFile, err := os.Open("/tmp/" + f.Filename())
+	if err != nil {
+		return err
+	}
+
+	destFile, err := os.Create(f.GetAbsPath())
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(destFile, tmpFile)
 	if err != nil {
 		return err
 	}
@@ -630,9 +641,13 @@ func GetFreeSpace(path string) uint64 {
 	return spaceBytes
 }
 
-func generateContentId(f types.WeblensFile) (types.ContentId, error) {
+func GenerateContentId(f types.WeblensFile) (types.ContentId, error) {
 	if f.IsDir() {
 		return "", nil
+	}
+
+	if f.GetContentId() != "" {
+		return f.GetContentId(), nil
 	}
 
 	fileSize, err := f.Size()
@@ -654,7 +669,7 @@ func generateContentId(f types.WeblensFile) (types.ContentId, error) {
 		return "", err
 	}
 
-	contentId := types.ContentId(newHash.Sum(nil))
+	contentId := types.ContentId(base64.URLEncoding.EncodeToString(newHash.Sum(nil)))[:20]
 	f.(*weblensFile).contentId = contentId
 
 	return contentId, nil

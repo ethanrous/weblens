@@ -2,6 +2,7 @@ package dataProcess
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -23,8 +24,8 @@ func InitGExif(bufSize int64) *exiftool.Exiftool {
 		gexift = nil
 		gexiftBufferSize = 0
 	}
-	gbuf := make([]byte, int(bufSize))
-	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"), exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(gbuf, int(bufSize)))
+	buf := make([]byte, int(bufSize))
+	et, err := exiftool.NewExiftool(exiftool.Api("largefilesupport"), exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(buf, int(bufSize)))
 	if err != nil {
 		util.ErrTrace(err)
 		return nil
@@ -51,8 +52,6 @@ func processMediaFile(t *task) {
 		return
 	}
 
-	defer m.Clean()
-
 	m, err := m.LoadFromFile(file, meta.fileBytes, t)
 	if err != nil {
 		t.ErrorAndExit(err)
@@ -66,15 +65,20 @@ func processMediaFile(t *task) {
 		t.ErrorAndExit(err)
 		return
 	}
-	m.SetImported(true)
 
 	t.CheckExit()
 
-	t.caster.PushFileUpdate(file)
-	t.taskPool.NotifyTaskComplete(t, t.caster)
-	// if t.caster.IsBuffered() {
-	// 	t.caster.(types.BufferedBroadcasterAgent).Flush()
-	// }
+	m.Clean()
+	if !m.IsCached() {
+		t.ErrorAndExit(fmt.Errorf("media scan exiting due to missing cache"))
+	}
+	m.SetImported(true)
+
+	if t.caster != nil {
+		t.caster.PushFileUpdate(file)
+		t.taskPool.NotifyTaskComplete(t, t.caster)
+	}
+
 	t.success()
 }
 
@@ -84,7 +88,7 @@ func scanDirectory(t *task) {
 
 	if scanDir.Filename() == ".user_trash" {
 		t.taskPool.NotifyTaskComplete(t, t.caster, "No media to scan")
-		globalCaster.PushTaskUpdate(t.taskId, TaskComplete, types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
+		globalCaster.PushTaskUpdate(t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
 		t.success("No media to scan")
 		return
 	}
@@ -106,7 +110,10 @@ func scanDirectory(t *task) {
 	tp := NewTaskPool(true, t)
 	util.Info.Printf("Beginning directory scan for %s\n", scanDir.GetAbsPath())
 
-	scanDir.LeafMap(func(wf types.WeblensFile) error {
+	t.caster.FolderSubToTask(scanDir.Id(), t.TaskId())
+	t.caster.FolderSubToTask(scanDir.GetParent().Id(), t.TaskId())
+
+	err := scanDir.LeafMap(func(wf types.WeblensFile) error {
 		if wf.IsDir() {
 			return nil
 			// TODO: Lock directory files while scanning to be able to check what task is using each file
@@ -123,17 +130,29 @@ func scanDirectory(t *task) {
 		}
 
 		m := dataStore.MediaMapGet(wf.GetContentId())
-		if m != nil && m.IsImported() {
+		if m != nil && m.IsImported() && m.IsCached() {
 			return nil
 		}
 
-		tp.ScanFile(wf, nil, t.caster)
+		tp.ScanFile(wf, t.caster)
 		return nil
 	})
 
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
 	tp.SignalAllQueued()
 	tp.Wait(true)
-	globalCaster.PushTaskUpdate(t.taskId, TaskComplete, types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
+
+	errs := tp.Errors()
+	if len(errs) != 0 {
+		globalCaster.PushTaskUpdate(t.taskId, TaskFailed, types.TaskResult{"failure_note": fmt.Sprintf("%d scans failed", len(errs))}) // Let any client subscribers know we are done
+		t.ErrorAndExit(ErrChildTaskFailed)
+	}
+
+	globalCaster.PushTaskUpdate(t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
+	tp.NotifyTaskComplete(t, t.caster)
 	t.success()
 }
 

@@ -69,7 +69,7 @@ func verifyIndexes(mdb *mongo.Database) {
 	}
 
 	i = mongo.IndexModel{
-		Keys:    bson.M{"mediaId": 1},
+		Keys:    bson.M{"contentId": 1},
 		Options: &options.IndexOptions{
 			// Unique: boolPointer(true),
 		},
@@ -87,21 +87,23 @@ func (db WeblensDB) getAllMedia() (ms []*media, err error) {
 	if err != nil {
 		return
 	}
-	var marshMs []marshalableMedia
-	err = findRet.All(mongo_ctx, &marshMs)
+
+	ms = []*media{}
+	err = findRet.All(mongo_ctx, &ms)
 	if err != nil {
 		return
 	}
 
-	ms = util.Map(marshMs, func(mm marshalableMedia) *media { m := marshalableToMedia(mm); m.SetImported(true); return m })
+	util.Each(ms, func(m *media) { m.SetImported(true) })
 
 	return
 }
 
-func (db WeblensDB) setMediaHidden(m types.Media, hidden bool) error {
-	filter := bson.M{"mediaId": m.Id()}
+func (db WeblensDB) setMediaHidden(ms []types.Media, hidden bool) error {
+	filter := bson.M{"contentId": bson.M{"$in": util.Map(ms, func(m types.Media) types.ContentId { return m.Id() })}}
 	update := bson.M{"$set": bson.M{"hidden": hidden}}
-	_, err := db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
+	req, err := db.mongo.Collection("media").UpdateMany(mongo_ctx, filter, update)
+	util.Debug.Println(req)
 	return err
 }
 
@@ -200,14 +202,22 @@ func (db WeblensDB) UpdateMedia(m types.Media) error {
 		return err
 	}
 
-	filter := bson.M{"mediaId": m.Id()}
+	filter := bson.M{"contentId": m.Id()}
 	update := bson.M{"$set": m}
 	_, err := db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
 	return err
 }
 
+func (db WeblensDB) adjustMediaDate(m types.Media, newDate time.Time) error {
+	filter := bson.M{"contentId": m.Id()}
+	update := bson.M{"$set": bson.M{"createDate": newDate}}
+	_, err := db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
+
+	return err
+}
+
 func (db WeblensDB) deleteMedia(mId types.ContentId) error {
-	filter := bson.M{"mediaId": mId}
+	filter := bson.M{"contentId": mId}
 	_, err := db.mongo.Collection("media").DeleteOne(mongo_ctx, filter)
 	if err != nil {
 		return err
@@ -231,7 +241,7 @@ func (db WeblensDB) deleteMedia(mId types.ContentId) error {
 }
 
 func (db WeblensDB) addFileToMedia(m types.Media, f types.WeblensFile) (err error) {
-	filter := bson.M{"mediaId": m.Id()}
+	filter := bson.M{"contentId": m.Id()}
 	update := bson.M{"$addToSet": bson.M{"fileIds": f.Id()}}
 
 	_, err = db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
@@ -239,7 +249,7 @@ func (db WeblensDB) addFileToMedia(m types.Media, f types.WeblensFile) (err erro
 }
 
 func (db WeblensDB) removeFileFromMedia(mId types.ContentId, fId types.FileId) (err error) {
-	filter := bson.M{"mediaId": mId}
+	filter := bson.M{"contentId": mId}
 	update := bson.M{"$pull": bson.M{"fileIds": fId}}
 
 	_, err = db.mongo.Collection("media").UpdateOne(mongo_ctx, filter, update)
@@ -485,6 +495,13 @@ func (db WeblensDB) removeMediaFromAlbum(albumId types.AlbumId, mediaIds []types
 	}
 
 	return nil
+}
+
+func (db WeblensDB) removeMediaFromAnyAlbum(mediaId types.ContentId) error {
+	filter := bson.M{"medias": mediaId}
+	update := bson.M{"$pull": bson.M{"medias": mediaId}}
+	_, err := db.mongo.Collection("albums").UpdateMany(mongo_ctx, filter, update)
+	return err
 }
 
 func (db WeblensDB) setAlbumName(albumId types.AlbumId, newName string) (err error) {
@@ -765,13 +782,13 @@ func (db WeblensDB) getSnapshots() (jes []types.JournalEntry, err error) {
 		return
 	}
 
-	var bjes []*backupJournalEntry
-	err = res.All(mongo_ctx, &bjes)
+	var backups []*backupJournalEntry
+	err = res.All(mongo_ctx, &backups)
 	if err != nil {
 		return
 	}
 
-	jes = util.SliceConvert[types.JournalEntry](bjes)
+	jes = util.SliceConvert[types.JournalEntry](backups)
 
 	return
 }

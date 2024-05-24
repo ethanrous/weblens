@@ -1,12 +1,14 @@
-import { Ref, memo, useCallback, useContext, useState } from "react";
+import { Ref, memo, useCallback, useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import WeblensLoader from "./Loading";
 
 import { UserContext } from "../Context";
 import { Box, Input, Menu, Space, Text, Tooltip } from "@mantine/core";
 import {
+    IconAlbum,
     IconFolder,
     IconInfoCircle,
+    IconLibraryPhoto,
     IconLogin,
     IconLogout,
     IconPhoto,
@@ -14,15 +16,15 @@ import {
     IconUser,
     IconX,
 } from "@tabler/icons-react";
-import { ColumnBox, RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
+import { RowBox } from "../Pages/FileBrowser/FileBrowserStyles";
 import { IconSettings } from "@tabler/icons-react";
 import { WeblensButton } from "./WeblensButton";
-import { useKeyDown } from "./hooks";
+import { useKeyDown, useResize } from "./hooks";
 import { UpdatePassword } from "../api/UserApi";
 import { AuthHeaderT, UserContextT, UserInfoT } from "../types/Types";
 import { IconArrowLeft } from "@tabler/icons-react";
 import Admin from "../Pages/Admin Settings/Admin";
-import "../components/style.css";
+import "../components/style.scss";
 
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>;
@@ -101,6 +103,7 @@ const SettingsMenu = ({
                         onChange={(v) => setNewP(v.target.value)}
                     />
                     <WeblensButton
+                        height={50}
                         label="Update Password"
                         showSuccess
                         disabled={oldP == "" || newP == "" || oldP === newP}
@@ -124,17 +127,19 @@ const SettingsMenu = ({
 };
 
 const HeaderBar = memo(
-    ({ dispatch, page, loading }: HeaderBarProps) => {
+    ({ dispatch, loading }: HeaderBarProps) => {
         const { usr, authHeader, clear, serverInfo }: UserContextT =
             useContext(UserContext);
         const nav = useNavigate();
         const [userMenu, setUserMenu] = useState(false);
         const [settings, setSettings] = useState(false);
         const [admin, setAdmin] = useState(false);
-        const spacing = "8px";
+        const [barRef, setBarRef] = useState(null);
+
+        const barSize = useResize(barRef);
 
         return (
-            <Box style={{ zIndex: 3, height: "max-content", width: "100vw" }}>
+            <Box ref={setBarRef} className="z-50 h-max w-screen">
                 {settings && (
                     <SettingsMenu
                         open={settings}
@@ -147,58 +152,54 @@ const HeaderBar = memo(
                     />
                 )}
                 {admin && (
-                    <Box
+                    <div
                         className="settings-menu-container"
                         onClick={() => setAdmin(false)}
                     >
                         <Admin close={() => setAdmin(false)} />
-                    </Box>
+                    </div>
                 )}
-                <Box
-                    style={{
-                        position: "absolute",
-                        float: "right",
-                        right: "40px",
-                        bottom: "30px",
-                        zIndex: 10,
-                    }}
-                >
+                <div className=" absolute float-right right-10 bottom-8 z-20">
                     <WeblensLoader loading={loading} />
-                </Box>
-                <RowBox
-                    style={{
-                        height: 56,
-                        paddingTop: 8,
-                        paddingBottom: 8,
-                        borderBottom: "2px solid #222222",
-                    }}
-                >
-                    <Box style={{ paddingLeft: "10px" }} />
-                    {page === "gallery" && (
+                </div>
+                <div className="flex flex-row items-center h-14 pt-2 pb-2 border-b-2 border-neutral-700">
+                    <div className="flex flex-row items-center w-96 shrink">
+                        <div className="p-1" />
+                        <WeblensButton
+                            label="Timeline"
+                            height={40}
+                            width={barSize.width > 500 ? 112 : 40}
+                            textMin={70}
+                            centerContent
+                            subtle
+                            Left={<IconLibraryPhoto className="button-icon" />}
+                            onClick={() => nav("/")}
+                        />
+                        <div className="p-1" />
+                        <WeblensButton
+                            label="Albums"
+                            height={40}
+                            width={barSize.width > 500 ? 110 : 40}
+                            textMin={60}
+                            centerContent
+                            subtle
+                            Left={<IconAlbum className="button-icon" />}
+                            onClick={() => nav("/albums")}
+                        />
+                        <div className="p-1" />
                         <WeblensButton
                             label="Files"
+                            height={40}
+                            width={barSize.width > 500 ? 84 : 40}
+                            textMin={50}
                             centerContent
                             subtle
-                            Left={<IconArrowLeft className="button-icon" />}
-                            Right={<IconFolder className="button-icon" />}
-                            onClick={() => nav("/files/")}
-                            width={"max-content"}
-                            height={"40px"}
+                            Left={<IconFolder className="button-icon" />}
+                            onClick={() => nav("/files/home")}
                         />
-                    )}
-                    {page === "files" && usr.isLoggedIn !== false && (
-                        <WeblensButton
-                            label="Gallery"
-                            centerContent
-                            subtle
-                            Left={<IconArrowLeft className="button-icon" />}
-                            Right={<IconPhoto className="button-icon" />}
-                            onClick={() => nav("/")}
-                            width={"max-content"}
-                            height={"40px"}
-                        />
-                    )}
-                    <Space style={{ flexGrow: 2 }} />
+                    </div>
+                    <div className="flex grow" />
+
                     {serverInfo && (
                         <Box
                             style={{
@@ -211,14 +212,18 @@ const HeaderBar = memo(
                                 color: "#575757",
                             }}
                         >
-                            <Text size="12px">{serverInfo.name}</Text>
-                            <Text size="12px">({serverInfo.role})</Text>
+                            <p className="text-xs select-none">
+                                {serverInfo.name}
+                            </p>
+                            <p className="text-xs select-none">
+                                ({serverInfo.role})
+                            </p>
                         </Box>
                     )}
                     <Tooltip
                         color="#222222"
                         label={
-                            <ColumnBox>
+                            <Box>
                                 <Text
                                     size="20px"
                                     fw={600}
@@ -230,7 +235,7 @@ const HeaderBar = memo(
                                 <Text size="12px">
                                     Click to report an issue
                                 </Text>
-                            </ColumnBox>
+                            </Box>
                         }
                     >
                         <IconInfoCircle
@@ -263,7 +268,7 @@ const HeaderBar = memo(
                                     });
                                     setAdmin(true);
                                 }}
-                                style={{ margin: spacing, cursor: "pointer" }}
+                                className="cursor-pointer shrink-0"
                             />
                         </Tooltip>
                     )}
@@ -273,7 +278,7 @@ const HeaderBar = memo(
                                 <IconUser
                                     size={32}
                                     onClick={() => setUserMenu(true)}
-                                    style={{ cursor: "pointer" }}
+                                    className="cursor-pointer shrink-0"
                                 />
                             </Tooltip>
                         </Menu.Target>
@@ -301,7 +306,7 @@ const HeaderBar = memo(
                                 <IconSettings
                                     color="white"
                                     size={20}
-                                    style={{ flexShrink: 0 }}
+                                    className="cursor-pointer shrink-0"
                                 />
                                 <Text className="menu-item-text">Settings</Text>
                             </Box>
@@ -348,7 +353,7 @@ const HeaderBar = memo(
                     </Menu>
 
                     <Box style={{ paddingRight: "10px" }} />
-                </RowBox>
+                </div>
             </Box>
         );
     },

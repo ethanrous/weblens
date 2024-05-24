@@ -1,10 +1,11 @@
 import { Box } from "@mantine/core";
 import { getRandomInt } from "../util";
 import { useEffect, useMemo, useState } from "react";
-import { WeblensMedia } from "../classes/Media";
 import { getRandomThumbs, newApiKey } from "../api/ApiFetch";
 import { useResize } from "./hooks";
 import { MediaImage } from "./PhotoContainer";
+
+import WeblensMedia from "../classes/Media";
 
 const ScatteredPhoto = ({
     media,
@@ -31,17 +32,7 @@ const ScatteredPhoto = ({
                 media={mData}
                 quality="thumbnail"
                 imgStyle={{ filter: `blur(${attribute.blur}px)` }}
-                doPublic
-                setMediaCallback={(id, quality, data) => {
-                    setMData((p) => {
-                        if (quality == "thumbnail") {
-                            p.thumbnail = data;
-                        } else {
-                            p.fullres = data;
-                        }
-                        return { ...p };
-                    });
-                }}
+                
             />
         </Box>
     );
@@ -110,10 +101,11 @@ export const ScatteredPhotos = () => {
                 edgeRight: 0,
                 edgeBottom: 0,
             };
+
             const longOrig =
-                m.mediaWidth > m.mediaHeight ? m.mediaWidth : m.mediaHeight;
+                m.GetWidth() > m.GetHeight() ? m.GetWidth() : m.GetHeight();
             const shortOrig =
-                m.mediaWidth > m.mediaHeight ? m.mediaHeight : m.mediaWidth;
+                m.GetWidth() > m.GetHeight() ? m.GetHeight() : m.GetWidth();
             let longRatio;
             let maxSize = 500;
             while (maxSize > 150) {
@@ -121,27 +113,27 @@ export const ScatteredPhotos = () => {
                 const shortRatio = (longRatio / longOrig) * shortOrig;
 
                 newAttr.width =
-                    m.mediaWidth > m.mediaHeight ? longRatio : shortRatio;
+                    m.GetWidth() > m.GetHeight() ? longRatio : shortRatio;
                 const height =
-                    m.mediaWidth < m.mediaHeight ? longRatio : shortRatio;
+                    m.GetWidth() < m.GetHeight() ? longRatio : shortRatio;
 
                 newAttr.left = getRandomInt(0, pageSize.width - newAttr.width);
                 newAttr.top = getRandomInt(0, pageSize.height - height);
                 newAttr.edgeRight = newAttr.left + newAttr.width;
                 newAttr.edgeBottom = newAttr.top + height;
 
-                let colision: attribute;
+                let collision: attribute;
                 for (const past of attributes) {
                     if (doesCollide(past, newAttr)) {
-                        colision = past;
+                        collision = past;
                         break;
                     }
                 }
-                if (!colision) {
+                if (!collision) {
                     break;
                 }
 
-                if (colision.width === 500) {
+                if (collision.width === 500) {
                     continue;
                 }
                 maxSize--;
@@ -166,7 +158,7 @@ export const ScatteredPhotos = () => {
             {medias.map((m, i) => {
                 return (
                     <ScatteredPhoto
-                        key={m.mediaId}
+                        key={m.Id()}
                         media={m}
                         attribute={attributes[i + 1]}
                     />

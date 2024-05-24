@@ -1,15 +1,4 @@
 
-.item-child {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    overflow: hidden;
-    border-radius: 8px;
-    justify-content: center;
-
-    transition: background-color 100ms ease-in-out;
-}
-
 .item-info-box {
     width: 100%;
     justify-content: center;

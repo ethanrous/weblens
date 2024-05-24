@@ -100,10 +100,13 @@ export type GalleryBucketProps = {
 
 export type MediaWrapperProps = {
     mediaData: WeblensMedia;
-    selected: boolean;
-    selecting: boolean;
     scale: number;
-    dispatch: GalleryDispatchT;
+    width: number;
+    showMedia: boolean;
+    viewSize: SizeT;
+    rowIndex?: number;
+    colIndex?: number;
+    hoverIndex?: { row: number; col: number };
     albumId?: string;
     fetchAlbum?: () => void;
     menu?: (
@@ -113,25 +116,51 @@ export type MediaWrapperProps = {
     ) => JSX.Element;
 };
 
-export type MediaStateT = {
+export enum PresentType {
+    None = 1,
+    InLine,
+    Fullscreen,
+}
+
+export type TimeOffset = {
+    second: 0;
+    minute: 0;
+    hour: 0;
+    day: 0;
+    month: 0;
+    year: 0;
+};
+
+export const newTimeOffset = (): TimeOffset => {
+    return {
+        second: 0,
+        minute: 0,
+        hour: 0,
+        day: 0,
+        month: 0,
+        year: 0,
+    };
+};
+
+export type GalleryStateT = {
     mediaMap: Map<string, WeblensMedia>;
     selected: Map<string, boolean>;
-    mediaMapUpdated: number;
     albumsMap: Map<string, AlbumData>;
     albumsFilter: string[];
     loading: string[];
     includeRaw: boolean;
     newAlbumDialogue: boolean;
     blockSearchFocus: boolean;
-    menuOpen: boolean;
     selecting: boolean;
     menuTargetId: string;
     imageSize: number;
-    scanProgress: number;
-    showingCount: number;
     searchContent: string;
     presentingMedia: WeblensMedia;
-    menuPos: { x: number; y: number };
+    presentingMode: PresentType;
+    timeAdjustOffset: TimeOffset;
+    hoverIndex: number;
+    lastSelIndex: number;
+    holdingShift: boolean;
 };
 
 // File Browser Types
@@ -242,28 +271,10 @@ export type FbStateT = {
     viewingPast: Date;
 };
 
-// export type WeblensFile = {
-//     id: string;
-//     imported: boolean;
-//     displayable: boolean;
-//     isDir: boolean;
-//     modifiable: boolean;
-//     size: number;
-//     modTime: string;
-//     filename: string;
-//     parentFolderId: string;
-//     mediaData: WeblensMedia;
-//     fileFriendlyName: string;
-//     owner: string;
-//     pathFromHome: string;
-//     shares: shareData[];
-//     children: string[];
-//     pastFile: boolean;
-
-//     // Non-api props
-//     visible: boolean;
-//     selected: boolean;
-// };
+export type SizeT = {
+    height: number;
+    width: number;
+};
 
 export type shareData = {
     Accessors: string[];

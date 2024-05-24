@@ -86,7 +86,7 @@ func journalWorker() {
 
 				newFile = newWeblensFile(parent, filepath.Base(e.postFilePath), isDir)
 				fsTreeInsert(newFile, parent, globalCaster)
-				tasker.ScanFile(newFile, nil, globalCaster)
+				tasker.ScanFile(newFile, globalCaster)
 			}
 			if newFile == nil {
 				util.Error.Printf("failed to find file at %s while writing a file create journal", e.postFilePath)
@@ -110,7 +110,7 @@ func journalWorker() {
 				continue
 			}
 
-			if !newFile.IsDir() {
+			if !newFile.IsDir() && newFile.GetContentId() == "" {
 				tasker.HashFile(newFile)
 			}
 
@@ -177,7 +177,6 @@ func SetContentId(f types.WeblensFile, contentId types.ContentId) error {
 }
 
 func journalFileCreate(newFile types.WeblensFile) *fileJournalEntry {
-	util.Debug.Println("Journal Create", newFile.GetAbsPath())
 	if newFile.Owner() == WEBLENS_ROOT_USER {
 		return nil
 	}

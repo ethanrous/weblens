@@ -55,16 +55,16 @@
     overflow: scroll;
 }
 
-.setup-content-box:where([data-ondeck="active"]) {
+.setup-content-box:where([data-onDeck="active"]) {
     transform: translateX(0px);
     opacity: 100%;
 }
 
-.setup-content-box:where([data-ondeck="next"]) {
+.setup-content-box:where([data-onDeck="next"]) {
     transform: translateX(600px);
 }
 
-.setup-content-box:where([data-ondeck="prev"]) {
+.setup-content-box:where([data-onDeck="prev"]) {
     transform: translateX(-600px);
 }
 

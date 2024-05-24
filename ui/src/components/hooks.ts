@@ -119,11 +119,12 @@ export const useClick = (handler: (e) => void, ignore?, disable?: boolean) => {
         if (!disable) {
             window.addEventListener("click", callback, true);
             window.addEventListener("contextmenu", callback, true);
+        } else {
             return;
         }
         return () => {
-            window.removeEventListener("click", handler, true);
-            window.removeEventListener("contextmenu", handler, true);
+            window.removeEventListener("click", callback, true);
+            window.removeEventListener("contextmenu", callback, true);
         };
     }, [callback, disable]);
 };

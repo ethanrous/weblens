@@ -1,11 +1,10 @@
-import { Box, Button, Divider, Input, Text } from "@mantine/core";
+import { Box, Divider, Input, Text } from "@mantine/core";
 import { WeblensButton } from "../../components/WeblensButton";
 import "../../style/setup.css";
 import {
     IconArrowLeft,
     IconDatabaseImport,
     IconExclamationCircle,
-    IconJumpRope,
     IconPackage,
     IconRocket,
 } from "@tabler/icons-react";
@@ -92,6 +91,7 @@ const UserSelect = ({
                     return (
                         <WeblensButton
                             toggleOn={u.username === username}
+                            height={40}
                             allowRepeat={false}
                             key={u.username}
                             label={u.username}
@@ -159,10 +159,11 @@ const Core = ({
     }
 
     return (
-        <Box className="setup-content-box" mod={{ "data-onDeck": onDeck }}>
+        <Box className="setup-content-box" mod={{ onDeck: onDeck }}>
             <Box style={{ width: "100%" }}>
                 <WeblensButton
                     Left={<IconArrowLeft />}
+                    height={35}
                     subtle
                     onClick={() => setPage("landing")}
                 />
@@ -249,6 +250,7 @@ const Core = ({
 
             <WeblensButton
                 label="Start Weblens"
+                height={50}
                 Left={<IconRocket className="button-icon" />}
                 disabled={
                     serverName === "" || username === "" || password === ""
@@ -300,6 +302,7 @@ const Backup = ({
             <Box style={{ width: "100%" }}>
                 <WeblensButton
                     Left={<IconArrowLeft />}
+                    height={35}
                     subtle
                     onClick={() => setPage("landing")}
                 />
@@ -339,6 +342,7 @@ const Backup = ({
 
             <WeblensButton
                 label="Attach to Remote"
+                height={40}
                 Left={<IconRocket className="button-icon" />}
                 disabled={
                     serverName === "" || coreAddress === "" || apiKey === ""
@@ -382,21 +386,21 @@ const Landing = ({
     }
 
     return (
-        <Box className="setup-content-box" mod={{ "data-onDeck": onDeck }}>
+        <Box className="setup-content-box" mod={{ onDeck: onDeck }}>
             <Text className="title-text">WEBLENS</Text>
             {/* <Text className="content-title-text">Set Up Weblens</Text> */}
             <WeblensButton
-                Left={<IconPackage size={"100%"} style={{ flexShrink: 0 }} />}
                 label="Set Up Weblens Core"
-                centerContent
-                fontSize="40px"
-                width={450}
+                Left={<IconPackage size={"100%"} style={{ flexShrink: 0 }} />}
                 height={75}
+                centerContent
+                width={450}
                 onClick={() => setPage("core")}
             />
             <Text>Or...</Text>
             <WeblensButton
                 label="Set Up As Backup"
+                height={40}
                 Left={<IconDatabaseImport />}
                 style={{ width: "200px" }}
                 centerContent

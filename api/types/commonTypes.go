@@ -13,7 +13,7 @@ import (
 type WeblensError error
 
 var ErrAlreadyInitialized WeblensError = errors.New("attempting to run an initialization routine for a second time")
-var ErrServerNotInit WeblensError = errors.New("server is not initilized")
+var ErrServerNotInit WeblensError = errors.New("server is not initialized")
 
 type SafeTime time.Time
 

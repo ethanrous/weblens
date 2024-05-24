@@ -26,8 +26,8 @@ func (tp *taskPool) ScanDirectory(directory types.WeblensFile, recursive, deep b
 	return t
 }
 
-func (tp *taskPool) ScanFile(file types.WeblensFile, fileBytes []byte, caster types.BroadcasterAgent) types.Task {
-	scanMeta := ScanMetadata{file: file, fileBytes: fileBytes}
+func (tp *taskPool) ScanFile(file types.WeblensFile, caster types.BroadcasterAgent) types.Task {
+	scanMeta := ScanMetadata{file: file}
 	t := newTask(ScanFileTask, scanMeta, caster, nil)
 	tp.QueueTask(t)
 
@@ -45,10 +45,6 @@ func (tp *taskPool) WriteToFile(rootFolderId types.FileId, chunkSize, totalUploa
 
 	// We don't queue upload tasks right away, once the first chunk comes through,
 	// we will add it to the buffer, and then load the task onto the queue
-
-	// if !t.completed {
-	// 	tskr.QueueTask(t)
-	// }
 
 	return t
 }
@@ -167,19 +163,20 @@ func (tp *taskPool) ClearAllQueued() {
 	tp.allQueuedFlag = false
 }
 
-func (tp *taskPool) NotifyTaskComplete(t *task, c types.BroadcasterAgent, note ...any) {
-	rp := t.taskPool.GetRootPool()
+func (tp *taskPool) NotifyTaskComplete(t types.Task, c types.BroadcasterAgent, note ...any) {
+	realT := t.(*task)
+	rp := realT.taskPool.GetRootPool()
 	var rootTask *task
 	if rp != nil && rp.createdBy != nil {
 		rootTask = rp.createdBy
 	} else {
-		rootTask = t
+		rootTask = t.(*task)
 	}
 
 	var result types.TaskResult
-	switch t.taskType {
+	switch realT.taskType {
 	case ScanDirectoryTask, ScanFileTask:
-		result = getScanResult(t)
+		result = getScanResult(realT)
 	default:
 		return
 	}
@@ -192,7 +189,7 @@ func (tp *taskPool) NotifyTaskComplete(t *task, c types.BroadcasterAgent, note .
 
 }
 
-// Park the thread on the work queue until all the tasks have been queued and finish.
+// Wait Parks the thread on the work queue until all the tasks have been queued and finish.
 // **If you never call tp.SignalAllQueued(), the waiters will never wake up**
 // Make sure that you SignalAllQueued before parking here if it is the only thread
 // loading tasks
@@ -228,4 +225,12 @@ func (tp *taskPool) Wait(supplementWorker bool) {
 	if supplementWorker {
 		tp.workerPool.removeWorker()
 	}
+}
+
+func (tp *taskPool) AddError(t types.Task) {
+	tp.erroredTasks = append(tp.erroredTasks, t.(*task))
+}
+
+func (tp *taskPool) Errors() []types.Task {
+	return util.SliceConvert[types.Task](tp.erroredTasks)
 }

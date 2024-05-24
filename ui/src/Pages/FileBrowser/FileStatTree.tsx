@@ -97,8 +97,8 @@ export const StatTree = ({
                     <WeblensButton
                         onClick={() => setStatsFilter([])}
                         disabled={statFilter.length === 0}
-                        height={40}
-                        width={150}
+                        height={50}
+                        width={170}
                         label={`Clear Filter`}
                         postScript={
                             statFilter.length === 0
@@ -211,7 +211,7 @@ const Block = ({
                 width={textWidth * 11}
                 height={50}
                 rx={4}
-                fill={tooSmall && !hovering ? "#00000000" : "#1c1049"}
+                fill={tooSmall && !hovering ? "#00000000" : "$dark-paper"}
             />
             <text
                 className="leaf-text"

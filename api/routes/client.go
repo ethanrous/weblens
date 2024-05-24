@@ -39,9 +39,9 @@ func (c *Client) Disconnect() {
 }
 
 // Link a websocket connection to a "key" that can be broadcasted to later if
-// relevent updates should be communicated
+// relevant updates should be communicated
 //
-// Returns "true" and the results at meta.LookingFor if the task is completed, false otherwise.
+// Returns "true" and the results at meta.LookingFor if the task is completed, false and nil otherwise.
 // Subscriptions to types that represent ongoing events like "folder" never return truthy completed
 func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete bool, results map[string]any) {
 	var sub subscription
@@ -78,17 +78,22 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 			sub = subscription{Type: subType, Key: key}
 			c.PushFileUpdate(folder)
 
-			// Subscribe to tasks on children in this folder
-			for _, ch := range folder.GetChildren() {
-				t := ch.GetTask()
-				if t != nil {
-					c.Subscribe(SubTask, subId(t.TaskId()), nil)
-					c.PushTaskUpdate(t.TaskId(), dataProcess.TaskCreated, types.TaskResult{
-						"taskType":      t.TaskType(),
-						"directoryName": ch.Filename(),
-					})
-				}
+			// Subscribe to task on this folder
+			if t := folder.GetTask(); t != nil {
+				c.Subscribe(SubTask, subId(t.TaskId()), nil)
 			}
+
+			// Subscribe to tasks on children in this folder
+			// for _, ch := range folder.GetChildren() {
+			// 	t := ch.GetTask()
+			// 	if t != nil {
+			// 		c.Subscribe(SubTask, subId(t.TaskId()), nil)
+			// 		c.PushTaskUpdate(t.TaskId(), dataProcess.TaskCreated, types.TaskResult{
+			// 			"taskType":      t.TaskType(),
+			// 			"directoryName": ch.Filename(),
+			// 		})
+			// 	}
+			// }
 		}
 	case SubTask:
 		{

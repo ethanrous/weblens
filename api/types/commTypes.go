@@ -9,6 +9,9 @@ type BroadcasterAgent interface {
 	PushShareUpdate(username Username, newShareInfo Share)
 	Enable()
 	IsBuffered() bool
+
+	FolderSubToTask(folder FileId, task TaskId)
+	UnsubTask(task Task)
 }
 
 type TaskBroadcaster interface {

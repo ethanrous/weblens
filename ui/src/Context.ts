@@ -1,4 +1,4 @@
-import React from "react";
+import { createContext } from "react";
+import { UserContextT } from "./types/Types";
 
-export const UserContext = React.createContext(null);
-export const MediaTypeContext = React.createContext(null);
+export const UserContext = createContext<UserContextT>(null);

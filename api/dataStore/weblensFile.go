@@ -194,7 +194,12 @@ func (f *weblensFile) Read() (*os.File, error) {
 		return nil, fmt.Errorf("attempt to read from directory")
 	}
 
-	return os.Open(f.absolutePath)
+	path := f.absolutePath
+	if f.detached {
+		path = "/tmp/" + f.filename
+	}
+
+	return os.Open(path)
 }
 
 func (f *weblensFile) ReadAll() (data []byte, err error) {
@@ -210,7 +215,10 @@ func (f *weblensFile) ReadAll() (data []byte, err error) {
 		return
 	}
 	data = make([]byte, fileSize)
-	_, err = osFile.Read(data)
+	r, err := osFile.Read(data)
+	if r != int(f.size) {
+		return nil, ErrReadOff
+	}
 
 	return
 }
@@ -231,10 +239,13 @@ func (f *weblensFile) WriteAt(data []byte, seekLoc int64) error {
 	if f.IsDir() {
 		return ErrDirNotAllowed
 	}
+
 	path := f.GetAbsPath()
+
 	if f.detached {
 		path = "/tmp/" + f.Filename()
 	}
+
 	realFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0664)
 	if err != nil {
 		return err
@@ -520,7 +531,7 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 	}
 
 	if dirIgnore[f.Filename()] {
-		return formattedInfo, fmt.Errorf("filename in blocklist")
+		return formattedInfo, fmt.Errorf("filename in block-list")
 	}
 
 	if !CanAccessFile(f, acc) {
@@ -535,13 +546,15 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		m = MediaMapGet(f.GetContentId())
 		if m == nil {
 			imported = false
+		} else {
+			m.AddFile(f)
 		}
 	}
 
 	var size int64
 	size, err = f.Size()
 	if err != nil {
-		util.ErrTrace(err, fmt.Sprintf("Failed to get file size of [ %s (Id: %s) ]", f.absolutePath, f.id))
+		util.ShowErr(err, fmt.Sprintf("Failed to get file size of [ %s (Id: %s) ]", f.absolutePath, f.id))
 		return
 	}
 

@@ -1,15 +1,21 @@
+@import "../components/theme.scss";
+
 .weblens-progress {
     display: flex;
-    background-color: #1c1049;
+    background-color: $dark-paper;
     border-radius: 3px;
     overflow: hidden;
     box-shadow: 4px 4px 1px #001;
     width: 100%;
     height: 100%;
-}
 
-.weblens-progress:not([data-loading="true"],[data-complete="true"]) {
-    border: 1px solid #44f;
+    // &[data-complete='true'] {
+    //     border: 1px solid #44f;
+    // }
+
+    &[data-failed='true'] {
+        background-color: red;
+    }
 }
 
 .weblens-progress:where([data-loading="true"]) {

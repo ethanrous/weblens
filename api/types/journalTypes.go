@@ -22,11 +22,3 @@ type Snapshot interface {
 	AddEvent(je FileJournalEntry)
 	GetId() string
 }
-
-// type Journaler interface {
-// 	JournalFileCreate(newFile WeblensFile)
-// 	JournalFileMove(oldId FileId, newFile WeblensFile)
-// 	JournalFileDelete(deletedId FileId)
-// 	JournalFileWrite(file WeblensFile, wroteSize, startPos int64)
-// 	JournalBackup()
-// }

@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import { MediaImage } from "./PhotoContainer";
-import { Box, CloseButton } from "@mantine/core";
-import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
+import { Box } from "@mantine/core";
 import { useMediaType } from "./hooks";
 import WeblensMedia from "../classes/Media";
 import { IconX } from "@tabler/icons-react";
+import { PresentType, SizeT } from "../types/Types";
 
 export const PresentationContainer = ({
     shadeOpacity,
@@ -43,6 +43,42 @@ export const PresentationContainer = ({
         />
     );
 };
+
+export function GetMediaFullscreenSize(
+    mediaData: WeblensMedia,
+    containerSize: SizeT
+): SizeT {
+    let newWidth;
+    if (!containerSize) {
+        newWidth = 0;
+    } else if (containerSize.width < 150 && mediaData.GetPageCount() > 1) {
+        newWidth = 150;
+    } else {
+        newWidth = containerSize.width;
+    }
+
+    if (
+        !mediaData ||
+        !mediaData.GetHeight() ||
+        !mediaData.GetWidth() ||
+        !containerSize.height ||
+        !containerSize.width
+    ) {
+        return { height: 0, width: 0 };
+    }
+    const mediaRatio = mediaData.GetWidth() / mediaData.GetHeight();
+    const windowRatio = containerSize.width / containerSize.height;
+    let absHeight = 0;
+    let absWidth = 0;
+    if (mediaRatio > windowRatio) {
+        absWidth = containerSize.width;
+        absHeight = (absWidth / mediaData.GetWidth()) * mediaData.GetHeight();
+    } else {
+        absHeight = containerSize.height;
+        absWidth = (absHeight / mediaData.GetHeight()) * mediaData.GetWidth();
+    }
+    return { height: absHeight, width: absWidth };
+}
 
 export const ContainerMedia = ({
     mediaData,
@@ -113,8 +149,8 @@ export const ContainerMedia = ({
 
     if (mediaData.GetPageCount() > 1) {
         return (
-            <ColumnBox
-                className="no-scrollbars"
+            <Box
+                className="no-scrollbar"
                 style={{ overflow: "scroll", gap: absHeight * 0.02 }}
             >
                 {[...Array(mediaData.GetPageCount()).keys()].map((p) => (
@@ -123,19 +159,17 @@ export const ContainerMedia = ({
                         media={mediaData}
                         quality={"fullres"}
                         pageNumber={p}
-                        lazy={false}
                         containerStyle={{ height: absHeight, width: absWidth }}
                         preventClick
                     />
                 ))}
-            </ColumnBox>
+            </Box>
         );
     } else {
         return (
             <MediaImage
                 media={mediaData}
                 quality={"fullres"}
-                lazy={false}
                 containerStyle={{ height: absHeight, width: absWidth }}
                 preventClick
             />
@@ -231,7 +265,6 @@ const Presentation = memo(
         element?;
     }) => {
         useKeyDownPresentation(itemId, dispatch);
-        const typeMap = useMediaType();
 
         const [to, setTo] = useState(null);
         const [guiShown, setGuiShown] = useState(false);
@@ -272,6 +305,7 @@ const Presentation = memo(
         if (prev.itemId !== next.itemId) {
             return false;
         }
+
         return true;
     }
 );

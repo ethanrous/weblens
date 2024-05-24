@@ -126,6 +126,9 @@ func AddSharedRoutes(api, public *gin.RouterGroup) {
 }
 
 func AddApiRoutes(api, public *gin.RouterGroup) {
+
+	/* Public */
+
 	public.GET("/media/types", getMediaTypes)
 	public.GET("/media/random", getRandomMedias)
 	public.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
@@ -144,12 +147,15 @@ func AddApiRoutes(api, public *gin.RouterGroup) {
 	public.POST("/upload/:uploadId", newFileUpload)
 	public.POST("/takeout", createTakeout)
 
+	/* Api */
+
 	api.GET("/user", getUserInfo)
 	api.GET("/users/search", searchUsers)
 	api.PATCH("/user/:username/password", updateUserPassword)
 
 	api.GET("/media", getMediaBatch)
-	api.PATCH("/media/:mediaId/hide", hideMedia)
+	api.PATCH("/media/hide", hideMedia)
+	api.PATCH("/media/date", adjustMediaDate)
 
 	api.GET("/file/:fileId/shares", getFilesShares)
 	api.PATCH("/file/:fileId", updateFile)
@@ -174,9 +180,12 @@ func AddApiRoutes(api, public *gin.RouterGroup) {
 
 	api.GET("/albums", getAlbums)
 	api.GET("/album/:albumId", getAlbum)
+	api.GET("/album/:albumId/preview", albumPreviewMedia)
 	api.POST("/album", createAlbum)
 	api.PATCH("/album/:albumId", updateAlbum)
 	api.DELETE("/album/:albumId", deleteAlbum)
+
+	/* Websocket */
 
 	websocket := router.Group("/api")
 	websocket.GET("/ws", wsConnect)
@@ -224,7 +233,6 @@ func ReverseProxyToCore(coreAddress string) gin.HandlerFunc {
 	coreHost := coreAddress[index+2:]
 	return func(c *gin.Context) {
 		director := func(req *http.Request) {
-			// r := c.Request
 			scheme := "http"
 			if c.Request.TLS != nil {
 				scheme = "https"
@@ -232,10 +240,6 @@ func ReverseProxyToCore(coreAddress string) gin.HandlerFunc {
 
 			req.URL.Scheme = scheme
 			req.URL.Host = coreHost
-
-			// req.Header["my-header"] = []string{r.Header.Get("my-header")}
-			// Golang camelcases headers
-			// delete(req.Header, "My-Header")
 		}
 		proxy := &httputil.ReverseProxy{Director: director}
 		proxy.ServeHTTP(c.Writer, c.Request)
@@ -259,7 +263,7 @@ func AddUiRoutes() {
 	// r.Use(serveUiFile)
 	router.NoRoute(func(ctx *gin.Context) {
 		if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
-			// using the real path here makes gin redicrect to /, which creates an infinite loop
+			// using the real path here makes gin redirect to /, which creates an infinite loop
 			// ctx.Writer.Header().Set("Content-Encoding", "gzip")
 			ctx.FileFromFS("/index", memFs)
 		}

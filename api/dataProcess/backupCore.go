@@ -74,7 +74,7 @@ func receiveBackup(t *task) {
 				eventMap[je.GetFileId()] = &[]types.FileJournalEntry{je}
 				continue
 			} else {
-				// If the file id of the desination is "occupied", we have an issue
+				// If the file id of the destination is "occupied", we have an issue
 				chainStr := strings.Join(util.Map(*chain, func(j types.FileJournalEntry) string { return string(j.GetAction()) }), "->")
 				err := fmt.Errorf("file create found existing file. Snapshot chain: %s", chainStr)
 				t.ErrorAndExit(err)
@@ -83,9 +83,9 @@ func receiveBackup(t *task) {
 		case dataStore.FileMove:
 			chain, ok := eventMap[je.GetFileId()]
 			if !ok {
-				// If the file id of the desination is "occupied", we have an issue
+				// If the file id of the destination is "occupied", we have an issue
 				if _, ok := eventMap[je.GetFromFileId()]; ok {
-					t.ErrorAndExit(fmt.Errorf("backup map colide attempting to insert move, which was thought to be new"))
+					t.ErrorAndExit(fmt.Errorf("backup map collide attempting to insert move, which was thought to be new"))
 				}
 				eventMap[je.GetFromFileId()] = &[]types.FileJournalEntry{je}
 				continue

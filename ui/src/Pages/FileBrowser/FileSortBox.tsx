@@ -1,52 +1,46 @@
-import { Box } from "@mantine/core";
-import { RowBox } from "./FileBrowserStyles";
+import { Box } from '@mantine/core'
+import { RowBox } from './FileBrowserStyles'
 import {
     IconCalendar,
     IconFileAnalytics,
     IconSortAscending2,
     IconSortAZ,
     IconSortDescending2,
-} from "@tabler/icons-react";
-import { useResize } from "../../components/hooks";
-import { useState } from "react";
-import { SelectIcon } from "../../components/WeblensButton";
+} from '@tabler/icons-react'
+import { useResize } from '../../components/hooks'
+import { useContext, useState } from 'react'
+import { SelectIcon } from '../../components/WeblensButton'
+import { FbContext } from './FileBrowser'
 
 const fileSortTypes = [
-    { Name: "Name", Icon: <IconSortAZ className="button-icon" /> },
-    { Name: "Create Date", Icon: <IconCalendar className="button-icon" /> },
-    { Name: "Size", Icon: <IconFileAnalytics className="button-icon" /> },
-];
+    { Name: 'Name', Icon: <IconSortAZ className="button-icon" /> },
+    { Name: 'Create Date', Icon: <IconCalendar className="button-icon" /> },
+    { Name: 'Size', Icon: <IconFileAnalytics className="button-icon" /> },
+]
 
-export const FileSortBox = ({ fb, dispatch }) => {
-    const [sortFuncBox, setSortFuncBox] = useState(null);
-    const sortFuncBoxSize = useResize(sortFuncBox);
+export const FileSortBox = ({}) => {
+    const { fbState, fbDispatch } = useContext(FbContext)
+    const [sortFuncBox, setSortFuncBox] = useState(null)
+    const sortFuncBoxSize = useResize(sortFuncBox)
 
     return (
-        <RowBox style={{ width: "max-content", flexShrink: 0 }}>
-            <Box className="file-sort-box">
-                <Box
+        <div className="flex flex-row w-max shrink-0">
+            <div className="file-sort-box">
+                <div
                     className="sort-direction-box"
                     onClick={() =>
-                        dispatch({
-                            type: "set_sort",
-                            sortDirection: fb.sortDirection * -1,
+                        fbDispatch({
+                            type: 'set_sort',
+                            sortDirection: fbState.sortDirection * -1,
                         })
                     }
                 >
-                    {fb.sortDirection === 1 && <IconSortDescending2 />}
-                    {fb.sortDirection === -1 && <IconSortAscending2 />}
-                </Box>
-                <Box
-                    style={{
-                        height: "100%",
-                        width: 1,
-                        paddingTop: 4,
-                        paddingBottom: 4,
-                        backgroundColor: "#333333",
-                    }}
-                />
-                <Box ref={setSortFuncBox}>
-                    <Box className="sort-func-selector">
+                    {fbState.sortDirection === 1 && <IconSortDescending2 />}
+                    {fbState.sortDirection === -1 && <IconSortAscending2 />}
+                </div>
+                <div className="h-full w-1 pt-1 pb-4 bg-[#333333]" />
+                <div ref={setSortFuncBox}>
+                    <div className="sort-func-selector">
                         {fileSortTypes.map((v, i) => {
                             return (
                                 <SelectIcon
@@ -55,23 +49,23 @@ export const FileSortBox = ({ fb, dispatch }) => {
                                     label={v.Name}
                                     icon={v.Icon}
                                     index={i}
-                                    selected={fb.sortFunc === v.Name}
+                                    selected={fbState.sortFunc === v.Name}
                                     selectedIndex={fileSortTypes.findIndex(
-                                        (v) => v.Name === fb.sortFunc
+                                        (v) => v.Name === fbState.sortFunc
                                     )}
                                     expandSize={sortFuncBoxSize.width}
                                     onClick={() => {
-                                        dispatch({
-                                            type: "set_sort",
+                                        fbDispatch({
+                                            type: 'set_sort',
                                             sortType: v.Name,
-                                        });
+                                        })
                                     }}
                                 />
-                            );
+                            )
                         })}
-                    </Box>
-                </Box>
-            </Box>
-        </RowBox>
-    );
-};
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}

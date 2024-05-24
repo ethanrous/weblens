@@ -79,7 +79,9 @@ const (
 
 const (
 	TaskCreated     types.TaskEvent = "task_created"
-	TaskComplete    types.TaskEvent = "scan_complete"
+	ScanComplete    types.TaskEvent = "scan_complete"
+	TaskComplete    types.TaskEvent = "task_complete"
+	TaskFailed      types.TaskEvent = "task_failure"
 	SubTaskComplete types.TaskEvent = "sub_task_complete"
 	TaskProgress    types.TaskEvent = "task_progress_update"
 )
@@ -98,15 +100,20 @@ type hitChannel chan hit
 type taskPool struct {
 	treatAsGlobal  bool
 	hasQueueThread bool
+
 	totalTasks     *atomic.Int64
 	completedTasks *atomic.Int64
 	waiterCount    *atomic.Int32
 	waiterGate     *sync.Mutex
 	exitLock       *sync.Mutex
-	allQueuedFlag  bool
-	createdBy      *task
+
 	workerPool     *WorkerPool
 	parentTaskPool *taskPool
+	createdBy      *task
+
+	allQueuedFlag bool
+
+	erroredTasks []*task
 }
 
 type WorkerPool struct {
@@ -275,3 +282,4 @@ var ErrTaskError types.WeblensError = errors.New("task generated an error")
 var ErrTaskTimeout types.WeblensError = errors.New("task timed out")
 var ErrBadTaskMetaType types.WeblensError = errors.New("task metadata type is not supported on attempted operation")
 var ErrBadCaster types.WeblensError = errors.New("task was given the wrong type of caster")
+var ErrChildTaskFailed types.WeblensError = errors.New("a task spawned by this task has failed")

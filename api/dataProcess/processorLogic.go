@@ -34,25 +34,23 @@ func scanFile(t *task) {
 	}
 
 	meta.partialMedia = dataStore.NewMedia(contentId)
-	if meta.partialMedia.IsImported() && meta.file.Owner() == meta.partialMedia.GetOwner() {
-		meta.partialMedia.AddFile(meta.file)
+	if slices.ContainsFunc(meta.partialMedia.GetFiles(), func(fId types.FileId) bool {
+		return fId == meta.file.Id()
+	}) {
 		t.success("Media already imported")
-		return
 	}
+	// if meta.partialMedia.IsImported() {
+	// 	if meta.file.Owner() == meta.partialMedia.GetOwner() {
+	// 		meta.partialMedia.AddFile(meta.file)
+	// 		t.success("Media already imported")
+	// 		return
+	// 	}
+	// }
 
 	t.CheckExit()
 
 	t.SetErrorCleanup(func() {
 		meta.partialMedia.Clean()
-		// media, err := meta.file.GetMedia()
-		// if err != nil && err != dataStore.ErrNoMedia {
-		// 	util.ErrTrace(err)
-		// }
-		// if media != nil {
-		// 	media.Clean()
-		// }
-
-		// meta.file.ClearMedia()
 	})
 
 	t.metadata = meta
@@ -210,13 +208,24 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 	return
 }
 
+// Task for reading file chunks coming in from client requests, and writing them out
+// to their corresponding files. Intention behind this implementation is to rid the
+// client of interacting with any blocking calls to make the upload process as fast as
+// possible, hopefully as fast as the slower of the 2 network speeds. This task handles
+// everything *after* the client has had its data read into memory, this is the "bottom half"
+// of the upload
 func handleFileUploads(t *task) {
 	meta := t.metadata.(WriteFileMeta)
 
 	t.CheckExit()
 
-	var min, max, total int64
-	// var min int
+	rootFile := dataStore.FsTreeGet(meta.rootFolderId)
+	if rootFile == nil {
+		t.ErrorAndExit(dataStore.ErrNoFile, "could not find root folder in upload. Id:", meta.rootFolderId)
+	}
+
+	var bottom, top, total int64
+	// var bottom int
 	var err error
 
 	// This map will only be accessed by this task and by this 1 thread,
@@ -232,12 +241,20 @@ func handleFileUploads(t *task) {
 	}
 
 	bufCaster.DisableAutoFlush()
-	usingFiles := []types.FileId{}
+	var usingFiles []types.FileId
+	var topLevels []types.WeblensFile
+
+	// Release all the files once we are finished here, if they haven't been already.
+	// This should only be required in error cases, as if all files are successfully
+	// written, they are then unlocked in the main body.
 	defer func() {
 		for _, fId := range usingFiles {
 			f := dataStore.FsTreeGet(fId)
 			if f != nil {
-				f.RemoveTask(t.TaskId())
+				err = f.RemoveTask(t.TaskId())
+				if err != nil {
+					util.ShowErr(err)
+				}
 			}
 		}
 	}()
@@ -253,12 +270,21 @@ WriterLoop:
 		case chunk := <-meta.chunkStream:
 			t.ClearTimeout()
 
-			min, max, total, err = parseRangeHeader(chunk.ContentRange)
+			bottom, top, total, err = parseRangeHeader(chunk.ContentRange)
 			if err != nil {
 				t.ErrorAndExit(err)
 			}
 
 			if chunk.newFile != nil {
+
+				tmpFile := chunk.newFile
+				for tmpFile.GetParent() != rootFile {
+					tmpFile = tmpFile.GetParent()
+				}
+				if tmpFile.GetParent() == rootFile && !slices.ContainsFunc(topLevels, func(f types.WeblensFile) bool { return f.Id() == tmpFile.Id() }) {
+					topLevels = append(topLevels, tmpFile)
+				}
+
 				fileMap[chunk.newFile.Id()] = &fileUploadProgress{file: chunk.newFile, bytesWritten: 0, fileSizeTotal: total}
 				chunk.newFile.AddTask(t)
 				util.InsertFunc(usingFiles, chunk.newFile.Id(), func(a, b types.FileId) int { return strings.Compare(a.String(), b.String()) })
@@ -271,19 +297,49 @@ WriterLoop:
 				delete(fileMap, chunk.FileId)
 			}
 
-			fileMap[chunk.FileId].bytesWritten += (max - min) + 1
+			// Add the new bytes to the counter for the file-size of this file.
+			// If we upload content in range e.g. 0-1 bytes, that includes 2 bytes,
+			// but top - bottom (1 - 0) is 1, so we add 1 to match
+			fileMap[chunk.FileId].bytesWritten += (top - bottom) + 1
 
-			fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, int64(min))
+			// Write the bytes to the real file
+			err = fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, int64(bottom))
+			if err != nil {
+				util.ShowErr(err)
+			}
 
+			// When file is finished writing
 			if fileMap[chunk.FileId].bytesWritten >= fileMap[chunk.FileId].fileSizeTotal {
-				dataStore.AttachFile(fileMap[chunk.FileId].file, bufCaster)
-				fileMap[chunk.FileId].file.RemoveTask(t.TaskId())
+				// Hash file content to get content ID. Must do this before attaching the file,
+				// or the journal worker will beat us to it, which could break if scanning
+				// the file shortly after uploading.
+				_, err := dataStore.GenerateContentId(fileMap[chunk.FileId].file)
+				if err != nil {
+					t.ErrorAndExit(err, "failed generating content id for file", fileMap[chunk.FileId].file.GetAbsPath())
+				}
+
+				// Move the file from /tmp to its permanent location
+				err = dataStore.AttachFile(fileMap[chunk.FileId].file, bufCaster)
+				if err != nil {
+					util.ShowErr(err)
+				}
+
+				// Unlock the file
+				err = fileMap[chunk.FileId].file.RemoveTask(t.TaskId())
+				if err != nil {
+					util.ShowErr(err)
+				}
+
+				// Remove the file from our local map
 				i, e := slices.BinarySearchFunc(usingFiles, chunk.FileId, func(a, b types.FileId) int { return strings.Compare(a.String(), b.String()) })
 				if e {
 					util.Banish(usingFiles, i)
 				}
 				delete(fileMap, chunk.FileId)
 			}
+
+			// When we have no files being worked on, and there are no more
+			// chunks to write, we are finished.
 			if len(fileMap) == 0 && len(meta.chunkStream) == 0 {
 				break WriterLoop
 			}
@@ -293,9 +349,14 @@ WriterLoop:
 	}
 
 	t.CheckExit()
-	rootFile := dataStore.FsTreeGet(meta.rootFolderId)
-	dataStore.ResizeDown(rootFile, bufCaster)
-	dataStore.ResizeUp(rootFile, bufCaster)
+
+	GetGlobalQueue().ScanDirectory(rootFile, false, false, globalCaster)
+	for _, tl := range topLevels {
+		if tl.IsDir() {
+			bufCaster.PushFileUpdate(tl)
+			GetGlobalQueue().ScanDirectory(tl, true, false, globalCaster)
+		}
+	}
 	bufCaster.Close()
 	t.success()
 }
@@ -308,8 +369,13 @@ func (t *task) NewFileInStream(file types.WeblensFile, fileSize int64) error {
 	}
 	t.metadata.(WriteFileMeta).chunkStream <- FileChunk{newFile: file, ContentRange: "0-0/" + strconv.FormatInt(fileSize, 10)}
 
+	// We don't queue the upload task right away, we wait for the first file,
+	// then we add the task to the queue here
 	if t.taskPool == nil {
-		GetGlobalQueue().QueueTask(t)
+		err := GetGlobalQueue().QueueTask(t)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -379,6 +445,10 @@ func hashFile(t *task) {
 
 	if meta.file.IsDir() {
 		t.ErrorAndExit(dataStore.ErrDirNotAllowed, meta.file.GetAbsPath())
+	}
+
+	if meta.file.GetContentId() != "" {
+		t.success("Skipping file which already has content Id", meta.file.GetAbsPath())
 	}
 
 	fileSize, err := meta.file.Size()

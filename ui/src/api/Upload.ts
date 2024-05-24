@@ -1,6 +1,5 @@
 import API_ENDPOINT, { PUBLIC_ENDPOINT } from "./ApiEndpoint";
-import axios, { AxiosError } from "axios";
-import { dispatchSync } from "./Websocket";
+import axios from "axios";
 import { notifications } from "@mantine/notifications";
 import { AuthHeaderT } from "../types/Types";
 
@@ -71,7 +70,7 @@ async function uploadChunk(
     fileId: string,
     authHeader: AuthHeaderT,
     onProgress: (bytesWritten: number, MBpS: number) => void,
-    onFinish: (rate: number) => void,
+    onFinish: (rate: number) => void
 ) {
     let chunk = await readFile(fileData.slice(low, high));
     const url = `${PUBLIC_ENDPOINT}/upload/${uploadId}/file/${fileId}`;
@@ -100,7 +99,7 @@ async function queueChunks(
     shareId: string,
     authHeader: AuthHeaderT,
     uploadDispatch,
-    taskQueue,
+    taskQueue
 ) {
     const file: File = uploadMeta.file;
     const key: string = uploadMeta.parentId + uploadMeta.file.name;
@@ -119,7 +118,11 @@ async function queueChunks(
     body.newFileName = uploadMeta.file.name;
     body.fileSize = uploadMeta.file.size;
 
-    let res = await fetch(url.toString(), { method: "POST", headers: authHeader, body: JSON.stringify(body) })
+    let res = await fetch(url.toString(), {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify(body),
+    })
         .then(async (r) => {
             return { data: await r.json(), code: r.status };
         })
@@ -128,10 +131,18 @@ async function queueChunks(
         });
 
     if (res.code === 409) {
-        notifications.show({ title: "Failed to create file", message: `${file.name} already exists`, color: "red" });
+        notifications.show({
+            title: "Failed to create file",
+            message: `${file.name} already exists`,
+            color: "red",
+        });
         return;
     } else if (res.code !== 201) {
-        notifications.show({ title: "Failed to create file", message: res.code, color: "red" });
+        notifications.show({
+            title: "Failed to create file",
+            message: res.code,
+            color: "red",
+        });
         return;
     }
 
@@ -144,7 +155,8 @@ async function queueChunks(
     const chunkSize = UPLOAD_CHUNK_SIZE;
     while (offset < file.size) {
         let innerOffset = offset; // Copy offset to appease eslint
-        let upperBound = offset + chunkSize >= file.size ? file.size : offset + chunkSize;
+        let upperBound =
+            offset + chunkSize >= file.size ? file.size : offset + chunkSize;
         chunkTasks.push(
             async () =>
                 await uploadChunk(
@@ -162,8 +174,13 @@ async function queueChunks(
                             speed: Math.trunc(MBpS),
                         }),
                     (rate: number) =>
-                        uploadDispatch({ type: "finished_chunk", key: key, chunkSize: chunkSize, speed: rate }),
-                ),
+                        uploadDispatch({
+                            type: "finished_chunk",
+                            key: key,
+                            chunkSize: chunkSize,
+                            speed: rate,
+                        })
+                )
         );
         offset += chunkSize;
     }
@@ -177,7 +194,7 @@ async function NewUploadTask(
     fileCount: number,
     isPublic: boolean,
     shareId: string,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ): Promise<string> {
     let url;
     var init;
@@ -185,7 +202,10 @@ async function NewUploadTask(
         method: "POST",
         body: JSON.stringify({
             rootFolderId: rootFolderId,
-            chunkSize: Math.min(UPLOAD_CHUNK_SIZE, Math.floor(totalUploadSize / fileCount)),
+            chunkSize: Math.min(
+                UPLOAD_CHUNK_SIZE,
+                Math.floor(totalUploadSize / fileCount)
+            ),
             totalUploadSize: totalUploadSize,
         }),
     };
@@ -206,14 +226,14 @@ async function Upload(
     rootFolder,
     authHeader: AuthHeaderT,
     uploadDispatch,
-    wsSend: (action: string, content: any) => void,
+    wsSend: (action: string, content: any) => void
 ) {
     if (isPublic && !shareId) {
         throw new Error("Cannot do public upload without shareId");
     }
 
-    let tlds: string[] = [];
-    let tlf = false;
+    let topDirs: string[] = [];
+    let hasTopFile = false;
 
     const taskQueue = new PromiseQueue([], CONCURRENT_UPLOAD_COUNT);
     let taskQPromise;
@@ -227,7 +247,14 @@ async function Upload(
         }
     });
 
-    const uploadId = await NewUploadTask(rootFolder, totalUploadSize, totalFileCount, isPublic, shareId, authHeader);
+    const uploadId = await NewUploadTask(
+        rootFolder,
+        totalUploadSize,
+        totalFileCount,
+        isPublic,
+        shareId,
+        authHeader
+    );
     for (const meta of filesMeta) {
         const key: string = meta.folderId || meta.parentId + meta.file.name;
 
@@ -240,9 +267,9 @@ async function Upload(
                 size: meta.isDir ? 0 : meta.file.size,
             });
             if (meta.isDir) {
-                tlds.push(meta.folderId);
+                topDirs.push(meta.folderId);
             }
-            tlf = tlf || !meta.isDir;
+            hasTopFile = hasTopFile || !meta.isDir;
         } else {
             uploadDispatch({
                 type: "add_new",
@@ -256,20 +283,28 @@ async function Upload(
         if (meta.isDir) {
             continue;
         }
-        await queueChunks(meta, isPublic, uploadId, shareId, authHeader, uploadDispatch, taskQueue);
+        await queueChunks(
+            meta,
+            isPublic,
+            uploadId,
+            shareId,
+            authHeader,
+            uploadDispatch,
+            taskQueue
+        );
         if (!taskQPromise) {
             taskQPromise = taskQueue.run();
         }
     }
     await taskQPromise;
 
-    if (tlf) {
-        dispatchSync(rootFolder, wsSend, false, false);
-    }
+    // if (hasTopFile) {
+    //     dispatchSync(rootFolder, wsSend, false, false);
+    // }
 
-    for (const tld of tlds) {
-        dispatchSync(tld, wsSend, true, true);
-    }
+    // for (const tld of topDirs) {
+    //     dispatchSync(tld, wsSend, true, true);
+    // }
 }
 
 export default Upload;

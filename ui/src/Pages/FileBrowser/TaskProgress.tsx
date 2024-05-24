@@ -1,193 +1,180 @@
-import { useMemo } from "react";
-import { FBDispatchT, ScanMeta } from "../../types/Types";
-import { nsToHumanTime } from "../../util";
-import { Box, Text } from "@mantine/core";
-import { ColumnBox, RowBox } from "./FileBrowserStyles";
-import { IconX } from "@tabler/icons-react";
-import { WeblensProgress } from "../../components/WeblensProgress";
+import { useContext, useMemo } from 'react'
+import { nsToHumanTime } from '../../util'
+import { Box, Text } from '@mantine/core'
+import { RowBox } from './FileBrowserStyles'
+import { IconX } from '@tabler/icons-react'
+import { WeblensProgress } from '../../components/WeblensProgress'
+import { FbContext } from './FileBrowser'
 
 export enum TaskStage {
     Queued,
     InProgress,
     Complete,
+    Failure,
 }
 
 export class TaskProgress {
-    taskId: string;
-    taskType: string;
-    target: string;
-    workingOn: string;
-    note: string;
+    taskId: string
+    taskType: string
+    target: string
+    workingOn: string
+    note: string
 
-    timeNs: number;
-    progressPercent: number;
-    tasksComplete: number;
-    tasksTotal: number;
+    timeNs: number
+    progressPercent: number
+    tasksComplete: number
+    tasksTotal: number
 
-    stage: TaskStage;
+    stage: TaskStage
 
-    hidden: boolean;
+    hidden: boolean
 
     constructor(taskId: string, taskType: string, target: string) {
-        console.log("Creating task prog...");
-
         if (!taskId || !target || !taskType) {
             console.error(
-                "TaskId:",
+                'TaskId:',
                 taskId,
-                "Target:",
+                'Target:',
                 target,
-                "Task Type:",
+                'Task Type:',
                 taskType
-            );
-            throw new Error("Empty prop in TaskProgress constructor");
+            )
+            throw new Error('Empty prop in TaskProgress constructor')
         }
 
-        this.taskId = taskId;
-        this.taskType = taskType;
-        this.target = target;
+        this.taskId = taskId
+        this.taskType = taskType
+        this.target = target
 
-        this.timeNs = 0;
-        this.progressPercent = 0;
+        this.timeNs = 0
+        this.progressPercent = 0
 
-        this.stage = TaskStage.Queued;
+        this.stage = TaskStage.Queued
 
-        this.hidden = false;
+        this.hidden = false
     }
 
     GetTaskId(): string {
-        return this.taskId;
+        return this.taskId
     }
 
     GetTaskType(): string {
         switch (this.taskType) {
-            case "scan_directory":
-                return "Scan Folder";
+            case 'scan_directory':
+                return 'Folder Scan'
         }
     }
 
     getTime(): string {
-        return nsToHumanTime(this.timeNs);
+        return nsToHumanTime(this.timeNs)
     }
 
     getProgress(): number {
         if (this.stage === TaskStage.Complete) {
-            return 100;
+            return 100
         }
-        return this.progressPercent;
+        return this.progressPercent
     }
 
     hide(): void {
-        this.hidden = true;
+        this.hidden = true
     }
 }
 
 export const TasksDisplay = ({
     scanProgress,
-    dispatch,
 }: {
-    scanProgress: TaskProgress[];
-    dispatch: FBDispatchT;
+    scanProgress: TaskProgress[]
 }) => {
     if (scanProgress.length == 0) {
-        return null;
+        return null
     }
     const cards = useMemo(() => {
         return scanProgress.map((sp) => {
             if (sp.hidden) {
-                return null;
+                return null
             }
-            return (
-                <TaskProgCard key={sp.taskId} prog={sp} dispatch={dispatch} />
-            );
-        });
-    }, [scanProgress]);
-    return <ColumnBox style={{ height: "max-content" }}>{cards}</ColumnBox>;
-};
+            return <TaskProgCard key={sp.taskId} prog={sp} />
+        })
+    }, [scanProgress])
+    return <Box className="h-max w-full">{cards}</Box>
+}
 
-const TaskProgCard = ({
-    prog,
-}: {
-    prog: TaskProgress;
-    dispatch: FBDispatchT;
-}) => {
-    console.log(prog.stage);
+const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
+    const { fbDispatch } = useContext(FbContext)
+
     return (
-        <Box className="task-progress-box">
-            <RowBox style={{ height: "max-content" }}>
-                <Box style={{ width: "100%" }}>
-                    <Text size="12px" style={{ userSelect: "none" }}>
+        <div className="task-progress-box">
+            <div className="flex flex-row w-full h-max">
+                <div className="w-full">
+                    <Text size="12px" style={{ userSelect: 'none' }}>
                         {prog.GetTaskType()}
                     </Text>
-                    <Text size="16px" fw={600} style={{ userSelect: "none" }}>
+                    <Text size="16px" fw={600} style={{ userSelect: 'none' }}>
                         {prog.target}
                     </Text>
-                </Box>
+                </div>
                 <IconX
                     size={20}
-                    cursor={"pointer"}
-                    onClick={
-                        () => prog.hide()
-                        // dispatch({
-                        //     type: "remove_task_progress",
-                        //     taskId: prog.taskId,
-                        // })
-                    }
+                    cursor={'pointer'}
+                    onClick={() => {
+                        prog.hide()
+                        fbDispatch({
+                            type: 'remove_task_progress',
+                            taskId: prog.taskId,
+                        })
+                    }}
                 />
-            </RowBox>
-            <Box
-                style={{ height: 25, flexShrink: 0, width: "100%", margin: 10 }}
-            >
+            </div>
+            <div className="h-6 shrink-0 w-full m-3">
                 <WeblensProgress
                     value={prog.getProgress()}
                     complete={prog.stage === TaskStage.Complete}
                     loading={prog.stage === TaskStage.Queued}
+                    failure={prog.stage === TaskStage.Failure}
                 />
-            </Box>
+            </div>
             {prog.stage !== TaskStage.Complete && (
-                <RowBox
-                    style={{
-                        justifyContent: "space-between",
-                        height: "max-content",
-                        gap: 10,
-                    }}
-                >
+                <div className="flex flex-row w-full justify-between h-max gap-3">
                     <Text
                         size="10px"
                         truncate="end"
-                        style={{ userSelect: "none" }}
+                        style={{ userSelect: 'none' }}
                     >
                         {prog.workingOn}
                     </Text>
                     {prog.tasksTotal > 0 && (
-                        <Text size="10px" style={{ userSelect: "none" }}>
+                        <Text size="10px" style={{ userSelect: 'none' }}>
                             {prog.tasksComplete}/{prog.tasksTotal}
                         </Text>
                     )}
-                </RowBox>
+                </div>
             )}
-            <RowBox
-                style={{
-                    justifyContent: "space-between",
-                    height: "max-content",
-                    gap: 10,
-                }}
-            >
+
+            <div className="flex flex-row w-full justify-between h-max gap-3">
                 {prog.stage === TaskStage.Complete && (
                     <Text
                         size="10px"
-                        style={{ width: "max-content", userSelect: "none" }}
+                        style={{ width: 'max-content', userSelect: 'none' }}
                     >
-                        Finished{" "}
-                        {prog.timeNs !== 0 ? `in ${prog.getTime()}` : ""}
+                        Finished{' '}
+                        {prog.timeNs !== 0 ? `in ${prog.getTime()}` : ''}
                     </Text>
                 )}
                 {prog.stage === TaskStage.Queued && (
                     <Text
                         size="10px"
-                        style={{ width: "max-content", userSelect: "none" }}
+                        style={{ width: 'max-content', userSelect: 'none' }}
                     >
                         Queued...
+                    </Text>
+                )}
+                {prog.stage === TaskStage.Failure && (
+                    <Text
+                        size="10px"
+                        style={{ width: 'max-content', userSelect: 'none' }}
+                    >
+                        {prog.note}
                     </Text>
                 )}
                 {/* <Text
@@ -200,7 +187,7 @@ const TaskProgCard = ({
                 >
                     {prog.note}
                 </Text> */}
-            </RowBox>
-        </Box>
-    );
-};
+            </div>
+        </div>
+    )
+}

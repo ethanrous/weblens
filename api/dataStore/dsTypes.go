@@ -151,35 +151,19 @@ type media struct {
 	BlurHash         string             `json:"blurHash" bson:"blurHash"`
 	MimeType         string             `json:"mimeType" bson:"mimeType"`
 	RecognitionTags  []string           `json:"recognitionTags" bson:"recognitionTags"`
-	Imported         bool               `json:"imported" bson:"imported"`
 	Hidden           bool               `json:"hidden" bson:"hidden"`
+	Enabled          bool               `json:"enabled" bson:"enabled"`
 
 	mediaType *mediaType
+	imported  bool
 
-	rotate   string
-	imgBytes []byte
-	image    *bimg.Image
-	images   []*bimg.Image
+	rotate string
+	image  *bimg.Image
+	images []*bimg.Image
 
 	rawExif           map[string]any
 	thumbCacheFile    types.WeblensFile
 	fullresCacheFiles []types.WeblensFile
-}
-
-type marshalableMedia struct {
-	MediaId          types.ContentId `bson:"mediaId" json:"mediaId"`
-	FileIds          []types.FileId  `bson:"fileIds" json:"fileIds"`
-	ThumbnailCacheId types.FileId    `bson:"thumbnailCacheId" json:"thumbnailCacheId"`
-	FullresCacheIds  []types.FileId  `bson:"fullresCacheIds" json:"fullresCacheIds"`
-	BlurHash         string          `bson:"blurHash" json:"blurHash"`
-	Owner            types.Username  `bson:"owner" json:"owner"`
-	MediaWidth       int             `bson:"width" json:"mediaWidth"`
-	MediaHeight      int             `bson:"height" json:"mediaHeight"`
-	CreateDate       time.Time       `bson:"createDate" json:"createDate"`
-	MimeType         string          `bson:"mimeType" json:"mimeType"`
-	RecognitionTags  []string        `bson:"recognitionTags" json:"recognitionTags"`
-	PageCount        int             `bson:"pageCount" json:"pageCount"` // for pdfs, etc.
-	Hidden           bool            `bson:"hidden" json:"hidden"`
 }
 
 type mediaType struct {
@@ -327,8 +311,11 @@ var ErrDirAlreadyExists AlreadyExistsError = errors.New("directory already exist
 
 var ErrFileAlreadyExists AlreadyExistsError = errors.New("file already exists in destination location")
 var ErrNoFile WeblensFileError = errors.New("file does not exist")
+var ErrNoCache WeblensFileError = errors.New("media references cache file that does not exist")
 var ErrIllegalFileMove WeblensFileError = errors.New("tried to perform illegal file move")
 var ErrWriteOnReadOnly WeblensFileError = errors.New("tried to write to read-only file")
+
+var ErrReadOff WeblensFileError = errors.New("did not read expected number of bytes from file")
 
 var ErrNoUser WeblensUserError = errors.New("user does not exist")
 var ErrUserAlreadyExists WeblensUserError = errors.New("cannot create two users with the same username")
@@ -340,6 +327,7 @@ var ErrBadPassword WeblensUserError = errors.New("password provided does not aut
 var ErrBadRequestMode = errors.New("access struct does not have correct request mode set for the given function")
 
 var ErrNoMedia = errors.New("no media found")
+var ErrNoImage = errors.New("media is missing required image")
 
 var ErrNoShare = errors.New("no share found")
 var ErrBadShareType = errors.New("expected share type does not match given share type")

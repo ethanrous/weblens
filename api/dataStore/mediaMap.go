@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -16,7 +17,7 @@ var mediaMapLock *sync.Mutex = &sync.Mutex{}
 func MediaInit() error {
 	_, err := fddb.getAllMedia()
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	// for _, m := range ms {
@@ -56,10 +57,10 @@ func mediaMapAdd(m *media) {
 		}
 	}
 
-	if m.fullresCacheFiles == nil {
+	if m.fullresCacheFiles == nil || len(m.fullresCacheFiles) < m.PageCount {
 		m.fullresCacheFiles = make([]types.WeblensFile, m.PageCount)
 	}
-	if m.FullresCacheIds == nil {
+	if m.FullresCacheIds == nil || len(m.FullresCacheIds) < m.PageCount {
 		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 	}
 	if m.mediaType == nil {
@@ -99,20 +100,29 @@ func MediaMapGet(mId types.ContentId) types.Media {
 
 func removeMedia(m types.Media) {
 
-	util.Error.Println("actually no")
-	return
-
 	realM := m.(*media)
 	f, err := realM.getCacheFile(Thumbnail, false, 0)
 	if err == nil {
-		PermanentlyDeleteFile(f, voidCaster)
+		err = PermanentlyDeleteFile(f, voidCaster)
+		if err != nil {
+			util.ErrTrace(err)
+		}
 	}
 	f = nil
 	for page := range realM.PageCount + 1 {
 		f, err = realM.getCacheFile(Fullres, false, page)
 		if err == nil {
-			PermanentlyDeleteFile(f, voidCaster)
+			err = PermanentlyDeleteFile(f, voidCaster)
+			if err != nil {
+				util.ErrTrace(err)
+			}
 		}
+	}
+
+	err = fddb.removeMediaFromAnyAlbum(m.Id())
+	if err != nil {
+		util.ErrTrace(err)
+		return
 	}
 
 	err = fddb.deleteMedia(m.Id())
@@ -126,15 +136,21 @@ func removeMedia(m types.Media) {
 	mediaMapLock.Unlock()
 }
 
-func HideMedia(m types.Media) error {
-	realM := m.(*media)
-	realM.Hidden = true
+func HideMedia(ms []types.Media) error {
+	for _, m := range ms {
+		m.(*media).Hidden = true
+	}
 
-	return fddb.setMediaHidden(m, true)
+	return fddb.setMediaHidden(ms, true)
 }
 
 func GetRealFile(m types.Media) (types.WeblensFile, error) {
 	realM := m.(*media)
+
+	if len(realM.FileIds) == 0 {
+		return nil, ErrNoFile
+	}
+
 	for _, fId := range realM.FileIds {
 		f := FsTreeGet(fId)
 		if f != nil {
@@ -193,15 +209,42 @@ func GetFilteredMedia(requester types.User, sort string, sortDirection int, albu
 		// Exclude media if it is present in the filter
 		_, e := slices.BinarySearch(mediaMask, m.Id())
 
-		return len(m.GetFiles()) != 0 && (!mt.IsRaw() || raw) && mt.FriendlyName() != "PDF" && !e
-	})
-
-	allMs = util.Filter(allMs, func(m types.Media) bool {
-		return m.GetOwner() == requester && !m.IsHidden()
+		return m.GetOwner() == requester && len(m.GetFiles()) != 0 && (!mt.IsRaw() || raw) && !mt.IsMime("application/pdf") && !e && !m.IsHidden()
 	})
 
 	// Sort in timeline format, where most recent media is at the beginning of the slice
 	slices.SortFunc(allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) })
 
 	return allMs, nil
+}
+
+func ClearCache() {
+	fddb.FlushRedis()
+
+	cacheFiles := GetCacheDir().GetChildren()
+	util.Each(cacheFiles, func(wf types.WeblensFile) { util.ErrTrace(PermanentlyDeleteFile(wf)) })
+	for _, m := range mediaMap {
+		realM := m.(*media)
+		realM.fullresCacheFiles = make([]types.WeblensFile, realM.PageCount)
+		realM.thumbCacheFile = nil
+		// realM.FullresCacheIds = []types.FileId{}
+		// realM.ThumbnailCacheId = ""
+	}
+}
+
+func AdjustMediaDates(anchor types.Media, newTime time.Time, extraMedias []types.Media) error {
+	offset := newTime.Sub(anchor.GetCreateDate())
+
+	err := anchor.SetCreateDate(anchor.GetCreateDate().Add(offset))
+	if err != nil {
+		return err
+	}
+	for _, m := range extraMedias {
+		err = m.SetCreateDate(m.GetCreateDate().Add(offset))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -12,6 +12,7 @@ type Task interface {
 	Cancel()
 	SwLap(string)
 	// SetCaster(BroadcasterAgent)
+	ClearTimeout()
 
 	ReadError() any
 	ClearAndRecompute()
@@ -30,14 +31,18 @@ type TaskPool interface {
 	QueueTask(Task) error
 	SignalAllQueued()
 	Wait(bool)
+	NotifyTaskComplete(Task, BroadcasterAgent, ...any)
 
 	ScanDirectory(WeblensFile, bool, bool, BroadcasterAgent) Task
-	ScanFile(file WeblensFile, fileBytes []byte, broadcaster BroadcasterAgent) Task
+	ScanFile(file WeblensFile, broadcaster BroadcasterAgent) Task
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
 	Backup(string, Requester) Task
 	HashFile(file WeblensFile) Task
+
+	Errors() []Task
+	AddError(t Task)
 }
 
 type TaskId string

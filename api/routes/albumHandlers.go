@@ -3,6 +3,7 @@ package routes
 import (
 	"encoding/json"
 	"io"
+	"math/rand"
 	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -80,7 +81,7 @@ func createAlbum(ctx *gin.Context) {
 	var albumData albumCreateData
 	err = json.Unmarshal(jsonData, &albumData)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Request body not in propper format"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Request body not in proper format"})
 		return
 	}
 
@@ -214,8 +215,8 @@ func deleteAlbum(ctx *gin.Context) {
 	}
 
 	albumId := types.AlbumId(ctx.Param("albumId"))
-	db := dataStore.NewDB()
-	a, err := db.GetAlbum(albumId)
+
+	a, err := dataStore.GetAlbum(albumId)
 
 	// err or user does not have access to this album, claim not found
 	if a == nil || err != nil || !a.CanUserAccess(user.GetUsername()) {
@@ -224,18 +225,42 @@ func deleteAlbum(ctx *gin.Context) {
 		return
 	}
 
-	// If the user is not the owner, then unshare themself from it
+	// If the user is not the owner, then unshare them from the album
 	if a.Owner != user.GetUsername() {
 		a.RemoveUsers([]types.Username{user.GetUsername()})
 		ctx.Status(http.StatusOK)
 		return
 	}
 
-	err = db.DeleteAlbum(albumId)
+	err = dataStore.DeleteAlbum(albumId)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 	ctx.Status(http.StatusOK)
+}
+
+func albumPreviewMedia(ctx *gin.Context) {
+	albumId := ctx.Param("albumId")
+
+	a, err := dataStore.GetAlbum(types.AlbumId(albumId))
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+	albumMs := a.Medias
+	randomMs := make([]types.ContentId, 0, 9)
+
+	for len(albumMs) != 0 && len(randomMs) < 9 {
+		index := rand.Intn(len(albumMs))
+		m := dataStore.MediaMapGet(albumMs[index])
+		if m != nil && !m.GetMediaType().IsRaw() && m.Id() != a.Cover {
+			randomMs = append(randomMs, m.Id())
+		}
+
+		albumMs = util.Banish(albumMs, index)
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"mediaIds": randomMs})
 }

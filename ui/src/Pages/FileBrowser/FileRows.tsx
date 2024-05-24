@@ -24,8 +24,6 @@ function FileRow({
     style;
 }) {
     const nav = useNavigate();
-    const [sz, un] = humanFileSize(data.files[index].size);
-
     const inRange =
         (index - data.lastSelectedIndex) * (index - data.hoveringIndex) < 1;
 
@@ -35,7 +33,7 @@ function FileRow({
                 className="file-row"
                 mod={{
                     "data-selected":
-                        data.selected.get(data.files[index].id) === true,
+                        data.selected.get(data.files[index].Id()) === true,
                     "data-in-range": inRange === true,
                 }}
                 style={{
@@ -48,15 +46,15 @@ function FileRow({
                     e.stopPropagation();
                     data.dispatch({
                         type: "set_selected",
-                        fileId: data.files[index].id,
+                        fileId: data.files[index].Id(),
                         selected:
-                            data.selected.get(data.files[index].id) !== true,
+                            data.selected.get(data.files[index].Id()) !== true,
                     });
                 }}
                 onMouseOver={(e) => {
                     data.dispatch({
                         type: "set_hovering",
-                        hovering: data.files[index].id,
+                        hovering: data.files[index].Id(),
                     });
                 }}
                 onContextMenu={(e) => {
@@ -64,7 +62,7 @@ function FileRow({
                     e.preventDefault();
                     data.dispatch({
                         type: "set_menu_target",
-                        fileId: data.files[index].id,
+                        fileId: data.files[index].Id(),
                     });
                     data.dispatch({ type: "set_menu_open", open: true });
                     data.dispatch({
@@ -73,11 +71,13 @@ function FileRow({
                     });
                 }}
                 onDoubleClick={() => {
-                    if (data.files[index].isDir) {
-                        nav(`/files/${data.files[index].id}`);
+                    if (data.files[index].IsFolder()) {
+                        nav(`/files/${data.files[index].Id()}`);
                     } else {
                         nav(
-                            `/files/${data.files[index].parentFolderId}?jumpTo=${data.files[index].id}`
+                            `/files/${data.files[
+                                index
+                            ].ParentId()}?jumpTo=${data.files[index].Id()}`
                         );
                     }
                 }}
@@ -85,12 +85,9 @@ function FileRow({
                 <Box style={{ width: 24, height: 24 }}>
                     <IconDisplay file={data.files[index]} />
                 </Box>
-                <Text>{data.files[index].filename}</Text>
+                <Text>{data.files[index].GetFilename()}</Text>
                 <Space flex={1} />
-                <Text>
-                    {sz}
-                    {un}
-                </Text>
+                <Text>{data.files[index].FormatSize()}</Text>
             </Box>
         </Box>
     );
@@ -114,25 +111,28 @@ export function FileRows({
     useEffect(() => {
         dispatch({
             type: "set_files_list",
-            fileIds: files.map((v) => v.id),
+            fileIds: files.map((v) => v.Id()),
         });
     }, [files]);
 
     const lastSelectedIndex = useMemo(() => {
-        return files.findIndex((v) => v.id === fb.lastSelected);
+        return files.findIndex((v) => v.Id() === fb.lastSelected);
     }, [files, fb.lastSelected]);
 
     const hoveringIndex = useMemo(() => {
         if (!fb.holdingShift || !files) {
             return { hoveringIndex: -1, lastSelectedIndex: -1 };
         }
-        return files.findIndex((v) => v.id === fb.hovering);
+        return files.findIndex((v) => v.Id() === fb.hovering);
     }, [files, fb.holdingShift, fb.hovering]);
 
     return (
-        <Box ref={setBoxRef} className="file-rows-box">
+        <Box
+            ref={setBoxRef}
+            className="flex flex-col items-center w-full h-full ml-1"
+        >
             <ScrollList
-                className="no-scrollbars"
+                className="no-scrollbar"
                 height={boxRef?.clientHeight ? boxRef.clientHeight : 0}
                 width={size.width}
                 itemSize={52}

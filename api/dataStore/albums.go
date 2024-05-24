@@ -53,7 +53,12 @@ func GetAlbum(albumId types.AlbumId) (a *AlbumData, err error) {
 	return
 }
 
-func (a AlbumData) CanUserAccess(username types.Username) bool {
+func DeleteAlbum(albumId types.AlbumId) (err error) {
+	err = fddb.DeleteAlbum(albumId)
+	return
+}
+
+func (a *AlbumData) CanUserAccess(username types.Username) bool {
 	return a.Owner == username || slices.Contains(a.SharedWith, username)
 }
 

@@ -15,7 +15,6 @@ import {
     UnsubFromFolder,
 } from "./FileBrowserApi";
 import { humanFileSize } from "../util";
-import { WeblensFile } from "../classes/File";
 
 function useWeblensSocket() {
     const { usr, authHeader }: UserContextT = useContext(UserContext);
@@ -136,6 +135,10 @@ function HandleWebsocketMessage(
     if (lastMessage) {
         let msgData: WsMessageT = JSON.parse(lastMessage.data);
         console.log("WSRecv", msgData);
+        if (!msgData.content || !msgData.content[0]) {
+            console.error("Got empty content in websocket update");
+            return;
+        }
 
         switch (msgData.eventTag) {
             case "file_created": {
@@ -148,9 +151,12 @@ function HandleWebsocketMessage(
             }
 
             case "file_updated": {
+                const files = msgData.content.map((v) => {
+                    return v.fileInfo;
+                });
                 dispatch({
                     type: "update_many",
-                    files: msgData.content,
+                    files: files,
                     user: usr,
                 });
                 return;
@@ -178,12 +184,14 @@ function HandleWebsocketMessage(
 
             case "task_created": {
                 msgData.content.map((e) => {
-                    dispatch({
-                        type: "new_task",
-                        taskId: msgData.subscribeKey,
-                        taskType: e.taskType,
-                        target: e.directoryName,
-                    });
+                    if (e.taskType === "scan_directory") {
+                        dispatch({
+                            type: "new_task",
+                            taskId: msgData.subscribeKey,
+                            taskType: e.taskType,
+                            target: e.directoryName,
+                        });
+                    }
                 });
                 return;
             }
@@ -194,6 +202,15 @@ function HandleWebsocketMessage(
                     taskId: msgData.subscribeKey,
                     time: msgData.content[0].execution_time,
                     note: msgData.content[0].note,
+                });
+                return;
+            }
+
+            case "task_failure": {
+                dispatch({
+                    type: "task_failure",
+                    taskId: msgData.subscribeKey,
+                    note: msgData.content[0].failure_note,
                 });
                 return;
             }
@@ -210,7 +227,7 @@ function HandleWebsocketMessage(
                         100,
                     taskId: msgData.subscribeKey,
                     taskType: "Creating Zip...",
-                    target: "Gloop",
+                    target: "Zip",
                     fileName: `${size}${units}s`,
                     tasksComplete: msgData.content[0].result.completedFiles,
                     tasksTotal: msgData.content[0].result.totalFiles,
@@ -270,6 +287,11 @@ function HandleWebsocketMessage(
                 console.error(msgData.error);
                 return;
             }
+
+            case "task_complete": {
+                return;
+            }
+
             default: {
                 console.error(
                     "Could not parse websocket message type: ",

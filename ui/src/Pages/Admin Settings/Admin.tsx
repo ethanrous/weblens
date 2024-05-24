@@ -26,7 +26,7 @@ import {
     SetUserAdmin,
 } from "../../api/UserApi";
 import { notifications } from "@mantine/notifications";
-import { ColumnBox, RowBox } from "../FileBrowser/FileBrowserStyles";
+import { RowBox } from "../FileBrowser/FileBrowserStyles";
 import {
     IconClipboard,
     IconRefresh,
@@ -53,14 +53,7 @@ function CreateUserBox({
     const [passInput, setPassInput] = useState("");
     const [makeAdmin, setMakeAdmin] = useState(false);
     return (
-        <ColumnBox
-            style={{
-                backgroundColor: "#222222",
-                padding: 20,
-                height: "max-content",
-                width: 450,
-            }}
-        >
+        <div className=" p-5 h-max w-full rounded bg-slate-800">
             <Input
                 className="weblens-input-wrapper"
                 variant="unstyled"
@@ -103,7 +96,7 @@ function CreateUserBox({
                     return true;
                 }}
             />
-        </ColumnBox>
+        </div>
     );
 }
 
@@ -119,99 +112,93 @@ const UserRow = ({
     authHeader: AuthHeaderT;
 }) => {
     return (
-        <RowBox
-            key={rowUser.username}
-            style={{
-                width: "95%",
-                height: "65px",
-                alignItems: "center",
-                outline: "1px solid #888888",
-                borderRadius: "2px",
-                padding: 15,
-                margin: 5,
-            }}
-        >
-            <IconRefresh
-                style={{ cursor: "pointer" }}
-                onClick={() => RecurScanFolder(rowUser.homeId, authHeader)}
-            />
-            <ColumnBox
-                style={{
-                    justifyContent: "center",
-                    width: "max-content",
-                    paddingLeft: "10px",
-                }}
+        <div className="p-2">
+            <div
+                key={rowUser.username}
+                className="flex flex-row w-full h-16 items-center outline outline-1 outline-stone-300 rounded-sm p-4"
             >
-                <Text c={"white"} fw={600} style={{ width: "max-content" }}>
-                    {rowUser.username}
-                </Text>
-                {rowUser.admin && !rowUser.owner && !accessor.owner && (
-                    <Text c={"#aaaaaa"}>Admin</Text>
-                )}
-                {rowUser.owner && <Text c={"#aaaaaa"}>Owner</Text>}
-                {!rowUser.admin && accessor.owner && (
+                <IconRefresh
+                    style={{ cursor: "pointer" }}
+                    onClick={() => RecurScanFolder(rowUser.homeId, authHeader)}
+                />
+                <Box
+                    style={{
+                        justifyContent: "center",
+                        width: "max-content",
+                        paddingLeft: "10px",
+                    }}
+                >
+                    <Text c={"white"} fw={600} style={{ width: "max-content" }}>
+                        {rowUser.username}
+                    </Text>
+                    {rowUser.admin && !rowUser.owner && !accessor.owner && (
+                        <Text c={"#aaaaaa"}>Admin</Text>
+                    )}
+                    {rowUser.owner && <Text c={"#aaaaaa"}>Owner</Text>}
+                    {!rowUser.admin && accessor.owner && (
+                        <WeblensButton
+                            label="Make Admin"
+                            width={"max-content"}
+                            height={20}
+                            style={{ padding: 4 }}
+                            onClick={() => {
+                                SetUserAdmin(
+                                    rowUser.username,
+                                    true,
+                                    authHeader
+                                ).then(() =>
+                                    GetUsersInfo(setAllUsersInfo, authHeader)
+                                );
+                            }}
+                        />
+                    )}
+                    {!rowUser.owner && rowUser.admin && accessor.owner && (
+                        <WeblensButton
+                            label="Remove Admin"
+                            width={"max-content"}
+                            height={20}
+                            style={{ padding: 4 }}
+                            onClick={() => {
+                                SetUserAdmin(
+                                    rowUser.username,
+                                    false,
+                                    authHeader
+                                ).then(() =>
+                                    GetUsersInfo(setAllUsersInfo, authHeader)
+                                );
+                            }}
+                        />
+                    )}
+                </Box>
+                <Space style={{ display: "flex", flexGrow: 1 }} />
+                {rowUser.activated === false && (
                     <WeblensButton
-                        label="Make Admin"
-                        width={"max-content"}
+                        label="Activate"
                         height={20}
-                        style={{ padding: 4 }}
                         onClick={() => {
-                            SetUserAdmin(
-                                rowUser.username,
-                                true,
-                                authHeader
-                            ).then(() =>
-                                GetUsersInfo(setAllUsersInfo, authHeader)
+                            ActivateUser(rowUser.username, authHeader).then(
+                                () => GetUsersInfo(setAllUsersInfo, authHeader)
                             );
                         }}
                     />
                 )}
-                {!rowUser.owner && rowUser.admin && accessor.owner && (
-                    <WeblensButton
-                        label="Remove Admin"
-                        width={"max-content"}
-                        height={20}
-                        style={{ padding: 4 }}
-                        onClick={() => {
-                            SetUserAdmin(
-                                rowUser.username,
-                                false,
-                                authHeader
-                            ).then(() =>
-                                GetUsersInfo(setAllUsersInfo, authHeader)
-                            );
-                        }}
-                    />
-                )}
-            </ColumnBox>
-            <Space style={{ display: "flex", flexGrow: 1 }} />
-            {rowUser.activated === false && (
+                <Space style={{ display: "flex", flexGrow: 1 }} />
+
                 <WeblensButton
-                    label="Activate"
+                    label="Delete"
                     height={20}
+                    width={"max-content"}
+                    danger
+                    centerContent
+                    disabled={rowUser.admin}
                     onClick={() => {
-                        ActivateUser(rowUser.username, authHeader).then(() =>
+                        DeleteUser(rowUser.username, authHeader).then(() =>
                             GetUsersInfo(setAllUsersInfo, authHeader)
                         );
                     }}
                 />
-            )}
-            <Space style={{ display: "flex", flexGrow: 1 }} />
-
-            <WeblensButton
-                label="Delete"
-                height={20}
-                width={"max-content"}
-                danger
-                centerContent
-                disabled={rowUser.admin}
-                onClick={() => {
-                    DeleteUser(rowUser.username, authHeader).then(() =>
-                        GetUsersInfo(setAllUsersInfo, authHeader)
-                    );
-                }}
-            />
-        </RowBox>
+            </div>
+        </div>
     );
 };
 
@@ -247,22 +234,9 @@ function UsersBox({
     }, [allUsersInfo, authHeader, setAllUsersInfo]);
 
     return (
-        <ColumnBox
-            style={{
-                padding: "10px",
-                backgroundColor: "#222222",
-                height: "max-content",
-                width: "450px",
-            }}
-        >
-            <Text size={"20px"} fw={800} c={"white"}>
-                Users
-            </Text>
-            <Space h={"10px"} />
-            <ScrollArea w={"100%"} type="never" maw={450} mah={400}>
-                {usersList}
-            </ScrollArea>
-        </ColumnBox>
+        <div className="flex flex-col p-3 shrink w-full h-max overflow-y-scroll overflow-x-hidden">
+            {usersList}
+        </div>
     );
 }
 
@@ -291,30 +265,9 @@ export function ApiKeys({ authHeader }) {
     }, []);
 
     return (
-        <Box
-            style={{
-                width: 450,
-                padding: 5,
-                backgroundColor: "#222222",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-            }}
-        >
+        <div className="flex flex-col bg-slate-800 rounded items-center p-1 w-full">
             {keys.length !== 0 && (
-                <Box
-                    style={{
-                        backgroundColor: "#333333",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        padding: 5,
-                        paddingLeft: 10,
-                        borderRadius: 4,
-                        margin: 20,
-                        maxWidth: "100%",
-                    }}
-                >
+                <div className="flex flex-col items-center p-1 pl-3 rounded m-5 max-w-max">
                     {keys.map((k) => {
                         return (
                             <Box
@@ -396,7 +349,7 @@ export function ApiKeys({ authHeader }) {
                             </Box>
                         );
                     })}
-                </Box>
+                </div>
             )}
             <WeblensButton
                 width={200}
@@ -468,7 +421,7 @@ export function ApiKeys({ authHeader }) {
                     );
                 })}
             </Box>
-        </Box>
+        </div>
     );
 }
 
@@ -489,82 +442,59 @@ export function Admin({ close }) {
     }
 
     return (
-        <Box className="settings-menu" onClick={(e) => e.stopPropagation()}>
-            <RowBox style={{ position: "relative", height: "max-content" }}>
-                <IconX
-                    style={{
-                        margin: 10,
-                        cursor: "pointer",
-                    }}
-                    onClick={close}
-                />
-            </RowBox>
-            <ColumnBox
-                style={{
-                    // marginTop: "50px",
-                    // paddingBottom: "50px",
-                    height: "max-content",
-                    maxHeight: "80vh",
-                    padding: 30,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: 8,
-                }}
-            >
-                <UsersBox
-                    thisUserInfo={usr}
-                    allUsersInfo={allUsersInfo}
-                    setAllUsersInfo={setAllUsersInfo}
-                    authHeader={authHeader}
-                />
-                <Space h={10} />
-                <CreateUserBox
-                    setAllUsersInfo={setAllUsersInfo}
-                    authHeader={authHeader}
-                />
-
-                <Space h={25} />
-                <ApiKeys authHeader={authHeader} />
-                <RowBox
-                    style={{
-                        height: "max-content",
-                        justifyContent: "center",
-                    }}
-                >
-                    <WeblensButton
-                        label="Clear Cache"
-                        height={40}
-                        width={"200px"}
-                        danger
-                        onClick={() => {
-                            clearCache(authHeader).then(() =>
-                                notifications.show({
-                                    message: "Cache cleared",
-                                })
-                            );
-                        }}
+        <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-row w-full h-full p-6">
+                <div className="flex flex-col w-1/2">
+                    <UsersBox
+                        thisUserInfo={usr}
+                        allUsersInfo={allUsersInfo}
+                        setAllUsersInfo={setAllUsersInfo}
+                        authHeader={authHeader}
                     />
-                    <WeblensButton
-                        label="Backup now"
-                        height={40}
-                        width={"200px"}
-                        disabled={serverInfo.role === "core"}
-                        postScript={
-                            serverInfo.role === "core"
-                                ? "Core servers do not support backup"
-                                : ""
-                        }
-                        onClick={async () => {
-                            const res = await doBackup(authHeader);
-                            if (res >= 300) {
-                                return false;
+                    <Space h={10} />
+                    <CreateUserBox
+                        setAllUsersInfo={setAllUsersInfo}
+                        authHeader={authHeader}
+                    />
+                </div>
+                <div className="flex flex-col w-1/2">
+                    <ApiKeys authHeader={authHeader} />
+                    <div className="flex flex-row w-full justify-around">
+                        <WeblensButton
+                            label="Clear Cache"
+                            height={40}
+                            width={"200px"}
+                            danger
+                            onClick={() => {
+                                clearCache(authHeader).then(() =>
+                                    notifications.show({
+                                        message: "Cache cleared",
+                                    })
+                                );
+                            }}
+                        />
+                        <WeblensButton
+                            label="Backup now"
+                            height={40}
+                            width={"200px"}
+                            disabled={serverInfo.role === "core"}
+                            postScript={
+                                serverInfo.role === "core"
+                                    ? "Core servers do not support backup"
+                                    : ""
                             }
-                            return true;
-                        }}
-                    />
-                </RowBox>
-            </ColumnBox>
-        </Box>
+                            onClick={async () => {
+                                const res = await doBackup(authHeader);
+                                if (res >= 300) {
+                                    return false;
+                                }
+                                return true;
+                            }}
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 

@@ -66,13 +66,17 @@ export function nsToHumanTime(ns: number) {
         timeStr += milliseconds + "ms ";
     }
 
+    if (timeStr.length === 0) {
+        timeStr = "<1ms";
+    }
+
     return timeStr;
 }
 
 export function dateFromFileData(fileData: WeblensFile) {
-    var date = new Date(fileData.mediaData.createDate);
+    var date = new Date(fileData.GetMedia().GetCreateDate());
     if (date.getFullYear() === 0) {
-        date = new Date(fileData.modTime);
+        date = new Date(fileData.GetModified());
     }
     return date.toDateString();
 }

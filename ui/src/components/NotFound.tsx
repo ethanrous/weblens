@@ -1,31 +1,31 @@
-import { Space, Text } from "@mantine/core";
-import { ColumnBox } from "../Pages/FileBrowser/FileBrowserStyles";
-import { useNavigate } from "react-router-dom";
-import { WeblensButton } from "./WeblensButton";
-import { useContext } from "react";
-import { UserContext } from "../Context";
+import { Box, Space, Text } from '@mantine/core'
+import { useNavigate } from 'react-router-dom'
+import { WeblensButton } from './WeblensButton'
+import { useContext } from 'react'
+import { UserContext } from '../Context'
+import { UserContextT } from '../types/Types'
 
 function NotFound({
     resourceType,
     link,
     setNotFound,
 }: {
-    resourceType: string;
-    link: string;
-    setNotFound: (b: boolean) => void;
+    resourceType: string
+    link: string
+    setNotFound: (b: boolean) => void
 }) {
-    const { usr }: UserContextT = useContext(UserContext);
-    const nav = useNavigate();
+    const { usr }: UserContextT = useContext(UserContext)
+    const nav = useNavigate()
     return (
-        <ColumnBox style={{ justifyContent: "center" }}>
-            <ColumnBox
+        <div className="flex flex-col justify-center items-center h-full w-full">
+            <div
                 style={{
-                    height: "max-content",
-                    width: "max-content",
+                    height: 'max-content',
+                    width: 'max-content',
                     padding: 50,
-                    marginBottom: "40vh",
-                    backgroundColor: "#4444ff33",
-                    outline: "1px solid #222277",
+                    marginBottom: '40vh',
+                    backgroundColor: '#4444ff33',
+                    outline: '1px solid #222277',
                     borderRadius: 6,
                 }}
             >
@@ -38,15 +38,16 @@ function NotFound({
 
                 <WeblensButton
                     centerContent
-                    label={usr.username ? "Go Back" : "Login"}
+                    height={40}
+                    label={usr.username ? 'Go Back' : 'Login'}
                     onClick={(e) => {
-                        setNotFound(false);
-                        nav(usr.username ? link : "/login");
+                        setNotFound(false)
+                        nav(usr.username ? link : '/login')
                     }}
                 />
-            </ColumnBox>
-        </ColumnBox>
-    );
+            </div>
+        </div>
+    )
 }
 
-export default NotFound;
+export default NotFound

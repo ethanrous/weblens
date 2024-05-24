@@ -192,11 +192,9 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				t.success("closed by worker pool")
 			}
 
-			if printStopwatchResults {
-				t.sw.PrintResults(true)
-			} else if t.exitStatus != TaskSuccess {
-				util.Warning.Printf("T[%s] exited with non-success status: %s\n", t.taskId, t.exitStatus)
-			}
+			// Notify this task has completed, and unsubscribe any subscribers to it
+			globalCaster.PushTaskUpdate(t.taskId, TaskComplete, types.TaskResult{"task_id": t.taskId, "exit_status": t.exitStatus})
+			globalCaster.UnsubTask(t)
 
 			// Potentially find the task pool that houses this task pool. All child
 			// task pools report their status to the root task pool as well.
@@ -204,6 +202,15 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			rootTaskPool := t.taskPool
 			for rootTaskPool.parentTaskPool != nil && !rootTaskPool.parentTaskPool.treatAsGlobal {
 				rootTaskPool = rootTaskPool.parentTaskPool
+			}
+
+			if printStopwatchResults {
+				t.sw.PrintResults(true)
+			} else if t.exitStatus != TaskSuccess {
+				if !rootTaskPool.treatAsGlobal {
+					rootTaskPool.AddError(t)
+				}
+				util.Warning.Printf("T[%s] exited with non-success status: %s\n", t.taskId, t.exitStatus)
 			}
 
 			if !t.persistent {

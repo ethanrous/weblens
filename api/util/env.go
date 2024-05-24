@@ -68,27 +68,37 @@ func GetImgRecognitionUrl() string {
 	return envReadString("IMG_RECOGNITION_URI")
 }
 
-// Enables debug logging and puts the router in development mode
+// IsDevMode Enables debug logging and puts the router in development mode
 func IsDevMode() bool {
 	return envReadBool("DEV_MODE")
 }
 
-// Controls if we host UI routes on this server. UI can be hosted elsewhere and
+// DetachUi Controls if we host UI routes on this server. UI can be hosted elsewhere and
 // must proxy any /api/* requests back to this server
 func DetachUi() bool {
 	return envReadBool("DETATCH_UI")
 }
 
-// Enable use of redis on this server. If true, "REDIS_URL" must also be set
+var shouldUseRedis *bool = nil
+
+// ShouldUseRedis Enable use of redis on this server. If true, "REDIS_URL" must also be set
 func ShouldUseRedis() bool {
-	return envReadBool("USE_REDIS")
+	if shouldUseRedis != nil {
+		return *shouldUseRedis
+	}
+
+	ret := envReadBool("USE_REDIS")
+
+	shouldUseRedis = &ret
+	return ret
 }
 
 func GetCachesPath() string {
 	return envReadString("CACHES_PATH")
 }
 
-// Directory for storing cached files. This includes photo thumbnails,
+// GetCacheDir
+// Returns the path of the directory for storing cached files. This includes photo thumbnails,
 // temp uploaded files, and zip files.
 func GetCacheDir() string {
 	cacheString := envReadString("CACHES_PATH") + "/cache"

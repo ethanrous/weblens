@@ -1,3 +1,5 @@
+@import "../../components/theme.scss";
+
 .options-dropdown {
     padding: 10px;
     background-color: #222222;
@@ -10,55 +12,52 @@
     justify-content: center;
     align-items: center;
     margin: 2px;
-    position: relative;
     cursor: pointer;
     outline: 2px solid #ffffff00;
     border-radius: 4px;
     transform-style: preserve-3d;
+
     transition:
-        transform 100ms,
-        outline 200ms ease-in-out;
-}
+        transform 100ms ease-in-out,
+        outline 150ms ease-in-out,
+        opacity 150ms ease-in-out;
 
-.preview-card-container:where([data-selected="true"]) {
-    transform: scale(1, 1);
-    transform: outline 100ms ease-in-out;
+    &[data-selecting='true'] {
+        transform: scale(0.9, 0.9);
+        opacity: 50%;
+        // border-radius: 8px;
 
-    outline: 0px solid #4444ee;
-}
+        &:hover, &[data-choosing='true'] {
+            // box-shadow: $soft-shadow;
+            // outline: 1px solid white;
+            transform: scale(0.95, 0.95);
+            opacity: 90%;
+        }
 
-.preview-card-container:where([data-selecting="true"]):where(
-        [data-selected="false"]
-    ) {
-    transform: scale(0.9, 0.9);
-    opacity: 50%;
-    border-radius: 8px;
-    transition:
-        transform 0.15s ease-in-out,
-        opacity 1s ease-in-out;
-}
+        &[data-selected='true'] {
+            transform: scale(1, 1);
+            transition: outline 100ms ease-in-out;
+            opacity: 90%;
+            outline: 2px solid #ffffff00;
+        }
+    }
 
-.preview-card-container:where([data-selecting="true"]):where(
-        [data-selected="false"]
-    ):hover {
-        border: 2px solid white;
-    transform: scale(0.95, 0.95);
-    opacity: 90%;
-}
-
-.preview-card-container:where([data-selecting="true"]):where(
-        [data-selected="true"]
-    ):hover {
-        border: 2px solid white;
-    transition:
-        transform 150ms ease-in-out,
-        outline 100ms ease-in-out;
+    &[data-presenting='true'] {
+        // height: 100%;
+        // width: 100%;
+        // position: absolute;
+        // top: 0;
+        position: relative;
+        border-radius: 12px;
+        z-index: 100;
+        // transform: scale(105%);
+        box-shadow: 0 0 15px black;
+    }
 }
 
 .preview-card-container:where([data-selecting="false"]):hover, .preview-card-container:where([data-menu-open="true"]) {
     transform: scale(105%);
-
-    box-shadow: 0px 0px 15px black;
+    box-shadow: 0 0 15px black;
     // border: 2px solid white;
     z-index: 3;
 }
@@ -71,22 +70,69 @@
     z-index: 4;
     border-radius: 4px;
     overflow: hidden;
-    height: 0px;
     width: 100%;
     cursor: default;
     background-color: #00000000;
     height: 100%;
     backdrop-filter: blur(0px);
     pointer-events: none;
-    outline: 3px solid #1c104900;
+    outline: 3px solid $dark-paper-transparent;
 
     transition: all 200ms;
 
     &[data-open='true'] {
-        outline-offset: 0px;
-        outline: 3px solid #1c1049;
+        outline-offset: 0;
+        outline: 3px solid $dark-paper;
         background-color: #00000044;
         pointer-events: all;
         backdrop-filter: blur(6px);
     }
+}
+
+.gallery-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 98vh;
+    width: 100%;
+    padding-left: 2%;
+    padding-right: 2%;
+    padding-bottom: 150px;
+}
+
+.gallery-scroll-box {
+    height: max-content;
+    width: 100%;
+
+    padding-top: 10px;
+    padding-bottom: 150px;
+}
+
+.gallery-image {
+    border-radius: 4px;
+}
+
+.media-meta-preview {
+    height: 100%;
+    width: 100%;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: absolute;
+    opacity: 0;
+    transition: opacity 150ms ease-in-out;
+
+    //&hover {
+    //    opacity: 100%;
+    //}
+
+    //&[data-visible='true'] {
+    //    opacity: 100%;
+    //}
+}
+
+.preview-card-container:hover .media-meta-preview {
+    opacity: 100%;
 }
