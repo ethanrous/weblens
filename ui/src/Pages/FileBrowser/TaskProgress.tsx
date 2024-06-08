@@ -1,7 +1,6 @@
 import { useContext, useMemo } from 'react'
 import { nsToHumanTime } from '../../util'
-import { Box, Text } from '@mantine/core'
-import { RowBox } from './FileBrowserStyles'
+import { Text } from '@mantine/core'
 import { IconX } from '@tabler/icons-react'
 import { WeblensProgress } from '../../components/WeblensProgress'
 import { FbContext } from './FileBrowser'
@@ -97,7 +96,7 @@ export const TasksDisplay = ({
             return <TaskProgCard key={sp.taskId} prog={sp} />
         })
     }, [scanProgress])
-    return <Box className="h-max w-full">{cards}</Box>
+    return <div className="h-max w-full">{cards}</div>
 }
 
 const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {

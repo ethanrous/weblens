@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -34,12 +35,13 @@ func attachRemote(ctx *gin.Context) {
 	}
 	err = dataStore.NewRemote(nr.Id, nr.Name, types.WeblensApiKey(nr.UsingKey))
 	if err != nil {
-		if err == dataStore.ErrKeyInUse {
+		if errors.Is(err, dataStore.ErrKeyInUse) {
 			ctx.Status(http.StatusConflict)
 			return
 		}
-		switch err.(type) {
-		case types.WeblensError:
+		var weblensError types.WeblensError
+		switch {
+		case errors.As(err, &weblensError):
 			util.ShowErr(err)
 		default:
 			util.ErrTrace(err)

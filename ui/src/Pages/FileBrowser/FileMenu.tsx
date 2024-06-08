@@ -1,182 +1,240 @@
 import {
-    IconArrowBackUp,
-    IconChevronRight,
-    IconDownload,
-    IconFile,
+    IconArrowLeft,
+    IconFileAnalytics,
     IconFolder,
     IconFolderPlus,
-    IconPhotoPlus,
-    IconReorder,
-    IconScan,
-    IconShare,
-    IconSpiral,
+    IconLink,
+    IconMinus,
+    IconPlus,
     IconTrash,
-    IconUserMinus,
+    IconUser,
+    IconUsers,
+    IconUsersPlus,
 } from '@tabler/icons-react'
+import { useNavigate } from 'react-router-dom'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+
 import {
+    CreateFolder,
     DeleteFiles,
-    DeleteShare,
-    NewWormhole,
-    restoreFiles,
+    shareFiles,
     TrashFiles,
-    UnTrashFiles,
-    UpdateFileShare,
+    updateFileShare,
 } from '../../api/FileBrowserApi'
 import { FbStateT, UserContextT } from '../../types/Types'
 import { WeblensFile } from '../../classes/File'
-import { useContext, useEffect, useMemo, useState } from 'react'
 import { UserContext } from '../../Context'
-import { Box, Divider, Menu, Text } from '@mantine/core'
-import { RowBox } from './FileBrowserStyles'
-import { notifications } from '@mantine/notifications'
-import { dispatchSync } from '../../api/Websocket'
-import { AlbumScoller } from './FileBrowserAlbums'
-import { downloadSelected } from './FileBrowserLogic'
-import { useClick, useKeyDown } from '../../components/hooks'
+import { FbMenuModeT } from './FileBrowserStyles'
+import {
+    useClick,
+    useKeyDown,
+    useResize,
+    useWindowSize,
+} from '../../components/hooks'
 import { WeblensButton } from '../../components/WeblensButton'
-import { ShareBox } from './FileBrowserShareMenu'
-import { FbContext } from './FileBrowser'
+import { FbContext, FbModeT } from './FileBrowser'
+import { WeblensShare } from '../../classes/Share'
+import WeblensInput from '../../components/WeblensInput'
+import { AutocompleteUsers } from '../../api/ApiFetch'
 
-export function FileContextMenu({
-    itemId,
-    setOpen,
-    menuPos,
-    wsSend,
-}: {
-    itemId: string
-    setOpen
-    menuPos
-    wsSend
-}) {
-    const { authHeader } = useContext(UserContext)
-    const { fbState, fbDispatch } = useContext(FbContext)
+import './style/fileBrowserMenuStyle.scss'
+import { clamp } from '../../util'
 
-    useEffect(() => {
-        fbDispatch({ type: 'set_block_focus', block: fbState.menuOpen })
-    }, [fbState?.menuOpen])
-
-    if (fbState.viewingPast !== null) {
-        return (
-            <FileHistoryMenu
-                itemId={itemId}
-                fbState={fbState}
-                open={open}
-                setOpen={setOpen}
-                menuPos={menuPos}
-                dispatch={fbDispatch}
-                wsSend={wsSend}
-                authHeader={authHeader}
-            />
-        )
-    } else if (open && itemId !== '') {
-        return (
-            <StandardFileMenu
-                itemId={itemId}
-                fbState={fbState}
-                open={open}
-                setOpen={setOpen}
-                menuPos={menuPos}
-                dispatch={fbDispatch}
-                wsSend={wsSend}
-                authHeader={authHeader}
-            />
-        )
+const activeItemsFromState = (fbState: FbStateT, selected: boolean) => {
+    if (fbState.dirMap.size === 0) {
+        return { items: [], anyDisplayable: false }
     }
+    const itemIds = selected
+        ? Array.from(fbState.selected.keys())
+        : [fbState.menuTargetId]
+    let mediaCount = 0
+    const items = itemIds.map((i) => {
+        const item = fbState.dirMap.get(i)
+        if (!item) {
+            return null
+        }
+        if (item.GetMedia()?.IsDisplayable() || item.IsFolder()) {
+            mediaCount++
+        }
+        return item
+    })
+
+    return { items: items.filter((i) => Boolean(i)), mediaCount }
 }
 
-const FileMenuHeader = ({
-    itemInfo,
-    extraString,
-}: {
-    itemInfo: WeblensFile
-    extraString: string
-}) => {
+const MenuTitle = () => {
+    const { fbState, fbDispatch } = useContext(FbContext)
+    const [targetItem, setTargetItem] = useState<WeblensFile>(null)
+
+    useEffect(() => {
+        if (fbState.menuTargetId === '') {
+            console.log(fbState.menuTargetId, fbState.folderInfo)
+            setTargetItem(fbState.folderInfo)
+        } else {
+            setTargetItem(fbState.dirMap.get(fbState.menuTargetId))
+        }
+    }, [fbState.menuTargetId, fbState.folderInfo])
+
+    const extrasText = useMemo(() => {
+        if (
+            fbState.selected.get(targetItem?.Id()) &&
+            fbState.selected.size > 1
+        ) {
+            return `+ ${fbState.selected.size - 1} more`
+        } else {
+            return ''
+        }
+    }, [targetItem, fbState.selected])
+
+    const Icon = useMemo(() => {
+        if (fbState.menuMode === FbMenuModeT.NameFolder) {
+            return IconFolderPlus
+        }
+        return targetItem?.GetFileIcon()
+    }, [targetItem, fbState.menuMode])
+
     return (
-        <div>
-            <Menu.Label>
-                <RowBox style={{ gap: 8, justifyContent: 'center' }}>
-                    {itemInfo.IsFolder() && <IconFolder />}
-                    {!itemInfo.IsFolder() && <IconFile />}
-                    <Text truncate="end" style={{ maxWidth: '250px' }}>
-                        {itemInfo.GetFilename()}
-                    </Text>
-                    {extraString}
-                </RowBox>
-            </Menu.Label>
-            <Divider my={10} />
+        <div className="file-menu-title">
+            {fbState.menuMode === FbMenuModeT.NameFolder && (
+                <div className="flex flex-grow absolute w-full">
+                    <WeblensButton
+                        Left={IconArrowLeft}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            fbDispatch({
+                                type: 'set_menu_open',
+                                menuMode: FbMenuModeT.Default,
+                            })
+                        }}
+                    />
+                </div>
+            )}
+            <div className="flex flex-col w-max">
+                <div className="flex flex-row items-center justify-center w-full h-8">
+                    <div className="flex shrink-0 justify-center items-center h-8 w-8">
+                        {Icon && <Icon />}
+                    </div>
+                    <p className="font-semibold select-none text-nowrap truncate text-sm">
+                        {targetItem?.GetFilename()}
+                    </p>
+                </div>
+                {extrasText && (
+                    <p className="flex w-full justify-end text-xs select-none h-3">
+                        {extrasText}
+                    </p>
+                )}
+            </div>
         </div>
     )
 }
 
-function StandardFileMenu({
-    itemId,
-    fbState,
-    open,
-    setOpen,
-    menuPos,
-    dispatch,
-    wsSend,
-    authHeader,
-}: {
-    itemId: string
-    fbState: FbStateT
-    open
-    setOpen
-    menuPos
-    dispatch
-    wsSend
-    authHeader
-}) {
-    const { usr }: UserContextT = useContext(UserContext)
-    const [shareMenu, setShareMenu] = useState(false)
-    const [addToAlbumMenu, setAddToAlbumMenu] = useState(false)
-    const [itemInfo, setItemInfo] = useState(new WeblensFile({}))
-    const selected: boolean = Boolean(fbState.selected.get(itemId))
+export function FileContextMenu() {
+    const { authHeader } = useContext(UserContext)
+    const { fbState, fbDispatch } = useContext(FbContext)
+    const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
 
     useEffect(() => {
-        const info = fbState.dirMap.get(itemId)
+        fbDispatch({
+            type: 'set_block_focus',
+            block: fbState.menuMode !== FbMenuModeT.Closed,
+        })
+    }, [fbState.menuMode])
+
+    const setMenuMode = useCallback(
+        (m: FbMenuModeT) => {
+            // fbDispatch({ type: 'set_block_focus', block: m !== FbMenuModeT.Closed })
+            fbDispatch({ type: 'set_menu_open', menuMode: m })
+        },
+        [fbDispatch]
+    )
+
+    useKeyDown('Escape', (e) => {
+        if (fbState.menuMode !== FbMenuModeT.Closed) {
+            e.stopPropagation()
+            fbDispatch({ type: 'set_menu_open', menuMode: FbMenuModeT.Closed })
+        }
+    })
+
+    useClick(() => {
+        if (fbState.menuMode !== FbMenuModeT.Closed) {
+            fbDispatch({ type: 'set_menu_open', menuMode: FbMenuModeT.Closed })
+        }
+    }, menuRef)
+
+    const { width, height } = useWindowSize()
+    const { height: menuHeight, width: menuWidth } = useResize(menuRef)
+
+    const menuPosStyle = useMemo(() => {
+        return {
+            top: clamp(
+                fbState.menuPos.y,
+                8 + menuHeight / 2,
+                height - menuHeight / 2 - 8
+            ),
+            left: clamp(
+                fbState.menuPos.x,
+                8 + menuWidth / 2,
+                width - menuWidth / 2 - 8
+            ),
+        }
+    }, [
+        fbState.menuPos.y,
+        fbState.menuPos.x,
+        menuHeight,
+        menuWidth,
+        width,
+        height,
+    ])
+
+    return (
+        <div
+            className={'backdrop-menu'}
+            data-mode={fbState.menuMode}
+            ref={setMenuRef}
+            onClick={(e) => {
+                e.stopPropagation()
+                fbDispatch({
+                    type: 'set_menu_open',
+                    menuMode: FbMenuModeT.Closed,
+                })
+            }}
+            style={menuPosStyle}
+        >
+            <MenuTitle />
+            {fbState.viewingPast !== null && <div />}
+            <StandardFileMenu />
+            <BackdropDefaultItems />
+            <FileShareMenu fileInfo={fbState.folderInfo} />
+            <NewFolderName />
+        </div>
+    )
+}
+
+function StandardFileMenu() {
+    const { usr, authHeader }: UserContextT = useContext(UserContext)
+    const [itemInfo, setItemInfo] = useState(new WeblensFile({}))
+
+    const { fbState, fbDispatch } = useContext(FbContext)
+    const selected: boolean = Boolean(
+        fbState.selected.get(fbState.menuTargetId)
+    )
+
+    useEffect(() => {
+        const info = fbState.dirMap.get(fbState.menuTargetId)
         if (info) {
             setItemInfo(info)
         }
-    }, [fbState.dirMap.get(itemId)])
+    }, [fbState.dirMap.get(fbState.menuTargetId)])
 
     const { items }: { items: WeblensFile[] } = useMemo(() => {
-        if (fbState.dirMap.size === 0) {
-            return { items: [], anyDisplayable: false }
-        }
-        const itemIds = selected
-            ? Array.from(fbState.selected.keys())
-            : [itemId]
-        let mediaCount = 0
-        const items = itemIds.map((i) => {
-            const item = fbState.dirMap.get(i)
-            if (!item) {
-                return null
-            }
-            if (item.GetMedia()?.IsDisplayable() || item.IsFolder()) {
-                mediaCount++
-            }
-            return item
-        })
-
-        return { items: items.filter((i) => Boolean(i)), mediaCount }
-    }, [
-        itemId,
-        JSON.stringify(fbState.dirMap.get(itemId)),
-        selected,
-        fbState.selected,
-    ])
-
-    let extraString
-    if (selected && fbState.selected.size > 1) {
-        extraString = ` +${fbState.selected.size - 1} more`
-    }
+        return activeItemsFromState(fbState, selected)
+    }, [fbState.menuTargetId, selected, fbState.selected])
 
     const wormholeId = useMemo(() => {
         if (itemInfo?.GetShares()) {
-            const whs = itemInfo.GetShares().filter((s) => s.Wormhole)
+            const whs = itemInfo.GetShares().filter((s) => s.IsWormhole())
             if (whs.length !== 0) {
-                return whs[0].shareId
+                return whs[0].Id()
             }
         }
     }, [itemInfo?.GetShares()])
@@ -194,8 +252,9 @@ function StandardFileMenu({
         [items]
     )
     const inTrash = fbState.folderInfo.Id() === usr.trashId
-    const inShare = fbState.folderInfo.Id() === 'shared'
-    let trashName
+    const inShare = fbState.fbMode === FbModeT.share
+
+    let trashName: string
     if (inTrash) {
         trashName = 'Delete Forever'
     } else if (inShare) {
@@ -204,399 +263,401 @@ function StandardFileMenu({
         trashName = 'Delete'
     }
 
-    console.log(itemInfo)
+    if (fbState.menuMode === FbMenuModeT.Closed) {
+        return <></>
+    }
 
     return (
-        <Menu
-            opened={open}
-            closeDelay={0}
-            openDelay={0}
-            onClose={() => setOpen(false)}
-            closeOnClickOutside={!(addToAlbumMenu || shareMenu)}
-            position="right-start"
-            closeOnItemClick={false}
-            transitionProps={{ duration: 100, exitDuration: 0 }}
-            styles={{
-                dropdown: {
-                    boxShadow: '0px 0px 20px -5px black',
-                    width: 'max-content',
-                    padding: 10,
-                    border: 0,
-                },
-            }}
+        <div
+            className={'default-grid'}
+            data-visible={
+                fbState.menuMode === FbMenuModeT.Default &&
+                fbState.menuTargetId !== ''
+            }
         >
-            <Menu.Target>
-                <Box
-                    style={{
-                        position: 'absolute',
-                        top: menuPos.y,
-                        left: menuPos.x,
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconUsersPlus}
+                    subtle
+                    width={80}
+                    squareSize={80}
+                    centerContent
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        fbDispatch({
+                            type: 'set_menu_open',
+                            menuMode: FbMenuModeT.Sharing,
+                        })
                     }}
                 />
-            </Menu.Target>
-
-            <Menu.Dropdown
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-            >
-                <FileMenuHeader itemInfo={itemInfo} extraString={extraString} />
-
-                <Menu
-                    opened={addToAlbumMenu}
-                    trigger="hover"
-                    disabled={inTrash}
-                    offset={0}
-                    position="right-start"
-                    onOpen={() => setAddToAlbumMenu(true)}
-                    onClose={() => setAddToAlbumMenu(false)}
-                    styles={{
-                        dropdown: {
-                            boxShadow: '0px 0px 20px -5px black',
-                            width: 'max-content',
-                            padding: 10,
-                            border: 0,
-                        },
-                    }}
-                >
-                    <Menu.Target>
-                        <Box
-                            className="menu-item"
-                            mod={{ 'data-disabled': inTrash.toString() }}
-                        >
-                            <IconPhotoPlus />
-                            <Text className="menu-item-text">Add to Album</Text>
-                            <IconChevronRight />
-                        </Box>
-                    </Menu.Target>
-                    <Menu.Dropdown onMouseOver={(e) => e.stopPropagation()}>
-                        <AlbumScoller
-                            selectedMedia={selectedMedia}
-                            selectedFolders={selectedFolders}
-                            authHeader={authHeader}
-                        />
-                    </Menu.Dropdown>
-                </Menu>
-
-                {/* Wormhole menu */}
-                {itemInfo.IsFolder() && (
-                    <Box
-                        className="menu-item"
-                        mod={{ 'data-disabled': inTrash.toString() }}
-                        style={{
-                            pointerEvents:
-                                fbState.selected.size > 1 && selected
-                                    ? 'none'
-                                    : 'all',
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            if (!wormholeId) {
-                                NewWormhole(itemId, authHeader)
-                            } else {
-                                navigator.clipboard.writeText(
-                                    `${window.location.origin}/wormhole/${wormholeId}`
-                                )
-                                setOpen(false)
-                                notifications.show({
-                                    message: 'Link to wormhole copied',
-                                    color: 'green',
-                                })
-                            }
-                        }}
-                    >
-                        <IconSpiral
-                            color={fbState.selected.size > 1 ? 'grey' : 'white'}
-                        />
-                        <Text
-                            className="menu-item-text"
-                            truncate="end"
-                            c={fbState.selected.size > 1 ? 'grey' : 'white'}
-                        >
-                            {!wormholeId ? 'Attach' : 'Copy'} Wormhole
-                        </Text>
-                    </Box>
-                )}
-
-                {/* Share menu */}
-                <Menu
-                    opened={shareMenu}
-                    disabled={inTrash}
-                    trigger="hover"
-                    closeOnClickOutside={false}
-                    offset={0}
-                    position="right-start"
-                    onOpen={() => setShareMenu(true)}
-                    onClose={() => setShareMenu(false)}
-                    styles={{
-                        dropdown: {
-                            boxShadow: '0px 0px 20px -5px black',
-                            width: 'max-content',
-                            padding: 0,
-                            border: 0,
-                        },
-                    }}
-                >
-                    <Menu.Target>
-                        <div
-                            className="menu-item"
-                            data-disabled={inTrash.toString()}
-                        >
-                            <IconShare />
-                            <Text className="menu-item-text">Share</Text>
-                            <IconChevronRight />
-                        </div>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <ShareBox candidates={items} authHeader={authHeader} />
-                    </Menu.Dropdown>
-                </Menu>
-
-                <div
-                    className="menu-item"
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconFolderPlus}
+                    subtle
+                    width={80}
+                    squareSize={80}
+                    centerContent
                     onClick={(e) => {
                         e.stopPropagation()
-                        downloadSelected(
-                            selected
-                                ? Array.from(fbState.selected.keys()).map(
-                                      (fId) => fbState.dirMap.get(fId)
-                                  )
-                                : [fbState.dirMap.get(itemId)],
-                            dispatch,
-                            wsSend,
-                            authHeader,
-                            itemInfo.GetShares()[0]?.shareId
-                        )
+                        fbDispatch({
+                            type: 'set_menu_open',
+                            menuMode: FbMenuModeT.NameFolder,
+                        })
                     }}
-                >
-                    <IconDownload />
-                    <Text className="menu-item-text">Download</Text>
-                </div>
-
-                {itemInfo.IsFolder() && (
-                    <Box
-                        className="menu-item"
-                        onClick={() => {
-                            dispatchSync(
-                                items.map((i: WeblensFile) => i.Id()),
-                                wsSend,
-                                true,
-                                true
-                            )
-                            setOpen(false)
-                        }}
-                    >
-                        <IconScan />
-                        <Text className="menu-item-text">Scan</Text>
-                    </Box>
-                )}
-
-                <Divider w={'100%'} my="sm" />
-
-                {wormholeId && (
-                    <Box
-                        className="menu-item"
-                        mod={{ 'data-disabled': inTrash.toString() }}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            DeleteShare(wormholeId, authHeader)
-                        }}
-                    >
-                        <IconSpiral color="#ff8888" />
-                        <Text
-                            className="menu-item-text"
-                            truncate="end"
-                            c="#ff8888"
-                        >
-                            Remove Wormhole
-                        </Text>
-                    </Box>
-                )}
-                {inTrash && (
-                    <Box
-                        className="menu-item"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            UnTrashFiles(
-                                items.map((i) => i.Id()),
-                                authHeader
-                            )
-                            setOpen(false)
-                        }}
-                    >
-                        <IconArrowBackUp />
-                        <Text className="menu-item-text">{'Put back'}</Text>
-                    </Box>
-                )}
-                <Box
-                    className="menu-item"
+                />
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconTrash}
+                    subtle
+                    danger
+                    width={80}
+                    squareSize={80}
+                    centerContent
                     onClick={(e) => {
                         e.stopPropagation()
-
                         if (inTrash) {
                             DeleteFiles(
-                                items.map((i) => i.Id()),
-                                authHeader
-                            )
-                        } else if (inShare) {
-                            let thisShare = fbState.dirMap
-                                .get(itemId)
-                                .GetShares()[0]
-                            UpdateFileShare(
-                                thisShare.shareId,
-                                thisShare.Public,
-                                thisShare.Accessors.filter(
-                                    (u) => u !== usr.username
-                                ),
+                                items.map((f) => f.Id()),
                                 authHeader
                             )
                         } else {
                             TrashFiles(
-                                items.map((i: WeblensFile) => i.Id()),
+                                items.map((f) => f.Id()),
+                                fbState.shareId,
                                 authHeader
                             )
                         }
-                        setOpen(false)
+                        fbDispatch({
+                            type: 'set_menu_open',
+                            menuMode: FbMenuModeT.Closed,
+                        })
                     }}
-                >
-                    {inShare ? (
-                        <IconUserMinus color="#ff4444" />
-                    ) : (
-                        <IconTrash color="#ff4444" />
-                    )}
-                    <Text className="menu-item-text" c="#ff4444">
-                        {trashName}
-                    </Text>
-                </Box>
-            </Menu.Dropdown>
-        </Menu>
+                />
+            </div>
+        </div>
     )
 }
 
-function FileHistoryMenu({
-    itemId,
-    fbState,
-    open,
-    setOpen,
-    menuPos,
-    dispatch,
-    wsSend,
-    authHeader,
-}: {
-    itemId: string
-    fbState: FbStateT
-    open
-    setOpen
-    menuPos
-    dispatch
-    wsSend
-    authHeader
-}) {
-    const itemInfo: WeblensFile =
-        fbState.dirMap.get(itemId) || ({} as WeblensFile)
-    const selected: boolean = Boolean(fbState.selected.get(itemId))
-    let extraString
-    if (selected && fbState.selected.size > 1) {
-        extraString = ` +${fbState.selected.size - 1} more`
+function FileShareMenu({ fileInfo }: { fileInfo: WeblensFile }) {
+    const { authHeader } = useContext(UserContext)
+    const [isPublic, setIsPublic] = useState(false)
+    const { fbState, fbDispatch } = useContext(FbContext)
+
+    const [accessors, setAccessors] = useState([])
+    useEffect(() => {
+        const shares: WeblensShare[] = fileInfo.GetShares()
+        if (shares.length !== 0) {
+            setIsPublic(shares[0].IsPublic())
+            setAccessors(shares[0].GetAccessors())
+        } else {
+            setIsPublic(false)
+        }
+    }, [fileInfo])
+
+    const [userSearch, setUserSearch] = useState('')
+    const [userSearchResults, setUserSearchResults] = useState([])
+    useEffect(() => {
+        AutocompleteUsers(userSearch, authHeader).then((us) => {
+            us = us.filter((u) => !accessors.includes(u))
+            setUserSearchResults(us)
+        })
+    }, [userSearch])
+
+    useEffect(() => {
+        if (fbState.menuMode !== FbMenuModeT.Sharing) {
+            setUserSearch('')
+            setUserSearchResults([])
+        }
+    }, [fbState.menuMode])
+
+    const updateShare = useCallback(
+        async (e) => {
+            e.stopPropagation()
+            const shares = fileInfo.GetShares()
+            let req: Promise<Response>
+            if (shares.length !== 0) {
+                req = updateFileShare(
+                    shares[0].Id(),
+                    isPublic,
+                    accessors,
+                    authHeader
+                )
+            } else {
+                req = shareFiles([fileInfo], isPublic, accessors, authHeader)
+            }
+            return req
+                .then((j) => {
+                    return true
+                })
+                .catch((r) => {
+                    console.error(r)
+                    return false
+                })
+        },
+        [fileInfo, isPublic, accessors, authHeader]
+    )
+
+    if (fbState.menuMode === FbMenuModeT.Closed) {
+        return <></>
     }
 
     return (
-        <Menu opened={open} onClose={() => setOpen(false)}>
-            <Menu.Target>
-                <Box
-                    style={{
-                        position: 'absolute',
-                        top: menuPos.y,
-                        left: menuPos.x,
-                    }}
-                />
-            </Menu.Target>
-            <Menu.Dropdown>
-                <FileMenuHeader itemInfo={itemInfo} extraString={extraString} />
-                <Box
-                    className="menu-item"
+        <div
+            className="file-share-menu"
+            data-visible={fbState.menuMode === FbMenuModeT.Sharing}
+        >
+            <div className="flex flex-row w-full">
+                <WeblensButton
+                    squareSize={40}
+                    label={isPublic ? 'Public' : 'Private'}
+                    allowRepeat
+                    fillWidth
+                    centerContent
+                    toggleOn={isPublic}
+                    Left={isPublic ? IconUsers : IconUser}
                     onClick={(e) => {
                         e.stopPropagation()
-                        restoreFiles(
-                            Array.from(fbState.selected.keys()),
-                            fbState.viewingPast,
-                            authHeader
-                        )
-                            .then(() => {
-                                setOpen(false)
-                                dispatch({ type: 'set_past_time', past: null })
-                            })
-                            .catch(() =>
-                                notifications.show({
-                                    message: 'Failed to restore files',
-                                    color: 'red',
-                                })
-                            )
+                        setIsPublic(!isPublic)
                     }}
-                >
-                    <IconReorder />
-                    <Text className="menu-item-text">Bring to Present</Text>
-                </Box>
-            </Menu.Dropdown>
-        </Menu>
+                />
+                <WeblensButton
+                    squareSize={40}
+                    label={'Copy Link'}
+                    fillWidth
+                    centerContent
+                    Left={IconLink}
+                    onClick={async (e) => {
+                        e.stopPropagation()
+                        return await updateShare(e)
+                            .then(async (r) => {
+                                const shares = fileInfo.GetShares()
+                                return navigator.clipboard
+                                    .writeText(shares[0].GetPublicLink())
+                                    .then(() => true)
+                                    .catch((r) => {
+                                        console.error(r)
+                                        return false
+                                    })
+                            })
+                            .catch((r) => {
+                                console.error(r)
+                                return false
+                            })
+                    }}
+                />
+            </div>
+            <div className="flex flex-col w-full gap-1 items-center">
+                <div className="h-10 w-full mt-3 mb-3 z-20">
+                    <WeblensInput
+                        value={userSearch}
+                        valueCallback={setUserSearch}
+                        placeholder="Add users"
+                        onComplete={null}
+                        icon={<IconUsersPlus />}
+                    />
+                </div>
+                {userSearchResults.length !== 0 && (
+                    <div className="flex flex-col w-full bg-raised-grey absolute gap-1 rounded p-1 z-10 mt-14 max-h-32 overflow-y-scroll drop-shadow-xl">
+                        {userSearchResults.map((u) => {
+                            return (
+                                <div
+                                    className="user-autocomplete-row"
+                                    key={u}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setAccessors((p) => {
+                                            const newP = [...p]
+                                            newP.push(u)
+                                            return newP
+                                        })
+                                        setUserSearchResults((p) => {
+                                            const newP = [...p]
+                                            newP.splice(newP.indexOf(u), 1)
+                                            return newP
+                                        })
+                                    }}
+                                >
+                                    <p>{u}</p>
+                                    <IconPlus />
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+                <p className="text-white">Shared With</p>
+            </div>
+            <div className="flex flex-row w-full h-full p-2 m-2 mt-0 rounded outline outline-main-accent justify-center">
+                {accessors.length === 0 && <p>Not Shared</p>}
+                {accessors.length !== 0 &&
+                    accessors.map((u: string) => {
+                        return (
+                            <div key={u} className="user-autocomplete-row">
+                                <p>{u}</p>
+                                <div className="user-minus-button">
+                                    <WeblensButton
+                                        squareSize={40}
+                                        width={40}
+                                        Left={IconMinus}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setAccessors((p) => {
+                                                const newP = [...p]
+                                                newP.splice(newP.indexOf(u), 1)
+                                                return newP
+                                            })
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )
+                    })}
+            </div>
+            <div className="flex flex-row w-full">
+                <WeblensButton
+                    squareSize={40}
+                    centerContent
+                    label="Back"
+                    fillWidth
+                    Left={IconArrowLeft}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        fbDispatch({
+                            type: 'set_menu_open',
+                            menuMode: FbMenuModeT.Default,
+                        })
+                    }}
+                />
+                <WeblensButton
+                    squareSize={40}
+                    centerContent
+                    fillWidth
+                    label="Save"
+                    onClick={updateShare}
+                />
+            </div>
+        </div>
     )
 }
 
-export const BackdropMenu = ({
-    folderName,
-    menuPos,
-    menuOpen,
-    setMenuOpen,
-    newFolder,
-}) => {
-    useKeyDown('Escape', (e) => {
-        if (menuOpen) {
-            e.stopPropagation()
-            setMenuOpen(false)
-        }
-    })
-    useClick(() => {
-        if (menuOpen) {
-            setMenuOpen(false)
-        }
-    })
+function NewFolderName() {
+    const { fbState, fbDispatch } = useContext(FbContext)
+    const { authHeader } = useContext(UserContext)
+
+    const selected: boolean = useMemo(() => {
+        return Boolean(fbState.selected.get(fbState.menuTargetId))
+    }, [fbState.selected, fbState.menuTargetId])
+
+    const { items }: { items: WeblensFile[] } = useMemo(() => {
+        return activeItemsFromState(fbState, selected)
+    }, [fbState.menuTargetId, selected, fbState.selected])
+
+    if (fbState.menuMode !== FbMenuModeT.NameFolder) {
+        return <></>
+    }
+
     return (
-        <Box
-            key={'backdrop-menu'}
-            className={`backdrop-menu backdrop-menu-${
-                menuOpen ? 'open' : 'closed'
-            }`}
-            style={{
-                top: menuPos.y,
-                left: menuPos.x - 100,
-            }}
-        >
-            <WeblensButton
-                Left={
-                    <IconFolderPlus style={{ width: '100%', height: '100%' }} />
-                }
-                subtle
-                width={80}
-                height={80}
-                style={{ margin: 10 }}
-                onClick={() => {
-                    newFolder()
-                    setMenuOpen(false)
+        <div className="new-folder-menu">
+            <IconFolder size={50} />
+            <WeblensInput
+                placeholder="New Folder Name"
+                height={50}
+                buttonIcon={IconPlus}
+                onComplete={(newName) => {
+                    CreateFolder(
+                        fbState.folderInfo.Id(),
+                        newName,
+                        items.map((f) => f.Id()),
+                        false,
+                        fbState.shareId,
+                        authHeader
+                    )
+                        .then(() =>
+                            fbDispatch({
+                                type: 'set_menu_open',
+                                menuMode: FbMenuModeT.Closed,
+                            })
+                        )
+                        .catch((r) => console.error(r))
                 }}
             />
+        </div>
+    )
+}
 
-            {/* <Text fw={600}>New Folder</Text> */}
-        </Box>
-        // <Menu opened={true} onClose={() => setMenuOpen(false)}>
-        //     <Menu.Target>
-        //         <Box
-        //             style={{
-        //                 position: "fixed",
-        //                 top: menuPos.y,
-        //                 left: menuPos.x,
-        //             }}
-        //         />
-        //     </Menu.Target>
+function BackdropDefaultItems() {
+    const nav = useNavigate()
+    const { fbState, fbDispatch } = useContext(FbContext)
+    const { usr } = useContext(UserContext)
 
-        // </Menu>
+    if (fbState.menuMode === FbMenuModeT.Closed) {
+        return <></>
+    }
+
+    return (
+        <div
+            className="default-grid"
+            data-visible={
+                fbState.menuMode === FbMenuModeT.Default &&
+                fbState.menuTargetId === ''
+            }
+        >
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconFolderPlus}
+                    subtle
+                    width={80}
+                    squareSize={80}
+                    centerContent
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        fbDispatch({
+                            type: 'set_menu_open',
+                            menuMode: FbMenuModeT.NameFolder,
+                        })
+                    }}
+                />
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconFileAnalytics}
+                    subtle
+                    width={80}
+                    squareSize={80}
+                    centerContent
+                    onClick={() =>
+                        nav(
+                            `/files/stats/${
+                                fbState.fbMode === FbModeT.external
+                                    ? fbState.fbMode
+                                    : fbState.folderInfo.Id()
+                            }`
+                        )
+                    }
+                />
+            </div>
+
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconUsersPlus}
+                    subtle
+                    width={80}
+                    squareSize={80}
+                    disabled={
+                        fbState.folderInfo.Id() === usr.homeId ||
+                        fbState.folderInfo.Id() === usr.trashId
+                    }
+                    centerContent
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        fbDispatch({
+                            type: 'set_menu_open',
+                            menuMode: FbMenuModeT.Sharing,
+                        })
+                    }}
+                />
+            </div>
+        </div>
     )
 }

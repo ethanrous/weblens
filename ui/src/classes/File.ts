@@ -1,7 +1,15 @@
-import { IconHome, IconTrash, IconUser } from '@tabler/icons-react'
-import { shareData } from '../types/Types'
+import {
+    IconFile,
+    IconFolder,
+    IconHome,
+    IconTrash,
+    IconUser,
+} from '@tabler/icons-react'
 import WeblensMedia, { MediaDataT } from './Media'
 import { humanFileSize } from '../util'
+import { ShareDataT, WeblensShare } from './Share'
+import { FbModeT } from '../Pages/FileBrowser/FileBrowser'
+import { FBDispatchT } from '../types/Types'
 
 function getIcon(folderName: string): (p) => JSX.Element {
     if (folderName === 'HOME') {
@@ -33,9 +41,8 @@ export interface FileInitT {
     displayable?: boolean
 
     size?: number
-
-    shares?: shareData[]
     mediaData?: MediaDataT
+    shares?: ShareDataT[]
 }
 
 interface fileData {
@@ -58,8 +65,6 @@ interface fileData {
 
     size?: number
 
-    shares?: shareData[]
-
     // Non-api props
     parents?: WeblensFile[]
     visible?: boolean
@@ -70,6 +75,7 @@ interface fileData {
 export class WeblensFile {
     private data: fileData
     private media: WeblensMedia
+    private shares: WeblensShare[]
 
     constructor(init: FileInitT) {
         this.data = {
@@ -80,6 +86,10 @@ export class WeblensFile {
 
         if (init.mediaData) {
             this.media = new WeblensMedia(init.mediaData)
+        }
+
+        if (init.shares && init.shares.length !== 0) {
+            this.shares = [new WeblensShare(init.shares[0])]
         }
     }
 
@@ -228,6 +238,9 @@ export class WeblensFile {
     }
 
     GetBaseIcon(mustBeRoot?: boolean): (p) => JSX.Element {
+        if (!this.data.pathFromHome) {
+            return null
+        }
         const parts: any[] = this.data.pathFromHome.split('/')
         if (mustBeRoot && parts.length > 1) {
             return null
@@ -245,11 +258,55 @@ export class WeblensFile {
         }
     }
 
-    GetShares(): shareData[] {
-        if (!this.data.shares) {
+    GetFileIcon() {
+        if (!this.data.pathFromHome) {
+            return null
+        }
+
+        if (this.data.pathFromHome === 'HOME') {
+            return IconHome
+        } else if (this.data.pathFromHome === 'TRASH') {
+            return IconTrash
+        } else if (this.data.pathFromHome === 'SHARE') {
+            return IconUser
+        } else if (this.data.isDir) {
+            return IconFolder
+        } else {
+            return IconFile
+        }
+    }
+
+    GetShares(): WeblensShare[] {
+        if (!this.shares) {
             return []
         }
 
-        return this.data.shares
+        return this.shares
+    }
+
+    AddShare(share: WeblensShare) {
+        if (!this.shares) {
+            this.shares = [share]
+            return
+        }
+        this.shares.push(share)
+    }
+
+    GetVisitRoute(mode: FbModeT, shareId: string, dispatch: FBDispatchT) {
+        if (mode === FbModeT.share && shareId === '') {
+            return `/files/share/${this.shares[0].Id()}/${this.data.id}`
+        } else if (mode === FbModeT.share) {
+            return `/files/share/${shareId}/${this.data.id}`
+        } else if (mode === FbModeT.external) {
+            return `/files/external/${this.data.id}`
+        } else if (this.data.isDir) {
+            return `/files/${this.data.id}`
+        } else if (this.data.displayable) {
+            dispatch({
+                type: 'set_presentation',
+                presentingId: this.data.id,
+            })
+        }
+        console.error('Did not find location to visit for', this.data.filename)
     }
 }

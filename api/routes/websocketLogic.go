@@ -82,7 +82,24 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 				return
 			}
 
-			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta)
+			acc := dataStore.NewAccessMeta(client.user)
+			if subInfo.ShareId != "" {
+				share, err := dataStore.GetShare(subInfo.ShareId, dataStore.FileShare)
+				if err != nil || share == nil {
+					util.ErrTrace(err)
+					client.Error(errors.New("share not found"))
+					return
+				}
+
+				err = acc.AddShare(share)
+				if err != nil {
+					util.ErrTrace(err)
+					client.Error(errors.New("failed to add share"))
+					return
+				}
+			}
+
+			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta, acc)
 			if complete {
 				Caster.PushTaskUpdate(types.TaskId(subInfo.Key), dataProcess.TaskComplete, types.TaskResult{"takeoutId": result["takeoutId"]})
 			}
@@ -91,7 +108,11 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 	case Unsubscribe:
 		{
 			var unsubInfo unsubscribeBody
-			json.Unmarshal([]byte(msg.Content), &unsubInfo)
+			err := json.Unmarshal([]byte(msg.Content), &unsubInfo)
+			if err != nil {
+				util.ErrTrace(err)
+				return
+			}
 			client.Unsubscribe(unsubInfo.Key)
 		}
 
@@ -112,7 +133,8 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 			client.debug("Got scan directory for", folder.GetAbsPath(), "Recursive: ", scanInfo.Recursive, "Deep: ", scanInfo.DeepScan)
 
 			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan, Caster)
-			client.Subscribe(SubTask, subId(t.TaskId()), nil)
+			acc := dataStore.NewAccessMeta(client.user)
+			client.Subscribe(SubTask, subId(t.TaskId()), nil, acc)
 		}
 
 	default:

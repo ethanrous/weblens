@@ -1,16 +1,17 @@
 import { useParams } from 'react-router-dom'
-import { DropSpot, RowBox } from './FileBrowserStyles'
+import { DropSpot } from './FileBrowserStyles'
 import { useCallback, useContext, useEffect, useState } from 'react'
 import { GetWormholeInfo } from '../../api/FileBrowserApi'
 import { UserContext } from '../../Context'
-import { shareData, UserContextT } from '../../types/Types'
-import { Box, FileButton, Space, Text } from '@mantine/core'
+import { UserContextT } from '../../types/Types'
+import { FileButton, Space, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import UploadStatus, { useUploadStatus } from './UploadStatus'
 import { IconFolder, IconUpload } from '@tabler/icons-react'
 import { HandleDrop, HandleUploadButton } from './FileBrowserLogic'
 
-import './style/fileBrowserStyle.css'
+import './style/fileBrowserStyle.scss'
+import { ShareDataT } from '../../classes/Share'
 
 const UploadPlaque = ({
     wormholeId,
@@ -20,7 +21,7 @@ const UploadPlaque = ({
     uploadDispatch
 }) => {
     return (
-        <Box style={{ height: '45vh' }}>
+        <div className="h-[45vh]">
             <FileButton
                 onChange={(files) => {
                     HandleUploadButton(
@@ -38,41 +39,33 @@ const UploadPlaque = ({
             >
                 {(props) => {
                     return (
-                        <Box
-                            style={{
-                                backgroundColor: '#111111',
-                                height: '20vh',
-                                width: '20vw',
-                                padding: 10,
-                                borderRadius: 4,
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <Box
+                        <div className="flex bg-bottom-grey h-[20vh] w-[20vw] p-3 rounded justify-center">
+                            <div
+                                className="cursor-pointer h-max w-max"
                                 onClick={() => {
                                     props.onClick()
-                                }}
-                                style={{
-                                    cursor: 'pointer',
-                                    height: 'max-content',
-                                    width: 'max-content',
                                 }}
                             >
                                 <IconUpload
                                     size={100}
                                     style={{ padding: '10px' }}
                                 />
-                                <Text size="20px" fw={600}>
+                                <Text
+                                    size="20px"
+                                    className="select-none font-semibold"
+                                >
                                     Upload
                                 </Text>
                                 <Space h={4}></Space>
-                                <Text size="12px">Click or Drop</Text>
-                            </Box>
-                        </Box>
+                                <Text size="12px" className="select-none">
+                                    Click or Drop
+                                </Text>
+                            </div>
+                        </div>
                     )
                 }}
             </FileButton>
-        </Box>
+        </div>
     )
 }
 
@@ -109,8 +102,8 @@ const WormholeWrapper = ({
     )
 
     return (
-        <Box className="wormhole-wrapper">
-            <Box
+        <div className="wormhole-wrapper">
+            <div
                 ref={setDropSpotRef}
                 style={{ position: 'relative', width: '98%', height: '98%' }}
                 //                    See DirViewWrapper \/
@@ -139,14 +132,11 @@ const WormholeWrapper = ({
                     handleDrag={handleDrag}
                     wrapperRef={dropSpotRef}
                 />
-                <Box
-                    style={{ justifyContent: 'center' }}
-                    onDragOver={handleDrag}
-                >
+                <div className="justify-center" onDragOver={handleDrag}>
                     {children}
-                </Box>
-            </Box>
-        </Box>
+                </div>
+            </div>
+        </div>
     )
 }
 
@@ -154,7 +144,7 @@ export default function Wormhole() {
     const wormholeId = useParams()['*']
     const { authHeader }: UserContextT = useContext(UserContext)
     const [wormholeInfo, setWormholeInfo]: [
-        wormholeInfo: shareData,
+        wormholeInfo: ShareDataT,
         setWormholeInfo: any,
     ] = useState(null)
     const { uploadState, uploadDispatch } = useUploadStatus()
@@ -183,7 +173,7 @@ export default function Wormhole() {
     const valid = Boolean(wormholeInfo)
 
     return (
-        <Box>
+        <div>
             <UploadStatus
                 uploadState={uploadState}
                 uploadDispatch={uploadDispatch}
@@ -195,10 +185,8 @@ export default function Wormhole() {
                 validWormhole={valid}
                 uploadDispatch={uploadDispatch}
             >
-                <RowBox style={{ height: '20vh', width: 'max-content' }}>
-                    <Box
-                        style={{ height: 'max-content', width: 'max-content' }}
-                    >
+                <div className="flex flex-row h-[20vh] w-max items-center">
+                    <div className="h-max w-max">
                         <Text size="40" style={{ lineHeight: '40px' }}>
                             {valid ? 'Wormhole to' : 'Wormhole not found'}
                         </Text>
@@ -207,7 +195,7 @@ export default function Wormhole() {
                                 {'Wormhole does not exist or was closed'}
                             </Text>
                         )}
-                    </Box>
+                    </div>
                     {valid && (
                         <IconFolder size={40} style={{ marginLeft: '7px' }} />
                     )}
@@ -218,7 +206,7 @@ export default function Wormhole() {
                     >
                         {wormholeInfo?.ShareName}
                     </Text>
-                </RowBox>
+                </div>
                 {valid && (
                     <UploadPlaque
                         wormholeId={wormholeId}
@@ -226,6 +214,6 @@ export default function Wormhole() {
                     />
                 )}
             </WormholeWrapper>
-        </Box>
+        </div>
     )
 }

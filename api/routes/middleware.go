@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,13 +15,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func parseAuthHeader(authHeaderParts []string, allowEmptyAuth bool) (string, string, error) {
+func parseAuthHeader(authHeaderParts []string) (string, string, error) {
 
 	if len(authHeaderParts) == 0 || len(authHeaderParts[0]) == 0 {
-		if !allowEmptyAuth {
-			// Empty auth header on non-public endpoint. Not allowed
-			return "", "", ErrEmptyAuth
-		}
 		// Public login
 		return "", "", nil
 	}
@@ -70,7 +67,7 @@ func validateBasicAuth(cred string) (types.User, error) {
 }
 
 func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
-	scheme, cred, err := parseAuthHeader(authHeader, true)
+	scheme, cred, err := parseAuthHeader(authHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +78,9 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 
 	user, err := validateBasicAuth(cred)
 	if err != nil {
-		switch err.(type) {
-		case types.WeblensError:
+		var weblensError types.WeblensError
+		switch {
+		case errors.As(err, &weblensError):
 			return nil, err
 		default:
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -93,10 +91,10 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 	return user, nil
 }
 
-func WeblensAuth(allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
+func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.Request.Header["Authorization"]
-		scheme, cred, err := parseAuthHeader(authHeader, allowEmptyAuth)
+		scheme, cred, err := parseAuthHeader(authHeader)
 		if err != nil {
 			util.ShowErr(err)
 			c.Status(http.StatusBadRequest)
@@ -125,9 +123,7 @@ func WeblensAuth(allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 			c.Set("user", user)
 			c.Next()
 		} else {
-			if allowEmptyAuth {
-				c.Next()
-			}
+			c.Next()
 			return
 		}
 
@@ -136,7 +132,7 @@ func WeblensAuth(allowEmptyAuth, requireAdmin bool) gin.HandlerFunc {
 
 func KeyOnlyAuth(c *gin.Context) {
 	authHeader := c.Request.Header["Authorization"]
-	scheme, cred, err := parseAuthHeader(authHeader, false)
+	scheme, cred, err := parseAuthHeader(authHeader)
 	if err != nil {
 		util.ShowErr(err)
 		c.Status(http.StatusBadRequest)

@@ -11,81 +11,74 @@ import {
 } from '@tabler/icons-react'
 
 import { CreateAlbum, GetAlbumMedia, GetAlbums } from '../../api/GalleryApi'
-import { AlbumData, AuthHeaderT, UserContextT } from '../../types/Types'
+import { AlbumData, UserContextT } from '../../types/Types'
 import WeblensMedia from '../../classes/Media'
 import { UserContext } from '../../Context'
 import { PhotoGallery } from '../../components/MediaDisplay'
 import NotFound from '../../components/NotFound'
-
-import { GalleryContextT } from './Gallery'
+import { GalleryContext, GalleryContextT } from './Gallery'
 import { useMediaType } from '../../components/hooks'
 import { AlbumScroller } from './AlbumDisplay'
-import { GalleryContext } from './Gallery'
 import { WeblensButton } from '../../components/WeblensButton'
 import WeblensInput from '../../components/WeblensInput'
 import WeblensSlider from '../../components/WeblensSlider'
 
-// function ShareBox({
-//     open,
-//     setOpen,
-//     albumId,
-//     sharedWith,
-//     fetchAlbums,
-// }: {
-//     open: boolean;
-//     setOpen;
-//     albumId;
-//     sharedWith;
-//     fetchAlbums;
-// }) {
-//     const { galleryState } = useContext(GalleryContext);
-//     const { authHeader }: UserContextT = useContext(UserContext);
-//     const [value, setValue] = useState(sharedWith);
-
-//     useEffect(() => {
-//         setValue(sharedWith);
-//     }, [sharedWith]);
-
-//     return (
-//         <Popover
-//             opened={open}
-//             onClose={() => setOpen(false)}
-//             closeOnClickOutside
-//         >
-//             <Popover.Target>
-//                 <Box
-//                     style={{
-//                         position: "fixed",
-//                         top: galleryState.menuPos.y,
-//                         left: galleryState.menuPos.x,
-//                     }}
-//                 />
-//             </Popover.Target>
-//             <Popover.Dropdown>
-//                 {/* <ShareInput valueSetCallback={setValue} initValues={sharedWith} /> */}
-//                 <Space h={10} />
-//                 <Button
-//                     fullWidth
-//                     disabled={
-//                         JSON.stringify(value) === JSON.stringify(sharedWith)
-//                     }
-//                     color="#4444ff"
-//                     onClick={() => {
-//                         ShareAlbum(
-//                             albumId,
-//                             authHeader,
-//                             value.filter((v) => !sharedWith.includes(v)),
-//                             sharedWith.filter((v) => !value.includes(v))
-//                         ).then(() => fetchAlbums());
-//                         setOpen(false);
-//                     }}
-//                 >
-//                     Update
-//                 </Button>
-//             </Popover.Dropdown>
-//         </Popover>
-//     );
-// }
+function AlbumNoContent({
+    albumData,
+}: {
+    albumData: {
+        albumMeta: AlbumData
+        media: WeblensMedia[]
+    }
+}) {
+    const nav = useNavigate()
+    return (
+        <div className="flex flex-col w-full items-center">
+            <Text
+                size={'75px'}
+                fw={900}
+                variant="gradient"
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    userSelect: 'none',
+                    lineHeight: 1.1,
+                }}
+            >
+                {albumData.albumMeta.Name}
+            </Text>
+            <div className="flex flex-col pt-40 w-max items-center">
+                {albumData.albumMeta.Medias.length !== 0 && (
+                    <div className="flex flex-col items-center">
+                        <p className="font-extrabold text-3xl">
+                            No media in current filters
+                        </p>
+                        <Space h={5} />
+                        <p className="font-medium text-xl">
+                            Adjust the filters
+                        </p>
+                        <Space h={5} />
+                        <Divider label="or" mx={30} />
+                    </div>
+                )}
+                {albumData.albumMeta.Medias.length === 0 && (
+                    <p className="font-extrabold text-3xl">
+                        This album has no media
+                    </p>
+                )}
+                <Space h={10} />
+                <WeblensButton
+                    squareSize={40}
+                    centerContent
+                    label="FileBrowser"
+                    Left={<IconFolder />}
+                    width={400}
+                    onClick={() => nav('/files/home')}
+                />
+            </div>
+        </div>
+    )
+}
 
 function AlbumContent({ albumId }: { albumId: string }) {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
@@ -164,77 +157,70 @@ function AlbumContent({ albumId }: { albumId: string }) {
         return null
     }
 
-    if (media.length === 0) {
-        return (
-            <div className="flex flex-col w-full items-center">
-                <Text
-                    size={'75px'}
-                    fw={900}
-                    variant="gradient"
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        userSelect: 'none',
-                        lineHeight: 1.1,
-                    }}
-                >
-                    {albumData.albumMeta.Name}
-                </Text>
-                <div className="flex flex-col pt-40 w-max items-center">
-                    {albumData.albumMeta.Medias.length !== 0 && (
-                        <div className="flex flex-col items-center">
-                            <p className="font-extrabold text-3xl">
-                                No media in current filters
-                            </p>
-                            <Space h={5} />
-                            <p className="font-medium text-xl">
-                                Adjust the filters
-                            </p>
-                            <Space h={5} />
-                            <Divider label="or" mx={30} />
-                        </div>
-                    )}
-                    {albumData.albumMeta.Medias.length === 0 && (
-                        <p className="font-extrabold text-3xl">
-                            This album has no media
-                        </p>
-                    )}
-                    <Space h={10} />
-                    <WeblensButton
-                        height={40}
-                        centerContent
-                        label="FileBrowser"
-                        Left={<IconFolder />}
-                        // postScript="Upload new media"
-                        width={400}
-                        onClick={() => nav('/files/home')}
-                    />
-                </div>
-            </div>
-        )
-    }
-
     return (
         <div className="w-full">
-            <Space h={10} />
-            <AlbumsControls albumId={albumId} />
-            <PhotoGallery
-                medias={media}
-                album={albumData.albumMeta}
-                fetchAlbum={fetchAlbum}
-            />
+            {media.length === 0 && <AlbumNoContent albumData={albumData} />}
+
+            {media.length !== 0 && (
+                <PhotoGallery
+                    medias={media}
+                    album={albumData.albumMeta}
+                    fetchAlbum={fetchAlbum}
+                />
+            )}
         </div>
     )
 }
 
-const AlbumsControls = ({ albumId }) => {
-    const [newAlbumModal, setNewAlbumModal] = useState(false)
-    const [newAlbumName, setNewAlbumName] = useState('')
+function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
+    const [newAlbumName, setNewAlbumName] = useState(null)
+    const { authHeader } = useContext(UserContext)
+
+    console.log(newAlbumName)
+
+    return (
+        <div className="flex items-center h-14 w-40">
+            {newAlbumName === null && (
+                <WeblensButton
+                    squareSize={40}
+                    label="New Album"
+                    centerContent
+                    Left={<IconLibraryPlus />}
+                    onClick={(e) => {
+                        setNewAlbumName('')
+                    }}
+                />
+            )}
+            {newAlbumName !== null && (
+                // <div className="flex flex-row w-10 items-center justify-center bg-dark-paper rounded p-2">
+                <WeblensInput
+                    value={newAlbumName}
+                    height={40}
+                    onComplete={(val) =>
+                        CreateAlbum(val, authHeader)
+                            .then(() => {
+                                setNewAlbumName(null)
+                                fetchAlbums()
+                            })
+                            .catch((r) => {
+                                console.error(r)
+                            })
+                    }
+                    closeInput={() => setNewAlbumName(null)}
+                    buttonIcon={<IconPlus />}
+                />
+                // </div>
+            )}
+        </div>
+    )
+}
+
+const AlbumsControls = ({ albumId, fetchAlbums }) => {
+    const nav = useNavigate()
     const {
         galleryState: mediaState,
         galleryDispatch: mediaDispatch,
     }: GalleryContextT = useContext(GalleryContext)
-    const { authHeader }: UserContextT = useContext(UserContext)
 
     const click = useCallback(
         () =>
@@ -245,25 +231,33 @@ const AlbumsControls = ({ albumId }) => {
         [mediaDispatch, mediaState.includeRaw]
     )
 
-    // useEffect(() => {}, [mediaDispatch, mediaState.includeRaw, click]);
-
     const setSize = useCallback(
         (s) => mediaDispatch({ type: 'set_image_size', size: s }),
         [mediaDispatch]
     )
 
+    if (albumId === '') {
+        return (
+            <div className="p-2 ml-3">
+                <NewAlbum fetchAlbums={fetchAlbums} />
+            </div>
+        )
+    }
+
     return (
-        <div className="flex flex-row w-full h-max items-center">
-            {albumId !== '' && (
-                <div className="mr-10 ml-3">
-                    <WeblensButton
-                        height={40}
-                        width={40}
-                        centerContent
-                        Left={<IconArrowLeft width={24} height={24} />}
-                    />
-                </div>
-            )}
+        <div className="flex flex-row w-full h-max items-center m-2 gap-4 ml-3">
+            <div className="mr-5">
+                <WeblensButton
+                    squareSize={40}
+                    width={40}
+                    centerContent
+                    Left={<IconArrowLeft width={24} height={24} />}
+                    onClick={() => nav('/albums')}
+                />
+            </div>
+
+            <Divider orientation="vertical" className="mr-5 my-1" />
+
             <WeblensSlider
                 value={mediaState.imageSize}
                 width={200}
@@ -273,13 +267,12 @@ const AlbumsControls = ({ albumId }) => {
                 callback={setSize}
             />
 
-            <Space w={20} />
             <WeblensButton
                 label="RAWs"
                 allowRepeat
                 toggleOn={mediaState.includeRaw}
                 centerContent
-                height={35}
+                squareSize={35}
                 width={80}
                 onClick={click}
             />
@@ -287,10 +280,44 @@ const AlbumsControls = ({ albumId }) => {
     )
 }
 
-function AlbumsHomeView({}) {
+function AlbumsHomeView({ fetchAlbums }: { fetchAlbums: () => void }) {
+    const { galleryState } = useContext(GalleryContext)
+
+    const albums = useMemo(() => {
+        if (!galleryState) {
+            return []
+        }
+
+        return Array.from(galleryState.albumsMap.values()).map((a) => {
+            if (!a.CoverMedia) {
+                a.CoverMedia = new WeblensMedia({ mediaId: a.Cover })
+            }
+
+            return a
+        })
+    }, [galleryState?.albumsMap])
+
+    if (albums.length === 0) {
+        return (
+            <div className="flex justify-center items-center w-full h-80">
+                <div className="flex flex-col items-center w-52 gap-1">
+                    <p className="w-max text-xl"> You have no albums </p>
+                    <NewAlbum fetchAlbums={fetchAlbums} />
+                </div>
+            </div>
+        )
+    } else {
+        return (
+            <div style={{ width: '100%', height: '100%', padding: 10 }}>
+                <AlbumScroller albums={albums} />
+            </div>
+        )
+    }
+}
+
+export function Albums({ selectedAlbum }: { selectedAlbum: string }) {
     const { authHeader }: UserContextT = useContext(UserContext)
-    const { galleryState, galleryDispatch } = useContext(GalleryContext)
-    const [newAlbumName, setNewAlbumName] = useState(null)
+    const { galleryDispatch } = useContext(GalleryContext)
 
     const fetchAlbums = useCallback(() => {
         galleryDispatch({ type: 'add_loading', loading: 'albums' })
@@ -304,75 +331,13 @@ function AlbumsHomeView({}) {
         fetchAlbums()
     }, [])
 
-    const albums = Array.from(galleryState.albumsMap.values()).map((a) => {
-        if (!a.CoverMedia) {
-            a.CoverMedia = new WeblensMedia({ mediaId: a.Cover })
-        }
-
-        return a
-    })
-
-    if (albums.length === 0) {
-        return (
-            <div className="flex justify-center items-center w-full h-80">
-                <div className="flex flex-col items-center w-52 gap-1">
-                    <p className="w-max text-xl"> You have no albums </p>
-                    <div className="h-[50px]">
-                        {newAlbumName === null && (
-                            <WeblensButton
-                                height={40}
-                                label="New Album"
-                                centerContent
-                                Left={<IconLibraryPlus />}
-                                onClick={(e) => {
-                                    setNewAlbumName('')
-                                }}
-                            />
-                        )}
-                        {newAlbumName !== null && (
-                            <div className="flex flex-row items-center justify-center bg-dark-paper rounded p-2">
-                                <WeblensInput
-                                    value={newAlbumName}
-                                    onComplete={(val) =>
-                                        CreateAlbum(val, authHeader)
-                                    }
-                                    closeInput={() => setNewAlbumName(null)}
-                                />
-                                {/*<input*/}
-                                {/*    autoFocus*/}
-                                {/*    value={newAlbumName}*/}
-                                {/*    onChange={(event) =>*/}
-                                {/*        setNewAlbumName(event.target.value)*/}
-                                {/*    }*/}
-                                {/*    onBlur={(event) => setNewAlbumName(null)}*/}
-                                {/*    className="weblens-input h-[40px]"*/}
-                                {/*/>*/}
-                                <WeblensButton
-                                    height={40}
-                                    Left={<IconPlus />}
-                                    centerContent
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        )
-    } else {
-        return (
-            <div style={{ width: '100%', height: '100%', padding: 10 }}>
-                <AlbumsControls albumId={''} />
-                {/* <AlbumCoverMenu fetchAlbums={fetchAlbums} /> */}
-                <AlbumScroller albums={albums} />
-            </div>
-        )
-    }
-}
-
-export function Albums({ selectedAlbum }: { selectedAlbum: string }) {
-    if (selectedAlbum === '') {
-        return <AlbumsHomeView />
-    } else {
-        return <AlbumContent albumId={selectedAlbum} />
-    }
+    return (
+        <>
+            <AlbumsControls albumId={selectedAlbum} fetchAlbums={fetchAlbums} />
+            {selectedAlbum === '' && (
+                <AlbumsHomeView fetchAlbums={fetchAlbums} />
+            )}
+            {selectedAlbum !== '' && <AlbumContent albumId={selectedAlbum} />}
+        </>
+    )
 }

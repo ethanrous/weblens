@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"runtime/debug"
@@ -43,7 +44,7 @@ func (c *Client) Disconnect() {
 //
 // Returns "true" and the results at meta.LookingFor if the task is completed, false and nil otherwise.
 // Subscriptions to types that represent ongoing events like "folder" never return truthy completed
-func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete bool, results map[string]any) {
+func (c *Client) Subscribe(subType subType, key subId, meta subMeta, acc types.AccessMeta) (complete bool, results map[string]any) {
 	var sub subscription
 
 	switch subType {
@@ -61,7 +62,9 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 			} else {
 				folder = dataStore.FsTreeGet(fileId)
 			}
-			acc := dataStore.NewAccessMeta(c.user).SetRequestMode(dataStore.FileSubscribeRequest)
+
+			acc.SetRequestMode(dataStore.FileSubscribeRequest)
+
 			if folder == nil {
 				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
 				c.Error(err)
@@ -71,7 +74,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 				c.Error(err)
 
 				// don't tell the client they don't have access instead of *actually* not found
-				c.err("User does not have access to ", key)
+				c.err("User does not have access to", key)
 				return
 			}
 
@@ -80,20 +83,8 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta) (complete b
 
 			// Subscribe to task on this folder
 			if t := folder.GetTask(); t != nil {
-				c.Subscribe(SubTask, subId(t.TaskId()), nil)
+				c.Subscribe(SubTask, subId(t.TaskId()), nil, acc)
 			}
-
-			// Subscribe to tasks on children in this folder
-			// for _, ch := range folder.GetChildren() {
-			// 	t := ch.GetTask()
-			// 	if t != nil {
-			// 		c.Subscribe(SubTask, subId(t.TaskId()), nil)
-			// 		c.PushTaskUpdate(t.TaskId(), dataProcess.TaskCreated, types.TaskResult{
-			// 			"taskType":      t.TaskType(),
-			// 			"directoryName": ch.Filename(),
-			// 		})
-			// 	}
-			// }
 		}
 	case SubTask:
 		{
@@ -155,8 +146,9 @@ func (c *Client) Send(eventTag string, key subId, content []wsM) {
 }
 
 func (c *Client) Error(err error) {
-	switch err.(type) {
-	case dataStore.WeblensFileError:
+	var weblensFileError dataStore.WeblensFileError
+	switch {
+	case errors.As(err, &weblensFileError):
 		c.err(err)
 	default:
 		c.errTrace(err)

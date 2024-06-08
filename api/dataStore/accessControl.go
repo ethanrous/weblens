@@ -1,6 +1,7 @@
 package dataStore
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"sync"
@@ -13,11 +14,11 @@ import (
 var apiKeyMap map[types.WeblensApiKey]*ApiKeyInfo = map[types.WeblensApiKey]*ApiKeyInfo{}
 var keyMapMu = &sync.Mutex{}
 
-func (a accessMeta) Shares() []types.Share {
+func (a *accessMeta) Shares() []types.Share {
 	return a.shares
 }
 
-func (a accessMeta) User() types.User {
+func (a *accessMeta) User() types.User {
 	return a.user
 }
 
@@ -49,11 +50,11 @@ func (acc *accessMeta) SetTime(t time.Time) types.AccessMeta {
 	return acc
 }
 
-func (acc accessMeta) GetTime() time.Time {
+func (acc *accessMeta) GetTime() time.Time {
 	return acc.accessAt
 }
 
-func (acc accessMeta) RequestMode() types.RequestMode {
+func (acc *accessMeta) RequestMode() types.RequestMode {
 	return acc.requestMode
 }
 
@@ -71,11 +72,11 @@ func (acc *accessMeta) AddShareId(sId types.ShareId, st types.ShareType) types.A
 	return acc
 }
 
-func (acc accessMeta) UsingShare() types.Share {
+func (acc *accessMeta) UsingShare() types.Share {
 	return acc.usingShare
 }
 
-func (acc *accessMeta) setUsingShare(s types.Share) {
+func (acc *accessMeta) SetUsingShare(s types.Share) {
 	acc.usingShare = s
 }
 
@@ -84,24 +85,29 @@ func GetRelevantShare(file types.WeblensFile, acc types.AccessMeta) types.Share 
 		return nil
 	}
 
-	ancestors := []types.FileId{}
-	file.BubbleMap(func(wf types.WeblensFile) error {
+	var ancestors []types.FileId
+	err := file.BubbleMap(func(wf types.WeblensFile) error {
 		ancestors = append(ancestors, wf.Id())
 		return nil
 	})
 
+	if err != nil {
+		util.ErrTrace(err)
+	}
+
 	var foundShare types.Share
 	if len(ancestors) != 0 {
-		// for _, s := range acc.Shares() {
-		// 	if slices.Contains(ancestors, types.FileId(s.GetContentId())) && (s.IsPublic() || slices.Contains(s.GetAccessors(), acc.User().GetUsername())) {
-		// 		foundShare = s
-		// 		break
-		// 	}
-		// }
+		for _, s := range acc.Shares() {
+			s.GetAccessors()
+			if slices.Contains(ancestors, types.FileId(s.GetContentId())) && (s.IsPublic() || slices.Contains(s.GetAccessors(), acc.User())) {
+				foundShare = s
+				break
+			}
+		}
 	}
 
 	if foundShare != nil {
-		acc.(*accessMeta).setUsingShare(foundShare)
+		acc.(*accessMeta).SetUsingShare(foundShare)
 	}
 	return foundShare
 }
@@ -118,7 +124,7 @@ func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
 
 	if file.Owner() == acc.User() {
 		return true
-	} else if file.Owner() == EXTERNAL_ROOT_USER {
+	} else if file.Owner() == ExternalRootUser {
 		return acc.User().IsAdmin()
 	}
 
@@ -137,6 +143,12 @@ func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
 }
 
 func CanAccessShare(s types.Share, acc types.AccessMeta) bool {
+	if s == nil {
+		err := fmt.Errorf("canAccessShare nil share")
+		util.ErrTrace(err)
+		return false
+	}
+
 	if !s.IsEnabled() {
 		return false
 	}

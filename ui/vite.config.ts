@@ -1,47 +1,47 @@
-import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react";
-import viteTsconfigPaths from "vite-tsconfig-paths";
+import { defineConfig, loadEnv } from 'vite'
+import react from '@vitejs/plugin-react'
+import viteTsconfigPaths from 'vite-tsconfig-paths'
 
 export default ({ mode }) => {
-    console.log(mode);
-    process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
+    console.log(mode)
+    process.env = { ...process.env, ...loadEnv(mode, process.cwd()) }
     console.log(
-        "VITE:",
+        'VITE:',
         process.env.VITE_PORT,
-        "PROXY_PORT:",
+        'PROXY_PORT:',
         process.env.VITE_PROXY_PORT
-    );
+    )
     if (
         (!process.env.VITE_PROXY_HOST || !process.env.VITE_PROXY_PORT) &&
-        process.env.VITE_BUILD !== "true"
+        process.env.VITE_BUILD !== 'true'
     ) {
         throw new Error(
-            "VITE_PROXY_HOST or VITE_PROXY_PORT not set in vite.config.ts"
-        );
+            'VITE_PROXY_HOST or VITE_PROXY_PORT not set in vite.config.ts'
+        )
     }
 
     return defineConfig({
         // depending on your application, base can also be "/"
-        base: "/",
+        base: '/',
         plugins: [react(), viteTsconfigPaths()],
-        mode: "development",
+        mode: 'development',
         server: {
             // this ensures that the browser opens upon server start
             open: true,
-            host: "0.0.0.0",
+            host: '0.0.0.0',
             // this sets a default port to 3000
             port: Number(process.env.VITE_PORT)
                 ? Number(process.env.VITE_PORT)
                 : 3000,
             proxy: {
-                "/api": {
+                '/api': {
                     target: `http://${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`,
                 },
-                "/api/ws": {
+                '/api/ws': {
                     target: `ws://${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`,
                     ws: true,
                 },
             },
         },
-    });
-};
+    })
+}

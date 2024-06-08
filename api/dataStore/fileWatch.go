@@ -101,7 +101,7 @@ func watcherAddDirectory(f types.WeblensFile) error {
 	if !f.IsDir() {
 		return ErrDirectoryRequired
 	}
-	if f.Owner() == WEBLENS_ROOT_USER {
+	if f.Owner() == WeblensRootUser {
 		return nil
 	}
 

@@ -1,15 +1,15 @@
-import { WeblensFile } from "../../classes/File";
-import { GlobalContextType, SelectedState } from "../../components/ItemDisplay";
-import { FileContextT } from "../../components/ItemScroller";
+import { GlobalContextType, SelectedState } from '../../components/ItemDisplay'
+import { FileContextT } from '../../components/ItemScroller'
 import {
     AuthHeaderT,
     FBDispatchT,
     FbStateT,
     UserInfoT,
-} from "../../types/Types";
-import { binarySearch } from "../../util";
-import { DraggingState } from "./FileBrowser";
-import { getSortFunc, handleRename, MoveSelected } from "./FileBrowserLogic";
+} from '../../types/Types'
+import { binarySearch } from '../../util'
+import { DraggingState } from './FileBrowser'
+import { getSortFunc, handleRename, MoveSelected } from './FileBrowserLogic'
+import { FbMenuModeT } from './FileBrowserStyles'
 
 export function GetFilesContext(
     fb: FbStateT,
@@ -19,33 +19,33 @@ export function GetFilesContext(
     authHeader: AuthHeaderT,
     dispatch: FBDispatchT
 ) {
-    let scrollToIndex: number = null;
+    let scrollToIndex: number = null
     if (fb.scrollTo) {
-        scrollToIndex = files.findIndex((v) => v.file.Id() === fb.scrollTo);
+        scrollToIndex = files.findIndex((v) => v.file.Id() === fb.scrollTo)
     }
 
     const context: GlobalContextType = {
         setSelected: (itemId: string, selected?: boolean) =>
             dispatch({
-                type: "set_selected",
+                type: 'set_selected',
                 fileId: itemId,
                 selected: selected,
             }),
         setHovering: (i: string) =>
-            dispatch({ type: "set_hovering", hovering: i }),
+            dispatch({ type: 'set_hovering', hovering: i }),
         setDragging: (d: DraggingState) =>
-            dispatch({ type: "set_dragging", dragging: d }),
+            dispatch({ type: 'set_dragging', dragging: d }),
         doSelectMany: () => {
             if (lastSelectedIndex === -1) {
                 dispatch({
-                    type: "set_selected",
+                    type: 'set_selected',
                     fileId: fb.hovering,
-                });
-                return;
+                })
+                return
             }
 
             dispatch({
-                type: "select_ids",
+                type: 'select_ids',
                 fileIds:
                     hoveringIndex > lastSelectedIndex
                         ? files
@@ -54,44 +54,36 @@ export function GetFilesContext(
                         : files
                               .slice(hoveringIndex, lastSelectedIndex + 1)
                               .map((v) => v.file.Id()),
-            });
+            })
         },
         moveSelected: (entryId: string) => {
             if (fb.dirMap.get(entryId).IsFolder()) {
                 MoveSelected(fb.selected, entryId, authHeader).then(() =>
-                    dispatch({ type: "clear_selected" })
-                );
+                    dispatch({ type: 'clear_selected' })
+                )
             }
         },
         blockFocus: (b: boolean) =>
-            dispatch({ type: "set_block_focus", block: b }),
+            dispatch({ type: 'set_block_focus', block: b }),
         rename: (itemId: string, newName: string) =>
-            handleRename(
-                itemId,
-                newName,
-                fb.contentId,
-                fb.selected.size,
-                dispatch,
-                authHeader
-            ),
-
-        setMenuOpen: (o: boolean) =>
-            dispatch({ type: "set_menu_open", open: o }),
+            handleRename(itemId, newName, dispatch, authHeader),
+        setMenuOpen: (m: FbMenuModeT) =>
+            dispatch({ type: 'set_menu_open', menuMode: m }),
         setMenuPos: (pos: { x: number; y: number }) =>
-            dispatch({ type: "set_menu_pos", pos: pos }),
+            dispatch({ type: 'set_menu_pos', pos: pos }),
         setMenuTarget: (target: string) =>
-            dispatch({ type: "set_menu_target", fileId: target }),
+            dispatch({ type: 'set_menu_target', fileId: target }),
 
         setMoveDest: (itemName) =>
-            dispatch({ type: "set_move_dest", fileName: itemName }),
+            dispatch({ type: 'set_move_dest', fileName: itemName }),
 
         dragging: fb.draggingState,
         initialScrollIndex: scrollToIndex,
         allowEditing: fb.folderInfo.IsModifiable(),
         hoveringIndex: hoveringIndex,
         lastSelectedIndex: lastSelectedIndex,
-    };
-    return context;
+    }
+    return context
 }
 
 export function GetItemsList(
@@ -100,39 +92,39 @@ export function GetItemsList(
     debouncedSearch: string
 ): { files: FileContextT[]; hoveringIndex: number; lastSelectedIndex: number } {
     if (usr.isLoggedIn === undefined) {
-        return { files: [], hoveringIndex: -1, lastSelectedIndex: -1 };
+        return { files: [], hoveringIndex: -1, lastSelectedIndex: -1 }
     }
     let filesList = Array.from(fb.dirMap.values()).filter((val) => {
         if (!val.GetFilename()) {
-            return false;
+            return false
         }
         return (
             val
                 .GetFilename()
                 .toLowerCase()
                 .includes(debouncedSearch.toLowerCase()) && !val.IsTrash()
-        );
-    });
+        )
+    })
 
-    const sortFunc = getSortFunc(fb.sortFunc, fb.sortDirection);
-    filesList.sort(sortFunc);
+    const sortFunc = getSortFunc(fb.sortFunc, fb.sortDirection)
+    filesList.sort(sortFunc)
 
-    let hoveringIndex = -1;
-    let lastSelectedIndex = -1;
+    let hoveringIndex = -1
+    let lastSelectedIndex = -1
 
     if (fb.holdingShift && fb.lastSelected && fb.hovering) {
-        const hovering = fb.dirMap.get(fb.hovering);
-        const lastSelected = fb.dirMap.get(fb.lastSelected);
+        const hovering = fb.dirMap.get(fb.hovering)
+        const lastSelected = fb.dirMap.get(fb.lastSelected)
         if (hovering) {
-            hoveringIndex = binarySearch(filesList, hovering, sortFunc);
+            hoveringIndex = binarySearch(filesList, hovering, sortFunc)
         }
         if (lastSelected) {
-            lastSelectedIndex = binarySearch(filesList, lastSelected, sortFunc);
+            lastSelectedIndex = binarySearch(filesList, lastSelected, sortFunc)
         }
     }
 
     const ctxS = filesList.map((v, i) => {
-        const itemId = v.Id();
+        const itemId = v.Id()
         const ctx: FileContextT = {
             file: v,
             selected:
@@ -147,10 +139,10 @@ export function GetItemsList(
                     !v.IsSelected() &&
                     fb.hovering === itemId &&
                     SelectedState.Droppable),
-        };
+        }
 
-        return ctx;
-    });
+        return ctx
+    })
 
-    return { files: ctxS, hoveringIndex, lastSelectedIndex };
+    return { files: ctxS, hoveringIndex, lastSelectedIndex }
 }

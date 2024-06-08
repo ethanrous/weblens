@@ -28,6 +28,7 @@ type AccessMeta interface {
 	GetTime() time.Time
 
 	UsingShare() Share
+	SetUsingShare(Share)
 }
 
 type RequestMode string

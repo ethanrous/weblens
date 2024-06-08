@@ -3,6 +3,7 @@ package dataStore
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -17,22 +18,22 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var WEBLENS_ROOT_USER *user = &user{
+var WeblensRootUser *user = &user{
 	Username: "WEBLENS",
 }
 
-var EXTERNAL_ROOT_USER *user = &user{
+var ExternalRootUser *user = &user{
 	Username: "EXTERNAL",
 }
 
-var ROOT_DIR_IDS = []types.FileId{"MEDIA", "TMP", "CACHE", "TAKEOUT", "EXTERNAL"}
+var RootDirIds = []types.FileId{"MEDIA", "TMP", "CACHE", "TAKEOUT", "EXTERNAL"}
 
 // Directory to hold the users home directories, and a few extras.
 // This is where most of the data on the filesystem will be stored
 var mediaRoot weblensFile = weblensFile{
 	id:       "MEDIA",
 	filename: "media",
-	owner:    WEBLENS_ROOT_USER,
+	owner:    WeblensRootUser,
 
 	isDir:        boolPointer(true),
 	absolutePath: util.GetMediaRootPath(),
@@ -47,7 +48,7 @@ var mediaRoot weblensFile = weblensFile{
 var contentRoot weblensFile = weblensFile{
 	id:       "CONTENT_LINKS",
 	filename: ".content",
-	owner:    WEBLENS_ROOT_USER,
+	owner:    WeblensRootUser,
 
 	isDir:        boolPointer(true),
 	absolutePath: mediaRoot.absolutePath + "/.content/",
@@ -59,7 +60,7 @@ var contentRoot weblensFile = weblensFile{
 var tmpRoot weblensFile = weblensFile{
 	id:       "TMP",
 	filename: "tmp",
-	owner:    WEBLENS_ROOT_USER,
+	owner:    WeblensRootUser,
 
 	isDir:        boolPointer(true),
 	absolutePath: util.GetTmpDir(),
@@ -71,7 +72,7 @@ var tmpRoot weblensFile = weblensFile{
 var cacheRoot weblensFile = weblensFile{
 	id:       "CACHE",
 	filename: "cache",
-	owner:    WEBLENS_ROOT_USER,
+	owner:    WeblensRootUser,
 
 	isDir:        boolPointer(true),
 	absolutePath: util.GetCacheDir(),
@@ -83,7 +84,7 @@ var cacheRoot weblensFile = weblensFile{
 var takeoutRoot weblensFile = weblensFile{
 	id:       "TAKEOUT",
 	filename: "takeout",
-	owner:    WEBLENS_ROOT_USER,
+	owner:    WeblensRootUser,
 
 	isDir:        boolPointer(true),
 	absolutePath: util.GetTakeoutDir(),
@@ -95,7 +96,7 @@ var takeoutRoot weblensFile = weblensFile{
 var externalRoot weblensFile = weblensFile{
 	id:       "EXTERNAL",
 	filename: "External",
-	owner:    EXTERNAL_ROOT_USER,
+	owner:    ExternalRootUser,
 
 	isDir: boolPointer(true),
 
@@ -157,8 +158,9 @@ func FsInit() {
 
 		err := homeDir.CreateSelf()
 		if err != nil {
-			switch err.(type) {
-			case AlreadyExistsError:
+			var alreadyExistsError AlreadyExistsError
+			switch {
+			case errors.As(err, &alreadyExistsError):
 			default:
 				{
 					panic(err)
@@ -173,8 +175,9 @@ func FsInit() {
 
 		_, err = MkDir(homeDir, ".user_trash")
 		if err != nil {
-			switch err.(type) {
-			case AlreadyExistsError:
+			var alreadyExistsError AlreadyExistsError
+			switch {
+			case errors.As(err, &alreadyExistsError):
 			default:
 				{
 					panic(err)
@@ -240,7 +243,7 @@ func GuaranteeRelativePath(absolutePath string) string {
 func AbsToPortable(absPath string) (port portablePath) {
 	var short string
 
-	for _, root_id := range ROOT_DIR_IDS {
+	for _, root_id := range RootDirIds {
 		if root_id == "EXTERNAL" {
 			continue
 		}
@@ -346,12 +349,12 @@ func generateFileId(absPath string) types.FileId {
 
 func CreateUserHomeDir(user types.User) (types.WeblensFile, error) {
 	homeDir, err := MkDir(GetMediaDir(), strings.ToLower(string(user.GetUsername())))
-	if err != nil && err != ErrDirAlreadyExists {
+	if err != nil && !errors.Is(err, ErrDirAlreadyExists) {
 		return homeDir, err
 	}
 
 	_, err = MkDir(homeDir, ".user_trash")
-	if err != nil && err != ErrDirAlreadyExists {
+	if err != nil && !errors.Is(err, ErrDirAlreadyExists) {
 		return homeDir, err
 	}
 
@@ -359,7 +362,7 @@ func CreateUserHomeDir(user types.User) (types.WeblensFile, error) {
 }
 
 func IsFileInTrash(f types.WeblensFile) bool {
-	if f.Owner() == EXTERNAL_ROOT_USER {
+	if f.Owner() == ExternalRootUser {
 		return false
 	}
 	trashPath := f.Owner().GetTrashFolder().GetAbsPath()
@@ -373,11 +376,11 @@ func NewTakeoutZip(zipName string, creatorName types.Username) (newZip types.Web
 	}
 
 	newZip, err = Touch(&takeoutRoot, zipName, false)
-	switch err {
-	case nil:
+	switch {
+	case err == nil:
 		newZip.(*weblensFile).owner = user
 		return
-	case ErrFileAlreadyExists:
+	case errors.Is(err, ErrFileAlreadyExists):
 		err = nil
 		exists = true
 	}
@@ -467,15 +470,19 @@ func AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 		return ErrFileAlreadyExists
 	}
 
-	err := fsTreeInsert(f, f.GetParent(), c...)
+	tmpPath := filepath.Join("/tmp/", f.Filename())
+	tmpFile, err := os.Open(tmpPath)
 	if err != nil {
 		return err
 	}
 
-	tmpFile, err := os.Open("/tmp/" + f.Filename())
-	if err != nil {
-		return err
-	}
+	// Mask the file create event. Since we cannot insert
+	// into the tree if the file is not present already,
+	// we must move the file first, which would create an
+	// insert event, which we wish to do manually below.
+	// Masking prevents the automatic insert event.
+	em := eventMask{action: FileCreate, path: f.GetAbsPath()}
+	addEventMask(em)
 
 	destFile, err := os.Create(f.GetAbsPath())
 	if err != nil {
@@ -487,7 +494,12 @@ func AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 		return err
 	}
 
-	return nil
+	err = fsTreeInsert(f, f.GetParent(), c...)
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(tmpPath)
 }
 
 func createLink(linkTo, parent types.WeblensFile, filename string) (types.WeblensFile, error) {
@@ -498,18 +510,25 @@ func createLink(linkTo, parent types.WeblensFile, filename string) (types.Weblen
 		return nil, err
 	}
 
-	fsTreeInsert(link, parent)
+	err = fsTreeInsert(link, parent)
+	if err != nil {
+		return nil, err
+	}
 
 	return link, nil
 }
 
-func MoveFileToTrash(file types.WeblensFile, c ...types.BroadcasterAgent) error {
+func MoveFileToTrash(file types.WeblensFile, acc types.AccessMeta, c ...types.BroadcasterAgent) error {
 	if !file.Exists() {
 		return ErrNoFile
 	}
 
 	if len(c) == 0 {
 		c = append(c, globalCaster)
+	}
+
+	if !CanAccessFile(file, acc) {
+		return ErrNoFileAccess
 	}
 
 	te := trashEntry{
@@ -534,7 +553,10 @@ func MoveFileToTrash(file types.WeblensFile, c ...types.BroadcasterAgent) error 
 
 	for _, s := range file.GetShares() {
 		s.SetEnabled(false)
-		UpdateFileShare(s)
+		err = UpdateFileShare(s)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -566,13 +588,16 @@ func ReturnFileFromTrash(trashFile types.WeblensFile, c ...types.BroadcasterAgen
 
 	for _, s := range trashFile.GetShares() {
 		s.SetEnabled(true)
-		UpdateFileShare(s)
+		err = UpdateFileShare(s)
+		if err != nil {
+			return err
+		}
 	}
 
 	return
 }
 
-// Removes file being pointed to from the tree and deletes it from the real filesystem
+// PermanentlyDeleteFile removes file being pointed to from the tree and deletes it from the real filesystem
 func PermanentlyDeleteFile(file types.WeblensFile, c ...types.BroadcasterAgent) (err error) {
 	if len(c) == 0 {
 		c = append(c, globalCaster)
@@ -685,17 +710,17 @@ func BackupBaseFile(remoteId string, data []byte) (baseF types.WeblensFile, err 
 
 	// Get or create dir for remote core
 	remoteDir, err := MkDir(&mediaRoot, remoteId)
-	if err != nil && err != ErrDirAlreadyExists {
+	if err != nil && !errors.Is(err, ErrDirAlreadyExists) {
 		return
 	}
 
 	dataDir, err := MkDir(remoteDir, "data")
-	if err != nil && err != ErrDirAlreadyExists {
+	if err != nil && !errors.Is(err, ErrDirAlreadyExists) {
 		return
 	}
 
 	baseF, err = Touch(dataDir, baseContentId+".base", false)
-	if err == ErrFileAlreadyExists {
+	if errors.Is(err, ErrFileAlreadyExists) {
 		return
 	} else if err != nil {
 		return
@@ -707,9 +732,9 @@ func BackupBaseFile(remoteId string, data []byte) (baseF types.WeblensFile, err 
 
 func CacheBaseMedia(mediaId types.ContentId, data [][]byte) (newThumb, newFullres types.WeblensFile, err error) {
 	newThumb, err = Touch(&cacheRoot, string(mediaId)+"-thumbnail.wlcache", false)
-	if err != nil && err != ErrFileAlreadyExists {
+	if err != nil && !errors.Is(err, ErrFileAlreadyExists) {
 		return nil, nil, err
-	} else if err != ErrFileAlreadyExists {
+	} else if !errors.Is(err, ErrFileAlreadyExists) {
 		err = newThumb.Write(data[0])
 		if err != nil {
 			return
@@ -717,9 +742,9 @@ func CacheBaseMedia(mediaId types.ContentId, data [][]byte) (newThumb, newFullre
 	}
 
 	newFullres, err = Touch(&cacheRoot, string(mediaId)+"-fullres.wlcache", false)
-	if err != nil && err != ErrFileAlreadyExists {
+	if err != nil && !errors.Is(err, ErrFileAlreadyExists) {
 		return nil, nil, err
-	} else if err != ErrFileAlreadyExists {
+	} else if !errors.Is(err, ErrFileAlreadyExists) {
 		err = newFullres.Write(data[1])
 		if err != nil {
 			return
@@ -757,7 +782,7 @@ func isDirByPath(absPath string) (bool, error) {
 func MakeUniqueChildName(parent types.WeblensFile, childName string) string {
 	dupeCount := 0
 	_, e := parent.GetChild(childName)
-	for e != ErrNoFile {
+	for !errors.Is(e, ErrNoFile) {
 		dupeCount++
 		tmp := fmt.Sprintf("%s (%d)", childName, dupeCount)
 		_, e = parent.GetChild(tmp)

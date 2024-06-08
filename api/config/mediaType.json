@@ -30,7 +30,8 @@
     "FriendlyName": "Jpeg",
     "FileExtension": [
       "jpeg",
-      "jpg"
+      "jpg",
+      "JPG"
     ],
     "IsDisplayable": true,
     "IsRaw": false,
@@ -67,7 +68,7 @@
     "IsDisplayable": true,
     "IsRaw": true,
     "IsVideo": false,
-    "RawThumbExifKey": "JpgFromRaw",
+    "RawThumbExifKey": "PreviewImage",
     "SupportsImgRecog": true
   },
   "image/x-canon-cr2": {

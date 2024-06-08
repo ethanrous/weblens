@@ -9,11 +9,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func (s fileShareData) GetShareId() types.ShareId     { return s.ShareId }
-func (s fileShareData) GetShareType() types.ShareType { return FileShare }
-func (s fileShareData) GetContentId() string          { return s.FileId.String() }
-func (s *fileShareData) SetContentId(fileId string)   { s.FileId = types.FileId(fileId) }
-func (s fileShareData) GetAccessors() []types.User {
+func (s *fileShareData) GetShareId() types.ShareId     { return s.ShareId }
+func (s *fileShareData) GetShareType() types.ShareType { return FileShare }
+func (s *fileShareData) GetContentId() string          { return s.FileId.String() }
+func (s *fileShareData) SetContentId(fileId string)    { s.FileId = types.FileId(fileId) }
+func (s *fileShareData) GetAccessors() []types.User {
 	return util.Map(s.Accessors, func(un types.Username) types.User { return GetUser(un) })
 }
 func (s *fileShareData) SetAccessors(newUsers []types.Username) {
@@ -22,16 +22,15 @@ func (s *fileShareData) SetAccessors(newUsers []types.Username) {
 	for _, u := range userDiff {
 		globalCaster.PushShareUpdate(u, s)
 	}
-	// s.Accessors = util.AddToSet(s.Accessors, newUsers)
 }
-func (s fileShareData) GetOwner() types.User { return GetUser(s.Owner) }
-func (s fileShareData) IsPublic() bool       { return s.Public }
-func (s *fileShareData) SetPublic(pub bool)  { s.Public = pub }
+func (s *fileShareData) GetOwner() types.User { return GetUser(s.Owner) }
+func (s *fileShareData) IsPublic() bool       { return s.Public }
+func (s *fileShareData) SetPublic(pub bool)   { s.Public = pub }
 
-func (s fileShareData) IsEnabled() bool         { return s.Enabled }
+func (s *fileShareData) IsEnabled() bool        { return s.Enabled }
 func (s *fileShareData) SetEnabled(enable bool) { s.Enabled = enable }
 
-// This should only be called once per execution of weblens, on initialization
+// LoadAllShares should only be called once per execution of weblens, on initialization
 func LoadAllShares() {
 	shares, err := fddb.getAllShares()
 	if err != nil {
@@ -42,11 +41,21 @@ func LoadAllShares() {
 		if s.GetShareType() != FileShare {
 			continue
 		}
+
 		fs := s.(*fileShareData)
 		file := FsTreeGet(fs.FileId)
 		if file == nil {
-			fddb.removeFileShare(fs.ShareId)
+			err = fddb.removeFileShare(fs.ShareId)
+			if err != nil {
+				panic(err)
+			}
 			continue
+		} else if !IsFileInTrash(file) && !s.IsEnabled() {
+			s.SetEnabled(true)
+			err = UpdateFileShare(s)
+			if err != nil {
+				panic(err)
+			}
 		}
 		file.AppendShare(fs)
 	}
@@ -118,7 +127,7 @@ func GetShare(shareId types.ShareId, shareType types.ShareType) (s types.Share, 
 	case FileShare:
 		var sObj fileShareData
 		sObj, err = fddb.getFileShare(shareId)
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			err = ErrNoShare
 		}
 		if err != nil {
@@ -134,9 +143,13 @@ func GetShare(shareId types.ShareId, shareType types.ShareType) (s types.Share, 
 		err = errors.New("unexpected share type")
 	}
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		err = ErrNoShare
 	}
 
 	return
+}
+
+func GetSharedWithUser(u types.User) []types.Share {
+	return fddb.GetSharedWith(u.GetUsername())
 }

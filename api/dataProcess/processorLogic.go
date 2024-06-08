@@ -166,9 +166,11 @@ func moveFile(t *task) {
 		t.ErrorAndExit(errors.New("could not find existing file"))
 	}
 
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser)
+
 	destinationFolder := dataStore.FsTreeGet(moveMeta.destinationFolderId)
 	if destinationFolder == destinationFolder.Owner().GetTrashFolder() {
-		err := dataStore.MoveFileToTrash(file, t.caster)
+		err := dataStore.MoveFileToTrash(file, acc, t.caster)
 		if err != nil {
 			t.ErrorAndExit(err, "Failed while assuming move file was to trash")
 		}
@@ -261,7 +263,7 @@ func handleFileUploads(t *task) {
 
 WriterLoop:
 	for {
-		t.setTimeout(time.Now().Add(time.Second))
+		t.setTimeout(time.Now().Add(time.Second * 10))
 		select {
 		case signal := <-t.signalChan: // Listen for cancellation
 			if signal == 1 {
@@ -350,11 +352,19 @@ WriterLoop:
 
 	t.CheckExit()
 
-	GetGlobalQueue().ScanDirectory(rootFile, false, false, globalCaster)
+	doingRootScan := false
 	for _, tl := range topLevels {
+		err = dataStore.ResizeUp(tl, bufCaster)
+		if err != nil {
+			util.ShowErr(err)
+		}
+
 		if tl.IsDir() {
 			bufCaster.PushFileUpdate(tl)
 			GetGlobalQueue().ScanDirectory(tl, true, false, globalCaster)
+		} else if !doingRootScan {
+			GetGlobalQueue().ScanDirectory(rootFile, false, false, globalCaster)
+			doingRootScan = true
 		}
 	}
 	bufCaster.Close()

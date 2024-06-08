@@ -1,12 +1,13 @@
-import { Box, Space, Text } from "@mantine/core";
-import { FixedSizeList as ScrollList } from "react-window";
-import { FBDispatchT, FbStateT } from "../../types/Types";
-import { WeblensFile } from "../../classes/File";
-import { useEffect, useMemo, useState } from "react";
-import { IconDisplay } from "./FileBrowserStyles";
-import { useNavigate } from "react-router-dom";
-import { humanFileSize } from "../../util";
-import { useResize } from "../../components/hooks";
+import { Box, Space } from '@mantine/core'
+import { FixedSizeList as ScrollList } from 'react-window'
+import { FBDispatchT, FbStateT } from '../../types/Types'
+import { WeblensFile } from '../../classes/File'
+import { useContext, useEffect, useMemo, useState } from 'react'
+import { IconDisplay } from './FileBrowserStyles'
+import { useNavigate } from 'react-router-dom'
+import { useResize } from '../../components/hooks'
+import { UserContext } from '../../Context'
+import { IconTrash } from '@tabler/icons-react'
 
 function FileRow({
     data,
@@ -14,117 +15,117 @@ function FileRow({
     style,
 }: {
     data: {
-        files: WeblensFile[];
-        selected: Map<string, boolean>;
-        lastSelectedIndex: number;
-        hoveringIndex: number;
-        dispatch: FBDispatchT;
-    };
-    index: number;
-    style;
+        files: WeblensFile[]
+        selected: Map<string, boolean>
+        lastSelectedIndex: number
+        hoveringIndex: number
+        dispatch: FBDispatchT
+    }
+    index: number
+    style
 }) {
-    const nav = useNavigate();
+    const nav = useNavigate()
+    const { usr } = useContext(UserContext)
     const inRange =
-        (index - data.lastSelectedIndex) * (index - data.hoveringIndex) < 1;
+        (index - data.lastSelectedIndex) * (index - data.hoveringIndex) < 1
 
     return (
-        <Box style={{ ...style, display: "flex" }}>
-            <Box
+        <div style={style} className="flex">
+            <div
                 className="file-row"
-                mod={{
-                    "data-selected":
-                        data.selected.get(data.files[index].Id()) === true,
-                    "data-in-range": inRange === true,
-                }}
+                data-selected={
+                    data.selected.get(data.files[index].Id()) === true
+                }
+                data-in-range={inRange}
                 style={{
                     border:
                         index === data.lastSelectedIndex
-                            ? "2px solid #442299"
-                            : "2px solid #00000000",
+                            ? '2px solid #442299'
+                            : '2px solid #00000000',
                 }}
                 onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation()
                     data.dispatch({
-                        type: "set_selected",
+                        type: 'set_selected',
                         fileId: data.files[index].Id(),
                         selected:
                             data.selected.get(data.files[index].Id()) !== true,
-                    });
+                    })
                 }}
                 onMouseOver={(e) => {
                     data.dispatch({
-                        type: "set_hovering",
+                        type: 'set_hovering',
                         hovering: data.files[index].Id(),
-                    });
+                    })
                 }}
                 onContextMenu={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
+                    e.stopPropagation()
+                    e.preventDefault()
                     data.dispatch({
-                        type: "set_menu_target",
+                        type: 'set_menu_target',
                         fileId: data.files[index].Id(),
-                    });
-                    data.dispatch({ type: "set_menu_open", open: true });
+                    })
+                    data.dispatch({ type: 'set_menu_open', open: true })
                     data.dispatch({
-                        type: "set_menu_pos",
+                        type: 'set_menu_pos',
                         pos: { x: e.clientX, y: e.clientY },
-                    });
+                    })
                 }}
                 onDoubleClick={() => {
                     if (data.files[index].IsFolder()) {
-                        nav(`/files/${data.files[index].Id()}`);
+                        nav(`/files/${data.files[index].Id()}`)
                     } else {
                         nav(
                             `/files/${data.files[
                                 index
                             ].ParentId()}?jumpTo=${data.files[index].Id()}`
-                        );
+                        )
                     }
                 }}
             >
-                <Box style={{ width: 24, height: 24 }}>
+                <div className="w-6 h-6">
                     <IconDisplay file={data.files[index]} />
-                </Box>
-                <Text>{data.files[index].GetFilename()}</Text>
+                </div>
+                <p>{data.files[index].GetFilename()}</p>
                 <Space flex={1} />
-                <Text>{data.files[index].FormatSize()}</Text>
-            </Box>
-        </Box>
-    );
+                {data.files[index].ParentId() === usr.trashId && <IconTrash />}
+                <p>{data.files[index].FormatSize()}</p>
+            </div>
+        </div>
+    )
 }
 
 export function FileRows({
     fb,
     dispatch,
 }: {
-    fb: FbStateT;
-    dispatch: FBDispatchT;
+    fb: FbStateT
+    dispatch: FBDispatchT
 }) {
-    const [boxRef, setBoxRef] = useState(null);
-    const size = useResize(boxRef);
+    const [boxRef, setBoxRef] = useState(null)
+    const size = useResize(boxRef)
 
     const files = useMemo(() => {
-        const filesList = Array.from(fb.dirMap.values());
-        return filesList;
-    }, [fb.dirMap]);
+        return Array.from(fb.dirMap.values())
+    }, [fb.dirMap])
 
     useEffect(() => {
         dispatch({
-            type: "set_files_list",
+            type: 'set_files_list',
             fileIds: files.map((v) => v.Id()),
-        });
-    }, [files]);
+        })
+    }, [files])
 
     const lastSelectedIndex = useMemo(() => {
-        return files.findIndex((v) => v.Id() === fb.lastSelected);
-    }, [files, fb.lastSelected]);
+        return files.findIndex((v) => v.Id() === fb.lastSelected)
+    }, [files, fb.lastSelected])
 
     const hoveringIndex = useMemo(() => {
         if (!fb.holdingShift || !files) {
-            return { hoveringIndex: -1, lastSelectedIndex: -1 };
+            return { hoveringIndex: -1, lastSelectedIndex: -1 }
         }
-        return files.findIndex((v) => v.Id() === fb.hovering);
-    }, [files, fb.holdingShift, fb.hovering]);
+        return files.findIndex((v) => v.Id() === fb.hovering)
+    }, [files, fb.holdingShift, fb.hovering])
 
     return (
         <Box
@@ -149,5 +150,5 @@ export function FileRows({
                 {FileRow}
             </ScrollList>
         </Box>
-    );
+    )
 }

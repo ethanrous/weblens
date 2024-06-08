@@ -1,6 +1,7 @@
 package dataStore
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,20 +28,13 @@ type eventMask struct {
 	backupId string
 }
 
-var jeStream = make(chan (fileEvent), 20)
+var jeStream = make(chan fileEvent, 20)
 
-var eventMasks = []eventMask{}
+var eventMasks []eventMask
 var masksLock = &sync.Mutex{}
 
 func journalWorker() {
-	// var log *os.File
-	// var err error
-	// if util.IsDevMode() {
-	// 	log, err = os.OpenFile("/Users/ethan/Downloads/journal.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0777)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
+
 	for e := range jeStream {
 		masksLock.Lock()
 		index := slices.IndexFunc(eventMasks, func(m eventMask) bool { return m.path == e.postFilePath })
@@ -50,13 +44,6 @@ func journalWorker() {
 			e.action = m.action
 		}
 		masksLock.Unlock()
-
-		// if log != nil {
-		// 	_, err := log.Write([]byte(fmt.Sprintf("[%s] %s %s -> %s\n", time.Now().Format("2-1-06 15:04:05"), e.action, e.preFilePath, e.postFilePath)))
-		// 	if err != nil {
-		// 		util.ShowErr(err)
-		// 	}
-		// }
 
 		switch e.action {
 		case FileCreate:
@@ -85,7 +72,11 @@ func journalWorker() {
 				}
 
 				newFile = newWeblensFile(parent, filepath.Base(e.postFilePath), isDir)
-				fsTreeInsert(newFile, parent, globalCaster)
+				err = fsTreeInsert(newFile, parent, globalCaster)
+				if err != nil {
+					util.ErrTrace(err)
+					continue
+				}
 				tasker.ScanFile(newFile, globalCaster)
 			}
 			if newFile == nil {
@@ -177,7 +168,7 @@ func SetContentId(f types.WeblensFile, contentId types.ContentId) error {
 }
 
 func journalFileCreate(newFile types.WeblensFile) *fileJournalEntry {
-	if newFile.Owner() == WEBLENS_ROOT_USER {
+	if newFile.Owner() == WeblensRootUser {
 		return nil
 	}
 	newJe := &fileJournalEntry{
@@ -202,7 +193,7 @@ func journalFileRestore(restoreToPath string) *fileJournalEntry {
 }
 
 func journalFileMove(oldFilePath string, newFile types.WeblensFile) *fileJournalEntry {
-	if newFile.Owner() == WEBLENS_ROOT_USER {
+	if newFile.Owner() == WeblensRootUser {
 		return nil
 	}
 	newJe := &fileJournalEntry{
@@ -386,9 +377,9 @@ func JournalSince(since time.Time) ([]types.JournalEntry, error) {
 
 func GetLatestBackup() (t time.Time, err error) {
 	latest, err := fddb.getLatestBackup()
-	if err != nil && err != ErrNoBackup {
+	if err != nil && !errors.Is(err, ErrNoBackup) {
 		return
-	} else if err == ErrNoBackup {
+	} else if errors.Is(err, ErrNoBackup) {
 		return time.Unix(0, 0), nil
 	}
 

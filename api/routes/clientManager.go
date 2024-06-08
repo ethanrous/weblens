@@ -52,14 +52,13 @@ func (cm *clientManager) ClientDisconnect(c *Client) {
 	cm.clientMu.Unlock()
 }
 
-func (cm clientManager) GetClient(clientId clientId) *Client {
+func (cm *clientManager) GetClient(clientId clientId) *Client {
 	cm.clientMu.Lock()
 	defer cm.clientMu.Unlock()
 	return cm.clientMap[clientId]
 }
 
-func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client) {
-
+func (cm *clientManager) GetSubscribers(st subType, key subId) (clients []*Client) {
 	switch st {
 	case SubFolder:
 		{
@@ -81,7 +80,7 @@ func (cm clientManager) GetSubscribers(st subType, key subId) (clients []*Client
 	return
 }
 
-func (cm clientManager) Broadcast(broadcastType subType, broadcastKey subId, eventTag string, content []wsM) {
+func (cm *clientManager) Broadcast(broadcastType subType, broadcastKey subId, eventTag string, content []wsM) {
 	if broadcastKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return

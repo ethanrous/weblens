@@ -25,7 +25,7 @@ func (c *unbufferedCaster) Enable() {
 	c.enabled = true
 }
 
-func (c unbufferedCaster) IsBuffered() bool {
+func (c *unbufferedCaster) IsBuffered() bool {
 	return false
 }
 
@@ -61,12 +61,12 @@ func (c *unbufferedCaster) PushShareUpdate(username types.Username, newShareInfo
 	send(msg)
 }
 
-func (c unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
+func (c *unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	if !c.enabled {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -76,16 +76,16 @@ func (c unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", []wsM{{"fileInfo": fileInfo}})
 }
 
-func (c unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
+func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 	if !c.enabled {
 		return
 	}
 
-	if updatedFile.Owner() == dataStore.WEBLENS_ROOT_USER {
+	if updatedFile.Owner() == dataStore.WeblensRootUser {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -94,18 +94,18 @@ func (c unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 
 	cmInstance.Broadcast("folder", subId(updatedFile.Id()), "file_updated", []wsM{{"fileInfo": fileInfo}})
 
-	if updatedFile.GetParent().Owner() == dataStore.WEBLENS_ROOT_USER {
+	if updatedFile.GetParent().Owner() == dataStore.WeblensRootUser {
 		return
 	}
 	cmInstance.Broadcast("folder", subId(updatedFile.GetParent().Id()), "file_updated", []wsM{{"fileInfo": fileInfo}})
 }
 
-func (c unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFile types.WeblensFile) {
+func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFile types.WeblensFile) {
 	if !c.enabled {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
 
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
@@ -124,7 +124,7 @@ func (c unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFi
 	send(msg)
 }
 
-func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
+func (c *unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	if !c.enabled {
 		return
 	}
@@ -133,14 +133,14 @@ func (c unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
 }
 
-func (c unbufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
+func (c *unbufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
 	subs := cmInstance.GetSubscribers(SubFolder, subId(folder))
 	for _, s := range subs {
-		s.Subscribe(SubTask, subId(task), nil)
+		s.Subscribe(SubTask, subId(task), nil, nil)
 	}
 }
 
-func (c unbufferedCaster) UnsubTask(task types.Task) {
+func (c *unbufferedCaster) UnsubTask(task types.Task) {
 	subs := cmInstance.GetSubscribers(SubFolder, subId(task.TaskId()))
 	for _, s := range subs {
 		s.Unsubscribe(subId(task.TaskId()))
@@ -188,12 +188,16 @@ func (c *bufferedCaster) Close() {
 	c.enabled = false
 }
 
-func (c bufferedCaster) IsBuffered() bool {
+func (c *bufferedCaster) IsBuffered() bool {
 	return true
 }
 
 func (c *bufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	if !c.enabled {
+		return
+	}
+
+	if newFile.Owner() == dataStore.WeblensRootUser {
 		return
 	}
 
@@ -219,11 +223,11 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	if updatedFile.Owner() == dataStore.WEBLENS_ROOT_USER {
+	if updatedFile.Owner() == dataStore.WeblensRootUser {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -239,7 +243,7 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 	}
 	c.bufferAndFlush(msg)
 
-	if updatedFile.GetParent().Owner() == dataStore.WEBLENS_ROOT_USER {
+	if updatedFile.GetParent().Owner() == dataStore.WeblensRootUser {
 		return
 	}
 
@@ -259,7 +263,7 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -348,14 +352,14 @@ func (c *bufferedCaster) DisableAutoFlush() {
 }
 
 // Subscribe any subscribers of a folder to a task (presumably one that pertains to that folder)
-func (c bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
+func (c *bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
 	subs := cmInstance.GetSubscribers(SubFolder, subId(folder))
 	for _, s := range subs {
-		s.Subscribe(SubTask, subId(task), nil)
+		s.Subscribe(SubTask, subId(task), nil, nil)
 	}
 }
 
-func (c bufferedCaster) UnsubTask(task types.Task) {
+func (c *bufferedCaster) UnsubTask(task types.Task) {
 	subs := cmInstance.GetSubscribers(SubFolder, subId(task.TaskId()))
 	for _, s := range subs {
 		s.Unsubscribe(subId(task.TaskId()))

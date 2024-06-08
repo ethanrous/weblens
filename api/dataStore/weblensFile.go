@@ -2,6 +2,7 @@ package dataStore
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -168,7 +169,10 @@ func (f *weblensFile) IsDir() bool {
 
 func (f *weblensFile) ModTime() (t time.Time) {
 	if f.modifyDate.Unix() == 0 {
-		f.loadStat()
+		err := f.loadStat()
+		if err != nil {
+			util.ErrTrace(err)
+		}
 	}
 	return f.modifyDate
 }
@@ -304,8 +308,9 @@ func (f *weblensFile) ReadDir() error {
 
 		err := fsTreeInsert(singleChild, f)
 		if err != nil {
-			switch err.(type) {
-			case AlreadyExistsError:
+			var alreadyExistsError AlreadyExistsError
+			switch {
+			case errors.As(err, &alreadyExistsError):
 			default:
 				return err
 			}
@@ -320,11 +325,11 @@ func (f *weblensFile) GetContentId() types.ContentId {
 }
 
 var searchWfByFilename = func(a *weblensFile, b string) int {
-	return strings.Compare(a.filename, b)
+	return strings.Compare(strings.ToLower(a.filename), strings.ToLower(b))
 }
 
 var sortWfByFilename = func(a *weblensFile, b *weblensFile) int {
-	return strings.Compare(a.filename, b.filename)
+	return strings.Compare(strings.ToLower(a.filename), strings.ToLower(b.filename))
 }
 
 func (f *weblensFile) GetChild(childName string) (types.WeblensFile, error) {
@@ -409,13 +414,16 @@ func (f *weblensFile) CreateSelf() error {
 		if err != nil {
 			return err
 		}
-		osFile.Close()
+		err = osFile.Close()
+		if err != nil {
+			return err
+		}
 	}
 	f.Id()
 	return nil
 }
 
-func (f weblensFile) MarshalJSON() ([]byte, error) {
+func (f *weblensFile) MarshalJSON() ([]byte, error) {
 	acc := NewAccessMeta(nil).SetRequestMode(MarshalFile)
 	format, err := f.FormatFileInfo(acc)
 	if err != nil {
@@ -427,7 +435,7 @@ func (f weblensFile) MarshalJSON() ([]byte, error) {
 type FileArray []types.WeblensFile
 
 func (fa *FileArray) UnmarshalJSON(data []byte) error {
-	tmp := []*weblensFile{}
+	var tmp []*weblensFile
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
@@ -566,11 +574,8 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 
 	// shares := f.GetShares()
 	var parentId types.FileId
-	if f.Owner() != WEBLENS_ROOT_USER && CanAccessFile(f.GetParent(), acc) {
+	if f.Owner() != WeblensRootUser && CanAccessFile(f.GetParent(), acc) {
 		parentId = f.GetParent().Id()
-	}
-	if acc == nil {
-		util.Warning.Println("NIL ACCESS")
 	}
 
 	shares := util.Filter(f.GetShares(), func(s types.Share) bool {
@@ -578,8 +583,8 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 	})
 
 	tmpF := types.WeblensFile(f)
-	pathBits := []string{}
-	for tmpF != nil && tmpF.Owner() != WEBLENS_ROOT_USER {
+	var pathBits []string
+	for tmpF != nil && tmpF.Owner() != WeblensRootUser {
 		if tmpF.GetParent() == &mediaRoot {
 			pathBits = append(pathBits, "HOME")
 			break
@@ -601,7 +606,7 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		Imported:         imported,
 		Displayable:      f.IsDisplayable(),
 		IsDir:            f.IsDir(),
-		Modifiable:       acc.GetTime().Unix() <= 0 && f.Filename() != ".user_trash" && f.Owner() != WEBLENS_ROOT_USER && f != &externalRoot,
+		Modifiable:       acc.GetTime().Unix() <= 0 && f.Filename() != ".user_trash" && f.Owner() != WeblensRootUser && f != &externalRoot,
 		Size:             size,
 		ModTime:          f.ModTime(),
 		Filename:         f.Filename(),
@@ -692,7 +697,8 @@ func (f *weblensFile) LeafMap(fn types.FileMapFunc) error {
 }
 
 /*
-Perform fn on f and all parents of f, ignoring the media root or other static directories.
+BubbleMap
+Performs fn on f and all parents of f, ignoring the media root or other static directories.
 
 Files are acted on in the order of their index number below, starting with the caller, children are never accessed
 
@@ -703,7 +709,7 @@ Files are acted on in the order of their index number below, starting with the c
 	f1 <- Root caller
 */
 func (f *weblensFile) BubbleMap(fn types.FileMapFunc) error {
-	if f == nil || f.owner == WEBLENS_ROOT_USER {
+	if f == nil || f.owner == WeblensRootUser {
 		return nil
 	}
 	err := fn(f)

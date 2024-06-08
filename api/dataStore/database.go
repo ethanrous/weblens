@@ -386,13 +386,20 @@ func (db WeblensDB) SearchUsers(searchStr string) []types.Username {
 func (db WeblensDB) GetSharedWith(username types.Username) []types.Share {
 	filter := bson.M{"accessors": username}
 	ret, err := db.mongo.Collection("shares").Find(mongo_ctx, filter)
-	util.ErrTrace(err, "Failed to get shared files")
+	if err != nil {
+		util.ErrTrace(err, "Failed to get shared files")
+		return nil
 
-	fileShares := []fileShareData{}
-	ret.All(mongo_ctx, &fileShares)
+	}
+
+	var fileShares []fileShareData
+	err = ret.All(mongo_ctx, &fileShares)
+	if err != nil {
+		util.ErrTrace(err, "Failed to get shared files")
+		return nil
+	}
 
 	fileShares = util.Filter(fileShares, func(s fileShareData) bool { return s.Enabled })
-
 	return util.Map(fileShares, func(s fileShareData) types.Share { return &s })
 }
 
@@ -557,7 +564,7 @@ func (db WeblensDB) removeFileShare(shareId types.ShareId) (err error) {
 
 	_, err = db.mongo.Collection("shares").DeleteOne(mongo_ctx, filter)
 
-	if err == mongo.ErrNoDocuments {
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		err = ErrNoShare
 		return
 	}
@@ -690,7 +697,7 @@ func (db WeblensDB) getUsingKey(key types.WeblensApiKey) *srvInfo {
 func (db WeblensDB) getThisServerInfo() (*srvInfo, error) {
 	ret := db.mongo.Collection("servers").FindOne(mongo_ctx, bson.M{"isThisServer": true})
 	if ret.Err() != nil {
-		if ret.Err() == mongo.ErrNoDocuments {
+		if errors.Is(ret.Err(), mongo.ErrNoDocuments) {
 			return nil, types.ErrServerNotInit
 		}
 		util.ErrTrace(ret.Err())

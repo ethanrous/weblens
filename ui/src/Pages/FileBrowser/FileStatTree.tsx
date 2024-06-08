@@ -1,131 +1,105 @@
-import { useEffect, useMemo, useState } from "react";
-import * as d3 from "d3";
-import { humanFileSize } from "../../util";
-import { Box, Text } from "@mantine/core";
-import { WeblensButton } from "../../components/WeblensButton";
-import { useResize } from "../../components/hooks";
-import { getFilesystemStats } from "../../api/FileBrowserApi";
-import { useNavigate } from "react-router-dom";
-import { AuthHeaderT } from "../../types/Types";
-import { WeblensFile } from "../../classes/File";
-import { IconFolder } from "@tabler/icons-react";
+import { useEffect, useMemo, useState } from 'react'
+import * as d3 from 'd3'
+import { humanFileSize } from '../../util'
+import { WeblensButton } from '../../components/WeblensButton'
+import { useResize } from '../../components/hooks'
+import { getFilesystemStats } from '../../api/FileBrowserApi'
+import { useNavigate } from 'react-router-dom'
+import { AuthHeaderT } from '../../types/Types'
+import { WeblensFile } from '../../classes/File'
+import { IconFolder } from '@tabler/icons-react'
 
 export type TreeNode = {
-    type: "node";
-    value: number;
-    name: string;
-    children: Tree[];
-};
+    type: 'node'
+    value: number
+    name: string
+    children: Tree[]
+}
 export type TreeLeaf = {
-    type: "leaf";
-    name: string;
-    value: number;
-};
+    type: 'leaf'
+    name: string
+    value: number
+}
 
-type Tree = TreeNode | TreeLeaf;
+type Tree = TreeNode | TreeLeaf
 type extSize = {
-    name: string;
-    value: number;
-};
+    name: string
+    value: number
+}
 
 export const StatTree = ({
     folderInfo,
     authHeader,
 }: {
-    folderInfo: WeblensFile;
-    authHeader: AuthHeaderT;
+    folderInfo: WeblensFile
+    authHeader: AuthHeaderT
 }) => {
-    const nav = useNavigate();
+    const nav = useNavigate()
     const [stats, setStats]: [stats: extSize[], setStats: (s) => void] =
-        useState([]);
-    const [boxRef, setBoxRef] = useState(null);
-    const size = useResize(boxRef);
-    const [statFilter, setStatsFilter] = useState([]);
+        useState([])
+    const [boxRef, setBoxRef] = useState(null)
+    const size = useResize(boxRef)
+    const [statFilter, setStatsFilter] = useState([])
 
     useEffect(() => {
         if (!folderInfo.Id()) {
-            return;
+            return
         }
         getFilesystemStats(folderInfo.Id(), authHeader).then((s) =>
             setStats(s.sizesByExtension)
-        );
-    }, [folderInfo.Id()]);
+        )
+    }, [folderInfo.Id()])
 
     if (!folderInfo) {
-        return null;
+        return null
     }
 
     return (
-        <Box
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                width: "100%",
-                height: "100%",
-            }}
-        >
-            <Box
-                style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    height: "58px",
-                    width: "100%",
-                    padding: 5,
-                }}
-            >
-                <Box
-                    style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        cursor: "pointer",
-                    }}
+        <div className="flex flex-col justify-center w-full h-full">
+            <div className="flex flex-row items-center justify-between w-full h-14 p-1">
+                <div
+                    className="flex flex-row items-center cursor-pointer"
                     onClick={() => nav(`/files/${folderInfo.Id()}`)}
                 >
                     <IconFolder
-                        size={"28px"}
+                        size={'28px'}
                         style={{ marginLeft: 10, marginRight: 4 }}
                     />
-                    <Text className="crumb-text">
-                        {folderInfo.GetFilename()}
-                    </Text>
-                </Box>
-                <Box style={{ flexGrow: 1 }} />
-                {stats.length !== 0 && (
-                    <WeblensButton
-                        onClick={() => setStatsFilter([])}
-                        disabled={statFilter.length === 0}
-                        height={50}
-                        width={170}
-                        label={`Clear Filter`}
-                        postScript={
-                            statFilter.length === 0
-                                ? "Right click to hide a block"
-                                : `${statFilter.length} blocks hidden`
-                        }
-                    />
+                    <p className="crumb-text">{folderInfo.GetFilename()}</p>
+                </div>
+
+                <p className="flex w-max text-nowrap text-xl font-bold">
+                    Folder content statistics
+                </p>
+
+                <WeblensButton
+                    onClick={() => setStatsFilter([])}
+                    disabled={statFilter.length === 0}
+                    squareSize={50}
+                    width={170}
+                    label={`Clear Filter`}
+                    postScript={
+                        statFilter.length === 0
+                            ? 'Right click to hide a block'
+                            : `${statFilter.length} blocks hidden`
+                    }
+                />
+            </div>
+            <div
+                ref={setBoxRef}
+                className="flex justify-center items-center h-full rounded m-5"
+            >
+                {stats.length === 0 && (
+                    <p className="flex w-max text-nowrap text-xl font-bold">
+                        No content
+                    </p>
                 )}
-            </Box>
-            {stats.length !== 0 && (
-                <Box
-                    ref={setBoxRef}
-                    style={{
-                        display: "flex",
-                        backgroundColor: "#222222",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                        borderRadius: 4,
-                        margin: 10,
-                    }}
-                >
+                {stats.length !== 0 && (
                     <Tree
                         height={size.height}
                         width={size.width}
                         stats={stats.filter((s) => {
-                            return !statFilter.includes(s.name);
+                            return !statFilter.includes(s.name)
                         })}
                         doSearch={(name) =>
                             nav(
@@ -135,11 +109,11 @@ export const StatTree = ({
                         statFilter={statFilter}
                         setStatsFilter={setStatsFilter}
                     />
-                </Box>
-            )}
-        </Box>
-    );
-};
+                )}
+            </div>
+        </div>
+    )
+}
 
 const Block = ({
     hovering,
@@ -149,44 +123,44 @@ const Block = ({
     doSearch,
     setHovering,
 }: {
-    hovering: boolean;
-    leaf;
-    colorScale;
-    setStatsFilter;
-    doSearch;
-    setHovering;
+    hovering: boolean
+    leaf
+    colorScale
+    setStatsFilter
+    doSearch
+    setHovering
 }) => {
     if (!leaf) {
-        return null;
+        return null
     }
-    const color = colorScale(leaf.data.name);
-    const [size, units] = humanFileSize(leaf.data.value);
-    const sizeStr = `${size}${units}`;
+    const color = colorScale(leaf.data.name)
+    const [size, units] = humanFileSize(leaf.data.value)
+    const sizeStr = `${size}${units}`
     const textWidth =
         leaf.data.name.length > sizeStr.length
             ? leaf.data.name.length
-            : sizeStr.length;
+            : sizeStr.length
 
     const tooSmall = !(
         leaf.y1 - leaf.y0 > 50 && leaf.x1 - leaf.x0 > textWidth * 11
-    );
+    )
 
     return (
         <g
             key={leaf.data.name}
             style={{
-                cursor: "pointer",
-                opacity: hovering !== null && !hovering ? "20%" : "100%",
+                cursor: 'pointer',
+                opacity: hovering !== null && !hovering ? '20%' : '100%',
             }}
             className="file-type-block"
             onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setHovering(null);
+                e.preventDefault()
+                e.stopPropagation()
+                setHovering(null)
                 setStatsFilter((p) => {
-                    p.push(leaf.data.name);
-                    return [...p];
-                });
+                    p.push(leaf.data.name)
+                    return [...p]
+                })
             }}
             onMouseOver={() => setHovering(leaf)}
             onMouseLeave={() => setHovering(null)}
@@ -211,7 +185,7 @@ const Block = ({
                 width={textWidth * 11}
                 height={50}
                 rx={4}
-                fill={tooSmall && !hovering ? "#00000000" : "$dark-paper"}
+                fill={tooSmall && !hovering ? '#00000000' : '$dark-paper'}
             />
             <text
                 className="leaf-text"
@@ -221,9 +195,9 @@ const Block = ({
                 fontSize={16}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={"white"}
+                fill={'white'}
                 fontWeight={600}
-                opacity={tooSmall && !hovering ? "0%" : "100%"}
+                opacity={tooSmall && !hovering ? '0%' : '100%'}
             >
                 {leaf.data.name}
             </text>
@@ -235,14 +209,14 @@ const Block = ({
                 fontSize={16}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={"white"}
-                opacity={tooSmall && !hovering ? "0%" : "100%"}
+                fill={'white'}
+                opacity={tooSmall && !hovering ? '0%' : '100%'}
             >
                 {sizeStr}
             </text>
         </g>
-    );
-};
+    )
+}
 
 export const Tree = ({
     height,
@@ -252,52 +226,52 @@ export const Tree = ({
     statFilter,
     setStatsFilter,
 }: {
-    height;
-    width;
-    stats: extSize[];
-    doSearch: (name: string) => void;
-    statFilter;
-    setStatsFilter;
+    height
+    width
+    stats: extSize[]
+    doSearch: (name: string) => void
+    statFilter
+    setStatsFilter
 }) => {
-    const [hovering, setHovering] = useState(null);
+    const [hovering, setHovering] = useState(null)
     const hierarchy = useMemo(() => {
         if (!stats) {
-            return;
+            return
         }
-        let total = 0;
+        let total = 0
         stats.map((s) => {
-            total += s.value;
-        });
+            total += s.value
+        })
 
         const data: Tree = {
-            type: "node",
-            name: "FileType",
+            type: 'node',
+            name: 'FileType',
             value: 0,
             children: stats
                 .filter((k) => {
-                    return k.value != 0 && (k.value / total) * 100 >= 1;
+                    return k.value != 0 && (k.value / total) * 100 >= 1
                 })
                 .map((k: extSize) => {
                     return {
-                        type: "leaf",
+                        type: 'leaf',
                         name: k.name,
                         value: k.value,
-                    };
+                    }
                 }),
-        };
-        return d3.hierarchy(data).sum((d) => d.value);
-    }, [stats, statFilter]);
+        }
+        return d3.hierarchy(data).sum((d) => d.value)
+    }, [stats, statFilter])
 
     const root = useMemo(() => {
         if (!hierarchy) {
-            return;
+            return
         }
         const treeGenerator = d3
             .treemap<Tree>()
             .size([width, height])
-            .padding(4);
-        return treeGenerator(hierarchy);
-    }, [hierarchy, width, height]);
+            .padding(4)
+        return treeGenerator(hierarchy)
+    }, [hierarchy, width, height])
 
     if (!hierarchy?.children) {
         return (
@@ -306,36 +280,36 @@ export const Tree = ({
                 height={height}
                 onContextMenu={(e) => e.preventDefault()}
             />
-        );
+        )
     }
 
-    const firstLevelGroups = hierarchy.children.map((child) => child.data.name);
-    var colorScale = d3
+    const firstLevelGroups = hierarchy.children.map((child) => child.data.name)
+    const colorScale = d3
         .scaleOrdinal()
         .domain(firstLevelGroups)
         .range([
-            "#264653",
-            "#2A9D8F",
-            "#E9C46A",
-            "#F4A261",
-            "#E76F51",
-            "#ea2f86",
-            "#f09c0a",
-            "#fae000",
-            "#93e223",
-            "#4070d3",
-            "#493c9e",
-        ]);
+            '#264653',
+            '#2A9D8F',
+            '#E9C46A',
+            '#F4A261',
+            '#E76F51',
+            '#ea2f86',
+            '#f09c0a',
+            '#fae000',
+            '#93e223',
+            '#4070d3',
+            '#493c9e',
+        ])
 
     const leaves = root.leaves().sort((a, b) => {
         if (a === hovering) {
-            return 1;
+            return 1
         } else if (b === hovering) {
-            return -1;
+            return -1
         } else {
-            return 0;
+            return 0
         }
-    });
+    })
 
     const allShapes = leaves.map((leaf) => {
         return (
@@ -348,12 +322,12 @@ export const Tree = ({
                 doSearch={doSearch}
                 setHovering={setHovering}
             />
-        );
-    });
+        )
+    })
 
     return (
-        <svg width={width} height={height} overflow={"visible"}>
+        <svg width={width} height={height} overflow={'visible'}>
             {allShapes}
         </svg>
-    );
-};
+    )
+}

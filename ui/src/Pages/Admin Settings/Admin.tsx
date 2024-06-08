@@ -1,57 +1,42 @@
+import { Box, Checkbox, Input, Space, Text } from '@mantine/core'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { UserContext } from '../../Context'
 import {
-    Box,
-    Checkbox,
-    Input,
-    ScrollArea,
-    Space,
-    Text,
-    TextInput,
-} from "@mantine/core";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { UserContext } from "../../Context";
-import {
-    clearCache,
     adminCreateUser,
-    newApiKey,
-    getApiKeys,
-    doBackup,
+    clearCache,
     deleteApiKey,
-    getRemotes,
     deleteRemote,
-} from "../../api/ApiFetch";
+    doBackup,
+    getApiKeys,
+    getRemotes,
+    newApiKey,
+} from '../../api/ApiFetch'
 import {
     ActivateUser,
     DeleteUser,
     GetUsersInfo,
     SetUserAdmin,
-} from "../../api/UserApi";
-import { notifications } from "@mantine/notifications";
-import { RowBox } from "../FileBrowser/FileBrowserStyles";
-import {
-    IconClipboard,
-    IconRefresh,
-    IconTrash,
-    IconX,
-} from "@tabler/icons-react";
-import { RecurScanFolder } from "../../api/FileBrowserApi";
+} from '../../api/UserApi'
+import { notifications } from '@mantine/notifications'
+import { IconClipboard, IconTrash } from '@tabler/icons-react'
 import {
     AuthHeaderT as AuthHeaderT,
     UserContextT,
     UserInfoT as UserInfoT,
-} from "../../types/Types";
-import { WeblensButton } from "../../components/WeblensButton";
-import { useKeyDown } from "../../components/hooks";
+} from '../../types/Types'
+import { WeblensButton } from '../../components/WeblensButton'
+import { useKeyDown } from '../../components/hooks'
 
 function CreateUserBox({
     setAllUsersInfo,
     authHeader,
 }: {
-    setAllUsersInfo;
-    authHeader: AuthHeaderT;
+    setAllUsersInfo
+    authHeader: AuthHeaderT
 }) {
-    const [userInput, setUserInput] = useState("");
-    const [passInput, setPassInput] = useState("");
-    const [makeAdmin, setMakeAdmin] = useState(false);
+    const [userInput, setUserInput] = useState('')
+    const [passInput, setPassInput] = useState('')
+    const [makeAdmin, setMakeAdmin] = useState(false)
     return (
         <div className=" p-5 h-max w-full rounded bg-slate-800">
             <Input
@@ -59,7 +44,7 @@ function CreateUserBox({
                 variant="unstyled"
                 value={userInput}
                 placeholder="Username"
-                style={{ margin: "8px" }}
+                style={{ margin: '8px' }}
                 onChange={(e) => setUserInput(e.target.value)}
             />
             <Input
@@ -67,21 +52,21 @@ function CreateUserBox({
                 variant="unstyled"
                 value={passInput}
                 placeholder="Password"
-                style={{ margin: "8px" }}
+                style={{ margin: '8px' }}
                 onChange={(e) => setPassInput(e.target.value)}
             />
             <Checkbox
                 label="Admin"
                 onChange={(e) => {
-                    setMakeAdmin(e.target.checked);
+                    setMakeAdmin(e.target.checked)
                 }}
             />
             <Space h={20} />
             <WeblensButton
                 label="Create User"
-                height={40}
+                squareSize={40}
                 width={185}
-                disabled={userInput === "" || passInput === ""}
+                disabled={userInput === '' || passInput === ''}
                 onClick={async () => {
                     await adminCreateUser(
                         userInput,
@@ -89,15 +74,15 @@ function CreateUserBox({
                         makeAdmin,
                         authHeader
                     ).then(() => {
-                        GetUsersInfo(setAllUsersInfo, authHeader);
-                        setUserInput("");
-                        setPassInput("");
-                    });
-                    return true;
+                        GetUsersInfo(setAllUsersInfo, authHeader)
+                        setUserInput('')
+                        setPassInput('')
+                    })
+                    return true
                 }}
             />
         </div>
-    );
+    )
 }
 
 const UserRow = ({
@@ -106,10 +91,10 @@ const UserRow = ({
     setAllUsersInfo,
     authHeader,
 }: {
-    rowUser: UserInfoT;
-    accessor: UserInfoT;
-    setAllUsersInfo;
-    authHeader: AuthHeaderT;
+    rowUser: UserInfoT
+    accessor: UserInfoT
+    setAllUsersInfo
+    authHeader: AuthHeaderT
 }) => {
     return (
         <div className="p-2">
@@ -117,29 +102,25 @@ const UserRow = ({
                 key={rowUser.username}
                 className="flex flex-row w-full h-16 items-center outline outline-1 outline-stone-300 rounded-sm p-4"
             >
-                <IconRefresh
-                    style={{ cursor: "pointer" }}
-                    onClick={() => RecurScanFolder(rowUser.homeId, authHeader)}
-                />
-                <Box
+                <div
                     style={{
-                        justifyContent: "center",
-                        width: "max-content",
-                        paddingLeft: "10px",
+                        justifyContent: 'center',
+                        width: 'max-content',
+                        paddingLeft: '10px',
                     }}
                 >
-                    <Text c={"white"} fw={600} style={{ width: "max-content" }}>
+                    <Text c={'white'} fw={600} style={{ width: 'max-content' }}>
                         {rowUser.username}
                     </Text>
                     {rowUser.admin && !rowUser.owner && !accessor.owner && (
-                        <Text c={"#aaaaaa"}>Admin</Text>
+                        <Text c={'#aaaaaa'}>Admin</Text>
                     )}
-                    {rowUser.owner && <Text c={"#aaaaaa"}>Owner</Text>}
+                    {rowUser.owner && <Text c={'#aaaaaa'}>Owner</Text>}
                     {!rowUser.admin && accessor.owner && (
                         <WeblensButton
                             label="Make Admin"
-                            width={"max-content"}
-                            height={20}
+                            width={'max-content'}
+                            squareSize={20}
                             style={{ padding: 4 }}
                             onClick={() => {
                                 SetUserAdmin(
@@ -148,15 +129,15 @@ const UserRow = ({
                                     authHeader
                                 ).then(() =>
                                     GetUsersInfo(setAllUsersInfo, authHeader)
-                                );
+                                )
                             }}
                         />
                     )}
                     {!rowUser.owner && rowUser.admin && accessor.owner && (
                         <WeblensButton
                             label="Remove Admin"
-                            width={"max-content"}
-                            height={20}
+                            width={'max-content'}
+                            squareSize={20}
                             style={{ padding: 4 }}
                             onClick={() => {
                                 SetUserAdmin(
@@ -165,42 +146,42 @@ const UserRow = ({
                                     authHeader
                                 ).then(() =>
                                     GetUsersInfo(setAllUsersInfo, authHeader)
-                                );
+                                )
                             }}
                         />
                     )}
-                </Box>
-                <Space style={{ display: "flex", flexGrow: 1 }} />
+                </div>
+                <Space style={{ display: 'flex', flexGrow: 1 }} />
                 {rowUser.activated === false && (
                     <WeblensButton
                         label="Activate"
-                        height={20}
+                        squareSize={20}
                         onClick={() => {
                             ActivateUser(rowUser.username, authHeader).then(
                                 () => GetUsersInfo(setAllUsersInfo, authHeader)
-                            );
+                            )
                         }}
                     />
                 )}
-                <Space style={{ display: "flex", flexGrow: 1 }} />
+                <Space style={{ display: 'flex', flexGrow: 1 }} />
 
                 <WeblensButton
                     label="Delete"
-                    height={20}
-                    width={"max-content"}
+                    squareSize={20}
+                    width={'max-content'}
                     danger
                     centerContent
                     disabled={rowUser.admin}
                     onClick={() => {
                         DeleteUser(rowUser.username, authHeader).then(() =>
                             GetUsersInfo(setAllUsersInfo, authHeader)
-                        );
+                        )
                     }}
                 />
             </div>
         </div>
-    );
-};
+    )
+}
 
 function UsersBox({
     thisUserInfo,
@@ -208,18 +189,18 @@ function UsersBox({
     setAllUsersInfo,
     authHeader,
 }: {
-    thisUserInfo: UserInfoT;
-    allUsersInfo: UserInfoT[];
-    setAllUsersInfo;
-    authHeader: AuthHeaderT;
+    thisUserInfo: UserInfoT
+    allUsersInfo: UserInfoT[]
+    setAllUsersInfo
+    authHeader: AuthHeaderT
 }) {
     const usersList = useMemo(() => {
         if (!allUsersInfo) {
-            return null;
+            return null
         }
         allUsersInfo.sort((a, b) => {
-            return a.username.localeCompare(b.username);
-        });
+            return a.username.localeCompare(b.username)
+        })
 
         const usersList = allUsersInfo.map((val) => (
             <UserRow
@@ -229,40 +210,40 @@ function UsersBox({
                 setAllUsersInfo={setAllUsersInfo}
                 authHeader={authHeader}
             />
-        ));
-        return usersList;
-    }, [allUsersInfo, authHeader, setAllUsersInfo]);
+        ))
+        return usersList
+    }, [allUsersInfo, authHeader, setAllUsersInfo])
 
     return (
         <div className="flex flex-col p-3 shrink w-full h-max overflow-y-scroll overflow-x-hidden">
             {usersList}
         </div>
-    );
+    )
 }
 
 export function ApiKeys({ authHeader }) {
-    const { serverInfo }: UserContextT = useContext(UserContext);
-    const [keys, setKeys] = useState([]);
+    const { serverInfo }: UserContextT = useContext(UserContext)
+    const [keys, setKeys] = useState([])
 
     const getKeys = useCallback(() => {
         getApiKeys(authHeader).then((r) => {
-            setKeys(r.keys);
-        });
-    }, [setKeys, authHeader]);
+            setKeys(r.keys)
+        })
+    }, [setKeys, authHeader])
 
     useEffect(() => {
-        getKeys();
-    }, []);
+        getKeys()
+    }, [])
 
-    const [remotes, setRemotes] = useState([]);
+    const [remotes, setRemotes] = useState([])
     useEffect(() => {
         getRemotes(authHeader).then((r) => {
             if (r >= 400) {
-                return;
+                return
             }
-            setRemotes(r.remotes);
-        });
-    }, []);
+            setRemotes(r.remotes)
+        })
+    }, [])
 
     return (
         <div className="flex flex-col bg-slate-800 rounded items-center p-1 w-full">
@@ -273,65 +254,65 @@ export function ApiKeys({ authHeader }) {
                             <Box
                                 key={k.Key.slice(0, 6)}
                                 style={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    maxWidth: "100%",
+                                    display: 'flex',
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    maxWidth: '100%',
                                 }}
                             >
                                 <Box
                                     style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        alignItems: "flex-start",
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'flex-start',
                                         flexGrow: 1,
-                                        width: "50%",
+                                        width: '50%',
                                     }}
                                 >
                                     <Text
                                         truncate="end"
                                         style={{
-                                            textWrap: "nowrap",
-                                            width: "100%",
+                                            textWrap: 'nowrap',
+                                            width: '100%',
                                         }}
                                     >
                                         {k.Key}
                                     </Text>
-                                    {k.RemoteUsing !== "" && (
+                                    {k.RemoteUsing !== '' && (
                                         <Text>{k.RemoteUsing}</Text>
                                     )}
                                 </Box>
                                 <IconClipboard
-                                    size={"40px"}
+                                    size={'40px'}
                                     style={{
                                         flexShrink: 0,
                                         margin: 4,
-                                        backgroundColor: "#222222",
+                                        backgroundColor: '#222222',
                                         borderRadius: 2,
                                         padding: 4,
-                                        cursor: "pointer",
+                                        cursor: 'pointer',
                                     }}
                                     onClick={() => {
                                         if (!window.isSecureContext) {
                                             notifications.show({
                                                 message:
-                                                    "Browser context is not secure, are you not using HTTPS?",
-                                                color: "red",
-                                            });
-                                            return;
+                                                    'Browser context is not secure, are you not using HTTPS?',
+                                                color: 'red',
+                                            })
+                                            return
                                         }
-                                        navigator.clipboard.writeText(k.Key);
+                                        navigator.clipboard.writeText(k.Key)
                                     }}
                                 />
                                 <IconTrash
-                                    size={"40px"}
+                                    size={'40px'}
                                     style={{
                                         flexShrink: 0,
                                         margin: 4,
-                                        backgroundColor: "#222222",
+                                        backgroundColor: '#222222',
                                         borderRadius: 2,
                                         padding: 4,
-                                        cursor: "pointer",
+                                        cursor: 'pointer',
                                     }}
                                     onClick={() => {
                                         deleteApiKey(k.Key, authHeader).then(
@@ -339,106 +320,106 @@ export function ApiKeys({ authHeader }) {
                                                 setKeys((ks) => {
                                                     ks = ks.filter(
                                                         (i) => i !== k
-                                                    );
-                                                    return [...ks];
-                                                });
+                                                    )
+                                                    return [...ks]
+                                                })
                                             }
-                                        );
+                                        )
                                     }}
                                 />
                             </Box>
-                        );
+                        )
                     })}
                 </div>
             )}
             <WeblensButton
                 width={200}
-                height={40}
+                squareSize={40}
                 label="New Api Key"
                 onClick={() => {
                     newApiKey(authHeader).then((k) =>
                         setKeys((ks) => {
-                            ks.push(k.key);
-                            return [...ks];
+                            ks.push(k.key)
+                            return [...ks]
                         })
-                    );
+                    )
                 }}
             />
             <Box
                 style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     padding: 5,
                     paddingLeft: 10,
                     borderRadius: 4,
                     margin: 20,
-                    width: "100%",
+                    width: '100%',
                     gap: 10,
                 }}
             >
                 {remotes.map((r) => {
                     if (r.id === serverInfo.id) {
-                        return null;
+                        return null
                     }
                     return (
                         <Box
                             key={r.name}
                             style={{
-                                backgroundColor: "#333333",
-                                display: "flex",
-                                flexDirection: "row",
-                                alignItems: "center",
-                                width: "100%",
+                                backgroundColor: '#333333',
+                                display: 'flex',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                width: '100%',
                                 borderRadius: 4,
                                 paddingLeft: 20,
-                                justifyContent: "space-between",
+                                justifyContent: 'space-between',
                             }}
                         >
                             <Text>{r.name}</Text>
                             <IconTrash
-                                size={"40px"}
+                                size={'40px'}
                                 style={{
                                     flexShrink: 0,
                                     margin: 4,
-                                    backgroundColor: "#222222",
+                                    backgroundColor: '#222222',
                                     borderRadius: 2,
                                     padding: 4,
-                                    cursor: "pointer",
+                                    cursor: 'pointer',
                                 }}
                                 onClick={() => {
                                     deleteRemote(r.id, authHeader).then(() => {
                                         getRemotes(authHeader).then((r) => {
                                             if (r >= 400) {
-                                                return;
+                                                return
                                             }
-                                            setRemotes(r.remotes);
-                                        });
-                                    });
+                                            setRemotes(r.remotes)
+                                        })
+                                    })
                                 }}
                             />
                         </Box>
-                    );
+                    )
                 })}
             </Box>
         </div>
-    );
+    )
 }
 
-export function Admin({ close }) {
+export function Admin({ closeAdminMenu }) {
     const { authHeader, usr, serverInfo }: UserContextT =
-        useContext(UserContext);
-    const [allUsersInfo, setAllUsersInfo] = useState(null);
-    useKeyDown("Escape", close);
+        useContext(UserContext)
+    const [allUsersInfo, setAllUsersInfo] = useState(null)
+    useKeyDown('Escape', closeAdminMenu)
 
     useEffect(() => {
-        if (authHeader.Authorization !== "") {
-            GetUsersInfo(setAllUsersInfo, authHeader);
+        if (authHeader.Authorization !== '') {
+            GetUsersInfo(setAllUsersInfo, authHeader)
         }
-    }, [authHeader]);
+    }, [authHeader])
 
     if (usr.isLoggedIn === undefined) {
-        return null;
+        return null
     }
 
     return (
@@ -462,40 +443,38 @@ export function Admin({ close }) {
                     <div className="flex flex-row w-full justify-around">
                         <WeblensButton
                             label="Clear Cache"
-                            height={40}
-                            width={"200px"}
+                            squareSize={40}
+                            width={'200px'}
                             danger
                             onClick={() => {
                                 clearCache(authHeader).then(() =>
-                                    notifications.show({
-                                        message: "Cache cleared",
-                                    })
-                                );
+                                    closeAdminMenu()
+                                )
                             }}
                         />
                         <WeblensButton
                             label="Backup now"
-                            height={40}
-                            width={"200px"}
-                            disabled={serverInfo.role === "core"}
+                            squareSize={40}
+                            width={'200px'}
+                            disabled={serverInfo.role === 'core'}
                             postScript={
-                                serverInfo.role === "core"
-                                    ? "Core servers do not support backup"
-                                    : ""
+                                serverInfo.role === 'core'
+                                    ? 'Core servers do not support backup'
+                                    : ''
                             }
                             onClick={async () => {
-                                const res = await doBackup(authHeader);
+                                const res = await doBackup(authHeader)
                                 if (res >= 300) {
-                                    return false;
+                                    return false
                                 }
-                                return true;
+                                return true
                             }}
                         />
                     </div>
                 </div>
             </div>
         </div>
-    );
+    )
 }
 
-export default Admin;
+export default Admin

@@ -1,5 +1,3 @@
-import { Box } from '@mantine/core'
-import { RowBox } from './FileBrowserStyles'
 import {
     IconCalendar,
     IconFileAnalytics,
@@ -18,7 +16,7 @@ const fileSortTypes = [
     { Name: 'Size', Icon: <IconFileAnalytics className="button-icon" /> },
 ]
 
-export const FileSortBox = ({}) => {
+function FileSortBox() {
     const { fbState, fbDispatch } = useContext(FbContext)
     const [sortFuncBox, setSortFuncBox] = useState(null)
     const sortFuncBoxSize = useResize(sortFuncBox)
@@ -69,3 +67,5 @@ export const FileSortBox = ({}) => {
         </div>
     )
 }
+
+export default FileSortBox

@@ -203,7 +203,7 @@ type FileChunk struct {
 }
 
 type WriteFileMeta struct {
-	chunkStream  chan FileChunk `json:"-"`
+	chunkStream  chan FileChunk
 	rootFolderId types.FileId
 	chunkSize    int64
 	totalSize    int64

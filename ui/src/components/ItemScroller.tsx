@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as WindowGrid } from 'react-window'
 import './style.scss'
-import { GlobalContextType, FileDisplay, SelectedState } from './ItemDisplay'
+import { FileDisplay, GlobalContextType, SelectedState } from './ItemDisplay'
 import { useResize } from './hooks'
 import { WeblensFile } from '../classes/File'
 
@@ -73,7 +73,7 @@ export const ItemScroller = ({
     globalContext = useMemo(() => {
         const viewWidth = parentSize?.width ? parentSize.width : 0
         setViewWidth(viewWidth)
-        var numCols = Math.floor((viewWidth - 1) / FILE_BASE_SIZE)
+        let numCols = Math.floor((viewWidth - 1) / FILE_BASE_SIZE)
         numCols = numCols ? numCols : 1
         setViewHeight(parentSize.height ? parentSize.height : 0)
         const itemWidth = Math.floor(viewWidth / numCols)

@@ -26,10 +26,14 @@ func fsTreeInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) erro
 		return nil
 	}
 
-	if safety {
+	switch safety {
+	case true:
 		return mainInsert(f, parent, c...)
+	case false:
+		return initInsert(f, parent)
 	}
-	return initInsert(f, parent)
+
+	return nil
 }
 
 func initInsert(f, parent types.WeblensFile) error {
@@ -50,7 +54,7 @@ func initInsert(f, parent types.WeblensFile) error {
 		return err
 	}
 
-	if thisServer.ServerRole() == types.Core && f.Owner() != WEBLENS_ROOT_USER && f.Owner() != EXTERNAL_ROOT_USER {
+	if thisServer.ServerRole() == types.Core && f.Owner() != WeblensRootUser && f.Owner() != ExternalRootUser {
 		bi, exist := slices.BinarySearchFunc(existingBackups, f.Id(), func(b backupFile, t types.FileId) int { return strings.Compare(string(b.FileId), t.String()) })
 		if !exist {
 			jeStream <- fileEvent{action: FileCreate, postFilePath: f.GetAbsPath()}
@@ -62,8 +66,14 @@ func initInsert(f, parent types.WeblensFile) error {
 	}
 
 	if f.IsDir() {
-		watcherAddDirectory(f)
-		f.ReadDir()
+		err = watcherAddDirectory(f)
+		if err != nil {
+			return err
+		}
+		err = f.ReadDir()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -86,11 +96,18 @@ func mainInsert(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error 
 	}
 
 	if f.IsDir() {
-		watcherAddDirectory(f)
+		err = watcherAddDirectory(f)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = ResizeUp(f, c...)
+		if err != nil {
+			util.ErrTrace(err)
+		}
 	}
 
 	util.Each(c, func(c types.BroadcasterAgent) { c.PushFileCreate(f) })
-	ResizeUp(f.GetParent(), c...)
 
 	return nil
 }
@@ -328,7 +345,7 @@ func FsTreeMove(f, newParent types.WeblensFile, newFilename string, overwrite bo
 	return nil
 }
 
-// Gets the number of files loaded into weblens.
+// GetTreeSize gets the number of files loaded into weblens.
 // This does not lock the file tree, and therefore
 // cannot be trusted to be microsecond accurate, but
 // it's quite close
@@ -336,31 +353,36 @@ func GetTreeSize() int {
 	return len(fileTree)
 }
 
-func ResizeUp(f types.WeblensFile, c ...types.BroadcasterAgent) {
-	f.BubbleMap(func(w types.WeblensFile) error {
-		w.(*weblensFile).loadStat(c...)
-		return nil
+func ResizeUp(f types.WeblensFile, c ...types.BroadcasterAgent) error {
+	return f.BubbleMap(func(w types.WeblensFile) error {
+		return w.(*weblensFile).loadStat(c...)
 	})
 }
 
-func ResizeDown(f types.WeblensFile, c ...types.BroadcasterAgent) {
-	f.LeafMap(func(w types.WeblensFile) error {
-		w.(*weblensFile).loadStat(c...)
-		return nil
+func ResizeDown(f types.WeblensFile, c ...types.BroadcasterAgent) error {
+	return f.LeafMap(func(w types.WeblensFile) error {
+		return w.(*weblensFile).loadStat(c...)
 	})
 }
 
-func resizeMultiple(old, new types.WeblensFile, c ...types.BroadcasterAgent) {
+func resizeMultiple(old, new types.WeblensFile, c ...types.BroadcasterAgent) (err error) {
 	// Check if either of the files are a parent of the other
 	oldIsParent := strings.HasPrefix(old.GetAbsPath(), new.GetAbsPath())
 	newIsParent := strings.HasPrefix(new.GetAbsPath(), old.GetAbsPath())
 
 	if oldIsParent || !(oldIsParent || newIsParent) {
-		ResizeUp(old, c...)
+		err = ResizeUp(old, c...)
+		if err != nil {
+			return
+		}
 	}
 
 	if newIsParent || !(oldIsParent || newIsParent) {
-		ResizeUp(new, c...)
+		err = ResizeUp(new, c...)
+		if err != nil {
+			return
+		}
 	}
 
+	return
 }

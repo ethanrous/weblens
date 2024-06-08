@@ -1,8 +1,8 @@
-import { Box, Divider, Text } from "@mantine/core";
-import { FBDispatchT, UserContextT, UserInfoT } from "../../types/Types";
-import { WeblensFile } from "../../classes/File";
-import { useResizeDrag, useWindowSize } from "../../components/hooks";
-import { memo, useContext, useEffect, useMemo, useState } from "react";
+import { Divider, Text } from '@mantine/core'
+import { FBDispatchT, UserContextT, UserInfoT } from '../../types/Types'
+import { WeblensFile } from '../../classes/File'
+import { useResizeDrag, useWindowSize } from '../../components/hooks'
+import { memo, useContext, useEffect, useMemo, useState } from 'react'
 import {
     IconArrowRight,
     IconCaretDown,
@@ -12,16 +12,16 @@ import {
     IconFilePlus,
     IconFolder,
     IconReorder,
-} from "@tabler/icons-react";
-import { FileIcon, RowBox } from "./FileBrowserStyles";
-import { clamp, friendlyFolderName } from "../../util";
-import { WeblensButton } from "../../components/WeblensButton";
-import { getFileHistory } from "../../api/FileBrowserApi";
-import { UserContext } from "../../Context";
-import { FileEventT } from "./FileBrowserTypes";
-import "./style/history.css";
+} from '@tabler/icons-react'
+import { FileIcon } from './FileBrowserStyles'
+import { clamp } from '../../util'
+import { WeblensButton } from '../../components/WeblensButton'
+import { getFileHistory } from '../../api/FileBrowserApi'
+import { UserContext } from '../../Context'
+import { FileEventT } from './FileBrowserTypes'
+import './style/history.css'
 
-const SIDEBAR_BREAKPOINT = 650;
+const SIDEBAR_BREAKPOINT = 650
 
 export const FilesPane = memo(
     ({
@@ -31,191 +31,169 @@ export const FilesPane = memo(
         timestamp,
         dispatch,
     }: {
-        open: boolean;
-        setOpen: (o) => void;
-        selectedFiles: WeblensFile[];
-        contentId: string;
-        timestamp: number;
-        dispatch: FBDispatchT;
+        open: boolean
+        setOpen: (o) => void
+        selectedFiles: WeblensFile[]
+        contentId: string
+        timestamp: number
+        dispatch: FBDispatchT
     }) => {
-        const windowSize = useWindowSize();
-        const [resizing, setResizing] = useState(false);
+        const windowSize = useWindowSize()
+        const [resizing, setResizing] = useState(false)
         const [resizeOffset, setResizeOffset] = useState(
             windowSize?.width > SIDEBAR_BREAKPOINT ? 450 : 75
-        );
-        const [tab, setTab] = useState("info");
+        )
+        const [tab, setTab] = useState('info')
         useResizeDrag(
             resizing,
             setResizing,
             (v) => setResizeOffset(clamp(v, 300, 800)),
             true
-        );
+        )
 
         if (!open) {
-            return <Box className="file-info-pane" style={{ width: 0 }} />;
+            return <div className="file-info-pane" style={{ width: 0 }} />
         }
 
         return (
-            <Box
+            <div
                 className="file-info-pane"
-                mod={{ "data-resizing": resizing.toString() }}
+                data-resizing={resizing}
                 style={{ width: resizeOffset }}
             >
-                <Box
+                <div
                     draggable={false}
                     className="resize-bar-wrapper"
                     onMouseDown={(e) => {
-                        e.preventDefault();
-                        setResizing(true);
+                        e.preventDefault()
+                        setResizing(true)
                     }}
                 >
-                    <Box className="resize-bar" />
-                </Box>
-                <Box
-                    style={{
-                        width: 75,
-                        flexGrow: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                    }}
-                >
-                    <Box
-                        style={{
-                            display: "flex",
-                            flexDirection: "row",
-                            height: "max-content",
-                            width: "100%",
-                            gap: 5,
-                        }}
-                    >
+                    <div className="resize-bar" />
+                </div>
+                <div className="flex flex-col w-[75px] grow ">
+                    <div className="flex flex-row h-max w-full gap-1">
                         <WeblensButton
                             label="File Info"
-                            height={50}
-                            width={"50%"}
-                            toggleOn={tab === "info"}
-                            onClick={() => setTab("info")}
-                            style={{ margin: 0, borderRadius: 2 }}
+                            squareSize={50}
+                            width={'50%'}
+                            toggleOn={tab === 'info'}
+                            onClick={() => setTab('info')}
                         />
                         <WeblensButton
                             label="History"
-                            height={50}
-                            width={"50%"}
-                            toggleOn={tab === "history"}
-                            onClick={() => setTab("history")}
-                            style={{ margin: 0, borderRadius: 2 }}
+                            squareSize={50}
+                            width={'50%'}
+                            toggleOn={tab === 'history'}
+                            onClick={() => setTab('history')}
                         />
-                    </Box>
-                    {tab === "info" && (
+                    </div>
+                    {tab === 'info' && (
                         <FileInfo selectedFiles={selectedFiles} />
                     )}
-                    {tab === "history" && (
+                    {tab === 'history' && (
                         <FileHistory
                             fileId={contentId}
                             timestamp={timestamp}
                             dispatch={dispatch}
                         />
                     )}
-                </Box>
-            </Box>
-        );
+                </div>
+            </div>
+        )
     },
     (prev, next) => {
         if (prev.open !== next.open) {
-            return false;
+            return false
         }
 
         if (prev.contentId !== next.contentId) {
-            return false;
+            return false
         }
 
         if (prev.selectedFiles !== next.selectedFiles) {
-            return false;
+            return false
         }
 
         if (prev.timestamp !== next.timestamp) {
-            return false;
+            return false
         }
 
-        return true;
+        return true
     }
-);
+)
 
 function FileInfo({ selectedFiles }) {
     const titleText = useMemo(() => {
         if (selectedFiles.length === 0) {
-            return "No files selected";
+            return 'No files selected'
         } else if (selectedFiles.length === 1) {
-            return selectedFiles[0].filename;
+            return selectedFiles[0].filename
         } else {
-            return `${selectedFiles.length} files selected`;
+            return `${selectedFiles.length} files selected`
         }
-    }, [selectedFiles]);
+    }, [selectedFiles])
 
-    const singleItem = selectedFiles.length === 1;
-    const itemIsFolder = selectedFiles[0]?.isDir;
+    const singleItem = selectedFiles.length === 1
+    const itemIsFolder = selectedFiles[0]?.isDir
 
     return (
-        <Box className="file-info-content">
-            <RowBox
-                style={{
-                    height: "58px",
-                    justifyContent: "space-between",
-                }}
-            >
+        <div className="file-info-content">
+            <div className="flex flex-row h-[58px] w-full items-center justify-between">
                 <Text
                     size="24px"
                     fw={600}
-                    style={{ textWrap: "nowrap", paddingRight: 32 }}
+                    style={{ textWrap: 'nowrap', paddingRight: 32 }}
                 >
                     {titleText}
                 </Text>
-            </RowBox>
+            </div>
             {selectedFiles.length > 0 && (
-                <Box style={{ height: "max-content" }}>
-                    <RowBox>
+                <div className="h-max">
+                    <div className="flex flex-row h-full w-full items-center">
                         {singleItem && itemIsFolder && (
-                            <IconFolder size={"48px"} />
+                            <IconFolder size={'48px'} />
                         )}
                         {(!singleItem || !itemIsFolder) && (
-                            <IconFile size={"48px"} />
+                            <IconFile size={'48px'} />
                         )}
                         <Text size="20px">
-                            {itemIsFolder ? "Folder" : "File"}
-                            {singleItem ? "" : "s"} Info
+                            {itemIsFolder ? 'Folder' : 'File'}
+                            {singleItem ? '' : 's'} Info
                         </Text>
-                    </RowBox>
-                    <Divider h={2} w={"90%"} m={10} />
-                </Box>
+                    </div>
+                    <Divider h={2} w={'90%'} m={10} />
+                </div>
             )}
-        </Box>
-    );
+        </div>
+    )
 }
 
 const historyDate = (timestamp: number) => {
-    const dateObj = new Date(timestamp);
+    const dateObj = new Date(timestamp)
     const options: Intl.DateTimeFormatOptions = {
-        month: "long",
-        day: "numeric",
-        minute: "numeric",
-        hour: "numeric",
-    };
-    if (dateObj.getFullYear() !== new Date().getFullYear()) {
-        options.year = "numeric";
+        month: 'long',
+        day: 'numeric',
+        minute: 'numeric',
+        hour: 'numeric',
     }
-    return dateObj.toLocaleDateString("en-US", options);
-};
+    if (dateObj.getFullYear() !== new Date().getFullYear()) {
+        options.year = 'numeric'
+    }
+    return dateObj.toLocaleDateString('en-US', options)
+}
 
 const portableToFolderName = (path: string) => {
-    const folderPath = path.slice(path.indexOf(":") + 1, path.lastIndexOf("/"));
-    const folderName = folderPath.slice(folderPath.lastIndexOf("/") + 1);
-    return folderName;
-};
+    const folderPath = path.slice(path.indexOf(':') + 1, path.lastIndexOf('/'))
+    const folderName = folderPath.slice(folderPath.lastIndexOf('/') + 1)
+    return folderName
+}
 const fileBase = (path: string) => {
-    if (path[path.length - 1] === "/") {
-        path = path.slice(0, path.length - 1);
+    if (path[path.length - 1] === '/') {
+        path = path.slice(0, path.length - 1)
     }
-    return path.slice(path.lastIndexOf("/") + 1);
-};
+    return path.slice(path.lastIndexOf('/') + 1)
+}
 
 const HistoryRow = ({
     eventGroup,
@@ -225,37 +203,32 @@ const HistoryRow = ({
     dispatch,
 }: {
     eventGroup: {
-        count: number;
-        action: string;
-        time: number;
-        events: FileEventT[];
-    };
-    viewing: boolean;
-    folderPath: string;
-    usr: UserInfoT;
-    dispatch: FBDispatchT;
+        count: number
+        action: string
+        time: number
+        events: FileEventT[]
+    }
+    viewing: boolean
+    folderPath: string
+    usr: UserInfoT
+    dispatch: FBDispatchT
 }) => {
-    const [open, setOpen] = useState(false);
-    const timeStr = historyDate(eventGroup.time);
+    const [open, setOpen] = useState(false)
+    const timeStr = historyDate(eventGroup.time)
 
-    const folderName = portableToFolderName(folderPath);
+    const folderName = portableToFolderName(folderPath)
 
+    // TODO move style into data attributes
     return (
-        <Box
+        <div
+            className="flex flex-col w-full h-max justify-center p-2 rounded-lg"
             style={{
-                width: "100%",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                height: "max-content",
-                padding: 10,
-                borderRadius: 8,
-                backgroundColor: viewing ? "$dark-paper" : "",
-                outline: viewing ? "1px solid #4444ff" : "",
+                backgroundColor: viewing ? '$dark-paper' : '',
+                outline: viewing ? '1px solid #4444ff' : '',
             }}
         >
-            <Box key={eventGroup.time} className="file-history-summary">
-                <Box
+            <div key={eventGroup.time} className="file-history-summary">
+                <div
                     className="file-history-accordion-header"
                     onClick={() => setOpen(!open)}
                 >
@@ -268,28 +241,28 @@ const HistoryRow = ({
                         c="white"
                         truncate="end"
                         style={{
-                            lineHeight: "20px",
-                            fontSize: "20px",
-                            width: "max-content",
-                            padding: "0px 5px 0px 5px",
+                            lineHeight: '20px',
+                            fontSize: '20px',
+                            width: 'max-content',
+                            padding: '0px 5px 0px 5px',
 
-                            textWrap: "nowrap",
+                            textWrap: 'nowrap',
                         }}
                         fw={600}
                     >
                         {eventGroup.count} File
-                        {eventGroup.count !== 1 ? "s" : ""}{" "}
+                        {eventGroup.count !== 1 ? 's' : ''}{' '}
                         {eventGroup.action.slice(4)}d
                     </Text>
-                </Box>
-                <Box style={{ flexGrow: 1 }} />
+                </div>
+                <div className="grow" />
                 <Text
                     className="event-time-string"
                     fw={viewing ? 600 : 400}
-                    c={viewing ? "white" : ""}
+                    c={viewing ? 'white' : ''}
                     onClick={() =>
                         dispatch({
-                            type: "set_past_time",
+                            type: 'set_past_time',
                             past: viewing
                                 ? null
                                 : new Date(eventGroup.events[0].Timestamp),
@@ -298,26 +271,26 @@ const HistoryRow = ({
                 >
                     {timeStr}
                 </Text>
-            </Box>
-            <Box
+            </div>
+            <div
                 className="file-history-detail-accordion"
-                mod={{ "data-open": open.toString() }}
+                data-open={open}
                 style={{ height: open ? eventGroup.count * 30 + 35 : 0 }}
             >
-                <Box className={"file-history-detail"}>
+                <div className={'file-history-detail'}>
                     {eventGroup.events.map((e) => {
-                        const fromFolder = portableToFolderName(e.FromPath);
-                        const toFolder = portableToFolderName(e.Path);
+                        const fromFolder = portableToFolderName(e.FromPath)
+                        const toFolder = portableToFolderName(e.Path)
 
-                        const fromFile = fileBase(e.FromPath);
-                        const toFile = fileBase(e.Path);
+                        const fromFile = fileBase(e.FromPath)
+                        const toFile = fileBase(e.Path)
 
                         return (
-                            <Box
+                            <div
                                 key={`${e.Path}-${e.millis}`}
                                 className="history-detail-action-row"
                             >
-                                {e.Action === "fileMove" &&
+                                {e.Action === 'fileMove' &&
                                     folderName === fromFolder && (
                                         <FileIcon
                                             id={e.FromFileId}
@@ -326,7 +299,7 @@ const HistoryRow = ({
                                             usr={usr}
                                         />
                                     )}
-                                {e.Action === "fileMove" &&
+                                {e.Action === 'fileMove' &&
                                     folderName !== fromFolder && (
                                         <FileIcon
                                             id={e.FromFileId}
@@ -336,11 +309,11 @@ const HistoryRow = ({
                                             as={
                                                 toFile !== fromFile
                                                     ? fromFile
-                                                    : ""
+                                                    : ''
                                             }
                                         />
                                     )}
-                                {e.Action === "fileCreate" && (
+                                {e.Action === 'fileCreate' && (
                                     <FileIcon
                                         id={e.FileId}
                                         fileName={toFile}
@@ -348,7 +321,7 @@ const HistoryRow = ({
                                         usr={usr}
                                     />
                                 )}
-                                {e.Action === "fileDelete" && (
+                                {e.Action === 'fileDelete' && (
                                     <FileIcon
                                         fileName={fromFile}
                                         Icon={IconFileMinus}
@@ -357,7 +330,7 @@ const HistoryRow = ({
                                     />
                                     // <IconFileMinus className="icon-noshrink" />
                                 )}
-                                {e.Action === "fileRestore" && (
+                                {e.Action === 'fileRestore' && (
                                     <FileIcon
                                         fileName={toFile}
                                         Icon={IconReorder}
@@ -366,11 +339,11 @@ const HistoryRow = ({
                                     />
                                     // <IconFileMinus className="icon-noshrink" />
                                 )}
-                                {e.Action === "fileMove" && (
+                                {e.Action === 'fileMove' && (
                                     <IconArrowRight className="icon-noshrink" />
                                 )}
 
-                                {e.Action === "fileMove" &&
+                                {e.Action === 'fileMove' &&
                                     folderName === toFolder && (
                                         <FileIcon
                                             id={e.FileId}
@@ -380,7 +353,7 @@ const HistoryRow = ({
                                         />
                                     )}
 
-                                {e.Action === "fileMove" &&
+                                {e.Action === 'fileMove' &&
                                     folderName !== toFolder && (
                                         <FileIcon
                                             id={e.FileId}
@@ -390,104 +363,92 @@ const HistoryRow = ({
                                             as={
                                                 toFile !== fromFile
                                                     ? toFile
-                                                    : ""
+                                                    : ''
                                             }
                                         />
                                     )}
 
-                                <Text style={{ textWrap: "nowrap" }}>
+                                <Text style={{ textWrap: 'nowrap' }}>
                                     {new Date(e.millis).toLocaleTimeString()}
                                 </Text>
-                            </Box>
-                        );
+                            </div>
+                        )
                     })}
-                </Box>
-            </Box>
-        </Box>
-    );
-};
+                </div>
+            </div>
+        </div>
+    )
+}
 
 function FileHistory({
     fileId,
     timestamp,
     dispatch,
 }: {
-    fileId: string;
-    timestamp: number;
-    dispatch: FBDispatchT;
+    fileId: string
+    timestamp: number
+    dispatch: FBDispatchT
 }) {
-    const { authHeader, usr }: UserContextT = useContext(UserContext);
+    const { authHeader, usr }: UserContextT = useContext(UserContext)
     const [fileHistory, setFileHistory]: [
         fileHistory: FileEventT[],
-        setFileHistory: any
-    ] = useState([]);
+        setFileHistory: any,
+    ] = useState([])
 
     useEffect(() => {
-        setFileHistory([]);
-        getFileHistory(fileId, authHeader).then((r) =>
-            setFileHistory(r.events)
-        );
-    }, [fileId, timestamp]);
+        setFileHistory([])
+        getFileHistory(fileId, authHeader).then((r) => setFileHistory(r.events))
+    }, [fileId, timestamp])
 
     const { createEvent, eventGroups } = useMemo(() => {
         if (!fileHistory || !fileHistory.length) {
-            return {};
+            return {}
         }
 
-        const createEvent = fileHistory.shift();
+        const createEvent = fileHistory.shift()
 
-        const groupMap = new Map<string, FileEventT[]>();
+        const groupMap = new Map<string, FileEventT[]>()
         fileHistory.forEach((e) => {
-            let millis = Date.parse(e.Timestamp);
-            let groupMillis = millis - (millis % 60000);
+            let millis = Date.parse(e.Timestamp)
+            let groupMillis = millis - (millis % 60000)
 
-            e.millis = millis;
-            const groupKey = `${groupMillis}-${e.Action}`;
-            let group = groupMap.get(groupKey);
+            e.millis = millis
+            const groupKey = `${groupMillis}-${e.Action}`
+            let group = groupMap.get(groupKey)
             if (group === undefined) {
-                group = [e];
+                group = [e]
             } else {
-                group.push(e);
+                group.push(e)
             }
-            groupMap.set(groupKey, group);
-        });
+            groupMap.set(groupKey, group)
+        })
 
-        const groups = Array.from(groupMap.values());
+        const groups = Array.from(groupMap.values())
 
         return {
             createEvent: createEvent,
             eventGroups: groups
                 .map((g) => {
-                    g.sort((a, b) => b.millis - a.millis);
+                    g.sort((a, b) => b.millis - a.millis)
                     return {
                         count: g.length,
                         action: g[0].Action,
                         time: g[0].millis,
                         events: g,
-                    };
+                    }
                 })
                 .sort((a, b) => b.time - a.time),
-        };
-    }, [fileHistory]);
+        }
+    }, [fileHistory])
 
     if (!createEvent) {
-        return null;
+        return null
     }
 
-    const createTimeString = historyDate(Date.parse(createEvent.Timestamp));
+    const createTimeString = historyDate(Date.parse(createEvent.Timestamp))
 
     return (
-        <Box
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                padding: 10,
-                overflow: "scroll",
-                height: 200,
-                flexGrow: 1,
-            }}
-        >
+        <div className="flex flex-col items-center p-2 overflow-scroll h-[200px] grow">
             {eventGroups.map((eg) => {
                 return (
                     <HistoryRow
@@ -498,17 +459,9 @@ function FileHistory({
                         usr={usr}
                         dispatch={dispatch}
                     />
-                );
+                )
             })}
-            <Box
-                style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    padding: 10,
-                    paddingTop: 40,
-                }}
-            >
+            <div className="flex flex-row items-center p-2 pt-10">
                 <FileIcon
                     id={createEvent.FileId}
                     fileName={createEvent.Path}
@@ -516,10 +469,10 @@ function FileHistory({
                     usr={usr}
                 />
 
-                <Text style={{ textWrap: "nowrap" }}>
+                <Text style={{ textWrap: 'nowrap' }}>
                     created on {createTimeString}
                 </Text>
-            </Box>
-        </Box>
-    );
+            </div>
+        </div>
+    )
 }

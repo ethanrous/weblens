@@ -1,25 +1,25 @@
-import { Box, Text } from "@mantine/core";
-import { Component } from "react";
-import { WeblensButton } from "./WeblensButton";
-import { useNavigate } from "react-router-dom";
+import { Text } from '@mantine/core'
+import { Component } from 'react'
+import { WeblensButton } from './WeblensButton'
+import { useNavigate } from 'react-router-dom'
 
 class ErrorBoundary extends Component<
     { children; fallback: (p) => JSX.Element },
     { hasError: boolean }
 > {
     constructor(props) {
-        super(props);
-        this.state = { hasError: props.hasError };
+        super(props)
+        this.state = { hasError: props.hasError }
     }
 
     static getDerivedStateFromError(error) {
         // Update state so the next render will show the fallback UI.
-        return { hasError: true };
+        return { hasError: true }
     }
 
     clearError() {
         // Update state so the next render will show the fallback UI.
-        this.setState({ hasError: false });
+        this.setState({ hasError: false })
     }
 
     componentDidCatch(error, info) {
@@ -28,7 +28,7 @@ class ErrorBoundary extends Component<
         //   in ErrorBoundary (created by App)
         //   in div (created by App)
         //   in App
-        console.error(error, info.componentStack);
+        console.error(error, info.componentStack)
     }
 
     render() {
@@ -37,44 +37,35 @@ class ErrorBoundary extends Component<
             return (
                 <ErrorDisplay
                     clearError={() => {
-                        this.clearError();
+                        this.clearError()
                     }}
                 />
-            );
+            )
         }
 
-        return this.props.children;
+        return this.props.children
     }
 }
 
 export function ErrorDisplay({ clearError }) {
-    const nav = useNavigate();
+    const nav = useNavigate()
     return (
-        <Box
-            style={{
-                height: "100vh",
-                width: "100vw",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column",
-            }}
-        >
-            <Text size={"20px"} fw={600}>
+        <div className="flex flex-col h-screen w-screen items-center justify-center">
+            <Text size={'20px'} fw={600}>
                 Something went wrong
             </Text>
             <Text style={{ margin: 10 }}>The error has been recorded</Text>
             <WeblensButton
                 label="Go Back"
-                height={40}
+                squareSize={40}
                 width={210}
                 onClick={() => {
-                    clearError();
-                    nav(-1);
+                    clearError()
+                    nav(-1)
                 }}
             />
-        </Box>
-    );
+        </div>
+    )
 }
 
-export default ErrorBoundary;
+export default ErrorBoundary

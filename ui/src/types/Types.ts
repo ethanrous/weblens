@@ -1,14 +1,16 @@
 // Global Types
 
-import { DraggingState } from "../Pages/FileBrowser/FileBrowser";
-import { TaskProgress } from "../Pages/FileBrowser/TaskProgress";
-import { GalleryAction } from "../Pages/Gallery/GalleryLogic";
-import { FileInitT, WeblensFile } from "../classes/File";
-import WeblensMedia from "../classes/Media";
+import { DraggingState, FbModeT } from '../Pages/FileBrowser/FileBrowser'
+import { TaskProgress } from '../Pages/FileBrowser/TaskProgress'
+import { GalleryAction } from '../Pages/Gallery/GalleryLogic'
+import { FileInitT, WeblensFile } from '../classes/File'
+import WeblensMedia from '../classes/Media'
+import React from 'react'
+import { FbMenuModeT } from '../Pages/FileBrowser/FileBrowserStyles'
 
 export type AuthHeaderT = {
-    Authorization: string;
-};
+    Authorization: string
+}
 
 export type UserInfoT = {
     homeId: string;
@@ -112,15 +114,17 @@ export type MediaWrapperProps = {
     menu?: (
         mediaId: string,
         open: boolean,
-        setOpen: (open: boolean) => void
+        setOpen: (open: boolean) => void,
     ) => JSX.Element;
 };
+
 
 export enum PresentType {
     None = 1,
     InLine,
     Fullscreen,
 }
+
 
 export type TimeOffset = {
     second: 0;
@@ -139,8 +143,8 @@ export const newTimeOffset = (): TimeOffset => {
         day: 0,
         month: 0,
         year: 0,
-    };
-};
+    }
+}
 
 export type GalleryStateT = {
     mediaMap: Map<string, WeblensMedia>;
@@ -182,7 +186,9 @@ export type FileBrowserAction = {
     taskType?: string;
     target?: string;
     note?: string;
-    mode?: string;
+
+    mode?: FbModeT;
+    menuMode?: FbMenuModeT;
 
     fileIds?: string[];
 
@@ -235,13 +241,11 @@ export type FbStateT = {
     selected: Map<string, boolean>;
     uploadMap: Map<string, boolean>;
     menuPos: { x: number; y: number };
-    searchResults: WeblensFile[];
     folderInfo: WeblensFile;
     parents: WeblensFile[];
     filesList: string[];
     draggingState: number;
     loading: string[];
-    waitingForNewName: string;
     menuTargetId: string;
     presentingId: string;
     searchContent: string;
@@ -256,12 +260,10 @@ export type FbStateT = {
     pasteImg: ArrayBuffer;
     scrollTo: string;
     moveDest: string;
-    menuOpen: boolean;
+    menuMode: FbMenuModeT;
     fileInfoMenu: boolean;
 
-    fbMode: string;
-    // isShare: boolean;
-    // isExternal: boolean;
+    fbMode: FbModeT;
 
     shareId: string;
     contentId: string;
@@ -274,16 +276,6 @@ export type FbStateT = {
 export type SizeT = {
     height: number;
     width: number;
-};
-
-export type shareData = {
-    Accessors: string[];
-    Expires: string;
-    Public: boolean;
-    shareId: string;
-    fileId: string;
-    ShareName: string;
-    Wormhole: boolean;
 };
 
 // export const getBlankFile = () => {

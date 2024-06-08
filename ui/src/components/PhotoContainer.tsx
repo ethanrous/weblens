@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, memo, useCallback } from 'react'
+import { memo, useCallback, useContext, useEffect, useState } from 'react'
 import { UserContext } from '../Context'
 import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react'
 import { CSSProperties, Loader } from '@mantine/core'
@@ -6,7 +6,6 @@ import { UserContextT } from '../types/Types'
 import WeblensMedia, { PhotoQuality } from '../classes/Media'
 
 import './style.scss'
-import * as url from 'node:url'
 
 export const MediaImage = memo(
     ({
@@ -112,24 +111,14 @@ export const MediaImage = memo(
                     )}
 
                 <img
-                    alt=""
-                    className={
-                        (fitLogic === 'cover'
-                            ? 'media-thumbnail'
-                            : 'media-fullres') + ` ${imageClass}`
-                    }
+                    alt={'image'}
+                    data-fit-logic={fitLogic}
+                    data-disabled={disabled}
+                    data-hide={src.url === '' || media.HasLoadError()}
+                    className="media-image"
                     draggable={false}
                     src={src.url}
-                    style={{
-                        display:
-                            src.url !== '' && !media.HasLoadError()
-                                ? ''
-                                : 'none',
-                        filter: disabled ? 'grayscale(100%)' : '',
-                        zIndex: 'inherit',
-                        position: 'relative',
-                        ...imgStyle,
-                    }}
+                    style={imgStyle}
                 />
 
                 {quality === 'fullres' && media.GetMediaType()?.IsVideo && (
@@ -150,8 +139,9 @@ export const MediaImage = memo(
     (last, next) => {
         if (last.doFetch !== next.doFetch) {
             return false
-        }
-        if (last.media?.Id() !== next.media?.Id()) {
+        } else if (last.disabled !== next.disabled) {
+            return false
+        } else if (last.media?.Id() !== next.media?.Id()) {
             return false
         } else if (last.containerStyle !== next.containerStyle) {
             return false

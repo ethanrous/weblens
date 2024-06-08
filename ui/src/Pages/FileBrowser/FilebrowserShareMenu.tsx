@@ -1,5 +1,5 @@
 import { Autocomplete, Box, Space, Text } from '@mantine/core'
-import { ShareFiles, UpdateFileShare } from '../../api/FileBrowserApi'
+import { shareFiles, updateFileShare } from '../../api/FileBrowserApi'
 import {
     IconLink,
     IconUser,
@@ -11,10 +11,10 @@ import { WeblensButton } from '../../components/WeblensButton'
 
 import { useCallback, useContext, useEffect, useState } from 'react'
 import { UserContext } from '../../Context'
-import { RowBox } from './FileBrowserStyles'
-import { AuthHeaderT, shareData, UserContextT } from '../../types/Types'
+import { AuthHeaderT, UserContextT } from '../../types/Types'
 import { WeblensFile } from '../../classes/File'
 import { AutocompleteUsers } from '../../api/ApiFetch'
+import { ShareDataT } from '../../classes/Share'
 
 export function ShareInput({
     isPublic,
@@ -151,7 +151,7 @@ export function ShareBox({
     const [sharedUsers, setSharedUsers] = useState([])
     const [pub, setPublic] = useState(false)
     const [shareData, setShareData]: [
-        shareData: shareData[],
+        shareData: ShareDataT[],
         setShareData: (v) => void,
     ] = useState(null)
     useEffect(() => {
@@ -162,8 +162,7 @@ export function ShareBox({
         ) {
             return
         }
-        setShareData(candidates[0].GetShares().filter((s) => !s.Wormhole))
-        // GetFileShare(candidates[0].id, authHeader).then((v: shareData[]) => ).catch(r => notifications.show({ title: "Failed to get share data", message: String(r), color: 'red' }))
+        setShareData(candidates[0].GetShares().filter((s) => !s.IsWormhole()))
     }, [candidates, authHeader])
 
     useEffect(() => {
@@ -178,20 +177,32 @@ export function ShareBox({
 
     const shareOrUpdate = useCallback(async () => {
         if (!shareData || shareData.length === 0) {
-            const res = await ShareFiles(
-                candidates.map((v) => v.Id()),
+            const res = await shareFiles(
+                candidates,
                 pub,
                 sharedUsers,
                 authHeader
-            )
+            ).catch((r) => {
+                console.error(r)
+                return false
+            })
+            if (!res) {
+                return ''
+            }
             return res.shareData.shareId
         } else {
-            await UpdateFileShare(
+            const res = await updateFileShare(
                 shareData[0].shareId,
                 pub,
                 sharedUsers,
                 authHeader
-            )
+            ).catch((r) => {
+                console.error(r)
+                return false
+            })
+            if (!res) {
+                return ''
+            }
             return shareData[0].shareId
         }
     }, [candidates, shareData, pub, sharedUsers, authHeader])
@@ -207,7 +218,7 @@ export function ShareBox({
                 key={'public-button'}
                 toggleOn={pub}
                 allowRepeat
-                height={50}
+                squareSize={50}
                 onClick={() => setPublic(!pub)}
                 label={pub ? 'Public' : 'Private'}
                 postScript={
@@ -228,7 +239,7 @@ export function ShareBox({
             >
                 <WeblensButton
                     label="Copy link"
-                    height={40}
+                    squareSize={40}
                     centerContent
                     Left={<IconLink />}
                     onClick={(e) => {
@@ -244,7 +255,7 @@ export function ShareBox({
                 />
                 <WeblensButton
                     label="Save"
-                    height={40}
+                    squareSize={40}
                     centerContent
                     onClick={(e) => {
                         e.stopPropagation()

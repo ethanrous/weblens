@@ -13,7 +13,11 @@ export async function FetchData(
     dispatch: GalleryDispatchT,
     authHeader: AuthHeaderT
 ) {
-    if (!authHeader || authHeader.Authorization === '') {
+    if (
+        !authHeader ||
+        authHeader.Authorization === '' ||
+        mediaState.albumsMap.size === 0
+    ) {
         return
     }
 
@@ -25,7 +29,7 @@ export async function FetchData(
                 'albums',
                 JSON.stringify(
                     Array.from(mediaState.albumsMap.values())
-                        .filter((v) => mediaState.albumsFilter.includes(v.Name))
+                        .filter((v) => mediaState.albumsFilter.includes(v.Id))
                         .map((v) => v.Id)
                 )
             )
@@ -56,6 +60,10 @@ export async function FetchData(
 }
 
 export async function CreateAlbum(albumName, authHeader: AuthHeaderT) {
+    if (albumName === '') {
+        return Promise.reject('No album title')
+    }
+
     const url = new URL(`${API_ENDPOINT}/album`)
     const body = {
         name: albumName,
@@ -162,6 +170,11 @@ export async function ShareAlbum(
     })
 }
 
+export async function LeaveAlbum(albumId: string, authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/album/${albumId}/leave`)
+    return fetch(url, { method: 'POST', headers: authHeader })
+}
+
 export async function SetAlbumCover(
     albumId,
     coverMediaId,
@@ -210,9 +223,8 @@ export async function RenameAlbum(albumId, newName, authHeader: AuthHeaderT) {
 export async function DeleteAlbum(albumId, authHeader: AuthHeaderT) {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`)
 
-    let ret = await fetch(url.toString(), {
+    return await fetch(url.toString(), {
         method: 'DELETE',
         headers: authHeader,
     })
-    return ret
 }

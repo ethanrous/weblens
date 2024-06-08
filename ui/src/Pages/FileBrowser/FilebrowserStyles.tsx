@@ -1,141 +1,45 @@
 import {
     Box,
-    Card,
-    MantineStyleProp,
-    Text,
-    Tooltip,
-    ActionIcon,
-    Space,
-    Menu,
+    Center,
     Divider,
     FileButton,
-    Center,
-    Skeleton,
+    Space,
+    Text,
+    Tooltip,
 } from '@mantine/core'
-import { memo, useContext, useMemo, useState } from 'react'
 import {
-    handleDragOver,
-    HandleDrop,
-    HandleUploadButton,
-} from './FileBrowserLogic'
-import {
-    FBDispatchT,
-    FbStateT,
-    UserContextT,
-    UserInfoT,
-} from '../../types/Types'
+    DragEventHandler,
+    memo,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
+import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
+import { FBDispatchT, FbStateT, UserInfoT } from '../../types/Types'
 import { WeblensFile } from '../../classes/File'
 
 import {
-    IconDatabase,
     IconFile,
     IconFileZip,
     IconFolder,
     IconFolderCancel,
     IconFolderPlus,
     IconHome,
-    IconHome2,
     IconPhoto,
-    IconRefresh,
     IconServer,
-    IconServer2,
     IconSpiral,
     IconTrash,
     IconUpload,
-    IconUser,
     IconUsers,
 } from '@tabler/icons-react'
 import { UserContext } from '../../Context'
-import { friendlyFolderName, humanFileSize, nsToHumanTime } from '../../util'
+import { friendlyFolderName, humanFileSize } from '../../util'
 import { ContainerMedia } from '../../components/Presentation'
-import { IconX } from '@tabler/icons-react'
-import { WeblensProgress } from '../../components/WeblensProgress'
 import { useResize } from '../../components/hooks'
-import { BackdropMenu } from './FileMenu'
 
-import './style/fileBrowserStyle.css'
+import './style/fileBrowserStyle.scss'
 import { DraggingState, FbContext } from './FileBrowser'
-
-// export const Box = ({
-//     children,
-//     style,
-//     reff,
-//     className,
-//     onClick,
-//     onMouseOver,
-//     onMouseLeave,
-//     onContextMenu,
-//     onBlur,
-//     onDragOver,
-//     onMouseUp,
-// }: {
-//     children?;
-//     style?: MantineStyleProp;
-//     reff?;
-//     className?: string;
-//     onClick?;
-//     onMouseOver?;
-//     onMouseLeave?;
-//     onContextMenu?;
-//     onBlur?;
-//     onDragOver?;
-//     onMouseUp?;
-// }) => {
-//     return (
-//         <Box
-//             draggable={false}
-//             ref={reff}
-//             children={children}
-//             onClick={onClick}
-//             onMouseOver={onMouseOver}
-//             onMouseLeave={onMouseLeave}
-//             onContextMenu={onContextMenu}
-//             onBlur={onBlur}
-//             onDrag={(e) => e.preventDefault()}
-//             onDragOver={onDragOver}
-//             onMouseUp={onMouseUp}
-//             style={{
-//                 display: "flex",
-//                 height: "100%",
-//                 width: "100%",
-//                 flexDirection: "column",
-//                 alignItems: "center",
-//                 ...style,
-//             }}
-//             className={`column-box ${className ? className : ""}`}
-//         />
-//     );
-// };
-
-export const RowBox = ({
-    children,
-    style,
-    onClick,
-    onBlur,
-}: {
-    children
-    style?: MantineStyleProp
-    onClick?
-    onBlur?
-}) => {
-    return (
-        <Box
-            draggable={false}
-            children={children}
-            onClick={onClick}
-            onBlur={onBlur}
-            onDrag={(e) => e.preventDefault()}
-            style={{
-                height: '100%',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                ...style,
-            }}
-        />
-    )
-}
 
 export const TransferCard = ({
     action,
@@ -146,36 +50,29 @@ export const TransferCard = ({
     destination: string
     boundRef?
 }) => {
-    let width
-    let left
+    let width: number
+    let left: number
     if (boundRef) {
         width = boundRef.clientWidth
         left = boundRef.getBoundingClientRect()['left']
     }
     if (!destination) {
-        return
+        return null
     }
 
     return (
         <div
-            className="transfer-info-box"
+            className="transfer-info-wrapper"
             style={{
                 width: width ? width : '100%',
                 left: left ? left : 0,
             }}
         >
-            <Card style={{ height: 'max-content' }}>
-                <div className="flex flex-row w-full">
-                    <Text style={{ userSelect: 'none' }}>{action} to</Text>
-                    <IconFolder style={{ marginLeft: '7px' }} />
-                    <Text
-                        fw={700}
-                        style={{ marginLeft: 3, userSelect: 'none' }}
-                    >
-                        {destination}
-                    </Text>
-                </div>
-            </Card>
+            <div className="transfer-info-box">
+                <p className="select-none">{action} to</p>
+                <IconFolder />
+                <p className="font-bold select-none">{destination}</p>
+            </div>
         </div>
     )
 }
@@ -192,7 +89,7 @@ export const DropSpot = ({
     dropSpotTitle: string
     dragging: DraggingState
     dropAllowed
-    handleDrag: React.DragEventHandler<HTMLDivElement>
+    handleDrag: DragEventHandler<HTMLDivElement>
     wrapperRef?
 }) => {
     const wrapperSize = useResize(wrapperRef)
@@ -233,16 +130,12 @@ export const DropSpot = ({
                     }}
                 >
                     {!dropAllowed && (
-                        <div
-                            style={{
-                                position: 'relative',
-                                justifyContent: 'center',
-                                cursor: 'no-drop',
-                                width: 'max-content',
-                                pointerEvents: 'none',
-                            }}
-                        >
-                            <IconFolderCancel size={100} color="#dd2222" />
+                        <div className="flex justify-center items-center relative cursor-no-drop w-max pointer-events-none">
+                            <IconFolderCancel
+                                className="pointer-events-none"
+                                size={100}
+                                color="#dd2222"
+                            />
                         </div>
                     )}
                     {dropAllowed && (
@@ -257,18 +150,26 @@ export const DropSpot = ({
     )
 }
 
-type DirViewWrapperProps = {
-    folderName: string
-    dragging: number
-    children: JSX.Element
+export enum FbMenuModeT {
+    Closed,
+    Default,
+    Sharing,
+    NameFolder,
 }
 
 export const DirViewWrapper = memo(
-    ({ folderName, dragging, children }: DirViewWrapperProps) => {
-        const { usr }: UserContextT = useContext(UserContext)
+    ({ children }: { children }) => {
         const { fbState, fbDispatch } = useContext(FbContext)
-        const [menuOpen, setMenuOpen] = useState(false)
+        const [menuMode, setMenuMode] = useState(FbMenuModeT.Closed)
         const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
+
+        useEffect(() => {
+            if (menuMode === FbMenuModeT.Sharing) {
+                fbDispatch({ type: 'set_block_focus', block: true })
+            } else {
+                fbDispatch({ type: 'set_block_focus', block: false })
+            }
+        }, [menuMode])
 
         return (
             <div
@@ -278,8 +179,8 @@ export const DirViewWrapper = memo(
                     e.preventDefault()
                     e.stopPropagation()
                 }}
-                onMouseUp={(e) => {
-                    if (dragging) {
+                onMouseUp={() => {
+                    if (fbState.draggingState) {
                         setTimeout(
                             () =>
                                 fbDispatch({
@@ -290,36 +191,34 @@ export const DirViewWrapper = memo(
                         )
                     }
                 }}
-                onClick={(e) => {
-                    if (dragging) {
+                onClick={() => {
+                    if (fbState.draggingState) {
                         return
                     }
                     fbDispatch({ type: 'clear_selected' })
                 }}
                 onContextMenu={(e) => {
                     e.preventDefault()
-                    if (fbState.fbMode === 'share') {
-                        return
-                    }
-                    setMenuPos({ x: e.clientX, y: e.clientY })
-                    setMenuOpen(true)
+                    fbDispatch({ type: 'set_menu_target', fileId: '' })
+                    fbDispatch({
+                        type: 'set_menu_pos',
+                        pos: { x: e.clientX, y: e.clientY },
+                    })
+                    fbDispatch({
+                        type: 'set_menu_open',
+                        menuMode: FbMenuModeT.Default,
+                    })
                 }}
             >
-                <BackdropMenu
-                    folderName={
-                        folderName === usr.username ? 'Home' : folderName
-                    }
-                    menuPos={menuPos}
-                    menuOpen={menuOpen}
-                    setMenuOpen={setMenuOpen}
-                    newFolder={() => fbDispatch({ type: 'new_dir' })}
-                />
-
                 <div
                     className="w-full h-full p-2"
                     onDragOver={(event) => {
-                        if (!dragging) {
-                            handleDragOver(event, fbDispatch, dragging)
+                        if (!fbState.draggingState) {
+                            handleDragOver(
+                                event,
+                                fbDispatch,
+                                fbState.draggingState
+                            )
                         }
                     }}
                 >
@@ -329,39 +228,9 @@ export const DirViewWrapper = memo(
         )
     },
     (prev, next) => {
-        if (prev.dragging !== next.dragging) {
-            return false
-        } else if (prev.folderName !== next.folderName) {
-            return false
-        } else if (prev.children !== next.children) {
-            return false
-        }
-
-        return true
+        return prev.children === next.children
     }
 )
-
-export const ScanFolderButton = ({ folderId, holdingShift, doScan }) => {
-    return (
-        <Box>
-            {folderId !== 'shared' && folderId !== 'trash' && (
-                <Tooltip
-                    label={holdingShift ? 'Deep scan folder' : 'Scan folder'}
-                >
-                    <ActionIcon color="#00000000" size={35} onClick={doScan}>
-                        <IconRefresh
-                            color={holdingShift ? '#4444ff' : 'white'}
-                            size={35}
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-            {(folderId === 'shared' || folderId === 'trash') && (
-                <Space w={35} />
-            )}
-        </Box>
-    )
-}
 
 export const FileIcon = ({
     fileName,
@@ -379,12 +248,7 @@ export const FileIcon = ({
     includeText?: boolean
 }) => {
     return (
-        <Box
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-            }}
-        >
+        <div className="flex items-center">
             <Icon className="icon-noshrink" />
             <Text
                 fw={550}
@@ -400,13 +264,7 @@ export const FileIcon = ({
                 {friendlyFolderName(fileName, id, usr)}
             </Text>
             {as && (
-                <Box
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                    }}
-                >
+                <div className="flex flex-row items-center">
                     <Text size="12px">as</Text>
                     <Text
                         size="12px"
@@ -420,9 +278,9 @@ export const FileIcon = ({
                     >
                         {as}
                     </Text>
-                </Box>
+                </div>
             )}
-        </Box>
+        </div>
     )
 }
 
@@ -437,15 +295,7 @@ export const FolderIcon = ({ shares, size }: { shares; size }) => {
         }
     }, [shares])
     return (
-        <Box
-            style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%',
-                height: '100%',
-            }}
-        >
+        <div className="flex w-full h-full items-center justify-center">
             <IconFolder size={size} />
             {wormholeId && (
                 <Tooltip label={copied ? 'Copied' : 'Copy Wormhole'}>
@@ -464,7 +314,7 @@ export const FolderIcon = ({ shares, size }: { shares; size }) => {
                     />
                 </Tooltip>
             )}
-        </Box>
+        </div>
     )
 }
 
@@ -554,7 +404,7 @@ export const IconDisplay = ({
 export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
     let [size, units] = humanFileSize(file.GetSize())
     return (
-        <Box
+        <div
             style={{
                 width: 'max-content',
                 whiteSpace: 'nowrap',
@@ -566,13 +416,7 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
                 {file.GetFilename()}
             </Text>
             {file.IsFolder() && (
-                <RowBox
-                    style={{
-                        height: 'max-content',
-                        justifyContent: 'center',
-                        width: '100%',
-                    }}
-                >
+                <div className="flex flex-row h-max w-full items-center justify-center">
                     <Text style={{ fontSize: '25px', maxWidth: '100%' }}>
                         {file.GetChildren().length} Item
                         {file.GetChildren().length !== 1 ? 's' : ''}
@@ -582,7 +426,7 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
                         {size}
                         {units}
                     </Text>
-                </RowBox>
+                </div>
             )}
             {!file.IsFolder() && (
                 <Text style={{ fontSize: '25px' }}>
@@ -590,7 +434,7 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
                     {units}
                 </Text>
             )}
-        </Box>
+        </div>
     )
 }
 
@@ -640,32 +484,20 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
         )
     } else {
         return (
-            <RowBox
-                style={{ justifyContent: 'center', height: 'max-content' }}
+            <div
+                className="flex flex-row h-max w-full items-center justify-center"
                 onClick={(e) => e.stopPropagation()}
             >
-                <Box
-                    style={{
-                        width: '60%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                    }}
-                >
+                <div className="w-flex [60%] justify-center">
                     <IconDisplay file={file} allowMedia />
-                </Box>
+                </div>
                 <Space w={30} />
                 <Box style={{ width: '40%', justifyContent: 'center' }}>
                     <Text fw={600} style={{ width: '100%' }}>
                         {file.GetFilename()}
                     </Text>
                     {file.IsFolder() && (
-                        <RowBox
-                            style={{
-                                height: 'max-content',
-                                justifyContent: 'center',
-                                width: '50vw',
-                            }}
-                        >
+                        <div className="flex flex-row h-max w-1/2 items-center justify-center">
                             <Text style={{ fontSize: '25px' }}>
                                 {file.GetChildren().length} Item
                                 {file.GetChildren().length !== 1 ? 's' : ''}
@@ -675,7 +507,7 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                                 {size}
                                 {units}
                             </Text>
-                        </RowBox>
+                        </div>
                     )}
                     {!file.IsFolder() && (
                         <Text style={{ fontSize: '25px' }}>
@@ -684,7 +516,7 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                         </Text>
                     )}
                 </Box>
-            </RowBox>
+            </div>
         )
     }
 }
@@ -718,11 +550,11 @@ export const GetStartedCard = ({
 }) => {
     const { authHeader, usr } = useContext(UserContext)
     return (
-        <Box className="flex w-full justify-center items-center">
-            <Box className="flex flex-col w-max h-fit mt-[25vh] justify-center items-center">
-                <Box className="flex items-center p-30 absolute -z-1 pointer-events-none h-max">
+        <div className="flex w-full justify-center items-center animate-fade">
+            <div className="flex flex-col w-max h-fit mt-[25vh] justify-center items-center">
+                <div className="flex items-center p-30 absolute -z-1 pointer-events-none h-max">
                     <EmptyIcon folderId={fb.folderInfo.Id()} usr={usr} />
-                </Box>
+                </div>
 
                 <p className="text-2xl w-max h-max select-none z-10">
                     {`This folder ${
@@ -731,7 +563,7 @@ export const GetStartedCard = ({
                 </p>
 
                 {fb.folderInfo.IsModifiable() && !fb.viewingPast && (
-                    <Box className="flex flex-row p-5 w-350 z-10">
+                    <div className="flex flex-row p-5 w-350 z-10">
                         <FileButton
                             onChange={(files) => {
                                 HandleUploadButton(
@@ -749,7 +581,7 @@ export const GetStartedCard = ({
                         >
                             {(props) => {
                                 return (
-                                    <Box
+                                    <div
                                         className="flex flex-col items-center w-32 text-gray-400 cursor-pointer m-5 font-normal stroke-1 transition-all duration-100 hover:text-white hover:font-semibold hover:stroke-2 z-10"
                                         onClick={() => {
                                             props.onClick()
@@ -758,22 +590,30 @@ export const GetStartedCard = ({
                                         <IconUpload
                                             size={100}
                                             stroke={'inherit'}
-                                            style={{ padding: '10px' }}
+                                            className="p-3"
                                         />
-                                        <Text size="20px" fw={'inherit'}>
+                                        <Text
+                                            size="20px"
+                                            fw={'inherit'}
+                                            className="select-none"
+                                        >
                                             Upload
                                         </Text>
                                         <Space h={4}></Space>
-                                        <Text size="12px" fw={'inherit'}>
+                                        <Text
+                                            size="12px"
+                                            fw={'inherit'}
+                                            className="select-none"
+                                        >
                                             Click or Drop
                                         </Text>
-                                    </Box>
+                                    </div>
                                 )
                             }}
                         </FileButton>
                         <Divider orientation="vertical" m={30} />
 
-                        <Box
+                        <div
                             className="flex flex-col items-center w-32 text-gray-400 cursor-pointer m-5 font-normal stroke-1 transition-all duration-100 hover:text-white hover:font-semibold hover:stroke-2 z-10"
                             onClick={(e) => {
                                 e.stopPropagation()
@@ -783,20 +623,20 @@ export const GetStartedCard = ({
                             <IconFolderPlus
                                 size={100}
                                 stroke={'inherit'}
-                                style={{ padding: '10px' }}
+                                className="p-3"
                             />
                             <Text
                                 size="20px"
                                 fw={'inherit'}
-                                style={{ width: 'max-content' }}
+                                className="select-none w-max"
                             >
                                 New Folder
                             </Text>
-                        </Box>
-                    </Box>
+                        </div>
+                    </div>
                 )}
-            </Box>
-        </Box>
+            </div>
+        </div>
     )
 }
 

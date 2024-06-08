@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,11 +17,53 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func createFolder(ctx *gin.Context) {
+	body, err := readCtxBody[createFolderBody](ctx)
+	if err != nil {
+		return
+	}
+
+	if body.NewFolderName == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing body parameter 'new_folder_name'"})
+		return
+	}
+
+	parentFolder := dataStore.FsTreeGet(body.ParentFolderId)
+	if parentFolder == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Parent folder not found"})
+		return
+	}
+
+	caster := NewBufferedCaster()
+	defer caster.Close()
+
+	newDir, err := dataStore.MkDir(parentFolder, body.NewFolderName, caster)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(body.Children) != 0 {
+		for _, fileId := range body.Children {
+			child := dataStore.FsTreeGet(fileId)
+			err = dataStore.FsTreeMove(child, newDir, "", false, caster)
+			if err != nil {
+				util.ShowErr(err)
+				ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
+
+	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.Id()})
+}
+
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *gin.Context) {
 	selfData, err := dir.FormatFileInfo(acc)
 	if err != nil {
-		if err == dataStore.ErrNoFileAccess {
+		if errors.Is(err, dataStore.ErrNoFileAccess) {
 			ctx.JSON(http.StatusNotFound, "Failed to get folder info")
 			return
 		}
@@ -41,12 +84,11 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 		} else {
 			filteredDirInfo = dir.GetChildrenInfo(acc)
 		}
-		// filteredDirInfo = util.Filter(filteredDirInfo, func(t types.FileInfo) bool { return t.Id != "R" })
 	}
 
 	parentsInfo := []types.FileInfo{}
 	parent := dir.GetParent()
-	for dataStore.CanAccessFile(parent, acc) && parent != dir && (parent.Owner() != dataStore.WEBLENS_ROOT_USER) {
+	for dataStore.CanAccessFile(parent, acc) && parent != dir && (parent.Owner() != dataStore.WeblensRootUser) {
 		parentInfo, err := parent.FormatFileInfo(acc)
 		if err != nil {
 			util.ErrTrace(err)
@@ -70,13 +112,13 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 
 }
 
-func getFolderInfo(ctx *gin.Context) {
+func getFolder(ctx *gin.Context) {
 	start := time.Now()
 	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
+	//if user == nil {
+	//	ctx.Status(http.StatusUnauthorized)
+	//	return
+	//}
 
 	folderId := types.FileId(ctx.Param("folderId"))
 	dir := dataStore.FsTreeGet(folderId)
@@ -95,7 +137,27 @@ func getFolderInfo(ctx *gin.Context) {
 	}
 
 	shareId := types.ShareId(ctx.Query("shareId"))
-	acc := dataStore.NewAccessMeta(user).AddShareId(shareId, dataStore.FileShare)
+	var share types.Share
+	var err error
+	if shareId != "" {
+		share, err = dataStore.GetShare(shareId, dataStore.FileShare)
+		if err != nil || share == nil {
+			util.ShowErr(err)
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
+			return
+		}
+	}
+
+	acc := dataStore.NewAccessMeta(user)
+	if share != nil {
+		err = acc.AddShare(share)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if !dataStore.CanAccessFile(dir, acc) {
 		util.Debug.Println("Not auth")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
@@ -194,7 +256,7 @@ func getFileHistory(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
 	events, err := dataStore.GetFileHistory(fileId)
 	if err != nil {
-		if err == dataStore.ErrNoFile {
+		if errors.Is(err, dataStore.ErrNoFile) {
 			ctx.Status(http.StatusNotFound)
 		} else {
 			util.ShowErr(err)

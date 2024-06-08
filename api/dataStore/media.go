@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/EdlinOrg/prominentcolor"
@@ -171,9 +170,6 @@ func (m *media) GetOwner() types.User {
 	return m.Owner
 }
 
-var thumbMap map[string][]byte = map[string][]byte{}
-var thumbMapLock sync.RWMutex = sync.RWMutex{}
-
 func (m *media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err error) {
 	var pageNum int
 	if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
@@ -184,56 +180,7 @@ func (m *media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err
 		pageNum = 0
 	}
 
-	var ok bool
-	cacheKey := string(m.Id()) + string(q)
-	thumbMapLock.RLock()
-	if data, ok = thumbMap[cacheKey]; ok {
-		thumbMapLock.RUnlock()
-		return
-	}
-	thumbMapLock.RUnlock()
-
-	//var redisKey string
-	//if util.ShouldUseRedis() {
-	//	redisKey = fmt.Sprintf("%s-%s_%d", m.Id(), q, pageNum)
-	//	var redisData string
-	//	start := time.Now()
-	//	redisData, err = fddb.RedisCacheGet(redisKey)
-	//	util.Debug.Println("Redis cache get time:", time.Since(start))
-	//	if err == nil {
-	//		data = []byte(redisData)
-	//		return
-	//	}
-	//}
-
-	f, err := m.getCacheFile(q, true, pageNum)
-	if err != nil {
-		return
-	} else if f == nil {
-		return nil, ErrNoFile
-	}
-
-	data, err = f.ReadAll()
-	if err != nil {
-		return
-	}
-	if len(data) == 0 {
-		err = fmt.Errorf("displayable bytes empty")
-		return
-	}
-
-	//if util.ShouldUseRedis() {
-	//	err = fddb.RedisCacheSet(redisKey, string(data))
-	//	if err != nil {
-	//		return
-	//	}
-	//}
-
-	thumbMapLock.Lock()
-	thumbMap[cacheKey] = data
-	thumbMapLock.Unlock()
-
-	return
+	return getMediaCache(m, q, pageNum)
 }
 
 func (m *media) GetFiles() []types.FileId {
@@ -400,6 +347,9 @@ func (m *media) parseExif(f types.WeblensFile) error {
 			if err != nil {
 				m.CreateDate, err = time.Parse("2006:01:02 15:04:05", r.(string))
 			}
+			if err != nil {
+				m.CreateDate, err = time.Parse("2006:01:02 15:04:05-07:00", r.(string))
+			}
 		} else {
 			m.CreateDate = f.ModTime()
 		}
@@ -534,7 +484,7 @@ func (m *media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 
 	f = FsTreeGet(cacheFileId)
 	if f == nil || !f.Exists() {
-		if generateIfMissing && !generateIfMissing {
+		if generateIfMissing {
 			realFile, err := GetRealFile(m)
 			if err != nil {
 				return nil, err
@@ -561,7 +511,7 @@ func (m *media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 	return
 }
 
-const THUMBNAIL_HEIGHT float32 = 500
+const ThumbnailHeight float32 = 500
 
 func (m *media) handleCacheCreation(f types.WeblensFile) (err error) {
 	_, err = m.getCacheFile(Thumbnail, false, 0)
@@ -576,6 +526,7 @@ func (m *media) handleCacheCreation(f types.WeblensFile) (err error) {
 	var bs []byte
 
 	if m.mediaType.IsRaw() {
+		util.Debug.Println()
 		raw64 := m.rawExif[m.mediaType.rawThumbExifKey].(string)
 		raw64 = raw64[strings.Index(raw64, ":")+1:]
 
@@ -607,7 +558,7 @@ func (m *media) handleCacheCreation(f types.WeblensFile) (err error) {
 		return ErrNoImage
 	}
 
-	thumbW := int((THUMBNAIL_HEIGHT / float32(m.MediaHeight)) * float32(m.MediaWidth))
+	thumbW := int((ThumbnailHeight / float32(m.MediaHeight)) * float32(m.MediaWidth))
 
 	var thumbBytes []byte
 	if !m.mediaType.multiPage && m.image != nil {
@@ -615,7 +566,7 @@ func (m *media) handleCacheCreation(f types.WeblensFile) (err error) {
 		// Copy image buffer for the thumbnail
 		thumbImg := bimg.NewImage(m.image.Image())
 
-		thumbBytes, err = thumbImg.Resize(thumbW, int(THUMBNAIL_HEIGHT))
+		thumbBytes, err = thumbImg.Resize(thumbW, int(ThumbnailHeight))
 		if err != nil {
 			return
 		}
@@ -624,7 +575,7 @@ func (m *media) handleCacheCreation(f types.WeblensFile) (err error) {
 	if m.mediaType.multiPage && len(m.images) != 0 && m.images[0] != nil {
 		thumbImg := bimg.NewImage(m.images[0].Image())
 
-		thumbBytes, err = thumbImg.Resize(thumbW, int(THUMBNAIL_HEIGHT))
+		thumbBytes, err = thumbImg.Resize(thumbW, int(ThumbnailHeight))
 		if err != nil {
 			return
 		}
@@ -656,10 +607,10 @@ func (m *media) cacheDisplayable(q types.Quality, data []byte, pageNum int) type
 	}
 
 	f, err := Touch(GetCacheDir(), cacheFileName, false)
-	if err != nil && err != ErrFileAlreadyExists {
+	if err != nil && !errors.Is(err, ErrFileAlreadyExists) {
 		util.ErrTrace(err)
 		return nil
-	} else if err == ErrFileAlreadyExists {
+	} else if errors.Is(err, ErrFileAlreadyExists) {
 		return f
 	}
 

@@ -1,5 +1,12 @@
-import { Box, Loader, Text } from '@mantine/core'
-import { CSSProperties, memo, useEffect, useMemo, useState } from 'react'
+import { Loader, Text } from '@mantine/core'
+import React, {
+    CSSProperties,
+    memo,
+    ReactNode,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
 import { IconCheck, IconX } from '@tabler/icons-react'
 import { useResize } from './hooks'
 
@@ -20,11 +27,13 @@ type buttonProps = {
     danger?: boolean
     disabled?: boolean
     doSuper?: boolean
-    Left?: JSX.Element
-    Right?: JSX.Element
+    labelOnHover?: boolean
+    fillWidth?: boolean
+    Left?: (p: any) => ReactNode
+    Right?: ReactNode
 
     // Style
-    height: number
+    squareSize?: number
     width?: number | string
     fontSize?: string
     textMin?: number
@@ -44,28 +53,34 @@ const ButtonContent = memo(
         Left,
         Right,
         buttonWidth,
-        fontSize,
         iconSize,
-        textFits,
         centerContent,
+        hidden,
+        labelOnHover,
     }: {
         label: string
         postScript: string
-        Left: JSX.Element
-        Right: JSX.Element
+        Left: (p: any) => ReactNode
+        Right: ReactNode
         buttonWidth: number
-        fontSize: string
         iconSize: number
-        textFits: boolean
         centerContent: boolean
+        hidden: boolean
+        labelOnHover: boolean
     }) => {
+        const [textRef, setTextRef] = useState(null)
+        const { width: textWidth } = useResize(textRef)
+        const textFits = useMemo(() => {
+            return buttonWidth > textWidth
+        }, [buttonWidth, textWidth])
         const [showText, setShowText] = useState(Boolean(label) && textFits)
+        // console.log(textWidth, label)
 
         useEffect(() => {
             if (
                 !Boolean(label) ||
                 ((Boolean(Left) || Boolean(Right)) &&
-                    buttonWidth < iconSize + label?.length * 10 &&
+                    buttonWidth < iconSize + textWidth &&
                     buttonWidth !== 0)
             ) {
                 if (showText) {
@@ -74,7 +89,7 @@ const ButtonContent = memo(
             } else if (!showText && textFits) {
                 setShowText(true)
             }
-        }, [buttonWidth])
+        }, [buttonWidth, textWidth])
 
         if (!iconSize) {
             iconSize = 24
@@ -82,75 +97,71 @@ const ButtonContent = memo(
 
         return (
             <div
-                className={`flex flex-row h-full w-full items-center min-w-6 grow-0 justify-${
-                    centerContent ? 'center' : 'flex-start'
-                }`}
+                className="button-content"
+                data-center={centerContent || !showText}
+                data-hidden={hidden}
             >
                 <div
-                    className="shrink-0 max-h-max h-max w-max items-center justify-center"
+                    className="button-icon-box"
+                    data-has-icon={Boolean(Left)}
+                    data-has-text={showText}
                     style={{
                         height: iconSize,
                         width: iconSize,
-                        marginRight: showText && Left ? 4 : 0,
-                        marginLeft: showText && Left ? 4 : 0,
-                        display: Left ? 'flex' : 'none',
                     }}
                 >
-                    {Left}
+                    {Left && <Left className="button-icon" />}
                 </div>
-                {(Boolean(label) || Boolean(postScript)) && (
-                    <div
-                        className="flex flex-col w-full h-full justify-center text-nowrap p-1"
-                        style={{
-                            alignItems: centerContent ? 'center' : 'flex-start',
-                        }}
+                <div
+                    className="button-text-box"
+                    data-show-text={showText}
+                    data-center={centerContent}
+                >
+                    <p
+                        className="button-text"
+                        ref={setTextRef}
+                        data-show-text={showText}
+                        data-hover-only={labelOnHover}
                     >
-                        <p
-                            className={`text-${fontSize} ${
-                                showText ? 'block' : 'hidden'
-                            } select-none w-max h-max shrink text-ellipsis whitespace-nowrap overflow-hidden`}
-                        >
-                            {label}
-                        </p>
+                        {label}
+                    </p>
 
-                        {postScript && (
-                            <p className="font-light text-xs text-ellipsis text-nowrap overflow-visible select-none">
-                                {postScript}
-                            </p>
-                        )}
-                    </div>
-                )}
-                {Boolean(Right) && (
-                    <div
-                        className="shrink-0 max-h-max items-center"
-                        style={{
-                            height: iconSize,
-                            width: iconSize,
-                            marginRight: showText && Right ? 4 : 0,
-                            marginLeft: showText && Right ? 4 : 0,
-                            display: Right ? 'flex' : 'none',
-                        }}
-                    >
-                        {Right}
-                    </div>
-                )}
+                    {postScript && (
+                        <p className="font-light text-xs text-ellipsis text-nowrap overflow-visible select-none">
+                            {postScript}
+                        </p>
+                    )}
+                </div>
+                <div
+                    className="button-icon-box"
+                    data-has-icon={Boolean(Right)}
+                    data-has-text={showText}
+                    style={{
+                        height: iconSize,
+                        width: iconSize,
+                    }}
+                >
+                    {Right}
+                </div>
             </div>
         )
     },
     (prev, next) => {
         if (prev.buttonWidth !== next.buttonWidth) {
+            console.log('BUTTON WIDTH')
             return false
-        }
-        if (prev.label !== next.label) {
+        } else if (prev.label !== next.label) {
+            console.log('LABEL')
             return false
-        }
-        if (prev.postScript !== next.postScript) {
+        } else if (prev.postScript !== next.postScript) {
+            console.log('POST SCRIPT')
             return false
-        }
-        if (prev.textFits !== next.textFits) {
+        } else if (prev.Left !== next.Left) {
+            // console.log(next.Left, 'LEFT')
+            console.log('LEFT')
             return false
-        }
-        if (prev.fontSize !== next.fontSize) {
+        } else if (prev.hidden !== next.hidden) {
+            console.log('HIDDEN')
             return false
         }
         return true
@@ -210,14 +221,14 @@ export const WeblensButton = memo(
         disabled = false,
         danger = false,
         doSuper = false,
+        labelOnHover = false,
         Left = null,
         Right = null,
+        fillWidth = false,
         onClick,
 
         width,
-        height,
-        fontSize = 'md',
-        textMin,
+        squareSize = 40,
 
         onMouseUp,
         onMouseOver,
@@ -235,52 +246,41 @@ export const WeblensButton = memo(
         ] = useState(null)
         const buttonSize = useResize(sizeRef)
 
-        const [contentRef, setContentRef]: [
-            contentRef: HTMLDivElement,
-            setContentRef: any,
-        ] = useState(null)
-        const contentSize = useResize(contentRef)
-
-        // const mainWidth = useMemo(() => {
-        //     if (success) {
-        //         return height;
-        //     } else if (width) {
-        //         return width;
-        //     } else {
-        //         return "max-content";
-        //     }
-        // }, [contentSize.width, height, width]);
+        const buttonStyle = useMemo(() => {
+            return {
+                minHeight: squareSize,
+                minWidth: squareSize,
+                maxWidth: Boolean(label) ? '' : squareSize,
+                ...style,
+            }
+        }, [style, squareSize, label])
 
         return (
             <div
                 ref={setSizeRef}
-                className="flex flex-col w-full items-center justify-center m-1 shrink grow"
-                style={{ maxWidth: width, maxHeight: height }}
+                className="weblens-button-wrapper"
+                data-fill-width={fillWidth}
+                style={{
+                    maxHeight: squareSize,
+                    maxWidth: fillWidth ? '100%' : width,
+                }}
             >
-                <Box
-                    key={label}
+                <div
                     ref={setButtonRef}
                     className={
                         toggleOn === undefined
                             ? 'weblens-button'
                             : 'weblens-toggle-button'
                     }
-                    mod={{
-                        toggled: (!!toggleOn).toString(),
-                        repeat: allowRepeat.toString(),
-                        success: success.toString(),
-                        fail: fail.toString(),
-                        subtle: subtle.toString(),
-                        disabled: disabled.toString(),
-                        super: doSuper.toString(),
-                        danger: danger.toString(),
-                    }}
-                    style={{
-                        height: height,
-                        minWidth: height,
-                        width: '100%',
-                        ...style,
-                    }}
+                    data-toggled={!!toggleOn}
+                    data-repeat={allowRepeat}
+                    data-success={success}
+                    data-fail={fail}
+                    data-subtle={subtle}
+                    data-disabled={disabled}
+                    data-super={doSuper}
+                    data-danger={danger}
+                    style={buttonStyle}
                     onClick={(e) =>
                         handleButtonEvent(
                             e,
@@ -322,77 +322,77 @@ export const WeblensButton = memo(
                         )
                     }
                 >
-                    <Box ref={setContentRef} className="flex w-full">
-                        {!success && !fail && !loading && (
-                            <ButtonContent
-                                label={label}
-                                postScript={postScript}
-                                Left={Left}
-                                Right={Right}
-                                buttonWidth={buttonSize.width}
-                                fontSize={fontSize}
-                                textFits={
-                                    textMin
-                                        ? textMin <
-                                          buttonSize.width - height * 0.6
-                                        : true
-                                }
-                                iconSize={height * 0.6}
-                                centerContent={centerContent}
-                            />
+                    <div className="flex w-full justify-center relative">
+                        {success && showSuccess && (
+                            <div
+                                className="button-content absolute"
+                                data-center={true}
+                            >
+                                <IconCheck />
+                            </div>
                         )}
-                        {success && showSuccess && <IconCheck />}
                         {fail && showSuccess && (
-                            <div className="h-max w-max">
+                            <div
+                                className="button-content absolute"
+                                data-center={true}
+                            >
                                 <IconX />
                             </div>
                         )}
                         {loading && showSuccess && (
-                            <Box
-                                style={{
-                                    width: 'max-content',
-                                    height: 'max-content',
-                                    justifyContent: 'center',
-                                }}
-                            >
+                            <div className="button-content" data-center={true}>
                                 <Loader size={'20px'} color={'white'} />
-                            </Box>
+                            </div>
                         )}
-                    </Box>
-                </Box>
+                        <ButtonContent
+                            label={label}
+                            postScript={postScript}
+                            Left={Left}
+                            Right={Right}
+                            buttonWidth={buttonSize.width}
+                            iconSize={squareSize * 0.6}
+                            centerContent={centerContent}
+                            hidden={success || fail || loading}
+                            labelOnHover={labelOnHover}
+                        />
+                    </div>
+                </div>
             </div>
         )
     },
     (prev, next) => {
         if (prev.toggleOn !== next.toggleOn) {
-            console.log(next.label, 'HERE1')
+            console.log(next.label, 'TOGGLE')
             return false
         } else if (prev.label !== next.label) {
-            console.log(next.label, 'HERE2')
+            console.log(next.label, 'LABEL')
             return false
         } else if (prev.disabled !== next.disabled) {
-            console.log(next.label, 'HERE3')
+            console.log(next.label, 'DISABLED')
             return false
         } else if (prev.onClick !== next.onClick) {
-            // console.log(next.label, "HERE4");
+            console.log(next.label, 'ONCLICK')
             return false
         } else if (prev.onMouseUp !== next.onMouseUp) {
-            console.log(next.label, 'HERE5')
+            console.log(next.label, 'MOUSEUP')
             return false
         } else if (prev.onMouseOver !== next.onMouseOver) {
-            console.log(next.label, 'HERE6')
+            console.log(next.label, 'MOUSEOVER')
             return false
         } else if (prev.postScript !== next.postScript) {
-            console.log(next.label, 'HERE7')
+            console.log(next.label, 'POSTSCRIPT')
             return false
         } else if (prev.width !== next.width) {
-            console.log(next.label, 'HERE8')
+            console.log(next.label, 'WIDTH')
             return false
-        } else if (prev.height !== next.height) {
-            console.log(next.label, 'HERE9')
+        } else if (prev.squareSize !== next.squareSize) {
+            console.log(next.label, 'SQUARESIZE')
             return false
         } else if (prev.style !== next.style) {
-            console.log(next.label, 'HERE10')
+            console.log(next.label, 'STYLE')
+            return false
+        } else if (prev.Left !== next.Left) {
+            console.log(next.label, 'LEFT')
             return false
         }
         return true

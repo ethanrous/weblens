@@ -123,7 +123,7 @@ func getMediaBatch(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"Media": media})
 }
 
-var writerStations chan bool = make(chan bool, 3)
+var writerStations chan bool = make(chan bool, 6)
 
 func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 	mediaId := types.ContentId(ctx.Param("mediaId"))
@@ -163,7 +163,9 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		return
 	}
 
+	writerStations <- true
 	_, err = ctx.Writer.Write(bs)
+	<-writerStations
 
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -325,26 +327,7 @@ func handleUploadChunk(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func makeDir(ctx *gin.Context) {
-	pfId := types.FileId(ctx.Query("parentFolderId"))
-	parentFolder := dataStore.FsTreeGet(pfId)
-	if parentFolder == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Parent folder not found"})
-		return
-	}
-
-	caster := NewCaster()
-	newDir, err := dataStore.MkDir(parentFolder, ctx.Query("folderName"), caster)
-	if err != nil {
-		util.ShowErr(err)
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.Id()})
-}
-
-func pubMakeDir(ctx *gin.Context) {
+func publicCreateFolder(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 	if user == nil {
 		ctx.Status(http.StatusUnauthorized)
@@ -555,6 +538,22 @@ func trashFiles(ctx *gin.Context) {
 
 	var failed []types.FileId
 
+	acc := dataStore.NewAccessMeta(user)
+	shareId := types.ShareId(ctx.Query("shareId"))
+	if shareId != "" {
+		share, err := dataStore.GetShare(shareId, dataStore.FileShare)
+		if err != nil {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+		err = acc.AddShare(share)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	for _, fileId := range fileIds {
 		file := dataStore.FsTreeGet(fileId)
 		if file == nil {
@@ -566,14 +565,24 @@ func trashFiles(ctx *gin.Context) {
 			return
 		}
 		oldFile := file.Copy()
-		err := dataStore.MoveFileToTrash(file, caster)
+		err := dataStore.MoveFileToTrash(file, acc, caster)
 		if err != nil {
 			util.ErrTrace(err)
 			failed = append(failed, fileId)
 			continue
 		}
-		dataStore.ResizeUp(oldFile.GetParent(), caster)
-		dataStore.ResizeUp(file.GetParent(), caster)
+		err = dataStore.ResizeUp(oldFile.GetParent(), caster)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+		err = dataStore.ResizeUp(file.GetParent(), caster)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusNotFound)
+			return
+		}
 
 	}
 
@@ -746,7 +755,7 @@ func createUser(ctx *gin.Context) {
 
 	err = dataStore.CreateUser(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate)
 	if err != nil {
-		if err == dataStore.ErrUserAlreadyExists {
+		if errors.Is(err, dataStore.ErrUserAlreadyExists) {
 			ctx.Status(http.StatusConflict)
 		}
 		ctx.Status(http.StatusInternalServerError)
@@ -820,7 +829,7 @@ func updateUserPassword(ctx *gin.Context) {
 	err = dataStore.UpdatePassword(user.GetUsername(), passUpd.OldPass, passUpd.NewPass)
 	if err != nil {
 		util.ShowErr(err)
-		switch err {
+		switch err.(error) {
 		case dataStore.ErrBadPassword:
 			ctx.Status(http.StatusUnauthorized)
 		default:
@@ -845,7 +854,7 @@ func setUserAdmin(ctx *gin.Context) {
 
 	err = dataStore.UpdateAdmin(username, update.Admin)
 	if err != nil {
-		if err == dataStore.ErrNoUser {
+		if errors.Is(err, dataStore.ErrNoUser) {
 			ctx.Status(http.StatusNotFound)
 			return
 		}
@@ -858,12 +867,9 @@ func setUserAdmin(ctx *gin.Context) {
 }
 
 func activateUser(ctx *gin.Context) {
-	username, err := readCtxBody[types.Username](ctx)
-	if err != nil {
-		return
-	}
+	username := types.Username(ctx.Param("username"))
 
-	if err = dataStore.ActivateUser(username); err != nil {
+	if err := dataStore.ActivateUser(username); err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
 		return
@@ -909,14 +915,21 @@ func getSharedFiles(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	db := dataStore.NewDB()
-	shares := db.GetSharedWith(user.GetUsername())
+
+	shares := dataStore.GetSharedWithUser(user)
 
 	acc := dataStore.NewAccessMeta(user)
 	filesInfos := util.Map(shares, func(sh types.Share) types.FileInfo {
-		acc.AddShare(sh)
+		err := acc.AddShare(sh)
+		acc.SetUsingShare(sh)
+		if err != nil {
+			util.ShowErr(err)
+		}
 		f := dataStore.FsTreeGet(types.FileId(sh.GetContentId()))
-		fileInfo, _ := f.FormatFileInfo(acc)
+		fileInfo, err := f.FormatFileInfo(acc)
+		if err != nil {
+			util.ShowErr(err)
+		}
 		return fileInfo
 	})
 

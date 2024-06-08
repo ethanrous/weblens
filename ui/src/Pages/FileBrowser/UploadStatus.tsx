@@ -1,17 +1,16 @@
 import {
-    Text,
-    RingProgress,
-    CloseButton,
-    Center,
-    Tooltip,
     Box,
+    Center,
+    CloseButton,
     Divider,
+    RingProgress,
+    Text,
+    Tooltip,
 } from '@mantine/core'
 import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react'
 
-import { useMemo, useReducer } from 'react'
+import React, { useMemo, useReducer } from 'react'
 import { humanFileSize } from '../../util'
-import { RowBox } from './FileBrowserStyles'
 
 import './style/uploadStatusStyle.scss'
 import '../../components/style.scss'
@@ -156,7 +155,7 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
     }
 
     return (
-        <div className="flex flex-row h-max min-h-[50px] shrink-0 p-1 m-[1px]">
+        <div className="flex flex-row h-max min-h-[50px] shrink-0 p-1 m-[1px] items-center">
             {uploadMetadata.isDir && (
                 <IconFolder
                     color="white"
@@ -292,12 +291,7 @@ const UploadStatus = ({
 
                 <Divider h={2} w={'100%'} />
                 <div className="flex flex-row justify-center h-max p-2">
-                    <RowBox
-                        style={{
-                            justifyContent: 'space-between',
-                            width: '97%',
-                        }}
-                    >
+                    <div className="flex flex-row h-full w-[97%] items-center justify-between">
                         <Text c={'white'} fw={600} size="16px">
                             Uploading {topLevelCount} item
                             {topLevelCount !== 1 ? 's' : ''}
@@ -311,7 +305,7 @@ const UploadStatus = ({
                                 }
                             />
                         </Tooltip>
-                    </RowBox>
+                    </div>
                 </div>
             </div>
         </div>

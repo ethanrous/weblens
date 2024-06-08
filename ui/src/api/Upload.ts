@@ -1,66 +1,66 @@
-import API_ENDPOINT, { PUBLIC_ENDPOINT } from "./ApiEndpoint";
-import axios from "axios";
-import { notifications } from "@mantine/notifications";
-import { AuthHeaderT } from "../types/Types";
+import API_ENDPOINT from './ApiEndpoint'
+import axios from 'axios'
+import { notifications } from '@mantine/notifications'
+import { AuthHeaderT } from '../types/Types'
 
 export type fileUploadMetadata = {
-    file: File;
-    isDir: boolean;
-    folderId?: string;
-    parentId: string;
-    topLevelParentKey: string;
-    isTopLevel: boolean;
-};
+    file: File
+    isDir: boolean
+    folderId?: string
+    parentId: string
+    topLevelParentKey: string
+    isTopLevel: boolean
+}
 
 function PromiseQueue(tasks: (() => Promise<any>)[] = [], concurrentCount = 1) {
-    this.total = tasks.length;
-    this.todo = tasks;
-    this.running = [];
-    this.results = [];
-    this.count = concurrentCount;
+    this.total = tasks.length
+    this.todo = tasks
+    this.running = []
+    this.results = []
+    this.count = concurrentCount
 }
 
 PromiseQueue.prototype.runNext = function () {
-    return this.running.length < this.count && this.todo.length;
-};
+    return this.running.length < this.count && this.todo.length
+}
 
 PromiseQueue.prototype.workerMain = async function (workerNum: number) {
     while (this.todo.length) {
-        const task = this.todo.shift();
-        this.results.push(await task());
+        const task = this.todo.shift()
+        this.results.push(await task())
     }
-};
+}
 
 PromiseQueue.prototype.queueMore = function (tasks: (() => Promise<any>)[]) {
-    this.todo.push(...tasks);
-};
+    this.todo.push(...tasks)
+}
 
 PromiseQueue.prototype.run = async function () {
     for (let workerNum = 0; workerNum < this.count; workerNum++) {
-        this.running.push(this.workerMain());
+        this.running.push(this.workerMain())
     }
-    await Promise.all(this.running);
-    return this.results;
-};
+    await Promise.all(this.running)
+    return this.results
+}
 
 async function readFile(file) {
     return new Promise<any>(function (resolve, reject) {
-        let fr = new FileReader();
+        let fr = new FileReader()
         fr.onload = () => {
-            resolve(fr.result);
-        };
-        fr.onerror = () => {
-            reject(fr);
-        };
-        if (file) {
-            fr.readAsArrayBuffer(file);
+            resolve(fr.result)
         }
-    });
+        fr.onerror = () => {
+            reject(fr)
+        }
+        if (file) {
+            fr.readAsArrayBuffer(file)
+        }
+    })
 }
 
-const UPLOAD_CHUNK_SIZE: number = 51200000;
+const UPLOAD_CHUNK_SIZE: number = 51200000
 // const UPLOAD_CHUNK_SIZE: number = 500000;
-const CONCURRENT_UPLOAD_COUNT = 6;
+const CONCURRENT_UPLOAD_COUNT = 6
 
 async function uploadChunk(
     fileData: File,
@@ -72,24 +72,24 @@ async function uploadChunk(
     onProgress: (bytesWritten: number, MBpS: number) => void,
     onFinish: (rate: number) => void
 ) {
-    let chunk = await readFile(fileData.slice(low, high));
-    const url = `${PUBLIC_ENDPOINT}/upload/${uploadId}/file/${fileId}`;
+    let chunk = await readFile(fileData.slice(low, high))
+    const url = `${API_ENDPOINT}/upload/${uploadId}/file/${fileId}`
 
-    const start = Date.now();
+    const start = Date.now()
     await axios
         .put(url, chunk, {
             headers: {
                 Authorization: authHeader.Authorization,
-                "Content-Range": `${low}-${high - 1}/${fileData.size}`,
-                "Content-Type": "application/octet-stream",
+                'Content-Range': `${low}-${high - 1}/${fileData.size}`,
+                'Content-Type': 'application/octet-stream',
             },
             onUploadProgress: (e) => {
-                onProgress(e.bytes, e.rate);
+                onProgress(e.bytes, e.rate)
             },
         })
-        .catch((r) => console.error(r));
-    const end = Date.now();
-    onFinish((high - low) / ((end - start) / 1000));
+        .catch((r) => console.error(r))
+    const end = Date.now()
+    onFinish((high - low) / ((end - start) / 1000))
 }
 
 async function queueChunks(
@@ -101,13 +101,13 @@ async function queueChunks(
     uploadDispatch,
     taskQueue
 ) {
-    const file: File = uploadMeta.file;
-    const key: string = uploadMeta.parentId + uploadMeta.file.name;
+    const file: File = uploadMeta.file
+    const key: string = uploadMeta.parentId + uploadMeta.file.name
 
-    let url;
-    let body;
-    url = new URL(`${PUBLIC_ENDPOINT}/upload/${uploadId}`);
-    body = { parentFolderId: uploadMeta.parentId };
+    let url
+    let body
+    url = new URL(`${API_ENDPOINT}/upload/${uploadId}`)
+    body = { parentFolderId: uploadMeta.parentId }
     // if (isPublic) {
     //     url = new URL(`${API_ENDPOINT}/public/upload`);
     //     url.searchParams.append("shareId", shareId);
@@ -115,48 +115,48 @@ async function queueChunks(
     // } else {
     // }
 
-    body.newFileName = uploadMeta.file.name;
-    body.fileSize = uploadMeta.file.size;
+    body.newFileName = uploadMeta.file.name
+    body.fileSize = uploadMeta.file.size
 
     let res = await fetch(url.toString(), {
-        method: "POST",
+        method: 'POST',
         headers: authHeader,
         body: JSON.stringify(body),
     })
         .then(async (r) => {
-            return { data: await r.json(), code: r.status };
+            return { data: await r.json(), code: r.status }
         })
         .catch((r) => {
-            return { code: r.response, data: null };
-        });
+            return { code: r.response, data: null }
+        })
 
     if (res.code === 409) {
         notifications.show({
-            title: "Failed to create file",
+            title: 'Failed to create file',
             message: `${file.name} already exists`,
-            color: "red",
-        });
-        return;
+            color: 'red',
+        })
+        return
     } else if (res.code !== 201) {
         notifications.show({
-            title: "Failed to create file",
+            title: 'Failed to create file',
             message: res.code,
-            color: "red",
-        });
-        return;
+            color: 'red',
+        })
+        return
     }
 
-    const fileId = res.data.fileId;
+    const fileId = res.data.fileId
 
-    let chunkTasks = [];
-    let offset = 0;
+    let chunkTasks = []
+    let offset = 0
     // const chunkSize = Math.ceil(uploadMeta.file.size / (CONCURRENT_UPLOAD_COUNT / 2));
     // const chunkSize = uploadMeta.file.size;
-    const chunkSize = UPLOAD_CHUNK_SIZE;
+    const chunkSize = UPLOAD_CHUNK_SIZE
     while (offset < file.size) {
-        let innerOffset = offset; // Copy offset to appease eslint
+        let innerOffset = offset // Copy offset to appease eslint
         let upperBound =
-            offset + chunkSize >= file.size ? file.size : offset + chunkSize;
+            offset + chunkSize >= file.size ? file.size : offset + chunkSize
         chunkTasks.push(
             async () =>
                 await uploadChunk(
@@ -168,24 +168,24 @@ async function queueChunks(
                     authHeader,
                     (bytesWritten: number, MBpS: number) =>
                         uploadDispatch({
-                            type: "update_progress",
+                            type: 'update_progress',
                             key: key,
                             progress: bytesWritten,
                             speed: Math.trunc(MBpS),
                         }),
                     (rate: number) =>
                         uploadDispatch({
-                            type: "finished_chunk",
+                            type: 'finished_chunk',
                             key: key,
                             chunkSize: chunkSize,
                             speed: rate,
                         })
                 )
-        );
-        offset += chunkSize;
+        )
+        offset += chunkSize
     }
 
-    taskQueue.queueMore(chunkTasks);
+    taskQueue.queueMore(chunkTasks)
 }
 
 async function NewUploadTask(
@@ -196,10 +196,10 @@ async function NewUploadTask(
     shareId: string,
     authHeader: AuthHeaderT
 ): Promise<string> {
-    let url;
-    var init;
+    let url
+    let init
     init = {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({
             rootFolderId: rootFolderId,
             chunkSize: Math.min(
@@ -208,15 +208,15 @@ async function NewUploadTask(
             ),
             totalUploadSize: totalUploadSize,
         }),
-    };
-    if (isPublic) {
-        url = new URL(`${API_ENDPOINT}/public/upload`);
-        url.searchParams.append("shareId", shareId);
-    } else {
-        url = new URL(`${API_ENDPOINT}/upload`);
-        init.headers = authHeader;
     }
-    return (await fetch(url.toString(), init).then((r) => r.json())).uploadId;
+    if (isPublic) {
+        url = new URL(`${API_ENDPOINT}/public/upload`)
+        url.searchParams.append('shareId', shareId)
+    } else {
+        url = new URL(`${API_ENDPOINT}/upload`)
+        init.headers = authHeader
+    }
+    return (await fetch(url.toString(), init).then((r) => r.json())).uploadId
 }
 
 async function Upload(
@@ -229,23 +229,23 @@ async function Upload(
     wsSend: (action: string, content: any) => void
 ) {
     if (isPublic && !shareId) {
-        throw new Error("Cannot do public upload without shareId");
+        throw new Error('Cannot do public upload without shareId')
     }
 
-    let topDirs: string[] = [];
-    let hasTopFile = false;
+    let topDirs: string[] = []
+    let hasTopFile = false
 
-    const taskQueue = new PromiseQueue([], CONCURRENT_UPLOAD_COUNT);
-    let taskQPromise;
+    const taskQueue = new PromiseQueue([], CONCURRENT_UPLOAD_COUNT)
+    let taskQPromise
 
-    let totalUploadSize = 0;
-    let totalFileCount = 0;
+    let totalUploadSize = 0
+    let totalFileCount = 0
     filesMeta.forEach((v) => {
         if (v.file.size) {
-            totalUploadSize += v.file.size;
-            totalFileCount += 1;
+            totalUploadSize += v.file.size
+            totalFileCount += 1
         }
-    });
+    })
 
     const uploadId = await NewUploadTask(
         rootFolder,
@@ -254,34 +254,34 @@ async function Upload(
         isPublic,
         shareId,
         authHeader
-    );
+    )
     for (const meta of filesMeta) {
-        const key: string = meta.folderId || meta.parentId + meta.file.name;
+        const key: string = meta.folderId || meta.parentId + meta.file.name
 
         if (meta.isTopLevel) {
             uploadDispatch({
-                type: "add_new",
+                type: 'add_new',
                 isDir: meta.isDir,
                 key: key,
                 name: meta.file.name,
                 size: meta.isDir ? 0 : meta.file.size,
-            });
+            })
             if (meta.isDir) {
-                topDirs.push(meta.folderId);
+                topDirs.push(meta.folderId)
             }
-            hasTopFile = hasTopFile || !meta.isDir;
+            hasTopFile = hasTopFile || !meta.isDir
         } else {
             uploadDispatch({
-                type: "add_new",
+                type: 'add_new',
                 isDir: meta.isDir,
                 key: key,
                 name: meta.file.name,
                 parent: meta.topLevelParentKey,
                 size: meta.isDir ? 0 : meta.file.size,
-            });
+            })
         }
         if (meta.isDir) {
-            continue;
+            continue
         }
         await queueChunks(
             meta,
@@ -291,12 +291,12 @@ async function Upload(
             authHeader,
             uploadDispatch,
             taskQueue
-        );
+        )
         if (!taskQPromise) {
-            taskQPromise = taskQueue.run();
+            taskQPromise = taskQueue.run()
         }
     }
-    await taskQPromise;
+    await taskQPromise
 
     // if (hasTopFile) {
     //     dispatchSync(rootFolder, wsSend, false, false);
@@ -307,4 +307,4 @@ async function Upload(
     // }
 }
 
-export default Upload;
+export default Upload

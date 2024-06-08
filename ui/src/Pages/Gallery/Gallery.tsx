@@ -1,36 +1,28 @@
-import { Box, Button, Modal, Space, Tabs, TextInput } from '@mantine/core'
-import {
+import { Box } from '@mantine/core'
+import React, {
+    createContext,
+    useContext,
     useEffect,
     useReducer,
     useRef,
-    useContext,
-    useState,
-    createContext,
-    useCallback,
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { IconFilter, IconPlus } from '@tabler/icons-react'
 
 import HeaderBar from '../../components/HeaderBar'
 import Presentation from '../../components/Presentation'
-import { mediaReducer, useKeyDownGallery, GalleryAction } from './GalleryLogic'
-import { CreateAlbum, FetchData, GetAlbums } from '../../api/GalleryApi'
+import { GalleryAction, mediaReducer, useKeyDownGallery } from './GalleryLogic'
+import { GetAlbums } from '../../api/GalleryApi'
 import {
     AlbumData,
     GalleryDispatchT,
     GalleryStateT,
     PresentType,
-    UserContextT,
     UserInfoT,
 } from '../../types/Types'
 import { UserContext } from '../../Context'
-import { RowBox } from '../FileBrowser/FileBrowserStyles'
 import { Albums } from './Albums'
-import { WeblensButton } from '../../components/WeblensButton'
 import { useDebouncedValue } from '@mantine/hooks'
 import { clamp } from '../../util'
-
-import WeblensSlider from '../../components/WeblensSlider'
 import WeblensMedia from '../../classes/Media'
 
 import './galleryStyle.scss'
@@ -47,7 +39,7 @@ export const GalleryContext = createContext<GalleryContextT>({
 })
 
 const Gallery = () => {
-    const [mediaState, dispatch] = useReducer<
+    const [galleryState, galleryDispatch] = useReducer<
         (state: GalleryStateT, action: GalleryAction) => GalleryStateT
     >(mediaReducer, {
         mediaMap: new Map<string, WeblensMedia>(),
@@ -85,13 +77,13 @@ const Gallery = () => {
     const viewportRef: React.Ref<HTMLDivElement> = useRef()
 
     const searchRef = useRef()
-    useKeyDownGallery(searchRef, mediaState, dispatch)
+    useKeyDownGallery(searchRef, galleryState, galleryDispatch)
 
     useEffect(() => {
         if (usr.isLoggedIn) {
-            dispatch({ type: 'remove_loading', loading: 'login' })
+            galleryDispatch({ type: 'remove_loading', loading: 'login' })
         } else if (usr.isLoggedIn === undefined) {
-            dispatch({ type: 'add_loading', loading: 'login' })
+            galleryDispatch({ type: 'add_loading', loading: 'login' })
         } else if (usr.isLoggedIn === false) {
             nav('/login')
         }
@@ -100,47 +92,53 @@ const Gallery = () => {
     useEffect(() => {
         localStorage.setItem(
             'albumsFilter',
-            JSON.stringify(mediaState.albumsFilter)
+            JSON.stringify(galleryState.albumsFilter)
         )
-    }, [mediaState.albumsFilter])
+    }, [galleryState.albumsFilter])
 
     useEffect(() => {
-        localStorage.setItem('showRaws', JSON.stringify(mediaState.includeRaw))
-    }, [mediaState.includeRaw])
+        localStorage.setItem(
+            'showRaws',
+            JSON.stringify(galleryState.includeRaw)
+        )
+    }, [galleryState.includeRaw])
 
-    const [bouncedSize] = useDebouncedValue(mediaState.imageSize, 500)
+    const [bouncedSize] = useDebouncedValue(galleryState.imageSize, 500)
     useEffect(() => {
         localStorage.setItem('imageSize', JSON.stringify(bouncedSize))
     }, [bouncedSize])
 
     useEffect(() => {
         if (authHeader.Authorization !== '' && page !== 'albums') {
-            dispatch({ type: 'add_loading', loading: 'albums' })
+            galleryDispatch({ type: 'add_loading', loading: 'albums' })
             GetAlbums(authHeader).then((val) => {
-                dispatch({ type: 'set_albums', albums: val })
-                dispatch({ type: 'remove_loading', loading: 'albums' })
+                galleryDispatch({ type: 'set_albums', albums: val })
+                galleryDispatch({ type: 'remove_loading', loading: 'albums' })
             })
         }
     }, [authHeader, page])
 
     return (
         <GalleryContext.Provider
-            value={{ galleryState: mediaState, galleryDispatch: dispatch }}
+            value={{
+                galleryState: galleryState,
+                galleryDispatch: galleryDispatch,
+            }}
         >
             <HeaderBar
-                dispatch={dispatch}
+                dispatch={galleryDispatch}
                 page={'gallery'}
-                loading={mediaState.loading}
+                loading={galleryState.loading}
             />
             <Presentation
-                itemId={mediaState.presentingMedia?.Id()}
+                itemId={galleryState.presentingMedia?.Id()}
                 mediaData={
-                    mediaState.presentingMode === PresentType.Fullscreen
-                        ? mediaState.presentingMedia
+                    galleryState.presentingMode === PresentType.Fullscreen
+                        ? galleryState.presentingMedia
                         : null
                 }
                 element={null}
-                dispatch={dispatch}
+                dispatch={galleryDispatch}
             />
             <div className="h-full z-10">
                 <Box

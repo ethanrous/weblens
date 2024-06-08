@@ -1,14 +1,29 @@
 @import "./theme.scss";
 
+.weblens-button-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    align-items: center;
+    justify-content: center;
+    margin: 4px;
+    flex-shrink: 1;
+
+    &[data-fill-width='true'] {
+        flex-grow: 1;
+        width: 100%;
+    }
+}
+
 .weblens-button {
     display: flex;
     flex-shrink: 1;
     margin: 4px;
     border-radius: 4px;
     height: 50px;
-    width: max-content;
     max-height: 100%;
     max-width: 100%;
+    width: 100%;
     justify-content: center;
     align-items: center;
     padding: 8px;
@@ -20,9 +35,10 @@
     transition: all 150ms ease-out;
 
     &:hover {
-        box-shadow: 6px 6px 2px #000000;
+        box-shadow: 5px 5px 2px #000000;
         background-color: $dark-paper;
         outline: 1px solid #4444ff;
+        transform: translateY(-1px);
     }
 
     &[data-disabled='true'] {
@@ -55,7 +71,7 @@
 
     &[data-fail='true'] {
         background-color: #ff3333;
-        outline: none;
+        //outline: 1px solid #;
         cursor: default;
         pointer-events: none;
 
@@ -63,16 +79,15 @@
 
     &[data-danger='true'] {
         background-color: #ff3333;
-        outline: 1px solid #ff333300;
+        outline: 1px solid #ff444400;
 
         &[data-subtle='true'] {
             background-color: #521f22;
-            outline: 1px solid #ff4444;
         }
 
         &:hover {
             background-color: #521f22;
-            outline: 1px solid #ff3333;
+            outline: 1px solid #ff4444;
         }
 
         &[data-disabled='true'] {
@@ -109,7 +124,7 @@
         background-position: 100% 100%;
     }
     62.5% {
-        background-position: 0% 100%;
+        background-position: 0 100%;
     }
     100% {
         background-position: 75% 100%;
@@ -124,7 +139,7 @@
     margin: 4px;
     border-radius: 4px;
     height: 50px;
-    width: max-content;
+    width: 100%;
     max-height: 100%;
     max-width: 100%;
     justify-content: center;
@@ -139,6 +154,11 @@
 
     transition: all 150ms;
 
+    &:hover {
+        box-shadow: 5px 5px 2px #000000;
+        transform: translateY(-1px);
+    }
+
     &[data-toggled='true'] {
         font-weight: 600;
         background-color: #3600cc;
@@ -147,7 +167,7 @@
 
         &[data-repeat='true']:hover {
             background-color: #3600cccc;
-            box-shadow: 6px 6px 2px #000000;
+
         }
 
         &[data-repeat='false'] {
@@ -157,10 +177,8 @@
     }
 
     &[data-toggled='false'] {
-
         &:hover {
             color: white;
-            box-shadow: 6px 6px 2px #000000;
             outline: 1px solid #4444ff;
         }
     }
@@ -172,5 +190,92 @@
         cursor: default;
         color: #aaaaaa;
         outline: 1px solid #4444ff00;
+    }
+}
+
+.button-content {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: 100%;
+    align-items: center;
+    min-width: 24px;
+    flex-grow: 0;
+    opacity: 100%;
+    overflow: hidden;
+    
+    transition: opacity 100ms ease-in-out;
+
+    &[data-center='true'] {
+        justify-content: center;
+    }
+
+    &[data-hidden='true'] {
+        pointer-events: none;
+        opacity: 0;
+    }
+}
+
+.button-text-box {
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    height: 100%;
+    justify-content: center;
+    text-wrap: nowrap;
+    align-items: flex-start;
+    transition: width 150ms ease-in-out;
+
+    &[data-center='true'] {
+        align-items: center;
+    }
+
+    &[data-show-text='false'] {
+        width: 0;
+    }
+}
+
+.button-text {
+    user-select: none;
+    width: max-content;
+    height: max-content;
+    flex-shrink: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+
+    transition: opacity 150ms ease-in-out;
+
+    &[data-show-text='true'] {
+        opacity: 100%;
+        pointer-events: all;
+        display: block;
+    }
+
+}
+
+.weblens-toggle-button:hover .button-text {
+    width: max-content;
+    max-width: 4000px;
+}
+
+.button-icon-box {
+    display: none;
+    flex-shrink: 0;
+    height: max-content;
+    max-height: max-content;
+    width: max-content;
+    align-items: center;
+    justify-content: center;
+
+    &[data-has-icon='true'] {
+        display: flex;
+
+        &[data-has-text='true'] {
+            margin-left: 4px;
+            margin-right: 4px;
+        }
     }
 }

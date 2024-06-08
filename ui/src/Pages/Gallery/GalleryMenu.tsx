@@ -1,43 +1,43 @@
-import WeblensMedia from "../../classes/Media";
-import { WeblensButton } from "../../components/WeblensButton";
-import { useClick, useKeyDown } from "../../components/hooks";
-import { memo, useCallback, useContext, useMemo, useState } from "react";
-import { SetAlbumCover } from "../../api/GalleryApi";
-import { UserContext } from "../../Context";
+import WeblensMedia from '../../classes/Media'
+import { WeblensButton } from '../../components/WeblensButton'
+import { useClick, useKeyDown } from '../../components/hooks'
+import { memo, useCallback, useContext, useMemo, useState } from 'react'
+import { SetAlbumCover } from '../../api/GalleryApi'
+import { UserContext } from '../../Context'
 import {
     IconCalendarTime,
     IconCaretDown,
     IconCaretUp,
     IconEyeOff,
     IconPolaroid,
-} from "@tabler/icons-react";
-import { GalleryContext } from "./Gallery";
-import { adjustMediaTime, hideMedia } from "../../api/ApiFetch";
-import { GalleryDispatchT, newTimeOffset, TimeOffset } from "../../types/Types";
+} from '@tabler/icons-react'
+import { GalleryContext } from './Gallery'
+import { adjustMediaTime, hideMedia } from '../../api/ApiFetch'
+import { GalleryDispatchT, newTimeOffset, TimeOffset } from '../../types/Types'
 
 const mediaDate = (timestamp: number) => {
-    const dateObj = new Date(timestamp);
+    const dateObj = new Date(timestamp)
     const options: Intl.DateTimeFormatOptions = {
-        month: "long",
-        day: "numeric",
-        minute: "numeric",
-        hour: "numeric",
-        timeZoneName: "short",
-    };
-    if (dateObj.getFullYear() !== new Date().getFullYear()) {
-        options.year = "numeric";
+        month: 'long',
+        day: 'numeric',
+        minute: 'numeric',
+        hour: 'numeric',
+        timeZoneName: 'short',
     }
-    return dateObj.toLocaleDateString("en-US", options);
-};
+    if (dateObj.getFullYear() !== new Date().getFullYear()) {
+        options.year = 'numeric'
+    }
+    return dateObj.toLocaleDateString('en-US', options)
+}
 
 function TimeSlice({
     value,
     isAnchor,
     incDecFunc,
 }: {
-    value: any;
-    isAnchor: boolean;
-    incDecFunc: (n: number) => void;
+    value: any
+    isAnchor: boolean
+    incDecFunc: (n: number) => void
 }) {
     return (
         <div className="flex flex-col w-max h-max p-2 items-center">
@@ -45,8 +45,8 @@ function TimeSlice({
                 <IconCaretUp
                     className="cursor-pointer"
                     onClick={(e) => {
-                        e.stopPropagation();
-                        incDecFunc(1);
+                        e.stopPropagation()
+                        incDecFunc(1)
                     }}
                 />
             )}
@@ -57,13 +57,13 @@ function TimeSlice({
                 <IconCaretDown
                     className="cursor-pointer"
                     onClick={(e) => {
-                        e.stopPropagation();
-                        incDecFunc(-1);
+                        e.stopPropagation()
+                        incDecFunc(-1)
                     }}
                 />
             )}
         </div>
-    );
+    )
 }
 
 function TimeDialogue({
@@ -74,96 +74,96 @@ function TimeDialogue({
     adjustTime,
     galleryDispatch,
 }: {
-    media: WeblensMedia;
-    isAnchor: boolean;
-    close: () => void;
-    offset: TimeOffset;
-    adjustTime: (d: Date) => Promise<string>;
-    galleryDispatch: GalleryDispatchT;
+    media: WeblensMedia
+    isAnchor: boolean
+    close: () => void
+    offset: TimeOffset
+    adjustTime: (d: Date) => Promise<string>
+    galleryDispatch: GalleryDispatchT
 }) {
-    const [date, setDate] = useState<Date>(null);
+    const [date, setDate] = useState<Date>(null)
 
     const monthTicker = useCallback(
         (n) => {
-            offset.month += n;
-            galleryDispatch({ type: "set_time_offset", offset: offset });
+            offset.month += n
+            galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
-    );
+    )
 
     const dayTicker = useCallback(
         (n) => {
-            offset.day += n;
-            galleryDispatch({ type: "set_time_offset", offset: offset });
+            offset.day += n
+            galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
-    );
+    )
 
     const yearTicker = useCallback(
         (n) => {
-            offset.year += n;
-            galleryDispatch({ type: "set_time_offset", offset: offset });
+            offset.year += n
+            galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
-    );
+    )
     const hourTicker = useCallback(
         (n) => {
-            offset.hour += n;
-            galleryDispatch({ type: "set_time_offset", offset: offset });
+            offset.hour += n
+            galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
-    );
+    )
     const minuteTicker = useCallback(
         (n) => {
-            offset.minute += n;
-            galleryDispatch({ type: "set_time_offset", offset: offset });
+            offset.minute += n
+            galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
-    );
+    )
     const secondTicker = useCallback(
         (n) => {
-            offset.second += n;
-            galleryDispatch({ type: "set_time_offset", offset: offset });
+            offset.second += n
+            galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
-    );
+    )
 
     const offsetDate = useMemo(() => {
         if (date == null || !offset) {
-            return null;
+            return null
         }
-        let offsetDate = new Date(date);
+        let offsetDate = new Date(date)
 
         offsetDate = new Date(
             offsetDate.setSeconds(date.getSeconds() + offset.second)
-        );
+        )
         offsetDate = new Date(
             offsetDate.setMinutes(date.getMinutes() + offset.minute)
-        );
+        )
         offsetDate = new Date(
             offsetDate.setHours(date.getHours() + offset.hour)
-        );
-        offsetDate = new Date(offsetDate.setDate(date.getDate() + offset.day));
+        )
+        offsetDate = new Date(offsetDate.setDate(date.getDate() + offset.day))
 
         // Months are indexed from 0, for some reason, so we must add 1
         offsetDate = new Date(
             offsetDate.setMonth(date.getMonth() + offset.month)
-        );
+        )
 
         offsetDate = new Date(
             offsetDate.setFullYear(date.getFullYear() + offset.year)
-        );
+        )
 
-        return offsetDate;
-    }, [offset, date]);
+        return offsetDate
+    }, [offset, date])
 
     if (date === null) {
-        setDate(new Date(media.GetCreateDate()));
-        return null;
+        setDate(new Date(media.GetCreateDate()))
+        return null
     }
 
     if (offsetDate == null) {
-        return null;
+        return null
     }
 
     return (
@@ -172,8 +172,8 @@ function TimeDialogue({
                 <div className="flex flex-row items-center justify-center">
                     {/* Month */}
                     <TimeSlice
-                        value={offsetDate.toLocaleString("default", {
-                            month: "short",
+                        value={offsetDate.toLocaleString('default', {
+                            month: 'short',
                         })}
                         isAnchor={isAnchor}
                         incDecFunc={monthTicker}
@@ -222,27 +222,27 @@ function TimeDialogue({
                     <WeblensButton
                         label="Cancel"
                         subtle
-                        fontSize={"xl"}
-                        height={50}
+                        fontSize={'xl'}
+                        squareSize={50}
                         onClick={(e) => {
-                            e.stopPropagation();
-                            close();
+                            e.stopPropagation()
+                            close()
                         }}
                     />
                     <div className="p-3" />
                     <WeblensButton
                         label="Confirm"
-                        fontSize={"xl"}
-                        height={50}
+                        fontSize={'xl'}
+                        squareSize={50}
                         onClick={(e) => {
-                            e.stopPropagation();
-                            adjustTime(offsetDate);
+                            e.stopPropagation()
+                            adjustTime(offsetDate)
                         }}
                     />
                 </div>
             )}
         </div>
-    );
+    )
 }
 
 export const GalleryMenu = memo(
@@ -253,62 +253,62 @@ export const GalleryMenu = memo(
         updateAlbum,
         albumId,
     }: {
-        media: WeblensMedia;
-        open: boolean;
-        setOpen: (o: boolean) => void;
-        updateAlbum?: () => void;
-        albumId?: string;
+        media: WeblensMedia
+        open: boolean
+        setOpen: (o: boolean) => void
+        updateAlbum?: () => void
+        albumId?: string
     }) => {
-        const { authHeader } = useContext(UserContext);
-        const { galleryState, galleryDispatch } = useContext(GalleryContext);
-        const [menuRef, setMenuRef] = useState(null);
+        const { authHeader } = useContext(UserContext)
+        const { galleryState, galleryDispatch } = useContext(GalleryContext)
+        const [menuRef, setMenuRef] = useState(null)
 
         useClick(
             () => {
-                setOpen(false);
+                setOpen(false)
                 galleryDispatch({
-                    type: "set_time_offset",
+                    type: 'set_time_offset',
                     offset: null,
-                });
+                })
             },
             menuRef,
             !open || galleryState.timeAdjustOffset !== null
-        );
+        )
 
-        useKeyDown("Escape", (e) => {
+        useKeyDown('Escape', (e) => {
             if (open) {
-                setOpen(false);
+                setOpen(false)
                 galleryDispatch({
-                    type: "set_time_offset",
+                    type: 'set_time_offset',
                     offset: null,
-                });
+                })
             }
-        });
+        })
 
         const hide = useCallback(
             async (e) => {
-                e.stopPropagation();
+                e.stopPropagation()
 
-                let medias = [];
+                let medias = []
                 if (galleryState.selecting) {
-                    medias = Array.from(galleryState.selected.keys());
+                    medias = Array.from(galleryState.selected.keys())
                 }
-                medias.push(media.Id());
-                const r = hideMedia(medias, authHeader);
+                medias.push(media.Id())
+                const r = hideMedia(medias, authHeader)
 
                 galleryDispatch({
-                    type: "delete_from_map",
+                    type: 'delete_from_map',
                     mediaIds: medias,
-                });
+                })
 
                 if ((await r).status !== 200) {
-                    return false;
+                    return false
                 }
 
-                return true;
+                return true
             },
             [galleryState.selected]
-        );
+        )
 
         const adjustTime = useCallback(
             async (newDate: Date) => {
@@ -317,20 +317,20 @@ export const GalleryMenu = memo(
                     newDate,
                     Array.from(galleryState.selected.keys()),
                     authHeader
-                );
+                )
                 galleryDispatch({
-                    type: "set_time_offset",
+                    type: 'set_time_offset',
                     offset: null,
-                });
+                })
 
-                return r;
+                return r
             },
             [media, authHeader, galleryState.selected]
-        );
+        )
 
         const hideStyle = useMemo(() => {
-            return { opacity: open ? "100%" : "0%" };
-        }, [open]);
+            return { opacity: open ? '100%' : '0%' }
+        }, [open])
 
         return (
             <div
@@ -342,13 +342,13 @@ export const GalleryMenu = memo(
                         galleryState.timeAdjustOffset !== null)
                 }
                 onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen(false);
+                    e.stopPropagation()
+                    setOpen(false)
                 }}
                 onContextMenu={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setOpen(false);
+                    e.stopPropagation()
+                    e.preventDefault()
+                    setOpen(false)
                 }}
             >
                 {(media.IsSelected() || open) &&
@@ -358,7 +358,7 @@ export const GalleryMenu = memo(
                             isAnchor={media.Id() === galleryState.menuTargetId}
                             close={() =>
                                 galleryDispatch({
-                                    type: "set_time_offset",
+                                    type: 'set_time_offset',
                                     offset: null,
                                 })
                             }
@@ -370,17 +370,17 @@ export const GalleryMenu = memo(
                 {open && galleryState.timeAdjustOffset === null && (
                     <div className="flex flex-col items-center w-max p-1">
                         <WeblensButton
-                            height={40}
-                            width={"100%"}
+                            squareSize={40}
+                            width={'100%'}
                             Left={<IconCalendarTime />}
                             label="Adjust Time"
                             centerContent
                             onClick={(e) => {
-                                e.stopPropagation();
+                                e.stopPropagation()
                                 galleryDispatch({
-                                    type: "set_time_offset",
+                                    type: 'set_time_offset',
                                     offset: newTimeOffset(),
-                                });
+                                })
                             }}
                         />
                         <WeblensButton
@@ -388,23 +388,23 @@ export const GalleryMenu = memo(
                             subtle
                             centerContent
                             Left={<IconPolaroid />}
-                            height={40}
-                            width={"100%"}
+                            squareSize={40}
+                            width={'100%'}
                             textMin={100}
                             disabled={!albumId}
-                            style={{ opacity: open ? "100%" : "0%" }}
+                            style={{ opacity: open ? '100%' : '0%' }}
                             onClick={async (e) => {
-                                e.stopPropagation();
+                                e.stopPropagation()
                                 const r = await SetAlbumCover(
                                     albumId,
                                     media.Id(),
                                     authHeader
-                                );
-                                updateAlbum();
+                                )
+                                updateAlbum()
                                 if (r.status !== 200) {
-                                    return false;
+                                    return false
                                 }
-                                return true;
+                                return true
                             }}
                         />
                         <WeblensButton
@@ -413,8 +413,8 @@ export const GalleryMenu = memo(
                             centerContent
                             danger
                             Left={<IconEyeOff />}
-                            height={40}
-                            width={"100%"}
+                            squareSize={40}
+                            width={'100%'}
                             textMin={100}
                             disabled={media.IsHidden()}
                             style={hideStyle}
@@ -423,25 +423,25 @@ export const GalleryMenu = memo(
                     </div>
                 )}
             </div>
-        );
+        )
     },
     (prev, next) => {
         if (prev.media !== next.media) {
-            return false;
+            return false
         }
         if (prev.open !== next.open) {
-            return false;
+            return false
         }
         if (prev.setOpen !== next.setOpen) {
-            return false;
+            return false
         }
         if (prev.albumId !== next.albumId) {
-            return false;
+            return false
         }
         if (prev.updateAlbum !== next.updateAlbum) {
-            return false;
+            return false
         }
 
-        return true;
+        return true
     }
-);
+)

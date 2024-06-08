@@ -1,4 +1,11 @@
-import { memo, useCallback, useContext, useMemo, useRef, useState } from 'react'
+import React, {
+    memo,
+    useCallback,
+    useContext,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 
 import { Box, Loader, Menu, MenuTarget, Text } from '@mantine/core'
 
@@ -156,15 +163,25 @@ const StyledIcon = memo(
         const textSize = useResize(textRef)
 
         const style = useMemo(() => {
-            return { width: hover ? textSize.width + 33 : 28 }
+            return {
+                width: hover ? textSize.width + 33 : 28,
+                cursor: onClick ? 'pointer' : 'default',
+            }
         }, [hover, visible])
+
+        const stopProp = useCallback((e) => {
+            e.stopPropagation()
+            if (onClick) {
+                onClick(e)
+            }
+        }, [])
 
         return (
             <div
                 className="hover-icon"
                 onMouseOver={() => setHover(true)}
                 onMouseLeave={() => setHover(false)}
-                onClick={onClick}
+                onClick={stopProp}
                 style={style}
             >
                 <Icon style={{ flexShrink: 0 }} />
@@ -221,15 +238,13 @@ const MediaInfoDisplay = memo(
             []
         )
 
-        const stopProp = useCallback((e) => e.stopPropagation(), [])
-
         return (
             <div className="media-meta-preview">
                 <StyledIcon
                     Icon={icon}
                     label={name}
                     visible={visible}
-                    onClick={stopProp}
+                    onClick={null}
                 />
 
                 <StyledIcon
@@ -795,6 +810,7 @@ export function PhotoGallery({
             }}
         >
             <div ref={setScrollRef} className="gallery-scroll-box">
+                <div className="h-4" />
                 {data.rows.map((r, i) => {
                     if (
                         i < beforeCount - overScanLite ||

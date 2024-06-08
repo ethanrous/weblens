@@ -1,20 +1,28 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import React, {
+    memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 import { Divider, Loader, Text } from '@mantine/core'
 import { MediaImage } from './PhotoContainer'
 import { WeblensFile } from '../classes/File'
-import { getVisitRoute } from '../Pages/FileBrowser/FileBrowserLogic'
 import { useNavigate } from 'react-router-dom'
-import { DraggingState } from '../Pages/FileBrowser/FileBrowser'
+import { DraggingState, FbContext } from '../Pages/FileBrowser/FileBrowser'
 
 import './itemDisplayStyle.css'
 import { IconFolder, IconPhoto } from '@tabler/icons-react'
+import { FbMenuModeT } from '../Pages/FileBrowser/FileBrowserStyles'
 
 export type GlobalContextType = {
     setDragging: (d: DraggingState) => void
     blockFocus: (b: boolean) => void
     rename: (itemId: string, newName: string) => void
 
-    setMenuOpen: (o: boolean) => void
+    setMenuOpen: (m: FbMenuModeT) => void
     setMenuPos: ({ x, y }: { x: number; y: number }) => void
     setMenuTarget: (itemId: string) => void
 
@@ -55,7 +63,7 @@ type WrapperProps = {
     setDragging: (d: DraggingState) => void
     setHovering: (i: string) => void
 
-    setMenuOpen: (o: boolean) => void
+    setMenuMode: (m: FbMenuModeT) => void
     setMenuPos: ({ x, y }: { x: number; y: number }) => void
     setMenuTarget: (itemId: string) => void
 
@@ -115,11 +123,11 @@ const ItemWrapper = memo(
         selected,
         setSelected,
         doSelectMany,
-        dragging = 0,
+        dragging = DraggingState.NoDrag,
         setDragging,
         setHovering,
         moveSelected,
-        setMenuOpen,
+        setMenuMode,
         setMenuPos,
         setMenuTarget,
         setMoveDest,
@@ -127,11 +135,15 @@ const ItemWrapper = memo(
     }: WrapperProps) => {
         const [mouseDown, setMouseDown] = useState(null)
         const nav = useNavigate()
+        const { fbState, fbDispatch } = useContext(FbContext)
 
-        const { outline, backgroundColor } = selectedStyles(selected)
+        const { outline, backgroundColor } = useMemo(() => {
+            return selectedStyles(selected)
+        }, [selected])
 
         return (
             <div
+                className="animate-fade"
                 ref={fileRef}
                 style={{ margin: MARGIN }}
                 onMouseOver={(e) => {
@@ -176,13 +188,10 @@ const ItemWrapper = memo(
                 }}
                 onDoubleClick={(e) => {
                     e.stopPropagation()
-                    const jump = getVisitRoute(
-                        'default',
-                        file.Id(),
-                        '',
-                        file.IsFolder(),
-                        file.GetMedia()?.IsDisplayable(),
-                        () => {}
+                    const jump = file.GetVisitRoute(
+                        fbState.fbMode,
+                        fbState.shareId,
+                        fbDispatch
                     )
                     if (jump) {
                         nav(jump)
@@ -194,7 +203,7 @@ const ItemWrapper = memo(
 
                     setMenuTarget(file.Id())
                     setMenuPos({ x: e.clientX, y: e.clientY })
-                    setMenuOpen(true)
+                    setMenuMode(FbMenuModeT.Default)
                 }}
                 onMouseLeave={(e) => {
                     file.SetHovering(false)
@@ -208,7 +217,7 @@ const ItemWrapper = memo(
                 }}
             >
                 <div
-                    className="flex flex-col items-center justify-center overflow-hidden rounded-md transition-colors outline-none"
+                    className="flex flex-col items-center justify-center overflow-hidden rounded-md transition-colors"
                     children={children}
                     style={{
                         outline: outline,
@@ -269,7 +278,6 @@ const FileVisualWrapper = ({ children }) => {
 
 const FileVisual = memo(
     ({ file, doFetch }: { file: WeblensFile; doFetch: boolean }) => {
-        console.log('HERE')
         if (file.IsFolder()) {
             return <IconFolder size={150} />
         }
@@ -289,7 +297,8 @@ const FileVisual = memo(
         return null
     },
     (prev, next) => {
-        if (prev.file.GetMedia() !== next.file.GetMedia()) {
+        // console.log(prev.file.GetMedia()?.Id(), next.file.GetMedia()?.Id())
+        if (prev.file.GetMedia()?.Id() !== next.file.GetMedia()?.Id()) {
             return false
         } else if (prev.doFetch !== next.doFetch) {
             return false
@@ -462,6 +471,15 @@ const TextBox = memo(
         }
     },
     (prev, next) => {
+        if (prev.secondaryInfo !== next.secondaryInfo) {
+            return false
+        } else if (prev.editing !== next.editing) {
+            return false
+        } else if (prev.itemTitle !== next.itemTitle) {
+            return false
+        } else if (prev.height !== next.height) {
+            return false
+        }
         return true
     }
 )
@@ -503,7 +521,7 @@ export const FileDisplay = memo(
                 setDragging={context.setDragging}
                 setHovering={context.setHovering}
                 setMoveDest={context.setMoveDest}
-                setMenuOpen={context.setMenuOpen}
+                setMenuMode={context.setMenuOpen}
                 setMenuPos={context.setMenuPos}
                 setMenuTarget={context.setMenuTarget}
                 editing={editing}

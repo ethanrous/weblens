@@ -30,7 +30,6 @@ import { notifications } from '@mantine/notifications'
 import { AddMediaToAlbum, CreateAlbum, GetAlbums } from '../../api/GalleryApi'
 import { MediaImage } from '../../components/PhotoContainer'
 import { AlbumData, AuthHeaderT, UserContextT } from '../../types/Types'
-import { RowBox } from './FileBrowserStyles'
 import { UserContext } from '../../Context'
 import { VariableSizeList } from 'react-window'
 import { GetMediasByFolder } from '../../api/FileBrowserApi'
@@ -172,14 +171,8 @@ const SingleAlbum = memo(
                     }}
                     disabled={disabled}
                 />
-                <RowBox
-                    style={{
-                        width: '235px',
-                        justifyContent: 'space-evenly',
-                        flexGrow: 0,
-                    }}
-                >
-                    <Box
+                <div className="flex flex-row h-full w-[235px] justify-evenly items-center grow-0">
+                    <div
                         style={{
                             height: 'max-content',
                             width: '50%',
@@ -187,7 +180,7 @@ const SingleAlbum = memo(
                             flexGrow: 1,
                         }}
                     >
-                        <Box
+                        <div
                             style={{
                                 display: 'flex',
                                 flexGrow: 0,
@@ -221,34 +214,22 @@ const SingleAlbum = memo(
                                     />
                                 </Tooltip>
                             )}
-                        </Box>
-                        <RowBox>
-                            <RowBox>
-                                <IconPhoto
-                                    color={disabled ? '#777777' : 'white'}
-                                    size={'15px'}
-                                />
-                                <Text
-                                    size="15px"
-                                    c={disabled ? '#777777' : 'white'}
-                                    style={{ paddingLeft: 5 }}
-                                >
-                                    {album.Medias.length}
-                                </Text>
-                            </RowBox>
-                        </RowBox>
-                    </Box>
-                    <RowBox
-                        style={{
-                            position: 'absolute',
-                            width: 'max-content',
-                            alignItems: 'flex-end',
-                            justifyContent: 'flex-end',
-                            padding: 4,
-                            right: 0,
-                            cursor: 'pointer',
-                        }}
-                    >
+                        </div>
+                        <div className="flex flex-row h-full w-full items-center justify-center">
+                            <IconPhoto
+                                color={disabled ? '#777777' : 'white'}
+                                size={'15px'}
+                            />
+                            <Text
+                                size="15px"
+                                c={disabled ? '#777777' : 'white'}
+                                style={{ paddingLeft: 5 }}
+                            >
+                                {album.Medias.length}
+                            </Text>
+                        </div>
+                    </div>
+                    <div className="flex flex-row absolute h-full w-max items-end justify-end p-2 right-0 cursor-pointer">
                         <TooltipFloating position="right" label="Open Album">
                             <IconExternalLink
                                 size={'15px'}
@@ -261,8 +242,8 @@ const SingleAlbum = memo(
                                 }}
                             />
                         </TooltipFloating>
-                    </RowBox>
-                </RowBox>
+                    </div>
+                </div>
             </Box>
         )
     },

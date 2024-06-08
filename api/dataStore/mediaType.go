@@ -107,7 +107,7 @@ func (f *weblensFile) GetMediaType() (types.MediaType, error) {
 		}
 	}
 
-	mType := ParseExtType(f.Filename()[strings.Index(f.Filename(), ".")+1:])
+	mType := ParseExtType(f.Filename()[strings.LastIndex(f.Filename(), ".")+1:])
 	return mType, nil
 }
 

@@ -9,6 +9,7 @@
     background-color: #33335f;
     border-radius: 6px;
     transition: all 200ms ease-in-out;
+    cursor: pointer;
 
     &:hover {
         box-shadow: $hard-shadow;
@@ -34,4 +35,10 @@
     position: relative;
     z-index: 2;
     cursor: pointer;
+
+    transition: 200ms transform ease-in-out;
+
+    &:hover {
+        transform: scale(1.10);
+    }
 }

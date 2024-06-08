@@ -25,7 +25,7 @@
 .snapshot-menu-open {
     width: 300px;
     flex-shrink: 0;
-    border-radius: 4px 4px 0px 0px;
+    border-radius: 4px 4px 0 0;
 }
 
 .snapshot-menu-dropdown {
@@ -33,7 +33,7 @@
     flex-direction: column;
     position: absolute;
     background-color: #222222;
-    border-radius: 0px 0px 4px 4px;
+    border-radius: 0 0 4px 4px;
     padding: 10px;
     /* margin-top: 315px; */
     top: 114px;
@@ -45,7 +45,7 @@
 }
 
 .snapshot-row {
-    height: 50;
+    height: 50px;
     width: 100%;
     display: flex;
     align-items: center;
@@ -99,7 +99,7 @@
     max-height: 500px;
     border-radius: 8px;
     flex-direction: column;
-    border: 0px solid #ffffff34;
+    border: 0 solid #ffffff34;
     transition: border-width 0ms 500ms, height 500ms ease-in-out;
 }
 

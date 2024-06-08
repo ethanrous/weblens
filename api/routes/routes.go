@@ -2,14 +2,14 @@ package routes
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"time"
-
-	"strings"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
@@ -44,13 +44,10 @@ func DoRoutes() {
 	router.Use(CORSMiddleware())
 
 	api := router.Group("/api")
-	api.Use(WeblensAuth(false, false))
-
-	public := router.Group("/api/public")
-	public.Use(WeblensAuth(true, false))
+	api.Use(WeblensAuth(false))
 
 	admin := router.Group("/api")
-	admin.Use(WeblensAuth(false, true))
+	admin.Use(WeblensAuth(false))
 
 	core := router.Group("/api/core")
 	core.Use(KeyOnlyAuth)
@@ -59,14 +56,14 @@ func DoRoutes() {
 	if srvInfo.ServerRole() == types.Initialization {
 		util.Debug.Println("Weblens not initialized, only adding initialization routes...")
 		init := router.Group("/api")
-		init.Use(WeblensAuth(true, false))
+		init.Use(WeblensAuth(true))
 		AddInitializationRoutes(init)
 		util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
 		router.Use(initSafety)
 	} else {
-		AddSharedRoutes(api, public)
+		AddSharedRoutes(api)
 		if srvInfo.ServerRole() == types.Core {
-			AddApiRoutes(api, public)
+			AddApiRoutes(api)
 			AddAdminRoutes(admin)
 			AddCoreRoutes(core)
 		} else if srvInfo.ServerRole() == types.Backup {
@@ -93,7 +90,7 @@ func DoRoutes() {
 	util.Debug.Println("Starting router...")
 	srvMu.Unlock()
 	err := srv.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		util.ShowErr(err)
 	}
 }
@@ -108,14 +105,14 @@ var upgrader = websocket.Upgrader{
 
 func AddInitializationRoutes(api *gin.RouterGroup) {
 	api.POST("/initialize", initializeServer)
-	api.GET("/public/info", getServerInfo)
+	api.GET("/info", getServerInfo)
 	api.GET("/users", getUsers)
 	api.GET("/user", getUserInfo)
 }
 
-func AddSharedRoutes(api, public *gin.RouterGroup) {
+func AddSharedRoutes(api *gin.RouterGroup) {
 	router.GET("/ping", ping)
-	public.GET("/info", getServerInfo)
+	api.GET("/info", getServerInfo)
 
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
@@ -125,27 +122,23 @@ func AddSharedRoutes(api, public *gin.RouterGroup) {
 	api.POST("/history/restore", restorePastFiles)
 }
 
-func AddApiRoutes(api, public *gin.RouterGroup) {
+func AddApiRoutes(api *gin.RouterGroup) {
 
 	/* Public */
 
-	public.GET("/media/types", getMediaTypes)
-	public.GET("/media/random", getRandomMedias)
-	public.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
+	api.GET("/media/types", getMediaTypes)
+	api.GET("/media/random", getRandomMedias)
 
-	public.GET("/file/:fileId", getFile)
-	public.GET("/file/share/:shareId", getFileShare)
-	public.GET("/share/:shareId", getFileShare)
-	public.GET("/download", downloadFile)
+	api.GET("/file/:fileId", getFile)
+	api.GET("/file/share/:shareId", getFileShare)
+	api.GET("/download", downloadFile)
 
-	public.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
+	api.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
 
-	public.POST("/login", loginUser)
-	public.POST("/user", createUser)
-	public.POST("/folder", pubMakeDir)
-	public.POST("/upload", newSharedUploadTask)
-	public.POST("/upload/:uploadId", newFileUpload)
-	public.POST("/takeout", createTakeout)
+	api.POST("/login", loginUser)
+	api.POST("/user", createUser)
+	api.POST("/upload/:uploadId", newFileUpload)
+	api.POST("/takeout", createTakeout)
 
 	/* Api */
 
@@ -168,10 +161,10 @@ func AddApiRoutes(api, public *gin.RouterGroup) {
 	api.PATCH("/files/untrash", unTrashFiles)
 	api.DELETE("/files", deleteFiles)
 
-	api.GET("/folder/:folderId", getFolderInfo)
+	api.GET("/folder/:folderId", getFolder)
 	api.GET("/folder/:folderId/search", searchFolder)
 	api.GET("/folder/:folderId/media", getFolderMedia)
-	api.POST("/folder", makeDir)
+	api.POST("/folder", createFolder)
 
 	api.POST("/upload", newUploadTask)
 
@@ -179,16 +172,17 @@ func AddApiRoutes(api, public *gin.RouterGroup) {
 	api.POST("/share/files", createFileShare)
 
 	api.GET("/albums", getAlbums)
+	api.POST("/album", createAlbum)
 	api.GET("/album/:albumId", getAlbum)
 	api.GET("/album/:albumId/preview", albumPreviewMedia)
-	api.POST("/album", createAlbum)
 	api.PATCH("/album/:albumId", updateAlbum)
+	api.POST("/album/:albumId/leave", unshareMeAlbum)
 	api.DELETE("/album/:albumId", deleteAlbum)
 
 	/* Websocket */
 
-	websocket := router.Group("/api")
-	websocket.GET("/ws", wsConnect)
+	ws := router.Group("/api")
+	ws.GET("/ws", wsConnect)
 }
 
 func AddAdminRoutes(admin *gin.RouterGroup) {
@@ -196,7 +190,7 @@ func AddAdminRoutes(admin *gin.RouterGroup) {
 	admin.GET("/files/external/:folderId", getExternalFolderInfo)
 
 	admin.GET("/users", getUsers)
-	admin.POST("/user", activateUser)
+	admin.PATCH("/user/:username/activate", activateUser)
 	admin.PATCH("/user/:username/admin", setUserAdmin)
 	admin.DELETE("/user/:username", deleteUser)
 
@@ -274,7 +268,10 @@ func snapshotHeap(ctx *gin.Context) {
 	file, err := os.Create("heap.out")
 	// file, err := os.Create(filepath.Join(util.GetMediaRoot(), "heap.out"))
 	util.FailOnError(err, "")
-	pprof.Lookup("heap").WriteTo(file, 0)
+	err = pprof.Lookup("heap").WriteTo(file, 0)
+	if err != nil {
+		util.ShowErr(err)
+	}
 }
 
 func AttachProfiler() {
