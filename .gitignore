@@ -13,6 +13,10 @@
 ui/build/
 ui/dist/
 
+# ide
+.vscode/
+.idea/
+
 # misc
 .DS_Store
 .env.local
@@ -20,7 +24,7 @@ ui/dist/
 .env.test.local
 .env.production.local
 images
-.vscode/
+
 
 npm-debug.log*
 yarn-debug.log*
