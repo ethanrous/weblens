@@ -1,6 +1,7 @@
 @import "../../../components/theme";
 
 $menu-title-height: 50px;
+$menu-base-square-size: 250px;
 
 .file-menu-title {
     display: flex;
@@ -20,12 +21,10 @@ $menu-title-height: 50px;
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    height: 200px + $menu-title-height;
-    width: 200px;
+    height: $menu-base-square-size + $menu-title-height;
+    width: $menu-base-square-size;
 
-    overflow: scroll;
-
-
+    overflow: hidden;
     position: fixed;
 
     transform-origin: center;
@@ -48,13 +47,23 @@ $menu-title-height: 50px;
     &[data-mode='2'] {
         scale: 1;
         width: 310px;
+        max-width: 310px;
         height: 460px + $menu-title-height;
     }
 
     &[data-mode='3'] {
         scale: 1;
         width: 300px;
+        max-width: 300px;
         height: 75px + $menu-title-height;
+    }
+
+    &[data-mode='4'] {
+        scale: 1;
+        width: 300px;
+        max-height: max-content;
+
+        height: 515px + $menu-title-height;
     }
 }
 
@@ -63,11 +72,13 @@ $menu-title-height: 50px;
     position: absolute;
     align-items: center;
     justify-items: center;
-    grid-template-columns: 100px 100px;
-    height: 200px;
-    width: 200px;
+    grid-template-columns: 120px 120px;
     pointer-events: none;
     opacity: 0;
+    justify-content: center;
+
+    height: $menu-base-square-size;
+    width: $menu-base-square-size;
     margin-top: $menu-title-height;
 
     transition: opacity 150ms ease-in-out;
@@ -79,8 +90,8 @@ $menu-title-height: 50px;
 }
 
 .default-menu-icon {
-    width: 88px;
-    height: 88px;
+    width: 108px;
+    height: 108px;
     scale: 0;
 
     transition: scale 150ms ease-in-out;
@@ -143,6 +154,19 @@ $menu-title-height: 50px;
 }
 
 .new-folder-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: max-content;
+    width: 100%;
+    padding: 8px;
+    gap: 8px;
+    margin-top: $menu-title-height;
+
+    transition: all 150ms ease-in-out;
+}
+
+.add-to-album-menu {
     display: flex;
     flex-direction: row;
     align-items: center;

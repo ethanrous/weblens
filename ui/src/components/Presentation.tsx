@@ -7,8 +7,8 @@ import React, {
     useState,
 } from 'react'
 
-import { MediaImage } from './PhotoContainer'
-import WeblensMedia from '../classes/Media'
+import { MediaImage } from '../Media/PhotoContainer'
+import WeblensMedia from '../Media/Media'
 import { IconX } from '@tabler/icons-react'
 import { SizeT } from '../types/Types'
 import { useResize } from './hooks'

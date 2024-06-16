@@ -1,0 +1,36 @@
+@import "./theme";
+
+.weblens-input-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin: 4px;
+    padding-left: 10px;
+    flex-shrink: 0;
+
+    border-radius: 4px;
+    background-color: $dark-paper;
+    color: white;
+    box-shadow: $hard-shadow-off;
+    transition: all 200ms ease-in-out;
+    outline: 1px solid $light-paper-transparent;
+    height: 100%;
+    width: 100%;
+
+    &:focus-within {
+        outline: 1px solid $light-paper;
+    }
+
+    //&:hover {
+    //    box-shadow: $hard-shadow;
+    //}
+}
+
+.weblens-input {
+    background-color: transparent;
+    width: 100%;
+    border: none;
+    outline: none;
+}

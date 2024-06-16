@@ -1,5 +1,5 @@
-import { GlobalContextType, SelectedState } from '../../components/ItemDisplay'
-import { FileContextT } from '../../components/ItemScroller'
+import { GlobalContextType, SelectedState } from '../../Files/FileDisplay'
+import { FileContextT } from '../../components/FileScroller'
 import {
     AuthHeaderT,
     FBDispatchT,

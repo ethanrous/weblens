@@ -15,13 +15,14 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/saracen/fastzip"
 )
 
 func scanFile(t *task) {
-	meta := t.metadata.(ScanMetadata)
+	meta := t.metadata.(scanMetadata)
 	// util.Debug.Println("Starting scan file task", meta.file.GetAbsPath())
 
 	if !meta.file.IsDisplayable() {
@@ -33,9 +34,9 @@ func scanFile(t *task) {
 		t.ErrorAndExit(fmt.Errorf("trying to scan file with no content id: %s", meta.file.GetAbsPath()))
 	}
 
-	meta.partialMedia = dataStore.NewMedia(contentId)
+	meta.partialMedia = media.New(contentId)
 	if slices.ContainsFunc(meta.partialMedia.GetFiles(), func(fId types.FileId) bool {
-		return fId == meta.file.Id()
+		return fId == meta.file.ID()
 	}) {
 		t.success("Media already imported")
 	}
@@ -60,7 +61,7 @@ func scanFile(t *task) {
 }
 
 func createZipFromPaths(t *task) {
-	zipMeta := t.metadata.(ZipMetadata)
+	zipMeta := t.metadata.(zipMetadata)
 
 	if len(zipMeta.files) == 0 {
 		t.ErrorAndExit(ErrEmptyZip)
@@ -84,19 +85,19 @@ func createZipFromPaths(t *task) {
 	paths := util.MapToKeys(filesInfoMap)
 	slices.Sort(paths)
 	takeoutHash := util.GlobbyHash(8, strings.Join(paths, ""))
-	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash, zipMeta.username)
+	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash, zipMeta.username, zipMeta.fileTree)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
 	if zipExists {
-		t.setResult(types.TaskResult{"takeoutId": zipFile.Id().String()})
+		t.setResult(types.TaskResult{"takeoutId": zipFile.ID().String()})
 		t.caster.PushTaskUpdate(t.taskId, TaskComplete, t.result) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
 
 	if zipMeta.shareId != "" {
-		s, err := dataStore.GetShare(zipMeta.shareId, dataStore.FileShare)
+		s, err := dataStore.GetShare(zipMeta.shareId, dataStore.FileShare, zipMeta.fileTree)
 		if err != nil {
 			t.ErrorAndExit(err)
 		}
@@ -153,22 +154,22 @@ func createZipFromPaths(t *task) {
 		t.ErrorAndExit(*archiveErr)
 	}
 
-	t.setResult(types.TaskResult{"takeoutId": zipFile.Id()})
+	t.setResult(types.TaskResult{"takeoutId": zipFile.ID()})
 	t.caster.PushTaskUpdate(t.taskId, TaskComplete, t.result) // Let any client subscribers know we are done
 	t.success()
 }
 
 func moveFile(t *task) {
-	moveMeta := t.metadata.(MoveMeta)
+	moveMeta := t.metadata.(moveMeta)
 
-	file := dataStore.FsTreeGet(moveMeta.fileId)
+	file := moveMeta.fileTree.Get(moveMeta.fileId)
 	if file == nil {
 		t.ErrorAndExit(errors.New("could not find existing file"))
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, moveMeta.fileTree)
 
-	destinationFolder := dataStore.FsTreeGet(moveMeta.destinationFolderId)
+	destinationFolder := moveMeta.fileTree.Get(moveMeta.destinationFolderId)
 	if destinationFolder == destinationFolder.Owner().GetTrashFolder() {
 		err := dataStore.MoveFileToTrash(file, acc, t.caster)
 		if err != nil {
@@ -182,7 +183,7 @@ func moveFile(t *task) {
 		}
 		return
 	}
-	err := dataStore.FsTreeMove(file, destinationFolder, moveMeta.newFilename, false, t.caster.(types.BufferedBroadcasterAgent))
+	err := moveMeta.fileTree.Move(file, destinationFolder, moveMeta.newFilename, false, t.caster.(types.BufferedBroadcasterAgent))
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
@@ -217,13 +218,13 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 // everything *after* the client has had its data read into memory, this is the "bottom half"
 // of the upload
 func handleFileUploads(t *task) {
-	meta := t.metadata.(WriteFileMeta)
+	meta := t.metadata.(writeFileMeta)
 
 	t.CheckExit()
 
-	rootFile := dataStore.FsTreeGet(meta.rootFolderId)
+	rootFile := meta.fileTree.Get(meta.rootFolderId)
 	if rootFile == nil {
-		t.ErrorAndExit(dataStore.ErrNoFile, "could not find root folder in upload. Id:", meta.rootFolderId)
+		t.ErrorAndExit(dataStore.ErrNoFile, "could not find root folder in upload. ID:", meta.rootFolderId)
 	}
 
 	var bottom, top, total int64
@@ -251,7 +252,7 @@ func handleFileUploads(t *task) {
 	// written, they are then unlocked in the main body.
 	defer func() {
 		for _, fId := range usingFiles {
-			f := dataStore.FsTreeGet(fId)
+			f := meta.fileTree.Get(fId)
 			if f != nil {
 				err = f.RemoveTask(t.TaskId())
 				if err != nil {
@@ -283,13 +284,13 @@ WriterLoop:
 				for tmpFile.GetParent() != rootFile {
 					tmpFile = tmpFile.GetParent()
 				}
-				if tmpFile.GetParent() == rootFile && !slices.ContainsFunc(topLevels, func(f types.WeblensFile) bool { return f.Id() == tmpFile.Id() }) {
+				if tmpFile.GetParent() == rootFile && !slices.ContainsFunc(topLevels, func(f types.WeblensFile) bool { return f.ID() == tmpFile.ID() }) {
 					topLevels = append(topLevels, tmpFile)
 				}
 
-				fileMap[chunk.newFile.Id()] = &fileUploadProgress{file: chunk.newFile, bytesWritten: 0, fileSizeTotal: total}
+				fileMap[chunk.newFile.ID()] = &fileUploadProgress{file: chunk.newFile, bytesWritten: 0, fileSizeTotal: total}
 				chunk.newFile.AddTask(t)
-				util.InsertFunc(usingFiles, chunk.newFile.Id(), func(a, b types.FileId) int { return strings.Compare(a.String(), b.String()) })
+				util.InsertFunc(usingFiles, chunk.newFile.ID(), func(a, b types.FileId) int { return strings.Compare(a.String(), b.String()) })
 				continue WriterLoop
 			}
 
@@ -321,7 +322,7 @@ WriterLoop:
 				}
 
 				// Move the file from /tmp to its permanent location
-				err = dataStore.AttachFile(fileMap[chunk.FileId].file, bufCaster)
+				err = meta.fileTree.AttachFile(fileMap[chunk.FileId].file, bufCaster)
 				if err != nil {
 					util.ShowErr(err)
 				}
@@ -354,16 +355,17 @@ WriterLoop:
 
 	doingRootScan := false
 	for _, tl := range topLevels {
-		err = dataStore.ResizeUp(tl, bufCaster)
-		if err != nil {
-			util.ShowErr(err)
-		}
+		// err = dataStore.ResizeUp(tl, bufCaster)
+		// if err != nil {
+		// 	util.ShowErr(err)
+		// }
 
 		if tl.IsDir() {
 			bufCaster.PushFileUpdate(tl)
-			GetGlobalQueue().ScanDirectory(tl, true, false, globalCaster)
+
+			t.GetTaskPool().ScanDirectory(tl, t.caster)
 		} else if !doingRootScan {
-			GetGlobalQueue().ScanDirectory(rootFile, false, false, globalCaster)
+			t.GetTaskPool().ScanDirectory(rootFile, t.caster)
 			doingRootScan = true
 		}
 	}
@@ -372,20 +374,17 @@ WriterLoop:
 }
 
 func (t *task) NewFileInStream(file types.WeblensFile, fileSize int64) error {
-	switch t.metadata.(type) {
-	case WriteFileMeta:
+	switch t.taskType {
+	case WriteFileTask:
 	default:
-		return ErrBadTaskMetaType
+		return ErrBadTaskType
 	}
-	t.metadata.(WriteFileMeta).chunkStream <- FileChunk{newFile: file, ContentRange: "0-0/" + strconv.FormatInt(fileSize, 10)}
+	t.metadata.(writeFileMeta).chunkStream <- fileChunk{newFile: file, ContentRange: "0-0/" + strconv.FormatInt(fileSize, 10)}
 
 	// We don't queue the upload task right away, we wait for the first file,
 	// then we add the task to the queue here
-	if t.taskPool == nil {
-		err := GetGlobalQueue().QueueTask(t)
-		if err != nil {
-			return err
-		}
+	if t.queueState == PreQueued {
+		t.Q(t.taskPool)
 	}
 
 	return nil
@@ -393,12 +392,12 @@ func (t *task) NewFileInStream(file types.WeblensFile, fileSize int64) error {
 
 func (t *task) AddChunkToStream(fileId types.FileId, chunk []byte, contentRange string) error {
 	switch t.metadata.(type) {
-	case WriteFileMeta:
+	case writeFileMeta:
 	default:
-		return ErrBadTaskMetaType
+		return ErrBadTaskType
 	}
-	chunkData := FileChunk{FileId: fileId, Chunk: chunk, ContentRange: contentRange}
-	t.metadata.(WriteFileMeta).chunkStream <- chunkData
+	chunkData := fileChunk{FileId: fileId, Chunk: chunk, ContentRange: contentRange}
+	t.metadata.(writeFileMeta).chunkStream <- chunkData
 
 	return nil
 }
@@ -409,7 +408,7 @@ type extSize struct {
 }
 
 func gatherFilesystemStats(t *task) {
-	meta := t.metadata.(FsStatMeta)
+	meta := t.metadata.(fsStatMeta)
 
 	filetypeSizeMap := map[string]int64{}
 	folderCount := 0
@@ -451,14 +450,15 @@ func gatherFilesystemStats(t *task) {
 }
 
 func hashFile(t *task) {
-	meta := t.metadata.(HashFileMeta)
+	meta := t.metadata.(hashFileMeta)
 
 	if meta.file.IsDir() {
-		t.ErrorAndExit(dataStore.ErrDirNotAllowed, meta.file.GetAbsPath())
+		t.ErrorAndExit(types.NewWeblensError("cannot hash directory"),
+			meta.file.GetAbsPath())
 	}
 
 	if meta.file.GetContentId() != "" {
-		t.success("Skipping file which already has content Id", meta.file.GetAbsPath())
+		t.success("Skipping file which already has content ID", meta.file.GetAbsPath())
 	}
 
 	fileSize, err := meta.file.Size()
@@ -467,7 +467,7 @@ func hashFile(t *task) {
 	}
 
 	if fileSize == 0 {
-		t.success("Skipping file with no content", meta.file.GetAbsPath())
+		t.success("Skipping file with no content: ", meta.file.GetAbsPath())
 		return
 	}
 
@@ -476,7 +476,12 @@ func hashFile(t *task) {
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
-	defer fp.Close()
+	defer func(fp *os.File) {
+		err := fp.Close()
+		if err != nil {
+			util.ShowErr(err)
+		}
+	}(fp)
 
 	// Read up to 1MB at a time
 	bufSize := math.Min(float64(fileSize), 1000*1000)
@@ -489,10 +494,14 @@ func hashFile(t *task) {
 		t.ErrorAndExit(err)
 	}
 	contentId = types.ContentId(base64.URLEncoding.EncodeToString(newHash.Sum(nil)))[:20]
-	err = dataStore.SetContentId(meta.file, contentId)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
+	// meta.file.SetContentId(contentId)
+	t.setResult(types.TaskResult{"contentId": contentId})
+
+	// TODO - sync database content id if this file is created before being added to db (i.e upload)
+	// err = dataStore.SetContentId(meta.file, contentId)
+	// if err != nil {
+	// 	t.ErrorAndExit(err)
+	// }
 
 	t.success()
 }

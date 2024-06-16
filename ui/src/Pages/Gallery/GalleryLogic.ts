@@ -6,7 +6,7 @@ import {
     PresentType,
     TimeOffset,
 } from '../../types/Types'
-import WeblensMedia from '../../classes/Media'
+import WeblensMedia from '../../Media/Media'
 
 export type GalleryAction = {
     type: string

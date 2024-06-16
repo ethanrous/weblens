@@ -4,43 +4,26 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func CreateAlbum(albumName string, owner types.User) error {
-	albumId := types.AlbumId(util.GlobbyHash(12, fmt.Sprintln(albumName, owner.GetUsername())))
-	a := AlbumData{
-		Id: albumId, Name: albumName,
-		Owner:          owner.GetUsername(),
-		ShowOnTimeline: true,
-		Medias:         []types.ContentId{},
-		SharedWith:     []types.Username{},
-	}
-
-	err := fddb.insertAlbum(a)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func VerifyAlbumsMedia() {
-	as := fddb.getAllAlbums()
+	as := dbServer.getAllAlbums()
 	if len(as) == 0 {
 		return
 	}
 
 	for _, a := range as {
-		deadMs := util.Filter(a.Medias, func(m types.ContentId) bool { return MediaMapGet(m) == nil })
-		err := fddb.removeMediaFromAlbum(a.Id, deadMs)
+		deadMs := util.Filter(a.Medias, func(m types.ContentId) bool { return media.MediaMapGet(m) == nil })
+		err := dbServer.removeMediaFromAlbum(a.Id, deadMs)
 		if err != nil {
 			panic(err)
 		}
 
-		if MediaMapGet(a.Cover) == nil {
-			err = fddb.SetAlbumCover(a.Id, "", "", "")
+		if media.MediaMapGet(a.Cover) == nil {
+			err = dbServer.SetAlbumCover(a.Id, "", "", "")
 			if err != nil {
 				panic(err)
 			}
@@ -49,12 +32,12 @@ func VerifyAlbumsMedia() {
 }
 
 func GetAlbum(albumId types.AlbumId) (a *AlbumData, err error) {
-	a, err = fddb.GetAlbum(albumId)
+	a, err = dbServer.GetAlbum(albumId)
 	return
 }
 
 func DeleteAlbum(albumId types.AlbumId) (err error) {
-	err = fddb.DeleteAlbum(albumId)
+	err = dbServer.DeleteAlbum(albumId)
 	return
 }
 
@@ -63,34 +46,34 @@ func (a *AlbumData) CanUserAccess(username types.Username) bool {
 }
 
 func (a *AlbumData) AddMedia(ms []types.Media) (addedCount int, err error) {
-	mIds := util.Map(ms, func(m types.Media) types.ContentId { return m.Id() })
+	mIds := util.Map(ms, func(m types.Media) types.ContentId { return m.ID() })
 	a.Medias = util.AddToSet(a.Medias, mIds)
-	addedCount, err = fddb.addMediaToAlbum(a.Id, mIds)
+	addedCount, err = dbServer.addMediaToAlbum(a.Id, mIds)
 	return
 }
 
 func (a *AlbumData) Rename(newName string) (err error) {
-	err = fddb.setAlbumName(a.Id, newName)
+	err = dbServer.setAlbumName(a.Id, newName)
 	return
 }
 
 func (a *AlbumData) RemoveMedia(ms []types.ContentId) (err error) {
 	a.Medias = util.Filter(a.Medias, func(s types.ContentId) bool { return !slices.Contains(ms, s) })
-	err = fddb.removeMediaFromAlbum(a.Id, ms)
+	err = dbServer.removeMediaFromAlbum(a.Id, ms)
 	return
 }
 
-func (a *AlbumData) SetCover(mediaId types.ContentId) error {
-	m := MediaMapGet(mediaId)
+func (a *AlbumData) SetCover(mediaId types.ContentId, ft types.FileTree) error {
+	m := media.MediaMapGet(mediaId)
 	if m == nil {
 		return ErrNoMedia
 	}
-	colors, err := m.(*media).getProminentColors()
+	colors, err := m.(*media.media).getProminentColors(ft)
 	if err != nil {
 		return err
 	}
 
-	err = fddb.SetAlbumCover(a.Id, mediaId, colors[0], colors[1])
+	err = dbServer.SetAlbumCover(a.Id, mediaId, colors[0], colors[1])
 	if err != nil {
 		return fmt.Errorf("failed to set album cover")
 	}
@@ -99,12 +82,12 @@ func (a *AlbumData) SetCover(mediaId types.ContentId) error {
 
 func (a *AlbumData) AddUsers(usernames []types.Username) (err error) {
 	a.SharedWith = util.AddToSet(a.SharedWith, usernames)
-	err = fddb.shareAlbum(a.Id, usernames)
+	err = dbServer.shareAlbum(a.Id, usernames)
 	return
 }
 
 func (a *AlbumData) RemoveUsers(usernames []types.Username) (err error) {
 	a.SharedWith = util.Filter(a.SharedWith, func(s types.Username) bool { return !slices.Contains(usernames, s) })
-	err = fddb.unshareAlbum(a.Id, usernames)
+	err = dbServer.unshareAlbum(a.Id, usernames)
 	return
 }

@@ -3,9 +3,9 @@ import { getRandomInt } from '../util'
 import { useEffect, useMemo, useState } from 'react'
 import { getRandomThumbs } from '../api/ApiFetch'
 import { useResize } from './hooks'
-import { MediaImage } from './PhotoContainer'
+import { MediaImage } from '../Media/PhotoContainer'
 
-import WeblensMedia from '../classes/Media'
+import WeblensMedia from '../Media/Media'
 
 const ScatteredPhoto = ({
     media,

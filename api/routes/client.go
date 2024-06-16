@@ -1,37 +1,47 @@
 package routes
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"sync"
 
-	"github.com/ethrousseau/weblens/api/dataProcess"
+	"github.com/gorilla/websocket"
+
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-func (c *Client) GetClientId() clientId {
+type client struct {
+	Active        bool
+	connId        types.ClientId
+	conn          *websocket.Conn
+	mu            sync.Mutex
+	subscriptions []types.Subscription
+	user          types.User
+}
+
+func (c *client) GetClientId() types.ClientId {
 	return c.connId
 }
 
-func (c *Client) GetShortId() clientId {
+func (c *client) GetShortId() types.ClientId {
 	return c.connId[28:]
 }
 
-func (c *Client) SetUser(user types.User) {
+func (c *client) SetUser(user types.User) {
 	c.user = user
 }
 
-func (c *Client) Username() types.Username {
-	return c.user.GetUsername()
+func (c *client) GetUser() types.User {
+	return c.user
 }
 
-func (c *Client) Disconnect() {
+func (c *client) Disconnect() {
 	c.Active = false
-	cmInstance.ClientDisconnect(c)
+	rc.ClientManager.ClientDisconnect(c)
 
 	c.mu.Lock()
 	c.conn.Close()
@@ -39,16 +49,18 @@ func (c *Client) Disconnect() {
 	c.log("Disconnected")
 }
 
-// Link a websocket connection to a "key" that can be broadcasted to later if
+// Subscribe links a websocket connection to a "key" that can be broadcast to later if
 // relevant updates should be communicated
 //
 // Returns "true" and the results at meta.LookingFor if the task is completed, false and nil otherwise.
 // Subscriptions to types that represent ongoing events like "folder" never return truthy completed
-func (c *Client) Subscribe(subType subType, key subId, meta subMeta, acc types.AccessMeta) (complete bool, results map[string]any) {
-	var sub subscription
+func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.AccessMeta,
+	ft types.FileTree) (complete bool,
+	results map[string]any) {
+	var sub types.Subscription
 
-	switch subType {
-	case SubFolder:
+	switch action {
+	case types.FolderSubscribe:
 		{
 			if key == "" {
 				err := fmt.Errorf("cannot subscribe with empty folder id")
@@ -60,7 +72,7 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta, acc types.A
 			if fileId == "external" {
 				folder = dataStore.GetExternalDir()
 			} else {
-				folder = dataStore.FsTreeGet(fileId)
+				folder = ft.Get(fileId)
 			}
 
 			acc.SetRequestMode(dataStore.FileSubscribeRequest)
@@ -78,17 +90,17 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta, acc types.A
 				return
 			}
 
-			sub = subscription{Type: subType, Key: key}
+			sub = types.Subscription{Type: types.FolderSubscribe, Key: key}
 			c.PushFileUpdate(folder)
 
 			// Subscribe to task on this folder
 			if t := folder.GetTask(); t != nil {
-				c.Subscribe(SubTask, subId(t.TaskId()), nil, acc)
+				c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, ft)
 			}
 		}
-	case SubTask:
+	case types.TaskSubscribe:
 		{
-			task := dataProcess.GetTask(types.TaskId(key))
+			task := rc.TaskDispatcher.GetWorkerPool().GetTask(types.TaskId(key))
 			if task == nil {
 				err := fmt.Errorf("could not find task with ID %s", key)
 				util.ErrTrace(err)
@@ -97,113 +109,119 @@ func (c *Client) Subscribe(subType subType, key subId, meta subMeta, acc types.A
 			}
 
 			complete, _ = task.Status()
-			if meta != nil {
-				results = task.GetResult(meta.Meta(SubTask).(taskSubMetadata).ResultKeys()...)
-			}
-			if complete || slices.IndexFunc(c.subscriptions, func(s subscription) bool { return s.Key == key }) != -1 {
+
+			results = task.GetResults()
+
+			if complete || slices.IndexFunc(c.subscriptions, func(s types.Subscription) bool { return s.Key == key }) != -1 {
 				return
 			}
 
-			sub = subscription{Type: subType, Key: key}
+			sub = types.Subscription{Type: types.TaskSubscribe, Key: key}
 		}
 	default:
 		{
-			err := fmt.Errorf("unknown subscription type %s", subType)
+			err := fmt.Errorf("unknown subscription type %s", action)
 			util.ErrTrace(err)
 			c.Error(err)
 			return
 		}
 	}
-	c.debug("Subscribed to", subType, key)
+	c.debug("Subscribed to", action, key)
 
 	c.mu.Lock()
 	c.subscriptions = append(c.subscriptions, sub)
 	c.mu.Unlock()
-	cmInstance.AddSubscription(sub, c)
+	rc.ClientManager.AddSubscription(sub, c)
 
 	return
 }
 
-func (c *Client) Unsubscribe(key subId) {
+func (c *client) Unsubscribe(key types.SubId) {
 	c.mu.Lock()
-	subIndex := slices.IndexFunc(c.subscriptions, func(s subscription) bool { return s.Key == key })
+	subIndex := slices.IndexFunc(c.subscriptions, func(s types.Subscription) bool { return s.Key == key })
 	if subIndex == -1 {
 		c.mu.Unlock()
 		return
 	}
-	var subToRemove subscription
+	var subToRemove types.Subscription
 	c.subscriptions, subToRemove = util.Yoink(c.subscriptions, subIndex)
 	c.mu.Unlock()
 
-	cmInstance.RemoveSubscription(subToRemove, c, false)
+	rc.ClientManager.RemoveSubscription(subToRemove, c, false)
 
 	c.debug("Unsubscribed from", subToRemove.Type, subToRemove.Key)
 }
 
-func (c *Client) Send(eventTag string, key subId, content []wsM) {
+func (c *client) Send(eventTag string, key types.SubId, content []types.WsMsg) {
 	msg := wsResponse{EventTag: eventTag, SubscribeKey: key, Content: content}
 	c.writeToClient(msg)
 }
 
-func (c *Client) Error(err error) {
-	var weblensFileError dataStore.WeblensFileError
-	switch {
-	case errors.As(err, &weblensFileError):
+func (c *client) Error(err error) {
+	_, ok := err.(types.WeblensError)
+	var msg wsResponse
+	switch ok {
+	case true:
 		c.err(err)
-	default:
+		msg = wsResponse{EventTag: "error", Error: err.Error()}
+	case false:
 		c.errTrace(err)
+		msg = wsResponse{EventTag: "error", Error: "Masked unexpected server error"}
 	}
 
-	msg := wsResponse{EventTag: "error", Error: err.Error()}
 	c.writeToClient(msg)
 }
 
-func (c *Client) PushFileUpdate(updatedFile types.WeblensFile) {
-	acc := dataStore.NewAccessMeta(c.user).SetRequestMode(dataStore.WebsocketFileUpdate)
-	fileInfo, err := updatedFile.FormatFileInfo(acc)
+func (c *client) PushFileUpdate(updatedFile types.WeblensFile) {
+	acc := dataStore.NewAccessMeta(c.user, updatedFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	fileInfo, err := updatedFile.FormatFileInfo(acc, rc.MediaRepo)
 	if err != nil {
 		util.ErrTrace(err)
 		return
 	}
 
-	c.Send("file_updated", subId(updatedFile.Id()), []wsM{{"fileInfo": fileInfo}})
+	c.Send("file_updated", types.SubId(updatedFile.ID()), []types.WsMsg{{"fileInfo": fileInfo}})
 }
 
-func (c *Client) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
-	c.Send(string(event), subId(taskId), []wsM{wsM(result)})
+func (c *client) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
+	c.Send(string(event), types.SubId(taskId), []types.WsMsg{types.WsMsg(result)})
 }
 
-func (c *Client) writeToClient(msg wsResponse) {
+func (c *client) GetSubscriptions() []types.Subscription {
+	return c.subscriptions
+}
+
+func (c *client) writeToClient(msg wsResponse) {
 	if c != nil {
 		c.mu.Lock()
+		defer c.mu.Unlock()
 		err := c.conn.WriteJSON(msg)
-		c.mu.Unlock()
 		if err != nil {
 			c.errTrace(err)
 		}
 	}
 }
 
-func (c *Client) clientMsgFormat(msg ...any) string {
+func (c *client) clientMsgFormat(msg ...any) string {
 	return fmt.Sprintf("| %s %s | %s", c.GetShortId(), "("+c.user.GetUsername()+")", fmt.Sprintln(msg...))
 }
 
-func (c *Client) log(msg ...any) {
+func (c *client) log(msg ...any) {
 	util.WsInfo.Printf(c.clientMsgFormat(msg...))
 }
 
-func (c *Client) err(msg ...any) {
+func (c *client) err(msg ...any) {
 	_, file, line, _ := runtime.Caller(2)
 	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
 	util.WsError.Printf(c.clientMsgFormat(msg...))
 }
 
-func (c *Client) errTrace(msg ...any) {
+func (c *client) errTrace(msg ...any) {
 	_, file, line, _ := runtime.Caller(2)
 	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
 	util.WsError.Printf(c.clientMsgFormat(msg...), string(debug.Stack()))
 }
 
-func (c *Client) debug(msg ...any) {
+func (c *client) debug(msg ...any) {
 	util.WsDebug.Printf(c.clientMsgFormat(msg...))
 }

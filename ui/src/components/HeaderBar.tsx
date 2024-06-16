@@ -1,27 +1,31 @@
-import React, { memo, useCallback, useContext, useState } from 'react'
+import React, {
+    memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import WeblensLoader from './Loading'
 
 import { UserContext } from '../Context'
-import { Input, Menu, Text } from '@mantine/core'
 import {
     IconAlbum,
     IconExclamationCircle,
     IconFolder,
     IconLibraryPhoto,
-    IconLogin,
     IconLogout,
     IconServerCog,
-    IconSettings,
     IconUser,
     IconX,
 } from '@tabler/icons-react'
 import { WeblensButton } from './WeblensButton'
-import { useKeyDown, useResize } from './hooks'
+import { useKeyDown } from './hooks'
 import { UpdatePassword } from '../api/UserApi'
 import { AuthHeaderT, UserContextT, UserInfoT } from '../types/Types'
 import Admin from '../Pages/Admin Settings/Admin'
 import '../components/style.scss'
+import WeblensInput from './WeblensInput'
 
 type HeaderBarProps = {
     dispatch: React.Dispatch<any>
@@ -42,13 +46,21 @@ const SettingsMenu = ({
 }) => {
     const [oldP, setOldP] = useState('')
     const [newP, setNewP] = useState('')
+    const nav = useNavigate()
+    const { clear } = useContext(UserContext)
+
     useKeyDown('Escape', (e) => {
-        setNewP('')
-        setOldP('')
-        setClosed()
+        if (open) {
+            setNewP('')
+            setOldP('')
+            setClosed()
+        }
     })
 
     const updateFunc = useCallback(async () => {
+        if (oldP == '' || newP == '' || oldP === newP) {
+            return
+        }
         const res =
             (await UpdatePassword(usr.username, oldP, newP, authHeader))
                 .status === 200
@@ -60,49 +72,52 @@ const SettingsMenu = ({
         return res
     }, [usr.username, String(oldP), String(newP), authHeader])
 
-    if (!open) {
-        return null
-    }
     return (
-        <div className="settings-menu-container" onClick={() => setClosed()}>
+        <div
+            className="settings-menu-container"
+            data-open={open}
+            onClick={() => setClosed()}
+        >
             <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-col w-max justify-center gap-2 p-24">
-                    <Text
-                        size="20px"
-                        fw={600}
-                        style={{ padding: 7, width: '90%', textWrap: 'nowrap' }}
-                    >
+                <div className="flex flex-col w-max justify-center items-center gap-2 p-24">
+                    <p className="text-lg font-semibold p-2 w-max text-nowrap">
                         Change Password
-                    </Text>
-                    <Input
-                        value={oldP}
-                        variant="unstyled"
-                        type="password"
+                    </p>
+                    <WeblensInput
+                        onComplete={() => {}}
                         placeholder="Old Password"
-                        className="weblens-input-wrapper"
-                        onChange={(v) => setOldP(v.target.value)}
+                        valueCallback={setOldP}
+                        height={50}
                     />
-                    <Input
-                        value={newP}
-                        variant="unstyled"
-                        type="password"
+                    <WeblensInput
+                        onComplete={updateFunc}
                         placeholder="New Password"
-                        className="weblens-input-wrapper"
-                        onChange={(v) => setNewP(v.target.value)}
+                        valueCallback={setNewP}
+                        height={50}
                     />
+                    <div className="p2" />
                     <WeblensButton
-                        squareSize={50}
-                        fillWidth
                         label="Update Password"
+                        squareSize={40}
+                        fillWidth
                         showSuccess
                         disabled={oldP == '' || newP == '' || oldP === newP}
                         onClick={updateFunc}
                     />
                 </div>
-                <IconX
-                    className="absolute top-0 left-0 cursor-pointer m-3"
-                    onClick={setClosed}
+                <WeblensButton
+                    label={'Logout'}
+                    Left={IconLogout}
+                    danger
+                    centerContent
+                    onClick={() => {
+                        clear()
+                        nav('/login')
+                    }}
                 />
+                <div className="top-0 left-0 m-3 absolute">
+                    <WeblensButton Left={IconX} onClick={setClosed} />
+                </div>
             </div>
         </div>
     )
@@ -113,17 +128,16 @@ const HeaderBar = memo(
         const { usr, authHeader, clear, serverInfo }: UserContextT =
             useContext(UserContext)
         const nav = useNavigate()
-        const [userMenu, setUserMenu] = useState(false)
         const [settings, setSettings] = useState(false)
         const [admin, setAdmin] = useState(false)
-        const [barRef, setBarRef] = useState(null)
-        const barSize = useResize(barRef)
+
         const loc = useLocation()
 
         const navToLogin = useCallback(() => nav('/login'), [nav])
         const navToTimeline = useCallback(() => nav('/'), [nav])
         const navToAlbums = useCallback(() => nav('/albums'), [nav])
         const navToFiles = useCallback(() => nav('/files/home'), [nav])
+
         const openAdmin = useCallback(() => {
             dispatch({
                 type: 'set_block_focus',
@@ -132,32 +146,34 @@ const HeaderBar = memo(
             setAdmin(true)
         }, [dispatch, setAdmin])
 
-        const openUserSettings = useCallback(
-            () => setUserMenu(true),
-            [setUserMenu]
-        )
+        useEffect(() => {
+            if (settings) {
+                dispatch({
+                    type: 'set_block_focus',
+                    block: true,
+                })
+            } else {
+                dispatch({
+                    type: 'set_block_focus',
+                    block: false,
+                })
+            }
+        }, [settings])
 
         return (
-            <div ref={setBarRef} className="z-50 h-max w-screen">
-                {settings && (
-                    <SettingsMenu
-                        open={settings}
-                        usr={usr}
-                        setClosed={() => {
-                            setSettings(false)
-                            dispatch({ type: 'set_block_focus', block: false })
-                        }}
-                        authHeader={authHeader}
-                    />
-                )}
-                {admin && (
-                    <div
-                        className="settings-menu-container"
-                        onClick={() => setAdmin(false)}
-                    >
-                        <Admin closeAdminMenu={() => setAdmin(false)} />
-                    </div>
-                )}
+            <div className="z-50 h-max w-screen">
+                <SettingsMenu
+                    open={settings}
+                    usr={usr}
+                    setClosed={() => {
+                        setSettings(false)
+                        dispatch({ type: 'set_block_focus', block: false })
+                    }}
+                    authHeader={authHeader}
+                />
+
+                <Admin open={admin} closeAdminMenu={() => setAdmin(false)} />
+
                 <div className=" absolute float-right right-10 bottom-8 z-20">
                     <WeblensLoader loading={loading} />
                 </div>
@@ -168,7 +184,6 @@ const HeaderBar = memo(
                             <WeblensButton
                                 label="Login"
                                 squareSize={40}
-                                width={barSize.width > 500 ? 112 : 40}
                                 textMin={70}
                                 centerContent
                                 Left={IconUser}
@@ -180,7 +195,6 @@ const HeaderBar = memo(
                                 <WeblensButton
                                     label="Timeline"
                                     squareSize={40}
-                                    width={barSize.width > 500 ? 112 : 40}
                                     textMin={70}
                                     centerContent
                                     subtle
@@ -192,7 +206,6 @@ const HeaderBar = memo(
                                 <WeblensButton
                                     label="Albums"
                                     squareSize={40}
-                                    width={barSize.width > 500 ? 110 : 40}
                                     textMin={60}
                                     centerContent
                                     subtle
@@ -206,7 +219,6 @@ const HeaderBar = memo(
                                 <WeblensButton
                                     label="Files"
                                     squareSize={40}
-                                    width={barSize.width > 500 ? 84 : 40}
                                     textMin={50}
                                     centerContent
                                     subtle
@@ -230,8 +242,8 @@ const HeaderBar = memo(
                         </div>
                     )}
                     <WeblensButton
-                        squareSize={40}
-                        width={40}
+                        labelOnHover
+                        label={'Report Issue'}
                         Left={IconExclamationCircle}
                         onClick={() => {
                             window.open(
@@ -246,85 +258,18 @@ const HeaderBar = memo(
                     />
                     {usr?.admin && (
                         <WeblensButton
-                            squareSize={40}
-                            width={40}
                             label={'Admin Settings'}
+                            labelOnHover
                             Left={IconServerCog}
                             onClick={openAdmin}
                         />
                     )}
                     <WeblensButton
-                        squareSize={40}
                         label={'User Settings'}
                         labelOnHover
                         Left={IconUser}
-                        onClick={openUserSettings}
+                        onClick={() => setSettings(true)}
                     />
-                    <Menu opened={userMenu} onClose={() => setUserMenu(false)}>
-                        <Menu.Dropdown>
-                            <Menu.Label>
-                                {usr.username ? usr.username : 'Not logged in'}
-                            </Menu.Label>
-                            <div
-                                className="menu-item"
-                                data-disabled={usr.username === ''}
-                                onClick={() => {
-                                    setUserMenu(false)
-                                    setSettings(true)
-                                    dispatch({
-                                        type: 'set_block_focus',
-                                        block: true,
-                                    })
-                                }}
-                            >
-                                <IconSettings
-                                    color="white"
-                                    size={20}
-                                    className="cursor-pointer shrink-0"
-                                />
-                                <Text className="menu-item-text">Settings</Text>
-                            </div>
-                            {usr.username === '' && (
-                                <div
-                                    className="menu-item"
-                                    onClick={() => {
-                                        nav('/login', {
-                                            state: { doLogin: false },
-                                        })
-                                    }}
-                                >
-                                    <IconLogin
-                                        color="white"
-                                        size={20}
-                                        style={{ flexShrink: 0 }}
-                                    />
-                                    <Text className="menu-item-text">
-                                        Login
-                                    </Text>
-                                </div>
-                            )}
-                            {usr.username !== '' && (
-                                <div
-                                    className="menu-item"
-                                    onClick={() => {
-                                        clear() // Clears cred cookies from browser
-                                        nav('/login', {
-                                            state: { doLogin: false },
-                                        })
-                                    }}
-                                >
-                                    <IconLogout
-                                        color="white"
-                                        size={20}
-                                        style={{ flexShrink: 0 }}
-                                    />
-                                    <Text className="menu-item-text">
-                                        Logout
-                                    </Text>
-                                </div>
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
 
                     <div className="pr-3" />
                 </div>

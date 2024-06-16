@@ -6,13 +6,13 @@ type Share interface {
 	GetShareId() ShareId
 	GetShareType() ShareType
 	GetContentId() string
-	SetContentId(string)
+	SetItemId(string)
 	IsPublic() bool
 	SetPublic(bool)
 	IsEnabled() bool
 	SetEnabled(bool)
 	GetAccessors() []User
-	SetAccessors([]Username)
+	SetAccessors(newUsers []Username, c ...BroadcasterAgent)
 	GetOwner() User
 }
 
@@ -29,6 +29,9 @@ type AccessMeta interface {
 
 	UsingShare() Share
 	SetUsingShare(Share)
+
+	CanAccessFile(WeblensFile) bool
+	CanAccessShare(Share) bool
 }
 
 type RequestMode string

@@ -2,10 +2,6 @@ package dataProcess
 
 import (
 	"encoding/json"
-	"errors"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -13,51 +9,7 @@ import (
 
 // Tasks //
 
-type taskTracker struct {
-	taskMu      sync.Mutex
-	taskMap     map[types.TaskId]types.Task
-	wp          *WorkerPool
-	globalQueue *taskPool
-}
-
 type taskHandler func(*task)
-
-type task struct {
-	taskId     types.TaskId
-	completed  bool
-	taskPool   *taskPool
-	caster     types.BroadcasterAgent
-	requester  types.Requester
-	work       taskHandler
-	taskType   types.TaskType
-	metadata   any
-	result     types.TaskResult
-	persistent bool
-
-	err any
-
-	timeout   time.Time
-	timerLock *sync.Mutex
-
-	exitStatus types.TaskExitStatus // "success", "error" or "cancelled"
-
-	// Function to be run to cleanup when the task completes, no matter the exit status
-	cleanup func()
-
-	// Function to be run to cleanup if the task errors
-	errorCleanup func()
-
-	sw util.Stopwatch
-
-	// signal is used for signaling a task to change behavior after it has been queued,
-	// to exit prematurely, for example. The signalChan serves the same purpose, but is
-	// used when a task might block waiting for another channel.
-	// Key: 1 is exit,
-	signal     int
-	signalChan chan int
-
-	waitMu *sync.Mutex
-}
 
 const (
 	TaskSuccess  types.TaskExitStatus = "success"
@@ -86,71 +38,27 @@ const (
 	TaskProgress    types.TaskEvent = "task_progress_update"
 )
 
-// Worker pool //
-
-type hit struct {
-	time   time.Time
-	target *task
-}
-
-type workChannel chan *task
-
-type hitChannel chan hit
-
-type taskPool struct {
-	treatAsGlobal  bool
-	hasQueueThread bool
-
-	totalTasks     *atomic.Int64
-	completedTasks *atomic.Int64
-	waiterCount    *atomic.Int32
-	waiterGate     *sync.Mutex
-	exitLock       *sync.Mutex
-
-	workerPool     *WorkerPool
-	parentTaskPool *taskPool
-	createdBy      *task
-
-	allQueuedFlag bool
-
-	erroredTasks []*task
-}
-
-type WorkerPool struct {
-	maxWorkers     *atomic.Int64 // Max allowed worker count
-	currentWorkers *atomic.Int64 // Current worker count
-	busyCount      *atomic.Int64 // Number of workers currently executing a task
-
-	lifetimeQueuedCount *atomic.Int64
-
-	taskStream   workChannel
-	taskBufferMu *sync.Mutex
-	taskBuffer   []*task
-	hitStream    hitChannel
-
-	exitFlag int
-}
-
 // Internal types //
 
-type TaskMetadata interface {
+type taskMetadata interface {
 	MetaString() string
 }
 
-type ScanMetadata struct {
-	file         types.WeblensFile
-	recursive    bool
-	deepScan     bool
+type scanMetadata struct {
+	file types.WeblensFile
+	// recursive    bool
+	// deepScan     bool
 	fileBytes    []byte
 	partialMedia types.Media
 }
 
-// Override marshal function for ScanMetadata
-func (m ScanMetadata) MetaString() string {
+// MetaString overrides marshal function for scanMetadata
+func (m scanMetadata) MetaString() string {
 	data := map[string]any{
-		"FileId":    m.file.Id(),
-		"Recursive": m.recursive,
-		"Deep":      m.deepScan,
+		"TaskType": ScanFileTask,
+		"FileId":   m.file.ID(),
+		// "Recursive": m.recursive,
+		// "Deep":      m.deepScan,
 	}
 	bs, err := json.Marshal(data)
 	util.ErrTrace(err)
@@ -158,14 +66,16 @@ func (m ScanMetadata) MetaString() string {
 	return string(bs)
 }
 
-type ZipMetadata struct {
+type zipMetadata struct {
 	files    []types.WeblensFile
 	username types.Username
 	shareId  types.ShareId
+	fileTree types.FileTree
 }
 
-func (m ZipMetadata) MetaString() string {
+func (m zipMetadata) MetaString() string {
 	data := map[string]any{
+		"TaskType": CreateZipTask,
 		"Files":    m.files,
 		"Username": m.username,
 		"ShareId":  m.shareId,
@@ -176,14 +86,16 @@ func (m ZipMetadata) MetaString() string {
 	return string(bs)
 }
 
-type MoveMeta struct {
+type moveMeta struct {
 	fileId              types.FileId
 	destinationFolderId types.FileId
 	newFilename         string
+	fileTree            types.FileTree
 }
 
-func (m MoveMeta) MetaString() string {
+func (m moveMeta) MetaString() string {
 	data := map[string]any{
+		"TaskType":    MoveFileTask,
 		"FileId":      m.fileId,
 		"DestId":      m.destinationFolderId,
 		"NewFileName": m.newFilename,
@@ -194,7 +106,7 @@ func (m MoveMeta) MetaString() string {
 	return string(bs)
 }
 
-type FileChunk struct {
+type fileChunk struct {
 	FileId       types.FileId
 	Chunk        []byte
 	ContentRange string
@@ -202,15 +114,17 @@ type FileChunk struct {
 	newFile types.WeblensFile
 }
 
-type WriteFileMeta struct {
-	chunkStream  chan FileChunk
+type writeFileMeta struct {
+	chunkStream  chan fileChunk
 	rootFolderId types.FileId
 	chunkSize    int64
 	totalSize    int64
+	fileTree     types.FileTree
 }
 
-func (m WriteFileMeta) MetaString() string {
+func (m writeFileMeta) MetaString() string {
 	data := map[string]any{
+		"TaskType":   WriteFileTask,
 		"RootFolder": m.rootFolderId,
 		"ChunkSize":  m.chunkSize,
 		"TotalSize":  m.totalSize,
@@ -221,13 +135,14 @@ func (m WriteFileMeta) MetaString() string {
 	return string(bs)
 }
 
-type FsStatMeta struct {
+type fsStatMeta struct {
 	rootDir types.WeblensFile
 }
 
-func (m FsStatMeta) MetaString() string {
+func (m fsStatMeta) MetaString() string {
 	data := map[string]any{
-		"RootFolder": m.rootDir.Id(),
+		"TaskType":   GatherFsStatsTask,
+		"RootFolder": m.rootDir.ID(),
 	}
 	bs, err := json.Marshal(data)
 	util.ErrTrace(err)
@@ -241,12 +156,14 @@ type fileUploadProgress struct {
 	fileSizeTotal int64
 }
 
-type BackupMeta struct {
+type backupMeta struct {
 	remoteId string
+	tree     types.FileTree
 }
 
-func (m BackupMeta) MetaString() string {
+func (m backupMeta) MetaString() string {
 	data := map[string]any{
+		"TaskType": BackupTask,
 		"remoteId": m.remoteId,
 	}
 	bs, err := json.Marshal(data)
@@ -255,13 +172,14 @@ func (m BackupMeta) MetaString() string {
 	return string(bs)
 }
 
-type HashFileMeta struct {
+type hashFileMeta struct {
 	file types.WeblensFile
 }
 
-func (m HashFileMeta) MetaString() string {
+func (m hashFileMeta) MetaString() string {
 	data := map[string]any{
-		"fileId": m.file.Id(),
+		"TaskType": HashFile,
+		"fileId":   m.file.ID(),
 	}
 	bs, err := json.Marshal(data)
 	util.ErrTrace(err)
@@ -269,17 +187,13 @@ func (m HashFileMeta) MetaString() string {
 	return string(bs)
 }
 
-// Misc
-type KeyVal struct {
-	Key string
-	Val string
-}
+// Errors
 
-var ErrNonDisplayable types.WeblensError = errors.New("attempt to process non-displayable file")
-var ErrEmptyZip types.WeblensError = errors.New("cannot create a zip with no files")
-var ErrTaskExit types.WeblensError = errors.New("task exit")
-var ErrTaskError types.WeblensError = errors.New("task generated an error")
-var ErrTaskTimeout types.WeblensError = errors.New("task timed out")
-var ErrBadTaskMetaType types.WeblensError = errors.New("task metadata type is not supported on attempted operation")
-var ErrBadCaster types.WeblensError = errors.New("task was given the wrong type of caster")
-var ErrChildTaskFailed types.WeblensError = errors.New("a task spawned by this task has failed")
+var ErrNonDisplayable = types.NewWeblensError("attempt to process non-displayable file")
+var ErrEmptyZip = types.NewWeblensError("cannot create a zip with no files")
+var ErrTaskExit = types.NewWeblensError("task exit")
+var ErrTaskError = types.NewWeblensError("task generated an error")
+var ErrTaskTimeout = types.NewWeblensError("task timed out")
+var ErrBadTaskType = types.NewWeblensError("task metadata type is not supported on attempted operation")
+var ErrBadCaster = types.NewWeblensError("task was given the wrong type of caster")
+var ErrChildTaskFailed = types.NewWeblensError("a task spawned by this task has failed")

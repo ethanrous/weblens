@@ -6,7 +6,7 @@ import (
 )
 
 func NewRemote(id, name string, key types.WeblensApiKey) error {
-	if existing := fddb.getUsingKey(key); existing != nil {
+	if existing := dbServer.getUsingKey(key); existing != nil {
 		util.Error.Println("Using server:", existing.Name)
 		return ErrKeyInUse
 	}
@@ -17,7 +17,7 @@ func NewRemote(id, name string, key types.WeblensApiKey) error {
 		Role:     types.Backup,
 		UsingKey: key,
 	}
-	err := fddb.newServer(remote)
+	err := dbServer.newServer(remote)
 	if err != nil {
 		return err
 	}
@@ -27,9 +27,9 @@ func NewRemote(id, name string, key types.WeblensApiKey) error {
 }
 
 func GetRemotes() ([]*srvInfo, error) {
-	return fddb.getServers()
+	return dbServer.getServers()
 }
 
 func DeleteRemote(remoteId string) {
-	fddb.removeServer(remoteId)
+	dbServer.removeServer(remoteId)
 }

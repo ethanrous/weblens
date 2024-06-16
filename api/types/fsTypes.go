@@ -5,27 +5,52 @@ import (
 	"time"
 )
 
+type FileTree interface {
+	Add(f, parent WeblensFile, c ...BroadcasterAgent) error
+	Del(f WeblensFile, casters ...BroadcasterAgent) error
+	Get(fileId FileId) WeblensFile
+	Move(f, newParent WeblensFile, newFilename string, overwrite bool, c ...BufferedBroadcasterAgent) error
+
+	Touch(parentFolder WeblensFile, newFileName string, detach bool, owner User, c ...BroadcasterAgent) (WeblensFile,
+		error)
+	MkDir(parentFolder WeblensFile, newDirName string, c ...BroadcasterAgent) (WeblensFile, error)
+
+	AttachFile(f WeblensFile, c ...BroadcasterAgent) error
+
+	GetRoot() WeblensFile
+	SetRoot(WeblensFile)
+	GetJournal() JournalService
+	SetJournal(JournalService)
+	GenerateFileId(absPath string) FileId
+	NewFile(parent WeblensFile, filename string, isDir bool) WeblensFile
+	Size() int
+
+	AddRoot(r WeblensFile) error
+	NewRoot(id FileId, filename, absPath string, owner User,
+		parent WeblensFile) (WeblensFile, error)
+
+	GetMediaRepo() MediaRepo
+}
+
 type WeblensFile interface {
-	Id() FileId
+	ID() FileId
+	GetTree() FileTree
 	IsDir() bool
 	Size() (int64, error)
 	Filename() string
 	GetAbsPath() string
 	Owner() User
+	SetOwner(User)
 	Exists() bool
 	ModTime() time.Time
 
-	FormatFileInfo(AccessMeta) (FileInfo, error)
-	IsDisplayable() bool
-
-	// GetMedia() (Media, error)
-	// SetMedia(Media) error
-	// ClearMedia()
+	FormatFileInfo(AccessMeta, MediaRepo) (FileInfo, error)
+	IsDisplayable(MediaRepo) bool
 
 	Copy() WeblensFile
 	GetParent() WeblensFile
 	GetChildren() []WeblensFile
-	GetChildrenInfo(AccessMeta) []FileInfo
+	GetChildrenInfo(AccessMeta, MediaRepo) []FileInfo
 	GetChild(childName string) (WeblensFile, error)
 	AddChild(child WeblensFile) error
 	IsReadOnly() bool
@@ -34,6 +59,8 @@ type WeblensFile interface {
 	GetTask() Task
 	RemoveTask(TaskId) error
 
+	SetWatching() error
+
 	CreateSelf() error
 	Write([]byte) error
 	WriteAt([]byte, int64) error
@@ -41,6 +68,7 @@ type WeblensFile interface {
 	ReadAll() ([]byte, error)
 	ReadDir() error
 	GetContentId() ContentId
+	SetContentId(ContentId)
 
 	GetShare(ShareId) (Share, error)
 	GetShares() []Share
@@ -55,6 +83,7 @@ type WeblensFile interface {
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
 	MarshalArchive() map[string]any
+	LoadStat(casters ...BroadcasterAgent) (err error)
 }
 
 type FileId string
@@ -65,7 +94,7 @@ func (fId FileId) String() string {
 
 type FileMapFunc func(WeblensFile) error
 
-// Structure for safely sending file information to the client
+// FileInfo is a structure for safely sending file information to the client
 type FileInfo struct {
 	Id FileId `json:"id"`
 

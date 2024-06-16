@@ -17,7 +17,7 @@ import {
 } from 'react'
 import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
 import { FBDispatchT, FbStateT, UserInfoT } from '../../types/Types'
-import { WeblensFile } from '../../classes/File'
+import { WeblensFile } from '../../Files/File'
 
 import {
     IconFile,
@@ -155,6 +155,7 @@ export enum FbMenuModeT {
     Default,
     Sharing,
     NameFolder,
+    AddToAlbum,
 }
 
 export const DirViewWrapper = memo(

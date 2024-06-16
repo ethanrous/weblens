@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"runtime/debug"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -40,83 +39,83 @@ func wsConnect(ctx *gin.Context) {
 		return
 	}
 
-	client := cmInstance.ClientConnect(conn, user)
+	client := rc.ClientManager.ClientConnect(conn, user)
 	go wsMain(client)
 }
 
-func wsMain(client *Client) {
-	defer client.Disconnect()
+func wsMain(c types.Client) {
+	defer c.Disconnect()
 
 	for {
-		_, buf, err := client.conn.ReadMessage()
+		_, buf, err := c.(*client).conn.ReadMessage()
 		if err != nil {
 			break
 		}
-		go wsReqSwitchboard(buf, client)
+		go wsReqSwitchboard(buf, c)
 	}
 }
 
-func wsReqSwitchboard(msgBuf []byte, client *Client) {
-	defer wsRecover(client)
-	// defer util.RecoverPanic("[WS] Client %d panicked: %v", client.GetClientId())
+func wsReqSwitchboard(msgBuf []byte, c types.Client) {
+	defer wsRecover(c)
+	// defer util.RecoverPanic("[WS] client %d panicked: %v", client.GetClientId())
 
 	var msg wsRequest
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
-		util.ErrTrace(err)
+		c.Error(err)
 		return
 	}
 
-	switch msg.Action {
-	case Subscribe:
+	subInfo, err := newActionBody(msg)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	switch subInfo.Action() {
+	case types.FolderSubscribe:
 		{
-			var subInfo subscribeBody
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 			if err != nil {
 				util.ErrTrace(err)
-				client.Error(errors.New("failed to parse subscribe request"))
+				c.Error(errors.New("failed to parse subscribe request"))
 			}
 
-			if subInfo.SubType == "" || subInfo.Key == "" {
-				client.Error(fmt.Errorf("bad subscribe request: %s", msg.Content))
-				return
-			}
-
-			acc := dataStore.NewAccessMeta(client.user)
-			if subInfo.ShareId != "" {
-				share, err := dataStore.GetShare(subInfo.ShareId, dataStore.FileShare)
+			folderSub := subInfo.(*folderSubscribeMeta)
+			acc := dataStore.NewAccessMeta(c.GetUser(), rc.FileTree)
+			if folderSub.ShareId != "" {
+				share, err := dataStore.GetShare(folderSub.ShareId, dataStore.FileShare, rc.FileTree)
 				if err != nil || share == nil {
-					util.ErrTrace(err)
-					client.Error(errors.New("share not found"))
+					util.ShowErr(err)
+					c.Error(errors.New("share not found"))
 					return
 				}
 
 				err = acc.AddShare(share)
 				if err != nil {
 					util.ErrTrace(err)
-					client.Error(errors.New("failed to add share"))
+					c.Error(errors.New("failed to add share"))
 					return
 				}
 			}
 
-			complete, result := client.Subscribe(subInfo.SubType, subInfo.Key, subInfo.Meta, acc)
+			// TODO - subInfo.Meta here is not going to know what it should be
+			complete, result := c.Subscribe(subInfo.GetKey(), types.FolderSubscribe, acc, rc.FileTree)
 			if complete {
-				Caster.PushTaskUpdate(types.TaskId(subInfo.Key), dataProcess.TaskComplete, types.TaskResult{"takeoutId": result["takeoutId"]})
+				rc.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
+					types.TaskResult{"takeoutId": result["takeoutId"]})
 			}
 		}
-
-	case Unsubscribe:
-		{
-			var unsubInfo unsubscribeBody
-			err := json.Unmarshal([]byte(msg.Content), &unsubInfo)
-			if err != nil {
-				util.ErrTrace(err)
-				return
-			}
-			client.Unsubscribe(unsubInfo.Key)
+	case types.TaskSubscribe:
+		complete, result := c.Subscribe(subInfo.GetKey(), types.TaskSubscribe, nil, rc.FileTree)
+		if complete {
+			rc.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
+				types.TaskResult{"takeoutId": result["takeoutId"]})
 		}
+	case types.Unsubscribe:
+		c.Unsubscribe(subInfo.GetKey())
 
-	case ScanDirectory:
+	case types.ScanDirectory:
 		{
 			var scanInfo scanBody
 			err := json.Unmarshal([]byte(msg.Content), &scanInfo)
@@ -124,29 +123,29 @@ func wsReqSwitchboard(msgBuf []byte, client *Client) {
 				util.ErrTrace(err)
 				return
 			}
-			folder := dataStore.FsTreeGet(scanInfo.FolderId)
+			folder := rc.FileTree.Get(scanInfo.FolderId)
 			if folder == nil {
-				client.Error(errors.New("could not find directory to scan"))
+				c.Error(errors.New("could not find directory to scan"))
 				return
 			}
 
-			client.debug("Got scan directory for", folder.GetAbsPath(), "Recursive: ", scanInfo.Recursive, "Deep: ", scanInfo.DeepScan)
+			c.(*client).debug("Got scan directory for", folder.GetAbsPath(), "Recursive: ", scanInfo.Recursive, "Deep: ", scanInfo.DeepScan)
 
-			t := dataProcess.GetGlobalQueue().ScanDirectory(folder, scanInfo.Recursive, scanInfo.DeepScan, Caster)
-			acc := dataStore.NewAccessMeta(client.user)
-			client.Subscribe(SubTask, subId(t.TaskId()), nil, acc)
+			t := rc.TaskDispatcher.ScanDirectory(folder, rc.Caster)
+			acc := dataStore.NewAccessMeta(c.GetUser(), rc.FileTree)
+			c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, rc.FileTree)
 		}
 
 	default:
 		{
-			client.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
+			c.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
 		}
 	}
 }
 
-func wsRecover(c *Client) {
+func wsRecover(c types.Client) {
 	err := recover()
 	if err != nil {
-		c.err(err, string(debug.Stack()))
+		c.Error(fmt.Errorf("%v", err))
 	}
 }

@@ -5,6 +5,6 @@ type Store interface {
 }
 
 type UserStore interface {
-	LoadUsers() (err error)
+	LoadUsers(FileTree) (err error)
 	GetUsers() []User
 }

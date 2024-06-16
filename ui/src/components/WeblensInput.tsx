@@ -2,6 +2,8 @@ import { memo, ReactNode, useState } from 'react'
 import { useKeyDown } from './hooks'
 import { WeblensButton } from './WeblensButton'
 
+import './weblensInput.scss'
+
 const WeblensInput = memo(
     ({
         onComplete,
@@ -12,6 +14,7 @@ const WeblensInput = memo(
         height,
         placeholder,
         closeInput,
+        autoFocus = false,
     }: {
         onComplete: (v: string) => void
         value?: string
@@ -21,11 +24,22 @@ const WeblensInput = memo(
         height?: number
         placeholder?: string
         closeInput?: () => void
+        autoFocus?: boolean
     }) => {
         const [internalValue, setInternalValue] = useState(value ? value : '')
         useKeyDown('Enter', () => {
             if (onComplete) {
                 onComplete(internalValue)
+                if (closeInput) {
+                    closeInput()
+                }
+            }
+        })
+
+        useKeyDown('Escape', (e) => {
+            if (closeInput) {
+                e.stopPropagation()
+                closeInput()
             }
         })
 
@@ -44,7 +58,7 @@ const WeblensInput = memo(
             >
                 {icon}
                 <input
-                    autoFocus
+                    autoFocus={autoFocus}
                     className="weblens-input"
                     value={internalValue}
                     placeholder={placeholder}
@@ -61,12 +75,13 @@ const WeblensInput = memo(
                         <WeblensButton
                             centerContent
                             squareSize={height ? height * 0.75 : 40}
-                            width={height ? height * 0.75 : 40}
                             Left={buttonIcon}
                             onClick={(e) => {
                                 e.stopPropagation()
-                                console.log(internalValue)
                                 onComplete(internalValue)
+                                if (closeInput) {
+                                    closeInput()
+                                }
                             }}
                         />
                     </div>
@@ -78,6 +93,8 @@ const WeblensInput = memo(
         if (prev.value !== next.value) {
             return false
         } else if (prev.onComplete !== next.onComplete) {
+            return false
+        } else if (prev.closeInput !== next.closeInput) {
             return false
         }
         return true

@@ -1,5 +1,5 @@
 import { Indicator, Space, Text } from '@mantine/core'
-import { PhotoGallery } from '../../components/MediaDisplay'
+import { PhotoGallery } from '../../Media/MediaDisplay'
 import { WeblensButton } from '../../components/WeblensButton'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -11,13 +11,13 @@ import {
     useState,
 } from 'react'
 import WeblensSlider from '../../components/WeblensSlider'
-import { MediaImage } from '../../components/PhotoContainer'
+import { MediaImage } from '../../Media/PhotoContainer'
 import { GalleryContext } from './Gallery'
 import { IconAlbum, IconFilter, IconFolder } from '@tabler/icons-react'
 import { UserContext } from '../../Context'
-import { FetchData } from '../../api/GalleryApi'
-import WeblensMedia from '../../classes/Media'
+import WeblensMedia from '../../Media/Media'
 import { useClick, useKeyDown } from '../../components/hooks'
+import { FetchData } from '../../Media/MediaQuery'
 
 const TimelineControls = () => {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
@@ -157,7 +157,6 @@ const TimelineControls = () => {
                     label="Select"
                     allowRepeat
                     squareSize={40}
-                    width={75}
                     centerContent
                     toggleOn={galleryState.selecting}
                     onClick={selectClick}
@@ -181,14 +180,14 @@ const NoMediaDisplay = () => {
                     <WeblensButton
                         squareSize={48}
                         label="FileBrowser"
-                        Left={<IconFolder />}
+                        Left={IconFolder}
                         centerContent
                         onClick={() => nav('/files')}
                     />
                     <WeblensButton
                         squareSize={48}
                         label="Albums"
-                        Left={<IconAlbum />}
+                        Left={IconAlbum}
                         centerContent
                         onClick={() => nav('/albums')}
                     />

@@ -1,8 +1,8 @@
 import { Divider, Text } from '@mantine/core'
 import { FBDispatchT, UserContextT, UserInfoT } from '../../types/Types'
-import { WeblensFile } from '../../classes/File'
+import { WeblensFile } from '../../Files/File'
 import { useResizeDrag, useWindowSize } from '../../components/hooks'
-import { memo, useContext, useEffect, useMemo, useState } from 'react'
+import { memo, useContext, useMemo, useState } from 'react'
 import {
     IconArrowRight,
     IconCaretDown,
@@ -20,6 +20,7 @@ import { getFileHistory } from '../../api/FileBrowserApi'
 import { UserContext } from '../../Context'
 import { FileEventT } from './FileBrowserTypes'
 import './style/history.css'
+import { useQuery } from '@tanstack/react-query'
 
 const SIDEBAR_BREAKPOINT = 650
 
@@ -52,7 +53,7 @@ export const FilesPane = memo(
         )
 
         if (!open) {
-            return <div className="file-info-pane" style={{ width: 0 }} />
+            return <div className="file-info-pane" />
         }
 
         return (
@@ -72,21 +73,25 @@ export const FilesPane = memo(
                     <div className="resize-bar" />
                 </div>
                 <div className="flex flex-col w-[75px] grow ">
-                    <div className="flex flex-row h-max w-full gap-1">
-                        <WeblensButton
-                            label="File Info"
-                            squareSize={50}
-                            width={'50%'}
-                            toggleOn={tab === 'info'}
-                            onClick={() => setTab('info')}
-                        />
-                        <WeblensButton
-                            label="History"
-                            squareSize={50}
-                            width={'50%'}
-                            toggleOn={tab === 'history'}
-                            onClick={() => setTab('history')}
-                        />
+                    <div className="flex flex-row h-max w-full gap-1 justify-between p-1 pl-0">
+                        <div className="max-w-[49%]">
+                            <WeblensButton
+                                label="File Info"
+                                squareSize={50}
+                                fillWidth
+                                toggleOn={tab === 'info'}
+                                onClick={() => setTab('info')}
+                            />
+                        </div>
+                        <div className="max-w-[49%]">
+                            <WeblensButton
+                                label="History"
+                                squareSize={50}
+                                fillWidth
+                                toggleOn={tab === 'history'}
+                                onClick={() => setTab('history')}
+                            />
+                        </div>
                     </div>
                     {tab === 'info' && (
                         <FileInfo selectedFiles={selectedFiles} />
@@ -390,15 +395,20 @@ function FileHistory({
     dispatch: FBDispatchT
 }) {
     const { authHeader, usr }: UserContextT = useContext(UserContext)
-    const [fileHistory, setFileHistory]: [
-        fileHistory: FileEventT[],
-        setFileHistory: any,
-    ] = useState([])
+    // const [fileHistory, setFileHistory]: [
+    //     fileHistory: FileEventT[],
+    //     setFileHistory: any,
+    // ] = useState([])
+    //
+    // useEffect(() => {
+    //     setFileHistory([])
+    //     getFileHistory(fileId, authHeader).then((r) => setFileHistory(r.events))
+    // }, [fileId, timestamp])
 
-    useEffect(() => {
-        setFileHistory([])
-        getFileHistory(fileId, authHeader).then((r) => setFileHistory(r.events))
-    }, [fileId, timestamp])
+    const { data: fileHistory } = useQuery({
+        queryKey: ['fileHistory'],
+        queryFn: () => getFileHistory(fileId, authHeader).then((r) => r.events),
+    })
 
     const { createEvent, eventGroups } = useMemo(() => {
         if (!fileHistory || !fileHistory.length) {

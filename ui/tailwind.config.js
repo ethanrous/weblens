@@ -9,6 +9,9 @@ export default {
                 'bottom-grey': '#121212',
                 'raised-grey': '#212124',
             },
+            boxShadow: {
+                soft: '2px 2px 12px #000000aa',
+            },
             animation: {
                 fade: 'fadeIn 200ms ease-in-out',
             },

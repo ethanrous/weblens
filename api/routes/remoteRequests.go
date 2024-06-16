@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
@@ -116,26 +116,26 @@ func (r *requester) AttachToCore(srvId, coreAddress, name string, apiKey types.W
 	}
 }
 
-func (r *requester) RequestCoreSnapshot() ([]types.FileJournalEntry, error) {
-	latest, err := dataStore.GetLatestBackup()
-	if err != nil {
-		return nil, err
-	}
-	resp, err := r.coreRequest("GET", "/snapshot?since="+strconv.FormatInt(latest.UnixMilli(), 10), nil)
-	if err != nil {
-		return nil, err
-	} else if resp.StatusCode != 200 {
-		err = errors.New("bad status: " + resp.Status)
-		return nil, err
-	}
-
-	j, err := readRespBody[dataStore.JournalResp](resp)
-	if err != nil {
-		return nil, err
-	}
-
-	return util.SliceConvert[types.FileJournalEntry](j.Journal), nil
-}
+// func (r *requester) RequestCoreSnapshot() ([]types.FileJournalEntry, error) {
+// 	latest, err := dataStore.GetLatestBackup()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	resp, err := r.coreRequest("GET", "/snapshot?since="+strconv.FormatInt(latest.UnixMilli(), 10), nil)
+// 	if err != nil {
+// 		return nil, err
+// 	} else if resp.StatusCode != 200 {
+// 		err = errors.New("bad status: " + resp.Status)
+// 		return nil, err
+// 	}
+//
+// 	j, err := readRespBody[dataStore.JournalResp](resp)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	return util.SliceConvert[types.FileJournalEntry](j.Journal), nil
+// }
 
 func (r *requester) GetCoreUsers() (us []types.User, err error) {
 	resp, err := r.coreRequest("GET", "/users", nil)
@@ -168,7 +168,7 @@ func (r *requester) GetCoreFileInfos(fIds []types.FileId) ([]types.WeblensFile, 
 }
 
 func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {
-	resp, err := r.coreRequest("GET", "/file/"+string(f.Id())+"/content", nil)
+	resp, err := r.coreRequest("GET", "/file/"+string(f.ID())+"/content", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {
 	bs = append(bs, origFileBs)
 
 	if f.IsDisplayable() {
-		m := dataStore.MediaMapGet(f.GetContentId())
+		m := media.MediaMapGet(f.GetContentId())
 
 		if m == nil {
 			return nil, dataStore.ErrNoMedia

@@ -1,8 +1,7 @@
-import WeblensMedia from '../../classes/Media'
+import WeblensMedia from '../../Media/Media'
 import { WeblensButton } from '../../components/WeblensButton'
 import { useClick, useKeyDown } from '../../components/hooks'
 import { memo, useCallback, useContext, useMemo, useState } from 'react'
-import { SetAlbumCover } from '../../api/GalleryApi'
 import { UserContext } from '../../Context'
 import {
     IconCalendarTime,
@@ -14,6 +13,7 @@ import {
 import { GalleryContext } from './Gallery'
 import { adjustMediaTime, hideMedia } from '../../api/ApiFetch'
 import { GalleryDispatchT, newTimeOffset, TimeOffset } from '../../types/Types'
+import { SetAlbumCover } from '../../Albums/AlbumQuery'
 
 const mediaDate = (timestamp: number) => {
     const dateObj = new Date(timestamp)
@@ -368,11 +368,11 @@ export const GalleryMenu = memo(
                         />
                     )}
                 {open && galleryState.timeAdjustOffset === null && (
-                    <div className="flex flex-col items-center w-max p-1">
+                    <div className="flex flex-col items-center w-full max-w-[300px] p-2">
                         <WeblensButton
                             squareSize={40}
-                            width={'100%'}
-                            Left={<IconCalendarTime />}
+                            fillWidth
+                            Left={IconCalendarTime}
                             label="Adjust Time"
                             centerContent
                             onClick={(e) => {
@@ -385,11 +385,10 @@ export const GalleryMenu = memo(
                         />
                         <WeblensButton
                             label="Set as Cover"
-                            subtle
                             centerContent
-                            Left={<IconPolaroid />}
+                            fillWidth
+                            Left={IconPolaroid}
                             squareSize={40}
-                            width={'100%'}
                             textMin={100}
                             disabled={!albumId}
                             style={{ opacity: open ? '100%' : '0%' }}
@@ -401,20 +400,16 @@ export const GalleryMenu = memo(
                                     authHeader
                                 )
                                 updateAlbum()
-                                if (r.status !== 200) {
-                                    return false
-                                }
-                                return true
+                                return r.status === 200
                             }}
                         />
                         <WeblensButton
                             label="Hide"
-                            subtle
                             centerContent
                             danger
-                            Left={<IconEyeOff />}
+                            fillWidth
+                            Left={IconEyeOff}
                             squareSize={40}
-                            width={'100%'}
                             textMin={100}
                             disabled={media.IsHidden()}
                             style={hideStyle}

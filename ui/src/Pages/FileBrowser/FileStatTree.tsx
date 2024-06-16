@@ -6,7 +6,7 @@ import { useResize } from '../../components/hooks'
 import { getFilesystemStats } from '../../api/FileBrowserApi'
 import { useNavigate } from 'react-router-dom'
 import { AuthHeaderT } from '../../types/Types'
-import { WeblensFile } from '../../classes/File'
+import { WeblensFile } from '../../Files/File'
 import { IconFolder } from '@tabler/icons-react'
 
 export type TreeNode = {
@@ -76,7 +76,6 @@ export const StatTree = ({
                     onClick={() => setStatsFilter([])}
                     disabled={statFilter.length === 0}
                     squareSize={50}
-                    width={170}
                     label={`Clear Filter`}
                     postScript={
                         statFilter.length === 0

@@ -13,9 +13,9 @@ type User interface {
 	IsOwner() bool
 	GetToken() string
 	GetHomeFolder() WeblensFile
+	CreateHomeFolder(ft FileTree) (WeblensFile, error)
 	GetTrashFolder() WeblensFile
 
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
-	// UnmarshalJSON(data []byte) error
 }

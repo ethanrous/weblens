@@ -2,31 +2,30 @@ import { notifications } from '@mantine/notifications'
 import axios from 'axios'
 
 import { AlbumData, AuthHeaderT, FBDispatchT } from '../types/Types'
-import { FileInitT, WeblensFile } from '../classes/File'
+import { FileInitT, WeblensFile } from '../Files/File'
 import API_ENDPOINT from './ApiEndpoint'
 import { WeblensShare } from '../classes/Share'
 import { FbModeT } from '../Pages/FileBrowser/FileBrowser'
 
-export function SubToFolder(
-    subId: string,
-    shareId: string,
-    recursive: boolean,
-    wsSend
-) {
+export function SubToFolder(subId: string, shareId: string, wsSend) {
     if (!subId || subId === 'shared') {
         return
     }
-    wsSend('subscribe', {
-        subscribeType: 'folder',
+    wsSend('folder_subscribe', {
         subscribeKey: subId,
         shareId: shareId,
-        subscribeMeta: JSON.stringify({ recursive: recursive }),
+    })
+}
+
+export function SubToTask(taskId: string, lookingFor: string[], wsSend) {
+    wsSend('task_subscribe', {
+        subscribeKey: taskId,
+        lookingFor: lookingFor,
     })
 }
 
 export function UnsubFromFolder(subId: string, wsSend) {
     if (!subId) {
-        // console.error("Trying to unsub to empty id")
         return
     }
     wsSend('unsubscribe', { subscribeKey: subId })
@@ -376,16 +375,6 @@ export async function GetWormholeInfo(
     const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
 
     return fetch(url.toString(), { headers: authHeader })
-}
-
-export async function GetMediasByFolder(
-    folderId: string,
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/folder/${folderId}/media`)
-    return fetch(url.toString(), { headers: authHeader }).then((res) =>
-        res.json()
-    )
 }
 
 export async function shareFiles(

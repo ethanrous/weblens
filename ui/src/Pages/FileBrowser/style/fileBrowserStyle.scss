@@ -402,6 +402,7 @@
 
 .file-info-pane {
     display: flex;
+    width: 0;
 
     flex-direction: row;
     flex-shrink: 0;

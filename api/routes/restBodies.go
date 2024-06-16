@@ -3,7 +3,7 @@ package routes
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataStore/filetree"
 	"github.com/ethrousseau/weblens/api/types"
 )
 
@@ -102,12 +102,22 @@ type restoreBody struct {
 }
 
 type getFilesResp struct {
-	Files    dataStore.FileArray `json:"files"`
-	NotFound []types.FileId      `json:"notFound"`
+	Files    filetree.FileArray `json:"files"`
+	NotFound []types.FileId     `json:"notFound"`
 }
 
 type createFolderBody struct {
 	ParentFolderId types.FileId   `json:"parentFolderId"`
 	NewFolderName  string         `json:"newFolderName"`
 	Children       []types.FileId `json:"children"`
+}
+
+type updateAlbumBody struct {
+	AddMedia    []types.ContentId `json:"newMedia"`
+	AddFolders  []types.FileId    `json:"newFolders"`
+	RemoveMedia []types.ContentId `json:"removeMedia"`
+	Cover       types.ContentId   `json:"cover"`
+	NewName     string            `json:"newName"`
+	Users       []types.Username  `json:"users"`
+	RemoveUsers []types.Username  `json:"removeUsers"`
 }

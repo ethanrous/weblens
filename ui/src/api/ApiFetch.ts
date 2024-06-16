@@ -1,7 +1,7 @@
 import { notifications } from '@mantine/notifications'
 import API_ENDPOINT from './ApiEndpoint'
 import { AuthHeaderT } from '../types/Types'
-import WeblensMedia from '../classes/Media'
+import WeblensMedia from '../Media/Media'
 
 export function login(user: string, pass: string) {
     const url = new URL(`${API_ENDPOINT}/login`)

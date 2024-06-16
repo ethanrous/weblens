@@ -3,10 +3,57 @@ package dataProcess
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+)
+
+type task struct {
+	taskId     types.TaskId
+	taskPool   types.TaskPool
+	caster     types.BroadcasterAgent
+	requester  types.Requester
+	work       taskHandler
+	taskType   types.TaskType
+	metadata   any
+	result     types.TaskResult
+	persistent bool
+	queueState taskQueueState
+
+	err any
+
+	timeout   time.Time
+	timerLock *sync.Mutex
+
+	exitStatus types.TaskExitStatus // "success", "error" or "cancelled"
+
+	// Function to be run to clean up when the task completes, no matter the exit status
+	cleanup func()
+
+	// Function to be run to clean up if the task errors
+	errorCleanup func()
+
+	sw util.Stopwatch
+
+	// signal is used for signaling a task to change behavior after it has been queued,
+	// to exit prematurely, for example. The signalChan serves the same purpose, but is
+	// used when a task might block waiting for another channel.
+	// Key: 1 is exit,
+	signal     int
+	signalChan chan int
+
+	waitMu *sync.Mutex
+}
+
+type taskQueueState string
+
+const (
+	PreQueued taskQueueState = "pre-queued"
+	InQueue   taskQueueState = "in-queued"
+	Executing taskQueueState = "executing"
+	Exited    taskQueueState = "exited"
 )
 
 func (t *task) TaskId() types.TaskId {
@@ -17,36 +64,48 @@ func (t *task) TaskType() types.TaskType {
 	return t.taskType
 }
 
+func (t *task) GetTaskPool() types.TaskPool {
+	return t.taskPool
+}
+
 // Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
 func (t *task) Status() (bool, types.TaskExitStatus) {
-	return t.completed, t.exitStatus
+	return t.queueState == Exited, t.exitStatus
 }
 
 func (t *task) SetCaster(c types.BroadcasterAgent) {
 	t.caster = c
 }
 
-// Queue task on given taskPool tp,
+// Q queues task on given taskPool tp,
 // if tp is nil, will default to the global task pool.
 // Essentially an alias for tp.QueueTask(t), so you can
 // NewTask(...).Q(). Returns the given task to further support this
 func (t *task) Q(tp types.TaskPool) types.Task {
 	if tp == nil {
-		tp = GetGlobalQueue()
+		util.Error.Println("nil task pool")
+		return nil
+		// tp = GetGlobalQueue()
 	}
-	tp.QueueTask(t)
+	err := tp.QueueTask(t)
+	if err != nil {
+		util.ShowErr(err)
+		return nil
+	}
 
 	return t
 }
 
 // Block until a task is finished. "Finished" can define success, failure, or cancel
-func (t *task) Wait() {
-	if t == nil || t.completed {
-		return
+func (t *task) Wait() types.Task {
+	if t == nil || t.queueState == Exited {
+		return t
 	}
 	t.waitMu.Lock()
 	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
 	t.waitMu.Unlock()
+
+	return t
 }
 
 // Unknowable if this is the last operation of a task, so t.success()
@@ -63,7 +122,7 @@ func (t *task) Cancel() {
 		return
 	}
 
-	if t.completed || t.signal != 0 {
+	if t.queueState == Exited || t.signal != 0 {
 		return
 	}
 	t.signal = 1
@@ -71,7 +130,7 @@ func (t *task) Cancel() {
 	if t.exitStatus == TaskNoStatus {
 		t.exitStatus = TaskCanceled
 	}
-	t.completed = true
+	t.queueState = Exited
 }
 
 // This should be used intermittently to check if the task should exit.
@@ -92,28 +151,21 @@ func (t *task) ClearAndRecompute() {
 		util.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId(), t.err)
 		t.err = nil
 	}
-	t.completed = false
+	t.queueState = PreQueued
 	t.waitMu.TryLock()
 	t.taskPool.QueueTask(t)
 }
 
-func (t *task) GetResult(resultsFilter ...string) map[string]any {
+func (t *task) GetResult(resultKey string) any {
 	if t.result == nil {
 		return nil
 	}
-	if len(resultsFilter) == 0 {
-		return t.result
-	}
+	
+	return t.result[resultKey]
+}
 
-	ret := map[string]any{}
-	for _, f := range resultsFilter {
-		tmpR, ok := t.result[f]
-		if !ok {
-			continue
-		}
-		ret[f] = tmpR
-	}
-	return ret
+func (t *task) GetResults() map[string]any {
+	return t.result
 }
 
 func (t *task) GetMeta() any {
@@ -140,13 +192,13 @@ func (t *task) error(err error) {
 	// E.g. A file is being moved, so we cancel all tasks on it,
 	// and move it in the filesystem. The task goes to find the file, it can't (because it was moved)
 	// and throws this error. Now we are here and we realize the task was canceled, so that error is not valid
-	if t.completed {
+	if t.queueState == Exited {
 		return
 	}
 
 	t.err = err
 	t.exitStatus = TaskError
-	t.completed = true
+	t.queueState = Exited
 
 	t.sw.Lap("Task exited due to error")
 	t.sw.Stop()
@@ -187,7 +239,7 @@ func (t *task) success(msg ...any) {
 		t.cleanup = nil
 	}
 
-	t.completed = true
+	t.queueState = Exited
 	t.exitStatus = TaskSuccess
 	if len(msg) != 0 {
 		util.Info.Println("Task succeeded with a message:", fmt.Sprint(msg...))
@@ -200,7 +252,7 @@ func (t *task) setTimeout(timeout time.Time) {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 	t.timeout = timeout
-	t.taskPool.workerPool.hitStream <- hit{time: timeout, target: t}
+	t.GetTaskPool().GetWorkerPool()
 }
 
 func (t *task) ClearTimeout() {

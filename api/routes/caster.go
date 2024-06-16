@@ -36,10 +36,10 @@ func (c *unbufferedCaster) PushTaskUpdate(taskId types.TaskId, event types.TaskE
 
 	msg := wsResponse{
 		EventTag:     string(event),
-		SubscribeKey: subId(taskId),
-		Content:      []wsM{{"result": result}},
+		SubscribeKey: types.SubId(taskId),
+		Content:      []types.WsMsg{{"result": result}},
 
-		broadcastType: "task",
+		broadcastType: types.TaskSubscribe,
 	}
 
 	send(msg)
@@ -52,8 +52,8 @@ func (c *unbufferedCaster) PushShareUpdate(username types.Username, newShareInfo
 
 	msg := wsResponse{
 		EventTag:      "share_updated",
-		SubscribeKey:  subId(username),
-		Content:       []wsM{{"newShareInfo": newShareInfo}},
+		SubscribeKey:  types.SubId(username),
+		Content:       []types.WsMsg{{"newShareInfo": newShareInfo}},
 		Error:         "",
 		broadcastType: "user",
 	}
@@ -66,14 +66,14 @@ func (c *unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, newFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return
 	}
 
-	cmInstance.Broadcast("folder", subId(newFile.GetParent().Id()), "file_created", []wsM{{"fileInfo": fileInfo}})
+	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(newFile.GetParent().ID()), "file_created", []types.WsMsg{{"fileInfo": fileInfo}})
 }
 
 func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
@@ -85,19 +85,19 @@ func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, updatedFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return
 	}
 
-	cmInstance.Broadcast("folder", subId(updatedFile.Id()), "file_updated", []wsM{{"fileInfo": fileInfo}})
+	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
 
 	if updatedFile.GetParent().Owner() == dataStore.WeblensRootUser {
 		return
 	}
-	cmInstance.Broadcast("folder", subId(updatedFile.GetParent().Id()), "file_updated", []wsM{{"fileInfo": fileInfo}})
+	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.GetParent().ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
 }
 
 func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFile types.WeblensFile) {
@@ -105,7 +105,7 @@ func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveF
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, postMoveFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
 
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
@@ -115,10 +115,10 @@ func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveF
 
 	msg := wsResponse{
 		EventTag:      "file_moved",
-		SubscribeKey:  subId(preMoveFile.GetParent().Id()),
-		Content:       []wsM{{"oldId": preMoveFile.Id(), "newFile": postInfo}},
+		SubscribeKey:  types.SubId(preMoveFile.GetParent().ID()),
+		Content:       []types.WsMsg{{"oldId": preMoveFile.ID(), "newFile": postInfo}},
 		Error:         "",
-		broadcastType: "folder",
+		broadcastType: types.FolderSubscribe,
 	}
 
 	send(msg)
@@ -129,21 +129,21 @@ func (c *unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 		return
 	}
 
-	content := []wsM{{"fileId": deletedFile.Id()}}
-	cmInstance.Broadcast("folder", subId(deletedFile.GetParent().Id()), "file_deleted", content)
+	content := []types.WsMsg{{"fileId": deletedFile.ID()}}
+	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(deletedFile.GetParent().ID()), "file_deleted", content)
 }
 
-func (c *unbufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
-	subs := cmInstance.GetSubscribers(SubFolder, subId(folder))
+func (c *unbufferedCaster) FolderSubToTask(folder types.FileId, taskId types.TaskId) {
+	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
 	for _, s := range subs {
-		s.Subscribe(SubTask, subId(task), nil, nil)
+		s.Subscribe(types.SubId(taskId), types.TaskSubscribe, nil, rc.FileTree)
 	}
 }
 
 func (c *unbufferedCaster) UnsubTask(task types.Task) {
-	subs := cmInstance.GetSubscribers(SubFolder, subId(task.TaskId()))
+	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(task.TaskId()))
 	for _, s := range subs {
-		s.Unsubscribe(subId(task.TaskId()))
+		s.Unsubscribe(types.SubId(task.TaskId()))
 	}
 }
 
@@ -201,7 +201,7 @@ func (c *bufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(nil).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(nil, newFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -210,10 +210,10 @@ func (c *bufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 
 	msg := wsResponse{
 		EventTag:     "file_created",
-		SubscribeKey: subId(newFile.GetParent().Id()),
-		Content:      []wsM{{"fileInfo": fileInfo}},
+		SubscribeKey: types.SubId(newFile.GetParent().ID()),
+		Content:      []types.WsMsg{{"fileInfo": fileInfo}},
 
-		broadcastType: "folder",
+		broadcastType: types.FolderSubscribe,
 	}
 	c.bufferAndFlush(msg)
 }
@@ -227,7 +227,7 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, updatedFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -236,10 +236,10 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 
 	msg := wsResponse{
 		EventTag:     "file_updated",
-		SubscribeKey: subId(updatedFile.Id()),
-		Content:      []wsM{{"fileInfo": fileInfo}},
+		SubscribeKey: types.SubId(updatedFile.ID()),
+		Content:      []types.WsMsg{{"fileInfo": fileInfo}},
 
-		broadcastType: "folder",
+		broadcastType: types.FolderSubscribe,
 	}
 	c.bufferAndFlush(msg)
 
@@ -249,10 +249,10 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 
 	msg = wsResponse{
 		EventTag:     "file_updated",
-		SubscribeKey: subId(updatedFile.GetParent().Id()),
-		Content:      []wsM{{"fileInfo": fileInfo}},
+		SubscribeKey: types.SubId(updatedFile.GetParent().ID()),
+		Content:      []types.WsMsg{{"fileInfo": fileInfo}},
 
-		broadcastType: "folder",
+		broadcastType: types.FolderSubscribe,
 	}
 
 	c.bufferAndFlush(msg)
@@ -263,7 +263,7 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, postMoveFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -272,10 +272,10 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 
 	msg := wsResponse{
 		EventTag:      "file_moved",
-		SubscribeKey:  subId(preMoveFile.GetParent().Id()),
-		Content:       []wsM{{"oldId": preMoveFile.Id(), "newFile": postInfo}},
+		SubscribeKey:  types.SubId(preMoveFile.GetParent().ID()),
+		Content:       []types.WsMsg{{"oldId": preMoveFile.ID(), "newFile": postInfo}},
 		Error:         "",
-		broadcastType: "folder",
+		broadcastType: types.FolderSubscribe,
 	}
 
 	c.bufferAndFlush(msg)
@@ -288,10 +288,10 @@ func (c *bufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 
 	msg := wsResponse{
 		EventTag:      "file_deleted",
-		SubscribeKey:  subId(deletedFile.GetParent().Id()),
-		Content:       []wsM{{"fileId": deletedFile.Id()}},
+		SubscribeKey:  types.SubId(deletedFile.GetParent().ID()),
+		Content:       []types.WsMsg{{"fileId": deletedFile.ID()}},
 		Error:         "",
-		broadcastType: "folder",
+		broadcastType: types.FolderSubscribe,
 	}
 
 	c.bufferAndFlush(msg)
@@ -304,10 +304,10 @@ func (c *bufferedCaster) PushTaskUpdate(taskId types.TaskId, event types.TaskEve
 
 	msg := wsResponse{
 		EventTag:      string(event),
-		SubscribeKey:  subId(taskId),
-		Content:       []wsM{wsM(result)},
+		SubscribeKey:  types.SubId(taskId),
+		Content:       []types.WsMsg{types.WsMsg(result)},
 		Error:         "",
-		broadcastType: "task",
+		broadcastType: types.TaskSubscribe,
 	}
 
 	c.bufferAndFlush(msg)
@@ -320,8 +320,8 @@ func (c *bufferedCaster) PushShareUpdate(username types.Username, newShareInfo t
 
 	msg := wsResponse{
 		EventTag:      "share_updated",
-		SubscribeKey:  subId(username),
-		Content:       []wsM{{"newShareInfo": newShareInfo}},
+		SubscribeKey:  types.SubId(username),
+		Content:       []types.WsMsg{{"newShareInfo": newShareInfo}},
 		Error:         "",
 		broadcastType: "user",
 	}
@@ -353,16 +353,16 @@ func (c *bufferedCaster) DisableAutoFlush() {
 
 // Subscribe any subscribers of a folder to a task (presumably one that pertains to that folder)
 func (c *bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
-	subs := cmInstance.GetSubscribers(SubFolder, subId(folder))
+	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
 	for _, s := range subs {
-		s.Subscribe(SubTask, subId(task), nil, nil)
+		s.Subscribe(types.SubId(task), types.TaskSubscribe, nil, rc.FileTree)
 	}
 }
 
 func (c *bufferedCaster) UnsubTask(task types.Task) {
-	subs := cmInstance.GetSubscribers(SubFolder, subId(task.TaskId()))
+	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(task.TaskId()))
 	for _, s := range subs {
-		s.Unsubscribe(subId(task.TaskId()))
+		s.Unsubscribe(types.SubId(task.TaskId()))
 	}
 }
 
@@ -403,12 +403,12 @@ func send(r wsResponse) {
 	}
 	defer util.RecoverPanic("Panic caught while broadcasting: %v")
 
-	clients := cmInstance.GetSubscribers(subType(r.broadcastType), subId(r.SubscribeKey))
+	clients := rc.ClientManager.GetSubscribers(r.broadcastType, types.SubId(r.SubscribeKey))
 	clients = util.OnlyUnique(clients)
 
 	if len(clients) != 0 {
 		for _, c := range clients {
-			c.writeToClient(r)
+			c.(*client).writeToClient(r)
 		}
 	} else {
 		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.

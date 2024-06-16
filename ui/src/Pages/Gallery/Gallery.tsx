@@ -11,7 +11,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import HeaderBar from '../../components/HeaderBar'
 import Presentation from '../../components/Presentation'
 import { GalleryAction, mediaReducer, useKeyDownGallery } from './GalleryLogic'
-import { GetAlbums } from '../../api/GalleryApi'
 import {
     AlbumData,
     GalleryDispatchT,
@@ -20,13 +19,14 @@ import {
     UserInfoT,
 } from '../../types/Types'
 import { UserContext } from '../../Context'
-import { Albums } from './Albums'
+import { Albums } from '../../Albums/Albums'
 import { useDebouncedValue } from '@mantine/hooks'
 import { clamp } from '../../util'
-import WeblensMedia from '../../classes/Media'
+import WeblensMedia from '../../Media/Media'
 
 import './galleryStyle.scss'
 import { Timeline } from './Timeline'
+import { getAlbums } from '../../Albums/AlbumQuery'
 
 export type GalleryContextT = {
     galleryState: GalleryStateT
@@ -111,7 +111,7 @@ const Gallery = () => {
     useEffect(() => {
         if (authHeader.Authorization !== '' && page !== 'albums') {
             galleryDispatch({ type: 'add_loading', loading: 'albums' })
-            GetAlbums(authHeader).then((val) => {
+            getAlbums(authHeader).then((val) => {
                 galleryDispatch({ type: 'set_albums', albums: val })
                 galleryDispatch({ type: 'remove_loading', loading: 'albums' })
             })

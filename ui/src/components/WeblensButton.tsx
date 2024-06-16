@@ -3,6 +3,7 @@ import React, {
     CSSProperties,
     memo,
     ReactNode,
+    useCallback,
     useEffect,
     useMemo,
     useState,
@@ -34,7 +35,6 @@ type buttonProps = {
 
     // Style
     squareSize?: number
-    width?: number | string
     fontSize?: string
     textMin?: number
 
@@ -52,6 +52,7 @@ const ButtonContent = memo(
         postScript,
         Left,
         Right,
+        setTextWidth,
         buttonWidth,
         iconSize,
         centerContent,
@@ -62,6 +63,7 @@ const ButtonContent = memo(
         postScript: string
         Left: (p: any) => ReactNode
         Right: ReactNode
+        setTextWidth: (w: number) => void
         buttonWidth: number
         iconSize: number
         centerContent: boolean
@@ -74,9 +76,9 @@ const ButtonContent = memo(
             return buttonWidth > textWidth
         }, [buttonWidth, textWidth])
         const [showText, setShowText] = useState(Boolean(label) && textFits)
-        // console.log(textWidth, label)
 
         useEffect(() => {
+            setTextWidth(textWidth)
             if (
                 !Boolean(label) ||
                 ((Boolean(Left) || Boolean(Right)) &&
@@ -98,7 +100,7 @@ const ButtonContent = memo(
         return (
             <div
                 className="button-content"
-                data-center={centerContent || !showText}
+                data-center={centerContent || (!showText && !labelOnHover)}
                 data-hidden={hidden}
             >
                 <div
@@ -148,20 +150,19 @@ const ButtonContent = memo(
     },
     (prev, next) => {
         if (prev.buttonWidth !== next.buttonWidth) {
-            console.log('BUTTON WIDTH')
+            // console.log('BUTTON WIDTH')
             return false
         } else if (prev.label !== next.label) {
-            console.log('LABEL')
+            // console.log('LABEL')
             return false
         } else if (prev.postScript !== next.postScript) {
-            console.log('POST SCRIPT')
+            // console.log('POST SCRIPT')
             return false
         } else if (prev.Left !== next.Left) {
-            // console.log(next.Left, 'LEFT')
-            console.log('LEFT')
+            // console.log('LEFT')
             return false
         } else if (prev.hidden !== next.hidden) {
-            console.log('HIDDEN')
+            // console.log('HIDDEN')
             return false
         }
         return true
@@ -226,8 +227,6 @@ export const WeblensButton = memo(
         Right = null,
         fillWidth = false,
         onClick,
-
-        width,
         squareSize = 40,
 
         onMouseUp,
@@ -239,6 +238,8 @@ export const WeblensButton = memo(
         const [success, setSuccess] = useState(false)
         const [fail, setFail] = useState(false)
         const [loading, setLoading] = useState(false)
+        const [textWidth, setTextWidth] = useState(0)
+        const [maxW, setMaxW] = useState(labelOnHover ? 40 : 400)
 
         const [sizeRef, setSizeRef]: [
             buttonRef: HTMLDivElement,
@@ -246,23 +247,41 @@ export const WeblensButton = memo(
         ] = useState(null)
         const buttonSize = useResize(sizeRef)
 
-        const buttonStyle = useMemo(() => {
-            return {
-                minHeight: squareSize,
-                minWidth: squareSize,
-                maxWidth: Boolean(label) ? '' : squareSize,
-                ...style,
+        const targetWidth = useMemo(() => {
+            if (fillWidth) {
+                return '100%'
+            } else if (label) {
+                return textWidth + squareSize + 16
+            } else {
+                return squareSize
             }
-        }, [style, squareSize, label])
+        }, [fillWidth, squareSize, label, textWidth])
+
+        const hoverCallback = useCallback(() => {
+            if (labelOnHover) {
+                setMaxW(textWidth + squareSize + 16)
+            }
+        }, [textWidth, squareSize, setMaxW])
+
+        const unHoverCallback = useCallback(() => {
+            if (labelOnHover) {
+                setMaxW(40)
+            }
+        }, [setMaxW])
 
         return (
             <div
                 ref={setSizeRef}
                 className="weblens-button-wrapper"
                 data-fill-width={fillWidth}
+                data-text-on-hover={labelOnHover}
+                onMouseOver={hoverCallback}
+                onMouseLeave={unHoverCallback}
                 style={{
                     maxHeight: squareSize,
-                    maxWidth: fillWidth ? '100%' : width,
+                    width: targetWidth,
+                    maxWidth: maxW,
+                    height: squareSize,
                 }}
             >
                 <div
@@ -272,15 +291,15 @@ export const WeblensButton = memo(
                             ? 'weblens-button'
                             : 'weblens-toggle-button'
                     }
+                    data-disabled={disabled}
                     data-toggled={!!toggleOn}
                     data-repeat={allowRepeat}
                     data-success={success}
                     data-fail={fail}
                     data-subtle={subtle}
-                    data-disabled={disabled}
                     data-super={doSuper}
                     data-danger={danger}
-                    style={buttonStyle}
+                    style={{ width: maxW, ...style }}
                     onClick={(e) =>
                         handleButtonEvent(
                             e,
@@ -322,7 +341,7 @@ export const WeblensButton = memo(
                         )
                     }
                 >
-                    <div className="flex w-full justify-center relative">
+                    <div className="flex w-full relative overflow-hidden">
                         {success && showSuccess && (
                             <div
                                 className="button-content absolute"
@@ -349,6 +368,7 @@ export const WeblensButton = memo(
                             postScript={postScript}
                             Left={Left}
                             Right={Right}
+                            setTextWidth={setTextWidth}
                             buttonWidth={buttonSize.width}
                             iconSize={squareSize * 0.6}
                             centerContent={centerContent}
@@ -362,37 +382,34 @@ export const WeblensButton = memo(
     },
     (prev, next) => {
         if (prev.toggleOn !== next.toggleOn) {
-            console.log(next.label, 'TOGGLE')
+            // console.log(next.label, 'TOGGLE')
             return false
         } else if (prev.label !== next.label) {
-            console.log(next.label, 'LABEL')
+            // console.log(next.label, 'LABEL')
             return false
         } else if (prev.disabled !== next.disabled) {
-            console.log(next.label, 'DISABLED')
+            // console.log(next.label, 'DISABLED')
             return false
         } else if (prev.onClick !== next.onClick) {
-            console.log(next.label, 'ONCLICK')
+            // console.log(next.label, 'ONCLICK')
             return false
         } else if (prev.onMouseUp !== next.onMouseUp) {
-            console.log(next.label, 'MOUSEUP')
+            // console.log(next.label, 'MOUSEUP')
             return false
         } else if (prev.onMouseOver !== next.onMouseOver) {
-            console.log(next.label, 'MOUSEOVER')
+            // console.log(next.label, 'MOUSEOVER')
             return false
         } else if (prev.postScript !== next.postScript) {
-            console.log(next.label, 'POSTSCRIPT')
-            return false
-        } else if (prev.width !== next.width) {
-            console.log(next.label, 'WIDTH')
+            // console.log(next.label, 'POSTSCRIPT')
             return false
         } else if (prev.squareSize !== next.squareSize) {
-            console.log(next.label, 'SQUARESIZE')
+            // console.log(next.label, 'SQUARESIZE')
             return false
         } else if (prev.style !== next.style) {
-            console.log(next.label, 'STYLE')
+            // console.log(next.label, 'STYLE')
             return false
         } else if (prev.Left !== next.Left) {
-            console.log(next.label, 'LEFT')
+            // console.log(next.label, 'LEFT')
             return false
         }
         return true

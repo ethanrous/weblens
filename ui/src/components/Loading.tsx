@@ -1,35 +1,35 @@
-import { Box, Loader, Progress, Text } from '@mantine/core';
-import { useState } from 'react';
+import { Box, Loader, Progress, Text } from '@mantine/core'
+import { useState } from 'react'
 
 export default function WeblensLoader({
     loading = [],
     progress = 0,
 }: {
-    loading?: string[];
-    progress?: number;
+    loading?: string[]
+    progress?: number
 }) {
-    const [menuOpen, setMenuOpen] = useState(false);
-    let loader;
+    const [menuOpen, setMenuOpen] = useState(false)
+    let loader
 
     if (
         (!loading && !progress) ||
         (loading.length === 0 && (progress === 0 || progress === 100))
     ) {
-        return null;
+        return null
     }
     if (progress && progress !== 100) {
         loader = (
             <Progress
                 color="#4444ff"
-                style={{ position: 'absolute', width: '100%' }}
+                className="absolute w-full"
                 value={Number(progress)}
             />
-        );
+        )
     } else {
         loader = (
             <Box
                 onClick={() => {
-                    setMenuOpen(!menuOpen);
+                    setMenuOpen(!menuOpen)
                 }}
                 style={{
                     cursor: 'pointer',
@@ -62,7 +62,7 @@ export default function WeblensLoader({
                     </Box>
                 )}
             </Box>
-        );
+        )
     }
-    return loader;
+    return loader
 }

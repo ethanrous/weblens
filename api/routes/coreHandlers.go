@@ -1,11 +1,8 @@
 package routes
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
@@ -54,33 +51,31 @@ func attachRemote(ctx *gin.Context) {
 }
 
 func getBackupSnapshot(ctx *gin.Context) {
-	ts, err := strconv.Atoi(ctx.Query("since"))
-	if err != nil {
-		util.ShowErr(err)
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-	since := time.UnixMilli(int64(ts))
-	jes, err := dataStore.JournalSince(since)
-	// jes[0].JournaledAt().String()
-	if err != nil {
-		util.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	_, err = json.Marshal(gin.H{"journal": jes})
-	util.ShowErr(err)
-
-	ctx.JSON(http.StatusOK, gin.H{"journal": jes})
+	// ts, err := strconv.Atoi(ctx.Query("since"))
+	// if err != nil {
+	// 	util.ShowErr(err)
+	// 	ctx.Status(http.StatusBadRequest)
+	// 	return
+	// }
+	// since := time.UnixMilli(int64(ts))
+	// jes, err := dataStore.JournalSince(since)
+	// // jes[0].JournaledAt().String()
+	// if err != nil {
+	// 	util.ShowErr(err)
+	// 	ctx.Status(http.StatusInternalServerError)
+	// 	return
+	// }
+	//
+	// _, err = json.Marshal(gin.H{"journal": jes})
+	// util.ShowErr(err)
+	//
+	// ctx.JSON(http.StatusOK, gin.H{"journal": jes})
+	ctx.Status(http.StatusNotImplemented)
 }
-
-// /api/core/file/jfIjGtsl/content
-// /api/core/file/jfIjGtsl/content
 
 func getFileBytes(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
-	f := dataStore.FsTreeGet(fileId)
+	f := rc.FileTree.Get(fileId)
 	if f == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -101,7 +96,7 @@ func getFilesMeta(ctx *gin.Context) {
 	files := []map[string]any{}
 	notFound := []types.FileId{}
 	for _, id := range fIds {
-		f := dataStore.FsTreeGet(id)
+		f := rc.FileTree.Get(id)
 		if f == nil {
 			notFound = append(notFound, id)
 		} else {

@@ -277,6 +277,9 @@ func Map[T, V any](ts []T, fn func(T) V) []V {
 }
 
 func Each[T any](ts []T, fn func(T)) {
+	if ts == nil {
+		return
+	}
 	for _, t := range ts {
 		fn(t)
 	}
@@ -343,9 +346,12 @@ func FilterMap[T, V any](ts []T, fn func(T) (V, bool)) []V {
 	return result
 }
 
-// Perform type assertion on slice
+// SliceConvert Perform type assertion on slice
 func SliceConvert[V, T any](ts []T) []V {
 	vs := make([]V, len(ts))
+	if len(ts) == 0 {
+		return vs
+	}
 	for i := range ts {
 		vs[i] = any(ts[i]).(V)
 	}
@@ -479,4 +485,13 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 			b = append(b, 0)[:len(b)]
 		}
 	}
+}
+
+func IsDirByPath(absPath string) (bool, error) {
+	stat, err := os.Stat(absPath)
+	if err != nil {
+		return false, err
+	}
+
+	return stat.IsDir(), nil
 }

@@ -43,7 +43,7 @@ function useWeblensSocket() {
                 action: action,
                 content: JSON.stringify(content),
             }
-            // console.log('WSSend', msg)
+            console.log('WSSend', msg)
             sendMessage(JSON.stringify(msg))
         },
         [sendMessage]
@@ -90,10 +90,10 @@ export const useSubscribe = (
             usr.isLoggedIn
         ) {
             if (cId === usr.homeId) {
-                SubToFolder(usr.trashId, sId, false, wsSend)
+                SubToFolder(usr.trashId, sId, wsSend)
                 return () => UnsubFromFolder(usr.trashId, wsSend)
             }
-            SubToFolder(cId, sId, false, wsSend)
+            SubToFolder(cId, sId, wsSend)
             return () => UnsubFromFolder(cId, wsSend)
         }
     }, [readyState, sId, cId, usr.homeId, usr.trashId, wsSend])
@@ -103,7 +103,8 @@ export const useSubscribe = (
         if (!usr.isLoggedIn || readyState !== 1) {
             return
         }
-        SubToFolder(usr.homeId, sId, false, wsSend)
+        console.log('HERE?', usr)
+        SubToFolder(usr.homeId, sId, wsSend)
         return () => UnsubFromFolder(usr.homeId, wsSend)
     }, [usr.homeId, sId, readyState])
 
@@ -133,6 +134,10 @@ function HandleWebsocketMessage(
     if (lastMessage) {
         let msgData: WsMessageT = JSON.parse(lastMessage.data)
         console.log('WSRecv', msgData)
+        if (msgData.error) {
+            console.error(msgData.error)
+            return
+        }
         if (!msgData.content || !msgData.content[0]) {
             console.error('Got empty content in websocket update')
             return

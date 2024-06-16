@@ -2,10 +2,18 @@ package types
 
 import "time"
 
+type MediaRepo interface {
+	Get(ContentId) Media
+	Add(m Media) error
+	TypeService() MediaTypeService
+	Del(Media, FileTree)
+	Size() int
+}
+
 type Media interface {
-	Id() ContentId
+	ID() ContentId
 	IsImported() bool
-	IsCached() bool
+	IsCached(FileTree) bool
 	IsFilledOut() (bool, string)
 	IsHidden() bool
 	IsEnabled() bool
@@ -23,13 +31,14 @@ type Media interface {
 	Clean()
 	Save() error
 	AddFile(WeblensFile)
-	RemoveFile(FileId)
+	RemoveFile(file WeblensFile)
 	GetFiles() []FileId
 
 	LoadFromFile(WeblensFile, []byte, Task) (Media, error)
 
-	ReadDisplayable(Quality, ...int) ([]byte, error)
+	ReadDisplayable(Quality, FileTree, ...int) ([]byte, error)
 	GetPageCount() int
+	// SetPageCount(int)
 }
 
 type ContentId string
@@ -39,5 +48,16 @@ type MediaType interface {
 	IsRaw() bool
 	IsDisplayable() bool
 	FriendlyName() string
+	GetMime() string
 	IsMime(string) bool
+	IsMultiPage() bool
+	GetThumbExifKey() string
+	SupportsImgRecog() bool
+}
+
+type MediaTypeService interface {
+	ParseExtension(ext string) MediaType
+	ParseMime(mime string) MediaType
+	Generic() MediaType
+	Size() int
 }

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,15 +9,29 @@ import (
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
 
-type WeblensError error
+// type WeblensError interface {
+// 	Error() string
+// }
 
-var ErrAlreadyInitialized WeblensError = errors.New("attempting to run an initialization routine for a second time")
-var ErrServerNotInit WeblensError = errors.New("server is not initialized")
+type WeblensError struct {
+	err string
+}
+
+func NewWeblensError(err string) WeblensError {
+	return WeblensError{err}
+}
+
+func (e WeblensError) Error() string {
+	return e.err
+}
+
+var ErrAlreadyInitialized = NewWeblensError("attempting to run an initialization routine for a second time")
+var ErrServerNotInit = NewWeblensError("server is not initialized")
 
 type SafeTime time.Time
 
 func (t SafeTime) MarshalJSON() ([]byte, error) {
-	//do your serializing here
+	// do your serializing here
 	stamp := fmt.Sprintf("\"%s\"", time.Time(t).Format("2006-01-02 15:04:05.999999999 -0700 MST"))
 	return []byte(stamp), nil
 }

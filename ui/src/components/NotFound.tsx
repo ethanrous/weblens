@@ -1,4 +1,4 @@
-import { Space, Text } from '@mantine/core'
+import { Space } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import { WeblensButton } from './WeblensButton'
 import { useContext } from 'react'
@@ -18,17 +18,14 @@ function NotFound({
     const nav = useNavigate()
     return (
         <div className="flex flex-col justify-center items-center h-full w-full">
-            <div className="h-max w-max p-12 mb-[40vh] bg-bottom-grey outline outline-main-accent rounded">
-                <Text
-                    fw={600}
-                    size="25px"
-                    c="white"
-                >{`Could not find ${resourceType}`}</Text>
+            <div className="flex flex-col h-max w-[360px] p-12 mb-[40vh] bg-bottom-grey outline outline-main-accent rounded justify-center items-center">
+                <p className="font-bold text-2xl w-max">{`Could not find ${resourceType}`}</p>
+
                 <Space h={15} />
 
                 <WeblensButton
                     centerContent
-                    squareSize={40}
+                    fillWidth
                     label={usr.username ? 'Go Back' : 'Login'}
                     onClick={(e) => {
                         setNotFound(false)

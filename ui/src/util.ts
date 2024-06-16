@@ -1,5 +1,5 @@
 import { UserInfoT } from './types/Types'
-import { WeblensFile } from './classes/File'
+import { WeblensFile } from './Files/File'
 
 export function humanFileSize(
     bytes: number,

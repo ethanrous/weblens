@@ -11,8 +11,24 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-var apiKeyMap map[types.WeblensApiKey]*ApiKeyInfo = map[types.WeblensApiKey]*ApiKeyInfo{}
+type accessMeta struct {
+	shares      []types.Share
+	user        types.User
+	usingShare  types.Share
+	requestMode types.RequestMode
+	accessAt    time.Time
+	fileTree    types.FileTree
+}
+
+var apiKeyMap = map[types.WeblensApiKey]*ApiKeyInfo{}
 var keyMapMu = &sync.Mutex{}
+
+func NewAccessMeta(u types.User, ft types.FileTree) types.AccessMeta {
+	return &accessMeta{
+		user:     u,
+		fileTree: ft,
+	}
+}
 
 func (a *accessMeta) Shares() []types.Share {
 	return a.shares
@@ -20,12 +36,6 @@ func (a *accessMeta) Shares() []types.Share {
 
 func (a *accessMeta) User() types.User {
 	return a.user
-}
-
-func NewAccessMeta(u types.User) types.AccessMeta {
-	return &accessMeta{
-		user: u,
-	}
 }
 
 func (a *accessMeta) AddShare(s types.Share) error {
@@ -63,7 +73,7 @@ func (acc *accessMeta) AddShareId(sId types.ShareId, st types.ShareType) types.A
 		return acc
 	}
 
-	s, _ := GetShare(sId, st)
+	s, _ := GetShare(sId, st, acc.fileTree)
 	if s == nil {
 		return acc
 	}
@@ -87,7 +97,7 @@ func GetRelevantShare(file types.WeblensFile, acc types.AccessMeta) types.Share 
 
 	var ancestors []types.FileId
 	err := file.BubbleMap(func(wf types.WeblensFile) error {
-		ancestors = append(ancestors, wf.Id())
+		ancestors = append(ancestors, wf.ID())
 		return nil
 	})
 
@@ -112,7 +122,7 @@ func GetRelevantShare(file types.WeblensFile, acc types.AccessMeta) types.Share 
 	return foundShare
 }
 
-func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
+func (acc *accessMeta) CanAccessFile(file types.WeblensFile) bool {
 	if file == nil {
 		return false
 	}
@@ -135,14 +145,14 @@ func CanAccessFile(file types.WeblensFile, acc types.AccessMeta) bool {
 
 	using := acc.UsingShare()
 	if using != nil {
-		if types.FileId(using.GetContentId()) == file.Id() {
+		if types.FileId(using.GetContentId()) == file.ID() {
 			return true
 		}
 	}
 	return GetRelevantShare(file, acc) != nil
 }
 
-func CanAccessShare(s types.Share, acc types.AccessMeta) bool {
+func (acc *accessMeta) CanAccessShare(s types.Share) bool {
 	if s == nil {
 		err := fmt.Errorf("canAccessShare nil share")
 		util.ErrTrace(err)
@@ -169,7 +179,7 @@ func CanAccessShare(s types.Share, acc types.AccessMeta) bool {
 }
 
 func InitApiKeyMap() {
-	keys := fddb.getApiKeys()
+	keys := dbServer.getApiKeys()
 	keyMapMu.Lock()
 	defer keyMapMu.Unlock()
 	for _, keyInfo := range keys {
@@ -201,7 +211,7 @@ func GenerateApiKey(acc types.AccessMeta) (key *ApiKeyInfo, err error) {
 		CreatedTime: createTime,
 	}
 
-	err = fddb.newApiKey(*newKey)
+	err = dbServer.newApiKey(*newKey)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +226,7 @@ func GetApiKeys(acc types.AccessMeta) ([]ApiKeyInfo, error) {
 	if acc.RequestMode() != ApiKeyGet {
 		return nil, ErrBadRequestMode
 	}
-	keys := fddb.getApiKeysByUser(acc.User().GetUsername())
+	keys := dbServer.getApiKeysByUser(acc.User().GetUsername())
 	if keys == nil {
 		keys = []ApiKeyInfo{}
 	}
@@ -232,7 +242,7 @@ func DeleteApiKey(key types.WeblensApiKey) {
 	keyMapMu.Lock()
 	delete(apiKeyMap, key)
 	keyMapMu.Unlock()
-	fddb.removeApiKey(key)
+	dbServer.removeApiKey(key)
 }
 
 func SetKeyRemote(key types.WeblensApiKey, remoteId string) error {
@@ -241,7 +251,7 @@ func SetKeyRemote(key types.WeblensApiKey, remoteId string) error {
 	// 	return ErrNoKey
 	// }
 	// kInfo.RemoteUsing = remoteId
-	err := fddb.updateUsingKey(key, remoteId)
+	err := dbServer.updateUsingKey(key, remoteId)
 
 	return err
 }

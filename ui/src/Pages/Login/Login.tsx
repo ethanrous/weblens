@@ -7,6 +7,7 @@ import { Input, Space, Tabs } from '@mantine/core'
 import { WeblensButton } from '../../components/WeblensButton'
 import { useKeyDown } from '../../components/hooks'
 import { UserContextT } from '../../types/Types'
+import WeblensInput from '../../components/WeblensInput'
 
 async function CheckCreds(username: string, password: string, setCookie, nav) {
     return await login(username, password)
@@ -96,66 +97,46 @@ const Login = () => {
             }}
         >
             {/* <ScatteredPhotos /> */}
-            <div className="flex flex-col justify-center items-center bg-dark-paper rounded-xl p-6 w-[400px] max-w-[600px] max-h-[400px]">
+            <div className="flex flex-col justify-center items-center shadow-soft bg-bottom-grey outline outline-main-accent rounded-xl p-6 w-[400px] max-w-[600px] max-h-[400px]">
                 <Tabs
+                    className="flex flex-col w-full h-[90%] justify-center items-center gap-5"
                     value={tab}
                     onChange={setTab}
                     keepMounted={false}
                     variant="pills"
-                    style={{
-                        width: '100%',
-                        height: '90%',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 20,
-                    }}
                 >
-                    <Tabs.List grow style={{ width: '100%' }}>
-                        <Tabs.Tab value="login" className="menu-tab">
+                    <Tabs.List grow className="w-full mb-2">
+                        <Tabs.Tab value="login" className="bg-main-accent">
                             Login
                         </Tabs.Tab>
-                        <Tabs.Tab value="sign-up" className="menu-tab">
+                        <Tabs.Tab value="sign-up" className="bg-main-accent">
                             Sign Up
                         </Tabs.Tab>
                     </Tabs.List>
                     <Tabs.Panel
                         value="login"
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '100%',
-                        }}
+                        className="flex flex-col justify-center items-center w-full"
                     >
-                        <Input
-                            className="weblens-input-wrapper"
-                            classNames={{ input: 'weblens-input' }}
-                            variant="unstyled"
-                            value={userInput}
+                        <WeblensInput
                             placeholder="Username"
-                            style={{ width: '100%' }}
-                            onChange={(event) =>
-                                setUserInput(event.currentTarget.value)
-                            }
+                            value={userInput}
+                            autoFocus
+                            onComplete={() => {}}
+                            valueCallback={setUserInput}
+                            height={40}
                         />
-                        <Input
-                            className="weblens-input-wrapper"
-                            classNames={{ input: 'weblens-input' }}
-                            variant="unstyled"
-                            type="password"
-                            value={passInput}
+
+                        <WeblensInput
                             placeholder="Password"
-                            style={{ width: '100%' }}
-                            onChange={(event) =>
-                                setPassInput(event.currentTarget.value)
-                            }
+                            value={passInput}
+                            onComplete={() => {}}
+                            valueCallback={setPassInput}
+                            height={40}
                         />
                         <Space h={'md'} />
                         <WeblensButton
                             label="Login"
+                            fillWidth
                             squareSize={50}
                             disabled={userInput === '' || passInput === ''}
                             centerContent
@@ -163,7 +144,6 @@ const Login = () => {
                                 CheckCreds(userInput, passInput, setCookie, nav)
                             }
                             setButtonRef={setButtonRef}
-                            style={{ width: '100%' }}
                         />
                     </Tabs.Panel>
                     <Tabs.Panel
@@ -176,40 +156,45 @@ const Login = () => {
                             width: '100%',
                         }}
                     >
-                        <Input
-                            className="weblens-input-wrapper"
-                            classNames={{ input: 'weblens-input' }}
-                            variant="unstyled"
-                            value={userInput}
+                        <WeblensInput
                             placeholder="Username"
-                            error={badUsername}
-                            onChange={(event) =>
-                                setUserInput(event.currentTarget.value)
-                            }
-                            style={{ width: '100%' }}
+                            value={userInput}
+                            autoFocus
+                            onComplete={() => {}}
+                            valueCallback={setUserInput}
+                            height={40}
                         />
+
                         {badUsername && (
                             <Input.Error style={{ width: '100%' }}>
                                 Username must not begin with '.' and cannot
                                 include '/'
                             </Input.Error>
                         )}
-                        <Input
-                            className="weblens-input-wrapper"
-                            classNames={{ input: 'weblens-input' }}
-                            variant="unstyled"
-                            type="password"
-                            value={passInput}
+                        <WeblensInput
                             placeholder="Password"
-                            onChange={(event) =>
-                                setPassInput(event.currentTarget.value)
-                            }
-                            style={{ width: '100%' }}
+                            value={userInput}
+                            onComplete={() => {}}
+                            valueCallback={setPassInput}
+                            height={40}
                         />
+                        {/*<Input*/}
+                        {/*    className="weblens-input-wrapper"*/}
+                        {/*    classNames={{ input: 'weblens-input' }}*/}
+                        {/*    variant="unstyled"*/}
+                        {/*    type="password"*/}
+                        {/*    value={passInput}*/}
+                        {/*    placeholder="Password"*/}
+                        {/*    onChange={(event) =>*/}
+                        {/*        setPassInput(event.currentTarget.value)*/}
+                        {/*    }*/}
+                        {/*    style={{ width: '100%' }}*/}
+                        {/*/>*/}
                         <Space h={'md'} />
                         <WeblensButton
                             label="Sign Up"
                             squareSize={50}
+                            fillWidth
                             disabled={
                                 userInput === '' ||
                                 passInput === '' ||
@@ -218,7 +203,6 @@ const Login = () => {
                             centerContent
                             onClick={() => CreateUser(userInput, passInput)}
                             setButtonRef={setButtonRef}
-                            style={{ width: '100%' }}
                         />
                     </Tabs.Panel>
                 </Tabs>

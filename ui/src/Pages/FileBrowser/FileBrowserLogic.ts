@@ -8,7 +8,7 @@ import {
     FileBrowserAction,
     UserInfoT,
 } from '../../types/Types'
-import { FileInitT, WeblensFile } from '../../classes/File'
+import { FileInitT, WeblensFile } from '../../Files/File'
 import {
     CreateFolder,
     DeleteFiles,
@@ -16,6 +16,7 @@ import {
     moveFiles,
     RenameFile,
     requestZipCreate,
+    SubToTask,
 } from '../../api/FileBrowserApi'
 
 import { useNavigate } from 'react-router-dom'
@@ -188,7 +189,6 @@ export const fileBrowserReducer = (
                         state.searchContent
                     )
                 ) {
-                    console.log('HERE')
                     continue
                 }
 
@@ -356,6 +356,9 @@ export const fileBrowserReducer = (
         }
 
         case 'set_hovering': {
+            if (state.hovering === action.hovering) {
+                return state
+            }
             return { ...state, hovering: action.hovering }
         }
 
@@ -451,6 +454,7 @@ export const fileBrowserReducer = (
         }
 
         case 'set_menu_open': {
+            console.log('settin menu', action.menuMode)
             return {
                 ...state,
                 menuMode: action.menuMode,
@@ -934,14 +938,7 @@ export function downloadSelected(
                     shareId
                 )
             } else if (status === 202) {
-                taskId = json.taskId
-                wsSend('subscribe', {
-                    subscribeType: 'task',
-                    subscribeMeta: JSON.stringify({
-                        lookingFor: ['takeoutId'],
-                    }),
-                    subscribeKey: taskId,
-                })
+                SubToTask(json.taskId, ['takeoutId'], wsSend)
             } else if (status !== 0) {
                 console.error(json.error)
             }

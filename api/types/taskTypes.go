@@ -5,44 +5,65 @@ import "time"
 type Task interface {
 	TaskId() TaskId
 	TaskType() TaskType
+	GetTaskPool() TaskPool
 	Status() (bool, TaskExitStatus)
-	GetResult(...string) map[string]any
+	GetResult(string) any
+	GetResults() map[string]any
+
 	Q(TaskPool) Task
-	Wait()
+
+	Wait() Task
 	Cancel()
+
 	SwLap(string)
-	// SetCaster(BroadcasterAgent)
 	ClearTimeout()
 
 	ReadError() any
 	ClearAndRecompute()
-
-	SetErrorCleanup(cleanup func())
 	SetCleanup(cleanup func())
+	SetErrorCleanup(cleanup func())
 
 	AddChunkToStream(FileId, []byte, string) error
 	NewFileInStream(WeblensFile, int64) error
 	ExeTime() time.Duration
 }
 
-// Tasker interface for queueing tasks in the task pool
+// TaskPool is the interface for grouping and sending tasks to be processed in a WorkerPool
 type TaskPool interface {
 	MarkGlobal()
+	IsGlobal() bool
 	QueueTask(Task) error
 	SignalAllQueued()
 	Wait(bool)
 	NotifyTaskComplete(Task, BroadcasterAgent, ...any)
+	CreatedInTask() Task
+	IsRoot() bool
+	GetWorkerPool() WorkerPool
+	Status() (int, int, float64)
 
-	ScanDirectory(WeblensFile, bool, bool, BroadcasterAgent) Task
+	GetRootPool() TaskPool
+
+	LockExit()
+	UnlockExit()
+
+	ScanDirectory(WeblensFile, BroadcasterAgent) Task
 	ScanFile(file WeblensFile, broadcaster BroadcasterAgent) Task
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
-	Backup(string, Requester) Task
-	HashFile(file WeblensFile) Task
+	Backup(string, Requester, FileTree) Task
+	HashFile(file WeblensFile, agent BroadcasterAgent) Task
+	CreateZip(files []WeblensFile, username Username, shareId ShareId, ft FileTree, casters BroadcasterAgent) Task
 
 	Errors() []Task
 	AddError(t Task)
+}
+
+type WorkerPool interface {
+	Run()
+	NewTaskPool(replace bool, createdBy Task) TaskPool
+	GetTask(taskId TaskId) Task
+	AddHit(time time.Time, target Task)
 }
 
 type TaskId string

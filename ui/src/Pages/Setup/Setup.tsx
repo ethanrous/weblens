@@ -154,7 +154,7 @@ const Core = ({
         <div className="setup-content-box" data-onDeck={onDeck}>
             <div className="w-full">
                 <WeblensButton
-                    Left={<IconArrowLeft />}
+                    Left={IconArrowLeft}
                     squareSize={35}
                     subtle
                     onClick={() => setPage('landing')}
@@ -243,7 +243,7 @@ const Core = ({
             <WeblensButton
                 label="Start Weblens"
                 squareSize={50}
-                Left={<IconRocket className="button-icon" />}
+                Left={IconRocket}
                 disabled={
                     serverName === '' || username === '' || password === ''
                 }
@@ -293,7 +293,7 @@ const Backup = ({
         <div className="setup-content-box" data-onDeck={onDeck}>
             <div style={{ width: '100%' }}>
                 <WeblensButton
-                    Left={<IconArrowLeft />}
+                    Left={IconArrowLeft}
                     squareSize={35}
                     subtle
                     onClick={() => setPage('landing')}
@@ -335,7 +335,7 @@ const Backup = ({
             <WeblensButton
                 label="Attach to Remote"
                 squareSize={40}
-                Left={<IconRocket className="button-icon" />}
+                Left={IconRocket}
                 disabled={
                     serverName === '' || coreAddress === '' || apiKey === ''
                 }
@@ -383,17 +383,16 @@ const Landing = ({
             {/* <Text className="content-title-text">Set Up Weblens</Text> */}
             <WeblensButton
                 label="Set Up Weblens Core"
-                Left={<IconPackage size={'100%'} style={{ flexShrink: 0 }} />}
+                Left={IconPackage}
                 squareSize={75}
                 centerContent
-                width={450}
                 onClick={() => setPage('core')}
             />
             <Text>Or...</Text>
             <WeblensButton
                 label="Set Up As Backup"
                 squareSize={40}
-                Left={<IconDatabaseImport />}
+                Left={IconDatabaseImport}
                 style={{ width: '200px' }}
                 centerContent
                 subtle

@@ -3,8 +3,8 @@
 import { DraggingState, FbModeT } from '../Pages/FileBrowser/FileBrowser'
 import { TaskProgress } from '../Pages/FileBrowser/TaskProgress'
 import { GalleryAction } from '../Pages/Gallery/GalleryLogic'
-import { FileInitT, WeblensFile } from '../classes/File'
-import WeblensMedia from '../classes/Media'
+import { FileInitT, WeblensFile } from '../Files/File'
+import WeblensMedia from '../Media/Media'
 import React from 'react'
 import { FbMenuModeT } from '../Pages/FileBrowser/FileBrowserStyles'
 

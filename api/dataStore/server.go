@@ -15,7 +15,7 @@ var thisOwner types.User
 // do their best to re-direct to the setup page
 func GetServerInfo() types.ServerInfo {
 	if thisServer == nil {
-		ret, err := fddb.getThisServerInfo()
+		ret, err := dbServer.getThisServerInfo()
 		if err == nil {
 			thisServer = ret
 		} else {
@@ -70,7 +70,7 @@ func (si *srvInfo) GetCoreAddress() (string, error) {
 	return si.CoreAddress, nil
 }
 
-func InitServerCore(name string, username types.Username, password string) error {
+func InitServerCore(name string, username types.Username, password string, ft types.FileTree) error {
 	user := GetUser(username)
 
 	// Init with existing user
@@ -85,7 +85,7 @@ func InitServerCore(name string, username types.Username, password string) error
 		}
 
 	} else { // create new user, this will be the case 99% of the time
-		err := CreateUser(username, password, true, true)
+		err := CreateUser(username, password, true, true, ft)
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func InitServerCore(name string, username types.Username, password string) error
 		Role:         types.Core,
 	}
 
-	fddb.newServer(srv)
+	dbServer.newServer(srv)
 	thisServer = &srv
 
 	return nil
@@ -124,7 +124,7 @@ func InitServerForBackup(name, coreAddress string, key types.WeblensApiKey, rq t
 		CoreAddress:  coreAddress,
 	}
 
-	fddb.newServer(srv)
+	dbServer.newServer(srv)
 	thisServer = &srv
 	return nil
 }
@@ -134,7 +134,7 @@ func InitServerForBackup(name, coreAddress string, key types.WeblensApiKey, rq t
 // 		return ErrAlreadyCore
 // 	}
 
-// 	err := fddb.updateCoreAddress(core, key)
+// 	err := dbServer.updateCoreAddress(core, key)
 // 	if err != nil {
 // 		return err
 // 	}
