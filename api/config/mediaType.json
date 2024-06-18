@@ -1,130 +1,130 @@
 {
-  "application/zip": {
-    "FriendlyName": "Zip",
-    "FileExtension": [
-      "zip"
-    ],
-    "IsDisplayable": false,
-    "IsRaw": false,
-    "IsVideo": false
-  },
-  "generic": {
-    "FriendlyName": "File",
-    "FileExtension": [],
-    "IsDisplayable": false,
-    "IsRaw": false,
-    "IsVideo": false,
-    "SupportsImgRecog": false
-  },
-  "image/gif": {
-    "FriendlyName": "Gif",
-    "FileExtension": [
-      "gif"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": false,
-    "IsVideo": false,
-    "SupportsImgRecog": false
-  },
-  "image/jpeg": {
-    "FriendlyName": "Jpeg",
-    "FileExtension": [
-      "jpeg",
-      "jpg",
-      "JPG"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": false,
-    "IsVideo": false,
-    "SupportsImgRecog": true
-  },
-  "image/png": {
-    "FriendlyName": "Png",
-    "FileExtension": [
-      "png"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": false,
-    "IsVideo": false,
-    "SupportsImgRecog": true
-  },
-  "image/x-nikon-nef": {
-    "FriendlyName": "Nikon Raw",
-    "FileExtension": [
-      "NEF",
-      "nef"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": true,
-    "IsVideo": false,
-    "RawThumbExifKey": "JpgFromRaw",
-    "SupportsImgRecog": true
-  },
-  "image/x-sony-arw": {
-    "FriendlyName": "Sony ARW",
-    "FileExtension": [
-      "ARW"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": true,
-    "IsVideo": false,
-    "RawThumbExifKey": "PreviewImage",
-    "SupportsImgRecog": true
-  },
-  "image/x-canon-cr2": {
-    "FriendlyName": "Cannon Raw",
-    "FileExtension": [
-      "CR2"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": true,
-    "IsVideo": false,
-    "RawThumbExifKey": "PreviewImage",
-    "SupportsImgRecog": true
-  },
-  "image/heic": {
-    "FriendlyName": "HEIC",
-    "FileExtension": [
-      "heic",
-      "HEIC"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": false,
-    "IsVideo": false,
-    "RawThumbExifKey": "",
-    "SupportsImgRecog": true
-  },
-  "image/webp": {
-    "FriendlyName": "webp",
-    "FileExtension": [
-      "webp"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": false,
-    "IsVideo": false,
-    "RawThumbExifKey": "",
-    "SupportsImgRecog": true
-  },
-  "application/pdf": {
-    "FriendlyName": "PDF",
-    "FileExtension": [
-      "pdf"
-    ],
-    "IsDisplayable": true,
-    "IsRaw": false,
-    "IsVideo": false,
-    "RawThumbExifKey": "",
-    "SupportsImgRecog": false,
-    "MultiPage": true
-  },
-  "video/mp4": {
-    "FriendlyName": "MP4",
-    "FileExtension": [
-      "MP4"
-    ],
-    "IsDisplayable": false,
-    "IsRaw": false,
-    "IsVideo": true,
-    "SupportsImgRecog": false
-  }
+    "application/zip": {
+        "FriendlyName": "Zip",
+        "FileExtension": [
+            "zip"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false
+    },
+    "generic": {
+        "FriendlyName": "File",
+        "FileExtension": [],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": false,
+        "SupportsImgRecog": false
+    },
+    "image/gif": {
+        "FriendlyName": "Gif",
+        "FileExtension": [
+            "gif"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "SupportsImgRecog": false
+    },
+    "image/jpeg": {
+        "FriendlyName": "Jpeg",
+        "FileExtension": [
+            "jpeg",
+            "jpg",
+            "JPG"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "SupportsImgRecog": true
+    },
+    "image/png": {
+        "FriendlyName": "Png",
+        "FileExtension": [
+            "png"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "SupportsImgRecog": true
+    },
+    "image/x-nikon-nef": {
+        "FriendlyName": "Nikon Raw",
+        "FileExtension": [
+            "NEF",
+            "nef"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": true,
+        "IsVideo": false,
+        "RawThumbExifKey": "JpgFromRaw",
+        "SupportsImgRecog": true
+    },
+    "image/x-sony-arw": {
+        "FriendlyName": "Sony ARW",
+        "FileExtension": [
+            "ARW"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": true,
+        "IsVideo": false,
+        "RawThumbExifKey": "PreviewImage",
+        "SupportsImgRecog": true
+    },
+    "image/x-canon-cr2": {
+        "FriendlyName": "Cannon Raw",
+        "FileExtension": [
+            "CR2"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": true,
+        "IsVideo": false,
+        "RawThumbExifKey": "PreviewImage",
+        "SupportsImgRecog": true
+    },
+    "image/heic": {
+        "FriendlyName": "HEIC",
+        "FileExtension": [
+            "heic",
+            "HEIC"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "RawThumbExifKey": "",
+        "SupportsImgRecog": true
+    },
+    "image/webp": {
+        "FriendlyName": "webp",
+        "FileExtension": [
+            "webp"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "RawThumbExifKey": "",
+        "SupportsImgRecog": true
+    },
+    "application/pdf": {
+        "FriendlyName": "PDF",
+        "FileExtension": [
+            "pdf"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "RawThumbExifKey": "",
+        "SupportsImgRecog": false,
+        "MultiPage": true
+    },
+    "video/mp4": {
+        "FriendlyName": "MP4",
+        "FileExtension": [
+            "MP4"
+        ],
+        "IsDisplayable": false,
+        "IsRaw": false,
+        "IsVideo": true,
+        "SupportsImgRecog": false
+    }
 }

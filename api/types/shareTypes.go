@@ -10,15 +10,15 @@ type Share interface {
 	IsPublic() bool
 	SetPublic(bool)
 	IsEnabled() bool
-	SetEnabled(bool)
+	SetEnabled(bool) error
 	GetAccessors() []User
-	SetAccessors(newUsers []Username, c ...BroadcasterAgent)
+	SetAccessors(newUsers []User, c ...BroadcasterAgent)
 	GetOwner() User
 }
 
 type AccessMeta interface {
 	AddShare(Share) error
-	AddShareId(ShareId, ShareType) AccessMeta
+	AddShareId(ShareId) AccessMeta
 	SetRequestMode(RequestMode) AccessMeta
 	SetTime(t time.Time) AccessMeta
 
@@ -32,6 +32,11 @@ type AccessMeta interface {
 
 	CanAccessFile(WeblensFile) bool
 	CanAccessShare(Share) bool
+	CanAccessAlbum(Album) bool
+}
+
+type ShareService interface {
+	BaseService[ShareId, Share]
 }
 
 type RequestMode string
@@ -41,3 +46,8 @@ type ShareId string
 func (sId ShareId) String() string {
 	return string(sId)
 }
+
+const (
+	FileShare  ShareType = "file"
+	AlbumShare ShareType = "album"
+)

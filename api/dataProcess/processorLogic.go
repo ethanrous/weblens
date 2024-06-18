@@ -85,7 +85,7 @@ func createZipFromPaths(t *task) {
 	paths := util.MapToKeys(filesInfoMap)
 	slices.Sort(paths)
 	takeoutHash := util.GlobbyHash(8, strings.Join(paths, ""))
-	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash, zipMeta.username, zipMeta.fileTree)
+	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash, zipMeta.username)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
@@ -97,22 +97,32 @@ func createZipFromPaths(t *task) {
 	}
 
 	if zipMeta.shareId != "" {
-		s, err := dataStore.GetShare(zipMeta.shareId, dataStore.FileShare, zipMeta.fileTree)
-		if err != nil {
-			t.ErrorAndExit(err)
+		sh := types.SERV.ShareService.Get(zipMeta.shareId)
+		if sh == nil {
+			t.ErrorAndExit(types.ErrNoShare)
 		}
-		zipFile.AppendShare(s)
+		zipFile.AppendShare(sh)
 	}
 
 	fp, err := os.Create(zipFile.GetAbsPath())
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
-	defer fp.Close()
+	defer func(fp *os.File) {
+		err := fp.Close()
+		if err != nil {
+			util.ShowErr(err)
+		}
+	}(fp)
 
 	a, err := fastzip.NewArchiver(fp, zipMeta.files[0].GetParent().GetAbsPath(), fastzip.WithStageDirectory(zipFile.GetParent().GetAbsPath()), fastzip.WithArchiverBufferSize(32))
 	util.FailOnError(err, "Filed to create new zip archiver")
-	defer a.Close()
+	defer func(a *fastzip.Archiver) {
+		err := a.Close()
+		if err != nil {
+			util.ShowErr(err)
+		}
+	}(a)
 
 	var archiveErr *error
 

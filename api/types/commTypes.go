@@ -67,7 +67,7 @@ type BufferedBroadcasterAgent interface {
 
 type Requester interface {
 	// RequestCoreSnapshot() ([]FileJournalEntry, error)
-	AttachToCore(srvId, coreAddress, name string, key WeblensApiKey) error
+	AttachToCore(srvId InstanceId, coreAddress, name string, key WeblensApiKey) error
 	GetCoreUsers() (us []User, err error)
 	PingCore() bool
 	GetCoreFileBin(f WeblensFile) ([][]byte, error)

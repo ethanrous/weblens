@@ -28,7 +28,7 @@ func createFolder(ctx *gin.Context) {
 		return
 	}
 
-	parentFolder := rc.FileTree.Get(body.ParentFolderId)
+	parentFolder := types.SERV.FileTree.Get(body.ParentFolderId)
 	if parentFolder == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Parent folder not found"})
 		return
@@ -37,7 +37,7 @@ func createFolder(ctx *gin.Context) {
 	caster := NewBufferedCaster()
 	defer caster.Close()
 
-	newDir, err := rc.FileTree.MkDir(parentFolder, body.NewFolderName, caster)
+	newDir, err := types.SERV.FileTree.MkDir(parentFolder, body.NewFolderName, caster)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -46,8 +46,8 @@ func createFolder(ctx *gin.Context) {
 
 	if len(body.Children) != 0 {
 		for _, fileId := range body.Children {
-			child := rc.FileTree.Get(fileId)
-			err = rc.FileTree.Move(child, newDir, "", false, caster)
+			child := types.SERV.FileTree.Get(fileId)
+			err = types.SERV.FileTree.Move(child, newDir, "", false, caster)
 			if err != nil {
 				util.ShowErr(err)
 				ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -61,7 +61,7 @@ func createFolder(ctx *gin.Context) {
 
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *gin.Context) {
-	selfData, err := dir.FormatFileInfo(acc, rc.MediaRepo)
+	selfData, err := dir.FormatFileInfo(acc)
 	if err != nil {
 		if errors.Is(err, dataStore.ErrNoFileAccess) {
 			ctx.JSON(http.StatusNotFound, "Failed to get folder info")
@@ -84,14 +84,14 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 			// 	return
 			// }
 		} else {
-			filteredDirInfo = dir.GetChildrenInfo(acc, rc.MediaRepo)
+			filteredDirInfo = dir.GetChildrenInfo(acc)
 		}
 	}
 
 	var parentsInfo []types.FileInfo
 	parent := dir.GetParent()
-	for dataStore.CanAccessFile(parent, acc) && parent != dir && (parent.Owner() != dataStore.WeblensRootUser) {
-		parentInfo, err := parent.FormatFileInfo(acc, rc.MediaRepo)
+	for acc.CanAccessFile(parent) && parent != dir && (parent.Owner() != dataStore.WeblensRootUser) {
+		parentInfo, err := parent.FormatFileInfo(acc)
 		if err != nil {
 			util.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, "Failed to format parent file info")
@@ -106,7 +106,7 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 
 	if slices.ContainsFunc(filteredDirInfo, func(i types.FileInfo) bool { return !i.Imported }) {
 		c := NewBufferedCaster()
-		t := rc.TaskDispatcher.ScanDirectory(dir, c)
+		t := types.SERV.TaskDispatcher.ScanDirectory(dir, c)
 		t.SetCleanup(func() {
 			c.Close()
 		})
@@ -123,7 +123,7 @@ func getFolder(ctx *gin.Context) {
 	// }
 
 	folderId := types.FileId(ctx.Param("folderId"))
-	dir := rc.FileTree.Get(folderId)
+	dir := types.SERV.FileTree.Get(folderId)
 	if dir == nil {
 		util.Debug.Println("Actually not found")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
@@ -139,20 +139,20 @@ func getFolder(ctx *gin.Context) {
 	}
 
 	shareId := types.ShareId(ctx.Query("shareId"))
-	var share types.Share
+	var sh types.Share
 	var err error
 	if shareId != "" {
-		share, err = dataStore.GetShare(shareId, dataStore.FileShare, rc.FileTree)
-		if err != nil || share == nil {
+		sh = types.SERV.ShareService.Get(shareId)
+		if sh != nil || sh == nil {
 			util.ShowErr(err)
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
 			return
 		}
 	}
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
-	if share != nil {
-		err = acc.AddShare(share)
+	acc := dataStore.NewAccessMeta(user, types.SERV.FileTree)
+	if sh != nil {
+		err = acc.AddShare(sh)
 		if err != nil {
 			util.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
@@ -160,7 +160,7 @@ func getFolder(ctx *gin.Context) {
 		}
 	}
 
-	if !dataStore.CanAccessFile(dir, acc) {
+	if !acc.CanAccessFile(dir) {
 		util.Debug.Println("Not auth")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
 		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
@@ -175,13 +175,13 @@ func getFolder(ctx *gin.Context) {
 }
 
 func getExternalDirs(ctx *gin.Context) {
-	externalRoot := rc.FileTree.Get("EXTERNAL")
+	externalRoot := types.SERV.FileTree.Get("EXTERNAL")
 	user := getUserFromCtx(ctx)
 	if user == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	acc := dataStore.NewAccessMeta(user, rc.FileTree).SetRequestMode(dataStore.FileGet)
+	acc := dataStore.NewAccessMeta(user, types.SERV.FileTree).SetRequestMode(dataStore.FileGet)
 	formatRespondFolderInfo(externalRoot, acc, ctx)
 }
 
@@ -189,7 +189,7 @@ func getExternalFolderInfo(ctx *gin.Context) {
 	start := time.Now()
 
 	folderId := types.FileId(ctx.Param("folderId"))
-	dir := rc.FileTree.Get(folderId)
+	dir := types.SERV.FileTree.Get(folderId)
 	if dir == nil {
 		util.Debug.Println("Actually not found")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
@@ -209,7 +209,7 @@ func getExternalFolderInfo(ctx *gin.Context) {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
+	acc := dataStore.NewAccessMeta(user, types.SERV.FileTree)
 	formatRespondFolderInfo(dir, acc, ctx)
 }
 
@@ -227,11 +227,11 @@ func recursiveScanDir(ctx *gin.Context) {
 		return
 	}
 
-	dir := rc.FileTree.Get(scanInfo.FolderId)
+	dir := types.SERV.FileTree.Get(scanInfo.FolderId)
 	if dir == nil {
 		return
 	}
-	rc.TaskDispatcher.ScanDirectory(dir, rc.Caster)
+	types.SERV.TaskDispatcher.ScanDirectory(dir, types.SERV.Caster)
 
 	ctx.Status(http.StatusOK)
 }
@@ -248,15 +248,15 @@ func getPastFolderInfo(ctx *gin.Context) {
 		return
 	}
 	before := time.UnixMilli(millis)
-	acc := dataStore.NewAccessMeta(user, rc.FileTree).SetTime(before)
+	acc := dataStore.NewAccessMeta(user, types.SERV.FileTree).SetTime(before)
 
-	folder := rc.FileTree.Get(folderId)
+	folder := types.SERV.FileTree.Get(folderId)
 	formatRespondFolderInfo(folder, acc, ctx)
 }
 
 func getFileHistory(ctx *gin.Context) {
 	// fileId := types.FileId(ctx.Param("fileId"))
-	// f := rc.FileTree.Get(fileId)
+	// f := SERV.FileTree.Get(fileId)
 	// if f == nil {
 	// 	ctx.Status(http.StatusNotFound)
 	// 	return
@@ -284,7 +284,7 @@ func restorePastFiles(ctx *gin.Context) {
 	//
 	// t := time.UnixMilli(body.Timestamp)
 	//
-	// err = dataStore.RestoreFiles(body.FileIds, t, rc.FileTree)
+	// err = dataStore.RestoreFiles(body.FileIds, t, SERV.FileTree)
 	// if err != nil {
 	// 	util.ShowErr(err)
 	// 	ctx.Status(http.StatusInternalServerError)
@@ -302,19 +302,19 @@ func moveFiles(ctx *gin.Context) {
 		return
 	}
 
-	tp := rc.TaskDispatcher.GetWorkerPool().NewTaskPool(false, nil)
+	tp := types.SERV.TaskDispatcher.GetWorkerPool().NewTaskPool(false, nil)
 
 	caster := NewBufferedCaster()
 	fileEvent := history.NewFileEvent()
 	defer caster.Close()
 
 	for _, fileId := range filesData.Files {
-		action := history.NewFileAction(rc.FileTree.Get(fileId).GetContentId(), history.FileMove)
+		action := history.NewFileAction(types.SERV.FileTree.Get(fileId).GetContentId(), history.FileMove)
 		fileEvent.AddAction(action)
 		tp.MoveFile(fileId, filesData.NewParentId, "", caster)
 	}
 
-	err = rc.FileTree.GetJournal().LogEvent(fileEvent)
+	err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)
 	if err != nil {
 		util.ErrTrace(err)
 	}

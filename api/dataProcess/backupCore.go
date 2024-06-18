@@ -3,13 +3,11 @@ package dataProcess
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 )
 
 func BackupD(interval time.Duration, r types.Requester) {
-	srvInfo := dataStore.GetServerInfo()
-	if srvInfo == nil || srvInfo.ServerRole() != types.Backup {
+	if types.SERV.InstanceService.GetLocal().ServerRole() != types.Backup {
 		return
 	}
 	return
@@ -20,13 +18,15 @@ func BackupD(interval time.Duration, r types.Requester) {
 }
 
 func doBackup(t *task) {
-	srvInfo := dataStore.GetServerInfo()
-	if srvInfo == nil {
+	localRole := types.SERV.InstanceService.GetLocal().ServerRole()
+
+	if localRole == types.Initialization {
 		t.ErrorAndExit(types.ErrServerNotInit)
 	}
-	if srvInfo.ServerRole() == types.Core {
+
+	if localRole == types.Core {
 		packageBackup(t)
-	} else if srvInfo.ServerRole() == types.Backup {
+	} else if localRole == types.Backup {
 		receiveBackup(t)
 	}
 }

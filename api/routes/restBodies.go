@@ -71,7 +71,7 @@ type newShareBody struct {
 	Wormhole bool             `json:"wormhole"`
 }
 
-type initServer struct {
+type initServerBody struct {
 	Name string           `json:"name"`
 	Role types.ServerRole `json:"role"`
 
@@ -82,10 +82,10 @@ type initServer struct {
 }
 
 type newServerBody struct {
-	Id       string           `json:"serverId"`
-	Role     types.ServerRole `json:"role"`
-	Name     string           `json:"name"`
-	UsingKey string           `json:"usingKey"`
+	Id       types.InstanceId    `json:"serverId"`
+	Role     types.ServerRole    `json:"role"`
+	Name     string              `json:"name"`
+	UsingKey types.WeblensApiKey `json:"usingKey"`
 }
 
 type deleteKeyBody struct {
@@ -93,7 +93,7 @@ type deleteKeyBody struct {
 }
 
 type deleteRemoteBody struct {
-	RemoteId string `json:"remoteId"`
+	RemoteId types.InstanceId `json:"remoteId"`
 }
 
 type restoreBody struct {

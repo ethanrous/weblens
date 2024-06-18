@@ -3,16 +3,17 @@ package routes
 import (
 	"net/http"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/gin-gonic/gin"
 )
 
 // Archive means sending ALL fields, including password and token information
 func getUsersArchive(ctx *gin.Context) {
-	rq := NewRequester()
-	store := dataStore.NewStore(rq)
+	us, err := types.SERV.Requester.GetCoreUsers()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-	users := store.GetUsers()
-	arc := dataStore.UserArray(users).MarshalArchive()
-	ctx.JSON(http.StatusOK, arc)
+	ctx.JSON(http.StatusOK, us)
 }

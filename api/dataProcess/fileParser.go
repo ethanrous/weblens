@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
@@ -12,20 +11,6 @@ import (
 // Global exiftool
 // var gexift *exiftool.Exiftool
 // var gexiftBufferSize int64
-
-type dataProcessController struct {
-	media types.MediaRepo
-	exif  *exiftool.Exiftool
-}
-
-var dpc dataProcessController
-
-// func SetControllers(mediaRepo types.MediaRepo) {
-// 	dpc = dataProcessController{
-// 		media: mediaRepo,
-// 		exif:  media.NewExif(1000 * 1000 * 100),
-// 	}
-// }
 
 func processMediaFile(t *task) {
 	meta := t.metadata.(scanMetadata)
@@ -45,7 +30,7 @@ func processMediaFile(t *task) {
 		return
 	}
 
-	if !file.IsDisplayable(dpc.media) {
+	if !file.IsDisplayable() {
 		return
 	}
 
@@ -57,11 +42,12 @@ func processMediaFile(t *task) {
 
 	t.CheckExit()
 
-	err = m.Save()
-	if err != nil {
-		t.ErrorAndExit(err)
-		return
-	}
+	util.Error.Println("TODO? Write media to db")
+	// err = m.Save()
+	// if err != nil {
+	// 	t.ErrorAndExit(err)
+	// 	return
+	// }
 
 	t.CheckExit()
 
@@ -120,11 +106,11 @@ func scanDirectory(t *task) {
 			return nil
 		}
 
-		if !wf.IsDisplayable(dpc.media) {
+		if !wf.IsDisplayable() {
 			return nil
 		}
 
-		m := dpc.media.Get(wf.GetContentId())
+		m := types.SERV.MediaRepo.Get(wf.GetContentId())
 		if m != nil && m.IsImported() && m.IsCached(wf.GetTree()) {
 			return nil
 		}

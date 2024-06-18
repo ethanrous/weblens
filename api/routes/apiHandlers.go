@@ -10,7 +10,9 @@ import (
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
-	"github.com/ethrousseau/weblens/api/dataStore/media"
+	"github.com/ethrousseau/weblens/api/dataStore/instance"
+	"github.com/ethrousseau/weblens/api/dataStore/share"
+	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/types"
 
 	"github.com/ethrousseau/weblens/api/util"
@@ -80,8 +82,8 @@ func getUserFromCtx(ctx *gin.Context) types.User {
 /* ================ */
 
 func getMediaBatch(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -100,14 +102,14 @@ func getMediaBatch(ctx *gin.Context) {
 		return
 	}
 
-	media, err := media.GetFilteredMedia(user, sort, -1, albumFilter, raw)
+	ms, err := types.SERV.MediaRepo.GetFilteredMedia(u, sort, -1, albumFilter, raw)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"Media": media})
+	ctx.JSON(http.StatusOK, gin.H{"Media": ms})
 }
 
 func getProcessedMedia(ctx *gin.Context, q types.Quality) {
@@ -124,18 +126,18 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		}
 	}
 
-	m := rc.MediaRepo.Get(mediaId)
+	m := types.SERV.MediaRepo.Get(mediaId)
 	if m == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
 		return
 	}
-	bs, err := m.ReadDisplayable(q, rc.FileTree, pageNum)
+	bs, err := m.ReadDisplayable(q, types.SERV.FileTree, pageNum)
 
 	if errors.Is(err, dataStore.ErrNoCache) {
 		util.Warning.Println("Did not find cache for media file")
-		f := rc.FileTree.Get(m.GetFiles()[0])
+		f := types.SERV.FileTree.Get(m.GetFiles()[0])
 		if f != nil {
-			rc.TaskDispatcher.ScanDirectory(f.GetParent(), rc.Caster)
+			types.SERV.TaskDispatcher.ScanDirectory(f.GetParent(), types.SERV.Caster)
 			ctx.Status(http.StatusNoContent)
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
@@ -165,7 +167,7 @@ func getMediaFullres(ctx *gin.Context) {
 }
 
 func getMediaTypes(ctx *gin.Context) {
-	typeMap := rc.MediaRepo.TypeService()
+	typeMap := types.SERV.MediaRepo.TypeService()
 	ctx.JSON(http.StatusOK, typeMap)
 }
 
@@ -176,7 +178,7 @@ func newUploadTask(ctx *gin.Context) {
 		return
 	}
 	c := NewBufferedCaster()
-	t := rc.TaskDispatcher.WriteToFile(upInfo.RootFolderId, upInfo.ChunkSize, upInfo.TotalUploadSize, c)
+	t := types.SERV.TaskDispatcher.WriteToFile(upInfo.RootFolderId, upInfo.ChunkSize, upInfo.TotalUploadSize, c)
 	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
 
@@ -191,7 +193,7 @@ func newFileUpload(ctx *gin.Context) {
 }
 
 func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Context) {
-	uTask := rc.TaskDispatcher.GetWorkerPool().GetTask(uploadTaskId)
+	uTask := types.SERV.TaskDispatcher.GetWorkerPool().GetTask(uploadTaskId)
 	if uTask == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -203,7 +205,7 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 		return
 	}
 
-	parent := rc.FileTree.Get(newFInfo.ParentFolderId)
+	parent := types.SERV.FileTree.Get(newFInfo.ParentFolderId)
 	if parent == nil {
 		ctx.AbortWithStatus(http.StatusNotFound)
 		return
@@ -211,7 +213,7 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 
 	newName := dataStore.MakeUniqueChildName(parent, newFInfo.NewFileName)
 
-	newF, err := rc.FileTree.Touch(parent, newName, true, nil, rc.Caster)
+	newF, err := types.SERV.FileTree.Touch(parent, newName, true, nil, types.SERV.Caster)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -232,7 +234,7 @@ func handleNewFile(uploadTaskId types.TaskId, newFInfo newFileBody, ctx *gin.Con
 func handleUploadChunk(ctx *gin.Context) {
 	uploadId := types.TaskId(ctx.Param("uploadId"))
 
-	t := rc.TaskDispatcher.GetWorkerPool().GetTask(uploadId)
+	t := types.SERV.TaskDispatcher.GetWorkerPool().GetTask(uploadId)
 	if t == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "No upload exists with given id"})
 		return
@@ -276,19 +278,19 @@ func getFoldersMedia(ctx *gin.Context) {
 	}
 
 	folders := util.Map(folderIds, func(fId types.FileId) types.WeblensFile {
-		return rc.FileTree.Get(fId)
+		return types.SERV.FileTree.Get(fId)
 	})
 
-	ctx.JSON(http.StatusOK, gin.H{"medias": dataStore.RecursiveGetMedia(folders...)})
+	ctx.JSON(http.StatusOK, gin.H{"medias": dataStore.RecursiveGetMedia(types.SERV.MediaRepo, folders...)})
 }
 
 func searchFolder(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
+	u := getUserFromCtx(ctx)
 	folderId := types.FileId(ctx.Param("folderId"))
 	searchStr := ctx.Query("search")
 	filterStr := ctx.Query("filter")
 
-	dir := rc.FileTree.Get(folderId)
+	dir := types.SERV.FileTree.Get(folderId)
 	if dir == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -297,8 +299,8 @@ func searchFolder(ctx *gin.Context) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
-	if !dataStore.CanAccessFile(dir, acc) {
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
+	if !acc.CanAccessFile(dir) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -330,7 +332,7 @@ func searchFolder(ctx *gin.Context) {
 	}
 
 	filesData := util.Map(files, func(w types.WeblensFile) types.FileInfo {
-		d, err := w.FormatFileInfo(acc, rc.MediaRepo)
+		d, err := w.FormatFileInfo(acc)
 		util.ErrTrace(err)
 		return d
 	})
@@ -339,20 +341,20 @@ func searchFolder(ctx *gin.Context) {
 }
 
 func getFile(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		return
 	}
 
 	fileId := types.FileId(ctx.Param("fileId"))
-	file := rc.FileTree.Get(fileId)
+	file := types.SERV.FileTree.Get(fileId)
 	if file == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file"})
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
-	formattedInfo, err := file.FormatFileInfo(acc, rc.MediaRepo)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
+	formattedInfo, err := file.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to format file info"})
@@ -374,7 +376,7 @@ func updateFile(ctx *gin.Context) {
 		return
 	}
 
-	file := rc.FileTree.Get(fileId)
+	file := types.SERV.FileTree.Get(fileId)
 	if file == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -392,7 +394,7 @@ func updateFile(ctx *gin.Context) {
 
 	caster := NewBufferedCaster()
 	defer caster.Close()
-	t := rc.TaskDispatcher.MoveFile(fileId, updateInfo.NewParentId, updateInfo.NewName, caster)
+	t := types.SERV.TaskDispatcher.MoveFile(fileId, updateInfo.NewParentId, updateInfo.NewName, caster)
 	t.Wait()
 
 	if t.ReadError() != nil {
@@ -409,22 +411,22 @@ func trashFiles(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	user := getUserFromCtx(ctx)
+	u := getUserFromCtx(ctx)
 
 	caster := NewBufferedCaster()
 	defer caster.Close()
 
 	var failed []types.FileId
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
 	shareId := types.ShareId(ctx.Query("shareId"))
 	if shareId != "" {
-		share, err := dataStore.GetShare(shareId, dataStore.FileShare, rc.FileTree)
-		if err != nil {
+		sh := types.SERV.ShareService.Get(shareId)
+		if sh == nil {
 			ctx.Status(http.StatusNotFound)
 			return
 		}
-		err = acc.AddShare(share)
+		err = acc.AddShare(sh)
 		if err != nil {
 			util.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
@@ -433,12 +435,12 @@ func trashFiles(ctx *gin.Context) {
 	}
 
 	for _, fileId := range fileIds {
-		file := rc.FileTree.Get(fileId)
+		file := types.SERV.FileTree.Get(fileId)
 		if file == nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to trash"})
 			return
 		}
-		if user != file.Owner() {
+		if u != file.Owner() {
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "Non-owner cannot trash file"})
 			return
 		}
@@ -472,7 +474,7 @@ func trashFiles(ctx *gin.Context) {
 }
 
 func deleteFiles(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
+	u := getUserFromCtx(ctx)
 	fileIds, err := readCtxBody[[]types.FileId](ctx)
 	if err != nil {
 		return
@@ -483,17 +485,17 @@ func deleteFiles(ctx *gin.Context) {
 	defer caster.Close()
 
 	for _, fileId := range fileIds {
-		file := rc.FileTree.Get(fileId)
+		file := types.SERV.FileTree.Get(fileId)
 		if file == nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
 			return
 		}
-		if user != file.Owner() {
+		if u != file.Owner() {
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "Non-owner cannot delete file"})
 			return
 		}
 
-		err := dataStore.PermanentlyDeleteFile(file, caster)
+		err := dataStore.PermanentlyDeleteFile(file)
 		if err != nil {
 			util.ErrTrace(err)
 			failed = append(failed, fileId)
@@ -515,8 +517,8 @@ func deleteFiles(ctx *gin.Context) {
 }
 
 func unTrashFiles(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -541,13 +543,13 @@ func unTrashFiles(ctx *gin.Context) {
 	var failed []types.FileId
 
 	for _, fileId := range fileIds {
-		file := rc.FileTree.Get(fileId)
+		file := types.SERV.FileTree.Get(fileId)
 		if file == nil {
 			util.ErrTrace(dataStore.ErrNoFile)
 			failed = append(failed, fileId)
 			continue
 		}
-		if user != file.Owner() {
+		if u != file.Owner() {
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "Non-owner cannot un-trash file"})
 			return
 		}
@@ -564,8 +566,8 @@ func unTrashFiles(ctx *gin.Context) {
 }
 
 func createTakeout(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -580,12 +582,26 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	files := util.Map(takeoutRequest.FileIds, func(fileId types.FileId) types.WeblensFile { return rc.FileTree.Get(fileId) })
+	files := util.Map(takeoutRequest.FileIds, func(fileId types.FileId) types.WeblensFile { return types.SERV.FileTree.Get(fileId) })
 	for _, file := range files {
 		file.GetAbsPath() // Make sure directories have trailing slash
 
-		acc := dataStore.NewAccessMeta(user, rc.FileTree).AddShareId(shareId, dataStore.FileShare)
-		if file == types.WeblensFile(nil) || !dataStore.CanAccessFile(file, acc) {
+		acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
+		if shareId != "" {
+			sh := types.SERV.ShareService.Get(shareId)
+			if sh == nil {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find share to takeout"})
+				return
+			}
+			err := acc.AddShare(sh)
+			if err != nil {
+				util.ErrTrace(err)
+				ctx.Status(http.StatusNotFound)
+				return
+			}
+		}
+
+		if file == types.WeblensFile(nil) || !acc.CanAccessFile(file) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Failed to find at least one file"})
 			return
 		}
@@ -597,7 +613,7 @@ func createTakeout(ctx *gin.Context) {
 	}
 
 	caster := NewCaster()
-	t := rc.TaskDispatcher.CreateZip(files, user.GetUsername(), shareId, rc.FileTree, caster)
+	t := types.SERV.TaskDispatcher.CreateZip(files, u.GetUsername(), shareId, types.SERV.FileTree, caster)
 
 	completed, status := t.Status()
 	if completed && status == dataProcess.TaskSuccess {
@@ -608,22 +624,29 @@ func createTakeout(ctx *gin.Context) {
 }
 
 func downloadFile(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 	fileId := types.FileId(ctx.Query("fileId"))
 	shareId := types.ShareId(ctx.Param("shareId"))
 
-	file := rc.FileTree.Get(fileId)
+	file := types.SERV.FileTree.Get(fileId)
 	if file == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree).AddShareId(shareId, dataStore.FileShare)
-	if !dataStore.CanAccessFile(file, acc) {
+	sh := types.SERV.ShareService.Get(shareId)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
+	err := acc.AddShare(sh)
+	if err != nil {
+		util.ErrTrace(err)
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+	if !acc.CanAccessFile(file) {
 		util.Debug.Println("No auth")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
 		return
@@ -646,11 +669,18 @@ func createUser(ctx *gin.Context) {
 		return
 	}
 
-	err = dataStore.CreateUser(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate, rc.FileTree)
+	u, err := user.New(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate)
 	if err != nil {
 		if errors.Is(err, dataStore.ErrUserAlreadyExists) {
 			ctx.Status(http.StatusConflict)
 		}
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	err = types.SERV.UserService.Add(u)
+	if err != nil {
+		util.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -664,13 +694,13 @@ func loginUser(ctx *gin.Context) {
 		return
 	}
 
-	u := dataStore.GetUser(userCredentials.Username)
+	u := types.SERV.UserService.Get(userCredentials.Username)
 	if u == nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	if dataStore.CheckLogin(u, userCredentials.Password) {
+	if u.CheckLogin(userCredentials.Password) {
 		util.Info.Printf("Valid login for [%s]\n", userCredentials.Username)
 
 		if token := u.GetToken(); token == "" {
@@ -685,27 +715,36 @@ func loginUser(ctx *gin.Context) {
 }
 
 func getUserInfo(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
-		si := dataStore.GetServerInfo()
-		if si == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
+		if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
 			ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 			return
 		}
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-	ctx.JSON(http.StatusOK, user)
+	ctx.JSON(http.StatusOK, u)
 
 }
 
 func getUsers(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, Store.GetUsers())
+	// util.ShowErr(types.NewWeblensError("TODO - getUsers"))
+	// ctx.Status(http.StatusNotImplemented)
+
+	us, err := types.SERV.UserService.GetAll()
+	if err != nil {
+		util.ErrTrace(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, us)
 }
 
 func updateUserPassword(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -719,11 +758,11 @@ func updateUserPassword(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Both oldPassword and newPassword fields are required"})
 		return
 	}
-	err = dataStore.UpdatePassword(user.GetUsername(), passUpd.OldPass, passUpd.NewPass)
+	err = u.UpdatePassword(passUpd.OldPass, passUpd.NewPass)
 	if err != nil {
 		util.ShowErr(err)
 		switch {
-		case errors.Is(err.(error), dataStore.ErrBadPassword):
+		case errors.Is(err.(error), types.ErrBadPassword):
 			ctx.Status(http.StatusUnauthorized)
 		default:
 			ctx.Status(http.StatusInternalServerError)
@@ -744,8 +783,9 @@ func setUserAdmin(ctx *gin.Context) {
 	}
 
 	username := types.Username(ctx.Param("username"))
+	u := types.SERV.UserService.Get(username)
 
-	err = dataStore.UpdateAdmin(username, update.Admin)
+	err = u.SetAdmin(update.Admin)
 	if err != nil {
 		if errors.Is(err, dataStore.ErrNoUser) {
 			ctx.Status(http.StatusNotFound)
@@ -761,8 +801,9 @@ func setUserAdmin(ctx *gin.Context) {
 
 func activateUser(ctx *gin.Context) {
 	username := types.Username(ctx.Param("username"))
+	u := types.SERV.UserService.Get(username)
 
-	if err := dataStore.ActivateUser(username, rc.FileTree); err != nil {
+	if err := u.Activate(); err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
 		return
@@ -772,16 +813,22 @@ func activateUser(ctx *gin.Context) {
 }
 
 func deleteUser(ctx *gin.Context) {
+	username := types.Username(ctx.Param("username"))
 	// User to delete username
 	// *cannot* use getUserFromCtx() here because that
 	// will grab the user making the request, not the
 	// username from the Param  \/
-	user := dataStore.GetUser(types.Username(ctx.Param("username")))
-	if user == nil {
+	u := types.SERV.UserService.Get(username)
+	if u == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user with given username does not exist"})
 		return
 	}
-	dataStore.DeleteUser(user)
+	err := types.SERV.UserService.Del(u.GetUsername())
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
 
 	ctx.Status(http.StatusOK)
 }
@@ -790,8 +837,8 @@ func clearCache(ctx *gin.Context) {
 	ctx.Status(http.StatusNotImplemented)
 	return
 
-	user := getUserFromCtx(ctx)
-	if !user.IsAdmin() {
+	u := getUserFromCtx(ctx)
+	if !u.IsAdmin() {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -812,23 +859,23 @@ func searchUsers(ctx *gin.Context) {
 }
 
 func getSharedFiles(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
-	shares := dataStore.GetSharedWithUser(user)
+	shares := share.GetSharedWithUser(u)
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
 	filesInfos := util.Map(shares, func(sh types.Share) types.FileInfo {
 		err := acc.AddShare(sh)
 		acc.SetUsingShare(sh)
 		if err != nil {
 			util.ShowErr(err)
 		}
-		f := rc.FileTree.Get(types.FileId(sh.GetContentId()))
-		fileInfo, err := f.FormatFileInfo(acc, rc.MediaRepo)
+		f := types.SERV.FileTree.Get(types.FileId(sh.GetContentId()))
+		fileInfo, err := f.FormatFileInfo(acc)
 		if err != nil {
 			util.ShowErr(err)
 		}
@@ -839,8 +886,8 @@ func getSharedFiles(ctx *gin.Context) {
 }
 
 func createFileShare(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -854,8 +901,11 @@ func createFileShare(ctx *gin.Context) {
 		return
 	}
 
-	f := rc.FileTree.Get(shareInfo.FileIds[0])
-	newShare, err := dataStore.CreateFileShare(f, user.GetUsername(), shareInfo.Users, shareInfo.Public, shareInfo.Wormhole)
+	f := types.SERV.FileTree.Get(shareInfo.FileIds[0])
+	accessors := util.Map(shareInfo.Users, func(un types.Username) types.User {
+		return types.SERV.UserService.Get(un)
+	})
+	newShare := share.NewFileShare(f, u, accessors, shareInfo.Public, shareInfo.Wormhole)
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -868,13 +918,12 @@ func createFileShare(ctx *gin.Context) {
 func deleteShare(ctx *gin.Context) {
 	shareId := types.ShareId(ctx.Param("shareId"))
 
-	s, err := dataStore.GetShare(shareId, dataStore.FileShare, rc.FileTree)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+	s := types.SERV.ShareService.Get(shareId)
+	if s == nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
-	err = dataStore.DeleteShare(s, rc.FileTree)
+	err := types.SERV.ShareService.Del(s.GetShareId())
 	if err != nil {
 		util.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -886,10 +935,10 @@ func deleteShare(ctx *gin.Context) {
 
 func updateFileShare(ctx *gin.Context) {
 	shareId := types.ShareId(ctx.Param("shareId"))
-	share, err := dataStore.GetShare(shareId, dataStore.FileShare, rc.FileTree)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusNotFound)
+	sh := types.SERV.ShareService.Get(shareId)
+	if sh == nil {
+		util.ErrTrace(types.ErrNoShare)
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
 		return
 	}
 
@@ -906,12 +955,18 @@ func updateFileShare(ctx *gin.Context) {
 		return
 	}
 
-	share.SetAccessors(shareInfo.Users)
-	share.SetPublic(shareInfo.Public)
-	err = dataStore.UpdateFileShare(share, rc.FileTree)
+	accessors := util.Map(shareInfo.Users, func(un types.Username) types.User {
+		return types.SERV.UserService.Get(un)
+	})
+
+	sh.SetAccessors(accessors)
+	sh.SetPublic(shareInfo.Public)
+	// SERV.ShareService.up
+	// err := sh.UpdateFileShare(sh, SERV.FileTree)
+	util.ShowErr(types.NewWeblensError("Not impl - update file share"))
+	ctx.Status(http.StatusInternalServerError)
 	if err != nil {
 		util.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -921,7 +976,7 @@ func updateFileShare(ctx *gin.Context) {
 
 func getFilesShares(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
-	file := rc.FileTree.Get(fileId)
+	file := types.SERV.FileTree.Get(fileId)
 	if file == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -931,29 +986,28 @@ func getFilesShares(ctx *gin.Context) {
 }
 
 func getFileShare(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-
+	u := getUserFromCtx(ctx)
 	shareId := types.ShareId(ctx.Param("shareId"))
-	share, err := dataStore.GetShare(shareId, dataStore.FileShare, rc.FileTree)
-	if err != nil {
-		util.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+
+	sh := types.SERV.ShareService.Get(shareId)
+	if sh != nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(user, rc.FileTree)
-	err = acc.AddShare(share)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
+	err := acc.AddShare(sh)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, share)
+	ctx.JSON(http.StatusOK, sh)
 }
 
 func newApiKey(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	acc := dataStore.NewAccessMeta(user, rc.FileTree).SetRequestMode(dataStore.ApiKeyCreate)
+	u := getUserFromCtx(ctx)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree).SetRequestMode(dataStore.ApiKeyCreate)
 	newKey, err := dataStore.GenerateApiKey(acc)
 	if err != nil {
 		util.ShowErr(err)
@@ -965,12 +1019,12 @@ func newApiKey(ctx *gin.Context) {
 }
 
 func getApiKeys(ctx *gin.Context) {
-	user := getUserFromCtx(ctx)
-	if user == nil {
+	u := getUserFromCtx(ctx)
+	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
-	acc := dataStore.NewAccessMeta(user, rc.FileTree).SetRequestMode(dataStore.ApiKeyGet)
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree).SetRequestMode(dataStore.ApiKeyGet)
 	keys, err := dataStore.GetApiKeys(acc)
 	if err != nil {
 		util.ShowErr(err)
@@ -991,7 +1045,7 @@ func deleteApiKey(ctx *gin.Context) {
 
 func getFolderStats(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("folderId"))
-	rootFolder := rc.FileTree.Get(fileId)
+	rootFolder := types.SERV.FileTree.Get(fileId)
 	if rootFolder == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -1000,7 +1054,7 @@ func getFolderStats(ctx *gin.Context) {
 		return
 	}
 
-	t := rc.TaskDispatcher.GatherFsStats(rootFolder, rc.Caster)
+	t := types.SERV.TaskDispatcher.GatherFsStats(rootFolder, types.SERV.Caster)
 	t.Wait()
 	res := t.GetResult("sizesByExtension")
 
@@ -1023,12 +1077,12 @@ func getRandomMedias(ctx *gin.Context) {
 
 func initializeServer(ctx *gin.Context) {
 	// Can't init server if already initialized
-	if dataStore.GetOwner() != nil && dataStore.GetServerInfo().ServerRole() != types.Initialization {
+	if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	si, err := readCtxBody[initServer](ctx)
+	si, err := readCtxBody[initServerBody](ctx)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
@@ -1036,7 +1090,8 @@ func initializeServer(ctx *gin.Context) {
 	}
 
 	if si.Role == types.Core {
-		err := dataStore.InitServerCore(si.Name, si.Username, si.Password, rc.FileTree)
+		localCore := instance.New("", si.Name, si.CoreKey, types.Backup, true, si.CoreAddress)
+		err := types.SERV.InstanceService.InitCore(localCore)
 		if err != nil {
 			util.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
@@ -1045,8 +1100,8 @@ func initializeServer(ctx *gin.Context) {
 		ctx.Status(http.StatusCreated)
 
 	} else if si.Role == types.Backup {
-		rq := NewRequester()
-		err := dataStore.InitServerForBackup(si.Name, si.CoreAddress, si.CoreKey, rq)
+		localBackup := instance.New("", si.Name, si.CoreKey, types.Backup, true, si.CoreAddress)
+		err := types.SERV.InstanceService.InitBackup(localBackup)
 		if err != nil {
 			util.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
@@ -1056,23 +1111,23 @@ func initializeServer(ctx *gin.Context) {
 
 	ctx.Status(http.StatusCreated)
 
-	store := GetStore()
-	err = store.LoadUsers(rc.FileTree)
-	if err != nil {
-		util.ShowErr(err)
-		return
-	}
+	panic(types.NewWeblensError("TODO"))
+	// store := GetStore()
+	// err = store.LoadUsers(SERV.FileTree)
+	// if err != nil {
+	// 	util.ShowErr(err)
+	// 	return
+	// }
 
 	util.Info.Println("Initialization succeeded. Restarting router...")
 	go DoRoutes()
 }
 
 func getServerInfo(ctx *gin.Context) {
-	si := dataStore.GetServerInfo()
-	if si.ServerRole() == types.Initialization {
+	if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
 		ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"info": si})
+	ctx.JSON(http.StatusOK, gin.H{"info": types.SERV.InstanceService.GetLocal()})
 }

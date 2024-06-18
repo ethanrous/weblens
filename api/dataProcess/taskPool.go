@@ -216,7 +216,7 @@ func (tp *taskPool) GatherFsStats(rootDir types.WeblensFile, caster types.Broadc
 	return t
 }
 
-func (tp *taskPool) Backup(remoteId string, requester types.Requester, tree types.FileTree) types.Task {
+func (tp *taskPool) Backup(remoteId types.InstanceId, requester types.Requester, tree types.FileTree) types.Task {
 	t := tp.NewTask(BackupTask, backupMeta{remoteId: remoteId, tree: tree}, nil, requester)
 	err := tp.QueueTask(t)
 	if err != nil {

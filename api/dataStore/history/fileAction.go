@@ -44,7 +44,7 @@ func NewCreateEntry(path string, contentId types.ContentId) types.FileAction {
 		ActionType:      FileCreate,
 		ContentId:       contentId,
 		DestinationPath: path,
-		DestinationId:   hc.fileTree.GenerateFileId(path),
+		DestinationId:   types.SERV.FileTree.GenerateFileId(path),
 	}
 }
 
@@ -57,7 +57,7 @@ func (fa *fileAction) GetTimestamp() time.Time {
 }
 
 func (fa *fileAction) SetOriginPath(path string) {
-	fa.OriginId = hc.fileTree.GenerateFileId(path)
+	fa.OriginId = types.SERV.FileTree.GenerateFileId(path)
 	fa.OriginPath = path
 }
 
@@ -70,7 +70,7 @@ func (fa *fileAction) GetOriginId() types.FileId {
 }
 
 func (fa *fileAction) SetDestinationPath(path string) {
-	fa.DestinationId = hc.fileTree.GenerateFileId(path)
+	fa.DestinationId = types.SERV.FileTree.GenerateFileId(path)
 	fa.DestinationPath = path
 }
 

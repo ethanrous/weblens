@@ -1,7 +1,6 @@
 package media
 
 import (
-	"errors"
 	"slices"
 	"strings"
 	"sync"
@@ -15,35 +14,46 @@ import (
 )
 
 type mediaRepo struct {
-	mediaMap    map[types.ContentId]types.Media
-	mapLock     *sync.Mutex
-	typeService types.MediaTypeService
-	imageCache  *sturdyc.Client[[]byte]
-	exif        *exiftool.Exiftool
-	db          types.DatabaseService
+	mediaMap     map[types.ContentId]types.Media
+	mapLock      *sync.Mutex
+	typeService  types.MediaTypeService
+	imageCache   *sturdyc.Client[[]byte]
+	albumService types.AlbumService
+	exif         *exiftool.Exiftool
+
+	db types.DatabaseService
+	ft types.FileTree
+	us types.UserService
 }
 
-func NewRepo(service types.MediaTypeService, db types.DatabaseService) types.MediaRepo {
+func NewRepo(typeService types.MediaTypeService, fileTree types.FileTree, us types.UserService, albumService types.AlbumService) types.MediaRepo {
 	return &mediaRepo{
-		mediaMap:    make(map[types.ContentId]types.Media),
-		mapLock:     &sync.Mutex{},
-		typeService: service,
-		imageCache:  sturdyc.New[[]byte](500, 10, time.Hour, 10),
-		exif:        NewExif(10*100*100, 0, nil),
-		db:          db,
+		mediaMap:   make(map[types.ContentId]types.Media),
+		mapLock:    &sync.Mutex{},
+		imageCache: sturdyc.New[[]byte](500, 10, time.Hour, 10),
+		exif:       NewExif(10*100*100, 0, nil),
+
+		typeService:  typeService,
+		albumService: albumService,
+		ft:           fileTree,
+		us:           us,
 	}
 }
 
-func (mr *mediaRepo) Init() error {
-	db.
-	_, err := dataStore.dbServer.getAllMedia()
+func (mr *mediaRepo) Init(db types.DatabaseService) error {
+	mr.db = db
+
+	ms, err := mr.db.GetAllMedia()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	// for _, m := range ms {
-	// 	mediaMapAdd(m)
-	// }
+	mr.mapLock.Lock()
+	defer mr.mapLock.Unlock()
+
+	for _, m := range ms {
+		mr.mediaMap[m.ID()] = m
+	}
 
 	return nil
 }
@@ -121,69 +131,70 @@ func (mr *mediaRepo) Get(mId types.ContentId) types.Media {
 	return m
 }
 
-func (mr *mediaRepo) Del(m types.Media, ft types.FileTree) {
+func (mr *mediaRepo) Del(cId types.ContentId) error {
+	m := mr.Get(cId)
 
-	realM := m.(*Media)
-	f, err := realM.getCacheFile(dataStore.Thumbnail, false, 0, ft)
+	f, err := m.GetCacheFile(dataStore.Thumbnail, false, 0, mr.ft)
 	if err == nil {
-		err = dataStore.PermanentlyDeleteFile(f, nil)
+		err = dataStore.PermanentlyDeleteFile(f)
 		if err != nil {
-			util.ErrTrace(err)
+			return err
 		}
 	}
 	f = nil
-	for page := range realM.PageCount + 1 {
-		f, err = realM.getCacheFile(dataStore.Fullres, false, page, ft)
+	for page := range m.GetPageCount() + 1 {
+		f, err = m.GetCacheFile(dataStore.Fullres, false, page, mr.ft)
 		if err == nil {
-			err = dataStore.PermanentlyDeleteFile(f, nil)
+			err = dataStore.PermanentlyDeleteFile(f)
 			if err != nil {
-				util.ErrTrace(err)
+				return err
 			}
 		}
 	}
 
-	err = dataStore.dbServer.removeMediaFromAnyAlbum(m.ID())
+	err = mr.albumService.RemoveMediaFromAny(m.ID())
 	if err != nil {
-		util.ErrTrace(err)
-		return
+		return err
 	}
 
-	err = dataStore.dbServer.deleteMedia(m.ID())
+	err = mr.db.DeleteMedia(m.ID())
 	if err != nil {
-		util.ErrTrace(err)
-		return
+		return err
 	}
 
 	mr.mapLock.Lock()
 	delete(mr.mediaMap, m.ID())
 	mr.mapLock.Unlock()
+
+	return nil
 }
 
-func (mr *mediaRepo) FetchCacheImg(m types.Media) error {
+func (mr *mediaRepo) FetchCacheImg(m types.Media, q types.Quality, pageNum int, ft types.FileTree) ([]byte, error) {
 	if mr.Get(m.ID()) == nil {
-		return ErrNoMedia
+		return nil, types.ErrNoMedia
 	}
 
+	return nil, types.NewWeblensError("Not impl")
 }
 
-func GetRealFile(m types.Media, ft types.FileTree) (types.WeblensFile, error) {
-	realM := m.(*Media)
-
-	if len(realM.FileIds) == 0 {
-		return nil, dataStore.ErrNoFile
-	}
-
-	for _, fId := range realM.FileIds {
-		f := ft.Get(fId)
-		if f != nil {
-			return f, nil
-		}
-	}
-
-	// None of the files that this Media uses are present any longer, delete Media
-	removeMedia(realM, ft)
-	return nil, dataStore.ErrNoFile
-}
+// func GetRealFile(m types.Media, ft types.FileTree) (types.WeblensFile, error) {
+// 	realM := m.(*Media)
+//
+// 	if len(realM.FileIds) == 0 {
+// 		return nil, dataStore.ErrNoFile
+// 	}
+//
+// 	for _, fId := range realM.FileIds {
+// 		f := ft.Get(fId)
+// 		if f != nil {
+// 			return f, nil
+// 		}
+// 	}
+//
+// 	// None of the files that this Media uses are present any longer, delete Media
+// 	removeMedia(realM, ft)
+// 	return nil, dataStore.ErrNoFile
+// }
 
 // func GetRandomMedia(limit int) []types.Media {
 // 	count := 0
@@ -210,22 +221,23 @@ func findOwner(m types.Media, o types.User) int {
 	return strings.Compare(string(m.GetOwner().GetUsername()), string(o.GetUsername()))
 }
 
-func GetFilteredMedia(requester types.User, sort string, sortDirection int, albumFilter []types.AlbumId, raw bool) ([]types.Media, error) {
+func (mr *mediaRepo) GetFilteredMedia(requester types.User, sort string, sortDirection int, albumFilter []types.AlbumId,
+	raw bool) ([]types.Media, error) {
 	// old version
 	// return dbServer.GetFilteredMedia(sort, requester.GetUsername(), -1, albumFilter, raw)
-	albums := util.Map(albumFilter, func(a types.AlbumId) *dataStore.AlbumData {
-		album, err := dataStore.dbServer.GetAlbum(a)
-		util.ShowErr(err)
-		return album
+	albums := util.Map(albumFilter, func(aId types.AlbumId) types.Album {
+		return mr.albumService.Get(aId)
 	})
 
-	mediaMask := []types.ContentId{}
+	var mediaMask []types.ContentId
 	for _, a := range albums {
-		mediaMask = append(mediaMask, a.Medias...)
+		mediaMask = append(mediaMask, util.Map(a.GetMedias(), func(media types.Media) types.ContentId {
+			return media.ID()
+		})...)
 	}
 	slices.Sort(mediaMask)
 
-	allMs := util.MapToSlicePure(mediaMap)
+	allMs := util.MapToSlicePure(mr.mediaMap)
 	allMs = util.Filter(allMs, func(m types.Media) bool {
 		mt := m.GetMediaType()
 		if mt == nil {
@@ -261,7 +273,9 @@ func AdjustMediaDates(anchor types.Media, newTime time.Time, extraMedias []types
 	return nil
 }
 
-// Error
-
-var ErrNoMedia = errors.New("requested Media was not found in Media repo")
-var ErrNoFile = errors.New("Media does not have an associated file that it was expected to")
+func (mr *mediaRepo) RunExif(path string) ([]exiftool.FileMetadata, error) {
+	if mr.exif == nil {
+		return nil, types.ErrNoExiftool
+	}
+	return mr.exif.ExtractMetadata(path), nil
+}

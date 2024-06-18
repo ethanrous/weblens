@@ -157,7 +157,7 @@ type fileUploadProgress struct {
 }
 
 type backupMeta struct {
-	remoteId string
+	remoteId types.InstanceId
 	tree     types.FileTree
 }
 

@@ -5,23 +5,24 @@ import (
 	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
 )
 
 func ping(ctx *gin.Context) {
-	si := dataStore.GetServerInfo()
-	if si == nil {
+	local := types.SERV.InstanceService.GetLocal()
+	if local == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "weblens not initialized"})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"id": si.ServerId()})
+	ctx.JSON(http.StatusOK, gin.H{"id": local.ServerId()})
 }
 
 func attachRemote(ctx *gin.Context) {
-	si := dataStore.GetServerInfo()
-	if si.ServerRole() == types.Backup {
+	local := types.SERV.InstanceService.GetLocal()
+	if local.ServerRole() == types.Backup {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"})
 		return
 	}
@@ -30,20 +31,18 @@ func attachRemote(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	err = dataStore.NewRemote(nr.Id, nr.Name, types.WeblensApiKey(nr.UsingKey))
+
+	newRemote := instance.New(nr.Id, nr.Name, nr.UsingKey, types.Backup, false, "")
+
+	err = types.SERV.InstanceService.Add(newRemote)
 	if err != nil {
 		if errors.Is(err, dataStore.ErrKeyInUse) {
 			ctx.Status(http.StatusConflict)
 			return
 		}
-		var weblensError types.WeblensError
-		switch {
-		case errors.As(err, &weblensError):
-			util.ShowErr(err)
-		default:
-			util.ErrTrace(err)
-		}
-		ctx.Status(http.StatusInternalServerError)
+
+		util.ErrTrace(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -75,7 +74,7 @@ func getBackupSnapshot(ctx *gin.Context) {
 
 func getFileBytes(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
-	f := rc.FileTree.Get(fileId)
+	f := types.SERV.FileTree.Get(fileId)
 	if f == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -96,7 +95,7 @@ func getFilesMeta(ctx *gin.Context) {
 	files := []map[string]any{}
 	notFound := []types.FileId{}
 	for _, id := range fIds {
-		f := rc.FileTree.Get(id)
+		f := types.SERV.FileTree.Get(id)
 		if f == nil {
 			notFound = append(notFound, id)
 		} else {
@@ -107,12 +106,7 @@ func getFilesMeta(ctx *gin.Context) {
 }
 
 func getRemotes(ctx *gin.Context) {
-	srvs, err := dataStore.GetRemotes()
-	if err != nil {
-		util.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
+	srvs := types.SERV.InstanceService.GetRemotes()
 	ctx.JSON(http.StatusOK, gin.H{"remotes": srvs})
 }
 
@@ -121,7 +115,13 @@ func removeRemote(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	dataStore.DeleteRemote(body.RemoteId)
+
+	err = types.SERV.InstanceService.Del(body.RemoteId)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
 
 	ctx.Status(http.StatusOK)
 }

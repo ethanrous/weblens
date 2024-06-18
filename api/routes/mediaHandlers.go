@@ -17,7 +17,7 @@ func hideMedia(ctx *gin.Context) {
 
 	medias := make([]types.Media, len(body.MediaIds))
 	for i, mId := range body.MediaIds {
-		m := media.MediaMapGet(mId)
+		m := types.SERV.MediaRepo.Get(mId)
 		if m == nil {
 			ctx.Status(http.StatusNotFound)
 			return
@@ -26,11 +26,13 @@ func hideMedia(ctx *gin.Context) {
 
 	}
 
-	err = media.HideMedia(medias)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
+	for _, m := range medias {
+		err := m.Hide()
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	ctx.Status(http.StatusOK)
@@ -42,12 +44,12 @@ func adjustMediaDate(ctx *gin.Context) {
 		return
 	}
 
-	anchor := media.MediaMapGet(body.AnchorId)
+	anchor := types.SERV.MediaRepo.Get(body.AnchorId)
 	if anchor == nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-	extras := util.Map(body.MediaIds, func(mId types.ContentId) types.Media { return media.MediaMapGet(mId) })
+	extras := util.Map(body.MediaIds, func(mId types.ContentId) types.Media { return types.SERV.MediaRepo.Get(body.AnchorId) })
 
 	err = media.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {

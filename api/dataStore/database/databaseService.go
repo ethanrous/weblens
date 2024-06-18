@@ -11,10 +11,14 @@ import (
 )
 
 type databaseService struct {
-	ctx         context.Context
+	ctx context.Context
+
 	media       *mongo.Collection
+	users       *mongo.Collection
 	fileHistory *mongo.Collection
 	albums      *mongo.Collection
+	shares      *mongo.Collection
+	servers     *mongo.Collection
 }
 
 func New() types.DatabaseService {
@@ -32,7 +36,10 @@ func New() types.DatabaseService {
 	return &databaseService{
 		ctx:         ctx,
 		media:       mongodb.Collection("media"),
+		users:       mongodb.Collection("users"),
 		fileHistory: mongodb.Collection("fileHistory"),
 		albums:      mongodb.Collection("albums"),
+		shares:      mongodb.Collection("shares"),
+		servers:     mongodb.Collection("servers"),
 	}
 }

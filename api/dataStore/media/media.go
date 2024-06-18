@@ -39,9 +39,8 @@ type Media struct {
 	Hidden           bool               `json:"hidden" bson:"hidden"`
 	Enabled          bool               `json:"enabled" bson:"enabled"`
 
-	mediaType  types.MediaType
-	imported   bool
-	parentRepo mediaRepo
+	mediaType types.MediaType
+	imported  bool
 
 	rotate string
 	image  *bimg.Image
@@ -52,10 +51,9 @@ type Media struct {
 	fullresCacheFiles []types.WeblensFile
 }
 
-func New(contentId types.ContentId, parentRepo types.MediaRepo) types.Media {
+func New(contentId types.ContentId) types.Media {
 	return &Media{
-		ContentId:  contentId,
-		parentRepo: parentRepo.(*mediaRepo),
+		ContentId: contentId,
 	}
 }
 
@@ -173,7 +171,7 @@ func (m *Media) GetMediaType() types.MediaType {
 		return m.mediaType
 	}
 	if m.MimeType != "" {
-		m.mediaType = m.parentRepo.TypeService().ParseMime(m.MimeType)
+		m.mediaType = types.SERV.MediaRepo.TypeService().ParseMime(m.MimeType)
 	}
 	return m.mediaType
 }
@@ -200,20 +198,19 @@ func (m *Media) ReadDisplayable(q types.Quality, ft types.FileTree, index ...int
 		pageNum = 0
 	}
 
-	return m.parentRepo.FromCache(m, q, pageNum, ft)
+	return types.SERV.MediaRepo.FetchCacheImg(m, q, pageNum, ft)
 }
 
 func (m *Media) GetFiles() []types.FileId {
 	return m.FileIds
 }
 
-func (m *Media) AddFile(f types.WeblensFile) {
+func (m *Media) AddFile(f types.WeblensFile) error {
 	m.FileIds = util.AddToSet(m.FileIds, []types.FileId{f.ID()})
-	err := dataStore.dbServer.addFileToMedia(m, f)
-	util.ErrTrace(err)
+	return types.SERV.Database.AddFileToMedia(m.ID(), f.ID())
 }
 
-func (m *Media) RemoveFile(f types.WeblensFile) {
+func (m *Media) RemoveFile(f types.WeblensFile) error {
 	var existed bool
 	m.FileIds, _, existed = util.YoinkFunc(m.FileIds, func(existFile types.FileId) bool { return existFile == f.ID() })
 
@@ -221,13 +218,19 @@ func (m *Media) RemoveFile(f types.WeblensFile) {
 		util.Warning.Println("Attempted to remove file from Media that did not have that file")
 	}
 
-	err := dataStore.dbServer.removeFileFromMedia(m.ID(), f.ID())
+	err := types.SERV.Database.RemoveFileFromMedia(m.ID(), f.ID())
 	if err != nil {
-		util.ErrTrace(err)
+		return err
 	}
+
 	if len(m.FileIds) == 0 {
-		m.parentRepo.Del(m, f.GetTree())
+		err := m.Hide()
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // Clean Toss the cached data for the Media generated when parsing a file.
@@ -246,7 +249,7 @@ func (m *Media) Clean() {
 func (m *Media) SetImported(i bool) {
 	if !m.imported && i {
 		m.imported = true
-		err := m.parentRepo.Add(m)
+		err := types.SERV.MediaRepo.Add(m)
 		if err != nil {
 			util.ShowErr(err)
 			return
@@ -303,18 +306,9 @@ func (m *Media) IsEnabled() bool {
 	return m.Enabled
 }
 
-func (m *Media) Save() error {
-	if !m.imported {
-		return m.parentRepo.
-			dataStore.dbServer.AddMedia(m)
-	} else {
-		return dataStore.dbServer.UpdateMedia(m)
-	}
-}
-
 func (m *Media) Hide() error {
 	m.Hidden = true
-	return dataStore.dbServer.setMediaHidden(ms, true)
+	return types.SERV.Database.HideMedia(m.ID())
 }
 
 func (m *Media) getProminentColors(ft types.FileTree) (prom []string, err error) {
@@ -337,11 +331,10 @@ func (m *Media) getProminentColors(ft types.FileTree) (prom []string, err error)
 // Private
 
 func (m *Media) loadExif(f types.WeblensFile) error {
-	if m.parentRepo.dataStore.gexift == nil {
-		err := errors.New("exiftool not initialized")
+	fileInfos, err := types.SERV.MediaRepo.RunExif(f.GetAbsPath())
+	if err != nil {
 		return err
 	}
-	fileInfos := dataStore.gexift.ExtractMetadata(f.GetAbsPath())
 	if fileInfos[0].Err != nil {
 		return fileInfos[0].Err
 	}
@@ -394,7 +387,7 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 			mimeType = "generic"
 		}
 		m.MimeType = mimeType
-		m.mediaType = m.parentRepo.TypeService().ParseMime(mimeType)
+		m.mediaType = types.SERV.MediaRepo.TypeService().ParseMime(mimeType)
 	}
 
 	if m.mediaType.FriendlyName() == "PDF" {
@@ -483,7 +476,7 @@ func (m *Media) generateImages(bs []byte) (err error) {
 	return nil
 }
 
-func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum int, ft types.FileTree) (f types.WeblensFile, err error) {
+func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum int, ft types.FileTree) (f types.WeblensFile, err error) {
 	if q == dataStore.Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 		f = m.thumbCacheFile
 		return
@@ -496,18 +489,20 @@ func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 		return nil, dataStore.ErrPageOutOfRange
 	}
 
+	cacheRoot := ft.Get("CACHE")
+
 	var cacheFileId types.FileId
 	if q == dataStore.Fullres && len(m.FullresCacheIds) > pageNum && m.FullresCacheIds[pageNum] != "" {
 		cacheFileId = m.FullresCacheIds[pageNum]
 	} else if q == dataStore.Fullres {
-		cacheFileId = m.getCacheId(q, pageNum)
+		cacheFileId = m.getCacheId(q, pageNum, cacheRoot)
 		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 		m.FullresCacheIds[pageNum] = cacheFileId
 	}
 
 	if q == dataStore.Thumbnail {
 		if m.ThumbnailCacheId == "" {
-			m.ThumbnailCacheId = m.getCacheId(q, pageNum)
+			m.ThumbnailCacheId = m.getCacheId(q, pageNum, cacheRoot)
 		}
 		cacheFileId = m.ThumbnailCacheId
 	}
@@ -515,7 +510,7 @@ func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 	f = ft.Get(cacheFileId)
 	if f == nil || !f.Exists() {
 		if generateIfMissing {
-			realFile, err := GetRealFile(m, ft)
+			realFile := ft.Get(m.FileIds[0])
 			if err != nil {
 				return nil, err
 			}
@@ -525,7 +520,7 @@ func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 				return nil, err
 			}
 
-			return m.getCacheFile(q, false, pageNum, ft)
+			return m.GetCacheFile(q, false, pageNum, ft)
 
 		} else {
 			return nil, dataStore.ErrNoCache
@@ -544,9 +539,9 @@ func (m *Media) getCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 const ThumbnailHeight float32 = 500
 
 func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
-	_, err = m.getCacheFile(dataStore.Thumbnail, false, 0, f.GetTree())
+	_, err = m.GetCacheFile(dataStore.Thumbnail, false, 0, f.GetTree())
 	hasThumbCache := err == nil
-	_, err = m.getCacheFile(dataStore.Fullres, false, 0, f.GetTree())
+	_, err = m.GetCacheFile(dataStore.Fullres, false, 0, f.GetTree())
 	hasFullresCache := err == nil
 
 	if hasThumbCache && hasFullresCache && m.MediaWidth != 0 && m.MediaHeight != 0 {
@@ -636,11 +631,12 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 		return nil
 	}
 
-	f, err := ft.Touch(dataStore.GetCacheDir(), cacheFileName, false, nil)
-	if err != nil && !errors.Is(err, dataStore.ErrFileAlreadyExists) {
+	cacheRoot := ft.Get("CACHE")
+	f, err := ft.Touch(cacheRoot, cacheFileName, false, nil)
+	if err != nil && !errors.Is(err, types.ErrFileAlreadyExists) {
 		util.ErrTrace(err)
 		return nil
-	} else if errors.Is(err, dataStore.ErrFileAlreadyExists) {
+	} else if errors.Is(err, types.ErrFileAlreadyExists) {
 		return f
 	}
 
@@ -661,8 +657,9 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 	return f
 }
 
-func (m *Media) getCacheId(q types.Quality, pageNum int) types.FileId {
-	return dataStore.GetCacheDir().GetTree().GenerateFileId(filepath.Join(dataStore.GetCacheDir().GetAbsPath(), m.getCacheFilename(q, pageNum)))
+func (m *Media) getCacheId(q types.Quality, pageNum int, cacheDir types.WeblensFile) types.FileId {
+	return cacheDir.GetTree().GenerateFileId(filepath.Join(cacheDir.GetAbsPath(), m.getCacheFilename(q,
+		pageNum)))
 }
 
 func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
@@ -745,7 +742,7 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	}
 
 	m.BlurHash = data["blurHash"].(string)
-	m.Owner = dataStore.GetUser(types.Username(data["owner"].(string)))
+	m.Owner = types.SERV.UserService.Get(types.Username(data["owner"].(string)))
 	m.MediaWidth = int(data["width"].(int32))
 	m.MediaHeight = int(data["height"].(int32))
 	m.CreateDate = time.UnixMilli(int64(data["createDate"].(primitive.DateTime)))

@@ -33,13 +33,13 @@ func wsConnect(ctx *gin.Context) {
 		// ctx.Status(http.StatusBadRequest)
 		return
 	}
-	user, err := WebsocketAuth(ctx, []string{auth.Auth})
+	user, err := WebsocketAuth(ctx, []string{auth.Auth}, types.SERV.UserService)
 	if err != nil {
 		util.ShowErr(err)
 		return
 	}
 
-	client := rc.ClientManager.ClientConnect(conn, user)
+	client := types.SERV.ClientManager.ClientConnect(conn, user)
 	go wsMain(client)
 }
 
@@ -82,16 +82,15 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 			}
 
 			folderSub := subInfo.(*folderSubscribeMeta)
-			acc := dataStore.NewAccessMeta(c.GetUser(), rc.FileTree)
+			acc := dataStore.NewAccessMeta(c.GetUser(), types.SERV.FileTree)
 			if folderSub.ShareId != "" {
-				share, err := dataStore.GetShare(folderSub.ShareId, dataStore.FileShare, rc.FileTree)
-				if err != nil || share == nil {
-					util.ShowErr(err)
-					c.Error(errors.New("share not found"))
+				sh := types.SERV.ShareService.Get(folderSub.ShareId)
+				if sh == nil {
+					c.Error(types.NewWeblensError("share not found"))
 					return
 				}
 
-				err = acc.AddShare(share)
+				err = acc.AddShare(sh)
 				if err != nil {
 					util.ErrTrace(err)
 					c.Error(errors.New("failed to add share"))
@@ -100,16 +99,16 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 			}
 
 			// TODO - subInfo.Meta here is not going to know what it should be
-			complete, result := c.Subscribe(subInfo.GetKey(), types.FolderSubscribe, acc, rc.FileTree)
+			complete, result := c.Subscribe(subInfo.GetKey(), types.FolderSubscribe, acc, types.SERV.FileTree)
 			if complete {
-				rc.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
+				types.SERV.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
 					types.TaskResult{"takeoutId": result["takeoutId"]})
 			}
 		}
 	case types.TaskSubscribe:
-		complete, result := c.Subscribe(subInfo.GetKey(), types.TaskSubscribe, nil, rc.FileTree)
+		complete, result := c.Subscribe(subInfo.GetKey(), types.TaskSubscribe, nil, types.SERV.FileTree)
 		if complete {
-			rc.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
+			types.SERV.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
 				types.TaskResult{"takeoutId": result["takeoutId"]})
 		}
 	case types.Unsubscribe:
@@ -123,7 +122,7 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 				util.ErrTrace(err)
 				return
 			}
-			folder := rc.FileTree.Get(scanInfo.FolderId)
+			folder := types.SERV.FileTree.Get(scanInfo.FolderId)
 			if folder == nil {
 				c.Error(errors.New("could not find directory to scan"))
 				return
@@ -131,9 +130,9 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 
 			c.(*client).debug("Got scan directory for", folder.GetAbsPath(), "Recursive: ", scanInfo.Recursive, "Deep: ", scanInfo.DeepScan)
 
-			t := rc.TaskDispatcher.ScanDirectory(folder, rc.Caster)
-			acc := dataStore.NewAccessMeta(c.GetUser(), rc.FileTree)
-			c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, rc.FileTree)
+			t := types.SERV.TaskDispatcher.ScanDirectory(folder, types.SERV.Caster)
+			acc := dataStore.NewAccessMeta(c.GetUser(), types.SERV.FileTree)
+			c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, types.SERV.FileTree)
 		}
 
 	default:

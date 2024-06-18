@@ -4,18 +4,14 @@ import (
 	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/gin-gonic/gin"
 )
 
 func launchBackup(ctx *gin.Context) {
-	rs, err := dataStore.GetRemotes()
-	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
+	rs := types.SERV.InstanceService.GetRemotes()
 
-	t := rc.TaskDispatcher.Backup(rs[0].ServerId(), rc.Requester, rc.FileTree)
+	t := types.SERV.TaskDispatcher.Backup(rs[0].ServerId(), types.SERV.Requester, types.SERV.FileTree)
 	t.Wait()
 	if _, stat := t.Status(); stat != dataProcess.TaskSuccess {
 		ctx.Status(http.StatusInternalServerError)

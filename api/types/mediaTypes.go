@@ -1,13 +1,18 @@
 package types
 
-import "time"
+import (
+	"time"
+
+	"github.com/barasher/go-exiftool"
+)
 
 type MediaRepo interface {
-	Get(ContentId) Media
-	Add(m Media) error
+	BaseService[ContentId, Media]
+
 	TypeService() MediaTypeService
-	Del(Media, FileTree)
-	Size() int
+	FetchCacheImg(m Media, q Quality, pageNum int, tree FileTree) ([]byte, error)
+	GetFilteredMedia(requester User, sort string, sortDirection int, albumFilter []AlbumId, raw bool) ([]Media, error)
+	RunExif(path string) ([]exiftool.FileMetadata, error)
 }
 
 type Media interface {
@@ -28,16 +33,19 @@ type Media interface {
 	GetCreateDate() time.Time
 	SetCreateDate(time.Time) error
 
+	Hide() error
+
 	Clean()
-	Save() error
-	AddFile(WeblensFile)
-	RemoveFile(file WeblensFile)
+	AddFile(WeblensFile) error
+	RemoveFile(file WeblensFile) error
 	GetFiles() []FileId
 
 	LoadFromFile(WeblensFile, []byte, Task) (Media, error)
 
 	ReadDisplayable(Quality, FileTree, ...int) ([]byte, error)
 	GetPageCount() int
+
+	GetCacheFile(q Quality, generateIfMissing bool, pageNum int, ft FileTree) (WeblensFile, error)
 	// SetPageCount(int)
 }
 
@@ -61,3 +69,8 @@ type MediaTypeService interface {
 	Generic() MediaType
 	Size() int
 }
+
+// Error
+
+var ErrNoMedia = NewWeblensError("no media found")
+var ErrNoExiftool = NewWeblensError("exiftool not initialized")

@@ -16,7 +16,6 @@ import (
 )
 
 func parseAuthHeader(authHeaderParts []string) (string, string, error) {
-
 	if len(authHeaderParts) == 0 || len(authHeaderParts[0]) == 0 {
 		// Public login
 		return "", "", nil
@@ -35,7 +34,7 @@ func parseAuthHeader(authHeaderParts []string) (string, string, error) {
 	return authList[0], authList[1], nil
 }
 
-func validateBasicAuth(cred string) (types.User, error) {
+func validateBasicAuth(cred string, us types.UserService) (types.User, error) {
 	credB, err := base64.StdEncoding.DecodeString(cred)
 	if err != nil {
 		util.ErrTrace(err)
@@ -47,26 +46,26 @@ func validateBasicAuth(cred string) (types.User, error) {
 		return nil, ErrBasicAuthFormat
 	}
 
-	user := dataStore.GetUser(types.Username(userAndToken[0]))
-	if user == nil {
-		if dataStore.UserCount() == 0 {
+	u := us.Get(types.Username(userAndToken[0]))
+	if u == nil {
+		if us.Size() == 0 {
 			// c.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 			return nil, dataStore.ErrNoUser
 		}
-		// c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		// c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "u not found"})
 		return nil, dataStore.ErrNoUser
 	}
 
-	if !dataStore.CheckUserToken(user, userAndToken[1]) { // {user, token}
+	if u.GetToken() != userAndToken[1] { // {u, token}
 		util.Info.Printf("Rejecting authorization for %s due to invalid token", userAndToken[0])
 		// c.AbortWithStatus(http.StatusUnauthorized)
 		return nil, ErrBasicAuthFormat
 	}
 
-	return user, nil
+	return u, nil
 }
 
-func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
+func WebsocketAuth(c *gin.Context, authHeader []string, us types.UserService) (types.User, error) {
 	scheme, cred, err := parseAuthHeader(authHeader)
 	if err != nil {
 		return nil, err
@@ -76,7 +75,7 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 		return nil, ErrBadAuthScheme
 	}
 
-	user, err := validateBasicAuth(cred)
+	user, err := validateBasicAuth(cred, us)
 	if err != nil {
 		var weblensError types.WeblensError
 		switch {
@@ -91,7 +90,7 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 	return user, nil
 }
 
-func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
+func WeblensAuth(requireAdmin bool, us types.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.Request.Header["Authorization"]
 		scheme, cred, err := parseAuthHeader(authHeader)
@@ -109,7 +108,7 @@ func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
 				return
 			}
 		} else if scheme == "Basic" {
-			user, err := validateBasicAuth(cred)
+			user, err := validateBasicAuth(cred, us)
 			if err != nil {
 				return
 			}

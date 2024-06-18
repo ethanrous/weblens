@@ -11,7 +11,10 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/database"
 	"github.com/ethrousseau/weblens/api/dataStore/filetree"
 	"github.com/ethrousseau/weblens/api/dataStore/history"
+	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/dataStore/media"
+	"github.com/ethrousseau/weblens/api/dataStore/share"
+	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/routes"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -37,51 +40,87 @@ func main() {
 	sw.Lap()
 
 	// Gather global services
+
 	dbService := database.New()
-	fileTree := filetree.NewFileTree()
-	caster := routes.NewBufferedCaster()
+	types.SERV.SetDatabase(dbService)
+
+	instanceService := instance.NewService()
+	err = instanceService.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
+	types.SERV.SetInstance(instanceService)
+
+	ft := filetree.NewFileTree()
+	err = ft.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
+	types.SERV.SetFileTree(ft)
+
+	userService := user.NewService()
+	err = userService.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
+	types.SERV.SetUserService(userService)
+
+	shareService := share.NewService()
+	err = shareService.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
+	types.SERV.SetShareService(shareService)
+
+	albumService := album.NewService()
+	err = albumService.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
+	types.SERV.SetAlbumService(albumService)
+
 	mediaTypeServ := media.NewTypeService()
-	mediaServ := media.NewRepo(mediaTypeServ)
-	albumServ := album.NewService(dbService)
-	// dataProcess.SetControllers(mediaServ)
-	sw.Lap("Init controllers map")
+	mediaService := media.NewRepo(mediaTypeServ, ft, userService, albumService)
+	err = mediaService.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
+	types.SERV.SetMediaRepo(mediaService)
+
+	clientService := routes.NewClientManager()
+	types.SERV.SetClientService(clientService)
 
 	workerPool, taskDispatcher := dataProcess.NewWorkerPool(runtime.NumCPU() - 2)
+	types.SERV.SetTaskDispatcher(taskDispatcher)
 
-	journal := history.NewJournalService(fileTree, dbService)
+	journal := history.NewService(ft, dbService)
 	if journal == nil {
 		panic("Cannot initialize journal")
 	}
+	err = journal.Init(dbService)
+	if err != nil {
+		panic(err)
+	}
 
-	fileTree.SetJournal(journal)
-
+	ft.SetJournal(journal)
 	go journal.JournalWorker()
 	go journal.FileWatcher()
 
 	requester := routes.NewRequester()
-	srvInfo := dataStore.GetServerInfo()
-	if srvInfo.ServerRole() == types.Backup {
+
+	sw.Lap("Init services")
+
+	localServer := instanceService.GetLocal()
+	if localServer == nil {
+		panic("Local server not initialized")
+	}
+
+	if localServer.ServerRole() == types.Backup {
 		checkCoreExists(requester, sw)
 	}
 
-	clientManager := routes.NewClientManager()
-	routes.SetControllers(fileTree, mediaServ, caster, clientManager, taskDispatcher, requester, albumServ)
-	history.SetHistoryControllers(fileTree, dbService)
-
-	err = dataStore.ClearTempDir(fileTree)
-	util.FailOnError(err, "Failed to clear temporary directory on startup")
-	sw.Lap("Clear tmp dir")
-
-	err = dataStore.ClearTakeoutDir(fileTree)
-	util.FailOnError(err, "Failed to clear takeout directory on startup")
-	sw.Lap("Clear takeout dir")
-
-	store := dataStore.NewStore(requester)
-
-	util.Info.Println("Loading users...")
-	err = store.LoadUsers(fileTree)
-	util.FailOnError(err, "Failed to load users")
-	sw.Lap("Users init")
+	caster := routes.NewBufferedCaster()
+	types.SERV.SetCaster(caster)
 
 	// Enable the worker pool held by the task tracker
 	// loading the filesystem might dispatch tasks,
@@ -91,22 +130,16 @@ func main() {
 
 	// Load filesystem
 	util.Info.Println("Loading filesystem...")
-	dataStore.FsInit(fileTree, dbService, taskDispatcher, caster)
-	sw.Lap("FS init")
-	util.Info.Println("Initialized Filesystem")
+	dataStore.FsInit(ft)
+	sw.Lap("Initialized Filesystem")
 
-	err = media.MediaInit()
-	if err != nil {
-		panic(err)
-	}
-	sw.Lap("Media init")
-	util.Info.Println("Initialized Media Map")
+	err = dataStore.ClearTempDir(ft)
+	util.FailOnError(err, "Failed to clear temporary directory on startup")
+	sw.Lap("Clear tmp dir")
 
-	dataStore.VerifyAlbumsMedia()
-	sw.Lap("Albums init")
-
-	dataStore.LoadAllShares(fileTree)
-	sw.Lap("Shares init")
+	err = dataStore.ClearTakeoutDir(ft)
+	util.FailOnError(err, "Failed to clear takeout directory on startup")
+	sw.Lap("Clear takeout dir")
 
 	dataStore.InitApiKeyMap()
 	sw.Lap("Api key map init")
@@ -117,7 +150,7 @@ func main() {
 	caster.DropBuffer()
 	sw.Lap("Global caster enabled")
 
-	if srvInfo.ServerRole() == types.Backup {
+	if localServer.ServerRole() == types.Backup {
 		go dataProcess.BackupD(time.Minute, requester)
 		sw.Lap("Init backup sleeper")
 	}
@@ -125,7 +158,7 @@ func main() {
 	sw.Stop()
 	sw.PrintResults(false)
 
-	util.Info.Printf("Weblens loaded. %d files and %d medias\n", fileTree.Size(), mediaServ.Size())
+	util.Info.Printf("Weblens loaded. %d files and %d medias\n", ft.Size(), mediaService.Size())
 
 	for {
 		routes.DoRoutes()

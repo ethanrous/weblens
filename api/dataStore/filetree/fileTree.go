@@ -15,10 +15,11 @@ import (
 )
 
 type fileTree struct {
-	fMap       map[types.FileId]types.WeblensFile
-	fsTreeLock *sync.Mutex
-	journal    types.JournalService
-	media      types.MediaRepo
+	fMap           map[types.FileId]types.WeblensFile
+	fsTreeLock     *sync.Mutex
+	journalService types.JournalService
+
+	db types.DatabaseService
 
 	root         types.WeblensFile
 	delDirectory types.WeblensFile
@@ -35,9 +36,15 @@ func NewFileTree() types.FileTree {
 	}
 }
 
+func (ft *fileTree) Init(db types.DatabaseService) error {
+	ft.db = db
+
+	return nil
+}
+
 func (ft *fileTree) NewFile(parent types.WeblensFile, filename string, isDir bool) types.WeblensFile {
 	return &weblensFile{
-		tree:     parent.GetTree(),
+		tree:     parent.GetTree().(*fileTree),
 		parent:   parent.(*weblensFile),
 		filename: filename,
 		isDir:    boolPointer(isDir),
@@ -53,7 +60,7 @@ func (ft *fileTree) NewFile(parent types.WeblensFile, filename string, isDir boo
 
 func (ft *fileTree) AddRoot(r types.WeblensFile) error {
 	if !r.IsDir() {
-		return ErrDirectoryRequired
+		return types.ErrDirectoryRequired
 	}
 	self := r.(*weblensFile)
 	// Root directory must be its own parent
@@ -113,44 +120,46 @@ func (ft *fileTree) has(id types.FileId) bool {
 	return ok
 }
 
-func (ft *fileTree) Add(f, parent types.WeblensFile, c ...types.BroadcasterAgent) error {
+func (ft *fileTree) Add(f types.WeblensFile) error {
 	if ft.has(f.ID()) {
 		return types.NewWeblensError(fmt.Sprintf("key collision on attempt to insert to filesystem tree: %s", f.ID()))
 	}
 
 	ft.addInternal(f.ID(), f)
-	err := parent.AddChild(f)
+	err := f.GetParent().AddChild(f)
 	if err != nil {
 		return err
 	}
 
 	if f.IsDir() {
-		err = ft.journal.WatchFolder(f)
+		err = ft.journalService.WatchFolder(f)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = ResizeUp(f, c...)
+		err = ResizeUp(f, types.SERV.Caster)
 		if err != nil {
 			util.ErrTrace(err)
 		}
 	}
 
-	util.Each(c, func(c types.BroadcasterAgent) { c.PushFileCreate(f) })
+	types.SERV.Caster.PushFileCreate(f)
 
 	return nil
 }
 
-func (ft *fileTree) Del(f types.WeblensFile, casters ...types.BroadcasterAgent) (err error) {
+func (ft *fileTree) Del(fId types.FileId) (err error) {
+	f := ft.Get(fId)
+
 	// If the file does not already have an id, generating the id can lock the file tree,
 	// so we must do that outside of the lock here to avoid deadlock
-	f.ID()
+	// f.ID()
 
 	realF := f.(*weblensFile)
 
 	if !ft.has(realF.id) {
 		util.Warning.Println("Tried to remove key not in FsTree", f.ID())
-		return ErrNoFile
+		return types.ErrNoFile
 	}
 
 	err = realF.parent.removeChild(f)
@@ -167,7 +176,7 @@ func (ft *fileTree) Del(f types.WeblensFile, casters ...types.BroadcasterAgent) 
 			t.Cancel()
 		}
 		util.Each(file.GetShares(), func(s types.Share) {
-			err := dataStore.DeleteShare(s, ft)
+			err := types.SERV.ShareService.Del(s.GetShareId())
 			if err != nil {
 				return
 			}
@@ -175,9 +184,12 @@ func (ft *fileTree) Del(f types.WeblensFile, casters ...types.BroadcasterAgent) 
 
 		if !file.IsDir() {
 			contentId := file.GetContentId()
-			m := ft.media.Get(contentId)
+			m := types.SERV.MediaRepo.Get(contentId)
 			if m != nil {
-				m.RemoveFile(file)
+				err := m.RemoveFile(file)
+				if err != nil {
+					return err
+				}
 			}
 
 			// possibly bug: when a single delete event is deleting multiple of the same content id you get a collision
@@ -186,7 +198,7 @@ func (ft *fileTree) Del(f types.WeblensFile, casters ...types.BroadcasterAgent) 
 			backupF, _ := ft.delDirectory.GetChild(string(contentId))
 			if contentId != "" && backupF == nil {
 				backupF = ft.NewFile(ft.delDirectory, string(contentId), false)
-				err = ft.Add(backupF, ft.delDirectory, casters...)
+				err = ft.Add(backupF)
 				if err != nil {
 					return err
 				}
@@ -222,11 +234,7 @@ func (ft *fileTree) Del(f types.WeblensFile, casters ...types.BroadcasterAgent) 
 		}
 	}
 
-	// if len(casters) == 0 {
-	// 	casters = append(casters, globalCaster)
-	// }
-
-	util.Each(casters, func(c types.BroadcasterAgent) { c.PushFileDelete(f) })
+	types.SERV.Caster.PushFileDelete(f)
 
 	return
 }
@@ -239,10 +247,10 @@ func (ft *fileTree) Get(fileId types.FileId) types.WeblensFile {
 
 func (ft *fileTree) Move(f, newParent types.WeblensFile, newFilename string, overwrite bool, c ...types.BufferedBroadcasterAgent) error {
 	if f.Owner() != newParent.Owner() {
-		return ErrIllegalFileMove
+		return types.ErrIllegalFileMove
 	}
 	if !newParent.IsDir() {
-		return ErrDirectoryRequired
+		return types.ErrDirectoryRequired
 	}
 
 	if (newFilename == "" || newFilename == f.Filename()) && newParent == f.GetParent() {
@@ -259,12 +267,12 @@ func (ft *fileTree) Move(f, newParent types.WeblensFile, newFilename string, ove
 	if !overwrite {
 		// Check if the file at the destination exists already
 		if _, err := os.Stat(newAbsPath); err == nil {
-			return ErrFileAlreadyExists
+			return types.ErrFileAlreadyExists
 		}
 	}
 
 	if !f.Exists() || !newParent.Exists() {
-		return ErrNoFile
+		return types.ErrNoFile
 	}
 
 	var allTasks []types.Task
@@ -335,21 +343,27 @@ func (ft *fileTree) Move(f, newParent types.WeblensFile, newFilename string, ove
 			return err
 		}
 
-		if w.IsDisplayable(ft.media) {
-			m := ft.media.Get(preFile.GetContentId())
+		if w.IsDisplayable() {
+			m := types.SERV.MediaRepo.Get(preFile.GetContentId())
 			if m != nil {
-				// Add new file first so the media doesn't get deleted if there is only 1 file
-				m.AddFile(w)
-				m.RemoveFile(preFile)
+				// Add new file first so the mediaService doesn't get deleted if there is only 1 file
+				err = m.AddFile(w)
+				if err != nil {
+					return err
+				}
+				err = m.RemoveFile(preFile)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
 		for _, s := range w.GetShares() {
 			s.SetItemId(string(w.GetContentId()))
-			err := w.UpdateShare(s)
-			if err != nil {
-				return err
-			}
+			// err := w.UpdateShare(s)
+			// if err != nil {
+			// 	return err
+			// }
 		}
 
 		util.Each(c, func(c types.BufferedBroadcasterAgent) { c.PushFileMove(preFile, w) })
@@ -384,16 +398,12 @@ func (ft *fileTree) Size() int {
 	return len(ft.fMap)
 }
 
-func (ft *fileTree) GetMediaRepo() types.MediaRepo {
-	return ft.media
-}
-
 func (ft *fileTree) Touch(parentFolder types.WeblensFile, newFileName string, detach bool, owner types.User, c ...types.BroadcasterAgent) (types.WeblensFile, error) {
 	f := ft.NewFile(parentFolder, newFileName, false).(*weblensFile)
 	f.detached = detach
 	e := ft.Get(f.ID())
 	if e != nil || f.Exists() {
-		return e, ErrFileAlreadyExists
+		return e, types.ErrFileAlreadyExists
 	}
 
 	err := f.CreateSelf()
@@ -402,12 +412,12 @@ func (ft *fileTree) Touch(parentFolder types.WeblensFile, newFileName string, de
 	}
 
 	// Detach creates the file on the real filesystem,
-	// but does not add it to the tree or journal its creation
+	// but does not add it to the tree or journalService its creation
 	if detach {
 		return f, nil
 	}
 
-	err = ft.Add(f, parentFolder, c...)
+	err = ft.Add(f)
 	if err != nil {
 		return f, err
 	}
@@ -428,19 +438,19 @@ func (ft *fileTree) MkDir(parentFolder types.WeblensFile, newDirName string, c .
 		existingFile := ft.Get(d.ID())
 
 		if existingFile == nil {
-			err := ft.Add(d, parentFolder, c...)
+			err := ft.Add(d)
 			if err != nil {
 				return d, err
 			}
 			existingFile = d
 		}
 
-		return existingFile, ErrDirAlreadyExists
+		return existingFile, types.ErrDirAlreadyExists
 	}
 
 	d.size = 0
 
-	err := ft.Add(d, parentFolder, c...)
+	err := ft.Add(d)
 	if err != nil {
 		return d, err
 	}
@@ -456,7 +466,7 @@ func (ft *fileTree) MkDir(parentFolder types.WeblensFile, newDirName string, c .
 // AttachFile takes a detached file when it is ready to be inserted to the tree, and attaches it
 func (ft *fileTree) AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 	if ft.Get(f.ID()) != nil {
-		return ErrFileAlreadyExists
+		return types.ErrFileAlreadyExists
 	}
 
 	tmpPath := filepath.Join("/tmp/", f.Filename())
@@ -482,7 +492,7 @@ func (ft *fileTree) AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent)
 		return err
 	}
 
-	err = ft.Add(f, f.GetParent(), c...)
+	err = ft.Add(f)
 	if err != nil {
 		return err
 	}
@@ -491,7 +501,7 @@ func (ft *fileTree) AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent)
 }
 
 func (ft *fileTree) GenerateFileId(absPath string) types.FileId {
-	fileHash := types.FileId(util.GlobbyHash(8, FilepathFromAbs(absPath).ToPortable()))
+	fileHash := types.FileId(util.GlobbyHash(8, FilepathFromAbs(absPath, ft.Get("MEDIA")).ToPortable()))
 	return fileHash
 }
 
@@ -507,11 +517,11 @@ func (ft *fileTree) SetRoot(root types.WeblensFile) {
 }
 
 func (ft *fileTree) GetJournal() types.JournalService {
-	return ft.journal
+	return ft.journalService
 }
 
 func (ft *fileTree) SetJournal(j types.JournalService) {
-	ft.journal = j
+	ft.journalService = j
 }
 
 // Util
@@ -549,18 +559,3 @@ func ResizeDown(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 		return w.(*weblensFile).LoadStat(c...)
 	})
 }
-
-// Error
-
-var ErrDirNotAllowed = types.NewWeblensError("attempted to perform action using a directory, where the action does not support directories")
-var ErrDirectoryRequired = types.NewWeblensError("attempted to perform an action that requires a directory, but found regular file")
-var ErrDirAlreadyExists = types.NewWeblensError("directory already exists in destination location")
-var ErrFileAlreadyExists = types.NewWeblensError("file already exists in destination location")
-var ErrNoFile = types.NewWeblensError("file does not exist")
-var ErrIllegalFileMove = types.NewWeblensError("tried to perform illegal file move")
-var ErrWriteOnReadOnly = types.NewWeblensError("tried to write to read-only file")
-var ErrBadReadCount = types.NewWeblensError("did not read expected number of bytes from file")
-var ErrNoFileAccess = types.NewWeblensError("user does not have access to file")
-var ErrAlreadyWatching = types.NewWeblensError("trying to watch directory that is already being watched")
-var ErrBadTask = types.NewWeblensError("did not get expected task id while trying to unlock file")
-var ErrNoShare = types.NewWeblensError("could not find share")

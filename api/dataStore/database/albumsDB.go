@@ -21,3 +21,30 @@ func (db *databaseService) GetAllAlbums() ([]types.Album, error) {
 
 	return util.SliceConvert[types.Album](target), nil
 }
+
+func (db *databaseService) AddMediaToAlbum(aId types.AlbumId, mIds []types.ContentId) error {
+	filter := bson.M{"albumId": aId}
+	update := bson.M{"$addToSet": bson.M{"medias": mIds}}
+	_, err := db.albums.UpdateOne(db.ctx, filter, update)
+	return err
+}
+
+func (db *databaseService) RemoveMediaFromAlbum(aId types.AlbumId, mId types.ContentId) error {
+	panic("implement me")
+}
+
+func (db *databaseService) GetAlbumsByMedia(id types.ContentId) ([]types.Album, error) {
+	filter := bson.M{"medias": id}
+	ret, err := db.albums.Find(db.ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var target = make([]*album.Album, 0)
+	err = ret.All(db.ctx, &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return util.SliceConvert[types.Album](target), nil
+}

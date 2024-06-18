@@ -29,11 +29,11 @@ func memCacheMediaImage(ctx context.Context) (data []byte, err error) {
 	ft := ctx.Value("fileTree").(types.FileTree)
 	pageNum := ctx.Value("pageNum").(int)
 
-	f, err := m.getCacheFile(q, true, pageNum, ft)
+	f, err := m.GetCacheFile(q, true, pageNum, ft)
 	if err != nil {
 		return
 	} else if f == nil {
-		return nil, ErrNoFile
+		return nil, types.ErrNoFile
 	}
 
 	data, err = f.ReadAll()

@@ -51,8 +51,8 @@ type TaskPool interface {
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
-	Backup(string, Requester, FileTree) Task
-	HashFile(file WeblensFile, agent BroadcasterAgent) Task
+	Backup(InstanceId, Requester, FileTree) Task
+	HashFile(WeblensFile, BroadcasterAgent) Task
 	CreateZip(files []WeblensFile, username Username, shareId ShareId, ft FileTree, casters BroadcasterAgent) Task
 
 	Errors() []Task

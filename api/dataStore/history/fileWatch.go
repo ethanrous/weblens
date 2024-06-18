@@ -34,7 +34,7 @@ WatcherLoop:
 	for {
 		select {
 		// case <-holdTimer.C:
-		// 	jeStream <- fileEvent{action: FileCreate, postFilePath: holder.Name}
+		// 	jeStream <- FileEvent{action: FileCreate, postFilePath: holder.Name}
 		// 	holder = nil
 		// case event, ok := <-watcher.Events:
 		// 	if !ok {
@@ -57,23 +57,23 @@ WatcherLoop:
 		// 		// it must have been a real create event, as it was not followed
 		// 		// by a rename. So we rinse and repeat
 		// 		holdTimer.Stop()
-		// 		jeStream <- fileEvent{action: FileCreate, postFilePath: holder.Name}
+		// 		jeStream <- FileEvent{action: FileCreate, postFilePath: holder.Name}
 		// 		holder = &event
 		// 		holdTimer = time.NewTimer(time.Millisecond * 100)
 		// 		continue
 		// 	}
 		//
 		// 	if event.Has(fsnotify.Remove) {
-		// 		jeStream <- fileEvent{action: FileDelete, preFilePath: event.Name}
+		// 		jeStream <- FileEvent{action: FileDelete, preFilePath: event.Name}
 		// 		continue
 		// 	}
 		//
 		// 	if event.Has(fsnotify.Rename) {
 		// 		if holder == nil {
-		// 			jeStream <- fileEvent{action: FileDelete, preFilePath: event.Name}
+		// 			jeStream <- FileEvent{action: FileDelete, preFilePath: event.Name}
 		// 		} else {
 		// 			holdTimer.Stop()
-		// 			jeStream <- fileEvent{action: FileMove, preFilePath: event.Name, postFilePath: holder.Name}
+		// 			jeStream <- FileEvent{action: FileMove, preFilePath: event.Name, postFilePath: holder.Name}
 		// 			holder = nil
 		// 		}
 		// 	}

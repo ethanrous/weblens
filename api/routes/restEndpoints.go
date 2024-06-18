@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 
@@ -44,32 +43,32 @@ func DoRoutes() {
 	router.Use(CORSMiddleware())
 
 	api := router.Group("/api")
-	api.Use(WeblensAuth(false))
+	api.Use(WeblensAuth(false, types.SERV.UserService))
 
 	admin := router.Group("/api")
-	admin.Use(WeblensAuth(false))
+	admin.Use(WeblensAuth(false, types.SERV.UserService))
 
 	core := router.Group("/api/core")
 	core.Use(KeyOnlyAuth)
 
-	srvInfo := dataStore.GetServerInfo()
-	if srvInfo.ServerRole() == types.Initialization {
+	local := types.SERV.InstanceService.GetLocal()
+	if local.ServerRole() == types.Initialization {
 		util.Debug.Println("Weblens not initialized, only adding initialization routes...")
 		init := router.Group("/api")
-		init.Use(WeblensAuth(true))
+		init.Use(WeblensAuth(true, types.SERV.UserService))
 		AddInitializationRoutes(init)
 		util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
 		router.Use(initSafety)
 	} else {
 		AddSharedRoutes(api)
-		if srvInfo.ServerRole() == types.Core {
+		if local.ServerRole() == types.Core {
 			AddApiRoutes(api)
 			AddAdminRoutes(admin)
 			AddCoreRoutes(core)
-		} else if srvInfo.ServerRole() == types.Backup {
+		} else if local.ServerRole() == types.Backup {
 			AddBackupRoutes(api, admin)
 
-			addr, err := srvInfo.GetCoreAddress()
+			addr, err := local.GetCoreAddress()
 			util.ShowErr(err)
 			router.Use(ReverseProxyToCore(addr))
 		}

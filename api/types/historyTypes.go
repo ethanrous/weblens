@@ -4,18 +4,21 @@ import (
 	"time"
 )
 
+type LifetimeId string
+type FileActionType string
+type FileEventId string
+
 type JournalService interface {
+	BaseService[LifetimeId, []FileAction]
+
 	WatchFolder(f WeblensFile) error
 
 	LogEvent(fe FileEvent) error
 
 	JournalWorker()
 	FileWatcher()
+	GetActiveLifetimes() []Lifetime
 }
-
-type FileActionType string
-
-type FileEventId string
 
 // FileEvent is a group of FileActions that take place at the same time
 type FileEvent interface {
@@ -25,8 +28,6 @@ type FileEvent interface {
 	// UnmarshalBSON([]byte) error
 	// UnmarshalBSONValue(t bsontype.Type, value []byte) error
 }
-
-type LifetimeId string
 
 type FileAction interface {
 	GetContentId() ContentId
@@ -43,4 +44,9 @@ type FileAction interface {
 	GetActionType() FileActionType
 
 	GetTimestamp() time.Time
+}
+
+type Lifetime interface {
+	GetFileId() FileId
+	GetContentId() ContentId
 }

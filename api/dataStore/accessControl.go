@@ -17,7 +17,9 @@ type accessMeta struct {
 	usingShare  types.Share
 	requestMode types.RequestMode
 	accessAt    time.Time
-	fileTree    types.FileTree
+
+	fileTree     types.FileTree
+	shareService types.ShareService
 }
 
 var apiKeyMap = map[types.WeblensApiKey]*ApiKeyInfo{}
@@ -30,29 +32,30 @@ func NewAccessMeta(u types.User, ft types.FileTree) types.AccessMeta {
 	}
 }
 
-func (a *accessMeta) Shares() []types.Share {
-	return a.shares
+func (acc *accessMeta) Shares() []types.Share {
+	return acc.shares
 }
 
-func (a *accessMeta) User() types.User {
-	return a.user
+func (acc *accessMeta) User() types.User {
+	return acc.user
 }
 
-func (a *accessMeta) AddShare(s types.Share) error {
-	if !CanAccessShare(s, a) {
+func (acc *accessMeta) AddShare(s types.Share) error {
+	if !acc.CanAccessShare(s) {
 		return ErrUserNotAuthorized
 	}
-	a.shares = append(a.shares, s)
+
+	acc.shares = append(acc.shares, s)
 	return nil
 }
 
-func (a *accessMeta) SetRequestMode(r types.RequestMode) types.AccessMeta {
-	if a.requestMode != "" {
-		util.Warning.Printf("Overriding request mode from %s to %s", a.requestMode, r)
+func (acc *accessMeta) SetRequestMode(r types.RequestMode) types.AccessMeta {
+	if acc.requestMode != "" {
+		util.Warning.Printf("Overriding request mode from %s to %s", acc.requestMode, r)
 	}
-	a.requestMode = r
+	acc.requestMode = r
 
-	return a
+	return acc
 }
 
 func (acc *accessMeta) SetTime(t time.Time) types.AccessMeta {
@@ -68,12 +71,12 @@ func (acc *accessMeta) RequestMode() types.RequestMode {
 	return acc.requestMode
 }
 
-func (acc *accessMeta) AddShareId(sId types.ShareId, st types.ShareType) types.AccessMeta {
+func (acc *accessMeta) AddShareId(sId types.ShareId) types.AccessMeta {
 	if sId == "" {
 		return acc
 	}
 
-	s, _ := GetShare(sId, st, acc.fileTree)
+	s := acc.shareService.Get(sId)
 	if s == nil {
 		return acc
 	}
@@ -175,6 +178,11 @@ func (acc *accessMeta) CanAccessShare(s types.Share) bool {
 		return true
 	}
 
+	return false
+}
+
+func (acc *accessMeta) CanAccessAlbum(a types.Album) bool {
+	util.ErrTrace(types.NewWeblensError("not impl"))
 	return false
 }
 

@@ -41,7 +41,7 @@ func (c *client) GetUser() types.User {
 
 func (c *client) Disconnect() {
 	c.Active = false
-	rc.ClientManager.ClientDisconnect(c)
+	types.SERV.ClientManager.ClientDisconnect(c)
 
 	c.mu.Lock()
 	c.conn.Close()
@@ -70,7 +70,7 @@ func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.Acc
 			fileId := types.FileId(key)
 			var folder types.WeblensFile
 			if fileId == "external" {
-				folder = dataStore.GetExternalDir()
+				folder = ft.Get("EXTERNAL")
 			} else {
 				folder = ft.Get(fileId)
 			}
@@ -81,7 +81,7 @@ func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.Acc
 				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
 				c.Error(err)
 				return
-			} else if !dataStore.CanAccessFile(folder, acc) {
+			} else if !acc.CanAccessFile(folder) {
 				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
 				c.Error(err)
 
@@ -100,7 +100,7 @@ func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.Acc
 		}
 	case types.TaskSubscribe:
 		{
-			task := rc.TaskDispatcher.GetWorkerPool().GetTask(types.TaskId(key))
+			task := types.SERV.TaskDispatcher.GetWorkerPool().GetTask(types.TaskId(key))
 			if task == nil {
 				err := fmt.Errorf("could not find task with ID %s", key)
 				util.ErrTrace(err)
@@ -131,7 +131,7 @@ func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.Acc
 	c.mu.Lock()
 	c.subscriptions = append(c.subscriptions, sub)
 	c.mu.Unlock()
-	rc.ClientManager.AddSubscription(sub, c)
+	types.SERV.ClientManager.AddSubscription(sub, c)
 
 	return
 }
@@ -147,7 +147,7 @@ func (c *client) Unsubscribe(key types.SubId) {
 	c.subscriptions, subToRemove = util.Yoink(c.subscriptions, subIndex)
 	c.mu.Unlock()
 
-	rc.ClientManager.RemoveSubscription(subToRemove, c, false)
+	types.SERV.ClientManager.RemoveSubscription(subToRemove, c, false)
 
 	c.debug("Unsubscribed from", subToRemove.Type, subToRemove.Key)
 }
@@ -174,7 +174,7 @@ func (c *client) Error(err error) {
 
 func (c *client) PushFileUpdate(updatedFile types.WeblensFile) {
 	acc := dataStore.NewAccessMeta(c.user, updatedFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
-	fileInfo, err := updatedFile.FormatFileInfo(acc, rc.MediaRepo)
+	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return

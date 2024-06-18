@@ -6,9 +6,8 @@ import (
 )
 
 type FileTree interface {
-	Add(f, parent WeblensFile, c ...BroadcasterAgent) error
-	Del(f WeblensFile, casters ...BroadcasterAgent) error
-	Get(fileId FileId) WeblensFile
+	BaseService[FileId, WeblensFile]
+
 	Move(f, newParent WeblensFile, newFilename string, overwrite bool, c ...BufferedBroadcasterAgent) error
 
 	Touch(parentFolder WeblensFile, newFileName string, detach bool, owner User, c ...BroadcasterAgent) (WeblensFile,
@@ -28,8 +27,6 @@ type FileTree interface {
 	AddRoot(r WeblensFile) error
 	NewRoot(id FileId, filename, absPath string, owner User,
 		parent WeblensFile) (WeblensFile, error)
-
-	GetMediaRepo() MediaRepo
 }
 
 type WeblensFile interface {
@@ -44,13 +41,14 @@ type WeblensFile interface {
 	Exists() bool
 	ModTime() time.Time
 
-	FormatFileInfo(AccessMeta, MediaRepo) (FileInfo, error)
-	IsDisplayable(MediaRepo) bool
+	FormatFileInfo(AccessMeta) (FileInfo, error)
+	GetChildrenInfo(AccessMeta) []FileInfo
+	
+	IsDisplayable() bool
 
 	Copy() WeblensFile
 	GetParent() WeblensFile
 	GetChildren() []WeblensFile
-	GetChildrenInfo(AccessMeta, MediaRepo) []FileInfo
 	GetChild(childName string) (WeblensFile, error)
 	AddChild(child WeblensFile) error
 	IsReadOnly() bool
@@ -72,7 +70,7 @@ type WeblensFile interface {
 
 	GetShare(ShareId) (Share, error)
 	GetShares() []Share
-	UpdateShare(Share) error
+	// UpdateShare(Share) error
 	AppendShare(Share)
 	RemoveShare(ShareId) error
 
@@ -121,3 +119,16 @@ type FileInfo struct {
 	Children         []FileId  `json:"children"`
 	PastFile         bool      `json:"pastFile"`
 }
+
+var ErrDirNotAllowed = NewWeblensError("attempted to perform action using a directory, where the action does not support directories")
+var ErrDirectoryRequired = NewWeblensError("attempted to perform an action that requires a directory, but found regular file")
+var ErrDirAlreadyExists = NewWeblensError("directory already exists in destination location")
+var ErrFileAlreadyExists = NewWeblensError("file already exists in destination location")
+var ErrNoFile = NewWeblensError("file does not exist")
+var ErrIllegalFileMove = NewWeblensError("tried to perform illegal file move")
+var ErrWriteOnReadOnly = NewWeblensError("tried to write to read-only file")
+var ErrBadReadCount = NewWeblensError("did not read expected number of bytes from file")
+var ErrNoFileAccess = NewWeblensError("user does not have access to file")
+var ErrAlreadyWatching = NewWeblensError("trying to watch directory that is already being watched")
+var ErrBadTask = NewWeblensError("did not get expected task id while trying to unlock file")
+var ErrNoShare = NewWeblensError("could not find share")

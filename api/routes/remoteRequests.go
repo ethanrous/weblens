@@ -6,8 +6,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
-	"github.com/ethrousseau/weblens/api/dataStore/media"
+	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/gin-gonic/gin"
@@ -19,14 +18,14 @@ type requester struct {
 }
 
 func NewRequester() types.Requester {
-	srvInfo := dataStore.GetServerInfo()
-	if srvInfo == nil {
+	local := types.SERV.InstanceService.GetLocal()
+	if local.ServerRole() == types.Initialization {
 		return &requester{}
 	}
-	addr, _ := srvInfo.GetCoreAddress()
+	addr, _ := local.GetCoreAddress()
 
 	return &requester{
-		ApiKey:      srvInfo.GetUsingKey(),
+		ApiKey:      local.GetUsingKey(),
 		CoreAddress: addr,
 	}
 }
@@ -99,7 +98,7 @@ func (r *requester) PingCore() bool {
 // 	return nil
 // }
 
-func (r *requester) AttachToCore(srvId, coreAddress, name string, apiKey types.WeblensApiKey) error {
+func (r *requester) AttachToCore(srvId types.InstanceId, coreAddress, name string, apiKey types.WeblensApiKey) error {
 	r.CoreAddress = coreAddress
 	r.ApiKey = apiKey
 
@@ -143,12 +142,12 @@ func (r *requester) GetCoreUsers() (us []types.User, err error) {
 		return
 	}
 
-	body, err := readRespBody[dataStore.UserArray](resp)
+	body, err := readRespBody[[]*user.User](resp)
 	if err != nil {
 		return
 	}
 
-	return body, nil
+	return util.SliceConvert[types.User](body), nil
 
 }
 
@@ -180,13 +179,13 @@ func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {
 	bs = append(bs, origFileBs)
 
 	if f.IsDisplayable() {
-		m := media.MediaMapGet(f.GetContentId())
+		m := types.SERV.MediaRepo.Get(f.GetContentId())
 
 		if m == nil {
-			return nil, dataStore.ErrNoMedia
+			return nil, types.ErrNoMedia
 		}
 
-		resp, err := r.coreRequest("GET", "/media/"+string(m.Id())+"/thumbnail", nil, "/api")
+		resp, err := r.coreRequest("GET", "/media/"+string(m.ID())+"/thumbnail", nil, "/api")
 		if err != nil {
 			return nil, err
 		}
@@ -196,7 +195,7 @@ func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {
 		}
 		bs = append(bs, thumbBs)
 
-		resp, err = r.coreRequest("GET", "/media/"+string(m.Id())+"/fullres", nil, "/api")
+		resp, err = r.coreRequest("GET", "/media/"+string(m.ID())+"/fullres", nil, "/api")
 		if err != nil {
 			return nil, err
 		}

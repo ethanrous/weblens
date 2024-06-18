@@ -6,16 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 )
-
-var Store = GetStore()
-
-func GetStore() types.Store {
-	rq := NewRequester()
-	return dataStore.NewStore(rq)
-}
 
 // Websocket
 
@@ -116,10 +108,12 @@ type bufferedCaster struct {
 	enabled           bool
 	autoFlushInterval time.Duration
 	bufLock           *sync.Mutex
+	mediaRepo         types.MediaRepo
 }
 
 type unbufferedCaster struct {
-	enabled bool
+	enabled   bool
+	mediaRepo types.MediaRepo
 }
 
 var ErrBadAuthScheme = types.NewWeblensError("invalid authorization scheme")

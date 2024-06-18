@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/types"
 )
 
 type WebLensFilepath struct {
@@ -18,11 +18,11 @@ const (
 	mediaBase fpBase = "MEDIA"
 )
 
-func FilepathFromAbs(absolutePath string) WebLensFilepath {
-	ext := strings.TrimPrefix(absolutePath, dataStore.mediaRoot.absolutePath)
+func FilepathFromAbs(absolutePath string, mediaRoot types.WeblensFile) WebLensFilepath {
+	ext := strings.TrimPrefix(absolutePath, mediaRoot.GetAbsPath())
 
-	if len(absolutePath) == len(dataStore.mediaRoot.absolutePath) {
-		panic("Abs path is not under media root")
+	if len(absolutePath) == len(mediaRoot.GetAbsPath()) {
+		panic("Abs path is not under mediaService root")
 	}
 
 	return WebLensFilepath{
@@ -41,10 +41,10 @@ func FilepathFromPortable(portablePath string) WebLensFilepath {
 	}
 }
 
-func (wf WebLensFilepath) ToAbsPath() string {
+func (wf WebLensFilepath) ToAbsPath(mediaRoot types.WeblensFile) string {
 	var realBase string
 	if wf.base == mediaBase {
-		realBase = dataStore.mediaRoot.absolutePath
+		realBase = mediaRoot.GetAbsPath()
 	}
 	return filepath.Join(realBase, wf.ext)
 }

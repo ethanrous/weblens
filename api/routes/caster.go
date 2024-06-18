@@ -10,7 +10,7 @@ import (
 )
 
 func NewCaster() types.BroadcasterAgent {
-	serverInfo := dataStore.GetServerInfo()
+	serverInfo := types.SERV.InstanceService.GetLocal()
 	if serverInfo == nil || serverInfo.ServerRole() != types.Core {
 		return &unbufferedCaster{enabled: false}
 	}
@@ -73,7 +73,7 @@ func (c *unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 		return
 	}
 
-	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(newFile.GetParent().ID()), "file_created", []types.WsMsg{{"fileInfo": fileInfo}})
+	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(newFile.GetParent().ID()), "file_created", []types.WsMsg{{"fileInfo": fileInfo}})
 }
 
 func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
@@ -92,12 +92,12 @@ func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
+	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
 
 	if updatedFile.GetParent().Owner() == dataStore.WeblensRootUser {
 		return
 	}
-	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.GetParent().ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
+	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.GetParent().ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
 }
 
 func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFile types.WeblensFile) {
@@ -130,18 +130,18 @@ func (c *unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	}
 
 	content := []types.WsMsg{{"fileId": deletedFile.ID()}}
-	rc.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(deletedFile.GetParent().ID()), "file_deleted", content)
+	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(deletedFile.GetParent().ID()), "file_deleted", content)
 }
 
 func (c *unbufferedCaster) FolderSubToTask(folder types.FileId, taskId types.TaskId) {
-	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
+	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
 	for _, s := range subs {
-		s.Subscribe(types.SubId(taskId), types.TaskSubscribe, nil, rc.FileTree)
+		s.Subscribe(types.SubId(taskId), types.TaskSubscribe, nil, types.SERV.FileTree)
 	}
 }
 
 func (c *unbufferedCaster) UnsubTask(task types.Task) {
-	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(task.TaskId()))
+	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(task.TaskId()))
 	for _, s := range subs {
 		s.Unsubscribe(types.SubId(task.TaskId()))
 	}
@@ -151,8 +151,8 @@ func (c *unbufferedCaster) UnsubTask(task types.Task) {
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
 func NewBufferedCaster() types.BufferedBroadcasterAgent {
-	srvInfo := dataStore.GetServerInfo()
-	if srvInfo == nil || srvInfo.ServerRole() != types.Core {
+	local := types.SERV.InstanceService.GetLocal()
+	if local == nil || local.ServerRole() != types.Core {
 		return &bufferedCaster{enabled: false, autoFlushInterval: time.Hour}
 	}
 	newCaster := &bufferedCaster{
@@ -353,14 +353,14 @@ func (c *bufferedCaster) DisableAutoFlush() {
 
 // Subscribe any subscribers of a folder to a task (presumably one that pertains to that folder)
 func (c *bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
-	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
+	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
 	for _, s := range subs {
-		s.Subscribe(types.SubId(task), types.TaskSubscribe, nil, rc.FileTree)
+		s.Subscribe(types.SubId(task), types.TaskSubscribe, nil, types.SERV.FileTree)
 	}
 }
 
 func (c *bufferedCaster) UnsubTask(task types.Task) {
-	subs := rc.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(task.TaskId()))
+	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(task.TaskId()))
 	for _, s := range subs {
 		s.Unsubscribe(types.SubId(task.TaskId()))
 	}
@@ -403,7 +403,7 @@ func send(r wsResponse) {
 	}
 	defer util.RecoverPanic("Panic caught while broadcasting: %v")
 
-	clients := rc.ClientManager.GetSubscribers(r.broadcastType, types.SubId(r.SubscribeKey))
+	clients := types.SERV.ClientManager.GetSubscribers(r.broadcastType, types.SubId(r.SubscribeKey))
 	clients = util.OnlyUnique(clients)
 
 	if len(clients) != 0 {

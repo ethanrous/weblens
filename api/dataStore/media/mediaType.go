@@ -11,15 +11,15 @@ import (
 )
 
 type mediaType struct {
-	Mime            string
-	Name            string
-	Extensions      []string
-	Displayable     bool
-	Raw             bool
-	IsVideo         bool
-	ImgRecog        bool
-	MultiPage       bool
-	RawThumbExifKey string
+	Mime            string   `json:"mime"`
+	Name            string   `json:"FriendlyName"`
+	Extensions      []string `json:"FileExtension"`
+	Displayable     bool     `json:"IsDisplayable"`
+	Raw             bool     `json:"IsRaw"`
+	IsVideo         bool     `json:"IsVideo"`
+	ImgRecog        bool     `json:"SupportsImgRecog"`
+	MultiPage       bool     `json:"MultiPage"`
+	RawThumbExifKey string   `json:"RawThumbExifKey"`
 }
 
 type typeService struct {
@@ -29,7 +29,7 @@ type typeService struct {
 
 func NewTypeService() types.MediaTypeService {
 
-	service := &typeService{
+	ts := &typeService{
 		mimeMap: make(map[string]types.MediaType),
 		extMap:  make(map[string]types.MediaType),
 	}
@@ -55,24 +55,22 @@ func NewTypeService() types.MediaTypeService {
 
 	for k, t := range marshMap {
 		t.Mime = k
-		service.mimeMap[k] = t
+		ts.mimeMap[k] = t
 	}
 
-	for mime, mt := range service.mimeMap {
+	for _, mt := range ts.mimeMap {
 		realMt := mt.(*mediaType)
-		realMt.Mime = mime
-		service.mimeMap[mime] = mt
 		for _, ext := range realMt.Extensions {
-			service.extMap[ext] = mt
+			ts.extMap[ext] = mt
 		}
 	}
 
-	return &typeService{}
+	return ts
 }
 
 // Get a pointer to the weblens Media type of a file given the file extension
 func (ts *typeService) ParseExtension(ext string) types.MediaType {
-	if ext == "" || ts.extMap[ext].FriendlyName() == "" {
+	if ext == "" || ts.extMap[ext] == nil {
 		return ts.mimeMap["generic"]
 	} else {
 		return ts.extMap[ext]
