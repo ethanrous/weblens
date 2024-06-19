@@ -19,6 +19,7 @@ type Instance interface {
 	GetCoreAddress() (string, error)
 	Info() Instance
 	IsLocal() bool
+	SetUserCount(int)
 }
 
 type InstanceService interface {

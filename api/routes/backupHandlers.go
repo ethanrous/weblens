@@ -11,7 +11,7 @@ import (
 func launchBackup(ctx *gin.Context) {
 	rs := types.SERV.InstanceService.GetRemotes()
 
-	t := types.SERV.TaskDispatcher.Backup(rs[0].ServerId(), types.SERV.Requester, types.SERV.FileTree)
+	t := types.SERV.TaskDispatcher.Backup(rs[0].ServerId())
 	t.Wait()
 	if _, stat := t.Status(); stat != dataProcess.TaskSuccess {
 		ctx.Status(http.StatusInternalServerError)

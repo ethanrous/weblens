@@ -8,6 +8,15 @@ type LifetimeId string
 type FileActionType string
 type FileEventId string
 
+const (
+	FileCreate  FileActionType = "fileCreate"
+	FileRestore FileActionType = "fileRestore"
+	FileMove    FileActionType = "fileMove"
+	FileDelete  FileActionType = "fileDelete"
+	FileWrite   FileActionType = "fileWrite"
+	FileBackup  FileActionType = "backup"
+)
+
 type JournalService interface {
 	BaseService[LifetimeId, []FileAction]
 
@@ -30,8 +39,6 @@ type FileEvent interface {
 }
 
 type FileAction interface {
-	GetContentId() ContentId
-
 	GetOriginPath() string
 	SetOriginPath(path string)
 	GetOriginId() FileId
@@ -43,10 +50,15 @@ type FileAction interface {
 	SetActionType(action FileActionType)
 	GetActionType() FileActionType
 
+	SetLifetimeId(LifetimeId)
+
 	GetTimestamp() time.Time
 }
 
 type Lifetime interface {
-	GetFileId() FileId
+	ID() LifetimeId
+	Add(FileAction)
+	GetLatestFileId() FileId
 	GetContentId() ContentId
+	IsLive() bool
 }

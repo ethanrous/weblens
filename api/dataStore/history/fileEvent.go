@@ -11,7 +11,7 @@ import (
 
 type FileEvent struct {
 	EventId     types.FileEventId `bson:"_id"`
-	Actions     []*fileAction     `bson:"actions"`
+	Actions     []*fileAction     `bson:"Actions"`
 	EventBegin  time.Time         `bson:"eventBegin"`
 	ActionsLock *sync.Mutex       `bson:"-"`
 }

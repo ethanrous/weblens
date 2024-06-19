@@ -89,6 +89,10 @@ func (ts *typeService) Size() int {
 	return len(ts.mimeMap)
 }
 
+func (mt *typeService) MarshalJSON() ([]byte, error) {
+	return json.Marshal(mt.mimeMap)
+}
+
 func (mt mediaType) IsRaw() bool {
 	return mt.Raw
 }

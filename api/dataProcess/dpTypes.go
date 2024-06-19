@@ -70,7 +70,6 @@ type zipMetadata struct {
 	files    []types.WeblensFile
 	username types.Username
 	shareId  types.ShareId
-	fileTree types.FileTree
 }
 
 func (m zipMetadata) MetaString() string {
@@ -90,7 +89,7 @@ type moveMeta struct {
 	fileId              types.FileId
 	destinationFolderId types.FileId
 	newFilename         string
-	fileTree            types.FileTree
+	fileEvent           types.FileEvent
 }
 
 func (m moveMeta) MetaString() string {
@@ -119,7 +118,6 @@ type writeFileMeta struct {
 	rootFolderId types.FileId
 	chunkSize    int64
 	totalSize    int64
-	fileTree     types.FileTree
 }
 
 func (m writeFileMeta) MetaString() string {
@@ -158,7 +156,6 @@ type fileUploadProgress struct {
 
 type backupMeta struct {
 	remoteId types.InstanceId
-	tree     types.FileTree
 }
 
 func (m backupMeta) MetaString() string {

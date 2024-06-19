@@ -1,6 +1,8 @@
 package types
 
-import "time"
+import (
+	"time"
+)
 
 type Task interface {
 	TaskId() TaskId
@@ -20,6 +22,7 @@ type Task interface {
 
 	ReadError() any
 	ClearAndRecompute()
+	SetPostAction(action func(TaskResult))
 	SetCleanup(cleanup func())
 	SetErrorCleanup(cleanup func())
 
@@ -40,6 +43,7 @@ type TaskPool interface {
 	IsRoot() bool
 	GetWorkerPool() WorkerPool
 	Status() (int, int, float64)
+	AddCleanup(fn func())
 
 	GetRootPool() TaskPool
 
@@ -47,13 +51,13 @@ type TaskPool interface {
 	UnlockExit()
 
 	ScanDirectory(WeblensFile, BroadcasterAgent) Task
-	ScanFile(file WeblensFile, broadcaster BroadcasterAgent) Task
+	ScanFile(WeblensFile, BroadcasterAgent) Task
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
-	MoveFile(FileId, FileId, string, BroadcasterAgent) Task
+	MoveFile(FileId, FileId, string, FileEvent, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
-	Backup(InstanceId, Requester, FileTree) Task
+	Backup(InstanceId) Task
 	HashFile(WeblensFile, BroadcasterAgent) Task
-	CreateZip(files []WeblensFile, username Username, shareId ShareId, ft FileTree, casters BroadcasterAgent) Task
+	CreateZip(files []WeblensFile, username Username, shareId ShareId, casters BroadcasterAgent) Task
 
 	Errors() []Task
 	AddError(t Task)

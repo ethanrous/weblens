@@ -19,7 +19,16 @@ func (db *databaseService) GetAllMedia() ([]types.Media, error) {
 		return nil, err
 	}
 
+	for _, m := range target {
+		m.SetImported(true)
+	}
+
 	return util.SliceConvert[types.Media](target), nil
+}
+
+func (db *databaseService) CreateMedia(m types.Media) error {
+	_, err := db.media.InsertOne(db.ctx, m)
+	return err
 }
 
 func (db *databaseService) AddFileToMedia(mId types.ContentId, fId types.FileId) error {

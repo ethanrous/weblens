@@ -210,7 +210,6 @@ async function NewUploadTask(
         }),
     }
     if (isPublic) {
-        url = new URL(`${API_ENDPOINT}/public/upload`)
         url.searchParams.append('shareId', shareId)
     } else {
         url = new URL(`${API_ENDPOINT}/upload`)

@@ -246,7 +246,6 @@ export async function adjustMediaTime(
     authHeader: AuthHeaderT
 ) {
     const url = new URL(`${API_ENDPOINT}/media/date`)
-    console.log(extraMedias)
     return await fetch(url, {
         method: 'PATCH',
         headers: authHeader,

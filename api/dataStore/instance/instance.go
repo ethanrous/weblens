@@ -76,6 +76,10 @@ func (wi *WeblensInstance) GetCoreAddress() (string, error) {
 	return wi.CoreAddress, nil
 }
 
+func (wi *WeblensInstance) SetUserCount(count int) {
+	wi.UserCount = count
+}
+
 // func SetCoreAddress(core string, key types.WeblensApiKey) error {
 // 	if thisServer.Role == types.CoreMode {
 // 		return ErrAlreadyCore

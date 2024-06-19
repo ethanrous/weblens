@@ -71,14 +71,17 @@ func (m *Media) LoadFromFile(f types.WeblensFile, preReadBytes []byte, task type
 	task.SwLap("Create cache")
 
 	if m.RecognitionTags == nil && m.mediaType.SupportsImgRecog() {
-		err = m.getImageRecognitionTags(f.GetTree())
+		err = m.getImageRecognitionTags()
 		if err != nil {
 			util.ErrTrace(err)
 		}
 		task.SwLap("Get img recognition tags")
 	}
 
-	m.AddFile(f)
+	err = m.AddFile(f)
+	if err != nil {
+		return nil, err
+	}
 
 	m.SetOwner(f.Owner())
 	task.SwLap("Add file and set owner")
@@ -188,7 +191,7 @@ func (m *Media) GetOwner() types.User {
 	return m.Owner
 }
 
-func (m *Media) ReadDisplayable(q types.Quality, ft types.FileTree, index ...int) (data []byte, err error) {
+func (m *Media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err error) {
 	var pageNum int
 	if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
 		return nil, dataStore.ErrPageOutOfRange
@@ -198,7 +201,7 @@ func (m *Media) ReadDisplayable(q types.Quality, ft types.FileTree, index ...int
 		pageNum = 0
 	}
 
-	return types.SERV.MediaRepo.FetchCacheImg(m, q, pageNum, ft)
+	return types.SERV.MediaRepo.FetchCacheImg(m, q, pageNum)
 }
 
 func (m *Media) GetFiles() []types.FileId {
@@ -247,16 +250,7 @@ func (m *Media) Clean() {
 }
 
 func (m *Media) SetImported(i bool) {
-	if !m.imported && i {
-		m.imported = true
-		err := types.SERV.MediaRepo.Add(m)
-		if err != nil {
-			util.ShowErr(err)
-			return
-		}
-	} else if !i {
-		m.imported = false
-	}
+	m.imported = i
 }
 
 func (m *Media) IsImported() bool {
@@ -267,12 +261,12 @@ func (m *Media) IsImported() bool {
 	return m.imported
 }
 
-func (m *Media) IsCached(ft types.FileTree) bool {
+func (m *Media) IsCached() bool {
 	if m.thumbCacheFile == nil {
 		if m.ThumbnailCacheId == "" {
 			return false
 		}
-		cache := ft.Get(m.ThumbnailCacheId)
+		cache := types.SERV.FileTree.Get(m.ThumbnailCacheId)
 		if cache == nil {
 			return false
 		}
@@ -286,7 +280,7 @@ func (m *Media) IsCached(ft types.FileTree) bool {
 	if m.fullresCacheFiles[0] == nil {
 		if len(m.FullresCacheIds) != 0 {
 			for i := range m.PageCount {
-				cache := ft.Get(m.FullresCacheIds[i])
+				cache := types.SERV.FileTree.Get(m.FullresCacheIds[i])
 				if cache == nil {
 					return false
 				}
@@ -311,9 +305,9 @@ func (m *Media) Hide() error {
 	return types.SERV.Database.HideMedia(m.ID())
 }
 
-func (m *Media) getProminentColors(ft types.FileTree) (prom []string, err error) {
+func (m *Media) getProminentColors() (prom []string, err error) {
 	var i image.Image
-	thumbBytes, err := m.ReadDisplayable(dataStore.Thumbnail, ft)
+	thumbBytes, err := m.ReadDisplayable(dataStore.Thumbnail)
 	if err != nil {
 		return
 	}
@@ -476,7 +470,7 @@ func (m *Media) generateImages(bs []byte) (err error) {
 	return nil
 }
 
-func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum int, ft types.FileTree) (f types.WeblensFile, err error) {
+func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum int) (f types.WeblensFile, err error) {
 	if q == dataStore.Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 		f = m.thumbCacheFile
 		return
@@ -489,7 +483,7 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 		return nil, dataStore.ErrPageOutOfRange
 	}
 
-	cacheRoot := ft.Get("CACHE")
+	cacheRoot := types.SERV.FileTree.Get("CACHE")
 
 	var cacheFileId types.FileId
 	if q == dataStore.Fullres && len(m.FullresCacheIds) > pageNum && m.FullresCacheIds[pageNum] != "" {
@@ -507,10 +501,10 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 		cacheFileId = m.ThumbnailCacheId
 	}
 
-	f = ft.Get(cacheFileId)
+	f = types.SERV.FileTree.Get(cacheFileId)
 	if f == nil || !f.Exists() {
 		if generateIfMissing {
-			realFile := ft.Get(m.FileIds[0])
+			realFile := types.SERV.FileTree.Get(m.FileIds[0])
 			if err != nil {
 				return nil, err
 			}
@@ -520,7 +514,7 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 				return nil, err
 			}
 
-			return m.GetCacheFile(q, false, pageNum, ft)
+			return m.GetCacheFile(q, false, pageNum)
 
 		} else {
 			return nil, dataStore.ErrNoCache
@@ -539,9 +533,9 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 const ThumbnailHeight float32 = 500
 
 func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
-	_, err = m.GetCacheFile(dataStore.Thumbnail, false, 0, f.GetTree())
+	_, err = m.GetCacheFile(dataStore.Thumbnail, false, 0)
 	hasThumbCache := err == nil
-	_, err = m.GetCacheFile(dataStore.Fullres, false, 0, f.GetTree())
+	_, err = m.GetCacheFile(dataStore.Fullres, false, 0)
 	hasFullresCache := err == nil
 
 	if hasThumbCache && hasFullresCache && m.MediaWidth != 0 && m.MediaHeight != 0 {
@@ -551,7 +545,6 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 	var bs []byte
 
 	if m.mediaType.IsRaw() {
-		util.Debug.Println()
 		raw64 := m.rawExif[m.mediaType.GetThumbExifKey()].(string)
 		raw64 = raw64[strings.Index(raw64, ":")+1:]
 
@@ -658,8 +651,14 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 }
 
 func (m *Media) getCacheId(q types.Quality, pageNum int, cacheDir types.WeblensFile) types.FileId {
-	return cacheDir.GetTree().GenerateFileId(filepath.Join(cacheDir.GetAbsPath(), m.getCacheFilename(q,
-		pageNum)))
+	return cacheDir.GetTree().GenerateFileId(
+		filepath.Join(
+			cacheDir.GetAbsPath(), m.getCacheFilename(
+				q,
+				pageNum,
+			),
+		),
+	)
 }
 
 func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
@@ -674,8 +673,8 @@ func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
 	return cacheFileName
 }
 
-func (m *Media) getImageRecognitionTags(ft types.FileTree) (err error) {
-	bs, err := m.ReadDisplayable(dataStore.Thumbnail, ft)
+func (m *Media) getImageRecognitionTags() (err error) {
+	bs, err := m.ReadDisplayable(dataStore.Thumbnail)
 	if err != nil {
 		return
 	}
@@ -738,7 +737,9 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.ThumbnailCacheId = types.FileId(data["thumbnailCacheId"].(string))
 
 	if data["fullresCacheIds"] != nil {
-		m.FullresCacheIds = util.Map(data["fullresCacheIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) })
+		m.FullresCacheIds = util.Map(
+			data["fullresCacheIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) },
+		)
 	}
 
 	m.BlurHash = data["blurHash"].(string)
@@ -759,4 +760,23 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	}
 
 	return nil
+}
+
+func (m *Media) MarshalJSON() ([]byte, error) {
+	data := map[string]any{
+		"contentId":        m.ContentId,
+		"fileIds":          m.FileIds,
+		"thumbnailCacheId": m.ThumbnailCacheId,
+		"fullresCacheIds":  m.FullresCacheIds,
+		"blurHash":         m.BlurHash,
+		"owner":            m.Owner.GetUsername(),
+		"width":            m.MediaWidth,
+		"height":           m.MediaHeight,
+		"createDate":       m.CreateDate,
+		"mimeType":         m.MimeType,
+		"recognitionTags":  m.RecognitionTags,
+		"pageCount":        m.PageCount,
+	}
+
+	return json.Marshal(data)
 }

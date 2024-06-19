@@ -40,7 +40,11 @@ const WeblensRoutes = () => {
             const typeMap = JSON.parse(typeMapStr)
 
             // fetch type map every hour, just in case
-            if (!typeMap.time || Date.now() - typeMap.time > 3_600_000) {
+            if (
+                !typeMap.typeMap.size ||
+                !typeMap.time ||
+                Date.now() - typeMap.time > 3_600_000
+            ) {
                 setTypeMap()
             }
         } catch {

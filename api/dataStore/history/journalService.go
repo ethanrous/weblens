@@ -4,13 +4,11 @@ import (
 	"slices"
 
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/ethrousseau/weblens/api/util"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type journalService struct {
-	lifetimes    map[types.LifetimeId][]types.FileAction
-	latestUpdate map[types.FileId]types.LifetimeId
+	lifetimes    map[types.LifetimeId]types.Lifetime
+	latestUpdate map[types.FileId]types.Lifetime
 }
 
 func NewService(fileTree types.FileTree, dbServer types.DatabaseService) types.JournalService {
@@ -18,18 +16,24 @@ func NewService(fileTree types.FileTree, dbServer types.DatabaseService) types.J
 		return nil
 	}
 	return &journalService{
-		lifetimes:    make(map[types.LifetimeId][]types.FileAction),
-		latestUpdate: make(map[types.FileId]types.LifetimeId),
+		lifetimes:    make(map[types.LifetimeId]types.Lifetime),
+		latestUpdate: make(map[types.FileId]types.Lifetime),
 	}
 }
 
 func (j *journalService) Init(db types.DatabaseService) error {
-	events, err := db.GetAllLifetimes()
+	lifetimes, err := db.GetAllLifetimes()
 	if err != nil {
 		return err
 	}
 
-	util.Debug.Println(events)
+	for _, lt := range lifetimes {
+		j.lifetimes[lt.ID()] = lt
+		if lt.GetLatestFileId() != "" {
+			j.latestUpdate[lt.GetLatestFileId()] = lt
+		}
+	}
+	// util.Debug.Println(events)
 
 	return nil
 }
@@ -37,11 +41,8 @@ func (j *journalService) Init(db types.DatabaseService) error {
 func (j *journalService) GetActiveLifetimes() []types.Lifetime {
 	var result []types.Lifetime
 	for _, l := range j.lifetimes {
-		if l[len(l)-1].GetActionType() != FileDelete {
-			result = append(result, lifetime{
-				fileId:    l[len(l)-1].GetDestinationId(),
-				contentId: l[len(l)-1].GetContentId(),
-			})
+		if l.IsLive() {
+			result = append(result, l)
 		}
 	}
 	return result
@@ -50,7 +51,7 @@ func (j *journalService) GetActiveLifetimes() []types.Lifetime {
 func (j *journalService) GetAllFileEvents() ([]types.FileEvent, error) {
 	// return util.MapToSlicePure(j.)
 	// return types.SERV.Database.GetAllFileEvents()
-	return nil, nil
+	return nil, types.ErrNotImplemented("get all file events")
 }
 
 func (j *journalService) LogEvent(fe types.FileEvent) error {
@@ -63,27 +64,31 @@ func (j *journalService) LogEvent(fe types.FileEvent) error {
 		return a.GetTimestamp().Compare(b.GetTimestamp())
 	})
 
-	var updated []types.LifetimeId
+	var updated []types.Lifetime
 
 	for _, action := range fe.GetActions() {
 		switch action.GetActionType() {
 		case FileCreate:
-			newLId := types.LifetimeId(primitive.NewObjectID().String())
-			j.lifetimes[newLId] = []types.FileAction{action}
-			j.latestUpdate[action.GetDestinationId()] = newLId
-			updated = append(updated, newLId)
+			newL, err := NewLifetime("", action)
+			if err != nil {
+				return err
+			}
+
+			j.lifetimes[newL.ID()] = newL
+			j.latestUpdate[action.GetDestinationId()] = newL
+			updated = append(updated, newL)
 		case FileMove:
-			lId := j.latestUpdate[action.GetOriginId()]
-			l := j.lifetimes[lId]
-			l = append(l, action)
-			j.lifetimes[lId] = l
-			updated = append(updated, lId)
+			existing := j.latestUpdate[action.GetOriginId()]
+			existing.Add(action)
+			updated = append(updated, existing)
 		}
 	}
 
-	err := types.SERV.Database.WriteFileEvent(fe)
-	if err != nil {
-		return err
+	for _, update := range updated {
+		err := types.SERV.Database.AddOrUpdateLifetime(update)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

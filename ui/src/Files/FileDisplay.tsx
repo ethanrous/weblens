@@ -204,7 +204,6 @@ const ItemWrapper = memo(
                     setMenuTarget(file.Id())
                     setMenuPos({ x: e.clientX, y: e.clientY })
                     if (fbState.menuMode === FbMenuModeT.Closed) {
-                        console.log(fbState.menuMode)
                         setMenuMode(FbMenuModeT.Default)
                     }
                 }}
@@ -300,7 +299,6 @@ const FileVisual = memo(
         return null
     },
     (prev, next) => {
-        // console.log(prev.file.GetMedia()?.Id(), next.file.GetMedia()?.Id())
         if (prev.file.GetMedia()?.Id() !== next.file.GetMedia()?.Id()) {
             return false
         } else if (prev.doFetch !== next.doFetch) {

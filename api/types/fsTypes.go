@@ -10,8 +10,10 @@ type FileTree interface {
 
 	Move(f, newParent WeblensFile, newFilename string, overwrite bool, c ...BufferedBroadcasterAgent) error
 
-	Touch(parentFolder WeblensFile, newFileName string, detach bool, owner User, c ...BroadcasterAgent) (WeblensFile,
-		error)
+	Touch(parentFolder WeblensFile, newFileName string, detach bool, owner User, c ...BroadcasterAgent) (
+		WeblensFile,
+		error,
+	)
 	MkDir(parentFolder WeblensFile, newDirName string, c ...BroadcasterAgent) (WeblensFile, error)
 
 	AttachFile(f WeblensFile, c ...BroadcasterAgent) error
@@ -25,8 +27,14 @@ type FileTree interface {
 	Size() int
 
 	AddRoot(r WeblensFile) error
-	NewRoot(id FileId, filename, absPath string, owner User,
-		parent WeblensFile) (WeblensFile, error)
+	NewRoot(
+		id FileId, filename, absPath string, owner User,
+		parent WeblensFile,
+	) (WeblensFile, error)
+	SetDelDirectory(WeblensFile) error
+
+	ResizeUp(WeblensFile, ...BroadcasterAgent) error
+	ResizeDown(WeblensFile, ...BroadcasterAgent) error
 }
 
 type WeblensFile interface {
@@ -43,7 +51,7 @@ type WeblensFile interface {
 
 	FormatFileInfo(AccessMeta) (FileInfo, error)
 	GetChildrenInfo(AccessMeta) []FileInfo
-	
+
 	IsDisplayable() bool
 
 	Copy() WeblensFile
@@ -64,7 +72,7 @@ type WeblensFile interface {
 	WriteAt([]byte, int64) error
 	Read() (*os.File, error)
 	ReadAll() ([]byte, error)
-	ReadDir() error
+	ReadDir() ([]WeblensFile, error)
 	GetContentId() ContentId
 	SetContentId(ContentId)
 
@@ -120,11 +128,12 @@ type FileInfo struct {
 	PastFile         bool      `json:"pastFile"`
 }
 
-var ErrDirNotAllowed = NewWeblensError("attempted to perform action using a directory, where the action does not support directories")
+var ErrNoFile = NewWeblensError("file does not exist")
 var ErrDirectoryRequired = NewWeblensError("attempted to perform an action that requires a directory, but found regular file")
 var ErrDirAlreadyExists = NewWeblensError("directory already exists in destination location")
 var ErrFileAlreadyExists = NewWeblensError("file already exists in destination location")
-var ErrNoFile = NewWeblensError("file does not exist")
+var ErrChildAlreadyExists = NewWeblensError("file already has the child being added")
+var ErrDirNotAllowed = NewWeblensError("attempted to perform action using a directory, where the action does not support directories")
 var ErrIllegalFileMove = NewWeblensError("tried to perform illegal file move")
 var ErrWriteOnReadOnly = NewWeblensError("tried to write to read-only file")
 var ErrBadReadCount = NewWeblensError("did not read expected number of bytes from file")

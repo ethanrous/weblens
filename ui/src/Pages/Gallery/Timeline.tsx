@@ -44,7 +44,7 @@ const TimelineControls = () => {
         return Array.from(galleryState.albumsMap.values()).map((a) => {
             const included = !disabledAlbums.includes(a.Id)
             if (!a.CoverMedia) {
-                a.CoverMedia = new WeblensMedia({ mediaId: a.Cover })
+                a.CoverMedia = new WeblensMedia({ contentId: a.Cover })
             }
             return (
                 <div
@@ -171,7 +171,7 @@ const NoMediaDisplay = () => {
     const nav = useNavigate()
     return (
         <div className="flex flex-col items-center w-full">
-            <div className="mt-20 gap-6 w-max">
+            <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
                 <Text c="white" fw={700} size="31px">
                     No media to display
                 </Text>
@@ -179,16 +179,18 @@ const NoMediaDisplay = () => {
                 <div className="h-max w-full gap-2">
                     <WeblensButton
                         squareSize={48}
+                        fillWidth
                         label="FileBrowser"
                         Left={IconFolder}
-                        centerContent
+                        // centerContent
                         onClick={() => nav('/files')}
                     />
                     <WeblensButton
                         squareSize={48}
+                        fillWidth
                         label="Albums"
                         Left={IconAlbum}
-                        centerContent
+                        // centerContent
                         onClick={() => nav('/albums')}
                     />
                 </div>

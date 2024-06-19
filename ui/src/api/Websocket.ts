@@ -103,7 +103,7 @@ export const useSubscribe = (
         if (!usr.isLoggedIn || readyState !== 1) {
             return
         }
-        console.log('HERE?', usr)
+
         SubToFolder(usr.homeId, sId, wsSend)
         return () => UnsubFromFolder(usr.homeId, wsSend)
     }, [usr.homeId, sId, readyState])
@@ -240,14 +240,17 @@ function HandleWebsocketMessage(
             }
 
             case 'sub_task_complete': {
-                const jobName = msgData.content[0].task_job_name
-                    .replace('_', ' ')
-                    .split(' ')
-                    .map((s) => {
-                        return s.charAt(0).toUpperCase() + s.slice(1)
-                    })
-                    .join(' ')
-                    .replace('Directory', 'Folder')
+                let jobName: string
+                if (msgData.content[0].task_job_name) {
+                    jobName = msgData.content[0].task_job_name
+                        .replace('_', ' ')
+                        .split(' ')
+                        .map((s: string) => {
+                            return s.charAt(0).toUpperCase() + s.slice(1)
+                        })
+                        .join(' ')
+                        .replace('Directory', 'Folder')
+                }
 
                 dispatch({
                     type: 'update_scan_progress',

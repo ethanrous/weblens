@@ -18,7 +18,6 @@ const (
 type fileAction struct {
 	Timestamp  time.Time            `json:"timestamp"`
 	ActionType types.FileActionType `json:"actionType"`
-	ContentId  types.ContentId      `json:"contentId"`
 
 	OriginPath      string       `json:"originPath"`
 	OriginId        types.FileId `json:"originId"`
@@ -26,34 +25,41 @@ type fileAction struct {
 	DestinationId   types.FileId `json:"destinationId"`
 
 	LifeId   types.LifetimeId `json:"lifeId"`
-	LifeNext *fileAction      `json:"-"`
-	LifePrev *fileAction      `json:"-"`
+	LifeNext *fileAction      `json:"-" bson:"-"`
+	LifePrev *fileAction      `json:"-" bson:"-"`
 }
 
-func NewFileAction(contentId types.ContentId, actionType types.FileActionType) types.FileAction {
-	return &fileAction{
-		Timestamp:  time.Now(),
-		ActionType: actionType,
-		ContentId:  contentId,
-	}
-}
+// func NewFileAction(actionType types.FileActionType) types.FileAction {
+// 	return &fileAction{
+// 		Timestamp:  time.Now(),
+// 		ActionType: actionType,
+// 	}
+// }
 
-func NewCreateEntry(path string, contentId types.ContentId) types.FileAction {
+func NewCreateAction(path string) types.FileAction {
 	return &fileAction{
 		Timestamp:       time.Now(),
 		ActionType:      FileCreate,
-		ContentId:       contentId,
 		DestinationPath: path,
 		DestinationId:   types.SERV.FileTree.GenerateFileId(path),
 	}
 }
 
-func (fa *fileAction) GetContentId() types.ContentId {
-	return fa.ContentId
+func NewMoveAction(originId, destinationId types.FileId) types.FileAction {
+	return &fileAction{
+		Timestamp:     time.Now(),
+		ActionType:    FileCreate,
+		OriginId:      originId,
+		DestinationId: destinationId,
+	}
 }
 
 func (fa *fileAction) GetTimestamp() time.Time {
 	return fa.Timestamp
+}
+
+func (fa *fileAction) SetLifetimeId(lId types.LifetimeId) {
+	fa.LifeId = lId
 }
 
 func (fa *fileAction) SetOriginPath(path string) {

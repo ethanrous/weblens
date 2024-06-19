@@ -29,6 +29,8 @@ type task struct {
 
 	exitStatus types.TaskExitStatus // "success", "error" or "cancelled"
 
+	postAction func(result types.TaskResult)
+
 	// Function to be run to clean up when the task completes, no matter the exit status
 	cleanup func()
 
@@ -160,7 +162,7 @@ func (t *task) GetResult(resultKey string) any {
 	if t.result == nil {
 		return nil
 	}
-	
+
 	return t.result[resultKey]
 }
 
@@ -217,6 +219,17 @@ func (t *task) ErrorAndExit(err error, info ...any) {
 	}
 	t.error(err)
 	panic(ErrTaskError)
+}
+
+// SetPostAction takes a function to be run after the task has successfully completed
+// with the task results as the input of the function
+func (t *task) SetPostAction(action func(types.TaskResult)) {
+	t.postAction = action
+
+	// If the task has already completed, run the post task in this thread instead
+	if t.exitStatus == TaskSuccess {
+		t.postAction(t.result)
+	}
 }
 
 // Pass a function to run if the task throws an error, in theory

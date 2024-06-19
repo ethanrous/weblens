@@ -2,7 +2,6 @@ package dataStore
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
-	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,10 +18,8 @@ import (
 
 var mongoCtx = context.TODO()
 
-// var redis_ctx = context.TODO()
 var mongoc *mongo.Client
 var mongodb *mongo.Database
-var redisc *redis.Client
 
 func NewDB() *WeblensDB {
 	if mongoc == nil {
@@ -38,19 +34,9 @@ func NewDB() *WeblensDB {
 		mongodb = mongoc.Database(util.GetMongoDBName())
 		verifyIndexes(mongodb)
 	}
-	if redisc == nil && util.ShouldUseRedis() {
-		redisc = redis.NewClient(&redis.Options{
-			Addr:     util.GetRedisUrl(),
-			Password: "",
-			DB:       0,
-		})
-		redisc.FlushAll()
-	}
 
 	return &WeblensDB{
-		mongo:    mongodb,
-		redis:    redisc,
-		useRedis: util.ShouldUseRedis(),
+		mongo: mongodb,
 	}
 }
 
@@ -86,12 +72,13 @@ func verifyIndexes(mdb *mongo.Database) {
 func (db WeblensDB) setMediaHidden(ms []types.Media, hidden bool) error {
 	filter := bson.M{"contentId": bson.M{"$in": util.Map(ms, func(m types.Media) types.ContentId { return m.ID() })}}
 	update := bson.M{"$set": bson.M{"hidden": hidden}}
-	req, err := db.mongo.Collection("media").UpdateMany(mongoCtx, filter, update)
-	util.Debug.Println(req)
+	_, err := db.mongo.Collection("media").UpdateMany(mongoCtx, filter, update)
 	return err
 }
 
-func (db WeblensDB) GetFilteredMedia(sort string, requester types.Username, sortDirection int, albumIds []types.AlbumId, raw bool) (res []types.Media, err error) {
+func (db WeblensDB) GetFilteredMedia(
+	sort string, requester types.Username, sortDirection int, albumIds []types.AlbumId, raw bool,
+) (res []types.Media, err error) {
 
 	var ret *mongo.Cursor
 
@@ -113,54 +100,34 @@ func (db WeblensDB) GetFilteredMedia(sort string, requester types.Username, sort
 	}
 
 	var medias []types.Media
-	util.Each(matchedAlbums, func(a album.Album) {
-		medias = append(medias, a.Medias...)
-	})
+	util.Each(
+		matchedAlbums, func(a album.Album) {
+			medias = append(medias, a.Medias...)
+		},
+	)
 
 	if len(medias) == 0 {
 		return
 	}
 
-	medias = util.Filter(medias, func(m types.Media) bool {
-		if m == nil {
-			return false
-		} else if !raw {
-			return !m.GetMediaType().IsRaw()
-		} else {
-			return true
-		}
-	})
+	medias = util.Filter(
+		medias, func(m types.Media) bool {
+			if m == nil {
+				return false
+			} else if !raw {
+				return !m.GetMediaType().IsRaw()
+			} else {
+				return true
+			}
+		},
+	)
 
 	if sort == "createDate" {
-		slices.SortFunc(medias, func(a, b types.Media) int { return a.GetCreateDate().Compare(b.GetCreateDate()) * sortDirection })
+		slices.SortFunc(
+			medias, func(a, b types.Media) int { return a.GetCreateDate().Compare(b.GetCreateDate()) * sortDirection },
+		)
 	}
 	return
-}
-
-func (db WeblensDB) RedisCacheSet(key string, data string) error {
-	if !db.useRedis {
-		return nil
-	}
-
-	if db.redis == nil {
-		return errors.New("redis not initialized")
-	}
-	_, err := db.redis.Set(key, data, time.Duration(time.Minute*10)).Result()
-	return err
-}
-
-func (db WeblensDB) RedisCacheGet(key string) (string, error) {
-	if !db.useRedis {
-		return "", ErrNotUsingRedis
-	}
-
-	if db.redis == nil {
-		return "", errors.New("redis not initialized")
-	}
-
-	data, err := db.redis.Get(key).Result()
-
-	return data, err
 }
 
 func (db WeblensDB) AddMedia(m types.Media) error {
@@ -299,7 +266,10 @@ func (db WeblensDB) activateUser(username types.Username) {
 
 func (db WeblensDB) deleteUser(username types.Username) {
 	filter := bson.M{"username": username}
-	db.mongo.Collection("users").DeleteOne(mongoCtx, filter)
+	_, err := db.mongo.Collection("users").DeleteOne(mongoCtx, filter)
+	if err != nil {
+		util.ShowErr(err)
+	}
 }
 
 // func (db WeblensDB) getUsers(ft types.FileTree) ([]user, error) {
@@ -322,42 +292,11 @@ func (db WeblensDB) deleteUser(username types.Username) {
 // 	return users, err
 // }
 
-func (db WeblensDB) CheckToken(username, token string) bool {
-	redisKey := "AuthToken-" + username
-	redisRet, _ := db.RedisCacheGet(redisKey)
-	if redisRet == token {
-		return true
-	}
-
-	filter := bson.D{{Key: "username", Value: username}, {Key: "tokens", Value: token}}
-	ret := db.mongo.Collection("users").FindOne(mongoCtx, filter)
-
-	var user user.User
-	err := ret.Decode(&user)
-	if err == nil {
-		err = db.RedisCacheSet(redisKey, token)
-		util.FailOnError(err, "Failed to add WebToken to redis cache")
-	}
-
-	return err == nil
-}
-
-func (db WeblensDB) updateUser(u *user.User) (err error) {
-	db.redis.Del("AuthToken-" + u.Username.String())
-	filter := bson.M{"username": u.Username.String()}
-	update := bson.M{"$set": u}
-	_, err = db.mongo.Collection("users").UpdateOne(mongoCtx, filter, update)
-
-	return
-}
-
-func (db WeblensDB) FlushRedis() {
-	db.redis.FlushAll()
-}
-
 func (db WeblensDB) SearchUsers(searchStr string) []types.Username {
 	opts := options.Find().SetProjection(bson.M{"username": 1})
-	ret, err := db.mongo.Collection("users").Find(mongoCtx, bson.M{"username": bson.M{"$regex": searchStr, "$options": "i"}}, opts)
+	ret, err := db.mongo.Collection("users").Find(
+		mongoCtx, bson.M{"username": bson.M{"$regex": searchStr, "$options": "i"}}, opts,
+	)
 	// ret, err := db.mongo.Collection("users").Find(mongo_ctx, bson.M{})
 	if err != nil {
 		util.ErrTrace(err, "Failed to autocomplete user search")

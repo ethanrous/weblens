@@ -65,6 +65,8 @@ func main() {
 	}
 	types.SERV.SetUserService(userService)
 
+	instanceService.GetLocal().SetUserCount(types.SERV.UserService.Size())
+
 	shareService := share.NewService()
 	err = shareService.Init(dbService)
 	if err != nil {
@@ -80,7 +82,7 @@ func main() {
 	types.SERV.SetAlbumService(albumService)
 
 	mediaTypeServ := media.NewTypeService()
-	mediaService := media.NewRepo(mediaTypeServ, ft, userService, albumService)
+	mediaService := media.NewRepo(mediaTypeServ)
 	err = mediaService.Init(dbService)
 	if err != nil {
 		panic(err)
@@ -91,6 +93,7 @@ func main() {
 	types.SERV.SetClientService(clientService)
 
 	workerPool, taskDispatcher := dataProcess.NewWorkerPool(runtime.NumCPU() - 2)
+	types.SERV.SetWorkerPool(workerPool)
 	types.SERV.SetTaskDispatcher(taskDispatcher)
 
 	journal := history.NewService(ft, dbService)

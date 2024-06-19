@@ -45,7 +45,7 @@ WatcherLoop:
 		// 	if event.Has(fsnotify.Create) {
 		// 		// Move events show up as a distinct "Create" in the destination
 		// 		// followed by a "Rename" in the old location, so we hold on to
-		// 		// create actions for 100 ms to wait for the following rename.
+		// 		// create Actions for 100 ms to wait for the following rename.
 		//
 		// 		if holder == nil {
 		// 			holder = &event

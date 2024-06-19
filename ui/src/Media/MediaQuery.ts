@@ -9,9 +9,10 @@ export async function FetchData(
 ) {
     if (
         !authHeader ||
-        authHeader.Authorization === '' ||
-        mediaState.albumsMap.size === 0
+        authHeader.Authorization === ''
+        // mediaState.albumsMap.size === 0
     ) {
+        console.log('HERE', authHeader, mediaState)
         return
     }
 

@@ -102,7 +102,7 @@ export class WeblensFile {
 
         if (
             newInfo.mediaData &&
-            newInfo.mediaData.mediaId !== this.media?.Id()
+            newInfo.mediaData.contentId !== this.media?.Id()
         ) {
             this.media = new WeblensMedia(newInfo.mediaData)
         }

@@ -104,7 +104,7 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 	packagedInfo := gin.H{"self": selfData, "children": filteredDirInfo, "parents": parentsInfo}
 	ctx.JSON(http.StatusOK, packagedInfo)
 
-	if slices.ContainsFunc(filteredDirInfo, func(i types.FileInfo) bool { return !i.Imported }) {
+	if slices.ContainsFunc(filteredDirInfo, func(i types.FileInfo) bool { return !i.Imported && i.Displayable }) {
 		c := NewBufferedCaster()
 		t := types.SERV.TaskDispatcher.ScanDirectory(dir, c)
 		t.SetCleanup(func() {
@@ -309,9 +309,7 @@ func moveFiles(ctx *gin.Context) {
 	defer caster.Close()
 
 	for _, fileId := range filesData.Files {
-		action := history.NewFileAction(types.SERV.FileTree.Get(fileId).GetContentId(), history.FileMove)
-		fileEvent.AddAction(action)
-		tp.MoveFile(fileId, filesData.NewParentId, "", caster)
+		tp.MoveFile(fileId, filesData.NewParentId, "", fileEvent, caster)
 	}
 
 	err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)

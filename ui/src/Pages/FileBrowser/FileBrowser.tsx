@@ -145,7 +145,7 @@ function PasteImageDialogue({
     if (!img) {
         return <></>
     }
-    const media = new WeblensMedia({ mediaId: 'paste' })
+    const media = new WeblensMedia({ contentId: 'paste' })
     media.SetThumbnailBytes(img)
 
     return (

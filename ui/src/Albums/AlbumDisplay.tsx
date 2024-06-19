@@ -234,7 +234,7 @@ export function MiniAlbumCover({
     authHeader?: AuthHeaderT
 }) {
     if (!album.CoverMedia && album.Cover && authHeader) {
-        album.CoverMedia = new WeblensMedia({ mediaId: album.Cover })
+        album.CoverMedia = new WeblensMedia({ contentId: album.Cover })
     }
 
     return (

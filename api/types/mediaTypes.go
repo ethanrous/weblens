@@ -10,7 +10,7 @@ type MediaRepo interface {
 	BaseService[ContentId, Media]
 
 	TypeService() MediaTypeService
-	FetchCacheImg(m Media, q Quality, pageNum int, tree FileTree) ([]byte, error)
+	FetchCacheImg(m Media, q Quality, pageNum int) ([]byte, error)
 	GetFilteredMedia(requester User, sort string, sortDirection int, albumFilter []AlbumId, raw bool) ([]Media, error)
 	RunExif(path string) ([]exiftool.FileMetadata, error)
 }
@@ -18,7 +18,7 @@ type MediaRepo interface {
 type Media interface {
 	ID() ContentId
 	IsImported() bool
-	IsCached(FileTree) bool
+	IsCached() bool
 	IsFilledOut() (bool, string)
 	IsHidden() bool
 	IsEnabled() bool
@@ -42,11 +42,12 @@ type Media interface {
 
 	LoadFromFile(WeblensFile, []byte, Task) (Media, error)
 
-	ReadDisplayable(Quality, FileTree, ...int) ([]byte, error)
+	ReadDisplayable(Quality, ...int) ([]byte, error)
 	GetPageCount() int
 
-	GetCacheFile(q Quality, generateIfMissing bool, pageNum int, ft FileTree) (WeblensFile, error)
+	GetCacheFile(q Quality, generateIfMissing bool, pageNum int) (WeblensFile, error)
 	// SetPageCount(int)
+	MarshalJSON() ([]byte, error)
 }
 
 type ContentId string

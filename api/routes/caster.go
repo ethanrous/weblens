@@ -9,6 +9,19 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
+type unbufferedCaster struct {
+	enabled bool
+}
+
+type bufferedCaster struct {
+	bufLimit          int
+	buffer            []wsResponse
+	autoFlush         bool
+	enabled           bool
+	autoFlushInterval time.Duration
+	bufLock           *sync.Mutex
+}
+
 func NewCaster() types.BroadcasterAgent {
 	serverInfo := types.SERV.InstanceService.GetLocal()
 	if serverInfo == nil || serverInfo.ServerRole() != types.Core {
@@ -66,14 +79,19 @@ func (c *unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, newFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, newFile.GetTree()).SetRequestMode(
+		dataStore.WebsocketFileUpdate,
+	)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return
 	}
 
-	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(newFile.GetParent().ID()), "file_created", []types.WsMsg{{"fileInfo": fileInfo}})
+	types.SERV.ClientManager.Broadcast(
+		types.FolderSubscribe, types.SubId(newFile.GetParent().ID()),
+		"file_created", []types.WsMsg{{"fileInfo": fileInfo}},
+	)
 }
 
 func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
@@ -85,19 +103,27 @@ func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, updatedFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, updatedFile.GetTree()).SetRequestMode(
+		dataStore.WebsocketFileUpdate,
+	)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
 		return
 	}
 
-	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
+	types.SERV.ClientManager.Broadcast(
+		types.FolderSubscribe, types.SubId(updatedFile.ID()),
+		"file_updated", []types.WsMsg{{"fileInfo": fileInfo}},
+	)
 
 	if updatedFile.GetParent().Owner() == dataStore.WeblensRootUser {
 		return
 	}
-	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(updatedFile.GetParent().ID()), "file_updated", []types.WsMsg{{"fileInfo": fileInfo}})
+	types.SERV.ClientManager.Broadcast(
+		types.FolderSubscribe, types.SubId(updatedFile.GetParent().ID()), "file_updated",
+		[]types.WsMsg{{"fileInfo": fileInfo}},
+	)
 }
 
 func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFile types.WeblensFile) {
@@ -105,7 +131,9 @@ func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveF
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, postMoveFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, postMoveFile.GetTree()).SetRequestMode(
+		dataStore.WebsocketFileUpdate,
+	)
 
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
@@ -130,7 +158,9 @@ func (c *unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 	}
 
 	content := []types.WsMsg{{"fileId": deletedFile.ID()}}
-	types.SERV.ClientManager.Broadcast(types.FolderSubscribe, types.SubId(deletedFile.GetParent().ID()), "file_deleted", content)
+	types.SERV.ClientManager.Broadcast(
+		types.FolderSubscribe, types.SubId(deletedFile.GetParent().ID()), "file_deleted", content,
+	)
 }
 
 func (c *unbufferedCaster) FolderSubToTask(folder types.FileId, taskId types.TaskId) {
@@ -147,7 +177,7 @@ func (c *unbufferedCaster) UnsubTask(task types.Task) {
 	}
 }
 
-// Get a new buffered caster with the auto-flusher pre-enabled.
+// NewBufferedCaster Gets a new buffered caster with the auto-flusher pre-enabled.
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
 func NewBufferedCaster() types.BufferedBroadcasterAgent {
@@ -227,7 +257,9 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, updatedFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(
+		dataStore.WeblensRootUser, updatedFile.GetTree(),
+	).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -263,7 +295,9 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 		return
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser, postMoveFile.GetTree()).SetRequestMode(dataStore.WebsocketFileUpdate)
+	acc := dataStore.NewAccessMeta(
+		dataStore.WeblensRootUser, postMoveFile.GetTree(),
+	).SetRequestMode(dataStore.WebsocketFileUpdate)
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
 		util.ErrTrace(err)
@@ -351,7 +385,7 @@ func (c *bufferedCaster) DisableAutoFlush() {
 	c.autoFlush = false
 }
 
-// Subscribe any subscribers of a folder to a task (presumably one that pertains to that folder)
+// FolderSubToTask Subscribes any subscribers of a folder to a task (presumably one that pertains to that folder)
 func (c *bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
 	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
 	for _, s := range subs {
@@ -380,9 +414,11 @@ func (c *bufferedCaster) flusher() {
 
 func (c *bufferedCaster) bufferAndFlush(msg wsResponse) {
 	c.bufLock.Lock()
-	index := util.Find(c.buffer, func(m wsResponse) bool {
-		return m.EventTag == msg.EventTag && m.SubscribeKey == msg.SubscribeKey
-	})
+	index := util.Find(
+		c.buffer, func(m wsResponse) bool {
+			return m.EventTag == msg.EventTag && m.SubscribeKey == msg.SubscribeKey
+		},
+	)
 	if index == -1 {
 		c.buffer = append(c.buffer, msg)
 	} else {
@@ -403,7 +439,7 @@ func send(r wsResponse) {
 	}
 	defer util.RecoverPanic("Panic caught while broadcasting: %v")
 
-	clients := types.SERV.ClientManager.GetSubscribers(r.broadcastType, types.SubId(r.SubscribeKey))
+	clients := types.SERV.ClientManager.GetSubscribers(r.broadcastType, r.SubscribeKey)
 	clients = util.OnlyUnique(clients)
 
 	if len(clients) != 0 {

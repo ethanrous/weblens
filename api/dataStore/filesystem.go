@@ -19,95 +19,19 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var WeblensRootUser = &user.User{
-	Username: "WEBLENS",
-}
+var WeblensRootUser = types.User(
+	&user.User{
+		Username: "WEBLENS",
+	},
+)
 
-var ExternalRootUser = &user.User{
-	Username: "EXTERNAL",
-}
+var ExternalRootUser = types.User(
+	&user.User{
+		Username: "EXTERNAL",
+	},
+)
 
-var RootDirIds = []types.FileId{"MEDIA", "TMP", "CACHE", "TAKEOUT", "EXTERNAL"}
-
-// Directory to hold the users home directories, and a few extras.
-// This is where most of the data on the filesystem will be stored
-// var mediaRoot = filetree.weblensFile{
-// 	id:       "MEDIA",
-// 	filename: "media",
-// 	owner:    WeblensRootUser,
-//
-// 	isDir:        boolPointer(true),
-// 	absolutePath: util.GetMediaRootPath(),
-//
-// 	childLock: &sync.Mutex{},
-// 	children:  []*filetree.weblensFile{},
-// }
-//
-// // Under the mediaRoot, contentRoot is where backup files are stored
-// // when they are no longer in a user directory, or links to the real files
-// // when they are in use
-// var contentRoot = filetree.weblensFile{
-// 	id:       "CONTENT_LINKS",
-// 	filename: ".content",
-// 	owner:    WeblensRootUser,
-//
-// 	isDir:        boolPointer(true),
-// 	absolutePath: mediaRoot.absolutePath + "/.content/",
-//
-// 	childLock: &sync.Mutex{},
-// 	children:  []*filetree.weblensFile{},
-// }
-//
-// var tmpRoot = filetree.weblensFile{
-// 	id:       "TMP",
-// 	filename: "tmp",
-// 	owner:    WeblensRootUser,
-//
-// 	isDir:        boolPointer(true),
-// 	absolutePath: util.GetTmpDir(),
-//
-// 	childLock: &sync.Mutex{},
-// 	children:  []*filetree.weblensFile{},
-// }
-//
-// var cacheRoot = filetree.weblensFile{
-// 	id:       "CACHE",
-// 	filename: "cache",
-// 	owner:    WeblensRootUser,
-//
-// 	isDir:        boolPointer(true),
-// 	absolutePath: util.GetCacheDir(),
-//
-// 	childLock: &sync.Mutex{},
-// 	children:  []*filetree.weblensFile{},
-// }
-//
-// var takeoutRoot = filetree.weblensFile{
-// 	id:       "TAKEOUT",
-// 	filename: "takeout",
-// 	owner:    WeblensRootUser,
-//
-// 	isDir:        boolPointer(true),
-// 	absolutePath: util.GetTakeoutDir(),
-//
-// 	childLock: &sync.Mutex{},
-// 	children:  []*filetree.weblensFile{},
-// }
-//
-// var externalRoot = filetree.weblensFile{
-// 	id:       "EXTERNAL",
-// 	filename: "External",
-// 	owner:    ExternalRootUser,
-//
-// 	isDir: boolPointer(true),
-//
-// 	// This is a fake directory, it houses the mounted external paths, but does not exist itself
-// 	absolutePath: "",
-// 	readOnly:     true,
-//
-// 	childLock: &sync.Mutex{},
-// 	children:  []*filetree.weblensFile{},
-// }
+var RootDirIds = []types.FileId{"MEDIA", "TMP", "CACHE", "TAKEOUT", "EXTERNAL", "CONTENT_LINKS"}
 
 func FsInit(tree types.FileTree) {
 	mediaRoot, err := tree.NewRoot("MEDIA", "media", util.GetMediaRootPath(), WeblensRootUser, nil)
@@ -130,9 +54,16 @@ func FsInit(tree types.FileTree) {
 	if err != nil {
 		panic(err)
 	}
-	contentRoot, err := tree.NewRoot("CONTENT_LINKS", ".content", filepath.Join(mediaRoot.GetAbsPath(), ".content"),
+	contentRoot, err := tree.NewRoot(
+		"CONTENT_LINKS", ".content", filepath.Join(mediaRoot.GetAbsPath(), ".content"),
 		WeblensRootUser,
-		mediaRoot)
+		mediaRoot,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	err = tree.SetDelDirectory(tree.Get("CONTENT_LINKS"))
 	if err != nil {
 		panic(err)
 	}
@@ -142,9 +73,11 @@ func FsInit(tree types.FileTree) {
 		panic(err)
 	}
 
-	slices.SortFunc(lifetimes, func(a, b types.Lifetime) int {
-		return strings.Compare(string(a.GetFileId()), string(b.GetFileId()))
-	})
+	slices.SortFunc(
+		lifetimes, func(a, b types.Lifetime) int {
+			return strings.Compare(string(a.GetLatestFileId()), string(b.GetLatestFileId()))
+		},
+	)
 
 	if !mediaRoot.Exists() {
 		err = mediaRoot.CreateSelf()
@@ -199,9 +132,9 @@ func FsInit(tree types.FileTree) {
 		}
 	}
 
+	lifetimes = importFilesRecursive(contentRoot, fileEvent, lifetimes)
 	lifetimes = importFilesRecursive(mediaRoot, fileEvent, lifetimes)
 	lifetimes = importFilesRecursive(cacheRoot, fileEvent, lifetimes)
-	lifetimes = importFilesRecursive(contentRoot, fileEvent, lifetimes)
 
 	// err = cacheRoot.ReadDir()
 	// if err != nil {
@@ -239,31 +172,34 @@ func FsInit(tree types.FileTree) {
 	}
 
 	// Compute size for the whole tree
-	err = mediaRoot.LeafMap(func(wf types.WeblensFile) error {
-		return wf.LoadStat()
-	})
+	err = mediaRoot.LeafMap(
+		func(wf types.WeblensFile) error {
+			return wf.LoadStat()
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	err = cacheRoot.LeafMap(func(wf types.WeblensFile) error {
-		return wf.LoadStat()
-	})
+	err = cacheRoot.LeafMap(
+		func(wf types.WeblensFile) error {
+			return wf.LoadStat()
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
 
 	if externalRoot.GetParent() != mediaRoot {
-		err = externalRoot.LeafMap(func(wf types.WeblensFile) error {
-			return wf.LoadStat()
-		})
+		err = externalRoot.LeafMap(
+			func(wf types.WeblensFile) error {
+				return wf.LoadStat()
+			},
+		)
 		if err != nil {
 			panic(err)
 		}
 	}
-
-	// clean up journal init
-	lifetimes = nil
 
 	for _, u := range users {
 		homeId := tree.GenerateFileId(filepath.Join(mediaRoot.GetAbsPath(), string(u.GetUsername())) + "/")
@@ -286,58 +222,69 @@ func FsInit(tree types.FileTree) {
 
 func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifetimes []types.Lifetime) []types.Lifetime {
 	var toLoad = []types.WeblensFile{f}
+	pool := types.SERV.WorkerPool.NewTaskPool(false, nil)
 	for len(toLoad) != 0 {
 		var fileToLoad types.WeblensFile
 
 		// Pop from slice of files to load
 		fileToLoad, toLoad = toLoad[0], toLoad[1:]
+		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) || (fileToLoad.Filename() == "."+
+			"content" && fileToLoad.ID() != "CONTENT_LINKS") {
+			continue
+		}
 
-		index, e := slices.BinarySearchFunc(lifetimes, fileToLoad.ID(), func(fId types.Lifetime,
-			id types.FileId) int {
-			return strings.Compare(string(fId.GetFileId()), string(id))
-		})
-		if !e {
-			if fileToLoad.GetContentId() == "" && !fileToLoad.IsDir() && fileToLoad.Owner() != WeblensRootUser {
-				util.Debug.Println("Starting task...")
-				contentId := types.SERV.TaskDispatcher.HashFile(fileToLoad,
-					types.SERV.Caster).Wait().GetResult("contentId")
-				if contentId != nil {
-					fileToLoad.SetContentId(contentId.(types.ContentId))
+		if fileToLoad.Owner() != WeblensRootUser {
+			index, e := slices.BinarySearchFunc(
+				lifetimes, fileToLoad.ID(), func(lt types.Lifetime, id types.FileId) int {
+					return strings.Compare(string(lt.GetLatestFileId()), string(id))
+				},
+			)
+			if !e {
+				if fileToLoad.GetContentId() == "" && !fileToLoad.IsDir() {
+					util.Debug.Println("Starting task...")
+					pool.HashFile(
+						fileToLoad,
+						types.SERV.Caster,
+					).SetPostAction(
+						func(result types.TaskResult) {
+							fileToLoad.SetContentId(result["contentId"].(types.ContentId))
+							fileEvent.AddAction(history.NewCreateAction(fileToLoad.GetAbsPath()))
+						},
+					)
+				} else if fileToLoad.IsDir() {
+					fileEvent.AddAction(history.NewCreateAction(fileToLoad.GetAbsPath()))
 				}
-				fileEvent.AddAction(history.NewCreateEntry(fileToLoad.GetAbsPath(), fileToLoad.GetContentId()))
+			} else {
+				var life types.Lifetime
+				lifetimes, life = util.Yoink(lifetimes, index)
+				fileToLoad.SetContentId(life.GetContentId())
 			}
-		} else {
-			var life types.Lifetime
-			lifetimes, life = util.Yoink(lifetimes, index)
-			fileToLoad.SetContentId(life.GetContentId())
 		}
 
 		if !slices.Contains(RootDirIds, fileToLoad.ID()) {
-			if f.GetTree().Get(fileToLoad.ID()) != nil {
+			if types.SERV.FileTree.Get(fileToLoad.ID()) != nil {
+				util.Warning.Println("Skipping initilization of a file already present in the tree:", fileToLoad.ID())
 				continue
-				// panic(types.NewWeblensError(fmt.Sprintf("key collision on attempt to insert to filesystem tree: [%s] %s", fileToLoad.ID(), fileToLoad.GetAbsPath())))
 			}
-			err := f.GetTree().Add(fileToLoad)
+			err := types.SERV.FileTree.Add(fileToLoad)
 			if err != nil {
 				panic(err)
 			}
 		}
 
 		if fileToLoad.IsDir() {
-			err := fileToLoad.ReadDir()
+			children, err := fileToLoad.ReadDir()
 			if err != nil {
 				panic(err)
 			}
+			toLoad = append(toLoad, children...)
 		}
-
-		toLoad = append(toLoad, fileToLoad.GetChildren()...)
 	}
 
-	return lifetimes
-}
+	pool.SignalAllQueued()
+	pool.Wait(false)
 
-var dirIgnore = map[string]bool{
-	".DS_Store": true,
+	return lifetimes
 }
 
 func ClearTempDir(ft types.FileTree) (err error) {
@@ -438,7 +385,11 @@ func MoveFileToTrash(file types.WeblensFile, acc types.AccessMeta, c ...types.Br
 	trash := file.Owner().GetTrashFolder()
 	newFilename := MakeUniqueChildName(trash, file.Filename())
 
-	buffered := util.SliceConvert[types.BufferedBroadcasterAgent](util.Filter(c, func(b types.BroadcasterAgent) bool { return b.IsBuffered() }))
+	buffered := util.SliceConvert[types.BufferedBroadcasterAgent](
+		util.Filter(
+			c, func(b types.BroadcasterAgent) bool { return b.IsBuffered() },
+		),
+	)
 	err := file.GetTree().Move(file, trash, newFilename, false, buffered...)
 	if err != nil {
 		return err
@@ -472,7 +423,11 @@ func ReturnFileFromTrash(trashFile types.WeblensFile, c ...types.BroadcasterAgen
 		oldParent = trashFile.Owner().GetTrashFolder()
 	}
 
-	buffered := util.SliceConvert[types.BufferedBroadcasterAgent](util.Filter(c, func(b types.BroadcasterAgent) bool { return b.IsBuffered() }))
+	buffered := util.SliceConvert[types.BufferedBroadcasterAgent](
+		util.Filter(
+			c, func(b types.BroadcasterAgent) bool { return b.IsBuffered() },
+		),
+	)
 	err = trashFile.GetTree().Move(trashFile, oldParent, te.OrigFilename, false, buffered...)
 
 	if err != nil {
@@ -495,18 +450,20 @@ func ReturnFileFromTrash(trashFile types.WeblensFile, c ...types.BroadcasterAgen
 }
 
 // PermanentlyDeleteFile removes file being pointed to from the tree and deletes it from the real filesystem
-func PermanentlyDeleteFile(file types.WeblensFile) (err error) {
-	// if len(c) == 0 {
-	// 	c = append(c, globalCaster)
-	// }
-
-	err = file.GetTree().Del(file.ID())
+func PermanentlyDeleteFile(file types.WeblensFile, c ...types.BroadcasterAgent) (err error) {
+	ownerTrash := file.Owner().GetTrashFolder()
+	err = types.SERV.FileTree.Del(file.ID())
 
 	if err != nil {
 		return
 	}
 
 	err = dbServer.removeTrashEntry(file.ID())
+	if err != nil {
+		return err
+	}
+
+	err = types.SERV.FileTree.ResizeUp(ownerTrash, c...)
 	if err != nil {
 		return err
 	}
@@ -531,16 +488,18 @@ func RecursiveGetMedia(mediaRepo types.MediaRepo, folders ...types.WeblensFile) 
 			}
 			continue
 		}
-		err := f.RecursiveMap(func(f types.WeblensFile) error {
-			if !f.IsDir() && f.IsDisplayable() {
-				m := mediaRepo.Get(f.GetContentId())
+		err := f.RecursiveMap(
+			func(f types.WeblensFile) error {
+				if !f.IsDir() && f.IsDisplayable() {
+					m := mediaRepo.Get(f.GetContentId())
 
-				if m != nil {
-					ms = append(ms, m.ID())
+					if m != nil {
+						ms = append(ms, m.ID())
+					}
 				}
-			}
-			return nil
-		})
+				return nil
+			},
+		)
 		if err != nil {
 			util.ShowErr(err)
 		}
@@ -650,7 +609,9 @@ func BackupBaseFile(remoteId string, data []byte, ft types.FileTree) (baseF type
 	return
 }
 
-func CacheBaseMedia(mediaId types.ContentId, data [][]byte, ft types.FileTree) (newThumb, newFullres types.WeblensFile, err error) {
+func CacheBaseMedia(mediaId types.ContentId, data [][]byte, ft types.FileTree) (
+	newThumb, newFullres types.WeblensFile, err error,
+) {
 	cacheRoot := ft.Get("CACHE")
 	newThumb, err = ft.Touch(cacheRoot, string(mediaId)+"-thumbnail.cache", false, nil)
 	if err != nil && !errors.Is(err, types.ErrFileAlreadyExists) {
@@ -681,9 +642,11 @@ func getChildByName(dir types.WeblensFile, childName string) (types.WeblensFile,
 	}
 
 	children := dir.GetChildren()
-	_, child, exist := util.YoinkFunc(children, func(c types.WeblensFile) bool {
-		return c.Filename() == childName
-	})
+	_, child, exist := util.YoinkFunc(
+		children, func(c types.WeblensFile) bool {
+			return c.Filename() == childName
+		},
+	)
 	if !exist {
 		return nil, types.ErrNoFile
 	}
@@ -706,4 +669,8 @@ func MakeUniqueChildName(parent types.WeblensFile, childName string) string {
 	}
 
 	return newFilename
+}
+
+var IgnoreFilenames = []string{
+	".DS_Store",
 }

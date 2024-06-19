@@ -38,7 +38,7 @@ export const MediaImage = memo(
         disabled?: boolean
     }) => {
         if (!media) {
-            media = new WeblensMedia({ mediaId: '' })
+            media = new WeblensMedia({ contentId: '' })
         }
 
         const [loadError, setLoadErr] = useState('')
@@ -111,11 +111,11 @@ export const MediaImage = memo(
                     )}
 
                 <img
-                    alt={'image'}
+                    // alt={'image'}
                     data-fit-logic={fitLogic}
                     data-disabled={disabled}
                     data-hide={src.url === '' || media.HasLoadError()}
-                    className="media-image"
+                    className="media-image animate-fade"
                     draggable={false}
                     src={src.url}
                     style={imgStyle}

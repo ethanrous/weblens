@@ -59,7 +59,7 @@ type BufferedBroadcasterAgent interface {
 	DropBuffer()
 	DisableAutoFlush()
 	AutoFlushEnable()
-	// Flush()
+	Flush()
 
 	// flush, release the auto-flusher, and disable the caster
 	Close()

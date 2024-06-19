@@ -33,7 +33,7 @@ type workerPool struct {
 
 	taskStream   workChannel
 	taskBufferMu *sync.Mutex
-	taskBuffer   []*task
+	retryBuffer  []*task
 	hitStream    hitChannel
 
 	exitFlag int
@@ -55,7 +55,7 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 		taskMap: map[types.TaskId]types.Task{},
 
 		taskStream:   make(workChannel, initWorkers*1000),
-		taskBuffer:   []*task{},
+		retryBuffer:  []*task{},
 		taskBufferMu: &sync.Mutex{},
 
 		hitStream: make(hitChannel, initWorkers*2),
@@ -67,10 +67,32 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 	newWp.maxWorkers.Add(int64(initWorkers))
 
 	// Worker pool always has one global queue
-	globalPool := newWp.NewVirtualTaskPool()
+	globalPool := newWp.newTaskPoolInternal()
 	globalPool.MarkGlobal()
 
 	return newWp, globalPool
+}
+
+// NewTaskPool `replace` spawns a temporary replacement thread on the parent worker pool.
+// This prevents a deadlock when the queue fills up while adding many tasks, and none are being executed
+//
+// `parent` allows chaining of task pools for floating updates to the top. This makes
+// it possible for clients to subscribe to a single task, and get notified about
+// all of the sub-updates of that task
+// See taskPool.go
+func (wp *workerPool) NewTaskPool(replace bool, createdBy types.Task) types.TaskPool {
+	tp := wp.newTaskPoolInternal().(*taskPool)
+	if createdBy != nil {
+		tp.createdBy = createdBy
+		if !createdBy.GetTaskPool().IsGlobal() {
+			tp.createdBy = createdBy
+		}
+	}
+	if replace {
+		wp.addReplacementWorker()
+		tp.hasQueueThread = true
+	}
+	return tp
 }
 
 func workerRecover(task *task, workerId int64) {
@@ -91,9 +113,15 @@ func workerRecover(task *task, workerId int64) {
 	}
 }
 
+// saftyWork wraps the task execution with a recover, so if there are any panics
+// during the task, we can catch them, display them, and safely remove the task.
 func safetyWork(task *task, workerId int64) {
 	defer workerRecover(task, workerId)
 	task.work(task)
+
+	if task.postAction != nil && task.exitStatus == TaskSuccess {
+		task.postAction(task.result)
+	}
 }
 
 func (wp *workerPool) AddHit(time time.Time, target types.Task) {
@@ -125,13 +153,12 @@ func (wp *workerPool) reaper() {
 
 func (wp *workerPool) bufferDrainer() {
 	for wp.exitFlag == 0 {
-		if len(wp.taskBuffer) != 0 && len(wp.taskStream) == 0 {
+		if len(wp.retryBuffer) != 0 && len(wp.taskStream) == 0 {
 			wp.taskBufferMu.Lock()
-			util.Debug.Println("Draining the buffer!")
-			for _, t := range wp.taskBuffer {
+			for _, t := range wp.retryBuffer {
 				wp.taskStream <- t
 			}
-			wp.taskBuffer = []*task{}
+			wp.retryBuffer = []*task{}
 			wp.taskBufferMu.Unlock()
 		}
 		time.Sleep(time.Second * 10)
@@ -140,11 +167,11 @@ func (wp *workerPool) bufferDrainer() {
 	util.ErrTrace(errors.New("buffer drainer exited"))
 }
 
-func (wp *workerPool) addToTaskBuffer(tasks []*task) {
+func (wp *workerPool) addToRetryBuffer(tasks []*task) {
 	wp.taskBufferMu.Lock()
 	defer wp.taskBufferMu.Unlock()
 	util.Debug.Printf("Adding %d tasks to the buffer!", len(tasks))
-	wp.taskBuffer = append(wp.taskBuffer, tasks...)
+	wp.retryBuffer = append(wp.retryBuffer, tasks...)
 }
 
 // Run launches the standard threads for this worker pool
@@ -185,7 +212,7 @@ func (wp *workerPool) removeTask(taskKey types.TaskId) {
 }
 
 // For debugging only. This does nothing if the DEV_MODE env var is set to false, as no stopwatch results
-// will show then
+// will be printed reguardless
 const printStopwatchResults = false
 
 // Main worker method, spawn a worker and loop over the task channel
@@ -230,7 +257,7 @@ func (wp *workerPool) execWorker(replacement bool) {
 						break
 					}
 				}
-				wp.addToTaskBuffer(tBuf)
+				wp.addToRetryBuffer(tBuf)
 			}
 
 			// Inc tasks being processed
@@ -250,9 +277,13 @@ func (wp *workerPool) execWorker(replacement bool) {
 			}
 
 			// Notify this task has completed, and unsubscribe any subscribers to it
-			t.caster.PushTaskUpdate(t.taskId, TaskComplete,
-				types.TaskResult{"task_id": t.taskId, "exit_status": t.exitStatus})
+			t.caster.PushTaskUpdate(
+				t.taskId, TaskComplete,
+				types.TaskResult{"task_id": t.taskId, "exit_status": t.exitStatus},
+			)
 			t.caster.UnsubTask(t)
+
+			/* No websocket updates to the client past this point */
 
 			// Potentially find the task pool that houses this task pool. All child
 			// task pools report their status to the root task pool as well.
@@ -294,8 +325,10 @@ func (wp *workerPool) execWorker(replacement bool) {
 
 				directParent.LockExit()
 				uncompletedTasks := directParent.totalTasks.Load() - directParent.completedTasks.Load()
-				util.Debug.Printf("Uncompleted tasks on tp created by %s: %d",
-					directParent.CreatedInTask().TaskId(), uncompletedTasks-1)
+				util.Debug.Printf(
+					"Uncompleted tasks on tp created by %s: %d",
+					directParent.CreatedInTask().TaskId(), uncompletedTasks-1,
+				)
 				canContinue = directParent.handleTaskExit(replacement)
 
 				// We *should* get the same canContinue value from here, so we do not
@@ -333,7 +366,7 @@ func (wp *workerPool) removeWorker() {
 	wp.maxWorkers.Add(-1)
 }
 
-func (wp *workerPool) NewVirtualTaskPool() types.TaskPool {
+func (wp *workerPool) newTaskPoolInternal() types.TaskPool {
 	newQueue := &taskPool{
 		totalTasks:     &atomic.Int64{},
 		completedTasks: &atomic.Int64{},
@@ -363,8 +396,10 @@ func (wp *workerPool) statusReporter() {
 		time.Sleep(time.Second * 10)
 		remaining, total, busy, alive := wp.Status()
 		if busy != 0 {
-			util.Info.Printf("Task worker pool status (queued/total, #busy, #alive): %d/%d, %d, %d",
-				remaining, total, busy, alive)
+			util.Info.Printf(
+				"Task worker pool status (queued/total, #busy, #alive): %d/%d, %d, %d",
+				remaining, total, busy, alive,
+			)
 		}
 	}
 }

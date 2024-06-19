@@ -2,7 +2,7 @@ import API_ENDPOINT from '../api/ApiEndpoint'
 import { AuthHeaderT, mediaType } from '../types/Types'
 
 export interface MediaDataT {
-    mediaId: string
+    contentId: string
     mimeType?: string
 
     fileIds?: string[]
@@ -10,8 +10,8 @@ export interface MediaDataT {
     fullresCacheIds?: string
     blurHash?: string
     owner?: string
-    mediaWidth?: number
-    mediaHeight?: number
+    width?: number
+    height?: number
     createDate?: string
     recognitionTags?: string[]
     pageCount?: number
@@ -46,7 +46,7 @@ class WeblensMedia {
     }
 
     Id(): string {
-        return this.data.mediaId
+        return this.data.contentId
     }
 
     IsHidden(): boolean {
@@ -104,6 +104,10 @@ class WeblensMedia {
     }
 
     IsDisplayable(): boolean {
+        const mt = this.GetMediaType()
+        if (!mt) {
+            return false
+        }
         return this.GetMediaType().IsDisplayable
     }
 
@@ -120,11 +124,11 @@ class WeblensMedia {
     }
 
     GetHeight(): number {
-        return this.data.mediaHeight
+        return this.data.height
     }
 
     GetWidth(): number {
-        return this.data.mediaWidth
+        return this.data.width
     }
 
     SetNextLink(next: WeblensMedia) {
@@ -233,7 +237,7 @@ class WeblensMedia {
         signal: AbortSignal,
         pageNumber?: number
     ) {
-        if (!this.data.mediaId) {
+        if (!this.data.contentId) {
             console.error('Trying to get image of media without id')
             return
         }
@@ -241,7 +245,7 @@ class WeblensMedia {
             `${
                 // doPublic ? PUBLIC_ENDPOINT : API_ENDPOINT
                 API_ENDPOINT
-            }/media/${this.data.mediaId}/${quality}`
+            }/media/${this.data.contentId}/${quality}`
         )
 
         if (pageNumber !== undefined) {

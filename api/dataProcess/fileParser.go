@@ -42,24 +42,23 @@ func processMediaFile(t *task) {
 
 	t.CheckExit()
 
-	util.Error.Println("TODO? Write media to db")
-	// err = m.Save()
-	// if err != nil {
-	// 	t.ErrorAndExit(err)
-	// 	return
-	// }
+	err = types.SERV.MediaRepo.Add(m)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
 
 	t.CheckExit()
 
 	m.Clean()
-	if !m.IsCached(file.GetTree()) {
+	if !m.IsCached() {
 		t.ErrorAndExit(fmt.Errorf("media scan exiting due to missing cache"))
 	}
-	m.SetImported(true)
 
 	if t.caster != nil {
 		t.caster.PushFileUpdate(file)
 		t.taskPool.NotifyTaskComplete(t, t.caster)
+	} else {
+		util.Warning.Println("nil caster in file scan")
 	}
 
 	t.success()
@@ -71,7 +70,9 @@ func scanDirectory(t *task) {
 
 	if scanDir.Filename() == ".user_trash" {
 		t.taskPool.NotifyTaskComplete(t, t.caster, "No media to scan")
-		t.caster.PushTaskUpdate(t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
+		t.caster.PushTaskUpdate(
+			t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()},
+		) // Let any client subscribers know we are done
 		t.success("No media to scan")
 		return
 	}
@@ -94,30 +95,32 @@ func scanDirectory(t *task) {
 	t.caster.FolderSubToTask(scanDir.ID(), t.TaskId())
 	t.caster.FolderSubToTask(scanDir.GetParent().ID(), t.TaskId())
 
-	err := scanDir.LeafMap(func(wf types.WeblensFile) error {
-		if wf.IsDir() {
-			return nil
-			// TODO: Lock directory files while scanning to be able to check what task is using each file
-			// wf.AddTask(t)
-		}
-		// If this file is already being processed, don't queue it again
-		fileTask := wf.GetTask()
-		if fileTask != nil && fileTask.TaskType() == ScanFileTask {
-			return nil
-		}
+	err := scanDir.LeafMap(
+		func(wf types.WeblensFile) error {
+			if wf.IsDir() {
+				return nil
+				// TODO: Lock directory files while scanning to be able to check what task is using each file
+				// wf.AddTask(t)
+			}
+			// If this file is already being processed, don't queue it again
+			fileTask := wf.GetTask()
+			if fileTask != nil && fileTask.TaskType() == ScanFileTask {
+				return nil
+			}
 
-		if !wf.IsDisplayable() {
-			return nil
-		}
+			if !wf.IsDisplayable() {
+				return nil
+			}
 
-		m := types.SERV.MediaRepo.Get(wf.GetContentId())
-		if m != nil && m.IsImported() && m.IsCached(wf.GetTree()) {
-			return nil
-		}
+			m := types.SERV.MediaRepo.Get(wf.GetContentId())
+			if m != nil && m.IsImported() && m.IsCached() {
+				return nil
+			}
 
-		tp.ScanFile(wf, t.caster)
-		return nil
-	})
+			tp.ScanFile(wf, t.caster)
+			return nil
+		},
+	)
 
 	if err != nil {
 		t.ErrorAndExit(err)
@@ -128,12 +131,19 @@ func scanDirectory(t *task) {
 
 	errs := tp.Errors()
 	if len(errs) != 0 {
-		t.caster.PushTaskUpdate(t.taskId, TaskFailed, types.TaskResult{"failure_note": fmt.Sprintf(
-			"%d scans failed", len(errs))}) // Let any client subscribers know we are done
+		t.caster.PushTaskUpdate(
+			t.taskId, TaskFailed, types.TaskResult{
+				"failure_note": fmt.Sprintf(
+					"%d scans failed", len(errs),
+				),
+			},
+		) // Let any client subscribers know we are done
 		t.ErrorAndExit(ErrChildTaskFailed)
 	}
 
-	t.caster.PushTaskUpdate(t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()}) // Let any client subscribers know we are done
+	t.caster.PushTaskUpdate(
+		t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()},
+	) // Let any client subscribers know we are done
 	tp.NotifyTaskComplete(t, t.caster)
 	t.success()
 }
@@ -154,8 +164,10 @@ func getScanResult(t *task) types.TaskResult {
 		result["percent_progress"] = progress
 		result["tasks_complete"] = complete
 		result["tasks_total"] = total
-		result["task_job_name"] = tp.CreatedInTask().TaskType()
-		result["task_job_target"] = tp.CreatedInTask().(*task).metadata.(scanMetadata).file.Filename()
+		if tp.CreatedInTask() != nil {
+			result["task_job_name"] = tp.CreatedInTask().TaskType()
+			result["task_job_target"] = tp.CreatedInTask().(*task).metadata.(scanMetadata).file.Filename()
+		}
 	} else {
 		result["task_job_name"] = t.TaskType()
 		result["task_job_target"] = t.metadata.(scanMetadata).file.Filename()

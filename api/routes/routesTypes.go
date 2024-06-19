@@ -3,8 +3,6 @@ package routes
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
 )
@@ -100,21 +98,6 @@ type scanBody struct {
 }
 
 // Physical of broadcasters to inform clients of updates in real time
-
-type bufferedCaster struct {
-	bufLimit          int
-	buffer            []wsResponse
-	autoFlush         bool
-	enabled           bool
-	autoFlushInterval time.Duration
-	bufLock           *sync.Mutex
-	mediaRepo         types.MediaRepo
-}
-
-type unbufferedCaster struct {
-	enabled   bool
-	mediaRepo types.MediaRepo
-}
 
 var ErrBadAuthScheme = types.NewWeblensError("invalid authorization scheme")
 var ErrBasicAuthFormat = types.NewWeblensError("did not get expected encoded basic auth format")

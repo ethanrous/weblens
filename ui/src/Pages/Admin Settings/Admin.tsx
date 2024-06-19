@@ -352,12 +352,12 @@ export function Admin({ open, closeAdminMenu }) {
     useKeyDown('Escape', closeAdminMenu)
 
     useEffect(() => {
-        if (authHeader.Authorization !== '') {
+        if (authHeader.Authorization !== '' && open && !allUsersInfo) {
             GetUsersInfo(setAllUsersInfo, authHeader)
         }
-    }, [authHeader])
+    }, [authHeader, open])
 
-    if (usr.isLoggedIn === undefined) {
+    if (usr.isLoggedIn === undefined || !open) {
         return null
     }
 

@@ -123,36 +123,22 @@ func AddSharedRoutes(api *gin.RouterGroup) {
 
 func AddApiRoutes(api *gin.RouterGroup) {
 
-	/* Public */
-
+	// Media
 	api.GET("/media/types", getMediaTypes)
 	api.GET("/media/random", getRandomMedias)
-
-	api.GET("/file/:fileId", getFile)
-	api.GET("/file/share/:shareId", getFileShare)
-	api.GET("/download", downloadFile)
-
-	api.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
-
-	api.POST("/login", loginUser)
-	api.POST("/user", createUser)
-	api.POST("/upload/:uploadId", newFileUpload)
-	api.POST("/takeout", createTakeout)
-
-	/* Api */
-
-	api.GET("/user", getUserInfo)
-	api.GET("/users/search", searchUsers)
-	api.PATCH("/user/:username/password", updateUserPassword)
-
 	api.GET("/media", getMediaBatch)
 	api.PATCH("/media/hide", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
+	// File
+	api.GET("/file/:fileId", getFile)
+	api.GET("/file/share/:shareId", getFileShare)
 	api.GET("/file/:fileId/shares", getFilesShares)
+	api.GET("/file/download", downloadFile)
 	api.PATCH("/file/:fileId", updateFile)
 	api.PATCH("/file/share/:shareId", updateFileShare)
 
+	// Files
 	api.GET("/files/:folderId/stats", getFolderStats)
 	api.GET("/files/shared", getSharedFiles)
 	api.PATCH("/files", moveFiles)
@@ -160,27 +146,44 @@ func AddApiRoutes(api *gin.RouterGroup) {
 	api.PATCH("/files/untrash", unTrashFiles)
 	api.DELETE("/files", deleteFiles)
 
+	// Upload
+	api.POST("/upload", newUploadTask)
+	api.POST("/upload/:uploadId", newFileUpload)
+	api.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
+
+	// Folder
 	api.GET("/folder/:folderId", getFolder)
 	api.GET("/folder/:folderId/search", searchFolder)
 	api.POST("/folder", createFolder)
 
+	// Folders
 	api.GET("/folders/media", getFoldersMedia)
 
-	api.POST("/upload", newUploadTask)
+	// User
+	api.GET("/user", getUserInfo)
+	api.GET("/users/search", searchUsers)
+	api.POST("/user", createUser)
+	api.PATCH("/user/:username/password", updateUserPassword)
 
-	api.DELETE("/share/:shareId", deleteShare)
+	// Share
 	api.POST("/share/files", createFileShare)
+	api.DELETE("/share/:shareId", deleteShare)
 
-	api.GET("/albums", getAlbums)
-	api.POST("/album", createAlbum)
+	// Album
 	api.GET("/album/:albumId", getAlbum)
 	api.GET("/album/:albumId/preview", albumPreviewMedia)
-	api.PATCH("/album/:albumId", updateAlbum)
+	api.POST("/album", createAlbum)
 	api.POST("/album/:albumId/leave", unshareMeAlbum)
+	api.PATCH("/album/:albumId", updateAlbum)
 	api.DELETE("/album/:albumId", deleteAlbum)
 
-	/* Websocket */
+	// Albums
+	api.GET("/albums", getAlbums)
 
+	api.POST("/login", loginUser)
+	api.POST("/takeout", createTakeout)
+
+	/* Websocket */
 	ws := router.Group("/api")
 	ws.GET("/ws", wsConnect)
 }
@@ -246,22 +249,26 @@ func AddUiRoutes() {
 	memFs.loadIndex()
 	// r.Use(static.Serve("/", static.LocalFile("../ui/build", true)))
 	serveFunc := static.Serve("/", memFs)
-	router.Use(func(ctx *gin.Context) {
-		strings.Index(ctx.Request.RequestURI, "/assets")
+	router.Use(
+		func(ctx *gin.Context) {
+			strings.Index(ctx.Request.RequestURI, "/assets")
 
-		if strings.HasPrefix(ctx.Request.RequestURI, "/assets") {
-			ctx.Writer.Header().Set("Content-Encoding", "gzip")
-		}
-		serveFunc(ctx)
-	})
+			if strings.HasPrefix(ctx.Request.RequestURI, "/assets") {
+				ctx.Writer.Header().Set("Content-Encoding", "gzip")
+			}
+			serveFunc(ctx)
+		},
+	)
 	// r.Use(serveUiFile)
-	router.NoRoute(func(ctx *gin.Context) {
-		if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
-			// using the real path here makes gin redirect to /, which creates an infinite loop
-			// ctx.Writer.Header().Set("Content-Encoding", "gzip")
-			ctx.FileFromFS("/index", memFs)
-		}
-	})
+	router.NoRoute(
+		func(ctx *gin.Context) {
+			if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
+				// using the real path here makes gin redirect to /, which creates an infinite loop
+				// ctx.Writer.Header().Set("Content-Encoding", "gzip")
+				ctx.FileFromFS("/index", memFs)
+			}
+		},
+	)
 }
 
 func snapshotHeap(ctx *gin.Context) {

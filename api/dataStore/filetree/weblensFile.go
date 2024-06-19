@@ -329,16 +329,17 @@ func (f *weblensFile) Append(data []byte) error {
 	return err
 }
 
-func (f *weblensFile) ReadDir() error {
+func (f *weblensFile) ReadDir() ([]types.WeblensFile, error) {
 	if !f.IsDir() || !f.Exists() {
-		return fmt.Errorf("invalid file to read dir")
+		return nil, fmt.Errorf("invalid file to read dir")
 	}
 	entries, err := os.ReadDir(f.absolutePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, file := range entries {
+	children := make([]types.WeblensFile, len(entries))
+	for i, file := range entries {
 		singleChild := f.tree.NewFile(f, file.Name(), file.IsDir())
 		exist := f.tree.Get(singleChild.ID())
 		if exist != nil {
@@ -352,11 +353,12 @@ func (f *weblensFile) ReadDir() error {
 			continue
 		}
 		f.childLock.Unlock()
+		children[i] = singleChild
 
-		err := f.AddChild(singleChild)
-		if err != nil {
-			return err
-		}
+		// err := f.AddChild(singleChild)
+		// if err != nil {
+		// 	return err
+		// }
 
 		// err := fsTreeInsert(singleChild, f)
 		// if err != nil {
@@ -369,7 +371,15 @@ func (f *weblensFile) ReadDir() error {
 		// }
 	}
 
-	return nil
+	children = util.Filter(
+		children, func(c types.WeblensFile) bool {
+			return c != nil
+		},
+	)
+
+	// f.children = children
+
+	return children, nil
 }
 
 func (f *weblensFile) GetContentId() types.ContentId {
@@ -417,6 +427,14 @@ func (f *weblensFile) AddChild(child types.WeblensFile) error {
 		return types.ErrDirectoryRequired
 	}
 
+	if slices.ContainsFunc(
+		f.children, func(file *weblensFile) bool {
+			return file == child
+		},
+	) {
+		return types.ErrChildAlreadyExists
+	}
+
 	f.childLock.Lock()
 	f.children = util.InsertFunc(f.children, child.(*weblensFile), sortWfByFilename)
 	f.childLock.Unlock()
@@ -425,14 +443,16 @@ func (f *weblensFile) AddChild(child types.WeblensFile) error {
 }
 
 func (f *weblensFile) GetChildrenInfo(acc types.AccessMeta) []types.FileInfo {
-	childrenInfo := util.FilterMap(f.children, func(file *weblensFile) (types.FileInfo, bool) {
-		info, err := file.FormatFileInfo(acc)
-		if err != nil {
-			util.ErrTrace(err)
-			return info, false
-		}
-		return info, true
-	})
+	childrenInfo := util.FilterMap(
+		f.children, func(file *weblensFile) (types.FileInfo, bool) {
+			info, err := file.FormatFileInfo(acc)
+			if err != nil {
+				util.ErrTrace(err)
+				return info, false
+			}
+			return info, true
+		},
+	)
 
 	return childrenInfo
 }
@@ -498,10 +518,14 @@ func (fa *FileArray) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*fa = util.Map(tmp, func(f *weblensFile) types.WeblensFile {
-		return f.tree.NewFile(f.parent,
-			f.filename, *f.isDir)
-	})
+	*fa = util.Map(
+		tmp, func(f *weblensFile) types.WeblensFile {
+			return f.tree.NewFile(
+				f.parent,
+				f.filename, *f.isDir,
+			)
+		},
+	)
 
 	return nil
 }
@@ -540,22 +564,26 @@ func (f *weblensFile) UnmarshalJSON(data []byte) error {
 	}
 	f.parent = parent.(*weblensFile)
 
-	f.children = util.FilterMap(tmp["childrenIds"].([]string), func(a string) (*weblensFile, bool) {
-		c := f.tree.Get(types.FileId(a))
-		if c == nil {
-			util.Warning.Printf("Could not find child with id %s while unmarshal-ing weblens file", a)
-			return nil, false
-		} else {
-			return c.(*weblensFile), true
-		}
-	})
+	f.children = util.FilterMap(
+		tmp["childrenIds"].([]string), func(a string) (*weblensFile, bool) {
+			c := f.tree.Get(types.FileId(a))
+			if c == nil {
+				util.Warning.Printf("Could not find child with id %s while unmarshal-ing weblens file", a)
+				return nil, false
+			} else {
+				return c.(*weblensFile), true
+			}
+		},
+	)
 
-	f.shares = util.Map(tmp["shareIds"].([]any), func(sId any) types.Share {
-		util.ShowErr(types.NewWeblensError("TODO - get share in file unmarshal"))
-		// s, _ := share.GetShare(types.ShareId(sId.(string)), dataStore.FileShare, f.GetTree())
-		// return s
-		return nil
-	})
+	f.shares = util.Map(
+		tmp["shareIds"].([]any), func(sId any) types.Share {
+			util.ShowErr(types.NewWeblensError("TODO - get share in file unmarshal"))
+			// s, _ := share.GetShare(types.ShareId(sId.(string)), dataStore.FileShare, f.GetTree())
+			// return s
+			return nil
+		},
+	)
 
 	return nil
 }
@@ -638,9 +666,11 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		parentId = f.GetParent().ID()
 	}
 
-	shares := util.Filter(f.GetShares(), func(s types.Share) bool {
-		return acc.CanAccessShare(s)
-	})
+	shares := util.Filter(
+		f.GetShares(), func(s types.Share) bool {
+			return acc.CanAccessShare(s)
+		},
+	)
 
 	tmpF := types.WeblensFile(f)
 	var pathBits []string
@@ -739,7 +769,9 @@ func (f *weblensFile) LeafMap(fn types.FileMapFunc) error {
 
 	children := f.GetChildren()
 
-	childrenWithChildren := util.Filter(children, func(c types.WeblensFile) bool { return c.(*weblensFile).hasChildren() })
+	childrenWithChildren := util.Filter(
+		children, func(c types.WeblensFile) bool { return c.(*weblensFile).hasChildren() },
+	)
 	for _, c := range childrenWithChildren {
 		err := c.LeafMap(fn)
 		if err != nil {
@@ -794,11 +826,10 @@ func (f *weblensFile) SetWatching() error {
 var sleeperCount atomic.Int64 = atomic.Int64{}
 
 func (f *weblensFile) AddTask(t types.Task) {
-	// util.Debug.Printf("Task %s is trying to claim file %s (Sleepers: %d)", t.TaskId(), f.GetAbsPath(), sleeperCount.Load())
+
 	sleeperCount.Add(1)
 	f.tasksLock.Lock()
 	sleeperCount.Add(-1)
-	// util.Debug.Printf("Task %s has claimed file %s", t.TaskId(), f.GetAbsPath())
 	f.taskUsing = t
 }
 
@@ -813,14 +844,16 @@ func (f *weblensFile) RemoveTask(tId types.TaskId) error {
 		panic(types.ErrBadTask)
 	}
 	if f.taskUsing.TaskId() != tId {
-		util.Error.Printf("Task ID %s tried giving up file %s, but the file is owned by %s does not own it", tId, f.GetAbsPath(), f.taskUsing.TaskId())
+		util.Error.Printf(
+			"Task ID %s tried giving up file %s, but the file is owned by %s does not own it", tId, f.GetAbsPath(),
+			f.taskUsing.TaskId(),
+		)
 		panic(types.ErrBadTask)
 		return types.ErrBadTask
 	}
 
 	f.taskUsing = nil
 	f.tasksLock.Unlock()
-	// util.Debug.Printf("Task %s has released file %s", tId, f.GetAbsPath())
 
 	return nil
 }
@@ -926,8 +959,10 @@ func (f *weblensFile) LoadStat(c ...types.BroadcasterAgent) (err error) {
 		if f.currentId != "" {
 			statPath = f.tree.Get(f.currentId).GetAbsPath()
 		} else {
-			statPath = filepath.Join(f.GetTree().Get("CONTENT_LNIKS").GetAbsPath(),
-				string(f.contentId))
+			statPath = filepath.Join(
+				f.GetTree().Get("CONTENT_LNIKS").GetAbsPath(),
+				string(f.contentId),
+			)
 		}
 
 		stat, err := os.Stat(statPath)
@@ -974,7 +1009,7 @@ func (f *weblensFile) hasChildren() bool {
 
 func (f *weblensFile) removeChild(child types.WeblensFile) error {
 	if f.children == nil {
-		util.Debug.Println("attempt to remove child on wf where children map is nil")
+		util.Warning.Println("attempt to remove child on wf where children map is nil")
 		return types.ErrNoFile
 	}
 

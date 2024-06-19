@@ -44,7 +44,11 @@ func (c *client) Disconnect() {
 	types.SERV.ClientManager.ClientDisconnect(c)
 
 	c.mu.Lock()
-	c.conn.Close()
+	err := c.conn.Close()
+	if err != nil {
+		util.ShowErr(err)
+		return
+	}
 	c.mu.Unlock()
 	c.log("Disconnected")
 }
@@ -54,9 +58,13 @@ func (c *client) Disconnect() {
 //
 // Returns "true" and the results at meta.LookingFor if the task is completed, false and nil otherwise.
 // Subscriptions to types that represent ongoing events like "folder" never return truthy completed
-func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.AccessMeta,
-	ft types.FileTree) (complete bool,
-	results map[string]any) {
+func (c *client) Subscribe(
+	key types.SubId, action types.WsAction, acc types.AccessMeta,
+	ft types.FileTree,
+) (
+	complete bool,
+	results map[string]any,
+) {
 	var sub types.Subscription
 
 	switch action {
@@ -92,6 +100,7 @@ func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.Acc
 
 			sub = types.Subscription{Type: types.FolderSubscribe, Key: key}
 			c.PushFileUpdate(folder)
+			util.Debug.Printf("%s subscribed to folder %s", c.user.GetUsername(), folder.GetAbsPath())
 
 			// Subscribe to task on this folder
 			if t := folder.GetTask(); t != nil {
@@ -112,10 +121,12 @@ func (c *client) Subscribe(key types.SubId, action types.WsAction, acc types.Acc
 
 			results = task.GetResults()
 
-			if complete || slices.IndexFunc(c.subscriptions, func(s types.Subscription) bool { return s.Key == key }) != -1 {
+			if complete || slices.IndexFunc(
+				c.subscriptions, func(s types.Subscription) bool { return s.Key == key },
+			) != -1 {
 				return
 			}
-
+			util.Debug.Printf("%s subscribed to task %s (%s)", c.user.GetUsername(), task.TaskId(), task.TaskType())
 			sub = types.Subscription{Type: types.TaskSubscribe, Key: key}
 		}
 	default:

@@ -5,15 +5,12 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/go-redis/redis"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type WeblensDB struct {
-	mongo    *mongo.Database
-	useRedis bool
-	redis    *redis.Client
+	mongo *mongo.Database
 }
 
 type marshalableMediaType struct {

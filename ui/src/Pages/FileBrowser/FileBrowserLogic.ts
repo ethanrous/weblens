@@ -454,7 +454,6 @@ export const fileBrowserReducer = (
         }
 
         case 'set_menu_open': {
-            console.log('settin menu', action.menuMode)
             return {
                 ...state,
                 menuMode: action.menuMode,

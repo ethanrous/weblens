@@ -175,8 +175,6 @@ function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
     const [newAlbumName, setNewAlbumName] = useState(null)
     const { authHeader } = useContext(UserContext)
 
-    console.log(newAlbumName)
-
     return (
         <div className="flex items-center h-14 w-40">
             {newAlbumName === null && (
@@ -287,7 +285,7 @@ function AlbumsHomeView({ fetchAlbums }: { fetchAlbums: () => void }) {
 
         return Array.from(galleryState.albumsMap.values()).map((a) => {
             if (!a.CoverMedia) {
-                a.CoverMedia = new WeblensMedia({ mediaId: a.Cover })
+                a.CoverMedia = new WeblensMedia({ contentId: a.Cover })
             }
 
             return a

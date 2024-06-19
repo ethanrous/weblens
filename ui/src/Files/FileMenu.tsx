@@ -85,7 +85,6 @@ const MenuTitle = () => {
 
     useEffect(() => {
         if (fbState.menuTargetId === '') {
-            console.log(fbState.menuTargetId, fbState.folderInfo)
             setTargetItem(fbState.folderInfo)
         } else {
             setTargetItem(fbState.dirMap.get(fbState.menuTargetId))
@@ -310,7 +309,7 @@ function StandardFileMenu() {
                     Left={IconTrash}
                     subtle
                     danger
-                    squareSize={30}
+                    squareSize={100}
                     centerContent
                     onClick={(e) => {
                         e.stopPropagation()

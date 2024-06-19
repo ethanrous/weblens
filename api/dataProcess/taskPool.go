@@ -27,30 +27,11 @@ type taskPool struct {
 	parentTaskPool *taskPool
 	createdBy      types.Task
 
+	cleanupFn func()
+
 	allQueuedFlag bool
 
 	erroredTasks []*task
-}
-
-// NewTaskPool `replace` spawns a temporary replacement thread on the parent worker pool.
-// This prevents a deadlock when the queue fills up while adding many tasks, and none are being executed
-//
-// `parent` allows chaining of task pools for floating updates to the top. This makes
-// it possible for clients to subscribe to a single task, and get notified about
-// all of the sub-updates of that task
-func (wp *workerPool) NewTaskPool(replace bool, createdBy types.Task) types.TaskPool {
-	tp := wp.NewVirtualTaskPool().(*taskPool)
-	if createdBy != nil {
-		tp.createdBy = createdBy
-		if !createdBy.GetTaskPool().IsGlobal() {
-			tp.createdBy = createdBy
-		}
-	}
-	if replace {
-		wp.addReplacementWorker()
-		tp.hasQueueThread = true
-	}
-	return tp
 }
 
 func (tp *taskPool) IsRoot() bool {
@@ -64,10 +45,12 @@ func (tp *taskPool) GetWorkerPool() types.WorkerPool {
 	return tp.workerPool
 }
 
-// NewTask passes params to create new task, and return the task to the caller.
+// newTask passes params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
-func (tp *taskPool) NewTask(taskType types.TaskType, taskMeta taskMetadata, caster types.BroadcasterAgent,
-	requester types.Requester) types.Task {
+func (tp *taskPool) newTask(
+	taskType types.TaskType, taskMeta taskMetadata, caster types.BroadcasterAgent,
+	requester types.Requester,
+) types.Task {
 
 	var taskId types.TaskId
 	if taskMeta == nil {
@@ -136,7 +119,7 @@ func (tp *taskPool) NewTask(taskType types.TaskType, taskMeta taskMetadata, cast
 func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.BroadcasterAgent) types.Task {
 	// Partial media means nothing for a directory scan, so it's always nil
 	scanMeta := scanMetadata{file: directory}
-	t := tp.NewTask(ScanDirectoryTask, scanMeta, caster, nil)
+	t := tp.newTask(ScanDirectoryTask, scanMeta, caster, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -144,10 +127,12 @@ func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.Broa
 	}
 
 	if caster != nil {
-		caster.PushTaskUpdate(t.TaskId(), TaskCreated, types.TaskResult{
-			"taskType":      ScanDirectoryTask,
-			"directoryName": directory.Filename(),
-		})
+		caster.PushTaskUpdate(
+			t.TaskId(), TaskCreated, types.TaskResult{
+				"taskType":      ScanDirectoryTask,
+				"directoryName": directory.Filename(),
+			},
+		)
 	}
 
 	return t
@@ -155,7 +140,7 @@ func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.Broa
 
 func (tp *taskPool) ScanFile(file types.WeblensFile, caster types.BroadcasterAgent) types.Task {
 	scanMeta := scanMetadata{file: file}
-	t := tp.NewTask(ScanFileTask, scanMeta, caster, nil)
+	t := tp.newTask(ScanFileTask, scanMeta, caster, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -165,11 +150,17 @@ func (tp *taskPool) ScanFile(file types.WeblensFile, caster types.BroadcasterAge
 	return t
 }
 
-func (tp *taskPool) WriteToFile(rootFolderId types.FileId, chunkSize, totalUploadSize int64, caster types.BroadcasterAgent) types.Task {
+func (tp *taskPool) WriteToFile(
+	rootFolderId types.FileId, chunkSize, totalUploadSize int64,
+	caster types.BroadcasterAgent,
+) types.Task {
 	numChunks := totalUploadSize / chunkSize
 	numChunks = int64(math.Max(float64(numChunks), 10))
-	writeMeta := writeFileMeta{rootFolderId: rootFolderId, chunkSize: chunkSize, totalSize: totalUploadSize, chunkStream: make(chan fileChunk, numChunks)}
-	t := tp.NewTask(WriteFileTask, writeMeta, caster, nil)
+	writeMeta := writeFileMeta{
+		rootFolderId: rootFolderId, chunkSize: chunkSize, totalSize: totalUploadSize,
+		chunkStream: make(chan fileChunk, numChunks),
+	}
+	t := tp.newTask(WriteFileTask, writeMeta, caster, nil)
 
 	// We don't queue upload tasks right away, once the first chunk comes through,
 	// we will add it to the buffer, and then load the task onto the queue.
@@ -178,9 +169,15 @@ func (tp *taskPool) WriteToFile(rootFolderId types.FileId, chunkSize, totalUploa
 	return t
 }
 
-func (tp *taskPool) MoveFile(fileId, destinationFolderId types.FileId, newFilename string, caster types.BroadcasterAgent) types.Task {
-	moveMeta := moveMeta{fileId: fileId, destinationFolderId: destinationFolderId, newFilename: newFilename}
-	t := tp.NewTask(MoveFileTask, moveMeta, caster, nil)
+func (tp *taskPool) MoveFile(
+	fileId, destinationFolderId types.FileId, newFilename string, fileEvent types.FileEvent,
+	caster types.BroadcasterAgent,
+) types.Task {
+	moveMeta := moveMeta{
+		fileId: fileId, destinationFolderId: destinationFolderId, newFilename: newFilename,
+		fileEvent: fileEvent,
+	}
+	t := tp.newTask(MoveFileTask, moveMeta, caster, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -190,10 +187,12 @@ func (tp *taskPool) MoveFile(fileId, destinationFolderId types.FileId, newFilena
 	return t
 }
 
-func (tp *taskPool) CreateZip(files []types.WeblensFile, username types.Username, shareId types.ShareId,
-	ft types.FileTree, casters types.BroadcasterAgent) types.Task {
-	meta := zipMetadata{files: files, username: username, shareId: shareId, fileTree: ft}
-	t := tp.NewTask(CreateZipTask, meta, casters, nil)
+func (tp *taskPool) CreateZip(
+	files []types.WeblensFile, username types.Username, shareId types.ShareId,
+	casters types.BroadcasterAgent,
+) types.Task {
+	meta := zipMetadata{files: files, username: username, shareId: shareId}
+	t := tp.newTask(CreateZipTask, meta, casters, nil)
 	if c, _ := t.Status(); !c {
 		err := tp.QueueTask(t)
 		if err != nil {
@@ -206,7 +205,7 @@ func (tp *taskPool) CreateZip(files []types.WeblensFile, username types.Username
 }
 
 func (tp *taskPool) GatherFsStats(rootDir types.WeblensFile, caster types.BroadcasterAgent) types.Task {
-	t := tp.NewTask(GatherFsStatsTask, fsStatMeta{rootDir: rootDir}, caster, nil)
+	t := tp.newTask(GatherFsStatsTask, fsStatMeta{rootDir: rootDir}, caster, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -216,8 +215,8 @@ func (tp *taskPool) GatherFsStats(rootDir types.WeblensFile, caster types.Broadc
 	return t
 }
 
-func (tp *taskPool) Backup(remoteId types.InstanceId, requester types.Requester, tree types.FileTree) types.Task {
-	t := tp.NewTask(BackupTask, backupMeta{remoteId: remoteId, tree: tree}, nil, requester)
+func (tp *taskPool) Backup(remoteId types.InstanceId) types.Task {
+	t := tp.newTask(BackupTask, backupMeta{remoteId: remoteId}, nil, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -228,7 +227,7 @@ func (tp *taskPool) Backup(remoteId types.InstanceId, requester types.Requester,
 }
 
 func (tp *taskPool) HashFile(f types.WeblensFile, caster types.BroadcasterAgent) types.Task {
-	t := tp.NewTask(HashFile, hashFileMeta{file: f}, caster, nil)
+	t := tp.newTask(HashFile, hashFileMeta{file: f}, caster, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -258,6 +257,19 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 			// lock and then release immediately, should take nanoseconds each
 			for tp.waiterCount.Load() != 0 {
 				time.Sleep(time.Millisecond * 10)
+			}
+
+			// Once all the tasks have exited, this worker pool is closing, and so we must run
+			// its cleanup routine(s)
+			if tp.cleanupFn != nil {
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							util.ShowErr(types.NewWeblensError(fmt.Sprint(r)), "Failed to execute taskPool cleanup")
+						}
+					}()
+					tp.cleanupFn()
+				}()
 			}
 		}
 	}
@@ -307,12 +319,12 @@ func (tp *taskPool) Status() (int, int, float64) {
 	return int(complete), int(total), progress
 }
 
-func (tp *taskPool) ClearAllQueued() {
-	if tp.waiterCount.Load() != 0 {
-		util.Warning.Println("Clearing all queued flag on work queue that still has sleepers")
-	}
-	tp.allQueuedFlag = false
-}
+// func (tp *taskPool) ClearAllQueued() {
+// 	if tp.waiterCount.Load() != 0 {
+// 		util.Warning.Println("Clearing all queued flag on work queue that still has sleepers")
+// 	}
+// 	tp.allQueuedFlag = false
+// }
 
 func (tp *taskPool) NotifyTaskComplete(t types.Task, c types.BroadcasterAgent, note ...any) {
 	realT := t.(*task)
@@ -390,12 +402,17 @@ func (tp *taskPool) AddError(t types.Task) {
 	tp.erroredTasks = append(tp.erroredTasks, t.(*task))
 }
 
+func (tp *taskPool) AddCleanup(fn func()) {
+	tp.cleanupFn = fn
+}
+
 func (tp *taskPool) Errors() []types.Task {
 	return util.SliceConvert[types.Task](tp.erroredTasks)
 }
 
 func (tp *taskPool) Cancel() {
-	// TODO - not impl
+	// TODO - impl
+	util.ShowErr(types.ErrNotImplemented("Task pool cancel"))
 }
 
 func (tp *taskPool) QueueTask(Task types.Task) (err error) {
@@ -450,7 +467,7 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 	return
 }
 
-// Specify the work queue as being a "global" one
+// MarkGlobal specifies the work queue as being a "global" one
 func (tp *taskPool) MarkGlobal() {
 	tp.treatAsGlobal = true
 }

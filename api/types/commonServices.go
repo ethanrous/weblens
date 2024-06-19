@@ -8,6 +8,7 @@ type weblensServicePackage struct {
 	MediaRepo      MediaRepo
 	Caster         BroadcasterAgent
 	ClientManager  ClientManager
+	WorkerPool     WorkerPool
 	TaskDispatcher TaskPool
 	Requester      Requester
 	AlbumManager   AlbumService
@@ -63,4 +64,8 @@ func (srv *weblensServicePackage) SetTaskDispatcher(tasker TaskPool) {
 
 func (srv *weblensServicePackage) SetRequester(rq Requester) {
 	SERV.Requester = rq
+}
+
+func (srv *weblensServicePackage) SetWorkerPool(wp WorkerPool) {
+	SERV.WorkerPool = wp
 }

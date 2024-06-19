@@ -11,7 +11,8 @@ type DatabaseService interface {
 
 type HistoryDbService interface {
 	WriteFileEvent(FileEvent) error
-	GetAllLifetimes() ([][]FileAction, error)
+	GetAllLifetimes() ([]Lifetime, error)
+	AddOrUpdateLifetime(l Lifetime) error
 }
 
 type AlbumsDB interface {
@@ -22,6 +23,7 @@ type AlbumsDB interface {
 }
 
 type MediaDB interface {
+	CreateMedia(m Media) error
 	GetAllMedia() ([]Media, error)
 	DeleteMedia(ContentId) error
 	HideMedia(ContentId) error

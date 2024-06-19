@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/dataStore/share"
 	"github.com/ethrousseau/weblens/api/dataStore/user"
@@ -131,7 +132,7 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
 		return
 	}
-	bs, err := m.ReadDisplayable(q, types.SERV.FileTree, pageNum)
+	bs, err := m.ReadDisplayable(q, pageNum)
 
 	if errors.Is(err, dataStore.ErrNoCache) {
 		util.Warning.Println("Did not find cache for media file")
@@ -167,8 +168,7 @@ func getMediaFullres(ctx *gin.Context) {
 }
 
 func getMediaTypes(ctx *gin.Context) {
-	typeMap := types.SERV.MediaRepo.TypeService()
-	ctx.JSON(http.StatusOK, typeMap)
+	ctx.JSON(http.StatusOK, types.SERV.MediaRepo.TypeService())
 }
 
 // Create new file upload task, and wait for data
@@ -277,9 +277,11 @@ func getFoldersMedia(ctx *gin.Context) {
 		return
 	}
 
-	folders := util.Map(folderIds, func(fId types.FileId) types.WeblensFile {
-		return types.SERV.FileTree.Get(fId)
-	})
+	folders := util.Map(
+		folderIds, func(fId types.FileId) types.WeblensFile {
+			return types.SERV.FileTree.Get(fId)
+		},
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"medias": dataStore.RecursiveGetMedia(types.SERV.MediaRepo, folders...)})
 }
@@ -316,26 +318,30 @@ func searchFolder(ctx *gin.Context) {
 	}
 
 	var files []types.WeblensFile
-	err = dir.RecursiveMap(func(w types.WeblensFile) error {
-		if r.MatchString(w.Filename()) {
-			if w.Filename() == ".user_trash" {
-				return nil
+	err = dir.RecursiveMap(
+		func(w types.WeblensFile) error {
+			if r.MatchString(w.Filename()) {
+				if w.Filename() == ".user_trash" {
+					return nil
+				}
+				files = append(files, w)
 			}
-			files = append(files, w)
-		}
-		return nil
-	})
+			return nil
+		},
+	)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
-	filesData := util.Map(files, func(w types.WeblensFile) types.FileInfo {
-		d, err := w.FormatFileInfo(acc)
-		util.ErrTrace(err)
-		return d
-	})
+	filesData := util.Map(
+		files, func(w types.WeblensFile) types.FileInfo {
+			d, err := w.FormatFileInfo(acc)
+			util.ErrTrace(err)
+			return d
+		},
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"files": filesData})
 }
@@ -394,12 +400,20 @@ func updateFile(ctx *gin.Context) {
 
 	caster := NewBufferedCaster()
 	defer caster.Close()
-	t := types.SERV.TaskDispatcher.MoveFile(fileId, updateInfo.NewParentId, updateInfo.NewName, caster)
+	event := history.NewFileEvent()
+	t := types.SERV.TaskDispatcher.MoveFile(fileId, updateInfo.NewParentId, updateInfo.NewName, event, caster)
 	t.Wait()
 
 	if t.ReadError() != nil {
 		util.Error.Println(t.ReadError())
 		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	err = types.SERV.FileTree.GetJournal().LogEvent(event)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -495,24 +509,23 @@ func deleteFiles(ctx *gin.Context) {
 			return
 		}
 
-		err := dataStore.PermanentlyDeleteFile(file)
+		err := dataStore.PermanentlyDeleteFile(file, caster)
 		if err != nil {
 			util.ErrTrace(err)
 			failed = append(failed, fileId)
 			continue
 		}
-
-		// err = dataStore.ResizeUp(file.GetParent(), caster)
-		// if err != nil {
-		// 	util.ShowErr(err)
-		// 	return
-		// }
 	}
 
 	if len(failed) != 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"failedIds": failed})
 		return
 	}
+
+	// if types.SERV.Caster.IsBuffered() {
+	// 	types.SERV.Caster.(types.BufferedBroadcasterAgent).Flush()
+	// }
+
 	ctx.Status(http.StatusOK)
 }
 
@@ -582,7 +595,9 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	files := util.Map(takeoutRequest.FileIds, func(fileId types.FileId) types.WeblensFile { return types.SERV.FileTree.Get(fileId) })
+	files := util.Map(
+		takeoutRequest.FileIds, func(fileId types.FileId) types.WeblensFile { return types.SERV.FileTree.Get(fileId) },
+	)
 	for _, file := range files {
 		file.GetAbsPath() // Make sure directories have trailing slash
 
@@ -613,7 +628,7 @@ func createTakeout(ctx *gin.Context) {
 	}
 
 	caster := NewCaster()
-	t := types.SERV.TaskDispatcher.CreateZip(files, u.GetUsername(), shareId, types.SERV.FileTree, caster)
+	t := types.SERV.TaskDispatcher.CreateZip(files, u.GetUsername(), shareId, caster)
 
 	completed, status := t.Status()
 	if completed && status == dataProcess.TaskSuccess {
@@ -868,19 +883,21 @@ func getSharedFiles(ctx *gin.Context) {
 	shares := share.GetSharedWithUser(u)
 
 	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
-	filesInfos := util.Map(shares, func(sh types.Share) types.FileInfo {
-		err := acc.AddShare(sh)
-		acc.SetUsingShare(sh)
-		if err != nil {
-			util.ShowErr(err)
-		}
-		f := types.SERV.FileTree.Get(types.FileId(sh.GetContentId()))
-		fileInfo, err := f.FormatFileInfo(acc)
-		if err != nil {
-			util.ShowErr(err)
-		}
-		return fileInfo
-	})
+	filesInfos := util.Map(
+		shares, func(sh types.Share) types.FileInfo {
+			err := acc.AddShare(sh)
+			acc.SetUsingShare(sh)
+			if err != nil {
+				util.ShowErr(err)
+			}
+			f := types.SERV.FileTree.Get(types.FileId(sh.GetContentId()))
+			fileInfo, err := f.FormatFileInfo(acc)
+			if err != nil {
+				util.ShowErr(err)
+			}
+			return fileInfo
+		},
+	)
 
 	ctx.JSON(http.StatusOK, gin.H{"files": filesInfos})
 }
@@ -902,9 +919,11 @@ func createFileShare(ctx *gin.Context) {
 	}
 
 	f := types.SERV.FileTree.Get(shareInfo.FileIds[0])
-	accessors := util.Map(shareInfo.Users, func(un types.Username) types.User {
-		return types.SERV.UserService.Get(un)
-	})
+	accessors := util.Map(
+		shareInfo.Users, func(un types.Username) types.User {
+			return types.SERV.UserService.Get(un)
+		},
+	)
 	newShare := share.NewFileShare(f, u, accessors, shareInfo.Public, shareInfo.Wormhole)
 	if err != nil {
 		util.ErrTrace(err)
@@ -955,9 +974,11 @@ func updateFileShare(ctx *gin.Context) {
 		return
 	}
 
-	accessors := util.Map(shareInfo.Users, func(un types.Username) types.User {
-		return types.SERV.UserService.Get(un)
-	})
+	accessors := util.Map(
+		shareInfo.Users, func(un types.Username) types.User {
+			return types.SERV.UserService.Get(un)
+		},
+	)
 
 	sh.SetAccessors(accessors)
 	sh.SetPublic(shareInfo.Public)
