@@ -2,6 +2,7 @@ package share
 
 import (
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
 )
 
 type shareService struct {
@@ -25,13 +26,37 @@ func (ss *shareService) Init(db types.DatabaseService) error {
 	ss.repo = make(map[types.ShareId]types.Share)
 	for _, sh := range shares {
 		ss.repo[sh.GetShareId()] = sh
+		switch sh.GetShareType() {
+		case types.FileShare:
+			sharedFile := types.SERV.FileTree.Get(types.FileId(sh.GetItemId()))
+			if sharedFile != nil {
+				err := sharedFile.SetShare(sh)
+				if err != nil {
+					return err
+				}
+			} else {
+				util.Warning.Println("Ignoring possibly no longer existing file in share init")
+			}
+		}
 	}
 
 	return nil
 }
 
-func (ss *shareService) Add(s types.Share) error {
-	ss.repo[s.GetShareId()] = s
+func (ss *shareService) Add(sh types.Share) error {
+	err := ss.db.CreateShare(sh)
+	if err != nil {
+		return err
+	}
+
+	ss.repo[sh.GetShareId()] = sh
+
+	if sh.GetShareType() == types.FileShare {
+		err := types.SERV.FileTree.Get(types.FileId(sh.GetItemId())).SetShare(sh)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

@@ -33,7 +33,7 @@ func wsConnect(ctx *gin.Context) {
 		// ctx.Status(http.StatusBadRequest)
 		return
 	}
-	user, err := WebsocketAuth(ctx, []string{auth.Auth}, types.SERV.UserService)
+	user, err := WebsocketAuth(ctx, []string{auth.Auth})
 	if err != nil {
 		util.ShowErr(err)
 		return
@@ -98,41 +98,57 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 				}
 			}
 
-			// TODO - subInfo.Meta here is not going to know what it should be
 			complete, result := c.Subscribe(subInfo.GetKey(), types.FolderSubscribe, acc, types.SERV.FileTree)
 			if complete {
-				types.SERV.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
-					types.TaskResult{"takeoutId": result["takeoutId"]})
+				types.SERV.Caster.PushTaskUpdate(
+					types.SERV.WorkerPool.GetTask(types.TaskId(subInfo.GetKey())), dataProcess.TaskCompleteEvent,
+					types.TaskResult{"takeoutId": result["takeoutId"]},
+				)
 			}
 		}
 	case types.TaskSubscribe:
 		complete, result := c.Subscribe(subInfo.GetKey(), types.TaskSubscribe, nil, types.SERV.FileTree)
 		if complete {
-			types.SERV.Caster.PushTaskUpdate(types.TaskId(subInfo.GetKey()), dataProcess.TaskComplete,
-				types.TaskResult{"takeoutId": result["takeoutId"]})
+			types.SERV.Caster.PushTaskUpdate(
+				types.SERV.WorkerPool.GetTask(types.TaskId(subInfo.GetKey())), dataProcess.TaskCompleteEvent,
+				types.TaskResult{"takeoutId": result["takeoutId"]},
+			)
 		}
 	case types.Unsubscribe:
 		c.Unsubscribe(subInfo.GetKey())
 
 	case types.ScanDirectory:
 		{
-			var scanInfo scanBody
-			err := json.Unmarshal([]byte(msg.Content), &scanInfo)
-			if err != nil {
-				util.ErrTrace(err)
-				return
-			}
-			folder := types.SERV.FileTree.Get(scanInfo.FolderId)
+			folder := types.SERV.FileTree.Get(types.FileId(subInfo.GetKey()))
 			if folder == nil {
-				c.Error(errors.New("could not find directory to scan"))
+				c.Error(types.NewWeblensError("could not find directory to scan"))
 				return
 			}
 
-			c.(*client).debug("Got scan directory for", folder.GetAbsPath(), "Recursive: ", scanInfo.Recursive, "Deep: ", scanInfo.DeepScan)
+			c.(*client).debug("Got scan directory for", folder.GetAbsPath())
 
-			t := types.SERV.TaskDispatcher.ScanDirectory(folder, types.SERV.Caster)
+			newCaster := NewBufferedCaster()
+			t := types.SERV.TaskDispatcher.ScanDirectory(folder, newCaster)
+			t.SetCleanup(
+				func() {
+					newCaster.Close()
+				},
+			)
 			acc := dataStore.NewAccessMeta(c.GetUser(), types.SERV.FileTree)
 			c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, types.SERV.FileTree)
+		}
+
+	case types.CancelTask:
+		{
+			tpId := subInfo.GetKey()
+			taskPool := types.SERV.WorkerPool.GetTaskPool(types.TaskId(tpId))
+			if taskPool == nil {
+				c.Error(types.NewWeblensError("could not find task pool to cancel"))
+				return
+			}
+
+			taskPool.Cancel()
+			c.PushTaskUpdate(taskPool.CreatedInTask(), dataProcess.TaskCanceledEvent, nil)
 		}
 
 	default:

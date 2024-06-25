@@ -1,48 +1,28 @@
-import { Box } from '@mantine/core'
-import React, {
-    createContext,
-    useContext,
-    useEffect,
-    useReducer,
-    useRef,
-} from 'react'
+import { useDebouncedValue } from '@mantine/hooks'
+import React, { useContext, useEffect, useReducer, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { getAlbums } from '../../Albums/AlbumQuery'
+import { Albums } from '../../Albums/Albums'
 
 import HeaderBar from '../../components/HeaderBar'
 import Presentation from '../../components/Presentation'
-import { GalleryAction, mediaReducer, useKeyDownGallery } from './GalleryLogic'
-import {
-    AlbumData,
-    GalleryDispatchT,
-    GalleryStateT,
-    PresentType,
-    UserInfoT,
-} from '../../types/Types'
 import { UserContext } from '../../Context'
-import { Albums } from '../../Albums/Albums'
-import { useDebouncedValue } from '@mantine/hooks'
-import { clamp } from '../../util'
-import WeblensMedia from '../../Media/Media'
 
 import './galleryStyle.scss'
+import { AlbumData, GalleryStateT, PresentType } from '../../types/Types'
+import { clamp } from '../../util'
+import {
+    GalleryAction,
+    GalleryContext,
+    galleryReducer,
+    useKeyDownGallery,
+} from './GalleryLogic'
 import { Timeline } from './Timeline'
-import { getAlbums } from '../../Albums/AlbumQuery'
-
-export type GalleryContextT = {
-    galleryState: GalleryStateT
-    galleryDispatch: GalleryDispatchT
-}
-
-export const GalleryContext = createContext<GalleryContextT>({
-    galleryState: null,
-    galleryDispatch: null,
-})
 
 const Gallery = () => {
     const [galleryState, galleryDispatch] = useReducer<
         (state: GalleryStateT, action: GalleryAction) => GalleryStateT
-    >(mediaReducer, {
-        mediaMap: new Map<string, WeblensMedia>(),
+    >(galleryReducer, {
         selected: new Map<string, boolean>(),
         albumsMap: new Map<string, AlbumData>(),
         albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
@@ -50,7 +30,7 @@ const Gallery = () => {
         imageSize:
             clamp(JSON.parse(localStorage.getItem('imageSize')), 150, 500) ||
             300,
-        presentingMedia: null,
+        presentingMediaId: '',
         presentingMode: PresentType.None,
         loading: [],
         newAlbumDialogue: false,
@@ -65,8 +45,7 @@ const Gallery = () => {
     })
 
     const nav = useNavigate()
-    const { authHeader, usr }: { authHeader; usr: UserInfoT } =
-        useContext(UserContext)
+    const { authHeader, usr } = useContext(UserContext)
 
     const loc = useLocation()
     const page =
@@ -76,8 +55,7 @@ const Gallery = () => {
     const albumId = useParams()['*']
     const viewportRef: React.Ref<HTMLDivElement> = useRef()
 
-    const searchRef = useRef()
-    useKeyDownGallery(searchRef, galleryState, galleryDispatch)
+    useKeyDownGallery(galleryState, galleryDispatch)
 
     useEffect(() => {
         if (usr.isLoggedIn) {
@@ -111,7 +89,7 @@ const Gallery = () => {
     useEffect(() => {
         if (authHeader.Authorization !== '' && page !== 'albums') {
             galleryDispatch({ type: 'add_loading', loading: 'albums' })
-            getAlbums(authHeader).then((val) => {
+            getAlbums(true, authHeader).then((val) => {
                 galleryDispatch({ type: 'set_albums', albums: val })
                 galleryDispatch({ type: 'remove_loading', loading: 'albums' })
             })
@@ -131,17 +109,16 @@ const Gallery = () => {
                 loading={galleryState.loading}
             />
             <Presentation
-                itemId={galleryState.presentingMedia?.Id()}
-                mediaData={
+                mediaId={
                     galleryState.presentingMode === PresentType.Fullscreen
-                        ? galleryState.presentingMedia
+                        ? galleryState.presentingMediaId
                         : null
                 }
                 element={null}
                 dispatch={galleryDispatch}
             />
             <div className="h-full z-10">
-                <Box
+                <div
                     ref={viewportRef}
                     style={{
                         height: 'calc(100% - 80px)',
@@ -151,7 +128,7 @@ const Gallery = () => {
                 >
                     {page == 'timeline' && <Timeline page={page} />}
                     {page == 'albums' && <Albums selectedAlbum={albumId} />}
-                </Box>
+                </div>
             </div>
         </GalleryContext.Provider>
     )

@@ -1,19 +1,24 @@
-import { useContext, useMemo } from 'react'
-import { nsToHumanTime } from '../../util'
 import { Text } from '@mantine/core'
 import { IconX } from '@tabler/icons-react'
+import { useContext, useMemo, useState } from 'react'
+
 import { WeblensProgress } from '../../components/WeblensProgress'
-import { FbContext } from './FileBrowser'
+import { FbContext } from '../../Files/filesContext'
+import { nsToHumanTime } from '../../util'
+import WeblensButton from '../../components/WeblensButton'
+import { WebsocketContext } from '../../Context'
 
 export enum TaskStage {
     Queued,
     InProgress,
     Complete,
+    Cancelled,
     Failure,
 }
 
 export class TaskProgress {
     taskId: string
+    poolId: string
     taskType: string
     target: string
     workingOn: string
@@ -21,18 +26,18 @@ export class TaskProgress {
 
     timeNs: number
     progressPercent: number
-    tasksComplete: number
-    tasksTotal: number
+    tasksComplete: number | string
+    tasksTotal: number | string
 
     stage: TaskStage
 
     hidden: boolean
 
-    constructor(taskId: string, taskType: string, target: string) {
-        if (!taskId || !target || !taskType) {
+    constructor(serverId: string, taskType: string, target: string) {
+        if (!serverId || !target || !taskType) {
             console.error(
                 'TaskId:',
-                taskId,
+                serverId,
                 'Target:',
                 target,
                 'Task Type:',
@@ -41,7 +46,7 @@ export class TaskProgress {
             throw new Error('Empty prop in TaskProgress constructor')
         }
 
-        this.taskId = taskId
+        this.taskId = serverId
         this.taskType = taskType
         this.target = target
 
@@ -101,36 +106,81 @@ export const TasksDisplay = ({
 
 const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
     const { fbDispatch } = useContext(FbContext)
+    const wsSend = useContext(WebsocketContext)
+
+    const [cancelWarning, setCancelWarning] = useState(false)
+
+    if (typeof prog.tasksTotal === 'string') {
+        console.log(
+            prog.tasksComplete,
+            prog.tasksTotal,
+            parseInt(prog.tasksTotal)
+        )
+    }
+
+    let totalNum
+    if (typeof prog.tasksTotal === 'string') {
+        totalNum = parseInt(prog.tasksTotal)
+    } else {
+        totalNum = prog.tasksTotal
+    }
 
     return (
         <div className="task-progress-box">
-            <div className="flex flex-row w-full h-max">
-                <div className="w-full">
-                    <Text size="12px" style={{ userSelect: 'none' }}>
+            <div className="flex flex-row w-full max-w-full overflow-hidden h-max items-center">
+                <div className="flex shrink grow flex-col w-36">
+                    <p className="text-sm select-none text-nowrap">
                         {prog.GetTaskType()}
-                    </Text>
-                    <Text size="16px" fw={600} style={{ userSelect: 'none' }}>
+                    </p>
+                    <p className="text-lg font-semibold select-none text-nowrap truncate">
                         {prog.target}
-                    </Text>
+                    </p>
                 </div>
-                <IconX
-                    size={20}
-                    cursor={'pointer'}
-                    onClick={() => {
-                        prog.hide()
-                        fbDispatch({
-                            type: 'remove_task_progress',
-                            taskId: prog.taskId,
-                        })
-                    }}
-                />
+                <div className="flex w-[30px] min-w-max max-w-[30px] justify-end">
+                    <WeblensButton
+                        Right={IconX}
+                        subtle
+                        centerContent
+                        label={cancelWarning ? 'Cancel?' : ''}
+                        danger={cancelWarning}
+                        squareSize={30}
+                        onClick={() => {
+                            if (
+                                prog.stage === TaskStage.Complete ||
+                                prog.stage === TaskStage.Cancelled ||
+                                prog.stage === TaskStage.Failure
+                            ) {
+                                fbDispatch({
+                                    type: 'remove_task_progress',
+                                    serverId: prog.taskId,
+                                })
+                                prog.hide()
+                                return
+                            }
+                            if (cancelWarning) {
+                                wsSend('cancel_task', {
+                                    taskPoolId: prog.poolId
+                                        ? prog.poolId
+                                        : prog.taskId,
+                                })
+
+                                setCancelWarning(false)
+                            } else {
+                                setCancelWarning(true)
+                            }
+                        }}
+                    />
+                </div>
             </div>
             <div className="h-6 shrink-0 w-full m-3">
                 <WeblensProgress
                     value={prog.getProgress()}
                     complete={prog.stage === TaskStage.Complete}
                     loading={prog.stage === TaskStage.Queued}
-                    failure={prog.stage === TaskStage.Failure}
+                    failure={
+                        prog.stage === TaskStage.Failure ||
+                        prog.stage === TaskStage.Cancelled
+                    }
                 />
             </div>
             {prog.stage !== TaskStage.Complete && (
@@ -142,7 +192,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                     >
                         {prog.workingOn}
                     </Text>
-                    {prog.tasksTotal > 0 && (
+                    {totalNum > 0 && (
                         <Text size="10px" style={{ userSelect: 'none' }}>
                             {prog.tasksComplete}/{prog.tasksTotal}
                         </Text>
@@ -176,16 +226,6 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                         {prog.note}
                     </Text>
                 )}
-                {/* <Text
-                    size="10px"
-                    style={{
-                        width: "max-content",
-                        textWrap: "nowrap",
-                        userSelect: "none",
-                    }}
-                >
-                    {prog.note}
-                </Text> */}
             </div>
         </div>
     )

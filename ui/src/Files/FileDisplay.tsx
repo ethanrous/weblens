@@ -1,3 +1,5 @@
+import { Divider, Loader, Text } from '@mantine/core'
+import { IconFolder, IconPhoto } from '@tabler/icons-react'
 import React, {
     memo,
     useCallback,
@@ -7,18 +9,16 @@ import React, {
     useRef,
     useState,
 } from 'react'
-import { Divider, Loader, Text } from '@mantine/core'
-import { MediaImage } from '../Media/PhotoContainer'
-import { WeblensFile } from './File'
 import { useNavigate } from 'react-router-dom'
-import { DraggingState, FbContext } from '../Pages/FileBrowser/FileBrowser'
 
 import '../components/itemDisplayStyle.css'
-import { IconFolder, IconPhoto } from '@tabler/icons-react'
-import { FbMenuModeT } from '../Pages/FileBrowser/FileBrowserStyles'
+import { MediaImage } from '../Media/PhotoContainer'
+import { FbMenuModeT, WeblensFile } from './File'
+import { DraggingStateT, FbContext } from './filesContext'
+import { useMedia } from '../components/hooks'
 
 export type GlobalContextType = {
-    setDragging: (d: DraggingState) => void
+    setDragging: (d: DraggingStateT) => void
     blockFocus: (b: boolean) => void
     rename: (itemId: string, newName: string) => void
 
@@ -53,14 +53,14 @@ type WrapperProps = {
 
     width: number
 
-    dragging: DraggingState
+    dragging: DraggingStateT
 
     setSelected: (itemId: string, selected?: boolean) => void
     doSelectMany: () => void
     moveSelected: (entryId: string) => void
     setMoveDest: (itemName: string) => void
 
-    setDragging: (d: DraggingState) => void
+    setDragging: (d: DraggingStateT) => void
     setHovering: (i: string) => void
 
     setMenuMode: (m: FbMenuModeT) => void
@@ -123,7 +123,7 @@ const ItemWrapper = memo(
         selected,
         setSelected,
         doSelectMany,
-        dragging = DraggingState.NoDrag,
+        dragging = DraggingStateT.NoDrag,
         setDragging,
         setHovering,
         moveSelected,
@@ -165,7 +165,7 @@ const ItemWrapper = memo(
                             Math.abs(mouseDown.y - e.clientY) > 20)
                     ) {
                         setSelected(file.Id(), true)
-                        setDragging(DraggingState.InternalDrag)
+                        setDragging(DraggingStateT.InternalDrag)
                     }
                 }}
                 onClick={(e) => {
@@ -182,7 +182,7 @@ const ItemWrapper = memo(
                             moveSelected(file.Id())
                         }
                         setMoveDest('')
-                        setDragging(DraggingState.NoDrag)
+                        setDragging(DraggingStateT.NoDrag)
                     }
                     setMouseDown(null)
                 }}
@@ -280,14 +280,16 @@ const FileVisualWrapper = ({ children }) => {
 
 const FileVisual = memo(
     ({ file, doFetch }: { file: WeblensFile; doFetch: boolean }) => {
+        const mediaData = useMedia(file.GetMediaId())
+
         if (file.IsFolder()) {
             return <IconFolder size={150} />
         }
 
-        if (file.GetMedia()?.IsDisplayable()) {
+        if (mediaData) {
             return (
                 <MediaImage
-                    media={file.GetMedia()}
+                    media={mediaData}
                     quality="thumbnail"
                     doFetch={doFetch}
                 />
@@ -299,7 +301,7 @@ const FileVisual = memo(
         return null
     },
     (prev, next) => {
-        if (prev.file.GetMedia()?.Id() !== next.file.GetMedia()?.Id()) {
+        if (prev.file.GetMediaId() !== next.file.GetMediaId()) {
             return false
         } else if (prev.doFetch !== next.doFetch) {
             return false

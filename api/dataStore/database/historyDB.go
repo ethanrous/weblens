@@ -1,6 +1,8 @@
 package database
 
 import (
+	"fmt"
+
 	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -40,3 +42,45 @@ func (db *databaseService) AddOrUpdateLifetime(lt types.Lifetime) error {
 
 	return err
 }
+
+func (db *databaseService) GetActionsByPath(path types.WeblensFilepath) ([]types.FileAction, error) {
+	pipe := bson.A{
+		bson.D{{"$unwind", bson.D{{"path", "$actions"}}}},
+		bson.D{
+			{
+				"$match",
+				bson.D{{"actions.destinationpath", bson.D{{"$regex", fmt.Sprint(path.ToPortable(), "[^/]*/?$")}}}},
+			},
+		},
+		bson.D{{"$replaceRoot", bson.D{{"newRoot", "$actions"}}}},
+	}
+
+	ret, err := db.fileHistory.Aggregate(db.ctx, pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*history.FileAction
+	err = ret.All(db.ctx, &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return util.SliceConvert[types.FileAction](target), nil
+}
+
+// func (db *databaseService) GetActionsByPath(path types.WeblensFilepath) ([]types.Lifetime, error) {
+// 	filter := bson.M{"actions.destinationpath": bson.M{"$regex": fmt.Sprintf("%s%s", path.ToPortable(), "[^/]*/?$")}}
+// 	ret, err := db.fileHistory.Find(db.ctx, filter)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	var target []*history.Lifetime
+// 	err = ret.All(db.ctx, &target)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	return util.SliceConvert[types.Lifetime](target), nil
+// }

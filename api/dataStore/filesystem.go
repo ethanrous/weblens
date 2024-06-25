@@ -34,6 +34,8 @@ var ExternalRootUser = types.User(
 var RootDirIds = []types.FileId{"MEDIA", "TMP", "CACHE", "TAKEOUT", "EXTERNAL", "CONTENT_LINKS"}
 
 func FsInit(tree types.FileTree) {
+	sw := util.NewStopwatch("Filesystem")
+
 	mediaRoot, err := tree.NewRoot("MEDIA", "media", util.GetMediaRootPath(), WeblensRootUser, nil)
 	if err != nil {
 		panic(err)
@@ -68,6 +70,8 @@ func FsInit(tree types.FileTree) {
 		panic(err)
 	}
 
+	sw.Lap("Set roots")
+
 	lifetimes := tree.GetJournal().GetActiveLifetimes()
 	if err != nil {
 		panic(err)
@@ -78,6 +82,8 @@ func FsInit(tree types.FileTree) {
 			return strings.Compare(string(a.GetLatestFileId()), string(b.GetLatestFileId()))
 		},
 	)
+
+	sw.Lap("Get + sort lifetimes")
 
 	if !mediaRoot.Exists() {
 		err = mediaRoot.CreateSelf()
@@ -99,6 +105,8 @@ func FsInit(tree types.FileTree) {
 			panic(err)
 		}
 	}
+
+	sw.Lap("Check roots exist")
 
 	users, err := types.SERV.UserService.GetAll()
 	if err != nil {
@@ -132,29 +140,20 @@ func FsInit(tree types.FileTree) {
 		}
 	}
 
+	sw.Lap("Load users home directories")
+
 	lifetimes = importFilesRecursive(contentRoot, fileEvent, lifetimes)
 	lifetimes = importFilesRecursive(mediaRoot, fileEvent, lifetimes)
 	lifetimes = importFilesRecursive(cacheRoot, fileEvent, lifetimes)
 
-	// err = cacheRoot.ReadDir()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	//
-	// err = mediaRoot.ReadDir()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	//
-	// err = contentRoot.ReadDir()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	sw.Lap("Load roots")
 
 	err = tree.GetJournal().LogEvent(fileEvent)
 	if err != nil {
 		panic(err)
 	}
+
+	sw.Lap("Write file event")
 
 	for _, path := range util.GetExternalPaths() {
 		if path == "" {
@@ -170,6 +169,8 @@ func FsInit(tree types.FileTree) {
 			panic(err)
 		}
 	}
+
+	sw.Lap("Load external files")
 
 	// Compute size for the whole tree
 	err = mediaRoot.LeafMap(
@@ -201,6 +202,8 @@ func FsInit(tree types.FileTree) {
 		}
 	}
 
+	sw.Lap("Compute Sizes")
+
 	for _, u := range users {
 		homeId := tree.GenerateFileId(filepath.Join(mediaRoot.GetAbsPath(), string(u.GetUsername())) + "/")
 		err := u.SetHomeFolder(tree.Get(homeId))
@@ -218,6 +221,10 @@ func FsInit(tree types.FileTree) {
 			panic(err)
 		}
 	}
+
+	sw.Lap("Generate missing user home directories")
+	sw.Stop()
+	sw.PrintResults(false)
 }
 
 func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifetimes []types.Lifetime) []types.Lifetime {
@@ -241,18 +248,19 @@ func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifeti
 			)
 			if !e {
 				if fileToLoad.GetContentId() == "" && !fileToLoad.IsDir() {
-					util.Debug.Println("Starting task...")
 					pool.HashFile(
 						fileToLoad,
 						types.SERV.Caster,
 					).SetPostAction(
 						func(result types.TaskResult) {
-							fileToLoad.SetContentId(result["contentId"].(types.ContentId))
-							fileEvent.AddAction(history.NewCreateAction(fileToLoad.GetAbsPath()))
+							if result["contentId"] != nil {
+								fileToLoad.SetContentId(result["contentId"].(types.ContentId))
+							}
+							fileEvent.NewCreateAction(fileToLoad)
 						},
 					)
 				} else if fileToLoad.IsDir() {
-					fileEvent.AddAction(history.NewCreateAction(fileToLoad.GetAbsPath()))
+					fileEvent.NewCreateAction(fileToLoad)
 				}
 			} else {
 				var life types.Lifetime
@@ -401,10 +409,10 @@ func MoveFileToTrash(file types.WeblensFile, acc types.AccessMeta, c ...types.Br
 		return err
 	}
 
-	for _, s := range file.GetShares() {
-		err = s.SetEnabled(false)
+	if file.GetShare() != nil {
+		err = file.GetShare().SetEnabled(false)
 		if err != nil {
-			return err
+			util.ShowErr(err)
 		}
 	}
 
@@ -439,10 +447,10 @@ func ReturnFileFromTrash(trashFile types.WeblensFile, c ...types.BroadcasterAgen
 		return
 	}
 
-	for _, s := range trashFile.GetShares() {
-		err = s.SetEnabled(true)
+	if trashFile.GetShare() != nil {
+		err = trashFile.GetShare().SetEnabled(false)
 		if err != nil {
-			return err
+			util.ShowErr(err)
 		}
 	}
 
@@ -450,20 +458,21 @@ func ReturnFileFromTrash(trashFile types.WeblensFile, c ...types.BroadcasterAgen
 }
 
 // PermanentlyDeleteFile removes file being pointed to from the tree and deletes it from the real filesystem
-func PermanentlyDeleteFile(file types.WeblensFile, c ...types.BroadcasterAgent) (err error) {
+func PermanentlyDeleteFile(file types.WeblensFile, c types.BroadcasterAgent) (err error) {
 	ownerTrash := file.Owner().GetTrashFolder()
 	err = types.SERV.FileTree.Del(file.ID())
 
 	if err != nil {
 		return
 	}
+	c.PushFileDelete(file)
 
 	err = dbServer.removeTrashEntry(file.ID())
 	if err != nil {
 		return err
 	}
 
-	err = types.SERV.FileTree.ResizeUp(ownerTrash, c...)
+	err = types.SERV.FileTree.ResizeUp(ownerTrash, c)
 	if err != nil {
 		return err
 	}
@@ -634,24 +643,6 @@ func CacheBaseMedia(mediaId types.ContentId, data [][]byte, ft types.FileTree) (
 	}
 
 	return
-}
-
-func getChildByName(dir types.WeblensFile, childName string) (types.WeblensFile, error) {
-	if !dir.IsDir() {
-		return nil, types.ErrDirectoryRequired
-	}
-
-	children := dir.GetChildren()
-	_, child, exist := util.YoinkFunc(
-		children, func(c types.WeblensFile) bool {
-			return c.Filename() == childName
-		},
-	)
-	if !exist {
-		return nil, types.ErrNoFile
-	}
-
-	return child, nil
 }
 
 func MakeUniqueChildName(parent types.WeblensFile, childName string) string {

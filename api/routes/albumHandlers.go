@@ -2,7 +2,6 @@ package routes
 
 import (
 	"encoding/json"
-	"io"
 	"math/rand"
 	"net/http"
 
@@ -20,21 +19,20 @@ func getAlbum(ctx *gin.Context) {
 		return
 	}
 
-	albumId := types.AlbumId(ctx.Param("albumId"))
-
-	raw := ctx.Query("raw") == "true"
-
-	db := dataStore.NewDB()
-	albumData, err := db.GetAlbumById(albumId)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Unable to find album information"})
+	albumData := types.SERV.AlbumManager.Get(types.AlbumId(ctx.Param("albumId")))
+	if albumData == nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	medias, err := db.GetFilteredMedia("createDate", user.GetUsername(), 1, []types.AlbumId{albumId}, raw)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get filtered media"})
+	raw := ctx.Query("raw") == "true"
+	medias := albumData.GetMedias()
+	if !raw {
+		medias = util.Filter(
+			medias, func(t types.Media) bool {
+				return !t.GetMediaType().IsRaw()
+			},
+		)
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"albumMeta": albumData, "medias": medias})
@@ -47,9 +45,37 @@ func getAlbums(ctx *gin.Context) {
 		return
 	}
 
-	filter := ctx.Query("filter")
-	db := dataStore.NewDB()
-	albums := db.GetAlbumsByUser(user.GetUsername(), filter, true)
+	albums := types.SERV.AlbumManager.GetAllByUser(user)
+	includeShared := ctx.Query("includeShared")
+
+	filterString := ctx.Query("filter")
+	var filter []string
+	if filterString != "" {
+		err := json.Unmarshal([]byte(filterString), &filter)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusBadRequest)
+			return
+		}
+	}
+	var e bool
+	albums = util.Filter(
+		albums, func(a types.Album) bool {
+			if includeShared == "false" && a.GetOwner() != user {
+				return false
+			}
+			if len(filter) != 0 {
+				filter, _, e = util.YoinkFunc(
+					filter, func(s string) bool {
+						return s == a.GetName()
+					},
+				)
+				return e
+			}
+			return true
+		},
+	)
+
 	ctx.JSON(http.StatusOK, gin.H{"albums": albums})
 }
 
@@ -59,20 +85,8 @@ func createAlbum(ctx *gin.Context) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-
-	jsonData, err := io.ReadAll(ctx.Request.Body)
+	albumData, err := readCtxBody[albumCreateBody](ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
-		return
-	}
-
-	type albumCreateData struct {
-		Name string `json:"name"`
-	}
-	var albumData albumCreateData
-	err = json.Unmarshal(jsonData, &albumData)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Request body not in proper format"})
 		return
 	}
 
@@ -81,9 +95,12 @@ func createAlbum(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Album creation failed"})
 	}
+
+	ctx.JSON(http.StatusOK, newAlbum)
 }
 
 func updateAlbum(ctx *gin.Context) {
+	user := getUserFromCtx(ctx)
 	albumId := types.AlbumId(ctx.Param("albumId"))
 	a := types.SERV.AlbumManager.Get(albumId)
 	if a == nil {
@@ -91,29 +108,28 @@ func updateAlbum(ctx *gin.Context) {
 		return
 	}
 
-	jsonData, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
+	if a.GetOwner() != user {
+		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
-	var update updateAlbumBody
-	err = json.Unmarshal(jsonData, &update)
+	update, err := readCtxBody[updateAlbumBody](ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Decoded but unable to parse request body"})
 		return
 	}
-
+	
 	var ms []types.Media
 	if update.AddMedia != nil && len(update.AddMedia) != 0 {
-		ms = util.FilterMap(update.AddMedia, func(mId types.ContentId) (types.Media, bool) {
-			m := types.SERV.MediaRepo.Get(mId)
-			if m != nil {
-				return m, true
-			} else {
-				return m, false
-			}
-		})
+		ms = util.FilterMap(
+			update.AddMedia, func(mId types.ContentId) (types.Media, bool) {
+				m := types.SERV.MediaRepo.Get(mId)
+				if m != nil {
+					return m, true
+				} else {
+					return m, false
+				}
+			},
+		)
 
 		if len(ms) == 0 {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
@@ -122,14 +138,20 @@ func updateAlbum(ctx *gin.Context) {
 	}
 
 	if update.AddFolders != nil && len(update.AddFolders) != 0 {
-		folders := util.Map(update.AddFolders, func(fId types.FileId) types.WeblensFile {
-			return types.SERV.FileTree.Get(fId)
-		})
+		folders := util.Map(
+			update.AddFolders, func(fId types.FileId) types.WeblensFile {
+				return types.SERV.FileTree.Get(fId)
+			},
+		)
 
-		ms = append(ms, util.Map(dataStore.RecursiveGetMedia(types.SERV.MediaRepo, folders...), func(mId types.ContentId) types.Media {
-			m := types.SERV.MediaRepo.Get(mId)
-			return m
-		})...)
+		ms = append(
+			ms, util.Map(
+				dataStore.RecursiveGetMedia(types.SERV.MediaRepo, folders...), func(mId types.ContentId) types.Media {
+					m := types.SERV.MediaRepo.Get(mId)
+					return m
+				},
+			)...,
+		)
 	}
 
 	addedCount := 0
@@ -185,7 +207,7 @@ func updateAlbum(ctx *gin.Context) {
 		}
 	}
 
-	if update.RemoveUsers != nil {
+	if len(update.RemoveUsers) != 0 {
 		err = a.RemoveUsers(update.RemoveUsers...)
 		if err != nil {
 			util.ErrTrace(err)
@@ -194,10 +216,12 @@ func updateAlbum(ctx *gin.Context) {
 		}
 	}
 
-	if update.Users != nil {
-		users := util.Map(update.Users, func(u types.Username) types.User {
-			return types.SERV.UserService.Get(u)
-		})
+	if len(update.Users) != 0 {
+		users := util.Map(
+			update.Users, func(u types.Username) types.User {
+				return types.SERV.UserService.Get(u)
+			},
+		)
 
 		err = a.AddUsers(users...)
 		if err != nil {

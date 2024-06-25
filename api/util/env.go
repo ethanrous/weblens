@@ -7,11 +7,11 @@ import (
 )
 
 func envReadString(s string) string {
-	val := os.Getenv(string(s))
+	val := os.Getenv(s)
 	return val
 }
 func envReadBool(s string) bool {
-	val := os.Getenv(string(s))
+	val := os.Getenv(s)
 	if val == "true" || val == "1" {
 		return true
 	} else if val == "" || val == "false" || val == "0" {
@@ -79,24 +79,6 @@ func DetachUi() bool {
 	return envReadBool("DETATCH_UI")
 }
 
-var shouldUseRedis *bool = nil
-
-// ShouldUseRedis Enable use of redis on this server. If true, "REDIS_URL" must also be set
-func ShouldUseRedis() bool {
-	if shouldUseRedis != nil {
-		return *shouldUseRedis
-	}
-
-	ret := envReadBool("USE_REDIS")
-
-	shouldUseRedis = &ret
-	return ret
-}
-
-func GetCachesPath() string {
-	return envReadString("CACHES_PATH")
-}
-
 // GetCacheDir
 // Returns the path of the directory for storing cached files. This includes photo thumbnails,
 // temp uploaded files, and zip files.
@@ -112,7 +94,7 @@ func GetCacheDir() string {
 	return cacheString
 }
 
-// Takeout directory, stores zip files after creation
+// GetTakeoutDir Takeout directory, stores zip files after creation
 func GetTakeoutDir() string {
 	takeoutString := envReadString("CACHES_PATH") + "/takeout"
 	_, err := os.Stat(takeoutString)
@@ -157,8 +139,4 @@ func GetMongoDBName() string {
 		mongoDBName = "weblens"
 	}
 	return mongoDBName
-}
-
-func GetRedisUrl() string {
-	return envReadString("REDIS_URL")
 }

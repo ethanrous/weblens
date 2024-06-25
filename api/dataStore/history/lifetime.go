@@ -2,6 +2,7 @@ package history
 
 import (
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -9,7 +10,7 @@ type Lifetime struct {
 	Id         types.LifetimeId `bson:"_id"`
 	LiveFileId types.FileId
 	ContentId  types.ContentId
-	Actions    []*fileAction
+	Actions    []*FileAction
 }
 
 func NewLifetime(id types.LifetimeId, createAction types.FileAction) (types.Lifetime, error) {
@@ -24,7 +25,7 @@ func NewLifetime(id types.LifetimeId, createAction types.FileAction) (types.Life
 	return &Lifetime{
 		Id:         id,
 		LiveFileId: createAction.GetDestinationId(),
-		Actions:    []*fileAction{createAction.(*fileAction)},
+		Actions:    []*FileAction{createAction.(*FileAction)},
 		ContentId:  types.SERV.FileTree.Get(createAction.GetDestinationId()).GetContentId(),
 	}, nil
 }
@@ -35,7 +36,7 @@ func (l *Lifetime) ID() types.LifetimeId {
 
 func (l *Lifetime) Add(action types.FileAction) {
 	action.SetLifetimeId(l.Id)
-	l.Actions = append(l.Actions, action.(*fileAction))
+	l.Actions = append(l.Actions, action.(*FileAction))
 	l.LiveFileId = action.GetDestinationId()
 }
 
@@ -52,4 +53,8 @@ func (l *Lifetime) GetContentId() types.ContentId {
 func (l *Lifetime) IsLive() bool {
 	// If the most recent action has no destination, the file was removed
 	return l.Actions[len(l.Actions)-1].DestinationId != ""
+}
+
+func (l *Lifetime) GetActions() []types.FileAction {
+	return util.SliceConvert[types.FileAction](l.Actions)
 }

@@ -1,12 +1,11 @@
 // Global Types
 
-import { DraggingState, FbModeT } from '../Pages/FileBrowser/FileBrowser'
+import React from 'react'
+import { FbMenuModeT, FileInitT, WeblensFile } from '../Files/File'
+import { DraggingStateT, FbModeT } from '../Files/filesContext'
+import WeblensMedia from '../Media/Media'
 import { TaskProgress } from '../Pages/FileBrowser/TaskProgress'
 import { GalleryAction } from '../Pages/Gallery/GalleryLogic'
-import { FileInitT, WeblensFile } from '../Files/File'
-import WeblensMedia from '../Media/Media'
-import React from 'react'
-import { FbMenuModeT } from '../Pages/FileBrowser/FileBrowserStyles'
 
 export type AuthHeaderT = {
     Authorization: string
@@ -66,6 +65,7 @@ export type UserContextT = {
 export type WsMessageT = {
     subscribeKey: string;
     eventTag: string;
+    taskType: string;
     error: string;
     content: any[];
 };
@@ -79,16 +79,16 @@ export type mediaType = {
 };
 
 export type AlbumData = {
-    Id: string;
-    Medias: string[];
-    SharedWith: string[];
-    Name: string;
-    Cover: string;
-    CoverMedia: WeblensMedia;
-    PrimaryColor: string;
-    SecondaryColor: string;
-    Owner: string;
-    ShowOnTimeline: boolean;
+    id: string;
+    medias: string[];
+    sharedWith: string[];
+    name: string;
+    cover: string;
+    // CoverMedia: WeblensMedia;
+    primaryColor: string;
+    secondaryColor: string;
+    owner: string;
+    showOnTimeline: boolean;
 };
 
 // Gallery Types
@@ -139,15 +139,14 @@ export const newTimeOffset = (): TimeOffset => {
     return {
         second: 0,
         minute: 0,
-        hour: 0,
-        day: 0,
-        month: 0,
-        year: 0,
+        hour:   0,
+        day:    0,
+        month:  0,
+        year:   0,
     }
 }
 
 export type GalleryStateT = {
-    mediaMap: Map<string, WeblensMedia>;
     selected: Map<string, boolean>;
     albumsMap: Map<string, AlbumData>;
     albumsFilter: string[];
@@ -159,7 +158,7 @@ export type GalleryStateT = {
     menuTargetId: string;
     imageSize: number;
     searchContent: string;
-    presentingMedia: WeblensMedia;
+    presentingMediaId: string;
     presentingMode: PresentType;
     timeAdjustOffset: TimeOffset;
     hoverIndex: number;
@@ -173,7 +172,8 @@ export type FileBrowserAction = {
     type: string;
 
     loading?: string;
-    taskId?: string;
+    serverId?: string;
+    poolId?: string;
     fileId?: string;
     fileName?: string;
     search?: string;
@@ -192,16 +192,17 @@ export type FileBrowserAction = {
 
     fileIds?: string[];
 
-    dragging?: DraggingState;
+    dragging?: DraggingStateT;
     selected?: boolean;
     external?: boolean;
     block?: boolean;
     shift?: boolean;
     open?: boolean;
+    isSearching?: boolean;
 
     progress?: number;
-    tasksComplete?: number;
-    tasksTotal?: number;
+    tasksComplete?: number | string;
+    tasksTotal?: number | string;
     numCols?: number;
     sortDirection?: number;
     time?: number;
@@ -249,6 +250,7 @@ export type FbStateT = {
     menuTargetId: string;
     presentingId: string;
     searchContent: string;
+    isSearching: boolean;
     scanProgress: TaskProgress[];
     homeDirSize: number;
     trashDirSize: number;

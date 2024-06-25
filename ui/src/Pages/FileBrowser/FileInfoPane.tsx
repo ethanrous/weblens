@@ -7,6 +7,8 @@ import {
     IconArrowRight,
     IconCaretDown,
     IconCaretRight,
+    IconChevronLeft,
+    IconChevronRight,
     IconFile,
     IconFileMinus,
     IconFilePlus,
@@ -15,10 +17,9 @@ import {
 } from '@tabler/icons-react'
 import { FileIcon } from './FileBrowserStyles'
 import { clamp } from '../../util'
-import { WeblensButton } from '../../components/WeblensButton'
+import WeblensButton from '../../components/WeblensButton'
 import { getFileHistory } from '../../api/FileBrowserApi'
 import { UserContext } from '../../Context'
-import { FileEventT } from './FileBrowserTypes'
 import './style/history.css'
 import { useQuery } from '@tanstack/react-query'
 
@@ -26,14 +27,11 @@ const SIDEBAR_BREAKPOINT = 650
 
 export const FilesPane = memo(
     ({
-        open,
         selectedFiles,
         contentId,
         timestamp,
         dispatch,
     }: {
-        open: boolean
-        setOpen: (o) => void
         selectedFiles: WeblensFile[]
         contentId: string
         timestamp: number
@@ -44,6 +42,7 @@ export const FilesPane = memo(
         const [resizeOffset, setResizeOffset] = useState(
             windowSize?.width > SIDEBAR_BREAKPOINT ? 450 : 75
         )
+        const [open, setOpen] = useState<boolean>(false)
         const [tab, setTab] = useState('info')
         useResizeDrag(
             resizing,
@@ -52,16 +51,22 @@ export const FilesPane = memo(
             true
         )
 
-        if (!open) {
-            return <div className="file-info-pane" />
-        }
-
         return (
             <div
                 className="file-info-pane"
                 data-resizing={resizing}
-                style={{ width: resizeOffset }}
+                data-open={open}
+                style={{ width: open ? resizeOffset : 20 }}
             >
+                <div className="open-arrow-container">
+                    <WeblensButton
+                        squareSize={20}
+                        Left={open ? IconChevronRight : IconChevronLeft}
+                        onClick={() => {
+                            setOpen(!open)
+                        }}
+                    />
+                </div>
                 <div
                     draggable={false}
                     className="resize-bar-wrapper"
@@ -72,7 +77,7 @@ export const FilesPane = memo(
                 >
                     <div className="resize-bar" />
                 </div>
-                <div className="flex flex-col w-[75px] grow ">
+                <div className="flex flex-col w-[75px] grow h-full">
                     <div className="flex flex-row h-max w-full gap-1 justify-between p-1 pl-0">
                         <div className="max-w-[49%]">
                             <WeblensButton
@@ -108,10 +113,6 @@ export const FilesPane = memo(
         )
     },
     (prev, next) => {
-        if (prev.open !== next.open) {
-            return false
-        }
-
         if (prev.contentId !== next.contentId) {
             return false
         }
@@ -175,6 +176,9 @@ function FileInfo({ selectedFiles }) {
 }
 
 const historyDate = (timestamp: number) => {
+    if (timestamp < 10000000000) {
+        timestamp = timestamp * 1000
+    }
     const dateObj = new Date(timestamp)
     const options: Intl.DateTimeFormatOptions = {
         month: 'long',
@@ -200,30 +204,23 @@ const fileBase = (path: string) => {
     return path.slice(path.lastIndexOf('/') + 1)
 }
 
-const HistoryRow = ({
-    eventGroup,
+const HistoryEventRow = ({
+    event,
     folderPath,
     viewing,
     usr,
     dispatch,
 }: {
-    eventGroup: {
-        count: number
-        action: string
-        time: number
-        events: FileEventT[]
-    }
+    event: fileAction[]
     viewing: boolean
     folderPath: string
     usr: UserInfoT
     dispatch: FBDispatchT
 }) => {
     const [open, setOpen] = useState(false)
-    const timeStr = historyDate(eventGroup.time)
+    const timeStr = historyDate(event[0].timestamp)
 
     const folderName = portableToFolderName(folderPath)
-
-    // TODO move style into data attributes
     return (
         <div
             className="flex flex-col w-full h-max justify-center p-2 rounded-lg"
@@ -232,7 +229,7 @@ const HistoryRow = ({
                 outline: viewing ? '1px solid #4444ff' : '',
             }}
         >
-            <div key={eventGroup.time} className="file-history-summary">
+            <div className="file-history-summary">
                 <div
                     className="file-history-accordion-header"
                     onClick={() => setOpen(!open)}
@@ -255,9 +252,9 @@ const HistoryRow = ({
                         }}
                         fw={600}
                     >
-                        {eventGroup.count} File
-                        {eventGroup.count !== 1 ? 's' : ''}{' '}
-                        {eventGroup.action.slice(4)}d
+                        {event.length} File
+                        {event.length !== 1 ? 's' : ''}{' '}
+                        {event[0].actionType.slice(4)}d
                     </Text>
                 </div>
                 <div className="grow" />
@@ -268,9 +265,7 @@ const HistoryRow = ({
                     onClick={() =>
                         dispatch({
                             type: 'set_past_time',
-                            past: viewing
-                                ? null
-                                : new Date(eventGroup.events[0].Timestamp),
+                            past: viewing ? null : new Date(event[0].timestamp),
                         })
                     }
                 >
@@ -280,34 +275,39 @@ const HistoryRow = ({
             <div
                 className="file-history-detail-accordion"
                 data-open={open}
-                style={{ height: open ? eventGroup.count * 30 + 35 : 0 }}
+                style={{ height: open ? event.length * 30 + 35 : 0 }}
             >
-                <div className={'file-history-detail'}>
-                    {eventGroup.events.map((e) => {
-                        const fromFolder = portableToFolderName(e.FromPath)
-                        const toFolder = portableToFolderName(e.Path)
+                <div
+                    key={`${event[0].eventId}-detail`}
+                    className={'file-history-detail'}
+                >
+                    {event.map((a, i) => {
+                        const fromFolder = portableToFolderName(a.originPath)
+                        const toFolder = portableToFolderName(a.destinationPath)
 
-                        const fromFile = fileBase(e.FromPath)
-                        const toFile = fileBase(e.Path)
-
+                        const fromFile = fileBase(a.originPath)
+                        const toFile = fileBase(a.destinationPath)
+                        console.log(fromFile, toFile)
                         return (
                             <div
-                                key={`${e.Path}-${e.millis}`}
+                                key={`${fromFile}-${toFile}-${i}`}
                                 className="history-detail-action-row"
                             >
-                                {e.Action === 'fileMove' &&
+                                {a.actionType === 'fileMove' &&
                                     folderName === fromFolder && (
                                         <FileIcon
-                                            id={e.FromFileId}
+                                            key={`${a.originId}-move-1`}
+                                            id={a.originId}
                                             fileName={fromFile}
                                             Icon={IconFile}
                                             usr={usr}
                                         />
                                     )}
-                                {e.Action === 'fileMove' &&
+                                {a.actionType === 'fileMove' &&
                                     folderName !== fromFolder && (
                                         <FileIcon
-                                            id={e.FromFileId}
+                                            key={`${a.originId}-move-2`}
+                                            id={a.originId}
                                             fileName={fromFolder}
                                             Icon={IconFolder}
                                             usr={usr}
@@ -318,50 +318,55 @@ const HistoryRow = ({
                                             }
                                         />
                                     )}
-                                {e.Action === 'fileCreate' && (
+                                {a.actionType === 'fileCreate' && (
                                     <FileIcon
-                                        id={e.FileId}
+                                        key={`${a.destinationId}-create-1`}
+                                        id={a.destinationId}
                                         fileName={toFile}
                                         Icon={IconFilePlus}
                                         usr={usr}
                                     />
                                 )}
-                                {e.Action === 'fileDelete' && (
+                                {a.actionType === 'fileDelete' && (
                                     <FileIcon
+                                        key={`${a.originId}-delete-1`}
                                         fileName={fromFile}
                                         Icon={IconFileMinus}
-                                        id={e.FromFileId}
+                                        id={a.originId}
                                         usr={usr}
                                     />
                                     // <IconFileMinus className="icon-noshrink" />
                                 )}
-                                {e.Action === 'fileRestore' && (
+                                {a.actionType === 'fileRestore' && (
                                     <FileIcon
+                                        key={`${a.destinationId}-restore-1`}
                                         fileName={toFile}
                                         Icon={IconReorder}
-                                        id={e.FileId}
+                                        id={a.destinationId}
                                         usr={usr}
                                     />
                                     // <IconFileMinus className="icon-noshrink" />
                                 )}
-                                {e.Action === 'fileMove' && (
+                                {a.actionType === 'fileMove' && (
                                     <IconArrowRight className="icon-noshrink" />
                                 )}
 
-                                {e.Action === 'fileMove' &&
+                                {a.actionType === 'fileMove' &&
                                     folderName === toFolder && (
                                         <FileIcon
-                                            id={e.FileId}
+                                            key={`${a.originId}-move-3`}
+                                            id={a.originId}
                                             fileName={toFile}
                                             Icon={IconFile}
                                             usr={usr}
                                         />
                                     )}
 
-                                {e.Action === 'fileMove' &&
+                                {a.actionType === 'fileMove' &&
                                     folderName !== toFolder && (
                                         <FileIcon
-                                            id={e.FileId}
+                                            key={`${a.originId}-move-4`}
+                                            id={a.originId}
                                             fileName={toFolder}
                                             Icon={IconFolder}
                                             usr={usr}
@@ -374,7 +379,7 @@ const HistoryRow = ({
                                     )}
 
                                 <Text style={{ textWrap: 'nowrap' }}>
-                                    {new Date(e.millis).toLocaleTimeString()}
+                                    {new Date(a.timestamp).toLocaleTimeString()}
                                 </Text>
                             </div>
                         )
@@ -383,6 +388,17 @@ const HistoryRow = ({
             </div>
         </div>
     )
+}
+
+type fileAction = {
+    actionType: string
+    destinationId: string
+    destinationPath: string
+    eventId: string
+    lifeId: string
+    originId: string
+    originPath: string
+    timestamp: number
 }
 
 function FileHistory({
@@ -405,67 +421,51 @@ function FileHistory({
     //     getFileHistory(fileId, authHeader).then((r) => setFileHistory(r.events))
     // }, [fileId, timestamp])
 
-    const { data: fileHistory } = useQuery({
+    const { data: fileHistory } = useQuery<fileAction[]>({
         queryKey: ['fileHistory'],
-        queryFn: () => getFileHistory(fileId, authHeader).then((r) => r.events),
+        queryFn: () => getFileHistory(fileId, authHeader),
     })
 
-    const { createEvent, eventGroups } = useMemo(() => {
+    const { events, epoch } = useMemo(() => {
         if (!fileHistory || !fileHistory.length) {
-            return {}
+            return { events: [], epoch: null }
         }
 
-        const createEvent = fileHistory.shift()
+        const events: fileAction[][] = []
+        let epoch: fileAction
 
-        const groupMap = new Map<string, FileEventT[]>()
-        fileHistory.forEach((e) => {
-            let millis = Date.parse(e.Timestamp)
-            let groupMillis = millis - (millis % 60000)
-
-            e.millis = millis
-            const groupKey = `${groupMillis}-${e.Action}`
-            let group = groupMap.get(groupKey)
-            if (group === undefined) {
-                group = [e]
-            } else {
-                group.push(e)
+        fileHistory.forEach((a) => {
+            if (a.destinationId === fileId) {
+                epoch = a
+                return
             }
-            groupMap.set(groupKey, group)
+
+            const i = events.findLastIndex((e) => e[0].eventId === a.eventId)
+            if (i != -1) {
+                events[i].push(a)
+            } else {
+                events.push([a])
+            }
         })
 
-        const groups = Array.from(groupMap.values())
-
-        return {
-            createEvent: createEvent,
-            eventGroups: groups
-                .map((g) => {
-                    g.sort((a, b) => b.millis - a.millis)
-                    return {
-                        count: g.length,
-                        action: g[0].Action,
-                        time: g[0].millis,
-                        events: g,
-                    }
-                })
-                .sort((a, b) => b.time - a.time),
-        }
+        return { events, epoch }
     }, [fileHistory])
 
-    if (!createEvent) {
+    if (!epoch) {
         return null
     }
 
-    const createTimeString = historyDate(Date.parse(createEvent.Timestamp))
-
+    const createTimeString = historyDate(epoch.timestamp)
+    
     return (
         <div className="flex flex-col items-center p-2 overflow-scroll h-[200px] grow">
-            {eventGroups.map((eg) => {
+            {events.map((e, i) => {
                 return (
-                    <HistoryRow
-                        key={eg.events[0].FileId + eg.time}
-                        eventGroup={eg}
-                        folderPath={createEvent.Path}
-                        viewing={eg.time === timestamp}
+                    <HistoryEventRow
+                        key={e[0].eventId}
+                        event={e}
+                        folderPath={epoch.destinationPath}
+                        viewing={e[0].timestamp === timestamp}
                         usr={usr}
                         dispatch={dispatch}
                     />
@@ -473,8 +473,8 @@ function FileHistory({
             })}
             <div className="flex flex-row items-center p-2 pt-10">
                 <FileIcon
-                    id={createEvent.FileId}
-                    fileName={createEvent.Path}
+                    id={epoch.destinationId}
+                    fileName={epoch.destinationPath}
                     Icon={IconFolder}
                     usr={usr}
                 />

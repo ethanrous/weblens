@@ -1,7 +1,8 @@
 import { useCallback, useContext, useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
-import { API_WS_ENDPOINT } from './ApiEndpoint'
 import { UserContext } from '../Context'
+
+import { FbModeT } from '../Files/filesContext'
 import {
     AuthHeaderT,
     FBDispatchT,
@@ -9,13 +10,13 @@ import {
     UserInfoT,
     WsMessageT,
 } from '../types/Types'
+import { humanFileSize } from '../util'
+import { API_WS_ENDPOINT } from './ApiEndpoint'
 import {
     downloadSingleFile,
     SubToFolder,
     UnsubFromFolder,
 } from './FileBrowserApi'
-import { humanFileSize } from '../util'
-import { FbModeT } from '../Pages/FileBrowser/FileBrowser'
 
 function useWeblensSocket() {
     const { usr, authHeader }: UserContextT = useContext(UserContext)
@@ -113,6 +114,7 @@ export const useSubscribe = (
         HandleWebsocketMessage(
             lastMessage,
             cId,
+            sId,
             mode,
             usr,
             dispatch,
@@ -126,6 +128,7 @@ export const useSubscribe = (
 function HandleWebsocketMessage(
     lastMessage,
     contentId: string,
+    shareId: string,
     fbMode: FbModeT,
     usr: UserInfoT,
     dispatch: FBDispatchT,
@@ -138,173 +141,209 @@ function HandleWebsocketMessage(
             console.error(msgData.error)
             return
         }
-        if (!msgData.content || !msgData.content[0]) {
-            console.error('Got empty content in websocket update')
-            return
-        }
-
-        switch (msgData.eventTag) {
-            case 'file_created': {
-                dispatch({
-                    type: 'create_file',
-                    files: msgData.content.map((v) => v.fileInfo),
-                    user: usr,
-                })
-                return
-            }
-
-            case 'file_updated': {
-                const files = msgData.content.map((v) => {
-                    return v.fileInfo
-                })
-                dispatch({
-                    type: 'update_many',
-                    files: files,
-                    user: usr,
-                })
-                return
-            }
-
-            // moved is different from updated because the Id of the file will change
-            case 'file_moved': {
-                msgData.content.map((m) => {
+        // if (!msgData.content || !msgData.content[0]) {
+        //     console.error('Got empty content in websocket update')
+        //     return
+        // }
+        try {
+            switch (msgData.eventTag) {
+                case 'file_created': {
                     dispatch({
-                        type: 'replace_file',
-                        fileId: m.oldId,
-                        fileInfo: m.newFile,
+                        type: 'create_file',
+                        files: msgData.content.map((v) => v.fileInfo),
+                        user: usr,
                     })
-                })
-                return
-            }
-
-            case 'file_deleted': {
-                dispatch({
-                    type: 'delete_from_map',
-                    fileIds: msgData.content.map((v) => v.fileId),
-                })
-                return
-            }
-
-            case 'task_created': {
-                msgData.content.map((e) => {
-                    if (e.taskType === 'scan_directory') {
-                        dispatch({
-                            type: 'new_task',
-                            taskId: msgData.subscribeKey,
-                            taskType: e.taskType,
-                            target: e.directoryName,
-                        })
-                    }
-                })
-                return
-            }
-
-            case 'scan_complete': {
-                dispatch({
-                    type: 'scan_complete',
-                    taskId: msgData.subscribeKey,
-                    time: msgData.content[0].execution_time,
-                    note: msgData.content[0].note,
-                })
-                return
-            }
-
-            case 'task_failure': {
-                dispatch({
-                    type: 'task_failure',
-                    taskId: msgData.subscribeKey,
-                    note: msgData.content[0].failure_note,
-                })
-                return
-            }
-
-            case 'create_zip_progress': {
-                const [size, units] = humanFileSize(
-                    msgData.content[0].result.speedBytes
-                )
-                dispatch({
-                    type: 'update_scan_progress',
-                    progress:
-                        (msgData.content[0].result.completedFiles /
-                            msgData.content[0].result.totalFiles) *
-                        100,
-                    taskId: msgData.subscribeKey,
-                    taskType: 'Creating Zip...',
-                    target: 'Zip',
-                    fileName: `${size}${units}s`,
-                    tasksComplete: msgData.content[0].result.completedFiles,
-                    tasksTotal: msgData.content[0].result.totalFiles,
-                    note: 'No note',
-                })
-                return
-            }
-
-            case 'sub_task_complete': {
-                let jobName: string
-                if (msgData.content[0].task_job_name) {
-                    jobName = msgData.content[0].task_job_name
-                        .replace('_', ' ')
-                        .split(' ')
-                        .map((s: string) => {
-                            return s.charAt(0).toUpperCase() + s.slice(1)
-                        })
-                        .join(' ')
-                        .replace('Directory', 'Folder')
+                    return
                 }
 
-                dispatch({
-                    type: 'update_scan_progress',
-                    progress: msgData.content[0].percent_progress,
-                    taskId: msgData.subscribeKey,
-                    taskType: jobName,
-                    target: msgData.content[0].task_job_target,
-                    fileName: msgData.content[0].filename,
-                    tasksComplete: msgData.content[0].tasks_complete,
-                    tasksTotal: msgData.content[0].tasks_total,
-                    note: msgData.content[0].note,
-                })
-                return
-            }
+                case 'file_updated': {
+                    const files = msgData.content.map((v) => {
+                        return v.fileInfo
+                    })
+                    dispatch({
+                        type: 'update_many',
+                        files: files,
+                        user: usr,
+                    })
+                    return
+                }
 
-            case 'scan_directory_progress': {
-                dispatch({
-                    type: 'set_scan_progress',
-                    progress:
-                        (1 -
-                            msgData.content['remainingTasks'] /
-                                msgData.content['totalTasks']) *
-                        100,
-                })
-                return
-            }
+                // moved is different from updated because the Id of the file will change
+                case 'file_moved': {
+                    msgData.content.map((m) => {
+                        dispatch({
+                            type: 'replace_file',
+                            fileId: m.oldId,
+                            fileInfo: m.newFile,
+                        })
+                    })
+                    return
+                }
 
-            case 'zip_complete': {
-                downloadSingleFile(
-                    msgData.content[0].result['takeoutId'],
-                    authHeader,
-                    dispatch,
-                    undefined,
-                    'zip',
-                    fbMode === FbModeT.share ? contentId : ''
-                )
-                return
-            }
-            case 'error': {
-                console.error(msgData.error)
-                return
-            }
+                case 'file_deleted': {
+                    dispatch({
+                        type: 'delete_from_map',
+                        fileIds: msgData.content.map((v) => v.fileId),
+                    })
+                    return
+                }
 
-            case 'task_complete': {
-                return
-            }
+                case 'task_created': {
+                    if (msgData.taskType === 'scan_directory') {
+                        dispatch({
+                            type: 'new_task',
+                            serverId: msgData.subscribeKey,
+                            taskType: msgData.taskType,
+                            target: msgData.content[0].fileName,
+                        })
+                    }
+                    return
+                }
 
-            default: {
-                console.error(
-                    'Could not parse websocket message type: ',
-                    msgData
-                )
-                return
+                case 'scan_complete': {
+                    dispatch({
+                        type: 'task_complete',
+                        serverId: msgData.subscribeKey,
+                        time: msgData.content[0].execution_time,
+                        note: msgData.content[0].note,
+                    })
+                    return
+                }
+
+                case 'task_failure': {
+                    dispatch({
+                        type: 'task_failure',
+                        serverId: msgData.subscribeKey,
+                        note: msgData.content[0].failure_note,
+                    })
+                    return
+                }
+
+                case 'task_progress_update':
+                case 'create_zip_progress': {
+                    const [size, units] = humanFileSize(
+                        msgData.content[0].result.speedBytes
+                    )
+                    dispatch({
+                        type: 'update_scan_progress',
+                        progress:
+                            (msgData.content[0].result.completedFiles /
+                                msgData.content[0].result.totalFiles) *
+                            100,
+                        serverId: msgData.subscribeKey,
+                        taskType: 'Creating Zip...',
+                        target: `Zipping ${msgData.content[0].result.totalFiles} files`,
+                        fileName: `${size}${units}s`,
+                        tasksComplete: msgData.content[0].result.completedFiles,
+                        tasksTotal: msgData.content[0].result.totalFiles,
+                        note: 'No note',
+                    })
+                    return
+                }
+
+                case 'sub_task_complete': {
+                    let jobName: string
+                    for (const content of msgData.content) {
+                        if (content.task_job_name) {
+                            jobName = content.task_job_name
+                                .replace('_', ' ')
+                                .split(' ')
+                                .map((s: string) => {
+                                    return (
+                                        s.charAt(0).toUpperCase() + s.slice(1)
+                                    )
+                                })
+                                .join(' ')
+                                .replace('Directory', 'Folder')
+                        }
+
+                        dispatch({
+                            type: 'update_scan_progress',
+                            progress: content.percent_progress,
+                            serverId: msgData.subscribeKey,
+                            taskType: jobName,
+                            target: content.task_job_target,
+                            fileName: content.filename,
+                            tasksComplete: content.tasks_complete,
+                            tasksTotal: content.tasks_total,
+                            note: content.note,
+                        })
+                    }
+                    return
+                }
+
+                case 'scan_directory_progress': {
+                    dispatch({
+                        type: 'set_scan_progress',
+                        progress:
+                            (1 -
+                                msgData.content['remainingTasks'] /
+                                    msgData.content['totalTasks']) *
+                            100,
+                    })
+                    return
+                }
+
+                case 'zip_complete': {
+                    if (msgData.taskType !== 'create_zip') {
+                        return
+                    }
+                    dispatch({
+                        type: 'task_complete',
+                        serverId: msgData.subscribeKey,
+                    })
+                    downloadSingleFile(
+                        msgData.content[0].result['takeoutId'],
+                        authHeader,
+                        dispatch,
+                        undefined,
+                        'zip',
+                        shareId
+                    )
+                    return
+                }
+
+                case 'task_complete': {
+                    dispatch({
+                        type: 'task_complete',
+                        serverId: msgData.subscribeKey,
+                    })
+                    return
+                }
+
+                case 'pool_created': {
+                    dispatch({
+                        type: 'add_pool_to_progress',
+                        serverId: msgData.content[0].createdBy,
+                        poolId: msgData.subscribeKey,
+                    })
+                    return
+                }
+
+                case 'task_canceled':
+                case 'pool_cancelled': {
+                    dispatch({
+                        type: 'cancel_task',
+                        serverId: msgData.subscribeKey,
+                    })
+                    return
+                }
+
+                case 'error': {
+                    console.error(msgData.error)
+                    return
+                }
+
+                default: {
+                    console.error(
+                        'Could not parse websocket message type: ',
+                        msgData
+                    )
+                    return
+                }
             }
+        } catch (e) {
+            console.error('Exception while handling websocket message', e)
         }
     }
 }

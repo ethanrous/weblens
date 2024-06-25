@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as d3 from 'd3'
 import { humanFileSize } from '../../util'
-import { WeblensButton } from '../../components/WeblensButton'
+import WeblensButton from '../../components/WeblensButton'
 import { useResize } from '../../components/hooks'
 import { getFilesystemStats } from '../../api/FileBrowserApi'
 import { useNavigate } from 'react-router-dom'

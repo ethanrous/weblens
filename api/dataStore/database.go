@@ -303,7 +303,7 @@ func (db WeblensDB) SearchUsers(searchStr string) []types.Username {
 		return []types.Username{}
 	}
 
-	users := []user.User{}
+	var users []user.User
 	err = ret.All(mongoCtx, &users)
 	if err != nil {
 		util.ErrTrace(err, "Failed to decode user search")

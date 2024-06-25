@@ -33,6 +33,8 @@ type Media interface {
 	GetCreateDate() time.Time
 	SetCreateDate(time.Time) error
 
+	GetProminentColors() (prom []string, err error)
+
 	Hide() error
 
 	Clean()
@@ -46,7 +48,7 @@ type Media interface {
 	GetPageCount() int
 
 	GetCacheFile(q Quality, generateIfMissing bool, pageNum int) (WeblensFile, error)
-	// SetPageCount(int)
+	// MarshalJSON SetPageCount(int)
 	MarshalJSON() ([]byte, error)
 }
 

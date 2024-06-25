@@ -16,6 +16,7 @@ export interface MediaDataT {
     recognitionTags?: string[]
     pageCount?: number
     hidden?: boolean
+    imported?: boolean
 
     // Non-api props //
 
@@ -41,12 +42,19 @@ class WeblensMedia {
     private loadError: PhotoQuality
 
     constructor(init: MediaDataT) {
-        this.data = init
+        if (typeof init.contentId !== 'string') {
+            console.trace()
+        }
+        this.data = init as MediaDataT
         this.data.selected = false
     }
 
     Id(): string {
         return this.data.contentId
+    }
+
+    IsImported(): boolean {
+        return this.data.imported
     }
 
     IsHidden(): boolean {
@@ -225,6 +233,18 @@ class WeblensMedia {
         }
     }
 
+    async LoadInfo() {
+        const url = new URL(`${API_ENDPOINT}/media/${this.data.contentId}/info`)
+        fetch(url.toString())
+            .then((r) => r.json())
+            .then((r) => {
+                this.data = {
+                    ...this.data,
+                    ...(r as MediaDataT),
+                }
+            })
+    }
+
     CancelLoad() {
         if (this.data.abort) {
             this.data.abort.abort('Cancelled')
@@ -274,6 +294,137 @@ class WeblensMedia {
 
         return res
     }
+}
+
+export class MediaStateT {
+    mediaMap: Map<string, WeblensMedia>
+    mediaList: WeblensMedia[]
+
+    constructor(map?: Map<string, WeblensMedia> | MediaStateT) {
+        if (!map) {
+            this.mediaMap = new Map<string, WeblensMedia>()
+            this.mediaList = []
+        } else if (map instanceof Map) {
+            this.mediaMap = map
+        } else if (map && map instanceof MediaStateT) {
+            this.mediaMap = map.mediaMap
+            this.mediaList = map.mediaList
+        } else {
+            console.error('Unable to construct MediaStateT')
+        }
+    }
+
+    private sortedIndex(target: WeblensMedia) {
+        var low = 0,
+            high = this.mediaList?.length
+
+        while (low < high) {
+            var mid = (low + high) >>> 1
+            if (this.mediaList[mid].GetCreateDate() > target.GetCreateDate())
+                low = mid + 1
+            else high = mid
+        }
+        return low
+    }
+
+    public set(mediaId: string, media: WeblensMedia) {
+        if (!media.IsImported()) {
+            media.LoadInfo()
+        }
+
+        if (this.mediaList?.length > 0) {
+            const index = this.sortedIndex(media)
+            this.mediaList.splice(index, 0, media)
+
+            if (index > 0) {
+                this.mediaList[index - 1].SetNextLink(media)
+                this.mediaList[index].SetPrevLink(this.mediaList[index - 1])
+            }
+            if (index < this.mediaList.length - 1) {
+                this.mediaList[index].SetNextLink(this.mediaList[index + 1])
+                this.mediaList[index + 1].SetPrevLink(this.mediaList[index])
+            }
+        } else {
+            this.mediaList = [media]
+        }
+
+        this.mediaMap.set(mediaId, media)
+    }
+
+    public async loadNew(mediaId: string): Promise<WeblensMedia> {
+        if (!mediaId) {
+            return null
+        }
+
+        if (this.mediaMap.has(mediaId)) {
+            return this.mediaMap.get(mediaId)
+        }
+
+        const url = new URL(`${API_ENDPOINT}/media/${mediaId}/info`)
+        const newData = await fetch(url.toString()).then((r) => r.json())
+        const newM = new WeblensMedia(newData as MediaDataT)
+
+        if (newM) {
+            this.mediaMap.set(mediaId, newM)
+        }
+
+        return newM
+    }
+
+    public get(mediaId: string) {
+        const m = this.mediaMap.get(mediaId)
+        if (m) return
+    }
+}
+
+export type MediaAction = {
+    type: string
+    medias?: WeblensMedia[]
+    media?: WeblensMedia
+    mediaId?: string
+    mediaIds?: string[]
+}
+
+export function mediaReducer(
+    state: MediaStateT,
+    action: MediaAction
+): MediaStateT {
+    switch (action.type) {
+        case 'add_media': {
+            if (state.mediaMap.has(action.media.Id())) {
+                return state
+            }
+
+            state.set(action.media.Id(), action.media)
+            break
+        }
+        case 'add_media_id': {
+            if (state.mediaMap.has(action.mediaId)) {
+                return state
+            }
+
+            const newM = new WeblensMedia({ contentId: action.mediaId })
+            state.set(newM.Id(), newM)
+            break
+        }
+        case 'add_media_ids': {
+            for (const mId of action.mediaIds) {
+                const newM = new WeblensMedia({ contentId: mId })
+                state.set(newM.Id(), newM)
+            }
+            break
+        }
+        case 'refresh': {
+            break
+        }
+        default: {
+            console.error('Unknown action type', action.type)
+            return state
+        }
+    }
+
+    return new MediaStateT(state.mediaMap)
+    // new Map<string, WeblensMedia>(state)
 }
 
 export default WeblensMedia

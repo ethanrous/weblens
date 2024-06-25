@@ -30,7 +30,9 @@ type User interface {
 type UserService interface {
 	BaseService[Username, User]
 	GetAll() ([]User, error)
+	GetPublicUser() User
 }
 
 var ErrUserNotAuthenticated = NewWeblensError("user credentials are invalid")
 var ErrBadPassword = NewWeblensError("password provided does not authenticate user")
+var ErrUserAlreadyExists = NewWeblensError("cannot create two users with the same username")

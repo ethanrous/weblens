@@ -30,19 +30,19 @@ const (
 )
 
 const (
-	TaskCreated     types.TaskEvent = "task_created"
-	ScanComplete    types.TaskEvent = "scan_complete"
-	TaskComplete    types.TaskEvent = "task_complete"
-	TaskFailed      types.TaskEvent = "task_failure"
-	SubTaskComplete types.TaskEvent = "sub_task_complete"
-	TaskProgress    types.TaskEvent = "task_progress_update"
+	TaskCreatedEvent     types.TaskEvent = "task_created"
+	PoolCreatedEvent     types.TaskEvent = "pool_created"
+	PoolCancelledEvent   types.TaskEvent = "pool_cancelled"
+	ScanCompleteEvent    types.TaskEvent = "scan_complete"
+	TaskCompleteEvent    types.TaskEvent = "task_complete"
+	ZipCompleteEvent     types.TaskEvent = "zip_complete"
+	TaskFailedEvent      types.TaskEvent = "task_failure"
+	TaskCanceledEvent    types.TaskEvent = "task_canceled"
+	SubTaskCompleteEvent types.TaskEvent = "sub_task_complete"
+	TaskProgressEvent    types.TaskEvent = "task_progress_update"
 )
 
 // Internal types //
-
-type taskMetadata interface {
-	MetaString() string
-}
 
 type scanMetadata struct {
 	file types.WeblensFile
@@ -66,6 +66,12 @@ func (m scanMetadata) MetaString() string {
 	return string(bs)
 }
 
+func (m scanMetadata) FormatToResult() types.TaskResult {
+	return types.TaskResult{
+		"fileName": m.file.Filename(),
+	}
+}
+
 type zipMetadata struct {
 	files    []types.WeblensFile
 	username types.Username
@@ -83,6 +89,10 @@ func (m zipMetadata) MetaString() string {
 	util.ErrTrace(err)
 
 	return string(bs)
+}
+
+func (m zipMetadata) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
 }
 
 type moveMeta struct {
@@ -103,6 +113,10 @@ func (m moveMeta) MetaString() string {
 	util.ErrTrace(err)
 
 	return string(bs)
+}
+
+func (m moveMeta) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
 }
 
 type fileChunk struct {
@@ -133,6 +147,10 @@ func (m writeFileMeta) MetaString() string {
 	return string(bs)
 }
 
+func (m writeFileMeta) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
+}
+
 type fsStatMeta struct {
 	rootDir types.WeblensFile
 }
@@ -146,6 +164,10 @@ func (m fsStatMeta) MetaString() string {
 	util.ErrTrace(err)
 
 	return string(bs)
+}
+
+func (m fsStatMeta) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
 }
 
 type fileUploadProgress struct {
@@ -169,6 +191,10 @@ func (m backupMeta) MetaString() string {
 	return string(bs)
 }
 
+func (m backupMeta) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
+}
+
 type hashFileMeta struct {
 	file types.WeblensFile
 }
@@ -182,6 +208,10 @@ func (m hashFileMeta) MetaString() string {
 	util.ErrTrace(err)
 
 	return string(bs)
+}
+
+func (m hashFileMeta) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
 }
 
 // Errors

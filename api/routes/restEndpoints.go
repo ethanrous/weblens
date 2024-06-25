@@ -113,6 +113,7 @@ func AddSharedRoutes(api *gin.RouterGroup) {
 	router.GET("/ping", ping)
 	api.GET("/info", getServerInfo)
 
+	api.GET("/media/:mediaId/info", getMediaInfo)
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
 
@@ -124,9 +125,9 @@ func AddSharedRoutes(api *gin.RouterGroup) {
 func AddApiRoutes(api *gin.RouterGroup) {
 
 	// Media
+	api.GET("/media", getMediaBatch)
 	api.GET("/media/types", getMediaTypes)
 	api.GET("/media/random", getRandomMedias)
-	api.GET("/media", getMediaBatch)
 	api.PATCH("/media/hide", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
@@ -134,7 +135,7 @@ func AddApiRoutes(api *gin.RouterGroup) {
 	api.GET("/file/:fileId", getFile)
 	api.GET("/file/share/:shareId", getFileShare)
 	api.GET("/file/:fileId/shares", getFilesShares)
-	api.GET("/file/download", downloadFile)
+	api.GET("/file/:fileId/download", downloadFile)
 	api.PATCH("/file/:fileId", updateFile)
 	api.PATCH("/file/share/:shareId", updateFileShare)
 
@@ -244,7 +245,7 @@ func ReverseProxyToCore(coreAddress string) gin.HandlerFunc {
 }
 
 func AddUiRoutes() {
-	memFs := InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}}
+	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}}
 	// indexAbsPath :=
 	memFs.loadIndex()
 	// r.Use(static.Serve("/", static.LocalFile("../ui/build", true)))

@@ -171,7 +171,7 @@ func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	bs := [][]byte{}
+	var bs [][]byte
 	origFileBs, err := readRespBodyRaw(resp)
 	if err != nil {
 		return nil, err

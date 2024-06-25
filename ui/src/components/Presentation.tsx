@@ -1,3 +1,4 @@
+import { IconX } from '@tabler/icons-react'
 import React, {
     memo,
     ReactNode,
@@ -6,12 +7,12 @@ import React, {
     useMemo,
     useState,
 } from 'react'
+import WeblensMedia from '../Media/Media'
 
 import { MediaImage } from '../Media/PhotoContainer'
-import WeblensMedia from '../Media/Media'
-import { IconX } from '@tabler/icons-react'
 import { SizeT } from '../types/Types'
-import { useResize } from './hooks'
+import { useMedia, useResize } from './hooks'
+import WeblensButton from './WeblensButton'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -184,6 +185,8 @@ const PresentationVisual = ({
 }
 
 function useKeyDownPresentation(itemId: string, dispatch) {
+    const mediaData = useMedia(itemId)
+
     const keyDownHandler = useCallback(
         (event) => {
             if (!itemId) {
@@ -193,15 +196,21 @@ function useKeyDownPresentation(itemId: string, dispatch) {
                 dispatch({ type: 'stop_presenting' })
             } else if (event.key === 'ArrowLeft') {
                 event.preventDefault()
-                dispatch({ type: 'presentation_previous' })
+                dispatch({
+                    type: 'set_presentation',
+                    mediaId: mediaData.Prev()?.Id(),
+                })
             } else if (event.key === 'ArrowRight') {
                 event.preventDefault()
-                dispatch({ type: 'presentation_next' })
+                dispatch({
+                    type: 'set_presentation',
+                    mediaId: mediaData.Next()?.Id(),
+                })
             } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
                 event.preventDefault()
             }
         },
-        [itemId, dispatch]
+        [itemId, dispatch, mediaData]
     )
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
@@ -220,22 +229,22 @@ function handleTimeout(to, setTo, setGuiShown) {
 
 const Presentation = memo(
     ({
-        itemId,
-        mediaData,
+        mediaId,
         element,
         dispatch,
     }: {
-        itemId: string
-        mediaData: WeblensMedia
+        mediaId: string
         dispatch: React.Dispatch<any>
         element?
     }) => {
-        useKeyDownPresentation(itemId, dispatch)
+        useKeyDownPresentation(mediaId, dispatch)
 
         const [to, setTo] = useState(null)
         const [guiShown, setGuiShown] = useState(false)
 
-        if (!mediaData) {
+        const mediaData = useMedia(mediaId)
+
+        if (!mediaId || !mediaData) {
             return null
         }
 
@@ -246,33 +255,33 @@ const Presentation = memo(
                     handleTimeout(to, setTo, setGuiShown)
                 }}
                 onClick={() =>
-                    dispatch({ type: 'set_presentation', media: null })
+                    dispatch({ type: 'set_presentation', mediaId: '' })
                 }
             >
                 <PresentationVisual
-                    key={mediaData.Id()}
+                    key={mediaId}
                     mediaData={mediaData}
                     Element={element}
                 />
                 {/* <Text style={{ position: 'absolute', bottom: guiShown ? 15 : -100, left: '50vw' }} >{}</Text> */}
 
-                <div
-                    className="close-icon"
-                    data-shown={guiShown.toString()}
-                    onClick={() =>
-                        dispatch({
-                            type: 'set_presentation',
-                            presentingId: null,
-                        })
-                    }
-                >
-                    <IconX />
+                <div className="close-icon" data-shown={guiShown}>
+                    <WeblensButton
+                        subtle
+                        Left={IconX}
+                        onClick={() =>
+                            dispatch({
+                                type: 'set_presentation',
+                                mediaId: '',
+                            })
+                        }
+                    />
                 </div>
             </PresentationContainer>
         )
     },
     (prev, next) => {
-        if (prev.itemId !== next.itemId) {
+        if (prev.mediaId !== next.mediaId) {
             return false
         }
 

@@ -74,7 +74,7 @@ export function nsToHumanTime(ns: number) {
 }
 
 export function dateFromFileData(fileData: WeblensFile) {
-    let date = new Date(fileData.GetMedia().GetCreateDate())
+    let date = new Date(fileData.GetMediaId().GetCreateDate())
     if (date.getFullYear() === 0) {
         date = new Date(fileData.GetModified())
     }

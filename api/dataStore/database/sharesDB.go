@@ -26,3 +26,8 @@ func (db *databaseService) UpdateShare(s types.Share) error {
 func (db *databaseService) SetShareEnabledById(sId types.ShareId, enabled bool) error {
 	panic("implement me")
 }
+
+func (db *databaseService) CreateShare(share types.Share) error {
+	_, err := db.shares.InsertOne(db.ctx, share)
+	return err
+}

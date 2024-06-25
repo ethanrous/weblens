@@ -1,5 +1,5 @@
 import { Divider, Input, Text } from '@mantine/core'
-import { WeblensButton } from '../../components/WeblensButton'
+import WeblensButton from '../../components/WeblensButton'
 import '../../style/setup.css'
 import {
     IconArrowLeft,

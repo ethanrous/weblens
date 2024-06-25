@@ -7,13 +7,13 @@ import {
 } from '@tabler/icons-react'
 import { useResize } from '../../components/hooks'
 import { useContext, useState } from 'react'
-import { SelectIcon } from '../../components/WeblensButton'
-import { FbContext } from './FileBrowser'
+import { FbContext } from '../../Files/filesContext'
+import WeblensButton from '../../components/WeblensButton'
 
 const fileSortTypes = [
-    { Name: 'Name', Icon: <IconSortAZ className="button-icon" /> },
-    { Name: 'Create Date', Icon: <IconCalendar className="button-icon" /> },
-    { Name: 'Size', Icon: <IconFileAnalytics className="button-icon" /> },
+    { Name: 'Name', Icon: IconSortAZ },
+    { Name: 'Create Date', Icon: IconCalendar },
+    { Name: 'Size', Icon: IconFileAnalytics },
 ]
 
 function FileSortBox() {
@@ -22,49 +22,44 @@ function FileSortBox() {
     const sortFuncBoxSize = useResize(sortFuncBox)
 
     return (
-        <div className="flex flex-row w-max shrink-0">
-            <div className="file-sort-box">
-                <div
-                    className="sort-direction-box"
-                    onClick={() =>
-                        fbDispatch({
-                            type: 'set_sort',
-                            sortDirection: fbState.sortDirection * -1,
-                        })
-                    }
-                >
-                    {fbState.sortDirection === 1 && <IconSortDescending2 />}
-                    {fbState.sortDirection === -1 && <IconSortAscending2 />}
-                </div>
-                <div className="h-full w-1 pt-1 pb-4 bg-[#333333]" />
-                <div ref={setSortFuncBox}>
-                    <div className="sort-func-selector">
-                        {fileSortTypes.map((v, i) => {
-                            return (
-                                <SelectIcon
-                                    key={v.Name}
-                                    size={42}
-                                    label={v.Name}
-                                    icon={v.Icon}
-                                    index={i}
-                                    selected={fbState.sortFunc === v.Name}
-                                    selectedIndex={fileSortTypes.findIndex(
-                                        (v) => v.Name === fbState.sortFunc
-                                    )}
-                                    expandSize={sortFuncBoxSize.width}
-                                    onClick={() => {
-                                        fbDispatch({
-                                            type: 'set_sort',
-                                            sortType: v.Name,
-                                        })
-                                    }}
-                                />
-                            )
-                        })}
-                    </div>
-                </div>
+        // <div className="flex flex-row w-max shrink-0 p-2">
+        <div className="file-sort-box">
+            <WeblensButton
+                Left={
+                    fbState.sortDirection === 1
+                        ? IconSortDescending2
+                        : IconSortAscending2
+                }
+                onClick={() =>
+                    fbDispatch({
+                        type: 'set_sort',
+                        sortDirection: fbState.sortDirection * -1,
+                    })
+                }
+            />
+
+            <div className="h-full w-[1px] pt-1 pb-1 bg-[#333333]" />
+
+            <div className="flex flex-row items-center">
+                {fileSortTypes.map((v, i) => {
+                    return (
+                        <WeblensButton
+                            key={v.Name}
+                            squareSize={42}
+                            Left={v.Icon}
+                            toggleOn={v.Name === fbState.sortFunc}
+                            onClick={() => {
+                                fbDispatch({
+                                    type: 'set_sort',
+                                    sortType: v.Name,
+                                })
+                            }}
+                        />
+                    )
+                })}
             </div>
         </div>
+        // </div>
     )
 }
 

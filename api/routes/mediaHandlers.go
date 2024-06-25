@@ -9,6 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func getMediaInfo(ctx *gin.Context) {
+	mediaId := types.ContentId(ctx.Param("mediaId"))
+	m := types.SERV.MediaRepo.Get(mediaId)
+	if m == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+	
+	ctx.JSON(http.StatusOK, m)
+}
+
 func hideMedia(ctx *gin.Context) {
 	body, err := readCtxBody[mediaIdsBody](ctx)
 	if err != nil {
@@ -49,7 +60,9 @@ func adjustMediaDate(ctx *gin.Context) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-	extras := util.Map(body.MediaIds, func(mId types.ContentId) types.Media { return types.SERV.MediaRepo.Get(body.AnchorId) })
+	extras := util.Map(
+		body.MediaIds, func(mId types.ContentId) types.Media { return types.SERV.MediaRepo.Get(body.AnchorId) },
+	)
 
 	err = media.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {

@@ -12,6 +12,8 @@ type ClientManager interface {
 }
 
 type Client interface {
+	BasicCaster
+
 	Subscribe(key SubId, action WsAction, acc AccessMeta, tree FileTree) (complete bool, results map[string]any)
 	Unsubscribe(SubId)
 
@@ -36,22 +38,25 @@ type Subscription struct {
 	Key  SubId
 }
 
-type BroadcasterAgent interface {
-	PushFileCreate(newFile WeblensFile)
+type BasicCaster interface {
 	PushFileUpdate(updatedFile WeblensFile)
-	PushFileMove(preMoveFile WeblensFile, postMoveFile WeblensFile)
-	PushFileDelete(deletedFile WeblensFile)
-	PushTaskUpdate(taskId TaskId, event TaskEvent, result TaskResult)
-	PushShareUpdate(username Username, newShareInfo Share)
-	Enable()
-	IsBuffered() bool
-
-	FolderSubToTask(folder FileId, task TaskId)
-	UnsubTask(task Task)
+	PushTaskUpdate(task Task, event TaskEvent, result TaskResult)
+	PushPoolUpdate(pool TaskPool, event TaskEvent, result TaskResult)
 }
 
-type TaskBroadcaster interface {
-	PushTaskUpdate(taskId TaskId, status string, result TaskResult)
+type BroadcasterAgent interface {
+	BasicCaster
+	PushFileCreate(newFile WeblensFile)
+	PushFileMove(preMoveFile WeblensFile, postMoveFile WeblensFile)
+	PushFileDelete(deletedFile WeblensFile)
+	PushShareUpdate(username Username, newShareInfo Share)
+	Enable()
+	Disable()
+	IsBuffered() bool
+
+	FolderSubToTask(folder FileId, taskId TaskId)
+	FolderSubToPool(folder FileId, poolId TaskId)
+	UnsubTask(task Task)
 }
 
 type BufferedBroadcasterAgent interface {
@@ -61,12 +66,12 @@ type BufferedBroadcasterAgent interface {
 	AutoFlushEnable()
 	Flush()
 
-	// flush, release the auto-flusher, and disable the caster
+	// Close flush, release the auto-flusher, and disable the caster
 	Close()
 }
 
 type Requester interface {
-	// RequestCoreSnapshot() ([]FileJournalEntry, error)
+	// AttachToCore RequestCoreSnapshot() ([]FileJournalEntry, error)
 	AttachToCore(srvId InstanceId, coreAddress, name string, key WeblensApiKey) error
 	GetCoreUsers() (us []User, err error)
 	PingCore() bool
@@ -81,8 +86,10 @@ const (
 
 	FolderSubscribe WsAction = "folder_subscribe"
 	TaskSubscribe   WsAction = "task_subscribe"
+	PoolSubscribe   WsAction = "pool_subscribe"
 	Unsubscribe     WsAction = "unsubscribe"
 	ScanDirectory   WsAction = "scan_directory"
+	CancelTask      WsAction = "cancel_task"
 )
 
 type WsContent interface {

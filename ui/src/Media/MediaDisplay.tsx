@@ -32,7 +32,8 @@ import { useResize } from '../components/hooks'
 import { GalleryMenu } from '../Pages/Gallery/GalleryMenu'
 
 import '../Pages/Gallery/galleryStyle.scss'
-import { GalleryContext } from '../Pages/Gallery/Gallery'
+
+import { GalleryContext } from '../Pages/Gallery/GalleryLogic'
 
 const MultiFileMenu = ({
     filesInfo,
@@ -254,13 +255,13 @@ const MediaInfoDisplay = memo(
                     onClick={goto}
                 />
                 {/* <Box style={{ height: 32 }}>
-                    <MultiFileMenu
-                        filesInfo={filesInfo}
-                        loading={false}
-                        menuOpen={menuOpen}
-                        setMenuOpen={setMenuOpen}
-                    />
-                </Box> */}
+                 <MultiFileMenu
+                 filesInfo={filesInfo}
+                 loading={false}
+                 menuOpen={menuOpen}
+                 setMenuOpen={setMenuOpen}
+                 />
+                 </Box> */}
             </div>
         )
     },
@@ -309,7 +310,7 @@ const MediaWrapper = memo(
         }, [
             scale,
             mediaData,
-            galleryState.presentingMedia,
+            galleryState.presentingMediaId,
             galleryState.presentingMode,
         ])
 
@@ -325,10 +326,13 @@ const MediaWrapper = memo(
             }
             galleryDispatch({
                 type: 'set_presentation',
-                media: mediaData,
+                mediaId: mediaData.Id(),
                 presentMode: PresentType.Fullscreen,
             })
-        }, [galleryState.selecting, galleryState.presentingMedia === mediaData])
+        }, [
+            galleryState.selecting,
+            galleryState.presentingMediaId === mediaData.Id(),
+        ])
 
         const mouseOver = useCallback(() => {
             if (galleryState.selecting) {
@@ -367,7 +371,7 @@ const MediaWrapper = memo(
         const mod = useMemo(() => {
             return {
                 presenting:
-                    galleryState.presentingMedia === mediaData &&
+                    galleryState.presentingMediaId === mediaData.Id() &&
                     galleryState.presentingMode === PresentType.InLine,
                 selecting: galleryState.selecting.toString(),
                 choosing: (
@@ -385,7 +389,7 @@ const MediaWrapper = memo(
             }
         }, [
             galleryState.selecting,
-            galleryState.presentingMedia === mediaData,
+            galleryState.presentingMediaId === mediaData.Id(),
             galleryState.presentingMode,
             menuOpen,
             mediaData.IsSelected(),
@@ -731,9 +735,9 @@ export function PhotoGallery({
                 items: [],
                 element: (
                     <AlbumTitle
-                        startColor={album.PrimaryColor}
-                        endColor={album.SecondaryColor}
-                        title={album.Name}
+                        startColor={album.primaryColor}
+                        endColor={album.secondaryColor}
+                        title={album.name}
                     />
                 ),
             })
@@ -746,7 +750,7 @@ export function PhotoGallery({
         return {
             rows: rows,
             selecting: galleryState.selecting,
-            albumId: album?.Id,
+            albumId: album?.id,
             viewSize: viewSize,
             fetchAlbum: fetchAlbum,
         }

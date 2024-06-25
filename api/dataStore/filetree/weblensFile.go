@@ -76,8 +76,8 @@ type weblensFile struct {
 	taskUsing types.Task
 	tasksLock *sync.Mutex
 
-	// the shares that this file belongs to
-	shares []types.Share
+	// the share that belongs to this file
+	share types.Share
 
 	// Mark file as read-only internally.
 	// This should be checked before any write action is to be taken
@@ -166,6 +166,10 @@ func (f *weblensFile) GetAbsPath() string {
 		f.absolutePath = f.absolutePath + "/"
 	}
 	return f.absolutePath
+}
+
+func (f *weblensFile) GetPortablePath() types.WeblensFilepath {
+	return FilepathFromAbs(f.GetAbsPath())
 }
 
 // Owner returns the username of the owner of the file
@@ -538,7 +542,7 @@ func (f *weblensFile) UnmarshalJSON(data []byte) error {
 	}
 
 	f.id = types.FileId(tmp["id"].(string))
-	f.absolutePath = FilepathFromPortable(tmp["portablePath"].(string)).ToAbsPath(f.tree.Get("MEDIA"))
+	f.absolutePath = FilepathFromPortable(tmp["portablePath"].(string)).ToAbsPath()
 	f.filename = tmp["filename"].(string)
 	util.ShowErr(types.NewWeblensError("TODO - get user in file unmarshal"))
 	// f.owner = user.GetUser(types.Username(tmp["ownerName"].(string)))
@@ -576,14 +580,7 @@ func (f *weblensFile) UnmarshalJSON(data []byte) error {
 		},
 	)
 
-	f.shares = util.Map(
-		tmp["shareIds"].([]any), func(sId any) types.Share {
-			util.ShowErr(types.NewWeblensError("TODO - get share in file unmarshal"))
-			// s, _ := share.GetShare(types.ShareId(sId.(string)), dataStore.FileShare, f.GetTree())
-			// return s
-			return nil
-		},
-	)
+	f.share = types.SERV.ShareService.Get(types.ShareId(tmp["shareId"].(string)))
 
 	return nil
 }
@@ -593,7 +590,7 @@ func (f *weblensFile) MarshalArchive() map[string]any {
 	if f.id == "EXTERNAL" {
 		pPath = "EXTERNAL:"
 	} else {
-		pPath = FilepathFromAbs(f.absolutePath, f.tree.Get("MEDIA")).ToPortable()
+		pPath = FilepathFromAbs(f.absolutePath).ToPortable()
 	}
 	if pPath == ":" {
 		panic("empty pPath")
@@ -610,7 +607,7 @@ func (f *weblensFile) MarshalArchive() map[string]any {
 		// "mediaService":        m,
 		"parentId":    f.parent.ID(),
 		"childrenIds": util.Map(f.GetChildren(), func(c types.WeblensFile) types.FileId { return c.ID() }),
-		"shareIds":    util.Map(f.GetShares(), func(s types.Share) types.ShareId { return s.GetShareId() }),
+		"shareId":     f.GetShare().GetShareId(),
 	}
 }
 
@@ -632,7 +629,7 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		return
 	}
 
-	var imported bool = true
+	var imported = true
 	var m types.Media
 
 	if !f.IsDir() {
@@ -660,17 +657,15 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		friendlyName = mType.FriendlyName()
 	}
 
-	// shares := f.GetShares()
+	var shareId types.ShareId
+	if f.GetShare() != nil {
+		shareId = f.GetShare().GetShareId()
+	}
+
 	var parentId types.FileId
 	if f.Owner() != dataStore.WeblensRootUser && acc.CanAccessFile(f.GetParent()) {
 		parentId = f.GetParent().ID()
 	}
-
-	shares := util.Filter(
-		f.GetShares(), func(s types.Share) bool {
-			return acc.CanAccessShare(s)
-		},
-	)
 
 	tmpF := types.WeblensFile(f)
 	var pathBits []string
@@ -678,7 +673,7 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		if tmpF.GetParent() == f.tree.Get("MEDIA") {
 			pathBits = append(pathBits, "HOME")
 			break
-		} else if acc.UsingShare() != nil && tmpF.ID() == types.FileId(acc.UsingShare().GetContentId()) {
+		} else if acc.UsingShare() != nil && tmpF.ID() == types.FileId(acc.UsingShare().GetItemId()) {
 			pathBits = append(pathBits, "SHARE")
 			break
 		} else if dataStore.IsFileInTrash(tmpF) {
@@ -706,7 +701,7 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		Owner:            f.Owner().GetUsername(),
 		PathFromHome:     pathString,
 		MediaData:        m,
-		Shares:           shares,
+		Share:            shareId,
 		Children:         util.Map(f.GetChildren(), func(wf types.WeblensFile) types.FileId { return wf.ID() }),
 		PastFile:         acc.GetTime().Unix() > 0,
 	}
@@ -714,17 +709,7 @@ func (f *weblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 	return formattedInfo, nil
 }
 
-/*
-Recursively perform fn on f, first, and all children of f. This takes a semi "Depth first" approach as shown below.
-
-Files are acted on in the order of their index number shown below, starting with the root
-
-		f1
-	   /  \
-	  f2  f5
-	 /  \
-	f3  f4
-*/
+// RecursiveMap /*
 func (f *weblensFile) RecursiveMap(fn types.FileMapFunc) error {
 	err := fn(f)
 	if err != nil {
@@ -802,7 +787,7 @@ Files are acted on in the order of their index number below, starting with the c
 	f1 <- Root caller
 */
 func (f *weblensFile) BubbleMap(fn types.FileMapFunc) error {
-	if f == nil || f.owner == dataStore.WeblensRootUser {
+	if f == nil || slices.Contains(dataStore.RootDirIds, f.ID()) {
 		return nil
 	}
 	err := fn(f)
@@ -814,6 +799,10 @@ func (f *weblensFile) BubbleMap(fn types.FileMapFunc) error {
 	return parent.BubbleMap(fn)
 }
 
+func (f *weblensFile) IsParentOf(child types.WeblensFile) bool {
+	return true
+}
+
 func (f *weblensFile) SetWatching() error {
 	if f.watching {
 		return types.ErrAlreadyWatching
@@ -823,7 +812,7 @@ func (f *weblensFile) SetWatching() error {
 	return nil
 }
 
-var sleeperCount atomic.Int64 = atomic.Int64{}
+var sleeperCount = atomic.Int64{}
 
 func (f *weblensFile) AddTask(t types.Task) {
 
@@ -833,7 +822,7 @@ func (f *weblensFile) AddTask(t types.Task) {
 	f.taskUsing = t
 }
 
-// Returns the task currently using this file
+// GetTask Returns the task currently using this file
 func (f *weblensFile) GetTask() types.Task {
 	return f.taskUsing
 }
@@ -858,44 +847,25 @@ func (f *weblensFile) RemoveTask(tId types.TaskId) error {
 	return nil
 }
 
-func (f *weblensFile) GetShares() []types.Share {
-	if f.shares == nil {
-		f.shares = []types.Share{}
-	}
-	return f.shares
+func (f *weblensFile) GetShare() types.Share {
+	return f.share
 }
 
-func (f *weblensFile) GetShare(shareId types.ShareId) (sh types.Share, err error) {
-	if f.shares == nil {
-		err = types.ErrNoShare
-		return
-	}
-	index := slices.IndexFunc(f.GetShares(), func(v types.Share) bool { return v.GetShareId() == shareId })
-	if index == -1 {
-		err = types.ErrNoShare
-		return
-	}
-	sh = f.shares[index]
-	return
-}
-
-func (f *weblensFile) AppendShare(s types.Share) {
-	if f.shares == nil {
-		f.shares = []types.Share{}
-	}
-	f.shares = append(f.shares, s)
+func (f *weblensFile) SetShare(sh types.Share) error {
+	f.share = sh
+	return nil
 }
 
 func (f *weblensFile) RemoveShare(sId types.ShareId) (err error) {
-	if f.shares == nil {
-		return types.ErrNoShare
-	}
-
-	var e bool
-	f.shares, _, e = util.YoinkFunc(f.shares, func(share types.Share) bool { return share.GetShareId() == sId })
-	if !e {
-		err = types.ErrNoShare
-	}
+	// if f.share == nil {
+	//	return types.ErrNoShare
+	// }
+	//
+	// var e bool
+	// f.share, _, e = util.YoinkFunc(f.share, func(share types.Share) bool { return share.GetShareId() == sId })
+	// if !e {
+	//	err = types.ErrNoShare
+	// }
 	return
 }
 

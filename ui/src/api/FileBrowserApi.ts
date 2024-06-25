@@ -1,11 +1,13 @@
 import { notifications } from '@mantine/notifications'
 import axios from 'axios'
+import { WeblensShare } from '../classes/Share'
+import { FileInitT, WeblensFile } from '../Files/File'
+
+import { FbModeT } from '../Files/filesContext'
 
 import { AlbumData, AuthHeaderT, FBDispatchT } from '../types/Types'
-import { FileInitT, WeblensFile } from '../Files/File'
+import { humanFileSize } from '../util'
 import API_ENDPOINT from './ApiEndpoint'
-import { WeblensShare } from '../classes/Share'
-import { FbModeT } from '../Pages/FileBrowser/FileBrowser'
 
 export function SubToFolder(subId: string, shareId: string, wsSend) {
     if (!subId || subId === 'shared') {
@@ -260,43 +262,59 @@ export function downloadSingleFile(
     ext: string,
     shareId: string
 ) {
-    const url = new URL(`${API_ENDPOINT}/download`)
-    url.searchParams.append('fileId', fileId)
+    if (!fileId) {
+        console.error('Trying to download without file id!')
+        return
+    }
+
+    const url = new URL(`${API_ENDPOINT}/file/${fileId}/download`)
     if (shareId) {
+        console.log(`Downloading with share ${shareId}`)
         url.searchParams.append('shareId', shareId)
     }
 
-    const notifId = `download_${fileId}`
-    notifications.show({
-        id: notifId,
-        message: 'Starting download',
-        autoClose: false,
-        loading: true,
-    })
+    filename = filename ? filename : `${fileId}.${ext}`
 
+    // fetch(url.toString(), {
+    //     method: 'GET',
+    //     headers: authHeader,
+    // })
     axios
         .get(url.toString(), {
             responseType: 'blob',
             headers: authHeader,
-            // onDownloadProgress: (p) => {
-            //     dispatch({
-            //         type: "set_scan_progress",
-            //         progress: Number((p.progress * 100).toFixed(0)),
-            //     });
-            //     const [speed, units] = humanFileSize(p.rate);
-            //     notifications.update({
-            //         id: notifId,
-            //         message: `Downloading ${(p.progress * 100).toFixed(0)}% (${speed}${units}/s)`,
-            //     });
-            // },
+
+            onDownloadProgress: (p) => {
+                const [rateSize, rateUnits] = humanFileSize(p.rate)
+                const [bytesSize, bytesUnits] = humanFileSize(p.loaded)
+                const [totalSize, totalUnits] = humanFileSize(p.total)
+                console.log(p)
+                dispatch({
+                    type: 'update_scan_progress',
+                    progress: p.progress * 100,
+                    serverId: `DOWNLOAD_${fileId}`,
+                    taskType: `Download ${filename}`,
+                    target: `Download ${filename}`,
+                    fileName: `${rateSize}${rateUnits}/s`,
+                    tasksComplete: `${bytesSize}${bytesUnits}`,
+                    tasksTotal: `${totalSize}${totalUnits}`,
+                    note: 'No note',
+                })
+            },
         })
-        .then((res) => new Blob([res.data]))
+        .then((res) => {
+            if (res.status === 200) {
+                dispatch({
+                    type: 'task_complete',
+                    serverId: `DOWNLOAD_${fileId}`,
+                })
+                return new Blob([res.data])
+            } else {
+                return Promise.reject(res.statusText)
+            }
+        })
         .then((blob) => {
             downloadBlob(blob, filename ? filename : `${fileId}.${ext}`)
-        })
-        .finally(() => {
-            // dispatch({ type: "set_scan_progress", progress: 0 });
-            notifications.hide(notifId)
         })
 }
 
@@ -377,15 +395,15 @@ export async function GetWormholeInfo(
     return fetch(url.toString(), { headers: authHeader })
 }
 
-export async function shareFiles(
-    files: WeblensFile[],
+export async function shareFile(
+    file: WeblensFile,
     isPublic: boolean,
     users: string[] = [],
     authHeader: AuthHeaderT
 ): Promise<any> {
     const url = new URL(`${API_ENDPOINT}/share/files`)
     const body = {
-        fileIds: files.map((f) => f.Id()),
+        fileId: file.Id(),
         users: users,
         public: isPublic,
     }

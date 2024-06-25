@@ -17,6 +17,9 @@ export class WeblensShare {
             return
         }
         this.data = init
+        if (!this.data.Accessors) {
+            this.data.Accessors = []
+        }
     }
 
     Id(): string {

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/ethrousseau/weblens/api/util"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -21,17 +20,15 @@ type databaseService struct {
 	servers     *mongo.Collection
 }
 
-func New() types.DatabaseService {
-	var uri = util.GetMongoURI()
-
-	clientOptions := options.Client().ApplyURI(uri).SetTimeout(time.Second)
+func New(mongoUri, mongoDbName string) types.DatabaseService {
+	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second)
 	var err error
 	ctx := context.TODO()
 	mongoc, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		panic(err)
 	}
-	mongodb := mongoc.Database(util.GetMongoDBName())
+	mongodb := mongoc.Database(mongoDbName)
 
 	return &databaseService{
 		ctx:         ctx,

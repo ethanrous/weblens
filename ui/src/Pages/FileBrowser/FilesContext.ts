@@ -1,5 +1,4 @@
 import { GlobalContextType, SelectedState } from '../../Files/FileDisplay'
-import { FileContextT } from '../../components/FileScroller'
 import {
     AuthHeaderT,
     FBDispatchT,
@@ -7,9 +6,9 @@ import {
     UserInfoT,
 } from '../../types/Types'
 import { binarySearch } from '../../util'
-import { DraggingState } from './FileBrowser'
 import { getSortFunc, handleRename, MoveSelected } from './FileBrowserLogic'
-import { FbMenuModeT } from './FileBrowserStyles'
+import { FbMenuModeT, FileContextT } from '../../Files/File'
+import { DraggingStateT } from '../../Files/filesContext'
 
 export function GetFilesContext(
     fb: FbStateT,
@@ -33,7 +32,7 @@ export function GetFilesContext(
             }),
         setHovering: (i: string) =>
             dispatch({ type: 'set_hovering', hovering: i }),
-        setDragging: (d: DraggingState) =>
+        setDragging: (d: DraggingStateT) =>
             dispatch({ type: 'set_dragging', dragging: d }),
         doSelectMany: () => {
             if (lastSelectedIndex === -1) {
@@ -134,7 +133,7 @@ export function GetItemsList(
                     (i - hoveringIndex) * (i - lastSelectedIndex) < 1 &&
                     SelectedState.InRange) |
                 (v.Id() === fb.lastSelected && SelectedState.LastSelected) |
-                (fb.draggingState !== DraggingState.NoDrag &&
+                (fb.draggingState !== DraggingStateT.NoDrag &&
                     v.IsFolder() &&
                     !v.IsSelected() &&
                     fb.hovering === itemId &&

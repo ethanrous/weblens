@@ -7,7 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/api/types"
 )
 
-type WebLensFilepath struct {
+type weblensFilepath struct {
 	base fpBase
 	ext  string
 }
@@ -18,30 +18,33 @@ const (
 	mediaBase fpBase = "MEDIA"
 )
 
-func FilepathFromAbs(absolutePath string, mediaRoot types.WeblensFile) WebLensFilepath {
-	ext := strings.TrimPrefix(absolutePath, mediaRoot.GetAbsPath())
+func FilepathFromAbs(absolutePath string) types.WeblensFilepath {
 
-	if len(absolutePath) == len(mediaRoot.GetAbsPath()) {
+	rootPath := types.SERV.FileTree.Get("MEDIA").GetAbsPath()
+	ext := strings.TrimPrefix(absolutePath, rootPath)
+
+	if len(absolutePath) == len(rootPath) {
 		panic("Abs path is not under mediaService root")
 	}
 
-	return WebLensFilepath{
+	return weblensFilepath{
 		base: mediaBase,
 		ext:  ext,
 	}
 }
 
-func FilepathFromPortable(portablePath string) WebLensFilepath {
+func FilepathFromPortable(portablePath string) types.WeblensFilepath {
 	colonIndex := strings.Index(portablePath, "/")
 	prefix := portablePath[:colonIndex]
 	postfix := portablePath[colonIndex+1:]
-	return WebLensFilepath{
+	return weblensFilepath{
 		base: fpBase(prefix),
 		ext:  postfix,
 	}
 }
 
-func (wf WebLensFilepath) ToAbsPath(mediaRoot types.WeblensFile) string {
+func (wf weblensFilepath) ToAbsPath() string {
+	mediaRoot := types.SERV.FileTree.GetRoot()
 	var realBase string
 	if wf.base == mediaBase {
 		realBase = mediaRoot.GetAbsPath()
@@ -49,6 +52,6 @@ func (wf WebLensFilepath) ToAbsPath(mediaRoot types.WeblensFile) string {
 	return filepath.Join(realBase, wf.ext)
 }
 
-func (wf WebLensFilepath) ToPortable() string {
+func (wf weblensFilepath) ToPortable() string {
 	return string(wf.base) + ":" + wf.ext
 }

@@ -17,7 +17,7 @@ type task struct {
 	requester  types.Requester
 	work       taskHandler
 	taskType   types.TaskType
-	metadata   any
+	metadata   types.TaskMetadata
 	result     types.TaskResult
 	persistent bool
 	queueState taskQueueState
@@ -53,7 +53,7 @@ type taskQueueState string
 
 const (
 	PreQueued taskQueueState = "pre-queued"
-	InQueue   taskQueueState = "in-queued"
+	InQueue   taskQueueState = "in-queue"
 	Executing taskQueueState = "executing"
 	Exited    taskQueueState = "exited"
 )
@@ -98,7 +98,7 @@ func (t *task) Q(tp types.TaskPool) types.Task {
 	return t
 }
 
-// Block until a task is finished. "Finished" can define success, failure, or cancel
+// Wait Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *task) Wait() types.Task {
 	if t == nil || t.queueState == Exited {
 		return t
@@ -110,7 +110,7 @@ func (t *task) Wait() types.Task {
 	return t
 }
 
-// Unknowable if this is the last operation of a task, so t.success()
+// Cancel Unknowable if this is the last operation of a task, so t.success()
 // will not have an effect after a task is cancelled. t.error() may
 // override the exit status in special cases, such as a timeout,
 // which is both an error and a reason for cancellation.
@@ -170,7 +170,7 @@ func (t *task) GetResults() map[string]any {
 	return t.result
 }
 
-func (t *task) GetMeta() any {
+func (t *task) GetMeta() types.TaskMetadata {
 	return t.metadata
 }
 

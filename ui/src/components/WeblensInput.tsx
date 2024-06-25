@@ -1,6 +1,6 @@
-import { memo, ReactNode, useState } from 'react'
-import { useKeyDown } from './hooks'
-import { WeblensButton } from './WeblensButton'
+import { memo, ReactNode, useEffect, useRef, useState } from 'react'
+import { useIsFocused, useKeyDown } from './hooks'
+import WeblensButton from './WeblensButton'
 
 import './weblensInput.scss'
 
@@ -9,24 +9,47 @@ const WeblensInput = memo(
         onComplete,
         value,
         valueCallback,
-        icon,
+        Icon,
         buttonIcon,
         height,
         placeholder,
+        openInput,
         closeInput,
         autoFocus = false,
+        stealFocus = false,
+        minimize = false,
     }: {
         onComplete: (v: string) => void
         value?: string
         valueCallback?: (v: string) => void
-        icon?
+        Icon?: (p: any) => ReactNode
         buttonIcon?: (p: any) => ReactNode
         height?: number
         placeholder?: string
+        openInput?: () => void
         closeInput?: () => void
         autoFocus?: boolean
+        stealFocus?: boolean
+        minimize?: boolean
     }) => {
-        const [internalValue, setInternalValue] = useState(value ? value : '')
+        const searchRef = useRef<HTMLInputElement>()
+        const isFocused = useIsFocused(searchRef.current)
+
+        const [internalValue, setInternalValue] = useState(
+            value !== undefined ? value : ''
+        )
+        useEffect(() => {
+            setInternalValue(value !== undefined ? value : '')
+        }, [value])
+
+        useEffect(() => {
+            if (isFocused && openInput) {
+                openInput()
+            } else if (!isFocused && closeInput) {
+                closeInput()
+            }
+        }, [isFocused])
+
         useKeyDown('Enter', () => {
             if (onComplete) {
                 onComplete(internalValue)
@@ -37,16 +60,32 @@ const WeblensInput = memo(
         })
 
         useKeyDown('Escape', (e) => {
-            if (closeInput) {
-                e.stopPropagation()
-                closeInput()
-            }
+            searchRef.current.blur()
         })
+
+        useKeyDown(
+            (e) => {
+                return (
+                    stealFocus &&
+                    !e.metaKey &&
+                    ((e.which >= 65 && e.which <= 90) || e.key === 'Backspace')
+                )
+            },
+            (e) => {
+                e.stopPropagation()
+                searchRef.current.focus()
+            }
+        )
 
         return (
             <div
                 className="weblens-input-wrapper"
-                style={{ height: height }}
+                style={{ height: height, minWidth: height }}
+                data-value={internalValue}
+                data-minimize={minimize}
+                onClick={() => {
+                    searchRef.current.focus()
+                }}
                 onBlur={(e) => {
                     if (
                         closeInput &&
@@ -56,8 +95,9 @@ const WeblensInput = memo(
                     }
                 }}
             >
-                {icon}
+                {Icon && <Icon className="w-max h-max" />}
                 <input
+                    ref={searchRef}
                     autoFocus={autoFocus}
                     className="weblens-input"
                     value={internalValue}

@@ -101,9 +101,11 @@ func (cm *clientManager) GetSubscribers(st types.WsAction, key types.SubId) (cli
 	case types.SubUser:
 		{
 			allClients := util.MapToSlicePure(cm.clientMap)
-			clients = util.Filter(allClients, func(c types.Client) bool {
-				return types.SubId(c.GetUser().GetUsername()) == key
-			})
+			clients = util.Filter(
+				allClients, func(c types.Client) bool {
+					return types.SubId(c.GetUser().GetUsername()) == key
+				},
+			)
 		}
 	default:
 		util.Error.Println("Unknown subscriber type", st)
@@ -112,16 +114,18 @@ func (cm *clientManager) GetSubscribers(st types.WsAction, key types.SubId) (cli
 	return
 }
 
-func (cm *clientManager) Broadcast(broadcastType types.WsAction, broadcastKey types.SubId, eventTag string, content []types.WsMsg) {
+func (cm *clientManager) Broadcast(
+	broadcastType types.WsAction, broadcastKey types.SubId, eventTag string, content []types.WsMsg,
+) {
 	if broadcastKey == "" {
 		util.Error.Println("Trying to broadcast on empty key")
 		return
 	}
-	defer util.RecoverPanic("Panic caught while broadcasting: %v")
+	defer util.RecoverPanic("Panic caught while broadcasting")
 
 	msg := wsResponse{EventTag: eventTag, SubscribeKey: broadcastKey, Content: content}
 
-	clients := cm.GetSubscribers(broadcastType, types.SubId(broadcastKey))
+	clients := cm.GetSubscribers(broadcastType, broadcastKey)
 
 	if len(clients) != 0 {
 		for _, c := range clients {

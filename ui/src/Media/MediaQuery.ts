@@ -1,10 +1,11 @@
-import { AuthHeaderT, GalleryDispatchT, GalleryStateT } from '../types/Types'
+import { AuthHeaderT, GalleryStateT } from '../types/Types'
 import API_ENDPOINT from '../api/ApiEndpoint'
-import WeblensMedia from './Media'
+import WeblensMedia, { MediaAction, MediaStateT } from './Media'
 
 export async function FetchData(
-    mediaState: GalleryStateT,
-    dispatch: GalleryDispatchT,
+    galleryState: GalleryStateT,
+    mediaState: MediaStateT,
+    mediaDispatch: (a: MediaAction) => void,
     authHeader: AuthHeaderT
 ) {
     if (
@@ -12,20 +13,19 @@ export async function FetchData(
         authHeader.Authorization === ''
         // mediaState.albumsMap.size === 0
     ) {
-        console.log('HERE', authHeader, mediaState)
         return
     }
 
     try {
         const url = new URL(`${API_ENDPOINT}/media`)
-        url.searchParams.append('raw', mediaState.includeRaw.toString())
-        if (mediaState.albumsFilter) {
+        url.searchParams.append('raw', galleryState.includeRaw.toString())
+        if (galleryState.albumsFilter) {
             url.searchParams.append(
                 'albums',
                 JSON.stringify(
-                    Array.from(mediaState.albumsMap.values())
-                        .filter((v) => mediaState.albumsFilter.includes(v.Id))
-                        .map((v) => v.Id)
+                    Array.from(galleryState.albumsMap.values())
+                        .filter((v) => galleryState.albumsFilter.includes(v.id))
+                        ?.map((v) => v.id)
                 )
             )
         }
@@ -38,18 +38,22 @@ export async function FetchData(
                 }
             }
         )
+        if (data.Media) {
+            data.Media.forEach((m) => {
+                const newM = new WeblensMedia(m)
+                mediaState.set(newM.Id(), newM)
+            })
+        }
+        mediaDispatch({ type: 'refresh' })
+        // const medias = data.Media.map((m) => {
+        //     return new WeblensMedia(m)
+        // })
 
-        const medias = data.Media.map((m) => {
-            return new WeblensMedia(m)
-        })
-
-        dispatch({
-            type: 'set_media',
-            medias: medias,
-        })
+        // dispatch({
+        //     type: 'set_media',
+        //     medias: medias,
+        // })
     } catch (error) {
-        console.error(
-            'Error fetching data - Ethan you wrote this, its not a js err'
-        )
+        console.error(error)
     }
 }

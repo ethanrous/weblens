@@ -1,12 +1,14 @@
 package routes
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"runtime/debug"
 	"slices"
 	"sync"
 
+	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/gorilla/websocket"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -100,7 +102,6 @@ func (c *client) Subscribe(
 
 			sub = types.Subscription{Type: types.FolderSubscribe, Key: key}
 			c.PushFileUpdate(folder)
-			util.Debug.Printf("%s subscribed to folder %s", c.user.GetUsername(), folder.GetAbsPath())
 
 			// Subscribe to task on this folder
 			if t := folder.GetTask(); t != nil {
@@ -118,7 +119,6 @@ func (c *client) Subscribe(
 			}
 
 			complete, _ = task.Status()
-
 			results = task.GetResults()
 
 			if complete || slices.IndexFunc(
@@ -126,8 +126,31 @@ func (c *client) Subscribe(
 			) != -1 {
 				return
 			}
-			util.Debug.Printf("%s subscribed to task %s (%s)", c.user.GetUsername(), task.TaskId(), task.TaskType())
+			util.Debug.Printf("%s subscribed to task [%s] (%s)", c.user.GetUsername(), task.TaskId(), task.TaskType())
 			sub = types.Subscription{Type: types.TaskSubscribe, Key: key}
+
+			c.PushTaskUpdate(task, dataProcess.TaskCreatedEvent, task.GetMeta().FormatToResult())
+		}
+	case types.PoolSubscribe:
+		{
+			pool := types.SERV.WorkerPool.GetTaskPool(types.TaskId(key))
+			if pool == nil {
+				c.Error(types.NewWeblensError(fmt.Sprintf("Could not find pool with id %s", key)))
+				return
+			} else if pool.IsGlobal() {
+				c.Error(types.NewWeblensError("Trying to subscribe to global pool"))
+				return
+			}
+
+			util.Debug.Printf("%s subscribed to pool [%s]", c.user.GetUsername(), pool.ID())
+			sub = types.Subscription{Type: types.TaskSubscribe, Key: key}
+
+			c.PushPoolUpdate(
+				pool, dataProcess.PoolCreatedEvent, types.TaskResult{
+					"createdBy": pool.CreatedInTask().
+						TaskId(),
+				},
+			)
 		}
 	default:
 		{
@@ -169,7 +192,9 @@ func (c *client) Send(eventTag string, key types.SubId, content []types.WsMsg) {
 }
 
 func (c *client) Error(err error) {
-	_, ok := err.(types.WeblensError)
+	var weblensError types.WeblensError
+	ok := errors.As(err, &weblensError)
+
 	var msg wsResponse
 	switch ok {
 	case true:
@@ -194,8 +219,35 @@ func (c *client) PushFileUpdate(updatedFile types.WeblensFile) {
 	c.Send("file_updated", types.SubId(updatedFile.ID()), []types.WsMsg{{"fileInfo": fileInfo}})
 }
 
-func (c *client) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
-	c.Send(string(event), types.SubId(taskId), []types.WsMsg{types.WsMsg(result)})
+func (c *client) PushTaskUpdate(task types.Task, event types.TaskEvent, result types.TaskResult) {
+	msg := wsResponse{
+		EventTag:      string(event),
+		SubscribeKey:  types.SubId(task.TaskId()),
+		Content:       []types.WsMsg{types.WsMsg(result)},
+		TaskType:      task.TaskType(),
+		broadcastType: types.TaskSubscribe,
+	}
+
+	c.writeToClient(msg)
+	// c.Send(string(event), types.SubId(taskId), []types.WsMsg{types.WsMsg(result)})
+}
+
+func (c *client) PushPoolUpdate(pool types.TaskPool, event types.TaskEvent, result types.TaskResult) {
+	if pool.IsGlobal() {
+		util.Warning.Println("Not pushing update on global pool")
+		return
+	}
+
+	msg := wsResponse{
+		EventTag:      string(event),
+		SubscribeKey:  types.SubId(pool.ID()),
+		Content:       []types.WsMsg{types.WsMsg(result)},
+		TaskType:      pool.CreatedInTask().TaskType(),
+		broadcastType: types.TaskSubscribe,
+	}
+
+	c.writeToClient(msg)
+	// c.Send(string(event), types.SubId(taskId), []types.WsMsg{types.WsMsg(result)})
 }
 
 func (c *client) GetSubscriptions() []types.Subscription {

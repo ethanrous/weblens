@@ -4,22 +4,20 @@ import { useEffect, useState } from 'react'
 
 const Dropdown = ({ data, selected, setSelected }) => {
     return (
-        <Box className="weblens-dropdown-input-drop">
+        <div className="weblens-dropdown-input-drop">
             {data.map((v) => {
                 return (
-                    <Box
+                    <div
                         key={v}
                         className="weblens-dropdown-input-item"
-                        mod={{
-                            'data-selected': Boolean(v === selected).toString(),
-                        }}
+                        data-selected={v === selected}
                         onClick={() => setSelected(v)}
                     >
                         <Text className="weblens-dropdown-text">{v}</Text>
-                    </Box>
+                    </div>
                 )
             })}
-        </Box>
+        </div>
     )
 }
 

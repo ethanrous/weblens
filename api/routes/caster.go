@@ -38,24 +38,46 @@ func (c *unbufferedCaster) Enable() {
 	c.enabled = true
 }
 
+func (c *unbufferedCaster) Disable() {
+	c.enabled = false
+}
+
 func (c *unbufferedCaster) IsBuffered() bool {
 	return false
 }
 
-func (c *unbufferedCaster) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
+func (c *unbufferedCaster) PushTaskUpdate(task types.Task, event types.TaskEvent, result types.TaskResult) {
 	if !c.enabled {
 		return
 	}
 
 	msg := wsResponse{
-		EventTag:     string(event),
-		SubscribeKey: types.SubId(taskId),
-		Content:      []types.WsMsg{{"result": result}},
-
+		EventTag:      string(event),
+		SubscribeKey:  types.SubId(task.TaskId()),
+		Content:       []types.WsMsg{types.WsMsg(result)},
+		TaskType:      task.TaskType(),
 		broadcastType: types.TaskSubscribe,
 	}
 
 	send(msg)
+}
+
+func (c *unbufferedCaster) PushPoolUpdate(pool types.TaskPool, event types.TaskEvent, result types.TaskResult) {
+	if pool.IsGlobal() {
+		util.Warning.Println("Not pushing update on global pool")
+		return
+	}
+
+	msg := wsResponse{
+		EventTag:      string(event),
+		SubscribeKey:  types.SubId(pool.ID()),
+		Content:       []types.WsMsg{types.WsMsg(result)},
+		TaskType:      pool.CreatedInTask().TaskType(),
+		broadcastType: types.TaskSubscribe,
+	}
+
+	send(msg)
+	// c.Send(string(event), types.SubId(taskId), []types.WsMsg{types.WsMsg(result)})
 }
 
 func (c *unbufferedCaster) PushShareUpdate(username types.Username, newShareInfo types.Share) {
@@ -165,8 +187,17 @@ func (c *unbufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 
 func (c *unbufferedCaster) FolderSubToTask(folder types.FileId, taskId types.TaskId) {
 	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
+
 	for _, s := range subs {
 		s.Subscribe(types.SubId(taskId), types.TaskSubscribe, nil, types.SERV.FileTree)
+	}
+}
+
+func (c *unbufferedCaster) FolderSubToPool(folder types.FileId, poolId types.TaskId) {
+	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
+
+	for _, s := range subs {
+		s.Subscribe(types.SubId(poolId), types.PoolSubscribe, nil, types.SERV.FileTree)
 	}
 }
 
@@ -205,6 +236,10 @@ func (c *bufferedCaster) AutoFlushEnable() {
 
 func (c *bufferedCaster) Enable() {
 	c.enabled = true
+}
+
+func (c *bufferedCaster) Disable() {
+	c.enabled = false
 }
 
 func (c *bufferedCaster) Close() {
@@ -324,27 +359,44 @@ func (c *bufferedCaster) PushFileDelete(deletedFile types.WeblensFile) {
 		EventTag:      "file_deleted",
 		SubscribeKey:  types.SubId(deletedFile.GetParent().ID()),
 		Content:       []types.WsMsg{{"fileId": deletedFile.ID()}},
-		Error:         "",
 		broadcastType: types.FolderSubscribe,
 	}
 
 	c.bufferAndFlush(msg)
 }
 
-func (c *bufferedCaster) PushTaskUpdate(taskId types.TaskId, event types.TaskEvent, result types.TaskResult) {
+func (c *bufferedCaster) PushTaskUpdate(task types.Task, event types.TaskEvent, result types.TaskResult) {
 	if !c.enabled {
 		return
 	}
 
 	msg := wsResponse{
 		EventTag:      string(event),
-		SubscribeKey:  types.SubId(taskId),
+		SubscribeKey:  types.SubId(task.TaskId()),
 		Content:       []types.WsMsg{types.WsMsg(result)},
-		Error:         "",
+		TaskType:      task.TaskType(),
 		broadcastType: types.TaskSubscribe,
 	}
 
 	c.bufferAndFlush(msg)
+}
+
+func (c *bufferedCaster) PushPoolUpdate(pool types.TaskPool, event types.TaskEvent, result types.TaskResult) {
+	if pool.IsGlobal() {
+		util.Warning.Println("Not pushing update on global pool")
+		return
+	}
+
+	msg := wsResponse{
+		EventTag:      string(event),
+		SubscribeKey:  types.SubId(pool.ID()),
+		Content:       []types.WsMsg{types.WsMsg(result)},
+		TaskType:      pool.CreatedInTask().TaskType(),
+		broadcastType: types.TaskSubscribe,
+	}
+
+	c.bufferAndFlush(msg)
+	// c.Send(string(event), types.SubId(taskId), []types.WsMsg{types.WsMsg(result)})
 }
 
 func (c *bufferedCaster) PushShareUpdate(username types.Username, newShareInfo types.Share) {
@@ -356,7 +408,6 @@ func (c *bufferedCaster) PushShareUpdate(username types.Username, newShareInfo t
 		EventTag:      "share_updated",
 		SubscribeKey:  types.SubId(username),
 		Content:       []types.WsMsg{{"newShareInfo": newShareInfo}},
-		Error:         "",
 		broadcastType: "user",
 	}
 
@@ -386,10 +437,19 @@ func (c *bufferedCaster) DisableAutoFlush() {
 }
 
 // FolderSubToTask Subscribes any subscribers of a folder to a task (presumably one that pertains to that folder)
-func (c *bufferedCaster) FolderSubToTask(folder types.FileId, task types.TaskId) {
+func (c *bufferedCaster) FolderSubToTask(folder types.FileId, taskId types.TaskId) {
 	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
+
 	for _, s := range subs {
-		s.Subscribe(types.SubId(task), types.TaskSubscribe, nil, types.SERV.FileTree)
+		s.Subscribe(types.SubId(taskId), types.TaskSubscribe, nil, types.SERV.FileTree)
+	}
+}
+
+func (c *bufferedCaster) FolderSubToPool(folder types.FileId, poolId types.TaskId) {
+	subs := types.SERV.ClientManager.GetSubscribers(types.FolderSubscribe, types.SubId(folder))
+
+	for _, s := range subs {
+		s.Subscribe(types.SubId(poolId), types.PoolSubscribe, nil, types.SERV.FileTree)
 	}
 }
 
@@ -437,7 +497,7 @@ func send(r wsResponse) {
 		util.Error.Println("Trying to broadcast on empty key")
 		return
 	}
-	defer util.RecoverPanic("Panic caught while broadcasting: %v")
+	defer util.RecoverPanic("Panic caught while broadcasting")
 
 	clients := types.SERV.ClientManager.GetSubscribers(r.broadcastType, r.SubscribeKey)
 	clients = util.OnlyUnique(clients)

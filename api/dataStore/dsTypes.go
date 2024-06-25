@@ -33,7 +33,7 @@ const (
 const (
 	FileGet types.RequestMode = "fileGet"
 
-	// Grant access unconditionally. This is for sending
+	// WebsocketFileUpdate Grant access unconditionally. This is for sending
 	// out updates where the user has already subscribed
 	// elsewhere, and we just need to format the data for them
 	WebsocketFileUpdate types.RequestMode = "wsFileUpdate"
@@ -71,11 +71,10 @@ type WeblensUserError interface {
 	types.WeblensError
 }
 
-var ErrNotUsingRedis = errors.New("not using redis")
 var ErrNoCache = types.NewWeblensError("media references cache file that does not exist")
 
 var ErrNoUser = types.NewWeblensError("user does not exist")
-var ErrUserAlreadyExists = types.NewWeblensError("cannot create two users with the same username")
+
 var ErrUserNotAuthorized = types.NewWeblensError("user does not have access the requested resource")
 var ErrNoFileAccess = types.NewWeblensError("user does not have access to file")
 
@@ -86,7 +85,7 @@ var ErrNoImage = errors.New("media is missing required image")
 var ErrNoShare = errors.New("no share found")
 var ErrBadShareType = errors.New("expected share type does not match given share type")
 
-var ErrUnsupportedImgType error = errors.New("image type is not supported by weblens")
+var ErrUnsupportedImgType = errors.New("image type is not supported by weblens")
 var ErrPageOutOfRange = errors.New("page number does not exist on media")
 
 var ErrNoKey = errors.New("api key is does not exist")

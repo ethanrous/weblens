@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ethrousseau/weblens/api/dataStore"
+
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
@@ -141,6 +143,11 @@ func (ft *fileTree) Add(f types.WeblensFile) error {
 		return err
 	}
 
+	// Add system files to the map, but don't journal or push updates for them
+	if f.Owner() == dataStore.WeblensRootUser {
+		return nil
+	}
+
 	if f.IsDir() {
 		err = ft.journalService.WatchFolder(f)
 		if err != nil {
@@ -186,14 +193,12 @@ func (ft *fileTree) Del(fId types.FileId) (err error) {
 				tasks = append(tasks, t)
 				t.Cancel()
 			}
-			util.Each(
-				file.GetShares(), func(s types.Share) {
-					err := types.SERV.ShareService.Del(s.GetShareId())
-					if err != nil {
-						return
-					}
-				},
-			)
+			if f.GetShare() != nil {
+				err := types.SERV.ShareService.Del(f.GetShare().GetShareId())
+				if err != nil {
+					util.ErrTrace(err)
+				}
+			}
 
 			if !file.IsDir() {
 				contentId := file.GetContentId()
@@ -234,6 +239,7 @@ func (ft *fileTree) Del(fId types.FileId) (err error) {
 	)
 
 	if err != nil {
+		util.ErrTrace(err)
 		return
 	}
 
@@ -244,11 +250,10 @@ func (ft *fileTree) Del(fId types.FileId) (err error) {
 	if f.IsDir() {
 		err = os.RemoveAll(f.GetAbsPath())
 		if err != nil {
+			util.ErrTrace(err)
 			return
 		}
 	}
-
-	types.SERV.Caster.PushFileDelete(f)
 
 	return
 }
@@ -376,12 +381,8 @@ func (ft *fileTree) Move(
 				}
 			}
 
-			for _, s := range w.GetShares() {
-				s.SetItemId(string(w.GetContentId()))
-				// err := w.UpdateShare(s)
-				// if err != nil {
-				// 	return err
-				// }
+			if w.GetShare() != nil {
+				w.GetShare().SetItemId(string(w.GetContentId()))
 			}
 
 			util.Each(c, func(c types.BufferedBroadcasterAgent) { c.PushFileMove(preFile, w) })
@@ -537,7 +538,7 @@ func (ft *fileTree) AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent)
 }
 
 func (ft *fileTree) GenerateFileId(absPath string) types.FileId {
-	fileHash := types.FileId(util.GlobbyHash(8, FilepathFromAbs(absPath, ft.Get("MEDIA")).ToPortable()))
+	fileHash := types.FileId(util.GlobbyHash(8, FilepathFromAbs(absPath)))
 	return fileHash
 }
 

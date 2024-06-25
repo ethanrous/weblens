@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/EdlinOrg/prominentcolor"
 	"github.com/ethanrous/bimg"
+
+	"github.com/EdlinOrg/prominentcolor"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -23,30 +24,68 @@ import (
 )
 
 type Media struct {
-	MediaId          primitive.ObjectID `json:"-" bson:"_id"`
-	ContentId        types.ContentId    `json:"mediaId" bson:"mediaId"`
-	FileIds          []types.FileId     `json:"fileIds" bson:"fileIds"`
-	FullresCacheIds  []types.FileId     `json:"fullresCacheIds" bson:"fullresCacheIds"`
-	ThumbnailCacheId types.FileId       `json:"thumbnailCacheId" bson:"thumbnailCacheId"`
-	CreateDate       time.Time          `json:"createDate" bson:"createDate"`
-	Owner            types.User         `json:"owner" bson:"owner"`
-	MediaWidth       int                `json:"mediaWidth" bson:"mediaWidth"`
-	MediaHeight      int                `json:"mediaHeight" bson:"mediaHeight"`
-	PageCount        int                `json:"pageCount" bson:"pageCount"`
-	BlurHash         string             `json:"blurHash" bson:"blurHash"`
-	MimeType         string             `json:"mimeType" bson:"mimeType"`
-	RecognitionTags  []string           `json:"recognitionTags" bson:"recognitionTags"`
-	Hidden           bool               `json:"hidden" bson:"hidden"`
-	Enabled          bool               `json:"enabled" bson:"enabled"`
+	MediaId primitive.ObjectID `json:"-" bson:"_id"`
 
+	// Hash of the file content, to ensure that the same files don't get duplicated
+	ContentId types.ContentId `json:"mediaId" bson:"mediaId"`
+
+	// Slices of files whos content hash to the contentId
+	FileIds []types.FileId `json:"fileIds" bson:"fileIds"`
+
+	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
+	// because fullres images could be multi-page, and a cache file is created per page
+	FullresCacheIds []types.FileId `json:"fullresCacheIds" bson:"fullresCacheIds"`
+
+	// WEBP thumbnail cache fileId
+	ThumbnailCacheId types.FileId `json:"thumbnailCacheId" bson:"thumbnailCacheId"`
+
+	CreateDate time.Time `json:"createDate" bson:"createDate"`
+
+	// User who owns the file that resulted in this media being created
+	Owner types.User `json:"owner" bson:"owner"`
+
+	// Full-res image dimentions
+	MediaWidth  int `json:"mediaWidth" bson:"mediaWidth"`
+	MediaHeight int `json:"mediaHeight" bson:"mediaHeight"`
+
+	// Number of pages (typically 1, 0 in not a valid page count)
+	PageCount int `json:"pageCount" bson:"pageCount"`
+
+	// Not used right now
+	BlurHash string `json:"blurHash" bson:"blurHash"`
+
+	MimeType string `json:"mimeType" bson:"mimeType"`
+
+	// Tags from the ML image scan so searching for particular objects in the images can be done
+	RecognitionTags []string `json:"recognitionTags" bson:"recognitionTags"`
+
+	// If the media is hidden from the timeline
+	Hidden bool `json:"hidden" bson:"hidden"`
+
+	// If the media disabled. This can happen when the backing file(s) are deleted,
+	// but the media stays behind because it can be re-used if needed.
+	Enabled bool `json:"enabled" bson:"enabled"`
+
+	/* NON-DATABASE FIELDS */
+
+	// Real media type of the media, loaded from the MimeType
 	mediaType types.MediaType
-	imported  bool
 
+	// If the media is imported into the databse yet. If not, we shouldn't ask about
+	// things like cache, dimentions, etc., as it might not have them.
+	imported bool
+
+	// Result of exif scan of the real file. Cleared after it is read
+	rawExif map[string]any
+
+	// The rotation of the image from its original. Found from the exif data
 	rotate string
+
+	// Bytes of the image(s) being processed into WEBP format for caching
 	image  *bimg.Image
 	images []*bimg.Image
 
-	rawExif           map[string]any
+	// Live file of the cache that supports this media.
 	thumbCacheFile    types.WeblensFile
 	fullresCacheFiles []types.WeblensFile
 }
@@ -64,6 +103,11 @@ func (m *Media) LoadFromFile(f types.WeblensFile, preReadBytes []byte, task type
 	}
 	task.SwLap("Parse Exif")
 
+	err = m.AddFile(f)
+	if err != nil {
+		return nil, err
+	}
+
 	err = m.handleCacheCreation(f)
 	if err != nil {
 		return
@@ -76,11 +120,6 @@ func (m *Media) LoadFromFile(f types.WeblensFile, preReadBytes []byte, task type
 			util.ErrTrace(err)
 		}
 		task.SwLap("Get img recognition tags")
-	}
-
-	err = m.AddFile(f)
-	if err != nil {
-		return nil, err
 	}
 
 	m.SetOwner(f.Owner())
@@ -210,7 +249,10 @@ func (m *Media) GetFiles() []types.FileId {
 
 func (m *Media) AddFile(f types.WeblensFile) error {
 	m.FileIds = util.AddToSet(m.FileIds, []types.FileId{f.ID()})
-	return types.SERV.Database.AddFileToMedia(m.ID(), f.ID())
+	if m.IsImported() {
+		return types.SERV.Database.AddFileToMedia(m.ID(), f.ID())
+	}
+	return nil
 }
 
 func (m *Media) RemoveFile(f types.WeblensFile) error {
@@ -305,7 +347,7 @@ func (m *Media) Hide() error {
 	return types.SERV.Database.HideMedia(m.ID())
 }
 
-func (m *Media) getProminentColors() (prom []string, err error) {
+func (m *Media) GetProminentColors() (prom []string, err error) {
 	var i image.Image
 	thumbBytes, err := m.ReadDisplayable(dataStore.Thumbnail)
 	if err != nil {
@@ -413,24 +455,37 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 }
 
 func (m *Media) generateImage(bs []byte) (err error) {
-	bi := bimg.NewImage(bs)
+	m.image = bimg.NewImage(bs)
 
-	// Rotation is backwards because imaging rotates CW, but exif stores CW rotation
-	switch m.rotate {
-	case "Rotate 270 CW":
-		_, err = bi.Rotate(270)
-	case "Rotate 90 CW":
-		_, err = bi.Rotate(90)
+	if m.rotate == "" {
+		err = m.parseExif(types.SERV.FileTree.Get(m.FileIds[0]))
+		if err != nil {
+			return err
+		}
 	}
-	util.ShowErr(err)
 
-	webpBs, err := bi.Convert(bimg.WEBP)
-	util.ShowErr(err)
+	// Rotation is backwards because bimg rotates CW, but exif stores CW rotation
+	if m.GetMediaType().IsRaw() {
+		switch m.rotate {
+		case "Rotate 270 CW":
+			_, err = m.image.Rotate(270)
+		case "Rotate 90 CW":
+			_, err = m.image.Rotate(90)
+		case "Horizontal (normal)":
+		case "":
+			util.Debug.Println("empty orientation")
+		default:
+			err = types.NewWeblensError(fmt.Sprintf("Unknown rotate name [%s]", m.rotate))
+		}
+		if err != nil {
+			return
+		}
+	}
+
+	_, err = m.image.Convert(bimg.WEBP)
 	if err != nil {
 		return
 	}
-
-	m.image = bimg.NewImage(webpBs)
 
 	imgSize, err := m.image.Size()
 	if err != nil {
@@ -505,13 +560,14 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 	if f == nil || !f.Exists() {
 		if generateIfMissing {
 			realFile := types.SERV.FileTree.Get(m.FileIds[0])
-			if err != nil {
-				return nil, err
+			if realFile == nil {
+				return nil, dataStore.ErrNoCache
 			}
 
+			util.Debug.Printf("Cache file F[%s] not found for M[%s], generating...", cacheFileId, m.ID())
 			err = m.handleCacheCreation(realFile)
 			if err != nil {
-				return nil, err
+				return
 			}
 
 			return m.GetCacheFile(q, false, pageNum)
@@ -545,6 +601,12 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 	var bs []byte
 
 	if m.mediaType.IsRaw() {
+		if m.rawExif == nil {
+			err = m.loadExif(f)
+			if err != nil {
+				return err
+			}
+		}
 		raw64 := m.rawExif[m.mediaType.GetThumbExifKey()].(string)
 		raw64 = raw64[strings.Index(raw64, ":")+1:]
 
@@ -587,6 +649,17 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 		thumbBytes, err = thumbImg.Resize(thumbW, int(ThumbnailHeight))
 		if err != nil {
 			return
+		}
+		thumbSize, err := thumbImg.Size()
+		if err != nil {
+			util.ShowErr(err)
+		} else {
+			thumbRatio := float64(thumbSize.Width) / float64(thumbSize.Height)
+			mediaRatio := float64(m.MediaWidth) / float64(m.MediaHeight)
+			// util.Debug.Println(thumbRatio, mediaRatio)
+			if (thumbRatio < 1 && mediaRatio > 1) || (thumbRatio > 1 && mediaRatio < 1) {
+				util.Error.Println("Mismatched media sizes")
+			}
 		}
 	}
 
@@ -637,6 +710,10 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 	if err != nil {
 		util.ErrTrace(err)
 		return f
+	}
+
+	if len(m.FullresCacheIds) != m.PageCount {
+		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 	}
 
 	if q == dataStore.Thumbnail && m.ThumbnailCacheId == "" || m.thumbCacheFile == nil {
@@ -736,10 +813,23 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.FileIds = util.Map(data["fileIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) })
 	m.ThumbnailCacheId = types.FileId(data["thumbnailCacheId"].(string))
 
+	m.PageCount = int(data["pageCount"].(int32))
 	if data["fullresCacheIds"] != nil {
 		m.FullresCacheIds = util.Map(
 			data["fullresCacheIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) },
 		)
+
+		m.fullresCacheFiles = util.Map(
+			m.FullresCacheIds, func(fId types.FileId) types.WeblensFile {
+				return types.SERV.FileTree.Get(fId)
+			},
+		)
+	}
+
+	// TODO - figure out why this happens
+	if len(m.fullresCacheFiles) != m.PageCount {
+		util.Warning.Printf("Bad fullres file count, got %d but expected %d", len(m.fullresCacheFiles), m.PageCount)
+		m.fullresCacheFiles = make([]types.WeblensFile, m.PageCount)
 	}
 
 	m.BlurHash = data["blurHash"].(string)
@@ -752,8 +842,6 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	if data["recognitionTags"] != nil {
 		m.RecognitionTags = util.SliceConvert[string](data["recognitionTags"].(primitive.A))
 	}
-
-	m.PageCount = int(data["pageCount"].(int32))
 
 	if data["hidden"] != nil {
 		m.Hidden = data["hidden"].(bool)
@@ -776,6 +864,7 @@ func (m *Media) MarshalJSON() ([]byte, error) {
 		"mimeType":         m.MimeType,
 		"recognitionTags":  m.RecognitionTags,
 		"pageCount":        m.PageCount,
+		"imported":         m.imported,
 	}
 
 	return json.Marshal(data)

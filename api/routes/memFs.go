@@ -19,7 +19,7 @@ func (fs *InMemoryFS) loadIndex() string {
 	if err != nil {
 		panic("Could not find index file")
 	}
-	fs.index = ReadFile(indexPath, fs)
+	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
 		panic("Could not find index file")
 	}
@@ -27,8 +27,8 @@ func (fs *InMemoryFS) loadIndex() string {
 	return indexPath
 }
 
-// Implements FileSystem interface
-func (fs InMemoryFS) Open(name string) (http.File, error) {
+// Open Implements FileSystem interface
+func (fs *InMemoryFS) Open(name string) (http.File, error) {
 	if name == "/index" {
 		return newWrapFile(fs.index), nil
 	}
@@ -41,7 +41,7 @@ func (fs InMemoryFS) Open(name string) (http.File, error) {
 		return newWrapFile(f), nil
 	} else if !ok {
 		fs.routesMu.RUnlock()
-		f = ReadFile(name, &fs)
+		f = readFile(name, fs)
 		if f != nil {
 			fs.routesMu.Lock()
 			fs.routes[f.Name] = f
@@ -65,13 +65,13 @@ func newWrapFile(real *memFileReal) *MemFileWrap {
 	}
 }
 
-func (f InMemoryFS) Exists(prefix string, path string) bool {
+func (fs *InMemoryFS) Exists(prefix string, path string) bool {
 	if path == "/" || path == "//" {
 		return false
 	} else if path == "/index" {
 		return true
 	}
-	_, err := f.Open(path)
+	_, err := fs.Open(path)
 	return err == nil
 }
 
@@ -87,18 +87,18 @@ type memFileReal struct {
 	fs     *InMemoryFS
 }
 
-func ReadFile(filePath string, fs *InMemoryFS) *memFileReal {
+func readFile(filePath string, fs *InMemoryFS) *memFileReal {
 	fdata, err := os.ReadFile(filePath)
 
 	return &memFileReal{
 		Name:   filePath,
-		data:   []byte(fdata),
+		data:   fdata,
 		exists: err == nil,
 		fs:     fs,
 	}
 }
 
-// Implements the http.File interface
+// Close Implements the http.File interface
 func (f *MemFileWrap) Close() error {
 	return nil
 }
@@ -148,7 +148,7 @@ type InMemoryFileInfo struct {
 	file *memFileReal
 }
 
-// Implements os.FileInfo
+// Name Implements os.FileInfo
 func (s *InMemoryFileInfo) Name() string       { return s.file.Name }
 func (s *InMemoryFileInfo) Size() int64        { return int64(len(s.file.data)) }
 func (s *InMemoryFileInfo) Mode() os.FileMode  { return os.ModeTemporary }

@@ -2,6 +2,8 @@ package album
 
 import (
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
+	"slices"
 )
 
 type albumService struct {
@@ -29,6 +31,14 @@ func (as *albumService) Init(db types.DatabaseService) error {
 	return nil
 }
 
+func (as *albumService) GetAllByUser(u types.User) []types.Album {
+	albs := util.MapToSlicePure(as.repo)
+	albs = util.Filter(albs, func(t types.Album) bool {
+		return t.GetOwner() == u || slices.Contains(t.GetUsers(), u)
+	})
+	return albs
+}
+
 func (as *albumService) Size() int {
 	return len(as.repo)
 }
@@ -38,7 +48,13 @@ func (as *albumService) Get(aId types.AlbumId) types.Album {
 }
 
 func (as *albumService) Add(a types.Album) error {
+	err := as.db.CreateAlbum(a)
+	if err != nil {
+		return err
+	}
+
 	as.repo[a.ID()] = a
+
 	return nil
 }
 

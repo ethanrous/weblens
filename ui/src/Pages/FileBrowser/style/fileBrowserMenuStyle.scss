@@ -21,7 +21,10 @@ $menu-base-square-size: 250px;
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    height: $menu-base-square-size + $menu-title-height;
+
+    // +10 to give overflowing buttons a chance to peak through,
+    // and make the fact the menu scrolls more discoverable
+    height: $menu-base-square-size + $menu-title-height + 10px;
     width: $menu-base-square-size;
 
     overflow: hidden;
@@ -73,13 +76,17 @@ $menu-base-square-size: 250px;
     align-items: center;
     justify-items: center;
     grid-template-columns: 120px 120px;
+    grid-template-rows: repeat(3, 120px);
     pointer-events: none;
     opacity: 0;
     justify-content: center;
 
-    height: $menu-base-square-size;
+    // +10 to give overflowing buttons a chance to peak through,
+    // and make the fact the menu scrolls more discoverable
+    height: $menu-base-square-size + 10;
     width: $menu-base-square-size;
     margin-top: $menu-title-height;
+    overflow-y: scroll;
 
     transition: opacity 150ms ease-in-out;
 

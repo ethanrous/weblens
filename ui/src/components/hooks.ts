@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import { fetchMediaTypes } from '../api/ApiFetch'
 import { mediaType } from '../types/Types'
+import WeblensMedia from '../Media/Media'
+import { MediaContext } from '../Context'
 
 export const useResize = (elem: HTMLDivElement) => {
     const [size, setSize] = useState({ height: 0, width: 0 })
@@ -18,10 +20,16 @@ export const useResize = (elem: HTMLDivElement) => {
     return size
 }
 
-export const useKeyDown = (key: string, callback: (e) => void) => {
+export const useKeyDown = (
+    key: string | ((e: KeyboardEvent) => boolean),
+    callback: (e: KeyboardEvent) => void
+) => {
     const onKeyDown = useCallback(
         (event) => {
-            if (event.key === key) {
+            if (
+                (typeof key === 'string' && event.key === key) ||
+                (typeof key === 'function' && key(event))
+            ) {
                 callback(event)
             }
         },
@@ -127,4 +135,40 @@ export const useClick = (handler: (e) => void, ignore?, disable?: boolean) => {
             window.removeEventListener('contextmenu', callback, true)
         }
     }, [callback, disable])
+}
+
+export const useMedia = (mediaId: string): WeblensMedia => {
+    const { mediaState } = useContext(MediaContext)
+    const [mediaData, setMediaData] = useState<WeblensMedia>(null)
+
+    useEffect(() => {
+        mediaState.loadNew(mediaId).then((m) => setMediaData(m))
+    }, [mediaId])
+
+    return mediaData
+}
+
+export const useIsFocused = (element: HTMLDivElement) => {
+    const [active, setActive] = useState<boolean>()
+
+    const handleFocusIn = (e) => {
+        setActive(true)
+    }
+    const handleFocusOut = (e) => {
+        setActive(false)
+    }
+
+    useEffect(() => {
+        if (!element) {
+            return
+        }
+        element.addEventListener('focusin', handleFocusIn)
+        element.addEventListener('focusout', handleFocusOut)
+        return () => {
+            document.removeEventListener('focusin', handleFocusIn)
+            document.removeEventListener('focusout', handleFocusOut)
+        }
+    }, [element])
+
+    return active
 }

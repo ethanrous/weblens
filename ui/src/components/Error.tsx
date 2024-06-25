@@ -1,6 +1,6 @@
 import { Text } from '@mantine/core'
 import { Component } from 'react'
-import { WeblensButton } from './WeblensButton'
+import WeblensButton from './WeblensButton'
 import { useNavigate } from 'react-router-dom'
 
 class ErrorBoundary extends Component<

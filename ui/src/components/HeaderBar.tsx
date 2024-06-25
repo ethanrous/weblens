@@ -1,14 +1,3 @@
-import React, {
-    memo,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
-} from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import WeblensLoader from './Loading'
-
-import { UserContext } from '../Context'
 import {
     IconAlbum,
     IconExclamationCircle,
@@ -19,12 +8,23 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react'
-import { WeblensButton } from './WeblensButton'
-import { useKeyDown } from './hooks'
+import React, {
+    memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { UpdatePassword } from '../api/UserApi'
-import { AuthHeaderT, UserContextT, UserInfoT } from '../types/Types'
+
+import { UserContext } from '../Context'
 import Admin from '../Pages/Admin Settings/Admin'
 import '../components/style.scss'
+import { AuthHeaderT, UserContextT, UserInfoT } from '../types/Types'
+import { useKeyDown } from './hooks'
+import WeblensLoader from './Loading'
+import WeblensButton from './WeblensButton'
 import WeblensInput from './WeblensInput'
 
 type HeaderBarProps = {
@@ -71,6 +71,10 @@ const SettingsMenu = ({
         setTimeout(() => setClosed(), 2000)
         return res
     }, [usr.username, String(oldP), String(newP), authHeader])
+
+    if (!open) {
+        return <></>
+    }
 
     return (
         <div
@@ -180,16 +184,6 @@ const HeaderBar = memo(
                 <div className="flex flex-row items-center h-14 pt-2 pb-2 border-b-2 border-neutral-700">
                     <div className="flex flex-row items-center w-96 shrink">
                         <div className="p-1" />
-                        {!usr.isLoggedIn && (
-                            <WeblensButton
-                                label="Login"
-                                squareSize={40}
-                                textMin={70}
-                                centerContent
-                                Left={IconUser}
-                                onClick={navToLogin}
-                            />
-                        )}
                         {usr.isLoggedIn && (
                             <div className="flex flex-row items-center w-[500px]">
                                 <WeblensButton
@@ -265,10 +259,16 @@ const HeaderBar = memo(
                         />
                     )}
                     <WeblensButton
-                        label={'User Settings'}
+                        label={usr.isLoggedIn ? 'User Settings' : 'Login'}
                         labelOnHover
                         Left={IconUser}
-                        onClick={() => setSettings(true)}
+                        onClick={() => {
+                            if (usr.isLoggedIn) {
+                                setSettings(true)
+                            } else {
+                                nav('/login')
+                            }
+                        }}
                     />
 
                     <div className="pr-3" />

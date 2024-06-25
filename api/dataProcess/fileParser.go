@@ -8,10 +8,6 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 )
 
-// Global exiftool
-// var gexift *exiftool.Exiftool
-// var gexiftBufferSize int64
-
 func processMediaFile(t *task) {
 	meta := t.metadata.(scanMetadata)
 	m := meta.partialMedia
@@ -56,7 +52,12 @@ func processMediaFile(t *task) {
 
 	if t.caster != nil {
 		t.caster.PushFileUpdate(file)
-		t.taskPool.NotifyTaskComplete(t, t.caster)
+		if t.GetTaskPool().IsGlobal() {
+			t.caster.PushTaskUpdate(t, TaskCompleteEvent, getScanResult(t))
+		} else {
+			t.caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), SubTaskCompleteEvent, getScanResult(t))
+		}
+		// t.taskPool.NotifyTaskComplete(t, t.caster)
 	} else {
 		util.Warning.Println("nil caster in file scan")
 	}
@@ -71,7 +72,7 @@ func scanDirectory(t *task) {
 	if scanDir.Filename() == ".user_trash" {
 		t.taskPool.NotifyTaskComplete(t, t.caster, "No media to scan")
 		t.caster.PushTaskUpdate(
-			t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()},
+			t, ScanCompleteEvent, types.TaskResult{"execution_time": t.ExeTime()},
 		) // Let any client subscribers know we are done
 		t.success("No media to scan")
 		return
@@ -92,8 +93,8 @@ func scanDirectory(t *task) {
 	tp := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 	util.Info.Printf("Beginning directory scan for %s\n", scanDir.GetAbsPath())
 
-	t.caster.FolderSubToTask(scanDir.ID(), t.TaskId())
-	t.caster.FolderSubToTask(scanDir.GetParent().ID(), t.TaskId())
+	t.caster.FolderSubToPool(scanDir.ID(), tp.GetRootPool().ID())
+	t.caster.FolderSubToPool(scanDir.GetParent().ID(), tp.GetRootPool().ID())
 
 	err := scanDir.LeafMap(
 		func(wf types.WeblensFile) error {
@@ -102,6 +103,7 @@ func scanDirectory(t *task) {
 				// TODO: Lock directory files while scanning to be able to check what task is using each file
 				// wf.AddTask(t)
 			}
+
 			// If this file is already being processed, don't queue it again
 			fileTask := wf.GetTask()
 			if fileTask != nil && fileTask.TaskType() == ScanFileTask {
@@ -113,7 +115,10 @@ func scanDirectory(t *task) {
 			}
 
 			m := types.SERV.MediaRepo.Get(wf.GetContentId())
-			if m != nil && m.IsImported() && m.IsCached() {
+			// if m != nil && m.IsImported() && m.IsCached() {
+			//	return nil
+			// }
+			if m != nil && m.IsImported() {
 				return nil
 			}
 
@@ -132,7 +137,7 @@ func scanDirectory(t *task) {
 	errs := tp.Errors()
 	if len(errs) != 0 {
 		t.caster.PushTaskUpdate(
-			t.taskId, TaskFailed, types.TaskResult{
+			t, TaskFailedEvent, types.TaskResult{
 				"failure_note": fmt.Sprintf(
 					"%d scans failed", len(errs),
 				),
@@ -142,8 +147,9 @@ func scanDirectory(t *task) {
 	}
 
 	t.caster.PushTaskUpdate(
-		t.taskId, ScanComplete, types.TaskResult{"execution_time": t.ExeTime()},
-	) // Let any client subscribers know we are done
+		t, ScanCompleteEvent, types.TaskResult{"execution_time": t.ExeTime()},
+	)
+	// Let any client subscribers know we are done
 	tp.NotifyTaskComplete(t, t.caster)
 	t.success()
 }
@@ -160,10 +166,10 @@ func getScanResult(t *task) types.TaskResult {
 	}
 
 	if tp != nil {
-		complete, total, progress := tp.Status()
-		result["percent_progress"] = progress
-		result["tasks_complete"] = complete
-		result["tasks_total"] = total
+		status := tp.Status()
+		result["percent_progress"] = status.Progress
+		result["tasks_complete"] = status.Complete
+		result["tasks_total"] = status.Total
 		if tp.CreatedInTask() != nil {
 			result["task_job_name"] = tp.CreatedInTask().TaskType()
 			result["task_job_target"] = tp.CreatedInTask().(*task).metadata.(scanMetadata).file.Filename()

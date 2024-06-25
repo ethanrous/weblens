@@ -1,16 +1,17 @@
-import React, { Suspense, useEffect } from 'react'
-import { BrowserRouter as Router, useRoutes } from 'react-router-dom'
 import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
+import React, { memo, Suspense, useEffect, useReducer } from 'react'
+import { BrowserRouter as Router, useRoutes } from 'react-router-dom'
+import { fetchMediaTypes } from './api/ApiFetch'
+import ErrorBoundary, { ErrorDisplay } from './components/Error'
 
 import WeblensLoader from './components/Loading'
 import useR from './components/UserInfo'
-import { UserContext } from './Context'
+import { MediaContext, UserContext } from './Context'
 
 import '@mantine/notifications/styles.css'
 import '@mantine/core/styles.css'
-import { fetchMediaTypes } from './api/ApiFetch'
-import ErrorBoundary, { ErrorDisplay } from './components/Error'
+import { MediaAction, mediaReducer, MediaStateT } from './Media/Media'
 
 const Gallery = React.lazy(() => import('./Pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./Pages/FileBrowser/FileBrowser'))
@@ -51,86 +52,93 @@ const WeblensRoutes = () => {
             setTypeMap()
         }
     }, [])
-    // const [typeMap, setTypeMap] = useState(null);
-    // useEffect(() => {
-    //     const mediaTypes = new Map<string, mediaType>();
-    //     fetchMediaTypes().then((mt) => {
-    //         const mimes: string[] = Array.from(Object.keys(mt));
-    //         for (const mime of mimes) {
-    //             mediaTypes.set(mime, mt[mime]);
-    //         }
-    //         setTypeMap(mediaTypes);
-    //     });
-    // }, []);
 
-    const galleryPage = (
-        <Suspense fallback={<PageLoader />}>
-            <Gallery />
-        </Suspense>
-    )
-
-    const filesPage = (
-        <Suspense fallback={<PageLoader />}>
-            <FileBrowser />
-        </Suspense>
-    )
-
-    const wormholePage = (
-        <Suspense fallback={<PageLoader />}>
-            <Wormhole />
-        </Suspense>
-    )
-
-    const loginPage = (
-        <Suspense fallback={<PageLoader />}>
-            <Login />
-        </Suspense>
-    )
-
-    const setupPage = (
-        <Suspense fallback={<PageLoader />}>
-            <Setup />
-        </Suspense>
-    )
-
-    const Gal = useRoutes([
-        ...['/', '/timeline', '/albums/*'].map((path) => ({
-            path: path,
-            element: galleryPage,
-        })),
-        { path: '/files/*', element: filesPage },
-        // { path: "/share/*", element: filesPage },
-        { path: '/wormhole/*', element: wormholePage },
-        { path: '/login', element: loginPage },
-        { path: '/setup', element: setupPage },
-    ])
+    const [mediaState, mediaDispatch] = useReducer<
+        (state: MediaStateT, action: MediaAction) => MediaStateT
+    >(mediaReducer, new MediaStateT())
 
     return (
         <ErrorBoundary fallback={ErrorDisplay}>
-            <UserContext.Provider
+            <MediaContext.Provider
                 value={{
-                    authHeader,
-                    usr,
-                    setCookie,
-                    clear,
-                    serverInfo,
+                    mediaState,
+                    mediaDispatch,
                 }}
             >
-                {/* <MediaTypeContext.Provider value={typeMap}> */}
-                {Gal}
-                {/* </MediaTypeContext.Provider> */}
-            </UserContext.Provider>
+                <UserContext.Provider
+                    value={{
+                        authHeader,
+                        usr,
+                        setCookie,
+                        clear,
+                        serverInfo,
+                    }}
+                >
+                    <PageSwitcher />
+                </UserContext.Provider>
+            </MediaContext.Provider>
         </ErrorBoundary>
     )
 }
 
-const PageLoader = () => {
+function PageLoader() {
     return (
         <div style={{ position: 'absolute', right: 15, bottom: 10 }}>
             <WeblensLoader loading={['page']} progress={0} />
         </div>
     )
 }
+
+const PageSwitcher = memo(
+    () => {
+        const galleryPage = (
+            <Suspense fallback={<PageLoader />}>
+                <Gallery />
+            </Suspense>
+        )
+
+        const filesPage = (
+            <Suspense fallback={<PageLoader />}>
+                <FileBrowser />
+            </Suspense>
+        )
+
+        const wormholePage = (
+            <Suspense fallback={<PageLoader />}>
+                <Wormhole />
+            </Suspense>
+        )
+
+        const loginPage = (
+            <Suspense fallback={<PageLoader />}>
+                <Login />
+            </Suspense>
+        )
+
+        const setupPage = (
+            <Suspense fallback={<PageLoader />}>
+                <Setup />
+            </Suspense>
+        )
+
+        const Gal = useRoutes([
+            ...['/', '/timeline', '/albums/*'].map((path) => ({
+                path: path,
+                element: galleryPage,
+            })),
+            { path: '/files/*', element: filesPage },
+            // { path: "/share/*", element: filesPage },
+            { path: '/wormhole/*', element: wormholePage },
+            { path: '/login', element: loginPage },
+            { path: '/setup', element: setupPage },
+        ])
+
+        return Gal
+    },
+    (prev, next) => {
+        return true
+    }
+)
 
 function App() {
     document.documentElement.style.overflow = 'hidden'

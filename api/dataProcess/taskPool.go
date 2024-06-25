@@ -14,8 +14,13 @@ import (
 )
 
 type taskPool struct {
+	id types.TaskId
+
 	treatAsGlobal  bool
 	hasQueueThread bool
+
+	tasks    map[types.TaskId]*task
+	taskLock *sync.Mutex
 
 	totalTasks     *atomic.Int64
 	completedTasks *atomic.Int64
@@ -45,10 +50,14 @@ func (tp *taskPool) GetWorkerPool() types.WorkerPool {
 	return tp.workerPool
 }
 
+func (tp *taskPool) ID() types.TaskId {
+	return tp.id
+}
+
 // newTask passes params to create new task, and return the task to the caller.
 // If the task already exists, the existing task will be returned, and a new one will not be created
 func (tp *taskPool) newTask(
-	taskType types.TaskType, taskMeta taskMetadata, caster types.BroadcasterAgent,
+	taskType types.TaskType, taskMeta types.TaskMetadata, caster types.BroadcasterAgent,
 	requester types.Requester,
 ) types.Task {
 
@@ -79,7 +88,7 @@ func (tp *taskPool) newTask(
 		// signal chan must be buffered so caller doesn't block trying to close many tasks
 		signalChan: make(chan int, 1),
 
-		sw:        util.NewStopwatch("Task " + taskId.String()),
+		sw:        util.NewStopwatch(fmt.Sprintf("%s Task [%s]", taskType, taskId.String())),
 		caster:    caster,
 		requester: requester,
 	}
@@ -113,7 +122,18 @@ func (tp *taskPool) newTask(
 
 	tp.workerPool.addTask(newTask)
 
+	tp.taskLock.Lock()
+	defer tp.taskLock.Unlock()
+	tp.tasks[newTask.taskId] = newTask
+
 	return newTask
+}
+
+func (tp *taskPool) RemoveTask(taskId types.TaskId) {
+	tp.taskLock.Lock()
+	defer tp.taskLock.Unlock()
+	delete(tp.tasks, taskId)
+
 }
 
 func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.BroadcasterAgent) types.Task {
@@ -126,14 +146,14 @@ func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.Broa
 		return nil
 	}
 
-	if caster != nil {
-		caster.PushTaskUpdate(
-			t.TaskId(), TaskCreated, types.TaskResult{
-				"taskType":      ScanDirectoryTask,
-				"directoryName": directory.Filename(),
-			},
-		)
-	}
+	// if caster != nil {
+	//	caster.PushTaskUpdate(
+	//		t, TaskCreated, types.TaskResult{
+	//			"taskType":      ScanDirectoryTask,
+	//			"directoryName": directory.Filename(),
+	//		},
+	//	)
+	// }
 
 	return t
 }
@@ -248,15 +268,17 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 
 		// Even if we are out of tasks, if we have not been told all tasks
 		// were queued, we do not wake the waiters
-		if uncompletedTasks == 0 && tp.waiterCount.Load() != 0 && tp.allQueuedFlag {
-			util.Debug.Println("Waking sleepers!")
-			tp.waiterGate.Unlock()
+		if uncompletedTasks == 0 && tp.allQueuedFlag {
+			if tp.waiterCount.Load() != 0 {
+				util.Debug.Println("Waking sleepers!")
+				tp.waiterGate.Unlock()
 
-			// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
-			// Should only loop a handful of times, if at all, we just need to wait for the waiters to
-			// lock and then release immediately, should take nanoseconds each
-			for tp.waiterCount.Load() != 0 {
-				time.Sleep(time.Millisecond * 10)
+				// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
+				// Should only loop a handful of times, if at all, we just need to wait for the waiters to
+				// lock and then release immediately, should take nanoseconds each
+				for tp.waiterCount.Load() != 0 {
+					time.Sleep(time.Millisecond * 10)
+				}
 			}
 
 			// Once all the tasks have exited, this worker pool is closing, and so we must run
@@ -296,10 +318,6 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 }
 
 func (tp *taskPool) GetRootPool() types.TaskPool {
-	// if tp == nil || tp.treatAsGlobal {
-	// 	return nil
-	// }
-
 	if tp.IsRoot() {
 		return tp
 	}
@@ -311,12 +329,19 @@ func (tp *taskPool) GetRootPool() types.TaskPool {
 	return tmpTp
 }
 
-func (tp *taskPool) Status() (int, int, float64) {
-	complete := tp.completedTasks.Load() + 1
+func (tp *taskPool) Status() types.TaskPoolStatus {
+	complete := tp.completedTasks.Load()
 	total := tp.totalTasks.Load()
 	progress := (float64(complete * 100)) / float64(total)
+	if math.IsNaN(progress) {
+		progress = 0
+	}
 
-	return int(complete), int(total), progress
+	return types.TaskPoolStatus{
+		Complete: complete,
+		Total:    total,
+		Progress: progress,
+	}
 }
 
 // func (tp *taskPool) ClearAllQueued() {
@@ -328,13 +353,13 @@ func (tp *taskPool) Status() (int, int, float64) {
 
 func (tp *taskPool) NotifyTaskComplete(t types.Task, c types.BroadcasterAgent, note ...any) {
 	realT := t.(*task)
-	rootPool := realT.taskPool.GetRootPool()
-	var rootTask types.Task
-	if rootPool != nil && rootPool.CreatedInTask() != nil {
-		rootTask = rootPool.CreatedInTask()
-	} else {
-		rootTask = t.(*task)
-	}
+	// rootPool := realT.taskPool.GetRootPool()
+	// var rootTask types.Task
+	// if rootPool != nil && rootPool.CreatedInTask() != nil {
+	// 	rootTask = rootPool.CreatedInTask()
+	// } else {
+	// 	rootTask = t.(*task)
+	// }
 
 	var result types.TaskResult
 	switch realT.taskType {
@@ -348,7 +373,7 @@ func (tp *taskPool) NotifyTaskComplete(t types.Task, c types.BroadcasterAgent, n
 		result["note"] = fmt.Sprint(note...)
 	}
 
-	c.PushTaskUpdate(rootTask.TaskId(), SubTaskComplete, result)
+	c.PushTaskUpdate(t, SubTaskCompleteEvent, result)
 
 }
 
@@ -411,8 +436,21 @@ func (tp *taskPool) Errors() []types.Task {
 }
 
 func (tp *taskPool) Cancel() {
-	// TODO - impl
-	util.ShowErr(types.ErrNotImplemented("Task pool cancel"))
+	tp.allQueuedFlag = true
+
+	// Dont allow more tasks to join the queue while we are cancelling them
+	tp.taskLock.Lock()
+
+	for _, t := range tp.tasks {
+		t.Cancel()
+		t.Wait()
+	}
+	tp.taskLock.Unlock()
+
+	// Signal to the client that this pool has been canceled, so we can reflect
+	// that in the UI
+	types.SERV.Caster.PushPoolUpdate(tp, PoolCancelledEvent, nil)
+
 }
 
 func (tp *taskPool) QueueTask(Task types.Task) (err error) {

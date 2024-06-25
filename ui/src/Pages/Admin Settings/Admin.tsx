@@ -30,7 +30,7 @@ import {
     UserContextT,
     UserInfoT as UserInfoT,
 } from '../../types/Types'
-import { WeblensButton } from '../../components/WeblensButton'
+import WeblensButton from '../../components/WeblensButton'
 import { useKeyDown } from '../../components/hooks'
 import WeblensInput from '../../components/WeblensInput'
 

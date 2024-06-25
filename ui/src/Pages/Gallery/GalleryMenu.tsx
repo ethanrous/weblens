@@ -1,5 +1,5 @@
 import WeblensMedia from '../../Media/Media'
-import { WeblensButton } from '../../components/WeblensButton'
+import WeblensButton from '../../components/WeblensButton'
 import { useClick, useKeyDown } from '../../components/hooks'
 import { memo, useCallback, useContext, useMemo, useState } from 'react'
 import { UserContext } from '../../Context'
@@ -10,10 +10,10 @@ import {
     IconEyeOff,
     IconPolaroid,
 } from '@tabler/icons-react'
-import { GalleryContext } from './Gallery'
 import { adjustMediaTime, hideMedia } from '../../api/ApiFetch'
 import { GalleryDispatchT, newTimeOffset, TimeOffset } from '../../types/Types'
 import { SetAlbumCover } from '../../Albums/AlbumQuery'
+import { GalleryContext } from './GalleryLogic'
 
 const mediaDate = (timestamp: number) => {
     const dateObj = new Date(timestamp)

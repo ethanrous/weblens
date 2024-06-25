@@ -92,8 +92,8 @@ func getFilesMeta(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	files := []map[string]any{}
-	notFound := []types.FileId{}
+	var files []map[string]any
+	var notFound []types.FileId
 	for _, id := range fIds {
 		f := types.SERV.FileTree.Get(id)
 		if f == nil {

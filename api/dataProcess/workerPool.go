@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
@@ -23,13 +25,16 @@ type hitChannel chan hit
 
 type workerPool struct {
 	maxWorkers     *atomic.Int64 // Max allowed worker count
-	currentWorkers *atomic.Int64 // Current worker count
+	currentWorkers *atomic.Int64 // Current total of workers on the pool
 	busyCount      *atomic.Int64 // Number of workers currently executing a task
 
 	lifetimeQueuedCount *atomic.Int64
 
 	taskMu  *sync.Mutex
 	taskMap map[types.TaskId]types.Task
+
+	poolMu  *sync.Mutex
+	poolMap map[types.TaskId]types.TaskPool
 
 	taskStream   workChannel
 	taskBufferMu *sync.Mutex
@@ -54,6 +59,9 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 		taskMu:  &sync.Mutex{},
 		taskMap: map[types.TaskId]types.Task{},
 
+		poolMu:  &sync.Mutex{},
+		poolMap: map[types.TaskId]types.TaskPool{},
+
 		taskStream:   make(workChannel, initWorkers*1000),
 		retryBuffer:  []*task{},
 		taskBufferMu: &sync.Mutex{},
@@ -68,6 +76,7 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 
 	// Worker pool always has one global queue
 	globalPool := newWp.newTaskPoolInternal()
+	globalPool.id = "GLOBAL"
 	globalPool.MarkGlobal()
 
 	return newWp, globalPool
@@ -81,7 +90,7 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 // all of the sub-updates of that task
 // See taskPool.go
 func (wp *workerPool) NewTaskPool(replace bool, createdBy types.Task) types.TaskPool {
-	tp := wp.newTaskPoolInternal().(*taskPool)
+	tp := wp.newTaskPoolInternal()
 	if createdBy != nil {
 		tp.createdBy = createdBy
 		if !createdBy.GetTaskPool().IsGlobal() {
@@ -92,7 +101,18 @@ func (wp *workerPool) NewTaskPool(replace bool, createdBy types.Task) types.Task
 		wp.addReplacementWorker()
 		tp.hasQueueThread = true
 	}
+
+	wp.poolMu.Lock()
+	defer wp.poolMu.Unlock()
+	wp.poolMap[tp.ID()] = tp
+
 	return tp
+}
+
+func (wp *workerPool) GetTaskPool(tpId types.TaskId) types.TaskPool {
+	wp.poolMu.Lock()
+	defer wp.poolMu.Unlock()
+	return wp.poolMap[tpId]
 }
 
 func workerRecover(task *task, workerId int64) {
@@ -183,6 +203,9 @@ func (wp *workerPool) Run() {
 	// Spawn the buffer worker
 	go wp.bufferDrainer()
 
+	// Spawn the status printer
+	go wp.statusReporter()
+
 	var i int64
 	for i = 0; i < wp.maxWorkers.Load(); i++ {
 		// These are the base, 'omnipresent' threads for this pool,
@@ -205,10 +228,19 @@ func (wp *workerPool) addTask(task types.Task) {
 	wp.taskMap[task.TaskId()] = task
 }
 
-func (wp *workerPool) removeTask(taskKey types.TaskId) {
+func (wp *workerPool) removeTask(taskId types.TaskId) {
+	wp.taskMu.Lock()
+	t := wp.taskMap[taskId]
+	wp.taskMu.Unlock()
+	if t == nil {
+		return
+	}
+
+	t.GetTaskPool().RemoveTask(taskId)
+
 	wp.taskMu.Lock()
 	defer wp.taskMu.Unlock()
-	delete(wp.taskMap, taskKey)
+	delete(wp.taskMap, taskId)
 }
 
 // For debugging only. This does nothing if the DEV_MODE env var is set to false, as no stopwatch results
@@ -264,6 +296,7 @@ func (wp *workerPool) execWorker(replacement bool) {
 			wp.busyCount.Add(1)
 			t.SwLap("Task start")
 			safetyWork(t, workerId)
+			t.SwLap("Task finish")
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)
 
@@ -278,7 +311,7 @@ func (wp *workerPool) execWorker(replacement bool) {
 
 			// Notify this task has completed, and unsubscribe any subscribers to it
 			t.caster.PushTaskUpdate(
-				t.taskId, TaskComplete,
+				t, TaskCompleteEvent,
 				types.TaskResult{"task_id": t.taskId, "exit_status": t.exitStatus},
 			)
 			t.caster.UnsubTask(t)
@@ -292,11 +325,12 @@ func (wp *workerPool) execWorker(replacement bool) {
 
 			if printStopwatchResults {
 				t.sw.PrintResults(true)
-			} else if t.exitStatus != TaskSuccess {
+			}
+			if t.exitStatus == TaskError {
 				if !rootTaskPool.IsGlobal() {
 					rootTaskPool.AddError(t)
 				}
-				util.Warning.Printf("T[%s] exited with non-success status: %s\n", t.taskId, t.exitStatus)
+				util.Warning.Printf("T[%s] exited with error status: %s\n", t.taskId, t.exitStatus)
 			}
 
 			if !t.persistent {
@@ -366,13 +400,22 @@ func (wp *workerPool) removeWorker() {
 	wp.maxWorkers.Add(-1)
 }
 
-func (wp *workerPool) newTaskPoolInternal() types.TaskPool {
+func (wp *workerPool) newTaskPoolInternal() *taskPool {
+	tpId, err := uuid.NewUUID()
+	if err != nil {
+		util.ShowErr(err)
+		return nil
+	}
+
 	newQueue := &taskPool{
+		id:             types.TaskId(tpId.String()),
 		totalTasks:     &atomic.Int64{},
 		completedTasks: &atomic.Int64{},
 		waiterCount:    &atomic.Int32{},
 		waiterGate:     &sync.Mutex{},
 		exitLock:       &sync.Mutex{},
+		tasks:          map[types.TaskId]*task{},
+		taskLock:       &sync.Mutex{},
 		workerPool:     wp,
 	}
 
@@ -392,14 +435,20 @@ func (wp *workerPool) Status() (int, int, int, int) {
 }
 
 func (wp *workerPool) statusReporter() {
+	var lastCount int
+	var waitTime time.Duration = 1
 	for {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * waitTime)
 		remaining, total, busy, alive := wp.Status()
-		if busy != 0 {
+		if lastCount != remaining {
+			lastCount = remaining
+			waitTime = 1
 			util.Info.Printf(
 				"Task worker pool status (queued/total, #busy, #alive): %d/%d, %d, %d",
 				remaining, total, busy, alive,
 			)
+		} else if waitTime < time.Second*10 {
+			waitTime += 1
 		}
 	}
 }

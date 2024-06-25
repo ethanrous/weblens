@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as WindowGrid } from 'react-window'
 import './style.scss'
-import {
-    FileDisplay,
-    GlobalContextType,
-    SelectedState,
-} from '../Files/FileDisplay'
+import { FileDisplay, GlobalContextType } from '../Files/FileDisplay'
 import { useResize } from './hooks'
-import { WeblensFile } from '../Files/File'
+import { FileContextT } from '../Files/File'
 import { FBDispatchT } from '../types/Types'
-
-export type FileContextT = {
-    file: WeblensFile
-    selected: SelectedState
-}
 
 type ScrollerDataT = {
     items: FileContextT[]
@@ -59,7 +50,7 @@ function FileCell({
 
 const FILE_BASE_SIZE = 250
 
-export default function FileScroller({
+function FileScroller({
     itemsContext,
     globalContext,
     parentNode,
@@ -131,3 +122,5 @@ export default function FileScroller({
         </div>
     )
 }
+
+export default FileScroller

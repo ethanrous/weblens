@@ -1,14 +1,6 @@
 import { DragEvent, useCallback, useEffect, useState } from 'react'
 
-import Upload, { fileUploadMetadata } from '../../api/Upload'
-import {
-    AuthHeaderT,
-    FBDispatchT,
-    FbStateT,
-    FileBrowserAction,
-    UserInfoT,
-} from '../../types/Types'
-import { FileInitT, WeblensFile } from '../../Files/File'
+import { useNavigate } from 'react-router-dom'
 import {
     CreateFolder,
     DeleteFiles,
@@ -19,10 +11,17 @@ import {
     SubToTask,
 } from '../../api/FileBrowserApi'
 
-import { useNavigate } from 'react-router-dom'
+import Upload, { fileUploadMetadata } from '../../api/Upload'
+import { FbMenuModeT, FileInitT, WeblensFile } from '../../Files/File'
+import { DraggingStateT, FbModeT } from '../../Files/filesContext'
+import {
+    AuthHeaderT,
+    FBDispatchT,
+    FbStateT,
+    FileBrowserAction,
+    UserInfoT,
+} from '../../types/Types'
 import { TaskProgress, TaskStage } from './TaskProgress'
-import { DraggingState, FbModeT } from './FileBrowser'
-import { FbMenuModeT } from './FileBrowserStyles'
 
 const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
     let numSelected = state.selected.size
@@ -71,6 +70,7 @@ const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
                 }
             }
         }
+
         // state.selected.get returns undefined if not selected,
         // so we not (!) it to make boolean, and again to match... yay javascript :/
         else if (!!state.selected.get(action.fileId) === action.selected) {
@@ -108,8 +108,13 @@ function fileIsInView(
         !newFileInfo.filename.includes(searchContent)
     ) {
         return false
-    } else if (mode === FbModeT.share && shareId === '') {
-        return false
+    } else if (mode === FbModeT.share) {
+        if (shareId === '') {
+            return false
+        }
+        if (viewingId === newFileInfo.id) {
+            return false
+        }
     }
 
     return true
@@ -228,17 +233,24 @@ export const fileBrowserReducer = (
 
         case 'new_task': {
             let index = state.scanProgress.findIndex(
-                (s) => s.GetTaskId() === action.taskId
+                (s) =>
+                    s.taskId === action.serverId || s.poolId == action.serverId
             )
             if (index !== -1) {
                 return state
             }
 
-            const prog = new TaskProgress(
-                action.taskId,
-                action.taskType,
-                action.target
-            )
+            let prog: TaskProgress
+            try {
+                prog = new TaskProgress(
+                    action.serverId,
+                    action.taskType,
+                    action.target
+                )
+            } catch (e) {
+                console.error(e)
+                return state
+            }
 
             state.scanProgress.push(prog)
 
@@ -248,23 +260,37 @@ export const fileBrowserReducer = (
             }
         }
 
-        case 'scan_complete': {
+        case 'task_complete': {
             let index = state.scanProgress.findIndex(
-                (s) => s.GetTaskId() === action.taskId
+                (s) =>
+                    s.taskId === action.serverId || s.poolId == action.serverId
             )
 
             if (index === -1) {
-                const newProg = new TaskProgress(
-                    action.taskId,
-                    action.taskType,
-                    action.target
-                )
+                let newProg: TaskProgress
+                try {
+                    newProg = new TaskProgress(
+                        action.serverId,
+                        action.taskType,
+                        action.target
+                    )
+                } catch (e) {
+                    console.error(e)
+                    return state
+                }
+
                 index = state.scanProgress.length
                 state.scanProgress.push(newProg)
             }
 
+            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
+                return state
+            }
+
             state.scanProgress[index].stage = TaskStage.Complete
-            state.scanProgress[index].timeNs = action.time
+            if (action.time) {
+                state.scanProgress[index].timeNs = action.time
+            }
             if (action.note) {
                 state.scanProgress[index].note = action.note
             }
@@ -277,7 +303,8 @@ export const fileBrowserReducer = (
 
         case 'task_failure': {
             let index = state.scanProgress.findIndex(
-                (s) => s.GetTaskId() === action.taskId
+                (s) =>
+                    s.taskId === action.serverId || s.poolId == action.serverId
             )
 
             if (index < 0) {
@@ -285,27 +312,66 @@ export const fileBrowserReducer = (
                 return { ...state }
             }
 
+            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
+                console.warn('Ignoring task failure on cancelled task')
+                return state
+            }
+
             state.scanProgress[index].stage = TaskStage.Failure
             if (action.note) {
                 state.scanProgress[index].note = action.note
             }
 
-            return { ...state }
+            return {
+                ...state,
+                scanProgress: [...state.scanProgress],
+            }
+        }
+
+        case 'cancel_task': {
+            let index = state.scanProgress.findIndex(
+                (s) =>
+                    s.taskId === action.serverId || s.poolId == action.serverId
+            )
+
+            if (index < 0) {
+                return state
+            }
+
+            state.scanProgress[index].stage = TaskStage.Cancelled
+            state.scanProgress[index].workingOn = 'Cancelled'
+
+            return {
+                ...state,
+                scanProgress: [...state.scanProgress],
+            }
         }
 
         case 'update_scan_progress': {
             let index = state.scanProgress.findIndex(
-                (s) => s.taskId === action.taskId
+                (s) =>
+                    s.taskId === action.serverId || s.poolId == action.serverId
             )
 
             if (index === -1) {
-                const newProg = new TaskProgress(
-                    action.taskId,
-                    action.taskType,
-                    action.target
-                )
+                let newProg: TaskProgress
+                try {
+                    newProg = new TaskProgress(
+                        action.serverId,
+                        action.taskType,
+                        action.target
+                    )
+                } catch (e) {
+                    console.error(e)
+                    return state
+                }
+
                 index = state.scanProgress.length
                 state.scanProgress.push(newProg)
+            }
+
+            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
+                return state
             }
 
             state.scanProgress[index].progressPercent = action.progress
@@ -323,9 +389,44 @@ export const fileBrowserReducer = (
             }
         }
 
+        case 'add_pool_to_progress': {
+            let index = state.scanProgress.findIndex(
+                (s) => s.taskId === action.serverId
+            )
+
+            if (index === -1) {
+                let newProg: TaskProgress
+                try {
+                    newProg = new TaskProgress(
+                        action.serverId,
+                        action.taskType,
+                        action.target
+                    )
+                } catch (e) {
+                    console.error(e)
+                    return state
+                }
+
+                index = state.scanProgress.length
+                state.scanProgress.push(newProg)
+            }
+
+            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
+                return state
+            }
+
+            state.scanProgress[index].poolId = action.poolId
+
+            return {
+                ...state,
+                scanProgress: [...state.scanProgress],
+            }
+        }
+
         case 'remove_task_progress': {
             state.scanProgress = state.scanProgress.filter(
-                (p) => Boolean(p.taskId) && p.taskId !== action.taskId
+                (s) =>
+                    s.taskId !== action.serverId && s.poolId !== action.serverId
             )
 
             return { ...state, scanProgress: [...state.scanProgress] }
@@ -335,6 +436,13 @@ export const fileBrowserReducer = (
             return {
                 ...state,
                 searchContent: action.search,
+            }
+        }
+
+        case 'set_is_searching': {
+            return {
+                ...state,
+                isSearching: action.isSearching,
             }
         }
 
@@ -610,10 +718,6 @@ export const fileBrowserReducer = (
             return { ...state, viewingPast: action.past }
         }
 
-        case 'set_file_info_menu': {
-            return { ...state, fileInfoMenu: action.open }
-        }
-
         default: {
             console.error('Got unexpected dispatch type: ', action.type)
             return { ...state }
@@ -625,7 +729,9 @@ export function getSortFunc(sortType: string, sortDirection: number) {
     switch (sortType) {
         case 'Name':
             return (a: WeblensFile, b: WeblensFile) =>
-                a.GetFilename().localeCompare(b.GetFilename()) * sortDirection
+                a.GetFilename().localeCompare(b.GetFilename(), 'en-US', {
+                    numeric: true,
+                }) * sortDirection
         case 'Date Modified':
             return (a: WeblensFile, b: WeblensFile) => {
                 return (
@@ -672,11 +778,11 @@ export const handleDragOver = (
         !dragging &&
             dispatch({
                 type: 'set_dragging',
-                dragging: DraggingState.ExternalDrag,
+                dragging: DraggingStateT.ExternalDrag,
                 external: Boolean(event.dataTransfer.types.length),
             })
     } else {
-        dispatch({ type: 'set_dragging', dragging: DraggingState.NoDrag })
+        dispatch({ type: 'set_dragging', dragging: DraggingStateT.NoDrag })
     }
 }
 
@@ -958,31 +1064,17 @@ export const useKeyDownFileBrowser = (
     const nav = useNavigate()
     useEffect(() => {
         const onKeyDown = (event) => {
+            if (fbState.isSearching) {
+                return
+                // if (event.key === 'Enter') {
+                //     if (!Boolean(fbState.searchContent)) {
+                //         if (fbState.fbMode === FbModeT.search) {
+                //             nav(`/files/${fbState.contentId}`)
+                //         }
+                //         return
+                //     }
+            }
             if (!fbState.blockFocus) {
-                if (document.activeElement === searchRef.current) {
-                    if (event.key === 'Enter') {
-                        if (!Boolean(fbState.searchContent)) {
-                            if (fbState.fbMode === FbModeT.search) {
-                                nav(`/files/${fbState.contentId}`)
-                            }
-                            return
-                        }
-                        nav(
-                            `/files/search/${fbState.contentId}?query=${fbState.searchContent}`,
-                            {
-                                replace: Boolean(searchQuery),
-                            }
-                        )
-                    } else if (event.key === 'Escape') {
-                        searchRef.current.blur()
-                    } else {
-                        if (event.metaKey && event.key === 'a') {
-                            event.stopPropagation()
-                        }
-                    }
-
-                    return
-                }
                 if (event.metaKey && event.key === 'a') {
                     event.preventDefault()
                     dispatch({ type: 'select_all' })
@@ -998,13 +1090,6 @@ export const useKeyDownFileBrowser = (
                         type: 'move_selection',
                         direction: event.key,
                     })
-                } else if (
-                    !event.metaKey &&
-                    ((event.which >= 49 && event.which <= 90) ||
-                        (event.key === 'Backspace' &&
-                            Boolean(fbState.searchContent)))
-                ) {
-                    searchRef.current.focus()
                 } else if (event.key === 'Escape') {
                     event.preventDefault()
                     if (fbState.pasteImg) {
@@ -1201,7 +1286,7 @@ export function selectedMediaIds(
     selectedIds: string[]
 ): string[] {
     return selectedIds
-        .map((id) => dirMap.get(id)?.GetMedia()?.Id())
+        .map((id) => dirMap.get(id)?.GetMediaId())
         .filter((v) => Boolean(v))
 }
 

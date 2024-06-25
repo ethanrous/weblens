@@ -4,7 +4,7 @@ import { createUser, login } from '../../api/ApiFetch'
 import { UserContext } from '../../Context'
 import { notifications } from '@mantine/notifications'
 import { Input, Space, Tabs } from '@mantine/core'
-import { WeblensButton } from '../../components/WeblensButton'
+import WeblensButton from '../../components/WeblensButton'
 import { useKeyDown } from '../../components/hooks'
 import { UserContextT } from '../../types/Types'
 import WeblensInput from '../../components/WeblensInput'
@@ -32,19 +32,17 @@ async function CheckCreds(username: string, password: string, setCookie, nav) {
         })
 }
 
-function CreateUser(username: string, password: string) {
-    createUser(username, password)
+async function CreateUser(
+    username: string,
+    password: string
+): Promise<boolean> {
+    return await createUser(username, password)
         .then((x) => {
-            notifications.show({
-                message:
-                    'Account created! Once an administrator activates your account you may login',
-            })
+            return true
         })
-        .catch((reason) => {
-            notifications.show({
-                message: `Failed to create new user: ${String(reason)}`,
-                color: 'red',
-            })
+        .catch((r) => {
+            console.error(r)
+            return false
         })
 }
 
@@ -173,26 +171,15 @@ const Login = () => {
                         )}
                         <WeblensInput
                             placeholder="Password"
-                            value={userInput}
+                            value={passInput}
                             onComplete={() => {}}
                             valueCallback={setPassInput}
                             height={40}
                         />
-                        {/*<Input*/}
-                        {/*    className="weblens-input-wrapper"*/}
-                        {/*    classNames={{ input: 'weblens-input' }}*/}
-                        {/*    variant="unstyled"*/}
-                        {/*    type="password"*/}
-                        {/*    value={passInput}*/}
-                        {/*    placeholder="Password"*/}
-                        {/*    onChange={(event) =>*/}
-                        {/*        setPassInput(event.currentTarget.value)*/}
-                        {/*    }*/}
-                        {/*    style={{ width: '100%' }}*/}
-                        {/*/>*/}
                         <Space h={'md'} />
                         <WeblensButton
                             label="Sign Up"
+                            doSuper
                             squareSize={50}
                             fillWidth
                             disabled={
@@ -201,7 +188,9 @@ const Login = () => {
                                 badUsername
                             }
                             centerContent
-                            onClick={() => CreateUser(userInput, passInput)}
+                            onClick={async () =>
+                                CreateUser(userInput, passInput)
+                            }
                             setButtonRef={setButtonRef}
                         />
                     </Tabs.Panel>

@@ -15,9 +15,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
-	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/dataStore/media"
-	"github.com/ethrousseau/weblens/api/routes"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/saracen/fastzip"
@@ -100,7 +98,7 @@ func createZipFromPaths(t *task) {
 	}
 	if zipExists {
 		t.setResult(types.TaskResult{"takeoutId": zipFile.ID().String()})
-		t.caster.PushTaskUpdate(t.taskId, TaskComplete, t.result) // Let any client subscribers know we are done
+		t.caster.PushTaskUpdate(t, TaskCompleteEvent, t.result) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
@@ -110,7 +108,10 @@ func createZipFromPaths(t *task) {
 		if sh == nil {
 			t.ErrorAndExit(types.ErrNoShare)
 		}
-		zipFile.AppendShare(sh)
+		err := zipFile.SetShare(sh)
+		if err != nil {
+			util.ShowErr(err)
+		}
 	}
 
 	fp, err := os.Create(zipFile.GetAbsPath())
@@ -128,7 +129,11 @@ func createZipFromPaths(t *task) {
 		fp, zipMeta.files[0].GetParent().GetAbsPath(), fastzip.WithStageDirectory(zipFile.GetParent().GetAbsPath()),
 		fastzip.WithArchiverBufferSize(32),
 	)
-	util.FailOnError(err, "Filed to create new zip archiver")
+
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
 	defer func(a *fastzip.Archiver) {
 		err := a.Close()
 		if err != nil {
@@ -166,7 +171,7 @@ func createZipFromPaths(t *task) {
 			timeNs := updateInterval * sinceUpdate
 
 			t.caster.PushTaskUpdate(
-				t.taskId, TaskProgress, types.TaskResult{
+				t, TaskProgressEvent, types.TaskResult{
 					"completedFiles": int(entries), "totalFiles": totalFiles,
 					"speedBytes": int((float64(byteDiff) / float64(timeNs)) * float64(time.Second)),
 				},
@@ -182,7 +187,7 @@ func createZipFromPaths(t *task) {
 	}
 
 	t.setResult(types.TaskResult{"takeoutId": zipFile.ID()})
-	t.caster.PushTaskUpdate(t.taskId, TaskComplete, t.result) // Let any client subscribers know we are done
+	t.caster.PushTaskUpdate(t, ZipCompleteEvent, t.result) // Let any client subscribers know we are done
 	t.success()
 }
 
@@ -217,9 +222,7 @@ func moveFile(t *task) {
 		t.ErrorAndExit(err)
 	}
 
-	action := history.NewMoveAction(moveMeta.fileId, file.ID())
-	moveMeta.fileEvent.AddAction(action)
-
+	moveMeta.fileEvent.NewMoveAction(moveMeta.fileId, file.ID())
 	t.success()
 }
 
@@ -398,29 +401,35 @@ WriterLoop:
 
 	t.CheckExit()
 
+	bufCaster.Flush()
+
 	doingRootScan := false
+
+	// Do not report that this task pool was created by this task, we want to detach
+	// and allow these scans to take place independently
+	newTp := types.SERV.WorkerPool.NewTaskPool(false, nil)
 	for _, tl := range topLevels {
-		// Create a new caster for each sub-task
-		newCaster := routes.NewBufferedCaster()
 		if tl.IsDir() {
 			bufCaster.PushFileUpdate(tl)
-			newT := t.GetTaskPool().ScanDirectory(tl, newCaster)
-			newT.SetPostAction(
-				func(_ types.TaskResult) {
-					newCaster.Close()
-				},
-			)
+			newTp.ScanDirectory(tl, t.caster)
 		} else if !doingRootScan {
-			newT := t.GetTaskPool().ScanDirectory(rootFile, newCaster)
-			newT.SetPostAction(
-				func(_ types.TaskResult) {
-					newCaster.Close()
-				},
-			)
+			newTp.ScanDirectory(rootFile, t.caster)
 			doingRootScan = true
 		}
 	}
-	bufCaster.Close()
+	newTp.SignalAllQueued()
+
+	if newTp.Status().Total != 0 {
+		bufCaster.AutoFlushEnable()
+		newTp.AddCleanup(
+			func() {
+				bufCaster.Close()
+			},
+		)
+	} else {
+		bufCaster.Close()
+	}
+
 	t.success()
 }
 

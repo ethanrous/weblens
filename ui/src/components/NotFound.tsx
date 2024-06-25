@@ -1,6 +1,6 @@
 import { Space } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
-import { WeblensButton } from './WeblensButton'
+import WeblensButton from './WeblensButton'
 import { useContext } from 'react'
 import { UserContext } from '../Context'
 import { UserContextT } from '../types/Types'

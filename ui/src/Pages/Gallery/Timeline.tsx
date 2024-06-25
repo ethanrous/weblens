@@ -1,7 +1,5 @@
 import { Indicator, Space, Text } from '@mantine/core'
-import { PhotoGallery } from '../../Media/MediaDisplay'
-import { WeblensButton } from '../../components/WeblensButton'
-import { useNavigate } from 'react-router-dom'
+import { IconAlbum, IconFilter, IconFolder } from '@tabler/icons-react'
 import {
     memo,
     useCallback,
@@ -10,17 +8,19 @@ import {
     useMemo,
     useState,
 } from 'react'
-import WeblensSlider from '../../components/WeblensSlider'
-import { MediaImage } from '../../Media/PhotoContainer'
-import { GalleryContext } from './Gallery'
-import { IconAlbum, IconFilter, IconFolder } from '@tabler/icons-react'
-import { UserContext } from '../../Context'
-import WeblensMedia from '../../Media/Media'
+import { useNavigate } from 'react-router-dom'
 import { useClick, useKeyDown } from '../../components/hooks'
+import WeblensButton from '../../components/WeblensButton'
+import WeblensSlider from '../../components/WeblensSlider'
+import { MediaContext, UserContext } from '../../Context'
+import { PhotoGallery } from '../../Media/MediaDisplay'
 import { FetchData } from '../../Media/MediaQuery'
+import { GalleryContext } from './GalleryLogic'
+import { MiniAlbumCover } from '../../Albums/AlbumDisplay'
 
 const TimelineControls = () => {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const { mediaState } = useContext(MediaContext)
 
     const [optionsOpen, setOptionsOpen] = useState(false)
 
@@ -42,36 +42,38 @@ const TimelineControls = () => {
 
     const albumsOptions = useMemo(() => {
         return Array.from(galleryState.albumsMap.values()).map((a) => {
-            const included = !disabledAlbums.includes(a.Id)
-            if (!a.CoverMedia) {
-                a.CoverMedia = new WeblensMedia({ contentId: a.Cover })
-            }
+            // const m = useMedia(a.cover)
+            const included = !disabledAlbums.includes(a.id)
+            // if (!a.C) {
+            //     a.CoverMedia = new WeblensMedia({ a.Cover })
+            // }
             return (
-                <div
-                    className="album-selector"
-                    key={a.Id}
-                    data-included={included}
-                    onClick={() =>
-                        setDisabledAlbums((p) => {
-                            const newP = [...p]
-                            if (included) {
-                                newP.push(a.Id)
-                                return newP
-                            } else {
-                                newP.splice(newP.indexOf(a.Id))
-                                return newP
-                            }
-                        })
-                    }
-                >
-                    <MediaImage
-                        disabled={!included}
-                        media={a.CoverMedia}
-                        quality="thumbnail"
-                        containerStyle={{ borderRadius: 4 }}
-                    />
-                    <p className="album-selector-title">{a.Name}</p>
-                </div>
+                <MiniAlbumCover key={a.id} album={a} />
+                // <div
+                //     className="album-selector"
+                //     key={a.id}
+                //     data-included={included}
+                //     onClick={() =>
+                //         setDisabledAlbums((p) => {
+                //             const newP = [...p]
+                //             if (included) {
+                //                 newP.push(a.id)
+                //                 return newP
+                //             } else {
+                //                 newP.splice(newP.indexOf(a.id))
+                //                 return newP
+                //             }
+                //         })
+                //     }
+                // >
+                //     <MediaImage
+                //         disabled={!included}
+                //         media={m}
+                //         quality="thumbnail"
+                //         containerStyle={{ borderRadius: 4 }}
+                //     />
+                //     <p className="album-selector-title">{a.name}</p>
+                // </div>
             )
         })
     }, [galleryState.albumsMap, disabledAlbums])
@@ -160,7 +162,7 @@ const TimelineControls = () => {
                     centerContent
                     toggleOn={galleryState.selecting}
                     onClick={selectClick}
-                    disabled={galleryState.mediaMap.size === 0}
+                    disabled={mediaState.mediaMap.size === 0}
                 />
             </div>
         </div>
@@ -172,17 +174,18 @@ const NoMediaDisplay = () => {
     return (
         <div className="flex flex-col items-center w-full">
             <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
-                <Text c="white" fw={700} size="31px">
+                <p className="text-white font-bold text-3xl select-none">
                     No media to display
-                </Text>
-                <Text c="white">Upload files then add them to an album</Text>
+                </p>
+                <p className="text-white select-none">
+                    Upload files then add them to an album
+                </p>
                 <div className="h-max w-full gap-2">
                     <WeblensButton
                         squareSize={48}
                         fillWidth
                         label="FileBrowser"
                         Left={IconFolder}
-                        // centerContent
                         onClick={() => nav('/files')}
                     />
                     <WeblensButton
@@ -190,7 +193,6 @@ const NoMediaDisplay = () => {
                         fillWidth
                         label="Albums"
                         Left={IconAlbum}
-                        // centerContent
                         onClick={() => nav('/albums')}
                     />
                 </div>
@@ -203,15 +205,21 @@ export const Timeline = memo(
     ({ page }: { page: string }) => {
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
         const { authHeader } = useContext(UserContext)
+        const { mediaState, mediaDispatch } = useContext(MediaContext)
 
         useEffect(() => {
-            if (!galleryState) {
+            if (!galleryState || galleryState.loading.includes('media')) {
                 return
             }
 
             galleryDispatch({ type: 'add_loading', loading: 'media' })
-            FetchData(galleryState, galleryDispatch, authHeader).then(() =>
-                galleryDispatch({ type: 'remove_loading', loading: 'media' })
+            FetchData(galleryState, mediaState, mediaDispatch, authHeader).then(
+                () => {
+                    galleryDispatch({
+                        type: 'remove_loading',
+                        loading: 'media',
+                    })
+                }
             )
         }, [
             galleryState?.includeRaw,
@@ -226,16 +234,15 @@ export const Timeline = memo(
                 return []
             }
 
-            return Array.from(galleryState.mediaMap.values())
-                .filter((m) => {
-                    if (galleryState.searchContent === '') {
-                        return true
-                    }
+            return Array.from(mediaState.mediaMap.values()).filter((m) => {
+                if (galleryState.searchContent === '') {
+                    return true
+                }
 
-                    return m.MatchRecogTag(galleryState.searchContent)
-                })
-                .reverse()
-        }, [galleryState?.mediaMap, galleryState?.searchContent])
+                return m.MatchRecogTag(galleryState.searchContent)
+            })
+            // .reverse()
+        }, [mediaState, galleryState?.searchContent])
 
         if (galleryState.loading.includes('media')) {
             return null

@@ -107,9 +107,11 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 	if slices.ContainsFunc(filteredDirInfo, func(i types.FileInfo) bool { return !i.Imported && i.Displayable }) {
 		c := NewBufferedCaster()
 		t := types.SERV.TaskDispatcher.ScanDirectory(dir, c)
-		t.SetCleanup(func() {
-			c.Close()
-		})
+		t.SetCleanup(
+			func() {
+				c.Close()
+			},
+		)
 	}
 
 }
@@ -143,7 +145,7 @@ func getFolder(ctx *gin.Context) {
 	var err error
 	if shareId != "" {
 		sh = types.SERV.ShareService.Get(shareId)
-		if sh != nil || sh == nil {
+		if sh == nil {
 			util.ShowErr(err)
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
 			return
@@ -255,25 +257,18 @@ func getPastFolderInfo(ctx *gin.Context) {
 }
 
 func getFileHistory(ctx *gin.Context) {
-	// fileId := types.FileId(ctx.Param("fileId"))
-	// f := SERV.FileTree.Get(fileId)
-	// if f == nil {
-	// 	ctx.Status(http.StatusNotFound)
-	// 	return
-	// }
-	//
-	// events, err := dataStore.GetFileHistory(f)
-	// if err != nil {
-	// 	if errors.Is(err, dataStore.ErrNoFile) {
-	// 		ctx.Status(http.StatusNotFound)
-	// 	} else {
-	// 		util.ShowErr(err)
-	// 		ctx.Status(http.StatusInternalServerError)
-	// 	}
-	// 	return
-	// }
-	// ctx.JSON(http.StatusOK, gin.H{"events": events})
-	ctx.Status(http.StatusNotImplemented)
+	fileId := types.FileId(ctx.Param("fileId"))
+	file := types.SERV.FileTree.Get(fileId)
+
+	actions, err := types.SERV.Database.GetActionsByPath(file.GetPortablePath())
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, actions)
+	// ctx.Status(http.StatusNotImplemented)
 }
 
 func restorePastFiles(ctx *gin.Context) {

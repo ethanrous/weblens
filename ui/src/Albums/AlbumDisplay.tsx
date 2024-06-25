@@ -1,10 +1,5 @@
 import { Box, Divider, Text } from '@mantine/core'
 
-import { useContext, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { FixedSizeList } from 'react-window'
-import { useKeyDown, useResize } from '../components/hooks'
-
 import {
     IconArrowLeft,
     IconMinus,
@@ -15,19 +10,24 @@ import {
     IconUsersPlus,
 } from '@tabler/icons-react'
 
-import { MediaImage } from '../Media/PhotoContainer'
-import { AlbumData, AuthHeaderT, UserContextT } from '../types/Types'
-import WeblensMedia from '../Media/Media'
-import { UserContext } from '../Context'
-import { GalleryContext } from '../Pages/Gallery/Gallery'
-import { WeblensButton } from '../components/WeblensButton'
-import WeblensInput from '../components/WeblensInput'
+import { useContext, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { FixedSizeList } from 'react-window'
 import { AutocompleteUsers } from '../api/ApiFetch'
 
 import './albumStyle.scss'
+import { useKeyDown, useMedia, useResize } from '../components/hooks'
+import WeblensButton from '../components/WeblensButton'
+import WeblensInput from '../components/WeblensInput'
+import { UserContext } from '../Context'
+import WeblensMedia from '../Media/Media'
+
+import { MediaImage } from '../Media/PhotoContainer'
+import { GalleryContext } from '../Pages/Gallery/GalleryLogic'
+import { AlbumData, AuthHeaderT, UserContextT } from '../types/Types'
 import {
     DeleteAlbum,
-    GetAlbumMedia,
+    getAlbumMedia,
     LeaveAlbum,
     SetAlbumCover,
     ShareAlbum,
@@ -42,8 +42,9 @@ function AlbumShareMenu({
     isOpen: boolean
     closeShareMenu: () => void
 }) {
+    console.log(album)
     const { usr, authHeader } = useContext(UserContext)
-    const [users, setUsers] = useState(album.SharedWith)
+    const [users, setUsers] = useState(album.sharedWith)
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState([])
 
@@ -76,14 +77,14 @@ function AlbumShareMenu({
                     <div className="flex flex-row items-center h-10 w-48">
                         <WeblensInput
                             placeholder={'Search Users'}
-                            icon={<IconSearch size={16} />}
+                            Icon={IconSearch}
                             value={userSearch}
                             valueCallback={setUserSearch}
                             onComplete={() => {}}
                         />
                     </div>
 
-                    <div className="flex flex-col items-center justify-center h-[150px] w-full overflow-y-scroll p-1">
+                    <div className="flex flex-col items-center justify-center h-[100px] w-full overflow-y-scroll p-1">
                         {userSearchResults.length === 0 && (
                             <p className="flex select-none text-white h-full items-center">
                                 No Search Results
@@ -94,7 +95,7 @@ function AlbumShareMenu({
                                 <WeblensButton
                                     squareSize={40}
                                     label={u}
-                                    Right={<IconPlus />}
+                                    Right={IconPlus}
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setUsers((p) => {
@@ -113,7 +114,7 @@ function AlbumShareMenu({
                         })}
                     </div>
                 </div>
-                <div className="flex flex-col w-full items-center">
+                <div className="flex flex-col w-full items-center min-h-[150px]">
                     <Divider orientation={'horizontal'} w={'95%'} />
                     <p className="m-2 text-white">Shared With</p>
                     <div
@@ -130,7 +131,7 @@ function AlbumShareMenu({
                                     subtle
                                     squareSize={40}
                                     label={u}
-                                    Right={<IconMinus />}
+                                    Right={IconMinus}
                                     onClick={() => {
                                         setUsers((p) => {
                                             const newP = [...p]
@@ -143,36 +144,47 @@ function AlbumShareMenu({
                         })}
                     </div>
                 </div>
-                <div className="flex flex-row w-full h-max">
-                    <WeblensButton
-                        squareSize={40}
-                        subtle
-                        label={'Cancel'}
-                        Left={IconArrowLeft}
-                        onClick={() => {
-                            closeShareMenu()
-                        }}
-                    />
-                    <WeblensButton
-                        squareSize={40}
-                        label={'Update'}
-                        Left={IconUsersPlus}
-                        onClick={async () => {
-                            return ShareAlbum(
-                                album.Id,
-                                authHeader,
-                                users,
-                                album.SharedWith.filter(
-                                    (u) => !users.includes(u)
+                <div className="flex flex-row justify-around w-full h-max">
+                    <div className="flex w-[48%] justify-center">
+                        <WeblensButton
+                            squareSize={40}
+                            subtle
+                            fillWidth
+                            label={'Back'}
+                            Left={IconArrowLeft}
+                            onClick={() => {
+                                closeShareMenu()
+                            }}
+                        />
+                    </div>
+                    <div className="flex w-[48%] justify-center">
+                        <WeblensButton
+                            squareSize={40}
+                            fillWidth
+                            label={'Share'}
+                            Left={IconUsersPlus}
+                            onClick={async () => {
+                                return ShareAlbum(
+                                    album.id,
+                                    authHeader,
+                                    users,
+                                    album.sharedWith.filter(
+                                        (u) => !users.includes(u)
+                                    )
                                 )
-                            )
-                                .then(() => {
-                                    setTimeout(() => closeShareMenu(), 1000)
-                                    return true
-                                })
-                                .catch(() => false)
-                        }}
-                    />
+                                    .then((r) => {
+                                        if (r.status !== 200) {
+                                            return Promise.reject(
+                                                'Failed to share album'
+                                            )
+                                        }
+                                        setTimeout(() => closeShareMenu(), 1000)
+                                        return true
+                                    })
+                                    .catch(() => false)
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
@@ -188,7 +200,7 @@ function AlbumContentPreview({
     setCoverM
     selected: string
 }) {
-    if (albumMedias === null) {
+    if (!albumMedias) {
         return null
     }
 
@@ -205,7 +217,7 @@ function AlbumContentPreview({
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     if (selected !== m.Id()) {
-                                        setCoverM(m)
+                                        setCoverM(m.Id())
                                     }
                                 }}
                             >
@@ -233,33 +245,32 @@ export function MiniAlbumCover({
     disabled?: boolean
     authHeader?: AuthHeaderT
 }) {
-    if (!album.CoverMedia && album.Cover && authHeader) {
-        album.CoverMedia = new WeblensMedia({ contentId: album.Cover })
-    }
+    const mediaData = useMedia(album.cover)
 
     return (
         <div
-            key={album.Id}
+            key={album.id}
             className="album-selector animate-fade"
             data-included="true"
-            data-has-media={Boolean(album.CoverMedia)}
+            data-has-media={Boolean(album.cover)}
             data-disabled={disabled}
         >
-            <MediaImage media={album.CoverMedia} quality={'thumbnail'} />
-            <p className="album-selector-title">{album.Name}</p>
+            <MediaImage media={mediaData} quality={'thumbnail'} />
+            <p className="album-selector-title">{album.name}</p>
         </div>
     )
 }
 
 export function SingleAlbumCover({ album }: { album: AlbumData }) {
-    const { galleryDispatch } = useContext(GalleryContext)
+    const { galleryState, galleryDispatch } = useContext(GalleryContext)
     const { usr } = useContext(UserContext)
-    const nav = useNavigate()
     const { authHeader }: UserContextT = useContext(UserContext)
-    const [coverM, setCoverM] = useState(album.CoverMedia)
+    const nav = useNavigate()
+    // const [coverM, setCoverM] = useState(album.CoverMedia)
     const [previewMedia, setPreviewMedia] = useState<WeblensMedia[]>(null)
     const [sharing, setSharing] = useState(false)
-    const fontSize = Math.floor(Math.pow(0.975, album.Name.length) * 40)
+    const fontSize = Math.floor(Math.pow(0.975, album.name.length) * 40)
+    const mediaData = useMedia(album.cover)
 
     useEffect(() => {
         galleryDispatch({ type: 'set_block_focus', block: sharing })
@@ -269,20 +280,20 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
         <div
             className="album-preview"
             onMouseOver={() => {
-                if (previewMedia === null && album.Medias.length !== 0) {
-                    GetAlbumMedia(album.Id, false, authHeader).then((val) =>
+                if (previewMedia === null && album.medias.length !== 0) {
+                    getAlbumMedia(album.id, false, authHeader).then((val) =>
                         setPreviewMedia(val.media)
                     )
                 }
             }}
             onClick={() => {
-                nav(album.Id)
+                nav(album.id)
             }}
         >
             <div
                 className="cover-box"
-                data-faux-album={album.Id === ''}
-                data-no-cover={coverM?.Id() === ''}
+                data-faux-album={album.id === ''}
+                data-no-cover={album.cover === ''}
                 data-sharing={sharing.toString()}
             >
                 <div
@@ -293,14 +304,10 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                 >
                     <AlbumContentPreview
                         albumMedias={previewMedia}
-                        setCoverM={(media: WeblensMedia) => {
-                            SetAlbumCover(
-                                album.Id,
-                                media.Id(),
-                                authHeader
-                            ).then(() => setCoverM(media))
+                        setCoverM={(mediaId: string) => {
+                            SetAlbumCover(album.id, mediaId, authHeader)
                         }}
-                        selected={coverM?.Id()}
+                        selected={album.cover}
                     />
                     <div className="album-title-wrapper">
                         <Text
@@ -308,7 +315,7 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                             className="album-title-text"
                             size={`${fontSize}px`}
                         >
-                            {album.Name}
+                            {album.name}
                         </Text>
 
                         <div className="album-controls-wrapper">
@@ -317,11 +324,11 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                                 squareSize={40}
                                 Left={IconUsersPlus}
                                 label={
-                                    album.Owner !== usr.username
-                                        ? `Shared by ${album.Owner}`
+                                    album.owner !== usr.username
+                                        ? `Shared by ${album.owner}`
                                         : ''
                                 }
-                                disabled={album.Owner !== usr.username}
+                                disabled={album.owner !== usr.username}
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     setSharing(true)
@@ -332,7 +339,7 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                                 danger
                                 squareSize={40}
                                 Left={
-                                    album.Owner !== usr.username
+                                    album.owner !== usr.username
                                         ? IconUserMinus
                                         : IconTrash
                                 }
@@ -341,20 +348,20 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
 
                                     let rq: Promise<Response>
 
-                                    if (album.Owner !== usr.username) {
+                                    if (album.owner !== usr.username) {
                                         rq = LeaveAlbum(
-                                            album.Id,
+                                            album.id,
                                             authHeader
                                         ).then()
                                     } else {
-                                        rq = DeleteAlbum(album.Id, authHeader)
+                                        rq = DeleteAlbum(album.id, authHeader)
                                     }
 
                                     rq.then((r) => {
                                         if (r.status === 200) {
                                             galleryDispatch({
                                                 type: 'remove_album',
-                                                albumId: album.Id,
+                                                albumId: album.id,
                                             })
                                         } else {
                                             return false
@@ -366,7 +373,7 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                     </div>
                 </div>
                 <MediaImage
-                    media={coverM}
+                    media={mediaData}
                     quality={'fullres'}
                     imgStyle={{ zIndex: -1 }}
                     containerClass="cover-image"
@@ -397,7 +404,7 @@ function AlbumWrapper({
         )
 
         while (thisData.length < data.colCount) {
-            thisData.push({ Id: '', Name: '' } as AlbumData)
+            thisData.push({ id: '', name: '' } as AlbumData)
         }
 
         return thisData
@@ -406,8 +413,8 @@ function AlbumWrapper({
     return (
         <div className="albums-row" style={style}>
             {thisData.map((a, i) => {
-                if (a.Id !== '') {
-                    return <SingleAlbumCover key={a.Id} album={a} />
+                if (a.id !== '') {
+                    return <SingleAlbumCover key={a.id} album={a} />
                 } else {
                     return (
                         <Box key={`fake-album-${i}`} className="faux-album" />

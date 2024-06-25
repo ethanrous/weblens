@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Text } from '@mantine/core'
 import {
     IconChevronRight,
+    IconCornerDownRight,
     IconHome,
     IconTrash,
     IconUsers,
@@ -10,8 +11,10 @@ import {
 import { memo, MouseEventHandler, useContext, useEffect, useState } from 'react'
 import { UserContextT } from '../types/Types'
 import { UserContext } from '../Context'
-import { useResize } from './hooks'
-import { FbContext, FbModeT } from '../Pages/FileBrowser/FileBrowser'
+import { useClick, useResize } from './hooks'
+import { FbContext, FbModeT } from '../Files/filesContext'
+
+import './crumbs.scss'
 
 type breadcrumbProps = {
     label: string
@@ -111,32 +114,56 @@ const Crumbcatenator = ({ crumb, index, squished, setWidth }) => {
     )
 }
 
+function LoafOverflowMenu({ open, reff, setOpen, crumbs }) {
+    useClick(() => setOpen(false), reff, !open)
+    return (
+        <div className="overflow-menu" data-open={open}>
+            {crumbs.map((item, i) => {
+                return (
+                    <div
+                        key={`crumb-overflow-${i}`}
+                        className="flex flex-row items-center "
+                        style={{
+                            paddingLeft: 12 + (i - 1) * 28,
+                        }}
+                    >
+                        {i !== 0 && <IconCornerDownRight />}
+                        {item}
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
 export const StyledLoaf = ({ crumbs, postText }) => {
     const [widths, setWidths] = useState(new Array(crumbs.length))
-    const [squished, setSquished] = useState(0)
+    // const [squished, setSquished] = useState(0)
     const [crumbsRef, setCrumbRef] = useState(null)
     const size = useResize(crumbsRef)
+    const [overflowMenu, setOverflowMenu] = useState(false)
+    const [overflowRef, setOverflowRef] = useState<HTMLDivElement>()
 
     useEffect(() => {
+        setOverflowMenu(false)
         if (widths.length !== crumbs.length) {
             const newWidths = [...widths.slice(0, crumbs.length)]
             setWidths(newWidths)
         }
     }, [crumbs.length])
 
-    useEffect(() => {
-        if (!widths || widths[0] == undefined) {
-            return
-        }
+    let squished = 0
+    if (!widths || widths[0] == undefined) {
+        squished = -1
+        // return squished
+    } else {
         let total = widths.reduce((acc, v) => acc + v)
-        let squishCount
 
-        // - 20 to account for width of ... text
-        for (squishCount = 0; total > size.width - 20; squishCount++) {
-            total -= widths[squishCount]
+        // - 20 to account for width of "..." text
+        for (squished = 0; total > size.width - 20; squished++) {
+            total -= widths[squished]
         }
-        setSquished(squishCount)
-    }, [size, widths])
+    }
 
     return (
         <div ref={setCrumbRef} className="loaf">
@@ -144,10 +171,31 @@ export const StyledLoaf = ({ crumbs, postText }) => {
                 {crumbs[0]}
             </div>
 
-            {squished !== 0 && (
-                <IconChevronRight style={{ width: '20px', minWidth: '20px' }} />
+            {squished > 0 && (
+                <div
+                    ref={setOverflowRef}
+                    className="flex flex-row items-center h-max w-max cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setOverflowMenu((o) => {
+                            return !o
+                        })
+                    }}
+                >
+                    <IconChevronRight
+                        style={{ width: '20px', minWidth: '20px' }}
+                    />
+                    <div>
+                        <Text className="crumb-text">...</Text>
+                        <LoafOverflowMenu
+                            open={overflowMenu}
+                            reff={overflowRef}
+                            setOpen={setOverflowMenu}
+                            crumbs={crumbs}
+                        />
+                    </div>
+                </div>
             )}
-            {squished !== 0 && <Text className="crumb-text">...</Text>}
 
             {crumbs.slice(1).map((c, i) => (
                 <Crumbcatenator

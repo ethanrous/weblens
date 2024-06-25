@@ -1,10 +1,15 @@
-import { AlbumData, AuthHeaderT } from '../types/Types'
-import API_ENDPOINT from '../api/ApiEndpoint'
 import { notifications } from '@mantine/notifications'
+import API_ENDPOINT from '../api/ApiEndpoint'
 import WeblensMedia from '../Media/Media'
+import { AlbumData, AuthHeaderT } from '../types/Types'
 
-export async function getAlbums(authHeader: AuthHeaderT): Promise<AlbumData[]> {
+export async function getAlbums(
+    includeShared: Boolean,
+    authHeader: AuthHeaderT
+): Promise<AlbumData[]> {
     const url = new URL(`${API_ENDPOINT}/albums`)
+    url.searchParams.append('includeShared', includeShared.toString())
+
     return await fetch(url, { headers: authHeader })
         .then((r) => r.json())
         .then((j) => j.albums)
@@ -27,7 +32,7 @@ export async function createAlbum(albumName: string, authHeader: AuthHeaderT) {
     })
 }
 
-export async function GetAlbumMedia(
+export async function getAlbumMedia(
     albumId,
     includeRaw,
     authHeader
@@ -42,7 +47,7 @@ export async function GetAlbumMedia(
     }
 
     const data = await res.json()
-    const medias = data.medias.map((m) => {
+    const medias = data.medias?.map((m) => {
         return new WeblensMedia(m)
     })
     return { albumMeta: data.albumMeta, media: medias }

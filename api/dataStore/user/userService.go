@@ -6,8 +6,9 @@ import (
 )
 
 type userService struct {
-	repo map[types.Username]types.User
-	db   types.UserDB
+	repo       map[types.Username]types.User
+	publicUser types.User
+	db         types.UserDB
 }
 
 func NewService() types.UserService {
@@ -31,6 +32,11 @@ func (us *userService) Init(db types.DatabaseService) error {
 		us.repo[u.GetUsername()] = u
 	}
 
+	us.publicUser = &User{
+		Username:  "PUBLIC",
+		Activated: true,
+	}
+
 	return nil
 }
 
@@ -38,8 +44,18 @@ func (us *userService) Size() int {
 	return len(us.repo)
 }
 
+func (us *userService) GetPublicUser() types.User {
+	return us.publicUser
+}
+
 func (us *userService) Add(user types.User) error {
-	panic("implement me")
+	err := types.SERV.Database.CreateUser(user)
+	if err != nil {
+		return err
+	}
+
+	us.repo[user.GetUsername()] = user
+	return nil
 }
 
 func (us *userService) Del(un types.Username) error {

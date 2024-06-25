@@ -13,7 +13,6 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/dataStore/share"
-	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/types"
 
 	"github.com/ethrousseau/weblens/api/util"
@@ -140,6 +139,7 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		if f != nil {
 			types.SERV.TaskDispatcher.ScanDirectory(f.GetParent(), types.SERV.Caster)
 			ctx.Status(http.StatusNoContent)
+			return
 		} else {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 			return
@@ -581,10 +581,12 @@ func unTrashFiles(ctx *gin.Context) {
 func createTakeout(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
+		u = types.SERV.UserService.GetPublicUser()
 	}
-	shareId := types.ShareId(ctx.Query("shareId"))
+	// if u == nil {
+	//	ctx.Status(http.StatusUnauthorized)
+	//	return
+	// }
 
 	takeoutRequest, err := readCtxBody[takeoutFiles](ctx)
 	if err != nil {
@@ -598,24 +600,25 @@ func createTakeout(ctx *gin.Context) {
 	files := util.Map(
 		takeoutRequest.FileIds, func(fileId types.FileId) types.WeblensFile { return types.SERV.FileTree.Get(fileId) },
 	)
+
+	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
+	shareId := types.ShareId(ctx.Query("shareId"))
+	if shareId != "" {
+		sh := types.SERV.ShareService.Get(shareId)
+		if sh == nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find share"})
+			return
+		}
+		err := acc.AddShare(sh)
+		if err != nil {
+			util.ErrTrace(err)
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+	}
+
 	for _, file := range files {
 		file.GetAbsPath() // Make sure directories have trailing slash
-
-		acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
-		if shareId != "" {
-			sh := types.SERV.ShareService.Get(shareId)
-			if sh == nil {
-				ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find share to takeout"})
-				return
-			}
-			err := acc.AddShare(sh)
-			if err != nil {
-				util.ErrTrace(err)
-				ctx.Status(http.StatusNotFound)
-				return
-			}
-		}
-
 		if file == types.WeblensFile(nil) || !acc.CanAccessFile(file) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Failed to find at least one file"})
 			return
@@ -641,11 +644,11 @@ func createTakeout(ctx *gin.Context) {
 func downloadFile(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
+		u = types.SERV.UserService.GetPublicUser()
 	}
-	fileId := types.FileId(ctx.Query("fileId"))
-	shareId := types.ShareId(ctx.Param("shareId"))
+
+	fileId := types.FileId(ctx.Param("fileId"))
+	shareId := types.ShareId(ctx.Query("shareId"))
 
 	file := types.SERV.FileTree.Get(fileId)
 	if file == nil {
@@ -653,14 +656,18 @@ func downloadFile(ctx *gin.Context) {
 		return
 	}
 
-	sh := types.SERV.ShareService.Get(shareId)
 	acc := dataStore.NewAccessMeta(u, types.SERV.FileTree)
-	err := acc.AddShare(sh)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusNotFound)
-		return
+
+	sh := types.SERV.ShareService.Get(shareId)
+	if sh != nil {
+		err := acc.AddShare(sh)
+		if err != nil {
+			util.ErrTrace(err)
+			ctx.Status(http.StatusNotFound)
+			return
+		}
 	}
+
 	if !acc.CanAccessFile(file) {
 		util.Debug.Println("No auth")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Requested file does not exist"})
@@ -668,39 +675,6 @@ func downloadFile(ctx *gin.Context) {
 	}
 
 	ctx.File(file.GetAbsPath())
-}
-
-func createUser(ctx *gin.Context) {
-	jsonData, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	var userInfo newUserBody
-	err = json.Unmarshal(jsonData, &userInfo)
-	if err != nil {
-		util.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	u, err := user.New(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate)
-	if err != nil {
-		if errors.Is(err, dataStore.ErrUserAlreadyExists) {
-			ctx.Status(http.StatusConflict)
-		}
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	err = types.SERV.UserService.Add(u)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.Status(http.StatusCreated)
 }
 
 func loginUser(ctx *gin.Context) {
@@ -890,7 +864,7 @@ func getSharedFiles(ctx *gin.Context) {
 			if err != nil {
 				util.ShowErr(err)
 			}
-			f := types.SERV.FileTree.Get(types.FileId(sh.GetContentId()))
+			f := types.SERV.FileTree.Get(types.FileId(sh.GetItemId()))
 			fileInfo, err := f.FormatFileInfo(acc)
 			if err != nil {
 				util.ShowErr(err)
@@ -913,12 +887,17 @@ func createFileShare(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	if len(shareInfo.Users) != 0 && shareInfo.Public {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cannot create public share and specify users"})
+	// if len(shareInfo.Users) != 0 && shareInfo.Public {
+	// 	ctx.JSON(http.StatusBadRequest, gin.H{"error": "cannot create public share and specify users"})
+	// 	return
+	// }
+
+	f := types.SERV.FileTree.Get(shareInfo.FileId)
+	if f.GetShare() != nil {
+		ctx.Status(http.StatusConflict)
 		return
 	}
 
-	f := types.SERV.FileTree.Get(shareInfo.FileIds[0])
 	accessors := util.Map(
 		shareInfo.Users, func(un types.Username) types.User {
 			return types.SERV.UserService.Get(un)
@@ -927,6 +906,12 @@ func createFileShare(ctx *gin.Context) {
 	newShare := share.NewFileShare(f, u, accessors, shareInfo.Public, shareInfo.Wormhole)
 	if err != nil {
 		util.ErrTrace(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	err = types.SERV.ShareService.Add(newShare)
+	if err != nil {
+		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -953,6 +938,9 @@ func deleteShare(ctx *gin.Context) {
 }
 
 func updateFileShare(ctx *gin.Context) {
+	util.ShowErr(types.NewWeblensError("Not impl - update file share"))
+	ctx.Status(http.StatusNotImplemented)
+	return
 	shareId := types.ShareId(ctx.Param("shareId"))
 	sh := types.SERV.ShareService.Get(shareId)
 	if sh == nil {
@@ -984,8 +972,7 @@ func updateFileShare(ctx *gin.Context) {
 	sh.SetPublic(shareInfo.Public)
 	// SERV.ShareService.up
 	// err := sh.UpdateFileShare(sh, SERV.FileTree)
-	util.ShowErr(types.NewWeblensError("Not impl - update file share"))
-	ctx.Status(http.StatusInternalServerError)
+
 	if err != nil {
 		util.ErrTrace(err)
 		return
@@ -1003,7 +990,7 @@ func getFilesShares(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, file.GetShares())
+	ctx.JSON(http.StatusOK, file.GetShare())
 }
 
 func getFileShare(ctx *gin.Context) {
@@ -1011,7 +998,7 @@ func getFileShare(ctx *gin.Context) {
 	shareId := types.ShareId(ctx.Param("shareId"))
 
 	sh := types.SERV.ShareService.Get(shareId)
-	if sh != nil {
+	if sh == nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}

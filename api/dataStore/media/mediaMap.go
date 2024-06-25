@@ -2,7 +2,6 @@ package media
 
 import (
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -53,6 +52,10 @@ func (mr *mediaRepo) Add(m types.Media) error {
 		return types.NewWeblensError("attempt to set nil Media in map")
 	}
 
+	if m.ID() == "" {
+		return types.NewWeblensError("Media id is empty")
+	}
+
 	if m.GetPageCount() == 0 {
 		return types.NewWeblensError("Media page count is 0")
 	}
@@ -98,7 +101,7 @@ func (mr *mediaRepo) Del(cId types.ContentId) error {
 
 	f, err := m.GetCacheFile(dataStore.Thumbnail, false, 0)
 	if err == nil {
-		err = dataStore.PermanentlyDeleteFile(f)
+		err = dataStore.PermanentlyDeleteFile(f, types.SERV.Caster)
 		if err != nil {
 			return err
 		}
@@ -107,7 +110,7 @@ func (mr *mediaRepo) Del(cId types.ContentId) error {
 	for page := range m.GetPageCount() + 1 {
 		f, err = m.GetCacheFile(dataStore.Fullres, false, page)
 		if err == nil {
-			err = dataStore.PermanentlyDeleteFile(f)
+			err = dataStore.PermanentlyDeleteFile(f, types.SERV.Caster)
 			if err != nil {
 				return err
 			}
@@ -132,60 +135,11 @@ func (mr *mediaRepo) Del(cId types.ContentId) error {
 }
 
 func (mr *mediaRepo) FetchCacheImg(m types.Media, q types.Quality, pageNum int) ([]byte, error) {
-	// if mr.Get(m.ID()) == nil {
-	// 	return nil, types.ErrNoMedia
-	// }
-
 	cache, err := getMediaCache(m, q, pageNum)
 	if err != nil {
 		return nil, err
 	}
 	return cache, nil
-	// return nil, types.NewWeblensError("Not impl")
-}
-
-// func GetRealFile(m types.Media, ft types.FileTree) (types.WeblensFile, error) {
-// 	realM := m.(*Media)
-//
-// 	if len(realM.FileIds) == 0 {
-// 		return nil, dataStore.ErrNoFile
-// 	}
-//
-// 	for _, fId := range realM.FileIds {
-// 		f := ft.Get(fId)
-// 		if f != nil {
-// 			return f, nil
-// 		}
-// 	}
-//
-// 	// None of the files that this Media uses are present any longer, delete Media
-// 	removeMedia(realM, ft)
-// 	return nil, dataStore.ErrNoFile
-// }
-
-// func GetRandomMedia(limit int) []types.Media {
-// 	count := 0
-// 	medias := []types.Media{}
-// 	for _, m := range mediaMap {
-// 		if count == limit {
-// 			break
-// 		}
-// 		if m.GetPageCount() != 1 {
-// 			continue
-// 		}
-// 		medias = append(medias, m)
-// 		count++
-// 	}
-//
-// 	return medias
-// }
-
-func sortMediaByOwner(a, b types.Media) int {
-	return strings.Compare(string(a.GetOwner().GetUsername()), string(b.GetOwner().GetUsername()))
-}
-
-func findOwner(m types.Media, o types.User) int {
-	return strings.Compare(string(m.GetOwner().GetUsername()), string(o.GetUsername()))
 }
 
 func (mr *mediaRepo) GetFilteredMedia(
@@ -228,7 +182,7 @@ func (mr *mediaRepo) GetFilteredMedia(
 	)
 
 	// Sort in timeline format, where most recent Media is at the beginning of the slice
-	slices.SortFunc(allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) })
+	slices.SortFunc(allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * -1 })
 
 	return allMs, nil
 }

@@ -14,10 +14,11 @@ type wsAuthorize struct {
 }
 
 type wsResponse struct {
-	EventTag     string        `json:"eventTag"`
-	SubscribeKey types.SubId   `json:"subscribeKey"`
-	Content      []types.WsMsg `json:"content"`
-	Error        string        `json:"error"`
+	EventTag     string         `json:"eventTag"`
+	SubscribeKey types.SubId    `json:"subscribeKey"`
+	TaskType     types.TaskType `json:"taskType,omitempty"`
+	Content      []types.WsMsg  `json:"content"`
+	Error        string         `json:"error"`
 
 	broadcastType types.WsAction
 }
@@ -66,6 +67,30 @@ func (um *unsubscribeMeta) GetKey() types.SubId {
 	return um.Key
 }
 
+type scanDirectoryMeta struct {
+	Key types.SubId `json:"folderId"`
+}
+
+func (um *scanDirectoryMeta) Action() types.WsAction {
+	return types.ScanDirectory
+}
+
+func (um *scanDirectoryMeta) GetKey() types.SubId {
+	return um.Key
+}
+
+type cancelTaskMeta struct {
+	TaskPoolId types.SubId `json:"taskPoolId"`
+}
+
+func (ctm *cancelTaskMeta) Action() types.WsAction {
+	return types.CancelTask
+}
+
+func (ctm *cancelTaskMeta) GetKey() types.SubId {
+	return ctm.TaskPoolId
+}
+
 // newActionBody returns a structure to hold the correct version of the websocket request body
 func newActionBody(msg wsRequest) (types.WsContent, error) {
 	switch msg.Action {
@@ -81,6 +106,14 @@ func newActionBody(msg wsRequest) (types.WsContent, error) {
 		target := &unsubscribeMeta{}
 		err := json.Unmarshal([]byte(msg.Content), target)
 		return target, err
+	case types.ScanDirectory:
+		target := &scanDirectoryMeta{}
+		err := json.Unmarshal([]byte(msg.Content), target)
+		return target, err
+	case types.CancelTask:
+		target := &cancelTaskMeta{}
+		err := json.Unmarshal([]byte(msg.Content), target)
+		return target, err
 	default:
 		return nil, types.NewWeblensError(fmt.Sprint("did not recognize websocket action type: ", msg.Action))
 	}
@@ -91,10 +124,10 @@ func (tsm taskSubscribeMeta) ResultKeys() []string {
 }
 
 type scanBody struct {
-	FolderId  types.FileId `json:"folderId"`
-	Filename  string       `json:"filename"`
-	Recursive bool         `json:"recursive"`
-	DeepScan  bool         `json:"full"`
+	FolderId types.FileId `json:"folderId"`
+	Filename string       `json:"filename"`
+	// Recursive bool         `json:"recursive"`
+	// DeepScan  bool         `json:"full"`
 }
 
 // Physical of broadcasters to inform clients of updates in real time

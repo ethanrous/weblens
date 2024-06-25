@@ -68,7 +68,7 @@ func NewTypeService() types.MediaTypeService {
 	return ts
 }
 
-// Get a pointer to the weblens Media type of a file given the file extension
+// ParseExtension Get a pointer to the weblens Media type of a file given the file extension
 func (ts *typeService) ParseExtension(ext string) types.MediaType {
 	if ext == "" || ts.extMap[ext] == nil {
 		return ts.mimeMap["generic"]
@@ -89,8 +89,8 @@ func (ts *typeService) Size() int {
 	return len(ts.mimeMap)
 }
 
-func (mt *typeService) MarshalJSON() ([]byte, error) {
-	return json.Marshal(mt.mimeMap)
+func (ts *typeService) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ts.mimeMap)
 }
 
 func (mt mediaType) IsRaw() bool {

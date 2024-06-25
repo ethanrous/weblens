@@ -32,8 +32,11 @@ type JournalService interface {
 // FileEvent is a group of FileActions that take place at the same time
 type FileEvent interface {
 	GetEventId() FileEventId
-	AddAction(action FileAction)
+	// addAction(action FileAction)
 	GetActions() []FileAction
+
+	NewCreateAction(file WeblensFile) FileAction
+	NewMoveAction(originId, destinationId FileId) FileAction
 	// UnmarshalBSON([]byte) error
 	// UnmarshalBSONValue(t bsontype.Type, value []byte) error
 }
@@ -53,6 +56,7 @@ type FileAction interface {
 	SetLifetimeId(LifetimeId)
 
 	GetTimestamp() time.Time
+	GetEventId() FileEventId
 }
 
 type Lifetime interface {
@@ -61,4 +65,5 @@ type Lifetime interface {
 	GetLatestFileId() FileId
 	GetContentId() ContentId
 	IsLive() bool
+	GetActions() []FileAction
 }

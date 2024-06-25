@@ -7,17 +7,6 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core'
-import {
-    DragEventHandler,
-    memo,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
-import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
-import { FBDispatchT, FbStateT, UserInfoT } from '../../types/Types'
-import { WeblensFile } from '../../Files/File'
 
 import {
     IconFile,
@@ -33,13 +22,24 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
-import { UserContext } from '../../Context'
-import { friendlyFolderName, humanFileSize } from '../../util'
-import { ContainerMedia } from '../../components/Presentation'
-import { useResize } from '../../components/hooks'
+import {
+    DragEventHandler,
+    memo,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
+import { useMedia, useResize } from '../../components/hooks'
 
 import './style/fileBrowserStyle.scss'
-import { DraggingState, FbContext } from './FileBrowser'
+import { ContainerMedia } from '../../components/Presentation'
+import { UserContext } from '../../Context'
+import { FbMenuModeT, WeblensFile } from '../../Files/File'
+import { DraggingStateT, FbContext } from '../../Files/filesContext'
+import { FBDispatchT, FbStateT, UserInfoT } from '../../types/Types'
+import { friendlyFolderName, humanFileSize } from '../../util'
+import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
 
 export const TransferCard = ({
     action,
@@ -87,7 +87,7 @@ export const DropSpot = ({
 }: {
     onDrop
     dropSpotTitle: string
-    dragging: DraggingState
+    dragging: DraggingStateT
     dropAllowed
     handleDrag: DragEventHandler<HTMLDivElement>
     wrapperRef?
@@ -121,7 +121,8 @@ export const DropSpot = ({
                             onDrop(e)
                         }
                     }}
-                    // required for onDrop to work https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
+                    // required for onDrop to work
+                    // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
                     onDragOver={(e) => e.preventDefault()}
                     style={{
                         outlineColor: `${dropAllowed ? '#ffffff' : '#dd2222'}`,
@@ -150,19 +151,10 @@ export const DropSpot = ({
     )
 }
 
-export enum FbMenuModeT {
-    Closed,
-    Default,
-    Sharing,
-    NameFolder,
-    AddToAlbum,
-}
-
 export const DirViewWrapper = memo(
     ({ children }: { children }) => {
         const { fbState, fbDispatch } = useContext(FbContext)
         const [menuMode, setMenuMode] = useState(FbMenuModeT.Closed)
-        const [menuPos, setMenuPos] = useState({ x: 0, y: 0 })
 
         useEffect(() => {
             if (menuMode === FbMenuModeT.Sharing) {
@@ -186,7 +178,7 @@ export const DirViewWrapper = memo(
                             () =>
                                 fbDispatch({
                                     type: 'set_dragging',
-                                    dragging: DraggingState.NoDrag,
+                                    dragging: DraggingStateT.NoDrag,
                                 }),
                             10
                         )
@@ -330,36 +322,37 @@ export const IconDisplay = ({
 }) => {
     const [containerRef, setContainerRef] = useState(null)
     const containerSize = useResize(containerRef)
+    const mediaData = useMedia(file.GetMediaId())
 
     if (!file) {
         return null
     }
 
     if (file.IsFolder()) {
-        return <FolderIcon shares={file.GetShares()} size={size} />
+        return <FolderIcon shares={file.GetShare()} size={size} />
     }
 
-    if (!file.IsImported() && file.GetMedia().IsDisplayable() && allowMedia) {
+    if (!file.IsImported() && mediaData && allowMedia) {
         return (
             <Center style={{ height: '100%', width: '100%' }}>
                 {/* <Skeleton height={"100%"} width={"100%"} />
-                <Text pos={"absolute"} style={{ userSelect: "none" }}>
-                    Processing...
-                </Text> */}
+                 <Text pos={"absolute"} style={{ userSelect: "none" }}>
+                 Processing...
+                 </Text> */}
                 <IconPhoto />
             </Center>
         )
-    } else if (file.GetMedia().IsDisplayable() && allowMedia) {
+    } else if (mediaData && allowMedia) {
         return (
             <Box ref={setContainerRef} style={{ justifyContent: 'center' }}>
                 <ContainerMedia
-                    mediaData={file.GetMedia()}
+                    mediaData={mediaData}
                     containerRef={containerRef}
                 />
             </Box>
             // <MediaImage media={file.mediaData} quality={quality} />
         )
-    } else if (file.GetMedia().IsDisplayable()) {
+    } else if (mediaData) {
         return <IconPhoto />
     }
     const extIndex = file.GetFilename().lastIndexOf('.')
@@ -440,11 +433,13 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
 }
 
 export const PresentationFile = ({ file }: { file: WeblensFile }) => {
+    const mediaData = useMedia(file.GetMediaId())
+
     if (!file) {
         return null
     }
     let [size, units] = humanFileSize(file.GetSize())
-    if (file.GetMedia() && file.GetMedia().IsDisplayable()) {
+    if (mediaData) {
         return (
             <Box
                 style={{
@@ -474,7 +469,7 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                 <Divider />
                 <Text style={{ fontSize: '20px' }}>
                     {new Date(
-                        Date.parse(file.GetMedia().GetCreateDate())
+                        Date.parse(mediaData.GetCreateDate())
                     ).toLocaleDateString('en-us', {
                         year: 'numeric',
                         month: 'short',

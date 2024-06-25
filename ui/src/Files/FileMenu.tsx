@@ -1,49 +1,50 @@
 import {
     IconArrowLeft,
+    IconDownload,
     IconFileAnalytics,
-    IconFolder,
     IconFolderPlus,
     IconLibraryPlus,
     IconLink,
     IconMinus,
     IconPhotoShare,
     IconPlus,
+    IconScan,
     IconTrash,
     IconUser,
     IconUsers,
     IconUsersPlus,
 } from '@tabler/icons-react'
-import { useNavigate } from 'react-router-dom'
+import { useQuery, UseQueryResult } from '@tanstack/react-query'
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { MiniAlbumCover } from '../Albums/AlbumDisplay'
+import { addMediaToAlbum, createAlbum, getAlbums } from '../Albums/AlbumQuery'
+import { AutocompleteUsers } from '../api/ApiFetch'
+
+import '../Pages/FileBrowser/style/fileBrowserMenuStyle.scss'
 
 import {
     CreateFolder,
     DeleteFiles,
-    shareFiles,
+    shareFile,
     TrashFiles,
     updateFileShare,
 } from '../api/FileBrowserApi'
-import { FbStateT, UserContextT } from '../types/Types'
-import { WeblensFile } from './File'
-import { UserContext } from '../Context'
-import { FbMenuModeT } from '../Pages/FileBrowser/FileBrowserStyles'
+import { WeblensShare } from '../classes/Share'
 import {
     useClick,
     useKeyDown,
     useResize,
     useWindowSize,
 } from '../components/hooks'
-import { WeblensButton } from '../components/WeblensButton'
-import { FbContext, FbModeT } from '../Pages/FileBrowser/FileBrowser'
-import { WeblensShare } from '../classes/Share'
+import WeblensButton from '../components/WeblensButton'
 import WeblensInput from '../components/WeblensInput'
-import { AutocompleteUsers } from '../api/ApiFetch'
-
-import '../Pages/FileBrowser/style/fileBrowserMenuStyle.scss'
+import { MediaContext, UserContext, WebsocketContext } from '../Context'
+import { downloadSelected } from '../Pages/FileBrowser/FileBrowserLogic'
+import { AlbumData, AuthHeaderT, FbStateT, UserContextT } from '../types/Types'
 import { clamp } from '../util'
-import { useQuery } from '@tanstack/react-query'
-import { addMediaToAlbum, createAlbum, getAlbums } from '../Albums/AlbumQuery'
-import { MiniAlbumCover } from '../Albums/AlbumDisplay'
+import { FbMenuModeT, WeblensFile } from './File'
+import { FbContext, FbModeT } from './filesContext'
 import { getFoldersMedia } from './FilesQuery'
 
 const activeItemsFromState = (
@@ -66,7 +67,7 @@ const activeItemsFromState = (
         if (!item) {
             return null
         }
-        if (item.GetMedia()?.IsDisplayable() || item.IsFolder()) {
+        if (item.GetMediaId() || item.IsFolder()) {
             mediaCount++
         }
         return item
@@ -212,7 +213,7 @@ export function FileContextMenu() {
             {fbState.viewingPast !== null && <div />}
             <StandardFileMenu />
             <BackdropDefaultItems />
-            <FileShareMenu fileInfo={fbState.folderInfo} />
+            <FileShareMenu />
             <NewFolderName />
             <AddToAlbum />
         </div>
@@ -222,8 +223,8 @@ export function FileContextMenu() {
 function StandardFileMenu() {
     const { usr, authHeader }: UserContextT = useContext(UserContext)
     const [itemInfo, setItemInfo] = useState(new WeblensFile({}))
-
     const { fbState, fbDispatch } = useContext(FbContext)
+    const wsSend = useContext(WebsocketContext)
 
     useEffect(() => {
         const info = fbState.dirMap.get(fbState.menuTargetId)
@@ -237,13 +238,12 @@ function StandardFileMenu() {
     }, [fbState.menuTargetId, fbState.menuTargetId, fbState.selected])
 
     const wormholeId = useMemo(() => {
-        if (itemInfo?.GetShares()) {
-            const whs = itemInfo.GetShares().filter((s) => s.IsWormhole())
-            if (whs.length !== 0) {
-                return whs[0].Id()
+        if (itemInfo?.GetShare()) {
+            if (itemInfo.GetShare().IsWormhole()) {
+                return itemInfo.GetShare().Id()
             }
         }
-    }, [itemInfo?.GetShares()])
+    }, [itemInfo?.GetShare()])
 
     const inTrash = fbState.folderInfo.Id() === usr.trashId
 
@@ -253,7 +253,7 @@ function StandardFileMenu() {
 
     return (
         <div
-            className={'default-grid'}
+            className={'default-grid no-scrollbar'}
             data-visible={
                 fbState.menuMode === FbMenuModeT.Default &&
                 fbState.menuTargetId !== ''
@@ -263,6 +263,7 @@ function StandardFileMenu() {
                 <WeblensButton
                     Left={IconUsersPlus}
                     subtle
+                    disabled={items.length > 1}
                     squareSize={100}
                     centerContent
                     onClick={(e) => {
@@ -306,6 +307,38 @@ function StandardFileMenu() {
             </div>
             <div className="default-menu-icon">
                 <WeblensButton
+                    Left={IconDownload}
+                    subtle
+                    squareSize={100}
+                    centerContent
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        downloadSelected(
+                            items,
+                            fbDispatch,
+                            wsSend,
+                            authHeader,
+                            fbState.shareId
+                        )
+                    }}
+                />
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconScan}
+                    subtle
+                    squareSize={100}
+                    centerContent
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        items.forEach((i) =>
+                            wsSend('scan_directory', { folderId: i.Id() })
+                        )
+                    }}
+                />
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
                     Left={IconTrash}
                     subtle
                     danger
@@ -336,21 +369,40 @@ function StandardFileMenu() {
     )
 }
 
-function FileShareMenu({ fileInfo }: { fileInfo: WeblensFile }) {
+function FileShareMenu() {
     const { authHeader } = useContext(UserContext)
     const [isPublic, setIsPublic] = useState(false)
     const { fbState, fbDispatch } = useContext(FbContext)
 
+    const item: WeblensFile = useMemo(() => {
+        const { items } = activeItemsFromState(fbState)
+        if (items.length > 1) {
+            return null
+        } else if (items.length === 1) {
+            return items[0]
+        } else {
+            return fbState.folderInfo
+        }
+    }, [
+        fbState.menuTargetId,
+        fbState.menuTargetId,
+        fbState.selected,
+        fbState.folderInfo.Id(),
+    ])
+
     const [accessors, setAccessors] = useState([])
     useEffect(() => {
-        const shares: WeblensShare[] = fileInfo.GetShares()
-        if (shares.length !== 0) {
-            setIsPublic(shares[0].IsPublic())
-            setAccessors(shares[0].GetAccessors())
+        if (!item) {
+            return
+        }
+        const share: WeblensShare = item.GetShare()
+        if (share) {
+            setIsPublic(share.IsPublic())
+            setAccessors(share.GetAccessors())
         } else {
             setIsPublic(false)
         }
-    }, [fileInfo])
+    }, [item])
 
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState([])
@@ -371,17 +423,17 @@ function FileShareMenu({ fileInfo }: { fileInfo: WeblensFile }) {
     const updateShare = useCallback(
         async (e) => {
             e.stopPropagation()
-            const shares = fileInfo.GetShares()
+            const share = item.GetShare()
             let req: Promise<Response>
-            if (shares.length !== 0) {
+            if (share) {
                 req = updateFileShare(
-                    shares[0].Id(),
+                    share.Id(),
                     isPublic,
                     accessors,
                     authHeader
                 )
             } else {
-                req = shareFiles([fileInfo], isPublic, accessors, authHeader)
+                req = shareFile(item, isPublic, accessors, authHeader)
             }
             return req
                 .then((j) => {
@@ -392,7 +444,7 @@ function FileShareMenu({ fileInfo }: { fileInfo: WeblensFile }) {
                     return false
                 })
         },
-        [fileInfo, isPublic, accessors, authHeader]
+        [item, isPublic, accessors, authHeader]
     )
 
     if (fbState.menuMode === FbMenuModeT.Closed) {
@@ -431,9 +483,13 @@ function FileShareMenu({ fileInfo }: { fileInfo: WeblensFile }) {
                             e.stopPropagation()
                             return await updateShare(e)
                                 .then(async (r) => {
-                                    const shares = fileInfo.GetShares()
+                                    const share = item.GetShare()
+                                    if (!share) {
+                                        console.error('No Shares!')
+                                        return false
+                                    }
                                     return navigator.clipboard
-                                        .writeText(shares[0].GetPublicLink())
+                                        .writeText(share.GetPublicLink())
                                         .then(() => true)
                                         .catch((r) => {
                                             console.error(r)
@@ -558,7 +614,7 @@ function NewFolderName() {
 
     return (
         <div className="new-folder-menu">
-            <IconFolder size={50} />
+            {/*<IconFolder size={50} />*/}
             <WeblensInput
                 placeholder="New Folder Name"
                 autoFocus
@@ -582,23 +638,66 @@ function NewFolderName() {
                         .catch((r) => console.error(r))
                 }}
             />
+            <div className="w-[220px]"></div>
+        </div>
+    )
+}
+
+function AlbumCover({
+    a,
+    medias,
+    albums,
+    authHeader,
+}: {
+    a: AlbumData
+    medias: string[]
+    albums: UseQueryResult<AlbumData[], Error>
+    authHeader: AuthHeaderT
+}) {
+    const hasAll = medias?.filter((v) => !a.medias?.includes(v)).length === 0
+
+    return (
+        <div
+            className="h-max w-max"
+            key={a.id}
+            onClick={(e) => {
+                e.stopPropagation()
+                if (hasAll) {
+                    return
+                }
+                addMediaToAlbum(a.id, medias, [], authHeader).then(() =>
+                    albums.refetch()
+                )
+            }}
+        >
+            <MiniAlbumCover
+                album={a}
+                disabled={!medias || medias.length === 0 || hasAll}
+                authHeader={authHeader}
+            />
         </div>
     )
 }
 
 function AddToAlbum() {
     const { fbState, fbDispatch } = useContext(FbContext)
+    const { mediaState, mediaDispatch } = useContext(MediaContext)
     const { authHeader } = useContext(UserContext)
     const [newAlbum, setNewAlbum] = useState(false)
+
+    const albums = useQuery({
+        queryKey: ['albums'],
+        queryFn: () =>
+            getAlbums(false, authHeader).then((as) =>
+                as.sort((a, b) => {
+                    return a.name.localeCompare(b.name)
+                })
+            ),
+    })
 
     useEffect(() => {
         setNewAlbum(false)
     }, [fbState.menuMode])
-
-    const albums = useQuery({
-        queryKey: ['albums'],
-        queryFn: () => getAlbums(authHeader),
-    })
 
     const activeItems = useMemo(() => {
         return activeItemsFromState(fbState).items.map((f) => f.Id())
@@ -638,36 +737,13 @@ function AddToAlbum() {
             )}
             <div className="no-scrollbar grid grid-cols-2 gap-3 h-max max-h-[350px] overflow-y-scroll pt-1">
                 {albums.data?.map((a) => {
-                    const hasAll =
-                        medias.data?.filter((v) => !a.Medias?.includes(v))
-                            .length === 0
                     return (
-                        <div
-                            className="h-max w-max"
-                            key={a.Id}
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                if (hasAll) {
-                                    return
-                                }
-                                addMediaToAlbum(
-                                    a.Id,
-                                    medias.data,
-                                    [],
-                                    authHeader
-                                ).then(() => albums.refetch())
-                            }}
-                        >
-                            <MiniAlbumCover
-                                album={a}
-                                disabled={
-                                    !medias.data ||
-                                    medias.data.length === 0 ||
-                                    hasAll
-                                }
-                                authHeader={authHeader}
-                            />
-                        </div>
+                        <AlbumCover
+                            a={a}
+                            medias={medias.data}
+                            albums={albums}
+                            authHeader={authHeader}
+                        />
                     )
                 })}
             </div>

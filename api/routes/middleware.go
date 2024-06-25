@@ -34,7 +34,7 @@ func parseAuthHeader(authHeaderParts []string) (string, string, error) {
 	return authList[0], authList[1], nil
 }
 
-func validateBasicAuth(cred string, us types.UserService) (types.User, error) {
+func validateBasicAuth(cred string) (types.User, error) {
 	credB, err := base64.StdEncoding.DecodeString(cred)
 	if err != nil {
 		util.ErrTrace(err)
@@ -46,9 +46,9 @@ func validateBasicAuth(cred string, us types.UserService) (types.User, error) {
 		return nil, ErrBasicAuthFormat
 	}
 
-	u := us.Get(types.Username(userAndToken[0]))
+	u := types.SERV.UserService.Get(types.Username(userAndToken[0]))
 	if u == nil {
-		if us.Size() == 0 {
+		if types.SERV.UserService.Size() == 0 {
 			// c.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 			return nil, dataStore.ErrNoUser
 		}
@@ -65,26 +65,29 @@ func validateBasicAuth(cred string, us types.UserService) (types.User, error) {
 	return u, nil
 }
 
-func WebsocketAuth(c *gin.Context, authHeader []string, us types.UserService) (types.User, error) {
+func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 	scheme, cred, err := parseAuthHeader(authHeader)
 	if err != nil {
 		return nil, err
 	}
 
-	if scheme != "Basic" {
-		return nil, ErrBadAuthScheme
-	}
-
-	user, err := validateBasicAuth(cred, us)
-	if err != nil {
-		var weblensError types.WeblensError
-		switch {
-		case errors.As(err, &weblensError):
-			return nil, err
-		default:
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return nil, err
+	var user types.User
+	if scheme == "" {
+		user = types.SERV.UserService.GetPublicUser()
+	} else if scheme == "Basic" {
+		user, err = validateBasicAuth(cred)
+		if err != nil {
+			var weblensError types.WeblensError
+			switch {
+			case errors.As(err, &weblensError):
+				return nil, err
+			default:
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return nil, err
+			}
 		}
+	} else {
+		return nil, ErrBadAuthScheme
 	}
 
 	return user, nil
@@ -108,7 +111,7 @@ func WeblensAuth(requireAdmin bool, us types.UserService) gin.HandlerFunc {
 				return
 			}
 		} else if scheme == "Basic" {
-			user, err := validateBasicAuth(cred, us)
+			user, err := validateBasicAuth(cred)
 			if err != nil {
 				return
 			}

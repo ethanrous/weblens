@@ -13,13 +13,20 @@ type HistoryDbService interface {
 	WriteFileEvent(FileEvent) error
 	GetAllLifetimes() ([]Lifetime, error)
 	AddOrUpdateLifetime(l Lifetime) error
+	GetActionsByPath(WeblensFilepath) ([]FileAction, error)
 }
 
 type AlbumsDB interface {
 	GetAllAlbums() ([]Album, error)
-	RemoveMediaFromAlbum(AlbumId, ContentId) error
+	CreateAlbum(Album) error
+
+	SetAlbumCover(AlbumId, string, string, ContentId) error
 	GetAlbumsByMedia(ContentId) ([]Album, error)
+
 	AddMediaToAlbum(aId AlbumId, mIds []ContentId) error
+	RemoveMediaFromAlbum(AlbumId, ContentId) error
+
+	AddUsersToAlbum(aId AlbumId, us []User) error
 }
 
 type MediaDB interface {
@@ -32,7 +39,8 @@ type MediaDB interface {
 }
 
 type ShareDB interface {
-	UpdateShare(s Share) error
+	CreateShare(Share) error
+	UpdateShare(Share) error
 	GetAllShares() ([]Share, error)
 	SetShareEnabledById(sId ShareId, enabled bool) error
 }
@@ -40,7 +48,9 @@ type ShareDB interface {
 type UserDB interface {
 	GetAllUsers() ([]User, error)
 	UpdatePsaswordByUsername(username Username, newPasswordHash string) error
-	SetAdminByUsername(username Username, isAdmin bool) error
+	SetAdminByUsername(Username, bool) error
+	CreateUser(User) error
+	ActivateUser(Username) error
 }
 
 type InstanceDB interface {

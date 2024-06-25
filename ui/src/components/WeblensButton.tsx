@@ -31,7 +31,7 @@ type buttonProps = {
     labelOnHover?: boolean
     fillWidth?: boolean
     Left?: (p: any) => ReactNode
-    Right?: ReactNode
+    Right?: (p: any) => ReactNode
 
     // Style
     squareSize?: number
@@ -62,7 +62,7 @@ const ButtonContent = memo(
         label: string
         postScript: string
         Left: (p: any) => ReactNode
-        Right: ReactNode
+        Right: (p: any) => ReactNode
         setTextWidth: (w: number) => void
         buttonWidth: number
         iconSize: number
@@ -134,16 +134,18 @@ const ButtonContent = memo(
                         </p>
                     )}
                 </div>
+
                 <div
                     className="button-icon-box"
                     data-has-icon={Boolean(Right)}
                     data-has-text={showText}
+                    data-icon-side={'right'}
                     style={{
                         height: iconSize,
                         width: iconSize,
                     }}
                 >
-                    {Right}
+                    {Right && <Right className="button-icon" />}
                 </div>
             </div>
         )
@@ -210,7 +212,7 @@ const handleButtonEvent = async (
     }
 }
 
-export const WeblensButton = memo(
+const WeblensButton = memo(
     ({
         label,
         postScript,
@@ -499,3 +501,5 @@ export const SelectIcon = ({
         </div>
     )
 }
+
+export default WeblensButton

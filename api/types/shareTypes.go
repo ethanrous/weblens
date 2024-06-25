@@ -5,7 +5,7 @@ import "time"
 type Share interface {
 	GetShareId() ShareId
 	GetShareType() ShareType
-	GetContentId() string
+	GetItemId() string
 	SetItemId(string)
 	IsPublic() bool
 	SetPublic(bool)

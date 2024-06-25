@@ -9,6 +9,7 @@ type Task interface {
 	TaskType() TaskType
 	GetTaskPool() TaskPool
 	Status() (bool, TaskExitStatus)
+	GetMeta() TaskMetadata
 	GetResult(string) any
 	GetResults() map[string]any
 
@@ -33,22 +34,32 @@ type Task interface {
 
 // TaskPool is the interface for grouping and sending tasks to be processed in a WorkerPool
 type TaskPool interface {
+	ID() TaskId
+
+	QueueTask(Task) error
+
 	MarkGlobal()
 	IsGlobal() bool
-	QueueTask(Task) error
 	SignalAllQueued()
-	Wait(bool)
-	NotifyTaskComplete(Task, BroadcasterAgent, ...any)
+
 	CreatedInTask() Task
+
+	Wait(bool)
+	Cancel()
+
 	IsRoot() bool
-	GetWorkerPool() WorkerPool
-	Status() (int, int, float64)
+	Status() TaskPoolStatus
 	AddCleanup(fn func())
 
 	GetRootPool() TaskPool
+	GetWorkerPool() WorkerPool
 
 	LockExit()
 	UnlockExit()
+
+	RemoveTask(TaskId)
+
+	NotifyTaskComplete(Task, BroadcasterAgent, ...any)
 
 	ScanDirectory(WeblensFile, BroadcasterAgent) Task
 	ScanFile(WeblensFile, BroadcasterAgent) Task
@@ -68,6 +79,7 @@ type WorkerPool interface {
 	NewTaskPool(replace bool, createdBy Task) TaskPool
 	GetTask(taskId TaskId) Task
 	AddHit(time time.Time, target Task)
+	GetTaskPool(TaskId) TaskPool
 }
 
 type TaskId string
@@ -76,7 +88,23 @@ func (tId TaskId) String() string {
 	return string(tId)
 }
 
+type TaskPoolStatus struct {
+	// The count of tasks that have completed on this task pool
+	Complete int64
+
+	// The count of all tasks that have been queued on this task pool
+	Total int64
+
+	// Percent to completion of all tasks
+	Progress float64
+}
+
 type TaskType string
 type TaskExitStatus string
 type TaskEvent string
 type TaskResult map[string]any
+
+type TaskMetadata interface {
+	MetaString() string
+	FormatToResult() TaskResult
+}

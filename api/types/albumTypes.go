@@ -4,9 +4,11 @@ type AlbumId string
 
 type Album interface {
 	ID() AlbumId
+	GetName() string
 	GetMedias() []Media
 	GetCover() Media
 	GetOwner() User
+	GetUsers() []User
 	GetPrimaryColor() string
 
 	AddMedia(...Media) error
@@ -20,6 +22,6 @@ type Album interface {
 
 type AlbumService interface {
 	BaseService[AlbumId, Album]
-
+	GetAllByUser(u User) []Album
 	RemoveMediaFromAny(ContentId) error
 }

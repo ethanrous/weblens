@@ -43,7 +43,10 @@ type WeblensFile interface {
 	IsDir() bool
 	Size() (int64, error)
 	Filename() string
+
 	GetAbsPath() string
+	GetPortablePath() WeblensFilepath
+
 	Owner() User
 	SetOwner(User)
 	Exists() bool
@@ -76,20 +79,26 @@ type WeblensFile interface {
 	GetContentId() ContentId
 	SetContentId(ContentId)
 
-	GetShare(ShareId) (Share, error)
-	GetShares() []Share
-	// UpdateShare(Share) error
-	AppendShare(Share)
+	GetShare() Share
+
+	// SetShare UpdateShare(Share) error
+	SetShare(Share) error
 	RemoveShare(ShareId) error
 
 	RecursiveMap(FileMapFunc) error
 	LeafMap(FileMapFunc) error
 	BubbleMap(FileMapFunc) error
+	IsParentOf(child WeblensFile) bool
 
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
 	MarshalArchive() map[string]any
 	LoadStat(casters ...BroadcasterAgent) (err error)
+}
+
+type WeblensFilepath interface {
+	ToPortable() string
+	ToAbsPath() string
 }
 
 type FileId string
@@ -123,7 +132,7 @@ type FileInfo struct {
 	FileFriendlyName string    `json:"fileFriendlyName"`
 	Owner            Username  `json:"owner"`
 	PathFromHome     string    `json:"pathFromHome"`
-	Shares           []Share   `json:"shares"`
+	Share            ShareId   `json:"share"`
 	Children         []FileId  `json:"children"`
 	PastFile         bool      `json:"pastFile"`
 }

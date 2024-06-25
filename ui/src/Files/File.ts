@@ -5,11 +5,12 @@ import {
     IconTrash,
     IconUser,
 } from '@tabler/icons-react'
-import WeblensMedia, { MediaDataT } from '../Media/Media'
-import { humanFileSize } from '../util'
 import { ShareDataT, WeblensShare } from '../classes/Share'
-import { FbModeT } from '../Pages/FileBrowser/FileBrowser'
+import { MediaDataT } from '../Media/Media'
 import { FBDispatchT } from '../types/Types'
+import { humanFileSize } from '../util'
+import { SelectedState } from './FileDisplay'
+import { FbModeT } from './filesContext'
 
 function getIcon(folderName: string): (p) => JSX.Element {
     if (folderName === 'HOME') {
@@ -42,7 +43,7 @@ export interface FileInitT {
 
     size?: number
     mediaData?: MediaDataT
-    shares?: ShareDataT[]
+    share?: string
 }
 
 interface fileData {
@@ -74,8 +75,8 @@ interface fileData {
 
 export class WeblensFile {
     private data: fileData
-    private media: WeblensMedia
-    private shares: WeblensShare[]
+    private mediaId: string
+    private share: WeblensShare
 
     constructor(init: FileInitT) {
         this.data = {
@@ -85,11 +86,11 @@ export class WeblensFile {
         } as fileData
 
         if (init.mediaData) {
-            this.media = new WeblensMedia(init.mediaData)
+            this.mediaId = init.mediaData.contentId
         }
 
-        if (init.shares && init.shares.length !== 0) {
-            this.shares = [new WeblensShare(init.shares[0])]
+        if (init.share) {
+            this.share = new WeblensShare({ shareId: init.share } as ShareDataT)
         }
     }
 
@@ -100,11 +101,8 @@ export class WeblensFile {
     Update(newInfo: FileInitT) {
         this.data = newInfo
 
-        if (
-            newInfo.mediaData &&
-            newInfo.mediaData.contentId !== this.media?.Id()
-        ) {
-            this.media = new WeblensMedia(newInfo.mediaData)
+        if (newInfo.mediaData && newInfo.mediaData.contentId !== this.mediaId) {
+            this.mediaId = newInfo.mediaData.contentId
         }
     }
 
@@ -181,7 +179,7 @@ export class WeblensFile {
     }
 
     IsImage(): boolean {
-        if (this.media) {
+        if (this.mediaId) {
             return true
         }
         const ext = this.data.filename.split('.').pop()
@@ -190,8 +188,8 @@ export class WeblensFile {
         // if (ext)
     }
 
-    GetMedia(): WeblensMedia {
-        return this.media
+    GetMediaId(): string {
+        return this.mediaId
     }
 
     IsTrash(): boolean {
@@ -276,37 +274,41 @@ export class WeblensFile {
         }
     }
 
-    GetShares(): WeblensShare[] {
-        if (!this.shares) {
-            return []
-        }
-
-        return this.shares
-    }
-
-    AddShare(share: WeblensShare) {
-        if (!this.shares) {
-            this.shares = [share]
-            return
-        }
-        this.shares.push(share)
+    GetShare(): WeblensShare {
+        return this.share
     }
 
     GetVisitRoute(mode: FbModeT, shareId: string, dispatch: FBDispatchT) {
-        if (mode === FbModeT.share && shareId === '') {
-            return `/files/share/${this.shares[0].Id()}/${this.data.id}`
-        } else if (mode === FbModeT.share) {
-            return `/files/share/${shareId}/${this.data.id}`
-        } else if (mode === FbModeT.external) {
-            return `/files/external/${this.data.id}`
-        } else if (this.data.isDir) {
-            return `/files/${this.data.id}`
+        if (this.data.isDir) {
+            if (mode === FbModeT.share && shareId === '') {
+                return `/files/share/${this.share[0].Id()}/${this.data.id}`
+            } else if (mode === FbModeT.share) {
+                return `/files/share/${shareId}/${this.data.id}`
+            } else if (mode === FbModeT.external) {
+                return `/files/external/${this.data.id}`
+            } else if (mode === FbModeT.default) {
+                return `/files/${this.data.id}`
+            }
         } else if (this.data.displayable) {
             dispatch({
                 type: 'set_presentation',
                 presentingId: this.data.id,
             })
+            return
         }
         console.error('Did not find location to visit for', this.data.filename)
     }
+}
+
+export type FileContextT = {
+    file: WeblensFile
+    selected: SelectedState
+}
+
+export enum FbMenuModeT {
+    Closed,
+    Default,
+    Sharing,
+    NameFolder,
+    AddToAlbum,
 }

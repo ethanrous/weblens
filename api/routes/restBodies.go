@@ -65,7 +65,7 @@ type passwordUpdateBody struct {
 }
 
 type newShareBody struct {
-	FileIds  []types.FileId   `json:"fileIds"`
+	FileId   types.FileId     `json:"fileId"`
 	Users    []types.Username `json:"users"`
 	Public   bool             `json:"public"`
 	Wormhole bool             `json:"wormhole"`
@@ -120,4 +120,8 @@ type updateAlbumBody struct {
 	NewName     string            `json:"newName"`
 	Users       []types.Username  `json:"users"`
 	RemoveUsers []types.Username  `json:"removeUsers"`
+}
+
+type albumCreateBody struct {
+	Name string `json:"name"`
 }

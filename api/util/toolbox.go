@@ -3,11 +3,9 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -47,7 +45,9 @@ func ErrTrace(err error, extras ...string) {
 		_, file, line, ok := runtime.Caller(1)
 		msg := strings.Join(extras, " ")
 		if ok {
-			ErrorCatcher.Printf("%s:%d %s: %s\n%s", file, line, msg, err, debug.Stack())
+			ErrorCatcher.Printf(
+				"%s:%d %s: %s\n----- STACK FOR ERROR ABOVE -----\n%s", file, line, msg, err, debug.Stack(),
+			)
 		} else {
 			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
@@ -66,58 +66,8 @@ func ShowErr(err error, extras ...string) {
 	}
 }
 
-func Warn(err error, extras ...string) {
-	msg := strings.Join(extras, " ")
-	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
-		if ok {
-			var trace []byte
-			runtime.Stack(trace, false)
-			Warning.Printf("Warning from %s:%d %s: %s\n%s", file, line, msg, err, string(trace))
-		} else {
-			Warning.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
-		}
-	}
-}
-
-func FailOnNoError(err error, msg string) {
-	if err == nil {
-		_, file, line, ok := runtime.Caller(1)
-		if ok {
-			Error.Panicf("Expected error from %s:%d %s", file, line, msg)
-		} else {
-			Error.Panicf("Failed to get caller information while expecting error:\n%s", msg)
-		}
-	}
-}
-
-func DirSize(path string) (int64, error) {
-	var size int64
-	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			size += info.Size()
-		}
-		return err
-	})
-	return size, err
-}
-
 func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
-}
-
-func PrintMemUsage(contextTag string) {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	Debug.Println("Memory dump: ", contextTag)
-	fmt.Printf("Alloc = %v MiB", bToMb(mem.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(mem.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(mem.Sys))
-	fmt.Printf("\tNumGC = %v\n", mem.NumGC)
 }
 
 type WeblensHash struct {
@@ -137,7 +87,7 @@ func (h *WeblensHash) Done(len int) string {
 	return base64.URLEncoding.EncodeToString(h.hash.Sum(nil))[:len]
 }
 
-// Set charLimit to 0 to disable
+// GlobbyHash Set charLimit to 0 to disable
 func GlobbyHash(charLimit int, dataToHash ...any) string {
 	h := NewWeblensHash()
 
@@ -149,16 +99,6 @@ func GlobbyHash(charLimit int, dataToHash ...any) string {
 	} else {
 		return h.Done(16)
 	}
-}
-
-func StructFromMap[T any](inputMap map[string]any) (obj T, err error) {
-	jsonString, err := json.Marshal(inputMap)
-	if err != nil {
-		return
-	}
-	err = json.Unmarshal(jsonString, &obj)
-
-	return
 }
 
 func IdentifyPanic() string {
@@ -186,24 +126,16 @@ func IdentifyPanic() string {
 	return fmt.Sprintf("pc:%x", pc)
 }
 
-func RecoverPanic(preText ...any) {
+func RecoverPanic(preText string) {
 	r := recover()
 	if r == nil {
 		return
 	}
-	var formatString string
-	var rest []any
-	if len(preText) != 0 {
-		formatString = preText[0].(string)
-		rest = preText[1:]
-	} else {
-		formatString = ""
-		rest = []any{}
-	}
-	ErrorCatcher.Println(fmt.Sprintf(formatString, Map(rest, func(a any) string { return a.(string) })), IdentifyPanic(), r)
+
+	ErrorCatcher.Println(preText, IdentifyPanic(), r)
 }
 
-// See Banish. Yoink is the same as Banish, but returns the value at i
+// Yoink See Banish. Yoink is the same as Banish, but returns the value at i
 // in addition to the shortened slice.
 func Yoink[T any](s []T, i int) ([]T, T) {
 	t := s[i]
@@ -258,7 +190,7 @@ func Diff[T comparable](s1 []T, s2 []T) []T {
 	if len(s1) < len(s2) {
 		s1, s2 = s2, s1
 	}
-	res := []T{}
+	var res []T
 	for _, t := range s1 {
 		if !slices.Contains(s2, t) {
 			res = append(res, t)
@@ -326,7 +258,7 @@ func MapToKeys[T comparable, V any](tMap map[T]V) []T {
 }
 
 func Filter[S ~[]T, T any](ts S, fn func(t T) bool) []T {
-	var result []T = []T{}
+	var result []T
 	for _, t := range ts {
 		if fn(t) {
 			result = append(result, t)
@@ -336,7 +268,7 @@ func Filter[S ~[]T, T any](ts S, fn func(t T) bool) []T {
 }
 
 func FilterMap[T, V any](ts []T, fn func(T) (V, bool)) []V {
-	var result []V = []V{}
+	var result []V
 	for _, t := range ts {
 		res, y := fn(t)
 		if y {
@@ -433,7 +365,7 @@ func (s *sw) PrintResults(firstLapIsStart bool) {
 		return
 	}
 
-	var res string = fmt.Sprintf("--- %s Stopwatch ---", s.name)
+	var res = fmt.Sprintf("--- %s Stopwatch ---", s.name)
 
 	var startTime time.Time
 	if firstLapIsStart {
@@ -457,16 +389,17 @@ func (s *sw) PrintResults(firstLapIsStart bool) {
 			}
 
 			if l.tag != "" {
-				res = fmt.Sprintf("%s\n%s", res, fmt.Sprintf(lapFmt, l.tag, sinceLast, l.time.Sub(startTime), l.time.Sub(s.start)))
+				res = fmt.Sprintf(
+					"%s\n%s", res, fmt.Sprintf(lapFmt, l.tag, sinceLast, l.time.Sub(startTime), l.time.Sub(s.start)),
+				)
 			}
 		}
 	}
 
 	fmt.Printf("%s\n%s\n", res, fmt.Sprintf("Stopped at %s", s.stop.Sub(startTime)))
-	// fmt.Println(res)
 }
 
-// Almost exactly like io.ReadAll, but if we know how long the content is,
+// OracleReader is almost exactly like io.ReadAll, but if we know how long the content is,
 // we can allocate the whole array up front, saving a bit of time
 func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 	b := make([]byte, 0, readerSize)
@@ -485,13 +418,4 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 			b = append(b, 0)[:len(b)]
 		}
 	}
-}
-
-func IsDirByPath(absPath string) (bool, error) {
-	stat, err := os.Stat(absPath)
-	if err != nil {
-		return false, err
-	}
-
-	return stat.IsDir(), nil
 }

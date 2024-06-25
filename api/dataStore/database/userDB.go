@@ -19,7 +19,11 @@ func (db *databaseService) GetAllUsers() ([]types.User, error) {
 	}
 
 	return util.SliceConvert[types.User](users), nil
+}
 
+func (db *databaseService) CreateUser(user types.User) error {
+	_, err := db.users.InsertOne(db.ctx, user)
+	return err
 }
 
 func (db *databaseService) UpdatePsaswordByUsername(username types.Username, newPasswordHash string) error {
@@ -28,4 +32,11 @@ func (db *databaseService) UpdatePsaswordByUsername(username types.Username, new
 
 func (db *databaseService) SetAdminByUsername(username types.Username, isAdmin bool) error {
 	return types.NewWeblensError("Not yet implemented")
+}
+
+func (db *databaseService) ActivateUser(username types.Username) error {
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"activated": true}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+	return err
 }

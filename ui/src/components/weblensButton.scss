@@ -273,6 +273,10 @@
     align-items: center;
     justify-content: center;
 
+    &[data-icon-side='right'] {
+        justify-content: right;
+    }
+
     &[data-has-icon='true'] {
         display: flex;
 

@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -31,9 +32,9 @@ type User struct {
 }
 
 func New(username types.Username, password string, isAdmin, autoActivate bool) (types.User, error) {
-	// if GetUser(username) != nil {
-	// 	return dataStore.ErrUserAlreadyExists
-	// }
+	if types.SERV.UserService.Get(username) != nil {
+		return nil, types.ErrUserAlreadyExists
+	}
 	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
 		panic(err)
@@ -46,9 +47,6 @@ func New(username types.Username, password string, isAdmin, autoActivate bool) (
 		Tokens:    []string{},
 		Admin:     isAdmin,
 		Activated: autoActivate,
-
-		// HomeFolder:  homeDir,
-		// TrashFolder: homeDir.GetChildren()[0],
 	}
 
 	homeDir, err := newUser.CreateHomeFolder()
@@ -59,45 +57,8 @@ func New(username types.Username, password string, isAdmin, autoActivate bool) (
 	newUser.HomeFolder = homeDir
 	newUser.TrashFolder = homeDir.GetChildren()[0]
 
-	// if len(userMap) == 0 {
-	// 	newUser.Owner = true
-	// }
-
-	util.ErrTrace(types.NewWeblensError("not impl - add user to db (in user service, not here)"))
-	// if err := dataStore.dbServer.CreateUser(newUser); err != nil {
-	// 	return err
-	// }
-
-	// userMap[username] = newUser
-
-	return &User{}, nil
+	return newUser, nil
 }
-
-// func (store coreStore) LoadUsers(ft types.FileTree) (err error) {
-// 	var users []User
-// 	users, err = dbServer.getUsers(ft)
-// 	if err != nil {
-// 		util.ErrTrace(err)
-// 		return err
-// 	}
-// 	for _, u := range users {
-// 		userMap[u.Username] = &u
-// 	}
-// 	return
-// }
-
-// func (store backupStore) LoadUsers(ft types.FileTree) (err error) {
-// 	var users []types.User
-// 	users, err = store.req.GetCoreUsers()
-// 	if err != nil {
-// 		return
-// 	}
-// 	for _, u := range users {
-// 		realU := u.(*User)
-// 		userMap[realU.Username] = realU
-// 	}
-// 	return
-// }
 
 func (u *User) Activate() (err error) {
 	u.Activated = true
@@ -107,8 +68,13 @@ func (u *User) Activate() (err error) {
 		return err
 	}
 
-	util.ErrTrace(types.NewWeblensError("not impl - activate user"))
-	// dataStore.dbServer.activateUser(username)
+	err = types.SERV.Database.ActivateUser(u.GetUsername())
+	if err != nil {
+		return err
+	}
+
+	u.Activated = true
+
 	return
 }
 
@@ -131,9 +97,12 @@ func (u *User) SetHomeFolder(f types.WeblensFile) error {
 func (u *User) CreateHomeFolder() (types.WeblensFile, error) {
 	mediaRoot := types.SERV.FileTree.Get("MEDIA")
 	homeDir, err := types.SERV.FileTree.MkDir(mediaRoot, strings.ToLower(string(u.Username)))
-	// if err != nil && !errors.Is(err, ErrDirAlreadyExists) {
+	if err != nil && errors.Is(err, types.ErrDirAlreadyExists) {
+		return homeDir, nil
+	}
+
 	if err != nil {
-		return homeDir, err
+		return nil, err
 	}
 
 	_, err = types.SERV.FileTree.MkDir(homeDir, ".user_trash")
@@ -224,7 +193,7 @@ func ShareGrantsFileAccess(share types.Share, file types.WeblensFile) bool {
 		util.Error.Println("Trying to check if non-file share gives access to file")
 		return false
 	}
-	shareFileId := types.FileId(share.GetContentId())
+	shareFileId := types.FileId(share.GetItemId())
 
 	tmpF := file
 	for {

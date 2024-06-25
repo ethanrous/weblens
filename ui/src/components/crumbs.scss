@@ -1,0 +1,44 @@
+@import './theme';
+
+.crumb-text {
+    /* line-clamp: 1; */
+    color: white;
+    line-height: 1.2;
+    user-select: none;
+    font-size: 25px;
+    flex-grow: 0;
+    flex-shrink: 1;
+    width: max-content;
+    height: max-content;
+    margin: 0;
+    text-wrap: nowrap;
+}
+
+.overflow-menu {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    z-index: 50;
+    background-color: $bottom-grey;
+    outline: 1px solid $main-accent;
+    width: max-content;
+    height: max-content;
+    //gap: px;
+    cursor: default;
+    border-radius: 4px;
+    padding: 8px;
+    opacity: 0%;
+    transition: opacity 150ms ease-in-out, transform 200ms ease-in-out, max-height 250ms ease-in-out;
+    margin-top: 10px;
+    pointer-events: none;
+    height: max-content;
+    max-height: 0px;
+    overflow: hidden;
+
+    &[data-open='true'] {
+        opacity: 100%;
+        pointer-events: auto;
+        max-height: 150px;
+        transform: translateY(-4px);
+    }
+}
