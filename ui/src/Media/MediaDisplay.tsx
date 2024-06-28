@@ -17,10 +17,10 @@ import {
     UserContextT,
 } from '../types/Types'
 import { FileInitT, WeblensFile } from '../Files/File'
-import WeblensMedia from './Media'
+import WeblensMedia, { MediaAction } from './Media'
 import { GetFileInfo } from '../api/FileBrowserApi'
 import { MediaImage } from './PhotoContainer'
-import { UserContext } from '../Context'
+import { MediaContext, UserContext } from '../Context'
 import {
     IconFolder,
     IconPhoto,
@@ -284,6 +284,7 @@ const MediaWrapper = memo(
         const ref = useRef()
 
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
+        const { mediaState, mediaDispatch } = useContext(MediaContext)
         const [menuOpen, setMenuOpen] = useState(false)
 
         const menuSwitch = useCallback(
@@ -314,25 +315,27 @@ const MediaWrapper = memo(
             galleryState.presentingMode,
         ])
 
-        const click = useCallback(() => {
-            if (galleryState.selecting) {
+        const click = useCallback(
+            (selecting, holdingShift, lastSelected) => {
+                if (selecting) {
+                    const action: MediaAction = {
+                        type: 'set_selected',
+                        mediaId: mediaData.Id(),
+                    }
+                    if (holdingShift) {
+                        action.endMediaId = lastSelected
+                    }
+                    mediaDispatch(action)
+                    return
+                }
                 galleryDispatch({
-                    type: 'set_selected',
-                    mediaIndex: mediaData.GetAbsIndex(),
+                    type: 'set_presentation',
                     mediaId: mediaData.Id(),
-                    selected: !mediaData.IsSelected(),
+                    presentMode: PresentType.Fullscreen,
                 })
-                return
-            }
-            galleryDispatch({
-                type: 'set_presentation',
-                mediaId: mediaData.Id(),
-                presentMode: PresentType.Fullscreen,
-            })
-        }, [
-            galleryState.selecting,
-            galleryState.presentingMediaId === mediaData.Id(),
-        ])
+            },
+            [galleryState.presentingMediaId === mediaData.Id()]
+        )
 
         const mouseOver = useCallback(() => {
             if (galleryState.selecting) {
@@ -377,14 +380,15 @@ const MediaWrapper = memo(
                 choosing: (
                     galleryState.selecting &&
                     galleryState.hoverIndex !== -1 &&
-                    galleryState.lastSelIndex !== -1 &&
+                    galleryState.lastSelId !== '' &&
                     galleryState.holdingShift &&
                     mediaData.GetAbsIndex() >= 0 &&
-                    (mediaData.GetAbsIndex() - galleryState.lastSelIndex) *
+                    (mediaData.GetAbsIndex() -
+                        mediaState.getListIndex(galleryState.lastSelId)) *
                         (mediaData.GetAbsIndex() - galleryState.hoverIndex) <=
                         0
                 ).toString(),
-                selected: (!!mediaData.IsSelected()).toString(),
+                selected: mediaState.isSelected(mediaData.Id()),
                 'menu-open': menuOpen.toString(),
             }
         }, [
@@ -392,7 +396,7 @@ const MediaWrapper = memo(
             galleryState.presentingMediaId === mediaData.Id(),
             galleryState.presentingMode,
             menuOpen,
-            mediaData.IsSelected(),
+            mediaState.isSelected(mediaData.Id()),
             galleryState.hoverIndex,
             galleryState.holdingShift,
         ])
@@ -406,7 +410,13 @@ const MediaWrapper = memo(
                 data-choosing={mod.choosing}
                 data-presenting={mod.presenting}
                 ref={ref}
-                onClick={click}
+                onClick={() =>
+                    click(
+                        galleryState.selecting,
+                        galleryState.holdingShift,
+                        galleryState.lastSelId
+                    )
+                }
                 onMouseOver={mouseOver}
                 onMouseLeave={mouseLeave}
                 onContextMenu={contextMenu}

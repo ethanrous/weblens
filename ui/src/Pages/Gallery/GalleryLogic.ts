@@ -42,32 +42,13 @@ export function galleryReducer(
     // console.log("Doing action!", action);
 
     switch (action.type) {
-        // case 'set_media': {
-        //     state.mediaMap.clear()
-        //     if (action.medias) {
-        //         let prev: WeblensMedia
-        //         for (const m of action.medias) {
-        //             state.mediaMap.set(m.Id(), m)
-        //             if (prev) {
-        //                 prev.SetNextLink(m)
-        //                 m.SetPrevLink(prev)
-        //             }
-        //             prev = m
-        //         }
-        //     }
-        //     return {
-        //         ...state,
-        //         mediaMap: new Map(state.mediaMap),
-        //     }
-        // }
-
         // case 'set_selected': {
         //     const item = state.mediaMap.get(action.mediaId)
         //     if (!item) {
         //         console.warn('Trying to select media that does not exist')
         //         return { ...state }
         //     }
-        //     item.SetSelected(action.selected)
+        //
         //     if (state.holdingShift) {
         //         Array.from(state.mediaMap.values())
         //             .slice(
@@ -75,7 +56,7 @@ export function galleryReducer(
         //                 Math.max(action.mediaIndex, state.lastSelIndex)
         //             )
         //             .map((v, i) => {
-        //                 v.SetSelected(true)
+        //
         //                 state.selected.set(v.Id(), true)
         //             })
         //     }
@@ -92,17 +73,17 @@ export function galleryReducer(
         //     }
         // }
 
-        // case 'set_selecting': {
-        //     if (!action.selecting) {
-        //         for (const key of state.mediaMap.keys()) {
-        //             state.mediaMap.get(key).SetSelected(false)
-        //         }
-        //     }
-        //     return {
-        //         ...state,
-        //         selecting: action.selecting,
-        //     }
-        // }
+        case 'set_selecting': {
+            if (!action.selecting) {
+                // for (const key of state.mediaMap.keys()) {
+                //     state.mediaMap.get(key).SetSelected(false)
+                // }
+            }
+            return {
+                ...state,
+                selecting: action.selecting,
+            }
+        }
 
         case 'set_albums': {
             if (!action.albums) {

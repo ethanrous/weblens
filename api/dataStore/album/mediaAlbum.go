@@ -155,9 +155,10 @@ func (a *Album) UnmarshalBSON(bs []byte) error {
 		data["medias"].(primitive.A), func(mId any) (types.Media, bool) {
 			m := types.SERV.MediaRepo.Get(types.ContentId(mId.(string)))
 			if m == nil {
-				util.Error.Printf("Nil media [%s] while loading album (%s)", mId, a.Name)
+				// util.Error.Printf("Nil media [%s] while loading album (%s)", mId, a.Name)
+				return nil, false
 			}
-			return m, m != nil
+			return m, true
 		},
 	)
 

@@ -26,11 +26,6 @@ type marshalableMediaType struct {
 }
 
 const (
-	Thumbnail types.Quality = "thumbnail"
-	Fullres   types.Quality = "fullres"
-)
-
-const (
 	FileGet types.RequestMode = "fileGet"
 
 	// WebsocketFileUpdate Grant access unconditionally. This is for sending

@@ -41,7 +41,7 @@ export async function FetchData(
         if (data.Media) {
             data.Media.forEach((m) => {
                 const newM = new WeblensMedia(m)
-                mediaState.set(newM.Id(), newM)
+                mediaState.add(newM.Id(), newM)
             })
         }
         mediaDispatch({ type: 'refresh' })

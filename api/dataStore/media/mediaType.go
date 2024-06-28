@@ -16,7 +16,7 @@ type mediaType struct {
 	Extensions      []string `json:"FileExtension"`
 	Displayable     bool     `json:"IsDisplayable"`
 	Raw             bool     `json:"IsRaw"`
-	IsVideo         bool     `json:"IsVideo"`
+	Video           bool     `json:"IsVideo"`
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
 	RawThumbExifKey string   `json:"RawThumbExifKey"`
@@ -95,6 +95,10 @@ func (ts *typeService) MarshalJSON() ([]byte, error) {
 
 func (mt mediaType) IsRaw() bool {
 	return mt.Raw
+}
+
+func (mt mediaType) IsVideo() bool {
+	return mt.Video
 }
 
 func (mt mediaType) GetMime() string {

@@ -90,7 +90,7 @@ func DoRoutes() {
 	srvMu.Unlock()
 	err := srv.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		util.ShowErr(err)
+		panic(err)
 	}
 }
 
@@ -115,7 +115,9 @@ func AddSharedRoutes(api *gin.RouterGroup) {
 
 	api.GET("/media/:mediaId/info", getMediaInfo)
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
+	api.GET("/media/:mediaId/thumbnail.webp", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
+	api.GET("/media/:mediaId/stream", streamVideo)
 
 	api.GET("/file/:fileId/history", getFileHistory)
 	api.GET("/history/:folderId", getPastFolderInfo)
@@ -253,6 +255,7 @@ func AddUiRoutes() {
 	router.Use(
 		func(ctx *gin.Context) {
 			strings.Index(ctx.Request.RequestURI, "/assets")
+			util.Debug.Println(ctx.Request.RequestURI)
 
 			if strings.HasPrefix(ctx.Request.RequestURI, "/assets") {
 				ctx.Writer.Header().Set("Content-Encoding", "gzip")
@@ -263,6 +266,7 @@ func AddUiRoutes() {
 	// r.Use(serveUiFile)
 	router.NoRoute(
 		func(ctx *gin.Context) {
+			util.Debug.Println("No route")
 			if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
 				// using the real path here makes gin redirect to /, which creates an infinite loop
 				// ctx.Writer.Header().Set("Content-Encoding", "gzip")

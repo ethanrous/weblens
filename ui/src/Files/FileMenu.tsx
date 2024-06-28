@@ -30,7 +30,6 @@ import {
     TrashFiles,
     updateFileShare,
 } from '../api/FileBrowserApi'
-import { WeblensShare } from '../classes/Share'
 import {
     useClick,
     useKeyDown,
@@ -395,13 +394,15 @@ function FileShareMenu() {
         if (!item) {
             return
         }
-        const share: WeblensShare = item.GetShare()
-        if (share) {
-            setIsPublic(share.IsPublic())
-            setAccessors(share.GetAccessors())
-        } else {
-            setIsPublic(false)
-        }
+        item.LoadShare(authHeader).then((share) => {
+            if (share) {
+                console.log(share)
+                setIsPublic(share.IsPublic())
+                setAccessors(share.GetAccessors())
+            } else {
+                setIsPublic(false)
+            }
+        })
     }, [item])
 
     const [userSearch, setUserSearch] = useState('')
@@ -423,7 +424,7 @@ function FileShareMenu() {
     const updateShare = useCallback(
         async (e) => {
             e.stopPropagation()
-            const share = item.GetShare()
+            const share = await item.LoadShare(authHeader)
             let req: Promise<Response>
             if (share) {
                 req = updateFileShare(
@@ -450,6 +451,7 @@ function FileShareMenu() {
     if (fbState.menuMode === FbMenuModeT.Closed) {
         return <></>
     }
+    console.log(isPublic)
 
     return (
         <div
@@ -483,7 +485,8 @@ function FileShareMenu() {
                             e.stopPropagation()
                             return await updateShare(e)
                                 .then(async (r) => {
-                                    const share = item.GetShare()
+                                    const share =
+                                        await item.LoadShare(authHeader)
                                     if (!share) {
                                         console.error('No Shares!')
                                         return false
@@ -511,7 +514,7 @@ function FileShareMenu() {
                         valueCallback={setUserSearch}
                         placeholder="Add users"
                         onComplete={null}
-                        icon={<IconUsersPlus />}
+                        Icon={IconUsersPlus}
                     />
                 </div>
                 {userSearchResults.length !== 0 && (

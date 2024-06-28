@@ -44,8 +44,7 @@ import { WeblensProgress } from '../../components/WeblensProgress'
 
 // Weblens
 import { UserContext, WebsocketContext } from '../../Context'
-import { FbMenuModeT, FileInitT, WeblensFile } from '../../Files/File'
-import { GlobalContextType } from '../../Files/FileDisplay'
+import { FbMenuModeT, FileInitT, GlobalContextType, WeblensFile } from '../../Files/File'
 import { FileContextMenu } from '../../Files/FileMenu'
 import { FileRows } from '../../Files/FileRows'
 import { DraggingStateT, FbContext, FbContextT, FbModeT } from '../../Files/filesContext'
@@ -944,8 +943,8 @@ function Files({
         return (
             fbState.folderInfo.IsModifiable() &&
             !(
-                fbState.fbMode === FbModeT.share ||
-                fbState.contentId === usr.trashId
+                // fbState.fbMode === FbModeT.share ||
+                (fbState.contentId === usr.trashId)
             )
         )
     }, [fbState.contentId, usr.trashId, fbState.fbMode, fbState.folderInfo])

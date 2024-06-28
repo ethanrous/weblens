@@ -458,6 +458,10 @@ func (f *weblensFile) GetChildrenInfo(acc types.AccessMeta) []types.FileInfo {
 		},
 	)
 
+	if childrenInfo == nil {
+		return []types.FileInfo{}
+	}
+
 	return childrenInfo
 }
 

@@ -15,9 +15,11 @@ export default ({ mode }) => {
         (!process.env.VITE_PROXY_HOST || !process.env.VITE_PROXY_PORT) &&
         process.env.VITE_BUILD !== 'true'
     ) {
-        throw new Error(
-            'VITE_PROXY_HOST or VITE_PROXY_PORT not set in vite.config.ts'
+        console.warn(
+            'VITE_PROXY_HOST or VITE_PROXY_PORT not set in vite.config.ts, falling back to defaults'
         )
+        process.env.VITE_PROXY_HOST = 'localhost'
+        process.env.VITE_PROXY_PORT = '8080'
     }
 
     return defineConfig({

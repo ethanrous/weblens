@@ -12,6 +12,7 @@ export interface MediaDataT {
     owner?: string
     width?: number
     height?: number
+    videoLength?: number
     createDate?: string
     recognitionTags?: string[]
     pageCount?: number
@@ -119,6 +120,10 @@ class WeblensMedia {
         return this.GetMediaType().IsDisplayable
     }
 
+    GetVideoLength(): number {
+        return this.data.videoLength
+    }
+
     HasLoadError(): PhotoQuality {
         return this.loadError
     }
@@ -179,7 +184,7 @@ class WeblensMedia {
         this.data.index = index
     }
 
-    GetImgUrl(quality: 'thumbnail' | 'fullres'): string {
+    GetObjectUrl(quality: 'thumbnail' | 'fullres'): string {
         if (quality == 'thumbnail' || !this.data.fullres) {
             return this.data.thumbnail
         } else if (quality == 'fullres') {
@@ -208,7 +213,7 @@ class WeblensMedia {
             )
         }
         let fullres
-        if (maxQuality === 'fullres') {
+        if (maxQuality === 'fullres' && !this.GetMediaType().IsVideo) {
             fullres = this.getImageData(
                 'fullres',
                 authHeader,
@@ -249,6 +254,13 @@ class WeblensMedia {
         if (this.data.abort) {
             this.data.abort.abort('Cancelled')
         }
+    }
+
+    public StreamVideoUrl(authHeader: AuthHeaderT): string {
+        return `${API_ENDPOINT}/media/${this.data.contentId}/stream`
+        // const url = new URL(
+        // )
+        // fetch(url, { headers: authHeader })
     }
 
     private async getImageData(
@@ -298,36 +310,68 @@ class WeblensMedia {
 
 export class MediaStateT {
     mediaMap: Map<string, WeblensMedia>
+    selectedMap: Map<string, boolean>
     mediaList: WeblensMedia[]
 
     constructor(map?: Map<string, WeblensMedia> | MediaStateT) {
         if (!map) {
             this.mediaMap = new Map<string, WeblensMedia>()
             this.mediaList = []
+            this.selectedMap = new Map<string, boolean>()
         } else if (map instanceof Map) {
             this.mediaMap = map
         } else if (map && map instanceof MediaStateT) {
             this.mediaMap = map.mediaMap
             this.mediaList = map.mediaList
+            this.selectedMap = map.selectedMap
         } else {
             console.error('Unable to construct MediaStateT')
         }
     }
 
     private sortedIndex(target: WeblensMedia) {
+        const targetDate = target.GetCreateDate()
         var low = 0,
             high = this.mediaList?.length
 
         while (low < high) {
             var mid = (low + high) >>> 1
-            if (this.mediaList[mid].GetCreateDate() > target.GetCreateDate())
-                low = mid + 1
+            if (this.mediaList[mid].GetCreateDate() > targetDate) low = mid + 1
             else high = mid
         }
         return low
     }
 
-    public set(mediaId: string, media: WeblensMedia) {
+    public getListIndex(mediaId: string): number {
+        const m = this.mediaMap.get(mediaId)
+        if (!m) {
+            return -1
+        }
+
+        const target = m.GetCreateDate()
+
+        let start = 0,
+            end = this.mediaList.length - 1
+
+        // Iterate while start not meets end
+        while (start <= end) {
+            // Find the mid index
+            let mid = Math.floor((start + end) / 2)
+
+            // If element is present at
+            // mid, return True
+            if (this.mediaList[mid].GetCreateDate() === target) return mid
+            // Else look in left or
+            // right half accordingly
+            else if (this.mediaList[mid].GetCreateDate() < target)
+                start = mid + 1
+            else end = mid - 1
+        }
+
+        return -1
+    }
+
+    public add(mediaId: string, media: WeblensMedia) {
         if (!media.IsImported()) {
             media.LoadInfo()
         }
@@ -349,6 +393,34 @@ export class MediaStateT {
         }
 
         this.mediaMap.set(mediaId, media)
+        this.selectedMap.set(mediaId, false)
+    }
+
+    public setSelected(mediaId: string, endMediaId?: string) {
+        if (endMediaId !== undefined) {
+            let startIndex = this.getListIndex(mediaId)
+            let endIndex = this.getListIndex(endMediaId)
+
+            if (endIndex < startIndex) {
+                ;[startIndex, endIndex] = [endIndex, startIndex]
+            }
+
+            for (const m of this.mediaList.slice(startIndex, endIndex)) {
+                this.selectedMap.set(m.Id(), true)
+            }
+        } else {
+            this.selectedMap.set(mediaId, true)
+        }
+    }
+
+    public isSelected(mediaId: string): boolean {
+        return this.selectedMap.get(mediaId)
+    }
+
+    public getAllSelected(): string[] {
+        return Array.from(this.selectedMap.entries())
+            .filter(([_, s]) => s)
+            .map(([m, _]) => m)
     }
 
     public async loadNew(mediaId: string): Promise<WeblensMedia> {
@@ -382,6 +454,7 @@ export type MediaAction = {
     medias?: WeblensMedia[]
     media?: WeblensMedia
     mediaId?: string
+    endMediaId?: string
     mediaIds?: string[]
 }
 
@@ -395,7 +468,7 @@ export function mediaReducer(
                 return state
             }
 
-            state.set(action.media.Id(), action.media)
+            state.add(action.media.Id(), action.media)
             break
         }
         case 'add_media_id': {
@@ -404,16 +477,34 @@ export function mediaReducer(
             }
 
             const newM = new WeblensMedia({ contentId: action.mediaId })
-            state.set(newM.Id(), newM)
+            state.add(newM.Id(), newM)
             break
         }
         case 'add_media_ids': {
             for (const mId of action.mediaIds) {
                 const newM = new WeblensMedia({ contentId: mId })
-                state.set(newM.Id(), newM)
+                state.add(newM.Id(), newM)
             }
             break
         }
+
+        case 'set_selected': {
+            state.setSelected(action.mediaId, action.endMediaId)
+            break
+        }
+
+        case 'remove_by_ids': {
+            for (const mId of action.mediaIds) {
+                state.mediaMap.delete(mId)
+                state.selectedMap.delete(mId)
+                const index = state.getListIndex(mId)
+                if (index != -1) {
+                    state.mediaList.splice(index, 1)
+                }
+            }
+            action.mediaIds
+        }
+
         case 'refresh': {
             break
         }
@@ -423,7 +514,7 @@ export function mediaReducer(
         }
     }
 
-    return new MediaStateT(state.mediaMap)
+    return new MediaStateT(state)
     // new Map<string, WeblensMedia>(state)
 }
 

@@ -1,11 +1,16 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
 )
 
 type InMemoryFS struct {
@@ -30,7 +35,7 @@ func (fs *InMemoryFS) loadIndex() string {
 // Open Implements FileSystem interface
 func (fs *InMemoryFS) Open(name string) (http.File, error) {
 	if name == "/index" {
-		return newWrapFile(fs.index), nil
+		return fs.Index("/index"), nil
 	}
 	var f *memFileReal
 	var ok bool
@@ -53,7 +58,7 @@ func (fs *InMemoryFS) Open(name string) (http.File, error) {
 
 	// var err error
 	if f == nil || !f.exists {
-		return newWrapFile(fs.index), nil
+		return fs.Index(name), nil
 	}
 	return newWrapFile(f), nil
 }
@@ -85,6 +90,56 @@ type memFileReal struct {
 	data   []byte
 	exists bool
 	fs     *InMemoryFS
+}
+
+func (mf *memFileReal) Copy() *memFileReal {
+	return &memFileReal{
+		Name:   mf.Name,
+		data:   mf.data,
+		exists: mf.exists,
+		fs:     mf.fs,
+	}
+}
+
+func addIndexTag(tagName, toAdd, content string) string {
+	subStr := fmt.Sprintf("og:%s\" content=\"", tagName)
+	index := strings.Index(content, subStr)
+	if index == -1 {
+		util.Error.Println("Failed to find tag", tagName)
+		return content
+	}
+	index += len(subStr)
+	return content[:index] + toAdd + content[index:]
+}
+
+func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
+	index := newWrapFile(fs.index.Copy())
+	locIndex := strings.Index(loc, "../ui/dist/")
+	if locIndex != -1 {
+		loc = loc[locIndex+len("../ui/dist/"):]
+	}
+
+	data := addIndexTag("url", loc, string(index.realFile.data))
+
+	if strings.HasPrefix(loc, "files/share/") {
+		loc = loc[len("files/share/"):]
+		shareId := types.ShareId(loc[:strings.Index(loc, "/")])
+
+		share := types.SERV.ShareService.Get(shareId)
+		if share != nil {
+			f := types.SERV.FileTree.Get(types.FileId(share.GetItemId()))
+			if f != nil {
+				imgUrl := fmt.Sprintf("%sapi/media/%s/thumbnail.webp", util.GetHostURL(), f.GetContentId())
+				data = addIndexTag("image", imgUrl, data)
+				data = addIndexTag("title", f.Filename(), data)
+				data = addIndexTag("description", "Weblens file share", data)
+			}
+		}
+	}
+
+	index.realFile.data = []byte(data)
+
+	return index
 }
 
 func readFile(filePath string, fs *InMemoryFS) *memFileReal {

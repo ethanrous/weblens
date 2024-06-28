@@ -13,35 +13,14 @@ import { useNavigate } from 'react-router-dom'
 
 import '../components/itemDisplayStyle.css'
 import { MediaImage } from '../Media/PhotoContainer'
-import { FbMenuModeT, WeblensFile } from './File'
+import {
+    FbMenuModeT,
+    GlobalContextType,
+    SelectedState,
+    WeblensFile,
+} from './File'
 import { DraggingStateT, FbContext } from './filesContext'
 import { useMedia } from '../components/hooks'
-
-export type GlobalContextType = {
-    setDragging: (d: DraggingStateT) => void
-    blockFocus: (b: boolean) => void
-    rename: (itemId: string, newName: string) => void
-
-    setMenuOpen: (m: FbMenuModeT) => void
-    setMenuPos: ({ x, y }: { x: number; y: number }) => void
-    setMenuTarget: (itemId: string) => void
-
-    setHovering?: (itemId: string) => void
-    setSelected?: (itemId: string, selected?: boolean) => void
-    selectAll?: (itemId: string, selected?: boolean) => void
-    moveSelected?: (itemId: string) => void
-    doSelectMany?: () => void
-    setMoveDest?: (itemName) => void
-
-    dragging?: number
-    numCols?: number
-    itemWidth?: number
-    initialScrollIndex?: number
-    hoveringIndex?: number
-    lastSelectedIndex?: number
-    doMediaFetch?: boolean
-    allowEditing?: boolean
-}
 
 type WrapperProps = {
     itemInfo: WeblensFile
@@ -486,15 +465,6 @@ const TextBox = memo(
         return true
     }
 )
-
-export enum SelectedState {
-    NotSelected = 0x0,
-    Hovering = 0x1,
-    InRange = 0x10,
-    Selected = 0x100,
-    LastSelected = 0x1000,
-    Droppable = 0x10000,
-}
 
 export const FileDisplay = memo(
     ({

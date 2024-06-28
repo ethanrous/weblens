@@ -147,7 +147,6 @@ export const newTimeOffset = (): TimeOffset => {
 }
 
 export type GalleryStateT = {
-    selected: Map<string, boolean>;
     albumsMap: Map<string, AlbumData>;
     albumsFilter: string[];
     loading: string[];
@@ -162,7 +161,7 @@ export type GalleryStateT = {
     presentingMode: PresentType;
     timeAdjustOffset: TimeOffset;
     hoverIndex: number;
-    lastSelIndex: number;
+    lastSelId: string;
     holdingShift: boolean;
 };
 

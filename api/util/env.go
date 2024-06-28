@@ -140,3 +140,15 @@ func GetMongoDBName() string {
 	}
 	return mongoDBName
 }
+
+func GetVideoConstBitrate() int {
+	return 400000 * 2
+}
+
+func GetHostURL() string {
+	host := envReadString("HOST_URL")
+	if host == "" {
+		panic("HOST_URL not provided")
+	}
+	return host
+}

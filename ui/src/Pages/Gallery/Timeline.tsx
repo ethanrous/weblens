@@ -234,7 +234,7 @@ export const Timeline = memo(
                 return []
             }
 
-            return Array.from(mediaState.mediaMap.values()).filter((m) => {
+            return Array.from(mediaState.mediaMap?.values()).filter((m) => {
                 if (galleryState.searchContent === '') {
                     return true
                 }

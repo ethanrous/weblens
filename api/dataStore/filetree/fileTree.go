@@ -346,7 +346,7 @@ func (ft *fileTree) Move(
 			// The file no longer has an id, so generating the id will lock the file tree,
 			// we must do that outside the lock below to avoid deadlock
 			// w.ID()
-			// _, err = w.Size()
+			// _, err = w.Len()
 			// if err != nil {
 			// 	return err
 			// }

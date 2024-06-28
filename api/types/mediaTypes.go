@@ -6,11 +6,18 @@ import (
 	"github.com/barasher/go-exiftool"
 )
 
+const (
+	Thumbnail Quality = "thumbnail"
+	Fullres   Quality = "fullres"
+	Video     Quality = "video"
+)
+
 type MediaRepo interface {
 	BaseService[ContentId, Media]
 
 	TypeService() MediaTypeService
 	FetchCacheImg(m Media, q Quality, pageNum int) ([]byte, error)
+	StreamCacheVideo(m Media, startByte, endByte int) ([]byte, error)
 	GetFilteredMedia(requester User, sort string, sortDirection int, albumFilter []AlbumId, raw bool) ([]Media, error)
 	RunExif(path string) ([]exiftool.FileMetadata, error)
 }
@@ -44,8 +51,9 @@ type Media interface {
 
 	LoadFromFile(WeblensFile, []byte, Task) (Media, error)
 
-	ReadDisplayable(Quality, ...int) ([]byte, error)
+	ReadDisplayable(Quality, int) ([]byte, error)
 	GetPageCount() int
+	GetVideoLength() int
 
 	GetCacheFile(q Quality, generateIfMissing bool, pageNum int) (WeblensFile, error)
 	// MarshalJSON SetPageCount(int)
@@ -57,6 +65,7 @@ type Quality string
 
 type MediaType interface {
 	IsRaw() bool
+	IsVideo() bool
 	IsDisplayable() bool
 	FriendlyName() string
 	GetMime() string

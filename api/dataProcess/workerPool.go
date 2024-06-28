@@ -295,7 +295,9 @@ func (wp *workerPool) execWorker(replacement bool) {
 			// Inc tasks being processed
 			wp.busyCount.Add(1)
 			t.SwLap("Task start")
+			util.Debug.Printf("Starting %s task T[%s]", t.taskType, t.taskId)
 			safetyWork(t, workerId)
+			util.Debug.Printf("Finished %s task T[%s]", t.taskType, t.taskId)
 			t.SwLap("Task finish")
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)

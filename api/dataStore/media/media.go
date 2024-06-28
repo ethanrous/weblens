@@ -9,10 +9,12 @@ import (
 	"image"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ethanrous/bimg"
+	ffmpeg "github.com/u2takey/ffmpeg-go"
 
 	"github.com/EdlinOrg/prominentcolor"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -51,6 +53,9 @@ type Media struct {
 	// Number of pages (typically 1, 0 in not a valid page count)
 	PageCount int `json:"pageCount" bson:"pageCount"`
 
+	// Total time, in milliseconds, of a video
+	VideoLength int `json:"videoLength" bson:"videoLength"`
+
 	// Not used right now
 	BlurHash string `json:"blurHash" bson:"blurHash"`
 
@@ -88,6 +93,8 @@ type Media struct {
 	// Live file of the cache that supports this media.
 	thumbCacheFile    types.WeblensFile
 	fullresCacheFiles []types.WeblensFile
+
+	streamer *VideoStreamer
 }
 
 func New(contentId types.ContentId) types.Media {
@@ -222,6 +229,11 @@ func (m *Media) GetPageCount() int {
 	return m.PageCount
 }
 
+// GetVideoLength returns the length of the media video, if it is a video. Duration is counted in milliseconds
+func (m *Media) GetVideoLength() int {
+	return m.VideoLength
+}
+
 func (m *Media) SetOwner(owner types.User) {
 	m.Owner = owner
 }
@@ -230,15 +242,16 @@ func (m *Media) GetOwner() types.User {
 	return m.Owner
 }
 
-func (m *Media) ReadDisplayable(q types.Quality, index ...int) (data []byte, err error) {
-	var pageNum int
-	if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
-		return nil, dataStore.ErrPageOutOfRange
-	} else if len(index) != 0 {
-		pageNum = index[0]
-	} else {
-		pageNum = 0
-	}
+func (m *Media) ReadDisplayable(q types.Quality, index int) (data []byte, err error) {
+	var pageNum = index
+	// if index
+	// if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
+	// 	return nil, dataStore.ErrPageOutOfRange
+	// } else if len(index) != 0 {
+	// 	pageNum = index[0]
+	// } else {
+	// 	pageNum = 0
+	// }
 
 	return types.SERV.MediaRepo.FetchCacheImg(m, q, pageNum)
 }
@@ -349,7 +362,7 @@ func (m *Media) Hide() error {
 
 func (m *Media) GetProminentColors() (prom []string, err error) {
 	var i image.Image
-	thumbBytes, err := m.ReadDisplayable(dataStore.Thumbnail)
+	thumbBytes, err := m.ReadDisplayable(types.Thumbnail, 0)
 	if err != nil {
 		return
 	}
@@ -378,6 +391,8 @@ func (m *Media) loadExif(f types.WeblensFile) error {
 	m.rawExif = fileInfos[0].Fields
 	return nil
 }
+
+var timeOrigin = time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (m *Media) parseExif(f types.WeblensFile) error {
 
@@ -409,11 +424,11 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 			if err != nil {
 				m.CreateDate, err = time.Parse("2006:01:02 15:04:05-07:00", r.(string))
 			}
+			if err != nil {
+				m.CreateDate = f.ModTime()
+			}
 		} else {
 			m.CreateDate = f.ModTime()
-		}
-		if err != nil {
-			return err
 		}
 	}
 
@@ -424,6 +439,28 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 		}
 		m.MimeType = mimeType
 		m.mediaType = types.SERV.MediaRepo.TypeService().ParseMime(mimeType)
+
+		if m.mediaType.IsVideo() {
+			probeJson, err := ffmpeg.Probe(f.GetAbsPath())
+			if err != nil {
+				return err
+			}
+			probeResult := map[string]any{}
+			err = json.Unmarshal([]byte(probeJson), &probeResult)
+			if err != nil {
+				return err
+			}
+
+			formatChunk, ok := probeResult["format"].(map[string]any)
+			if !ok {
+				return types.NewWeblensError("invalid movie format")
+			}
+			duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 10)
+			if err != nil {
+				return err
+			}
+			m.VideoLength = int(duration * 1000)
+		}
 	}
 
 	if m.mediaType.FriendlyName() == "PDF" {
@@ -526,10 +563,10 @@ func (m *Media) generateImages(bs []byte) (err error) {
 }
 
 func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum int) (f types.WeblensFile, err error) {
-	if q == dataStore.Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
+	if q == types.Thumbnail && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 		f = m.thumbCacheFile
 		return
-	} else if q == dataStore.Fullres && len(m.fullresCacheFiles) > pageNum && m.fullresCacheFiles[pageNum] != nil {
+	} else if q == types.Fullres && len(m.fullresCacheFiles) > pageNum && m.fullresCacheFiles[pageNum] != nil {
 		f = m.fullresCacheFiles[pageNum]
 		return
 	}
@@ -541,15 +578,15 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 	cacheRoot := types.SERV.FileTree.Get("CACHE")
 
 	var cacheFileId types.FileId
-	if q == dataStore.Fullres && len(m.FullresCacheIds) > pageNum && m.FullresCacheIds[pageNum] != "" {
+	if q == types.Fullres && len(m.FullresCacheIds) > pageNum && m.FullresCacheIds[pageNum] != "" {
 		cacheFileId = m.FullresCacheIds[pageNum]
-	} else if q == dataStore.Fullres {
+	} else if q == types.Fullres {
 		cacheFileId = m.getCacheId(q, pageNum, cacheRoot)
 		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 		m.FullresCacheIds[pageNum] = cacheFileId
 	}
 
-	if q == dataStore.Thumbnail {
+	if q == types.Thumbnail {
 		if m.ThumbnailCacheId == "" {
 			m.ThumbnailCacheId = m.getCacheId(q, pageNum, cacheRoot)
 		}
@@ -577,9 +614,9 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 		}
 	}
 
-	if q == dataStore.Thumbnail {
+	if q == types.Thumbnail {
 		m.thumbCacheFile = f
-	} else if q == dataStore.Fullres {
+	} else if q == types.Fullres {
 		m.fullresCacheFiles[pageNum] = f
 	}
 
@@ -589,9 +626,9 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 const ThumbnailHeight float32 = 500
 
 func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
-	_, err = m.GetCacheFile(dataStore.Thumbnail, false, 0)
+	_, err = m.GetCacheFile(types.Thumbnail, false, 0)
 	hasThumbCache := err == nil
-	_, err = m.GetCacheFile(dataStore.Fullres, false, 0)
+	_, err = m.GetCacheFile(types.Fullres, false, 0)
 	hasFullresCache := err == nil
 
 	if hasThumbCache && hasFullresCache && m.MediaWidth != 0 && m.MediaHeight != 0 {
@@ -615,6 +652,23 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 			return err
 		}
 		bs = imgBytes
+	} else if m.mediaType.IsVideo() {
+		out := bytes.NewBuffer(nil)
+		errOut := bytes.NewBuffer(nil)
+
+		const frameNum = 10
+
+		err = ffmpeg.Input(f.GetAbsPath()).Filter(
+			"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
+		).Output(
+			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
+		).WithOutput(out).WithErrorOutput(errOut).Run()
+		if err != nil {
+			util.Error.Println(errOut.String())
+			return err
+		}
+		bs = out.Bytes()
+
 	} else {
 		bs, err = f.ReadAll()
 		if err != nil {
@@ -673,16 +727,16 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 	}
 
 	if !hasThumbCache {
-		m.cacheDisplayable(dataStore.Thumbnail, thumbBytes, 0, f.GetTree())
+		m.cacheDisplayable(types.Thumbnail, thumbBytes, 0, f.GetTree())
 	}
 
 	if !hasFullresCache {
 		if m.mediaType.IsMultiPage() {
 			for page := range m.PageCount {
-				m.cacheDisplayable(dataStore.Fullres, m.images[page].Image(), page, f.GetTree())
+				m.cacheDisplayable(types.Fullres, m.images[page].Image(), page, f.GetTree())
 			}
 		} else {
-			m.cacheDisplayable(dataStore.Fullres, m.image.Image(), 0, f.GetTree())
+			m.cacheDisplayable(types.Fullres, m.image.Image(), 0, f.GetTree())
 		}
 	}
 
@@ -716,10 +770,10 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 		m.FullresCacheIds = make([]types.FileId, m.PageCount)
 	}
 
-	if q == dataStore.Thumbnail && m.ThumbnailCacheId == "" || m.thumbCacheFile == nil {
+	if q == types.Thumbnail && m.ThumbnailCacheId == "" || m.thumbCacheFile == nil {
 		m.ThumbnailCacheId = f.ID()
 		m.thumbCacheFile = f
-	} else if q == dataStore.Fullres && m.FullresCacheIds[pageNum] == "" || m.fullresCacheFiles[pageNum] == nil {
+	} else if q == types.Fullres && m.FullresCacheIds[pageNum] == "" || m.fullresCacheFiles[pageNum] == nil {
 		m.FullresCacheIds[pageNum] = f.ID()
 		m.fullresCacheFiles[pageNum] = f
 	}
@@ -741,9 +795,9 @@ func (m *Media) getCacheId(q types.Quality, pageNum int, cacheDir types.WeblensF
 func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
 	var cacheFileName string
 
-	if m.PageCount == 1 || q == dataStore.Thumbnail {
+	if m.PageCount == 1 || q == types.Thumbnail {
 		cacheFileName = fmt.Sprintf("%s-%s.cache", m.ID(), q)
-	} else if q != dataStore.Thumbnail {
+	} else if q != types.Thumbnail {
 		cacheFileName = fmt.Sprintf("%s-%s_%d.cache", m.ID(), q, pageNum)
 	}
 
@@ -751,7 +805,7 @@ func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
 }
 
 func (m *Media) getImageRecognitionTags() (err error) {
-	bs, err := m.ReadDisplayable(dataStore.Thumbnail)
+	bs, err := m.ReadDisplayable(types.Thumbnail, 0)
 	if err != nil {
 		return
 	}
@@ -791,6 +845,7 @@ func (m *Media) MarshalBSON() ([]byte, error) {
 		"mimeType":         m.MimeType,
 		"recognitionTags":  m.RecognitionTags,
 		"pageCount":        m.PageCount,
+		"videoLength":      m.VideoLength,
 	}
 	return bson.Marshal(data)
 }
@@ -814,6 +869,12 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.ThumbnailCacheId = types.FileId(data["thumbnailCacheId"].(string))
 
 	m.PageCount = int(data["pageCount"].(int32))
+
+	videoLength := data["videoLength"]
+	if videoLength != nil {
+		m.VideoLength = int(videoLength.(int32))
+	}
+
 	if data["fullresCacheIds"] != nil {
 		m.FullresCacheIds = util.Map(
 			data["fullresCacheIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) },
@@ -865,6 +926,7 @@ func (m *Media) MarshalJSON() ([]byte, error) {
 		"recognitionTags":  m.RecognitionTags,
 		"pageCount":        m.PageCount,
 		"imported":         m.imported,
+		"videoLength":      m.VideoLength,
 	}
 
 	return json.Marshal(data)

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as WindowGrid } from 'react-window'
 import './style.scss'
-import { FileDisplay, GlobalContextType } from '../Files/FileDisplay'
+import { FileDisplay } from '../Files/FileDisplay'
 import { useResize } from './hooks'
-import { FileContextT } from '../Files/File'
+import { FileContextT, GlobalContextType } from '../Files/File'
 import { FBDispatchT } from '../types/Types'
 
 type ScrollerDataT = {

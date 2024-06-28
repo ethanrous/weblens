@@ -180,7 +180,7 @@ export default function Wormhole() {
             />
             <WormholeWrapper
                 wormholeId={wormholeId}
-                wormholeName={wormholeInfo?.ShareName}
+                wormholeName={wormholeInfo?.shareName}
                 fileId={wormholeInfo?.fileId}
                 validWormhole={valid}
                 uploadDispatch={uploadDispatch}
@@ -204,7 +204,7 @@ export default function Wormhole() {
                         size="40"
                         style={{ lineHeight: '40px', marginLeft: 3 }}
                     >
-                        {wormholeInfo?.ShareName}
+                        {wormholeInfo?.shareName}
                     </Text>
                 </div>
                 {valid && (

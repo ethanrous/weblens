@@ -48,6 +48,10 @@ func (l *Lifetime) GetContentId() types.ContentId {
 	return l.ContentId
 }
 
+func (l *Lifetime) SetContentId(cId types.ContentId) {
+	l.ContentId = cId
+}
+
 // IsLive returns a boolean representing if this Lifetime shows a file
 // currently on the real filesystem, and has not been deleted.
 func (l *Lifetime) IsLive() bool {

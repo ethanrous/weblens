@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"strconv"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -110,61 +109,6 @@ func getMediaBatch(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"Media": ms})
-}
-
-func getProcessedMedia(ctx *gin.Context, q types.Quality) {
-	mediaId := types.ContentId(ctx.Param("mediaId"))
-
-	var pageNum int
-	var err error
-	pageString := ctx.Query("page")
-	if pageString != "" {
-		pageNum, err = strconv.Atoi(pageString)
-		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "bad page number"})
-			return
-		}
-	}
-
-	m := types.SERV.MediaRepo.Get(mediaId)
-	if m == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
-		return
-	}
-	bs, err := m.ReadDisplayable(q, pageNum)
-
-	if errors.Is(err, dataStore.ErrNoCache) {
-		util.Warning.Println("Did not find cache for media file")
-		f := types.SERV.FileTree.Get(m.GetFiles()[0])
-		if f != nil {
-			types.SERV.TaskDispatcher.ScanDirectory(f.GetParent(), types.SERV.Caster)
-			ctx.Status(http.StatusNoContent)
-			return
-		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
-			return
-		}
-	}
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
-		return
-	}
-
-	_, err = ctx.Writer.Write(bs)
-
-	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-}
-
-func getMediaThumbnail(ctx *gin.Context) {
-	getProcessedMedia(ctx, dataStore.Thumbnail)
-}
-
-func getMediaFullres(ctx *gin.Context) {
-	getProcessedMedia(ctx, dataStore.Fullres)
 }
 
 func getMediaTypes(ctx *gin.Context) {
@@ -941,44 +885,44 @@ func updateFileShare(ctx *gin.Context) {
 	util.ShowErr(types.NewWeblensError("Not impl - update file share"))
 	ctx.Status(http.StatusNotImplemented)
 	return
-	shareId := types.ShareId(ctx.Param("shareId"))
-	sh := types.SERV.ShareService.Get(shareId)
-	if sh == nil {
-		util.ErrTrace(types.ErrNoShare)
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
-		return
-	}
-
-	body, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-	var shareInfo newShareBody
-	err = json.Unmarshal(body, &shareInfo)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	accessors := util.Map(
-		shareInfo.Users, func(un types.Username) types.User {
-			return types.SERV.UserService.Get(un)
-		},
-	)
-
-	sh.SetAccessors(accessors)
-	sh.SetPublic(shareInfo.Public)
-	// SERV.ShareService.up
-	// err := sh.UpdateFileShare(sh, SERV.FileTree)
-
-	if err != nil {
-		util.ErrTrace(err)
-		return
-	}
-
-	ctx.Status(http.StatusOK)
+	// shareId := types.ShareId(ctx.Param("shareId"))
+	// sh := types.SERV.ShareService.Get(shareId)
+	// if sh == nil {
+	// 	util.ErrTrace(types.ErrNoShare)
+	// 	ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
+	// 	return
+	// }
+	//
+	// body, err := io.ReadAll(ctx.Request.Body)
+	// if err != nil {
+	// 	ctx.Status(http.StatusInternalServerError)
+	// 	return
+	// }
+	// var shareInfo newShareBody
+	// err = json.Unmarshal(body, &shareInfo)
+	// if err != nil {
+	// 	util.ErrTrace(err)
+	// 	ctx.Status(http.StatusInternalServerError)
+	// 	return
+	// }
+	//
+	// accessors := util.Map(
+	// 	shareInfo.Users, func(un types.Username) types.User {
+	// 		return types.SERV.UserService.Get(un)
+	// 	},
+	// )
+	//
+	// sh.SetAccessors(accessors)
+	// sh.SetPublic(shareInfo.Public)
+	// // SERV.ShareService.up
+	// // err := sh.UpdateFileShare(sh, SERV.FileTree)
+	//
+	// if err != nil {
+	// 	util.ErrTrace(err)
+	// 	return
+	// }
+	//
+	// ctx.Status(http.StatusOK)
 
 }
 

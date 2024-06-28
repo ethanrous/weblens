@@ -64,6 +64,7 @@ type Lifetime interface {
 	Add(FileAction)
 	GetLatestFileId() FileId
 	GetContentId() ContentId
+	SetContentId(ContentId)
 	IsLive() bool
 	GetActions() []FileAction
 }

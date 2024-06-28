@@ -2,7 +2,7 @@ import WeblensMedia from '../../Media/Media'
 import WeblensButton from '../../components/WeblensButton'
 import { useClick, useKeyDown } from '../../components/hooks'
 import { memo, useCallback, useContext, useMemo, useState } from 'react'
-import { UserContext } from '../../Context'
+import { MediaContext, UserContext } from '../../Context'
 import {
     IconCalendarTime,
     IconCaretDown,
@@ -261,6 +261,7 @@ export const GalleryMenu = memo(
     }) => {
         const { authHeader } = useContext(UserContext)
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
+        const { mediaState, mediaDispatch } = useContext(MediaContext)
         const [menuRef, setMenuRef] = useState(null)
 
         useClick(
@@ -291,23 +292,23 @@ export const GalleryMenu = memo(
 
                 let medias = []
                 if (galleryState.selecting) {
-                    medias = Array.from(galleryState.selected.keys())
+                    medias = mediaState.getAllSelected()
                 }
                 medias.push(media.Id())
                 const r = hideMedia(medias, authHeader)
-
-                galleryDispatch({
-                    type: 'delete_from_map',
-                    mediaIds: medias,
-                })
 
                 if ((await r).status !== 200) {
                     return false
                 }
 
+                mediaDispatch({
+                    type: 'remove_by_ids',
+                    mediaIds: medias,
+                })
+
                 return true
             },
-            [galleryState.selected]
+            [mediaState]
         )
 
         const adjustTime = useCallback(
@@ -315,7 +316,7 @@ export const GalleryMenu = memo(
                 const r = await adjustMediaTime(
                     media.Id(),
                     newDate,
-                    Array.from(galleryState.selected.keys()),
+                    mediaState.getAllSelected(),
                     authHeader
                 )
                 galleryDispatch({
@@ -325,7 +326,7 @@ export const GalleryMenu = memo(
 
                 return r
             },
-            [media, authHeader, galleryState.selected]
+            [media, authHeader, mediaState]
         )
 
         const hideStyle = useMemo(() => {

@@ -60,9 +60,11 @@ func (j *journalService) LogEvent(fe types.FileEvent) error {
 	}
 
 	actions := fe.GetActions()
-	slices.SortFunc(actions, func(a, b types.FileAction) int {
-		return a.GetTimestamp().Compare(b.GetTimestamp())
-	})
+	slices.SortFunc(
+		actions, func(a, b types.FileAction) int {
+			return a.GetTimestamp().Compare(b.GetTimestamp())
+		},
+	)
 
 	var updated []types.Lifetime
 
@@ -72,6 +74,14 @@ func (j *journalService) LogEvent(fe types.FileEvent) error {
 			newL, err := NewLifetime("", action)
 			if err != nil {
 				return err
+			}
+
+			if f := types.SERV.FileTree.Get(action.GetDestinationId()); !f.IsDir() {
+				contentId := f.GetContentId()
+				if contentId == "" {
+					return types.NewWeblensError("No content ID in lifetime update")
+				}
+				newL.SetContentId(contentId)
 			}
 
 			j.lifetimes[newL.ID()] = newL
@@ -85,6 +95,9 @@ func (j *journalService) LogEvent(fe types.FileEvent) error {
 	}
 
 	for _, update := range updated {
+		if update.GetContentId() == "" && !types.SERV.FileTree.Get(update.GetLatestFileId()).IsDir() {
+			return types.NewWeblensError("No content ID in lifetime update")
+		}
 		err := types.SERV.Database.AddOrUpdateLifetime(update)
 		if err != nil {
 			return err

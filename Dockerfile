@@ -1,7 +1,7 @@
 FROM debian:12-slim
 
 RUN apt update
-RUN apt-get install -y libvips exiftool
+RUN apt-get install -y libvips exiftool ffmpeg
 
 WORKDIR /app
 COPY ui/dist /ui/dist

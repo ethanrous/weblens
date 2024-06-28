@@ -1,11 +1,15 @@
 package media
 
 import (
+	"context"
+	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/barasher/go-exiftool"
+	"github.com/creativecreature/sturdyc"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -16,6 +20,7 @@ type mediaRepo struct {
 	mapLock     *sync.Mutex
 	typeService types.MediaTypeService
 	exif        *exiftool.Exiftool
+	mediaCache  *sturdyc.Client[[]byte]
 }
 
 func NewRepo(mediaTypeServ types.MediaTypeService) types.MediaRepo {
@@ -24,6 +29,7 @@ func NewRepo(mediaTypeServ types.MediaTypeService) types.MediaRepo {
 		mapLock:     &sync.Mutex{},
 		typeService: mediaTypeServ,
 		exif:        NewExif(1000*1000*100, 0, nil),
+		mediaCache:  sturdyc.New[[]byte](1500, 10, time.Hour, 10),
 	}
 }
 
@@ -99,7 +105,7 @@ func (mr *mediaRepo) Get(mId types.ContentId) types.Media {
 func (mr *mediaRepo) Del(cId types.ContentId) error {
 	m := mr.Get(cId)
 
-	f, err := m.GetCacheFile(dataStore.Thumbnail, false, 0)
+	f, err := m.GetCacheFile(types.Thumbnail, false, 0)
 	if err == nil {
 		err = dataStore.PermanentlyDeleteFile(f, types.SERV.Caster)
 		if err != nil {
@@ -108,7 +114,7 @@ func (mr *mediaRepo) Del(cId types.ContentId) error {
 	}
 	f = nil
 	for page := range m.GetPageCount() + 1 {
-		f, err = m.GetCacheFile(dataStore.Fullres, false, page)
+		f, err = m.GetCacheFile(types.Fullres, false, page)
 		if err == nil {
 			err = dataStore.PermanentlyDeleteFile(f, types.SERV.Caster)
 			if err != nil {
@@ -135,11 +141,40 @@ func (mr *mediaRepo) Del(cId types.ContentId) error {
 }
 
 func (mr *mediaRepo) FetchCacheImg(m types.Media, q types.Quality, pageNum int) ([]byte, error) {
-	cache, err := getMediaCache(m, q, pageNum)
+	cacheKey := string(m.ID()) + string(q) + strconv.Itoa(pageNum)
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "cacheKey", cacheKey)
+	ctx = context.WithValue(ctx, "quality", q)
+	ctx = context.WithValue(ctx, "pageNum", pageNum)
+	ctx = context.WithValue(ctx, "Media", m)
+
+	cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, fetchAndCacheMedia)
 	if err != nil {
 		return nil, err
 	}
 	return cache, nil
+}
+
+func (mr *mediaRepo) StreamCacheVideo(m types.Media, startByte, endByte int) ([]byte, error) {
+	return nil, types.ErrNotImplemented("StreamCacheVideo")
+	// cacheKey := fmt.Sprintf("%s-STREAM %d-%d", m.ID(), startByte, endByte)
+
+	// ctx := context.Background()
+	// ctx = context.WithValue(ctx, "cacheKey", cacheKey)
+	// ctx = context.WithValue(ctx, "startByte", startByte)
+	// ctx = context.WithValue(ctx, "endByte", endByte)
+	// ctx = context.WithValue(ctx, "Media", m)
+
+	// video, err := fetchAndCacheVideo(m.(*Media), startByte, endByte)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, fetchAndCacheVideo)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return cache, nil
 }
 
 func (mr *mediaRepo) GetFilteredMedia(
@@ -209,4 +244,33 @@ func (mr *mediaRepo) RunExif(path string) ([]exiftool.FileMetadata, error) {
 		return nil, types.ErrNoExiftool
 	}
 	return mr.exif.ExtractMetadata(path), nil
+}
+
+func fetchAndCacheMedia(ctx context.Context) (data []byte, err error) {
+	defer util.RecoverPanic("Failed to fetch media image into cache")
+
+	m := ctx.Value("Media").(*Media)
+	// util.Debug.Printf("Media cache miss [%s]", m.ID())
+
+	q := ctx.Value("quality").(types.Quality)
+	pageNum := ctx.Value("pageNum").(int)
+
+	f, err := m.GetCacheFile(q, true, pageNum)
+	if err != nil {
+		return
+	}
+
+	if f == nil {
+		return nil, types.ErrNoFile
+	}
+
+	data, err = f.ReadAll()
+	if err != nil {
+		return
+	}
+	if len(data) == 0 {
+		err = fmt.Errorf("displayable bytes empty")
+		return
+	}
+	return
 }

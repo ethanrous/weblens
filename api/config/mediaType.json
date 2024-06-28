@@ -120,9 +120,10 @@
     "video/mp4": {
         "FriendlyName": "MP4",
         "FileExtension": [
-            "MP4"
+            "MP4",
+            "mp4"
         ],
-        "IsDisplayable": false,
+        "IsDisplayable": true,
         "IsRaw": false,
         "IsVideo": true,
         "SupportsImgRecog": false

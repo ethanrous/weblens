@@ -1,4 +1,3 @@
-import { GlobalContextType, SelectedState } from '../../Files/FileDisplay'
 import {
     AuthHeaderT,
     FBDispatchT,
@@ -7,7 +6,12 @@ import {
 } from '../../types/Types'
 import { binarySearch } from '../../util'
 import { getSortFunc, handleRename, MoveSelected } from './FileBrowserLogic'
-import { FbMenuModeT, FileContextT } from '../../Files/File'
+import {
+    FbMenuModeT,
+    FileContextT,
+    GlobalContextType,
+    SelectedState,
+} from '../../Files/File'
 import { DraggingStateT } from '../../Files/filesContext'
 
 export function GetFilesContext(

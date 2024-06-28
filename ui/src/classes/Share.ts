@@ -1,11 +1,11 @@
 export interface ShareDataT {
-    Accessors: string[]
-    Expires: string
-    Public: boolean
-    shareId: string
+    id: string
+    accessors: string[]
+    expires: string
+    public: boolean
     fileId: string
-    ShareName: string
-    Wormhole: boolean
+    shareName: string
+    wormhole: boolean
 }
 
 export class WeblensShare {
@@ -17,21 +17,21 @@ export class WeblensShare {
             return
         }
         this.data = init
-        if (!this.data.Accessors) {
-            this.data.Accessors = []
+        if (!this.data.accessors) {
+            this.data.accessors = []
         }
     }
 
     Id(): string {
-        return this.data.shareId
+        return this.data.id
     }
 
     IsPublic() {
-        return this.data.Public
+        return this.data.public
     }
 
     IsWormhole() {
-        return this.data.Wormhole
+        return this.data.wormhole
     }
 
     GetFileId(): string {
@@ -39,10 +39,10 @@ export class WeblensShare {
     }
 
     GetAccessors(): string[] {
-        return this.data.Accessors
+        return this.data.accessors
     }
 
     GetPublicLink(): string {
-        return `${window.location.origin}/files/share/${this.data.shareId}`
+        return `${window.location.origin}/files/share/${this.data.id}/${this.data.fileId}`
     }
 }

@@ -1,11 +1,18 @@
 import { memo, useCallback, useContext, useEffect, useState } from 'react'
 import { UserContext } from '../Context'
-import { IconExclamationCircle, IconPhoto } from '@tabler/icons-react'
+import {
+    IconExclamationCircle,
+    IconPhoto,
+    IconPlayerPauseFilled,
+    IconPlayerPlayFilled,
+} from '@tabler/icons-react'
 import { CSSProperties, Loader } from '@mantine/core'
 import { UserContextT } from '../types/Types'
 import WeblensMedia, { PhotoQuality } from './Media'
 
 import '../components/style.scss'
+import { WeblensProgress } from '../components/WeblensProgress'
+import { useResize, useVideo } from '../components/hooks'
 
 export const MediaImage = memo(
     ({
@@ -43,6 +50,8 @@ export const MediaImage = memo(
 
         const [loadError, setLoadErr] = useState('')
         const [src, setUrl] = useState({ url: '', id: media.Id() })
+        const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
+        const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
         const { authHeader }: UserContextT = useContext(UserContext)
 
         useEffect(() => {
@@ -53,14 +62,14 @@ export const MediaImage = memo(
                     pageNumber,
                     () => {
                         setUrl({
-                            url: media.GetImgUrl(quality),
+                            url: media.GetObjectUrl(quality),
                             id: media.Id(),
                         })
                         setLoadErr(media.HasLoadError())
                     },
                     () => {
                         setUrl({
-                            url: media.GetImgUrl(quality),
+                            url: media.GetObjectUrl(quality),
                             id: media.Id(),
                         })
                         setLoadErr(media.HasLoadError())
@@ -74,7 +83,9 @@ export const MediaImage = memo(
                 (media.HasQualityLoaded(quality) && src.url === '') ||
                 src.id !== media.Id()
             ) {
-                setUrl({ url: media.GetImgUrl(quality), id: media.Id() })
+                setUrl({ url: media.GetObjectUrl(quality), id: media.Id() })
+            } else if (media.HighestQualityLoaded() !== '' && src.url === '') {
+                setUrl({ url: media.GetObjectUrl('thumbnail'), id: media.Id() })
             }
         }, [media, quality, doFetch])
 
@@ -84,6 +95,10 @@ export const MediaImage = memo(
             },
             [preventClick]
         )
+
+        const shouldShowVideo =
+            media.GetMediaType()?.IsVideo && quality === 'fullres'
+        // media.HighestQualityLoaded() === 'fullres'
 
         return (
             <div
@@ -100,7 +115,8 @@ export const MediaImage = memo(
                 {media.Id() !== '' &&
                     quality === 'fullres' &&
                     media.HighestQualityLoaded() !== 'fullres' &&
-                    !loadError && (
+                    !loadError &&
+                    (!media.GetMediaType().IsVideo || isWaiting) && (
                         <Loader
                             color="white"
                             bottom={40}
@@ -111,28 +127,39 @@ export const MediaImage = memo(
                     )}
 
                 <img
-                    // alt={'image'}
+                    className="media-image animate-fade"
                     data-fit-logic={fitLogic}
                     data-disabled={disabled}
-                    data-hide={src.url === '' || media.HasLoadError()}
-                    className="media-image animate-fade"
+                    data-hide={
+                        src.url === '' ||
+                        media.HasLoadError() ||
+                        shouldShowVideo
+                    }
                     draggable={false}
                     src={src.url}
                     style={imgStyle}
                 />
 
-                {quality === 'fullres' && media.GetMediaType()?.IsVideo && (
-                    <video src="" controls />
-                )}
+                <VideoWrapper
+                    url={src.url}
+                    shouldShowVideo={shouldShowVideo}
+                    media={media}
+                    fitLogic={fitLogic}
+                    imgStyle={imgStyle}
+                    videoRef={videoRef}
+                    setVideoRef={setVideoRef}
+                    isPlaying={isPlaying}
+                    playtime={playtime}
+                />
 
                 {/* {media?.blurHash && lazy && !imgData && (
-                    <Blurhash
-                        style={{ position: "absolute" }}
-                        height={visibleRef?.current?.clientHeight ? visibleRef.current.clientHeight : 0}
-                        width={visibleRef?.current?.clientWidth ? visibleRef.current.clientWidth : 0}
-                        hash={media.blurHash}
-                    />
-                )} */}
+                 <Blurhash
+                 style={{ position: "absolute" }}
+                 height={visibleRef?.current?.clientHeight ? visibleRef.current.clientHeight : 0}
+                 width={visibleRef?.current?.clientWidth ? visibleRef.current.clientWidth : 0}
+                 hash={media.blurHash}
+                 />
+                 )} */}
             </div>
         )
     },
@@ -156,3 +183,76 @@ export const MediaImage = memo(
         return true
     }
 )
+
+function VideoWrapper({
+    url,
+    shouldShowVideo,
+    fitLogic,
+    media,
+    imgStyle,
+    videoRef,
+    setVideoRef,
+    isPlaying,
+    playtime,
+}) {
+    const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+    const size = useResize(containerRef)
+    const { authHeader } = useContext(UserContext)
+
+    if (!shouldShowVideo) {
+        return null
+    }
+    console.log(media.GetVideoLength())
+
+    return (
+        <div ref={setContainerRef} className="flex items-center justify-center">
+            <div className="flex shrink-0 w-[24px] h-[24px] absolute z-50 cursor-pointer">
+                {isPlaying && (
+                    <IconPlayerPauseFilled onClick={() => videoRef.pause()} />
+                )}
+                {!isPlaying && (
+                    <IconPlayerPlayFilled onClick={() => videoRef.play()} />
+                )}
+            </div>
+            <video
+                ref={setVideoRef}
+                autoPlay
+                className="media-image animate-fade"
+                poster={media.GetObjectUrl('thumbnail')}
+                data-fit-logic={fitLogic}
+                data-hide={
+                    url === '' || media.HasLoadError() || !shouldShowVideo
+                }
+                style={imgStyle}
+                onClick={() => {
+                    if (isPlaying) {
+                        videoRef.pause()
+                    } else {
+                        videoRef.play()
+                    }
+                }}
+            >
+                <source
+                    src={media.StreamVideoUrl(authHeader)}
+                    // type="video/mp4"
+                />
+            </video>
+            <div
+                className="flex absolute justify-center items-end p-3 pointer-events-none"
+                style={{ width: size.width, height: size.height }}
+            >
+                <div className="flex h-2 w-9/12">
+                    <WeblensProgress
+                        value={
+                            (playtime * 100) / (media.GetVideoLength() / 1000)
+                        }
+                        seekCallback={(v) => {
+                            videoRef.currentTime =
+                                (media.GetVideoLength() / 1000) * v
+                        }}
+                    />
+                </div>
+            </div>
+        </div>
+    )
+}

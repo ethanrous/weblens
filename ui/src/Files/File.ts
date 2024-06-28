@@ -9,8 +9,8 @@ import { ShareDataT, WeblensShare } from '../classes/Share'
 import { MediaDataT } from '../Media/Media'
 import { FBDispatchT } from '../types/Types'
 import { humanFileSize } from '../util'
-import { SelectedState } from './FileDisplay'
-import { FbModeT } from './filesContext'
+import { DraggingStateT, FbModeT } from './filesContext'
+import API_ENDPOINT from '../api/ApiEndpoint'
 
 function getIcon(folderName: string): (p) => JSX.Element {
     if (folderName === 'HOME') {
@@ -65,6 +65,7 @@ interface fileData {
     displayable?: boolean
 
     size?: number
+    shareId?: string
 
     // Non-api props
     parents?: WeblensFile[]
@@ -89,8 +90,8 @@ export class WeblensFile {
             this.mediaId = init.mediaData.contentId
         }
 
+        this.data.shareId = init.share
         if (init.share) {
-            this.share = new WeblensShare({ shareId: init.share } as ShareDataT)
         }
     }
 
@@ -274,6 +275,25 @@ export class WeblensFile {
         }
     }
 
+    public async LoadShare(authHeader) {
+        if (this.share) {
+            return this.share
+        } else if (!this.data.shareId) {
+            return null
+        }
+
+        const url = new URL(`${API_ENDPOINT}/file/share/${this.data.shareId}`)
+        return fetch(url.toString(), {
+            headers: authHeader,
+        })
+            .then((r) => r.json())
+            .then((j) => {
+                console.log(j)
+                this.share = new WeblensShare(j as ShareDataT)
+                return this.share
+            })
+    }
+
     GetShare(): WeblensShare {
         return this.share
     }
@@ -300,6 +320,15 @@ export class WeblensFile {
     }
 }
 
+export enum SelectedState {
+    NotSelected = 0x0,
+    Hovering = 0x1,
+    InRange = 0x10,
+    Selected = 0x100,
+    LastSelected = 0x1000,
+    Droppable = 0x10000,
+}
+
 export type FileContextT = {
     file: WeblensFile
     selected: SelectedState
@@ -311,4 +340,30 @@ export enum FbMenuModeT {
     Sharing,
     NameFolder,
     AddToAlbum,
+}
+
+export type GlobalContextType = {
+    setDragging: (d: DraggingStateT) => void
+    blockFocus: (b: boolean) => void
+    rename: (itemId: string, newName: string) => void
+
+    setMenuOpen: (m: FbMenuModeT) => void
+    setMenuPos: ({ x, y }: { x: number; y: number }) => void
+    setMenuTarget: (itemId: string) => void
+
+    setHovering?: (itemId: string) => void
+    setSelected?: (itemId: string, selected?: boolean) => void
+    selectAll?: (itemId: string, selected?: boolean) => void
+    moveSelected?: (itemId: string) => void
+    doSelectMany?: () => void
+    setMoveDest?: (itemName) => void
+
+    dragging?: number
+    numCols?: number
+    itemWidth?: number
+    initialScrollIndex?: number
+    hoveringIndex?: number
+    lastSelectedIndex?: number
+    doMediaFetch?: boolean
+    allowEditing?: boolean
 }

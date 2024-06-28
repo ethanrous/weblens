@@ -20,6 +20,55 @@ export const useResize = (elem: HTMLDivElement) => {
     return size
 }
 
+export const useVideo = (elem: HTMLVideoElement) => {
+    const [playtime, setPlaytime] = useState(0)
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [isWaiting, setIsWaiting] = useState(true)
+
+    const updatePlaytime = useCallback(() => {
+        setPlaytime(elem.currentTime)
+    }, [setPlaytime, elem])
+
+    const updatePlayState = useCallback(
+        (e) => {
+            setIsPlaying(e.type === 'play')
+        },
+        [setIsPlaying]
+    )
+
+    const updateBufferState = useCallback(
+        (e) => {
+            console.log(e.type)
+            if (e.type === 'waiting') {
+                setIsWaiting(true)
+            } else if (e.type === 'playing') {
+                setIsWaiting(false)
+            }
+        },
+        [setIsWaiting]
+    )
+
+    useEffect(() => {
+        if (!elem) {
+            return
+        }
+        elem.addEventListener('timeupdate', updatePlaytime)
+        elem.addEventListener('play', updatePlayState)
+        elem.addEventListener('pause', updatePlayState)
+        elem.addEventListener('waiting', updateBufferState)
+        elem.addEventListener('playing', updateBufferState)
+        return () => {
+            elem.removeEventListener('timeupdate', updatePlaytime)
+            elem.removeEventListener('play', updatePlayState)
+            elem.removeEventListener('pause', updatePlayState)
+            elem.removeEventListener('waiting', updateBufferState)
+            elem.removeEventListener('playing', updateBufferState)
+        }
+    }, [updatePlaytime, updatePlayState, elem])
+
+    return { playtime, isPlaying, isWaiting }
+}
+
 export const useKeyDown = (
     key: string | ((e: KeyboardEvent) => boolean),
     callback: (e: KeyboardEvent) => void

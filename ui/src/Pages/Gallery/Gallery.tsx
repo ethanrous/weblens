@@ -23,7 +23,6 @@ const Gallery = () => {
     const [galleryState, galleryDispatch] = useReducer<
         (state: GalleryStateT, action: GalleryAction) => GalleryStateT
     >(galleryReducer, {
-        selected: new Map<string, boolean>(),
         albumsMap: new Map<string, AlbumData>(),
         albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
         includeRaw: JSON.parse(localStorage.getItem('showRaws')) || false,
