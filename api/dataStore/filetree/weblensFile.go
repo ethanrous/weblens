@@ -162,7 +162,7 @@ func (f *weblensFile) GetAbsPath() string {
 	if f.absolutePath == "" {
 		f.absolutePath = filepath.Join(f.parent.GetAbsPath(), f.filename)
 	}
-	if f.IsDir() && !strings.HasSuffix(f.absolutePath, "/") {
+	if f.IsDir() && f.absolutePath[len(f.absolutePath)-1] != '/' {
 		f.absolutePath = f.absolutePath + "/"
 	}
 	return f.absolutePath
@@ -338,12 +338,12 @@ func (f *weblensFile) ReadDir() ([]types.WeblensFile, error) {
 		return nil, fmt.Errorf("invalid file to read dir")
 	}
 	entries, err := os.ReadDir(f.absolutePath)
+
 	if err != nil {
 		return nil, err
 	}
-
-	children := make([]types.WeblensFile, len(entries))
-	for i, file := range entries {
+	var children []types.WeblensFile
+	for _, file := range entries {
 		singleChild := f.tree.NewFile(f, file.Name(), file.IsDir())
 		exist := f.tree.Get(singleChild.ID())
 		if exist != nil {
@@ -351,37 +351,9 @@ func (f *weblensFile) ReadDir() ([]types.WeblensFile, error) {
 		}
 
 		f.childLock.Lock()
-		_, e := slices.BinarySearchFunc(f.children, singleChild.Filename(), searchWfByFilename)
-		if e {
-			f.childLock.Unlock()
-			continue
-		}
+		children = append(children, singleChild)
 		f.childLock.Unlock()
-		children[i] = singleChild
-
-		// err := f.AddChild(singleChild)
-		// if err != nil {
-		// 	return err
-		// }
-
-		// err := fsTreeInsert(singleChild, f)
-		// if err != nil {
-		//	var alreadyExistsError AlreadyExistsError
-		//	switch {
-		//	case errors.As(err, &alreadyExistsError):
-		//	default:
-		//		return err
-		//	}
-		// }
 	}
-
-	children = util.Filter(
-		children, func(c types.WeblensFile) bool {
-			return c != nil
-		},
-	)
-
-	// f.children = children
 
 	return children, nil
 }
@@ -804,7 +776,7 @@ func (f *weblensFile) BubbleMap(fn types.FileMapFunc) error {
 }
 
 func (f *weblensFile) IsParentOf(child types.WeblensFile) bool {
-	return true
+	return strings.HasPrefix(child.GetAbsPath(), f.GetAbsPath())
 }
 
 func (f *weblensFile) SetWatching() error {

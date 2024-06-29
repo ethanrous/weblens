@@ -4,6 +4,7 @@ import '../style/weblensProgress.scss'
 
 type progressProps = {
     value: number
+    secondaryValue?: number
     complete?: boolean
     orientation?: 'horizontal' | 'vertical'
     loading?: boolean
@@ -15,6 +16,7 @@ type progressProps = {
 export const WeblensProgress = memo(
     ({
         value,
+        secondaryValue,
         complete = false,
         orientation = 'horizontal',
         loading = false,
@@ -35,10 +37,12 @@ export const WeblensProgress = memo(
 
                     if (e.target instanceof HTMLDivElement) {
                         const rect = e.target.getBoundingClientRect()
-                        console.log(e.clientX, rect.left, rect.right)
-                        seekCallback(
+                        let v =
                             (e.clientX - rect.left) / (rect.right - rect.left)
-                        )
+                        if (v < 0) {
+                            v = 0
+                        }
+                        seekCallback(v)
                     }
                 }}
                 style={{
@@ -46,8 +50,8 @@ export const WeblensProgress = memo(
                         orientation === 'horizontal'
                             ? 'flex-start'
                             : 'flex-end',
-                    flexDirection:
-                        orientation === 'horizontal' ? 'row' : 'column',
+                    // flexDirection:
+                    //     orientation === 'horizontal' ? 'row' : 'column',
                     ...style,
                     cursor: seekCallback ? 'pointer' : 'default',
                 }}
@@ -60,6 +64,20 @@ export const WeblensProgress = memo(
                             orientation === 'horizontal' ? '100%' : `${value}%`,
                         width:
                             orientation === 'horizontal' ? `${value}%` : '100%',
+                    }}
+                />
+                <div
+                    className="weblens-progress-bar"
+                    data-secondary={true}
+                    style={{
+                        height:
+                            orientation === 'horizontal'
+                                ? '100%'
+                                : `${secondaryValue}%`,
+                        width:
+                            orientation === 'horizontal'
+                                ? `${secondaryValue}%`
+                                : '100%',
                     }}
                 />
             </div>

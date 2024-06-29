@@ -138,7 +138,9 @@ func main() {
 	types.SERV.SetShareService(shareService)
 
 	err = dataStore.ClearTempDir(ft)
-	util.FailOnError(err, "Failed to clear temporary directory on startup")
+	if err != nil {
+		panic(err)
+	}
 	sw.Lap("Clear tmp dir")
 
 	err = dataStore.ClearTakeoutDir(ft)

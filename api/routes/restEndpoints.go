@@ -109,6 +109,7 @@ func AddInitializationRoutes(api *gin.RouterGroup) {
 	api.GET("/user", getUserInfo)
 }
 
+// @BasePath /
 func AddSharedRoutes(api *gin.RouterGroup) {
 	router.GET("/ping", ping)
 	api.GET("/info", getServerInfo)
@@ -118,6 +119,7 @@ func AddSharedRoutes(api *gin.RouterGroup) {
 	api.GET("/media/:mediaId/thumbnail.webp", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
 	api.GET("/media/:mediaId/stream", streamVideo)
+	api.GET("/media/:mediaId/:chunkName", streamVideo)
 
 	api.GET("/file/:fileId/history", getFileHistory)
 	api.GET("/history/:folderId", getPastFolderInfo)

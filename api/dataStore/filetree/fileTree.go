@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 
@@ -123,44 +124,56 @@ func (ft *fileTree) has(id types.FileId) bool {
 	return ok
 }
 
+var pushing time.Duration
+
 func (ft *fileTree) Add(f types.WeblensFile) error {
+	start := time.Now()
 	if ft.has(f.ID()) {
-		return types.NewWeblensError(
+		err := types.NewWeblensError(
 			fmt.Sprintf(
 				"key collision on attempt to insert to filesystem tree: %s. "+
 					"Existing file is at %s, new file is at %s", f.ID(), ft.Get(f.ID()).GetAbsPath(), f.GetAbsPath(),
 			),
 		)
+		pushing += time.Since(start)
+		return err
 	}
 
 	if slices.Contains(IgnoreFilenames, f.Filename()) {
+		pushing += time.Since(start)
 		return nil
 	}
 
 	ft.addInternal(f.ID(), f)
 	err := f.GetParent().AddChild(f)
 	if err != nil {
+		pushing += time.Since(start)
 		return err
 	}
 
 	// Add system files to the map, but don't journal or push updates for them
 	if f.Owner() == dataStore.WeblensRootUser {
+		pushing += time.Since(start)
 		return nil
 	}
 
 	if f.IsDir() {
 		err = ft.journalService.WatchFolder(f)
 		if err != nil {
+			pushing += time.Since(start)
 			return err
 		}
 	} else {
-		err = ft.ResizeUp(f, types.SERV.Caster)
-		if err != nil {
-			util.ErrTrace(err)
-		}
+		// err = ft.ResizeUp(f, types.SERV.Caster)
+		// if err != nil {
+		// 	util.ErrTrace(err)
+		// }
 	}
 
 	types.SERV.Caster.PushFileCreate(f)
+
+	pushing += time.Since(start)
+	// util.Debug.Println("Adding", pushing)
 
 	return nil
 }

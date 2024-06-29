@@ -172,7 +172,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                     />
                 </div>
             </div>
-            <div className="h-6 shrink-0 w-full m-3">
+            <div className="relative h-6 shrink-0 w-full m-3">
                 <WeblensProgress
                     value={prog.getProgress()}
                     complete={prog.stage === TaskStage.Complete}

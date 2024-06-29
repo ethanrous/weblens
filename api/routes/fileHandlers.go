@@ -62,6 +62,7 @@ func createFolder(ctx *gin.Context) {
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *gin.Context) {
 	selfData, err := dir.FormatFileInfo(acc)
+
 	if err != nil {
 		if errors.Is(err, dataStore.ErrNoFileAccess) {
 			ctx.JSON(http.StatusNotFound, "Failed to get folder info")
@@ -77,15 +78,11 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 		if acc.GetTime().Unix() > 0 {
 			ctx.Status(http.StatusNotImplemented)
 			return
-			// filteredDirInfo, err = dataStore.GetPastFileInfo(dir, acc)
-			// if err != nil {
-			// 	util.ShowErr(err)
-			// 	ctx.Status(http.StatusInternalServerError)
-			// 	return
-			// }
 		} else {
 			filteredDirInfo = dir.GetChildrenInfo(acc)
 		}
+	} else {
+		filteredDirInfo = []types.FileInfo{}
 	}
 
 	var parentsInfo []types.FileInfo
@@ -113,7 +110,6 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 			},
 		)
 	}
-
 }
 
 func getFolder(ctx *gin.Context) {
@@ -169,9 +165,9 @@ func getFolder(ctx *gin.Context) {
 		return
 	}
 
-	if !dir.IsDir() {
-		dir = dir.GetParent()
-	}
+	// if !dir.IsDir() {
+	// 	dir = dir.GetParent()
+	// }
 
 	formatRespondFolderInfo(dir, acc, ctx)
 }

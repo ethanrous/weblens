@@ -145,7 +145,11 @@ export const ContainerMedia = ({
             <MediaImage
                 media={mediaData}
                 quality={'fullres'}
-                containerStyle={style}
+                containerStyle={{
+                    ...style,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                }}
                 preventClick
             />
         )
@@ -263,7 +267,6 @@ const Presentation = memo(
                     mediaData={mediaData}
                     Element={element}
                 />
-                {/* <Text style={{ position: 'absolute', bottom: guiShown ? 15 : -100, left: '50vw' }} >{}</Text> */}
 
                 <div className="close-icon" data-shown={guiShown}>
                     <WeblensButton

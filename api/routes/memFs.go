@@ -119,7 +119,7 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[locIndex+len("../ui/dist/"):]
 	}
 
-	data := addIndexTag("url", loc, string(index.realFile.data))
+	data := addIndexTag("url", util.GetHostURL()+loc, string(index.realFile.data))
 
 	if strings.HasPrefix(loc, "files/share/") {
 		loc = loc[len("files/share/"):]
@@ -128,11 +128,19 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		share := types.SERV.ShareService.Get(shareId)
 		if share != nil {
 			f := types.SERV.FileTree.Get(types.FileId(share.GetItemId()))
+			m := types.SERV.MediaRepo.Get(f.GetContentId())
 			if f != nil {
 				imgUrl := fmt.Sprintf("%sapi/media/%s/thumbnail.webp", util.GetHostURL(), f.GetContentId())
 				data = addIndexTag("image", imgUrl, data)
 				data = addIndexTag("title", f.Filename(), data)
 				data = addIndexTag("description", "Weblens file share", data)
+				if m.GetMediaType().IsVideo() {
+					videoUrl := fmt.Sprintf("%sapi/media/%s/stream", util.GetHostURL(), f.GetContentId())
+					data = addIndexTag("type", "video.other", data)
+					data = addIndexTag("video:url", videoUrl, data)
+					data = addIndexTag("video:secure_url", videoUrl, data)
+					data = addIndexTag("video:type", "text/html", data)
+				}
 			}
 		}
 	}

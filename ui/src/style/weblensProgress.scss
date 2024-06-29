@@ -1,8 +1,10 @@
 @import "../components/theme.scss";
 
 .weblens-progress {
+    position: absolute;
     display: flex;
-    background-color: $dark-paper;
+    flex-direction: column;
+    background-color: $bottom-grey;
     border-radius: 3px;
     overflow: hidden;
     box-shadow: 4px 4px 1px #001;
@@ -51,12 +53,19 @@
   }
 
 .weblens-progress-bar {
+    position: absolute;
     pointer-events: none;
-    background-color: #4444ff;
+    background-color: $main-accent;
+    box-shadow: $soft-shadow;
+    z-index: 2;
     transition:
         width 0.2s ease-in-out,
         height 0.2s ease-in-out;
 
+    &[data-secondary='true'] {
+        z-index: 1;
+        background-color: $dark-paper;
+    }
     &[data-complete='true'] {
         background-color: #22bb33;
     }

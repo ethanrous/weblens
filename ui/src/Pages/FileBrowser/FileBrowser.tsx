@@ -20,7 +20,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { memo, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
     CreateFolder,
@@ -561,15 +561,19 @@ const UsageInfo = ({}) => {
                 </div>
             )}
             {miniMode && startIcon}
-            <WeblensProgress
-                key={miniMode ? 'usage-vertical' : 'usage-horizontal'}
-                value={usagePercent}
-                orientation={miniMode ? 'vertical' : 'horizontal'}
+            <div
+                className="relative h-max w-max"
                 style={{
                     height: miniMode ? 100 : 20,
                     width: miniMode ? 20 : '100%',
                 }}
-            />
+            >
+                <WeblensProgress
+                    key={miniMode ? 'usage-vertical' : 'usage-horizontal'}
+                    value={usagePercent}
+                    orientation={miniMode ? 'vertical' : 'horizontal'}
+                />
+            </div>
             <div
                 className="flex flex-row h-max justify-between items-center"
                 style={{
@@ -619,36 +623,6 @@ function FileSearch({ searchQuery }: { searchQuery: string }) {
     const nav = useNavigate()
     const { fbState, fbDispatch } = useContext(FbContext)
 
-    // useEffect(() => {
-    //     if (Boolean(fb.searchContent) && !searchOpen) {
-    //         setSearchOpen(true)
-    //     }
-    // }, [searchOpen, fb.searchContent])
-
-    // useEffect(() => {
-    //     if (fb.fbMode !== FbModeT.search) {
-    //         setHintOpen(false)
-    //         setSearchOpen(false)
-    //     }
-    // }, [fb.fbMode])
-
-    // useEffect(() => {
-    //     if (
-    //         !Boolean(fb.searchContent) ||
-    //         document.activeElement !== searchRef.current
-    //     ) {
-    //         setHintOpen(false)
-    //         return
-    //     }
-    //     try {
-    //         new RegExp(fb.searchContent)
-    //         setError(false)
-    //         setHintOpen(true)
-    //     } catch {
-    //         setHintOpen(false)
-    //     }
-    // }, [setHintOpen, fb.searchContent])
-
     return (
         <div className="h-max w-max mr-2">
             <WeblensInput
@@ -668,6 +642,7 @@ function FileSearch({ searchQuery }: { searchQuery: string }) {
                     fbDispatch({ type: 'set_is_searching', isSearching: false })
                 }
                 height={50}
+                minimize
                 stealFocus={!fbState.blockFocus}
                 valueCallback={(v) =>
                     fbDispatch({
@@ -676,65 +651,7 @@ function FileSearch({ searchQuery }: { searchQuery: string }) {
                     })
                 }
             />
-            {/*<div className="search-box">*/}
-            {/*    <IconSearch*/}
-            {/*        color="white"*/}
-            {/*        className="search-icon"*/}
-            {/*        onClick={() => {*/}
-            {/*            setSearchOpen(true)*/}
-            {/*            searchRef.current.focus()*/}
-            {/*        }}*/}
-            {/*    />*/}
-            {/*    <Input*/}
-            {/*        mod={{ 'data-open': 'false' }}*/}
-            {/*        onBlur={() => {*/}
-            {/*            if (fb.searchContent === '') {*/}
-            {/*                setSearchOpen(false)*/}
-            {/*                setHintOpen(false)*/}
-            {/*                searchRef.current.blur()*/}
-            {/*            } else if (hintOpen) {*/}
-            {/*                setHintOpen(false)*/}
-            {/*            }*/}
-            {/*        }}*/}
-            {/*        onFocus={() => {*/}
-            {/*            if (fb.searchContent === '') {*/}
-            {/*                return*/}
-            {/*            }*/}
-            {/*            try {*/}
-            {/*                new RegExp(fb.searchContent)*/}
-            {/*                setError(false)*/}
-            {/*                setHintOpen(true)*/}
-            {/*            } catch {*/}
-            {/*                setHintOpen(false)*/}
-            {/*            }*/}
-            {/*        }}*/}
-            {/*        classNames={{*/}
-            {/*            input: `search-input search-input-${*/}
-            {/*                searchOpen ? 'open' : 'closed'*/}
-            {/*            }`,*/}
-            {/*        }}*/}
-            {/*        unstyled*/}
-            {/*        value={fb.searchContent}*/}
-            {/*        ref={searchRef}*/}
-            {/*        onChange={(e) =>*/}
-            {/*            dispatch({*/}
-            {/*                type: 'set_search',*/}
-            {/*                search: e.target.value,*/}
-            {/*            })*/}
-            {/*        }*/}
-            {/*        onKeyDown={(e) => {*/}
-            {/*            if (e.key === 'Enter' && !hintOpen) {*/}
-            {/*                e.stopPropagation()*/}
-            {/*                if (!Boolean(fb.searchContent)) {*/}
-            {/*                    nav(`/files/${fb.contentId}`)*/}
-            {/*                    return*/}
-            {/*                }*/}
-            {/*                setError(true)*/}
-            {/*                setTimeout(() => setError(false), 2000)*/}
-            {/*            }*/}
-            {/*        }}*/}
-            {/*    />*/}
-            {/*</div>*/}
+
             {hintOpen && (
                 <div className="search-hint-box">
                     <div className="key-line">
@@ -823,28 +740,15 @@ function SingleFile({
     return (
         <div className="flex flex-row w-full h-full justify-around pb-2">
             <div className="icon-display-wrapper">
-                <IconDisplay file={file} allowMedia size={'65%'} />
+                <IconDisplay file={file} allowMedia size={'75%'} />
             </div>
-            <div className="grow max-w-1/2 p-3">
+            <div className="flex flex-col justify-center w-max max-w-[40%] p-3 h-full mr-8">
                 <FileInfoDisplay file={file} />
-                <div className="min-h-[40%]">
-                    <div
-                        className="flex flex-row"
-                        onClick={() => doDownload(file)}
-                        style={{
-                            backgroundColor: '#4444ff',
-                            borderRadius: 4,
-                            padding: 10,
-                            height: 'max-content',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        <IconDownload />
-                        <Text c="white" style={{ paddingLeft: 10 }}>
-                            Download {file.GetFilename()}
-                        </Text>
-                    </div>
-                </div>
+                <WeblensButton
+                    label={'Download'}
+                    Left={IconDownload}
+                    onClick={() => doDownload(file)}
+                />
             </div>
         </div>
     )
@@ -1084,11 +988,9 @@ function Files({
 function SearchResults({
     searchQuery,
     filter,
-    searchRef,
 }: {
     searchQuery: string
     filter: string
-    searchRef
 }) {
     const nav = useNavigate()
     const { fbState, fbDispatch } = useContext(FbContext)
@@ -1132,7 +1034,6 @@ function DirView({
     fb: fb,
     notFound,
     setNotFound,
-    searchRef,
     searchQuery,
     searchFilter,
     dispatch,
@@ -1142,8 +1043,7 @@ function DirView({
 }: {
     fb: FbStateT
     notFound: boolean
-    setNotFound
-    searchRef
+    setNotFound: (boolean) => void
     searchQuery: string
     searchFilter: string
     dispatch: FBDispatchT
@@ -1162,7 +1062,7 @@ function DirView({
     }
 
     if (
-        fb.fbMode === FbModeT.default &&
+        (fb.fbMode === FbModeT.default || fb.fbMode === FbModeT.share) &&
         fb.folderInfo.Id() &&
         !fb.folderInfo.IsFolder()
     ) {
@@ -1170,13 +1070,7 @@ function DirView({
     } else if (fb.fbMode === FbModeT.stats) {
         return <StatTree folderInfo={fb.folderInfo} authHeader={authHeader} />
     } else if (fb.fbMode === FbModeT.search) {
-        return (
-            <SearchResults
-                searchQuery={searchQuery}
-                filter={searchFilter}
-                searchRef={searchRef}
-            />
-        )
+        return <SearchResults searchQuery={searchQuery} filter={searchFilter} />
     } else {
         return (
             <Files
@@ -1215,8 +1109,6 @@ const FileBrowser = () => {
     const searchFilter = query('filter')
     const nav = useNavigate()
     const { authHeader, usr }: UserContextT = useContext(UserContext)
-
-    const searchRef = useRef()
 
     const [notFound, setNotFound] = useState(false)
     const { uploadState, uploadDispatch } = useUploadStatus()
@@ -1326,18 +1218,10 @@ const FileBrowser = () => {
         authHeader
     )
 
-    useKeyDownFileBrowser(
-        fb,
-        searchQuery,
-        usr,
-        dispatch,
-        authHeader,
-        wsSend,
-        searchRef
-    )
+    useKeyDownFileBrowser(fb, searchQuery, usr, dispatch, authHeader, wsSend)
 
     // Hook to handle uploading images from the clipboard
-    usePaste(fb.contentId, usr, searchRef, fb.blockFocus, dispatch)
+    usePaste(fb.contentId, usr, fb.blockFocus, dispatch)
 
     // Reset most of the state when we change folders
     const syncState = useCallback(async () => {
@@ -1504,7 +1388,6 @@ const FileBrowser = () => {
                                     fb={fb}
                                     notFound={notFound}
                                     setNotFound={setNotFound}
-                                    searchRef={searchRef}
                                     searchQuery={searchQuery}
                                     searchFilter={searchFilter}
                                     dispatch={dispatch}

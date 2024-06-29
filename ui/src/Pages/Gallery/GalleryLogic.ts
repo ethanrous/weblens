@@ -211,7 +211,7 @@ export function galleryReducer(
 
         case 'set_presentation': {
             if (!action.mediaId) {
-                return state
+                return { ...state, presentingMode: PresentType.None }
             }
             if (action.presentMode && action.presentMode !== PresentType.None) {
                 state.presentingMode = action.presentMode

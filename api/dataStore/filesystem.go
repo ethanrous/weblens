@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/dataStore/user"
@@ -225,7 +226,17 @@ func FsInit(tree types.FileTree) {
 	sw.Lap("Generate missing user home directories")
 	sw.Stop()
 	sw.PrintResults(false)
+	util.Debug.Println(
+		"Reading", timeReading, " - Searching", searching, " - Waiting", waiting, " - Creating", creating,
+		" - Inserting", inserting,
+	)
 }
+
+var timeReading time.Duration
+var searching time.Duration
+var waiting time.Duration
+var creating time.Duration
+var inserting time.Duration
 
 func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifetimes []types.Lifetime) []types.Lifetime {
 	var toLoad = []types.WeblensFile{f}
@@ -235,18 +246,24 @@ func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifeti
 
 		// Pop from slice of files to load
 		fileToLoad, toLoad = toLoad[0], toLoad[1:]
+		start := time.Now()
 		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) || (fileToLoad.Filename() == "."+
 			"content" && fileToLoad.ID() != "CONTENT_LINKS") {
+			searching += time.Since(start)
 			continue
 		}
+		searching += time.Since(start)
 
 		if fileToLoad.Owner() != WeblensRootUser {
+			start := time.Now()
 			index, e := slices.BinarySearchFunc(
 				lifetimes, fileToLoad.ID(), func(lt types.Lifetime, id types.FileId) int {
 					return strings.Compare(string(lt.GetLatestFileId()), string(id))
 				},
 			)
+			searching += time.Since(start)
 			if !e {
+				start := time.Now()
 				if fileToLoad.GetContentId() == "" && !fileToLoad.IsDir() {
 					pool.HashFile(
 						fileToLoad,
@@ -262,26 +279,35 @@ func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifeti
 				} else if fileToLoad.IsDir() {
 					fileEvent.NewCreateAction(fileToLoad)
 				}
+				creating += time.Since(start)
 			} else {
+				start := time.Now()
 				var life types.Lifetime
 				lifetimes, life = util.Yoink(lifetimes, index)
 				fileToLoad.SetContentId(life.GetContentId())
+				creating += time.Since(start)
 			}
 		}
 
 		if !slices.Contains(RootDirIds, fileToLoad.ID()) {
 			if types.SERV.FileTree.Get(fileToLoad.ID()) != nil {
 				util.Warning.Println("Skipping initilization of a file already present in the tree:", fileToLoad.ID())
+				// inserting += time.Since(start)
 				continue
 			}
+
+			start2 := time.Now()
 			err := types.SERV.FileTree.Add(fileToLoad)
+			inserting += time.Since(start2)
 			if err != nil {
 				panic(err)
 			}
 		}
 
 		if fileToLoad.IsDir() {
+			start := time.Now()
 			children, err := fileToLoad.ReadDir()
+			timeReading += time.Since(start)
 			if err != nil {
 				panic(err)
 			}
@@ -290,7 +316,9 @@ func importFilesRecursive(f types.WeblensFile, fileEvent types.FileEvent, lifeti
 	}
 
 	pool.SignalAllQueued()
+	start := time.Now()
 	pool.Wait(false)
+	waiting += time.Since(start)
 
 	return lifetimes
 }
@@ -308,7 +336,7 @@ func ClearTempDir(ft types.FileTree) (err error) {
 	}
 
 	for _, file := range files {
-		err := os.Remove(filepath.Join(util.GetTmpDir(), file.Name()))
+		err := os.RemoveAll(filepath.Join(util.GetTmpDir(), file.Name()))
 		if err != nil {
 			return err
 		}

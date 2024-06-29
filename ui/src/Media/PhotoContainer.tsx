@@ -1,18 +1,27 @@
-import { memo, useCallback, useContext, useEffect, useState } from 'react'
+import {
+    memo,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+} from 'react'
 import { UserContext } from '../Context'
 import {
     IconExclamationCircle,
     IconPhoto,
     IconPlayerPauseFilled,
     IconPlayerPlayFilled,
+    IconVolume3,
 } from '@tabler/icons-react'
 import { CSSProperties, Loader } from '@mantine/core'
 import { UserContextT } from '../types/Types'
 import WeblensMedia, { PhotoQuality } from './Media'
+import Hls from 'hls.js'
 
 import '../components/style.scss'
+import { useKeyDown, useResize, useVideo } from '../components/hooks'
 import { WeblensProgress } from '../components/WeblensProgress'
-import { useResize, useVideo } from '../components/hooks'
 
 export const MediaImage = memo(
     ({
@@ -53,6 +62,7 @@ export const MediaImage = memo(
         const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
         const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
         const { authHeader }: UserContextT = useContext(UserContext)
+        const playerRef = useRef(null)
 
         useEffect(() => {
             if (doFetch && media.Id() && !media.HasQualityLoaded(quality)) {
@@ -194,19 +204,79 @@ function VideoWrapper({
     setVideoRef,
     isPlaying,
     playtime,
+}: {
+    url
+    shouldShowVideo
+    fitLogic
+    media
+    imgStyle
+    videoRef: HTMLVideoElement
+    setVideoRef
+    isPlaying
+    playtime
 }) {
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const size = useResize(containerRef)
     const { authHeader } = useContext(UserContext)
+    const [showUi, setShowUi] = useState<NodeJS.Timeout>()
+    const [volume, setVolume] = useState(0)
+
+    useEffect(() => {
+        if (!videoRef) {
+            return
+        }
+
+        if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
+            console.log('Using native HLS')
+            videoRef.src = media.StreamVideoUrl(authHeader)
+        } else if (Hls.isSupported()) {
+            console.log('Using package HLS')
+            var hls = new Hls()
+            hls.loadSource(media.StreamVideoUrl(authHeader))
+            hls.attachMedia(videoRef)
+        }
+    }, [videoRef])
+
+    const togglePlayState = useCallback(() => {
+        if (!videoRef) {
+            return
+        }
+        if (isPlaying) {
+            videoRef.pause()
+        } else {
+            videoRef.play()
+        }
+    }, [isPlaying, videoRef])
+
+    useKeyDown(' ', togglePlayState)
+
+    console.log('HEA')
 
     if (!shouldShowVideo) {
         return null
     }
-    console.log(media.GetVideoLength())
+
+    if (videoRef) {
+        videoRef.volume = volume / 100
+    }
 
     return (
-        <div ref={setContainerRef} className="flex items-center justify-center">
-            <div className="flex shrink-0 w-[24px] h-[24px] absolute z-50 cursor-pointer">
+        <div
+            ref={setContainerRef}
+            className="flex relative items-center justify-center"
+            onMouseMove={() => {
+                setShowUi((prev) => {
+                    if (prev) {
+                        clearTimeout(prev)
+                    }
+                    return setTimeout(() => setShowUi(null), 2000)
+                })
+            }}
+        >
+            <div
+                className="flex shrink-0 w-[24px] h-[24px] absolute z-50 cursor-pointer transition-opacity duration-300 drop-shadow-xl"
+                style={{ opacity: showUi || !isPlaying ? 1 : 0 }}
+            >
                 {isPlaying && (
                     <IconPlayerPauseFilled onClick={() => videoRef.pause()} />
                 )}
@@ -214,9 +284,29 @@ function VideoWrapper({
                     <IconPlayerPlayFilled onClick={() => videoRef.play()} />
                 )}
             </div>
+            <div
+                className="flex justify-end shrink-0 w-[98%] h-[98%] absolute z-50 transition-opacity duration-300 pointer-events-none"
+                style={{
+                    opacity: (showUi || !isPlaying) && volume === 0 ? 1 : 0,
+                }}
+            >
+                <IconVolume3
+                    className="w-4 h-4 pointer-events-auto cursor-pointer"
+                    onClick={() => {
+                        setVolume(20)
+                    }}
+                    style={{
+                        pointerEvents:
+                            (showUi || !isPlaying) && volume === 0
+                                ? 'all'
+                                : 'none',
+                    }}
+                />
+            </div>
             <video
                 ref={setVideoRef}
                 autoPlay
+                muted={volume === 0}
                 className="media-image animate-fade"
                 poster={media.GetObjectUrl('thumbnail')}
                 data-fit-logic={fitLogic}
@@ -224,33 +314,45 @@ function VideoWrapper({
                     url === '' || media.HasLoadError() || !shouldShowVideo
                 }
                 style={imgStyle}
-                onClick={() => {
-                    if (isPlaying) {
-                        videoRef.pause()
-                    } else {
-                        videoRef.play()
-                    }
+                onClick={togglePlayState}
+            />
+            <div
+                className="flex absolute justify-center items-end p-3 pointer-events-none transition-opacity duration-300"
+                style={{
+                    width: size.width,
+                    height: size.height,
+                    opacity: showUi || !isPlaying ? 1 : 0,
                 }}
             >
-                <source
-                    src={media.StreamVideoUrl(authHeader)}
-                    // type="video/mp4"
-                />
-            </video>
-            <div
-                className="flex absolute justify-center items-end p-3 pointer-events-none"
-                style={{ width: size.width, height: size.height }}
-            >
-                <div className="flex h-2 w-9/12">
-                    <WeblensProgress
-                        value={
-                            (playtime * 100) / (media.GetVideoLength() / 1000)
-                        }
-                        seekCallback={(v) => {
-                            videoRef.currentTime =
-                                (media.GetVideoLength() / 1000) * v
-                        }}
-                    />
+                <div className="flex flex-row h-2 w-[98%] justify-around absolute">
+                    <div className="relative w-[80%]">
+                        <WeblensProgress
+                            value={
+                                (playtime * 100) /
+                                (media.GetVideoLength() / 1000)
+                            }
+                            secondaryValue={
+                                videoRef && videoRef.buffered.length
+                                    ? videoRef.buffered.end(
+                                          videoRef.buffered.length - 1
+                                      )
+                                    : 0
+                            }
+                            seekCallback={(v) => {
+                                videoRef.currentTime =
+                                    (media.GetVideoLength() / 1000) * v
+                            }}
+                        />
+                    </div>
+                    <div className="relative w-[10%]">
+                        <WeblensProgress
+                            value={volume}
+                            seekCallback={(v) => {
+                                console.log(v)
+                                setVolume(v * 100)
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

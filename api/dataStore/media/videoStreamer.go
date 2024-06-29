@@ -3,11 +3,11 @@ package media
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
+	"os"
+	"path/filepath"
 	"strconv"
-	"sync"
-	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -15,44 +15,10 @@ import (
 )
 
 type VideoStreamer struct {
-	bytesTotal    int
-	currentPos    int64
-	writeHead     int64
-	buf           *lockingBuf
-	encoded       []byte
 	media         *Media
 	encodingBegun bool
-	seekLock      *sync.Mutex
-	bufferLock    *sync.Mutex
-	modified      time.Time
-	sinceLastRead time.Time
-}
-
-type lockingBuf struct {
-	buf     *bytes.Buffer
-	bufLock *sync.Mutex
-}
-
-func newWrappedBuf() *lockingBuf {
-	return &lockingBuf{bytes.NewBuffer(nil), &sync.Mutex{}}
-}
-
-func (wb *lockingBuf) Write(p []byte) (int, error) {
-	wb.bufLock.Lock()
-	defer wb.bufLock.Unlock()
-
-	wrote, err := wb.buf.Write(p)
-	return wrote, err
-}
-
-func (wb *lockingBuf) Read(p []byte) (int, error) {
-	wb.bufLock.Lock()
-	defer wb.bufLock.Unlock()
-	return wb.buf.Read(p)
-}
-
-func (wb *lockingBuf) Len() int {
-	return wb.buf.Len()
+	streamDirPath string
+	err           error
 }
 
 func NewVideoStreamer(media types.Media) *VideoStreamer {
@@ -63,169 +29,66 @@ func NewVideoStreamer(media types.Media) *VideoStreamer {
 	}
 
 	vs := &VideoStreamer{
-		bytesTotal: -1,
-		media:      realM,
-		buf:        newWrappedBuf(),
-		seekLock:   &sync.Mutex{},
-		bufferLock: &sync.Mutex{},
+		media: realM,
 	}
 
 	realM.streamer = vs
 	return vs
 }
 
-func (vs *VideoStreamer) transcodeByteRange(f types.WeblensFile) {
-	outErr := bytes.NewBuffer(nil)
+func (vs *VideoStreamer) transcodeChunks(f types.WeblensFile, speed string) {
+	defer func() { vs.encodingBegun = false }()
 
-	autioRate := 128000
-	err := ffmpeg.Input(f.GetAbsPath()).Output(
-		"pipe:", ffmpeg.KwArgs{
-			"c:v":          "libx264",
-			"pix_fmt":      "yuv420p",
-			"b:v":          util.GetVideoConstBitrate(),
-			"preset":       "ultrafast",
-			"movflags":     "frag_keyframe+empty_moov+use_metadata_tags",
-			"map_metadata": 0,
-			"b:a":          autioRate,
-			"format":       "mp4",
-		},
-	).WithOutput(vs.buf).WithErrorOutput(outErr).Run()
-
-	if err != nil {
-		util.Error.Println(outErr.String())
-		vs.encodingBegun = false
+	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		vs.err = err
 		return
 	}
 
-	vs.bufferLock.Lock()
-	vs.encodingBegun = false
-	// vs.modified = time.Now()
-	vs.bufferLock.Unlock()
+	autioRate := 128000
+	outErr := bytes.NewBuffer(nil)
+	err = ffmpeg.Input(f.GetAbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
+		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
+			"c:v":                "libx264",
+			"b:v":                util.GetVideoConstBitrate(),
+			"b:a":                autioRate,
+			"crf":                18,
+			"preset":             speed,
+			"segment_list_flags": "+live",
+			"format":             "segment",
+			"segment_format":     "mpegts",
+			"hls_init_time":      5,
+			"hls_time":           5,
+			"hls_list_size":      0,
+			"segment_list":       filepath.Join(vs.streamDirPath, "list.m3u8"),
+		},
+	).WithErrorOutput(outErr).Run()
 
-	return
-}
-
-func (vs *VideoStreamer) bufferLoader() {
-	localBuf := make([]byte, 32768)
-	readSoFar := 0
-	for vs.encodingBegun || vs.buf.Len() != 0 {
-		vs.bufferLock.Lock()
-		if vs.buf.Len() < 32768 && vs.encodingBegun {
-			vs.bufferLock.Unlock()
-			time.Sleep(time.Millisecond * 100)
-			continue
-		}
-
-		read, err := vs.buf.Read(localBuf)
-		if err != nil {
-			vs.bufferLock.Unlock()
-			util.ErrTrace(err)
-			readSoFar = -1
-			break
-		}
-
-		vs.encoded = append(vs.encoded, localBuf[:read]...)
-		readSoFar += read
-		vs.bufferLock.Unlock()
-	}
-	vs.bytesTotal = readSoFar
-	util.Debug.Println("Finished reading:", readSoFar)
-}
-
-func (vs *VideoStreamer) loadFromFile(f types.WeblensFile) error {
-	buf, err := f.ReadAll()
 	if err != nil {
-		return err
+		util.Error.Println(outErr.String())
+		vs.err = err
 	}
-
-	vs.encoded = buf
-	vs.bytesTotal = len(vs.encoded)
-
-	return nil
 }
 
-func (vs *VideoStreamer) PreLoadBuf() int {
-	vs.seekLock.Lock()
-	if vs.bytesTotal == -1 && !vs.encodingBegun {
+func (vs *VideoStreamer) Encode() *VideoStreamer {
+	if vs.streamDirPath == "" && !vs.encodingBegun {
 		f := types.SERV.FileTree.Get(vs.media.FileIds[0])
-		// If we are within ~25% of our bitrate target, just serve the video
-		if bitRate, _ := vs.probeSourceBitrate(f); int(float64(bitRate)*0.75) < util.GetVideoConstBitrate() {
-			err := vs.loadFromFile(f)
-			if err != nil {
-				util.ShowErr(err)
-			}
-		} else {
-			vs.modified = time.Now()
-			vs.encodingBegun = true
-			go vs.transcodeByteRange(f)
-			go vs.bufferLoader()
-		}
-
+		vs.streamDirPath = fmt.Sprintf("%s/%s-stream/", util.GetCacheDir(), vs.media.ID())
+		vs.encodingBegun = true
+		go vs.transcodeChunks(f, "ultrafast")
+		// time.Sleep(time.Millisecond * 100)
+		// go vs.transcodeChunks(f, "veryslow")
 	}
 
-	return vs.bytesTotal
+	return vs
 }
 
-func (vs *VideoStreamer) RelinquishStream() {
-	vs.seekLock.Unlock()
+func (vs *VideoStreamer) GetEncodeDir() string {
+	return vs.streamDirPath
 }
 
-func (vs *VideoStreamer) Read(buf []byte) (int, error) {
-	for len(vs.encoded)-int(vs.currentPos) < len(buf) && vs.bytesTotal == -1 {
-		time.Sleep(time.Millisecond * 10)
-	}
-
-	end := min(
-		int(vs.currentPos)+len(buf),
-		int(vs.currentPos)+(len(vs.encoded)-int(vs.currentPos)),
-		len(vs.encoded),
-	)
-
-	util.Debug.Println("Time since last read", time.Now().Sub(vs.sinceLastRead))
-	vs.sinceLastRead = time.Now()
-	copyLen, err := bytes.NewBuffer(vs.encoded[vs.currentPos:end]).Read(buf)
-	// if err != nil && err != io.EOF {
-	if err != nil {
-		util.ShowErr(err)
-		return 0, err
-	}
-
-	err = nil
-
-	vs.currentPos += int64(copyLen)
-	if vs.bytesTotal != -1 && vs.currentPos >= int64(vs.bytesTotal) || copyLen < len(buf) {
-		// util.Debug.Println("Sending EOF...")
-		err = io.EOF
-	}
-	util.ShowErr(err)
-	return copyLen, err
-}
-
-func (vs *VideoStreamer) ReadRange(start, end int) *bytes.Buffer {
-	if start > end || end > len(vs.encoded) {
-		util.Error.Println("Bad read range")
-		return nil
-	}
-
-	return bytes.NewBuffer(vs.encoded[start:end])
-}
-
-func (vs *VideoStreamer) Seek(offset int64, whence int) (int64, error) {
-	if whence == io.SeekStart {
-		vs.currentPos = offset
-	} else {
-		return 0, fmt.Errorf("video streamer seek: invalid whence")
-	}
-
-	return vs.currentPos, nil
-}
-
-func (vs *VideoStreamer) Len() int {
-	return len(vs.encoded)
-}
-
-func (vs *VideoStreamer) Modified() time.Time {
-	return vs.modified
+func (vs *VideoStreamer) Err() error {
+	return vs.err
 }
 
 func (vs *VideoStreamer) IsTranscoding() bool {

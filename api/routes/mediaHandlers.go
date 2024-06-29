@@ -2,11 +2,10 @@ package routes
 
 import (
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -46,61 +45,40 @@ func streamVideo(ctx *gin.Context) {
 		return
 	}
 
-	if true {
-		requestRange := ctx.GetHeader("Range")
-		startByte := 0
-		endByte := 0
+	streamer := media.NewVideoStreamer(m).Encode()
 
-		if requestRange != "" {
-			rangeParts := strings.Split(requestRange[6:], "-")
-			startByte, _ = strconv.Atoi(rangeParts[0])
-			endByte, _ = strconv.Atoi(rangeParts[1])
-		}
-
-		streamer := media.NewVideoStreamer(m)
-		bufSize := streamer.PreLoadBuf()
-		defer streamer.RelinquishStream()
-
-		var rangeTotalStr = ""
-		if bufSize == -1 {
-			// ROUGH prediction of video size
-			// predict := (128000 + util.GetVideoConstBitrate()) * m.GetVideoLength() / 8000
-			// rangeTotalStr = strconv.Itoa(predict)
-			rangeTotalStr = "*"
-			for streamer.Len() == 0 {
-				time.Sleep(time.Millisecond)
-			}
-			if endByte == 0 {
-				endByte = streamer.Len() - 1
-			}
-		} else {
-			rangeTotalStr = strconv.Itoa(bufSize)
-			if endByte == 0 {
-				endByte = bufSize - 1
-			}
-		}
-
-		lengthBytes := (endByte - startByte) + 1
-		ctx.Header("Content-Type", "video/mp4")
-		ctx.Header("Accept-Ranges", "bytes")
-		ctx.Header("Cache-Control", "no-cache, no-store, must-revalidate")
-		ctx.Header("Content-Encoding", "none")
-		ctx.Header("Content-Length", strconv.Itoa(lengthBytes))
-		ctx.Header("Last-Modified", streamer.Modified().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
-		ctx.Header("Content-Range", fmt.Sprintf("bytes %d-%d/%s", startByte, endByte, rangeTotalStr))
-		ctx.Status(http.StatusPartialContent)
-
-		if ctx.Request.Method != http.MethodHead {
-			_, err := streamer.Seek(int64(startByte), io.SeekStart)
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-			_, err = io.CopyN(ctx.Writer, streamer, int64(lengthBytes))
-		}
-	} else {
-		ctx.File(types.SERV.FileTree.Get(m.GetFiles()[0]).GetAbsPath())
+	chunkName := ctx.Param("chunkName")
+	if chunkName != "" {
+		ctx.File(streamer.GetEncodeDir() + chunkName)
+		return
 	}
+
+	playlistFilePath := filepath.Join(streamer.GetEncodeDir(), "list.m3u8")
+	for {
+		_, err := os.Stat(playlistFilePath)
+		if streamer.Err() != nil {
+			util.ShowErr(streamer.Err())
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+		if err != nil {
+			time.Sleep(time.Millisecond * 100)
+		} else {
+			break
+		}
+	}
+	ctx.File(playlistFilePath)
+	// ctx.Header("Content-Type", "application/x-mpegURL")
+	// fp, err := os.Open(playlistFilePath)
+	// if err != nil {
+	// 	util.ShowErr(err)
+	// 	return
+	// }
+	// defer fp.Close()
+	// _, err = io.Copy(ctx.Writer, fp)
+	// if err != nil {
+	// 	util.ShowErr(err)
+	// }
 }
 
 func getProcessedMedia(ctx *gin.Context, q types.Quality) {

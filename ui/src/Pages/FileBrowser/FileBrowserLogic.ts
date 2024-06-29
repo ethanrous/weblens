@@ -1058,8 +1058,7 @@ export const useKeyDownFileBrowser = (
     usr: UserInfoT,
     dispatch: (action: FileBrowserAction) => void,
     authHeader: AuthHeaderT,
-    wsSend,
-    searchRef
+    wsSend
 ) => {
     const nav = useNavigate()
     useEffect(() => {
@@ -1151,7 +1150,6 @@ export const useKeyDownFileBrowser = (
         searchQuery,
         fbState.pasteImg,
         dispatch,
-        searchRef,
         fbState.presentingId,
         fbState.lastSelected,
     ])
@@ -1175,7 +1173,6 @@ export const useMousePosition = () => {
 export const usePaste = (
     folderId: string,
     usr: UserInfoT,
-    searchRef,
     blockFocus: boolean,
     dispatch: (Action: FileBrowserAction) => void
 ) => {
@@ -1214,7 +1211,6 @@ export const usePaste = (
                         if (!text) {
                             continue
                         }
-                        searchRef.current.focus()
                         dispatch({ type: 'set_search', search: text })
                     } else {
                         console.error('Unknown mime', mime)

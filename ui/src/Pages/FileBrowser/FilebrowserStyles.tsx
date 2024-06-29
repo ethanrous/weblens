@@ -335,22 +335,20 @@ export const IconDisplay = ({
     if (!file.IsImported() && mediaData && allowMedia) {
         return (
             <Center style={{ height: '100%', width: '100%' }}>
-                {/* <Skeleton height={"100%"} width={"100%"} />
-                 <Text pos={"absolute"} style={{ userSelect: "none" }}>
-                 Processing...
-                 </Text> */}
                 <IconPhoto />
             </Center>
         )
     } else if (mediaData && allowMedia) {
         return (
-            <Box ref={setContainerRef} style={{ justifyContent: 'center' }}>
+            <div
+                className="flex h-full w-full items-center justify-center m-4"
+                ref={setContainerRef}
+            >
                 <ContainerMedia
                     mediaData={mediaData}
                     containerRef={containerRef}
                 />
-            </Box>
-            // <MediaImage media={file.mediaData} quality={quality} />
+            </div>
         )
     } else if (mediaData) {
         return <IconPhoto />
@@ -398,23 +396,16 @@ export const IconDisplay = ({
 export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
     let [size, units] = humanFileSize(file.GetSize())
     return (
-        <div
-            style={{
-                width: 'max-content',
-                whiteSpace: 'nowrap',
-                justifyContent: 'center',
-                maxWidth: '100%',
-            }}
-        >
-            <Text fw={600} style={{ fontSize: '2.5vw', maxWidth: '100%' }}>
+        <div className="flex flex-col w-max whitespace-nowrap justify-center max-w-full ml-1 gap-1 mb-2">
+            <p className="text-3xl font-semibold max-w-full">
                 {file.GetFilename()}
-            </Text>
+            </p>
             {file.IsFolder() && (
                 <div className="flex flex-row h-max w-full items-center justify-center">
-                    <Text style={{ fontSize: '25px', maxWidth: '100%' }}>
+                    <p className="text-sm max-w-full">
                         {file.GetChildren().length} Item
                         {file.GetChildren().length !== 1 ? 's' : ''}
-                    </Text>
+                    </p>
                     <Divider orientation="vertical" size={2} mx={10} />
                     <Text style={{ fontSize: '25px' }}>
                         {size}
@@ -423,10 +414,10 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
                 </div>
             )}
             {!file.IsFolder() && (
-                <Text style={{ fontSize: '25px' }}>
+                <p className={'text-sm'}>
                     {size}
                     {units}
-                </Text>
+                </p>
             )}
         </div>
     )
