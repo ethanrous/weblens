@@ -14,14 +14,19 @@
     background-color: $dark-paper;
     color: white;
     box-shadow: $hard-shadow-off;
-    //transition: width 200ms ease-in-out;
     outline: 1px solid $light-paper-transparent;
     height: 100%;
     width: 100%;
     overflow: hidden;
 
+    transition: background-color 150ms ease-in-out;
+
     &:focus-within {
         outline: 1px solid $light-paper;
+    }
+
+    &[data-subtle='true']:not(:focus-within) {
+        background-color: $dark-paper-transparent;
     }
 
     &[data-value=''][data-minimize='true']:not(:focus-within) {

@@ -85,8 +85,20 @@
     "image/heic": {
         "FriendlyName": "HEIC",
         "FileExtension": [
-            "heic",
-            "HEIC"
+            "HEIC",
+            "heic"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": false,
+        "RawThumbExifKey": "",
+        "SupportsImgRecog": true
+    },
+    "image/heif": {
+        "FriendlyName": "HEIF",
+        "FileExtension": [
+            "HEIF",
+            "heif"
         ],
         "IsDisplayable": true,
         "IsRaw": false,

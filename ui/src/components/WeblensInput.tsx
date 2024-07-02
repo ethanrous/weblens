@@ -1,8 +1,8 @@
-import { memo, ReactNode, useEffect, useRef, useState } from 'react'
-import { useIsFocused, useKeyDown } from './hooks'
-import WeblensButton from './WeblensButton'
+import { memo, ReactNode, useEffect, useRef, useState } from 'react';
+import { useIsFocused, useKeyDown } from './hooks';
+import WeblensButton from './WeblensButton';
 
-import './weblensInput.scss'
+import './weblensInput.scss';
 
 const WeblensInput = memo(
     ({
@@ -18,64 +18,64 @@ const WeblensInput = memo(
         autoFocus = false,
         stealFocus = false,
         minimize = false,
+        subtle = false,
     }: {
-        onComplete: (v: string) => void
-        value?: string
-        valueCallback?: (v: string) => void
-        Icon?: (p: any) => ReactNode
-        buttonIcon?: (p: any) => ReactNode
-        height?: number
-        placeholder?: string
-        openInput?: () => void
-        closeInput?: () => void
-        autoFocus?: boolean
-        stealFocus?: boolean
-        minimize?: boolean
+        onComplete: (v: string) => void;
+        value?: string;
+        valueCallback?: (v: string) => void;
+        Icon?: (p: any) => ReactNode;
+        buttonIcon?: (p: any) => ReactNode;
+        height?: number;
+        placeholder?: string;
+        openInput?: () => void;
+        closeInput?: () => void;
+        autoFocus?: boolean;
+        stealFocus?: boolean;
+        minimize?: boolean;
+        subtle?: boolean;
     }) => {
-        const searchRef = useRef<HTMLInputElement>()
-        const isFocused = useIsFocused(searchRef.current)
+        const [searchRef, setSearchRef] = useState(null);
+        const isFocused = useIsFocused(searchRef);
 
-        const [internalValue, setInternalValue] = useState(
-            value !== undefined ? value : ''
-        )
+        const [internalValue, setInternalValue] = useState(value !== undefined ? value : '');
         useEffect(() => {
-            setInternalValue(value !== undefined ? value : '')
-        }, [value])
+            setInternalValue(value !== undefined ? value : '');
+        }, [value]);
 
         useEffect(() => {
-            if (isFocused && openInput) {
-                openInput()
-            } else if (!isFocused && closeInput) {
-                closeInput()
+            if (isFocused === true && openInput) {
+                openInput();
+            } else if (isFocused === false && closeInput) {
+                closeInput();
             }
-        }, [isFocused])
-
-        useKeyDown('Enter', () => {
-            if (onComplete) {
-                onComplete(internalValue)
-                if (closeInput) {
-                    closeInput()
-                }
-            }
-        })
-
-        useKeyDown('Escape', (e) => {
-            searchRef.current.blur()
-        })
+        }, [isFocused]);
 
         useKeyDown(
-            (e) => {
-                return (
-                    stealFocus &&
-                    !e.metaKey &&
-                    ((e.which >= 65 && e.which <= 90) || e.key === 'Backspace')
-                )
+            'Enter',
+            () => {
+                if (onComplete && isFocused === true) {
+                    onComplete(internalValue);
+                    if (closeInput) {
+                        closeInput();
+                    }
+                }
             },
-            (e) => {
-                e.stopPropagation()
-                searchRef.current.focus()
-            }
-        )
+            !isFocused,
+        );
+
+        useKeyDown('Escape', e => {
+            searchRef.blur();
+        });
+
+        useKeyDown(
+            e => {
+                return stealFocus && !e.metaKey && ((e.which >= 65 && e.which <= 90) || e.key === 'Backspace');
+            },
+            e => {
+                e.stopPropagation();
+                searchRef.focus();
+            },
+        );
 
         return (
             <div
@@ -83,32 +83,33 @@ const WeblensInput = memo(
                 style={{ height: height, minWidth: height }}
                 data-value={internalValue}
                 data-minimize={minimize}
+                data-subtle={subtle}
                 onClick={() => {
-                    searchRef.current.focus()
+                    searchRef.focus();
                 }}
-                onBlur={(e) => {
-                    if (
-                        closeInput &&
-                        !e.currentTarget.contains(e.relatedTarget)
-                    ) {
-                        closeInput()
+                onDoubleClick={e => {
+                    e.stopPropagation();
+                }}
+                onBlur={e => {
+                    if (closeInput && !e.currentTarget.contains(e.relatedTarget)) {
+                        closeInput();
                     }
                 }}
             >
                 {Icon && <Icon className="w-max h-max" />}
                 <input
-                    ref={searchRef}
+                    ref={setSearchRef}
                     autoFocus={autoFocus}
                     className="weblens-input"
                     value={internalValue}
                     placeholder={placeholder}
-                    onChange={(event) => {
+                    onChange={event => {
                         if (valueCallback) {
-                            valueCallback(event.target.value)
+                            valueCallback(event.target.value);
                         }
-                        setInternalValue(event.target.value)
+                        setInternalValue(event.target.value);
                     }}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={e => e.stopPropagation()}
                 />
                 {buttonIcon && (
                     <div className="flex w-max justify-end" tabIndex={0}>
@@ -116,29 +117,29 @@ const WeblensInput = memo(
                             centerContent
                             squareSize={height ? height * 0.75 : 40}
                             Left={buttonIcon}
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onComplete(internalValue)
+                            onClick={e => {
+                                e.stopPropagation();
+                                onComplete(internalValue);
                                 if (closeInput) {
-                                    closeInput()
+                                    closeInput();
                                 }
                             }}
                         />
                     </div>
                 )}
             </div>
-        )
+        );
     },
     (prev, next) => {
         if (prev.value !== next.value) {
-            return false
+            return false;
         } else if (prev.onComplete !== next.onComplete) {
-            return false
+            return false;
         } else if (prev.closeInput !== next.closeInput) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
-export default WeblensInput
+export default WeblensInput;

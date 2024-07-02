@@ -1,0 +1,94 @@
+@import "../components/theme";
+
+.files-grid {
+    display: grid;
+    height: max-content;
+    overflow: scroll;
+    padding: 4px;
+
+
+    @media (max-width: 9000px) {
+        //grid-template-columns: repeat( 1fr, auto );
+        grid-template-columns: repeat( auto-fill, minmax(250px, 1fr) );
+    }
+
+    //@media (max-width: 600px) {
+    //    grid-template-columns: repeat( auto-fit, minmax(150px, 0.5fr) );
+    //}
+}
+
+.weblens-file {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow-y: scroll;
+    flex-shrink: 1;
+    flex-basis: 250px;
+    max-width: 400px;
+    margin: 6px;
+    //width: 200px;
+    aspect-ratio: 0.9;
+    border-radius: 6px;
+    background-color: $item-grey;
+    transition: background-color 150ms, box-shadow 150ms ease-in-out;
+    box-shadow: $soft-shadow-off;
+
+    &[data-clickable='true'] {
+        cursor: pointer;
+    }
+
+    &[data-hovering='1'] {
+        background-color: $item-focus
+    }
+
+    &[data-in-range='1'] {
+        background-color: #373365
+    }
+
+    &[data-selected='1'] {
+        background-color: $theme-dull;
+        box-shadow: $soft-shadow
+    }
+
+    &[data-last-selected='1'] {
+        outline: 2px solid $theme-color
+    }
+
+    &[data-droppable='1'] {
+        background-color: $theme-dull;
+        outline: 2px solid $theme-color
+    }
+}
+
+.item-info-box {
+    user-select: none;
+    width: 100%;
+    height: 14%;
+    min-height: 36px;
+    font-size: max(min(2vw, 20px), 16px);
+    padding: 4px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    justify-content: center;
+    align-items: center;
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+
+    &[data-editing-allowed='true'] {
+        cursor: text;
+    }
+}
+
+.file-size-box {
+    user-select: none;
+    position: absolute;
+    font-size: max(min(1vw, 12px), 12px);
+    top: 12px;
+    right: 12px;
+    padding: 4px;
+    border-radius: 4px;
+    background-color: $theme-color;
+    //box-shadow: $soft-shadow;
+    color: white;
+}

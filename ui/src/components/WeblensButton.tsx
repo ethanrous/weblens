@@ -1,50 +1,40 @@
-import { Loader, Text } from '@mantine/core'
-import React, {
-    CSSProperties,
-    memo,
-    ReactNode,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
-import { IconCheck, IconX } from '@tabler/icons-react'
-import { useResize } from './hooks'
+import { Loader, Text } from '@mantine/core';
+import React, { CSSProperties, memo, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { IconCheck, IconX } from '@tabler/icons-react';
+import { useResize } from './hooks';
 
-import './weblensButton.scss'
+import './weblensButton.scss';
 
-type ButtonActionHandler = (
-    e: React.MouseEvent<HTMLElement, MouseEvent>
-) => void | boolean | Promise<boolean>
+type ButtonActionHandler = (e: React.MouseEvent<HTMLElement, MouseEvent>) => void | boolean | Promise<boolean>;
 
 type buttonProps = {
-    label?: string
-    postScript?: string
-    showSuccess?: boolean
-    toggleOn?: boolean
-    subtle?: boolean
-    allowRepeat?: boolean
-    centerContent?: boolean
-    danger?: boolean
-    disabled?: boolean
-    doSuper?: boolean
-    labelOnHover?: boolean
-    fillWidth?: boolean
-    Left?: (p: any) => ReactNode
-    Right?: (p: any) => ReactNode
+    label?: string;
+    postScript?: string;
+    showSuccess?: boolean;
+    toggleOn?: boolean;
+    subtle?: boolean;
+    allowRepeat?: boolean;
+    centerContent?: boolean;
+    danger?: boolean;
+    disabled?: boolean;
+    doSuper?: boolean;
+    labelOnHover?: boolean;
+    fillWidth?: boolean;
+    Left?: (p: any) => ReactNode;
+    Right?: (p: any) => ReactNode;
 
     // Style
-    squareSize?: number
-    fontSize?: string
-    textMin?: number
+    squareSize?: number;
+    fontSize?: string;
+    textMin?: number;
 
-    onClick?: ButtonActionHandler
-    onMouseUp?: ButtonActionHandler
-    onMouseOver?: ButtonActionHandler
-    onMouseLeave?: ButtonActionHandler
-    style?: CSSProperties
-    setButtonRef?
-}
+    onClick?: ButtonActionHandler;
+    onMouseUp?: ButtonActionHandler;
+    onMouseOver?: ButtonActionHandler;
+    onMouseLeave?: ButtonActionHandler;
+    style?: CSSProperties;
+    setButtonRef?;
+};
 
 const ButtonContent = memo(
     ({
@@ -59,42 +49,40 @@ const ButtonContent = memo(
         hidden,
         labelOnHover,
     }: {
-        label: string
-        postScript: string
-        Left: (p: any) => ReactNode
-        Right: (p: any) => ReactNode
-        setTextWidth: (w: number) => void
-        buttonWidth: number
-        iconSize: number
-        centerContent: boolean
-        hidden: boolean
-        labelOnHover: boolean
+        label: string;
+        postScript: string;
+        Left: (p: any) => ReactNode;
+        Right: (p: any) => ReactNode;
+        setTextWidth: (w: number) => void;
+        buttonWidth: number;
+        iconSize: number;
+        centerContent: boolean;
+        hidden: boolean;
+        labelOnHover: boolean;
     }) => {
-        const [textRef, setTextRef] = useState(null)
-        const { width: textWidth } = useResize(textRef)
+        const [textRef, setTextRef] = useState(null);
+        const { width: textWidth } = useResize(textRef);
         const textFits = useMemo(() => {
-            return buttonWidth > textWidth
-        }, [buttonWidth, textWidth])
-        const [showText, setShowText] = useState(Boolean(label) && textFits)
+            return buttonWidth > textWidth;
+        }, [buttonWidth, textWidth]);
+        const [showText, setShowText] = useState(Boolean(label) && textFits);
 
         useEffect(() => {
-            setTextWidth(textWidth)
+            setTextWidth(textWidth);
             if (
                 !Boolean(label) ||
-                ((Boolean(Left) || Boolean(Right)) &&
-                    buttonWidth < iconSize + textWidth &&
-                    buttonWidth !== 0)
+                ((Boolean(Left) || Boolean(Right)) && buttonWidth < iconSize + textWidth && buttonWidth !== 0)
             ) {
-                if (showText) {
-                    setShowText(false)
+                if (showText && !textFits) {
+                    setShowText(false);
                 }
             } else if (!showText && textFits) {
-                setShowText(true)
+                setShowText(true);
             }
-        }, [buttonWidth, textWidth])
+        }, [buttonWidth, textWidth]);
 
         if (!iconSize) {
-            iconSize = 24
+            iconSize = 24;
         }
 
         return (
@@ -114,11 +102,7 @@ const ButtonContent = memo(
                 >
                     {Left && <Left className="button-icon" />}
                 </div>
-                <div
-                    className="button-text-box"
-                    data-show-text={showText}
-                    data-center={centerContent}
-                >
+                <div className="button-text-box" data-show-text={showText} data-center={centerContent}>
                     <p
                         className="button-text"
                         ref={setTextRef}
@@ -148,28 +132,28 @@ const ButtonContent = memo(
                     {Right && <Right className="button-icon" />}
                 </div>
             </div>
-        )
+        );
     },
     (prev, next) => {
         if (prev.buttonWidth !== next.buttonWidth) {
             // console.log('BUTTON WIDTH')
-            return false
+            return false;
         } else if (prev.label !== next.label) {
             // console.log('LABEL')
-            return false
+            return false;
         } else if (prev.postScript !== next.postScript) {
             // console.log('POST SCRIPT')
-            return false
+            return false;
         } else if (prev.Left !== next.Left) {
             // console.log('LEFT')
-            return false
+            return false;
         } else if (prev.hidden !== next.hidden) {
             // console.log('HIDDEN')
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
 // if (toggleOn !== undefined) {
 //     onToggle(!toggleOn);
@@ -180,37 +164,37 @@ const handleButtonEvent = async (
     showSuccess: boolean,
     setLoading,
     setSuccess,
-    setFail
+    setFail,
 ) => {
     if (!handler) {
-        return
+        return;
     }
     const tm = setTimeout(() => {
-        setLoading(true)
-    }, 150)
+        setLoading(true);
+    }, 150);
     try {
         // Don't flash loading if handler returns instantly
-        const res = await handler(e)
-        clearTimeout(tm)
-        setLoading(false)
+        const res = await handler(e);
+        clearTimeout(tm);
+        setLoading(false);
         if (res === true && showSuccess) {
-            setSuccess(true)
-            setTimeout(() => setSuccess(false), 2000)
+            setSuccess(true);
+            setTimeout(() => setSuccess(false), 2000);
         } else if (res === false && showSuccess) {
-            setFail(true)
-            setTimeout(() => setFail(false), 2000)
+            setFail(true);
+            setTimeout(() => setFail(false), 2000);
         }
     } catch (e) {
-        clearTimeout(tm)
-        setLoading(false)
-        console.error(e)
+        clearTimeout(tm);
+        setLoading(false);
+        console.error(e);
         if (showSuccess) {
-            setSuccess(false)
-            setFail(true)
-            setTimeout(() => setFail(false), 2000)
+            setSuccess(false);
+            setFail(true);
+            setTimeout(() => setFail(false), 2000);
         }
     }
-}
+};
 
 const WeblensButton = memo(
     ({
@@ -235,41 +219,38 @@ const WeblensButton = memo(
         onMouseOver,
         onMouseLeave,
         style,
-        setButtonRef = (r) => {},
+        setButtonRef = r => {},
     }: buttonProps) => {
-        const [success, setSuccess] = useState(false)
-        const [fail, setFail] = useState(false)
-        const [loading, setLoading] = useState(false)
-        const [textWidth, setTextWidth] = useState(0)
-        const [maxW, setMaxW] = useState(labelOnHover ? 40 : 400)
+        const [success, setSuccess] = useState(false);
+        const [fail, setFail] = useState(false);
+        const [loading, setLoading] = useState(false);
+        const [textWidth, setTextWidth] = useState(0);
+        const [maxW, setMaxW] = useState(labelOnHover ? 40 : 400);
 
-        const [sizeRef, setSizeRef]: [
-            buttonRef: HTMLDivElement,
-            setButtonRef: any,
-        ] = useState(null)
-        const buttonSize = useResize(sizeRef)
+        const [sizeRef, setSizeRef]: [buttonRef: HTMLDivElement, setButtonRef: any] = useState(null);
+        const buttonSize = useResize(sizeRef);
 
         const targetWidth = useMemo(() => {
             if (fillWidth) {
-                return '100%'
+                return '100%';
             } else if (label) {
-                return textWidth + squareSize + 16
+                return textWidth + squareSize + 16;
             } else {
-                return squareSize
+                return squareSize;
             }
-        }, [fillWidth, squareSize, label, textWidth])
+        }, [fillWidth, squareSize, label, textWidth]);
 
         const hoverCallback = useCallback(() => {
             if (labelOnHover) {
-                setMaxW(textWidth + squareSize + 16)
+                setMaxW(textWidth + squareSize + 16);
             }
-        }, [textWidth, squareSize, setMaxW])
+        }, [textWidth, squareSize, setMaxW]);
 
         const unHoverCallback = useCallback(() => {
             if (labelOnHover) {
-                setMaxW(40)
+                setMaxW(40);
             }
-        }, [setMaxW])
+        }, [setMaxW]);
 
         return (
             <div
@@ -281,6 +262,7 @@ const WeblensButton = memo(
                 onMouseLeave={unHoverCallback}
                 style={{
                     maxHeight: squareSize,
+                    minWidth: squareSize,
                     width: targetWidth,
                     maxWidth: maxW,
                     height: squareSize,
@@ -288,11 +270,7 @@ const WeblensButton = memo(
             >
                 <div
                     ref={setButtonRef}
-                    className={
-                        toggleOn === undefined
-                            ? 'weblens-button'
-                            : 'weblens-toggle-button'
-                    }
+                    className={toggleOn === undefined ? 'weblens-button' : 'weblens-toggle-button'}
                     data-disabled={disabled}
                     data-toggled={!!toggleOn}
                     data-repeat={allowRepeat}
@@ -302,61 +280,19 @@ const WeblensButton = memo(
                     data-super={doSuper}
                     data-danger={danger}
                     style={{ width: maxW, ...style }}
-                    onClick={(e) =>
-                        handleButtonEvent(
-                            e,
-                            onClick,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        )
-                    }
-                    onMouseUp={(e) =>
-                        handleButtonEvent(
-                            e,
-                            onMouseUp,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        )
-                    }
-                    onMouseOver={(e) =>
-                        handleButtonEvent(
-                            e,
-                            onMouseOver,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        )
-                    }
-                    onMouseLeave={(e) =>
-                        handleButtonEvent(
-                            e,
-                            onMouseLeave,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        )
-                    }
+                    onClick={e => handleButtonEvent(e, onClick, showSuccess, setLoading, setSuccess, setFail)}
+                    onMouseUp={e => handleButtonEvent(e, onMouseUp, showSuccess, setLoading, setSuccess, setFail)}
+                    onMouseOver={e => handleButtonEvent(e, onMouseOver, showSuccess, setLoading, setSuccess, setFail)}
+                    onMouseLeave={e => handleButtonEvent(e, onMouseLeave, showSuccess, setLoading, setSuccess, setFail)}
                 >
                     <div className="flex w-full relative overflow-hidden">
                         {success && showSuccess && (
-                            <div
-                                className="button-content absolute"
-                                data-center={true}
-                            >
+                            <div className="button-content absolute" data-center={true}>
                                 <IconCheck />
                             </div>
                         )}
                         {fail && showSuccess && (
-                            <div
-                                className="button-content absolute"
-                                data-center={true}
-                            >
+                            <div className="button-content absolute" data-center={true}>
                                 <IconX />
                             </div>
                         )}
@@ -380,43 +316,43 @@ const WeblensButton = memo(
                     </div>
                 </div>
             </div>
-        )
+        );
     },
     (prev, next) => {
         if (prev.toggleOn !== next.toggleOn) {
             // console.log(next.label, 'TOGGLE')
-            return false
+            return false;
         } else if (prev.label !== next.label) {
             // console.log(next.label, 'LABEL')
-            return false
+            return false;
         } else if (prev.disabled !== next.disabled) {
             // console.log(next.label, 'DISABLED')
-            return false
+            return false;
         } else if (prev.onClick !== next.onClick) {
             // console.log(next.label, 'ONCLICK')
-            return false
+            return false;
         } else if (prev.onMouseUp !== next.onMouseUp) {
             // console.log(next.label, 'MOUSEUP')
-            return false
+            return false;
         } else if (prev.onMouseOver !== next.onMouseOver) {
             // console.log(next.label, 'MOUSEOVER')
-            return false
+            return false;
         } else if (prev.postScript !== next.postScript) {
             // console.log(next.label, 'POSTSCRIPT')
-            return false
+            return false;
         } else if (prev.squareSize !== next.squareSize) {
             // console.log(next.label, 'SQUARESIZE')
-            return false
+            return false;
         } else if (prev.style !== next.style) {
             // console.log(next.label, 'STYLE')
-            return false
+            return false;
         } else if (prev.Left !== next.Left) {
             // console.log(next.label, 'LEFT')
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
 export const SelectIcon = ({
     size,
@@ -428,33 +364,33 @@ export const SelectIcon = ({
     selectedIndex,
     onClick,
 }: {
-    size: number
-    expandSize?: number
-    label?: string
-    icon: JSX.Element
-    selected: boolean
-    index?: number
-    selectedIndex?: number
-    onClick?
+    size: number;
+    expandSize?: number;
+    label?: string;
+    icon: JSX.Element;
+    selected: boolean;
+    index?: number;
+    selectedIndex?: number;
+    onClick?;
 }) => {
-    const [hover, setHover] = useState(false)
+    const [hover, setHover] = useState(false);
     const iconBoxStyle = useMemo(() => {
         return {
             height: size,
             width: size,
-        }
-    }, [size])
+        };
+    }, [size]);
     return (
         <div>
             <div
                 className="weblens-select-icon"
                 data-selected={selected}
                 style={{ height: size, width: size }}
-                onClick={(e) => {
-                    onClick(e)
+                onClick={e => {
+                    onClick(e);
                 }}
-                onMouseOver={(e) => setHover(true)}
-                onMouseLeave={(e) => setHover(false)}
+                onMouseOver={e => setHover(true)}
+                onMouseLeave={e => setHover(false)}
             >
                 {icon}
             </div>
@@ -469,37 +405,25 @@ export const SelectIcon = ({
                     <div className="flex p-2 shrink-0" style={iconBoxStyle}>
                         {icon}
                     </div>
-                    <p className="text-xs font-semibold shrink-0 pointer-events-none">
-                        {label}
-                    </p>
+                    <p className="text-xs font-semibold shrink-0 pointer-events-none">{label}</p>
                     <div
                         className="flex absolute bottom-[-5px] justify-around"
                         style={{
                             width: expandSize,
                         }}
                     >
-                        {[...Array(Math.ceil(expandSize / size)).keys()].map(
-                            (n) => {
-                                return (
-                                    <Text
-                                        fw={n === index ? 800 : ''}
-                                        c={
-                                            n === selectedIndex
-                                                ? '#4444ff'
-                                                : 'white'
-                                        }
-                                        key={n}
-                                    >
-                                        _
-                                    </Text>
-                                )
-                            }
-                        )}
+                        {[...Array(Math.ceil(expandSize / size)).keys()].map(n => {
+                            return (
+                                <Text fw={n === index ? 800 : ''} c={n === selectedIndex ? '#4444ff' : 'white'} key={n}>
+                                    _
+                                </Text>
+                            );
+                        })}
                     </div>
                 </div>
             )}
         </div>
-    )
-}
+    );
+};
 
-export default WeblensButton
+export default WeblensButton;

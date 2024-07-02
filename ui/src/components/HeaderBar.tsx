@@ -7,31 +7,25 @@ import {
     IconServerCog,
     IconUser,
     IconX,
-} from '@tabler/icons-react'
-import React, {
-    memo,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
-} from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { UpdatePassword } from '../api/UserApi'
+} from '@tabler/icons-react';
+import React, { memo, useCallback, useContext, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { UpdatePassword } from '../api/UserApi';
 
-import { UserContext } from '../Context'
-import Admin from '../Pages/Admin Settings/Admin'
-import '../components/style.scss'
-import { AuthHeaderT, UserContextT, UserInfoT } from '../types/Types'
-import { useKeyDown } from './hooks'
-import WeblensLoader from './Loading'
-import WeblensButton from './WeblensButton'
-import WeblensInput from './WeblensInput'
+import { UserContext } from '../Context';
+import Admin from '../Pages/Admin Settings/Admin';
+import '../components/style.scss';
+import { AuthHeaderT, UserContextT, UserInfoT } from '../types/Types';
+import { useKeyDown } from './hooks';
+import WeblensLoader from './Loading';
+import WeblensButton from './WeblensButton';
+import WeblensInput from './WeblensInput';
 
 type HeaderBarProps = {
-    dispatch: React.Dispatch<any>
-    page: string
-    loading: string[]
-}
+    dispatch: React.Dispatch<any>;
+    page: string;
+    loading: string[];
+};
 
 const SettingsMenu = ({
     open,
@@ -39,54 +33,50 @@ const SettingsMenu = ({
     usr,
     authHeader,
 }: {
-    open: boolean
-    setClosed: () => void
-    usr: UserInfoT
-    authHeader: AuthHeaderT
+    open: boolean;
+    setClosed: () => void;
+    usr: UserInfoT;
+    authHeader: AuthHeaderT;
 }) => {
-    const [oldP, setOldP] = useState('')
-    const [newP, setNewP] = useState('')
-    const nav = useNavigate()
-    const { clear } = useContext(UserContext)
+    const [oldP, setOldP] = useState('');
+    const [newP, setNewP] = useState('');
+    const nav = useNavigate();
+    const { clear } = useContext(UserContext);
 
-    useKeyDown('Escape', (e) => {
+    useKeyDown('Escape', e => {
         if (open) {
-            setNewP('')
-            setOldP('')
-            setClosed()
+            setNewP('');
+            setOldP('');
+            setClosed();
         }
-    })
+    });
 
     const updateFunc = useCallback(async () => {
         if (oldP == '' || newP == '' || oldP === newP) {
-            return
+            return;
         }
-        const res =
-            (await UpdatePassword(usr.username, oldP, newP, authHeader))
-                .status === 200
+        const res = (await UpdatePassword(usr.username, oldP, newP, authHeader)).status === 200;
         if (res) {
-            setOldP('')
-            setNewP('')
+            setOldP('');
+            setNewP('');
         }
-        setTimeout(() => setClosed(), 2000)
-        return res
-    }, [usr.username, String(oldP), String(newP), authHeader])
+        setTimeout(() => setClosed(), 2000);
+        return res;
+    }, [usr.username, String(oldP), String(newP), authHeader]);
 
     if (!open) {
-        return <></>
+        return <></>;
     }
 
     return (
-        <div
-            className="settings-menu-container"
-            data-open={open}
-            onClick={() => setClosed()}
-        >
-            <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
+        <div className="settings-menu-container" data-open={open} onClick={() => setClosed()}>
+            <div className="settings-menu" onClick={e => e.stopPropagation()}>
+                <div className="flex flex-row absolute right-0 top-0 p-2 m-3 bg-dark-paper rounded gap-1">
+                    <IconUser />
+                    <p>{usr.username}</p>
+                </div>
                 <div className="flex flex-col w-max justify-center items-center gap-2 p-24">
-                    <p className="text-lg font-semibold p-2 w-max text-nowrap">
-                        Change Password
-                    </p>
+                    <p className="text-lg font-semibold p-2 w-max text-nowrap">Change Password</p>
                     <WeblensInput
                         onComplete={() => {}}
                         placeholder="Old Password"
@@ -115,8 +105,8 @@ const SettingsMenu = ({
                     danger
                     centerContent
                     onClick={() => {
-                        clear()
-                        nav('/login')
+                        clear();
+                        nav('/login');
                     }}
                 />
                 <div className="top-0 left-0 m-3 absolute">
@@ -124,45 +114,44 @@ const SettingsMenu = ({
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
 const HeaderBar = memo(
     ({ dispatch, loading }: HeaderBarProps) => {
-        const { usr, authHeader, clear, serverInfo }: UserContextT =
-            useContext(UserContext)
-        const nav = useNavigate()
-        const [settings, setSettings] = useState(false)
-        const [admin, setAdmin] = useState(false)
+        const { usr, authHeader, clear, serverInfo }: UserContextT = useContext(UserContext);
+        const nav = useNavigate();
+        const [settings, setSettings] = useState(false);
+        const [admin, setAdmin] = useState(false);
 
-        const loc = useLocation()
+        const loc = useLocation();
 
-        const navToLogin = useCallback(() => nav('/login'), [nav])
-        const navToTimeline = useCallback(() => nav('/'), [nav])
-        const navToAlbums = useCallback(() => nav('/albums'), [nav])
-        const navToFiles = useCallback(() => nav('/files/home'), [nav])
+        const navToLogin = useCallback(() => nav('/login'), [nav]);
+        const navToTimeline = useCallback(() => nav('/'), [nav]);
+        const navToAlbums = useCallback(() => nav('/albums'), [nav]);
+        const navToFiles = useCallback(() => nav('/files/home'), [nav]);
 
         const openAdmin = useCallback(() => {
             dispatch({
                 type: 'set_block_focus',
                 block: true,
-            })
-            setAdmin(true)
-        }, [dispatch, setAdmin])
+            });
+            setAdmin(true);
+        }, [dispatch, setAdmin]);
 
         useEffect(() => {
             if (settings) {
                 dispatch({
                     type: 'set_block_focus',
                     block: true,
-                })
+                });
             } else {
                 dispatch({
                     type: 'set_block_focus',
                     block: false,
-                })
+                });
             }
-        }, [settings])
+        }, [settings]);
 
         return (
             <div className="z-50 h-max w-screen">
@@ -170,8 +159,8 @@ const HeaderBar = memo(
                     open={settings}
                     usr={usr}
                     setClosed={() => {
-                        setSettings(false)
-                        dispatch({ type: 'set_block_focus', block: false })
+                        setSettings(false);
+                        dispatch({ type: 'set_block_focus', block: false });
                     }}
                     authHeader={authHeader}
                 />
@@ -185,7 +174,7 @@ const HeaderBar = memo(
                     <div className="flex flex-row items-center w-96 shrink">
                         <div className="p-1" />
                         {usr.isLoggedIn && (
-                            <div className="flex flex-row items-center w-[500px]">
+                            <div className="flex flex-row items-center w-full">
                                 <WeblensButton
                                     label="Timeline"
                                     squareSize={40}
@@ -203,9 +192,7 @@ const HeaderBar = memo(
                                     textMin={60}
                                     centerContent
                                     subtle
-                                    toggleOn={loc.pathname.startsWith(
-                                        '/albums'
-                                    )}
+                                    toggleOn={loc.pathname.startsWith('/albums')}
                                     Left={IconAlbum}
                                     onClick={navToAlbums}
                                 />
@@ -227,12 +214,8 @@ const HeaderBar = memo(
 
                     {serverInfo && (
                         <div className="flex flex-col items-center h-max w-max pr-3">
-                            <p className="text-xs select-none font-bold">
-                                {serverInfo.name}
-                            </p>
-                            <p className="text-xs select-none">
-                                ({serverInfo.role})
-                            </p>
+                            <p className="text-xs select-none font-bold">{serverInfo.name}</p>
+                            <p className="text-xs select-none">({serverInfo.role})</p>
                         </div>
                     )}
                     <WeblensButton
@@ -242,21 +225,14 @@ const HeaderBar = memo(
                         onClick={() => {
                             window.open(
                                 `https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${
-                                    import.meta.env.VITE_APP_BUILD_TAG
-                                        ? import.meta.env.VITE_APP_BUILD_TAG
-                                        : 'local'
+                                    import.meta.env.VITE_APP_BUILD_TAG ? import.meta.env.VITE_APP_BUILD_TAG : 'local'
                                 }`,
-                                '_blank'
-                            )
+                                '_blank',
+                            );
                         }}
                     />
                     {usr?.admin && (
-                        <WeblensButton
-                            label={'Admin Settings'}
-                            labelOnHover
-                            Left={IconServerCog}
-                            onClick={openAdmin}
-                        />
+                        <WeblensButton label={'Admin Settings'} labelOnHover Left={IconServerCog} onClick={openAdmin} />
                     )}
                     <WeblensButton
                         label={usr.isLoggedIn ? 'User Settings' : 'Login'}
@@ -264,9 +240,9 @@ const HeaderBar = memo(
                         Left={IconUser}
                         onClick={() => {
                             if (usr.isLoggedIn) {
-                                setSettings(true)
+                                setSettings(true);
                             } else {
-                                nav('/login')
+                                nav('/login');
                             }
                         }}
                     />
@@ -274,16 +250,16 @@ const HeaderBar = memo(
                     <div className="pr-3" />
                 </div>
             </div>
-        )
+        );
     },
     (prev, next) => {
         if (prev.loading !== next.loading) {
-            return false
+            return false;
         } else if (prev.page !== next.page) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
-export default HeaderBar
+export default HeaderBar;

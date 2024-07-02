@@ -29,7 +29,6 @@ import {
     DeleteAlbum,
     getAlbumMedia,
     LeaveAlbum,
-    SetAlbumCover,
     ShareAlbum,
 } from './AlbumQuery'
 
@@ -302,13 +301,13 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                         pointerEvents: sharing ? 'none' : 'all',
                     }}
                 >
-                    <AlbumContentPreview
-                        albumMedias={previewMedia}
-                        setCoverM={(mediaId: string) => {
-                            SetAlbumCover(album.id, mediaId, authHeader)
-                        }}
-                        selected={album.cover}
-                    />
+                    {/*<AlbumContentPreview*/}
+                    {/*    albumMedias={previewMedia}*/}
+                    {/*    setCoverM={(mediaId: string) => {*/}
+                    {/*        SetAlbumCover(album.id, mediaId, authHeader)*/}
+                    {/*    }}*/}
+                    {/*    selected={album.cover}*/}
+                    {/*/>*/}
                     <div className="album-title-wrapper">
                         <Text
                             truncate="end"

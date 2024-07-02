@@ -234,6 +234,7 @@
     }
 
     &[data-show-text='false'] {
+        position: absolute;
         opacity: 0;
     }
 }

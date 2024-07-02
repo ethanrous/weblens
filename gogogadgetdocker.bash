@@ -19,7 +19,7 @@ export VITE_BUILD=true
 npm run build
 cd ..
 
-docker run -v ./api:/source --platform linux/amd64 --rm weblens-go-build /bin/bash -c \
+docker run -v ./api/src:/source --platform linux/amd64 --rm weblens-go-build /bin/bash -c \
 'cd /source && export GIN_MODE=release && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o weblens'
 
 docker build --platform linux/amd64 -t ethrous/weblens:"$docker_tag" --build-arg build_tag="$docker_tag" .

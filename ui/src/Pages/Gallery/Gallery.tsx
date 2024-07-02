@@ -1,99 +1,84 @@
-import { useDebouncedValue } from '@mantine/hooks'
-import React, { useContext, useEffect, useReducer, useRef } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { getAlbums } from '../../Albums/AlbumQuery'
-import { Albums } from '../../Albums/Albums'
+import { useDebouncedValue } from '@mantine/hooks';
+import React, { useContext, useEffect, useReducer, useRef } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { getAlbums } from '../../Albums/AlbumQuery';
+import { Albums } from '../../Albums/Albums';
 
-import HeaderBar from '../../components/HeaderBar'
-import Presentation from '../../components/Presentation'
-import { UserContext } from '../../Context'
+import HeaderBar from '../../components/HeaderBar';
+import Presentation from '../../components/Presentation';
+import { UserContext } from '../../Context';
 
-import './galleryStyle.scss'
-import { AlbumData, GalleryStateT, PresentType } from '../../types/Types'
-import { clamp } from '../../util'
-import {
-    GalleryAction,
-    GalleryContext,
-    galleryReducer,
-    useKeyDownGallery,
-} from './GalleryLogic'
-import { Timeline } from './Timeline'
+import './galleryStyle.scss';
+import { AlbumData, GalleryStateT, PresentType } from '../../types/Types';
+import { clamp } from '../../util';
+import { GalleryAction, GalleryContext, galleryReducer, useKeyDownGallery } from './GalleryLogic';
+import { Timeline } from './Timeline';
 
 const Gallery = () => {
-    const [galleryState, galleryDispatch] = useReducer<
-        (state: GalleryStateT, action: GalleryAction) => GalleryStateT
-    >(galleryReducer, {
-        albumsMap: new Map<string, AlbumData>(),
-        albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
-        includeRaw: JSON.parse(localStorage.getItem('showRaws')) || false,
-        imageSize:
-            clamp(JSON.parse(localStorage.getItem('imageSize')), 150, 500) ||
-            300,
-        presentingMediaId: '',
-        presentingMode: PresentType.None,
-        loading: [],
-        newAlbumDialogue: false,
-        blockSearchFocus: false,
-        selecting: false,
-        searchContent: '',
-        menuTargetId: '',
-        timeAdjustOffset: null,
-        holdingShift: false,
-        hoverIndex: -1,
-        lastSelIndex: -1,
-    })
+    const [galleryState, galleryDispatch] = useReducer<(state: GalleryStateT, action: GalleryAction) => GalleryStateT>(
+        galleryReducer,
+        {
+            albumsMap: new Map<string, AlbumData>(),
+            albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
+            includeRaw: JSON.parse(localStorage.getItem('showRaws')) || false,
+            imageSize: clamp(JSON.parse(localStorage.getItem('imageSize')), 150, 500),
+            presentingMediaId: '',
+            presentingMode: PresentType.None,
+            loading: [],
+            newAlbumDialogue: false,
+            blockSearchFocus: false,
+            selecting: false,
+            searchContent: '',
+            menuTargetId: '',
+            timeAdjustOffset: null,
+            holdingShift: false,
+            hoverIndex: -1,
+            lastSelId: '',
+        },
+    );
 
-    const nav = useNavigate()
-    const { authHeader, usr } = useContext(UserContext)
+    const nav = useNavigate();
+    const { authHeader, usr } = useContext(UserContext);
 
-    const loc = useLocation()
-    const page =
-        loc.pathname === '/' || loc.pathname === '/timeline'
-            ? 'timeline'
-            : 'albums'
-    const albumId = useParams()['*']
-    const viewportRef: React.Ref<HTMLDivElement> = useRef()
+    const loc = useLocation();
+    const page = loc.pathname === '/' || loc.pathname === '/timeline' ? 'timeline' : 'albums';
+    const albumId = useParams()['*'];
+    const viewportRef: React.Ref<HTMLDivElement> = useRef();
 
-    useKeyDownGallery(galleryState, galleryDispatch)
+    useKeyDownGallery(galleryState, galleryDispatch);
 
     useEffect(() => {
         if (usr.isLoggedIn) {
-            galleryDispatch({ type: 'remove_loading', loading: 'login' })
+            galleryDispatch({ type: 'remove_loading', loading: 'login' });
         } else if (usr.isLoggedIn === undefined) {
-            galleryDispatch({ type: 'add_loading', loading: 'login' })
+            galleryDispatch({ type: 'add_loading', loading: 'login' });
         } else if (usr.isLoggedIn === false) {
-            nav('/login')
+            nav('/login');
         }
-    }, [usr])
+    }, [usr]);
 
     useEffect(() => {
-        localStorage.setItem(
-            'albumsFilter',
-            JSON.stringify(galleryState.albumsFilter)
-        )
-    }, [galleryState.albumsFilter])
+        localStorage.setItem('albumsFilter', JSON.stringify(galleryState.albumsFilter));
+    }, [galleryState.albumsFilter]);
 
     useEffect(() => {
-        localStorage.setItem(
-            'showRaws',
-            JSON.stringify(galleryState.includeRaw)
-        )
-    }, [galleryState.includeRaw])
+        localStorage.setItem('showRaws', JSON.stringify(galleryState.includeRaw));
+    }, [galleryState.includeRaw]);
 
-    const [bouncedSize] = useDebouncedValue(galleryState.imageSize, 500)
+    const [bouncedSize] = useDebouncedValue(galleryState.imageSize, 500);
     useEffect(() => {
-        localStorage.setItem('imageSize', JSON.stringify(bouncedSize))
-    }, [bouncedSize])
+        localStorage.setItem('imageSize', JSON.stringify(bouncedSize));
+    }, [bouncedSize]);
 
     useEffect(() => {
         if (authHeader.Authorization !== '' && page !== 'albums') {
-            galleryDispatch({ type: 'add_loading', loading: 'albums' })
-            getAlbums(true, authHeader).then((val) => {
-                galleryDispatch({ type: 'set_albums', albums: val })
-                galleryDispatch({ type: 'remove_loading', loading: 'albums' })
-            })
+            galleryDispatch({ type: 'add_loading', loading: 'albums' });
+            getAlbums(true, authHeader).then(val => {
+                galleryDispatch({ type: 'set_albums', albums: val });
+                galleryDispatch({ type: 'remove_loading', loading: 'albums' });
+            });
         }
-    }, [authHeader, page])
+    }, [authHeader, page]);
 
     return (
         <GalleryContext.Provider
@@ -102,17 +87,9 @@ const Gallery = () => {
                 galleryDispatch: galleryDispatch,
             }}
         >
-            <HeaderBar
-                dispatch={galleryDispatch}
-                page={'gallery'}
-                loading={galleryState.loading}
-            />
+            <HeaderBar dispatch={galleryDispatch} page={'gallery'} loading={galleryState.loading} />
             <Presentation
-                mediaId={
-                    galleryState.presentingMode === PresentType.Fullscreen
-                        ? galleryState.presentingMediaId
-                        : null
-                }
+                mediaId={galleryState.presentingMode === PresentType.Fullscreen ? galleryState.presentingMediaId : null}
                 element={null}
                 dispatch={galleryDispatch}
             />
@@ -130,7 +107,7 @@ const Gallery = () => {
                 </div>
             </div>
         </GalleryContext.Provider>
-    )
-}
+    );
+};
 
-export default Gallery
+export default Gallery;

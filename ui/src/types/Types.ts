@@ -1,15 +1,15 @@
 // Global Types
 
-import React from 'react'
-import { FbMenuModeT, FileInitT, WeblensFile } from '../Files/File'
-import { DraggingStateT, FbModeT } from '../Files/filesContext'
-import WeblensMedia from '../Media/Media'
-import { TaskProgress } from '../Pages/FileBrowser/TaskProgress'
-import { GalleryAction } from '../Pages/Gallery/GalleryLogic'
+import React from 'react';
+import { FbMenuModeT, WeblensFileInfo, WeblensFile } from '../Files/File';
+import { DraggingStateT, FbModeT } from '../Files/filesContext';
+import WeblensMedia from '../Media/Media';
+import { TaskProgress } from '../Pages/FileBrowser/TaskProgress';
+import { GalleryAction } from '../Pages/Gallery/GalleryLogic';
 
 export type AuthHeaderT = {
-    Authorization: string
-}
+    Authorization: string;
+};
 
 export type UserInfoT = {
     homeId: string;
@@ -62,14 +62,6 @@ export type UserContextT = {
 //     ImgRef: React.MutableRefObject<any>;
 // };
 
-export type WsMessageT = {
-    subscribeKey: string;
-    eventTag: string;
-    taskType: string;
-    error: string;
-    content: any[];
-};
-
 export type mediaType = {
     FileExtension: [];
     FriendlyName: string;
@@ -111,20 +103,14 @@ export type MediaWrapperProps = {
     hoverIndex?: { row: number; col: number };
     albumId?: string;
     fetchAlbum?: () => void;
-    menu?: (
-        mediaId: string,
-        open: boolean,
-        setOpen: (open: boolean) => void,
-    ) => JSX.Element;
+    menu?: (mediaId: string, open: boolean, setOpen: (open: boolean) => void) => JSX.Element;
 };
-
 
 export enum PresentType {
     None = 1,
     InLine,
     Fullscreen,
 }
-
 
 export type TimeOffset = {
     second: 0;
@@ -139,12 +125,12 @@ export const newTimeOffset = (): TimeOffset => {
     return {
         second: 0,
         minute: 0,
-        hour:   0,
-        day:    0,
-        month:  0,
-        year:   0,
-    }
-}
+        hour: 0,
+        day: 0,
+        month: 0,
+        year: 0,
+    };
+};
 
 export type GalleryStateT = {
     albumsMap: Map<string, AlbumData>;
@@ -212,8 +198,8 @@ export type FileBrowserAction = {
     pos?: { x: number; y: number };
 
     file?: WeblensFile;
-    fileInfo?: FileInitT;
-    files?: FileInitT[];
+    fileInfo?: WeblensFileInfo;
+    files?: WeblensFileInfo[];
 
     past?: Date;
 };

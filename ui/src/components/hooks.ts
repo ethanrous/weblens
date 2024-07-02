@@ -1,223 +1,223 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
-import { fetchMediaTypes } from '../api/ApiFetch'
-import { mediaType } from '../types/Types'
-import WeblensMedia from '../Media/Media'
-import { MediaContext } from '../Context'
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { fetchMediaTypes } from '../api/ApiFetch';
+import { mediaType } from '../types/Types';
+import WeblensMedia from '../Media/Media';
+import { MediaContext } from '../Context';
 
 export const useResize = (elem: HTMLDivElement) => {
-    const [size, setSize] = useState({ height: 0, width: 0 })
+    const [size, setSize] = useState({ height: 0, width: 0 });
     useEffect(() => {
         if (elem) {
-            const obs = new ResizeObserver((entries) => {
+            const obs = new ResizeObserver(entries => {
                 // only 1 entry
-                setSize({ height: elem.clientHeight, width: elem.clientWidth })
-            })
-            obs.observe(elem)
-            return () => obs.disconnect()
+                setSize({ height: elem.clientHeight, width: elem.clientWidth });
+            });
+            obs.observe(elem);
+            return () => obs.disconnect();
         }
-    }, [elem])
+    }, [elem]);
 
-    return size
-}
+    return size;
+};
 
 export const useVideo = (elem: HTMLVideoElement) => {
-    const [playtime, setPlaytime] = useState(0)
-    const [isPlaying, setIsPlaying] = useState(false)
-    const [isWaiting, setIsWaiting] = useState(true)
+    const [playtime, setPlaytime] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isWaiting, setIsWaiting] = useState(true);
 
     const updatePlaytime = useCallback(() => {
-        setPlaytime(elem.currentTime)
-    }, [setPlaytime, elem])
+        setPlaytime(elem.currentTime);
+    }, [setPlaytime, elem]);
 
     const updatePlayState = useCallback(
-        (e) => {
-            setIsPlaying(e.type === 'play')
+        e => {
+            setIsPlaying(e.type === 'play');
         },
-        [setIsPlaying]
-    )
+        [setIsPlaying],
+    );
 
     const updateBufferState = useCallback(
-        (e) => {
-            console.log(e.type)
+        e => {
+            console.log(e.type);
             if (e.type === 'waiting') {
-                setIsWaiting(true)
+                setIsWaiting(true);
             } else if (e.type === 'playing') {
-                setIsWaiting(false)
+                setIsWaiting(false);
             }
         },
-        [setIsWaiting]
-    )
+        [setIsWaiting],
+    );
 
     useEffect(() => {
         if (!elem) {
-            return
+            return;
         }
-        elem.addEventListener('timeupdate', updatePlaytime)
-        elem.addEventListener('play', updatePlayState)
-        elem.addEventListener('pause', updatePlayState)
-        elem.addEventListener('waiting', updateBufferState)
-        elem.addEventListener('playing', updateBufferState)
+        elem.addEventListener('timeupdate', updatePlaytime);
+        elem.addEventListener('play', updatePlayState);
+        elem.addEventListener('pause', updatePlayState);
+        elem.addEventListener('waiting', updateBufferState);
+        elem.addEventListener('playing', updateBufferState);
         return () => {
-            elem.removeEventListener('timeupdate', updatePlaytime)
-            elem.removeEventListener('play', updatePlayState)
-            elem.removeEventListener('pause', updatePlayState)
-            elem.removeEventListener('waiting', updateBufferState)
-            elem.removeEventListener('playing', updateBufferState)
-        }
-    }, [updatePlaytime, updatePlayState, elem])
+            elem.removeEventListener('timeupdate', updatePlaytime);
+            elem.removeEventListener('play', updatePlayState);
+            elem.removeEventListener('pause', updatePlayState);
+            elem.removeEventListener('waiting', updateBufferState);
+            elem.removeEventListener('playing', updateBufferState);
+        };
+    }, [updatePlaytime, updatePlayState, elem]);
 
-    return { playtime, isPlaying, isWaiting }
-}
+    return { playtime, isPlaying, isWaiting };
+};
 
 export const useKeyDown = (
     key: string | ((e: KeyboardEvent) => boolean),
-    callback: (e: KeyboardEvent) => void
+    callback: (e: KeyboardEvent) => void,
+    ignore?: boolean,
 ) => {
     const onKeyDown = useCallback(
-        (event) => {
-            if (
-                (typeof key === 'string' && event.key === key) ||
-                (typeof key === 'function' && key(event))
-            ) {
-                callback(event)
+        event => {
+            if ((typeof key === 'string' && event.key === key) || (typeof key === 'function' && key(event))) {
+                callback(event);
             }
         },
-        [key, callback]
-    )
+        [key, callback],
+    );
 
     useEffect(() => {
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-            document.removeEventListener('keydown', onKeyDown)
+        if (ignore === true) {
+            return;
         }
-    }, [onKeyDown])
-}
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [onKeyDown, ignore]);
+};
 
 export const useWindowSize = () => {
     const [windowSize, setWindowSize] = useState({
         width: window.innerWidth,
         height: window.innerHeight,
-    })
-    const onResize = (e) =>
+    });
+    const onResize = e =>
         setWindowSize({
             width: e.target.innerWidth,
             height: e.target.innerHeight,
-        })
+        });
     useEffect(() => {
-        window.addEventListener('resize', onResize)
-        return () => window.removeEventListener('resize', onResize)
-    }, [])
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
 
-    return windowSize
-}
+    return windowSize;
+};
 
-export const useResizeDrag = (
-    resizing: boolean,
-    setResizing,
-    setResizeOffset,
-    flip?: boolean
-) => {
-    const windowSize = useWindowSize()
-    window.addEventListener('mouseup', (e) => {
+export const useResizeDrag = (resizing: boolean, setResizing, setResizeOffset, flip?: boolean) => {
+    const windowSize = useWindowSize();
+    window.addEventListener('mouseup', e => {
         if (resizing) {
-            setResizing(false)
+            setResizing(false);
         }
-    })
+    });
 
-    const onMove = (event) => {
+    const onMove = event => {
         if (flip) {
-            setResizeOffset(windowSize.width - event.clientX)
+            setResizeOffset(windowSize.width - event.clientX);
         } else {
-            setResizeOffset(event.clientX)
+            setResizeOffset(event.clientX);
         }
-    }
+    };
 
     useEffect(() => {
         if (resizing) {
-            addEventListener('mousemove', onMove)
+            addEventListener('mousemove', onMove);
         }
-        return () => removeEventListener('mousemove', onMove)
-    }, [resizing])
-}
+        return () => removeEventListener('mousemove', onMove);
+    }, [resizing]);
+};
 
 export const useMediaType = (): Map<string, mediaType> => {
-    const [typeMap, setTypeMap] = useState(null)
+    const [typeMap, setTypeMap] = useState(null);
 
     useEffect(() => {
-        const mediaTypes = new Map<string, mediaType>()
-        fetchMediaTypes().then((mt) => {
-            const mimes: string[] = Array.from(Object.keys(mt))
+        const mediaTypes = new Map<string, mediaType>();
+        fetchMediaTypes().then(mt => {
+            const mimes: string[] = Array.from(Object.keys(mt));
             for (const mime of mimes) {
-                mediaTypes.set(mime, mt[mime])
+                mediaTypes.set(mime, mt[mime]);
             }
-            setTypeMap(mediaTypes)
-        })
-    }, [])
-    return typeMap
-}
+            setTypeMap(mediaTypes);
+        });
+    }, []);
+    return typeMap;
+};
 
 export const useClick = (handler: (e) => void, ignore?, disable?: boolean) => {
     const callback = useCallback(
-        (e) => {
+        e => {
             if (disable) {
-                return
+                return;
             }
 
             if (ignore && ignore.contains(e.target)) {
-                return
+                return;
             }
 
-            handler(e)
+            handler(e);
         },
-        [handler, ignore, disable]
-    )
+        [handler, ignore, disable],
+    );
 
     useEffect(() => {
         if (!disable) {
-            window.addEventListener('click', callback, true)
-            window.addEventListener('contextmenu', callback, true)
+            window.addEventListener('click', callback, true);
+            window.addEventListener('contextmenu', callback, true);
         } else {
-            return
+            return;
         }
         return () => {
-            window.removeEventListener('click', callback, true)
-            window.removeEventListener('contextmenu', callback, true)
-        }
-    }, [callback, disable])
-}
+            window.removeEventListener('click', callback, true);
+            window.removeEventListener('contextmenu', callback, true);
+        };
+    }, [callback, disable]);
+};
 
 export const useMedia = (mediaId: string): WeblensMedia => {
-    const { mediaState } = useContext(MediaContext)
-    const [mediaData, setMediaData] = useState<WeblensMedia>(null)
+    const { mediaState } = useContext(MediaContext);
+    const [mediaData, setMediaData] = useState<WeblensMedia>(null);
 
     useEffect(() => {
-        mediaState.loadNew(mediaId).then((m) => setMediaData(m))
-    }, [mediaId])
+        mediaState.loadNew(mediaId).then(m => setMediaData(m));
+    }, [mediaId]);
 
-    return mediaData
-}
+    return mediaData;
+};
 
 export const useIsFocused = (element: HTMLDivElement) => {
-    const [active, setActive] = useState<boolean>()
+    const [active, setActive] = useState<boolean>(false);
 
-    const handleFocusIn = (e) => {
-        setActive(true)
-    }
-    const handleFocusOut = (e) => {
-        setActive(false)
-    }
+    const handleFocusIn = e => {
+        setActive(true);
+    };
+
+    const handleFocusOut = e => {
+        setActive(false);
+    };
 
     useEffect(() => {
         if (!element) {
-            return
+            return;
         }
-        element.addEventListener('focusin', handleFocusIn)
-        element.addEventListener('focusout', handleFocusOut)
+        if (document.activeElement === element) {
+            setActive(true);
+        }
+        element.addEventListener('focusin', handleFocusIn);
+        element.addEventListener('focusout', handleFocusOut);
         return () => {
-            document.removeEventListener('focusin', handleFocusIn)
-            document.removeEventListener('focusout', handleFocusOut)
-        }
-    }, [element])
+            document.removeEventListener('focusin', handleFocusIn);
+            document.removeEventListener('focusout', handleFocusOut);
+        };
+    }, [element]);
 
-    return active
-}
+    return active;
+};

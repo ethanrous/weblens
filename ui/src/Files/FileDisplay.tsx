@@ -1,97 +1,84 @@
-import { Divider, Loader, Text } from '@mantine/core'
-import { IconFolder, IconPhoto } from '@tabler/icons-react'
-import React, {
-    memo,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Divider, Loader, Text } from '@mantine/core';
+import { IconFolder, IconPhoto } from '@tabler/icons-react';
+import React, { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import '../components/itemDisplayStyle.css'
-import { MediaImage } from '../Media/PhotoContainer'
-import {
-    FbMenuModeT,
-    GlobalContextType,
-    SelectedState,
-    WeblensFile,
-} from './File'
-import { DraggingStateT, FbContext } from './filesContext'
-import { useMedia } from '../components/hooks'
+import { MediaImage } from '../Media/PhotoContainer';
+import { FbMenuModeT, GlobalContextType, SelectedState, WeblensFile } from './File';
+import { DraggingStateT, FbContext } from './filesContext';
+import { useMedia } from '../components/hooks';
+import { MoveSelected } from '../Pages/FileBrowser/FileBrowserLogic';
+import { UserContext } from '../Context';
+import { all } from 'axios';
+import WeblensInput from '../components/WeblensInput';
 
 type WrapperProps = {
-    itemInfo: WeblensFile
-    fileRef
+    itemInfo: WeblensFile;
+    fileRef;
 
-    editing: boolean
+    editing: boolean;
 
-    selected: SelectedState
+    selected: SelectedState;
 
-    width: number
+    width: number;
 
-    dragging: DraggingStateT
+    dragging: DraggingStateT;
 
-    setSelected: (itemId: string, selected?: boolean) => void
-    doSelectMany: () => void
-    moveSelected: (entryId: string) => void
-    setMoveDest: (itemName: string) => void
+    setSelected: (itemId: string, selected?: boolean) => void;
+    doSelectMany: () => void;
+    moveSelected: (entryId: string) => void;
+    setMoveDest: (itemName: string) => void;
 
-    setDragging: (d: DraggingStateT) => void
-    setHovering: (i: string) => void
+    setDragging: (d: DraggingStateT) => void;
+    setHovering: (i: string) => void;
 
-    setMenuMode: (m: FbMenuModeT) => void
-    setMenuPos: ({ x, y }: { x: number; y: number }) => void
-    setMenuTarget: (itemId: string) => void
+    setMenuMode: (m: FbMenuModeT) => void;
+    setMenuPos: ({ x, y }: { x: number; y: number }) => void;
+    setMenuTarget: (itemId: string) => void;
 
-    children
-}
+    children;
+};
 
 type TitleProps = {
-    itemId: string
-    itemTitle: string
-    secondaryInfo?: string
-    editing: boolean
-    setEditing: (e: boolean) => void
-    allowEditing: boolean
-    height: number
-    blockFocus: (b: boolean) => void
-    rename: (itemId: string, newName: string) => void
-}
-
-const MARGIN = 6
+    itemId: string;
+    itemTitle: string;
+    secondaryInfo?: string;
+    editing: boolean;
+    setEditing: (e: boolean) => void;
+    allowEditing: boolean;
+    blockFocus: (b: boolean) => void;
+    rename: (itemId: string, newName: string) => void;
+};
 
 function selectedStyles(selected: SelectedState): {
-    backgroundColor: string
-    outline: string
+    backgroundColor: string;
+    outline: string;
 } {
-    let backgroundColor = '#222222'
-    let outline
+    let backgroundColor = '#222222';
+    let outline;
     if (selected & SelectedState.Hovering) {
-        backgroundColor = '#333333'
+        backgroundColor = '#333333';
     }
 
     if (selected & SelectedState.InRange) {
-        backgroundColor = '#373365'
+        backgroundColor = '#373365';
     }
 
     if (selected & SelectedState.Selected) {
-        backgroundColor = '#331177bb'
+        backgroundColor = '#331177bb';
     }
 
     if (selected & SelectedState.LastSelected) {
-        outline = '2px solid #442299'
+        outline = '2px solid #442299';
     }
 
     if (selected & SelectedState.Droppable) {
         // $dark-paper
-        backgroundColor = '#1c1049'
-        outline = '2px solid #4444ff'
+        backgroundColor = '#1c1049';
+        outline = '2px solid #4444ff';
     }
 
-    return { backgroundColor, outline }
+    return { backgroundColor, outline };
 }
 
 const ItemWrapper = memo(
@@ -112,88 +99,82 @@ const ItemWrapper = memo(
         setMoveDest,
         children,
     }: WrapperProps) => {
-        const [mouseDown, setMouseDown] = useState(null)
-        const nav = useNavigate()
-        const { fbState, fbDispatch } = useContext(FbContext)
+        const [mouseDown, setMouseDown] = useState(null);
+        const nav = useNavigate();
+        const { fbState, fbDispatch } = useContext(FbContext);
 
         const { outline, backgroundColor } = useMemo(() => {
-            return selectedStyles(selected)
-        }, [selected])
+            return selectedStyles(selected);
+        }, [selected]);
 
         return (
             <div
-                className="animate-fade"
+                className="weblens-file animate-fade"
                 ref={fileRef}
-                style={{ margin: MARGIN }}
-                onMouseOver={(e) => {
-                    e.stopPropagation()
-                    file.SetHovering(true)
-                    setHovering(file.Id())
+                onMouseOver={e => {
+                    e.stopPropagation();
+                    file.SetHovering(true);
+                    setHovering(file.Id());
                     if (dragging && !file.IsSelected() && file.IsFolder()) {
-                        setMoveDest(file.GetFilename())
+                        setMoveDest(file.GetFilename());
                     }
                 }}
-                onMouseDown={(e) => {
-                    setMouseDown({ x: e.clientX, y: e.clientY })
+                onMouseDown={e => {
+                    setMouseDown({ x: e.clientX, y: e.clientY });
                 }}
-                onMouseMove={(e) => {
+                onMouseMove={e => {
                     if (
                         mouseDown &&
                         !dragging &&
-                        (Math.abs(mouseDown.x - e.clientX) > 20 ||
-                            Math.abs(mouseDown.y - e.clientY) > 20)
+                        (Math.abs(mouseDown.x - e.clientX) > 20 || Math.abs(mouseDown.y - e.clientY) > 20)
                     ) {
-                        setSelected(file.Id(), true)
-                        setDragging(DraggingStateT.InternalDrag)
+                        setSelected(file.Id(), true);
+                        setDragging(DraggingStateT.InternalDrag);
                     }
                 }}
-                onClick={(e) => {
-                    e.stopPropagation()
+                onClick={e => {
+                    e.stopPropagation();
                     if (e.shiftKey) {
-                        doSelectMany()
+                        doSelectMany();
                     } else {
-                        setSelected(file.Id())
+                        setSelected(file.Id());
                     }
                 }}
-                onMouseUp={(e) => {
+                onMouseUp={e => {
                     if (dragging !== 0) {
                         if (!file.IsSelected() && file.IsFolder()) {
-                            moveSelected(file.Id())
+                            moveSelected(file.Id());
                         }
-                        setMoveDest('')
-                        setDragging(DraggingStateT.NoDrag)
+                        setMoveDest('');
+                        setDragging(DraggingStateT.NoDrag);
                     }
-                    setMouseDown(null)
+                    setMouseDown(null);
                 }}
-                onDoubleClick={(e) => {
-                    e.stopPropagation()
-                    const jump = file.GetVisitRoute(
-                        fbState.fbMode,
-                        fbState.shareId,
-                        fbDispatch
-                    )
+                onDoubleClick={e => {
+                    e.stopPropagation();
+                    const jump = file.GetVisitRoute(fbState.fbMode, fbState.shareId, fbDispatch);
                     if (jump) {
-                        nav(jump)
+                        nav(jump);
                     }
                 }}
-                onContextMenu={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
+                onContextMenu={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
 
-                    setMenuTarget(file.Id())
-                    setMenuPos({ x: e.clientX, y: e.clientY })
+                    setMenuTarget(file.Id());
+                    setMenuPos({ x: e.clientX, y: e.clientY });
                     if (fbState.menuMode === FbMenuModeT.Closed) {
-                        setMenuMode(FbMenuModeT.Default)
+                        setMenuMode(FbMenuModeT.Default);
                     }
                 }}
-                onMouseLeave={(e) => {
-                    file.SetHovering(false)
-                    setHovering('')
+                onMouseLeave={e => {
+                    file.SetHovering(false);
+                    setHovering('');
                     if (dragging && file.IsFolder()) {
-                        setMoveDest('')
+                        setMoveDest('');
                     }
                     if (mouseDown) {
-                        setMouseDown(null)
+                        setMouseDown(null);
                     }
                 }}
             >
@@ -203,91 +184,79 @@ const ItemWrapper = memo(
                     style={{
                         outline: outline,
                         backgroundColor: backgroundColor,
-                        height: (width - MARGIN * 2) * 1.1,
-                        width: width - MARGIN * 2,
-                        cursor:
-                            dragging !== 0 && !file.IsFolder()
-                                ? 'default'
-                                : 'pointer',
+                        // height: (width - MARGIN * 2) * 1.1,
+                        // width: width - MARGIN * 2,
+                        cursor: dragging !== 0 && !file.IsFolder() ? 'default' : 'pointer',
                     }}
                 />
                 {(file.IsSelected() || !file.IsFolder()) && dragging !== 0 && (
                     <div
                         className="no-drop-cover"
-                        style={{
-                            height: (width - MARGIN * 2) * 1.1,
-                            width: width - MARGIN * 2,
+                        // style={{
+                        //     height: (width - MARGIN * 2) * 1.1,
+                        //     width: width - MARGIN * 2,
+                        // }}
+                        onMouseLeave={e => {
+                            file.SetHovering(false);
+                            setHovering('');
                         }}
-                        onMouseLeave={(e) => {
-                            file.SetHovering(false)
-                            setHovering('')
-                        }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
                     />
                 )}
             </div>
-        )
+        );
     },
     (prev, next) => {
         if (prev.itemInfo !== next.itemInfo) {
-            return false
+            return false;
         } else if (prev.selected !== next.selected) {
-            return false
+            return false;
         } else if (prev.editing !== next.editing) {
-            return false
+            return false;
         } else if (prev.dragging !== next.dragging) {
-            return false
+            return false;
         } else if (prev.width !== next.width) {
-            return false
+            return false;
         } else if (prev.children !== next.children) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
-const FileVisualWrapper = ({ children }) => {
+const FileVisualWrapper = ({ file }) => {
     return (
-        <div className="w-full p-2 aspect-square overflow-hidden">
-            <div
-                className="w-full h-full overflow-hidden rounded-md flex justify-center items-center"
-                children={children}
-            />
+        <div className="w-full p-2 pb-0 aspect-square overflow-hidden">
+            <div className="w-full h-full overflow-hidden rounded-md flex justify-center items-center">
+                <FileVisual file={file} />
+            </div>
         </div>
-    )
-}
+    );
+};
 
 const FileVisual = memo(
-    ({ file, doFetch }: { file: WeblensFile; doFetch: boolean }) => {
-        const mediaData = useMedia(file.GetMediaId())
+    ({ file }: { file: WeblensFile }) => {
+        const mediaData = useMedia(file.GetMediaId());
 
         if (file.IsFolder()) {
-            return <IconFolder size={150} />
+            return <IconFolder size={150} />;
         }
 
         if (mediaData) {
-            return (
-                <MediaImage
-                    media={mediaData}
-                    quality="thumbnail"
-                    doFetch={doFetch}
-                />
-            )
+            return <MediaImage media={mediaData} quality="thumbnail" />;
         } else if (file.IsImage()) {
-            return <IconPhoto />
+            return <IconPhoto />;
         }
 
-        return null
+        return null;
     },
     (prev, next) => {
         if (prev.file.GetMediaId() !== next.file.GetMediaId()) {
-            return false
-        } else if (prev.doFetch !== next.doFetch) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
 const useKeyDown = (
     itemId: string,
@@ -295,176 +264,88 @@ const useKeyDown = (
     newName: string,
     editing: boolean,
     setEditing: (b: boolean) => void,
-    rename: (itemId: string, newName: string) => void
+    rename: (itemId: string, newName: string) => void,
 ) => {
     const onKeyDown = useCallback(
-        (event) => {
+        event => {
             if (!editing) {
-                return
+                return;
             }
             if (event.key === 'Enter') {
                 if (oldName !== newName) {
-                    rename(itemId, newName)
+                    rename(itemId, newName);
                 }
-                setEditing(false)
+                setEditing(false);
             } else if (event.key === 'Escape') {
-                setEditing(false)
+                setEditing(false);
                 // Rename with empty name is a "cancel" to the rename
-                rename(itemId, '')
+                rename(itemId, '');
             }
         },
-        [itemId, oldName, newName, editing, setEditing, rename]
-    )
+        [itemId, oldName, newName, editing, setEditing, rename],
+    );
 
     useEffect(() => {
-        document.addEventListener('keydown', onKeyDown)
+        document.addEventListener('keydown', onKeyDown);
         return () => {
-            document.removeEventListener('keydown', onKeyDown)
-        }
-    }, [onKeyDown])
-}
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [onKeyDown]);
+};
 
 const TextBox = memo(
-    ({
-        itemId,
-        itemTitle,
-        secondaryInfo,
-        editing,
-        setEditing,
-        allowEditing,
-        height,
-        blockFocus,
-        rename,
-    }: TitleProps) => {
-        const editRef: React.Ref<HTMLInputElement> = useRef()
-        const [renameVal, setRenameVal] = useState(itemTitle)
+    ({ itemId, itemTitle, secondaryInfo, editing, setEditing, allowEditing, blockFocus, rename }: TitleProps) => {
+        const editRef: React.Ref<HTMLInputElement> = useRef();
+        const [renameVal, setRenameVal] = useState(itemTitle);
 
         const setEditingPlus = useCallback(
             (b: boolean) => {
-                setEditing(b)
-                setRenameVal((cur) => {
+                setEditing(b);
+                setRenameVal(cur => {
                     if (cur === '') {
-                        return itemTitle
+                        return itemTitle;
                     } else {
-                        return cur
+                        return cur;
                     }
-                })
-                blockFocus(b)
+                });
+                blockFocus(b);
             },
-            [itemTitle, setEditing, blockFocus]
-        )
-        useKeyDown(
-            itemId,
-            itemTitle,
-            renameVal,
-            editing,
-            setEditingPlus,
-            rename
-        )
+            [itemTitle, setEditing, blockFocus],
+        );
+        // useKeyDown(itemId, itemTitle, renameVal, editing, setEditingPlus, rename);
 
-        useEffect(() => {
-            if (editing && editRef.current) {
-                editRef.current.select()
-            }
-        }, [editing, editRef])
-
-        useEffect(() => {
-            if (itemId === 'NEW_DIR') {
-                setEditingPlus(true)
-            }
-        }, [itemId, setEditingPlus])
-
-        if (editing) {
-            return (
-                <div
-                    className="item-info-box"
-                    style={{
-                        height: height,
+        return (
+            <div className="item-info-box">
+                <WeblensInput
+                    subtle
+                    value={renameVal}
+                    valueCallback={setRenameVal}
+                    openInput={() => {
+                        setEditingPlus(true);
                     }}
-                    onBlur={() => {
-                        setEditingPlus(false)
-                        rename(itemId, '')
+                    closeInput={() => {
+                        setEditingPlus(false);
+                        rename(itemId, '');
                     }}
-                >
-                    <input
-                        ref={editRef}
-                        defaultValue={itemTitle}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                        }}
-                        onDoubleClick={(e) => {
-                            e.stopPropagation()
-                        }}
-                        onChange={(e) => {
-                            setRenameVal(e.target.value)
-                        }}
-                        style={{
-                            width: '90%',
-                            backgroundColor: '#00000000',
-                            border: 0,
-                            outline: 0,
-                        }}
-                    />
-                </div>
-            )
-        } else {
-            return (
-                <div
-                    className="item-info-box"
-                    style={{
-                        height: height,
-                        cursor: allowEditing ? 'text' : 'default',
-                        paddingBottom: MARGIN / 2,
+                    onComplete={v => {
+                        rename(itemId, v);
+                        setEditingPlus(false);
                     }}
-                    onClick={(e) => {
-                        if (!allowEditing) {
-                            return
-                        }
-                        e.stopPropagation()
-                        setEditingPlus(true)
-                    }}
-                >
-                    <div className="title-box">
-                        <Text
-                            size={`${height - MARGIN * 2}px`}
-                            truncate={'end'}
-                            style={{
-                                color: 'white',
-                                userSelect: 'none',
-                                lineHeight: 1.5,
-                            }}
-                        >
-                            {itemTitle}
-                        </Text>
-                        <Divider orientation="vertical" my={1} mx={6} />
-                        <div className="w-max justify-center">
-                            <Text
-                                size={`${height - (MARGIN * 2 + 4)}px`}
-                                lineClamp={1}
-                                className="text-white overflow-visible select-none w-max"
-                            >
-                                {' '}
-                                {secondaryInfo}{' '}
-                            </Text>
-                        </div>
-                    </div>
-                </div>
-            )
-        }
+                />
+            </div>
+        );
     },
     (prev, next) => {
         if (prev.secondaryInfo !== next.secondaryInfo) {
-            return false
+            return false;
         } else if (prev.editing !== next.editing) {
-            return false
+            return false;
         } else if (prev.itemTitle !== next.itemTitle) {
-            return false
-        } else if (prev.height !== next.height) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
 
 export const FileDisplay = memo(
     ({
@@ -473,85 +354,142 @@ export const FileDisplay = memo(
         index,
         context,
     }: {
-        file: WeblensFile
-        selected: SelectedState
-        index: number
-        context: GlobalContextType
+        file: WeblensFile;
+        selected: SelectedState;
+        index: number;
+        context: GlobalContextType;
     }) => {
-        const wrapRef = useRef()
-        const [editing, setEditing] = useState(false)
+        const wrapRef = useRef();
+        const [editing, setEditing] = useState(false);
+        const { fbState, fbDispatch } = useContext(FbContext);
+        const [mouseDown, setMouseDown] = useState(null);
+        const { authHeader } = useContext(UserContext);
+        const nav = useNavigate();
 
         return (
-            <ItemWrapper
-                itemInfo={file}
-                fileRef={wrapRef}
-                selected={selected}
-                setSelected={context.setSelected}
-                doSelectMany={context.doSelectMany}
-                width={context.itemWidth}
-                moveSelected={context.moveSelected}
-                dragging={context.dragging}
-                setDragging={context.setDragging}
-                setHovering={context.setHovering}
-                setMoveDest={context.setMoveDest}
-                setMenuMode={context.setMenuOpen}
-                setMenuPos={context.setMenuPos}
-                setMenuTarget={context.setMenuTarget}
-                editing={editing}
-            >
-                <FileVisualWrapper>
-                    <FileVisual file={file} doFetch={context.doMediaFetch} />
-                </FileVisualWrapper>
+            <div
+                className="weblens-file animate-fade"
+                ref={wrapRef}
+                data-clickable={!fbState.draggingState || file.IsFolder()}
+                data-selected={(selected & SelectedState.Selected) >> 8}
+                data-in-range={(selected & SelectedState.InRange) >> 4}
+                data-hovering={selected & SelectedState.Hovering}
+                data-last-selected={(selected & SelectedState.LastSelected) >> 12}
+                data-droppable={selected & SelectedState.Droppable}
+                onMouseOver={e => {
+                    e.stopPropagation();
+                    file.SetHovering(true);
+                    fbDispatch({ type: 'set_hovering', hovering: file.Id() });
+                    if (fbState.draggingState && !file.IsSelected() && file.IsFolder()) {
+                        fbDispatch({ type: 'set_move_dest', fileName: file.GetFilename() });
+                    }
+                }}
+                onMouseDown={e => {
+                    setMouseDown({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={e => {
+                    if (
+                        mouseDown &&
+                        !fbState.draggingState &&
+                        (Math.abs(mouseDown.x - e.clientX) > 20 || Math.abs(mouseDown.y - e.clientY) > 20)
+                    ) {
+                        fbDispatch({ type: 'set_selected', fileId: file.Id(), selected: true });
+                        fbDispatch({ type: 'set_dragging', dragging: DraggingStateT.InternalDrag });
+                    }
+                }}
+                onClick={e => {
+                    e.stopPropagation();
+                    if (e.shiftKey) {
+                        fbDispatch({ type: 'set_selected', fileIds: context.doSelectMany() });
+                    } else {
+                        fbDispatch({ type: 'set_selected', fileId: file.Id() });
+                    }
+                }}
+                onMouseUp={e => {
+                    if (fbState.draggingState !== DraggingStateT.NoDrag) {
+                        if (!file.IsSelected() && file.IsFolder()) {
+                            MoveSelected(fbState.selected, file.Id(), authHeader).then(() =>
+                                fbDispatch({ type: 'clear_selected' }),
+                            );
+                        }
+                        fbDispatch({ type: 'set_move_dest', fileName: '' });
+                        fbDispatch({ type: 'set_dragging', dragging: DraggingStateT.NoDrag });
+                    }
+                    setMouseDown(null);
+                }}
+                onDoubleClick={e => {
+                    e.stopPropagation();
+                    const jump = file.GetVisitRoute(fbState.fbMode, fbState.shareId, fbDispatch);
+                    if (jump) {
+                        nav(jump);
+                    }
+                }}
+                onContextMenu={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
 
+                    fbDispatch({ type: 'set_menu_target', fileId: file.Id() });
+                    fbDispatch({ type: 'set_menu_pos', pos: { x: e.clientX, y: e.clientY } });
+
+                    if (fbState.menuMode === FbMenuModeT.Closed) {
+                        fbDispatch({ type: 'set_menu_open', menuMode: FbMenuModeT.Default });
+                    }
+                }}
+                onMouseLeave={e => {
+                    fbDispatch({ type: 'set_hovering', hovering: '' });
+                    if (fbState.draggingState && file.IsFolder()) {
+                        fbDispatch({ type: 'set_move_dest', fileName: '' });
+                    }
+                    if (mouseDown) {
+                        setMouseDown(null);
+                    }
+                }}
+            >
+                <FileVisualWrapper file={file} />
+                <div className="file-size-box">
+                    <p>{file.FormatSize()}</p>
+                </div>
                 <TextBox
                     itemId={file.Id()}
                     itemTitle={file.GetFilename()}
                     secondaryInfo={file.FormatSize()}
                     editing={editing}
-                    setEditing={(e) => {
+                    setEditing={e => {
                         if (!context.allowEditing) {
-                            return
+                            return;
                         }
-                        setEditing(e)
+                        setEditing(e);
                     }}
                     allowEditing={context.allowEditing}
-                    height={context.itemWidth * 0.1}
                     blockFocus={context.blockFocus}
                     rename={(id, newName) => {
-                        if (
-                            newName === file.GetFilename() ||
-                            (newName === '' && file.Id() !== 'NEW_DIR')
-                        ) {
-                            return
+                        if (newName === file.GetFilename() || (newName === '' && file.Id() !== 'NEW_DIR')) {
+                            return;
                         }
-                        context.rename(id, newName)
+                        context.rename(id, newName);
                     }}
                 />
 
                 {file.Id() === 'NEW_DIR' && !editing && (
-                    <Loader
-                        color="white"
-                        size={20}
-                        style={{ position: 'absolute', top: 20, right: 20 }}
-                    />
+                    <Loader color="white" size={20} style={{ position: 'absolute', top: 20, right: 20 }} />
                 )}
-            </ItemWrapper>
-        )
+            </div>
+        );
     },
     (prev, next) => {
         if (prev.file.Id() !== next.file.Id()) {
-            return false
+            return false;
         } else if (prev.context !== next.context) {
-            return false
+            return false;
         } else if (prev.context.itemWidth !== next.context.itemWidth) {
-            return false
+            return false;
         } else if (prev.context.dragging !== next.context.dragging) {
-            return false
+            return false;
         } else if (prev.selected !== next.selected) {
-            return false
+            return false;
         } else if (prev.file.IsHovering() !== next.file.IsHovering()) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);

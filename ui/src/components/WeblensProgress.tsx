@@ -1,17 +1,17 @@
-import { CSSProperties } from '@mantine/core'
-import { memo } from 'react'
-import '../style/weblensProgress.scss'
+import { CSSProperties } from '@mantine/core';
+import { memo } from 'react';
+import './weblensProgress.scss';
 
 type progressProps = {
-    value: number
-    secondaryValue?: number
-    complete?: boolean
-    orientation?: 'horizontal' | 'vertical'
-    loading?: boolean
-    failure?: boolean
-    seekCallback?: (v: number) => void
-    style?: CSSProperties
-}
+    value: number;
+    secondaryValue?: number;
+    complete?: boolean;
+    orientation?: 'horizontal' | 'vertical';
+    loading?: boolean;
+    failure?: boolean;
+    seekCallback?: (v: number) => void;
+    style?: CSSProperties;
+};
 
 export const WeblensProgress = memo(
     ({
@@ -30,26 +30,22 @@ export const WeblensProgress = memo(
                 data-loading={loading}
                 data-complete={complete}
                 data-failure={failure}
-                onClick={(e) => {
+                onClick={e => {
                     if (!seekCallback) {
-                        return
+                        return;
                     }
 
                     if (e.target instanceof HTMLDivElement) {
-                        const rect = e.target.getBoundingClientRect()
-                        let v =
-                            (e.clientX - rect.left) / (rect.right - rect.left)
+                        const rect = e.target.getBoundingClientRect();
+                        let v = (e.clientX - rect.left) / (rect.right - rect.left);
                         if (v < 0) {
-                            v = 0
+                            v = 0;
                         }
-                        seekCallback(v)
+                        seekCallback(v);
                     }
                 }}
                 style={{
-                    justifyContent:
-                        orientation === 'horizontal'
-                            ? 'flex-start'
-                            : 'flex-end',
+                    justifyContent: orientation === 'horizontal' ? 'flex-start' : 'flex-end',
                     // flexDirection:
                     //     orientation === 'horizontal' ? 'row' : 'column',
                     ...style,
@@ -60,42 +56,34 @@ export const WeblensProgress = memo(
                     className="weblens-progress-bar"
                     data-complete={complete}
                     style={{
-                        height:
-                            orientation === 'horizontal' ? '100%' : `${value}%`,
-                        width:
-                            orientation === 'horizontal' ? `${value}%` : '100%',
+                        height: orientation === 'horizontal' ? '100%' : `${value}%`,
+                        width: orientation === 'horizontal' ? `${value}%` : '100%',
                     }}
                 />
                 <div
                     className="weblens-progress-bar"
                     data-secondary={true}
                     style={{
-                        height:
-                            orientation === 'horizontal'
-                                ? '100%'
-                                : `${secondaryValue}%`,
-                        width:
-                            orientation === 'horizontal'
-                                ? `${secondaryValue}%`
-                                : '100%',
+                        height: orientation === 'horizontal' ? '100%' : `${secondaryValue}%`,
+                        width: orientation === 'horizontal' ? `${secondaryValue}%` : '100%',
                     }}
                 />
             </div>
-        )
+        );
     },
     (prev, next) => {
         if (prev.value !== next.value) {
-            return false
+            return false;
         }
         if (prev.complete !== next.complete) {
-            return false
+            return false;
         }
         if (prev.failure !== next.failure) {
-            return false
+            return false;
         }
         if (prev.orientation !== next.orientation) {
-            return false
+            return false;
         }
-        return true
-    }
-)
+        return true;
+    },
+);
