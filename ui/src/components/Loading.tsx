@@ -1,68 +1,34 @@
-import { Box, Loader, Progress, Text } from '@mantine/core'
-import { useState } from 'react'
+import { Loader, Progress, Text } from '@mantine/core';
+import { useState } from 'react';
 
-export default function WeblensLoader({
-    loading = [],
-    progress = 0,
-}: {
-    loading?: string[]
-    progress?: number
-}) {
-    const [menuOpen, setMenuOpen] = useState(false)
-    let loader
+export default function WeblensLoader({ loading = [], progress = 0 }: { loading?: string[]; progress?: number }) {
+    const [menuOpen, setMenuOpen] = useState(false);
+    let loader;
 
-    if (
-        (!loading && !progress) ||
-        (loading.length === 0 && (progress === 0 || progress === 100))
-    ) {
-        return null
+    if ((!loading && !progress) || (loading.length === 0 && (progress === 0 || progress === 100))) {
+        return null;
     }
     if (progress && progress !== 100) {
-        loader = (
-            <Progress
-                color="#4444ff"
-                className="absolute w-full"
-                value={Number(progress)}
-            />
-        )
+        loader = <Progress color="#4444ff" className="absolute w-full" value={Number(progress)} />;
     } else {
         loader = (
-            <Box
+            <div
+                className="flex cursor-pointer justify-center"
                 onClick={() => {
-                    setMenuOpen(!menuOpen)
-                }}
-                style={{
-                    cursor: 'pointer',
-                    justifyContent: 'center',
-                    display: 'flex',
+                    setMenuOpen(!menuOpen);
                 }}
             >
                 <Loader color="#4444ff" type="bars" />
                 {menuOpen && (
-                    <Box
-                        style={{
-                            padding: 10,
-                            backgroundColor: '#222222',
-                            borderRadius: 4,
-                            position: 'absolute',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            bottom: '50px',
-                            width: 'max-content',
-                            height: 'max-content',
-                            // right: 2,
-                        }}
-                    >
+                    <div className="flex flex-col absolute rounded p-2 bg-[#222222] justify-center items-center bottom-[50px] w-max h-max">
                         <Text>Waiting For:</Text>
-                        {loading.map((l) => (
+                        {loading.map(l => (
                             <Text key={l}>{l}</Text>
                         ))}
-                    </Box>
+                    </div>
                 )}
-            </Box>
-        )
+            </div>
+        );
     }
-    return loader
+    return loader;
 }

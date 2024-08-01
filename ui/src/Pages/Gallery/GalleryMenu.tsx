@@ -2,7 +2,7 @@ import WeblensMedia from '../../Media/Media'
 import WeblensButton from '../../components/WeblensButton'
 import { useClick, useKeyDown } from '../../components/hooks'
 import { memo, useCallback, useContext, useMemo, useState } from 'react'
-import { MediaContext, UserContext } from '../../Context'
+import { MediaContext } from '../../Context'
 import {
     IconCalendarTime,
     IconCaretDown,
@@ -14,28 +14,29 @@ import { adjustMediaTime, hideMedia } from '../../api/ApiFetch'
 import { GalleryDispatchT, newTimeOffset, TimeOffset } from '../../types/Types'
 import { SetAlbumCover } from '../../Albums/AlbumQuery'
 import { GalleryContext } from './GalleryLogic'
+import { useSessionStore } from '../../components/UserInfo'
 
-const mediaDate = (timestamp: number) => {
-    const dateObj = new Date(timestamp)
-    const options: Intl.DateTimeFormatOptions = {
-        month: 'long',
-        day: 'numeric',
-        minute: 'numeric',
-        hour: 'numeric',
-        timeZoneName: 'short',
-    }
-    if (dateObj.getFullYear() !== new Date().getFullYear()) {
-        options.year = 'numeric'
-    }
-    return dateObj.toLocaleDateString('en-US', options)
-}
+// const mediaDate = (timestamp: number) => {
+//     const dateObj = new Date(timestamp)
+//     const options: Intl.DateTimeFormatOptions = {
+//         month: 'long',
+//         day: 'numeric',
+//         minute: 'numeric',
+//         hour: 'numeric',
+//         timeZoneName: 'short',
+//     }
+//     if (dateObj.getFullYear() !== new Date().getFullYear()) {
+//         options.year = 'numeric'
+//     }
+//     return dateObj.toLocaleDateString('en-US', options)
+// }
 
 function TimeSlice({
     value,
     isAnchor,
     incDecFunc,
 }: {
-    value: any
+    value: string
     isAnchor: boolean
     incDecFunc: (n: number) => void
 }) {
@@ -181,14 +182,14 @@ function TimeDialogue({
 
                     {/* Day */}
                     <TimeSlice
-                        value={offsetDate.getDate()}
+                        value={offsetDate.getDate().toString()}
                         isAnchor={isAnchor}
                         incDecFunc={dayTicker}
                     />
 
                     {/* Year */}
                     <TimeSlice
-                        value={offsetDate.getFullYear()}
+                        value={offsetDate.getFullYear().toString()}
                         isAnchor={isAnchor}
                         incDecFunc={yearTicker}
                     />
@@ -197,21 +198,21 @@ function TimeDialogue({
                 <div className="flex flex-row items-center justify-center">
                     {/* Hour */}
                     <TimeSlice
-                        value={offsetDate.getHours()}
+                        value={offsetDate.getHours().toString()}
                         isAnchor={isAnchor}
                         incDecFunc={hourTicker}
                     />
                     <p className="select-none">:</p>
                     {/* Minute */}
                     <TimeSlice
-                        value={offsetDate.getMinutes()}
+                        value={offsetDate.getMinutes().toString()}
                         isAnchor={isAnchor}
                         incDecFunc={minuteTicker}
                     />
                     <p className="select-none">:</p>
                     {/* Second */}
                     <TimeSlice
-                        value={offsetDate.getSeconds()}
+                        value={offsetDate.getSeconds().toString()}
                         isAnchor={isAnchor}
                         incDecFunc={secondTicker}
                     />
@@ -259,7 +260,7 @@ export const GalleryMenu = memo(
         updateAlbum?: () => void
         albumId?: string
     }) => {
-        const { authHeader } = useContext(UserContext)
+        const auth = useSessionStore((state) => state.auth)
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
         const { mediaState, mediaDispatch } = useContext(MediaContext)
         const [menuRef, setMenuRef] = useState(null)
@@ -276,7 +277,7 @@ export const GalleryMenu = memo(
             !open || galleryState.timeAdjustOffset !== null
         )
 
-        useKeyDown('Escape', (e) => {
+        useKeyDown('Escape', () => {
             if (open) {
                 setOpen(false)
                 galleryDispatch({
@@ -287,23 +288,34 @@ export const GalleryMenu = memo(
         })
 
         const hide = useCallback(
-            async (e) => {
+            async (e, hidden: boolean) => {
                 e.stopPropagation()
 
-                let medias = []
+                let medias: string[] = []
                 if (galleryState.selecting) {
-                    medias = mediaState.getAllSelected()
+                    medias = mediaState.getAllSelectedIds()
                 }
                 medias.push(media.Id())
-                const r = hideMedia(medias, authHeader)
+                const r = await hideMedia(medias, hidden, auth)
 
-                if ((await r).status !== 200) {
+                if (r.status !== 200) {
                     return false
                 }
 
                 mediaDispatch({
-                    type: 'remove_by_ids',
+                    type: 'hide_medias',
                     mediaIds: medias,
+                    hidden: hidden,
+                })
+
+                galleryDispatch({
+                    type: 'set_selecting',
+                    selecting: false,
+                })
+
+                galleryDispatch({
+                    type: 'set_menu_target',
+                    targetId: 'false',
                 })
 
                 return true
@@ -316,8 +328,8 @@ export const GalleryMenu = memo(
                 const r = await adjustMediaTime(
                     media.Id(),
                     newDate,
-                    mediaState.getAllSelected(),
-                    authHeader
+                    mediaState.getAllSelectedIds(),
+                    auth
                 )
                 galleryDispatch({
                     type: 'set_time_offset',
@@ -326,7 +338,7 @@ export const GalleryMenu = memo(
 
                 return r
             },
-            [media, authHeader, mediaState]
+            [media, auth, mediaState]
         )
 
         const hideStyle = useMemo(() => {
@@ -398,23 +410,22 @@ export const GalleryMenu = memo(
                                 const r = await SetAlbumCover(
                                     albumId,
                                     media.Id(),
-                                    authHeader
+                                    auth
                                 )
                                 updateAlbum()
                                 return r.status === 200
                             }}
                         />
                         <WeblensButton
-                            label="Hide"
+                            label={media.IsHidden() ? 'Unhide' : 'Hide'}
                             centerContent
                             danger
                             fillWidth
                             Left={IconEyeOff}
                             squareSize={40}
                             textMin={100}
-                            disabled={media.IsHidden()}
                             style={hideStyle}
-                            onClick={hide}
+                            onClick={(e) => hide(e, !media.IsHidden())}
                         />
                     </div>
                 )}

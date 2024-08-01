@@ -3,7 +3,6 @@ package routes
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/api/dataStore/filetree"
 	"github.com/ethrousseau/weblens/api/types"
 )
 
@@ -34,10 +33,6 @@ type mediaTimeBody struct {
 	AnchorId types.ContentId   `json:"anchorId"`
 	NewTime  time.Time         `json:"newTime"`
 	MediaIds []types.ContentId `json:"mediaIds"`
-}
-
-type tokenReturn struct {
-	Token string `json:"token"`
 }
 
 type newUserBody struct {
@@ -99,11 +94,6 @@ type deleteRemoteBody struct {
 type restoreBody struct {
 	FileIds   []types.FileId `json:"fileIds"`
 	Timestamp int64          `json:"timestamp"`
-}
-
-type getFilesResp struct {
-	Files    filetree.FileArray `json:"files"`
-	NotFound []types.FileId     `json:"notFound"`
 }
 
 type createFolderBody struct {

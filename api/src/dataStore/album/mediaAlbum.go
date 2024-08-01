@@ -47,7 +47,7 @@ func (a *Album) AddMedia(ms ...types.Media) error {
 		return types.ErrNoMedia
 	}
 
-	err := types.SERV.Database.AddMediaToAlbum(
+	err := types.SERV.StoreService.AddMediaToAlbum(
 		a.Id, util.Map(
 			ms, func(m types.Media) types.ContentId {
 				return m.ID()
@@ -88,7 +88,7 @@ func (a *Album) SetCover(cover types.Media) error {
 		return err
 	}
 
-	err = types.SERV.Database.SetAlbumCover(a.Id, colors[0], colors[1], cover.ID())
+	err = types.SERV.StoreService.SetAlbumCover(a.Id, colors[0], colors[1], cover.ID())
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (a *Album) GetPrimaryColor() string {
 }
 
 func (a *Album) AddUsers(us ...types.User) error {
-	err := types.SERV.Database.AddUsersToAlbum(a.ID(), us)
+	err := types.SERV.StoreService.AddUsersToAlbum(a.ID(), us)
 	if err != nil {
 		return err
 	}
@@ -181,11 +181,15 @@ func (a *Album) MarshalJSON() ([]byte, error) {
 	data["id"] = a.Id
 	data["name"] = a.Name
 	data["owner"] = a.Owner.GetUsername()
-	data["medias"] = util.Map(
-		a.Medias, func(m types.Media) types.ContentId {
-			return m.ID()
+	data["medias"] = util.FilterMap(
+		a.Medias, func(m types.Media) (types.ContentId, bool) {
+			if m == nil {
+				return "", false
+			}
+			return m.ID(), true
 		},
 	)
+
 	data["cover"] = ""
 	if a.Cover != nil {
 		data["cover"] = a.Cover.ID()
@@ -228,58 +232,3 @@ func (a *Album) MarshalBSON() ([]byte, error) {
 
 	return bson.Marshal(data)
 }
-
-// func GetAlbumById(albumId types.AlbumId) (a *AlbumData, err error) {
-// 	a, err = dbServer.GetAlbumById(albumId)
-// 	return
-// }
-//
-// func DeleteAlbum(albumId types.AlbumId) (err error) {
-// 	err = dbServer.DeleteAlbum(albumId)
-// 	return
-// }
-//
-// func (a *AlbumData) CanUserAccess(username types.Username) bool {
-// 	return a.Owner == username || slices.Contains(a.SharedWith, username)
-// }
-//
-// func (a *AlbumData) AddMedia(ms []types.Media) (addedCount int, err error) {
-// 	mIds := util.Map(ms, func(m types.Media) types.ContentId { return m.ID() })
-// 	a.Medias = util.AddToSet(a.Medias, mIds)
-// 	addedCount, err = dbServer.addMediaToAlbum(a.Id, mIds)
-// 	return
-// }
-//
-// func (a *AlbumData) Rename(newName string) (err error) {
-// 	err = dbServer.setAlbumName(a.Id, newName)
-// 	return
-// }
-//
-// func (a *AlbumData) SetCover(mediaId types.ContentId, ft types.FileTree) error {
-// 	m := a. media.MediaMapGet(mediaId)
-// 	if m == nil {
-// 		return ErrNoMedia
-// 	}
-// 	colors, err := m.(*media.media).getProminentColors(ft)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	err = dbServer.SetAlbumCover(a.Id, mediaId, colors[0], colors[1])
-// 	if err != nil {
-// 		return fmt.Errorf("failed to set album cover")
-// 	}
-// 	return nil
-// }
-//
-// func (a *AlbumData) AddUsers(usernames []types.Username) (err error) {
-// 	a.SharedWith = util.AddToSet(a.SharedWith, usernames)
-// 	err = dbServer.shareAlbum(a.Id, usernames)
-// 	return
-// }
-//
-// func (a *AlbumData) RemoveUsers(usernames []types.Username) (err error) {
-// 	a.SharedWith = util.Filter(a.SharedWith, func(s types.Username) bool { return !slices.Contains(usernames, s) })
-// 	err = dbServer.unshareAlbum(a.Id, usernames)
-// 	return
-// }

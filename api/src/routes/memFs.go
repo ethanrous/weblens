@@ -123,8 +123,13 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 
 	if strings.HasPrefix(loc, "files/share/") {
 		loc = loc[len("files/share/"):]
-		shareId := types.ShareId(loc[:strings.Index(loc, "/")])
-
+		slashIndex := strings.Index(loc, "/")
+		if slashIndex == -1 {
+			util.Debug.Println("Could not find slash in path:", loc)
+			return index
+		}
+		
+		shareId := types.ShareId(loc[:slashIndex])
 		share := types.SERV.ShareService.Get(shareId)
 		if share != nil {
 			f := types.SERV.FileTree.Get(types.FileId(share.GetItemId()))

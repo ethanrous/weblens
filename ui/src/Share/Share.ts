@@ -1,48 +1,54 @@
-export interface ShareDataT {
-    id: string
-    accessors: string[]
-    expires: string
-    public: boolean
-    fileId: string
-    shareName: string
-    wormhole: boolean
+export interface ShareInfo {
+    id: string;
+    accessors?: string[];
+    expires?: string;
+    public?: boolean;
+    fileId?: string;
+    shareName?: string;
+    wormhole?: boolean;
 }
 
 export class WeblensShare {
-    private data: ShareDataT
+    id: string;
+    accessors: string[];
+    expires: string;
+    public: boolean;
+    fileId: string;
+    shareName: string;
+    wormhole: boolean;
 
-    constructor(init: ShareDataT) {
+    constructor(init: ShareInfo) {
         if (!init) {
-            console.error('Attempt to init share with no data')
-            return
+            console.error('Attempt to init share with no data');
+            return;
         }
-        this.data = init
-        if (!this.data.accessors) {
-            this.data.accessors = []
+        Object.assign(this, init);
+        if (!this.accessors) {
+            this.accessors = [];
         }
     }
 
     Id(): string {
-        return this.data.id
+        return this.id;
     }
 
     IsPublic() {
-        return this.data.public
+        return this.public;
     }
 
     IsWormhole() {
-        return this.data.wormhole
+        return this.wormhole;
     }
 
     GetFileId(): string {
-        return this.data.fileId
+        return this.fileId;
     }
 
     GetAccessors(): string[] {
-        return this.data.accessors
+        return this.accessors;
     }
 
     GetPublicLink(): string {
-        return `${window.location.origin}/files/share/${this.data.id}/${this.data.fileId}`
+        return `${window.location.origin}/files/share/${this.id}/${this.fileId}`;
     }
 }

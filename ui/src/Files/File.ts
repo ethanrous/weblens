@@ -1,326 +1,349 @@
-import { IconFile, IconFolder, IconHome, IconTrash, IconUser } from '@tabler/icons-react';
-import { ShareDataT, WeblensShare } from '../Share/Share';
-import { MediaDataT } from '../Media/Media';
-import { FBDispatchT } from '../types/Types';
-import { humanFileSize } from '../util';
-import { DraggingStateT, FbModeT } from './filesContext';
-import API_ENDPOINT from '../api/ApiEndpoint';
+import {
+    IconFile,
+    IconFolder,
+    IconHome,
+    IconTrash,
+    IconUser,
+} from '@tabler/icons-react'
+import { ShareInfo, WeblensShare } from '../Share/Share'
+import { MediaDataT } from '../Media/Media'
+import { AuthHeaderT } from '../types/Types'
+import { humanFileSize } from '../util'
+import API_ENDPOINT from '../api/ApiEndpoint'
+import { FbModeT } from '../Pages/FileBrowser/FBStateControl'
 
 function getIcon(folderName: string): (p) => JSX.Element {
     if (folderName === 'HOME') {
-        return IconHome;
+        return IconHome
     } else if (folderName === 'TRASH') {
-        return IconTrash;
+        return IconTrash
     } else if (folderName === 'SHARE') {
-        return IconUser;
+        return IconUser
     } else {
-        return null;
+        return null
     }
 }
 
-export interface WeblensFileInfo {
-    id?: string;
-    owner?: string;
-    modTime?: string;
-    filename?: string;
-    pathFromHome?: string;
-    parentFolderId?: string;
-    fileFriendlyName?: string;
+export interface WeblensFileParams {
+    id?: string
+    owner?: string
+    modTime?: string
+    filename?: string
+    pathFromHome?: string
+    parentFolderId?: string
 
-    children?: string[];
+    children?: string[]
 
-    isDir?: boolean;
-    pastFile?: boolean;
-    imported?: boolean;
-    modifiable?: boolean;
-    displayable?: boolean;
+    isDir?: boolean
+    pastFile?: boolean
+    imported?: boolean
+    modifiable?: boolean
+    displayable?: boolean
 
-    size?: number;
-    mediaData?: MediaDataT;
-    shareId?: string;
+    size?: number
+    mediaData?: MediaDataT
+    shareId?: string
 }
 
 export class WeblensFile {
-    id?: string;
-    owner?: string;
-    filename?: string;
-    pathFromHome?: string;
-    parentFolderId?: string;
-    fileFriendlyName?: string;
+    id?: string
+    owner?: string
+    filename?: string
+    pathFromHome?: string
+    parentFolderId?: string
 
-    modifyDate?: Date;
+    modifyDate?: Date
 
-    children?: string[];
+    children?: string[]
 
-    isDir?: boolean;
-    pastFile?: boolean;
-    imported?: boolean;
-    modifiable?: boolean;
-    displayable?: boolean;
+    isDir?: boolean
+    pastFile?: boolean
+    imported?: boolean
+    modifiable?: boolean
+    displayable?: boolean
 
-    size?: number;
-    shareId?: string;
+    size?: number
+    shareId?: string
 
     // Non-api props
-    parents?: WeblensFile[];
-    visible?: boolean;
-    selected?: boolean;
-    hovering?: boolean;
+    parents?: WeblensFile[]
+    visible?: boolean
+    private selected: SelectedState
+    hovering?: boolean
+    index?: number
 
-    private mediaId: string;
-    private share: WeblensShare;
+    private mediaId: string
+    private share: WeblensShare
 
-    constructor(init: WeblensFileInfo) {
-        Object.assign(this, init);
-        this.hovering = false;
-        this.modifyDate = new Date(init.modTime);
+    constructor(init: WeblensFileParams) {
+        if (!init.id) {
+            throw new Error('trying to construct WeblensFile with no id')
+        }
+        Object.assign(this, init)
+        // this.share = undefined;
+        this.hovering = false
+        this.modifyDate = new Date(init.modTime)
 
         if (init.mediaData) {
-            this.mediaId = init.mediaData.contentId;
+            this.mediaId = init.mediaData.contentId
         }
 
-        this.shareId = init.shareId;
-        if (init.shareId) {
-        }
+        this.shareId = init.shareId
+        this.selected = SelectedState.NotSelected
+        // if (init.shareId) {
+        //     new WeblensShare({ id: init.shareId });
+        // }
     }
 
     Id(): string {
-        return this.id;
+        return this.id
     }
 
-    Update(newInfo: WeblensFileInfo) {
-        Object.assign(this, newInfo);
+    SetIndex(index: number): void {
+        this.index = index
+    }
+
+    GetIndex(): number {
+        return this.index
+    }
+
+    Update(newInfo: WeblensFileParams) {
+        Object.assign(this, newInfo)
+        // this.share = undefined;
 
         if (newInfo.mediaData && newInfo.mediaData.contentId !== this.mediaId) {
-            this.mediaId = newInfo.mediaData.contentId;
+            this.mediaId = newInfo.mediaData.contentId
         }
     }
 
     ParentId(): string {
-        return this.parentFolderId;
+        return this.parentFolderId
     }
 
     SetParents(parents: WeblensFile[]) {
-        const index = parents.findIndex(v => {
-            return v.IsTrash();
-        });
+        const index = parents.findIndex((v) => {
+            return v.IsTrash()
+        })
 
         if (index !== -1) {
-            parents = parents.slice(index);
+            parents = parents.slice(index)
         }
-        this.parents = parents;
+        this.parents = parents
     }
 
     FormatParents(): WeblensFile[] {
         if (!this.parents) {
-            return [];
+            return []
         }
-        return this.parents;
+        return this.parents
     }
 
     GetPathParts(replaceIcons?: boolean): (string | ((p) => JSX.Element))[] {
-        const parts: (string | ((p) => JSX.Element))[] = this.pathFromHome.split('/');
+        const parts: (string | ((p) => JSX.Element))[] =
+            this.pathFromHome.split('/')
         if (replaceIcons) {
-            const icon = getIcon(String(parts[0]));
+            const icon = getIcon(String(parts[0]))
             if (icon !== null) {
-                parts[0] = icon;
+                parts[0] = icon
             }
         }
-        return parts;
+        return parts
     }
 
     IsModifiable(): boolean {
-        return this.modifiable;
+        return this.modifiable
     }
 
     GetFilename(): string {
         if (this.pathFromHome === 'HOME') {
-            return 'Home';
+            return 'Home'
         }
         if (this.filename === '.user_trash') {
-            return 'Trash';
+            return 'Trash'
         }
-        return this.filename;
+        return this.filename
     }
 
     GetModified(): Date {
         if (!this.modifyDate) {
-            return new Date();
+            return new Date()
         }
-        return this.modifyDate;
+        return this.modifyDate
     }
 
     SetSize(size: number) {
-        this.size = size;
+        this.size = size
     }
 
     GetSize(): number {
-        return this.size;
+        return this.size
     }
 
     FormatSize(): string {
-        const [value, units] = humanFileSize(this.size);
-        return value + units;
+        const [value, units] = humanFileSize(this.size)
+        return value + units
     }
 
     IsFolder(): boolean {
-        return this.isDir;
-    }
-
-    IsImage(): boolean {
-        if (this.mediaId) {
-            return true;
-        }
-        const ext = this.filename.split('.').pop();
-        console.log(ext);
-        return true;
-        // if (ext)
+        return this.isDir
     }
 
     GetMediaId(): string {
-        return this.mediaId;
+        return this.mediaId
     }
 
     IsTrash(): boolean {
-        return this.filename === '.user_trash';
+        return this.filename === '.user_trash'
     }
 
     GetOwner(): string {
-        return this.owner;
+        return this.owner
     }
 
-    SetSelected(): void;
-    SetSelected(selected: boolean): void;
+    SetSelected(selected: SelectedState): void {
+        this.selected = this.selected | selected
+    }
 
-    SetSelected(selected?: boolean): void {
-        if (selected === undefined) {
-            this.selected = !this.selected;
-            return;
+    UnsetSelected(selected: SelectedState): void {
+        // console.trace('Unset selected', selected)
+        let mask = SelectedState.ALL - 1
+        while (selected !== 0) {
+            selected = selected >> 1
+            mask = (mask << 1) + 1
         }
-        this.selected = selected;
+        mask = mask >> 1
+        this.selected = this.selected & mask
     }
 
-    IsSelected(): boolean {
-        return this.selected;
+    GetSelectedState(): SelectedState {
+        return this.selected
     }
 
     IsImported(): boolean {
-        return this.imported;
+        return this.imported
     }
 
     IsPastFile(): boolean {
-        return this.pastFile;
+        return this.pastFile
     }
 
     GetChildren(): string[] {
-        return this.children;
-    }
-
-    SetHovering(hovering: boolean) {
-        this.hovering = hovering;
+        return this.children
     }
 
     IsHovering(): boolean {
-        return this.hovering;
+        return (this.selected & SelectedState.Hovering) !== 0
     }
 
     GetBaseIcon(mustBeRoot?: boolean): (p) => JSX.Element {
         if (!this.pathFromHome) {
-            return null;
+            return null
         }
-        const parts: any[] = this.pathFromHome.split('/');
+        const parts = this.pathFromHome.split('/')
         if (mustBeRoot && parts.length > 1) {
-            return null;
+            return null
         }
 
         if (parts[0] === 'HOME') {
-            return IconHome;
+            return IconHome
         } else if (parts[0] === 'TRASH') {
-            return IconTrash;
+            return IconTrash
         } else if (parts[0] === 'SHARE') {
-            return IconUser;
+            return IconUser
         } else {
-            console.error('Unknown filepath base type');
-            return null;
+            console.error('Unknown filepath base type')
+            return null
         }
     }
 
     GetFileIcon() {
         if (!this.pathFromHome) {
-            return null;
+            return null
         }
 
         if (this.pathFromHome === 'HOME') {
-            return IconHome;
+            return IconHome
         } else if (this.pathFromHome === 'TRASH') {
-            return IconTrash;
+            return IconTrash
         } else if (this.pathFromHome === 'SHARE') {
-            return IconUser;
+            return IconUser
         } else if (this.isDir) {
-            return IconFolder;
+            return IconFolder
         } else {
-            return IconFile;
+            return IconFile
         }
     }
 
-    public async LoadShare(authHeader) {
+    public async LoadShare(authHeader: AuthHeaderT) {
         if (this.share) {
-            return this.share;
+            return this.share
         } else if (!this.shareId) {
-            return null;
+            return null
         }
 
-        const url = new URL(`${API_ENDPOINT}/file/share/${this.shareId}`);
+        const url = new URL(`${API_ENDPOINT}/file/share/${this.shareId}`)
         return fetch(url.toString(), {
             headers: authHeader,
         })
-            .then(r => r.json())
-            .then(j => {
-                console.log(j);
-                this.share = new WeblensShare(j as ShareDataT);
-                return this.share;
-            });
+            .then((r) => {
+                if (r.status === 200) {
+                    return r.json()
+                } else {
+                    return Promise.reject('Bad response: ' + r.statusText)
+                }
+            })
+            .then((j) => {
+                this.share = new WeblensShare(j as ShareInfo)
+                return this.share
+            })
+            .catch((e: Error) => {
+                console.error('Failed to load share:', e)
+            })
     }
 
     GetShare(): WeblensShare {
-        return this.share;
+        return this.share
     }
 
-    GetVisitRoute(mode: FbModeT, shareId: string, dispatch: FBDispatchT) {
+    GetVisitRoute(
+        mode: FbModeT,
+        shareId: string,
+        setPresentation: (presentationId: string) => void
+    ) {
         if (this.isDir) {
             if (mode === FbModeT.share && shareId === '') {
-                return `/files/share/${this.shareId}/${this.id}`;
+                return `/files/share/${this.shareId}/${this.id}`
             } else if (mode === FbModeT.share) {
-                return `/files/share/${shareId}/${this.id}`;
+                return `/files/share/${shareId}/${this.id}`
             } else if (mode === FbModeT.external) {
-                return `/files/external/${this.id}`;
+                return `/files/external/${this.id}`
             } else if (mode === FbModeT.default) {
-                return `/files/${this.id}`;
+                return `/files/${this.id}`
             }
         } else if (this.displayable) {
-            dispatch({
-                type: 'set_presentation',
-                presentingId: this.id,
-            });
-            return;
+            setPresentation(this.id)
+            return
         }
-        console.error('Did not find location to visit for', this.filename);
+        console.error('Did not find location to visit for', this.filename)
     }
 }
 
 export enum SelectedState {
-    NotSelected = 0x0,
-    Hovering = 0x1,
-    InRange = 0x10,
-    Selected = 0x100,
-    LastSelected = 0x1000,
-    Droppable = 0x10000,
+    NotSelected = 0b0,
+    Hovering = 0b1,
+    InRange = 0b10,
+    Selected = 0b100,
+    LastSelected = 0b1000,
+    Droppable = 0b10000,
+    Moved = 0b100000,
+
+    ALL = 0b111111,
 }
 
 export type FileContextT = {
-    file: WeblensFile;
-    selected: SelectedState;
-};
+    file: WeblensFile
+    selected: SelectedState
+}
 
 export enum FbMenuModeT {
     Closed,
@@ -329,29 +352,3 @@ export enum FbMenuModeT {
     NameFolder,
     AddToAlbum,
 }
-
-export type GlobalContextType = {
-    setDragging: (d: DraggingStateT) => void;
-    blockFocus: (b: boolean) => void;
-    rename: (itemId: string, newName: string) => void;
-
-    setMenuOpen: (m: FbMenuModeT) => void;
-    setMenuPos: ({ x, y }: { x: number; y: number }) => void;
-    setMenuTarget: (itemId: string) => void;
-
-    setHovering?: (itemId: string) => void;
-    setSelected?: (itemId: string, selected?: boolean) => void;
-    selectAll?: (itemId: string, selected?: boolean) => void;
-    moveSelected?: (itemId: string) => void;
-    doSelectMany?: () => string[];
-    setMoveDest?: (itemName) => void;
-
-    dragging?: number;
-    numCols?: number;
-    itemWidth?: number;
-    initialScrollIndex?: number;
-    hoveringIndex?: number;
-    lastSelectedIndex?: number;
-    doMediaFetch?: boolean;
-    allowEditing?: boolean;
-};

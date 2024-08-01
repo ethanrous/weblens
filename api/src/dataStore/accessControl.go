@@ -3,7 +3,6 @@ package dataStore
 import (
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -19,9 +18,6 @@ type accessMeta struct {
 
 	shareService types.ShareService
 }
-
-var apiKeyMap = map[types.WeblensApiKey]*ApiKeyInfo{}
-var keyMapMu = &sync.Mutex{}
 
 func NewAccessMeta(u types.User) types.AccessMeta {
 	return &accessMeta{
@@ -186,77 +182,4 @@ func (acc *accessMeta) CanAccessShare(s types.Share) bool {
 
 func (acc *accessMeta) CanAccessAlbum(a types.Album) bool {
 	return acc.User() == a.GetOwner() || slices.Contains(a.GetUsers(), acc.User())
-}
-
-func InitApiKeyMap() {
-	util.Error.Println("ERR NOT IMPL - InitApiKeyMap")
-	// keys := dbServer.getApiKeys()
-	// keyMapMu.Lock()
-	// defer keyMapMu.Unlock()
-	// for _, keyInfo := range keys {
-	// 	apiKeyMap[keyInfo.Key] = &keyInfo
-	// }
-}
-
-func GetApiKeyInfo(key types.WeblensApiKey) *ApiKeyInfo {
-	keyMapMu.Lock()
-	defer keyMapMu.Unlock()
-	return apiKeyMap[key]
-}
-
-func GenerateApiKey(acc types.AccessMeta) (key *ApiKeyInfo, err error) {
-	return nil, types.ErrNotImplemented("CreateApiKey")
-
-	// if !acc.User().IsAdmin() {
-	// 	err = types.ErrUserNotAuthorized
-	// 	return
-	// } else if acc.RequestMode() != ApiKeyCreate {
-	// 	err = ErrBadRequestMode
-	// 	return
-	// }
-	//
-	// createTime := time.Now()
-	// hash := types.WeblensApiKey(util.GlobbyHash(0, acc.User().GetUsername(), strconv.Itoa(int(createTime.Unix()))))
-	//
-	// newKey := &ApiKeyInfo{
-	// 	Key:         hash,
-	// 	Owner:       acc.User().GetUsername(),
-	// 	CreatedTime: createTime,
-	// }
-	//
-	// err = dbServer.newApiKey(*newKey)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// keyMapMu.Lock()
-	// apiKeyMap[hash] = newKey
-	// keyMapMu.Unlock()
-	//
-	// return newKey, nil
-}
-
-func GetApiKeys(acc types.AccessMeta) ([]ApiKeyInfo, error) {
-	return nil, types.ErrNotImplemented("Get api keys")
-
-	// if acc.RequestMode() != ApiKeyGet {
-	// 	return nil, ErrBadRequestMode
-	// }
-	// keys := dbServer.getApiKeysByUser(acc.User().GetUsername())
-	// if keys == nil {
-	// 	keys = []ApiKeyInfo{}
-	// }
-	// return keys, nil
-}
-
-func CheckApiKey(key types.WeblensApiKey) bool {
-	keyInfo := GetApiKeyInfo(key)
-	return keyInfo != nil
-}
-
-func DeleteApiKey(key types.WeblensApiKey) error {
-	return types.ErrNotImplemented("Delete api key")
-	// keyMapMu.Lock()
-	// delete(apiKeyMap, key)
-	// keyMapMu.Unlock()
-	// dbServer.removeApiKey(key)
 }

@@ -1,4 +1,3 @@
-import { Box } from '@mantine/core'
 import './slider.scss'
 import { memo, useEffect, useMemo, useState } from 'react'
 import { clamp } from '../util'
@@ -55,7 +54,7 @@ const WeblensSlider = memo(
         }, [dragging])
 
         return (
-            <Box
+            <div
                 ref={setContainerRef}
                 className="slider-container"
                 style={{ width: width, height: height }}
@@ -65,17 +64,17 @@ const WeblensSlider = memo(
                     setDragging(true)
                 }}
             >
-                <Box
+                <div
                     className="slider-handle"
                     style={{ left: percentage * width }}
                     onMouseDown={() => setDragging(true)}
                     onMouseUp={() => setDragging(false)}
                 />
-                <Box
+                <div
                     className="fill-bar"
                     style={{ width: percentage * width + 10 }}
                 />
-            </Box>
+            </div>
         )
     },
     (prev, next) => {

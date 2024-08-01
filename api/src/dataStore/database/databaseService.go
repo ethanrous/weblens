@@ -21,9 +21,10 @@ type databaseService struct {
 	shares      *mongo.Collection
 	servers     *mongo.Collection
 	trash       *mongo.Collection
+	apiKeys     *mongo.Collection
 }
 
-func New(mongoUri, mongoDbName string) types.DatabaseService {
+func New(mongoUri, mongoDbName string) types.StoreService {
 	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second)
 	var err error
 	ctx := context.TODO()
@@ -43,5 +44,6 @@ func New(mongoUri, mongoDbName string) types.DatabaseService {
 		shares:      mongodb.Collection("shares"),
 		servers:     mongodb.Collection("servers"),
 		trash:       mongodb.Collection("trash"),
+		apiKeys:     mongodb.Collection("apiKeys"),
 	}
 }

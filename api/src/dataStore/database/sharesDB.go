@@ -54,3 +54,9 @@ func (db *databaseService) GetSharedWithUser(username types.Username) ([]types.S
 
 	return util.SliceConvert[types.Share](target), nil
 }
+
+func (db *databaseService) DeleteShare(shareId types.ShareId) error {
+	filter := bson.M{"_id": shareId}
+	_, err := db.shares.DeleteOne(db.ctx, filter)
+	return err
+}

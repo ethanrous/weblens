@@ -3,15 +3,21 @@ $main-accent-transparent: #3636ca00;
 
 $item-grey: #222222;
 $item-focus: #333333;
+
 $theme-color: #3600cc;
+$theme-color-transparent: #3600cc00;
+
 $theme-dull: #1c1049;
+$theme-bright: #2549ff;
 
 $background: #111418;
+$background-transparent: #11141800;
 $dark-paper: #1c1049;
 $dark-paper-transparent: #1c104900;
 $light-paper: #381eaa;
 $light-paper-transparent: #381eaa00;
 
+$floating-grey: #161517;
 $bottom-grey: #121212;
 
 $disabled-grey-text: #666666;
@@ -20,6 +26,9 @@ $disabled-grey: #313171;
 $soft-shadow: 2px 2px 12px #000000aa;
 $soft-shadow-off: 2px 2px 12px #00000000;
 
-$hard-shadow: 4px 4px 4px #000000aa;
-$hard-shadow-off: 4px 4px 4px #00000000;
+$hard-shadow: 0.25em 0.25em 1px #000000aa;
+$hard-shadow-off: 0 0 0px #000000aa;
 
+
+$danger: #ff4444;
+$danger-subtle: #521f22;

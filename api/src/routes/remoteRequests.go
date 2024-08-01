@@ -3,13 +3,11 @@ package routes
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
-	"github.com/gin-gonic/gin"
 )
 
 type requester struct {
@@ -32,7 +30,9 @@ func NewRequester() types.Requester {
 
 // Address extensions are of the form `BASE_CORE_ADDRESS` + "/api/core" + `addrExt`.
 // So, to make a call to http://mycore.net/api/core/info, you would simply pass "/info" to `addrExt“
-func (r *requester) coreRequest(method string, addrExt string, body any, baseOverride ...string) (*http.Response, error) {
+func (r *requester) coreRequest(method string, addrExt string, body any, baseOverride ...string) (
+	*http.Response, error,
+) {
 	if r.CoreAddress == "" {
 		return nil, ErrNoAddress
 	}
@@ -98,22 +98,26 @@ func (r *requester) PingCore() bool {
 // 	return nil
 // }
 
-func (r *requester) AttachToCore(srvId types.InstanceId, coreAddress, name string, apiKey types.WeblensApiKey) error {
-	r.CoreAddress = coreAddress
-	r.ApiKey = apiKey
-
-	body := gin.H{"id": srvId, "name": name, "usingKey": apiKey}
-	resp, err := r.coreRequest("POST", "/api/remote", body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode == 201 {
-		return nil
-	} else {
-		return errors.New("failed to attach to remote core")
-	}
-}
+// func (r *requester) AttachToCore(i types.Instance) (types.Instance, error) {
+// 	coreAddr, err := i.GetCoreAddress()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	r.CoreAddress = coreAddr
+// 	r.ApiKey = i.GetUsingKey()
+//
+// 	body := newServerBody{Id: i.ServerId(), Role: types.Backup, Name: i.GetName(), UsingKey: i.GetUsingKey()}
+// 	resp, err := r.coreRequest("POST", "/remote", body)
+// 	if err != nil {
+// 		return nil, types.WeblensErrorFromError(err)
+// 	}
+//
+// 	// if resp.StatusCode == 201 {
+// 	// 	return readRespBody[](resp)
+// 	// } else {
+// 	// 	return nil, types.WeblensErrorMsg("failed to attach to remote core")
+// 	// }
+// }
 
 // func (r *requester) RequestCoreSnapshot() ([]types.FileJournalEntry, error) {
 // 	latest, err := dataStore.GetLatestBackup()
@@ -149,21 +153,6 @@ func (r *requester) GetCoreUsers() (us []types.User, err error) {
 
 	return util.SliceConvert[types.User](body), nil
 
-}
-
-func (r *requester) GetCoreFileInfos(fIds []types.FileId) ([]types.WeblensFile, error) {
-	resp, err := r.coreRequest("GET", "/files", fIds)
-	if err != nil {
-		return nil, err
-	}
-	body, err := readRespBody[getFilesResp](resp)
-	if err != nil {
-		return nil, err
-	}
-	if len(body.NotFound) != 0 {
-		util.Error.Println("Failed to find files at core:", body.NotFound)
-	}
-	return body.Files, nil
 }
 
 func (r *requester) GetCoreFileBin(f types.WeblensFile) ([][]byte, error) {

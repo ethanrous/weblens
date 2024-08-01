@@ -1,48 +1,60 @@
 @import "./theme.scss";
+@import "./style";
+
+$button-margin: 4px;
+$button-padding: 8px;
 
 .weblens-button-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin: 4px;
+    margin: $button-margin;
     flex-shrink: 1;
-    transition: max-width 250ms ease-in-out;
+    overflow: visible;
+    max-width: max-content;
+    animation: fadeIn 200ms ease-in-out;
 
     &[data-fill-width='true'] {
         flex-grow: 1;
         width: 100%;
+        max-width: 100%;
     }
 
     &[data-text-on-hover='true'] {
-        max-width: 40px;
-
+        transition: max-width 250ms ease-in-out;
         &:hover {
-            max-width: 1000px;
+            max-width: max-content;
         }
     }
-
 }
 
 .weblens-button {
     display: flex;
     flex-shrink: 1;
-    margin: 4px;
+    font-size: 16px;
     border-radius: 4px;
+    margin: $button-margin;
     max-width: 100%;
     min-height: 100%;
     max-height: 100%;
-    width: 500px;
-    justify-content: center;
+    width: max-content;
     align-items: center;
-    padding: 8px;
+    padding: $button-padding;
     cursor: pointer;
     color: white;
     font-weight: 500;
     background-color: #3600cc;
     outline-color: #4444ff00;
-    transition: all 150ms ease-in-out, width 250ms ease-in-out;
     box-shadow: $hard-shadow-off;
+    overflow: hidden;
+    flex-grow: 0;
+    opacity: 100%;
+    transition:
+            background-color 200ms ease-in-out,
+            transform 200ms ease-in-out,
+            outline 200ms ease-in-out,
+            box-shadow 200ms ease-in-out;
 
 
     &:hover {
@@ -54,6 +66,37 @@
 
     &[data-subtle='true'] {
         background-color: $dark-paper;
+    }
+
+    &[data-toggled='true'] {
+        background-color: $dark-paper;
+        //font-weight: 600;
+        background-color: #3600cc;
+        outline: 1px solid #3600cc00;
+        color: white;
+
+        &[data-repeat='true']:hover {
+            background-color: #3600cccc;
+        }
+
+        &[data-repeat='false'] {
+            cursor: default;
+            pointer-events: none;
+        }
+    }
+
+    &[data-toggled='false'] {
+        background-color: $dark-paper;
+        outline: 1px solid #3600cc;
+        &:hover {
+            color: white;
+            outline: 1px solid #4444ff;
+        }
+    }
+
+    &[data-fill-width='true'] {
+        flex-grow: 1;
+        width: 100%;
     }
 
     &[data-success='true'] {
@@ -70,6 +113,7 @@
         pointer-events: none;
         cursor: default;
         color: $disabled-grey-text;
+        outline: 1px solid #3600cc00;
     }
 
     &[data-fail='true'] {
@@ -80,22 +124,26 @@
     }
 
     &[data-danger='true'] {
-        background-color: #ff3333;
+        background-color: $danger;
         outline: 1px solid #ff444400;
 
         &[data-subtle='true'] {
-            background-color: #521f22;
+            background-color: $danger-subtle;
         }
 
         &:hover {
-            background-color: #521f22;
-            outline: 1px solid #ff4444;
+            background-color: $danger-subtle;
+            outline: 1px solid $danger;
         }
 
         &[data-disabled='true'] {
             background-color: #521f22;
             outline: 1px solid #ff333300;
         }
+    }
+
+    &[data-center='true'] {
+        justify-content: center;
     }
 
     &[data-super='true']:hover {
@@ -117,6 +165,9 @@
         box-shadow: $hard-shadow;
     }
 
+    [data-text-loaded='true'] & {
+        opacity: 100%;
+    }
 }
 
 @keyframes rainbow {
@@ -134,81 +185,21 @@
     }
 }
 
-// Toggle //
-
-.weblens-toggle-button {
-    display: flex;
-    flex-shrink: 1;
-    margin: 4px;
-    border-radius: 4px;
-    min-height: 100%;
-    max-height: 100%;
-    width: 100%;
-    max-width: 100%;
-    justify-content: center;
-    align-items: center;
-    padding: 8px;
-    cursor: pointer;
-
-    background-color: $dark-paper;
-    font-weight: 400;
-    color: #efefef;
-    outline: 1px solid #3600cc;
-
-    transition: all 150ms ease-in-out, width 500ms ease-in-out;
-
-    &:hover {
-        box-shadow: $hard-shadow;
-        transform: translateY(-1px);
-    }
-
-    &[data-toggled='true'] {
-        font-weight: 600;
-        background-color: #3600cc;
-        outline: 1px solid #3600cc00;
-        color: white;
-
-        &[data-repeat='true']:hover {
-            background-color: #3600cccc;
-        }
-
-        &[data-repeat='false'] {
-            cursor: default;
-            pointer-events: none;
-        }
-    }
-
-    &[data-toggled='false'] {
-        &:hover {
-            color: white;
-            outline: 1px solid #4444ff;
-        }
-    }
-
-    &[data-disabled='true'] {
-        background-color: #212427;
-        box-shadow: none;
-        pointer-events: none;
-        cursor: default;
-        color: #aaaaaa;
-        outline: 1px solid #4444ff00;
-    }
-}
-
 .button-content {
     display: flex;
+    position: relative;
     flex-direction: row;
     height: 100%;
-    width: 100%;
+    width: max-content;
     align-items: center;
-    //min-width: 40px;
     flex-grow: 0;
     opacity: 100%;
     overflow: hidden;
-    
     transition: opacity 200ms ease-in-out;
+    width: max-content;
 
     &[data-center='true'] {
+        width: 100%;
         justify-content: center;
     }
 
@@ -216,17 +207,21 @@
         pointer-events: none;
         opacity: 0;
     }
+
+    &[data-fill-width='true'] {
+        width: 100%;
+    }
 }
 
 .button-text-box {
     display: flex;
+    position: relative;
     flex-direction: column;
     width: max-content;
-    height: 100%;
+    height: max-content;
     justify-content: center;
     text-wrap: nowrap;
     align-items: flex-start;
-    transition: opacity 150ms ease-in-out;
     opacity: 100%;
 
     &[data-center='true'] {
@@ -234,6 +229,7 @@
     }
 
     &[data-show-text='false'] {
+        pointer-events: none;
         position: absolute;
         opacity: 0;
     }
@@ -242,6 +238,7 @@
 .button-text {
     user-select: none;
     width: max-content;
+    max-width: 100%;
     height: max-content;
     flex-shrink: 1;
     text-overflow: ellipsis;
@@ -250,19 +247,16 @@
     opacity: 0;
     pointer-events: none;
 
-    //transition: opacity 150ms ease-in-out;
-
     &[data-show-text='true'] {
         opacity: 100%;
         pointer-events: inherit;
         display: block;
     }
 
-}
-
-.weblens-toggle-button:hover .button-text {
-    width: max-content;
-    max-width: 4000px;
+    &:hover {
+        width: max-content;
+        max-width: 4000px;
+    }
 }
 
 .button-icon-box {
@@ -273,6 +267,7 @@
     width: max-content;
     align-items: center;
     justify-content: center;
+    transition: margin-right 150ms ease-in-out, margin-left 150ms ease-in-out;
 
     &[data-icon-side='right'] {
         justify-content: right;
@@ -292,12 +287,8 @@
     height: 100%;
     width: 100%;
     color: white;
-}
 
-.weblens-button[data-disabled='true'] .button-icon {
-    color: $disabled-grey-text;
-}
-
-.weblens-toggle-button[data-disabled='true'] .button-icon {
-    color: $disabled-grey-text;
+    [data-disabled='true'] & {
+        color: $disabled-grey-text;
+    }
 }

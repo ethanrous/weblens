@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -8,30 +9,38 @@ import (
 )
 
 type instanceService struct {
-	repo  map[types.InstanceId]types.Instance
-	local types.Instance
-	db    types.InstanceDB
+	instanceMap     map[types.InstanceId]types.Instance
+	instanceMapLock *sync.RWMutex
+	local           types.Instance
+	localLoading    map[string]bool
+
+	store types.InstanceStore
 }
 
 func NewService() types.InstanceService {
 	return &instanceService{
-		repo: make(map[types.InstanceId]types.Instance),
+		instanceMap:     make(map[types.InstanceId]types.Instance),
+		instanceMapLock: &sync.RWMutex{},
+		localLoading:    map[string]bool{"all": true},
 	}
 }
 
-func (is *instanceService) Init(db types.DatabaseService) error {
-	is.db = db
+func (is *instanceService) Init(store types.InstanceStore) error {
+	is.store = store
 
-	servers, err := db.GetAllServers()
+	servers, err := is.store.GetAllServers()
 	if err != nil {
 		return err
 	}
 
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
 	for _, server := range servers {
 		if server.IsLocal() {
 			is.local = server
+			continue
 		}
-		is.repo[server.ServerId()] = server
+		is.instanceMap[server.ServerId()] = server
 	}
 
 	if is.local == nil {
@@ -43,11 +52,30 @@ func (is *instanceService) Init(db types.DatabaseService) error {
 
 func (is *instanceService) Add(i types.Instance) error {
 	if i.ServerId() == "" && !i.IsLocal() {
-		return types.NewWeblensError("Remote server must have specified id")
+		return types.WeblensErrorMsg("Remote server must have specified id")
 	} else if i.ServerId() == "" {
 		i.(*WeblensInstance).Id = is.GenerateNewId(i.GetName())
 	}
-	return types.ErrNotImplemented("instance add")
+
+	err := types.SERV.StoreService.NewServer(i)
+	if err != nil {
+		return err
+	}
+
+	err = types.SERV.StoreService.SetRemoteUsing(i.GetUsingKey(), i.ServerId())
+	if err != nil {
+		return err
+	}
+
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
+	is.instanceMap[i.ServerId()] = i
+
+	if i.IsLocal() {
+		is.local = i
+	}
+
+	return nil
 }
 
 func (is *instanceService) Get(iId types.InstanceId) types.Instance {
@@ -61,11 +89,46 @@ func (is *instanceService) GetLocal() types.Instance {
 }
 
 func (is *instanceService) Del(iId types.InstanceId) error {
-	return types.ErrNotImplemented("instance Del")
+	err := is.store.DeleteServer(iId)
+	if err != nil {
+		return err
+	}
+
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
+	delete(is.instanceMap, iId)
+
+	return nil
 }
 
 func (is *instanceService) Size() int {
-	return len(is.repo)
+	return len(is.instanceMap)
+}
+
+func (is *instanceService) IsLocalLoaded() bool {
+	is.instanceMapLock.RLock()
+	defer is.instanceMapLock.RUnlock()
+	return len(is.localLoading) == 0
+}
+
+func (is *instanceService) AddLoading(loadingKey string) {
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
+	is.localLoading[loadingKey] = true
+}
+
+func (is *instanceService) RemoveLoading(loadingKey string) {
+	is.instanceMapLock.Lock()
+	delete(is.localLoading, loadingKey)
+	is.instanceMapLock.Unlock()
+
+	if is.IsLocalLoaded() {
+		err := types.SERV.RestartRouter()
+		if err != nil {
+			util.ErrTrace(err)
+		}
+		types.SERV.Caster.PushWeblensEvent("weblens_loaded")
+	}
 }
 
 func (is *instanceService) GenerateNewId(name string) types.InstanceId {
@@ -73,7 +136,7 @@ func (is *instanceService) GenerateNewId(name string) types.InstanceId {
 }
 
 func (is *instanceService) GetRemotes() []types.Instance {
-	return util.MapToSlicePure(is.repo)
+	return util.MapToValues(is.instanceMap)
 }
 
 func (is *instanceService) InitCore(instance types.Instance) error {
@@ -114,27 +177,25 @@ func (is *instanceService) InitCore(instance types.Instance) error {
 	return types.ErrNotImplemented("instance InitCore")
 }
 
-func (is *instanceService) InitBackup(i types.Instance) error {
-	// srvId := types.InstanceId(util.GlobbyHash(12, name, time.Now().String()))
-	// err := rq.AttachToCore(srvId, coreAddress, name, key)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// wi.Id = srvId
-	// wi.Name = name
-	// wi.IsThisServer = true
-	// wi.Role = types.Backup
-	//
-	// wi.CoreAddress = coreAddress
-	// wi.UsingKey = key
-	//
-	// err = wi.db.NewServer(srvId, name, true, types.Backup)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// return nil
+func (is *instanceService) InitBackup(name, coreAddr string, key types.WeblensApiKey, store types.ProxyStore) error {
+	is.store = store
 
-	return types.ErrNotImplemented("instance InitBackup")
+	srvId := types.InstanceId(util.GlobbyHash(12, name, time.Now().String()))
+	i := New(srvId, name, key, types.Backup, true, coreAddr)
+	remote, err := is.store.AttachToCore(i)
+	if err != nil {
+		return err
+	}
+
+	err = is.Add(i)
+	if err != nil {
+		return err
+	}
+
+	err = is.Add(remote)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

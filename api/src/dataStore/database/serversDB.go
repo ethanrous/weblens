@@ -21,6 +21,29 @@ func (db *databaseService) GetAllServers() ([]types.Instance, error) {
 	return util.SliceConvert[types.Instance](servers), nil
 }
 
-func (db *databaseService) NewServer(id types.InstanceId, name string, isThisServer bool, role types.ServerRole) error {
-	return types.ErrNotImplemented("new server db")
+func (db *databaseService) NewServer(i types.Instance) error {
+	_, err := db.servers.InsertOne(db.ctx, i)
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+	return nil
+}
+
+func (db *databaseService) AttachToCore(i types.Instance) (types.Instance, error) {
+	return nil, types.ErrNotImplemented("AttachToCore local")
+}
+
+func (db *databaseService) DeleteServer(id types.InstanceId) error {
+	_, err := db.servers.DeleteOne(db.ctx, bson.M{"_id": id})
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+
+	filter := bson.M{"remoteUsing": id}
+	update := bson.M{"$set": bson.M{"remoteUsing": ""}}
+	_, err = db.apiKeys.UpdateMany(db.ctx, filter, update)
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+	return nil
 }

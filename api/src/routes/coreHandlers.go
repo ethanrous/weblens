@@ -23,7 +23,10 @@ func ping(ctx *gin.Context) {
 func attachRemote(ctx *gin.Context) {
 	local := types.SERV.InstanceService.GetLocal()
 	if local.ServerRole() == types.Backup {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"})
+		ctx.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"},
+		)
 		return
 	}
 
@@ -46,30 +49,7 @@ func attachRemote(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Status(http.StatusCreated)
-}
-
-func getBackupSnapshot(ctx *gin.Context) {
-	// ts, err := strconv.Atoi(ctx.Query("since"))
-	// if err != nil {
-	// 	util.ShowErr(err)
-	// 	ctx.Status(http.StatusBadRequest)
-	// 	return
-	// }
-	// since := time.UnixMilli(int64(ts))
-	// jes, err := dataStore.JournalSince(since)
-	// // jes[0].JournaledAt().String()
-	// if err != nil {
-	// 	util.ShowErr(err)
-	// 	ctx.Status(http.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// _, err = json.Marshal(gin.H{"journal": jes})
-	// util.ShowErr(err)
-	//
-	// ctx.JSON(http.StatusOK, gin.H{"journal": jes})
-	ctx.Status(http.StatusNotImplemented)
+	ctx.JSON(http.StatusCreated, types.SERV.InstanceService.GetLocal())
 }
 
 func getFileBytes(ctx *gin.Context) {
@@ -86,23 +66,53 @@ func getFileBytes(ctx *gin.Context) {
 
 	ctx.File(f.GetAbsPath())
 }
-
-func getFilesMeta(ctx *gin.Context) {
-	fIds, err := readCtxBody[[]types.FileId](ctx)
-	if err != nil {
+func getFileMeta(ctx *gin.Context) {
+	fileId := types.FileId(ctx.Param("fileId"))
+	f := types.SERV.FileTree.Get(fileId)
+	if f == nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
-	var files []map[string]any
-	var notFound []types.FileId
-	for _, id := range fIds {
-		f := types.SERV.FileTree.Get(id)
-		if f == nil {
-			notFound = append(notFound, id)
-		} else {
-			files = append(files, f.MarshalArchive())
-		}
-	}
-	ctx.JSON(http.StatusOK, gin.H{"files": files, "notFound": notFound})
+
+	ctx.JSON(http.StatusOK, f)
+}
+
+func getFilesMeta(ctx *gin.Context) {
+	files := []types.WeblensFile{}
+	types.SERV.FileTree.GetRoot().RecursiveMap(
+		func(file types.WeblensFile) error {
+			files = append(files, file)
+			return nil
+		},
+	)
+	// files, err := types.SERV.FileTree.GetAllFiles()
+	// if err != nil {
+	// 	util.ErrTrace(err)
+	// 	ctx.Status(http.StatusInternalServerError)
+	// 	return
+	// }
+
+	ctx.JSON(http.StatusOK, files)
+
+	// fIds, err := readCtxBody[[]types.FileId](ctx)
+	// if err != nil {
+	// 	return
+	// }
+	// var files []map[string]any
+	// var notFound []types.FileId
+	//
+	// if len(fIds) == 0 {
+	// }
+	//
+	// for _, id := range fIds {
+	// 	f := types.SERV.FileTree.Get(id)
+	// 	if f == nil {
+	// 		notFound = append(notFound, id)
+	// 	} else {
+	// 		files = append(files, f.MarshalArchive())
+	// 	}
+	// }
+	// ctx.JSON(http.StatusOK, gin.H{"files": files, "notFound": notFound})
 }
 
 func getRemotes(ctx *gin.Context) {

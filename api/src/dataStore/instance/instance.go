@@ -21,12 +21,15 @@ type WeblensInstance struct {
 	// Not set for any remotes/backups on core server, as it IS the core
 	CoreAddress string `json:"coreAddress" bson:"coreAddress"`
 
-	UserCount int `json:"userCount" bson:"-"`
+	// UserCount int `json:"userCount" bson:"-"`
 
 	service *instanceService
 }
 
-func New(id types.InstanceId, name string, key types.WeblensApiKey, role types.ServerRole, isThisServer bool, coreAddress string) types.Instance {
+func New(
+	id types.InstanceId, name string, key types.WeblensApiKey, role types.ServerRole, isThisServer bool,
+	coreAddress string,
+) types.Instance {
 	return &WeblensInstance{
 		Id:           id,
 		Name:         name,
@@ -53,6 +56,10 @@ func (wi *WeblensInstance) ServerId() types.InstanceId {
 	return wi.Id
 }
 
+func (wi *WeblensInstance) SetServerId(id types.InstanceId) {
+	wi.Id = id
+}
+
 func (wi *WeblensInstance) GetUsingKey() types.WeblensApiKey {
 	return wi.UsingKey
 }
@@ -76,9 +83,9 @@ func (wi *WeblensInstance) GetCoreAddress() (string, error) {
 	return wi.CoreAddress, nil
 }
 
-func (wi *WeblensInstance) SetUserCount(count int) {
-	wi.UserCount = count
-}
+// func (wi *WeblensInstance) SetUserCount(count int) {
+// 	wi.UserCount = count
+// }
 
 // func SetCoreAddress(core string, key types.WeblensApiKey) error {
 // 	if thisServer.Role == types.CoreMode {

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
+	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -91,13 +92,20 @@ func createZipFromPaths(t *task) {
 
 	paths := util.MapToKeys(filesInfoMap)
 	slices.Sort(paths)
-	takeoutHash := util.GlobbyHash(8, strings.Join(paths, ""))
-	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutHash, zipMeta.username)
+
+	var takeoutKey string
+	if len(zipMeta.files) == 1 {
+		takeoutKey = zipMeta.files[0].Filename()
+	} else {
+		takeoutKey = util.GlobbyHash(8, strings.Join(paths, ""))
+	}
+
+	zipFile, zipExists, err := dataStore.NewTakeoutZip(takeoutKey, zipMeta.username)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
 	if zipExists {
-		t.setResult(types.TaskResult{"takeoutId": zipFile.ID().String()})
+		t.setResult(types.TaskResult{"takeoutId": zipFile.ID().String(), "filename": zipFile.Filename()})
 		t.caster.PushTaskUpdate(t, TaskCompleteEvent, t.result) // Let any client subscribers know we are done
 		t.success()
 		return
@@ -201,7 +209,7 @@ func createZipFromPaths(t *task) {
 		t.ErrorAndExit(*archiveErr)
 	}
 
-	t.setResult(types.TaskResult{"takeoutId": zipFile.ID()})
+	t.setResult(types.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.Filename()})
 	t.caster.PushTaskUpdate(t, ZipCompleteEvent, t.result) // Let any client subscribers know we are done
 	t.success()
 }
@@ -214,30 +222,35 @@ func moveFile(t *task) {
 		t.ErrorAndExit(errors.New("could not find existing file"))
 	}
 
-	acc := dataStore.NewAccessMeta(dataStore.WeblensRootUser)
+	acc := dataStore.NewAccessMeta(types.SERV.UserService.Get("WEBLENS"))
+	moveEvent := history.NewFileEvent()
 
 	destinationFolder := types.SERV.FileTree.Get(moveMeta.destinationFolderId)
 	if destinationFolder == destinationFolder.Owner().GetTrashFolder() {
-		err := dataStore.MoveFileToTrash(file, acc, t.caster)
+		err := dataStore.MoveFileToTrash(file, acc, moveEvent, t.caster)
 		if err != nil {
 			t.ErrorAndExit(err, "Failed while assuming move file was to trash")
 		}
 		return
 	} else if dataStore.IsFileInTrash(file) {
-		err := dataStore.ReturnFileFromTrash(file, t.caster)
+		err := dataStore.ReturnFileFromTrash(file, moveEvent, t.caster)
 		if err != nil {
 			t.ErrorAndExit(err, "Failed while assuming move file was out of trash")
 		}
 		return
 	}
 	err := types.SERV.FileTree.Move(
-		file, destinationFolder, moveMeta.newFilename, false, t.caster.(types.BufferedBroadcasterAgent),
+		file, destinationFolder, moveMeta.newFilename, false, moveEvent, t.caster.(types.BufferedBroadcasterAgent),
 	)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
 
-	moveMeta.fileEvent.NewMoveAction(moveMeta.fileId, file.ID())
+	err = types.SERV.FileTree.GetJournal().LogEvent(moveEvent)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
 	t.success()
 }
 
@@ -275,7 +288,9 @@ func handleFileUploads(t *task) {
 
 	rootFile := types.SERV.FileTree.Get(meta.rootFolderId)
 	if rootFile == nil {
-		t.ErrorAndExit(dataStore.ErrNoFile, "could not find root folder in upload. ID:", meta.rootFolderId)
+		t.ErrorAndExit(
+			types.ErrNoFile(meta.rootFolderId), "could not find root folder in upload. ID:", meta.rootFolderId,
+		)
 	}
 
 	var bottom, top, total int64
@@ -310,6 +325,14 @@ func handleFileUploads(t *task) {
 					util.ShowErr(err)
 				}
 			}
+		}
+	}()
+
+	fileEvent := history.NewFileEvent()
+	defer func() {
+		err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)
+		if err != nil {
+			util.ShowErr(err)
 		}
 	}()
 
@@ -387,6 +410,8 @@ WriterLoop:
 					util.ShowErr(err)
 				}
 
+				fileEvent.NewCreateAction(fileMap[chunk.FileId].file)
+
 				// Unlock the file
 				err = fileMap[chunk.FileId].file.RemoveTask(t.TaskId())
 				if err != nil {
@@ -425,6 +450,10 @@ WriterLoop:
 	newTp := types.SERV.WorkerPool.NewTaskPool(false, nil)
 	for _, tl := range topLevels {
 		if tl.IsDir() {
+			err = types.SERV.FileTree.ResizeDown(tl, t.caster)
+			if err != nil {
+				util.ShowErr(err)
+			}
 			bufCaster.PushFileUpdate(tl)
 			newTp.ScanDirectory(tl, t.caster)
 		} else if !doingRootScan {
@@ -522,7 +551,8 @@ func gatherFilesystemStats(t *task) {
 		filetypeSizeMap, func(name string, value int64) extSize { return extSize{Name: name, Value: value} },
 	)
 
-	freeSpace := dataStore.GetFreeSpace(meta.rootDir.GetAbsPath())
+	// freeSpace := dataStore.GetFreeSpace(meta.rootDir.GetAbsPath())
+	freeSpace := 0
 
 	t.setResult(types.TaskResult{"sizesByExtension": ret, "bytesFree": freeSpace})
 	t.success()

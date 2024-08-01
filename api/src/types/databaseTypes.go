@@ -1,24 +1,45 @@
 package types
 
-type DatabaseService interface {
-	HistoryDbService
-	AlbumsDB
-	MediaDB
-	ShareDB
-	UserDB
-	InstanceDB
-	FilesDB
+import (
+	"context"
+	"time"
+)
+
+type StoreService interface {
+	HistoryStore
+	AlbumsStore
+	MediaStore
+	ShareStore
+	UserStore
+	InstanceStore
+	FilesStore
+	AccessStore
 }
 
-type HistoryDbService interface {
+type ProxyStore interface {
+	HistoryStore
+	FilesStore
+	UserStore
+	InstanceStore
+
+	GetLocalStore() StoreService
+}
+
+type HistoryStore interface {
 	WriteFileEvent(FileEvent) error
 	GetAllLifetimes() ([]Lifetime, error)
-	AddOrUpdateLifetime(l Lifetime) error
+
+	// GetLifetimesSince gets all lifetimes that have been updated since the given date
+	GetLifetimesSince(time.Time) ([]Lifetime, error)
+
+	UpsertLifetime(l Lifetime) error
+	InsertManyLifetimes([]Lifetime) error
 	GetActionsByPath(WeblensFilepath) ([]FileAction, error)
 	DeleteAllFileHistory() error
+	GetLatestAction() (FileAction, error)
 }
 
-type AlbumsDB interface {
+type AlbumsStore interface {
 	GetAllAlbums() ([]Album, error)
 	CreateAlbum(Album) error
 
@@ -31,27 +52,29 @@ type AlbumsDB interface {
 	AddUsersToAlbum(aId AlbumId, us []User) error
 }
 
-type MediaDB interface {
+type MediaStore interface {
 	CreateMedia(m Media) error
 	GetAllMedia() ([]Media, error)
 	DeleteMedia(ContentId) error
-	HideMedia(ContentId) error
+	SetMediaHidden(id ContentId, hidden bool) error
 	AddFileToMedia(mId ContentId, fId FileId) error
 	RemoveFileFromMedia(mId ContentId, fId FileId) error
+	GetFetchMediaCacheImage(ctx context.Context) ([]byte, error)
 
 	DeleteAllMedia() error
 }
 
-type ShareDB interface {
+type ShareStore interface {
 	CreateShare(Share) error
 	UpdateShare(Share) error
 	GetAllShares() ([]Share, error)
 	SetShareEnabledById(sId ShareId, enabled bool) error
 	AddUsersToShare(share Share, users []Username) error
 	GetSharedWithUser(username Username) ([]Share, error)
+	DeleteShare(shareId ShareId) error
 }
 
-type UserDB interface {
+type UserStore interface {
 	GetAllUsers() ([]User, error)
 	UpdatePsaswordByUsername(username Username, newPasswordHash string) error
 	SetAdminByUsername(Username, bool) error
@@ -63,13 +86,28 @@ type UserDB interface {
 	DeleteAllUsers() error
 }
 
-type InstanceDB interface {
+type InstanceStore interface {
 	GetAllServers() ([]Instance, error)
-	NewServer(id InstanceId, name string, isThisServer bool, role ServerRole) error
+	NewServer(Instance) error
+	DeleteServer(InstanceId) error
+	AttachToCore(Instance) (Instance, error)
 }
 
-type FilesDB interface {
+type AccessStore interface {
+	CreateApiKey(ApiKeyInfo) error
+	SetRemoteUsing(key WeblensApiKey, remoteId InstanceId) error
+	GetApiKeys() ([]ApiKeyInfo, error)
+	DeleteApiKey(WeblensApiKey) error
+}
+
+type FilesStore interface {
 	NewTrashEntry(te TrashEntry) error
 	GetTrashEntry(fileId FileId) (TrashEntry, error)
 	DeleteTrashEntry(fileId FileId) error
+	GetAllFiles() ([]WeblensFile, error)
+	StatFile(WeblensFile) (FileStat, error)
+	ReadFile(WeblensFile) ([]byte, error)
+	ReadDir(WeblensFile) ([]FileStat, error)
+	TouchFile(WeblensFile) error
+	GetFile(FileId) (WeblensFile, error)
 }

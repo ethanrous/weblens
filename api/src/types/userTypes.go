@@ -11,6 +11,7 @@ type User interface {
 	IsAdmin() bool
 	IsActive() bool
 	IsOwner() bool
+	IsSystemUser() bool
 	GetToken() string
 	GetHomeFolder() WeblensFile
 	SetHomeFolder(WeblensFile) error
@@ -23,12 +24,12 @@ type User interface {
 	SetAdmin(isAdmin bool) error
 	Activate() error
 
-	MarshalJSON() ([]byte, error)
+	FormatArchive() (map[string]any, error)
 	UnmarshalJSON(data []byte) error
 }
 
 type UserService interface {
-	BaseService[Username, User]
+	WeblensService[Username, User, UserStore]
 	GetAll() ([]User, error)
 	GetPublicUser() User
 	SearchByUsername(searchString string) ([]User, error)

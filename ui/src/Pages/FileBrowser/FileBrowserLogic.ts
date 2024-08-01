@@ -1,6 +1,5 @@
-import { DragEvent, useCallback, useEffect, useState } from 'react';
+import { DragEvent, useCallback, useEffect, useState } from 'react'
 
-import { useNavigate } from 'react-router-dom';
 import {
     CreateFolder,
     DeleteFiles,
@@ -9,687 +8,139 @@ import {
     RenameFile,
     requestZipCreate,
     SubToTask,
-} from '../../api/FileBrowserApi';
+} from '../../api/FileBrowserApi'
 
-import Upload, { fileUploadMetadata } from '../../api/Upload';
-import { FbMenuModeT, WeblensFileInfo, WeblensFile } from '../../Files/File';
-import { DraggingStateT, FbModeT } from '../../Files/filesContext';
-import { AuthHeaderT, FBDispatchT, FbStateT, FileBrowserAction, UserInfoT } from '../../types/Types';
-import { TaskProgress, TaskStage } from './TaskProgress';
+import Upload, { fileUploadMetadata } from '../../api/Upload'
+import { WeblensFile, WeblensFileParams } from '../../Files/File'
+import { DraggingStateT } from '../../Files/FBTypes'
+import {
+    AuthHeaderT,
+    MediaDispatchT,
+    TPDispatchT,
+    UserInfoT,
+} from '../../types/Types'
 
-const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
-    if (action.fileIds) {
-        for (const fId of action.fileIds) {
-            state.selected.set(fId, true);
-        }
-        state.lastSelected = action.fileIds[action.fileIds.length - 1];
-    } else {
-        const file = state.dirMap.get(action.fileId);
-        if (!file) {
-            console.error('Failed to handle select: file does not exist:  ', action.fileId);
-            return { ...state };
-        }
-        // If action.selected is undefined, i.e. not passed to the request,
-        // we treat that as a request to toggle the selection
-        if (action.selected === undefined) {
-            file.SetSelected();
-            if (state.selected.get(action.fileId)) {
-                state.selected.delete(action.fileId);
-            } else {
-                state.selected.set(action.fileId, true);
-                return {
-                    ...state,
-                    lastSelected: action.fileId,
-                    selected: new Map(state.selected),
-                };
-            }
-        }
+import WeblensMedia from '../../Media/Media'
+import {
+    FBDispatchT,
+    FbModeT,
+    FileBrowserAction,
+    useFileBrowserStore,
+} from './FBStateControl'
+import { WsSendT } from '../../api/Websocket'
 
-        // state.selected.get returns undefined if not selected,
-        // so we not (!) it to make boolean, and again to match... yay javascript :/
-        else if (!!state.selected.get(action.fileId) === action.selected) {
-            // If the file is already in the correct state, we do nothing.
-            // Specifically, we do not overwrite lastSelected
-        } else {
-            file.SetSelected();
-            if (action.selected) {
-                state.lastSelected = action.fileId;
-                state.selected.set(action.fileId, true);
-            } else {
-                state.selected.delete(action.fileId);
-            }
-        }
+// const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
+//     if (action.fileIds) {
+//         for (const fId of action.fileIds) {
+//             state.dirMap.get(fId).SetSelected(SelectedState.Selected);
+//             state.selected.set(fId, true);
+//         }
+//         state.lastSelected = action.fileIds[action.fileIds.length - 1];
+//     } else {
+//         const file = state.dirMap.get(action.fileId);
+//         if (!file) {
+//             console.error('Failed to handle select: file does not exist:  ', action.fileId);
+//             return { ...state };
+//         }
+//         // If action.selected is undefined, i.e. not passed to the request,
+//         // we treat that as a request to toggle the selection
+//         if (action.selected === undefined) {
+//             if (state.selected.get(action.fileId)) {
+//                 file.UnsetSelected(SelectedState.Selected);
+//                 state.selected.delete(action.fileId);
+//             } else {
+//                 file.SetSelected(SelectedState.Selected);
+//                 state.selected.set(action.fileId, true);
+//                 return {
+//                     ...state,
+//                     lastSelected: action.fileId,
+//                     selected: new Map(state.selected),
+//                 };
+//             }
+//         }
+//
+//         // state.selected.get returns undefined if not selected,
+//         // so we not (!) it to make boolean, and again to match... yay javascript :/
+//         else if (!!state.selected.get(action.fileId) === action.selected) {
+//             // If the file is already in the correct state, we do nothing.
+//             // Specifically, we do not overwrite lastSelected
+//         } else {
+//             if (action.selected) {
+//                 state.lastSelected = action.fileId;
+//                 file.SetSelected(SelectedState.Selected);
+//                 state.selected.set(action.fileId, true);
+//             } else {
+//                 file.UnsetSelected(SelectedState.Selected);
+//                 state.selected.delete(action.fileId);
+//             }
+//         }
+//
+//         if (state.selected.size === 0) {
+//             state.lastSelected = '';
+//         }
+//     }
+//
+//     return { ...state, selected: new Map(state.selected) };
+// };
 
-        if (state.selected.size === 0) {
-            state.lastSelected = '';
-        }
-    }
-
-    return { ...state, selected: new Map(state.selected) };
-};
-
-function fileIsInView(
-    newFileInfo: WeblensFileInfo,
+export const getRealId = async (
+    contentId: string,
     mode: FbModeT,
-    viewingId: string,
-    shareId: string,
-    searchContent: string,
-) {
-    if (mode === FbModeT.default && newFileInfo.parentFolderId !== viewingId) {
-        return false;
-    } else if (mode === FbModeT.search && !newFileInfo.filename.includes(searchContent)) {
-        return false;
-    } else if (mode === FbModeT.share) {
-        // if (shareId === '' && newFileInfo.owner === usr.username) {
-        //     return false
-        // }
-        if (viewingId === newFileInfo.id) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-export const fileBrowserReducer = (state: FbStateT, action: FileBrowserAction): FbStateT => {
-    switch (action.type) {
-        case 'create_file': {
-            for (const newFileInfo of action.files) {
-                if (!fileIsInView(newFileInfo, state.fbMode, state.contentId, state.shareId, state.searchContent)) {
-                    continue;
-                }
-                const file = new WeblensFile(newFileInfo);
-                state.dirMap.set(file.Id(), file);
-            }
-            return { ...state, dirMap: new Map(state.dirMap) };
-        }
-
-        case 'replace_file': {
-            state.dirMap.delete(action.fileId);
-
-            // save if it was previously selected
-            const sel = state.selected.delete(action.fileId);
-
-            if (action.fileInfo.parentFolderId !== state.folderInfo.Id()) {
-                return {
-                    ...state,
-                    dirMap: new Map(state.dirMap),
-                    selected: new Map(state.selected),
-                };
-            }
-
-            const newFile = new WeblensFile(action.fileInfo);
-            state.dirMap.set(newFile.Id(), newFile);
-            if (sel) {
-                state.selected.set(newFile.Id(), true);
-            }
-
-            return {
-                ...state,
-                dirMap: new Map(state.dirMap),
-                selected: new Map(state.selected),
-            };
-        }
-
-        case 'update_many': {
-            for (const newFileInfo of action.files) {
-                if (newFileInfo.id === state.contentId) {
-                    state.folderInfo.SetSize(newFileInfo.size);
-                }
-                if (newFileInfo.id === action.user.homeId) {
-                    state.homeDirSize = newFileInfo.size;
-                    continue;
-                }
-                if (newFileInfo.id === action.user.trashId) {
-                    state.trashDirSize = newFileInfo.size;
-                    continue;
-                }
-
-                if (!fileIsInView(newFileInfo, state.fbMode, state.contentId, state.shareId, state.searchContent)) {
-                    continue;
-                }
-
-                const file = new WeblensFile(newFileInfo);
-
-                state.dirMap.set(file.Id(), file);
-            }
-            return { ...state, dirMap: new Map(state.dirMap) };
-        }
-
-        case 'set_folder_info': {
-            if (!action.file || !action.user) {
-                console.error('Trying to set undefined file info or user');
-                return { ...state };
-            }
-
-            return { ...state, folderInfo: action.file };
-        }
-
-        case 'add_loading': {
-            const newLoading = state.loading.filter(v => v !== action.loading);
-            newLoading.push(action.loading);
-            return {
-                ...state,
-                loading: newLoading,
-            };
-        }
-
-        case 'remove_loading': {
-            const newLoading = state.loading.filter(v => v !== action.loading);
-            // (action.loading)
-            return {
-                ...state,
-                loading: newLoading,
-            };
-        }
-
-        case 'new_task': {
-            let index = state.scanProgress.findIndex(s => s.taskId === action.serverId || s.poolId == action.serverId);
-            if (index !== -1) {
-                return state;
-            }
-
-            let prog: TaskProgress;
-            try {
-                prog = new TaskProgress(action.serverId, action.taskType, action.target);
-            } catch (e) {
-                console.error(e);
-                return state;
-            }
-
-            state.scanProgress.push(prog);
-
-            return {
-                ...state,
-                scanProgress: [...state.scanProgress],
-            };
-        }
-
-        case 'task_complete': {
-            let index = state.scanProgress.findIndex(s => s.taskId === action.serverId || s.poolId == action.serverId);
-
-            if (index === -1) {
-                let newProg: TaskProgress;
-                try {
-                    newProg = new TaskProgress(action.serverId, action.taskType, action.target);
-                } catch (e) {
-                    console.error(e);
-                    return state;
-                }
-
-                index = state.scanProgress.length;
-                state.scanProgress.push(newProg);
-            }
-
-            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
-                return state;
-            }
-
-            state.scanProgress[index].stage = TaskStage.Complete;
-            if (action.time) {
-                state.scanProgress[index].timeNs = action.time;
-            }
-            if (action.note) {
-                state.scanProgress[index].note = action.note;
-            }
-
-            return {
-                ...state,
-                scanProgress: [...state.scanProgress],
-            };
-        }
-
-        case 'task_failure': {
-            let index = state.scanProgress.findIndex(s => s.taskId === action.serverId || s.poolId == action.serverId);
-
-            if (index < 0) {
-                console.warn('Skipping task failure on unknown task');
-                return { ...state };
-            }
-
-            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
-                console.warn('Ignoring task failure on cancelled task');
-                return state;
-            }
-
-            state.scanProgress[index].stage = TaskStage.Failure;
-            if (action.note) {
-                state.scanProgress[index].note = action.note;
-            }
-
-            return {
-                ...state,
-                scanProgress: [...state.scanProgress],
-            };
-        }
-
-        case 'cancel_task': {
-            let index = state.scanProgress.findIndex(s => s.taskId === action.serverId || s.poolId == action.serverId);
-
-            if (index < 0) {
-                return state;
-            }
-
-            state.scanProgress[index].stage = TaskStage.Cancelled;
-            state.scanProgress[index].workingOn = 'Cancelled';
-
-            return {
-                ...state,
-                scanProgress: [...state.scanProgress],
-            };
-        }
-
-        case 'update_scan_progress': {
-            let index = state.scanProgress.findIndex(s => s.taskId === action.serverId || s.poolId == action.serverId);
-
-            if (index === -1) {
-                let newProg: TaskProgress;
-                try {
-                    newProg = new TaskProgress(action.serverId, action.taskType, action.target);
-                } catch (e) {
-                    console.error(e);
-                    return state;
-                }
-
-                index = state.scanProgress.length;
-                state.scanProgress.push(newProg);
-            }
-
-            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
-                return state;
-            }
-
-            state.scanProgress[index].progressPercent = action.progress;
-            state.scanProgress[index].workingOn = action.fileName;
-            state.scanProgress[index].tasksComplete = action.tasksComplete;
-            state.scanProgress[index].tasksTotal = action.tasksTotal;
-            state.scanProgress[index].stage = TaskStage.InProgress;
-            if (action.note) {
-                state.scanProgress[index].note = action.note;
-            }
-
-            return {
-                ...state,
-                scanProgress: [...state.scanProgress],
-            };
-        }
-
-        case 'add_pool_to_progress': {
-            let index = state.scanProgress.findIndex(s => s.taskId === action.serverId);
-
-            if (index === -1) {
-                let newProg: TaskProgress;
-                try {
-                    newProg = new TaskProgress(action.serverId, action.taskType, action.target);
-                } catch (e) {
-                    console.error(e);
-                    return state;
-                }
-
-                index = state.scanProgress.length;
-                state.scanProgress.push(newProg);
-            }
-
-            if (state.scanProgress[index].stage == TaskStage.Cancelled) {
-                return state;
-            }
-
-            state.scanProgress[index].poolId = action.poolId;
-
-            return {
-                ...state,
-                scanProgress: [...state.scanProgress],
-            };
-        }
-
-        case 'remove_task_progress': {
-            state.scanProgress = state.scanProgress.filter(
-                s => s.taskId !== action.serverId && s.poolId !== action.serverId,
-            );
-
-            return { ...state, scanProgress: [...state.scanProgress] };
-        }
-
-        case 'set_search': {
-            return {
-                ...state,
-                searchContent: action.search,
-            };
-        }
-
-        case 'set_is_searching': {
-            return {
-                ...state,
-                isSearching: action.isSearching,
-            };
-        }
-
-        case 'set_dragging': {
-            let dragging: number;
-
-            if (!action.dragging) {
-                dragging = 0;
-            } else if (action.dragging && !action.external) {
-                dragging = 1;
-            } else if (action.dragging && action.external) {
-                dragging = 2;
-            }
-
-            return {
-                ...state,
-                draggingState: dragging,
-            };
-        }
-
-        case 'set_hovering': {
-            if (state.hovering === action.hovering) {
-                return state;
-            }
-            return { ...state, hovering: action.hovering };
-        }
-
-        case 'set_selected': {
-            state = handleSelect(state, action);
-            return state;
-        }
-
-        case 'select_all': {
-            for (const fileId of state.filesList) {
-                state.selected.set(fileId, true);
-            }
-            return {
-                ...state,
-                menuMode: FbMenuModeT.Closed,
-                selected: new Map(state.selected),
-            };
-        }
-
-        case 'select_ids': {
-            for (const id of action.fileIds) {
-                state.selected.set(id, true);
-            }
-            return { ...state, selected: new Map(state.selected) };
-        }
-
-        case 'set_block_focus': {
-            return { ...state, blockFocus: action.block };
-        }
-
-        case 'clear_files': {
-            state.dirMap.clear();
-            state.selected.clear();
-
-            return {
-                ...state,
-                folderInfo: new WeblensFile({}),
-                parents: [],
-                lastSelected: '',
-            };
-        }
-
-        case 'clear_selected': {
-            if (state.selected.size === 0) {
-                return state;
-            }
-
-            return {
-                ...state,
-                lastSelected: '',
-                selected: new Map<string, boolean>(),
-            };
-        }
-
-        case 'delete_from_map': {
-            for (const fileId of action.fileIds) {
-                state.dirMap.delete(fileId);
-                state.selected.delete(fileId);
-            }
-
-            return {
-                ...state,
-                dirMap: new Map(state.dirMap),
-                selected: new Map(state.selected),
-            };
-        }
-
-        case 'holding_shift': {
-            return {
-                ...state,
-                holdingShift: action.shift,
-            };
-        }
-
-        case 'stop_presenting':
-        case 'set_presentation': {
-            if (action.presentingId) {
-                state.selected.clear();
-                state.selected.set(action.presentingId, true);
-            }
-            return {
-                ...state,
-                presentingId: action.presentingId,
-            };
-        }
-
-        case 'set_col_count': {
-            return { ...state, numCols: action.numCols };
-        }
-
-        case 'set_files_list': {
-            return { ...state, filesList: [...action.fileIds] };
-        }
-
-        case 'set_menu_open': {
-            return {
-                ...state,
-                menuMode: action.menuMode,
-            };
-        }
-
-        case 'set_menu_target': {
-            return { ...state, menuTargetId: action.fileId };
-        }
-
-        case 'set_menu_pos': {
-            return { ...state, menuPos: action.pos };
-        }
-
-        case 'presentation_next': {
-            const index = state.filesList.indexOf(state.lastSelected);
-            let lastSelected = state.lastSelected;
-            if (index + 1 < state.filesList.length) {
-                state.selected.clear();
-                lastSelected = state.filesList[index + 1];
-                state.selected.set(lastSelected, true);
-            }
-            return {
-                ...state,
-                lastSelected: lastSelected,
-                presentingId: lastSelected,
-            };
-        }
-
-        case 'presentation_previous': {
-            const index = state.filesList.indexOf(state.lastSelected);
-            let lastSelected = state.lastSelected;
-            if (index - 1 >= 0) {
-                state.selected.clear();
-                lastSelected = state.filesList[index - 1];
-                state.selected.set(lastSelected, true);
-            }
-            return {
-                ...state,
-                lastSelected: lastSelected,
-                presentingId: lastSelected,
-            };
-        }
-
-        case 'move_selection': {
-            if (state.presentingId) {
-                return { ...state };
-            }
-            let lastSelected = state.lastSelected;
-            const prevIndex = state.lastSelected ? state.filesList.indexOf(state.lastSelected) : -1;
-            let finalIndex = -1;
-            if (action.direction === 'ArrowDown') {
-                if (prevIndex === -1) {
-                    finalIndex = 0;
-                } else if (prevIndex + state.numCols < state.filesList.length) {
-                    finalIndex = prevIndex + state.numCols;
-                }
-            } else if (action.direction === 'ArrowUp') {
-                if (prevIndex === -1) {
-                    finalIndex = state.filesList.length - 1;
-                } else if (prevIndex - state.numCols >= 0) {
-                    finalIndex = prevIndex - state.numCols;
-                }
-            } else if (action.direction === 'ArrowLeft') {
-                if (prevIndex === -1) {
-                    finalIndex = state.filesList.length - 1;
-                }
-                if (prevIndex - 1 >= 0 && prevIndex % state.numCols !== 0) {
-                    finalIndex = prevIndex - 1;
-                }
-            } else if (action.direction === 'ArrowRight') {
-                if (prevIndex === -1) {
-                    finalIndex = 0;
-                } else if (prevIndex + 1 < state.filesList.length && prevIndex % state.numCols !== state.numCols - 1) {
-                    finalIndex = prevIndex + 1;
-                }
-            }
-
-            if (finalIndex !== -1) {
-                if (!state.holdingShift) {
-                    state.selected.clear();
-                    state.selected.set(state.filesList[finalIndex], true);
-                } else {
-                    if (prevIndex < finalIndex) {
-                        for (const file of state.filesList.slice(prevIndex, finalIndex + 1)) {
-                            state.selected.set(file, true);
-                        }
-                    } else {
-                        for (const file of state.filesList.slice(finalIndex, prevIndex + 1)) {
-                            state.selected.set(file, true);
-                        }
-                    }
-                }
-                lastSelected = state.filesList[finalIndex];
-            }
-
-            return {
-                ...state,
-                lastSelected: lastSelected,
-                presentingId: state.presentingId ? lastSelected : '',
-                selected: new Map(state.selected),
-            };
-        }
-
-        case 'paste_image': {
-            return { ...state, pasteImg: action.img };
-        }
-
-        case 'set_scroll_to': {
-            return { ...state, scrollTo: action.fileId };
-        }
-
-        case 'set_move_dest': {
-            return { ...state, moveDest: action.fileName };
-        }
-
-        case 'set_location_state': {
-            if (action.realId !== undefined) {
-                state.contentId = action.realId;
-            }
-            if (action.mode !== undefined) {
-                state.fbMode = action.mode;
-            }
-            if (action.shareId !== undefined) {
-                state.shareId = action.shareId;
-            }
-            return {
-                ...state,
-            };
-        }
-
-        case 'set_sort': {
-            if (action.sortType) {
-                return { ...state, sortFunc: action.sortType };
-            } else if (action.sortDirection) {
-                return { ...state, sortDirection: action.sortDirection };
-            } else {
-                return { ...state };
-            }
-        }
-
-        case 'set_past_time': {
-            return { ...state, viewingPast: action.past };
-        }
-
-        default: {
-            console.error('Got unexpected dispatch type: ', action.type);
-            return { ...state };
-        }
-    }
-};
-
-export function getSortFunc(sortType: string, sortDirection: number) {
-    switch (sortType) {
-        case 'Name':
-            return (a: WeblensFile, b: WeblensFile) =>
-                a.GetFilename().localeCompare(b.GetFilename(), 'en-US', {
-                    numeric: true,
-                }) * sortDirection;
-        case 'Date Modified':
-            return (a: WeblensFile, b: WeblensFile) => {
-                return (b.GetModified().getTime() - a.GetModified().getTime()) * sortDirection;
-            };
-        case 'Size':
-            return (a: WeblensFile, b: WeblensFile) => (b.GetSize() - a.GetSize()) * sortDirection;
-    }
-}
-
-export const getRealId = async (contentId: string, mode: FbModeT, usr: UserInfoT, authHeader: AuthHeaderT) => {
+    usr: UserInfoT
+) => {
     if (mode === FbModeT.stats && contentId === 'external') {
-        return 'EXTERNAL';
+        return 'EXTERNAL'
     }
 
     if (contentId === 'home') {
-        return usr.homeId;
+        return usr.homeId
     } else if (contentId === 'trash') {
-        return usr.trashId;
+        return usr.trashId
     } else if (!contentId) {
-        return '';
+        return ''
     } else {
-        return contentId;
+        return contentId
     }
-};
+}
 
-export const handleDragOver = (event: DragEvent, dispatch: FBDispatchT, dragging: number) => {
-    event.preventDefault();
-    event.stopPropagation();
+export const handleDragOver = (
+    event: DragEvent,
+    setDragging: (dragging: DraggingStateT) => void,
+    dragging: number
+) => {
+    event.preventDefault()
+    event.stopPropagation()
 
     if (event.type === 'dragenter' || event.type === 'dragover') {
-        !dragging &&
-            dispatch({
-                type: 'set_dragging',
-                dragging: DraggingStateT.ExternalDrag,
-                external: Boolean(event.dataTransfer.types.length),
-            });
+        if (!dragging) {
+            setDragging(DraggingStateT.ExternalDrag)
+        }
     } else {
-        dispatch({ type: 'set_dragging', dragging: DraggingStateT.NoDrag });
+        setDragging(DraggingStateT.NoDrag)
     }
-};
+}
 
-export const handleRename = (itemId: string, newName: string, dispatch: FBDispatchT, authHeader: AuthHeaderT) => {
-    dispatch({ type: 'add_loading', loading: 'renameFile' });
-    RenameFile(itemId, newName, authHeader).then(_ => dispatch({ type: 'remove_loading', loading: 'renameFile' }));
-};
+export const handleRename = (
+    itemId: string,
+    newName: string,
+    addLoading: (loading: string) => void,
+    removeLoading: (loading: string) => void,
+    authHeader: AuthHeaderT
+) => {
+    addLoading('renameFile')
+    RenameFile(itemId, newName, authHeader).then(() =>
+        removeLoading('renameFile')
+    )
+}
 
 async function getFile(file): Promise<File> {
     try {
-        return await file.getAsFile();
+        return await file.getAsFile()
     } catch (err) {
-        return await new Promise((resolve, reject) => file.file(resolve, reject));
+        console.error(file, err)
+        return await new Promise((resolve, reject) =>
+            file.file(resolve, reject)
+        )
     }
 }
 
@@ -700,18 +151,29 @@ async function addDir(
     rootFolderId: string,
     isPublic: boolean,
     shareId: string,
-    authHeader: AuthHeaderT,
-): Promise<any> {
+    authHeader: AuthHeaderT
+) {
     return await new Promise(
-        async (resolve: (value: fileUploadMetadata[]) => void, reject): Promise<fileUploadMetadata[]> => {
+        // eslint-disable-next-line no-async-promise-executor
+        async (
+            resolve: (value: fileUploadMetadata[]) => void,
+            reject
+        ): Promise<fileUploadMetadata[]> => {
             if (fsEntry.isDirectory === true) {
-                const folderId = await CreateFolder(parentFolderId, fsEntry.name, [], isPublic, shareId, authHeader);
+                const folderId = await CreateFolder(
+                    parentFolderId,
+                    fsEntry.name,
+                    [],
+                    isPublic,
+                    shareId,
+                    authHeader
+                )
                 if (!folderId) {
-                    reject();
+                    reject()
                 }
-                let e: fileUploadMetadata = null;
+                let e: fileUploadMetadata = null
                 if (!topFolderKey) {
-                    topFolderKey = folderId;
+                    topFolderKey = folderId
                     e = {
                         file: fsEntry,
                         isDir: true,
@@ -719,61 +181,71 @@ async function addDir(
                         parentId: rootFolderId,
                         isTopLevel: true,
                         topLevelParentKey: null,
-                    };
+                    }
                 }
 
-                let dirReader = fsEntry.createReader();
+                const dirReader = fsEntry.createReader()
                 // addDir(entry, parentFolderId, topFolderKey, rootFolderId, authHeader)
-                const entriesPromise = new Promise((resolve: (value: any[]) => void, reject) => {
-                    let allEntries = [];
+                const entriesPromise = new Promise(
+                    (resolve: (value) => void) => {
+                        const allEntries = []
 
-                    const reader = callback => entries => {
-                        if (entries.length === 0) {
-                            resolve(allEntries);
-                            return;
+                        const reader = (callback) => (entries) => {
+                            if (entries.length === 0) {
+                                resolve(allEntries)
+                                return
+                            }
+
+                            for (const entry of entries) {
+                                allEntries.push(entry)
+                            }
+
+                            if (entries.length !== 100) {
+                                resolve(allEntries)
+                                return
+                            }
+                            dirReader.readEntries(callback(callback))
                         }
 
-                        for (const entry of entries) {
-                            allEntries.push(entry);
-                        }
+                        dirReader.readEntries(reader(reader))
+                    }
+                )
 
-                        if (entries.length !== 100) {
-                            resolve(allEntries);
-                            return;
-                        }
-                        dirReader.readEntries(callback(callback));
-                    };
-
-                    dirReader.readEntries(reader(reader));
-                });
-
-                let allResults = [];
+                const allResults = []
                 if (e !== null) {
-                    allResults.push(e);
+                    allResults.push(e)
                 }
                 for (const entry of await entriesPromise) {
                     allResults.push(
-                        ...(await addDir(entry, folderId, topFolderKey, rootFolderId, isPublic, shareId, authHeader)),
-                    );
+                        ...(await addDir(
+                            entry,
+                            folderId,
+                            topFolderKey,
+                            rootFolderId,
+                            isPublic,
+                            shareId,
+                            authHeader
+                        ))
+                    )
                 }
-                resolve(allResults);
+                resolve(allResults)
             } else {
                 if (fsEntry.name === '.DS_Store') {
-                    resolve([]);
-                    return;
+                    resolve([])
+                    return
                 }
-                const f = await getFile(fsEntry);
-                let e: fileUploadMetadata = {
+                const f = await getFile(fsEntry)
+                const e: fileUploadMetadata = {
                     file: f,
                     parentId: parentFolderId,
                     isDir: false,
                     isTopLevel: parentFolderId === rootFolderId,
                     topLevelParentKey: topFolderKey,
-                };
-                resolve([e]);
+                }
+                resolve([e])
             }
-        },
-    );
+        }
+    )
 }
 
 export async function HandleDrop(
@@ -784,41 +256,57 @@ export async function HandleDrop(
     shareId: string,
     authHeader: AuthHeaderT,
     uploadDispatch,
-    wsSend: (action: string, content: any) => void,
+    wsSend: WsSendT
 ) {
-    let files: fileUploadMetadata[] = [];
-    let topLevels = [];
+    const files: fileUploadMetadata[] = []
+    const topLevels = []
     if (entries) {
         // Handle Directory
         for (const entry of entries) {
             if (!entry) {
-                console.error('Upload entry does not exist or is not a file');
-                continue;
+                console.error('Upload entry does not exist or is not a file')
+                continue
             }
-            const file = entry.webkitGetAsEntry();
+            const file = entry.webkitGetAsEntry()
             if (!file) {
-                console.error('Drop is not a file');
-                continue;
+                console.error('Drop is not a file')
+                continue
             }
             if (conflictNames.includes(file.name)) {
-                continue;
+                continue
             }
             topLevels.push(
-                addDir(file, rootFolderId, null, rootFolderId, isPublic, shareId, authHeader)
-                    .then(newFiles => {
-                        files.push(...newFiles);
+                addDir(
+                    file,
+                    rootFolderId,
+                    null,
+                    rootFolderId,
+                    isPublic,
+                    shareId,
+                    authHeader
+                )
+                    .then((newFiles) => {
+                        files.push(...newFiles)
                     })
-                    .catch(r => {
-                        console.error(r);
-                    }),
-            );
+                    .catch((r) => {
+                        console.error(r)
+                    })
+            )
         }
     }
 
-    await Promise.all(topLevels);
+    await Promise.all(topLevels)
 
     if (files.length !== 0) {
-        Upload(files, isPublic, shareId, rootFolderId, authHeader, uploadDispatch, wsSend);
+        Upload(
+            files,
+            isPublic,
+            shareId,
+            rootFolderId,
+            authHeader,
+            uploadDispatch,
+            wsSend
+        )
     }
 }
 
@@ -829,9 +317,9 @@ export function HandleUploadButton(
     shareId: string,
     authHeader: AuthHeaderT,
     uploadDispatch,
-    wsSend: (action: string, content: any) => void,
+    wsSend: (action: string, content) => void
 ) {
-    let uploads: fileUploadMetadata[] = [];
+    const uploads: fileUploadMetadata[] = []
     for (const f of files) {
         uploads.push({
             file: f,
@@ -839,71 +327,89 @@ export function HandleUploadButton(
             isDir: false,
             isTopLevel: true,
             topLevelParentKey: parentFolderId,
-        });
+        })
     }
 
     if (uploads.length !== 0) {
-        Upload(uploads, isPublic, shareId, parentFolderId, authHeader, uploadDispatch, wsSend);
+        Upload(
+            uploads,
+            isPublic,
+            shareId,
+            parentFolderId,
+            authHeader,
+            uploadDispatch,
+            wsSend
+        )
     }
 }
 
 export function downloadSelected(
     files: WeblensFile[],
-    dispatch: FBDispatchT,
-    wsSend: (action: string, content: any) => void,
+    removeLoading: (loading: string) => void,
+    taskProgDispatch: TPDispatchT,
+    wsSend: (action: string, content) => void,
     authHeader: AuthHeaderT,
-    shareId?: string,
+    shareId?: string
 ) {
-    let taskId: string = '';
-
     if (files.length === 1 && !files[0].IsFolder()) {
-        downloadSingleFile(files[0].Id(), authHeader, dispatch, files[0].GetFilename(), undefined, shareId);
-        return;
+        downloadSingleFile(
+            files[0].Id(),
+            authHeader,
+            taskProgDispatch,
+            files[0].GetFilename(),
+            shareId
+        )
+        return
     }
 
     requestZipCreate(
-        files.map(f => f.Id()),
+        files.map((f) => f.Id()),
         shareId,
-        authHeader,
+        authHeader
     )
         .then(({ json, status }) => {
             if (status === 200) {
-                downloadSingleFile(json.takeoutId, authHeader, dispatch, undefined, 'zip', shareId);
+                downloadSingleFile(
+                    json.takeoutId,
+                    authHeader,
+                    taskProgDispatch,
+                    json.filename,
+                    shareId
+                )
             } else if (status === 202) {
-                SubToTask(json.taskId, ['takeoutId'], wsSend);
+                SubToTask(json.taskId, ['takeoutId'], wsSend)
             } else if (status !== 0) {
-                console.error(json.error);
+                console.error(json.error)
             }
-            dispatch({ type: 'remove_loading', loading: 'zipCreate' });
+            removeLoading('zipCreate')
         })
-        .catch(r => console.error(r));
+        .catch((r) => console.error(r))
 }
 
-export const useKeyDownFileBrowser = (
-    fbState: FbStateT,
-    searchQuery: string,
-    usr: UserInfoT,
-    dispatch: (action: FileBrowserAction) => void,
-    authHeader: AuthHeaderT,
-    wsSend,
-) => {
-    const nav = useNavigate();
+export const useKeyDownFileBrowser = () => {
+    const isSearching = useFileBrowserStore((state) => state.isSearching)
+    const blockFocus = useFileBrowserStore((state) => state.blockFocus)
+    const presentingId = useFileBrowserStore((state) => state.presentingId)
+    const lastSelected = useFileBrowserStore((state) => state.lastSelectedId)
+    const searchContent = useFileBrowserStore((state) => state.searchContent)
+    const selectAll = useFileBrowserStore((state) => state.selectAll)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
+    const setHoldingShift = useFileBrowserStore(
+        (state) => state.setHoldingShift
+    )
+    const setPresentation = useFileBrowserStore(
+        (state) => state.setPresentationTarget
+    )
+
     useEffect(() => {
-        const onKeyDown = event => {
-            if (fbState.isSearching) {
-                return;
-                // if (event.key === 'Enter') {
-                //     if (!Boolean(fbState.searchContent)) {
-                //         if (fbState.fbMode === FbModeT.search) {
-                //             nav(`/files/${fbState.contentId}`)
-                //         }
-                //         return
-                //     }
+        const onKeyDown = (event) => {
+            if (isSearching) {
+                return
             }
-            if (!fbState.blockFocus) {
+            if (!blockFocus) {
                 if (event.metaKey && event.key === 'a') {
-                    event.preventDefault();
-                    dispatch({ type: 'select_all' });
+                    event.preventDefault()
+                    selectAll()
                 } else if (
                     !event.metaKey &&
                     (event.key === 'ArrowUp' ||
@@ -911,153 +417,161 @@ export const useKeyDownFileBrowser = (
                         event.key === 'ArrowLeft' ||
                         event.key === 'ArrowRight')
                 ) {
-                    event.preventDefault();
-                    dispatch({
-                        type: 'move_selection',
-                        direction: event.key,
-                    });
+                    event.preventDefault()
+                    console.error('move selected not impl')
+                    // dispatch({
+                    //     type: 'move_selection',
+                    //     direction: event.key,
+                    // });
                 } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    if (fbState.pasteImg) {
-                        dispatch({ type: 'paste_image', img: null });
-                    } else {
-                        dispatch({ type: 'clear_selected' });
-                    }
+                    event.preventDefault()
+                    clearSelected()
+                    // if (fbState.pasteImg) {
+                    //     dispatch({ type: 'paste_image', img: null });
+                    // } else {
+                    // }
                 } else if (event.key === 'Shift') {
-                    dispatch({ type: 'holding_shift', shift: true });
-                } else if (event.key === 'Enter' && fbState.pasteImg) {
-                    if (fbState.folderInfo.Id() === 'shared' || fbState.folderInfo.Id() === usr.trashId) {
-                        console.error('This folder does not allow paste-to-upload');
-                        return;
-                    }
-                    uploadViaUrl(
-                        fbState.pasteImg,
-                        fbState.folderInfo.Id(),
-                        fbState.dirMap,
-                        authHeader,
-                        dispatch,
-                        wsSend,
-                    );
+                    setHoldingShift(true)
+                    // } else if (event.key === 'Enter' && fbState.pasteImg) {
+                    //     if (fbState.folderInfo.Id() === 'shared' || fbState.folderInfo.Id() === usr.trashId) {
+                    //         console.error('This folder does not allow paste-to-upload');
+                    //         return;
+                    //     }
+                    //     uploadViaUrl(
+                    //         fbState.pasteImg,
+                    //         folderInfo.Id(),
+                    //         fbState.dirMap,
+                    //         authHeader,
+                    //         dispatch,
+                    //         wsSend,
+                    //     );
                 } else if (event.key === ' ') {
-                    event.preventDefault();
-                    if (fbState.lastSelected && !fbState.presentingId) {
-                        dispatch({
-                            type: 'set_presentation',
-                            presentingId: fbState.lastSelected,
-                        });
-                    } else if (fbState.presentingId) {
-                        dispatch({ type: 'stop_presenting' });
+                    event.preventDefault()
+                    if (lastSelected && !presentingId) {
+                        setPresentation(lastSelected)
+                    } else if (presentingId) {
+                        setPresentation('')
                     }
                 }
             }
-        };
+        }
 
-        const onKeyUp = event => {
-            if (!fbState.blockFocus) {
+        const onKeyUp = (event) => {
+            if (!blockFocus) {
                 if (event.key === 'Shift') {
-                    dispatch({ type: 'holding_shift', shift: false });
+                    setHoldingShift(false)
                 }
             }
-        };
+        }
 
-        document.addEventListener('keydown', onKeyDown);
-        document.addEventListener('keyup', onKeyUp);
+        document.addEventListener('keydown', onKeyDown)
+        document.addEventListener('keyup', onKeyUp)
         return () => {
-            document.removeEventListener('keydown', onKeyDown);
-            document.removeEventListener('keyup', onKeyUp);
-        };
+            document.removeEventListener('keydown', onKeyDown)
+            document.removeEventListener('keyup', onKeyUp)
+        }
     }, [
-        fbState.blockFocus,
-        fbState.searchContent,
-        searchQuery,
-        fbState.pasteImg,
-        dispatch,
-        fbState.presentingId,
-        fbState.lastSelected,
-    ]);
-};
+        blockFocus,
+        searchContent,
+        // fbState.pasteImg,
+        presentingId,
+        lastSelected,
+    ])
+}
 
 export const useMousePosition = () => {
-    const [mousePosition, setMousePosition] = useState({ x: null, y: null });
+    const [mousePosition, setMousePosition] = useState({ x: null, y: null })
 
     useEffect(() => {
-        const updateMousePosition = ev => {
-            setMousePosition({ x: ev.clientX, y: ev.clientY });
-        };
-        window.addEventListener('mousemove', updateMousePosition);
+        const updateMousePosition = (ev) => {
+            setMousePosition({ x: ev.clientX, y: ev.clientY })
+        }
+        window.addEventListener('mousemove', updateMousePosition)
         return () => {
-            window.removeEventListener('mousemove', updateMousePosition);
-        };
-    }, []);
-    return mousePosition;
-};
+            window.removeEventListener('mousemove', updateMousePosition)
+        }
+    }, [])
+    return mousePosition
+}
 
 export const usePaste = (
     folderId: string,
     usr: UserInfoT,
-    blockFocus: boolean,
-    dispatch: (Action: FileBrowserAction) => void,
+    blockFocus: boolean
 ) => {
+    const setSearch = useFileBrowserStore((state) => state.setSearch)
+
     const handlePaste = useCallback(
-        async e => {
+        async (e) => {
             if (blockFocus) {
-                return;
+                return
             }
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault()
+            e.stopPropagation()
 
             const clipboardItems =
                 typeof navigator?.clipboard?.read === 'function'
-                    ? await navigator.clipboard.read().catch(v => {
-                          console.error(v);
+                    ? await navigator.clipboard.read().catch((v) => {
+                          console.error(v)
                       })
-                    : e.clipboardData?.files;
+                    : e.clipboardData?.files
             if (!clipboardItems) {
-                return;
+                return
             }
             for (const item of clipboardItems) {
                 for (const mime of item.types) {
                     if (mime.startsWith('image/')) {
                         if (folderId === 'shared' || folderId === usr.trashId) {
-                            console.error('This folder does not allow paste-to-upload');
-                            return;
+                            console.error(
+                                'This folder does not allow paste-to-upload'
+                            )
+                            return
                         }
-                        const img = await item.getType(mime);
-                        dispatch({ type: 'paste_image', img: img });
+                        const img = await item.getType(mime)
+                        console.error('Paste img not impl', img)
+                        // dispatch({ type: 'paste_image', img: img });
                     } else if (mime === 'text/plain') {
-                        const text = await (await item.getType('text/plain'))?.text();
+                        const text = await (
+                            await item.getType('text/plain')
+                        )?.text()
                         if (!text) {
-                            continue;
+                            continue
                         }
-                        dispatch({ type: 'set_search', search: text });
+                        setSearch(text)
                     } else {
-                        console.error('Unknown mime', mime);
+                        console.error('Unknown mime', mime)
                     }
                 }
             }
         },
-        [folderId, blockFocus],
-    );
+        [folderId, blockFocus]
+    )
 
     useEffect(() => {
-        window.addEventListener('paste', handlePaste);
+        window.addEventListener('paste', handlePaste)
         return () => {
-            window.removeEventListener('paste', handlePaste);
-        };
-    }, [handlePaste]);
-};
+            window.removeEventListener('paste', handlePaste)
+        }
+    }, [handlePaste])
+}
 
 export function deleteSelected(
     selectedMap: Map<string, boolean>,
     dirMap: Map<string, WeblensFile>,
-    authHeader: AuthHeaderT,
+    authHeader: AuthHeaderT
 ) {
-    const fileIds = Array.from(selectedMap.keys());
-    DeleteFiles(fileIds, authHeader);
+    const fileIds = Array.from(selectedMap.keys())
+    DeleteFiles(fileIds, authHeader)
 }
 
-export function MoveSelected(selectedMap: Map<string, boolean>, destinationId: string, authHeader: AuthHeaderT) {
-    return moveFiles(Array.from(selectedMap.keys()), destinationId, authHeader).catch(r => console.error(r));
+export function MoveSelected(
+    selected: string[],
+    destinationId: string,
+    authHeader: AuthHeaderT
+) {
+    return moveFiles(selected, destinationId, authHeader).catch((r) =>
+        console.error(r)
+    )
 }
 
 export async function uploadViaUrl(
@@ -1066,14 +580,14 @@ export async function uploadViaUrl(
     dirMap: Map<string, WeblensFile>,
     authHeader: AuthHeaderT,
     dispatch: (Action: FileBrowserAction) => void,
-    wsSend,
+    wsSend
 ) {
-    const names = Array.from(dirMap.values()).map(v => v.GetFilename());
-    let imgNumber = 1;
-    let imgName = `image${imgNumber}.jpg`;
+    const names = Array.from(dirMap.values()).map((v) => v.GetFilename())
+    let imgNumber = 1
+    let imgName = `image${imgNumber}.jpg`
     while (names.includes(imgName)) {
-        imgNumber++;
-        imgName = `image${imgNumber}.jpg`;
+        imgNumber++
+        imgName = `image${imgNumber}.jpg`
     }
 
     const meta: fileUploadMetadata = {
@@ -1082,54 +596,91 @@ export async function uploadViaUrl(
         parentId: folderId,
         topLevelParentKey: '',
         isTopLevel: true,
-    };
-    await Upload([meta], false, '', folderId, authHeader, () => {}, wsSend);
-    dispatch({ type: 'paste_image', img: null });
+    }
+    await Upload([meta], false, '', folderId, authHeader, () => {}, wsSend)
+    dispatch({ type: 'paste_image', img: null })
 }
 
-export function selectedMediaIds(dirMap: Map<string, WeblensFile>, selectedIds: string[]): string[] {
-    return selectedIds.map(id => dirMap.get(id)?.GetMediaId()).filter(v => Boolean(v));
+export function selectedMediaIds(
+    dirMap: Map<string, WeblensFile>,
+    selectedIds: string[]
+): string[] {
+    return selectedIds
+        .map((id) => dirMap.get(id)?.GetMediaId())
+        .filter((v) => Boolean(v))
 }
 
-export function selectedFolderIds(dirMap: Map<string, WeblensFile>, selectedIds: string[]): string[] {
-    return selectedIds.filter(id => dirMap.get(id).IsFolder());
+export function selectedFolderIds(
+    dirMap: Map<string, WeblensFile>,
+    selectedIds: string[]
+): string[] {
+    return selectedIds.filter((id) => dirMap.get(id).IsFolder())
 }
 
 export function SetFileData(
     data: {
-        self?: WeblensFileInfo;
-        children?: WeblensFileInfo[];
-        parents?: WeblensFileInfo[];
-        error?: any;
+        self?: WeblensFileParams
+        children?: WeblensFileParams[]
+        parents?: WeblensFileParams[]
+        error?
     },
-    dispatch: FBDispatchT,
-    usr: UserInfoT,
+    fbDispatch: FBDispatchT,
+    mediaDispatch: MediaDispatchT,
+    usr: UserInfoT
 ) {
     if (!data) {
-        console.error('Trying to set null file data');
-        return;
+        console.error('Trying to set null file data')
+        return
     }
     if (data.error) {
-        console.error(data.error);
-        return;
+        console.error(data.error)
+        return
     }
 
-    let parents: WeblensFile[];
+    let parents: WeblensFile[]
     if (!data.parents) {
-        parents = [];
+        parents = []
     } else {
-        parents = data.parents.map(f => new WeblensFile(f));
-        parents.reverse();
+        parents = data.parents.map((f) => new WeblensFile(f))
+        parents.reverse()
     }
 
-    const self = new WeblensFile(data.self);
-    self.SetParents(parents);
+    const children = data.children ? data.children : []
 
-    dispatch({
+    const medias: WeblensMedia[] = []
+    for (const child of children) {
+        if (child.mediaData) {
+            medias.push(new WeblensMedia(child.mediaData))
+        }
+    }
+
+    mediaDispatch({ type: 'add_medias', medias: medias })
+
+    const self = new WeblensFile(data.self)
+    self.SetParents(parents)
+
+    fbDispatch({
         type: 'set_folder_info',
         file: self,
         user: usr,
-    });
+    })
 
-    dispatch({ type: 'update_many', files: data.children, user: usr });
+    fbDispatch({ type: 'update_many', files: children, user: usr })
+}
+
+export const historyDate = (timestamp: number) => {
+    if (timestamp < 10000000000) {
+        timestamp = timestamp * 1000
+    }
+    const dateObj = new Date(timestamp)
+    const options: Intl.DateTimeFormatOptions = {
+        month: 'long',
+        day: 'numeric',
+        minute: 'numeric',
+        hour: 'numeric',
+    }
+    if (dateObj.getFullYear() !== new Date().getFullYear()) {
+        options.year = 'numeric'
+    }
+    return dateObj.toLocaleDateString('en-US', options)
 }

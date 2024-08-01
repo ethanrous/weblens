@@ -1,14 +1,8 @@
-import {
-    Box,
-    Center,
-    Divider,
-    FileButton,
-    Space,
-    Text,
-    Tooltip,
-} from '@mantine/core'
+import { Divider, FileButton, Space, Text, Tooltip } from '@mantine/core'
 
 import {
+    IconChevronRight,
+    IconDownload,
     IconFile,
     IconFileZip,
     IconFolder,
@@ -17,29 +11,35 @@ import {
     IconHome,
     IconPhoto,
     IconServer,
-    IconSpiral,
     IconTrash,
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
-import {
+import React, {
     DragEventHandler,
     memo,
     useContext,
-    useEffect,
     useMemo,
     useState,
 } from 'react'
 import { useMedia, useResize } from '../../components/hooks'
 
 import './style/fileBrowserStyle.scss'
-import { ContainerMedia } from '../../components/Presentation'
-import { UserContext } from '../../Context'
+import { WebsocketContext } from '../../Context'
 import { FbMenuModeT, WeblensFile } from '../../Files/File'
-import { DraggingStateT, FbContext } from '../../Files/filesContext'
-import { FBDispatchT, FbStateT, UserInfoT } from '../../types/Types'
+import { DraggingStateT, TaskProgContext } from '../../Files/FBTypes'
+import { UserInfoT } from '../../types/Types'
 import { friendlyFolderName, humanFileSize } from '../../util'
-import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
+import {
+    downloadSelected,
+    handleDragOver,
+    HandleUploadButton,
+} from './FileBrowserLogic'
+import { MediaImage } from '../../Media/PhotoContainer'
+import WeblensButton from '../../components/WeblensButton'
+import { useMouse } from '@mantine/hooks'
+import { useFileBrowserStore } from './FBStateControl'
+import { useSessionStore } from '../../components/UserInfo'
 
 export const TransferCard = ({
     action,
@@ -60,6 +60,15 @@ export const TransferCard = ({
         return null
     }
 
+    let DestinationIcon
+    if (destination === 'Home') {
+        DestinationIcon = IconHome
+    } else if (destination === 'Trash') {
+        DestinationIcon = IconTrash
+    } else {
+        DestinationIcon = IconFolder
+    }
+
     return (
         <div
             className="transfer-info-wrapper"
@@ -70,7 +79,7 @@ export const TransferCard = ({
         >
             <div className="transfer-info-box">
                 <p className="select-none">{action} to</p>
-                <IconFolder />
+                <DestinationIcon />
                 <p className="font-bold select-none">{destination}</p>
             </div>
         </div>
@@ -84,6 +93,7 @@ export const DropSpot = ({
     dropAllowed,
     handleDrag,
     wrapperRef,
+    stopDragging,
 }: {
     onDrop
     dropSpotTitle: string
@@ -91,6 +101,7 @@ export const DropSpot = ({
     dropAllowed
     handleDrag: DragEventHandler<HTMLDivElement>
     wrapperRef?
+    stopDragging: () => void
 }) => {
     const wrapperSize = useResize(wrapperRef)
     return (
@@ -113,12 +124,16 @@ export const DropSpot = ({
             {dragging === 2 && (
                 <div
                     className="dropbox"
-                    onMouseLeave={handleDrag}
+                    onMouseLeave={() => {
+                        stopDragging()
+                    }}
                     onDrop={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
                         if (dropAllowed) {
                             onDrop(e)
+                        } else {
+                            stopDragging()
                         }
                     }}
                     // required for onDrop to work
@@ -151,18 +166,72 @@ export const DropSpot = ({
     )
 }
 
+export function DraggingCounter() {
+    const drag = useFileBrowserStore((state) => state.draggingState)
+    const setDrag = useFileBrowserStore((state) => state.setDragging)
+    const selected = useFileBrowserStore((state) => state.selected)
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+
+    const position = useMouse()
+    const selectedKeys = Array.from(selected.keys())
+    const { files, folders } = useMemo(() => {
+        let files = 0
+        let folders = 0
+
+        selectedKeys.forEach((k: string) => {
+            if (filesMap.get(k)?.IsFolder()) {
+                folders++
+            } else {
+                files++
+            }
+        })
+        return { files, folders }
+    }, [JSON.stringify(selectedKeys)])
+
+    if (drag !== DraggingStateT.InternalDrag) {
+        return null
+    }
+
+    return (
+        <div
+            className="fixed z-10"
+            style={{
+                top: position.y + 8,
+                left: position.x + 8,
+            }}
+            onMouseUp={() => {
+                setDrag(DraggingStateT.NoDrag)
+            }}
+        >
+            {Boolean(files) && (
+                <div className="flex flex-row h-max">
+                    <IconFile size={30} />
+                    <Space w={10} />
+                    <p>{files}</p>
+                </div>
+            )}
+            {Boolean(folders) && (
+                <div className="flex flex-row h-max">
+                    <IconFolder size={30} />
+                    <Space w={10} />
+                    <p>{folders}</p>
+                </div>
+            )}
+        </div>
+    )
+}
+
 export const DirViewWrapper = memo(
     ({ children }: { children }) => {
-        const { fbState, fbDispatch } = useContext(FbContext)
-        const [menuMode, setMenuMode] = useState(FbMenuModeT.Closed)
+        const draggingState = useFileBrowserStore(
+            (state) => state.draggingState
+        )
 
-        useEffect(() => {
-            if (menuMode === FbMenuModeT.Sharing) {
-                fbDispatch({ type: 'set_block_focus', block: true })
-            } else {
-                fbDispatch({ type: 'set_block_focus', block: false })
-            }
-        }, [menuMode])
+        const setDragging = useFileBrowserStore((state) => state.setDragging)
+        const clearSelected = useFileBrowserStore(
+            (state) => state.clearSelected
+        )
+        const setMenu = useFileBrowserStore((state) => state.setMenu)
 
         return (
             <div
@@ -173,45 +242,30 @@ export const DirViewWrapper = memo(
                     e.stopPropagation()
                 }}
                 onMouseUp={() => {
-                    if (fbState.draggingState) {
-                        setTimeout(
-                            () =>
-                                fbDispatch({
-                                    type: 'set_dragging',
-                                    dragging: DraggingStateT.NoDrag,
-                                }),
-                            10
-                        )
+                    if (draggingState) {
+                        setTimeout(() => setDragging(DraggingStateT.NoDrag), 10)
                     }
                 }}
                 onClick={() => {
-                    if (fbState.draggingState) {
+                    if (draggingState) {
                         return
                     }
-                    fbDispatch({ type: 'clear_selected' })
+                    clearSelected()
                 }}
                 onContextMenu={(e) => {
                     e.preventDefault()
-                    fbDispatch({ type: 'set_menu_target', fileId: '' })
-                    fbDispatch({
-                        type: 'set_menu_pos',
-                        pos: { x: e.clientX, y: e.clientY },
-                    })
-                    fbDispatch({
-                        type: 'set_menu_open',
-                        menuMode: FbMenuModeT.Default,
+                    setMenu({
+                        menuTarget: '',
+                        menuPos: { x: e.clientX, y: e.clientY },
+                        menuState: FbMenuModeT.Default,
                     })
                 }}
             >
                 <div
                     className="w-full h-full p-2"
                     onDragOver={(event) => {
-                        if (!fbState.draggingState) {
-                            handleDragOver(
-                                event,
-                                fbDispatch,
-                                fbState.draggingState
-                            )
+                        if (!draggingState) {
+                            handleDragOver(event, setDragging, draggingState)
                         }
                     }}
                 >
@@ -231,14 +285,12 @@ export const FileIcon = ({
     Icon,
     usr,
     as,
-    includeText = true,
 }: {
     fileName: string
     id: string
     Icon
     usr: UserInfoT
     as?: string
-    includeText?: boolean
 }) => {
     return (
         <div className="flex items-center">
@@ -277,47 +329,11 @@ export const FileIcon = ({
     )
 }
 
-export const FolderIcon = ({ shares, size }: { shares; size }) => {
-    const [copied, setCopied] = useState(false)
-    const wormholeId = useMemo(() => {
-        if (shares) {
-            const whs = shares.filter((s) => s.Wormhole)
-            if (whs.length !== 0) {
-                return whs[0].shareId
-            }
-        }
-    }, [shares])
-    return (
-        <div className="flex w-full h-full items-center justify-center">
-            <IconFolder size={size} />
-            {wormholeId && (
-                <Tooltip label={copied ? 'Copied' : 'Copy Wormhole'}>
-                    <IconSpiral
-                        color={copied ? '#4444ff' : 'white'}
-                        style={{ position: 'absolute', right: 0, top: 0 }}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            navigator.clipboard.writeText(
-                                `${window.location.origin}/wormhole/${shares[0].ShareId}`
-                            )
-                            setCopied(true)
-                            setTimeout(() => setCopied(false), 1000)
-                        }}
-                        // onDoubleClick={(e) => e.stopPropagation()}
-                    />
-                </Tooltip>
-            )}
-        </div>
-    )
-}
-
 export const IconDisplay = ({
     file,
-    size = 24,
     allowMedia = false,
 }: {
     file: WeblensFile
-    size?: string | number
     allowMedia?: boolean
 }) => {
     const [containerRef, setContainerRef] = useState(null)
@@ -329,30 +345,15 @@ export const IconDisplay = ({
     }
 
     if (file.IsFolder()) {
-        return <FolderIcon shares={file.GetShare()} size={size} />
+        return <IconFolder stroke={1} className="w-3/4 h-3/4 shrink-0" />
     }
 
-    if (!file.IsImported() && mediaData && allowMedia) {
-        return (
-            <Center style={{ height: '100%', width: '100%' }}>
-                <IconPhoto />
-            </Center>
-        )
-    } else if (mediaData && allowMedia) {
-        return (
-            <div
-                className="flex h-full w-full items-center justify-center m-4"
-                ref={setContainerRef}
-            >
-                <ContainerMedia
-                    mediaData={mediaData}
-                    containerRef={containerRef}
-                />
-            </div>
-        )
-    } else if (mediaData) {
-        return <IconPhoto />
+    if (mediaData && (!file.IsImported() || !allowMedia)) {
+        return <IconPhoto stroke={1} className="shrink-0" />
+    } else if (mediaData && allowMedia && mediaData.IsImported()) {
+        return <MediaImage media={mediaData} quality="thumbnail" />
     }
+
     const extIndex = file.GetFilename().lastIndexOf('.')
     const ext = file
         .GetFilename()
@@ -364,37 +365,26 @@ export const IconDisplay = ({
             return <IconFileZip />
         default:
             return (
-                <Box
+                <div
                     ref={setContainerRef}
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        width: '100%',
-                        height: '100%',
-                    }}
+                    className="flex justify-center items-center w-full h-full"
                 >
-                    <IconFile size={size} />
+                    <IconFile stroke={1} className="w-3/4 h-3/4" />
                     {extIndex !== -1 && (
-                        <Text
-                            size={textSize}
-                            fw={700}
-                            style={{
-                                position: 'absolute',
-                                userSelect: 'none',
-                                WebkitUserSelect: 'none',
-                            }}
+                        <p
+                            className="font-semibold absolute select-none"
+                            style={{ fontSize: textSize }}
                         >
                             .{ext}
-                        </Text>
+                        </p>
                     )}
-                </Box>
+                </div>
             )
     }
 }
 
 export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
-    let [size, units] = humanFileSize(file.GetSize())
+    const [size, units] = humanFileSize(file.GetSize())
     return (
         <div className="flex flex-col w-max whitespace-nowrap justify-center max-w-full ml-1 gap-1 mb-2">
             <p className="text-3xl font-semibold max-w-full">
@@ -424,50 +414,62 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
 }
 
 export const PresentationFile = ({ file }: { file: WeblensFile }) => {
+    const { progDispatch } = useContext(TaskProgContext)
     const mediaData = useMedia(file.GetMediaId())
+    const auth = useSessionStore((state) => state.auth)
+    const wsSend = useContext(WebsocketContext)
+    const removeLoading = useFileBrowserStore((state) => state.removeLoading)
 
     if (!file) {
         return null
     }
-    let [size, units] = humanFileSize(file.GetSize())
+    const [size, units] = humanFileSize(file.GetSize())
     if (mediaData) {
         return (
-            <Box
-                style={{
-                    justifyContent: 'center',
-                    width: '40%',
-                    height: 'max-content',
-                }}
+            <div
+                className="flex flex-col justify-center w-[40%] h-max gap-2"
                 onClick={(e) => e.stopPropagation()}
             >
-                <Text
-                    fw={600}
-                    style={{ fontSize: '2.1vw', wordBreak: 'break-all' }}
-                >
-                    {file.GetFilename()}
-                </Text>
-                <Text style={{ fontSize: '25px' }}>
+                <p className="font-semibold text-3xl">{file.GetFilename()}</p>
+                <p className="text-2xl">
                     {size}
                     {units}
-                </Text>
-                <Text style={{ fontSize: '20px' }}>
-                    {file.GetModified().toLocaleDateString('en-us', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                    })}
-                </Text>
+                </p>
+                <div className="flex gap-1">
+                    <IconFile />
+                    <p className="text-xl">
+                        {file.GetModified().toLocaleDateString('en-us', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                        })}
+                    </p>
+                </div>
+                <WeblensButton
+                    label={'Download'}
+                    Left={IconDownload}
+                    onClick={() => {
+                        downloadSelected(
+                            [file],
+                            removeLoading,
+                            progDispatch,
+                            wsSend,
+                            auth
+                        )
+                    }}
+                />
                 <Divider />
-                <Text style={{ fontSize: '20px' }}>
-                    {new Date(
-                        Date.parse(mediaData.GetCreateDate())
-                    ).toLocaleDateString('en-us', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                    })}
-                </Text>
-            </Box>
+                <div className="flex gap-1">
+                    <IconPhoto />
+                    <p className="text-xl">
+                        {mediaData.GetCreateDate().toLocaleDateString('en-us', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                        })}
+                    </p>
+                </div>
+            </div>
         )
     } else {
         return (
@@ -479,7 +481,7 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                     <IconDisplay file={file} allowMedia />
                 </div>
                 <Space w={30} />
-                <Box style={{ width: '40%', justifyContent: 'center' }}>
+                <div className="flex w-[40%] justify-center">
                     <Text fw={600} style={{ width: '100%' }}>
                         {file.GetFilename()}
                     </Text>
@@ -502,7 +504,7 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                             {units}
                         </Text>
                     )}
-                </Box>
+                </div>
             </div>
         )
     }
@@ -525,40 +527,44 @@ const EmptyIcon = ({ folderId, usr }) => {
 }
 
 export const GetStartedCard = ({
-    fb,
-    dispatch,
     uploadDispatch,
     wsSend,
 }: {
-    fb: FbStateT
-    dispatch: FBDispatchT
     uploadDispatch
     wsSend
 }) => {
-    const { authHeader, usr } = useContext(UserContext)
+    const user = useSessionStore((state) => state.user)
+    const auth = useSessionStore((state) => state.auth)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
+
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+
+    if (!folderInfo) {
+        return null
+    }
+
     return (
-        <div className="flex w-full justify-center items-center animate-fade">
-            <div className="flex flex-col w-max h-fit mt-[25vh] justify-center items-center">
+        <div className="flex w-full justify-center items-center animate-fade h-3/4">
+            <div className="flex flex-col w-max h-fit justify-center items-center">
                 <div className="flex items-center p-30 absolute -z-1 pointer-events-none h-max">
-                    <EmptyIcon folderId={fb.folderInfo.Id()} usr={usr} />
+                    <EmptyIcon folderId={folderInfo.Id()} usr={user} />
                 </div>
 
                 <p className="text-2xl w-max h-max select-none z-10">
-                    {`This folder ${
-                        fb.folderInfo.IsPastFile() ? 'was' : 'is'
-                    } empty`}
+                    {`This folder ${folderInfo.IsPastFile() ? 'was' : 'is'} empty`}
                 </p>
 
-                {fb.folderInfo.IsModifiable() && !fb.viewingPast && (
-                    <div className="flex flex-row p-5 w-350 z-10">
+                {folderInfo.IsModifiable() && !viewingPast && (
+                    <div className="flex flex-row p-5 w-350 z-10 items-center">
                         <FileButton
                             onChange={(files) => {
                                 HandleUploadButton(
                                     files,
-                                    fb.folderInfo.Id(),
+                                    folderInfo.Id(),
                                     false,
                                     '',
-                                    authHeader,
+                                    auth,
                                     uploadDispatch,
                                     wsSend
                                 )
@@ -568,58 +574,28 @@ export const GetStartedCard = ({
                         >
                             {(props) => {
                                 return (
-                                    <div
-                                        className="flex flex-col items-center w-32 text-gray-400 cursor-pointer m-5 font-normal stroke-1 transition-all duration-100 hover:text-white hover:font-semibold hover:stroke-2 z-10"
-                                        onClick={() => {
-                                            props.onClick()
-                                        }}
-                                    >
-                                        <IconUpload
-                                            size={100}
-                                            stroke={'inherit'}
-                                            className="p-3"
-                                        />
-                                        <Text
-                                            size="20px"
-                                            fw={'inherit'}
-                                            className="select-none"
-                                        >
-                                            Upload
-                                        </Text>
-                                        <Space h={4}></Space>
-                                        <Text
-                                            size="12px"
-                                            fw={'inherit'}
-                                            className="select-none"
-                                        >
-                                            Click or Drop
-                                        </Text>
-                                    </div>
+                                    <WeblensButton
+                                        subtle
+                                        Left={IconUpload}
+                                        squareSize={128}
+                                        onClick={props.onClick}
+                                    />
                                 )
                             }}
                         </FileButton>
                         <Divider orientation="vertical" m={30} />
 
-                        <div
-                            className="flex flex-col items-center w-32 text-gray-400 cursor-pointer m-5 font-normal stroke-1 transition-all duration-100 hover:text-white hover:font-semibold hover:stroke-2 z-10"
+                        <WeblensButton
+                            Left={IconFolderPlus}
+                            squareSize={128}
+                            subtle
                             onClick={(e) => {
-                                e.stopPropagation()
-                                dispatch({ type: 'new_dir' })
+                                setMenu({
+                                    menuPos: { x: e.clientX, y: e.clientY },
+                                    menuState: FbMenuModeT.NameFolder,
+                                })
                             }}
-                        >
-                            <IconFolderPlus
-                                size={100}
-                                stroke={'inherit'}
-                                className="p-3"
-                            />
-                            <Text
-                                size="20px"
-                                fw={'inherit'}
-                                className="select-none w-max"
-                            >
-                                New Folder
-                            </Text>
-                        </div>
+                        />
                     </div>
                 )}
             </div>
@@ -661,3 +637,80 @@ export const WebsocketStatus = memo(
         return prev.ready === next.ready
     }
 )
+
+export function FriendlyPath({ pathName }: { pathName: string }) {
+    pathName = pathName.slice(pathName.indexOf(':') + 1)
+    const parts = pathName.split('/')
+    parts.shift()
+
+    if (parts[parts.length - 1] === '') {
+        parts.pop()
+    }
+
+    let StartIcon
+    if (parts[0] === '.user_trash') {
+        parts.shift()
+        StartIcon = IconTrash
+    } else {
+        StartIcon = IconHome
+    }
+
+    return (
+        <div className="flex m-2 items-center min-w-0">
+            <StartIcon className="text-white shrink-0" />
+            {parts.map((part) => {
+                return (
+                    <div
+                        key={part}
+                        className="flex w-max items-center shrink min-w-0"
+                    >
+                        <IconChevronRight
+                            className="text-white shrink-0"
+                            size={18}
+                        />
+                        <p className="select-none text-white font-semibold text-xl text-nowrap truncate">
+                            {part}
+                        </p>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+export function FriendlyFile({ pathName }: { pathName: string }) {
+    pathName = pathName.slice(pathName.indexOf(':') + 1)
+    const parts = pathName.split('/')
+    parts.shift()
+
+    let StartIcon
+    let nameText
+    if (parts.length === 1 && parts[0] === '') {
+        StartIcon = IconHome
+        nameText = 'Home'
+    } else if (
+        parts.length === 2 &&
+        parts[0] === '.user_trash' &&
+        parts[1] === ''
+    ) {
+        parts.shift()
+        StartIcon = IconTrash
+        nameText = 'Trash'
+    } else if (parts[parts.length - 1] === '') {
+        parts.pop()
+        StartIcon = IconFolder
+        nameText = parts[parts.length - 1]
+    } else {
+        StartIcon = IconFile
+        nameText = parts[parts.length - 1]
+    }
+
+    return (
+        <div className="flex items-center w-max min-w-0">
+            <StartIcon className="text-white m-1 shrink-0" />
+            <p className="select-none text-white font-semibold text-lg text-nowrap truncate">
+                {nameText}
+            </p>
+        </div>
+    )
+}

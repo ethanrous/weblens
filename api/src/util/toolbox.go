@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/ethrousseau/weblens/api/types"
 )
 
 func BoolFromString(input string, emptyIsFalse bool) bool {
@@ -42,26 +44,26 @@ func FailOnError(err error, format string, fmtArgs ...any) {
 
 func ErrTrace(err error, extras ...string) {
 	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
 		msg := strings.Join(extras, " ")
-		if ok {
+		_, file, line, _ := runtime.Caller(1)
+		if wlErr, ok := err.(types.WeblensError); ok {
+			ErrorCatcher.Printf("(%s:%d) %s", filepath.Base(file), line, wlErr.ErrorTrace())
+		} else {
 			ErrorCatcher.Printf(
 				"%s:%d %s: %s\n----- STACK FOR ERROR ABOVE -----\n%s", file, line, msg, err, debug.Stack(),
 			)
-		} else {
-			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
 	}
 }
 
 func ShowErr(err error, extras ...string) {
 	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
 		msg := strings.Join(extras, " ")
-		if ok {
-			ErrorCatcher.Printf("%s:%d %s: %s", file, line, msg, err)
+		_, file, line, _ := runtime.Caller(1)
+		if wlErr, ok := err.(types.WeblensError); ok {
+			ErrorCatcher.Printf("(%s:%d) %s", filepath.Base(file), line, wlErr.Error())
 		} else {
-			Error.Printf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
+			ErrorCatcher.Printf("%s:%d %s: %s", file, line, msg, err)
 		}
 	}
 }
@@ -237,7 +239,7 @@ func MapToSliceMutate[T comparable, X, V any](tMap map[T]X, fn func(T, X) V) []V
 }
 
 // Takes a generic map and returns a slice of the values
-func MapToSlicePure[T comparable, V any](tMap map[T]V) []V {
+func MapToValues[T comparable, V any](tMap map[T]V) []V {
 	result := make([]V, len(tMap))
 	counter := 0
 	for _, v := range tMap {
@@ -268,7 +270,7 @@ func Filter[S ~[]T, T any](ts S, fn func(t T) bool) []T {
 }
 
 func FilterMap[T, V any](ts []T, fn func(T) (V, bool)) []V {
-	var result []V
+	var result []V = make([]V, 0)
 	for _, t := range ts {
 		res, y := fn(t)
 		if y {
@@ -425,4 +427,9 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 			b = append(b, 0)[:len(b)]
 		}
 	}
+}
+
+func ShowCaller() {
+	_, file, line, _ := runtime.Caller(2)
+	Debug.Println(file, line)
 }

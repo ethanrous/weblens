@@ -3,7 +3,7 @@ import API_ENDPOINT from '../api/ApiEndpoint';
 import WeblensMedia, { MediaDataT } from '../Media/Media';
 import { AlbumData, AuthHeaderT } from '../types/Types';
 
-export async function getAlbums(includeShared: Boolean, authHeader: AuthHeaderT): Promise<AlbumData[]> {
+export async function getAlbums(includeShared: boolean, authHeader: AuthHeaderT): Promise<AlbumData[]> {
     const url = new URL(`${API_ENDPOINT}/albums`);
     url.searchParams.append('includeShared', includeShared.toString());
 

@@ -104,7 +104,7 @@ func (j *journalService) WatchFolder(f types.WeblensFile) error {
 	// if !f.IsDir() {
 	// 	return dataStore.ErrDirectoryRequired
 	// }
-	// if f.Owner() == dataStore.WeblensRootUser {
+	// if f.Owner() == types.SERV.UserService.Get("WEBLENS") {
 	// 	return nil
 	// }
 

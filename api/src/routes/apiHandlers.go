@@ -12,6 +12,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/dataStore/share"
+	"github.com/ethrousseau/weblens/api/routes/proxy"
 	"github.com/ethrousseau/weblens/api/types"
 
 	"github.com/ethrousseau/weblens/api/util"
@@ -21,7 +22,9 @@ import (
 
 func readCtxBody[T any](ctx *gin.Context) (obj T, err error) {
 	if ctx.Request.Method == "GET" {
-		err = ErrBodyNotAllowed
+		err = types.WeblensErrorMsg("trying to get body of get request")
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 	jsonData, err := io.ReadAll(ctx.Request.Body)
@@ -79,41 +82,6 @@ func getUserFromCtx(ctx *gin.Context) types.User {
 }
 
 /* ================ */
-
-func getMediaBatch(ctx *gin.Context) {
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-	sort := ctx.Query("sort")
-	if sort == "" {
-		sort = "createDate"
-	}
-
-	raw := ctx.Query("raw") == "true"
-
-	var albumFilter []types.AlbumId
-	err := json.Unmarshal([]byte(ctx.Query("albums")), &albumFilter)
-	if err != nil {
-		util.ShowErr(err)
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-
-	ms, err := types.SERV.MediaRepo.GetFilteredMedia(u, sort, -1, albumFilter, raw)
-	if err != nil {
-		util.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media"})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"Media": ms})
-}
-
-func getMediaTypes(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, types.SERV.MediaRepo.TypeService())
-}
 
 // Create new file upload task, and wait for data
 func newUploadTask(ctx *gin.Context) {
@@ -194,11 +162,12 @@ func handleUploadChunk(ctx *gin.Context) {
 	chunk, err := util.OracleReader(ctx.Request.Body, ctx.Request.ContentLength)
 	if err != nil {
 		util.ShowErr(err)
-		err = t.AddChunkToStream(fileId, nil, "0-0/-1")
-		if err != nil {
-			util.ShowErr(err)
-		}
+		// err = t.AddChunkToStream(fileId, nil, "0-0/-1")
+		// if err != nil {
+		// 	util.ShowErr(err)
+		// }
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
+		return
 	}
 
 	err = t.AddChunkToStream(fileId, chunk, ctx.GetHeader("Content-Range"))
@@ -392,6 +361,8 @@ func trashFiles(ctx *gin.Context) {
 		}
 	}
 
+	event := history.NewFileEvent()
+
 	for _, fileId := range fileIds {
 		file := types.SERV.FileTree.Get(fileId)
 		if file == nil {
@@ -402,26 +373,19 @@ func trashFiles(ctx *gin.Context) {
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "Non-owner cannot trash file"})
 			return
 		}
-		// oldFile := file.Copy()
-		err := dataStore.MoveFileToTrash(file, acc, caster)
+		err := dataStore.MoveFileToTrash(file, acc, event, caster)
 		if err != nil {
 			util.ErrTrace(err)
 			failed = append(failed, fileId)
 			continue
 		}
-		// err = dataStore.ResizeUp(oldFile.GetParent(), caster)
-		// if err != nil {
-		// 	util.ShowErr(err)
-		// 	ctx.Status(http.StatusNotFound)
-		// 	return
-		// }
-		// err = dataStore.ResizeUp(file.GetParent(), caster)
-		// if err != nil {
-		// 	util.ShowErr(err)
-		// 	ctx.Status(http.StatusNotFound)
-		// 	return
-		// }
+	}
 
+	err = types.SERV.FileTree.GetJournal().LogEvent(event)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
 	}
 
 	if len(failed) != 0 {
@@ -466,10 +430,6 @@ func deleteFiles(ctx *gin.Context) {
 		return
 	}
 
-	// if types.SERV.Caster.IsBuffered() {
-	// 	types.SERV.Caster.(types.BufferedBroadcasterAgent).Flush()
-	// }
-
 	ctx.Status(http.StatusOK)
 }
 
@@ -499,10 +459,12 @@ func unTrashFiles(ctx *gin.Context) {
 
 	var failed []types.FileId
 
+	event := history.NewFileEvent()
+
 	for _, fileId := range fileIds {
 		file := types.SERV.FileTree.Get(fileId)
 		if file == nil {
-			util.ErrTrace(dataStore.ErrNoFile)
+			util.ErrTrace(types.ErrNoFile(fileId))
 			failed = append(failed, fileId)
 			continue
 		}
@@ -511,8 +473,18 @@ func unTrashFiles(ctx *gin.Context) {
 			return
 		}
 
-		err = dataStore.ReturnFileFromTrash(file, caster)
-		util.ErrTrace(err)
+		err = dataStore.ReturnFileFromTrash(file, event, caster)
+		if err != nil {
+			util.ErrTrace(err)
+			failed = append(failed, fileId)
+		}
+	}
+
+	err = types.SERV.FileTree.GetJournal().LogEvent(event)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
 	}
 
 	if len(failed) != 0 {
@@ -639,7 +611,7 @@ func loginUser(ctx *gin.Context) {
 		if token := u.GetToken(); token == "" {
 			ctx.Status(http.StatusInternalServerError)
 		} else {
-			ctx.JSON(http.StatusOK, tokenReturn{Token: token})
+			ctx.JSON(http.StatusOK, gin.H{"token": token, "user": u})
 		}
 	} else {
 		ctx.AbortWithStatus(http.StatusNotFound)
@@ -648,6 +620,10 @@ func loginUser(ctx *gin.Context) {
 }
 
 func getUserInfo(ctx *gin.Context) {
+	// if types.SERV.GetFileTreeSafley() == nil {
+	// 	ctx.Status(http.StatusServiceUnavailable)
+	// 	return
+	// }
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
@@ -658,7 +634,6 @@ func getUserInfo(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, u)
-
 }
 
 func getUsers(ctx *gin.Context) {
@@ -767,16 +742,15 @@ func deleteUser(ctx *gin.Context) {
 }
 
 func clearCache(ctx *gin.Context) {
-	ctx.Status(http.StatusNotImplemented)
-	return
-
-	u := getUserFromCtx(ctx)
-	if !u.IsAdmin() {
-		ctx.Status(http.StatusUnauthorized)
+	err := types.SERV.MediaRepo.NukeCache()
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
-	// media.ClearCache()
+	ctx.Status(http.StatusOK)
+
 }
 
 func searchUsers(ctx *gin.Context) {
@@ -886,86 +860,10 @@ func addUserToFileShare(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func updateFileShare(ctx *gin.Context) {
-	util.ShowErr(types.NewWeblensError("Not impl - update file share"))
-	ctx.Status(http.StatusNotImplemented)
-	return
-	// shareId := types.ShareId(ctx.Param("shareId"))
-	// sh := types.SERV.ShareService.Get(shareId)
-	// if sh == nil {
-	// 	util.ErrTrace(types.ErrNoShare)
-	// 	ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
-	// 	return
-	// }
-	//
-	// body, err := io.ReadAll(ctx.Request.Body)
-	// if err != nil {
-	// 	ctx.Status(http.StatusInternalServerError)
-	// 	return
-	// }
-	// var shareInfo newShareBody
-	// err = json.Unmarshal(body, &shareInfo)
-	// if err != nil {
-	// 	util.ErrTrace(err)
-	// 	ctx.Status(http.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// accessors := util.Map(
-	// 	shareInfo.Users, func(un types.Username) types.User {
-	// 		return types.SERV.UserService.Get(un)
-	// 	},
-	// )
-	//
-	// sh.SetAccessors(accessors)
-	// sh.SetPublic(shareInfo.Public)
-	// // SERV.ShareService.up
-	// // err := sh.UpdateFileShare(sh, SERV.FileTree)
-	//
-	// if err != nil {
-	// 	util.ErrTrace(err)
-	// 	return
-	// }
-	//
-	// ctx.Status(http.StatusOK)
-
-}
-
-func getFilesShares(ctx *gin.Context) {
-	fileId := types.FileId(ctx.Param("fileId"))
-	file := types.SERV.FileTree.Get(fileId)
-	if file == nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, file.GetShare())
-}
-
-func getFileShare(ctx *gin.Context) {
-	u := getUserFromCtx(ctx)
-	shareId := types.ShareId(ctx.Param("shareId"))
-
-	sh := types.SERV.ShareService.Get(shareId)
-	if sh == nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	acc := dataStore.NewAccessMeta(u)
-	err := acc.AddShare(sh)
-	if err != nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, sh)
-}
-
 func newApiKey(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
 	acc := dataStore.NewAccessMeta(u).SetRequestMode(dataStore.ApiKeyCreate)
-	newKey, err := dataStore.GenerateApiKey(acc)
+	newKey, err := types.SERV.AccessService.GenerateApiKey(acc)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -982,7 +880,7 @@ func getApiKeys(ctx *gin.Context) {
 		return
 	}
 	acc := dataStore.NewAccessMeta(u).SetRequestMode(dataStore.ApiKeyGet)
-	keys, err := dataStore.GetApiKeys(acc)
+	keys, err := types.SERV.AccessService.GetAllKeys(acc)
 	if err != nil {
 		util.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -993,11 +891,21 @@ func getApiKeys(ctx *gin.Context) {
 }
 
 func deleteApiKey(ctx *gin.Context) {
-	keyBody, err := readCtxBody[deleteKeyBody](ctx)
-	if err != nil {
+	key := types.WeblensApiKey(ctx.Param("keyId"))
+	keyInfo := types.SERV.AccessService.Get(key)
+	if keyInfo.Key == "" {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
-	dataStore.DeleteApiKey(keyBody.Key)
+
+	err := types.SERV.AccessService.Del(key)
+	if err != nil {
+		util.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }
 
 func getFolderStats(ctx *gin.Context) {
@@ -1034,7 +942,7 @@ func getRandomMedias(ctx *gin.Context) {
 
 func initializeServer(ctx *gin.Context) {
 	// Can't init server if already initialized
-	if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
+	if types.SERV.InstanceService.GetLocal().ServerRole() != types.Initialization {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -1057,36 +965,80 @@ func initializeServer(ctx *gin.Context) {
 		ctx.Status(http.StatusCreated)
 
 	} else if si.Role == types.Backup {
-		localBackup := instance.New("", si.Name, si.CoreKey, types.Backup, true, si.CoreAddress)
-		err := types.SERV.InstanceService.InitBackup(localBackup)
+		dbStore := types.SERV.StoreService
+
+		if si.CoreAddress[len(si.CoreAddress)-1:] != "/" {
+			si.CoreAddress += "/"
+		}
+
+		proxyStore := proxy.NewProxyStore(si.CoreAddress, si.CoreKey)
+		proxyStore.Init(types.SERV.StoreService)
+		types.SERV.SetStore(proxyStore)
+
+		err = types.SERV.InstanceService.InitBackup(si.Name, si.CoreAddress, si.CoreKey, proxyStore)
 		if err != nil {
+			types.SERV.SetStore(dbStore)
 			util.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
 			return
 		}
+
+		err = types.SERV.UserService.Init(proxyStore)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		err = types.SERV.FileTree.GetJournal().Init(proxyStore)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		err = types.SERV.FileTree.Init(proxyStore)
+		if err != nil {
+			util.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		for _, remote := range types.SERV.InstanceService.GetRemotes() {
+			if remote.IsLocal() {
+				continue
+			}
+			types.SERV.TaskDispatcher.Backup(remote.ServerId(), types.SERV.Caster)
+		}
 	}
 
+	// We must spawn a go routine for a router restart coming from an HTTP request,
+	// or else we will enter a deadlock where the router waits for this HTTP request to finish,
+	// and this thread waits for the router to close...
+	go func() {
+		err = types.SERV.RestartRouter()
+		if err != nil {
+			util.ErrTrace(err)
+		}
+	}()
+
 	ctx.Status(http.StatusCreated)
-
-	panic(types.NewWeblensError("TODO"))
-	// store := GetStore()
-	// err = store.LoadUsers(SERV.FileTree)
-	// if err != nil {
-	// 	util.ShowErr(err)
-	// 	return
-	// }
-
-	util.Info.Println("Initialization succeeded. Restarting router...")
-	go DoRoutes()
 }
 
 func getServerInfo(ctx *gin.Context) {
-	if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
-		ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
-		return
-	}
+	// if types.SERV.InstanceService.GetLocal().ServerRole() == types.Initialization {
+	// 	ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
+	// 	return
+	// }
 
-	ctx.JSON(http.StatusOK, gin.H{"info": types.SERV.InstanceService.GetLocal()})
+	ctx.JSON(
+		http.StatusOK,
+		gin.H{
+			"info":      types.SERV.InstanceService.GetLocal(),
+			"started":   types.SERV.InstanceService.IsLocalLoaded(),
+			"userCount": types.SERV.UserService.Size(),
+		},
+	)
 }
 
 func serveStaticContent(ctx *gin.Context) {

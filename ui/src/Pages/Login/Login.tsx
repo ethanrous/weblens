@@ -1,98 +1,96 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { createUser, login } from '../../api/ApiFetch';
-import { UserContext } from '../../Context';
-import { notifications } from '@mantine/notifications';
-import { Input, Space, Tabs } from '@mantine/core';
-import WeblensButton from '../../components/WeblensButton';
-import { useKeyDown } from '../../components/hooks';
-import { UserContextT } from '../../types/Types';
-import WeblensInput from '../../components/WeblensInput';
+import { useCallback, useEffect, useState } from 'react'
+import { createUser, login } from '../../api/ApiFetch'
+import { Input, Space, Tabs } from '@mantine/core'
+import WeblensButton from '../../components/WeblensButton'
+import { useKeyDown } from '../../components/hooks'
+import WeblensInput from '../../components/WeblensInput'
+import { useSessionStore } from '../../components/UserInfo'
+import { useCookies } from 'react-cookie'
+import { LOGIN_TOKEN_COOKIE_KEY, USERNAME_COOKIE_KEY } from '../../types/Types'
 
-async function CheckCreds(username: string, password: string, setCookie, nav) {
+async function CheckCreds(
+    username: string,
+    password: string,
+    setCookie,
+    setUser,
+    setAuthHeader
+) {
     if (!username || !password) {
-        return false;
+        return false
     }
     return await login(username, password)
-        .then(res => {
-            if (res.status !== 200) {
-                return Promise.reject('Incorrect username or password');
-            } else {
-                return res.json();
-            }
+        .then((data) => {
+            setCookie(USERNAME_COOKIE_KEY, data.user.username)
+            setCookie(LOGIN_TOKEN_COOKIE_KEY, data.token)
+
+            setUser(data.user)
+            setAuthHeader(data.token)
+
+            return true
         })
-        .then(data => {
-            setCookie('weblens-username', username, { sameSite: 'strict' });
-            setCookie('weblens-login-token', data.token, {
-                sameSite: 'strict',
-            });
-            nav('/');
-            return true;
+        .catch((r) => {
+            console.error(r)
+            return false
         })
-        .catch(r => {
-            notifications.show({ message: String(r), color: 'red' });
-            return false;
-        });
 }
 
-async function CreateUser(username: string, password: string): Promise<boolean> {
+async function CreateUser(
+    username: string,
+    password: string
+): Promise<boolean> {
     return await createUser(username, password)
-        .then(x => {
-            return true;
+        .then(() => true)
+        .catch((r) => {
+            console.error(r)
+            return false
         })
-        .catch(r => {
-            console.error(r);
-            return false;
-        });
 }
 
-export const useKeyDownLogin = login => {
+export const useKeyDownLogin = (login) => {
     const onKeyDown = useCallback(
-        event => {
+        (event) => {
             if (event.key === 'Enter') {
-                login();
+                login()
             }
         },
-        [login],
-    );
+        [login]
+    )
 
     useEffect(() => {
-        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keydown', onKeyDown)
         return () => {
-            document.removeEventListener('keydown', onKeyDown);
-        };
-    }, [onKeyDown]);
-};
+            document.removeEventListener('keydown', onKeyDown)
+        }
+    }, [onKeyDown])
+}
 
 const Login = () => {
-    const [userInput, setUserInput] = useState('');
-    const [passInput, setPassInput] = useState('');
-    const [tab, setTab] = useState('login');
-    const nav = useNavigate();
-    const loc = useLocation();
-    const { authHeader, setCookie }: UserContextT = useContext(UserContext);
+    const [userInput, setUserInput] = useState('')
+    const [passInput, setPassInput] = useState('')
+    const [tab, setTab] = useState('login')
 
-    useEffect(() => {
-        if (loc.state == null && authHeader.Authorization !== '') {
-            nav('/');
-        }
-    }, [authHeader, loc.state, nav]);
+    const setUser = useSessionStore((state) => state.setUserInfo)
+    const setAuthHeader = useSessionStore((state) => state.setAuthHeader)
+    const cookies = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
+    const setCookie = cookies[1]
 
-    const [buttonRef, setButtonRef] = useState(null);
-    useKeyDown('Enter', e => {
+    const [buttonRef, setButtonRef] = useState(null)
+    useKeyDown('Enter', () => {
         if (buttonRef) {
-            buttonRef.click();
+            buttonRef.click()
         }
-    });
-    const badUsername = userInput[0] === '.' || userInput.includes('/');
+    })
+    const badUsername = userInput[0] === '.' || userInput.includes('/')
 
     return (
         <div
-            className="flex flex-row h-screen w-screen items-center justify-center"
+            className="flex flex-col h-screen w-screen items-center justify-center"
             style={{
-                background: 'linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)',
+                background:
+                    'linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)',
             }}
         >
+            <p className="text-7xl font-bold pb-12 select-none">WEBLENS</p>
             {/* <ScatteredPhotos /> */}
             <div className="flex flex-col justify-center items-center shadow-soft bg-bottom-grey outline outline-main-accent rounded-xl p-6 w-[400px] max-w-[600px] max-h-[400px]">
                 <Tabs
@@ -110,7 +108,10 @@ const Login = () => {
                             Sign Up
                         </Tabs.Tab>
                     </Tabs.List>
-                    <Tabs.Panel value="login" className="flex flex-col justify-center items-center w-full">
+                    <Tabs.Panel
+                        value="login"
+                        className="flex flex-col justify-center items-center w-full"
+                    >
                         <WeblensInput
                             placeholder="Username"
                             value={userInput}
@@ -126,6 +127,7 @@ const Login = () => {
                             onComplete={() => {}}
                             valueCallback={setPassInput}
                             height={40}
+                            password
                         />
                         <Space h={'md'} />
                         <WeblensButton
@@ -134,7 +136,15 @@ const Login = () => {
                             squareSize={50}
                             disabled={userInput === '' || passInput === ''}
                             centerContent
-                            onClick={() => CheckCreds(userInput, passInput, setCookie, nav)}
+                            onClick={() =>
+                                CheckCreds(
+                                    userInput,
+                                    passInput,
+                                    setCookie,
+                                    setUser,
+                                    setAuthHeader
+                                )
+                            }
                             setButtonRef={setButtonRef}
                         />
                     </Tabs.Panel>
@@ -159,7 +169,8 @@ const Login = () => {
 
                         {badUsername && (
                             <Input.Error style={{ width: '100%' }}>
-                                Username must not begin with '.' and cannot include '/'
+                                Username must not begin with '.' and cannot
+                                include '/'
                             </Input.Error>
                         )}
                         <WeblensInput
@@ -168,6 +179,7 @@ const Login = () => {
                             onComplete={() => {}}
                             valueCallback={setPassInput}
                             height={40}
+                            password
                         />
                         <Space h={'md'} />
                         <WeblensButton
@@ -175,16 +187,22 @@ const Login = () => {
                             doSuper
                             squareSize={50}
                             fillWidth
-                            disabled={userInput === '' || passInput === '' || badUsername}
+                            disabled={
+                                userInput === '' ||
+                                passInput === '' ||
+                                badUsername
+                            }
                             centerContent
-                            onClick={async () => CreateUser(userInput, passInput)}
+                            onClick={async () =>
+                                CreateUser(userInput, passInput)
+                            }
                             setButtonRef={setButtonRef}
                         />
                     </Tabs.Panel>
                 </Tabs>
             </div>
         </div>
-    );
-};
+    )
+}
 
-export default Login;
+export default Login

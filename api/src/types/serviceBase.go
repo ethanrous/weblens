@@ -2,8 +2,8 @@ package types
 
 import "fmt"
 
-type BaseService[ID comparable, Obj any] interface {
-	Init(DatabaseService) error
+type WeblensService[ID comparable, Obj any, DB any] interface {
+	Init(DB) error
 	Size() int
 
 	Get(ID) Obj

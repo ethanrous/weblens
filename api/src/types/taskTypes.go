@@ -8,10 +8,11 @@ type Task interface {
 	TaskId() TaskId
 	TaskType() TaskType
 	GetTaskPool() TaskPool
+	GetChildTaskPool() TaskPool
 	Status() (bool, TaskExitStatus)
 	GetMeta() TaskMetadata
 	GetResult(string) any
-	GetResults() map[string]any
+	GetResults() TaskResult
 
 	Q(TaskPool) Task
 
@@ -66,9 +67,10 @@ type TaskPool interface {
 	WriteToFile(FileId, int64, int64, BroadcasterAgent) Task
 	MoveFile(FileId, FileId, string, FileEvent, BroadcasterAgent) Task
 	GatherFsStats(WeblensFile, BroadcasterAgent) Task
-	Backup(InstanceId) Task
+	Backup(InstanceId, BroadcasterAgent) Task
 	HashFile(WeblensFile, BroadcasterAgent) Task
 	CreateZip(files []WeblensFile, username Username, shareId ShareId, casters BroadcasterAgent) Task
+	CopyFileFromCore(WeblensFile, BroadcasterAgent) Task
 
 	Errors() []Task
 	AddError(t Task)
@@ -80,6 +82,7 @@ type WorkerPool interface {
 	GetTask(taskId TaskId) Task
 	AddHit(time time.Time, target Task)
 	GetTaskPool(TaskId) TaskPool
+	GetTaskPoolByTaskType(taskType TaskType) TaskPool
 }
 
 type TaskId string
@@ -97,6 +100,9 @@ type TaskPoolStatus struct {
 
 	// Percent to completion of all tasks
 	Progress float64
+
+	// How long the pool has been alive
+	Runtime time.Duration
 }
 
 type TaskType string

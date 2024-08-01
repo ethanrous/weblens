@@ -14,6 +14,11 @@ import (
 )
 
 func wsConnect(ctx *gin.Context) {
+	if types.SERV.GetClientServiceSafely() == nil {
+		ctx.Status(http.StatusServiceUnavailable)
+		return
+	}
+
 	ctx.Status(http.StatusSwitchingProtocols)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
@@ -86,39 +91,59 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 			if folderSub.ShareId != "" {
 				sh := types.SERV.ShareService.Get(folderSub.ShareId)
 				if sh == nil {
-					c.Error(types.NewWeblensError("share not found"))
+					c.Error(types.WeblensErrorMsg("share not found"))
 					return
 				}
 
 				err = acc.AddShare(sh)
 				if err != nil {
 					util.ErrTrace(err)
-					c.Error(errors.New("failed to add share"))
+					c.Error(types.WeblensErrorMsg("failed to add share"))
 					return
 				}
 			}
 
-			complete, result := c.Subscribe(subInfo.GetKey(), types.FolderSubscribe, acc, types.SERV.FileTree)
+			complete, result := c.Subscribe(subInfo.GetKey(), types.FolderSubscribe, acc)
 			if complete {
 				types.SERV.Caster.PushTaskUpdate(
 					types.SERV.WorkerPool.GetTask(types.TaskId(subInfo.GetKey())), dataProcess.TaskCompleteEvent,
-					types.TaskResult{"takeoutId": result["takeoutId"]},
+					result,
 				)
 			}
 		}
 	case types.TaskSubscribe:
-		complete, result := c.Subscribe(subInfo.GetKey(), types.TaskSubscribe, nil, types.SERV.FileTree)
-		if complete {
-			types.SERV.Caster.PushTaskUpdate(
-				types.SERV.WorkerPool.GetTask(types.TaskId(subInfo.GetKey())), dataProcess.TaskCompleteEvent,
-				types.TaskResult{"takeoutId": result["takeoutId"]},
-			)
+		key := subInfo.GetKey()
+		if key == "" {
+			return
 		}
+
+		if len(key) > 10 {
+			complete, result := c.Subscribe(key, types.PoolSubscribe, nil)
+			if complete {
+				types.SERV.Caster.PushTaskUpdate(
+					types.SERV.WorkerPool.GetTask(types.TaskId(key)), dataProcess.PoolCompleteEvent,
+					result,
+				)
+			}
+		} else {
+			complete, result := c.Subscribe(key, types.TaskSubscribe, nil)
+			if complete {
+				types.SERV.Caster.PushTaskUpdate(
+					types.SERV.WorkerPool.GetTask(types.TaskId(key)), dataProcess.TaskCompleteEvent,
+					result,
+				)
+			}
+		}
+
 	case types.Unsubscribe:
 		c.Unsubscribe(subInfo.GetKey())
 
 	case types.ScanDirectory:
 		{
+			if types.SERV.InstanceService.GetLocal().ServerRole() == types.Backup {
+				return
+			}
+
 			folder := types.SERV.FileTree.Get(types.FileId(subInfo.GetKey()))
 			if folder == nil {
 				c.Error(types.NewWeblensError("could not find directory to scan"))
@@ -135,7 +160,7 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 				},
 			)
 			acc := dataStore.NewAccessMeta(c.GetUser())
-			c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, types.SERV.FileTree)
+			c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc)
 		}
 
 	case types.CancelTask:

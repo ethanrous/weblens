@@ -12,13 +12,26 @@ import (
 
 // Archive means sending ALL fields, including password and token information
 func getUsersArchive(ctx *gin.Context) {
-	us, err := types.SERV.Requester.GetCoreUsers()
+	us, err := types.SERV.UserService.GetAll()
 	if err != nil {
+		util.ShowErr(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, us)
+	archive := util.Map(
+		us, func(u types.User) map[string]any {
+			ar, err := u.FormatArchive()
+			if err != nil {
+				util.ShowErr(err)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return nil
+			}
+			return ar
+		},
+	)
+
+	ctx.JSON(http.StatusOK, archive)
 }
 
 func createUser(ctx *gin.Context) {

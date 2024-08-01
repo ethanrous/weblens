@@ -16,11 +16,23 @@ $menu-base-square-size: 250px;
     padding: 4px;
 }
 
+.backdrop-menu-wrapper {
+    display: flex;
+    position: absolute;
+    width: max-content;
+    height: max-content;
+    transform-origin: center;
+    translate: -50% -50%;
+    z-index: 100;
+    pointer-events: none;
+}
+
 .backdrop-menu {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
+    pointer-events: all;
 
     // +10 to give overflowing buttons a chance to peak through,
     // and make the fact the menu scrolls more discoverable
@@ -28,12 +40,6 @@ $menu-base-square-size: 250px;
     width: $menu-base-square-size;
 
     overflow: hidden;
-    position: fixed;
-
-    transform-origin: center;
-    translate: -50% -50%;
-
-    z-index: 100;
 
     outline: 2px solid $main-accent;
     background-color: #111114;
@@ -77,9 +83,9 @@ $menu-base-square-size: 250px;
     justify-items: center;
     grid-template-columns: 120px 120px;
     grid-template-rows: repeat(3, 120px);
-    pointer-events: none;
-    opacity: 0;
     justify-content: center;
+    pointer-events: all;
+    opacity: 100%;
 
     // +10 to give overflowing buttons a chance to peak through,
     // and make the fact the menu scrolls more discoverable
@@ -90,9 +96,9 @@ $menu-base-square-size: 250px;
 
     transition: opacity 150ms ease-in-out;
 
-    &[data-visible='true'] {
-        pointer-events: all;
-        opacity: 100%;
+    &[data-visible='false'] {
+        pointer-events: none;
+        opacity: 0;
     }
 }
 
@@ -175,13 +181,32 @@ $menu-base-square-size: 250px;
 
 .add-to-album-menu {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
-    height: 100%;
+    height: max-content;
     width: 100%;
     padding: 8px;
     gap: 8px;
     margin-top: $menu-title-height;
+    pointer-events: all;
 
     transition: all 150ms ease-in-out;
+}
+
+.footer-wrapper {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 4px;
+    color: white;
+    transition: background-color 150ms ease-in-out;
+
+    background-color: $dark-paper;
+    outline: 1px solid $main-accent;
+
+    &[data-danger='true'] {
+        background-color: $danger-subtle;
+        outline: 1px solid $danger;
+    }
 }

@@ -1,84 +1,198 @@
-import { useDebouncedValue } from '@mantine/hooks';
-import React, { useContext, useEffect, useReducer, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { getAlbums } from '../../Albums/AlbumQuery';
-import { Albums } from '../../Albums/Albums';
+import { useDebouncedValue } from '@mantine/hooks'
+import React, {
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { getAlbums } from '../../Albums/AlbumQuery'
+import { Albums } from '../../Albums/Albums'
 
-import HeaderBar from '../../components/HeaderBar';
-import Presentation from '../../components/Presentation';
-import { UserContext } from '../../Context';
+import HeaderBar from '../../components/HeaderBar'
+import Presentation from '../../components/Presentation'
+import { MediaContext } from '../../Context'
 
-import './galleryStyle.scss';
-import { AlbumData, GalleryStateT, PresentType } from '../../types/Types';
-import { clamp } from '../../util';
-import { GalleryAction, GalleryContext, galleryReducer, useKeyDownGallery } from './GalleryLogic';
-import { Timeline } from './Timeline';
+import './galleryStyle.scss'
+import { AlbumData, GalleryStateT, PresentType } from '../../types/Types'
+import { clamp } from '../../util'
+import {
+    GalleryAction,
+    GalleryContext,
+    galleryReducer,
+    useKeyDownGallery,
+} from './GalleryLogic'
+import { Timeline } from './Timeline'
+import WeblensButton from '../../components/WeblensButton'
+import { IconFilter } from '@tabler/icons-react'
+import { MiniAlbumCover } from '../../Albums/AlbumDisplay'
+import { useClick, useKeyDown } from '../../components/hooks'
+import { useSessionStore } from '../../components/UserInfo'
+
+export function GalleryFilters() {
+    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const { mediaState, mediaDispatch } = useContext(MediaContext)
+    const [optionsOpen, setOptionsOpen] = useState(false)
+    const [disabledAlbums, setDisabledAlbums] = useState([
+        ...galleryState.albumsFilter,
+    ])
+    const [rawOn, setRawOn] = useState(mediaState.isShowingRaw())
+    const [hiddenOn, setHiddenOn] = useState(mediaState.isShowingHidden())
+
+    const albumsOptions = useMemo(() => {
+        return Array.from(galleryState.albumsMap.values()).map((a) => {
+            return <MiniAlbumCover key={a.id} album={a} />
+        })
+    }, [galleryState.albumsMap, disabledAlbums])
+
+    const updateOptions = useCallback(
+        (disabled: string[], raw: boolean, hidden: boolean) => {
+            galleryDispatch({
+                type: 'set_albums_filter',
+                albumNames: disabled,
+            })
+            mediaDispatch({ type: 'set_raw_toggle', raw: raw })
+            mediaDispatch({ type: 'set_hidden_toggle', hidden: hidden })
+        },
+        [galleryDispatch]
+    )
+
+    const closeOptions = useCallback(
+        (e) => {
+            if (!optionsOpen) {
+                return
+            }
+            e.stopPropagation()
+            updateOptions(disabledAlbums, rawOn, hiddenOn)
+            setOptionsOpen(false)
+        },
+        [optionsOpen, disabledAlbums, rawOn, hiddenOn]
+    )
+
+    const [dropdownRef, setDropdownRef] = useState(null)
+
+    useClick(closeOptions, dropdownRef)
+    useKeyDown('Escape', closeOptions)
+
+    return (
+        <div className="flex items-center h-full w-[40px]">
+            <WeblensButton
+                Left={IconFilter}
+                allowRepeat
+                onClick={() => setOptionsOpen((p) => !p)}
+                disabled={galleryState.selecting}
+                toggleOn={
+                    disabledAlbums.length !== 0 || mediaState.isShowingRaw()
+                }
+            />
+            <div
+                className="options-dropdown"
+                data-open={optionsOpen}
+                ref={setDropdownRef}
+            >
+                <div className="flex flex-col items-center p-2 gap-4">
+                    <p className="font-semibold text-lg">Gallery Filters</p>
+                    <div className="flex gap-3">
+                        <WeblensButton
+                            label="Show RAWs"
+                            squareSize={40}
+                            allowRepeat
+                            toggleOn={rawOn}
+                            onClick={() => setRawOn((raw) => !raw)}
+                        />
+                        <WeblensButton
+                            label="Show Hidden"
+                            squareSize={40}
+                            allowRepeat
+                            toggleOn={hiddenOn}
+                            onClick={() => {
+                                setHiddenOn((hidden) => !hidden)
+                            }}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 max-h-[500px] overflow-y-scroll no-scrollbar">
+                        {albumsOptions}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
 
 const Gallery = () => {
-    const [galleryState, galleryDispatch] = useReducer<(state: GalleryStateT, action: GalleryAction) => GalleryStateT>(
-        galleryReducer,
-        {
-            albumsMap: new Map<string, AlbumData>(),
-            albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
-            includeRaw: JSON.parse(localStorage.getItem('showRaws')) || false,
-            imageSize: clamp(JSON.parse(localStorage.getItem('imageSize')), 150, 500),
-            presentingMediaId: '',
-            presentingMode: PresentType.None,
-            loading: [],
-            newAlbumDialogue: false,
-            blockSearchFocus: false,
-            selecting: false,
-            searchContent: '',
-            menuTargetId: '',
-            timeAdjustOffset: null,
-            holdingShift: false,
-            hoverIndex: -1,
-            lastSelId: '',
-        },
-    );
+    const [galleryState, galleryDispatch] = useReducer<
+        (state: GalleryStateT, action: GalleryAction) => GalleryStateT
+    >(galleryReducer, {
+        albumsMap: new Map<string, AlbumData>(),
+        albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
+        imageSize: clamp(
+            JSON.parse(localStorage.getItem('imageSize')),
+            150,
+            500
+        ),
+        presentingMediaId: '',
+        presentingMode: PresentType.None,
+        loading: [],
+        newAlbumDialogue: false,
+        blockSearchFocus: false,
+        selecting: false,
+        searchContent: '',
+        menuTargetId: '',
+        timeAdjustOffset: null,
+        holdingShift: false,
+        hoverIndex: -1,
+        lastSelId: '',
+    })
 
-    const nav = useNavigate();
-    const { authHeader, usr } = useContext(UserContext);
+    const nav = useNavigate()
+    const server = useSessionStore((state) => state.server)
+    const auth = useSessionStore((state) => state.auth)
+    const { mediaState, mediaDispatch } = useContext(MediaContext)
 
-    const loc = useLocation();
-    const page = loc.pathname === '/' || loc.pathname === '/timeline' ? 'timeline' : 'albums';
-    const albumId = useParams()['*'];
-    const viewportRef: React.Ref<HTMLDivElement> = useRef();
+    const loc = useLocation()
+    const page =
+        loc.pathname === '/' || loc.pathname === '/timeline'
+            ? 'timeline'
+            : 'albums'
+    const albumId = useParams()['*']
+    const viewportRef: React.Ref<HTMLDivElement> = useRef()
 
-    useKeyDownGallery(galleryState, galleryDispatch);
+    useKeyDownGallery(galleryState, galleryDispatch, mediaState, mediaDispatch)
 
     useEffect(() => {
-        if (usr.isLoggedIn) {
-            galleryDispatch({ type: 'remove_loading', loading: 'login' });
-        } else if (usr.isLoggedIn === undefined) {
-            galleryDispatch({ type: 'add_loading', loading: 'login' });
-        } else if (usr.isLoggedIn === false) {
-            nav('/login');
+        if (!server) {
+            return
         }
-    }, [usr]);
-
-    useEffect(() => {
-        localStorage.setItem('albumsFilter', JSON.stringify(galleryState.albumsFilter));
-    }, [galleryState.albumsFilter]);
-
-    useEffect(() => {
-        localStorage.setItem('showRaws', JSON.stringify(galleryState.includeRaw));
-    }, [galleryState.includeRaw]);
-
-    const [bouncedSize] = useDebouncedValue(galleryState.imageSize, 500);
-    useEffect(() => {
-        localStorage.setItem('imageSize', JSON.stringify(bouncedSize));
-    }, [bouncedSize]);
-
-    useEffect(() => {
-        if (authHeader.Authorization !== '' && page !== 'albums') {
-            galleryDispatch({ type: 'add_loading', loading: 'albums' });
-            getAlbums(true, authHeader).then(val => {
-                galleryDispatch({ type: 'set_albums', albums: val });
-                galleryDispatch({ type: 'remove_loading', loading: 'albums' });
-            });
+        if (server.info.role === 'backup') {
+            nav('/files/home')
         }
-    }, [authHeader, page]);
+    }, [server])
+
+    useEffect(() => {
+        localStorage.setItem(
+            'albumsFilter',
+            JSON.stringify(galleryState.albumsFilter)
+        )
+    }, [galleryState.albumsFilter])
+
+    const [bouncedSize] = useDebouncedValue(galleryState.imageSize, 500)
+    useEffect(() => {
+        localStorage.setItem('imageSize', JSON.stringify(bouncedSize))
+    }, [bouncedSize])
+
+    useEffect(() => {
+        if (auth.Authorization !== '' && page !== 'albums') {
+            galleryDispatch({ type: 'add_loading', loading: 'albums' })
+            getAlbums(true, auth).then((val) => {
+                galleryDispatch({ type: 'set_albums', albums: val })
+                galleryDispatch({ type: 'remove_loading', loading: 'albums' })
+            })
+        }
+    }, [auth, page])
 
     return (
         <GalleryContext.Provider
@@ -87,27 +201,43 @@ const Gallery = () => {
                 galleryDispatch: galleryDispatch,
             }}
         >
-            <HeaderBar dispatch={galleryDispatch} page={'gallery'} loading={galleryState.loading} />
-            <Presentation
-                mediaId={galleryState.presentingMode === PresentType.Fullscreen ? galleryState.presentingMediaId : null}
-                element={null}
-                dispatch={galleryDispatch}
-            />
-            <div className="h-full z-10">
+            <div className="flex flex-col h-screen w-screen relative">
+                <HeaderBar
+                    page={'gallery'}
+                    loading={galleryState.loading}
+                    setBlockFocus={(block: boolean) =>
+                        galleryDispatch({
+                            type: 'set_block_focus',
+                            block: block,
+                        })
+                    }
+                />
+                <Presentation
+                    mediaId={
+                        galleryState.presentingMode === PresentType.Fullscreen
+                            ? galleryState.presentingMediaId
+                            : null
+                    }
+                    element={null}
+                    dispatch={{
+                        setPresentationTarget: (targetId: string) =>
+                            galleryDispatch({
+                                type: 'set_presentation',
+                                mediaId: targetId,
+                            }),
+                    }}
+                />
+
                 <div
                     ref={viewportRef}
-                    style={{
-                        height: 'calc(100% - 80px)',
-                        width: '100%',
-                        position: 'absolute',
-                    }}
+                    className="flex flex-col h-[50%] w-full shrink-0 relative grow"
                 >
                     {page == 'timeline' && <Timeline page={page} />}
                     {page == 'albums' && <Albums selectedAlbum={albumId} />}
                 </div>
             </div>
         </GalleryContext.Provider>
-    );
-};
+    )
+}
 
-export default Gallery;
+export default Gallery

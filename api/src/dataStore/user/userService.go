@@ -1,25 +1,27 @@
 package user
 
 import (
+	"sync"
+
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 )
 
 type userService struct {
-	repo       map[types.Username]types.User
+	userMap    map[types.Username]*User
 	publicUser types.User
-	db         types.UserDB
+	db         types.UserStore
 }
 
 func NewService() types.UserService {
 	return &userService{
-		repo: make(map[types.Username]types.User),
+		userMap: make(map[types.Username]*User),
 	}
 }
 
-func (us *userService) Init(db types.DatabaseService) error {
+func (us *userService) Init(db types.UserStore) error {
 	us.db = db
-	users, err := db.GetAllUsers()
+	users, err := us.db.GetAllUsers()
 	if err != nil {
 		return err
 	}
@@ -29,19 +31,31 @@ func (us *userService) Init(db types.DatabaseService) error {
 			util.ShowErr(types.NewWeblensError("nil user in user service init"))
 			continue
 		}
-		us.repo[u.GetUsername()] = u
+		realU := u.(*User)
+		realU.tokensLock = &sync.RWMutex{}
+		us.userMap[u.GetUsername()] = realU
 	}
 
-	us.publicUser = &User{
-		Username:  "PUBLIC",
-		Activated: true,
+	publicUser := &User{
+		Username:     "PUBLIC",
+		Activated:    true,
+		isSystemUser: true,
+		tokensLock:   &sync.RWMutex{},
+	}
+
+	us.publicUser = publicUser
+	us.userMap["PUBLIC"] = publicUser
+	us.userMap["WEBLENS"] = &User{
+		tokensLock:   &sync.RWMutex{},
+		Username:     "WEBLENS",
+		isSystemUser: true,
 	}
 
 	return nil
 }
 
 func (us *userService) Size() int {
-	return len(us.repo)
+	return len(us.userMap) - 2
 }
 
 func (us *userService) GetPublicUser() types.User {
@@ -49,12 +63,12 @@ func (us *userService) GetPublicUser() types.User {
 }
 
 func (us *userService) Add(user types.User) error {
-	err := types.SERV.Database.CreateUser(user)
+	err := types.SERV.StoreService.CreateUser(user)
 	if err != nil {
 		return err
 	}
 
-	us.repo[user.GetUsername()] = user
+	us.userMap[user.GetUsername()] = user.(*User)
 	return nil
 }
 
@@ -63,15 +77,24 @@ func (us *userService) Del(un types.Username) error {
 }
 
 func (us *userService) GetAll() ([]types.User, error) {
-	return util.MapToSlicePure(us.repo), nil
+	users := util.MapToValues(us.userMap)
+	return util.FilterMap(
+		users, func(t *User) (types.User, bool) {
+			return t, !t.isSystemUser
+		},
+	), nil
 }
 
 func (us *userService) Get(username types.Username) types.User {
-	return us.repo[username]
+	u, ok := us.userMap[username]
+	if !ok {
+		return nil
+	}
+	return u
 }
 
 func (us *userService) SearchByUsername(searchString string) ([]types.User, error) {
-	usernames, err := types.SERV.Database.SearchUsers(searchString)
+	usernames, err := types.SERV.StoreService.SearchUsers(searchString)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,9 @@
 package database
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -19,11 +22,9 @@ func (db *databaseService) GetAllMedia() ([]types.Media, error) {
 		return nil, err
 	}
 
-	for _, m := range target {
-		m.SetImported(true)
-	}
+	medias := util.SliceConvert[types.Media](target)
 
-	return util.SliceConvert[types.Media](target), nil
+	return medias, nil
 }
 
 func (db *databaseService) CreateMedia(m types.Media) error {
@@ -51,13 +52,42 @@ func (db *databaseService) DeleteMedia(id types.ContentId) error {
 	return err
 }
 
-func (db *databaseService) HideMedia(id types.ContentId) error {
+func (db *databaseService) SetMediaHidden(id types.ContentId, hidden bool) error {
 	filter := bson.M{"contentId": id}
-	_, err := db.media.UpdateOne(db.ctx, filter, bson.M{"$set": bson.M{"hidden": true}})
+	_, err := db.media.UpdateOne(db.ctx, filter, bson.M{"$set": bson.M{"hidden": hidden}})
 	return err
 }
 
 func (db *databaseService) DeleteAllMedia() error {
 	_, err := db.media.DeleteMany(db.ctx, bson.M{})
 	return err
+}
+
+func (db *databaseService) GetFetchMediaCacheImage(ctx context.Context) ([]byte, error) {
+	defer util.RecoverPanic("Failed to fetch media image into cache")
+
+	m := ctx.Value("media").(types.Media)
+	// util.Debug.Printf("Media cache miss [%s]", m.ID())
+
+	q := ctx.Value("quality").(types.Quality)
+	pageNum := ctx.Value("pageNum").(int)
+
+	f, err := m.GetCacheFile(q, true, pageNum)
+	if err != nil {
+		return nil, err
+	}
+
+	if f == nil {
+		panic("This should never happen...")
+	}
+
+	data, err := f.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		err = fmt.Errorf("displayable bytes empty")
+		return nil, err
+	}
+	return data, nil
 }

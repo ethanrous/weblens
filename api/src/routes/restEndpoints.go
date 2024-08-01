@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -23,74 +22,81 @@ import (
 
 var router *gin.Engine
 var srv *http.Server
-var srvMu = &sync.Mutex{}
 
 func DoRoutes() {
-	srvMu.Lock()
-	if srv != nil {
-		defer srvMu.Unlock()
-
-		// Wait for request to finish before shutting down router
-		time.Sleep(time.Millisecond * 100)
-		err := srv.Shutdown(context.TODO())
-		util.ErrTrace(err)
-		srv = nil
-		return
+	for types.SERV == nil || !types.SERV.MinimallyReady() {
+		time.Sleep(100 * time.Millisecond)
 	}
-	router = gin.New()
-	router.Use(gin.Recovery())
-	router.Use(WeblensLogger)
-	router.Use(CORSMiddleware())
 
-	api := router.Group("/api")
-	api.Use(WeblensAuth(false, types.SERV.UserService))
+	for {
+		types.SERV.RouterLock.Lock()
 
-	admin := router.Group("/api")
-	admin.Use(WeblensAuth(false, types.SERV.UserService))
+		if srv != nil {
 
-	core := router.Group("/api/core")
-	core.Use(KeyOnlyAuth)
-
-	local := types.SERV.InstanceService.GetLocal()
-	if local.ServerRole() == types.Initialization {
-		util.Debug.Println("Weblens not initialized, only adding initialization routes...")
-		init := router.Group("/api")
-		init.Use(WeblensAuth(true, types.SERV.UserService))
-		AddInitializationRoutes(init)
-		util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
-		router.Use(initSafety)
-	} else {
-		AddSharedRoutes(api)
-		if local.ServerRole() == types.Core {
-			AddApiRoutes(api)
-			AddAdminRoutes(admin)
-			AddCoreRoutes(core)
-		} else if local.ServerRole() == types.Backup {
-			AddBackupRoutes(api, admin)
-
-			addr, err := local.GetCoreAddress()
-			util.ShowErr(err)
-			router.Use(ReverseProxyToCore(addr))
+			// Wait for request to finish before shutting down router
+			time.Sleep(time.Millisecond * 100)
+			err := srv.Shutdown(context.TODO())
+			util.ErrTrace(err)
+			srv = nil
+			types.SERV.RouterLock.Unlock()
+			continue
 		}
-		if util.IsDevMode() {
-			AttachProfiler()
+
+		router = gin.New()
+		router.Use(gin.Recovery())
+		router.Use(WeblensLogger)
+		router.Use(CORSMiddleware())
+
+		api := router.Group("/api")
+		api.Use(WeblensAuth(false))
+
+		admin := router.Group("/api")
+		admin.Use(WeblensAuth(true))
+
+		core := router.Group("/api/core")
+		core.Use(KeyOnlyAuth)
+
+		if !types.SERV.InstanceService.IsLocalLoaded() {
+			addLoadingRoutes(api)
+		} else {
+			local := types.SERV.InstanceService.GetLocal()
+			if local.ServerRole() == types.Initialization {
+				api.Use(WeblensAuth(true))
+				addInitializationRoutes(api)
+				util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
+				router.Use(initSafety)
+			} else {
+				addApiRoutes(api)
+				addAdminRoutes(admin)
+				if local.ServerRole() == types.Core {
+					addCoreRoutes(core)
+				} else if local.ServerRole() == types.Backup {
+					addBackupRoutes(api, admin)
+				}
+				if util.IsDevMode() {
+					attachProfiler()
+				}
+			}
 		}
-	}
 
-	if !util.DetachUi() {
-		AddUiRoutes()
-	}
+		if !util.DetachUi() {
+			addUiRoutes()
+		}
 
-	srv = &http.Server{
-		Addr:    util.GetRouterIp() + ":" + util.GetRouterPort(),
-		Handler: router,
-	}
+		srv = &http.Server{
+			Addr:    util.GetRouterIp() + ":" + util.GetRouterPort(),
+			Handler: router,
+		}
 
-	util.Debug.Println("Starting router...")
-	srvMu.Unlock()
-	err := srv.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		panic(err)
+		types.SERV.SetRouter(srv)
+		types.SERV.RouterLock.Unlock()
+
+		util.Debug.Println("Starting router at", srv.Addr)
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			panic(err)
+		}
+		util.Debug.Println("Restarting router...")
 	}
 }
 
@@ -102,46 +108,48 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func AddInitializationRoutes(api *gin.RouterGroup) {
+func addLoadingRoutes(api *gin.RouterGroup) {
+	api.GET("/info", getServerInfo)
+	api.GET("/ws", wsConnect)
+}
+
+func addInitializationRoutes(api *gin.RouterGroup) {
 	api.POST("/initialize", initializeServer)
 	api.GET("/info", getServerInfo)
 	api.GET("/users", getUsers)
 	api.GET("/user", getUserInfo)
+
+	ws := router.Group("/api")
+	ws.GET("/ws", wsConnect)
 }
 
-// @BasePath /
-func AddSharedRoutes(api *gin.RouterGroup) {
+func addApiRoutes(api *gin.RouterGroup) {
 	router.GET("/ping", ping)
+
 	api.GET("/info", getServerInfo)
 
+	api.GET("/file/:fileId/history", getFolderHistory)
+	api.GET("/file/rewind/:folderId/:rewindTime", getPastFolderInfo)
+	api.POST("/history/restore", restorePastFiles)
+
+	// Media
+	api.GET("/media", getMediaBatch)
+	api.GET("/media/types", getMediaTypes)
+	api.GET("/media/random", getRandomMedias)
 	api.GET("/media/:mediaId/info", getMediaInfo)
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
 	api.GET("/media/:mediaId/thumbnail.webp", getMediaThumbnail)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
 	api.GET("/media/:mediaId/stream", streamVideo)
 	api.GET("/media/:mediaId/:chunkName", streamVideo)
-
-	api.GET("/file/:fileId/history", getFileHistory)
-	api.GET("/history/:folderId", getPastFolderInfo)
-	api.POST("/history/restore", restorePastFiles)
-}
-
-func AddApiRoutes(api *gin.RouterGroup) {
-
-	// Media
-	api.GET("/media", getMediaBatch)
-	api.GET("/media/types", getMediaTypes)
-	api.GET("/media/random", getRandomMedias)
 	api.PATCH("/media/hide", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
 	// File
 	api.GET("/file/:fileId", getFile)
 	api.GET("/file/share/:shareId", getFileShare)
-	// api.GET("/file/:fileId/shares", getFilesShares)
 	api.GET("/file/:fileId/download", downloadFile)
 	api.PATCH("/file/:fileId", updateFile)
-	// api.PATCH("/file/share/:shareId", updateFileShare)
 
 	// Files
 	api.GET("/files/:folderId/stats", getFolderStats)
@@ -170,7 +178,7 @@ func AddApiRoutes(api *gin.RouterGroup) {
 	api.POST("/user", createUser)
 	api.PATCH("/user/:username/password", updateUserPassword)
 
-	// Share
+	// ShareId
 	api.POST("/share/files", createFileShare)
 	api.PATCH("/share/:shareId/accessors", addUserToFileShare)
 	api.DELETE("/share/:shareId", deleteShare)
@@ -197,62 +205,70 @@ func AddApiRoutes(api *gin.RouterGroup) {
 	api.GET("/static/:filename", serveStaticContent)
 }
 
-func AddAdminRoutes(admin *gin.RouterGroup) {
+func addAdminRoutes(admin *gin.RouterGroup) {
 	admin.GET("/files/external", getExternalDirs)
 	admin.GET("/files/external/:folderId", getExternalFolderInfo)
+	admin.GET("/files/autocomplete", autocompletePath)
+	admin.GET("/file/path", getFileDataFromPath)
 
 	admin.GET("/users", getUsers)
 	admin.PATCH("/user/:username/activate", activateUser)
 	admin.PATCH("/user/:username/admin", setUserAdmin)
 	admin.DELETE("/user/:username", deleteUser)
 
-	admin.GET("/apiKeys", getApiKeys)
+	admin.GET("/keys", getApiKeys)
 	admin.GET("/remotes", getRemotes)
 	admin.POST("/scan", recursiveScanDir)
 	admin.POST("/cache", clearCache)
-	admin.POST("/apiKey", newApiKey)
-	admin.DELETE("/apiKey", deleteApiKey)
+	admin.POST("/key", newApiKey)
+	admin.DELETE("/key/:keyId", deleteApiKey)
 	admin.DELETE("/remote", removeRemote)
 }
 
-func AddBackupRoutes(api, admin *gin.RouterGroup) {
+func addBackupRoutes(api, admin *gin.RouterGroup) {
 	api.GET("/snapshots", getSnapshots)
-
-	admin.GET("/remotes", getRemotes)
 	admin.POST("/backup", launchBackup)
 }
 
-func AddCoreRoutes(core *gin.RouterGroup) {
+func addCoreRoutes(core *gin.RouterGroup) {
 	core.POST("/remote", attachRemote)
 
 	// Get all users
 	core.GET("/users", getUsersArchive)
-	core.GET("/snapshot", getBackupSnapshot)
+	core.GET("/media", getMediaArchive)
+	core.GET("/media/:mediaId/content", fetchMediaBytes)
 
 	core.GET("/files", getFilesMeta)
+	core.GET("/file/:fileId", getFileMeta)
+	core.GET("/file/:fileId/stat", getFileStat)
+	core.GET("/file/:fileId/directory", getDirectoryContent)
 	core.GET("/file/:fileId/content", getFileBytes)
+
+	core.GET("/history/since/:timestamp", getLifetimesSince)
+	core.GET("/history", getHistory)
+	core.GET("/history/folder", getFolderHistory)
 }
 
-func ReverseProxyToCore(coreAddress string) gin.HandlerFunc {
-	util.Debug.Println("Proxy-ing not found routes to", coreAddress)
-	index := strings.Index(coreAddress, "//")
-	coreHost := coreAddress[index+2:]
-	return func(c *gin.Context) {
-		director := func(req *http.Request) {
-			scheme := "http"
-			if c.Request.TLS != nil {
-				scheme = "https"
-			}
+// func reverseProxyToCore(coreAddress string) gin.HandlerFunc {
+// 	util.Debug.Println("Proxy-ing not found routes to", coreAddress)
+// 	index := strings.Index(coreAddress, "//")
+// 	coreHost := coreAddress[index+2:]
+// 	return func(c *gin.Context) {
+// 		director := func(req *http.Request) {
+// 			scheme := "http"
+// 			if c.Request.TLS != nil {
+// 				scheme = "https"
+// 			}
+//
+// 			req.URL.Scheme = scheme
+// 			req.URL.Host = coreHost
+// 		}
+// 		proxy := &httputil.ReverseProxy{Director: director, ErrorLog: util.Error}
+// 		proxy.ServeHTTP(c.Writer, c.Request)
+// 	}
+// }
 
-			req.URL.Scheme = scheme
-			req.URL.Host = coreHost
-		}
-		proxy := &httputil.ReverseProxy{Director: director}
-		proxy.ServeHTTP(c.Writer, c.Request)
-	}
-}
-
-func AddUiRoutes() {
+func addUiRoutes() {
 	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}}
 	// indexAbsPath :=
 	memFs.loadIndex()
@@ -260,8 +276,11 @@ func AddUiRoutes() {
 	serveFunc := static.Serve("/", memFs)
 	router.Use(
 		func(ctx *gin.Context) {
+			if strings.HasPrefix(ctx.Request.RequestURI, "/api") {
+				ctx.Status(http.StatusNotFound)
+				return
+			}
 			strings.Index(ctx.Request.RequestURI, "/assets")
-			util.Debug.Println(ctx.Request.RequestURI)
 
 			if strings.HasPrefix(ctx.Request.RequestURI, "/assets") {
 				ctx.Writer.Header().Set("Content-Encoding", "gzip")
@@ -272,11 +291,13 @@ func AddUiRoutes() {
 	// r.Use(serveUiFile)
 	router.NoRoute(
 		func(ctx *gin.Context) {
-			util.Debug.Println("No route")
 			if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
 				// using the real path here makes gin redirect to /, which creates an infinite loop
 				// ctx.Writer.Header().Set("Content-Encoding", "gzip")
 				ctx.FileFromFS("/index", memFs)
+			} else {
+				ctx.Status(http.StatusNotFound)
+				return
 			}
 		},
 	)
@@ -292,7 +313,7 @@ func snapshotHeap(ctx *gin.Context) {
 	}
 }
 
-func AttachProfiler() {
+func attachProfiler() {
 	debug := router.Group("/debug")
 
 	debug.GET("/heap", snapshotHeap)

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -93,7 +95,7 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (types.User, error) {
 	return user, nil
 }
 
-func WeblensAuth(requireAdmin bool, us types.UserService) gin.HandlerFunc {
+func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.Request.Header["Authorization"]
 		scheme, cred, err := parseAuthHeader(authHeader)
@@ -104,7 +106,7 @@ func WeblensAuth(requireAdmin bool, us types.UserService) gin.HandlerFunc {
 		}
 
 		if scheme == "Bearer" {
-			if dataStore.CheckApiKey(types.WeblensApiKey(cred)) {
+			if types.SERV.AccessService.Get(types.WeblensApiKey(cred)).Key != "" {
 				c.Next()
 			} else {
 				c.AbortWithStatus(http.StatusUnauthorized)
@@ -117,7 +119,10 @@ func WeblensAuth(requireAdmin bool, us types.UserService) gin.HandlerFunc {
 			}
 
 			if requireAdmin && !user.IsAdmin() {
-				util.Info.Printf("Rejecting authorization for %s due to insufficient permissions on a privileged request", user.GetUsername())
+				util.Info.Printf(
+					"Rejecting authorization for %s due to insufficient permissions on a privileged request",
+					user.GetUsername(),
+				)
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}
@@ -145,7 +150,7 @@ func KeyOnlyAuth(c *gin.Context) {
 		return
 	}
 
-	if dataStore.CheckApiKey(types.WeblensApiKey(cred)) {
+	if types.SERV.AccessService.Get(types.WeblensApiKey(cred)).Key != "" {
 		c.Next()
 	} else {
 		c.AbortWithStatus(http.StatusUnauthorized)
@@ -175,7 +180,7 @@ func colorTime(dur time.Duration) string {
 
 func WeblensLogger(c *gin.Context) {
 	start := time.Now()
-	path := c.Request.URL.Path
+	path := c.Request.RequestURI
 	// raw := c.Request.URL.RawQuery
 
 	c.Next()
@@ -184,8 +189,14 @@ func WeblensLogger(c *gin.Context) {
 	remote := c.ClientIP()
 	status := c.Writer.Status()
 	method := c.Request.Method
+	handler := runtime.FuncForPC(reflect.ValueOf(c.Handler()).Pointer()).Name()
+	handler = handler[strings.LastIndex(handler, ".")+1:]
 
-	fmt.Printf("\u001B[0m[API] %s | %s | %12s | %s %s %s\n", start.Format("Jan 02 15:04:05"), remote, colorTime(timeTotal), colorStatus(status), method, path)
+	fmt.Printf(
+		"\u001B[0m[API] %s | %s | %12s | [%s] %s %s %s\n", start.Format("Jan 02 15:04:05"), remote,
+		colorTime(timeTotal),
+		handler, colorStatus(status), method, path,
+	)
 }
 
 func initSafety(c *gin.Context) {
@@ -201,7 +212,10 @@ func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range")
+		c.Writer.Header().Set(
+			"Access-Control-Allow-Headers",
+			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range",
+		)
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
 		if c.Request.Method == "OPTIONS" {

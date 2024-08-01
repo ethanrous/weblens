@@ -2,7 +2,6 @@ package dataProcess
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
@@ -11,16 +10,19 @@ import (
 )
 
 type task struct {
-	taskId     types.TaskId
-	taskPool   types.TaskPool
-	caster     types.BroadcasterAgent
-	requester  types.Requester
-	work       taskHandler
-	taskType   types.TaskType
-	metadata   types.TaskMetadata
-	result     types.TaskResult
-	persistent bool
-	queueState taskQueueState
+	taskId        types.TaskId
+	taskPool      types.TaskPool
+	childTaskPool types.TaskPool
+	caster        types.BroadcasterAgent
+	requester     types.Requester
+	work          taskHandler
+	taskType      types.TaskType
+	metadata      types.TaskMetadata
+	result        types.TaskResult
+	persistent    bool
+	queueState    taskQueueState
+
+	updateMu *sync.RWMutex
 
 	err any
 
@@ -70,8 +72,22 @@ func (t *task) GetTaskPool() types.TaskPool {
 	return t.taskPool
 }
 
+func (t *task) GetChildTaskPool() types.TaskPool {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+	return t.childTaskPool
+}
+
+func (t *task) setChildTaskPool(pool types.TaskPool) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.childTaskPool = pool
+}
+
 // Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
 func (t *task) Status() (bool, types.TaskExitStatus) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
 	return t.queueState == Exited, t.exitStatus
 }
 
@@ -100,9 +116,14 @@ func (t *task) Q(tp types.TaskPool) types.Task {
 
 // Wait Block until a task is finished. "Finished" can define success, failure, or cancel
 func (t *task) Wait() types.Task {
-	if t == nil || t.queueState == Exited {
+	if t == nil {
 		return t
 	}
+	t.updateMu.Lock()
+	if t.queueState == Exited {
+		return t
+	}
+	t.updateMu.Unlock()
 	t.waitMu.Lock()
 	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
 	t.waitMu.Unlock()
@@ -166,7 +187,10 @@ func (t *task) GetResult(resultKey string) any {
 	return t.result[resultKey]
 }
 
-func (t *task) GetResults() map[string]any {
+func (t *task) GetResults() types.TaskResult {
+	if t.result == nil {
+		t.result = types.TaskResult{}
+	}
 	return t.result
 }
 
@@ -179,15 +203,13 @@ func (t *task) GetMeta() types.TaskMetadata {
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *task) error(err error) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
 	// Run the cleanup routine for errors, if any
 	if t.errorCleanup != nil {
 		t.errorCleanup()
 		t.errorCleanup = nil
-	}
-
-	if t.cleanup != nil {
-		t.cleanup()
-		t.cleanup = nil
 	}
 
 	// If we have already called cancel, do not set any error
@@ -199,8 +221,8 @@ func (t *task) error(err error) {
 	}
 
 	t.err = err
-	t.exitStatus = TaskError
 	t.queueState = Exited
+	t.exitStatus = TaskError
 
 	t.sw.Lap("Task exited due to error")
 	t.sw.Stop()
@@ -212,8 +234,9 @@ func (t *task) ErrorAndExit(err error, info ...any) {
 		return
 	}
 
-	_, filename, line, _ := runtime.Caller(1)
-	util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\n", t.TaskId(), filename, line, err.Error())
+	util.ShowErr(err, fmt.Sprintf("Task %s exited with an error", t.TaskId()))
+	// _, filename, line, _ := runtime.Caller(1)
+	// util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\n", t.TaskId(), filename, line, err.Error())
 	if len(info) != 0 {
 		util.ErrorCatcher.Printf("Reported by task: %s", fmt.Sprint(info...))
 	}
@@ -224,6 +247,9 @@ func (t *task) ErrorAndExit(err error, info ...any) {
 // SetPostAction takes a function to be run after the task has successfully completed
 // with the task results as the input of the function
 func (t *task) SetPostAction(action func(types.TaskResult)) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
 	t.postAction = action
 
 	// If the task has already completed, run the post task in this thread instead
@@ -239,6 +265,8 @@ func (t *task) SetErrorCleanup(cleanup func()) {
 }
 
 func (t *task) SetCleanup(cleanup func()) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
 	t.cleanup = cleanup
 }
 
@@ -247,6 +275,9 @@ func (t *task) ReadError() any {
 }
 
 func (t *task) success(msg ...any) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+
 	if t.cleanup != nil {
 		t.cleanup()
 		t.cleanup = nil

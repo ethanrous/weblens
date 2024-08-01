@@ -71,56 +71,6 @@
     outline: 1px solid $main-accent;
 }
 
-.loaf {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    height: max-content;
-    width: max-content;
-    max-width: 100%;
-    min-width: 0;
-    flex-grow: 1;
-    flex-shrink: 1;
-    padding-right: 16px;
-}
-
-.crumb-box {
-    height: max-content;
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 6px;
-    outline: 2px solid $main-accent-transparent;
-    background-color: $main-accent-transparent;
-
-    transition: all 150ms ease-in-out;
-
-    &:hover {
-        outline: 2px solid $main-accent;
-    }
-
-    &[data-compact='true'] {
-        height: max-content;
-        cursor: pointer;
-        border-radius: 2px;
-        min-width: 0;
-        flex-shrink: 1;
-    }
-
-    &[data-dragging='true'] {
-        background-color: $main-accent;
-
-        &:hover {
-            outline: 2px solid $main-accent;
-            background-color: $main-accent-transparent
-        }
-    }
-
-    &[data-current='true'] {
-        cursor: default;
-        outline: 2px solid $main-accent-transparent;
-        background-color: $main-accent-transparent;
-    }
-}
 
 .fb-share-item-label {
     flex: 0;
@@ -196,8 +146,6 @@
     color: #cccccc;
 }
 
-
-
 .xBox {
     border-radius: 2px;
     padding: 2px;
@@ -253,41 +201,6 @@
 .search-input-closed {
     width: 0;
     padding: 0;
-}
-
-.file-rows-box {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-left: 5px;
-}
-
-.file-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    width: 100%;
-    flex-grow: 0;
-    margin: 2px;
-    border-radius: 4px;
-    padding: 10px;
-    gap: 10px;
-    cursor: default !important;
-    user-select: none;
-}
-
-.file-row:where([data-in-range="true"]) {
-    background-color: #373365;
-}
-
-.file-row:where([data-selected="true"]) {
-    background-color: #331177bb;
-}
-
-.file-row:hover:not([data-selected="true"],[data-in-range="true"]) {
-    background-color: #88888833;
 }
 
 .search-hint-box {
@@ -370,7 +283,6 @@
 .icon-display-wrapper {
     display: flex;
     width: 150px;
-    //max-width: 60%;
     flex-grow: 1;
     align-items: center;
     justify-content: center;
@@ -378,14 +290,22 @@
 
 .task-progress-box {
     margin-top: 25px;
-    margin-bottom: 25px;
     height: max-content;
     width: 100%;
     align-items: center;
     display: flex;
     flex-direction: column;
+    padding: 16px;
+    padding-top: 8px;
+    background-color: $item-grey;
+    border-radius: 4px;
+    opacity: 100%;
 
-    transition: position 1s ease-in-out;
+    transition: opacity 1s ease-in-out;
+
+    &[data-hidden='true'] {
+        opacity: 0;
+    }
 }
 
 .file-info-pane {

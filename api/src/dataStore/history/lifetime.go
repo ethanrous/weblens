@@ -1,16 +1,21 @@
 package history
 
 import (
+	"sync"
+
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Lifetime struct {
-	Id         types.LifetimeId `bson:"_id"`
-	LiveFileId types.FileId
-	ContentId  types.ContentId
-	Actions    []*FileAction
+	Id         types.LifetimeId `bson:"_id" json:"id"`
+	LiveFileId types.FileId     `bson:"liveFileId" json:"liveFileId"`
+	ContentId  types.ContentId  `bson:"contentId,omitempty" json:"contentId,omitempty"`
+	Actions    []*FileAction    `bson:"actions" json:"actions"`
+	ServerId   types.InstanceId `bson:"serverId" json:"serverId"`
+
+	actionsLock *sync.RWMutex
 }
 
 func NewLifetime(id types.LifetimeId, createAction types.FileAction) (types.Lifetime, error) {
@@ -22,11 +27,16 @@ func NewLifetime(id types.LifetimeId, createAction types.FileAction) (types.Life
 		id = types.LifetimeId(primitive.NewObjectID().Hex())
 	}
 
+	createAction.SetLifetimeId(id)
+
 	return &Lifetime{
 		Id:         id,
 		LiveFileId: createAction.GetDestinationId(),
 		Actions:    []*FileAction{createAction.(*FileAction)},
 		ContentId:  types.SERV.FileTree.Get(createAction.GetDestinationId()).GetContentId(),
+		ServerId:   types.SERV.InstanceService.GetLocal().ServerId(),
+
+		actionsLock: &sync.RWMutex{},
 	}, nil
 }
 
@@ -35,6 +45,12 @@ func (l *Lifetime) ID() types.LifetimeId {
 }
 
 func (l *Lifetime) Add(action types.FileAction) {
+	if l.actionsLock == nil {
+		l.actionsLock = &sync.RWMutex{}
+	}
+	l.actionsLock.Lock()
+	defer l.actionsLock.Unlock()
+
 	action.SetLifetimeId(l.Id)
 	l.Actions = append(l.Actions, action.(*FileAction))
 	l.LiveFileId = action.GetDestinationId()
@@ -42,6 +58,10 @@ func (l *Lifetime) Add(action types.FileAction) {
 
 func (l *Lifetime) GetLatestFileId() types.FileId {
 	return l.LiveFileId
+}
+
+func (l *Lifetime) GetLatestAction() types.FileAction {
+	return l.Actions[len(l.Actions)-1]
 }
 
 func (l *Lifetime) GetContentId() types.ContentId {
@@ -60,5 +80,10 @@ func (l *Lifetime) IsLive() bool {
 }
 
 func (l *Lifetime) GetActions() []types.FileAction {
+	if l.actionsLock == nil {
+		l.actionsLock = &sync.RWMutex{}
+	}
+	l.actionsLock.RLock()
+	defer l.actionsLock.RUnlock()
 	return util.SliceConvert[types.FileAction](l.Actions)
 }

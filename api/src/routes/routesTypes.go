@@ -28,8 +28,9 @@ func (fsm *folderSubscribeMeta) GetKey() types.SubId {
 }
 
 type taskSubscribeMeta struct {
-	Key        types.SubId `json:"subscribeKey"`
-	LookingFor []string    `json:"lookingFor"`
+	Key        types.SubId    `json:"subscribeKey"`
+	TaskType   types.TaskType `json:"taskType"`
+	LookingFor []string       `json:"lookingFor"`
 }
 
 func (tsm *taskSubscribeMeta) Action() types.WsAction {
@@ -37,6 +38,13 @@ func (tsm *taskSubscribeMeta) Action() types.WsAction {
 }
 
 func (tsm *taskSubscribeMeta) GetKey() types.SubId {
+	if tsm.Key == "" && tsm.TaskType != "" {
+		taskPool := types.SERV.WorkerPool.GetTaskPoolByTaskType(tsm.TaskType)
+		if taskPool == nil {
+			return ""
+		}
+		tsm.Key = types.SubId(taskPool.ID())
+	}
 	return tsm.Key
 }
 

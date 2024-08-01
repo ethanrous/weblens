@@ -1,89 +1,152 @@
-import { CSSProperties } from '@mantine/core';
-import { memo } from 'react';
-import './weblensProgress.scss';
+import { CSSProperties } from '@mantine/core'
+import { memo, useEffect, useState } from 'react'
+import './weblensProgress.scss'
+import { clamp } from '../util'
 
 type progressProps = {
-    value: number;
-    secondaryValue?: number;
-    complete?: boolean;
-    orientation?: 'horizontal' | 'vertical';
-    loading?: boolean;
-    failure?: boolean;
-    seekCallback?: (v: number) => void;
-    style?: CSSProperties;
-};
+    value: number
+    secondaryValue?: number
+    height?: number
+    complete?: boolean
+    orientation?: 'horizontal' | 'vertical'
+    loading?: boolean
+    disabled?: boolean
+    failure?: boolean
+    seekCallback?: (v: number) => void
+    style?: CSSProperties
+}
 
 export const WeblensProgress = memo(
     ({
         value,
         secondaryValue,
+        height = 25,
         complete = false,
         orientation = 'horizontal',
         loading = false,
+        disabled = false,
         failure = false,
         seekCallback,
         style,
     }: progressProps) => {
+        const [dragging, setDragging] = useState(false)
+        const [percentage, setPercentage] = useState(clamp(value, 0, 100))
+        const [boxRef, setBoxRef] = useState(null)
+
+        useEffect(() => {
+            if (seekCallback) {
+                seekCallback(percentage)
+            }
+        }, [percentage])
+
+        useEffect(() => {
+            if (dragging) {
+                const rect = boxRef.getBoundingClientRect()
+                const update = (e) => {
+                    setPercentage(
+                        Math.min(
+                            ((e.clientX - rect.left) /
+                                (rect.right - rect.left)) *
+                                100,
+                            100
+                        )
+                    )
+                }
+                const stop = () => setDragging(false)
+                window.addEventListener('mousemove', update)
+                window.addEventListener('mouseup', stop)
+                return () => {
+                    window.removeEventListener('mousemove', update)
+                    window.removeEventListener('mouseup', stop)
+                }
+            }
+        }, [dragging])
+
         return (
             <div
                 className="weblens-progress"
+                ref={setBoxRef}
                 data-loading={loading}
+                data-disabled={disabled}
                 data-complete={complete}
                 data-failure={failure}
-                onClick={e => {
-                    if (!seekCallback) {
-                        return;
-                    }
-
+                onMouseDown={() => setDragging(true)}
+                onMouseUp={() => setDragging(false)}
+                onClick={(e) => {
                     if (e.target instanceof HTMLDivElement) {
-                        const rect = e.target.getBoundingClientRect();
-                        let v = (e.clientX - rect.left) / (rect.right - rect.left);
+                        const rect = e.target.getBoundingClientRect()
+                        let v =
+                            (e.clientX - rect.left) / (rect.right - rect.left)
                         if (v < 0) {
-                            v = 0;
+                            v = 0
                         }
-                        seekCallback(v);
+                        setPercentage(v * 100)
                     }
                 }}
                 style={{
-                    justifyContent: orientation === 'horizontal' ? 'flex-start' : 'flex-end',
-                    // flexDirection:
-                    //     orientation === 'horizontal' ? 'row' : 'column',
+                    justifyContent:
+                        orientation === 'horizontal'
+                            ? 'flex-start'
+                            : 'flex-end',
                     ...style,
                     cursor: seekCallback ? 'pointer' : 'default',
+                    height: height,
                 }}
             >
                 <div
                     className="weblens-progress-bar"
                     data-complete={complete}
                     style={{
-                        height: orientation === 'horizontal' ? '100%' : `${value}%`,
-                        width: orientation === 'horizontal' ? `${value}%` : '100%',
+                        height:
+                            orientation === 'horizontal' ? '100%' : `${value}%`,
+                        width:
+                            orientation === 'horizontal' ? `${value}%` : '100%',
                     }}
                 />
                 <div
                     className="weblens-progress-bar"
                     data-secondary={true}
                     style={{
-                        height: orientation === 'horizontal' ? '100%' : `${secondaryValue}%`,
-                        width: orientation === 'horizontal' ? `${secondaryValue}%` : '100%',
+                        height:
+                            orientation === 'horizontal'
+                                ? '100%'
+                                : `${secondaryValue}%`,
+                        width:
+                            orientation === 'horizontal'
+                                ? `${secondaryValue}%`
+                                : '100%',
                     }}
                 />
+                {seekCallback !== undefined && (
+                    <div
+                        className="slider-handle"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={() => setDragging(true)}
+                        onMouseUp={() => setDragging(false)}
+                    />
+                )}
             </div>
-        );
+        )
     },
     (prev, next) => {
         if (prev.value !== next.value) {
-            return false;
+            return false
         }
         if (prev.complete !== next.complete) {
-            return false;
+            return false
+        }
+        if (prev.disabled !== next.disabled) {
+            return false
+        }
+        if (prev.loading !== next.loading) {
+            return false
         }
         if (prev.failure !== next.failure) {
-            return false;
+            return false
         }
         if (prev.orientation !== next.orientation) {
-            return false;
+            return false
         }
-        return true;
-    },
-);
+        return true
+    }
+)

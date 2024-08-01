@@ -25,20 +25,3 @@
     transform: translateX(-10px);
     z-index: 1;
 }
-
-.slider-handle {
-    height: 110%;
-    width: 10px;
-    border-radius: 4px;
-    flex-shrink: 0;
-    background-color: azure;
-    position: relative;
-    z-index: 2;
-    cursor: pointer;
-
-    transition: 200ms transform ease-in-out;
-
-    &:hover {
-        transform: scale(1.10);
-    }
-}

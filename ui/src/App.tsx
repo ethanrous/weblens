@@ -1,17 +1,23 @@
 import { MantineProvider } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
-import React, { memo, Suspense, useEffect, useReducer } from 'react'
-import { BrowserRouter as Router, useRoutes } from 'react-router-dom'
+import React, { Suspense, useEffect, useReducer } from 'react'
+import {
+    BrowserRouter as Router,
+    useLocation,
+    useNavigate,
+    useRoutes,
+} from 'react-router-dom'
 import { fetchMediaTypes } from './api/ApiFetch'
 import ErrorBoundary, { ErrorDisplay } from './components/Error'
 
 import WeblensLoader from './components/Loading'
-import useR from './components/UserInfo'
-import { MediaContext, UserContext } from './Context'
+import useR, { useSessionStore } from './components/UserInfo'
+import { MediaContext } from './Context'
 
 import '@mantine/notifications/styles.css'
 import '@mantine/core/styles.css'
-import { MediaAction, mediaReducer, MediaStateT } from './Media/Media'
+import { mediaReducer, MediaStateT } from './Media/Media'
+import StartUp from './Pages/Startup/StartupPage'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const Gallery = React.lazy(() => import('./Pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./Pages/FileBrowser/FileBrowser'))
@@ -29,9 +35,71 @@ const setTypeMap = () => {
 }
 
 const WeblensRoutes = () => {
-    const { authHeader, usr, setCookie, clear, serverInfo } = useR()
+    useR()
+
+    const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
+    const server = useSessionStore((state) => state.server)
+    const user = useSessionStore((state) => state.user)
+
+    const loc = useLocation()
+    const nav = useNavigate()
 
     useEffect(() => {
+        fetchServerInfo()
+    }, [])
+
+    useEffect(() => {
+        if (!server) {
+            return
+        }
+        if (loc.pathname !== '/setup' && server.info.role === 'init') {
+            console.log('GOIN 1')
+            nav('/setup')
+        } else if (loc.pathname === '/setup' && server.info.role !== 'init') {
+            console.log('GOIN 2')
+            nav('/')
+        } else if (
+            server.info.role === 'backup' &&
+            !loc.pathname.startsWith('/files') &&
+            user !== null
+        ) {
+            console.log('GOIN 3')
+            nav('/files/home')
+        } else if (
+            user !== null &&
+            !user.isLoggedIn &&
+            loc.pathname !== '/login' &&
+            server.info.role !== 'init' &&
+            (!loc.pathname.startsWith('/files') ||
+                loc.pathname === '/files/home')
+        ) {
+            console.log('GOIN 4')
+            nav('/login')
+        } else if (loc.pathname === '/login' && user !== null) {
+            console.log('GOIN 5')
+            nav('/timeline')
+        } else if (loc.pathname === '/') {
+            console.log('GOIN 6')
+            nav('/timeline')
+        }
+    }, [loc, server, user])
+
+    const [mediaState, mediaDispatch] = useReducer(
+        mediaReducer,
+        null,
+        () =>
+            new MediaStateT(
+                null,
+                JSON.parse(localStorage.getItem('showRaws')) || false,
+                JSON.parse(localStorage.getItem('showHidden')) || false
+            )
+    )
+
+    useEffect(() => {
+        if (!server || !server.started || server.info.role === 'init') {
+            return
+        }
+
         const typeMapStr = localStorage.getItem('mediaTypeMap')
         if (!typeMapStr) {
             setTypeMap()
@@ -53,31 +121,26 @@ const WeblensRoutes = () => {
         }
     }, [])
 
-    const [mediaState, mediaDispatch] = useReducer<
-        (state: MediaStateT, action: MediaAction) => MediaStateT
-    >(mediaReducer, new MediaStateT())
+    if (!server) {
+        return null
+    }
+
+    const queryClient = new QueryClient()
 
     return (
-        <ErrorBoundary fallback={ErrorDisplay}>
-            <MediaContext.Provider
-                value={{
-                    mediaState,
-                    mediaDispatch,
-                }}
-            >
-                <UserContext.Provider
+        <QueryClientProvider client={queryClient}>
+            <ErrorBoundary fallback={ErrorDisplay}>
+                <MediaContext.Provider
                     value={{
-                        authHeader,
-                        usr,
-                        setCookie,
-                        clear,
-                        serverInfo,
+                        mediaState,
+                        mediaDispatch,
                     }}
                 >
-                    <PageSwitcher />
-                </UserContext.Provider>
-            </MediaContext.Provider>
-        </ErrorBoundary>
+                    {server.started && <PageSwitcher />}
+                    {!server.started && <StartUp />}
+                </MediaContext.Provider>
+            </ErrorBoundary>
+        </QueryClientProvider>
     )
 }
 
@@ -89,63 +152,55 @@ function PageLoader() {
     )
 }
 
-const PageSwitcher = memo(
-    () => {
-        const galleryPage = (
-            <Suspense fallback={<PageLoader />}>
-                <Gallery />
-            </Suspense>
-        )
+const PageSwitcher = () => {
+    const galleryPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Gallery />
+        </Suspense>
+    )
 
-        const filesPage = (
-            <Suspense fallback={<PageLoader />}>
-                <FileBrowser />
-            </Suspense>
-        )
+    const filesPage = (
+        <Suspense fallback={<PageLoader />}>
+            <FileBrowser />
+        </Suspense>
+    )
 
-        const wormholePage = (
-            <Suspense fallback={<PageLoader />}>
-                <Wormhole />
-            </Suspense>
-        )
+    const wormholePage = (
+        <Suspense fallback={<PageLoader />}>
+            <Wormhole />
+        </Suspense>
+    )
 
-        const loginPage = (
-            <Suspense fallback={<PageLoader />}>
-                <Login />
-            </Suspense>
-        )
+    const loginPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Login />
+        </Suspense>
+    )
 
-        const setupPage = (
-            <Suspense fallback={<PageLoader />}>
-                <Setup />
-            </Suspense>
-        )
+    const setupPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Setup />
+        </Suspense>
+    )
 
-        const Gal = useRoutes([
-            ...['/', '/timeline', '/albums/*'].map((path) => ({
-                path: path,
-                element: galleryPage,
-            })),
-            { path: '/files/*', element: filesPage },
-            // { path: "/share/*", element: filesPage },
-            { path: '/wormhole/*', element: wormholePage },
-            { path: '/login', element: loginPage },
-            { path: '/setup', element: setupPage },
-        ])
+    const Gal = useRoutes([
+        { path: '/', element: galleryPage },
+        { path: '/timeline', element: galleryPage },
+        { path: '/albums/*', element: galleryPage },
+        { path: '/files/*', element: filesPage },
+        { path: '/wormhole', element: wormholePage },
+        { path: '/login', element: loginPage },
+        { path: '/setup', element: setupPage },
+    ])
 
-        return Gal
-    },
-    (prev, next) => {
-        return true
-    }
-)
+    return Gal
+}
 
 function App() {
     document.documentElement.style.overflow = 'hidden'
     document.body.className = 'body'
     return (
         <MantineProvider defaultColorScheme="dark">
-            <Notifications position="top-right" top={90} />
             <Router>
                 <WeblensRoutes />
             </Router>

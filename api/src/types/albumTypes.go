@@ -21,7 +21,7 @@ type Album interface {
 }
 
 type AlbumService interface {
-	BaseService[AlbumId, Album]
+	WeblensService[AlbumId, Album, AlbumsStore]
 	GetAllByUser(u User) []Album
 	RemoveMediaFromAny(ContentId) error
 }

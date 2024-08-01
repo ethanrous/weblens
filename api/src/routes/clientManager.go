@@ -12,7 +12,7 @@ import (
 
 type clientManager struct {
 	// Key: connection id, value: client instance
-	clientMap map[types.ClientId]types.Client
+	clientMap map[types.Username]types.Client
 	clientMu  *sync.Mutex
 
 	// Key: subscription identifier, value: client instance
@@ -32,7 +32,7 @@ type clientManager struct {
 
 func NewClientManager() types.ClientManager {
 	return &clientManager{
-		clientMap: map[types.ClientId]types.Client{},
+		clientMap: map[types.Username]types.Client{},
 		clientMu:  &sync.Mutex{},
 
 		folderSubs: map[types.SubId][]types.Client{},
@@ -48,7 +48,7 @@ func (cm *clientManager) ClientConnect(conn *websocket.Conn, user types.User) ty
 	newClient := client{Active: true, connId: connectionId, conn: conn, user: user}
 
 	cm.clientMu.Lock()
-	cm.clientMap[connectionId] = &newClient
+	cm.clientMap[user.GetUsername()] = &newClient
 	cm.clientMu.Unlock()
 
 	newClient.debug("Connected")
@@ -61,14 +61,30 @@ func (cm *clientManager) ClientDisconnect(c types.Client) {
 	}
 
 	cm.clientMu.Lock()
-	delete(cm.clientMap, c.GetClientId())
+	delete(cm.clientMap, c.GetUser().GetUsername())
 	cm.clientMu.Unlock()
 }
 
-func (cm *clientManager) GetClient(clientId types.ClientId) types.Client {
+func (cm *clientManager) GetClientByUsername(username types.Username) types.Client {
 	cm.clientMu.Lock()
 	defer cm.clientMu.Unlock()
-	return cm.clientMap[clientId]
+	return cm.clientMap[username]
+}
+
+func (cm *clientManager) GetAllClients() []types.Client {
+	cm.clientMu.Lock()
+	defer cm.clientMu.Unlock()
+	return util.MapToValues(cm.clientMap)
+}
+
+func (cm *clientManager) GetConnectedAdmins() []types.Client {
+	clients := cm.GetAllClients()
+	admins := util.Filter(
+		clients, func(c types.Client) bool {
+			return c.GetUser().IsAdmin()
+		},
+	)
+	return admins
 }
 
 func (cm *clientManager) GetSubscribers(st types.WsAction, key types.SubId) (clients []types.Client) {
@@ -88,7 +104,7 @@ func (cm *clientManager) GetSubscribers(st types.WsAction, key types.SubId) (cli
 	case types.UserSubscribe:
 		{
 			cm.clientMu.Lock()
-			allClients := util.MapToSlicePure(cm.clientMap)
+			allClients := util.MapToValues(cm.clientMap)
 			cm.clientMu.Unlock()
 			clients = util.Filter(
 				allClients, func(c types.Client) bool {

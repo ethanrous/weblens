@@ -1,12 +1,13 @@
 @import "theme";
 
 .weblens-progress {
-    position: absolute;
+    position: relative;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     background-color: $bottom-grey;
     border-radius: 3px;
-    overflow: hidden;
+    //overflow: hidden;
     box-shadow: 4px 4px 1px #001;
     width: 100%;
     height: 100%;
@@ -44,6 +45,12 @@
           }
         }
     }
+
+    &[data-disabled='true'] {
+        cursor: default;
+        pointer-events: none;
+        box-shadow: 0px 0px 0px #00001100;
+    }
 }
 
 @property --border-angle {
@@ -53,20 +60,44 @@
   }
 
 .weblens-progress-bar {
-    position: absolute;
+    position: relative;
     pointer-events: none;
     background-color: $main-accent;
     box-shadow: $soft-shadow;
+    height: 100%;
     z-index: 2;
-    transition:
-        width 0.2s ease-in-out,
-        height 0.2s ease-in-out;
+    transition: width 50ms ease-in-out, height 200ms ease-in-out, background-color 200ms ease-in-out;
 
     &[data-secondary='true'] {
+        position: absolute;
         z-index: 1;
         background-color: $dark-paper;
+        transform: translateY(-100%);
     }
+
     &[data-complete='true'] {
         background-color: #22bb33;
+    }
+
+    [data-disabled='true'] & {
+        background-color: $disabled-grey;
+    }
+}
+
+.slider-handle {
+
+    height: 104%;
+    width: 10px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background-color: azure;
+    z-index: 2;
+    cursor: pointer;
+    transform: translateX(-4px);
+
+    transition: 200ms transform ease-in-out;
+
+    &:hover {
+        transform: scale(1.10) translateX(-4px);
     }
 }

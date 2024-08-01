@@ -48,7 +48,7 @@ func (s *FileShare) AddUsers(newUsers []types.User) error {
 			return u.GetUsername()
 		},
 	)
-	err := types.SERV.Database.AddUsersToShare(s, usernames)
+	err := types.SERV.StoreService.AddUsersToShare(s, usernames)
 	if err != nil {
 		return err
 	}
@@ -59,6 +59,7 @@ func (s *FileShare) AddUsers(newUsers []types.User) error {
 
 func (s *FileShare) GetOwner() types.User { return s.Owner }
 func (s *FileShare) IsPublic() bool       { return s.Public }
+func (s *FileShare) IsWormhole() bool     { return s.Wormhole }
 func (s *FileShare) SetPublic(pub bool) {
 	s.Public = pub
 }
@@ -66,7 +67,7 @@ func (s *FileShare) SetPublic(pub bool) {
 func (s *FileShare) IsEnabled() bool { return s.Enabled }
 func (s *FileShare) SetEnabled(enable bool) error {
 	s.Enabled = enable
-	return types.SERV.Database.SetShareEnabledById(s.ShareId, enable)
+	return types.SERV.StoreService.SetShareEnabledById(s.ShareId, enable)
 }
 
 func (s *FileShare) UnmarshalBSON(bs []byte) error {

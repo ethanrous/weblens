@@ -31,10 +31,11 @@ type taskPool struct {
 	workerPool     *workerPool
 	parentTaskPool *taskPool
 	createdBy      types.Task
+	createdAt      time.Time
 
 	cleanupFn func()
 
-	allQueuedFlag bool
+	allQueuedFlag atomic.Bool
 
 	erroredTasks chan *task
 }
@@ -80,6 +81,7 @@ func (tp *taskPool) newTask(
 		taskId:    taskId,
 		taskType:  taskType,
 		metadata:  taskMeta,
+		updateMu:  &sync.RWMutex{},
 		waitMu:    &sync.Mutex{},
 		timerLock: &sync.Mutex{},
 
@@ -118,6 +120,10 @@ func (tp *taskPool) newTask(
 		newTask.work = doBackup
 	case HashFile:
 		newTask.work = hashFile
+	case CopyFileFromCore:
+		newTask.work = copyFileFromCore
+	default:
+		util.ShowErr(types.WeblensErrorMsg("unknown task type"))
 	}
 
 	tp.workerPool.addTask(newTask)
@@ -138,6 +144,12 @@ func (tp *taskPool) RemoveTask(taskId types.TaskId) {
 
 func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.BroadcasterAgent) types.Task {
 	// Partial media means nothing for a directory scan, so it's always nil
+
+	if caster == nil {
+		util.Error.Println("caster is nil")
+		return nil
+	}
+
 	scanMeta := scanMetadata{file: directory}
 	t := tp.newTask(ScanDirectoryTask, scanMeta, caster, nil)
 	err := tp.QueueTask(t)
@@ -145,15 +157,6 @@ func (tp *taskPool) ScanDirectory(directory types.WeblensFile, caster types.Broa
 		util.ErrTrace(err)
 		return nil
 	}
-
-	// if caster != nil {
-	//	caster.PushTaskUpdate(
-	//		t, TaskCreated, types.TaskResult{
-	//			"taskType":      ScanDirectoryTask,
-	//			"directoryName": directory.Filename(),
-	//		},
-	//	)
-	// }
 
 	return t
 }
@@ -235,8 +238,19 @@ func (tp *taskPool) GatherFsStats(rootDir types.WeblensFile, caster types.Broadc
 	return t
 }
 
-func (tp *taskPool) Backup(remoteId types.InstanceId) types.Task {
-	t := tp.newTask(BackupTask, backupMeta{remoteId: remoteId}, nil, nil)
+func (tp *taskPool) Backup(remoteId types.InstanceId, caster types.BroadcasterAgent) types.Task {
+	t := tp.newTask(BackupTask, backupMeta{remoteId: remoteId}, caster, nil)
+	err := tp.QueueTask(t)
+	if err != nil {
+		util.ErrTrace(err)
+		return nil
+	}
+
+	return t
+}
+
+func (tp *taskPool) CopyFileFromCore(file types.WeblensFile, caster types.BroadcasterAgent) types.Task {
+	t := tp.newTask(CopyFileFromCore, backupCoreFileMeta{file: file}, caster, nil)
 	err := tp.QueueTask(t)
 	if err != nil {
 		util.ErrTrace(err)
@@ -268,14 +282,17 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 
 		// Even if we are out of tasks, if we have not been told all tasks
 		// were queued, we do not wake the waiters
-		if uncompletedTasks == 0 && tp.allQueuedFlag {
+		if uncompletedTasks == 0 && tp.allQueuedFlag.Load() {
 			if tp.waiterCount.Load() != 0 {
-				util.Debug.Println("Waking sleepers!")
+				util.Debug.Println("Pool complete, waking sleepers!")
+				if tp.createdBy != nil && tp.createdBy.(*task).caster != nil {
+					tp.createdBy.(*task).caster.PushPoolUpdate(tp, PoolCompleteEvent, nil)
+				}
 				tp.waiterGate.Unlock()
 
 				// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
 				// Should only loop a handful of times, if at all, we just need to wait for the waiters to
-				// lock and then release immediately, should take nanoseconds each
+				// lock and then release immediately, should take, like, nanoseconds (?) each
 				for tp.waiterCount.Load() != 0 {
 					time.Sleep(time.Millisecond * 10)
 				}
@@ -293,6 +310,7 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 					tp.cleanupFn()
 				}()
 			}
+			tp.workerPool.removeTaskPool(tp.ID())
 		}
 	}
 	// If this is a replacement task, and we have more workers than the target for the pool, we exit
@@ -308,7 +326,7 @@ func (tp *taskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 	// we must finish and clean up before checking exitFlag again here.
 	// The task *could* be cancelled to speed things up, but that
 	// is not our job.
-	if tp.workerPool.exitFlag == 1 {
+	if tp.workerPool.exitFlag.Load() == 1 {
 		// Dec alive workers
 		tp.workerPool.currentWorkers.Add(-1)
 		return false
@@ -341,6 +359,7 @@ func (tp *taskPool) Status() types.TaskPoolStatus {
 		Complete: complete,
 		Total:    total,
 		Progress: progress,
+		Runtime:  time.Since(tp.createdAt),
 	}
 }
 
@@ -386,7 +405,7 @@ func (tp *taskPool) Wait(supplementWorker bool) {
 	// or
 	// All the tasks were queued, and they have all finished,
 	// so no need to wait, we can "wake up" instantly.
-	if tp.treatAsGlobal || (tp.allQueuedFlag && tp.totalTasks.Load()-tp.completedTasks.Load() == 0) {
+	if tp.treatAsGlobal || (tp.allQueuedFlag.Load() && tp.totalTasks.Load()-tp.completedTasks.Load() == 0) {
 		return
 	}
 
@@ -428,6 +447,11 @@ func (tp *taskPool) AddError(t types.Task) {
 }
 
 func (tp *taskPool) AddCleanup(fn func()) {
+	if tp.allQueuedFlag.Load() && tp.completedTasks.Load() == tp.totalTasks.Load() {
+		fn()
+		return
+	}
+
 	tp.cleanupFn = fn
 }
 
@@ -440,7 +464,7 @@ func (tp *taskPool) Errors() []types.Task {
 }
 
 func (tp *taskPool) Cancel() {
-	tp.allQueuedFlag = true
+	tp.allQueuedFlag.Store(true)
 
 	// Dont allow more tasks to join the queue while we are cancelling them
 	tp.taskLock.Lock()
@@ -459,7 +483,7 @@ func (tp *taskPool) Cancel() {
 
 func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 	t := Task.(*task)
-	if tp.workerPool.exitFlag == 1 {
+	if tp.workerPool.exitFlag.Load() == 1 {
 		util.Warning.Println("Not queuing task while worker pool is going down")
 		return
 	}
@@ -477,12 +501,12 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
 		if t.taskPool != tp {
-			util.Warning.Println("Attempted to re-queue task that is already in a queue")
+			util.Warning.Printf("Attempted to re-queue a [%s] task that is already in a queue", t.taskType)
 		}
 		return
 	}
 
-	if tp.allQueuedFlag {
+	if tp.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
 		return errors.New("attempting to add task to closed task queue")
 	}
@@ -494,7 +518,9 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 		for tmpTp.parentTaskPool != nil {
 			tmpTp = tmpTp.parentTaskPool
 		}
-		tmpTp.totalTasks.Add(1)
+		if tmpTp != tp {
+			tmpTp.totalTasks.Add(1)
+		}
 	}
 
 	// Set the tasks queue
@@ -504,7 +530,11 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 
 	// Put the task in the queue
 	t.queueState = InQueue
-	tp.workerPool.taskStream <- t
+	if len(tp.workerPool.retryBuffer) != 0 || len(tp.workerPool.taskStream) == cap(tp.workerPool.taskStream) {
+		tp.workerPool.addToRetryBuffer(t)
+	} else {
+		tp.workerPool.taskStream <- t
+	}
 
 	return
 }
@@ -529,11 +559,13 @@ func (tp *taskPool) SignalAllQueued() {
 
 	tp.exitLock.Lock()
 	// If all tasks finish (e.g. early failure, etc.) before we signal that they are all queued,
-	// the final exiting task will not let the waiters out, so we must do it here
+	// the final exiting task will not let the waiters out, so we must do it here. We must also
+	// remove the task pool from the worker pool for the same reason
 	if tp.completedTasks.Load() == tp.totalTasks.Load() {
 		tp.waiterGate.Unlock()
+		tp.workerPool.removeTaskPool(tp.ID())
 	}
-	tp.allQueuedFlag = true
+	tp.allQueuedFlag.Store(true)
 	tp.exitLock.Unlock()
 
 	if tp.hasQueueThread {

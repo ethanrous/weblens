@@ -38,9 +38,9 @@ type AccessMeta interface {
 }
 
 type ShareService interface {
-	BaseService[ShareId, Share]
-
+	WeblensService[ShareId, Share, ShareStore]
 	GetSharedWithUser(u User) ([]Share, error)
+	GetAllShares() []Share
 }
 
 type RequestMode string

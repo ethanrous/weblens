@@ -1,5 +1,6 @@
-# Build backend binary #
-FROM --platform=linux/amd64 golang:1.22-bookworm
+ARG ARCHITECTURE=$ARCHITECTURE
+
+FROM --platform=linux/${ARCHITECTURE} golang:1.22-bookworm
 
 # Install dependencies
 RUN apt-get update

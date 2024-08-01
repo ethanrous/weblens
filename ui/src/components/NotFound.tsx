@@ -1,9 +1,7 @@
 import { Space } from '@mantine/core'
 import { useNavigate } from 'react-router-dom'
 import WeblensButton from './WeblensButton'
-import { useContext } from 'react'
-import { UserContext } from '../Context'
-import { UserContextT } from '../types/Types'
+import { useSessionStore } from './UserInfo'
 
 function NotFound({
     resourceType,
@@ -14,7 +12,7 @@ function NotFound({
     link: string
     setNotFound: (b: boolean) => void
 }) {
-    const { usr }: UserContextT = useContext(UserContext)
+    const user = useSessionStore((state) => state.user)
     const nav = useNavigate()
     return (
         <div className="flex flex-col justify-center items-center h-full w-full">
@@ -26,10 +24,10 @@ function NotFound({
                 <WeblensButton
                     centerContent
                     fillWidth
-                    label={usr.username ? 'Go Back' : 'Login'}
-                    onClick={(e) => {
+                    label={user.username ? 'Go Back' : 'Login'}
+                    onClick={() => {
                         setNotFound(false)
-                        nav(usr.username ? link : '/login')
+                        nav(user.username ? link : '/login')
                     }}
                 />
             </div>

@@ -1,12 +1,4 @@
-import {
-    memo,
-    useCallback,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
-} from 'react'
-import { UserContext } from '../Context'
+import { memo, useCallback, useEffect, useState } from 'react'
 import {
     IconExclamationCircle,
     IconPhoto,
@@ -15,13 +7,13 @@ import {
     IconVolume3,
 } from '@tabler/icons-react'
 import { CSSProperties, Loader } from '@mantine/core'
-import { UserContextT } from '../types/Types'
 import WeblensMedia, { PhotoQuality } from './Media'
 import Hls from 'hls.js'
 
 import '../components/style.scss'
 import { useKeyDown, useResize, useVideo } from '../components/hooks'
 import { WeblensProgress } from '../components/WeblensProgress'
+import { useSessionStore } from '../components/UserInfo'
 
 export const MediaImage = memo(
     ({
@@ -33,7 +25,6 @@ export const MediaImage = memo(
         preventClick = false,
         doFetch = true,
         imgStyle,
-        imageClass = '',
         containerStyle,
         containerClass = '',
 
@@ -47,7 +38,6 @@ export const MediaImage = memo(
         preventClick?: boolean
         doFetch?: boolean
         imgStyle?: CSSProperties
-        imageClass?: string
         containerStyle?: CSSProperties
         containerClass?: string
 
@@ -61,14 +51,13 @@ export const MediaImage = memo(
         const [src, setUrl] = useState({ url: '', id: media.Id() })
         const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
         const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
-        const { authHeader }: UserContextT = useContext(UserContext)
-        const playerRef = useRef(null)
+        const auth = useSessionStore((state) => state.auth)
 
         useEffect(() => {
             if (doFetch && media.Id() && !media.HasQualityLoaded(quality)) {
                 media.LoadBytes(
                     quality,
-                    authHeader,
+                    auth,
                     pageNumber,
                     () => {
                         setUrl({
@@ -101,14 +90,15 @@ export const MediaImage = memo(
 
         const containerClick = useCallback(
             (e) => {
-                preventClick && e.stopPropagation()
+                if (preventClick) {
+                    e.stopPropagation()
+                }
             },
             [preventClick]
         )
 
         const shouldShowVideo =
             media.GetMediaType()?.IsVideo && quality === 'fullres'
-        // media.HighestQualityLoaded() === 'fullres'
 
         return (
             <div
@@ -137,7 +127,7 @@ export const MediaImage = memo(
                     )}
 
                 <img
-                    className="media-image animate-fade"
+                    className="media-image"
                     data-fit-logic={fitLogic}
                     data-disabled={disabled}
                     data-hide={
@@ -148,6 +138,7 @@ export const MediaImage = memo(
                     draggable={false}
                     src={src.url}
                     style={imgStyle}
+                    data-id={media.Id()}
                 />
 
                 <VideoWrapper
@@ -217,7 +208,7 @@ function VideoWrapper({
 }) {
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const size = useResize(containerRef)
-    const { authHeader } = useContext(UserContext)
+    const auth = useSessionStore((state) => state.auth)
     const [showUi, setShowUi] = useState<NodeJS.Timeout>()
     const [volume, setVolume] = useState(0)
 
@@ -227,12 +218,10 @@ function VideoWrapper({
         }
 
         if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
-            console.log('Using native HLS')
-            videoRef.src = media.StreamVideoUrl(authHeader)
+            videoRef.src = media.StreamVideoUrl(auth)
         } else if (Hls.isSupported()) {
-            console.log('Using package HLS')
-            var hls = new Hls()
-            hls.loadSource(media.StreamVideoUrl(authHeader))
+            const hls = new Hls()
+            hls.loadSource(media.StreamVideoUrl(auth))
             hls.attachMedia(videoRef)
         }
     }, [videoRef])
@@ -249,8 +238,6 @@ function VideoWrapper({
     }, [isPlaying, videoRef])
 
     useKeyDown(' ', togglePlayState)
-
-    console.log('HEA')
 
     if (!shouldShowVideo) {
         return null
@@ -274,7 +261,8 @@ function VideoWrapper({
             }}
         >
             <div
-                className="flex shrink-0 w-[24px] h-[24px] absolute z-50 cursor-pointer transition-opacity duration-300 drop-shadow-xl"
+                className="flex shrink-0 w-[24px] h-[24px] absolute z-50 cursor-pointer
+                            transition-opacity duration-300 drop-shadow-xl"
                 style={{ opacity: showUi || !isPlaying ? 1 : 0 }}
             >
                 {isPlaying && (
@@ -285,7 +273,8 @@ function VideoWrapper({
                 )}
             </div>
             <div
-                className="flex justify-end shrink-0 w-[98%] h-[98%] absolute z-50 transition-opacity duration-300 pointer-events-none"
+                className="flex justify-end shrink-0 w-[98%] h-[98%] absolute z-50
+                            transition-opacity duration-300 pointer-events-none"
                 style={{
                     opacity: (showUi || !isPlaying) && volume === 0 ? 1 : 0,
                 }}
@@ -317,7 +306,8 @@ function VideoWrapper({
                 onClick={togglePlayState}
             />
             <div
-                className="flex absolute justify-center items-end p-3 pointer-events-none transition-opacity duration-300"
+                className="flex absolute justify-center items-end p-3 pointer-events-none
+                            transition-opacity duration-300"
                 style={{
                     width: size.width,
                     height: size.height,
@@ -348,7 +338,6 @@ function VideoWrapper({
                         <WeblensProgress
                             value={volume}
                             seekCallback={(v) => {
-                                console.log(v)
                                 setVolume(v * 100)
                             }}
                         />

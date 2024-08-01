@@ -18,51 +18,61 @@ const (
 )
 
 type JournalService interface {
-	BaseService[LifetimeId, []FileAction]
+	WeblensService[LifetimeId, Lifetime, HistoryStore]
 
 	WatchFolder(f WeblensFile) error
 
 	LogEvent(fe FileEvent) error
 
+	GetActionsByPath(WeblensFilepath) ([]FileAction, error)
+	GetPastFolderInfo(folder WeblensFile, time time.Time) ([]FileInfo, error)
+
 	JournalWorker()
 	FileWatcher()
 	GetActiveLifetimes() []Lifetime
+	GetAllLifetimes() []Lifetime
+	GetLifetimeByFileId(fId FileId) Lifetime
 }
 
 // FileEvent is a group of FileActions that take place at the same time
 type FileEvent interface {
 	GetEventId() FileEventId
-	// addAction(action FileAction)
 	GetActions() []FileAction
 
 	NewCreateAction(file WeblensFile) FileAction
-	NewMoveAction(originId, destinationId FileId) FileAction
-	// UnmarshalBSON([]byte) error
-	// UnmarshalBSONValue(t bsontype.Type, value []byte) error
+	NewMoveAction(originId FileId, file WeblensFile) FileAction
+	NewDeleteAction(originId FileId) FileAction
 }
 
 type FileAction interface {
+	SetSize(size int64)
+	GetSize() int64
+
 	GetOriginPath() string
-	SetOriginPath(path string)
 	GetOriginId() FileId
 
 	GetDestinationPath() string
-	SetDestinationPath(path string)
 	GetDestinationId() FileId
 
 	SetActionType(action FileActionType)
 	GetActionType() FileActionType
 
+	GetLifetimeId() LifetimeId
 	SetLifetimeId(LifetimeId)
 
 	GetTimestamp() time.Time
 	GetEventId() FileEventId
+
+	GetParentId() FileId
+
+	GetFile() WeblensFile
 }
 
 type Lifetime interface {
 	ID() LifetimeId
 	Add(FileAction)
 	GetLatestFileId() FileId
+	GetLatestAction() FileAction
 	GetContentId() ContentId
 	SetContentId(ContentId)
 	IsLive() bool

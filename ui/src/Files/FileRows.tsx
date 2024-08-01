@@ -1,154 +1,189 @@
-import { Box, Space } from '@mantine/core'
-import { FixedSizeList as ScrollList } from 'react-window'
-import { FBDispatchT, FbStateT } from '../types/Types'
-import { WeblensFile } from './File'
-import { useContext, useEffect, useMemo, useState } from 'react'
-import { IconDisplay } from '../Pages/FileBrowser/FileBrowserStyles'
+import { SelectedState, WeblensFile } from './File'
+import { MouseEvent, useState } from 'react'
+import { IconDisplay } from '../Pages/FileBrowser/FileBrowserMiscComponents'
 import { useNavigate } from 'react-router-dom'
-import { useResize } from '../components/hooks'
-import { UserContext } from '../Context'
 import { IconTrash } from '@tabler/icons-react'
+import {
+    fileHandleContextMenu,
+    handleMouseLeave,
+    handleMouseOver,
+    handleMouseUp,
+    mouseMove,
+    visitFile,
+} from './FileDragLogic'
+import { FileTextBox } from './FileSquare'
+import { useResize } from '../components/hooks'
+import { FixedSizeList as WindowList } from 'react-window'
+import { handleRename } from '../Pages/FileBrowser/FileBrowserLogic'
+import './filesStyle.scss'
+import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
+import { useSessionStore } from '../components/UserInfo'
 
 function FileRow({
     data,
     index,
     style,
 }: {
-    data: {
-        files: WeblensFile[]
-        selected: Map<string, boolean>
-        lastSelectedIndex: number
-        hoveringIndex: number
-        dispatch: FBDispatchT
-    }
+    data: WeblensFile[]
     index: number
     style
 }) {
+    const file = data[index]
     const nav = useNavigate()
-    const { usr } = useContext(UserContext)
-    const inRange =
-        (index - data.lastSelectedIndex) * (index - data.hoveringIndex) < 1
+    const user = useSessionStore((state) => state.user)
+    const authHeader = useSessionStore((state) => state.auth)
+    const [mouseDown, setMouseDown] = useState(null)
+
+    const draggingState = useFileBrowserStore((state) => state.draggingState)
+    const mode = useFileBrowserStore((state) => state.fbMode)
+    const shareId = useFileBrowserStore((state) => state.shareId)
+    const menuMode = useFileBrowserStore((state) => state.menuMode)
+    const selectedIds = useFileBrowserStore((state) =>
+        Array.from(state.selected.keys())
+    )
+
+    const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const setHovering = useFileBrowserStore((state) => state.setHovering)
+    const setSelected = useFileBrowserStore((state) => state.setSelected)
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const setPresentationTarget = useFileBrowserStore(
+        (state) => state.setPresentationTarget
+    )
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
+    const setSelectedMoved = useFileBrowserStore(
+        (state) => state.setSelectedMoved
+    )
+
+    const addLoading = useFileBrowserStore((state) => state.addLoading)
+    const removeLoading = useFileBrowserStore((state) => state.removeLoading)
+
+    const selected = useFileBrowserStore((state) =>
+        state.filesMap.get(file.Id()).GetSelectedState()
+    )
 
     return (
-        <div style={style} className="flex">
+        <div style={style}>
             <div
-                className="file-row"
-                data-selected={
-                    data.selected.get(data.files[index].Id()) === true
+                className="weblens-file animate-fade-short"
+                data-row={true}
+                data-clickable={!draggingState || file.IsFolder()}
+                data-hovering={selected & SelectedState.Hovering}
+                data-in-range={(selected & SelectedState.InRange) >> 1}
+                data-selected={(selected & SelectedState.Selected) >> 2}
+                data-last-selected={
+                    (selected & SelectedState.LastSelected) >> 3
                 }
-                data-in-range={inRange}
-                style={{
-                    border:
-                        index === data.lastSelectedIndex
-                            ? '2px solid #442299'
-                            : '2px solid #00000000',
+                data-droppable={(selected & SelectedState.Droppable) >> 4}
+                data-moved={(selected & SelectedState.Moved) >> 5}
+                onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
+                    handleMouseOver(
+                        e,
+                        file,
+                        draggingState,
+                        setHovering,
+                        setMoveDest
+                    )
+                }
+                onMouseDown={(e) => {
+                    setMouseDown({ x: e.clientX, y: e.clientY })
                 }}
+                onMouseMove={(e) =>
+                    mouseMove(
+                        e,
+                        file,
+                        draggingState,
+                        mouseDown,
+                        setSelected,
+                        setDragging
+                    )
+                }
                 onClick={(e) => {
                     e.stopPropagation()
-                    data.dispatch({
-                        type: 'set_selected',
-                        fileId: data.files[index].Id(),
-                        selected:
-                            data.selected.get(data.files[index].Id()) !== true,
-                    })
+                    setSelected([file.Id()])
                 }}
-                onMouseOver={(e) => {
-                    data.dispatch({
-                        type: 'set_hovering',
-                        hovering: data.files[index].Id(),
-                    })
-                }}
-                onContextMenu={(e) => {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    data.dispatch({
-                        type: 'set_menu_target',
-                        fileId: data.files[index].Id(),
-                    })
-                    data.dispatch({ type: 'set_menu_open', open: true })
-                    data.dispatch({
-                        type: 'set_menu_pos',
-                        pos: { x: e.clientX, y: e.clientY },
-                    })
-                }}
-                onDoubleClick={() => {
-                    if (data.files[index].IsFolder()) {
-                        nav(`/files/${data.files[index].Id()}`)
-                    } else {
-                        nav(
-                            `/files/${data.files[
-                                index
-                            ].ParentId()}?jumpTo=${data.files[index].Id()}`
-                        )
-                    }
-                }}
+                onDoubleClick={(e) =>
+                    visitFile(
+                        e,
+                        mode,
+                        shareId,
+                        file,
+                        nav,
+                        setPresentationTarget
+                    )
+                }
+                onContextMenu={(e) =>
+                    fileHandleContextMenu(e, menuMode, setMenu, file)
+                }
+                onMouseUp={() =>
+                    handleMouseUp(
+                        file,
+                        draggingState,
+                        selectedIds,
+                        authHeader,
+                        setSelectedMoved,
+                        clearSelected,
+                        setMoveDest,
+                        setDragging,
+                        setMouseDown
+                    )
+                }
+                onMouseLeave={() =>
+                    handleMouseLeave(
+                        file,
+                        draggingState,
+                        setMoveDest,
+                        setHovering,
+                        mouseDown,
+                        setMouseDown
+                    )
+                }
             >
-                <div className="w-6 h-6">
-                    <IconDisplay file={data.files[index]} />
+                <div className="flex h-full items-center">
+                    <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
+                        <IconDisplay file={file} allowMedia={true} />
+                    </div>
+                    <FileTextBox
+                        itemId={file.Id()}
+                        itemTitle={file.GetFilename()}
+                        allowEditing={file.IsModifiable()}
+                        blockFocus={setBlockFocus}
+                        rename={(itemId, newName) =>
+                            handleRename(
+                                itemId,
+                                newName,
+                                addLoading,
+                                removeLoading,
+                                authHeader
+                            )
+                        }
+                    />
                 </div>
-                <p>{data.files[index].GetFilename()}</p>
-                <Space flex={1} />
-                {data.files[index].ParentId() === usr.trashId && <IconTrash />}
-                <p>{data.files[index].FormatSize()}</p>
+                <div>
+                    {file.ParentId() === user.trashId && <IconTrash />}
+                    <p className="flex w-max shrink-0">{file.FormatSize()}</p>
+                </div>
             </div>
         </div>
     )
 }
 
-export function FileRows({
-    fb,
-    dispatch,
-}: {
-    fb: FbStateT
-    dispatch: FBDispatchT
-}) {
-    const [boxRef, setBoxRef] = useState(null)
+export function FileRows({ files }: { files: WeblensFile[] }) {
+    const [boxRef, setBoxRef] = useState<HTMLDivElement>()
     const size = useResize(boxRef)
-
-    const files = useMemo(() => {
-        return Array.from(fb.dirMap.values())
-    }, [fb.dirMap])
-
-    useEffect(() => {
-        dispatch({
-            type: 'set_files_list',
-            fileIds: files.map((v) => v.Id()),
-        })
-    }, [files])
-
-    const lastSelectedIndex = useMemo(() => {
-        return files.findIndex((v) => v.Id() === fb.lastSelected)
-    }, [files, fb.lastSelected])
-
-    const hoveringIndex = useMemo(() => {
-        if (!fb.holdingShift || !files) {
-            return { hoveringIndex: -1, lastSelectedIndex: -1 }
-        }
-        return files.findIndex((v) => v.Id() === fb.hovering)
-    }, [files, fb.holdingShift, fb.hovering])
-
     return (
-        <Box
-            ref={setBoxRef}
-            className="flex flex-col items-center w-full h-full ml-1"
-        >
-            <ScrollList
-                className="no-scrollbar"
-                height={boxRef?.clientHeight ? boxRef.clientHeight : 0}
-                width={size.width}
-                itemSize={52}
+        <div ref={setBoxRef} className="file-rows no-scrollbar">
+            <WindowList
+                height={size.height}
+                width={size.width - 4}
+                itemSize={88}
                 itemCount={files.length}
-                itemData={{
-                    files: files,
-                    selected: fb.selected,
-                    lastSelectedIndex: lastSelectedIndex,
-                    hoveringIndex: hoveringIndex,
-                    dispatch: dispatch,
-                }}
-                overscanRowCount={50}
+                itemData={files}
+                overscan={100}
             >
                 {FileRow}
-            </ScrollList>
-        </Box>
+            </WindowList>
+        </div>
     )
 }

@@ -1,9 +1,19 @@
 package types
 
-type weblensServicePackage struct {
-	InstanceService InstanceService
+import (
+	"context"
+	"net/http"
+	"sync"
+	"time"
+)
 
-	Database       DatabaseService
+type weblensServicePackage struct {
+	serviceLock *sync.Mutex
+
+	InstanceService InstanceService
+	UserService     UserService
+
+	StoreService   StoreService
 	FileTree       FileTree
 	MediaRepo      MediaRepo
 	Caster         BroadcasterAgent
@@ -13,25 +23,56 @@ type weblensServicePackage struct {
 	Requester      Requester
 	AlbumManager   AlbumService
 	ShareService   ShareService
-	UserService    UserService
+	AccessService  AccessService
+
+	router     *http.Server
+	RouterLock *sync.Mutex
 }
 
 var SERV *weblensServicePackage
 
 func init() {
-	SERV = &weblensServicePackage{}
+	SERV = &weblensServicePackage{
+		serviceLock: &sync.Mutex{},
+		RouterLock:  &sync.Mutex{},
+	}
+}
+
+func (srv *weblensServicePackage) MinimallyReady() bool {
+	srv.serviceLock.Lock()
+	defer srv.serviceLock.Unlock()
+	return srv.InstanceService != nil && srv.UserService != nil && srv.ClientManager != nil
 }
 
 func (srv *weblensServicePackage) SetInstance(instSrv InstanceService) {
+	srv.serviceLock.Lock()
+	defer srv.serviceLock.Unlock()
 	if SERV.InstanceService == nil {
 		SERV.InstanceService = instSrv
 	}
 }
 
-func (srv *weblensServicePackage) SetDatabase(db DatabaseService) {
-	if SERV.Database == nil {
-		SERV.Database = db
+func (srv *weblensServicePackage) SetRouter(router *http.Server) {
+	SERV.router = router
+}
+
+func (srv *weblensServicePackage) RestartRouter() error {
+	for SERV.router == nil {
+		time.Sleep(200 * time.Millisecond)
 	}
+
+	SERV.RouterLock.Lock()
+	SERV.RouterLock.Unlock()
+	err := SERV.router.Shutdown(context.TODO())
+	if err != nil {
+		return WeblensErrorFromError(err)
+	}
+
+	return nil
+}
+
+func (srv *weblensServicePackage) SetStore(db StoreService) {
+	SERV.StoreService = db
 }
 
 func (srv *weblensServicePackage) SetFileTree(ft FileTree) {
@@ -46,10 +87,27 @@ func (srv *weblensServicePackage) SetMediaRepo(mediaRepo MediaRepo) {
 	}
 }
 
-func (srv *weblensServicePackage) SetClientService(clientService ClientManager) {
-	if SERV.ClientManager == nil {
-		SERV.ClientManager = clientService
+func (srv *weblensServicePackage) SetAccessService(accessService AccessService) {
+	if SERV.AccessService == nil {
+		SERV.AccessService = accessService
 	}
+}
+
+func (srv *weblensServicePackage) SetClientService(clientService ClientManager) {
+	srv.serviceLock.Lock()
+	defer srv.serviceLock.Unlock()
+	if srv.ClientManager == nil {
+		srv.ClientManager = clientService
+	}
+}
+
+func (srv *weblensServicePackage) GetClientServiceSafely() ClientManager {
+	srv.serviceLock.Lock()
+	defer srv.serviceLock.Unlock()
+	if srv.ClientManager != nil {
+		return srv.ClientManager
+	}
+	return nil
 }
 
 func (srv *weblensServicePackage) SetCaster(c BroadcasterAgent) {
@@ -59,6 +117,8 @@ func (srv *weblensServicePackage) SetCaster(c BroadcasterAgent) {
 }
 
 func (srv *weblensServicePackage) SetUserService(us UserService) {
+	srv.serviceLock.Lock()
+	defer srv.serviceLock.Unlock()
 	if SERV.UserService == nil {
 		SERV.UserService = us
 	}

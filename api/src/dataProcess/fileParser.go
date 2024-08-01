@@ -14,7 +14,7 @@ func processMediaFile(t *task) {
 	m := meta.partialMedia
 	file := meta.file
 
-	util.Debug.Println("Beginning media file processing for", file.GetAbsPath())
+	// util.Debug.Println("Beginning media file processing for", file.GetAbsPath())
 
 	file.AddTask(t)
 	defer func(file types.WeblensFile, id types.TaskId) {
@@ -69,6 +69,11 @@ func processMediaFile(t *task) {
 }
 
 func scanDirectory(t *task) {
+	if types.SERV.InstanceService.GetLocal().ServerRole() == types.Backup {
+		t.success()
+		return
+	}
+
 	if types.SERV.MediaRepo == nil {
 		t.ErrorAndExit(types.NewWeblensError("cannot scan directory without valid initilized media repo"))
 	}
@@ -139,6 +144,12 @@ func scanDirectory(t *task) {
 	}
 
 	tp.SignalAllQueued()
+
+	err = types.SERV.FileTree.ResizeDown(meta.file, t.caster)
+	if err != nil {
+		util.ShowErr(err)
+	}
+
 	tp.Wait(true)
 
 	errs := tp.Errors()
@@ -153,8 +164,11 @@ func scanDirectory(t *task) {
 		t.ErrorAndExit(ErrChildTaskFailed)
 	}
 
-	t.caster.PushTaskUpdate(
-		t, ScanCompleteEvent, types.TaskResult{"execution_time": t.ExeTime()},
+	// t.caster.PushTaskUpdate(
+	// 	t, ScanCompleteEvent, types.TaskResult{"execution_time": t.ExeTime()},
+	// )
+	t.caster.PushPoolUpdate(
+		tp.GetRootPool(), ScanCompleteEvent, types.TaskResult{"execution_time": t.ExeTime()},
 	)
 	// Let any client subscribers know we are done
 	tp.NotifyTaskComplete(t, t.caster)
@@ -168,8 +182,17 @@ func getScanResult(t *task) types.TaskResult {
 		tp = t.taskPool.GetRootPool()
 	}
 
-	result := types.TaskResult{
-		"filename": t.metadata.(scanMetadata).file.Filename(),
+	var result = types.TaskResult{}
+	_, ok := t.metadata.(scanMetadata)
+	if ok {
+		result = types.TaskResult{
+			"filename": t.metadata.(scanMetadata).file.Filename(),
+		}
+		if tp != nil && tp.CreatedInTask() != nil {
+			result["task_job_target"] = tp.CreatedInTask().(*task).metadata.(scanMetadata).file.Filename()
+		} else if tp == nil {
+			result["task_job_target"] = t.metadata.(scanMetadata).file.Filename()
+		}
 	}
 
 	if tp != nil {
@@ -177,13 +200,12 @@ func getScanResult(t *task) types.TaskResult {
 		result["percent_progress"] = status.Progress
 		result["tasks_complete"] = status.Complete
 		result["tasks_total"] = status.Total
+		result["runtime"] = status.Runtime
 		if tp.CreatedInTask() != nil {
 			result["task_job_name"] = tp.CreatedInTask().TaskType()
-			result["task_job_target"] = tp.CreatedInTask().(*task).metadata.(scanMetadata).file.Filename()
 		}
 	} else {
 		result["task_job_name"] = t.TaskType()
-		result["task_job_target"] = t.metadata.(scanMetadata).file.Filename()
 	}
 
 	return result

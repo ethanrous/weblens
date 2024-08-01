@@ -1,12 +1,19 @@
-import { Divider, Input, Text } from '@mantine/core';
-import WeblensButton from '../../components/WeblensButton';
-import '../../components/setup.css';
-import { IconArrowLeft, IconDatabaseImport, IconExclamationCircle, IconPackage, IconRocket } from '@tabler/icons-react';
-import { useContext, useEffect, useMemo, useState } from 'react';
-import { getUsers, initServer } from '../../api/ApiFetch';
-import { useNavigate } from 'react-router-dom';
-import { UserInfoT } from '../../types/Types';
-import { UserContext } from '../../Context';
+import { Divider, Input, Text } from '@mantine/core'
+import WeblensButton from '../../components/WeblensButton'
+import '../../components/setup.css'
+import {
+    IconArrowLeft,
+    IconDatabaseImport,
+    IconExclamationCircle,
+    IconPackage,
+    IconRocket,
+} from '@tabler/icons-react'
+import { useEffect, useMemo, useState } from 'react'
+import { getUsers, initServer } from '../../api/ApiFetch'
+import { useNavigate } from 'react-router-dom'
+import { UserInfoT } from '../../types/Types'
+import WeblensInput from '../../components/WeblensInput'
+import { useSessionStore } from '../../components/UserInfo'
 
 const UserSelect = ({
     users,
@@ -15,26 +22,34 @@ const UserSelect = ({
     setPassword,
     owner,
 }: {
-    users: UserInfoT[];
-    username;
-    setUsername;
-    setPassword;
-    owner;
+    users: UserInfoT[]
+    username
+    setUsername
+    setPassword
+    owner
 }) => {
     if (users.length === 0) {
-        return null;
+        return null
     }
 
     if (owner) {
         return (
             <div className="caution-box">
                 <div className="caution-header">
-                    <Text className="subheader-text" c="white" style={{ paddingTop: 0 }}>
+                    <Text
+                        className="subheader-text"
+                        c="white"
+                        style={{ paddingTop: 0 }}
+                    >
                         This Server Already Has An Owner
                     </Text>
                     <IconExclamationCircle color="white" />
                 </div>
-                <Text className="body-text" style={{ fontSize: '12px' }} c="white">
+                <Text
+                    className="body-text"
+                    style={{ fontSize: '12px' }}
+                    c="white"
+                >
                     Log in as {owner.username} to continue
                 </Text>
                 <Input
@@ -43,16 +58,20 @@ const UserSelect = ({
                     type="password"
                     placeholder="Password"
                     style={{ width: '100%' }}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={(e) => setPassword(e.target.value)}
                 />
             </div>
-        );
+        )
     }
 
     return (
         <div className="caution-box">
             <div className="caution-header">
-                <Text className="subheader-text" c="#ffffff" style={{ paddingTop: 0 }}>
+                <Text
+                    className="subheader-text"
+                    c="#ffffff"
+                    style={{ paddingTop: 0 }}
+                >
                     This Server Already Has Users
                 </Text>
                 <IconExclamationCircle color="white" />
@@ -61,7 +80,7 @@ const UserSelect = ({
                 Select a user to make owner
             </Text>
             <div className="w-full h-max max-h-[100px] shrink-0 overflow-scroll">
-                {users.map(u => {
+                {users.map((u) => {
                     return (
                         <WeblensButton
                             toggleOn={u.username === username}
@@ -72,7 +91,7 @@ const UserSelect = ({
                             style={{ padding: 2 }}
                             onClick={() => setUsername(u.username)}
                         />
-                    );
+                    )
                 })}
             </div>
             {username && (
@@ -86,54 +105,62 @@ const UserSelect = ({
                         type="password"
                         placeholder="Password"
                         style={{ width: '100%' }}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                     />
                 </div>
             )}
         </div>
-    );
-};
+    )
+}
 
 const Core = ({
     page,
     setPage,
     existingName,
 }: {
-    page: string;
-    setPage: (page: string) => void;
-    existingName: string;
+    page: string
+    setPage: (page: string) => void
+    existingName: string
 }) => {
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [serverName, setServerName] = useState(existingName ? existingName : '');
-    const [users, setUsers] = useState([]);
-    const nav = useNavigate();
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    const [serverName, setServerName] = useState(
+        existingName ? existingName : ''
+    )
+    const [users, setUsers] = useState([])
+    const nav = useNavigate()
+    const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
 
     useEffect(() => {
-        getUsers(null).then(r => {
-            setUsers(r);
-        });
-    }, []);
+        getUsers(null).then((r) => {
+            setUsers(r)
+        })
+    }, [])
 
     const owner = useMemo(() => {
-        const owner: UserInfoT = users.filter(u => u.owner)[0];
+        const owner: UserInfoT = users.filter((u) => u.owner)[0]
         if (owner) {
-            setUsername(owner.username);
+            setUsername(owner.username)
         }
-        return owner;
-    }, [users]);
+        return owner
+    }, [users])
 
-    let onDeck;
+    let onDeck
     if (page === 'core') {
-        onDeck = 'active';
+        onDeck = 'active'
     } else if (page === 'landing') {
-        onDeck = 'next';
+        onDeck = 'next'
     }
 
     return (
-        <div className="setup-content-box" data-onDeck={onDeck}>
+        <div className="setup-content-box" data-on-deck={onDeck}>
             <div className="w-full">
-                <WeblensButton Left={IconArrowLeft} squareSize={35} subtle onClick={() => setPage('landing')} />
+                <WeblensButton
+                    Left={IconArrowLeft}
+                    squareSize={35}
+                    subtle
+                    onClick={() => setPage('landing')}
+                />
             </div>
             <div className="flex items-center gap-[20]">
                 <IconPackage color="white" size={'60px'} />
@@ -146,8 +173,8 @@ const Core = ({
                         className="weblens-input-wrapper"
                         variant="unstyled"
                         placeholder="Username"
-                        onChange={e => {
-                            setUsername(e.target.value);
+                        onChange={(e) => {
+                            setUsername(e.target.value)
                         }}
                     />
                     <Input
@@ -155,8 +182,8 @@ const Core = ({
                         variant="unstyled"
                         type="password"
                         placeholder="Password"
-                        onChange={e => {
-                            setPassword(e.target.value);
+                        onChange={(e) => {
+                            setPassword(e.target.value)
                         }}
                     />
                 </div>
@@ -174,7 +201,11 @@ const Core = ({
             {existingName && (
                 <div className="caution-box">
                     <div className="caution-header">
-                        <Text className="subheader-text" c="#ffffff" style={{ paddingTop: 0 }}>
+                        <Text
+                            className="subheader-text"
+                            c="#ffffff"
+                            style={{ paddingTop: 0 }}
+                        >
                             This server already has a name
                         </Text>
                         <IconExclamationCircle color="white" />
@@ -204,8 +235,8 @@ const Core = ({
                         disabled={Boolean(existingName)}
                         value={serverName}
                         placeholder="My Radical Weblens Server"
-                        onChange={e => {
-                            setServerName(e.target.value);
+                        onChange={(e) => {
+                            setServerName(e.target.value)
                         }}
                     />
                 </div>
@@ -215,106 +246,145 @@ const Core = ({
                 label="Start Weblens"
                 squareSize={50}
                 Left={IconRocket}
-                disabled={serverName === '' || username === '' || password === ''}
+                disabled={
+                    serverName === '' || username === '' || password === ''
+                }
                 doSuper
                 onClick={async () => {
-                    const ret = await initServer(serverName, 'core', username, password, '', '');
+                    const ret = await initServer(
+                        serverName,
+                        'core',
+                        username,
+                        password,
+                        '',
+                        ''
+                    )
                     if (ret.status !== 201) {
-                        console.error(ret.statusText);
-                        return false;
+                        console.error(ret.statusText)
+                        return false
                     }
 
-                    nav('/login');
+                    fetchServerInfo()
+                    nav('/files/home')
 
-                    return true;
+                    return true
                 }}
             />
         </div>
-    );
-};
+    )
+}
 
-const Backup = ({ page, setPage }: { page: string; setPage: (page: string) => void }) => {
-    const [serverName, setServerName] = useState('');
-    const [coreAddress, setCoreAddress] = useState('');
-    const [apiKey, setApiKey] = useState('');
-    const nav = useNavigate();
+const Backup = ({
+    page,
+    setPage,
+}: {
+    page: string
+    setPage: (page: string) => void
+}) => {
+    const [serverName, setServerName] = useState('')
+    const [coreAddress, setCoreAddress] = useState('')
+    const [apiKey, setApiKey] = useState('')
 
-    let onDeck;
+    const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
+
+    const nav = useNavigate()
+
+    let onDeck
     if (page === 'backup') {
-        onDeck = 'active';
+        onDeck = 'active'
     } else if (page === 'landing' || page === 'core') {
-        onDeck = 'next';
+        onDeck = 'next'
     }
     return (
-        <div className="setup-content-box" data-onDeck={onDeck}>
+        <div className="setup-content-box" data-on-deck={onDeck}>
             <div style={{ width: '100%' }}>
-                <WeblensButton Left={IconArrowLeft} squareSize={35} subtle onClick={() => setPage('landing')} />
+                <WeblensButton
+                    Left={IconArrowLeft}
+                    squareSize={35}
+                    subtle
+                    onClick={() => setPage('landing')}
+                />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <IconDatabaseImport color="white" size={'60px'} />
                 <Text className="header-text">Weblens Backup</Text>
             </div>
-            <Text className="body-text">Name Local (Backup) Server</Text>
-            <Input
-                className="weblens-input-wrapper"
-                variant="unstyled"
-                placeholder="Rad Backup Server"
-                onChange={e => {
-                    setServerName(e.target.value);
-                }}
-            />
-            <Text className="body-text">Remote (Core) Weblens Address</Text>
-            <Input
-                className="weblens-input-wrapper"
-                variant="unstyled"
-                placeholder="https://myremoteweblens.net/"
-                onChange={e => {
-                    setCoreAddress(e.target.value);
-                }}
-            />
-            <Text className="body-text">API Key</Text>
-            <Input
-                className="weblens-input-wrapper"
-                variant="unstyled"
-                type="password"
-                placeholder="RUH8gHMH4EgQvw_n2..."
-                onChange={e => {
-                    setApiKey(e.target.value);
-                }}
-            />
+
+            <p className="body-text">Name This Server</p>
+            <div className="flex h-10 w-full">
+                <WeblensInput
+                    placeholder={'My Rad Backup Server'}
+                    valueCallback={setServerName}
+                />
+            </div>
+
+            <p className="body-text">Remote (Core) Weblens Address</p>
+            <div className="flex h-10 w-full">
+                <WeblensInput
+                    placeholder={'https://myremoteweblens.net/'}
+                    valueCallback={setCoreAddress}
+                />
+            </div>
+
+            <p className="body-text">API Key</p>
+            <div className="flex h-10 w-full">
+                <WeblensInput
+                    placeholder={'RUH8gHMH4EgQvw_n2...'}
+                    valueCallback={setApiKey}
+                    password
+                />
+            </div>
 
             <WeblensButton
                 label="Attach to Remote"
                 squareSize={40}
                 Left={IconRocket}
-                disabled={serverName === '' || coreAddress === '' || apiKey === ''}
+                disabled={
+                    serverName === '' || coreAddress === '' || apiKey === ''
+                }
                 doSuper
                 onClick={async () => {
-                    const ret = await initServer(serverName, 'backup', '', '', coreAddress, apiKey);
+                    const ret = await initServer(
+                        serverName,
+                        'backup',
+                        '',
+                        '',
+                        coreAddress,
+                        apiKey
+                    )
                     if (ret.status !== 201) {
-                        console.error(ret.statusText);
-                        return false;
+                        console.error(ret.statusText)
+                        return false
                     }
 
-                    nav('/login');
+                    await new Promise((r) => setTimeout(r, 200))
 
-                    return true;
+                    fetchServerInfo()
+                    nav('/files/home')
+
+                    return true
                 }}
             />
         </div>
-    );
-};
+    )
+}
 
-const Landing = ({ page, setPage }: { page: string; setPage: (page: string) => void }) => {
-    let onDeck;
+const Landing = ({
+    page,
+    setPage,
+}: {
+    page: string
+    setPage: (page: string) => void
+}) => {
+    let onDeck
     if (page === 'landing') {
-        onDeck = 'active';
+        onDeck = 'active'
     } else if (page === 'core' || page === 'backup') {
-        onDeck = 'prev';
+        onDeck = 'prev'
     }
 
     return (
-        <div className="setup-content-box" data-onDeck={onDeck}>
+        <div className="setup-content-box" data-on-deck={onDeck}>
             <Text className="title-text">WEBLENS</Text>
             {/* <Text className="content-title-text">Set Up Weblens</Text> */}
             <WeblensButton
@@ -335,27 +405,41 @@ const Landing = ({ page, setPage }: { page: string; setPage: (page: string) => v
                 onClick={() => setPage('backup')}
             />
         </div>
-    );
-};
+    )
+}
 
 const Setup = () => {
-    const { serverInfo } = useContext(UserContext);
-    const [page, setPage] = useState('landing');
+    const server = useSessionStore((state) => state.server)
+    const [page, setPage] = useState('landing')
+    const nav = useNavigate()
 
-    if (!serverInfo) {
-        return null;
+    useEffect(() => {
+        if (!server) {
+            return
+        }
+        if (server.info.role !== 'init') {
+            nav('/')
+        }
+    }, [server.info.role])
+
+    if (!server) {
+        return null
     }
 
     return (
         <div className="setup-container">
             <div className="setup-content-pane" data-active={true}>
                 <Landing page={page} setPage={setPage} />
-                <Core page={page} setPage={setPage} existingName={serverInfo.name} />
+                <Core
+                    page={page}
+                    setPage={setPage}
+                    existingName={server.info.name}
+                />
                 <Backup page={page} setPage={setPage} />
             </div>
             {/* <ScatteredPhotos /> */}
         </div>
-    );
-};
+    )
+}
 
-export default Setup;
+export default Setup

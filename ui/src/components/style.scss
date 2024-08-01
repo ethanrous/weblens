@@ -7,7 +7,7 @@
     margin: 0;
 }
 
-@keyframes imageFadeIn {
+@keyframes fadeIn {
     from {
         opacity: 0;
     }
@@ -160,7 +160,7 @@
     background-color: #00000077;
     backdrop-filter: blur(4px);
 
-    transition: all 150ms ease-in-out;
+    transition: opacity 150ms ease-in-out;
 
     pointer-events: none;
     opacity: 0;
@@ -186,6 +186,7 @@
     outline: 1px solid $main-accent;
     box-shadow: 0 0 10px 2px #00000044;
     border-radius: 6px;
+    gap: 4px;
 }
 
 //.weblens-input-wrapper {

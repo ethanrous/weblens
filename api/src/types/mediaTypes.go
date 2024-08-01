@@ -13,14 +13,16 @@ const (
 )
 
 type MediaRepo interface {
-	BaseService[ContentId, Media]
-
+	WeblensService[ContentId, Media, MediaStore]
 	TypeService() MediaTypeService
 	FetchCacheImg(m Media, q Quality, pageNum int) ([]byte, error)
 	StreamCacheVideo(m Media, startByte, endByte int) ([]byte, error)
-	GetFilteredMedia(requester User, sort string, sortDirection int, albumFilter []AlbumId, raw bool) ([]Media, error)
+	GetFilteredMedia(
+		requester User, sort string, sortDirection int, albumFilter []AlbumId, raw bool, hidden bool,
+	) ([]Media, error)
 	RunExif(path string) ([]exiftool.FileMetadata, error)
 	GetAll() []Media
+	NukeCache() error
 }
 
 type Media interface {
@@ -43,7 +45,7 @@ type Media interface {
 
 	GetProminentColors() (prom []string, err error)
 
-	Hide() error
+	Hide(bool) error
 
 	Clean()
 	AddFile(WeblensFile) error

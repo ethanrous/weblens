@@ -27,13 +27,13 @@ const TestUserPass = "stacy!23"
 const MediaRootPath = "/Users/ethan/weblens/test/media"
 
 func mainTestInit(t *testing.T) {
-	if types.SERV.Database != nil {
+	if types.SERV.StoreService != nil {
 		return
 	}
 
 	// Create + set test database controller
 	db := database.New(util.GetMongoURI(), "weblens-test")
-	types.SERV.SetDatabase(db)
+	types.SERV.SetStore(db)
 
 	instanceService := instance.NewService()
 	types.SERV.SetInstance(instanceService)
@@ -141,18 +141,18 @@ func mainTestInit(t *testing.T) {
 }
 
 func mainTestCleanup(t *testing.T) {
-	err := types.SERV.Database.DeleteAllUsers()
+	err := types.SERV.StoreService.DeleteAllUsers()
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
 
 	// Cleanup any old/existing media
-	err = types.SERV.Database.DeleteAllMedia()
+	err = types.SERV.StoreService.DeleteAllMedia()
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
 
-	err = types.SERV.Database.DeleteAllFileHistory()
+	err = types.SERV.StoreService.DeleteAllFileHistory()
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}

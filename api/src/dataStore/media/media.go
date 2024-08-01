@@ -56,9 +56,10 @@ type Media struct {
 	// Total time, in milliseconds, of a video
 	VideoLength int `json:"videoLength" bson:"videoLength"`
 
-	// Not used right now
+	// Unused
 	BlurHash string `json:"blurHash" bson:"blurHash"`
 
+	// Mime-type key of the media
 	MimeType string `json:"mimeType" bson:"mimeType"`
 
 	// Tags from the ML image scan so searching for particular objects in the images can be done
@@ -243,27 +244,25 @@ func (m *Media) GetOwner() types.User {
 }
 
 func (m *Media) ReadDisplayable(q types.Quality, index int) (data []byte, err error) {
-	var pageNum = index
-	// if index
-	// if len(index) != 0 && (index[0] != 0 && index[0] >= m.PageCount) {
-	// 	return nil, dataStore.ErrPageOutOfRange
-	// } else if len(index) != 0 {
-	// 	pageNum = index[0]
-	// } else {
-	// 	pageNum = 0
-	// }
-
-	return types.SERV.MediaRepo.FetchCacheImg(m, q, pageNum)
+	return types.SERV.MediaRepo.FetchCacheImg(m, q, index)
 }
 
 func (m *Media) GetFiles() []types.FileId {
 	return m.FileIds
 }
 
+func (m *Media) getExistingFiles() []types.FileId {
+	return util.Filter(
+		m.FileIds, func(fId types.FileId) bool {
+			return types.SERV.FileTree.Get(fId) != nil
+		},
+	)
+}
+
 func (m *Media) AddFile(f types.WeblensFile) error {
 	m.FileIds = util.AddToSet(m.FileIds, []types.FileId{f.ID()})
 	if m.IsImported() {
-		return types.SERV.Database.AddFileToMedia(m.ID(), f.ID())
+		return types.SERV.StoreService.AddFileToMedia(m.ID(), f.ID())
 	}
 	return nil
 }
@@ -276,13 +275,13 @@ func (m *Media) RemoveFile(f types.WeblensFile) error {
 		util.Warning.Println("Attempted to remove file from Media that did not have that file")
 	}
 
-	err := types.SERV.Database.RemoveFileFromMedia(m.ID(), f.ID())
+	err := types.SERV.StoreService.RemoveFileFromMedia(m.ID(), f.ID())
 	if err != nil {
 		return err
 	}
 
 	if len(m.FileIds) == 0 {
-		err := m.Hide()
+		err := m.Hide(true)
 		if err != nil {
 			return err
 		}
@@ -355,9 +354,9 @@ func (m *Media) IsEnabled() bool {
 	return m.Enabled
 }
 
-func (m *Media) Hide() error {
-	m.Hidden = true
-	return types.SERV.Database.HideMedia(m.ID())
+func (m *Media) Hide(hidden bool) error {
+	m.Hidden = hidden
+	return types.SERV.StoreService.SetMediaHidden(m.ID(), hidden)
 }
 
 func (m *Media) GetProminentColors() (prom []string, err error) {
@@ -440,6 +439,11 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 		m.MimeType = mimeType
 		m.mediaType = types.SERV.MediaRepo.TypeService().ParseMime(mimeType)
 
+		if m.mediaType == nil {
+			err = types.NewWeblensError(fmt.Sprintln("failed to parse media type:", mimeType))
+			return err
+		}
+
 		if m.mediaType.IsVideo() {
 			probeJson, err := ffmpeg.Probe(f.GetAbsPath())
 			if err != nil {
@@ -463,7 +467,7 @@ func (m *Media) parseExif(f types.WeblensFile) error {
 		}
 	}
 
-	if m.mediaType.FriendlyName() == "PDF" {
+	if m.mediaType.IsMultiPage() {
 		m.PageCount = int(m.rawExif["PageCount"].(float64))
 	} else {
 		m.PageCount = 1
@@ -495,7 +499,7 @@ func (m *Media) generateImage(bs []byte) (err error) {
 	m.image = bimg.NewImage(bs)
 
 	if m.rotate == "" {
-		err = m.parseExif(types.SERV.FileTree.Get(m.FileIds[0]))
+		err = m.parseExif(types.SERV.FileTree.Get(m.getExistingFiles()[0]))
 		if err != nil {
 			return err
 		}
@@ -536,8 +540,8 @@ func (m *Media) generateImage(bs []byte) (err error) {
 }
 
 func (m *Media) generateImages(bs []byte) (err error) {
-	if m.PageCount < 2 {
-		return errors.New("cannot load multi-page image without page count")
+	if !m.mediaType.IsMultiPage() {
+		return types.NewWeblensError("cannot load multi-page image without page count")
 	}
 
 	m.images = make([]*bimg.Image, m.PageCount)
@@ -596,12 +600,12 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 	f = types.SERV.FileTree.Get(cacheFileId)
 	if f == nil || !f.Exists() {
 		if generateIfMissing {
-			realFile := types.SERV.FileTree.Get(m.FileIds[0])
+			realFile := types.SERV.FileTree.Get(m.getExistingFiles()[0])
 			if realFile == nil {
-				return nil, dataStore.ErrNoCache
+				return nil, dataStore.ErrNoCache()
 			}
 
-			util.Debug.Printf("Cache file F[%s] not found for M[%s], generating...", cacheFileId, m.ID())
+			util.Warning.Printf("Cache file F[%s] not found for M[%s], generating...", cacheFileId, m.ID())
 			err = m.handleCacheCreation(realFile)
 			if err != nil {
 				return
@@ -610,7 +614,7 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 			return m.GetCacheFile(q, false, pageNum)
 
 		} else {
-			return nil, dataStore.ErrNoCache
+			return nil, dataStore.ErrNoCache()
 		}
 	}
 
@@ -753,10 +757,10 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 
 	cacheRoot := ft.Get("CACHE")
 	f, err := ft.Touch(cacheRoot, cacheFileName, false, nil)
-	if err != nil && !errors.Is(err, types.ErrFileAlreadyExists) {
+	if err != nil && !errors.Is(err, types.ErrFileAlreadyExists()) {
 		util.ErrTrace(err)
 		return nil
-	} else if errors.Is(err, types.ErrFileAlreadyExists) {
+	} else if errors.Is(err, types.ErrFileAlreadyExists()) {
 		return f
 	}
 
@@ -842,51 +846,58 @@ func (m *Media) MarshalBSON() ([]byte, error) {
 		"owner":            m.Owner.GetUsername(),
 		"width":            m.MediaWidth,
 		"height":           m.MediaHeight,
-		"createDate":       m.CreateDate,
+		"createDate":       m.CreateDate.UnixMilli(),
 		"mimeType":         m.MimeType,
 		"recognitionTags":  m.RecognitionTags,
 		"pageCount":        m.PageCount,
 		"videoLength":      m.VideoLength,
 	}
+
 	return bson.Marshal(data)
 }
 
 func (m *Media) UnmarshalBSON(bs []byte) error {
-	data := map[string]any{}
-	err := bson.Unmarshal(bs, data)
+	raw := bson.Raw(bs)
+	contentId, ok := raw.Lookup("contentId").StringValueOK()
+	if !ok {
+		return types.WeblensErrorMsg("failed to parse contentId")
+	}
+	m.ContentId = types.ContentId(contentId)
+
+	fileIds, err := raw.Lookup("fileIds").Array().Elements()
 	if err != nil {
-		return err
+		return types.WeblensErrorFromError(err)
+	}
+	m.FileIds = util.Map(
+		fileIds, func(e bson.RawElement) types.FileId {
+			return types.FileId(e.Value().StringValue())
+		},
+	)
+
+	m.ThumbnailCacheId = types.FileId(raw.Lookup("thumbnailCacheId").StringValue())
+
+	m.PageCount = int(raw.Lookup("pageCount").Int32())
+
+	videoLength, ok := raw.Lookup("videoLength").Int32OK()
+	if ok {
+		m.VideoLength = int(videoLength)
 	}
 
-	if data["contentId"] != nil {
-		m.ContentId = types.ContentId(data["contentId"].(string))
-	} else if data["mediaId"] != nil {
-		m.ContentId = types.ContentId(data["mediaId"].(string))
-	} else {
-		return errors.New("no contentId while decoding Media")
+	fullresIds, err := raw.Lookup("fullresCacheIds").Array().Elements()
+	if err != nil {
+		return types.WeblensErrorFromError(err)
 	}
+	m.FullresCacheIds = util.Map(
+		fullresIds, func(e bson.RawElement) types.FileId {
+			return types.FileId(e.Value().StringValue())
+		},
+	)
 
-	m.FileIds = util.Map(data["fileIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) })
-	m.ThumbnailCacheId = types.FileId(data["thumbnailCacheId"].(string))
-
-	m.PageCount = int(data["pageCount"].(int32))
-
-	videoLength := data["videoLength"]
-	if videoLength != nil {
-		m.VideoLength = int(videoLength.(int32))
-	}
-
-	if data["fullresCacheIds"] != nil {
-		m.FullresCacheIds = util.Map(
-			data["fullresCacheIds"].(primitive.A), func(a any) types.FileId { return types.FileId(a.(string)) },
-		)
-
-		m.fullresCacheFiles = util.Map(
-			m.FullresCacheIds, func(fId types.FileId) types.WeblensFile {
-				return types.SERV.FileTree.Get(fId)
-			},
-		)
-	}
+	m.fullresCacheFiles = util.Map(
+		m.FullresCacheIds, func(fId types.FileId) types.WeblensFile {
+			return types.SERV.FileTree.Get(fId)
+		},
+	)
 
 	// TODO - figure out why this happens
 	if len(m.fullresCacheFiles) != m.PageCount {
@@ -894,20 +905,33 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 		m.fullresCacheFiles = make([]types.WeblensFile, m.PageCount)
 	}
 
-	m.BlurHash = data["blurHash"].(string)
-	m.Owner = types.SERV.UserService.Get(types.Username(data["owner"].(string)))
-	m.MediaWidth = int(data["width"].(int32))
-	m.MediaHeight = int(data["height"].(int32))
-	m.CreateDate = time.UnixMilli(int64(data["createDate"].(primitive.DateTime)))
-	m.MimeType = data["mimeType"].(string)
+	m.BlurHash = raw.Lookup("blurHash").StringValue()
+	m.Owner = types.SERV.UserService.Get(types.Username(raw.Lookup("owner").StringValue()))
+	m.MediaWidth = int(raw.Lookup("width").Int32())
+	m.MediaHeight = int(raw.Lookup("height").Int32())
+	m.CreateDate = time.UnixMilli(raw.Lookup("createDate").Int64())
+	m.MimeType = raw.Lookup("mimeType").StringValue()
 
-	if data["recognitionTags"] != nil {
-		m.RecognitionTags = util.SliceConvert[string](data["recognitionTags"].(primitive.A))
+	rtArr, ok := raw.Lookup("recognitionTags").ArrayOK()
+	if ok {
+		rts, err := rtArr.Values()
+		if err != nil {
+			return types.WeblensErrorFromError(err)
+		}
+
+		m.RecognitionTags = util.Map(
+			rts, func(e bson.RawValue) string {
+				return e.StringValue()
+			},
+		)
 	}
 
-	if data["hidden"] != nil {
-		m.Hidden = data["hidden"].(bool)
+	hidden, ok := raw.Lookup("hidden").BooleanOK()
+	if ok {
+		m.Hidden = hidden
 	}
+
+	m.imported = true
 
 	return nil
 }
@@ -918,17 +942,63 @@ func (m *Media) MarshalJSON() ([]byte, error) {
 		"fileIds":          m.FileIds,
 		"thumbnailCacheId": m.ThumbnailCacheId,
 		"fullresCacheIds":  m.FullresCacheIds,
-		"blurHash":         m.BlurHash,
-		"owner":            m.Owner.GetUsername(),
-		"width":            m.MediaWidth,
-		"height":           m.MediaHeight,
-		"createDate":       m.CreateDate,
-		"mimeType":         m.MimeType,
-		"recognitionTags":  m.RecognitionTags,
-		"pageCount":        m.PageCount,
-		"imported":         m.imported,
-		"videoLength":      m.VideoLength,
+		// "blurHash":         m.BlurHash,
+		"owner":      m.Owner.GetUsername(),
+		"width":      m.MediaWidth,
+		"height":     m.MediaHeight,
+		"createDate": m.CreateDate.UnixMilli(),
+		"mimeType":   m.MimeType,
+		// "recognitionTags":  m.RecognitionTags,
+		"pageCount": m.PageCount,
+		"imported":  m.imported,
+		"hidden":    m.Hidden,
+		// "videoLength":      m.VideoLength,
+	}
+
+	if m.VideoLength != 0 {
+		data["videoLength"] = m.VideoLength
 	}
 
 	return json.Marshal(data)
+}
+
+func (m *Media) UnmarshalJSON(bs []byte) error {
+	data := map[string]any{}
+	err := json.Unmarshal(bs, &data)
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+
+	m.ContentId = types.ContentId(data["contentId"].(string))
+	m.ThumbnailCacheId = types.FileId(data["thumbnailCacheId"].(string))
+
+	idsStrings := util.SliceConvert[string](data["fullresCacheIds"].([]any))
+
+	m.FullresCacheIds = util.Map(
+		idsStrings, func(s string) types.FileId {
+			return types.FileId(s)
+		},
+	)
+	if data["blurHash"] != nil {
+		m.BlurHash = data["blurHash"].(string)
+	}
+	m.Owner = types.SERV.UserService.Get(types.Username(data["owner"].(string)))
+	m.MediaWidth = int(data["width"].(float64))
+	m.MediaHeight = int(data["height"].(float64))
+	m.CreateDate = time.UnixMilli(int64(data["createDate"].(float64)))
+	m.MimeType = data["mimeType"].(string)
+
+	if data["recognitionTags"] != nil {
+		m.RecognitionTags = util.SliceConvert[string](data["recognitionTags"].([]any))
+	}
+
+	m.PageCount = int(data["pageCount"].(float64))
+	m.imported = data["imported"].(bool)
+	m.Hidden = data["hidden"].(bool)
+
+	if data["videoLength"] != nil {
+		m.VideoLength = int(data["videoLength"].(float64))
+	}
+
+	return nil
 }

@@ -17,24 +17,28 @@ import (
 
 type mediaRepo struct {
 	mediaMap    map[types.ContentId]types.Media
-	mapLock     *sync.Mutex
+	mapLock     *sync.RWMutex
 	typeService types.MediaTypeService
 	exif        *exiftool.Exiftool
 	mediaCache  *sturdyc.Client[[]byte]
+
+	db types.MediaStore
 }
 
 func NewRepo(mediaTypeServ types.MediaTypeService) types.MediaRepo {
 	return &mediaRepo{
 		mediaMap:    make(map[types.ContentId]types.Media),
-		mapLock:     &sync.Mutex{},
+		mapLock:     &sync.RWMutex{},
 		typeService: mediaTypeServ,
 		exif:        NewExif(1000*1000*100, 0, nil),
 		mediaCache:  sturdyc.New[[]byte](1500, 10, time.Hour, 10),
 	}
 }
 
-func (mr *mediaRepo) Init(db types.DatabaseService) error {
-	ms, err := db.GetAllMedia()
+func (mr *mediaRepo) Init(db types.MediaStore) error {
+	mr.db = db
+
+	ms, err := mr.db.GetAllMedia()
 	if err != nil {
 		return err
 	}
@@ -55,27 +59,27 @@ func (mr *mediaRepo) Size() int {
 
 func (mr *mediaRepo) Add(m types.Media) error {
 	if m == nil {
-		return types.NewWeblensError("attempt to set nil Media in map")
+		return types.WeblensErrorMsg("attempt to set nil Media in map")
 	}
 
 	if m.ID() == "" {
-		return types.NewWeblensError("Media id is empty")
+		return types.WeblensErrorMsg("Media id is empty")
 	}
 
 	if m.GetPageCount() == 0 {
-		return types.NewWeblensError("Media page count is 0")
+		return types.WeblensErrorMsg("Media page count is 0")
 	}
 
 	mr.mapLock.Lock()
 	defer mr.mapLock.Unlock()
 
 	if mr.mediaMap[m.ID()] != nil {
-		return types.NewWeblensError("attempt to re-add Media already in map")
+		return types.WeblensErrorMsg("attempt to re-add Media already in map")
 	}
 
 	if !m.IsImported() {
 		m.SetImported(true)
-		err := types.SERV.Database.CreateMedia(m)
+		err := types.SERV.StoreService.CreateMedia(m)
 		if err != nil {
 			return err
 		}
@@ -95,17 +99,17 @@ func (mr *mediaRepo) Get(mId types.ContentId) types.Media {
 		return nil
 	}
 
-	mr.mapLock.Lock()
+	mr.mapLock.RLock()
 	m := mr.mediaMap[mId]
-	mr.mapLock.Unlock()
+	mr.mapLock.RUnlock()
 
 	return m
 }
 
 func (mr *mediaRepo) GetAll() []types.Media {
-	mr.mapLock.Lock()
-	defer mr.mapLock.Unlock()
-	medias := util.MapToSlicePure(mr.mediaMap)
+	mr.mapLock.RLock()
+	defer mr.mapLock.RUnlock()
+	medias := util.MapToValues(mr.mediaMap)
 	return medias
 }
 
@@ -135,7 +139,7 @@ func (mr *mediaRepo) Del(cId types.ContentId) error {
 		return err
 	}
 
-	err = types.SERV.Database.DeleteMedia(m.ID())
+	err = types.SERV.StoreService.DeleteMedia(m.ID())
 	if err != nil {
 		return err
 	}
@@ -154,9 +158,9 @@ func (mr *mediaRepo) FetchCacheImg(m types.Media, q types.Quality, pageNum int) 
 	ctx = context.WithValue(ctx, "cacheKey", cacheKey)
 	ctx = context.WithValue(ctx, "quality", q)
 	ctx = context.WithValue(ctx, "pageNum", pageNum)
-	ctx = context.WithValue(ctx, "Media", m)
+	ctx = context.WithValue(ctx, "media", m)
 
-	cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, fetchAndCacheMedia)
+	cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, types.SERV.StoreService.GetFetchMediaCacheImage)
 	if err != nil {
 		return nil, err
 	}
@@ -186,10 +190,10 @@ func (mr *mediaRepo) StreamCacheVideo(m types.Media, startByte, endByte int) ([]
 
 func (mr *mediaRepo) GetFilteredMedia(
 	requester types.User, sort string, sortDirection int, albumFilter []types.AlbumId,
-	raw bool,
+	allowRaw bool, allowHidden bool,
 ) ([]types.Media, error) {
 	// old version
-	// return dbServer.GetFilteredMedia(sort, requester.GetUsername(), -1, albumFilter, raw)
+	// return dbServer.GetFilteredMedia(sort, requester.GetUsername(), -1, albumFilter, allowRaw)
 	albums := util.Map(
 		albumFilter, func(aId types.AlbumId) types.Album {
 			return types.SERV.AlbumManager.Get(aId)
@@ -208,7 +212,9 @@ func (mr *mediaRepo) GetFilteredMedia(
 	}
 	slices.Sort(mediaMask)
 
-	allMs := util.MapToSlicePure(mr.mediaMap)
+	mr.mapLock.RLock()
+	allMs := util.MapToValues(mr.mediaMap)
+	mr.mapLock.RUnlock()
 	allMs = util.Filter(
 		allMs, func(m types.Media) bool {
 			mt := m.GetMediaType()
@@ -219,12 +225,18 @@ func (mr *mediaRepo) GetFilteredMedia(
 			// Exclude Media if it is present in the filter
 			_, e := slices.BinarySearch(mediaMask, m.ID())
 
-			return m.GetOwner() == requester && len(m.GetFiles()) != 0 && (!mt.IsRaw() || raw) && !mt.IsMime("application/pdf") && !e && !m.IsHidden()
+			return !e &&
+				m.GetOwner() == requester &&
+				len(m.GetFiles()) != 0 &&
+				(!mt.IsRaw() || allowRaw) &&
+				(!m.IsHidden() || allowHidden) &&
+				!mt.IsMime("application/pdf")
 		},
 	)
 
-	// Sort in timeline format, where most recent Media is at the beginning of the slice
-	slices.SortFunc(allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * -1 })
+	slices.SortFunc(
+		allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
+	)
 
 	return allMs, nil
 }
@@ -253,6 +265,29 @@ func (mr *mediaRepo) RunExif(path string) ([]exiftool.FileMetadata, error) {
 	return mr.exif.ExtractMetadata(path), nil
 }
 
+func (mr *mediaRepo) NukeCache() error {
+	mr.mapLock.Lock()
+	cache := types.SERV.FileTree.Get("CACHE")
+	for _, child := range cache.GetChildren() {
+		err := types.SERV.FileTree.Del(child.ID())
+		if err != nil {
+			return err
+		}
+	}
+
+	err := types.SERV.StoreService.DeleteAllMedia()
+	if err != nil {
+		return err
+	}
+
+	clear(mr.mediaMap)
+	mr.mediaCache = sturdyc.New[[]byte](1500, 10, time.Hour, 10)
+
+	mr.mapLock.Unlock()
+
+	return nil
+}
+
 func fetchAndCacheMedia(ctx context.Context) (data []byte, err error) {
 	defer util.RecoverPanic("Failed to fetch media image into cache")
 
@@ -268,7 +303,7 @@ func fetchAndCacheMedia(ctx context.Context) (data []byte, err error) {
 	}
 
 	if f == nil {
-		return nil, types.ErrNoFile
+		panic("This should never happen...")
 	}
 
 	data, err = f.ReadAll()

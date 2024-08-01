@@ -1,13 +1,14 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { RefObject, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchMediaTypes } from '../api/ApiFetch';
 import { mediaType } from '../types/Types';
 import WeblensMedia from '../Media/Media';
 import { MediaContext } from '../Context';
 
 export const useResize = (elem: HTMLDivElement) => {
-    const [size, setSize] = useState({ height: 0, width: 0 });
+    const [size, setSize] = useState({ height: -1, width: -1 });
     useEffect(() => {
         if (elem) {
+            setSize({ height: elem.clientHeight, width: elem.clientWidth });
             const obs = new ResizeObserver(entries => {
                 // only 1 entry
                 setSize({ height: elem.clientHeight, width: elem.clientWidth });
@@ -38,7 +39,6 @@ export const useVideo = (elem: HTMLVideoElement) => {
 
     const updateBufferState = useCallback(
         e => {
-            console.log(e.type);
             if (e.type === 'waiting') {
                 setIsWaiting(true);
             } else if (e.type === 'playing') {
@@ -221,3 +221,16 @@ export const useIsFocused = (element: HTMLDivElement) => {
 
     return active;
 };
+
+export function useOnScreen(ref: RefObject<HTMLElement>) {
+    const [isIntersecting, setIntersecting] = useState(false);
+
+    const observer = useMemo(() => new IntersectionObserver(([entry]) => setIntersecting(entry.isIntersecting)), [ref]);
+
+    useEffect(() => {
+        observer.observe(ref.current);
+        return () => observer.disconnect();
+    }, []);
+
+    return isIntersecting;
+}

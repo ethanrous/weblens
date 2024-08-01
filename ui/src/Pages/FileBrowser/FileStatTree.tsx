@@ -1,57 +1,48 @@
-import { useEffect, useMemo, useState } from 'react'
-import * as d3 from 'd3'
-import { humanFileSize } from '../../util'
-import WeblensButton from '../../components/WeblensButton'
-import { useResize } from '../../components/hooks'
-import { getFilesystemStats } from '../../api/FileBrowserApi'
-import { useNavigate } from 'react-router-dom'
-import { AuthHeaderT } from '../../types/Types'
-import { WeblensFile } from '../../Files/File'
-import { IconFolder } from '@tabler/icons-react'
+import { useEffect, useMemo, useState } from 'react';
+// import * as d3 from 'd3';
+import { humanFileSize } from '../../util';
+import WeblensButton from '../../components/WeblensButton';
+import { useResize } from '../../components/hooks';
+import { getFilesystemStats } from '../../api/FileBrowserApi';
+import { useNavigate } from 'react-router-dom';
+import { AuthHeaderT } from '../../types/Types';
+import { WeblensFile } from '../../Files/File';
+import { IconFolder } from '@tabler/icons-react';
 
 export type TreeNode = {
-    type: 'node'
-    value: number
-    name: string
-    children: Tree[]
-}
+    type: 'node';
+    value: number;
+    name: string;
+    children: Tree[];
+};
 export type TreeLeaf = {
-    type: 'leaf'
-    name: string
-    value: number
-}
+    type: 'leaf';
+    name: string;
+    value: number;
+};
 
-type Tree = TreeNode | TreeLeaf
+type Tree = TreeNode | TreeLeaf;
 type extSize = {
-    name: string
-    value: number
-}
+    name: string;
+    value: number;
+};
 
-export const StatTree = ({
-    folderInfo,
-    authHeader,
-}: {
-    folderInfo: WeblensFile
-    authHeader: AuthHeaderT
-}) => {
-    const nav = useNavigate()
-    const [stats, setStats]: [stats: extSize[], setStats: (s) => void] =
-        useState([])
-    const [boxRef, setBoxRef] = useState(null)
-    const size = useResize(boxRef)
-    const [statFilter, setStatsFilter] = useState([])
+export const StatTree = ({ folderInfo, authHeader }: { folderInfo: WeblensFile; authHeader: AuthHeaderT }) => {
+    const nav = useNavigate();
+    const [stats, setStats]: [stats: extSize[], setStats: (s) => void] = useState([]);
+    const [boxRef, setBoxRef] = useState(null);
+    const size = useResize(boxRef);
+    const [statFilter, setStatsFilter] = useState([]);
 
     useEffect(() => {
         if (!folderInfo.Id()) {
-            return
+            return;
         }
-        getFilesystemStats(folderInfo.Id(), authHeader).then((s) =>
-            setStats(s.sizesByExtension)
-        )
-    }, [folderInfo.Id()])
+        getFilesystemStats(folderInfo.Id(), authHeader).then(s => setStats(s.sizesByExtension));
+    }, [folderInfo.Id()]);
 
     if (!folderInfo) {
-        return null
+        return null;
     }
 
     return (
@@ -61,58 +52,37 @@ export const StatTree = ({
                     className="flex flex-row items-center cursor-pointer"
                     onClick={() => nav(`/files/${folderInfo.Id()}`)}
                 >
-                    <IconFolder
-                        size={'28px'}
-                        style={{ marginLeft: 10, marginRight: 4 }}
-                    />
+                    <IconFolder size={'28px'} style={{ marginLeft: 10, marginRight: 4 }} />
                     <p className="crumb-text">{folderInfo.GetFilename()}</p>
                 </div>
 
-                <p className="flex w-max text-nowrap text-xl font-bold">
-                    Folder content statistics
-                </p>
+                <p className="flex w-max text-nowrap text-xl font-bold">Folder content statistics</p>
 
                 <WeblensButton
                     onClick={() => setStatsFilter([])}
                     disabled={statFilter.length === 0}
                     squareSize={50}
                     label={`Clear Filter`}
-                    postScript={
-                        statFilter.length === 0
-                            ? 'Right click to hide a block'
-                            : `${statFilter.length} blocks hidden`
-                    }
                 />
             </div>
-            <div
-                ref={setBoxRef}
-                className="flex justify-center items-center h-full rounded m-5"
-            >
-                {stats.length === 0 && (
-                    <p className="flex w-max text-nowrap text-xl font-bold">
-                        No content
-                    </p>
-                )}
+            <div ref={setBoxRef} className="flex justify-center items-center h-full rounded m-5">
+                {stats.length === 0 && <p className="flex w-max text-nowrap text-xl font-bold">No content</p>}
                 {stats.length !== 0 && (
                     <Tree
                         height={size.height}
                         width={size.width}
-                        stats={stats.filter((s) => {
-                            return !statFilter.includes(s.name)
+                        stats={stats.filter(s => {
+                            return !statFilter.includes(s.name);
                         })}
-                        doSearch={(name) =>
-                            nav(
-                                `/files/search/${folderInfo.Id()}?filter=${name}`
-                            )
-                        }
+                        doSearch={name => nav(`/files/search/${folderInfo.Id()}?filter=${name}`)}
                         statFilter={statFilter}
                         setStatsFilter={setStatsFilter}
                     />
                 )}
             </div>
         </div>
-    )
-}
+    );
+};
 
 const Block = ({
     hovering,
@@ -122,27 +92,22 @@ const Block = ({
     doSearch,
     setHovering,
 }: {
-    hovering: boolean
-    leaf
-    colorScale
-    setStatsFilter
-    doSearch
-    setHovering
+    hovering: boolean;
+    leaf;
+    colorScale;
+    setStatsFilter;
+    doSearch;
+    setHovering;
 }) => {
     if (!leaf) {
-        return null
+        return null;
     }
-    const color = colorScale(leaf.data.name)
-    const [size, units] = humanFileSize(leaf.data.value)
-    const sizeStr = `${size}${units}`
-    const textWidth =
-        leaf.data.name.length > sizeStr.length
-            ? leaf.data.name.length
-            : sizeStr.length
+    const color = colorScale(leaf.data.name);
+    const [size, units] = humanFileSize(leaf.data.value);
+    const sizeStr = `${size}${units}`;
+    const textWidth = leaf.data.name.length > sizeStr.length ? leaf.data.name.length : sizeStr.length;
 
-    const tooSmall = !(
-        leaf.y1 - leaf.y0 > 50 && leaf.x1 - leaf.x0 > textWidth * 11
-    )
+    const tooSmall = !(leaf.y1 - leaf.y0 > 50 && leaf.x1 - leaf.x0 > textWidth * 11);
 
     return (
         <g
@@ -152,14 +117,14 @@ const Block = ({
                 opacity: hovering !== null && !hovering ? '20%' : '100%',
             }}
             className="file-type-block"
-            onContextMenu={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                setHovering(null)
-                setStatsFilter((p) => {
-                    p.push(leaf.data.name)
-                    return [...p]
-                })
+            onContextMenu={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                setHovering(null);
+                setStatsFilter(p => {
+                    p.push(leaf.data.name);
+                    return [...p];
+                });
             }}
             onMouseOver={() => setHovering(leaf)}
             onMouseLeave={() => setHovering(null)}
@@ -214,8 +179,8 @@ const Block = ({
                 {sizeStr}
             </text>
         </g>
-    )
-}
+    );
+};
 
 export const Tree = ({
     height,
@@ -225,108 +190,100 @@ export const Tree = ({
     statFilter,
     setStatsFilter,
 }: {
-    height
-    width
-    stats: extSize[]
-    doSearch: (name: string) => void
-    statFilter
-    setStatsFilter
+    height;
+    width;
+    stats: extSize[];
+    doSearch: (name: string) => void;
+    statFilter;
+    setStatsFilter;
 }) => {
-    const [hovering, setHovering] = useState(null)
-    const hierarchy = useMemo(() => {
-        if (!stats) {
-            return
-        }
-        let total = 0
-        stats.map((s) => {
-            total += s.value
-        })
-
-        const data: Tree = {
-            type: 'node',
-            name: 'FileType',
-            value: 0,
-            children: stats
-                .filter((k) => {
-                    return k.value != 0 && (k.value / total) * 100 >= 1
-                })
-                .map((k: extSize) => {
-                    return {
-                        type: 'leaf',
-                        name: k.name,
-                        value: k.value,
-                    }
-                }),
-        }
-        return d3.hierarchy(data).sum((d) => d.value)
-    }, [stats, statFilter])
-
-    const root = useMemo(() => {
-        if (!hierarchy) {
-            return
-        }
-        const treeGenerator = d3
-            .treemap<Tree>()
-            .size([width, height])
-            .padding(4)
-        return treeGenerator(hierarchy)
-    }, [hierarchy, width, height])
-
-    if (!hierarchy?.children) {
-        return (
-            <svg
-                width={width}
-                height={height}
-                onContextMenu={(e) => e.preventDefault()}
-            />
-        )
-    }
-
-    const firstLevelGroups = hierarchy.children.map((child) => child.data.name)
-    const colorScale = d3
-        .scaleOrdinal()
-        .domain(firstLevelGroups)
-        .range([
-            '#264653',
-            '#2A9D8F',
-            '#E9C46A',
-            '#F4A261',
-            '#E76F51',
-            '#ea2f86',
-            '#f09c0a',
-            '#fae000',
-            '#93e223',
-            '#4070d3',
-            '#493c9e',
-        ])
-
-    const leaves = root.leaves().sort((a, b) => {
-        if (a === hovering) {
-            return 1
-        } else if (b === hovering) {
-            return -1
-        } else {
-            return 0
-        }
-    })
-
-    const allShapes = leaves.map((leaf) => {
-        return (
-            <Block
-                key={leaf.data.name}
-                leaf={leaf}
-                hovering={hovering === null ? null : hovering === leaf}
-                colorScale={colorScale}
-                setStatsFilter={setStatsFilter}
-                doSearch={doSearch}
-                setHovering={setHovering}
-            />
-        )
-    })
-
-    return (
-        <svg width={width} height={height} overflow={'visible'}>
-            {allShapes}
-        </svg>
-    )
-}
+    return <p>broken right now</p>;
+    // const [hovering, setHovering] = useState(null);
+    // const hierarchy = useMemo(() => {
+    //     if (!stats) {
+    //         return;
+    //     }
+    //     let total = 0;
+    //     stats.map(s => {
+    //         total += s.value;
+    //     });
+    //
+    //     const data: Tree = {
+    //         type: 'node',
+    //         name: 'FileType',
+    //         value: 0,
+    //         children: stats
+    //             .filter(k => {
+    //                 return k.value != 0 && (k.value / total) * 100 >= 1;
+    //             })
+    //             .map((k: extSize) => {
+    //                 return {
+    //                     type: 'leaf',
+    //                     name: k.name,
+    //                     value: k.value,
+    //                 };
+    //             }),
+    //     };
+    //     // return d3.hierarchy(data).sum(d => d.value);
+    // }, [stats, statFilter]);
+    //
+    // const root = useMemo(() => {
+    //     if (!hierarchy) {
+    //         return;
+    //     }
+    //     // const treeGenerator = d3.treemap<Tree>().size([width, height]).padding(4);
+    //     // return treeGenerator(hierarchy);
+    // }, [hierarchy, width, height]);
+    //
+    // if (!hierarchy?.children) {
+    //     return <svg width={width} height={height} onContextMenu={e => e.preventDefault()} />;
+    // }
+    //
+    // const firstLevelGroups = hierarchy.children.map(child => child.data.name);
+    // const colorScale = d3
+    //     .scaleOrdinal()
+    //     .domain(firstLevelGroups)
+    //     .range([
+    //         '#264653',
+    //         '#2A9D8F',
+    //         '#E9C46A',
+    //         '#F4A261',
+    //         '#E76F51',
+    //         '#ea2f86',
+    //         '#f09c0a',
+    //         '#fae000',
+    //         '#93e223',
+    //         '#4070d3',
+    //         '#493c9e',
+    //     ]);
+    //
+    // const leaves = root.leaves().sort((a, b) => {
+    //     if (a === hovering) {
+    //         return 1;
+    //     } else if (b === hovering) {
+    //         return -1;
+    //     } else {
+    //         return 0;
+    //     }
+    // });
+    //
+    // const allShapes = leaves.map(leaf => {
+    //     return (
+    //         <Block
+    //             key={leaf.data.name}
+    //             leaf={leaf}
+    //             hovering={hovering === null ? null : hovering === leaf}
+    //             colorScale={colorScale}
+    //             setStatsFilter={setStatsFilter}
+    //             doSearch={doSearch}
+    //             setHovering={setHovering}
+    //         />
+    //     );
+    // });
+    //
+    // return (
+    //     <svg width={width} height={height} overflow={'visible'}>
+    //         {allShapes}
+    //     </svg>
+    // );
+};

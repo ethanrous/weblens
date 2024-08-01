@@ -62,7 +62,6 @@ func (c *client) Disconnect() {
 // Subscriptions to types that represent ongoing events like "folder" never return truthy completed
 func (c *client) Subscribe(
 	key types.SubId, action types.WsAction, acc types.AccessMeta,
-	ft types.FileTree,
 ) (
 	complete bool,
 	results map[string]any,
@@ -80,19 +79,19 @@ func (c *client) Subscribe(
 			fileId := types.FileId(key)
 			var folder types.WeblensFile
 			if fileId == "external" {
-				folder = ft.Get("EXTERNAL")
+				folder = types.SERV.FileTree.Get("EXTERNAL")
 			} else {
-				folder = ft.Get(fileId)
+				folder = types.SERV.FileTree.Get(fileId)
 			}
 
 			acc.SetRequestMode(dataStore.FileSubscribeRequest)
 
 			if folder == nil {
-				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
+				err := types.WeblensErrorMsg(fmt.Sprint("failed to find folder to subscribe to: ", key))
 				c.Error(err)
 				return
 			} else if !acc.CanAccessFile(folder) {
-				err := fmt.Errorf("failed to find folder to subscribe to: %s", key)
+				err := types.WeblensErrorMsg(fmt.Sprint("failed to find folder to subscribe to: ", key))
 				c.Error(err)
 
 				// don't tell the client they don't have access instead of *actually* not found
@@ -105,7 +104,7 @@ func (c *client) Subscribe(
 
 			// Subscribe to task on this folder
 			if t := folder.GetTask(); t != nil {
-				c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc, ft)
+				c.Subscribe(types.SubId(t.TaskId()), types.TaskSubscribe, acc)
 			}
 		}
 	case types.TaskSubscribe:
@@ -113,7 +112,6 @@ func (c *client) Subscribe(
 			task := types.SERV.TaskDispatcher.GetWorkerPool().GetTask(types.TaskId(key))
 			if task == nil {
 				err := fmt.Errorf("could not find task with ID %s", key)
-				util.ErrTrace(err)
 				c.Error(err)
 				return
 			}
@@ -206,6 +204,16 @@ func (c *client) Error(err error) {
 	c.Send(msg)
 }
 
+func (c *client) PushWeblensEvent(eventTag string) {
+	msg := types.WsResponseInfo{
+		EventTag:      eventTag,
+		SubscribeKey:  types.SubId("WEBLENS"),
+		BroadcastType: types.ServerEvent,
+	}
+
+	c.Send(msg)
+}
+
 func (c *client) PushFileUpdate(updatedFile types.WeblensFile) {
 	acc := dataStore.NewAccessMeta(c.user).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
@@ -217,7 +225,7 @@ func (c *client) PushFileUpdate(updatedFile types.WeblensFile) {
 		EventTag:      "file_updated",
 		SubscribeKey:  types.SubId(updatedFile.ID()),
 		Content:       types.WsC{"fileInfo": fileInfo},
-		BroadcastType: types.TaskSubscribe,
+		BroadcastType: types.FolderSubscribe,
 	}
 
 	c.Send(msg)

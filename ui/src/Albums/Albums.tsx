@@ -1,4 +1,4 @@
-import { Divider, Space, Text } from '@mantine/core'
+import { Divider, Space } from '@mantine/core'
 import {
     IconArrowLeft,
     IconFolder,
@@ -13,15 +13,17 @@ import { useMediaType } from '../components/hooks'
 import NotFound from '../components/NotFound'
 import WeblensButton from '../components/WeblensButton'
 import WeblensInput from '../components/WeblensInput'
-import WeblensSlider from '../components/WeblensSlider'
-import { UserContext } from '../Context'
+import { MediaContext } from '../Context'
 import { PhotoGallery } from '../Media/MediaDisplay'
 import { GalleryContext, GalleryContextT } from '../Pages/Gallery/GalleryLogic'
 import WeblensMedia from '../Media/Media'
 
-import { AlbumData, UserContextT } from '../types/Types'
+import { AlbumData } from '../types/Types'
 import { AlbumScroller } from './AlbumDisplay'
 import { createAlbum, getAlbumMedia, getAlbums } from './AlbumQuery'
+import { WeblensProgress } from '../components/WeblensProgress'
+import { GalleryFilters } from '../Pages/Gallery/Gallery'
+import { useSessionStore } from '../components/UserInfo'
 
 function AlbumNoContent({
     albumData,
@@ -34,19 +36,9 @@ function AlbumNoContent({
     const nav = useNavigate()
     return (
         <div className="flex flex-col w-full items-center">
-            <Text
-                size={'75px'}
-                fw={900}
-                variant="gradient"
-                style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    userSelect: 'none',
-                    lineHeight: 1.1,
-                }}
-            >
+            <p className="flex justify-center font-bold text-7xl select-none">
                 {albumData.albumMeta.name}
-            </Text>
+            </p>
             <div className="flex flex-col pt-40 w-max items-center">
                 {albumData.albumMeta.medias.length !== 0 && (
                     <div className="flex flex-col items-center">
@@ -81,7 +73,7 @@ function AlbumNoContent({
 
 function AlbumContent({ albumId }: { albumId: string }) {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
-    const { authHeader }: UserContextT = useContext(UserContext)
+    const auth = useSessionStore((state) => state.auth)
 
     const [albumData, setAlbumData]: [
         albumData: { albumMeta: AlbumData; media: WeblensMedia[] },
@@ -89,14 +81,14 @@ function AlbumContent({ albumId }: { albumId: string }) {
     ] = useState(null)
     const mType = useMediaType()
     const [notFound, setNotFound] = useState(false)
-    const nav = useNavigate()
+    const { mediaState } = useContext(MediaContext)
 
     const fetchAlbum = useCallback(() => {
         if (!mType) {
             return
         }
         galleryDispatch({ type: 'add_loading', loading: 'album_media' })
-        getAlbumMedia(albumId, galleryState.includeRaw, authHeader)
+        getAlbumMedia(albumId, mediaState.isShowingRaw(), auth)
             .then((m) => {
                 setAlbumData(m)
             })
@@ -113,7 +105,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
                     loading: 'album_media',
                 })
             )
-    }, [albumId, galleryState.includeRaw, mType])
+    }, [albumId, mediaState.isShowingRaw(), mType])
 
     useEffect(() => {
         fetchAlbum()
@@ -161,7 +153,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
                 <PhotoGallery
                     medias={media}
                     album={albumData.albumMeta}
-                    fetchAlbum={fetchAlbum}
+                    // fetchAlbum={fetchAlbum}
                 />
             )}
         </div>
@@ -170,7 +162,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
 
 function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
     const [newAlbumName, setNewAlbumName] = useState(null)
-    const { authHeader } = useContext(UserContext)
+    const auth = useSessionStore((state) => state.auth)
 
     return (
         <div className="flex items-center h-14 w-40">
@@ -180,7 +172,7 @@ function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
                     label="New Album"
                     centerContent
                     Left={IconLibraryPlus}
-                    onClick={(e) => {
+                    onClick={() => {
                         setNewAlbumName('')
                     }}
                 />
@@ -192,7 +184,7 @@ function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
                     height={40}
                     autoFocus
                     onComplete={(val) =>
-                        createAlbum(val, authHeader)
+                        createAlbum(val, auth)
                             .then(() => {
                                 setNewAlbumName(null)
                                 fetchAlbums()
@@ -214,20 +206,21 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
     const nav = useNavigate()
     const { galleryState, galleryDispatch }: GalleryContextT =
         useContext(GalleryContext)
+    // const { mediaState, mediaDispatch } = useContext(MediaContext)
 
-    const click = useCallback(
-        () =>
-            galleryDispatch({
-                type: 'set_raw_toggle',
-                raw: !galleryState.includeRaw,
-            }),
-        [galleryDispatch, galleryState.includeRaw]
-    )
-
-    const setSize = useCallback(
-        (s) => galleryDispatch({ type: 'set_image_size', size: s }),
-        [galleryDispatch]
-    )
+    // const click = useCallback(
+    //     () =>
+    //         mediaDispatch({
+    //             type: 'set_raw_toggle',
+    //             raw: !mediaState.isShowingRaw(),
+    //         }),
+    //     [galleryDispatch, mediaState.isShowingRaw()]
+    // )
+    //
+    // const setSize = useCallback(
+    //     (s) => galleryDispatch({ type: 'set_image_size', size: s }),
+    //     [galleryDispatch]
+    // )
 
     if (albumId === '') {
         return (
@@ -250,7 +243,7 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
     }
 
     return (
-        <div className="flex flex-row w-full h-max items-center m-2 gap-4 ml-3">
+        <div className="flex flex-row w-full h-14 items-center m-2 gap-4 ml-3">
             <div className="mr-5">
                 <WeblensButton
                     squareSize={40}
@@ -262,23 +255,19 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
 
             <Divider orientation="vertical" className="mr-5 my-1" />
 
-            <WeblensSlider
-                value={galleryState.imageSize}
-                width={200}
-                height={35}
-                min={150}
-                max={500}
-                callback={setSize}
-            />
+            <div className="h-10 w-56">
+                <WeblensProgress
+                    value={((galleryState.imageSize - 150) / 350) * 100}
+                    seekCallback={(s) => {
+                        galleryDispatch({
+                            type: 'set_image_size',
+                            size: s * 350 + 150,
+                        })
+                    }}
+                />
+            </div>
 
-            <WeblensButton
-                label="RAWs"
-                allowRepeat
-                toggleOn={galleryState.includeRaw}
-                centerContent
-                squareSize={35}
-                onClick={click}
-            />
+            <GalleryFilters />
         </div>
     )
 }
@@ -351,16 +340,16 @@ function AlbumsHomeView({ fetchAlbums }: { fetchAlbums: () => void }) {
 }
 
 export function Albums({ selectedAlbum }: { selectedAlbum: string }) {
-    const { authHeader }: UserContextT = useContext(UserContext)
+    const auth = useSessionStore((state) => state.auth)
     const { galleryDispatch } = useContext(GalleryContext)
 
     const fetchAlbums = useCallback(() => {
         galleryDispatch({ type: 'add_loading', loading: 'albums' })
-        getAlbums(true, authHeader).then((val) => {
+        getAlbums(true, auth).then((val) => {
             galleryDispatch({ type: 'set_albums', albums: val })
             galleryDispatch({ type: 'remove_loading', loading: 'albums' })
         })
-    }, [authHeader, galleryDispatch])
+    }, [galleryDispatch])
 
     useEffect(() => {
         fetchAlbums()

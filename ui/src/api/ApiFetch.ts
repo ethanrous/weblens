@@ -1,11 +1,14 @@
 import { notifications } from '@mantine/notifications'
 import API_ENDPOINT from './ApiEndpoint'
-import { AuthHeaderT } from '../types/Types'
+import { ApiKeyInfo, AuthHeaderT, UserInfoT } from '../types/Types'
 import WeblensMedia from '../Media/Media'
 
-export function login(user: string, pass: string) {
+export function login(
+    user: string,
+    pass: string
+): Promise<{ token: string; user: UserInfoT }> {
     const url = new URL(`${API_ENDPOINT}/login`)
-    let data = {
+    const data = {
         username: user,
         password: pass,
     }
@@ -13,7 +16,7 @@ export function login(user: string, pass: string) {
     return fetch(url.toString(), {
         method: 'POST',
         body: JSON.stringify(data),
-    })
+    }).then((r) => r.json())
 }
 
 export function createUser(username: string, password: string) {
@@ -97,24 +100,26 @@ export async function fetchMediaTypes() {
 }
 
 export async function newApiKey(authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/apiKey`)
+    const url = new URL(`${API_ENDPOINT}/key`)
     return await fetch(url, { headers: authHeader, method: 'POST' }).then((r) =>
         r.json()
     )
 }
 
 export async function deleteApiKey(key: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/apiKey`)
+    const url = new URL(`${API_ENDPOINT}/key/${key}`)
     return await fetch(url, {
         headers: authHeader,
         method: 'DELETE',
-        body: JSON.stringify({ key: key }),
     })
 }
 
-export async function getApiKeys(authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/apiKeys`)
-    return await fetch(url, { headers: authHeader }).then((r) => r.json())
+export async function getApiKeys(
+    authHeader: AuthHeaderT
+): Promise<ApiKeyInfo[]> {
+    const url = new URL(`${API_ENDPOINT}/keys`)
+    return (await fetch(url, { headers: authHeader }).then((r) => r.json()))
+        .keys
 }
 
 export async function getRandomThumbs() {
@@ -176,7 +181,7 @@ export async function getUsers(authHeader: AuthHeaderT) {
 export async function AutocompleteUsers(
     searchValue: string,
     authHeader: AuthHeaderT
-): Promise<string[]> {
+): Promise<UserInfoT[]> {
     if (searchValue.length < 2) {
         return []
     }
@@ -217,8 +222,13 @@ export async function deleteRemote(remoteId: string, authHeader: AuthHeaderT) {
     })
 }
 
-export async function hideMedia(mediaIds: string[], authHeader: AuthHeaderT) {
+export async function hideMedia(
+    mediaIds: string[],
+    hidden: boolean,
+    authHeader: AuthHeaderT
+) {
     const url = new URL(`${API_ENDPOINT}/media/hide`)
+    url.searchParams.append('hidden', hidden.toString())
     return await fetch(url, {
         body: JSON.stringify({ mediaIds: mediaIds }),
         method: 'PATCH',
@@ -260,4 +270,22 @@ export async function adjustMediaTime(
         }
         return r.statusText
     })
+}
+
+export async function autocompletePath(
+    pathQuery: string,
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/files/autocomplete`)
+    url.searchParams.append('searchPath', pathQuery)
+    return await fetch(url, { headers: authHeader }).then((r) => r.json())
+}
+
+export async function getFileDataByPath(
+    pathQuery: string,
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/file/path`)
+    url.searchParams.append('searchPath', pathQuery)
+    return await fetch(url, { headers: authHeader }).then((r) => r.json())
 }

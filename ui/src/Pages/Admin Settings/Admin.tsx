@@ -1,14 +1,8 @@
-import { Space, Text } from '@mantine/core'
-import React, {
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
-import { UserContext } from '../../Context'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { WebsocketContext } from '../../Context'
 import {
     adminCreateUser,
+    autocompletePath,
     clearCache,
     deleteApiKey,
     deleteRemote,
@@ -23,16 +17,162 @@ import {
     GetUsersInfo,
     SetUserAdmin,
 } from '../../api/UserApi'
-import { notifications } from '@mantine/notifications'
 import { IconCheck, IconClipboard, IconTrash, IconX } from '@tabler/icons-react'
 import {
+    ApiKeyInfo,
     AuthHeaderT as AuthHeaderT,
-    UserContextT,
     UserInfoT as UserInfoT,
 } from '../../types/Types'
 import WeblensButton from '../../components/WeblensButton'
 import { useKeyDown } from '../../components/hooks'
 import WeblensInput from '../../components/WeblensInput'
+import { DefinedUseQueryResult, useQuery } from '@tanstack/react-query'
+import { WeblensProgress } from '../../components/WeblensProgress'
+import { TaskProgContext } from '../../Files/FBTypes'
+import { TaskProgress, TaskStage } from '../FileBrowser/TaskProgress'
+import { WeblensFileParams } from '../../Files/File'
+import { useFileBrowserStore } from '../FileBrowser/FBStateControl'
+import { useDebouncedValue } from '@mantine/hooks'
+import { useSessionStore } from '../../components/UserInfo'
+
+function PathAutocomplete() {
+    const auth = useSessionStore((state) => state.auth)
+
+    const [pathSearch, setPathSearch] = useState('')
+    const [hoverOffset, setHoverOffset] = useState(0)
+    const [bouncedSearch] = useDebouncedValue(pathSearch, 100)
+    const names: DefinedUseQueryResult<
+        { children: WeblensFileParams[]; folder: WeblensFileParams },
+        Error
+    > = useQuery<{ children: WeblensFileParams[]; folder: WeblensFileParams }>({
+        queryKey: ['pathAutocomplete', bouncedSearch],
+        initialData: { children: [], folder: null },
+        queryFn: () =>
+            autocompletePath(bouncedSearch, auth).then((names) => {
+                names.children.sort((f1, f2) =>
+                    f1.filename.localeCompare(f2.filename)
+                )
+                return names
+            }),
+        retry: false,
+    })
+
+    useEffect(() => {
+        setHoverOffset(0)
+    }, [pathSearch])
+
+    const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
+
+    useKeyDown('Tab', (e) => {
+        e.preventDefault()
+        const tabFile =
+            names.data.children[names.data.children.length - hoverOffset - 1]
+
+        if (!tabFile) {
+            return
+        }
+
+        setPathSearch((s) => {
+            if (!s.endsWith('/')) {
+                s += '/'
+            }
+            return (
+                s.slice(0, s.lastIndexOf('/')) +
+                '/' +
+                tabFile.filename +
+                (tabFile.isDir ? '/' : '')
+            )
+        })
+    })
+
+    useKeyDown('ArrowUp', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setHoverOffset((offset) =>
+            Math.min(offset + 1, names.data.children.length)
+        )
+    })
+
+    useKeyDown('ArrowDown', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setHoverOffset((offset) => Math.max(offset - 1, 0))
+    })
+
+    const result = useMemo(() => {
+        const lastSlash = pathSearch.lastIndexOf('/')
+        if (
+            (lastSlash === -1 || names.data.children.length === 0) &&
+            names.data.folder
+        ) {
+            return names.data.folder
+        }
+
+        if (pathSearch.slice(lastSlash + 1) === '') {
+            return names.data.folder
+        }
+
+        if (names.data.children.length !== 0) {
+            return names.data.children[0]
+        }
+
+        return null
+    }, [names, pathSearch])
+
+    return (
+        <div className="w-[50%] h-10">
+            <WeblensInput
+                value={pathSearch}
+                valueCallback={setPathSearch}
+                fillWidth
+                openInput={() => setBlockFocus(true)}
+                closeInput={() => setBlockFocus(false)}
+                failed={names.data.folder === null && pathSearch !== ''}
+                placeholder={'File Search'}
+            />
+            <div
+                className="flex flex-col gap-1 absolute -translate-y-[100%] pb-12 pointer-events-none"
+                style={{ paddingLeft: pathSearch.length * 9 }}
+            >
+                {names.data.children.map((cn, i) => {
+                    if (pathSearch.endsWith(cn.filename)) {
+                        return null
+                    }
+                    return (
+                        <div
+                            key={cn.filename}
+                            className="flex justify-center items-center p-2 h-10 bg-[#1c1049] rounded pointer-events-auto cursor-pointer"
+                            style={{
+                                backgroundColor:
+                                    i ===
+                                    names.data.children.length - hoverOffset - 1
+                                        ? '#2549ff'
+                                        : '#1c1049',
+                            }}
+                            onClick={() => {
+                                setPathSearch(
+                                    (s) =>
+                                        s.slice(0, s.lastIndexOf('/')) +
+                                        '/' +
+                                        cn.filename +
+                                        (cn.isDir ? '/' : '')
+                                )
+                            }}
+                        >
+                            <p>{cn.filename}</p>
+                        </div>
+                    )
+                })}
+            </div>
+            {result && (
+                <div className="flex flex-row gap-2">
+                    <p>{result.filename}</p>
+                    <p>{result.id}</p>
+                </div>
+            )}
+        </div>
+    )
+}
 
 function CreateUserBox({
     setAllUsersInfo,
@@ -45,19 +185,24 @@ function CreateUserBox({
     const [passInput, setPassInput] = useState('')
     const [makeAdmin, setMakeAdmin] = useState(false)
     return (
-        <div className=" p-5 h-max w-full rounded bg-slate-800">
-            <WeblensInput
-                placeholder="Username"
-                height={50}
-                onComplete={() => {}}
-                valueCallback={setUserInput}
-            />
-            <WeblensInput
-                placeholder="Password"
-                height={50}
-                onComplete={() => {}}
-                valueCallback={setPassInput}
-            />
+        <div className="p-2 h-max w-full rounded bg-slate-800">
+            <p className="w-full h-max font-semibold text-xl select-none p-2">
+                Create User
+            </p>
+            <div className="flex flex-col w-60">
+                <WeblensInput
+                    placeholder="Username"
+                    height={50}
+                    onComplete={() => {}}
+                    valueCallback={setUserInput}
+                />
+                <WeblensInput
+                    placeholder="Password"
+                    height={50}
+                    onComplete={() => {}}
+                    valueCallback={setPassInput}
+                />
+            </div>
             <div className="pt-1 pb-2">
                 <WeblensButton
                     Left={IconCheck}
@@ -102,63 +247,55 @@ const UserRow = ({
     authHeader: AuthHeaderT
 }) => {
     return (
-        <div className="p-2">
-            <div
-                key={rowUser.username}
-                className="flex flex-row w-full h-16 items-center outline outline-1 outline-stone-300 rounded-sm p-4"
-            >
-                <div
-                    style={{
-                        justifyContent: 'center',
-                        width: 'max-content',
-                        paddingLeft: '10px',
-                    }}
-                >
-                    <Text c={'white'} fw={600} style={{ width: 'max-content' }}>
-                        {rowUser.username}
-                    </Text>
-                    {rowUser.admin && !rowUser.owner && !accessor.owner && (
-                        <Text c={'#aaaaaa'}>Admin</Text>
-                    )}
-                    {rowUser.owner && <Text c={'#aaaaaa'}>Owner</Text>}
-                    {!rowUser.admin && accessor.owner && (
-                        <WeblensButton
-                            label="Make Admin"
-                            squareSize={20}
-                            style={{ padding: 4 }}
-                            onClick={() => {
-                                SetUserAdmin(
-                                    rowUser.username,
-                                    true,
-                                    authHeader
-                                ).then(() =>
-                                    GetUsersInfo(setAllUsersInfo, authHeader)
-                                )
-                            }}
-                        />
-                    )}
-                    {!rowUser.owner && rowUser.admin && accessor.owner && (
-                        <WeblensButton
-                            label="Remove Admin"
-                            squareSize={20}
-                            style={{ padding: 4 }}
-                            onClick={() => {
-                                SetUserAdmin(
-                                    rowUser.username,
-                                    false,
-                                    authHeader
-                                ).then(() =>
-                                    GetUsersInfo(setAllUsersInfo, authHeader)
-                                )
-                            }}
-                        />
-                    )}
-                </div>
-                <Space style={{ display: 'flex', flexGrow: 1 }} />
+        <div
+            key={rowUser.username}
+            className="flex flex-row w-full h-16 justify-between items-center bg-bottom-grey rounded-sm p-2 rounded"
+        >
+            <div className="flex flex-col justify-center items-center w-max h-max">
+                <p className="font-semibold w-max text-white">
+                    {rowUser.username}
+                </p>
+                {rowUser.admin && !rowUser.owner && !accessor.owner && (
+                    <p className="text-gray-400">Admin</p>
+                )}
+                {rowUser.owner && <p className="text-[#aaaaaa]">Owner</p>}
+            </div>
+            <div className="flex">
+                {!rowUser.admin && accessor.owner && (
+                    <WeblensButton
+                        label="Make Admin"
+                        squareSize={35}
+                        onClick={() => {
+                            SetUserAdmin(
+                                rowUser.username,
+                                true,
+                                authHeader
+                            ).then(() =>
+                                GetUsersInfo(setAllUsersInfo, authHeader)
+                            )
+                        }}
+                    />
+                )}
+                {!rowUser.owner && rowUser.admin && accessor.owner && (
+                    <WeblensButton
+                        label="Remove Admin"
+                        squareSize={35}
+                        style={{ padding: 4 }}
+                        onClick={() => {
+                            SetUserAdmin(
+                                rowUser.username,
+                                false,
+                                authHeader
+                            ).then(() =>
+                                GetUsersInfo(setAllUsersInfo, authHeader)
+                            )
+                        }}
+                    />
+                )}
                 {rowUser.activated === false && (
                     <WeblensButton
                         label="Activate"
-                        squareSize={20}
+                        squareSize={35}
                         onClick={() => {
                             ActivateUser(rowUser.username, authHeader).then(
                                 () => GetUsersInfo(setAllUsersInfo, authHeader)
@@ -166,11 +303,10 @@ const UserRow = ({
                         }}
                     />
                 )}
-                <Space style={{ display: 'flex', flexGrow: 1 }} />
 
                 <WeblensButton
                     label="Delete"
-                    squareSize={20}
+                    squareSize={35}
                     danger
                     centerContent
                     disabled={rowUser.admin}
@@ -217,25 +353,26 @@ function UsersBox({
     }, [allUsersInfo, authHeader, setAllUsersInfo])
 
     return (
-        <div className="flex flex-col p-3 shrink w-full h-max overflow-y-scroll overflow-x-hidden">
+        <div className="flex flex-col p-2 shrink w-full h-max min-h-96 overflow-x-hidden bg-slate-800 rounded gap-2 no-scrollbar">
+            <p className="w-full h-max font-semibold text-xl select-none p-2">
+                Users
+            </p>
             {usersList}
         </div>
     )
 }
 
 export function ApiKeys({ authHeader }) {
-    const { serverInfo }: UserContextT = useContext(UserContext)
-    const [keys, setKeys] = useState([])
+    const server = useSessionStore((state) => state.server)
 
-    const getKeys = useCallback(() => {
-        getApiKeys(authHeader).then((r) => {
-            setKeys(r.keys)
-        })
-    }, [setKeys, authHeader])
-
-    useEffect(() => {
-        getKeys()
-    }, [])
+    const keys: DefinedUseQueryResult<ApiKeyInfo[], Error> = useQuery<
+        ApiKeyInfo[]
+    >({
+        queryKey: ['apiKeys'],
+        initialData: [],
+        queryFn: () => getApiKeys(authHeader),
+        retry: false,
+    })
 
     const [remotes, setRemotes] = useState([])
     useEffect(() => {
@@ -249,49 +386,52 @@ export function ApiKeys({ authHeader }) {
 
     return (
         <div className="flex flex-col bg-slate-800 rounded items-center p-1 w-full">
-            {keys.length !== 0 && (
-                <div className="flex flex-col items-center p-1 pl-3 rounded m-5 max-w-max">
-                    {keys.map((k) => {
+            <p className="w-full h-max font-semibold text-xl select-none p-2">
+                API Keys
+            </p>
+            {keys.data.length !== 0 && (
+                <div className="flex flex-col items-center p-1 rounded w-full">
+                    {keys.data.map((k) => {
                         return (
                             <div
-                                key={k.Key.slice(0, 6)}
-                                className="flex flex-row items-center max-w-full"
+                                key={k.id}
+                                className="flex flex-row items-center max-w-full w-full bg-bottom-grey rounded p-2"
                             >
                                 <div className="flex flex-col grow w-1/2">
-                                    <p className="text-nowrap w-full truncate">
-                                        {k.Key}
+                                    <p className="text-white font-semibold text-nowrap w-full truncate select-none">
+                                        {k.key}
                                     </p>
-                                    {k.RemoteUsing !== '' && (
-                                        <p>{k.RemoteUsing}</p>
+                                    {k.remoteUsing !== '' && (
+                                        <p className="select-none">
+                                            Used by:{' '}
+                                            {
+                                                remotes.find(
+                                                    (r) =>
+                                                        r.id === k.remoteUsing
+                                                )?.name
+                                            }
+                                        </p>
+                                    )}
+                                    {k.remoteUsing === '' && (
+                                        <p className="select-none">Unused</p>
                                     )}
                                 </div>
                                 <WeblensButton
                                     Left={IconClipboard}
                                     onClick={() => {
                                         if (!window.isSecureContext) {
-                                            notifications.show({
-                                                message:
-                                                    'Browser context is not secure, are you not using HTTPS?',
-                                                color: 'red',
-                                            })
-                                            return
+                                            return false
                                         }
-                                        navigator.clipboard.writeText(k.Key)
+                                        navigator.clipboard.writeText(k.key)
+                                        return true
                                     }}
                                 />
                                 <WeblensButton
                                     Left={IconTrash}
                                     danger
                                     onClick={() => {
-                                        deleteApiKey(k.Key, authHeader).then(
-                                            () => {
-                                                setKeys((ks) => {
-                                                    ks = ks.filter(
-                                                        (i) => i !== k
-                                                    )
-                                                    return [...ks]
-                                                })
-                                            }
+                                        deleteApiKey(k.key, authHeader).then(
+                                            () => keys.refetch()
                                         )
                                     }}
                                 />
@@ -304,25 +444,28 @@ export function ApiKeys({ authHeader }) {
                 squareSize={40}
                 label="New Api Key"
                 onClick={() => {
-                    newApiKey(authHeader).then((k) =>
-                        setKeys((ks) => {
-                            ks.push(k.key)
-                            return [...ks]
-                        })
-                    )
+                    newApiKey(authHeader).then(() => keys.refetch())
                 }}
             />
-            <div className="flex flex-col items-center p-2 pl-3 rounded m-5 w-full gap-2">
+            <p className="w-full h-max font-semibold text-xl select-none p-2">
+                Remotes
+            </p>
+            <div className="flex flex-col items-center p-2 rounded w-full gap-2">
                 {remotes.map((r) => {
-                    if (r.id === serverInfo.id) {
+                    if (r.id === server.info.id) {
                         return null
                     }
                     return (
                         <div
-                            key={r.name}
-                            className="flex flex-row items-center w-full rounded pl-5 justify-between bg-bottom-grey"
+                            key={r.id}
+                            className="flex flex-row items-center w-full rounded p-2 justify-between bg-bottom-grey"
                         >
-                            <p>{r.name}</p>
+                            <div className="flex flex-col">
+                                <p className="text-white font-semibold select-none">
+                                    {r.name} ({r.role})
+                                </p>
+                                <p className="select-none">{r.id}</p>
+                            </div>
                             <WeblensButton
                                 Left={IconTrash}
                                 danger
@@ -345,74 +488,130 @@ export function ApiKeys({ authHeader }) {
     )
 }
 
+function BackupProgress() {
+    const { progState } = useContext(TaskProgContext)
+    const [backupTask, setBackupTask] = useState<TaskProgress>()
+    const [backupTaskId, setBackupTaskId] = useState<string>()
+
+    useEffect(() => {
+        if (backupTaskId) {
+            setBackupTask(progState.getTask(backupTaskId))
+        } else {
+            const backupTasks = progState
+                .getTasks()
+                .filter((t) => t.taskType === 'do_backup')
+            if (backupTasks.length !== 0) {
+                setBackupTaskId(backupTasks[0].GetTaskId())
+                setBackupTask(backupTasks[0])
+            }
+        }
+    }, [progState])
+
+    if (!backupTask) {
+        return null
+    }
+
+    const completeTasks = backupTask.getTasksComplete() || 0
+    const totalTasks = backupTask.getTasksTotal() || 0
+
+    return (
+        <div className="flex flex-col h-max w-[90%] shrink-0 bg-slate-800 rounded p-4 gap-4 m-2">
+            <p className="w-full h-max font-semibold text-xl select-none">
+                {backupTask.getTaskStage() === TaskStage.Complete
+                    ? 'Backup Complete'
+                    : 'Backup in progress...'}
+            </p>
+            <WeblensProgress value={backupTask.getProgress()} />
+            {Boolean(completeTasks) &&
+                backupTask.getTaskStage() !== TaskStage.Complete && (
+                    <p className="font-light select-none">
+                        Downloading files: {completeTasks} / {totalTasks}
+                    </p>
+                )}
+        </div>
+    )
+}
+
 export function Admin({ open, closeAdminMenu }) {
-    const { authHeader, usr, serverInfo }: UserContextT =
-        useContext(UserContext)
+    const auth = useSessionStore((state) => state.auth)
+    const user = useSessionStore((state) => state.user)
+    const server = useSessionStore((state) => state.server)
     const [allUsersInfo, setAllUsersInfo] = useState(null)
+    const wsSend = useContext(WebsocketContext)
+
     useKeyDown('Escape', closeAdminMenu)
 
     useEffect(() => {
-        if (authHeader.Authorization !== '' && open && !allUsersInfo) {
-            GetUsersInfo(setAllUsersInfo, authHeader)
+        if (auth.Authorization !== '' && open && !allUsersInfo) {
+            GetUsersInfo(setAllUsersInfo, auth)
         }
-    }, [authHeader, open])
+    }, [auth, open])
 
-    if (usr.isLoggedIn === undefined || !open) {
+    useEffect(() => {
+        wsSend('task_subscribe', { taskType: 'do_backup' })
+    }, [])
+
+    if (user === null || !open) {
         return null
     }
 
     return (
         <div className="settings-menu-container" data-open={open}>
-            <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
-                <div className="top-0 left-0 m-3 absolute">
-                    <WeblensButton Left={IconX} onClick={closeAdminMenu} />
+            <div
+                className="settings-menu no-scrollbar"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="top-0 left-0 m-1 absolute">
+                    <WeblensButton
+                        Left={IconX}
+                        squareSize={35}
+                        onClick={closeAdminMenu}
+                    />
                 </div>
-                <div className="flex flex-row w-full h-full p-11">
-                    <div className="flex flex-col w-1/2">
-                        <UsersBox
-                            thisUserInfo={usr}
-                            allUsersInfo={allUsersInfo}
-                            setAllUsersInfo={setAllUsersInfo}
-                            authHeader={authHeader}
-                        />
-                        <Space h={10} />
-                        <CreateUserBox
-                            setAllUsersInfo={setAllUsersInfo}
-                            authHeader={authHeader}
-                        />
-                    </div>
-                    <div className="flex flex-col w-1/2">
-                        <ApiKeys authHeader={authHeader} />
-                        <div className="flex flex-row w-full justify-around">
-                            <WeblensButton
-                                label="Clear Cache"
-                                squareSize={40}
-                                danger
-                                onClick={() => {
-                                    clearCache(authHeader).then(() =>
-                                        closeAdminMenu()
-                                    )
-                                }}
+                <div className="flex flex-col w-full h-full items-center p-11">
+                    <div className="flex flex-row w-full h-full gap-2">
+                        <div className="flex flex-col w-1/2 gap-2">
+                            <UsersBox
+                                thisUserInfo={user}
+                                allUsersInfo={allUsersInfo}
+                                setAllUsersInfo={setAllUsersInfo}
+                                authHeader={auth}
                             />
-                            <WeblensButton
-                                label="Backup now"
-                                squareSize={40}
-                                disabled={serverInfo.role === 'core'}
-                                postScript={
-                                    serverInfo.role === 'core'
-                                        ? 'Core servers do not support backup'
-                                        : ''
-                                }
-                                onClick={async () => {
-                                    const res = await doBackup(authHeader)
-                                    if (res >= 300) {
-                                        return false
-                                    }
-                                    return true
-                                }}
+                            <CreateUserBox
+                                setAllUsersInfo={setAllUsersInfo}
+                                authHeader={auth}
                             />
                         </div>
+                        <div className="flex flex-col w-1/2 gap-2 items-center">
+                            <ApiKeys authHeader={auth} />
+                            <div className="flex flex-row w-full justify-around">
+                                <WeblensButton
+                                    label="Clear Cache"
+                                    squareSize={40}
+                                    danger
+                                    onClick={() => {
+                                        clearCache(auth).then(() =>
+                                            closeAdminMenu()
+                                        )
+                                    }}
+                                />
+                                <WeblensButton
+                                    label="Backup now"
+                                    squareSize={40}
+                                    disabled={server.info.role === 'core'}
+                                    onClick={async () => {
+                                        const res = await doBackup(auth)
+                                        if (res >= 300) {
+                                            return false
+                                        }
+                                        return true
+                                    }}
+                                />
+                            </div>
+                            <BackupProgress />
+                        </div>
                     </div>
+                    <PathAutocomplete />
                 </div>
             </div>
         </div>

@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 
+	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/golang-jwt/jwt/v5"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,14 +22,14 @@ type User struct {
 	Admin     bool               `bson:"admin" json:"admin"`
 	Activated bool               `bson:"activated" json:"activated"`
 	Owner     bool               `bson:"owner" json:"owner"`
-	// HomeId types.FileId `bson:"homeId" json:"-"`
-	// TrashId types.FileId `bson:"trashId" json:"-"`
+	HomeId    types.FileId       `bson:"homeId" json:"homeId"`
+	TrashId   types.FileId       `bson:"trashId" json:"trashId"`
 
 	// non-database types
-	HomeFolder  types.WeblensFile `bson:"-" json:"homeId"`
-	TrashFolder types.WeblensFile `bson:"-" json:"trashId"`
-
-	service *userService
+	homeFolder   types.WeblensFile
+	trashFolder  types.WeblensFile
+	tokensLock   *sync.RWMutex
+	isSystemUser bool
 }
 
 func New(username types.Username, password string, isAdmin, autoActivate bool) (types.User, error) {
@@ -42,12 +43,13 @@ func New(username types.Username, password string, isAdmin, autoActivate bool) (
 	passHash := string(passHashBytes)
 
 	newUser := &User{
-		Id:        primitive.NewObjectID(),
-		Username:  username,
-		Password:  passHash,
-		Tokens:    []string{},
-		Admin:     isAdmin,
-		Activated: autoActivate,
+		Id:         primitive.NewObjectID(),
+		Username:   username,
+		Password:   passHash,
+		Tokens:     []string{},
+		Admin:      isAdmin,
+		Activated:  autoActivate,
+		tokensLock: &sync.RWMutex{},
 	}
 
 	homeDir, err := newUser.CreateHomeFolder()
@@ -55,8 +57,8 @@ func New(username types.Username, password string, isAdmin, autoActivate bool) (
 		return nil, err
 	}
 
-	newUser.HomeFolder = homeDir
-	newUser.TrashFolder = homeDir.GetChildren()[0]
+	newUser.homeFolder = homeDir
+	newUser.trashFolder = homeDir.GetChildren()[0]
 
 	return newUser, nil
 }
@@ -69,7 +71,7 @@ func (u *User) Activate() (err error) {
 		return err
 	}
 
-	err = types.SERV.Database.ActivateUser(u.GetUsername())
+	err = types.SERV.StoreService.ActivateUser(u.GetUsername())
 	if err != nil {
 		return err
 	}
@@ -87,17 +89,22 @@ func (u *User) GetUsername() types.Username {
 }
 
 func (u *User) GetHomeFolder() types.WeblensFile {
-	return u.HomeFolder
+	if u.homeFolder == nil {
+		u.homeFolder = types.SERV.FileTree.Get(u.HomeId)
+	}
+	return u.homeFolder
 }
 
 func (u *User) SetHomeFolder(f types.WeblensFile) error {
-	u.HomeFolder = f
+	u.homeFolder = f
+	u.HomeId = f.ID()
 	return nil
 }
 
 func (u *User) CreateHomeFolder() (types.WeblensFile, error) {
 	mediaRoot := types.SERV.FileTree.GetRoot()
-	homeDir, err := types.SERV.FileTree.MkDir(mediaRoot, strings.ToLower(string(u.Username)))
+	event := history.NewFileEvent()
+	homeDir, err := types.SERV.FileTree.MkDir(mediaRoot, strings.ToLower(string(u.Username)), event)
 	if err != nil && errors.Is(err, types.ErrDirAlreadyExists) {
 
 	} else if err != nil {
@@ -106,20 +113,29 @@ func (u *User) CreateHomeFolder() (types.WeblensFile, error) {
 
 	homeDir.SetOwner(u)
 
-	_, err = types.SERV.FileTree.MkDir(homeDir, ".user_trash")
+	_, err = types.SERV.FileTree.MkDir(homeDir, ".user_trash", event)
 	if err != nil {
 		return homeDir, err
+	}
+
+	err = types.SERV.FileTree.GetJournal().LogEvent(event)
+	if err != nil {
+		return homeDir, types.WeblensErrorFromError(err)
 	}
 
 	return homeDir, nil
 }
 
 func (u *User) GetTrashFolder() types.WeblensFile {
-	return u.TrashFolder
+	if u.trashFolder == nil {
+		u.trashFolder = types.SERV.FileTree.Get(u.TrashId)
+	}
+	return u.trashFolder
 }
 
 func (u *User) SetTrashFolder(f types.WeblensFile) error {
-	u.TrashFolder = f
+	u.trashFolder = f
+	u.TrashId = f.ID()
 	return nil
 }
 
@@ -135,11 +151,18 @@ func (u *User) IsActive() bool {
 	return u.Activated
 }
 
+func (u *User) IsSystemUser() bool {
+	return u.isSystemUser
+}
+
 func (u *User) GetToken() string {
+	u.tokensLock.RLock()
 	if len(u.Tokens) != 0 {
 		ret := u.Tokens[0]
+		u.tokensLock.RUnlock()
 		return ret
 	}
+	u.tokensLock.RUnlock()
 
 	token := jwt.New(jwt.SigningMethodHS256)
 	tokenString, err := token.SignedString([]byte("key"))
@@ -149,11 +172,13 @@ func (u *User) GetToken() string {
 	}
 
 	ret := tokenString
-	err = types.SERV.Database.AddTokenToUser(u.Username, tokenString)
+	err = types.SERV.StoreService.AddTokenToUser(u.Username, tokenString)
 	if err != nil {
 		util.ErrTrace(err)
 	}
 
+	u.tokensLock.Lock()
+	defer u.tokensLock.Unlock()
 	u.Tokens = append(u.Tokens, tokenString)
 
 	return ret
@@ -174,12 +199,15 @@ func (u *User) UpdatePassword(oldPass, newPass string) (err error) {
 	}
 	u.Password = string(passHashBytes)
 
-	return u.service.db.UpdatePsaswordByUsername(u.Username, u.Password)
+	return types.ErrNotImplemented("UpdatePassword user")
+	// return u.service.db.UpdatePsaswordByUsername(u.Username, u.Password)
 }
 
 func (u *User) SetAdmin(isAdmin bool) error {
 	u.Admin = isAdmin
-	return u.service.db.SetAdminByUsername(u.Username, isAdmin)
+	return types.ErrNotImplemented("SetAdmin user")
+
+	// return types.SERV.UserService.SetAdminByUsername(u.Username, isAdmin)
 }
 
 func MakeOwner(u types.User) error {
@@ -213,17 +241,25 @@ func ShareGrantsFileAccess(share types.Share, file types.WeblensFile) bool {
 	return false
 }
 
-func (u User) MarshalJSON() ([]byte, error) {
-	m := map[string]any{
-		"username":  u.Username,
-		"admin":     u.Admin,
-		"activated": u.Activated,
-		"owner":     u.Owner,
-		"homeId":    u.HomeFolder.ID(),
-		"trashId":   u.TrashFolder.ID(),
+func (u *User) FormatArchive() (map[string]any, error) {
+	data := map[string]any{
+		"username":     u.Username,
+		"password":     u.Password,
+		"tokens":       u.Tokens,
+		"admin":        u.Admin,
+		"activated":    u.Activated,
+		"owner":        u.Owner,
+		"isSystemUser": u.isSystemUser,
+		"homeId":       "",
+		"trashId":      "",
 	}
 
-	return json.Marshal(m)
+	if u.homeFolder != nil && u.trashFolder != nil {
+		data["homeId"] = u.homeFolder.ID()
+		data["trashId"] = u.trashFolder.ID()
+	}
+
+	return data, nil
 }
 
 func (u *User) UnmarshalJSON(data []byte) error {
@@ -233,12 +269,23 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	u.Username = types.Username(obj["username"].(string))
+	u.Password = obj["password"].(string)
 	u.Activated = obj["activated"].(bool)
 	u.Admin = obj["admin"].(bool)
 	u.Owner = obj["owner"].(bool)
-	// u.HomeFolder = FsTreeGet(types.FileId(obj["homeId"].(string)))
-	// u.TrashFolder = FsTreeGet(types.FileId(obj["trashId"].(string)))
-	u.Username = types.Username(obj["username"].(string))
+	u.HomeId = types.FileId(obj["homeId"].(string))
+	u.TrashId = types.FileId(obj["trashId"].(string))
+	u.Tokens = util.SliceConvert[string](obj["tokens"].([]any))
+	u.isSystemUser = obj["isSystemUser"].(bool)
+
+	u.tokensLock = &sync.RWMutex{}
 
 	return nil
 }
+
+// func (u *User) UnmarshalJSONValue(t bsontype.Type, b []byte) (err error) {
+// 	util.Debug.Println(t)
+// 	u = types.SERV.UserService.Get(types.Username(b)).(*User)
+// 	return nil
+// }

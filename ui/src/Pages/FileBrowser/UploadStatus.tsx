@@ -1,5 +1,4 @@
 import {
-    Box,
     Center,
     CloseButton,
     Divider,
@@ -9,7 +8,7 @@ import {
 } from '@mantine/core'
 import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react'
 
-import React, { useMemo, useReducer } from 'react'
+import React, { Dispatch, useMemo, useReducer } from 'react'
 import { humanFileSize } from '../../util'
 
 import './style/uploadStatusStyle.scss'
@@ -43,7 +42,7 @@ function uploadReducer(state: UploadStateType, action) {
                 return { ...state }
             }
 
-            let replaceItem = state.uploadsMap.get(action.key)
+            const replaceItem = state.uploadsMap.get(action.key)
             replaceItem.subProgress = 0
 
             // if (action.speed && replaceItem.speed.push(action.speed) >= 15) {
@@ -66,7 +65,7 @@ function uploadReducer(state: UploadStateType, action) {
             return { ...state, uploadsMap: new Map(state.uploadsMap) }
         }
         case 'update_progress': {
-            let replaceItem = state.uploadsMap.get(action.key)
+            const replaceItem = state.uploadsMap.get(action.key)
             if (!replaceItem) {
                 console.error("Looking for upload key that doesn't exist")
                 return { ...state }
@@ -114,12 +113,10 @@ type UploadStateType = {
 }
 
 export function useUploadStatus() {
-    const [uploadState, uploadDispatch]: [
-        UploadStateType,
-        React.Dispatch<any>,
-    ] = useReducer(uploadReducer, {
-        uploadsMap: new Map<string, UploadMeta>(),
-    })
+    const [uploadState, uploadDispatch]: [UploadStateType, Dispatch<any>] =
+        useReducer(uploadReducer, {
+            uploadsMap: new Map<string, UploadMeta>(),
+        })
 
     return { uploadState, uploadDispatch }
 }
@@ -169,38 +166,17 @@ function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
                 />
             )}
 
-            <Box
-                style={{
-                    height: 'max-content',
-                    width: 0,
-                    alignItems: 'flex-start',
-                    justifyContent: 'center',
-                    padding: 8,
-                    flexGrow: 2,
-                }}
-            >
-                <Text
-                    truncate={'end'}
-                    c="white"
-                    size="15px"
-                    fw={600}
-                    style={{ width: '100%', lineHeight: '20px' }}
-                >
+            <div className="flex flex-col h-max w-0 items-start justify-center p-2 grow">
+                <p className="truncate font-semibold text-white w-full">
                     {uploadMetadata.friendlyName}
-                </Text>
+                </p>
                 {statusText && prog !== 100 && prog !== -1 && (
-                    <Text
-                        c="#dddddd"
-                        pr={5}
-                        size="13px"
-                        truncate={'end'}
-                        style={{ textWrap: 'nowrap', marginTop: 2 }}
-                    >
+                    <p className="text-nowrap pr-[4px] text-sm mt-1">
                         {statusText}
-                    </Text>
+                    </p>
                 )}
-            </Box>
-            {/* <Space style={{ width: 0, flexGrow: 1 }} /> */}
+            </div>
+
             {uploadMetadata.progress === -1 && (
                 <RingProgress
                     size={10}
@@ -247,7 +223,7 @@ const UploadStatus = ({
     uploadDispatch
 }) => {
     const uploadCards = useMemo(() => {
-        let uploadCards = []
+        const uploadCards = []
 
         const uploads = Array.from(uploadState.uploadsMap.values())
             .filter((val) => !val.parent)
@@ -285,8 +261,8 @@ const UploadStatus = ({
     return (
         <div className="upload-status-container">
             <div className="flex flex-col h-max max-h-full w-full bg-[#ffffff11] p-2 pb-0 mb-1 rounded overflow-hidden">
-                <div className="no-scrollbar">
-                    <div className="h-full w-full">{uploadCards}</div>
+                <div className="flex no-scrollbar h-max min-h-[50px]">
+                    <div className="h-max min-h-max w-full">{uploadCards}</div>
                 </div>
 
                 <Divider h={2} w={'100%'} />

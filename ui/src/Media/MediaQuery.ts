@@ -18,7 +18,12 @@ export async function FetchData(
 
     try {
         const url = new URL(`${API_ENDPOINT}/media`)
-        url.searchParams.append('raw', galleryState.includeRaw.toString())
+        url.searchParams.append('raw', mediaState.isShowingRaw().toString())
+        url.searchParams.append(
+            'hidden',
+            mediaState.isShowingHidden().toString()
+        )
+        url.searchParams.append('limit', '100000')
         if (galleryState.albumsFilter) {
             url.searchParams.append(
                 'albums',
@@ -39,20 +44,12 @@ export async function FetchData(
             }
         )
         if (data.Media) {
-            data.Media.forEach((m) => {
-                const newM = new WeblensMedia(m)
-                mediaState.add(newM.Id(), newM)
+            const medias = data.Media.map((m) => {
+                return new WeblensMedia(m)
             })
-        }
-        mediaDispatch({ type: 'refresh' })
-        // const medias = data.Media.map((m) => {
-        //     return new WeblensMedia(m)
-        // })
 
-        // dispatch({
-        //     type: 'set_media',
-        //     medias: medias,
-        // })
+            mediaDispatch({ type: 'add_medias', medias: medias })
+        }
     } catch (error) {
         console.error(error)
     }

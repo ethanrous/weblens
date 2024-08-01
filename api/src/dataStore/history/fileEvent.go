@@ -1,6 +1,7 @@
 package history
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 
 type FileEvent struct {
 	EventId     types.FileEventId `bson:"_id"`
-	Actions     []*FileAction     `bson:"Actions"`
+	Actions     []*FileAction     `bson:"actions"`
 	EventBegin  time.Time         `bson:"eventBegin"`
 	ActionsLock *sync.Mutex       `bson:"-"`
 }
@@ -49,6 +50,9 @@ func (fe *FileEvent) NewCreateAction(file types.WeblensFile) types.FileAction {
 		DestinationPath: file.GetPortablePath().ToPortable(),
 		DestinationId:   types.SERV.FileTree.GenerateFileId(file.GetAbsPath()),
 		EventId:         fe.EventId,
+		ParentId:        file.GetParent().ID(),
+
+		file: file,
 	}
 
 	fe.addAction(newAction)
@@ -56,13 +60,29 @@ func (fe *FileEvent) NewCreateAction(file types.WeblensFile) types.FileAction {
 	return newAction
 }
 
-func (fe *FileEvent) NewMoveAction(originId, destinationId types.FileId) types.FileAction {
+func (fe *FileEvent) NewMoveAction(originId types.FileId, file types.WeblensFile) types.FileAction {
+	lt := types.SERV.FileTree.GetJournal().GetLifetimeByFileId(originId)
+	if lt == nil {
+		util.Error.Println("Cannot not find existing lifetime for originId", originId)
+		return nil
+	}
+	latest := lt.GetLatestAction()
+
+	if latest.GetDestinationId() != originId {
+		util.Error.Println("File previous destination does not match move origin")
+	}
+
 	newAction := &FileAction{
-		Timestamp:     time.Now(),
-		ActionType:    FileCreate,
-		OriginId:      originId,
-		DestinationId: destinationId,
-		EventId:       fe.EventId,
+		Timestamp:       time.Now(),
+		ActionType:      FileMove,
+		OriginId:        latest.GetDestinationId(),
+		OriginPath:      latest.GetDestinationPath(),
+		DestinationId:   file.ID(),
+		DestinationPath: file.GetPortablePath().ToPortable(),
+		EventId:         fe.EventId,
+		ParentId:        file.GetParent().ID(),
+
+		file: file,
 	}
 
 	fe.addAction(newAction)
@@ -70,18 +90,33 @@ func (fe *FileEvent) NewMoveAction(originId, destinationId types.FileId) types.F
 	return newAction
 }
 
-// func (fe *FileEvent) UnmarshalBSON(b []byte) error {
-// 	target := &map[string]any{}
-// 	err := bson.Unmarshal(b, target)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	util.Debug.Println(target)
-// 	return nil
-// }
+func (fe *FileEvent) NewDeleteAction(originId types.FileId) types.FileAction {
+	lt := types.SERV.FileTree.GetJournal().GetLifetimeByFileId(originId)
+	if lt == nil {
+		util.ShowErr(
+			types.WeblensErrorMsg(
+				fmt.Sprintf(
+					"Cannot not find existing lifetime for originId [%s]", originId,
+				),
+			),
+		)
+		return nil
+	}
+	latest := lt.GetLatestAction()
 
-// func (fe *FileEvent) UnmarshalBSONValue(t bsontype.Type, value []byte) error {
-// 	util.Debug.Println(t, value)
-//
-// 	return nil
-// }
+	if latest.GetDestinationId() != originId {
+		util.Error.Println("File previous destination does not match move origin")
+	}
+
+	newAction := &FileAction{
+		Timestamp:  time.Now(),
+		ActionType: FileDelete,
+		OriginId:   latest.GetDestinationId(),
+		OriginPath: latest.GetDestinationPath(),
+		EventId:    fe.EventId,
+	}
+
+	fe.addAction(newAction)
+
+	return newAction
+}

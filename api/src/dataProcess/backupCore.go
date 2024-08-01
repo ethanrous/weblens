@@ -1,223 +1,163 @@
 package dataProcess
 
 import (
+	"fmt"
+	"slices"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
 )
 
-func BackupD(interval time.Duration, r types.Requester) {
+func BackupD(interval time.Duration) {
 	if types.SERV.InstanceService.GetLocal().ServerRole() != types.Backup {
 		return
 	}
-	return
-	// for {
-	// 	time.Sleep(interval)
-	// 	newTask(BackupTask, nil, globalCaster, r).Q(nil)
-	// }
+	for {
+		for _, remote := range types.SERV.InstanceService.GetRemotes() {
+			if remote.IsLocal() {
+				continue
+			}
+			types.SERV.TaskDispatcher.Backup(remote.ServerId(), types.SERV.Caster)
+		}
+		time.Sleep(interval)
+	}
 }
 
 func doBackup(t *task) {
 	localRole := types.SERV.InstanceService.GetLocal().ServerRole()
+	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
+	t.setChildTaskPool(pool)
 
 	if localRole == types.Initialization {
 		t.ErrorAndExit(types.ErrServerNotInit)
+	} else if localRole != types.Backup {
+		t.ErrorAndExit(types.WeblensErrorMsg("cannot run backup task on a core server"))
 	}
 
-	if localRole == types.Core {
-		packageBackup(t)
-	} else if localRole == types.Backup {
-		receiveBackup(t)
+	var proxyService types.ProxyStore
+	var ok bool
+	if proxyService, ok = types.SERV.StoreService.(types.ProxyStore); !ok {
+		t.ErrorAndExit(types.WeblensErrorMsg("cannot run backup task without proxy service initialized"))
 	}
+	localStore := proxyService.GetLocalStore()
+
+	latest, err := types.SERV.StoreService.GetLatestAction()
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
+	// Get new history updates
+	updatedLifetimes, err := types.SERV.StoreService.GetLifetimesSince(latest.GetTimestamp())
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
+	slices.SortFunc(
+		updatedLifetimes, func(a, b types.Lifetime) int {
+			aActions := a.GetActions()
+			bActions := b.GetActions()
+			return len(aActions[len(aActions)-1].GetDestinationPath()) - len(bActions[len(bActions)-1].GetDestinationPath())
+		},
+	)
+
+	if len(updatedLifetimes) > 0 {
+		for _, lt := range updatedLifetimes {
+			exist := types.SERV.FileTree.GetJournal().Get(lt.ID())
+			if exist == nil && types.SERV.FileTree.Get(lt.GetLatestFileId()) == nil {
+				_, err := proxyService.GetFile(lt.GetLatestFileId())
+				if err != nil {
+					t.ErrorAndExit(err)
+				}
+			}
+			err = types.SERV.FileTree.GetJournal().Add(lt)
+			if err != nil {
+				t.ErrorAndExit(err)
+			}
+		}
+	}
+
+	files := util.FilterMap(
+		types.SERV.FileTree.GetJournal().GetActiveLifetimes(), func(lt types.Lifetime) (types.WeblensFile, bool) {
+			f := types.SERV.FileTree.Get(lt.GetLatestFileId())
+			if f == nil && lt.GetLatestAction().GetActionType() != types.FileDelete {
+				f, err = proxyService.GetFile(lt.GetLatestFileId())
+				if err != nil {
+					t.ErrorAndExit(err)
+				}
+				err = types.SERV.FileTree.Add(f)
+				if err != nil {
+					t.ErrorAndExit(err)
+				}
+			}
+
+			return f, true
+		},
+	)
+
+	slices.SortFunc(
+		files, func(a, b types.WeblensFile) int {
+			return len(a.GetAbsPath()) - len(b.GetAbsPath())
+		},
+	)
+
+	for _, f := range files {
+		if f == nil {
+			continue
+		}
+
+		// var stat types.FileStat
+		stat, _ := localStore.StatFile(f)
+		if !stat.Exists {
+			if f.IsDir() {
+				err = localStore.TouchFile(f)
+				if err != nil {
+					t.ErrorAndExit(err)
+				}
+			} else {
+				// util.Debug.Println("Copying file from core: ", f.ID(), pool.ID())
+				pool.CopyFileFromCore(f, t.caster)
+			}
+		}
+	}
+
+	pool.SignalAllQueued()
+	pool.Wait(true)
+
+	if len(pool.Errors()) != 0 {
+		t.ErrorAndExit(types.WeblensErrorMsg(fmt.Sprintf("%d backup file copies have failed", len(pool.Errors()))))
+	}
+
+	t.success()
 }
 
-// task run on backup server to query for and download updated data
-func receiveBackup(t *task) {
-	// meta := t.metadata.(backupMeta)
-	//
-	// jes, err := t.requester.RequestCoreSnapshot()
-	// if err != nil {
-	// 	t.ErrorAndExit(err)
-	// }
-	//
-	// if len(jes) == 0 {
-	// 	t.success()
-	// 	return
-	// }
-	//
-	// snap := dataStore.NewSnapshot()
-	//
-	// // sort journal entries by timestamp, so they can be processed in order
-	// slices.SortFunc(jes, dataStore.FileJournalEntrySort)
-	//
-	// // The map of event "chains", following the file through its history.
-	// // These are pointers to slices for "historical" reasons, might be able to
-	// // squash down to just slices in the future
-	// eventMap := map[types.FileId]*[]types.FileJournalEntry{}
-	//
-	// completeChains := [][]types.FileJournalEntry{}
-	//
-	// for _, je := range jes {
-	//
-	// 	je.SetSnapshot(snap.GetId())
-	//
-	// 	switch je.GetAction() {
-	// 	case dataStore.FileCreate:
-	// 		chain, ok := eventMap[je.GetFileId()]
-	// 		if !ok {
-	// 			eventMap[je.GetFileId()] = &[]types.FileJournalEntry{je}
-	// 			continue
-	// 		} else {
-	// 			// If the file id of the destination is "occupied", we have an issue
-	// 			chainStr := strings.Join(util.Map(*chain, func(j types.FileJournalEntry) string { return string(j.GetAction()) }), "->")
-	// 			err := fmt.Errorf("file create found existing file. Snapshot chain: %s", chainStr)
-	// 			t.ErrorAndExit(err)
-	// 		}
-	//
-	// 	case dataStore.FileMove:
-	// 		chain, ok := eventMap[je.GetFileId()]
-	// 		if !ok {
-	// 			// If the file id of the destination is "occupied", we have an issue
-	// 			if _, ok := eventMap[je.GetFromFileId()]; ok {
-	// 				t.ErrorAndExit(fmt.Errorf("backup map collide attempting to insert move, which was thought to be new"))
-	// 			}
-	// 			eventMap[je.GetFromFileId()] = &[]types.FileJournalEntry{je}
-	// 			continue
-	// 		}
-	//
-	// 		// if *chain == nil || (*chain)[len(*chain)-1].GetAction() == dataStore.FileDelete {
-	// 		// 	chainStr := strings.Join(util.Map(*chain, func(j types.FileJournalEntry) string { return string(j.GetAction()) }), "->")
-	// 		// 	err := fmt.Errorf("got unexpected file move. Snapshot chain: %s", chainStr)
-	// 		// 	t.ErrorAndExit(err)
-	// 		// }
-	//
-	// 		*chain = append(*chain, je)
-	//
-	// 		// remove old fileId from the map, so a new file could inhabit it
-	// 		delete(eventMap, je.GetFileId())
-	//
-	// 		// Add new file id to point to the chain, since
-	// 		// future actions will use that new id
-	// 		eventMap[je.GetFromFileId()] = chain
-	//
-	// 	case dataStore.FileDelete:
-	// 		chain, ok := eventMap[je.GetFileId()]
-	// 		if !ok {
-	// 			eventMap[je.GetFileId()] = &[]types.FileJournalEntry{je}
-	// 			continue
-	// 		}
-	//
-	// 		if (*chain) == nil {
-	// 			err := fmt.Errorf("got unexpected file delete. Snapshot chain is nil")
-	// 			t.ErrorAndExit(err)
-	// 		}
-	//
-	// 		// create -> ... -> delete == noop, since if the file was created and deleted
-	// 		// between snapshots, we won't have the file bytes or any other data between,
-	// 		// so we throw away the chain
-	// 		if (*chain)[0].GetAction() != dataStore.FileCreate {
-	// 			// otherwise, log delete to chain and save chain to array of complete chains
-	// 			*chain = append(*chain, je)
-	// 			completeChains = append(completeChains, *chain)
-	// 		}
-	//
-	// 		// remove chain from event map, since nothing can happen after the delete,
-	// 		// and if another file is created in the same place, the key must be free
-	// 		delete(eventMap, je.GetFileId())
-	//
-	// 	default:
-	// 		util.Error.Println("Unexpected backup journal action:", je.GetAction())
-	// 	}
-	// }
-	//
-	// // Add chains in map to array of completed chains
-	// completeChains = append(completeChains, util.Map(util.MapToSlicePure(eventMap), func(j *[]types.FileJournalEntry) []types.FileJournalEntry { return *j })...)
-	//
-	// newIds := util.FilterMap(completeChains, func(chain []types.FileJournalEntry) (types.FileId, bool) {
-	// 	if chain[0].GetAction() == dataStore.FileCreate {
-	// 		finalId, err := dataStore.GetFinalFileId(chain)
-	// 		if err != nil {
-	// 			t.ErrorAndExit(err)
-	// 		}
-	// 		return finalId, true
-	// 	} else {
-	// 		return "", false
-	// 	}
-	// })
-	//
-	// newFilesInfo, err := t.requester.GetCoreFileInfos(newIds)
-	// if err != nil {
-	// 	t.ErrorAndExit(err)
-	// }
-	// if len(newFilesInfo) != len(newIds) {
-	// 	err = errors.New("file info count does not match what was asked for")
-	// 	t.ErrorAndExit(err)
-	// }
-	//
-	// // Yoink re-orders the slice when pulling from anywhere but the
-	// // end, so we must reverse the slice so we only pull from the end
-	// slices.Reverse(newFilesInfo)
-	//
-	// // Save chains of new events to database file history
-	// for _, chain := range completeChains {
-	// 	if chain[0].GetAction() == dataStore.FileCreate {
-	// 		var newF types.WeblensFile
-	// 		newFilesInfo, newF = util.Yoink(newFilesInfo, len(newFilesInfo)-1)
-	//
-	// 		finalId, err := dataStore.GetFinalFileId(chain)
-	// 		if err != nil {
-	// 			t.ErrorAndExit(err)
-	// 		}
-	// 		if finalId != newF.ID() {
-	// 			err = errors.New("did not get expected file info")
-	// 			t.ErrorAndExit(err)
-	// 		}
-	//
-	// 		var bs [][]byte
-	// 		if !newF.IsDir() {
-	// 			bs, err = t.requester.GetCoreFileBin(newF)
-	// 			if err != nil {
-	// 				t.ErrorAndExit(err)
-	// 			}
-	// 		}
-	// 		m := dataStore.MediaMapGet(newF.GetContentId())
-	//
-	// 		// baseF, err := dataStore.NewBackupFile(chain, meta.remoteId, bs, newF.IsDir(), mId)
-	// 		_, baseF, err := dataStore.CacheBaseMedia(newF.GetContentId(), bs, meta.tree)
-	// 		if err != nil {
-	// 			t.ErrorAndExit(err)
-	// 		}
-	// 		if m != nil {
-	// 			m.AddFile(baseF)
-	// 			m.SetImported(false)
-	//
-	// 			err = m.Save()
-	// 			if err != nil {
-	// 				t.ErrorAndExit(err)
-	// 				return
-	// 			}
-	//
-	// 			m.SetImported(true)
-	//
-	// 			// err = baseF.SetMedia(m)
-	// 			// if err != nil {
-	// 			// 	t.ErrorAndExit(err)
-	// 			// }
-	// 		}
-	// 	} else {
-	// 		// dataStore.BackupFileAddEvents(chain)
-	// 	}
-	// }
-	//
-	// dataStore.JournalBackup(snap)
+func copyFileFromCore(t *task) {
+	f := t.metadata.(backupCoreFileMeta).file
 
-	t.ErrorAndExit(types.NewWeblensError("not impl"))
-}
+	var proxyService types.ProxyStore
+	var ok bool
+	if proxyService, ok = types.SERV.StoreService.(types.ProxyStore); !ok {
+		t.ErrorAndExit(types.WeblensErrorMsg("cannot run copy core file task without proxy service initialized"))
+	}
+	localStore := proxyService.GetLocalStore()
 
-// task run on core server to package backup info to send to backup server
-func packageBackup(t *task) {
-	// acc := dataStore.NewAccessMeta(dataStore.WEBLENS_ROOT_USER.Username).SetRequestMode(dataStore.BackupFileScan)
+	bs, err := proxyService.ReadFile(f)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
 
-	// t.setResult(types.TaskResult{"files": allFiles})
+	err = localStore.TouchFile(f)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
 
+	err = f.Write(bs)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+
+	poolProgress := getScanResult(t)
+	poolProgress["filename"] = f.Filename()
+	t.caster.PushPoolUpdate(t.taskPool, SubTaskCompleteEvent, poolProgress)
+	t.success()
 }

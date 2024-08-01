@@ -7,7 +7,7 @@ import (
 
 type shareService struct {
 	repo map[types.ShareId]types.Share
-	db   types.ShareDB
+	db   types.ShareStore
 }
 
 func NewService() types.ShareService {
@@ -16,7 +16,7 @@ func NewService() types.ShareService {
 	}
 }
 
-func (ss *shareService) Init(db types.DatabaseService) error {
+func (ss *shareService) Init(db types.ShareStore) error {
 	ss.db = db
 	shares, err := ss.db.GetAllShares()
 	if err != nil {
@@ -25,19 +25,16 @@ func (ss *shareService) Init(db types.DatabaseService) error {
 
 	ss.repo = make(map[types.ShareId]types.Share)
 	for _, sh := range shares {
-		ss.repo[sh.GetShareId()] = sh
-		switch sh.GetShareType() {
-		case types.FileShare:
-			sharedFile := types.SERV.FileTree.Get(types.FileId(sh.GetItemId()))
-			if sharedFile != nil {
-				err := sharedFile.SetShare(sh)
-				if err != nil {
-					return err
-				}
-			} else {
-				util.Warning.Println("Ignoring possibly no longer existing file in share init")
+		if len(sh.GetAccessors()) == 0 && !sh.IsPublic() && (sh.GetShareType() != types.FileShare || !sh.(*FileShare).IsWormhole()) {
+			util.Debug.Println("Removing share on init...")
+			err = db.DeleteShare(sh.GetShareId())
+			if err != nil {
+				return err
 			}
+			continue
 		}
+
+		ss.repo[sh.GetShareId()] = sh
 	}
 
 	return nil
@@ -52,7 +49,7 @@ func (ss *shareService) Add(sh types.Share) error {
 	ss.repo[sh.GetShareId()] = sh
 
 	if sh.GetShareType() == types.FileShare {
-		err := types.SERV.FileTree.Get(types.FileId(sh.GetItemId())).SetShare(sh)
+		err = types.SERV.FileTree.Get(types.FileId(sh.GetItemId())).SetShare(sh)
 		if err != nil {
 			return err
 		}
@@ -95,10 +92,14 @@ func (ss *shareService) Get(sId types.ShareId) types.Share {
 	return ss.repo[sId]
 }
 
+func (ss *shareService) GetAllShares() []types.Share {
+	return util.MapToValues(ss.repo)
+}
+
 func (ss *shareService) Size() int {
 	return len(ss.repo)
 }
 
 func (ss *shareService) GetSharedWithUser(u types.User) ([]types.Share, error) {
-	return types.SERV.Database.GetSharedWithUser(u.GetUsername())
+	return types.SERV.StoreService.GetSharedWithUser(u.GetUsername())
 }

@@ -1,20 +1,24 @@
 package types
 
 import (
+	"fmt"
 	"os"
 	"time"
 )
 
 type FileTree interface {
-	BaseService[FileId, WeblensFile]
+	WeblensService[FileId, WeblensFile, FilesStore]
 
-	Move(f, newParent WeblensFile, newFilename string, overwrite bool, c ...BufferedBroadcasterAgent) error
+	Move(
+		f, newParent WeblensFile, newFilename string, overwrite bool, event FileEvent,
+		c ...BufferedBroadcasterAgent,
+	) error
 
 	Touch(parentFolder WeblensFile, newFileName string, detach bool, owner User, c ...BroadcasterAgent) (
 		WeblensFile,
 		error,
 	)
-	MkDir(parentFolder WeblensFile, newDirName string, c ...BroadcasterAgent) (WeblensFile, error)
+	MkDir(parentFolder WeblensFile, newDirName string, event FileEvent, c ...BroadcasterAgent) (WeblensFile, error)
 
 	AttachFile(f WeblensFile, c ...BroadcasterAgent) error
 
@@ -25,6 +29,7 @@ type FileTree interface {
 	GenerateFileId(absPath string) FileId
 	NewFile(parent WeblensFile, filename string, isDir bool, owner User) WeblensFile
 	Size() int
+	GetAllFiles() ([]WeblensFile, error)
 
 	AddRoot(r WeblensFile) error
 	NewRoot(
@@ -56,13 +61,14 @@ type WeblensFile interface {
 	GetChildrenInfo(AccessMeta) []FileInfo
 
 	IsDisplayable() bool
+	IsDetached() bool
+	IsReadOnly() bool
 
 	Copy() WeblensFile
 	GetParent() WeblensFile
 	GetChildren() []WeblensFile
 	GetChild(childName string) (WeblensFile, error)
 	AddChild(child WeblensFile) error
-	IsReadOnly() bool
 
 	AddTask(Task)
 	GetTask() Task
@@ -92,12 +98,13 @@ type WeblensFile interface {
 
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
-	MarshalArchive() map[string]any
+	// MarshalArchive() map[string]any
 	LoadStat(casters ...BroadcasterAgent) (err error)
 }
 
 type WeblensFilepath interface {
 	ToPortable() string
+	String() string
 	ToAbsPath() string
 }
 
@@ -105,6 +112,14 @@ type TrashEntry struct {
 	OrigParent   FileId `bson:"originalParentId"`
 	OrigFilename string `bson:"originalFilename"`
 	TrashFileId  FileId `bson:"trashFileId"`
+}
+
+type FileStat struct {
+	Name    string    `json:"name"`
+	Size    int64     `json:"size"`
+	IsDir   bool      `json:"isDir"`
+	ModTime time.Time `json:"modTime"`
+	Exists  bool      `json:"exists"`
 }
 
 type FileId string
@@ -128,25 +143,39 @@ type FileInfo struct {
 	// txt, doc, directory etc.
 	Displayable bool `json:"displayable"`
 
-	IsDir            bool      `json:"isDir"`
-	Modifiable       bool      `json:"modifiable"`
-	Size             int64     `json:"size"`
-	ModTime          time.Time `json:"modTime"`
-	Filename         string    `json:"filename"`
-	ParentFolderId   FileId    `json:"parentFolderId"`
-	MediaData        Media     `json:"mediaData"`
-	FileFriendlyName string    `json:"fileFriendlyName"`
-	Owner            Username  `json:"owner"`
-	PathFromHome     string    `json:"pathFromHome"`
-	Share            ShareId   `json:"share"`
-	Children         []FileId  `json:"children"`
-	PastFile         bool      `json:"pastFile"`
+	IsDir          bool     `json:"isDir"`
+	Modifiable     bool     `json:"modifiable"`
+	Size           int64    `json:"size"`
+	ModTime        int64    `json:"modTime"`
+	Filename       string   `json:"filename"`
+	ParentFolderId FileId   `json:"parentFolderId"`
+	MediaData      Media    `json:"mediaData"`
+	Owner          Username `json:"owner"`
+	PathFromHome   string   `json:"pathFromHome"`
+	ShareId        ShareId  `json:"shareId"`
+	Children       []FileId `json:"children"`
+	PastFile       bool     `json:"pastFile"`
 }
 
-var ErrNoFile = NewWeblensError("file does not exist")
+var ErrNoFile = func(id FileId) WeblensError {
+	return NewWeblensError(
+		fmt.Sprintf(
+			"cannot find file with id [%s]", id,
+		),
+	)
+}
+
+var ErrNoFileName = func(name string) WeblensError {
+	return NewWeblensError(
+		fmt.Sprintf(
+			"cannot find file with name [%s]", name,
+		),
+	)
+}
 var ErrDirectoryRequired = NewWeblensError("attempted to perform an action that requires a directory, but found regular file")
 var ErrDirAlreadyExists = NewWeblensError("directory already exists in destination location")
-var ErrFileAlreadyExists = NewWeblensError("file already exists in destination location")
+var ErrFileAlreadyExists = func() WeblensError { return NewWeblensError("file already exists in destination location") }
+var ErrNoChildren = NewWeblensError("file does not have any children")
 var ErrChildAlreadyExists = NewWeblensError("file already has the child being added")
 var ErrDirNotAllowed = NewWeblensError("attempted to perform action using a directory, where the action does not support directories")
 var ErrIllegalFileMove = NewWeblensError("tried to perform illegal file move")

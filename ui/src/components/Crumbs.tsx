@@ -8,13 +8,15 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react'
-import { memo, MouseEventHandler, useContext, useEffect, useState } from 'react'
-import { UserContextT } from '../types/Types'
-import { UserContext } from '../Context'
+import { memo, MouseEventHandler, useEffect, useState } from 'react'
 import { useClick, useResize } from './hooks'
-import { FbContext, FbModeT } from '../Files/filesContext'
 
 import './crumbs.scss'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '../Pages/FileBrowser/FBStateControl'
+import { useSessionStore } from './UserInfo'
 
 type breadcrumbProps = {
     label: string
@@ -59,8 +61,6 @@ export const StyledBreadcrumb = ({
     onClick,
     dragging,
     onMouseUp = () => {},
-    alwaysOn = false,
-    fontSize = 25,
     compact = false,
     setMoveDest,
     isCurrent,
@@ -167,9 +167,7 @@ export const StyledLoaf = ({ crumbs, postText }) => {
 
     return (
         <div ref={setCrumbRef} className="loaf">
-            <div ref={setCrumbRef} className="flex items-center w-max">
-                {crumbs[0]}
-            </div>
+            <div className="flex items-center w-max">{crumbs[0]}</div>
 
             {squished > 0 && (
                 <div
@@ -203,7 +201,7 @@ export const StyledLoaf = ({ crumbs, postText }) => {
                     crumb={c}
                     index={i}
                     squished={squished}
-                    setWidth={(index: string | number, width: any) =>
+                    setWidth={(index: string | number, width: number) =>
                         setWidths((p) => {
                             p[index] = width
                             return [...p]
@@ -233,14 +231,19 @@ const Crumbs = memo(
         dragging?: number
     }) => {
         const nav = useNavigate()
-        const { usr }: UserContextT = useContext(UserContext)
-        const { fbState, fbDispatch } = useContext(FbContext)
+        const user = useSessionStore((state) => state.user)
 
-        let crumbs = []
-        if (
-            fbState.fbMode === FbModeT.share &&
-            fbState.folderInfo.GetOwner() !== usr.username
-        ) {
+        const mode = useFileBrowserStore((state) => state.fbMode)
+        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+        const contentId = useFileBrowserStore((state) => state.contentId)
+        const shareId = useFileBrowserStore((state) => state.shareId)
+
+        const setPresentationTarget = useFileBrowserStore(
+            (state) => state.setPresentationTarget
+        )
+
+        const crumbs = []
+        if (mode === FbModeT.share && folderInfo.GetOwner() !== user.username) {
             crumbs.push(
                 <StyledBreadcrumb
                     key={'shared-crumb'}
@@ -254,17 +257,17 @@ const Crumbs = memo(
                         e.stopPropagation()
                     }}
                     setMoveDest={setMoveDest}
-                    isCurrent={!fbState.contentId}
+                    isCurrent={!contentId}
                 />
             )
         }
 
-        if (!usr || !fbState.folderInfo?.Id()) {
+        if (!user || !folderInfo?.Id()) {
             return <StyledLoaf crumbs={crumbs} postText={''} />
         }
 
-        if (!fbState.folderInfo.IsTrash()) {
-            const parents = fbState.folderInfo.FormatParents().map((parent) => {
+        if (!folderInfo.IsTrash()) {
+            const parents = folderInfo.FormatParents().map((parent) => {
                 return (
                     <StyledBreadcrumb
                         key={parent.Id()}
@@ -272,9 +275,9 @@ const Crumbs = memo(
                         onClick={(e) => {
                             e.stopPropagation()
                             const route = parent.GetVisitRoute(
-                                fbState.fbMode,
-                                fbState.shareId,
-                                fbDispatch
+                                mode,
+                                shareId,
+                                setPresentationTarget
                             )
                             nav(route)
                         }}
@@ -294,17 +297,17 @@ const Crumbs = memo(
 
         crumbs.push(
             <StyledBreadcrumb
-                key={fbState.folderInfo.Id()}
-                label={fbState.folderInfo.GetFilename()}
+                key={folderInfo.Id()}
+                label={folderInfo.GetFilename()}
                 onClick={(e) => {
                     e.stopPropagation()
                     if (!navOnLast) {
                         return
                     }
-                    const route = fbState.folderInfo.GetVisitRoute(
-                        fbState.fbMode,
-                        fbState.shareId,
-                        fbDispatch
+                    const route = folderInfo.GetVisitRoute(
+                        mode,
+                        shareId,
+                        setPresentationTarget
                     )
                     nav(route)
                 }}
@@ -316,7 +319,12 @@ const Crumbs = memo(
         return <StyledLoaf crumbs={crumbs} postText={postText} />
     },
     (prev, next) => {
-        return !(prev.dragging !== next.dragging)
+        if (prev.postText !== next.postText) {
+            return false
+        } else if (prev.dragging !== next.dragging) {
+            return false
+        }
+        return true
     }
 )
 

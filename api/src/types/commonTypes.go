@@ -1,7 +1,11 @@
 package types
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -14,19 +18,51 @@ import (
 // }
 
 type WeblensError struct {
-	err string
+	err        error
+	sourceFile string
+	sourceLine int
+	trace      string
+}
+
+func WeblensErrorFromError(err error) WeblensError {
+	wlErr, ok := err.(WeblensError)
+	if !ok {
+		return NewWeblensError(err.Error())
+	}
+	return wlErr
+}
+
+func WeblensErrorMsg(err string) WeblensError {
+	return NewWeblensError(err)
 }
 
 func NewWeblensError(err string) WeblensError {
-	return WeblensError{err}
+	_, filename, line, _ := runtime.Caller(2)
+	buf := make([]byte, 1<<16)
+
+	runtime.Stack(buf, false)
+	buf = bytes.Trim(buf, "\x00")
+	return WeblensError{errors.New(err), filepath.Base(filename), line, string(buf)}
 }
 
 func (e WeblensError) Error() string {
-	return e.err
+	return fmt.Sprintf("%s:%d: %s", e.sourceFile, e.sourceLine, e.err)
 }
 
-var ErrAlreadyInitialized = NewWeblensError("attempting to run an initialization routine for a second time")
-var ErrServerNotInit = NewWeblensError("server is not initialized")
+func (e WeblensError) ErrorTrace() string {
+	return fmt.Sprintf("%s:%d: %s\n%s", e.sourceFile, e.sourceLine, e.err, e.trace)
+}
+
+func (e WeblensError) GetSourceFile() string {
+	return e.sourceFile
+}
+
+func (e WeblensError) GetSourceLine() int {
+	return e.sourceLine
+}
+
+var ErrAlreadyInitialized = WeblensErrorMsg("attempting to run an initialization routine for a second time")
+var ErrServerNotInit = WeblensErrorMsg("server is not initialized")
 
 type SafeTime time.Time
 

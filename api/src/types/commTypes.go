@@ -1,11 +1,16 @@
 package types
 
-import "github.com/gorilla/websocket"
+import (
+	"github.com/gorilla/websocket"
+)
 
 type ClientManager interface {
 	ClientConnect(conn *websocket.Conn, user User) Client
 	AddSubscription(subInfo Subscription, client Client)
 	GetSubscribers(st WsAction, key SubId) (clients []Client)
+	GetClientByUsername(Username) Client
+	GetAllClients() []Client
+	GetConnectedAdmins() []Client
 	RemoveSubscription(subscription Subscription, client Client, removeAll bool)
 
 	ClientDisconnect(c Client)
@@ -14,7 +19,7 @@ type ClientManager interface {
 type Client interface {
 	BasicCaster
 
-	Subscribe(key SubId, action WsAction, acc AccessMeta, tree FileTree) (complete bool, results map[string]any)
+	Subscribe(key SubId, action WsAction, acc AccessMeta) (complete bool, results map[string]any)
 	Unsubscribe(SubId)
 
 	GetSubscriptions() []Subscription
@@ -41,6 +46,8 @@ type Subscription struct {
 }
 
 type BasicCaster interface {
+	PushWeblensEvent(eventTag string)
+
 	PushFileUpdate(updatedFile WeblensFile)
 	PushTaskUpdate(task Task, event TaskEvent, result TaskResult)
 	PushPoolUpdate(pool TaskPool, event TaskEvent, result TaskResult)
@@ -54,6 +61,7 @@ type BroadcasterAgent interface {
 	PushShareUpdate(username Username, newShareInfo Share)
 	Enable()
 	Disable()
+	IsEnabled() bool
 	IsBuffered() bool
 
 	FolderSubToTask(folder FileId, taskId TaskId)
@@ -74,11 +82,11 @@ type BufferedBroadcasterAgent interface {
 
 type Requester interface {
 	// AttachToCore RequestCoreSnapshot() ([]FileJournalEntry, error)
-	AttachToCore(srvId InstanceId, coreAddress, name string, key WeblensApiKey) error
+	// AttachToCore(Instance) (Instance, error)
 	GetCoreUsers() (us []User, err error)
 	PingCore() bool
 	GetCoreFileBin(f WeblensFile) ([][]byte, error)
-	GetCoreFileInfos(fIds []FileId) ([]WeblensFile, error)
+	// GetCoreFileInfos(fIds []FileId) ([]WeblensFile, error)
 }
 
 type WsAction string
@@ -87,6 +95,7 @@ const (
 	UserSubscribe WsAction = "user_subscribe" // This one does not actually get "subscribed" to, it is automatically tracked for every websocket
 
 	FolderSubscribe WsAction = "folder_subscribe"
+	ServerEvent     WsAction = "server_event"
 	TaskSubscribe   WsAction = "task_subscribe"
 	PoolSubscribe   WsAction = "pool_subscribe"
 	Unsubscribe     WsAction = "unsubscribe"

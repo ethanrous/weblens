@@ -27,20 +27,23 @@ const (
 	GatherFsStatsTask types.TaskType = "gather_filesystem_stats"
 	BackupTask        types.TaskType = "do_backup"
 	HashFile          types.TaskType = "hash_file"
+	CopyFileFromCore  types.TaskType = "copy_file_from_core"
 )
 
 const (
 	TaskCreatedEvent     types.TaskEvent = "task_created"
-	PoolCreatedEvent     types.TaskEvent = "pool_created"
-	PoolCancelledEvent   types.TaskEvent = "pool_cancelled"
-	ScanCompleteEvent    types.TaskEvent = "scan_complete"
 	TaskCompleteEvent    types.TaskEvent = "task_complete"
-	ZipCompleteEvent     types.TaskEvent = "zip_complete"
+	SubTaskCompleteEvent types.TaskEvent = "sub_task_complete"
 	TaskFailedEvent      types.TaskEvent = "task_failure"
 	TaskCanceledEvent    types.TaskEvent = "task_canceled"
-	SubTaskCompleteEvent types.TaskEvent = "sub_task_complete"
-	TaskProgressEvent    types.TaskEvent = "task_progress_update"
-	ZipProgressEvent     types.TaskEvent = "create_zip_progress"
+
+	PoolCreatedEvent   types.TaskEvent = "pool_created"
+	PoolCompleteEvent  types.TaskEvent = "pool_complete"
+	PoolCancelledEvent types.TaskEvent = "pool_cancelled"
+
+	ScanCompleteEvent types.TaskEvent = "scan_complete"
+	ZipProgressEvent  types.TaskEvent = "create_zip_progress"
+	ZipCompleteEvent  types.TaskEvent = "zip_complete"
 )
 
 // Internal types //
@@ -69,7 +72,7 @@ func (m scanMetadata) MetaString() string {
 
 func (m scanMetadata) FormatToResult() types.TaskResult {
 	return types.TaskResult{
-		"fileName": m.file.Filename(),
+		"filename": m.file.Filename(),
 	}
 }
 
@@ -93,7 +96,13 @@ func (m zipMetadata) MetaString() string {
 }
 
 func (m zipMetadata) FormatToResult() types.TaskResult {
-	return types.TaskResult{}
+	return types.TaskResult{
+		"filenames": util.Map(
+			m.files, func(f types.WeblensFile) string {
+				return f.Filename()
+			},
+		),
+	}
 }
 
 type moveMeta struct {
@@ -212,6 +221,26 @@ func (m hashFileMeta) MetaString() string {
 }
 
 func (m hashFileMeta) FormatToResult() types.TaskResult {
+	return types.TaskResult{}
+}
+
+type backupCoreFileMeta struct {
+	file types.WeblensFile
+}
+
+func (m backupCoreFileMeta) MetaString() string {
+	data := map[string]any{
+		"TaskType":   CopyFileFromCore,
+		"backupFile": m.file.ID(),
+	}
+
+	bs, err := json.Marshal(data)
+	util.ErrTrace(err)
+
+	return string(bs)
+}
+
+func (m backupCoreFileMeta) FormatToResult() types.TaskResult {
 	return types.TaskResult{}
 }
 

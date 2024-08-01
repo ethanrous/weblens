@@ -22,7 +22,11 @@ func envReadBool(s string) bool {
 }
 
 func GetConfigDir() string {
-	return GetAppRootDir() + "/config"
+	configDir := envReadString("CONFIG_PATH")
+	if configDir == "" {
+		configDir = GetAppRootDir() + "/config"
+	}
+	return configDir
 }
 
 func GetAppRootDir() string {
@@ -37,10 +41,9 @@ func GetAppRootDir() string {
 func GetRouterIp() string {
 	ip := envReadString("SERVER_IP")
 	if ip == "" {
-		Warning.Println("SERVER_IP not provided, falling back to 0.0.0.0")
+		Info.Println("SERVER_IP not provided, falling back to 0.0.0.0")
 		return "0.0.0.0"
 	} else {
-		Debug.Printf("Using SERVER_IP: %s\n", ip)
 		return ip
 	}
 }
@@ -48,10 +51,9 @@ func GetRouterIp() string {
 func GetRouterPort() string {
 	port := envReadString("SERVER_PORT")
 	if port == "" {
-		Warning.Println("SERVER_PORT not provided, falling back to 8080")
+		Info.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
 	} else {
-		Debug.Printf("Using SERVER_PORT: %s\n", port)
 		return port
 	}
 }
@@ -133,7 +135,7 @@ func GetMongoURI() string {
 	if mongoStr == "" {
 		Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
 	}
-	Info.Printf("Using MONGODB_URI: %s\n", mongoStr)
+	Debug.Printf("Using MONGODB_URI: %s\n", mongoStr)
 	return mongoStr
 }
 
