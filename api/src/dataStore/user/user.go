@@ -200,14 +200,7 @@ func (u *User) UpdatePassword(oldPass, newPass string) (err error) {
 	u.Password = string(passHashBytes)
 
 	return types.ErrNotImplemented("UpdatePassword user")
-	// return u.service.db.UpdatePsaswordByUsername(u.Username, u.Password)
-}
-
-func (u *User) SetAdmin(isAdmin bool) error {
-	u.Admin = isAdmin
-	return types.ErrNotImplemented("SetAdmin user")
-
-	// return types.SERV.UserService.SetAdminByUsername(u.Username, isAdmin)
+	// return u.service.db.UpdatePasswordByUsername(u.Username, u.Password)
 }
 
 func MakeOwner(u types.User) error {
@@ -216,29 +209,6 @@ func MakeOwner(u types.User) error {
 
 	return types.NewWeblensError("not impl - make user owner")
 	// return dataStore.dbServer.updateUser(realU)
-}
-
-func ShareGrantsFileAccess(share types.Share, file types.WeblensFile) bool {
-	if share == nil {
-		return false
-	}
-	if share.GetShareType() != types.FileShare {
-		util.Error.Println("Trying to check if non-file share gives access to file")
-		return false
-	}
-	shareFileId := types.FileId(share.GetItemId())
-
-	tmpF := file
-	for {
-		if tmpF.ID() == shareFileId {
-			return true
-		}
-		if tmpF.GetParent() == nil {
-			break
-		}
-		tmpF = tmpF.GetParent()
-	}
-	return false
 }
 
 func (u *User) FormatArchive() (map[string]any, error) {

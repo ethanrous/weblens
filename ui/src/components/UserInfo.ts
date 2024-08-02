@@ -38,7 +38,6 @@ const useR = () => {
         if (authHeader && !user) {
             // Auth header set, but no user data, go get the user data
             const url = new URL(`${API_ENDPOINT}/user`)
-            console.log(authHeader)
             fetch(url.toString(), { headers: authHeader })
                 .then((res) => {
                     if (res.status !== 200) {
@@ -78,7 +77,6 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     auth: null,
 
     setUserInfo: (user) => {
-        console.log(user.isLoggedIn)
         if (user.isLoggedIn === undefined) {
             user.isLoggedIn = false
         }
@@ -89,7 +87,6 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
 
     setAuthHeader: (token: string) => {
         if (!token) {
-            console.log('Clearing auth state')
             set({
                 auth: null,
             })

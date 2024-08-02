@@ -27,12 +27,20 @@ func (db *databaseService) CreateUser(user types.User) error {
 	return err
 }
 
-func (db *databaseService) UpdatePsaswordByUsername(username types.Username, newPasswordHash string) error {
+func (db *databaseService) UpdatePasswordByUsername(username types.Username, newPasswordHash string) error {
 	return types.NewWeblensError("Not yet implemented")
 }
 
 func (db *databaseService) SetAdminByUsername(username types.Username, isAdmin bool) error {
-	return types.NewWeblensError("Not yet implemented")
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"admin": isAdmin}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+
+	return nil
 }
 
 func (db *databaseService) ActivateUser(username types.Username) error {
@@ -68,12 +76,17 @@ func (db *databaseService) SearchUsers(search string) ([]types.Username, error) 
 	return util.Map(
 		users, func(
 			un struct {
-				Username string `bson:"username"`
-			},
+			Username string `bson:"username"`
+		},
 		) types.Username {
 			return types.Username(un.Username)
 		},
 	), nil
+}
+
+func (db *databaseService) DeleteUserByUsername(username types.Username) error {
+	_, err := db.users.DeleteOne(db.ctx, bson.M{"username": username})
+	return err
 }
 
 func (db *databaseService) DeleteAllUsers() error {

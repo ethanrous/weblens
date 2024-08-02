@@ -73,7 +73,14 @@ func (us *userService) Add(user types.User) error {
 }
 
 func (us *userService) Del(un types.Username) error {
-	return types.ErrNotImplemented("delete user")
+	err := us.db.DeleteUserByUsername(un)
+	if err != nil {
+		return err
+	}
+
+	delete(us.userMap, un)
+
+	return nil
 }
 
 func (us *userService) GetAll() ([]types.User, error) {
@@ -104,4 +111,15 @@ func (us *userService) SearchByUsername(searchString string) ([]types.User, erro
 			return us.Get(un)
 		},
 	), nil
+}
+
+func (us *userService) SetUserAdmin(u types.User, admin bool) error {
+	err := us.db.SetAdminByUsername(u.GetUsername(), admin)
+	if err != nil {
+		return err
+	}
+
+	u.(*User).Admin = admin
+
+	return nil
 }

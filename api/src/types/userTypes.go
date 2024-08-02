@@ -21,7 +21,6 @@ type User interface {
 
 	CheckLogin(password string) bool
 	UpdatePassword(oldPass, newPass string) error
-	SetAdmin(isAdmin bool) error
 	Activate() error
 
 	FormatArchive() (map[string]any, error)
@@ -33,6 +32,7 @@ type UserService interface {
 	GetAll() ([]User, error)
 	GetPublicUser() User
 	SearchByUsername(searchString string) ([]User, error)
+	SetUserAdmin(User, bool) error
 }
 
 var ErrUserNotAuthenticated = NewWeblensError("user credentials are invalid")

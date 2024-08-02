@@ -53,17 +53,17 @@ const WeblensRoutes = () => {
             return
         }
         if (loc.pathname !== '/setup' && server.info.role === 'init') {
-            console.log('GOIN 1')
+            console.debug('Nav setup')
             nav('/setup')
         } else if (loc.pathname === '/setup' && server.info.role !== 'init') {
-            console.log('GOIN 2')
-            nav('/')
+            console.debug('Nav timeline')
+            nav('/timeline')
         } else if (
             server.info.role === 'backup' &&
             !loc.pathname.startsWith('/files') &&
             user !== null
         ) {
-            console.log('GOIN 3')
+            console.debug('Nav files home')
             nav('/files/home')
         } else if (
             user !== null &&
@@ -73,13 +73,20 @@ const WeblensRoutes = () => {
             (!loc.pathname.startsWith('/files') ||
                 loc.pathname === '/files/home')
         ) {
-            console.log('GOIN 4')
+            console.debug('Nav login')
             nav('/login')
         } else if (loc.pathname === '/login' && user !== null) {
-            console.log('GOIN 5')
+            console.debug('Nav timeline')
             nav('/timeline')
+        } else if (
+            (loc.pathname === '/timeline' ||
+                loc.pathname.startsWith('/album')) &&
+            server.info.role === 'backup'
+        ) {
+            console.debug('Nav files home')
+            nav('/files/home')
         } else if (loc.pathname === '/') {
-            console.log('GOIN 6')
+            console.debug('Nav timeline')
             nav('/timeline')
         }
     }, [loc, server, user])

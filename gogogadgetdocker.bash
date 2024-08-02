@@ -48,3 +48,6 @@ docker run -v ./api/src:/source --platform "linux/$arch" --rm weblens-go-build-"
 
 docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" .
 docker push ethrous/weblens:"${docker_tag}-${arch}"
+
+
+echo "BUILD COMPLETE. Container tag: $docker_tag-$arch"

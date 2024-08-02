@@ -693,7 +693,7 @@ func setUserAdmin(ctx *gin.Context) {
 	username := types.Username(ctx.Param("username"))
 	u := types.SERV.UserService.Get(username)
 
-	err = u.SetAdmin(update.Admin)
+	err = types.SERV.UserService.SetUserAdmin(u, update.Admin)
 	if err != nil {
 		if errors.Is(err, dataStore.ErrNoUser) {
 			ctx.Status(http.StatusNotFound)

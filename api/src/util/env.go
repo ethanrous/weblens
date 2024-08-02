@@ -61,7 +61,8 @@ func GetRouterPort() string {
 func GetMediaRootPath() string {
 	path := envReadString("MEDIA_ROOT_PATH")
 	if path == "" {
-		panic("MEDIA_ROOT_PATH not set! This is required as it is the primary storage location for weblens files")
+		path = "/media"
+		Warning.Println("Did not find MEDIA_ROOT_PATH, assuming docker default of", path)
 	}
 	return path
 }

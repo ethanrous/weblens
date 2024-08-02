@@ -251,11 +251,11 @@ const UserRow = ({
             key={rowUser.username}
             className="flex flex-row w-full h-16 justify-between items-center bg-bottom-grey rounded-sm p-2 rounded"
         >
-            <div className="flex flex-col justify-center items-center w-max h-max">
+            <div className="flex flex-col justify-center  w-max h-max">
                 <p className="font-semibold w-max text-white">
                     {rowUser.username}
                 </p>
-                {rowUser.admin && !rowUser.owner && !accessor.owner && (
+                {rowUser.admin && !rowUser.owner && (
                     <p className="text-gray-400">Admin</p>
                 )}
                 {rowUser.owner && <p className="text-[#aaaaaa]">Owner</p>}
@@ -280,7 +280,6 @@ const UserRow = ({
                     <WeblensButton
                         label="Remove Admin"
                         squareSize={35}
-                        style={{ padding: 4 }}
                         onClick={() => {
                             SetUserAdmin(
                                 rowUser.username,
@@ -309,7 +308,7 @@ const UserRow = ({
                     squareSize={35}
                     danger
                     centerContent
-                    disabled={rowUser.admin}
+                    disabled={rowUser.admin && !accessor.owner}
                     onClick={() => {
                         DeleteUser(rowUser.username, authHeader).then(() =>
                             GetUsersInfo(setAllUsersInfo, authHeader)

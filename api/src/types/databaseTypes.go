@@ -76,13 +76,14 @@ type ShareStore interface {
 
 type UserStore interface {
 	GetAllUsers() ([]User, error)
-	UpdatePsaswordByUsername(username Username, newPasswordHash string) error
+	UpdatePasswordByUsername(username Username, newPasswordHash string) error
 	SetAdminByUsername(Username, bool) error
 	CreateUser(User) error
 	ActivateUser(Username) error
 	AddTokenToUser(username Username, token string) error
 	SearchUsers(search string) ([]Username, error)
 
+	DeleteUserByUsername(Username) error
 	DeleteAllUsers() error
 }
 
