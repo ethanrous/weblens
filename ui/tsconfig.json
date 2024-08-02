@@ -1,10 +1,26 @@
 {
     "compilerOptions": {
+        "target": "es5",
+        "lib": [
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
+        ],
+        "types": [
+            "node",
+            "vite/client"
+        ],
+        "allowJs": false,
+        "isolatedModules": true,
         "jsx": "react-jsx",
-        //"downlevelIteration": true
-        "module": "es2022",
-        "target": "ES2022",
+        "module": "ESNext",
+        "strict": false,
         "moduleResolution": "node",
         "allowSyntheticDefaultImports": true
     },
+    "include": [
+        "**/*.tsx",
+        "**/*.ts",
+        "src"
+    ]
 }

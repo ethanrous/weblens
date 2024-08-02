@@ -1,226 +1,283 @@
-import { useCallback, useEffect } from 'react'
-import { AlbumData, MediaData, MediaStateType, fileData } from '../../types/Types'
-import { notifications } from '@mantine/notifications'
+import { createContext, useCallback, useEffect } from 'react';
+import WeblensMedia, { MediaStateT } from '../../Media/Media';
+import { AlbumData, GalleryDispatchT, GalleryStateT, MediaDispatchT, PresentType, TimeOffset } from '../../types/Types';
 
-type galleryAction = {
-    type: string
-    medias?: MediaData[]
-    albums?: AlbumData[]
-    albumId?: string
-    media?: MediaData
-    albumNames?: string[]
-    include?: boolean
-    block?: boolean
-    progress?: number
-    loading?: boolean
-    search?: string
-    open?: boolean
-    size?: number
-    raw?: boolean
-}
+export type GalleryAction = {
+    type: string;
+    medias?: WeblensMedia[];
+    albums?: AlbumData[];
+    albumId?: string;
+    mediaId?: string;
+    mediaIds?: string[];
+    media?: WeblensMedia;
+    presentMode?: PresentType;
+    albumNames?: string[];
+    include?: boolean;
+    block?: boolean;
+    progress?: number;
+    loading?: string;
+    search?: string;
+    selected?: boolean;
+    selecting?: boolean;
+    open?: boolean;
+    size?: number;
+    targetId?: string;
+    pos?: { x: number; y: number };
+    mediaIndex?: number;
+    shift?: boolean;
+    offset?: TimeOffset;
+};
 
-export function mediaReducer(state: MediaStateType, action: galleryAction): MediaStateType {
+export function galleryReducer(state: GalleryStateT, action: GalleryAction): GalleryStateT {
     switch (action.type) {
-        case 'set_media': {
-            state.mediaMap.clear()
-            if (action.medias) {
-                let prev: MediaData
-                for (const m of action.medias) {
-                    state.mediaMap.set(m.fileHash, m)
-                    if (prev) {
-                        prev.Next = m
-                        m.Previous = prev
-                    }
-                    prev = m
-                }
-            }
+        case 'set_selecting': {
             return {
                 ...state,
-                mediaMapUpdated: Date.now(),
-                loading: false
-            }
+                selecting: action.selecting,
+            };
         }
 
         case 'set_albums': {
             if (!action.albums) {
-                return { ...state }
+                return state;
             }
-            state.albumsMap.clear()
+
+            const newMap = new Map<string, AlbumData>();
             for (const a of action.albums) {
-                state.albumsMap.set(a.Id, a)
+                newMap.set(a.id, a);
             }
-            return { ...state }
+            return { ...state, albumsMap: newMap };
+        }
+
+        case 'remove_album': {
+            state.albumsMap.delete(action.albumId);
+            return {
+                ...state,
+                albumsMap: new Map(state.albumsMap),
+            };
         }
 
         case 'set_album_media': {
-            const album = state.albumsMap.get(action.albumId)
-            album.CoverMedia = action.media
-            state.albumsMap.set(action.albumId, album)
-            return {...state}
+            const album = state.albumsMap.get(action.albumId);
+            // album.cover = action.media
+            state.albumsMap.set(action.albumId, album);
+            return { ...state };
         }
 
         case 'set_albums_filter': {
-            return {
-                ...state,
-                albumsFilter: action.albumNames
+            const albums = action.albumNames.filter(a => {
+                return Boolean(state.albumsMap.get(a));
+            });
+
+            if (state.albumsFilter.length === albums.length) {
+                for (const a of albums) {
+                    if (!state.albumsFilter.includes(a)) {
+                        return {
+                            ...state,
+                            albumsFilter: albums,
+                        };
+                    }
+                }
+            } else {
+                return {
+                    ...state,
+                    albumsFilter: albums,
+                };
             }
+            return state;
         }
 
         case 'set_image_size': {
+            if (!action.size) {
+                return state;
+            }
             return {
                 ...state,
-                imageSize: action.size
-            }
+                imageSize: action.size,
+            };
         }
 
-        case 'set_block_search_focus': {
+        case 'set_block_focus': {
             return {
                 ...state,
-                blockSearchFocus: action.block
-            }
+                blockSearchFocus: action.block,
+            };
         }
 
-        case 'set_new_album_open': {
+        // case 'delete_from_map': {
+        //     for (const mId of action.mediaIds) {
+        //         state.mediaMap.delete(mId)
+        //         state.selected.delete(mId)
+        //     }
+        //
+        //     return {
+        //         ...state,
+        //         mediaMap: new Map(state.mediaMap),
+        //         selected: new Map(state.selected),
+        //     }
+        // }
+
+        case 'add_loading': {
+            const newLoading = state.loading.filter(v => v !== action.loading);
+            newLoading.push(action.loading);
             return {
                 ...state,
-                blockSearchFocus: action.open,
-                newAlbumDialogue: action.open
-            }
+                loading: newLoading,
+            };
         }
 
-        case 'delete_from_map': {
-            state.mediaMap.delete(action.media.fileHash)
-            return { ...state }
-        }
-
-        case 'set_scan_progress': {
+        case 'remove_loading': {
+            const newLoading = state.loading.filter(v => v !== action.loading);
             return {
                 ...state,
-                scanProgress: action.progress
-            }
+                loading: newLoading,
+            };
         }
 
-        case 'set_loading': {
-            return {
-                ...state,
-                loading: action.loading
-            }
-        }
-
-        case 'set_raw_toggle': {
-            if (action.raw === state.includeRaw) {
-                return {...state}
-            }
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            })
-            state.mediaMap.clear()
-            return {
-                ...state,
-                loading: true,
-                includeRaw: action.raw
-            }
+        case 'set_menu_target': {
+            return { ...state, menuTargetId: action.targetId };
         }
 
         case 'set_search': {
             return {
                 ...state,
                 searchContent: action.search,
-            }
+            };
         }
 
         case 'set_presentation': {
+            if (!action.mediaId) {
+                return { ...state, presentingMode: PresentType.None };
+            }
+            if (action.presentMode && action.presentMode !== PresentType.None) {
+                state.presentingMode = action.presentMode;
+            }
             return {
                 ...state,
-                presentingMedia: action.media
-            }
+                presentingMediaId: action.mediaId,
+            };
         }
 
-        case 'presentation_next': {
-            return {
-                ...state,
-                presentingMedia: state.presentingMedia.Next ? state.presentingMedia.Next : state.presentingMedia
-            }
-        }
-
-        case 'presentation_previous': {
-            return {
-                ...state,
-                presentingMedia: state.presentingMedia.Previous ? state.presentingMedia.Previous : state.presentingMedia
-            }
-        }
+        // case 'presentation_next': {
+        //     let nextM = state.presentingMediaId.Next()
+        //     if (state.presentingMode === PresentType.InLine && nextM) {
+        //         nextM.GetImgRef().current.scrollIntoView({
+        //             behavior: 'smooth',
+        //             block: 'start',
+        //             inline: 'start',
+        //         })
+        //     }
+        //
+        //     return {
+        //         ...state,
+        //         presentingMediaId: nextM ? nextM : state.presentingMediaId,
+        //     }
+        // }
+        //
+        // case 'presentation_previous': {
+        //     return {
+        //         ...state,
+        //         presentingMediaId: state.presentingMediaId.Prev()
+        //             ? state.presentingMediaId.Prev()
+        //             : state.presentingMediaId,
+        //     }
+        // }
 
         case 'stop_presenting': {
-            if (state.presentingMedia === null) {
+            if (state.presentingMediaId === null) {
                 return {
-                    ...state
-                }
+                    ...state,
+                    presentingMode: PresentType.None,
+                };
             }
-            try {
-                state.presentingMedia.ImgRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
-            } catch {
-                console.error("No img ref: ", state.presentingMedia)
-            }
+            // try {
+            //     state.presentingMediaId.GetImgRef().current.scrollIntoView({
+            //         behavior: 'smooth',
+            //         block: 'nearest',
+            //         inline: 'start',
+            //     })
+            // } catch {
+            //     console.error('No img ref: ', state.presentingMediaId)
+            // }
+
             return {
                 ...state,
-                presentingMedia: null
+                presentingMediaId: null,
+                presentingMode: PresentType.None,
+            };
+        }
+
+        case 'set_hover_target': {
+            return { ...state, hoverIndex: action.mediaIndex };
+        }
+
+        case 'set_holding_shift': {
+            return { ...state, holdingShift: action.shift };
+        }
+
+        case 'set_time_offset': {
+            if (action.offset === null) {
+                return { ...state, timeAdjustOffset: null };
             }
+            return { ...state, timeAdjustOffset: { ...action.offset } };
         }
 
         default: {
-            console.error("Do not have handler for dispatch type", action.type)
+            console.error('Do not have handler for dispatch type', action.type);
             return {
-                ...state
-            }
+                ...state,
+            };
         }
     }
 }
 
-export const useKeyDown = (blockSearchFocus, searchRef) => {
+export const useKeyDownGallery = (
+    galleryState: GalleryStateT,
+    galleryDispatch: GalleryDispatchT,
+    mediaState: MediaStateT,
+    mediaDispatch: MediaDispatchT,
+) => {
+    const onKeyDown = useCallback(
+        event => {
+            if (event.key === 'Shift') {
+                galleryDispatch({ type: 'set_holding_shift', shift: true });
+            } else if (event.key === 'Escape') {
+                if (mediaState.selectedMap.size !== 0) {
+                    mediaDispatch({ type: 'clear_selected' });
+                } else {
+                    galleryDispatch({ type: 'set_selecting', selecting: false });
+                }
+            }
+        },
+        [galleryState?.blockSearchFocus, galleryState?.menuTargetId, galleryDispatch, galleryState.selecting],
+    );
 
-    const onKeyDown = useCallback((event) => {
-        if (!blockSearchFocus && !event.metaKey && ((event.which >= 65 && event.which <= 90) || event.key === "Backspace")) {
-            searchRef.current.focus()
-        } else if (event.key === "Escape") {
-            searchRef.current.blur()
-        }
-    }, [blockSearchFocus, searchRef])
+    const onKeyUp = useCallback(
+        event => {
+            if (event.key === 'Shift') {
+                galleryDispatch({ type: 'set_holding_shift', shift: false });
+            }
+        },
+        [galleryState?.blockSearchFocus, galleryDispatch],
+    );
+
     useEffect(() => {
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-            document.removeEventListener('keydown', onKeyDown)
-        };
-    }, [onKeyDown])
-}
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
 
-export function handleWebsocket(lastMessage, dispatch) {
-    if (lastMessage) {
-        const msgData = JSON.parse(lastMessage.data)
-        switch (msgData["type"]) {
-            case "item_update": {
-                return
-            }
-            case "item_deleted": {
-                dispatch({ type: "delete_from_map", media: msgData["content"].hash })
-                return
-            }
-            case "scan_directory_progress": {
-                dispatch({ type: "set_scan_progress", progress: ((1 - (msgData["remainingTasks"] / msgData["totalTasks"])) * 100) })
-                return
-            }
-            case "finished": {
-                dispatch({ type: "set_loading", loading: false })
-                return
-            }
-            case "error": {
-                notifications.show({ message: msgData["error"], color: 'red' })
-                return
-            }
-            default: {
-                console.error("Got unexpected websocket message: ", msgData)
-                return
-            }
-        }
-    }
-}
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('keyup', onKeyUp);
+        };
+    }, [onKeyDown, onKeyUp]);
+};
+
+export type GalleryContextT = {
+    galleryState: GalleryStateT;
+    galleryDispatch: GalleryDispatchT;
+};
+
+export const GalleryContext = createContext<GalleryContextT>({
+    galleryState: null,
+    galleryDispatch: null,
+});

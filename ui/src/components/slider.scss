@@ -1,0 +1,27 @@
+@import "./theme.scss";
+
+
+.slider-container {
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background-color: #33335f;
+    border-radius: 6px;
+    transition: all 200ms ease-in-out;
+    cursor: pointer;
+
+    &:hover {
+        box-shadow: $hard-shadow;
+    }
+
+}
+
+.fill-bar {
+    height: 100%;
+    background-color: $main-accent;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transform: translateX(-10px);
+    z-index: 1;
+}

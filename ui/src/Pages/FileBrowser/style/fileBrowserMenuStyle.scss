@@ -1,0 +1,212 @@
+@import "../../../components/theme";
+
+$menu-title-height: 50px;
+$menu-base-square-size: 250px;
+
+.file-menu-title {
+    display: flex;
+    position: fixed;
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: $menu-title-height;
+    width: 100%;
+    max-width: 400px;
+    padding: 4px;
+}
+
+.backdrop-menu-wrapper {
+    display: flex;
+    position: absolute;
+    width: max-content;
+    height: max-content;
+    transform-origin: center;
+    translate: -50% -50%;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.backdrop-menu {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    pointer-events: all;
+
+    // +10 to give overflowing buttons a chance to peak through,
+    // and make the fact the menu scrolls more discoverable
+    height: $menu-base-square-size + $menu-title-height + 10px;
+    width: $menu-base-square-size;
+
+    overflow: hidden;
+
+    outline: 2px solid $main-accent;
+    background-color: #111114;
+    border: none;
+    border-radius: 8px;
+
+    scale: 0;
+    transition: scale 150ms ease-in-out, width 150ms ease-in-out, height 150ms ease-in-out;
+
+    &[data-mode='1'] {
+        scale: 1;
+    }
+
+    &[data-mode='2'] {
+        scale: 1;
+        width: 310px;
+        max-width: 310px;
+        height: 460px + $menu-title-height;
+    }
+
+    &[data-mode='3'] {
+        scale: 1;
+        width: 300px;
+        max-width: 300px;
+        height: 75px + $menu-title-height;
+    }
+
+    &[data-mode='4'] {
+        scale: 1;
+        width: 300px;
+        max-height: max-content;
+
+        height: 515px + $menu-title-height;
+    }
+}
+
+.default-grid {
+    display: grid;
+    position: absolute;
+    align-items: center;
+    justify-items: center;
+    grid-template-columns: 120px 120px;
+    grid-template-rows: repeat(3, 120px);
+    justify-content: center;
+    pointer-events: all;
+    opacity: 100%;
+
+    // +10 to give overflowing buttons a chance to peak through,
+    // and make the fact the menu scrolls more discoverable
+    height: $menu-base-square-size + 10;
+    width: $menu-base-square-size;
+    margin-top: $menu-title-height;
+    overflow-y: scroll;
+
+    transition: opacity 150ms ease-in-out;
+
+    &[data-visible='false'] {
+        pointer-events: none;
+        opacity: 0;
+    }
+}
+
+.default-menu-icon {
+    width: 108px;
+    height: 108px;
+    scale: 0;
+
+    transition: scale 150ms ease-in-out;
+}
+
+.default-grid[data-visible='true'] .default-menu-icon {
+    scale: 1;
+}
+
+.file-share-menu {
+    width: 300px;
+    height: 450px;
+    position: absolute;
+    margin-top: $menu-title-height;
+
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+
+    opacity: 0;
+    transition: all 150ms ease-in-out;
+    display: none;
+
+    &[data-visible='true'] {
+        opacity: 100%;
+        display: flex;
+        pointer-events: all;
+    }
+}
+
+.user-autocomplete-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    height: 45px;
+    width: 100%;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 8px;
+    color: white;
+    //box-shadow: $hard-shadow-off;
+
+    transition: background-color 150ms ease-in-out;
+
+    &:hover {
+        background-color: $dark-paper;
+        //box-shadow: $hard-shadow;
+    }
+
+    &:hover .user-minus-button {
+        opacity: 100%;
+    }
+}
+
+.user-minus-button {
+    opacity: 0;
+    transition: opacity 200ms ease-in-out;
+}
+
+.new-folder-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: max-content;
+    width: 100%;
+    padding: 8px;
+    gap: 8px;
+    margin-top: $menu-title-height;
+
+    transition: all 150ms ease-in-out;
+}
+
+.add-to-album-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: max-content;
+    width: 100%;
+    padding: 8px;
+    gap: 8px;
+    margin-top: $menu-title-height;
+    pointer-events: all;
+
+    transition: all 150ms ease-in-out;
+}
+
+.footer-wrapper {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 4px;
+    color: white;
+    transition: background-color 150ms ease-in-out;
+
+    background-color: $dark-paper;
+    outline: 1px solid $main-accent;
+
+    &[data-danger='true'] {
+        background-color: $danger-subtle;
+        outline: 1px solid $danger;
+    }
+}

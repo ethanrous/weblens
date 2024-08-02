@@ -1,17 +1,37 @@
-import { Button, Space, Text } from "@mantine/core"
-import { ColumnBox } from "../Pages/FileBrowser/FilebrowserStyles"
-import { useNavigate } from "react-router-dom"
+import { Space } from '@mantine/core'
+import { useNavigate } from 'react-router-dom'
+import WeblensButton from './WeblensButton'
+import { useSessionStore } from './UserInfo'
 
-function NotFound({ resourceType, link, setNotFound }: { resourceType: string, link: string, setNotFound: (b: boolean) => void }) {
+function NotFound({
+    resourceType,
+    link,
+    setNotFound,
+}: {
+    resourceType: string
+    link: string
+    setNotFound: (b: boolean) => void
+}) {
+    const user = useSessionStore((state) => state.user)
     const nav = useNavigate()
     return (
-        <ColumnBox style={{ justifyContent: 'center' }}>
-            <ColumnBox style={{ height: 'max-content', width: 'max-content', padding: 50, marginBottom: '40vh', backgroundColor: '#ffffff22', borderRadius: 6 }}>
-                <Text c='white'>{`Could not find ${resourceType}`}</Text>
+        <div className="flex flex-col justify-center items-center h-full w-full">
+            <div className="flex flex-col h-max w-[360px] p-12 mb-[40vh] bg-bottom-grey outline outline-main-accent rounded justify-center items-center">
+                <p className="font-bold text-2xl w-max">{`Could not find ${resourceType}`}</p>
+
                 <Space h={15} />
-                <Button fullWidth onClick={() => { setNotFound(false); nav(link) }} color="#4444ff">Go Back</Button>
-            </ColumnBox>
-        </ColumnBox>
+
+                <WeblensButton
+                    centerContent
+                    fillWidth
+                    label={user.username ? 'Go Back' : 'Login'}
+                    onClick={() => {
+                        setNotFound(false)
+                        nav(user.username ? link : '/login')
+                    }}
+                />
+            </div>
+        </div>
     )
 }
 

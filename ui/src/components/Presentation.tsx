@@ -1,112 +1,224 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { IconX } from '@tabler/icons-react'
+import React, {
+    memo,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
+import WeblensMedia from '../Media/Media'
 
-import { MediaData } from '../types/Types'
-import { MediaImage } from './PhotoContainer'
-import { ColumnBox } from '../Pages/FileBrowser/FilebrowserStyles'
-import { Box, CloseButton, MantineStyleProp } from '@mantine/core'
-import { IconFile } from '@tabler/icons-react'
-import { useWindowSize } from './ItemScroller'
+import { MediaImage } from '../Media/PhotoContainer'
+import { SizeT } from '../types/Types'
+import { useMedia, useResize } from './hooks'
+import WeblensButton from './WeblensButton'
 
-export const PresentationContainer = ({ shadeOpacity, onMouseMove, onClick, children }: { shadeOpacity?, onMouseMove?, onClick?, children }) => {
-    if (!shadeOpacity) {
-        shadeOpacity = "0.90"
-    }
+export const PresentationContainer = ({
+    onMouseMove,
+    onClick,
+    children,
+}: {
+    onMouseMove?
+    onClick?
+    children
+}) => {
     return (
-        <Box
+        <div
+            className="flex justify-center items-center top-0 left-0 p-6 h-full w-full z-50 fixed bg-bottom-grey bg-opacity-90 backdrop-blur"
             onMouseMove={onMouseMove}
             onClick={onClick}
-            style={{
-                position: "fixed",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                top: 0,
-                left: 0,
-                padding: "25px",
-                height: "100%",
-                width: "100%",
-                zIndex: 100,
-                backgroundColor: `rgb(0, 0, 0, ${shadeOpacity})`,
-                backdropFilter: "blur(4px)"
-            }}
             children={children}
         />
     )
 }
 
-const StyledMediaImage = ({ mediaData, quality, lazy }: { mediaData: MediaData, quality: "thumbnail" | "fullres", lazy: boolean }) => {
+export function GetMediaFullscreenSize(
+    mediaData: WeblensMedia,
+    containerSize: SizeT
+): SizeT {
+    // let newWidth
+    // if (!containerSize) {
+    //     newWidth = 0
+    // } else if (containerSize.width < 150 && mediaData.GetPageCount() > 1) {
+    //     newWidth = 150
+    // } else {
+    //     newWidth = containerSize.width
+    // }
 
-    return (
-        <Box pos={'absolute'} style={{ height: "100%", width: "100%" }} onClick={(e) => e.stopPropagation()}>
-            <MediaImage media={mediaData} quality={quality} lazy={lazy} imgStyle={{ height: "calc(100% - 10px)", width: "calc(100% - 10px)", position: 'absolute', objectFit: "contain" }} />
-        </Box>
-    )
+    if (
+        !mediaData ||
+        !mediaData.GetHeight() ||
+        !mediaData.GetWidth() ||
+        !containerSize.height ||
+        !containerSize.width
+    ) {
+        return { height: 0, width: 0 }
+    }
+    const mediaRatio = mediaData.GetWidth() / mediaData.GetHeight()
+    const windowRatio = containerSize.width / containerSize.height
+    let absHeight = 0
+    let absWidth = 0
+    if (mediaRatio > windowRatio) {
+        absWidth = containerSize.width
+        absHeight = (absWidth / mediaData.GetWidth()) * mediaData.GetHeight()
+    } else {
+        absHeight = containerSize.height
+        absWidth = (absHeight / mediaData.GetHeight()) * mediaData.GetWidth()
+    }
+    return { height: absHeight, width: absWidth }
 }
 
-const PresentationVisual = ({ mediaData }: { mediaData: MediaData }) => {
-    const [windowSize, setWindowSize] = useState({ height: window.innerHeight, width: window.innerWidth })
-    useWindowSize(() => { setWindowSize({ height: window.innerHeight, width: window.innerWidth }) })
+export const ContainerMedia = ({
+    mediaData,
+    containerRef,
+}: {
+    mediaData: WeblensMedia
+    containerRef
+}) => {
+    const [boxSize, setBoxSize] = useState({
+        height: 0,
+        width: 0,
+    })
+    const { width: containerWidth, height: containerHeight } =
+        useResize(containerRef)
 
-    const [absHeight, absWidth] = useMemo(() => {
-        if (mediaData.mediaHeight === 0 || mediaData.mediaWidth === 0 || windowSize.height === 0 || windowSize.width === 0) {
-            return [0, 0]
+    useEffect(() => {
+        let newWidth: number
+        if (!containerRef) {
+            newWidth = 0
+        } else if (containerWidth < 150 && mediaData.GetPageCount() > 1) {
+            newWidth = 150
+        } else {
+            newWidth = containerWidth
         }
-        const mediaRatio = mediaData.mediaWidth / mediaData.mediaHeight
-        const windowRatio = windowSize.width / windowSize.height
+        setBoxSize({ height: containerHeight, width: newWidth })
+    }, [containerWidth, containerHeight])
+
+    const style = useMemo(() => {
+        if (
+            !mediaData ||
+            !mediaData.GetHeight() ||
+            !mediaData.GetWidth() ||
+            !boxSize.height ||
+            !boxSize.width
+        ) {
+            return { height: 0, width: 0 }
+        }
+        const mediaRatio = mediaData.GetWidth() / mediaData.GetHeight()
+        const windowRatio = boxSize.width / boxSize.height
         let absHeight = 0
         let absWidth = 0
         if (mediaRatio > windowRatio) {
-            absWidth = windowSize.width * 0.95
-            absHeight = (absWidth / mediaData.mediaWidth) * mediaData.mediaHeight
+            absWidth = boxSize.width
+            absHeight =
+                (absWidth / mediaData.GetWidth()) * mediaData.GetHeight()
         } else {
-            absHeight = windowSize.height * 0.95
-            absWidth = (absHeight / mediaData.mediaHeight) * mediaData.mediaWidth
+            absHeight = boxSize.height
+            absWidth =
+                (absHeight / mediaData.GetHeight()) * mediaData.GetWidth()
         }
-        return [absHeight, absWidth]
-    }, [mediaData.mediaHeight, mediaData.mediaWidth, windowSize])
+        return { height: absHeight, width: absWidth }
+    }, [mediaData, mediaData.GetHeight(), mediaData.GetWidth(), boxSize])
 
-    if (!mediaData) {
-        return
+    if (!mediaData || !containerRef) {
+        return <></>
     }
-    else if (mediaData.mediaType.IsVideo) {
+
+    if (mediaData.GetPageCount() > 1) {
         return (
-            <StyledMediaImage key={`${mediaData.fileHash} thumbnail`} mediaData={mediaData} quality={"thumbnail"} lazy={false} />
-        )
-    } else if (mediaData.mediaType?.FriendlyName === "File") {
-        return (
-            <IconFile />
+            <div className="no-scrollbar gap-1">
+                {[...Array(mediaData.GetPageCount())].map((p) => (
+                    <MediaImage
+                        key={p}
+                        media={mediaData}
+                        quality={'fullres'}
+                        pageNumber={p}
+                        containerStyle={style}
+                        preventClick
+                    />
+                ))}
+            </div>
         )
     } else {
-
         return (
-            <ColumnBox style={{ height: absHeight, width: absWidth }} onClick={e => { e.stopPropagation(); console.log(mediaData.recognitionTags) }}>
-                <MediaImage media={mediaData} quality={"fullres"} lazy={false} imgStyle={{ height: absHeight, width: absWidth, objectFit: 'contain' }} />
-            </ColumnBox>
+            <MediaImage
+                media={mediaData}
+                quality={'fullres'}
+                containerStyle={{
+                    ...style,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                }}
+                preventClick
+            />
         )
     }
 }
 
-function useKeyDown(mediaData, dispatch) {
-    const keyDownHandler = useCallback(event => {
-        if (!mediaData) {
-            return
-        }
-        else if (event.key === 'Escape') {
-            event.preventDefault()
-            dispatch({ type: 'stop_presenting' })
-        }
-        else if (event.key === 'ArrowLeft') {
-            event.preventDefault()
-            dispatch({ type: 'presentation_previous' })
-        }
-        else if (event.key === 'ArrowRight') {
-            event.preventDefault()
-            dispatch({ type: 'presentation_next' })
-        }
-        else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-            event.preventDefault()
-        }
-    }, [mediaData, dispatch])
+const PresentationVisual = ({
+    mediaData,
+    Element,
+}: {
+    mediaData: WeblensMedia
+    Element: () => ReactNode
+}) => {
+    const [containerRef, setContainerRef] = useState(null)
+
+    const imgStyle = useMemo(() => {
+        return { width: Element ? '50%' : '100%' }
+    }, [Element])
+
+    return (
+        <div className="flex items-center justify-around h-full w-full">
+            {mediaData && (
+                <div
+                    className="flex items-center justify-center h-full"
+                    style={imgStyle}
+                    ref={setContainerRef}
+                >
+                    <ContainerMedia
+                        mediaData={mediaData}
+                        containerRef={containerRef}
+                    />
+                </div>
+            )}
+            {Element && <Element />}
+        </div>
+    )
+}
+
+function useKeyDownPresentation(
+    itemId: string,
+    dispatch: PresentationDispatchT
+) {
+    const mediaData = useMedia(itemId)
+
+    const keyDownHandler = useCallback(
+        (event) => {
+            if (!itemId) {
+                return
+            } else if (event.key === 'Escape') {
+                event.preventDefault()
+                dispatch.setPresentationTarget('')
+            } else if (event.key === 'ArrowLeft') {
+                event.preventDefault()
+                if (!mediaData.Prev()) {
+                    return
+                }
+                dispatch.setPresentationTarget(mediaData.Prev()?.Id())
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault()
+                if (!mediaData.Next()) {
+                    return
+                }
+                dispatch.setPresentationTarget(mediaData.Next()?.Id())
+            } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                event.preventDefault()
+            }
+        },
+        [itemId, dispatch, mediaData]
+    )
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
         return () => {
@@ -122,23 +234,62 @@ function handleTimeout(to, setTo, setGuiShown) {
     setTo(setTimeout(() => setGuiShown(false), 1000))
 }
 
-const Presentation = ({ mediaData, dispatch }: { mediaData: MediaData, dispatch: React.Dispatch<any> }) => {
-    useKeyDown(mediaData, dispatch)
-
-    const [to, setTo] = useState(null)
-    const [guiShown, setGuiShown] = useState(false)
-
-    if (!mediaData || !mediaData.mediaType.IsDisplayable) {
-        return null
-    }
-
-    return (
-        <PresentationContainer onMouseMove={(_) => { setGuiShown(true); handleTimeout(to, setTo, setGuiShown) }} onClick={() => dispatch({ type: 'set_presentation', media: null })}>
-            <PresentationVisual mediaData={mediaData} />
-            {/* <Text style={{ position: 'absolute', bottom: guiShown ? 15 : -100, left: '50vw' }} >{}</Text> */}
-            <CloseButton c={'white'} style={{ position: 'absolute', top: guiShown ? 15 : -100, left: 15 }} onClick={() => dispatch({ type: 'set_presentation', presentingId: null })} />
-        </PresentationContainer>
-    )
+interface PresentationDispatchT {
+    setPresentationTarget(targetId: string)
 }
+
+const Presentation = memo(
+    ({
+        mediaId,
+        element,
+        dispatch,
+    }: {
+        mediaId: string
+        dispatch: PresentationDispatchT
+        element?
+    }) => {
+        useKeyDownPresentation(mediaId, dispatch)
+
+        const [to, setTo] = useState(null)
+        const [guiShown, setGuiShown] = useState(false)
+
+        const mediaData = useMedia(mediaId)
+
+        if (!mediaId || !mediaData) {
+            return null
+        }
+
+        return (
+            <PresentationContainer
+                onMouseMove={() => {
+                    setGuiShown(true)
+                    handleTimeout(to, setTo, setGuiShown)
+                }}
+                onClick={() => dispatch.setPresentationTarget('')}
+            >
+                <PresentationVisual
+                    key={mediaId}
+                    mediaData={mediaData}
+                    Element={element}
+                />
+
+                <div className="close-icon" data-shown={guiShown}>
+                    <WeblensButton
+                        subtle
+                        Left={IconX}
+                        onClick={() => dispatch.setPresentationTarget('')}
+                    />
+                </div>
+            </PresentationContainer>
+        )
+    },
+    (prev, next) => {
+        if (prev.mediaId !== next.mediaId) {
+            return false
+        }
+
+        return true
+    }
+)
 
 export default Presentation

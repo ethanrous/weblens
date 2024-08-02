@@ -1,84 +1,218 @@
-import React, { Suspense } from 'react'
-import { BrowserRouter as Router, useRoutes } from "react-router-dom"
 import { MantineProvider } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
+import React, { Suspense, useEffect, useReducer } from 'react'
+import {
+    BrowserRouter as Router,
+    useLocation,
+    useNavigate,
+    useRoutes,
+} from 'react-router-dom'
+import { fetchMediaTypes } from './api/ApiFetch'
+import ErrorBoundary, { ErrorDisplay } from './components/Error'
 
-import WeblensLoader from "./components/Loading"
-import Admin from "./Pages/Admin Settings/Admin"
-import useR from "./components/UserInfo"
-import { userContext } from "./Context"
-import Login from "./Pages/Login/Login"
+import WeblensLoader from './components/Loading'
+import useR, { useSessionStore } from './components/UserInfo'
+import { MediaContext } from './Context'
 
-import "@mantine/notifications/styles.css"
-import "@mantine/core/styles.css"
+import '@mantine/notifications/styles.css'
+import '@mantine/core/styles.css'
+import { mediaReducer, MediaStateT } from './Media/Media'
+import StartUp from './Pages/Startup/StartupPage'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import Wormhole from './Pages/FileBrowser/Wormhole'
+const Gallery = React.lazy(() => import('./Pages/Gallery/Gallery'))
+const FileBrowser = React.lazy(() => import('./Pages/FileBrowser/FileBrowser'))
+const Wormhole = React.lazy(() => import('./Pages/FileBrowser/Wormhole'))
+const Login = React.lazy(() => import('./Pages/Login/Login'))
+const Setup = React.lazy(() => import('./Pages/Setup/Setup'))
 
-const Gallery = React.lazy(() => import("./Pages/Gallery/Gallery"))
-const FileBrowser = React.lazy(() => import("./Pages/FileBrowser/FileBrowser"))
+const setTypeMap = () => {
+    fetchMediaTypes().then((r) => {
+        localStorage.setItem(
+            'mediaTypeMap',
+            JSON.stringify({ typeMap: r, time: Date.now() })
+        )
+    })
+}
 
 const WeblensRoutes = () => {
-  const { authHeader, userInfo, setCookie, clear } = useR()
+    useR()
 
-  const galleryPage = (
-    <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
-      <Gallery />
-    </Suspense>
-  )
+    const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
+    const server = useSessionStore((state) => state.server)
+    const user = useSessionStore((state) => state.user)
 
-  const filesPage = (
-    <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
-      <FileBrowser />
-    </Suspense>
-  )
+    const loc = useLocation()
+    const nav = useNavigate()
 
-  const wormholePage = (
-    <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
-      <Wormhole />
-    </Suspense>
-  )
+    useEffect(() => {
+        fetchServerInfo()
+    }, [])
 
-  const loginPage = (
-    <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
-      <Login />
-    </Suspense>
-  )
+    useEffect(() => {
+        if (!server) {
+            return
+        }
+        if (loc.pathname !== '/setup' && server.info.role === 'init') {
+            console.debug('Nav setup')
+            nav('/setup')
+        } else if (loc.pathname === '/setup' && server.info.role !== 'init') {
+            console.debug('Nav timeline')
+            nav('/timeline')
+        } else if (
+            server.info.role === 'backup' &&
+            !loc.pathname.startsWith('/files') &&
+            user !== null
+        ) {
+            console.debug('Nav files home')
+            nav('/files/home')
+        } else if (
+            user !== null &&
+            !user.isLoggedIn &&
+            loc.pathname !== '/login' &&
+            server.info.role !== 'init' &&
+            (!loc.pathname.startsWith('/files') ||
+                loc.pathname === '/files/home')
+        ) {
+            console.debug('Nav login')
+            nav('/login')
+        } else if (loc.pathname === '/login' && user !== null) {
+            console.debug('Nav timeline')
+            nav('/timeline')
+        } else if (
+            (loc.pathname === '/timeline' ||
+                loc.pathname.startsWith('/album')) &&
+            server.info.role === 'backup'
+        ) {
+            console.debug('Nav files home')
+            nav('/files/home')
+        } else if (loc.pathname === '/') {
+            console.debug('Nav timeline')
+            nav('/timeline')
+        }
+    }, [loc, server, user])
 
-  const adminPage = (
-    <Suspense fallback={<WeblensLoader loading={true} progress={0} />}>
-      <Admin />
-    </Suspense>
-  )
+    const [mediaState, mediaDispatch] = useReducer(
+        mediaReducer,
+        null,
+        () =>
+            new MediaStateT(
+                null,
+                JSON.parse(localStorage.getItem('showRaws')) || false,
+                JSON.parse(localStorage.getItem('showHidden')) || false
+            )
+    )
 
-  const Gal = useRoutes(
-    [
-      ...["/", "/timeline", "/albums/*"].map(path => ({ path: path, element: galleryPage })),
-      { path: "/files/*", element: filesPage },
-      { path: "/wormhole/*", element: wormholePage },
-      { path: "/login", element: loginPage },
-      { path: "/admin", element: adminPage },
-    ]
+    useEffect(() => {
+        if (!server || !server.started || server.info.role === 'init') {
+            return
+        }
 
-  )
-  return (
-    <userContext.Provider value={{ authHeader, userInfo, setCookie, clear }}>
-      {Gal}
-    </userContext.Provider>
-  )
+        const typeMapStr = localStorage.getItem('mediaTypeMap')
+        if (!typeMapStr) {
+            setTypeMap()
+        }
+
+        try {
+            const typeMap = JSON.parse(typeMapStr)
+
+            // fetch type map every hour, just in case
+            if (
+                !typeMap.typeMap.size ||
+                !typeMap.time ||
+                Date.now() - typeMap.time > 3_600_000
+            ) {
+                setTypeMap()
+            }
+        } catch {
+            setTypeMap()
+        }
+    }, [])
+
+    if (!server) {
+        return null
+    }
+
+    const queryClient = new QueryClient()
+
+    return (
+        <QueryClientProvider client={queryClient}>
+            <ErrorBoundary fallback={ErrorDisplay}>
+                <MediaContext.Provider
+                    value={{
+                        mediaState,
+                        mediaDispatch,
+                    }}
+                >
+                    {server.started && <PageSwitcher />}
+                    {!server.started && <StartUp />}
+                </MediaContext.Provider>
+            </ErrorBoundary>
+        </QueryClientProvider>
+    )
+}
+
+function PageLoader() {
+    return (
+        <div style={{ position: 'absolute', right: 15, bottom: 10 }}>
+            <WeblensLoader loading={['page']} progress={0} />
+        </div>
+    )
+}
+
+const PageSwitcher = () => {
+    const galleryPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Gallery />
+        </Suspense>
+    )
+
+    const filesPage = (
+        <Suspense fallback={<PageLoader />}>
+            <FileBrowser />
+        </Suspense>
+    )
+
+    const wormholePage = (
+        <Suspense fallback={<PageLoader />}>
+            <Wormhole />
+        </Suspense>
+    )
+
+    const loginPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Login />
+        </Suspense>
+    )
+
+    const setupPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Setup />
+        </Suspense>
+    )
+
+    const Gal = useRoutes([
+        { path: '/', element: galleryPage },
+        { path: '/timeline', element: galleryPage },
+        { path: '/albums/*', element: galleryPage },
+        { path: '/files/*', element: filesPage },
+        { path: '/wormhole', element: wormholePage },
+        { path: '/login', element: loginPage },
+        { path: '/setup', element: setupPage },
+    ])
+
+    return Gal
 }
 
 function App() {
-  // document.body.style.backgroundColor = theme.colorSchemes.dark.palette.neutral.solidDisabledBg
-  document.documentElement.style.overflow = "hidden"
-  // document.body.style.backgroundColor = "#fff"
-  return (
-    <MantineProvider defaultColorScheme="dark">
-      <Notifications position='top-right' top={90} />
-      <Router>
-        <WeblensRoutes />
-      </Router>
-    </MantineProvider>
-  )
+    document.documentElement.style.overflow = 'hidden'
+    document.body.className = 'body'
+    return (
+        <MantineProvider defaultColorScheme="dark">
+            <Router>
+                <WeblensRoutes />
+            </Router>
+        </MantineProvider>
+    )
 }
 
 export default App
