@@ -9,7 +9,6 @@ import React, {
     useState,
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { getAlbums } from '../../Albums/AlbumQuery'
 import { Albums } from '../../Albums/Albums'
 
 import HeaderBar from '../../components/HeaderBar'
@@ -150,7 +149,6 @@ const Gallery = () => {
 
     const nav = useNavigate()
     const server = useSessionStore((state) => state.server)
-    const auth = useSessionStore((state) => state.auth)
     const { mediaState, mediaDispatch } = useContext(MediaContext)
 
     const loc = useLocation()
@@ -183,16 +181,6 @@ const Gallery = () => {
     useEffect(() => {
         localStorage.setItem('imageSize', JSON.stringify(bouncedSize))
     }, [bouncedSize])
-
-    useEffect(() => {
-        if (auth.Authorization !== '' && page !== 'albums') {
-            galleryDispatch({ type: 'add_loading', loading: 'albums' })
-            getAlbums(true, auth).then((val) => {
-                galleryDispatch({ type: 'set_albums', albums: val })
-                galleryDispatch({ type: 'remove_loading', loading: 'albums' })
-            })
-        }
-    }, [auth, page])
 
     return (
         <GalleryContext.Provider

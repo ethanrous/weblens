@@ -3,6 +3,7 @@ package share
 import (
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type shareService struct {
@@ -26,7 +27,7 @@ func (ss *shareService) Init(db types.ShareStore) error {
 	ss.repo = make(map[types.ShareId]types.Share)
 	for _, sh := range shares {
 		if len(sh.GetAccessors()) == 0 && !sh.IsPublic() && (sh.GetShareType() != types.FileShare || !sh.(*FileShare).IsWormhole()) {
-			util.Debug.Println("Removing share on init...")
+			wlog.Debug.Println("Removing share on init...")
 			err = db.DeleteShare(sh.GetShareId())
 			if err != nil {
 				return err

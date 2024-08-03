@@ -9,6 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
@@ -28,7 +29,7 @@ type User struct {
 	// non-database types
 	homeFolder   types.WeblensFile
 	trashFolder  types.WeblensFile
-	tokensLock   *sync.RWMutex
+	tokensLock sync.RWMutex
 	isSystemUser bool
 }
 
@@ -49,7 +50,6 @@ func New(username types.Username, password string, isAdmin, autoActivate bool) (
 		Tokens:     []string{},
 		Admin:      isAdmin,
 		Activated:  autoActivate,
-		tokensLock: &sync.RWMutex{},
 	}
 
 	homeDir, err := newUser.CreateHomeFolder()
@@ -167,14 +167,14 @@ func (u *User) GetToken() string {
 	token := jwt.New(jwt.SigningMethodHS256)
 	tokenString, err := token.SignedString([]byte("key"))
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return ""
 	}
 
 	ret := tokenString
 	err = types.SERV.StoreService.AddTokenToUser(u.Username, tokenString)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 	}
 
 	u.tokensLock.Lock()
@@ -248,8 +248,6 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	u.TrashId = types.FileId(obj["trashId"].(string))
 	u.Tokens = util.SliceConvert[string](obj["tokens"].([]any))
 	u.isSystemUser = obj["isSystemUser"].(bool)
-
-	u.tokensLock = &sync.RWMutex{}
 
 	return nil
 }

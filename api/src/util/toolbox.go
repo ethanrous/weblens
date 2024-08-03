@@ -8,25 +8,12 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
-
-func BoolFromString(input string, emptyIsFalse bool) bool {
-	if input == "1" || input == "true" {
-		return true
-	} else if input == "0" || input == "false" {
-		return false
-	} else if input == "" {
-		return !emptyIsFalse
-	} else {
-		panic(fmt.Errorf("unexpected boolean string. Unable to determine truthiness of %s", input))
-	}
-}
 
 func FailOnError(err error, format string, fmtArgs ...any) {
 	msg := fmt.Sprintf(format, fmtArgs...)
@@ -37,39 +24,9 @@ func FailOnError(err error, format string, fmtArgs ...any) {
 			runtime.Stack(trace, false)
 			panic(fmt.Errorf("error from %s:%d %s: %s\n%s", file, line, msg, err, string(trace)))
 		} else {
-			Error.Panicf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
+			wlog.Error.Panicf("Failed to get caller information while parsing this error:\n%s: %s", msg, err)
 		}
 	}
-}
-
-func ErrTrace(err error, extras ...string) {
-	if err != nil {
-		msg := strings.Join(extras, " ")
-		_, file, line, _ := runtime.Caller(1)
-		if wlErr, ok := err.(types.WeblensError); ok {
-			ErrorCatcher.Printf("(%s:%d) %s", filepath.Base(file), line, wlErr.ErrorTrace())
-		} else {
-			ErrorCatcher.Printf(
-				"%s:%d %s: %s\n----- STACK FOR ERROR ABOVE -----\n%s", file, line, msg, err, debug.Stack(),
-			)
-		}
-	}
-}
-
-func ShowErr(err error, extras ...string) {
-	if err != nil {
-		msg := strings.Join(extras, " ")
-		_, file, line, _ := runtime.Caller(1)
-		if wlErr, ok := err.(types.WeblensError); ok {
-			ErrorCatcher.Printf("(%s:%d) %s", filepath.Base(file), line, wlErr.Error())
-		} else {
-			ErrorCatcher.Printf("%s:%d %s: %s", file, line, msg, err)
-		}
-	}
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
 
 type WeblensHash struct {
@@ -134,7 +91,7 @@ func RecoverPanic(preText string) {
 		return
 	}
 
-	ErrorCatcher.Println(preText, IdentifyPanic(), r)
+	wlog.ErrorCatcher.Println(preText, IdentifyPanic(), r)
 }
 
 // Yoink See Banish. Yoink is the same as Banish, but returns the value at i
@@ -370,7 +327,7 @@ func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
 
 func (s *sw) PrintResults(firstLapIsStart bool) {
 	if s.stop.Unix() < 0 {
-		Error.Println("Stopwatch cannot provide results before being stopped")
+		wlog.Error.Println("Stopwatch cannot provide results before being stopped")
 		return
 	}
 
@@ -431,5 +388,5 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 
 func ShowCaller() {
 	_, file, line, _ := runtime.Caller(2)
-	Debug.Println(file, line)
+	wlog.Debug.Println(file, line)
 }

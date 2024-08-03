@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"runtime"
 	"time"
@@ -19,86 +21,113 @@ import (
 	"github.com/ethrousseau/weblens/api/routes/proxy"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
-const retries = 10
-
 func main() {
 	go setup(util.GetMongoDBName())
 	routes.DoRoutes()
-	util.Info.Println("Weblens exited...")
+	wlog.Info.Println("Weblens exited...")
+}
+
+func setupRecovery() {
+	err := recover()
+	if err != nil {
+		switch err := err.(type) {
+		case types.WeblensError:
+			wlog.ErrTrace(err)
+		case error:
+			wlog.ErrTrace(err)
+		default:
+			wlog.ErrTrace(errors.New(fmt.Sprintln("Recovered unexpected", err)))
+		}
+		wlog.ErrorCatcher.Println("WEBLENS STARTUP FAILED.")
+		os.Exit(1)
+	}
 }
 
 func setup(mongoName string) {
+	defer setupRecovery()
+
 	sw := util.NewStopwatch("Initialization")
 	err := godotenv.Load()
 	if err != nil {
-		util.ShowErr(err)
+		wlog.Warning.Println("Could not load .env file", err)
 	}
 
 	if util.IsDevMode() {
-		util.Debug.Println("Starting weblens in development mode")
+		wlog.DoDebug()
+		wlog.Debug.Println("Starting weblens in development mode")
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	sw.Lap()
 
-	// Gather global services
-
+	/* Get database connection */
 	localStore := database.New(util.GetMongoURI(), mongoName)
 	types.SERV.SetStore(localStore)
-
 	sw.Lap("Create local store controller")
 
+	/* Instance Service */
 	instanceService := instance.NewService()
 	err = instanceService.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
 	types.SERV.SetInstance(instanceService)
-
-	sw.Lap("Init instance service")
-
 	localServer := instanceService.GetLocal()
 	if localServer == nil {
 		panic("Local server not initialized")
 	}
+	sw.Lap("Init instance service")
 
-	userService := user.NewService()
+	/* Client Manager */
+	clientService := routes.NewClientManager()
+	types.SERV.SetClientService(clientService)
+	sw.Lap("Init client service")
 
-	var proxyStore *proxy.ProxyStore
+	/* If server is backup server, connect to core server */
 	if localServer.ServerRole() == types.Backup {
-		coreAddr, err := localServer.GetCoreAddress()
+		core := types.SERV.InstanceService.GetCore()
+		if core == nil {
+			panic("could not get core")
+		}
+
+		err = routes.WebsocketToCore(core)
 		if err != nil {
 			panic(err)
 		}
-		proxyStore = proxy.NewProxyStore(coreAddr, localServer.GetUsingKey())
+
+		var coreAddr string
+		coreAddr, err = core.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+
+		proxyStore := proxy.NewProxyStore(coreAddr, localServer.GetUsingKey())
 		sw.Lap("Init proxy store")
 
 		proxyStore.Init(localStore)
 		types.SERV.SetStore(proxyStore)
-
-		err = userService.Init(proxyStore)
-	} else {
-		err = userService.Init(localStore)
+		localStore = proxyStore
 	}
+
+	/* User Service */
+	userService := user.NewService()
+	err = userService.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
 	types.SERV.SetUserService(userService)
 	sw.Lap("Init user service")
 
-	clientService := routes.NewClientManager()
-
-	types.SERV.SetClientService(clientService)
-	sw.Lap("Init client service")
-
 	/* Once here, we can actually let the router start, this is the minimally
 	acceptable state to allow incoming HTTP, i.e. types.SERV.MinimallyReady() == true */
 
+	/* Share Service */
 	shareService := share.NewService()
 	err = shareService.Init(localStore)
 	if err != nil {
@@ -107,40 +136,36 @@ func setup(mongoName string) {
 	types.SERV.SetShareService(shareService)
 	sw.Lap("Init share service")
 
+	/* FileTree Service */
 	ft := filetree.NewFileTree(util.GetMediaRootPath(), "MEDIA")
 	types.SERV.SetFileTree(ft)
-	if localServer.ServerRole() == types.Backup {
-		err = ft.Init(proxyStore)
-	} else {
-		err = ft.Init(localStore)
-	}
+	err = ft.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
 	sw.Lap("Init file tree service")
 
+	/* Media type Service */
 	mediaTypeServ := media.NewTypeService()
+	/* Media Service */
 	mediaService := media.NewRepo(mediaTypeServ)
-	if localServer.ServerRole() == types.Backup {
-		err = mediaService.Init(proxyStore)
-	} else {
-		err = mediaService.Init(localStore)
-	}
+	err = mediaService.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
 	types.SERV.SetMediaRepo(mediaService)
 	sw.Lap("Init media service")
 
+	/* Album Service */
 	albumService := album.NewService()
 	err = albumService.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
 	types.SERV.SetAlbumService(albumService)
-
 	sw.Lap("Init album service")
 
+	/* Access Service */
 	accessService := dataStore.NewAccessService()
 	err = accessService.Init(localStore)
 	if err != nil {
@@ -149,48 +174,39 @@ func setup(mongoName string) {
 	types.SERV.SetAccessService(accessService)
 	sw.Lap("Init access service")
 
+	/* Journal Service */
 	journal := history.NewService(ft)
 	if journal == nil {
 		panic("Cannot initialize journal")
 	}
-	if localServer.ServerRole() == types.Backup {
-		err = journal.Init(proxyStore)
-	} else {
-		err = journal.Init(localStore)
-	}
+	err = journal.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
+	sw.Lap("Init journal service")
 
+	/* Give journal to file tree, and start workers */
 	ft.SetJournal(journal)
 	go journal.JournalWorker()
 	go journal.FileWatcher()
-	sw.Lap("Init journal service")
 
-	requester := routes.NewRequester()
-	types.SERV.SetRequester(requester)
-
-	if localServer.ServerRole() == types.Backup {
-		checkCoreExists(requester, sw)
-	}
-
-	// The global broadcaster is created and disabled here so that we don't
-	// read information about files before they are ready to be accessed
+	/* The global broadcaster is created and disabled here so that we don't
+	read information about files before they are ready to be accessed */
 	caster := routes.NewCaster()
 	caster.Disable()
 	types.SERV.SetCaster(caster)
 
-	// Enable the worker pool held by the task tracker
-	// loading the filesystem might dispatch tasks,
-	// so we have to start the pool first
+	/* Enable the worker pool held by the task tracker
+	loading the filesystem might dispatch tasks,
+	so we have to start the pool first */
 	workerPool, taskDispatcher := dataProcess.NewWorkerPool(runtime.NumCPU() - 2)
 	types.SERV.SetWorkerPool(workerPool)
 	types.SERV.SetTaskDispatcher(taskDispatcher)
 	workerPool.Run()
 	sw.Lap("Worker pool enabled")
 
-	// Load filesystem
-	util.Info.Println("Loading filesystem...")
+	/* Load filesystem into tree */
+	wlog.Info.Println("Loading filesystem...")
 	hashCaster := routes.NewCaster()
 	err = dataStore.InitMediaRoot(ft, hashCaster)
 	if err != nil {
@@ -210,7 +226,7 @@ func setup(mongoName string) {
 	}
 	sw.Lap("Clear takeout dir")
 
-	// If we are on a backup server, launch the backup daemon
+	/* If we are on a backup server, launch the backup daemon */
 	if localServer.ServerRole() == types.Backup {
 		go dataProcess.BackupD(time.Hour)
 	}
@@ -222,22 +238,5 @@ func setup(mongoName string) {
 
 	types.SERV.InstanceService.RemoveLoading("all")
 
-	util.Info.Printf("Weblens loaded. %d files and %d medias\n", ft.Size(), mediaService.Size())
-}
-
-func checkCoreExists(rq types.Requester, sw util.Stopwatch) {
-	connected := false
-	i := 0
-	for i = range retries {
-		if rq.PingCore() {
-			connected = true
-			break
-		}
-		time.Sleep(time.Millisecond * 500)
-	}
-	if !connected {
-		util.Error.Println("Failed to ping core server")
-		os.Exit(1)
-	}
-	sw.Lap("Connected to core server after ", i, " retries")
+	wlog.Info.Printf("Weblens loaded. %d files and %d medias\n", ft.Size(), mediaService.Size())
 }

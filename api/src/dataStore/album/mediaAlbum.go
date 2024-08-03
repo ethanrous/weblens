@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -73,7 +74,7 @@ func (a *Album) RemoveMedia(m ...types.ContentId) error {
 		)
 	}
 
-	util.ShowErr(types.NewWeblensError("not impl"))
+	wlog.ShowErr(types.NewWeblensError("not impl"))
 
 	return nil
 }

@@ -1,10 +1,13 @@
 package proxy
 
-import "github.com/ethrousseau/weblens/api/types"
+import (
+	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util/wlog"
+)
 
 func (p *ProxyStore) GetAllAlbums() ([]types.Album, error) {
-	// TODO implement me
-	panic("implement me")
+	wlog.Debug.Println("implement me")
+	return []types.Album{}, nil
 }
 
 func (p *ProxyStore) CreateAlbum(album types.Album) error {

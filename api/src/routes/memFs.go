@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type InMemoryFS struct {
@@ -105,7 +106,7 @@ func addIndexTag(tagName, toAdd, content string) string {
 	subStr := fmt.Sprintf("og:%s\" content=\"", tagName)
 	index := strings.Index(content, subStr)
 	if index == -1 {
-		util.Error.Println("Failed to find tag", tagName)
+		wlog.Error.Println("Failed to find tag", tagName)
 		return content
 	}
 	index += len(subStr)
@@ -125,7 +126,7 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[len("files/share/"):]
 		slashIndex := strings.Index(loc, "/")
 		if slashIndex == -1 {
-			util.Debug.Println("Could not find slash in path:", loc)
+			wlog.Debug.Println("Could not find slash in path:", loc)
 			return index
 		}
 		

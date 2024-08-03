@@ -13,6 +13,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -56,14 +57,14 @@ func getMediaBatch(ctx *gin.Context) {
 	var albumFilter []types.AlbumId
 	err = json.Unmarshal([]byte(ctx.Query("albums")), &albumFilter)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	ms, err := types.SERV.MediaRepo.GetFilteredMedia(u, sort, 1, albumFilter, raw, hidden)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media"})
 		return
 	}
@@ -124,7 +125,7 @@ func streamVideo(ctx *gin.Context) {
 	for {
 		_, err := os.Stat(playlistFilePath)
 		if streamer.Err() != nil {
-			util.ShowErr(streamer.Err())
+			wlog.ShowErr(streamer.Err())
 			ctx.Status(http.StatusInternalServerError)
 			return
 		}
@@ -187,14 +188,14 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 			ctx.Status(http.StatusNoContent)
 			return
 		} else {
-			util.ErrTrace(types.WeblensErrorMsg("failed to get media content"))
+			wlog.ErrTrace(types.WeblensErrorMsg("failed to get media content"))
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 			return
 		}
 	}
 
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 		return
 	}
@@ -202,7 +203,7 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 	_, err = ctx.Writer.Write(bs)
 
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -229,7 +230,7 @@ func hideMedia(ctx *gin.Context) {
 	for _, m := range medias {
 		err := m.Hide(hidden)
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
 			return
 		}
@@ -255,7 +256,7 @@ func adjustMediaDate(ctx *gin.Context) {
 
 	err = media.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
 		return
 	}

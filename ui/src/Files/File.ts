@@ -351,4 +351,5 @@ export enum FbMenuModeT {
     Sharing,
     NameFolder,
     AddToAlbum,
+    RenameFile,
 }

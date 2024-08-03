@@ -12,8 +12,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
-
-	// "github.com/gin-contrib/pprof"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
@@ -36,7 +35,7 @@ func DoRoutes() {
 			// Wait for request to finish before shutting down router
 			time.Sleep(time.Millisecond * 100)
 			err := srv.Shutdown(context.TODO())
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			srv = nil
 			types.SERV.RouterLock.Unlock()
 			continue
@@ -63,7 +62,7 @@ func DoRoutes() {
 			if local.ServerRole() == types.Initialization {
 				api.Use(WeblensAuth(true))
 				addInitializationRoutes(api)
-				util.Info.Println("Ignoring requests from public IPs until weblens is initialized")
+				wlog.Info.Println("Ignoring requests from public IPs until weblens is initialized")
 				router.Use(initSafety)
 			} else {
 				addApiRoutes(api)
@@ -91,12 +90,12 @@ func DoRoutes() {
 		types.SERV.SetRouter(srv)
 		types.SERV.RouterLock.Unlock()
 
-		util.Debug.Println("Starting router at", srv.Addr)
+		wlog.Debug.Println("Starting router at", srv.Addr)
 		err := srv.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			panic(err)
 		}
-		util.Debug.Println("Restarting router...")
+		wlog.Debug.Println("Restarting router...")
 	}
 }
 
@@ -247,6 +246,7 @@ func addCoreRoutes(core *gin.RouterGroup) {
 	core.GET("/history/since/:timestamp", getLifetimesSince)
 	core.GET("/history", getHistory)
 	core.GET("/history/folder", getFolderHistory)
+	core.GET("/ws", wsConnect)
 }
 
 // func reverseProxyToCore(coreAddress string) gin.HandlerFunc {
@@ -309,7 +309,7 @@ func snapshotHeap(ctx *gin.Context) {
 	util.FailOnError(err, "")
 	err = pprof.Lookup("heap").WriteTo(file, 0)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 	}
 }
 

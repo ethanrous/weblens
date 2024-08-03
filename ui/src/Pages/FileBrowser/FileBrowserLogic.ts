@@ -137,7 +137,6 @@ async function getFile(file): Promise<File> {
     try {
         return await file.getAsFile()
     } catch (err) {
-        console.error(file, err)
         return await new Promise((resolve, reject) =>
             file.file(resolve, reject)
         )

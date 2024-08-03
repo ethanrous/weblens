@@ -8,7 +8,7 @@ import (
 )
 
 type weblensServicePackage struct {
-	serviceLock *sync.Mutex
+	serviceLock sync.Mutex
 
 	InstanceService InstanceService
 	UserService     UserService
@@ -20,21 +20,20 @@ type weblensServicePackage struct {
 	ClientManager  ClientManager
 	WorkerPool     WorkerPool
 	TaskDispatcher TaskPool
-	Requester      Requester
 	AlbumManager   AlbumService
 	ShareService   ShareService
 	AccessService  AccessService
 
 	router     *http.Server
-	RouterLock *sync.Mutex
+	RouterLock sync.Mutex
 }
 
 var SERV *weblensServicePackage
 
 func init() {
 	SERV = &weblensServicePackage{
-		serviceLock: &sync.Mutex{},
-		RouterLock:  &sync.Mutex{},
+		serviceLock: sync.Mutex{},
+		RouterLock:  sync.Mutex{},
 	}
 }
 
@@ -139,12 +138,6 @@ func (srv *weblensServicePackage) SetShareService(share ShareService) {
 func (srv *weblensServicePackage) SetTaskDispatcher(tasker TaskPool) {
 	if SERV.TaskDispatcher == nil {
 		SERV.TaskDispatcher = tasker
-	}
-}
-
-func (srv *weblensServicePackage) SetRequester(rq Requester) {
-	if SERV.Requester == nil {
-		SERV.Requester = rq
 	}
 }
 

@@ -8,10 +8,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/google/uuid"
 
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/ethrousseau/weblens/api/util"
 )
 
 type hit struct {
@@ -30,14 +30,14 @@ type workerPool struct {
 
 	lifetimeQueuedCount *atomic.Int64
 
-	taskMu  *sync.Mutex
+	taskMu sync.Mutex
 	taskMap map[types.TaskId]types.Task
 
-	poolMu  *sync.Mutex
+	poolMu sync.Mutex
 	poolMap map[types.TaskId]types.TaskPool
 
 	taskStream   workChannel
-	taskBufferMu *sync.Mutex
+	taskBufferMu sync.Mutex
 	retryBuffer  []*task
 	hitStream    hitChannel
 
@@ -48,7 +48,7 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
-	util.Info.Printf("Starting new worker pool with %d workers", initWorkers)
+	wlog.Info.Printf("Starting new worker pool with %d workers", initWorkers)
 
 	newWp := &workerPool{
 		maxWorkers:          &atomic.Int64{},
@@ -57,15 +57,15 @@ func NewWorkerPool(initWorkers int) (types.WorkerPool, types.TaskPool) {
 		lifetimeQueuedCount: &atomic.Int64{},
 		exitFlag:            &atomic.Int64{},
 
-		taskMu:  &sync.Mutex{},
+		taskMu: sync.Mutex{},
 		taskMap: map[types.TaskId]types.Task{},
 
-		poolMu:  &sync.Mutex{},
+		poolMu: sync.Mutex{},
 		poolMap: map[types.TaskId]types.TaskPool{},
 
 		taskStream:   make(workChannel, initWorkers*1000),
 		retryBuffer:  []*task{},
-		taskBufferMu: &sync.Mutex{},
+		taskBufferMu: sync.Mutex{},
 
 		hitStream: make(hitChannel, initWorkers*2),
 	}
@@ -145,7 +145,7 @@ func workerRecover(task *task, workerId int64) {
 			err = errors.New(fmt.Sprint(err))
 		}
 
-		util.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, err, debug.Stack())
+		wlog.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, err, debug.Stack())
 		task.error(err.(error))
 	}
 }
@@ -184,7 +184,7 @@ func (wp *workerPool) reaper() {
 			// timeout before cancelling the task. Also check that it
 			// has not already finished
 			if task.queueState != Exited && time.Until(task.timeout) <= 0 && task.timeout.Unix() != 0 {
-				util.Warning.Printf("Sending timeout signal to T[%s]\n", task.taskId)
+				wlog.Warning.Printf("Sending timeout signal to T[%s]\n", task.taskId)
 				task.Cancel()
 				task.error(ErrTaskTimeout)
 			}
@@ -205,7 +205,7 @@ func (wp *workerPool) bufferDrainer() {
 		time.Sleep(time.Second * 10)
 	}
 
-	util.ErrTrace(errors.New("buffer drainer exited"))
+	wlog.ErrTrace(errors.New("buffer drainer exited"))
 }
 
 func (wp *workerPool) addToRetryBuffer(tasks ...*task) {
@@ -316,10 +316,10 @@ func (wp *workerPool) execWorker(replacement bool) {
 			// Inc tasks being processed
 			wp.busyCount.Add(1)
 			t.SwLap("Task start")
-			util.Debug.Printf("Starting %s task T[%s]", t.taskType, t.taskId)
+			wlog.Debug.Printf("Starting %s task T[%s]", t.taskType, t.taskId)
 			start := time.Now()
 			safetyWork(t, workerId)
-			util.Debug.Printf("Finished %s task T[%s] in %s", t.taskType, t.taskId, time.Since(start))
+			wlog.Debug.Printf("Finished %s task T[%s] in %s", t.taskType, t.taskId, time.Since(start))
 			t.SwLap("Task finish")
 			// Dec tasks being processed
 			wp.busyCount.Add(-1)
@@ -401,7 +401,7 @@ func (wp *workerPool) execWorker(replacement bool) {
 
 				directParent.LockExit()
 				uncompletedTasks := directParent.totalTasks.Load() - directParent.completedTasks.Load()
-				util.Debug.Printf(
+				wlog.Debug.Printf(
 					"Uncompleted tasks on tp created by %s: %d",
 					directParent.CreatedInTask().TaskId(), uncompletedTasks-1,
 				)
@@ -445,7 +445,7 @@ func (wp *workerPool) removeWorker() {
 func (wp *workerPool) newTaskPoolInternal() *taskPool {
 	tpId, err := uuid.NewUUID()
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		return nil
 	}
 
@@ -454,10 +454,10 @@ func (wp *workerPool) newTaskPoolInternal() *taskPool {
 		totalTasks:     &atomic.Int64{},
 		completedTasks: &atomic.Int64{},
 		waiterCount:    &atomic.Int32{},
-		waiterGate:     &sync.Mutex{},
-		exitLock:       &sync.Mutex{},
+		waiterGate: sync.Mutex{},
+		exitLock:   sync.Mutex{},
 		tasks:          map[types.TaskId]*task{},
-		taskLock:       &sync.Mutex{},
+		taskLock:   sync.Mutex{},
 		workerPool:     wp,
 		erroredTasks:   make(chan *task, 1000),
 		createdAt:      time.Now(),
@@ -489,7 +489,7 @@ func (wp *workerPool) statusReporter() {
 		if lastCount != remaining {
 			lastCount = remaining
 			waitTime = 1
-			util.Info.Printf(
+			wlog.Info.Printf(
 				"Task worker pool status : Queued[%d]/Total[%d], Buffered[%d], Busy[%d], Alive[%d]",
 				remaining, total, retrySize, busy, alive,
 			)

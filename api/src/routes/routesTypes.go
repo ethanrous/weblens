@@ -31,6 +31,8 @@ type taskSubscribeMeta struct {
 	Key        types.SubId    `json:"subscribeKey"`
 	TaskType   types.TaskType `json:"taskType"`
 	LookingFor []string       `json:"lookingFor"`
+
+	realKey types.SubId
 }
 
 func (tsm *taskSubscribeMeta) Action() types.WsAction {
@@ -38,14 +40,22 @@ func (tsm *taskSubscribeMeta) Action() types.WsAction {
 }
 
 func (tsm *taskSubscribeMeta) GetKey() types.SubId {
-	if tsm.Key == "" && tsm.TaskType != "" {
-		taskPool := types.SERV.WorkerPool.GetTaskPoolByTaskType(tsm.TaskType)
-		if taskPool == nil {
-			return ""
+	if tsm.realKey == "" {
+		if tsm.Key != "" {
+			tsm.realKey = types.SubId(fmt.Sprintf("TID#%s", tsm.Key))
+		} else if tsm.TaskType != "" {
+			tsm.realKey = types.SubId(fmt.Sprintf("TT#%s", tsm.TaskType))
 		}
-		tsm.Key = types.SubId(taskPool.ID())
 	}
-	return tsm.Key
+
+	// if tsm.Key == "" && tsm.TaskType != "" {
+	// 	taskPool := types.SERV.WorkerPool.GetTaskPoolByTaskType(tsm.TaskType)
+	// 	if taskPool == nil {
+	// 		return ""
+	// 	}
+	// 	tsm.Key = types.SubId(taskPool.ID())
+	// }
+	return tsm.realKey
 }
 
 type unsubscribeMeta struct {

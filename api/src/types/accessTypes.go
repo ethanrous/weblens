@@ -36,16 +36,19 @@ type Instance interface {
 	SetServerId(InstanceId)
 	GetName() string
 	GetUsingKey() WeblensApiKey
+	SetUsingKey(WeblensApiKey)
 	ServerRole() ServerRole
-	GetCoreAddress() (string, error)
+	GetAddress() (string, error)
+	SetAddress(address string) error
 	Info() Instance
 	IsLocal() bool
-	// SetUserCount(int)
+	IsCore() bool
 }
 
 type InstanceService interface {
 	WeblensService[InstanceId, Instance, InstanceStore]
 	GetLocal() Instance
+	GetCore() Instance
 	GetRemotes() []Instance
 	GenerateNewId(name string) InstanceId
 	InitCore(Instance) error

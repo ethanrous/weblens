@@ -468,6 +468,7 @@ export function taskProgressReducer(
 
         case 'update_scan_progress': {
             if (!state.has(action.taskId)) {
+                state.addTask(new TaskProgress(action.taskId, action.taskType))
                 console.error(
                     'Trying to update scan progress on task that does not exist [' +
                         action.taskId +

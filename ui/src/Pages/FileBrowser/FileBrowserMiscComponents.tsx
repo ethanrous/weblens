@@ -620,17 +620,15 @@ export const WebsocketStatus = memo(
                 break
             case -1:
                 color = 'red'
-                status = 'Disconnected, try refreshing your page'
+                status = 'Disconnected'
         }
 
         return (
-            <div className="absolute bottom-1 left-1">
-                <Tooltip label={status} color="#222222">
-                    <svg width="24" height="24" fill={color}>
-                        <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
-                    </svg>
-                </Tooltip>
-            </div>
+            <Tooltip openDelay={400} label={status} color="#222222">
+                <svg width="24" height="24" fill={color}>
+                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                </svg>
+            </Tooltip>
         )
     },
     (prev, next) => {

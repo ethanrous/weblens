@@ -29,7 +29,7 @@ func (db *databaseService) NewServer(i types.Instance) error {
 	return nil
 }
 
-func (db *databaseService) AttachToCore(i types.Instance) (types.Instance, error) {
+func (db *databaseService) AttachToCore(i types.Instance, core types.Instance) (types.Instance, error) {
 	return nil, types.ErrNotImplemented("AttachToCore local")
 }
 

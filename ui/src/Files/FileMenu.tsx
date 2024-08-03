@@ -7,6 +7,7 @@ import {
     IconLibraryPlus,
     IconLink,
     IconMinus,
+    IconPencil,
     IconPhotoShare,
     IconPlus,
     IconScan,
@@ -35,6 +36,7 @@ import {
     addUsersToFileShare,
     CreateFolder,
     DeleteFiles,
+    RenameFile,
     setFileSharePublic,
     shareFile,
     TrashFiles,
@@ -276,6 +278,8 @@ export function FileContextMenu() {
         menuBody = <FileShareMenu activeItems={activeItems.items} />
     } else if (menuMode === FbMenuModeT.AddToAlbum) {
         menuBody = <AddToAlbum activeItems={activeItems.items} />
+    } else if (menuMode === FbMenuModeT.RenameFile) {
+        menuBody = <FileRenameInput />
     }
 
     return (
@@ -334,6 +338,26 @@ function StandardFileMenu({
             className={'default-grid no-scrollbar'}
             data-visible={menuMode === FbMenuModeT.Default && menuTarget !== ''}
         >
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconPencil}
+                    subtle
+                    disabled={activeItems.items.length > 1}
+                    squareSize={100}
+                    centerContent
+                    onMouseOver={() =>
+                        setFooterNote({ hint: 'Rename', danger: false })
+                    }
+                    onMouseLeave={() =>
+                        setFooterNote({ hint: '', danger: false })
+                    }
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setFooterNote({ hint: '', danger: false })
+                        setMenu({ menuState: FbMenuModeT.RenameFile })
+                    }}
+                />
+            </div>
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconUsersPlus}
@@ -758,6 +782,34 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
     )
 }
 
+function FileRenameInput() {
+    const auth = useSessionStore((state) => state.auth)
+    const menuTarget = useFileBrowserStore((state) =>
+        state.filesMap.get(state.menuTargetId)
+    )
+
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+
+    return (
+        <div className="new-folder-menu">
+            <WeblensInput
+                value={menuTarget.GetFilename()}
+                placeholder="Rename File"
+                autoFocus
+                fillWidth
+                height={50}
+                buttonIcon={IconPlus}
+                onComplete={(newName) => {
+                    RenameFile(menuTarget.Id(), newName, auth)
+                        .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
+                        .catch((r) => console.error(r))
+                }}
+            />
+            <div className="w-[220px]"></div>
+        </div>
+    )
+}
+
 function AlbumCover({
     a,
     medias,
@@ -917,6 +969,9 @@ function InTrashMenu({
     const filesList = useFileBrowserStore((state) => state.filesList)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const setSelectedMoved = useFileBrowserStore(
+        (state) => state.setSelectedMoved
+    )
 
     if (user.trashId !== folderInfo.Id()) {
         return <></>
@@ -970,6 +1025,7 @@ function InTrashMenu({
                     } else {
                         toDeleteIds = activeItems.map((f) => f.Id())
                     }
+                    setSelectedMoved(toDeleteIds)
                     const res = await DeleteFiles(toDeleteIds, auth)
 
                     if (!res.ok) {

@@ -16,7 +16,7 @@ type eventMask struct {
 var jeStream = make(chan types.FileAction, 20)
 
 var eventMasks []eventMask
-var masksLock = &sync.Mutex{}
+var masksLock = sync.Mutex{}
 
 func MaskEvent(action types.FileActionType, path string) {
 	em := eventMask{

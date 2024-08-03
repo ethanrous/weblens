@@ -91,7 +91,7 @@ type InstanceStore interface {
 	GetAllServers() ([]Instance, error)
 	NewServer(Instance) error
 	DeleteServer(InstanceId) error
-	AttachToCore(Instance) (Instance, error)
+	AttachToCore(this Instance, core Instance) (Instance, error)
 }
 
 type AccessStore interface {

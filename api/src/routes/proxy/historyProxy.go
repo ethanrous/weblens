@@ -10,7 +10,12 @@ import (
 )
 
 func (p *ProxyStore) GetLifetimesSince(date time.Time) ([]types.Lifetime, error) {
-	resp, err := p.CallHome("GET", fmt.Sprintf("/api/core/history/since/%d", date.UnixMilli()), nil)
+	timestamp := date.UnixMilli()
+	if timestamp < 0 {
+		timestamp = 0
+	}
+	
+	resp, err := p.CallHome("GET", fmt.Sprintf("/api/core/history/since/%d", timestamp), nil)
 	if err != nil {
 		return nil, err
 	}

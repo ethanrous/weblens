@@ -10,9 +10,9 @@ import (
 )
 
 func launchBackup(ctx *gin.Context) {
-	rs := types.SERV.InstanceService.GetRemotes()
+	core := types.SERV.InstanceService.GetCore()
 
-	t := types.SERV.TaskDispatcher.Backup(rs[0].ServerId(), types.SERV.Caster)
+	t := types.SERV.TaskDispatcher.Backup(core.ServerId(), types.SERV.Caster)
 
 	// if _, stat := t.Status(); stat != dataProcess.TaskSuccess {
 	// 	ctx.Status(http.StatusInternalServerError)

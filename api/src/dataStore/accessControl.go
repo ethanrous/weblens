@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type accessMeta struct {
@@ -44,7 +45,7 @@ func (acc *accessMeta) AddShare(s types.Share) error {
 
 func (acc *accessMeta) SetRequestMode(r types.RequestMode) types.AccessMeta {
 	if acc.requestMode != "" {
-		util.Warning.Printf("Overriding request mode from %s to %s", acc.requestMode, r)
+		wlog.Warning.Printf("Overriding request mode from %s to %s", acc.requestMode, r)
 	}
 	acc.requestMode = r
 
@@ -144,7 +145,7 @@ func (acc *accessMeta) CanAccessFile(file types.WeblensFile) bool {
 	)
 
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 	}
 
 	if foundShare != nil {
@@ -157,7 +158,7 @@ func (acc *accessMeta) CanAccessFile(file types.WeblensFile) bool {
 func (acc *accessMeta) CanAccessShare(s types.Share) bool {
 	if s == nil {
 		err := fmt.Errorf("canAccessShare nil share")
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return false
 	}
 

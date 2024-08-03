@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/ethrousseau/weblens/api/dataStore/filetree"
 	"github.com/ethrousseau/weblens/api/types"
@@ -81,7 +82,27 @@ func (p *ProxyStore) ReadDir(f types.WeblensFile) ([]types.FileStat, error) {
 }
 
 func (p *ProxyStore) TouchFile(f types.WeblensFile) error {
-	return types.ErrNotImplemented("TouchFile")
+	stat, _ := p.db.StatFile(f)
+	if stat.Exists {
+		return types.ErrFileAlreadyExists(f.GetAbsPath())
+	}
+
+	var err error
+	if f.IsDir() {
+		err = os.Mkdir(f.GetAbsPath(), os.FileMode(0777))
+		if err != nil {
+			return types.WeblensErrorFromError(err)
+		}
+	} else {
+		var osFile *os.File
+		osFile, err = os.Create(f.GetAbsPath())
+		err = osFile.Close()
+		if err != nil {
+			return types.WeblensErrorFromError(err)
+		}
+	}
+
+	return nil
 }
 
 func (p *ProxyStore) GetFile(fileId types.FileId) (types.WeblensFile, error) {

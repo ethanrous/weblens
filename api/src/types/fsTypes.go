@@ -174,7 +174,7 @@ var ErrNoFileName = func(name string) WeblensError {
 }
 var ErrDirectoryRequired = NewWeblensError("attempted to perform an action that requires a directory, but found regular file")
 var ErrDirAlreadyExists = NewWeblensError("directory already exists in destination location")
-var ErrFileAlreadyExists = func() WeblensError { return NewWeblensError("file already exists in destination location") }
+var ErrFileAlreadyExists = func(path string) WeblensError { return NewWeblensError("file already exists in destination location: " + path) }
 var ErrNoChildren = NewWeblensError("file does not have any children")
 var ErrChildAlreadyExists = NewWeblensError("file already has the child being added")
 var ErrDirNotAllowed = NewWeblensError("attempted to perform action using a directory, where the action does not support directories")

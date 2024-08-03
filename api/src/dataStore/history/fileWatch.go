@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -97,7 +97,7 @@ WatcherLoop:
 	}
 
 	// Not reached
-	util.Error.Panicln("File watcher exiting...")
+	wlog.Error.Panicln("File watcher exiting...")
 }
 
 func (j *journalService) WatchFolder(f types.WeblensFile) error {

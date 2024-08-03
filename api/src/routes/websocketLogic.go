@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,47 +24,74 @@ func wsConnect(ctx *gin.Context) {
 	ctx.Status(http.StatusSwitchingProtocols)
 	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
+		return
+	}
+
+	err = conn.SetReadDeadline(time.Now().Add(time.Second * 10))
+	if err != nil {
+		wlog.ErrTrace(err)
 		return
 	}
 
 	_, buf, err := conn.ReadMessage()
 	if err != nil {
+		_ = conn.Close()
+		return
+	}
+
+	err = conn.SetReadDeadline(time.Time{})
+	if err != nil {
+		wlog.ErrTrace(err)
 		return
 	}
 
 	var auth wsAuthorize
 	err = json.Unmarshal(buf, &auth)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		// ctx.Status(http.StatusBadRequest)
 		return
 	}
-	user, err := WebsocketAuth(ctx, []string{auth.Auth})
+	user, instance, err := WebsocketAuth(ctx, []string{auth.Auth})
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		return
 	}
 
-	client := types.SERV.ClientManager.ClientConnect(conn, user)
-	go wsMain(client)
+	if user != nil {
+		client := types.SERV.ClientManager.ClientConnect(conn, user)
+		go wsMain(client)
+	} else if instance != nil {
+		client := types.SERV.ClientManager.RemoteConnect(conn, instance)
+		go wsMain(client)
+	} else {
+		wlog.Error.Println("Hat trick nil on WebsocketAuth", auth.Auth)
+		return
+	}
 }
 
 func wsMain(c types.Client) {
 	defer c.Disconnect()
+	var switchboard func([]byte, types.Client)
+
+	if c.GetUser() != nil {
+		switchboard = wsWebClientSwitchboard
+	} else {
+		switchboard = wsInstanceClientSwitchboard
+	}
 
 	for {
-		_, buf, err := c.(*client).conn.ReadMessage()
+		_, buf, err := c.(*clientConn).conn.ReadMessage()
 		if err != nil {
 			break
 		}
-		go wsReqSwitchboard(buf, c)
+		go switchboard(buf, c)
 	}
 }
 
-func wsReqSwitchboard(msgBuf []byte, c types.Client) {
+func wsWebClientSwitchboard(msgBuf []byte, c types.Client) {
 	defer wsRecover(c)
-	// defer util.RecoverPanic("[WS] client %d panicked: %v", client.GetClientId())
 
 	var msg types.WsRequestInfo
 	err := json.Unmarshal(msgBuf, &msg)
@@ -82,7 +111,7 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 		{
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 			if err != nil {
-				util.ErrTrace(err)
+				wlog.ErrTrace(err)
 				c.Error(errors.New("failed to parse subscribe request"))
 			}
 
@@ -97,7 +126,7 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 
 				err = acc.AddShare(sh)
 				if err != nil {
-					util.ErrTrace(err)
+					wlog.ErrTrace(err)
 					c.Error(types.WeblensErrorMsg("failed to add share"))
 					return
 				}
@@ -117,15 +146,8 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 			return
 		}
 
-		if len(key) > 10 {
-			complete, result := c.Subscribe(key, types.PoolSubscribe, nil)
-			if complete {
-				types.SERV.Caster.PushTaskUpdate(
-					types.SERV.WorkerPool.GetTask(types.TaskId(key)), dataProcess.PoolCompleteEvent,
-					result,
-				)
-			}
-		} else {
+		if strings.HasPrefix(string(key), "TID#") {
+			key = key[4:]
 			complete, result := c.Subscribe(key, types.TaskSubscribe, nil)
 			if complete {
 				types.SERV.Caster.PushTaskUpdate(
@@ -133,10 +155,35 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 					result,
 				)
 			}
+		} else if strings.HasPrefix(string(key), "TT#") {
+			key = key[3:]
+
+			c.Subscribe(key, types.TaskTypeSubscribe, nil)
+
+			// pool := types.SERV.WorkerPool.GetTaskPoolByTaskType(types.TaskType(key))
+			// complete, result := c.Subscribe(types.SubId(pool.ID()), types.PoolSubscribe, nil)
+			// if complete {
+			// 	types.SERV.Caster.PushTaskUpdate(
+			// 		types.SERV.WorkerPool.GetTaskPool(types.TaskId(key)).CreatedInTask(),
+			// 		dataProcess.PoolCompleteEvent,
+			// 		result,
+			// 	)
+			// }
 		}
 
 	case types.Unsubscribe:
-		c.Unsubscribe(subInfo.GetKey())
+		key := subInfo.GetKey()
+		if key == "" {
+			return
+		}
+		
+		if strings.HasPrefix(string(key), "TID#") {
+			key = key[4:]
+		} else if strings.HasPrefix(string(key), "TT#") {
+			key = key[3:]
+		}
+
+		c.Unsubscribe(key)
 
 	case types.ScanDirectory:
 		{
@@ -150,7 +197,7 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 				return
 			}
 
-			c.(*client).debug("Got scan directory for", folder.GetAbsPath())
+			c.(*clientConn).debug("Got scan directory for", folder.GetAbsPath())
 
 			newCaster := NewBufferedCaster()
 			t := types.SERV.TaskDispatcher.ScanDirectory(folder, newCaster)
@@ -181,6 +228,19 @@ func wsReqSwitchboard(msgBuf []byte, c types.Client) {
 			c.Error(fmt.Errorf("unknown websocket request type: %s", string(msg.Action)))
 		}
 	}
+}
+
+func wsInstanceClientSwitchboard(msgBuf []byte, c types.Client) {
+	defer wsRecover(c)
+
+	var msg types.WsResponseInfo
+	err := json.Unmarshal(msgBuf, &msg)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	types.SERV.Caster.(*unbufferedCaster).Relay(msg)
 }
 
 func wsRecover(c types.Client) {

@@ -18,6 +18,7 @@ import '@mantine/core/styles.css'
 import { mediaReducer, MediaStateT } from './Media/Media'
 import StartUp from './Pages/Startup/StartupPage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { CookiesProvider } from 'react-cookie'
 
 const Gallery = React.lazy(() => import('./Pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./Pages/FileBrowser/FileBrowser'))
@@ -52,6 +53,8 @@ const WeblensRoutes = () => {
         if (!server) {
             return
         }
+
+        console.log(user)
         if (loc.pathname !== '/setup' && server.info.role === 'init') {
             console.debug('Nav setup')
             nav('/setup')
@@ -61,21 +64,20 @@ const WeblensRoutes = () => {
         } else if (
             server.info.role === 'backup' &&
             !loc.pathname.startsWith('/files') &&
-            user !== null
+            user?.isLoggedIn
         ) {
             console.debug('Nav files home')
             nav('/files/home')
         } else if (
-            user !== null &&
-            !user.isLoggedIn &&
+            !user?.isLoggedIn &&
             loc.pathname !== '/login' &&
             server.info.role !== 'init' &&
-            (!loc.pathname.startsWith('/files') ||
-                loc.pathname === '/files/home')
+            !loc.pathname.startsWith('/files') &&
+            loc.pathname === '/files/home'
         ) {
             console.debug('Nav login')
             nav('/login')
-        } else if (loc.pathname === '/login' && user !== null) {
+        } else if (loc.pathname === '/login' && user?.isLoggedIn) {
             console.debug('Nav timeline')
             nav('/timeline')
         } else if (
@@ -208,9 +210,11 @@ function App() {
     document.body.className = 'body'
     return (
         <MantineProvider defaultColorScheme="dark">
-            <Router>
-                <WeblensRoutes />
-            </Router>
+            <CookiesProvider defaultSetOptions={{ path: '/' }}>
+                <Router>
+                    <WeblensRoutes />
+                </Router>
+            </CookiesProvider>
         </MantineProvider>
     )
 }

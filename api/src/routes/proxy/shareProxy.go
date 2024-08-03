@@ -1,6 +1,9 @@
 package proxy
 
-import "github.com/ethrousseau/weblens/api/types"
+import (
+	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util/wlog"
+)
 
 func (p *ProxyStore) CreateShare(share types.Share) error {
 	// TODO implement me
@@ -13,8 +16,8 @@ func (p *ProxyStore) UpdateShare(share types.Share) error {
 }
 
 func (p *ProxyStore) GetAllShares() ([]types.Share, error) {
-	// TODO implement me
-	panic("implement me")
+	wlog.Debug.Println("implement me")
+	return []types.Share{}, nil
 }
 
 func (p *ProxyStore) SetShareEnabledById(sId types.ShareId, enabled bool) error {

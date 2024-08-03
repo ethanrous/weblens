@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createUser, login } from '../../api/ApiFetch'
-import { Input, Space, Tabs } from '@mantine/core'
+import { Divider, Input, Space, Tabs } from '@mantine/core'
 import WeblensButton from '../../components/WeblensButton'
 import { useKeyDown } from '../../components/hooks'
 import WeblensInput from '../../components/WeblensInput'
 import { useSessionStore } from '../../components/UserInfo'
 import { useCookies } from 'react-cookie'
-import { LOGIN_TOKEN_COOKIE_KEY, USERNAME_COOKIE_KEY } from '../../types/Types'
+import {
+    LOGIN_TOKEN_COOKIE_KEY,
+    UserInfoT,
+    USERNAME_COOKIE_KEY,
+} from '../../types/Types'
 
 async function CheckCreds(
     username: string,
     password: string,
     setCookie,
-    setUser,
-    setAuthHeader
+    setUser: (user: UserInfoT) => void
 ) {
     if (!username || !password) {
         return false
@@ -23,8 +26,7 @@ async function CheckCreds(
             setCookie(USERNAME_COOKIE_KEY, data.user.username)
             setCookie(LOGIN_TOKEN_COOKIE_KEY, data.token)
 
-            setUser(data.user)
-            setAuthHeader(data.token)
+            setUser({ ...data.user, isLoggedIn: true })
 
             return true
         })
@@ -70,9 +72,10 @@ const Login = () => {
     const [tab, setTab] = useState('login')
 
     const setUser = useSessionStore((state) => state.setUserInfo)
-    const setAuthHeader = useSessionStore((state) => state.setAuthHeader)
-    const cookies = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
-    const setCookie = cookies[1]
+    const [, setCookie] = useCookies([
+        USERNAME_COOKIE_KEY,
+        LOGIN_TOKEN_COOKIE_KEY,
+    ])
 
     const [buttonRef, setButtonRef] = useState(null)
     useKeyDown('Enter', () => {
@@ -90,116 +93,45 @@ const Login = () => {
                     'linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)',
             }}
         >
-            <p className="text-7xl font-bold pb-12 select-none">WEBLENS</p>
+            <h1 className="text-5xl font-bold pb-12 select-none">
+                Sign in to Weblens
+            </h1>
             {/* <ScatteredPhotos /> */}
-            <div className="flex flex-col justify-center items-center shadow-soft bg-bottom-grey outline outline-main-accent rounded-xl p-6 w-[400px] max-w-[600px] max-h-[400px]">
-                <Tabs
-                    className="flex flex-col w-full h-[90%] justify-center items-center gap-5"
-                    value={tab}
-                    onChange={setTab}
-                    keepMounted={false}
-                    variant="pills"
-                >
-                    <Tabs.List grow className="w-full mb-2">
-                        <Tabs.Tab value="login" className="bg-main-accent">
-                            Login
-                        </Tabs.Tab>
-                        <Tabs.Tab value="sign-up" className="bg-main-accent">
-                            Sign Up
-                        </Tabs.Tab>
-                    </Tabs.List>
-                    <Tabs.Panel
-                        value="login"
-                        className="flex flex-col justify-center items-center w-full"
-                    >
-                        <WeblensInput
-                            placeholder="Username"
-                            value={userInput}
-                            autoFocus
-                            onComplete={() => {}}
-                            valueCallback={setUserInput}
-                            height={40}
-                        />
+            <div className="flex flex-col justify-center items-center shadow-soft bg-bottom-grey outline outline-light-paper rounded-xl p-6 w-[400px] max-w-[600px] max-h-[400px]">
+                <p className="w-full">Username</p>
+                <WeblensInput
+                    value={userInput}
+                    autoFocus
+                    onComplete={() => {}}
+                    valueCallback={setUserInput}
+                    height={40}
+                />
+                <p className="w-full">Password</p>
+                <WeblensInput
+                    value={passInput}
+                    onComplete={() => {}}
+                    valueCallback={setPassInput}
+                    height={40}
+                    password
+                />
+                <Space h={'md'} />
+                <WeblensButton
+                    label="Sign in"
+                    fillWidth
+                    squareSize={50}
+                    disabled={userInput === '' || passInput === ''}
+                    centerContent
+                    onClick={() =>
+                        CheckCreds(userInput, passInput, setCookie, setUser)
+                    }
+                    setButtonRef={setButtonRef}
+                />
 
-                        <WeblensInput
-                            placeholder="Password"
-                            value={passInput}
-                            onComplete={() => {}}
-                            valueCallback={setPassInput}
-                            height={40}
-                            password
-                        />
-                        <Space h={'md'} />
-                        <WeblensButton
-                            label="Login"
-                            fillWidth
-                            squareSize={50}
-                            disabled={userInput === '' || passInput === ''}
-                            centerContent
-                            onClick={() =>
-                                CheckCreds(
-                                    userInput,
-                                    passInput,
-                                    setCookie,
-                                    setUser,
-                                    setAuthHeader
-                                )
-                            }
-                            setButtonRef={setButtonRef}
-                        />
-                    </Tabs.Panel>
-                    <Tabs.Panel
-                        value="sign-up"
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '100%',
-                        }}
-                    >
-                        <WeblensInput
-                            placeholder="Username"
-                            value={userInput}
-                            autoFocus
-                            onComplete={() => {}}
-                            valueCallback={setUserInput}
-                            height={40}
-                        />
+                <Divider label={'or'} orientation={'horizontal'} />
 
-                        {badUsername && (
-                            <Input.Error style={{ width: '100%' }}>
-                                Username must not begin with '.' and cannot
-                                include '/'
-                            </Input.Error>
-                        )}
-                        <WeblensInput
-                            placeholder="Password"
-                            value={passInput}
-                            onComplete={() => {}}
-                            valueCallback={setPassInput}
-                            height={40}
-                            password
-                        />
-                        <Space h={'md'} />
-                        <WeblensButton
-                            label="Sign Up"
-                            doSuper
-                            squareSize={50}
-                            fillWidth
-                            disabled={
-                                userInput === '' ||
-                                passInput === '' ||
-                                badUsername
-                            }
-                            centerContent
-                            onClick={async () =>
-                                CreateUser(userInput, passInput)
-                            }
-                            setButtonRef={setButtonRef}
-                        />
-                    </Tabs.Panel>
-                </Tabs>
+                <p>New Here?</p>
+
+                <WeblensButton label="Sign up" subtle />
             </div>
         </div>
     )

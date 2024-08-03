@@ -1,4 +1,4 @@
-import { memo, ReactNode, useEffect, useRef, useState } from 'react'
+import { memo, ReactNode, useEffect, useState } from 'react'
 import { useIsFocused, useKeyDown, useResize } from './hooks'
 import WeblensButton from './WeblensButton'
 
@@ -26,8 +26,8 @@ const WeblensInput = memo(
         onComplete?: (v: string) => void
         value?: string
         valueCallback?: (v: string) => void
-        Icon?: (p: any) => ReactNode
-        buttonIcon?: (p: any) => ReactNode
+        Icon?: (p) => ReactNode
+        buttonIcon?: (p) => ReactNode
         height?: number
         placeholder?: string
         openInput?: () => void
@@ -185,8 +185,6 @@ const WeblensInput = memo(
         } else if (prev.closeInput !== next.closeInput) {
             return false
         } else if (prev.placeholder !== next.placeholder) {
-            return false
-        } else if (prev.value !== next.value) {
             return false
         }
         return true

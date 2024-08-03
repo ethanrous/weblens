@@ -35,20 +35,22 @@ type HeaderBarProps = {
 const SettingsMenu = ({
     open,
     setClosed,
-    usr,
+    user,
     authHeader,
 }: {
     open: boolean
     setClosed: () => void
-    usr: UserInfoT
+    user: UserInfoT
     authHeader: AuthHeaderT
 }) => {
     const [oldP, setOldP] = useState('')
     const [newP, setNewP] = useState('')
     const nav = useNavigate()
     const logout = useSessionStore((state) => state.logout)
-    const cookies = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
-    const deleteCookie = cookies[2]
+    const [, , deleteCookie] = useCookies([
+        USERNAME_COOKIE_KEY,
+        LOGIN_TOKEN_COOKIE_KEY,
+    ])
 
     useKeyDown('Escape', () => {
         if (open) {
@@ -63,7 +65,7 @@ const SettingsMenu = ({
             return
         }
         const res =
-            (await UpdatePassword(usr.username, oldP, newP, authHeader))
+            (await UpdatePassword(user.username, oldP, newP, authHeader))
                 .status === 200
         if (res) {
             setOldP('')
@@ -71,7 +73,7 @@ const SettingsMenu = ({
         }
         setTimeout(() => setClosed(), 2000)
         return res
-    }, [usr.username, String(oldP), String(newP), authHeader])
+    }, [user.username, String(oldP), String(newP), authHeader])
 
     if (!open) {
         return <></>
@@ -86,7 +88,7 @@ const SettingsMenu = ({
             <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-row absolute right-0 top-0 p-2 m-3 bg-dark-paper rounded gap-1">
                     <IconUser />
-                    <p>{usr.username}</p>
+                    <p>{user.username}</p>
                 </div>
                 <div className="flex flex-col w-max justify-center items-center gap-2 p-24">
                     <p className="text-lg font-semibold p-2 w-max text-nowrap">
@@ -147,34 +149,26 @@ const HeaderBar = memo(
 
         const server = useSessionStore((state) => state.server)
 
-        const openAdmin = useCallback(() => {
-            if (setBlockFocus) {
-                setBlockFocus(true)
-            }
-            setAdmin(true)
-        }, [setBlockFocus, setAdmin])
-
         useEffect(() => {
-            if (setBlockFocus) {
-                if (settings) {
-                    setBlockFocus(true)
-                } else {
-                    setBlockFocus(false)
-                }
+            if (settings || admin) {
+                setBlockFocus(true)
+            } else if (!settings && !admin) {
+                setBlockFocus(false)
             }
-        }, [setBlockFocus, settings])
+        }, [settings, admin])
 
         return (
             <div className="z-50 h-max w-screen">
-                <SettingsMenu
-                    open={settings}
-                    usr={user}
-                    setClosed={() => {
-                        setBlockFocus(false)
-                        setSettings(false)
-                    }}
-                    authHeader={auth}
-                />
+                {settings && (
+                    <SettingsMenu
+                        open={settings}
+                        user={user}
+                        setClosed={() => {
+                            setSettings(false)
+                        }}
+                        authHeader={auth}
+                    />
+                )}
 
                 {admin && (
                     <Admin
@@ -259,7 +253,7 @@ const HeaderBar = memo(
                             label={'Admin Settings'}
                             labelOnHover
                             Left={IconServerCog}
-                            onClick={openAdmin}
+                            onClick={() => setAdmin(true)}
                         />
                     )}
                     <WeblensButton

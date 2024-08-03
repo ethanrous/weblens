@@ -26,7 +26,10 @@ const useR = () => {
             // Auth header unset, but the cookies are ready
             const loginStr = `${cookies[USERNAME_COOKIE_KEY]}:${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
             const login64 = window.btoa(loginStr)
+            console.log(login64.toString())
             setAuthHeader(login64.toString())
+        } else if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
+            setUserInfo({ isLoggedIn: false } as UserInfoT)
         }
     }, [cookies])
 
@@ -78,7 +81,7 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
 
     setUserInfo: (user) => {
         if (user.isLoggedIn === undefined) {
-            user.isLoggedIn = false
+            user.isLoggedIn = user.username !== ''
         }
         set({
             user: user,
@@ -110,6 +113,7 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
             user: null,
             auth: null,
         })
+        console.log(removeCoookie)
         removeCoookie(USERNAME_COOKIE_KEY)
         removeCoookie(LOGIN_TOKEN_COOKIE_KEY)
     },

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataStore/history"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
@@ -56,10 +57,6 @@ func NewFileTree(rootPath, baseName string) types.FileTree {
 		isDir:    boolPointer(true),
 		owner:    types.SERV.UserService.Get("WEBLENS"),
 
-		tasksLock:  &sync.Mutex{},
-		childLock:  &sync.RWMutex{},
-		updateLock: &sync.RWMutex{},
-
 		childrenMap:  map[string]*WeblensFile{},
 		absolutePath: rootPath,
 
@@ -98,10 +95,6 @@ func (ft *fileTree) NewFile(parent types.WeblensFile, filename string, isDir boo
 		filename: filename,
 		isDir:    boolPointer(isDir),
 		owner:    owner,
-
-		tasksLock:   &sync.Mutex{},
-		childLock:   &sync.RWMutex{},
-		updateLock:  &sync.RWMutex{},
 		childrenMap: map[string]*WeblensFile{},
 
 		size: atomic.Int64{},
@@ -135,10 +128,6 @@ func (ft *fileTree) NewRoot(
 
 		isDir:        boolPointer(true),
 		absolutePath: absPath,
-
-		tasksLock:  &sync.Mutex{},
-		childLock:  &sync.RWMutex{},
-		updateLock: &sync.RWMutex{},
 
 		childrenMap: map[string]*WeblensFile{},
 	}
@@ -195,6 +184,10 @@ func (ft *fileTree) Add(f types.WeblensFile) error {
 		return err
 	}
 
+	if !f.IsDir() && f.GetContentId() == "" && f.(*WeblensFile).size.Load() != 0 {
+		return types.WeblensErrorMsg("Trying to add file to tree with no content Id")
+	}
+
 	if slices.Contains(IgnoreFilenames, f.Filename()) {
 		return nil
 	}
@@ -235,7 +228,7 @@ func (ft *fileTree) Del(fId types.FileId) (err error) {
 	realF := f.(*WeblensFile)
 
 	if !ft.has(realF.id) {
-		util.Warning.Println("Tried to remove key not in FsTree", f.ID())
+		wlog.Warning.Println("Tried to remove key not in FsTree", f.ID())
 		return types.ErrNoFile(realF.id)
 	}
 
@@ -258,7 +251,7 @@ func (ft *fileTree) Del(fId types.FileId) (err error) {
 			if f.GetShare() != nil {
 				err := types.SERV.ShareService.Del(f.GetShare().GetShareId())
 				if err != nil {
-					util.ErrTrace(err)
+					wlog.ErrTrace(err)
 				}
 			}
 
@@ -342,7 +335,7 @@ func (ft *fileTree) Move(
 	}
 
 	if (newFilename == "" || newFilename == f.Filename()) && newParent == f.GetParent() {
-		util.Warning.Println("Exiting early from move without updates")
+		wlog.Warning.Println("Exiting early from move without updates")
 		return nil
 	}
 
@@ -355,7 +348,7 @@ func (ft *fileTree) Move(
 	if !overwrite {
 		// Check if the file at the destination exists already
 		if _, err := os.Stat(newAbsPath); err == nil {
-			return types.ErrFileAlreadyExists()
+			return types.ErrFileAlreadyExists(newAbsPath)
 		}
 	}
 
@@ -486,7 +479,7 @@ func (ft *fileTree) Touch(
 	f.detached = detach
 	e := ft.Get(f.ID())
 	if e != nil || f.Exists() {
-		return e, types.ErrFileAlreadyExists()
+		return e, types.ErrFileAlreadyExists(f.GetAbsPath())
 	}
 
 	err := f.CreateSelf()
@@ -552,7 +545,7 @@ func (ft *fileTree) MkDir(
 	if len(c) != 0 {
 		c[0].PushFileCreate(d)
 	} else {
-		util.Error.Println("MkDir: No caster")
+		wlog.Error.Println("MkDir: No caster")
 	}
 
 	event.NewCreateAction(d)
@@ -563,7 +556,7 @@ func (ft *fileTree) MkDir(
 // AttachFile takes a detached file when it is ready to be inserted to the tree, and attaches it
 func (ft *fileTree) AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 	if ft.Get(f.ID()) != nil {
-		return types.ErrFileAlreadyExists()
+		return types.ErrFileAlreadyExists(f.GetAbsPath())
 	}
 
 	tmpPath := filepath.Join("/tmp/", f.Filename())
@@ -609,7 +602,7 @@ func (ft *fileTree) GenerateFileId(absPath string) types.FileId {
 
 func (ft *fileTree) GetRoot() types.WeblensFile {
 	if ft.root == nil {
-		util.Error.Println("GetRoot called on fileTree with nil root")
+		wlog.Error.Println("GetRoot called on fileTree with nil root")
 	}
 	return ft.root
 }

@@ -5,10 +5,12 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type userService struct {
 	userMap    map[types.Username]*User
+	userLock sync.RWMutex
 	publicUser types.User
 	db         types.UserStore
 }
@@ -21,32 +23,48 @@ func NewService() types.UserService {
 
 func (us *userService) Init(db types.UserStore) error {
 	us.db = db
-	users, err := us.db.GetAllUsers()
-	if err != nil {
-		return err
-	}
 
-	for _, u := range users {
-		if u == nil {
-			util.ShowErr(types.NewWeblensError("nil user in user service init"))
-			continue
+	proxyStore, ok := us.db.(types.ProxyStore)
+	if ok {
+		users, err := proxyStore.GetLocalStore().GetAllUsers()
+		if err != nil {
+			return err
 		}
-		realU := u.(*User)
-		realU.tokensLock = &sync.RWMutex{}
-		us.userMap[u.GetUsername()] = realU
+		for _, user := range users {
+			us.userMap[user.GetUsername()] = user.(*User)
+		}
+
+		users, err = proxyStore.GetAllUsers()
+		if err != nil {
+			return err
+		}
+		for _, user := range users {
+			err = us.Add(user)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		users, err := us.db.GetAllUsers()
+		if err != nil {
+			return err
+		}
+		for _, user := range users {
+			us.userMap[user.GetUsername()] = user.(*User)
+		}
 	}
 
 	publicUser := &User{
 		Username:     "PUBLIC",
 		Activated:    true,
 		isSystemUser: true,
-		tokensLock:   &sync.RWMutex{},
+
 	}
 
 	us.publicUser = publicUser
 	us.userMap["PUBLIC"] = publicUser
 	us.userMap["WEBLENS"] = &User{
-		tokensLock:   &sync.RWMutex{},
+
 		Username:     "WEBLENS",
 		isSystemUser: true,
 	}
@@ -63,12 +81,23 @@ func (us *userService) GetPublicUser() types.User {
 }
 
 func (us *userService) Add(user types.User) error {
+	if _, ok := us.userMap[user.GetUsername()]; ok {
+		return nil
+		// return types.NewWeblensError("user already exists")
+	}
+
+	if user.(*User).Id == [12]uint8{0} {
+		user.(*User).Id = primitive.NewObjectID()
+	}
 	err := types.SERV.StoreService.CreateUser(user)
 	if err != nil {
 		return err
 	}
 
+	us.userLock.Lock()
+	defer us.userLock.Unlock()
 	us.userMap[user.GetUsername()] = user.(*User)
+
 	return nil
 }
 
@@ -78,12 +107,16 @@ func (us *userService) Del(un types.Username) error {
 		return err
 	}
 
+	us.userLock.Lock()
+	defer us.userLock.Unlock()
 	delete(us.userMap, un)
 
 	return nil
 }
 
 func (us *userService) GetAll() ([]types.User, error) {
+	us.userLock.RLock()
+	defer us.userLock.RUnlock()
 	users := util.MapToValues(us.userMap)
 	return util.FilterMap(
 		users, func(t *User) (types.User, bool) {
@@ -93,6 +126,8 @@ func (us *userService) GetAll() ([]types.User, error) {
 }
 
 func (us *userService) Get(username types.Username) types.User {
+	us.userLock.RLock()
+	defer us.userLock.RUnlock()
 	u, ok := us.userMap[username]
 	if !ok {
 		return nil

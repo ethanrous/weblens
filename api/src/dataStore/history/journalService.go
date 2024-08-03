@@ -10,13 +10,14 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type journalService struct {
 	lifetimes       map[types.LifetimeId]types.Lifetime
 	lifetimeMapLock *sync.RWMutex
 	latestUpdate    map[types.FileId]types.Lifetime
-	latestMapLock   *sync.Mutex
+	latestMapLock sync.Mutex
 
 	store types.HistoryStore
 }
@@ -29,7 +30,7 @@ func NewService(fileTree types.FileTree) types.JournalService {
 		lifetimes:       make(map[types.LifetimeId]types.Lifetime),
 		lifetimeMapLock: &sync.RWMutex{},
 		latestUpdate:    make(map[types.FileId]types.Lifetime),
-		latestMapLock:   new(sync.Mutex),
+		latestMapLock: sync.Mutex{},
 	}
 }
 
@@ -100,7 +101,7 @@ func (j *journalService) Init(store types.HistoryStore) error {
 
 	if hasProxy {
 		if len(lifetimes) != len(j.lifetimes) {
-			util.Error.Println("Local lifetime count does not match remote lifetime count")
+			wlog.Error.Println("Local lifetime count does not match remote lifetime count")
 		}
 	} else {
 		slices.SortFunc(

@@ -1,8 +1,7 @@
 import { SelectedState, WeblensFile } from './File'
-import { MouseEvent, useState } from 'react'
+import React, { MouseEvent, useState } from 'react'
 import { IconDisplay } from '../Pages/FileBrowser/FileBrowserMiscComponents'
 import { useNavigate } from 'react-router-dom'
-import { IconTrash } from '@tabler/icons-react'
 import {
     fileHandleContextMenu,
     handleMouseLeave,
@@ -14,7 +13,6 @@ import {
 import { FileTextBox } from './FileSquare'
 import { useResize } from '../components/hooks'
 import { FixedSizeList as WindowList } from 'react-window'
-import { handleRename } from '../Pages/FileBrowser/FileBrowserLogic'
 import './filesStyle.scss'
 import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from '../components/UserInfo'
@@ -30,7 +28,6 @@ function FileRow({
 }) {
     const file = data[index]
     const nav = useNavigate()
-    const user = useSessionStore((state) => state.user)
     const authHeader = useSessionStore((state) => state.auth)
     const [mouseDown, setMouseDown] = useState(null)
 
@@ -144,25 +141,13 @@ function FileRow({
                     <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
                         <IconDisplay file={file} allowMedia={true} />
                     </div>
-                    <FileTextBox
-                        itemId={file.Id()}
-                        itemTitle={file.GetFilename()}
-                        allowEditing={file.IsModifiable()}
-                        blockFocus={setBlockFocus}
-                        rename={(itemId, newName) =>
-                            handleRename(
-                                itemId,
-                                newName,
-                                addLoading,
-                                removeLoading,
-                                authHeader
-                            )
-                        }
-                    />
+                    <FileTextBox itemTitle={file.GetFilename()} />
                 </div>
-                <div>
-                    {file.ParentId() === user.trashId && <IconTrash />}
-                    <p className="flex w-max shrink-0">{file.FormatSize()}</p>
+                <div
+                    className="file-size-box"
+                    data-moved={(selected & SelectedState.Moved) >> 5}
+                >
+                    <p>{file.FormatSize()}</p>
                 </div>
             </div>
         </div>

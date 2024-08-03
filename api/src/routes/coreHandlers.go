@@ -8,6 +8,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,7 +45,7 @@ func attachRemote(ctx *gin.Context) {
 			return
 		}
 
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -66,6 +67,7 @@ func getFileBytes(ctx *gin.Context) {
 
 	ctx.File(f.GetAbsPath())
 }
+
 func getFileMeta(ctx *gin.Context) {
 	fileId := types.FileId(ctx.Param("fileId"))
 	f := types.SERV.FileTree.Get(fileId)
@@ -79,12 +81,15 @@ func getFileMeta(ctx *gin.Context) {
 
 func getFilesMeta(ctx *gin.Context) {
 	files := []types.WeblensFile{}
-	types.SERV.FileTree.GetRoot().RecursiveMap(
+	err := types.SERV.FileTree.GetRoot().RecursiveMap(
 		func(file types.WeblensFile) error {
 			files = append(files, file)
 			return nil
 		},
 	)
+	if err != nil {
+		wlog.ErrTrace(err)
+	}
 	// files, err := types.SERV.FileTree.GetAllFiles()
 	// if err != nil {
 	// 	util.ErrTrace(err)
@@ -117,7 +122,23 @@ func getFilesMeta(ctx *gin.Context) {
 
 func getRemotes(ctx *gin.Context) {
 	srvs := types.SERV.InstanceService.GetRemotes()
-	ctx.JSON(http.StatusOK, gin.H{"remotes": srvs})
+
+	serverInfos := util.Map(
+		srvs, func(srv types.Instance) serverInfo {
+			addr, _ := srv.GetAddress()
+			return serverInfo{
+				Id:           srv.ServerId(),
+				Name:         srv.GetName(),
+				UsingKey:     srv.GetUsingKey(),
+				Role:         srv.ServerRole(),
+				IsThisServer: srv.IsLocal(),
+				Address:      addr,
+				Online:       types.SERV.ClientManager.GetClientByInstanceId(srv.ServerId()) != nil,
+			}
+		},
+	)
+
+	ctx.JSON(http.StatusOK, gin.H{"remotes": serverInfos})
 }
 
 func removeRemote(ctx *gin.Context) {
@@ -128,7 +149,7 @@ func removeRemote(ctx *gin.Context) {
 
 	err = types.SERV.InstanceService.Del(body.RemoteId)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

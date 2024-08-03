@@ -11,12 +11,12 @@ import (
 func (db *databaseService) GetAllUsers() ([]types.User, error) {
 	ret, err := db.users.Find(db.ctx, bson.M{})
 	if err != nil {
-		return nil, err
+		return nil, types.WeblensErrorFromError(err)
 	}
 	var users []*user.User
 	err = ret.All(db.ctx, &users)
 	if err != nil {
-		return nil, err
+		return nil, types.WeblensErrorFromError(err)
 	}
 
 	return util.SliceConvert[types.User](users), nil
@@ -24,7 +24,10 @@ func (db *databaseService) GetAllUsers() ([]types.User, error) {
 
 func (db *databaseService) CreateUser(user types.User) error {
 	_, err := db.users.InsertOne(db.ctx, user)
-	return err
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+	return nil
 }
 
 func (db *databaseService) UpdatePasswordByUsername(username types.Username, newPasswordHash string) error {

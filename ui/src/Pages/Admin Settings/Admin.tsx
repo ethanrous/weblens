@@ -34,6 +34,7 @@ import { WeblensFileParams } from '../../Files/File'
 import { useFileBrowserStore } from '../FileBrowser/FBStateControl'
 import { useDebouncedValue } from '@mantine/hooks'
 import { useSessionStore } from '../../components/UserInfo'
+import { WebsocketStatus } from '../FileBrowser/FileBrowserMiscComponents'
 
 function PathAutocomplete() {
     const auth = useSessionStore((state) => state.auth)
@@ -363,6 +364,7 @@ function UsersBox({
 
 export function ApiKeys({ authHeader }) {
     const server = useSessionStore((state) => state.server)
+    const auth = useSessionStore((state) => state.auth)
 
     const keys: DefinedUseQueryResult<ApiKeyInfo[], Error> = useQuery<
         ApiKeyInfo[]
@@ -460,11 +462,27 @@ export function ApiKeys({ authHeader }) {
                             className="flex flex-row items-center w-full rounded p-2 justify-between bg-bottom-grey"
                         >
                             <div className="flex flex-col">
-                                <p className="text-white font-semibold select-none">
-                                    {r.name} ({r.role})
-                                </p>
+                                <div className="flex flex-row items-center gap-1">
+                                    <p className="text-white font-semibold select-none">
+                                        {r.name} ({r.role})
+                                    </p>
+                                    <WebsocketStatus
+                                        ready={r.online ? 1 : -1}
+                                    />
+                                </div>
                                 <p className="select-none">{r.id}</p>
                             </div>
+                            <WeblensButton
+                                label="Sync now"
+                                squareSize={40}
+                                onClick={async () => {
+                                    const res = await doBackup(auth)
+                                    if (res >= 300) {
+                                        return false
+                                    }
+                                    return true
+                                }}
+                            />
                             <WeblensButton
                                 Left={IconTrash}
                                 danger
@@ -534,20 +552,24 @@ function BackupProgress() {
 export function Admin({ open, closeAdminMenu }) {
     const auth = useSessionStore((state) => state.auth)
     const user = useSessionStore((state) => state.user)
-    const server = useSessionStore((state) => state.server)
     const [allUsersInfo, setAllUsersInfo] = useState(null)
     const wsSend = useContext(WebsocketContext)
 
     useKeyDown('Escape', closeAdminMenu)
 
     useEffect(() => {
-        if (auth.Authorization !== '' && open && !allUsersInfo) {
+        if (!auth) {
+            closeAdminMenu()
+            return
+        }
+        if (open && !allUsersInfo) {
             GetUsersInfo(setAllUsersInfo, auth)
         }
-    }, [auth, open])
+    }, [open])
 
     useEffect(() => {
         wsSend('task_subscribe', { taskType: 'do_backup' })
+        return () => wsSend('unsubscribe', { taskType: 'do_backup' })
     }, [])
 
     if (user === null || !open) {
@@ -592,18 +614,6 @@ export function Admin({ open, closeAdminMenu }) {
                                         clearCache(auth).then(() =>
                                             closeAdminMenu()
                                         )
-                                    }}
-                                />
-                                <WeblensButton
-                                    label="Backup now"
-                                    squareSize={40}
-                                    disabled={server.info.role === 'core'}
-                                    onClick={async () => {
-                                        const res = await doBackup(auth)
-                                        if (res >= 300) {
-                                            return false
-                                        }
-                                        return true
                                     }}
                                 />
                             </div>
