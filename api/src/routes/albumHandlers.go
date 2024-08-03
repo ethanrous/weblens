@@ -9,6 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/album"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,7 +54,7 @@ func getAlbums(ctx *gin.Context) {
 	if filterString != "" {
 		err := json.Unmarshal([]byte(filterString), &filter)
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
 			return
 		}
@@ -158,7 +159,7 @@ func updateAlbum(ctx *gin.Context) {
 	if len(ms) != 0 {
 		err = a.AddMedia(ms...)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add media to album"})
 			return
 		}
@@ -167,7 +168,7 @@ func updateAlbum(ctx *gin.Context) {
 			if a.GetCover() == nil {
 				err = a.SetCover(ms[0])
 				if err != nil {
-					util.ErrTrace(err)
+					wlog.ErrTrace(err)
 					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
 					return
 				}
@@ -178,7 +179,7 @@ func updateAlbum(ctx *gin.Context) {
 	if update.RemoveMedia != nil {
 		err = a.RemoveMedia(update.RemoveMedia...)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
 			return
 		}
@@ -192,7 +193,7 @@ func updateAlbum(ctx *gin.Context) {
 		}
 		err = a.SetCover(cover)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
 			return
 		}
@@ -201,7 +202,7 @@ func updateAlbum(ctx *gin.Context) {
 	if update.NewName != "" {
 		err = a.Rename(update.NewName)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album name"})
 			return
 		}
@@ -210,7 +211,7 @@ func updateAlbum(ctx *gin.Context) {
 	if len(update.RemoveUsers) != 0 {
 		err = a.RemoveUsers(update.RemoveUsers...)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
 			return
 		}
@@ -225,7 +226,7 @@ func updateAlbum(ctx *gin.Context) {
 
 		err = a.AddUsers(users...)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share user(s)"})
 			return
 		}
@@ -256,7 +257,7 @@ func deleteAlbum(ctx *gin.Context) {
 	if a.GetOwner() != user {
 		err := a.RemoveUsers([]types.Username{user.GetUsername()}...)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
 			return
 		}
@@ -266,7 +267,7 @@ func deleteAlbum(ctx *gin.Context) {
 
 	err := types.SERV.AlbumManager.Del(albumId)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -290,7 +291,7 @@ func unshareMeAlbum(ctx *gin.Context) {
 
 	err := a.RemoveUsers(user.GetUsername())
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

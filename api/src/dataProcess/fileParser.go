@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ethrousseau/weblens/api/types"
-	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 func processMediaFile(t *task) {
@@ -20,7 +20,7 @@ func processMediaFile(t *task) {
 	defer func(file types.WeblensFile, id types.TaskId) {
 		err := file.RemoveTask(id)
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		}
 	}(file, t.TaskId())
 
@@ -62,7 +62,7 @@ func processMediaFile(t *task) {
 		}
 		// t.taskPool.NotifyTaskComplete(t, t.caster)
 	} else {
-		util.Warning.Println("nil caster in file scan")
+		wlog.Warning.Println("nil caster in file scan")
 	}
 
 	t.success()
@@ -98,12 +98,12 @@ func scanDirectory(t *task) {
 	defer func(scanDir types.WeblensFile, id types.TaskId) {
 		err := scanDir.RemoveTask(id)
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		}
 	}(scanDir, t.TaskId())
 
 	tp := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
-	util.Info.Printf("Beginning directory scan for %s\n", scanDir.GetAbsPath())
+	wlog.Info.Printf("Beginning directory scan for %s\n", scanDir.GetAbsPath())
 
 	t.caster.FolderSubToPool(scanDir.ID(), tp.GetRootPool().ID())
 	t.caster.FolderSubToPool(scanDir.GetParent().ID(), tp.GetRootPool().ID())
@@ -147,7 +147,7 @@ func scanDirectory(t *task) {
 
 	err = types.SERV.FileTree.ResizeDown(meta.file, t.caster)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 	}
 
 	tp.Wait(true)

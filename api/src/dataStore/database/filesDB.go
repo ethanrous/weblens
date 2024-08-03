@@ -92,7 +92,7 @@ func (db *databaseService) ReadDir(f types.WeblensFile) ([]types.FileStat, error
 func (db *databaseService) TouchFile(f types.WeblensFile) error {
 	stat, _ := db.StatFile(f)
 	if stat.Exists {
-		return types.ErrFileAlreadyExists()
+		return types.ErrFileAlreadyExists(f.GetAbsPath())
 	}
 
 	var err error

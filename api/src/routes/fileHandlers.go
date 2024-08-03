@@ -16,6 +16,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -43,7 +44,7 @@ func createFolder(ctx *gin.Context) {
 
 	newDir, err := types.SERV.FileTree.MkDir(parentFolder, body.NewFolderName, event, caster)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -53,7 +54,7 @@ func createFolder(ctx *gin.Context) {
 			child := types.SERV.FileTree.Get(fileId)
 			err = types.SERV.FileTree.Move(child, newDir, "", false, event, caster)
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 				ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
@@ -62,7 +63,7 @@ func createFolder(ctx *gin.Context) {
 
 	err = types.SERV.FileTree.GetJournal().LogEvent(event)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -78,7 +79,7 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 			ctx.JSON(http.StatusNotFound, "Failed to get folder info")
 			return
 		}
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, "Failed to get folder info")
 		return
 	}
@@ -88,7 +89,7 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 		if acc.GetTime().Unix() > 0 {
 			filteredDirInfo, err = types.SERV.FileTree.GetJournal().GetPastFolderInfo(dir, acc.GetTime())
 			if err != nil {
-				util.ErrTrace(err)
+				wlog.ErrTrace(err)
 				ctx.JSON(http.StatusInternalServerError, "Failed to get folder info")
 				return
 			}
@@ -104,7 +105,7 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 	for acc.CanAccessFile(parent) && parent != dir && (parent.Owner() != types.SERV.UserService.Get("WEBLENS")) {
 		parentInfo, err := parent.FormatFileInfo(acc)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, "Failed to format parent file info")
 			return
 		}
@@ -135,7 +136,7 @@ func getFolder(ctx *gin.Context) {
 	folderId := types.FileId(ctx.Param("folderId"))
 	dir := types.SERV.FileTree.Get(folderId)
 	if dir == nil {
-		util.Debug.Println("Actually not found")
+		wlog.Debug.Println("Actually not found")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
 		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
 		return
@@ -147,7 +148,7 @@ func getFolder(ctx *gin.Context) {
 	if shareId != "" {
 		sh = types.SERV.ShareService.Get(shareId)
 		if sh == nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "share not found"})
 			return
 		}
@@ -161,14 +162,14 @@ func getFolder(ctx *gin.Context) {
 			return
 		}
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
 			return
 		}
 	}
 
 	if !acc.CanAccessFile(dir) {
-		util.Debug.Println("Not auth")
+		wlog.Debug.Println("Not auth")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
 		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
 		return
@@ -198,14 +199,14 @@ func getExternalFolderInfo(ctx *gin.Context) {
 	folderId := types.FileId(ctx.Param("folderId"))
 	dir := types.SERV.FileTree.Get(folderId)
 	if dir == nil {
-		util.Debug.Println("Actually not found")
+		wlog.Debug.Println("Actually not found")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
 		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
 		return
 	}
 
 	if dir.ID() == "" {
-		util.Error.Println("Blank file descriptor trying to get folder info")
+		wlog.Error.Println("Blank file descriptor trying to get folder info")
 		time.Sleep(time.Millisecond*150 - time.Since(start))
 		ctx.Status(http.StatusNotFound)
 		return
@@ -229,7 +230,7 @@ func recursiveScanDir(ctx *gin.Context) {
 	var scanInfo scanBody
 	err = json.Unmarshal(body, &scanInfo)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -250,7 +251,7 @@ func getPastFolderInfo(ctx *gin.Context) {
 
 	millis, err := strconv.ParseInt(milliStr, 10, 64)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
@@ -287,7 +288,7 @@ func getFolderHistory(ctx *gin.Context) {
 
 	actions, err := types.SERV.FileTree.GetJournal().GetActionsByPath(path)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -339,7 +340,7 @@ func moveFiles(ctx *gin.Context) {
 
 	err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 	}
 
 	tp.SignalAllQueued()
@@ -357,7 +358,7 @@ func getSharedFiles(ctx *gin.Context) {
 
 	shares, err := types.SERV.ShareService.GetSharedWithUser(u)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
@@ -368,22 +369,22 @@ func getSharedFiles(ctx *gin.Context) {
 			err = acc.AddShare(sh)
 			acc.SetUsingShare(sh)
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 			}
 			f := types.SERV.FileTree.Get(types.FileId(sh.GetItemId()))
 			if f == nil {
-				util.Error.Println("Cannot find file when getting shared files", sh.GetItemId())
+				wlog.Error.Println("Cannot find file when getting shared files", sh.GetItemId())
 				return types.FileInfo{}, false
 			}
 			fileInfo, err := f.FormatFileInfo(acc)
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 			}
 			return fileInfo, true
 		},
 	)
 
-	util.Debug.Printf("Got %d shared files for %s", len(filesInfos), u.GetUsername())
+	wlog.Debug.Printf("Got %d shared files for %s", len(filesInfos), u.GetUsername())
 
 	ctx.JSON(http.StatusOK, gin.H{"files": filesInfos})
 }
@@ -423,7 +424,7 @@ func getFileStat(ctx *gin.Context) {
 
 	size, err := f.Size()
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 	}
 
@@ -445,7 +446,7 @@ func getDirectoryContent(ctx *gin.Context) {
 		f.GetChildren(), func(c types.WeblensFile) types.FileStat {
 			size, err := c.Size()
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 				return types.FileStat{}
 			}
 			return types.FileStat{Name: c.Filename(), Size: size, IsDir: c.IsDir(), ModTime: c.ModTime(), Exists: true}

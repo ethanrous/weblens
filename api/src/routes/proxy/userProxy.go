@@ -21,7 +21,7 @@ func (p *ProxyStore) GetAllUsers() ([]types.User, error) {
 }
 
 func (p *ProxyStore) CreateUser(user types.User) error {
-	return types.ErrNotImplemented("CreateUser proxy")
+	return p.db.CreateUser(user)
 }
 
 func (p *ProxyStore) UpdatePasswordByUsername(username types.Username, newPasswordHash string) error {

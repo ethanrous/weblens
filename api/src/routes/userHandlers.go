@@ -7,6 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/user"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,7 +15,7 @@ import (
 func getUsersArchive(ctx *gin.Context) {
 	us, err := types.SERV.UserService.GetAll()
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -23,7 +24,7 @@ func getUsersArchive(ctx *gin.Context) {
 		us, func(u types.User) map[string]any {
 			ar, err := u.FormatArchive()
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return nil
 			}
@@ -46,14 +47,14 @@ func createUser(ctx *gin.Context) {
 			ctx.Status(http.StatusConflict)
 			return
 		}
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
 	err = types.SERV.UserService.Add(u)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}

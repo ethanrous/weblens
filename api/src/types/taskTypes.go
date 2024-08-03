@@ -70,7 +70,7 @@ type TaskPool interface {
 	Backup(InstanceId, BroadcasterAgent) Task
 	HashFile(WeblensFile, BroadcasterAgent) Task
 	CreateZip(files []WeblensFile, username Username, shareId ShareId, casters BroadcasterAgent) Task
-	CopyFileFromCore(WeblensFile, BroadcasterAgent) Task
+	CopyFileFromCore(WeblensFile, Client, BroadcasterAgent) Task
 
 	Errors() []Task
 	AddError(t Task)

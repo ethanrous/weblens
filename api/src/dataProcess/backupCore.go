@@ -7,10 +7,12 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 func BackupD(interval time.Duration) {
 	if types.SERV.InstanceService.GetLocal().ServerRole() != types.Backup {
+		wlog.Error.Println("Backup service cannot be run on non-backup instance")
 		return
 	}
 	for {
@@ -25,6 +27,7 @@ func BackupD(interval time.Duration) {
 }
 
 func doBackup(t *task) {
+	meta := t.metadata.(backupMeta)
 	localRole := types.SERV.InstanceService.GetLocal().ServerRole()
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 	t.setChildTaskPool(pool)
@@ -41,6 +44,22 @@ func doBackup(t *task) {
 		t.ErrorAndExit(types.WeblensErrorMsg("cannot run backup task without proxy service initialized"))
 	}
 	localStore := proxyService.GetLocalStore()
+
+	coreClient := types.SERV.ClientManager.GetClientByInstanceId(meta.remoteId)
+	if coreClient == nil {
+		t.ErrorAndExit(types.WeblensErrorMsg("Core websocket not connected"))
+	}
+
+	users, err := proxyService.GetAllUsers()
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+	for _, user := range users {
+		err = types.SERV.UserService.Add(user)
+		if err != nil {
+			t.ErrorAndExit(err)
+		}
+	}
 
 	latest, err := types.SERV.StoreService.GetLatestAction()
 	if err != nil {
@@ -83,7 +102,9 @@ func doBackup(t *task) {
 			if f == nil && lt.GetLatestAction().GetActionType() != types.FileDelete {
 				f, err = proxyService.GetFile(lt.GetLatestFileId())
 				if err != nil {
-					t.ErrorAndExit(err)
+					wlog.ShowErr(err)
+					wlog.Debug.Println("Failed to get file at", lt.GetLatestAction().GetDestinationPath())
+					return nil, false
 				}
 				err = types.SERV.FileTree.Add(f)
 				if err != nil {
@@ -102,22 +123,12 @@ func doBackup(t *task) {
 	)
 
 	for _, f := range files {
-		if f == nil {
+		if f == nil || f.IsDir() {
 			continue
 		}
-
-		// var stat types.FileStat
 		stat, _ := localStore.StatFile(f)
 		if !stat.Exists {
-			if f.IsDir() {
-				err = localStore.TouchFile(f)
-				if err != nil {
-					t.ErrorAndExit(err)
-				}
-			} else {
-				// util.Debug.Println("Copying file from core: ", f.ID(), pool.ID())
-				pool.CopyFileFromCore(f, t.caster)
-			}
+			pool.CopyFileFromCore(f, coreClient, t.caster)
 		}
 	}
 
@@ -132,21 +143,21 @@ func doBackup(t *task) {
 }
 
 func copyFileFromCore(t *task) {
-	f := t.metadata.(backupCoreFileMeta).file
+	meta := t.metadata.(backupCoreFileMeta)
+	f := meta.file
 
 	var proxyService types.ProxyStore
 	var ok bool
 	if proxyService, ok = types.SERV.StoreService.(types.ProxyStore); !ok {
 		t.ErrorAndExit(types.WeblensErrorMsg("cannot run copy core file task without proxy service initialized"))
 	}
-	localStore := proxyService.GetLocalStore()
 
 	bs, err := proxyService.ReadFile(f)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
 
-	err = localStore.TouchFile(f)
+	err = proxyService.TouchFile(f)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
@@ -159,5 +170,6 @@ func copyFileFromCore(t *task) {
 	poolProgress := getScanResult(t)
 	poolProgress["filename"] = f.Filename()
 	t.caster.PushPoolUpdate(t.taskPool, SubTaskCompleteEvent, poolProgress)
+	meta.core.PushPoolUpdate(t.taskPool, SubTaskCompleteEvent, poolProgress)
 	t.success()
 }

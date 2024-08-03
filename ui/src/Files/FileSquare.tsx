@@ -1,9 +1,7 @@
-import React, { memo, MouseEvent, useCallback, useState } from 'react'
+import React, { MouseEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { SelectedState, WeblensFile } from './File'
-
-import WeblensInput from '../components/WeblensInput'
 import {
     fileHandleContextMenu,
     handleMouseLeave,
@@ -13,17 +11,8 @@ import {
     visitFile,
 } from './FileDragLogic'
 import { IconDisplay } from '../Pages/FileBrowser/FileBrowserMiscComponents'
-import { handleRename } from '../Pages/FileBrowser/FileBrowserLogic'
 import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from '../components/UserInfo'
-
-type TitleProps = {
-    itemId: string
-    itemTitle: string
-    allowEditing: boolean
-    blockFocus: (b: boolean) => void
-    rename: (itemId: string, newName: string) => void
-}
 
 const FileGridVisual = ({ file }) => {
     return (
@@ -35,54 +24,15 @@ const FileGridVisual = ({ file }) => {
     )
 }
 
-export const FileTextBox = memo(
-    ({ itemId, itemTitle, blockFocus, rename }: TitleProps) => {
-        const [renameVal, setRenameVal] = useState(itemTitle)
-
-        const setEditingPlus = useCallback(
-            (b: boolean) => {
-                setRenameVal((cur) => {
-                    if (cur === '') {
-                        return itemTitle
-                    } else {
-                        return cur
-                    }
-                })
-                blockFocus(b)
-            },
-            [itemTitle, blockFocus]
-        )
-
-        return (
-            <div className="item-info-box select-none">
-                <WeblensInput
-                    subtle
-                    fillWidth={false}
-                    value={renameVal}
-                    valueCallback={setRenameVal}
-                    openInput={() => {
-                        setEditingPlus(true)
-                    }}
-                    closeInput={() => {
-                        setEditingPlus(false)
-                        setRenameVal(itemTitle)
-                        rename(itemId, '')
-                    }}
-                    onComplete={(v) => {
-                        rename(itemId, v)
-                        setEditingPlus(false)
-                    }}
-                />
-            </div>
-        )
-    },
-    (prev, next) => {
-        if (prev.itemTitle !== next.itemTitle) {
-            return false
-        }
-        return true
-    }
-)
+export const FileTextBox = ({ itemTitle }) => {
+    return (
+        <div className="flex w-full">
+            <p className="h-max max-w-full p-2 text-2xl items-center justify-center truncate relative">
+                {itemTitle}
+            </p>
+        </div>
+    )
+}
 
 export const FileSquare = ({ file }: { file: WeblensFile }) => {
     const [mouseDown, setMouseDown] = useState(null)
@@ -189,22 +139,8 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
             >
                 <p>{file.FormatSize()}</p>
             </div>
-            <div className="flex h-[16%] w-full">
-                <FileTextBox
-                    itemId={file.Id()}
-                    itemTitle={file.GetFilename()}
-                    allowEditing={file.IsModifiable()}
-                    blockFocus={setBlockFocus}
-                    rename={(itemId, newName) =>
-                        handleRename(
-                            itemId,
-                            newName,
-                            addLoading,
-                            removeLoading,
-                            auth
-                        )
-                    }
-                />
+            <div className="flex relative items-center h-[16%] w-[260px]">
+                <FileTextBox itemTitle={file.GetFilename()} />
             </div>
         </div>
     )

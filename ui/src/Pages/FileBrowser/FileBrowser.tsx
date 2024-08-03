@@ -1187,7 +1187,9 @@ const FileBrowser = () => {
                     {/*    wsSend={wsSend}*/}
                     {/*/>*/}
                     <FileContextMenu />
-                    <WebsocketStatus ready={readyState} />
+                    <div className="absolute bottom-1 left-1">
+                        <WebsocketStatus ready={readyState} />
+                    </div>
                     <div className="flex flex-row grow h-[90vh] items-start">
                         <GlobalActions
                             uploadState={uploadState}

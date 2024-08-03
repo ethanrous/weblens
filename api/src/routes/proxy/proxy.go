@@ -24,6 +24,13 @@ func NewProxyStore(coreAddress string, apiKey types.WeblensApiKey) *ProxyStore {
 }
 
 func (p *ProxyStore) Init(db types.StoreService) {
+	core := types.SERV.InstanceService.GetCore()
+	addr, err := core.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+	p.coreAddress = addr
+	p.apiKey = core.GetUsingKey()
 	p.db = db
 }
 
@@ -36,9 +43,9 @@ func ReadResponseBody[T any](resp *http.Response) (T, error) {
 
 	if resp.StatusCode > 299 {
 		return target, types.WeblensErrorMsg(
-			fmt.Sprint(
-				"Trying to read body of response with bad status code: ",
-				resp.StatusCode,
+			fmt.Sprintf(
+				"Trying to read response body of call to %s with bad status code: %d",
+				resp.Request.URL.String(), resp.StatusCode,
 			),
 		)
 	}
@@ -73,7 +80,7 @@ func (p *ProxyStore) CallHome(method, endpoint string, body any) (*http.Response
 		return nil, types.WeblensErrorMsg("Trying to dial core with no address")
 	}
 	if p.apiKey == "" {
-		return nil, types.WeblensErrorMsg("Trying to dial core with api key")
+		return nil, types.WeblensErrorMsg("Trying to dial core without api key")
 	}
 
 	buf := &bytes.Buffer{}

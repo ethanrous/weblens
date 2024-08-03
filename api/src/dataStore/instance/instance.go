@@ -8,7 +8,8 @@ type WeblensInstance struct {
 	Id   types.InstanceId `json:"id" bson:"_id"`
 	Name string           `json:"name" bson:"name"`
 
-	// apiKey that remote server is using to connect to local, if local is core. Empty otherwise
+	// Only applies to "core" server entries. This is the apiKey that remote server is using to connect to local,
+	// if local is core. If local is backup, then this is the key being used to connect to remote core
 	UsingKey types.WeblensApiKey `json:"-" bson:"usingKey"`
 
 	// Core or Backup
@@ -17,18 +18,16 @@ type WeblensInstance struct {
 	// If this server info represents this local server
 	IsThisServer bool `json:"-" bson:"isThisServer"`
 
-	// Address of the remote server, only if the remote is a core.
+	// Address of the remote server, only if the instance is a core.
 	// Not set for any remotes/backups on core server, as it IS the core
-	CoreAddress string `json:"coreAddress" bson:"coreAddress"`
-
-	// UserCount int `json:"userCount" bson:"-"`
+	Address string `json:"coreAddress" bson:"coreAddress"`
 
 	service *instanceService
 }
 
 func New(
 	id types.InstanceId, name string, key types.WeblensApiKey, role types.ServerRole, isThisServer bool,
-	coreAddress string,
+	address string,
 ) types.Instance {
 	return &WeblensInstance{
 		Id:           id,
@@ -36,7 +35,7 @@ func New(
 		UsingKey:     key,
 		Role:         role,
 		IsThisServer: isThisServer,
-		CoreAddress:  coreAddress,
+		Address: address,
 	}
 }
 
@@ -52,6 +51,10 @@ func (wi *WeblensInstance) IsLocal() bool {
 	return wi.IsThisServer
 }
 
+func (wi *WeblensInstance) IsCore() bool {
+	return wi.Role == types.Core
+}
+
 func (wi *WeblensInstance) ServerId() types.InstanceId {
 	return wi.Id
 }
@@ -62,6 +65,10 @@ func (wi *WeblensInstance) SetServerId(id types.InstanceId) {
 
 func (wi *WeblensInstance) GetUsingKey() types.WeblensApiKey {
 	return wi.UsingKey
+}
+
+func (wi *WeblensInstance) SetUsingKey(key types.WeblensApiKey) {
+	wi.UsingKey = key
 }
 
 func (wi *WeblensInstance) ServerRole() types.ServerRole {
@@ -76,11 +83,19 @@ func (wi *WeblensInstance) GetRole() types.ServerRole {
 	// return si.Role == types.Core
 }
 
-func (wi *WeblensInstance) GetCoreAddress() (string, error) {
-	if wi.Role == types.Core {
-		return "", types.ErrAlreadyCore
+func (wi *WeblensInstance) GetAddress() (string, error) {
+	if wi.Role != types.Core {
+		return "", types.WeblensErrorMsg("Cannot get address of non-core instance")
 	}
-	return wi.CoreAddress, nil
+	return wi.Address, nil
+}
+
+func (wi *WeblensInstance) SetAddress(address string) error {
+	if wi.Role != types.Core {
+		return types.WeblensErrorMsg("Cannot set address of non-core instance")
+	}
+	wi.Address = address
+	return nil
 }
 
 // func (wi *WeblensInstance) SetUserCount(count int) {
@@ -96,6 +111,6 @@ func (wi *WeblensInstance) GetCoreAddress() (string, error) {
 // 	if err != nil {
 // 		return err
 // 	}
-// 	thisServer.CoreAddress = core
+// 	thisServer.Address = core
 // 	return err
 // }

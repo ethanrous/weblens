@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -65,7 +66,7 @@ func (vs *VideoStreamer) transcodeChunks(f types.WeblensFile, speed string) {
 	).WithErrorOutput(outErr).Run()
 
 	if err != nil {
-		util.Error.Println(outErr.String())
+		wlog.Error.Println(outErr.String())
 		vs.err = err
 	}
 }

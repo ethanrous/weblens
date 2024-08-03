@@ -3,6 +3,7 @@ package proxy
 import (
 	"github.com/ethrousseau/weblens/api/dataStore/instance"
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type newServerBody struct {
@@ -12,20 +13,31 @@ type newServerBody struct {
 	UsingKey types.WeblensApiKey `json:"usingKey"`
 }
 
-func (p *ProxyStore) AttachToCore(i types.Instance) (types.Instance, error) {
-	coreAddr, err := i.GetCoreAddress()
+func (p *ProxyStore) AttachToCore(this types.Instance, core types.Instance) (types.Instance, error) {
+	coreAddr, err := core.GetAddress()
 	if err != nil {
 		return nil, err
 	}
 
 	p.coreAddress = coreAddr
-	p.apiKey = i.GetUsingKey()
+	p.apiKey = core.GetUsingKey()
 
-	body := newServerBody{Id: i.ServerId(), Role: types.Backup, Name: i.GetName(), UsingKey: i.GetUsingKey()}
+	body := newServerBody{Id: this.ServerId(), Role: types.Backup, Name: this.GetName(), UsingKey: core.GetUsingKey()}
 	resp, err := p.CallHome("POST", "/api/core/remote", body)
 
 	if resp.StatusCode == 201 {
-		return ReadResponseBody[*instance.WeblensInstance](resp)
+		newCore, err := ReadResponseBody[*instance.WeblensInstance](resp)
+		if err != nil {
+			return nil, err
+		}
+
+		newCore.SetUsingKey(core.GetUsingKey())
+		err = newCore.SetAddress(p.coreAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		return newCore, nil
 	} else {
 		return nil, types.WeblensErrorMsg("failed to attach to remote core")
 	}
@@ -46,8 +58,8 @@ func (p *ProxyStore) CreateApiKey(info types.ApiKeyInfo) error {
 }
 
 func (p *ProxyStore) GetApiKeys() ([]types.ApiKeyInfo, error) {
-	// TODO implement me
-	panic("implement me")
+	wlog.Debug.Println("implement me")
+	return []types.ApiKeyInfo{}, nil
 }
 
 func (p *ProxyStore) DeleteApiKey(key types.WeblensApiKey) error {

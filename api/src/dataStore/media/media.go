@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/bimg"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 
 	"github.com/EdlinOrg/prominentcolor"
@@ -125,7 +126,7 @@ func (m *Media) LoadFromFile(f types.WeblensFile, preReadBytes []byte, task type
 	if m.RecognitionTags == nil && m.mediaType.SupportsImgRecog() {
 		err = m.getImageRecognitionTags()
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 		}
 		task.SwLap("Get img recognition tags")
 	}
@@ -272,7 +273,7 @@ func (m *Media) RemoveFile(f types.WeblensFile) error {
 	m.FileIds, _, existed = util.YoinkFunc(m.FileIds, func(existFile types.FileId) bool { return existFile == f.ID() })
 
 	if !existed {
-		util.Warning.Println("Attempted to remove file from Media that did not have that file")
+		wlog.Warning.Println("Attempted to remove file from Media that did not have that file")
 	}
 
 	err := types.SERV.StoreService.RemoveFileFromMedia(m.ID(), f.ID())
@@ -514,7 +515,7 @@ func (m *Media) generateImage(bs []byte) (err error) {
 			_, err = m.image.Rotate(90)
 		case "Horizontal (normal)":
 		case "":
-			util.Debug.Println("empty orientation")
+			wlog.Debug.Println("empty orientation")
 		default:
 			err = types.NewWeblensError(fmt.Sprintf("Unknown rotate name [%s]", m.rotate))
 		}
@@ -605,7 +606,7 @@ func (m *Media) GetCacheFile(q types.Quality, generateIfMissing bool, pageNum in
 				return nil, dataStore.ErrNoCache()
 			}
 
-			util.Warning.Printf("Cache file F[%s] not found for M[%s], generating...", cacheFileId, m.ID())
+			wlog.Warning.Printf("Cache file F[%s] not found for M[%s], generating...", cacheFileId, m.ID())
 			err = m.handleCacheCreation(realFile)
 			if err != nil {
 				return
@@ -668,7 +669,7 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
 		).WithOutput(out).WithErrorOutput(errOut).Run()
 		if err != nil {
-			util.Error.Println(errOut.String())
+			wlog.Error.Println(errOut.String())
 			return err
 		}
 		bs = out.Bytes()
@@ -710,13 +711,13 @@ func (m *Media) handleCacheCreation(f types.WeblensFile) (err error) {
 		}
 		thumbSize, err := thumbImg.Size()
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		} else {
 			thumbRatio := float64(thumbSize.Width) / float64(thumbSize.Height)
 			mediaRatio := float64(m.MediaWidth) / float64(m.MediaHeight)
 			// util.Debug.Println(thumbRatio, mediaRatio)
 			if (thumbRatio < 1 && mediaRatio > 1) || (thumbRatio > 1 && mediaRatio < 1) {
-				util.Error.Println("Mismatched media sizes")
+				wlog.Error.Println("Mismatched media sizes")
 			}
 		}
 	}
@@ -751,22 +752,22 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 	cacheFileName := m.getCacheFilename(q, pageNum)
 
 	if len(data) == 0 {
-		util.ErrTrace(errors.New("no data while trying to cache displayable"))
+		wlog.ErrTrace(errors.New("no data while trying to cache displayable"))
 		return nil
 	}
 
 	cacheRoot := ft.Get("CACHE")
 	f, err := ft.Touch(cacheRoot, cacheFileName, false, nil)
-	if err != nil && !errors.Is(err, types.ErrFileAlreadyExists()) {
-		util.ErrTrace(err)
+	if err != nil && !strings.Contains(err.Error(), "file already exists") {
+		wlog.ErrTrace(err)
 		return nil
-	} else if errors.Is(err, types.ErrFileAlreadyExists()) {
+	} else if strings.Contains(err.Error(), "file already exists") {
 		return f
 	}
 
 	err = f.Write(data)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return f
 	}
 
@@ -901,7 +902,7 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 
 	// TODO - figure out why this happens
 	if len(m.fullresCacheFiles) != m.PageCount {
-		util.Warning.Printf("Bad fullres file count, got %d but expected %d", len(m.fullresCacheFiles), m.PageCount)
+		wlog.Warning.Printf("Bad fullres file count, got %d but expected %d", len(m.fullresCacheFiles), m.PageCount)
 		m.fullresCacheFiles = make([]types.WeblensFile, m.PageCount)
 	}
 

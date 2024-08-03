@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -14,7 +15,7 @@ type FileEvent struct {
 	EventId     types.FileEventId `bson:"_id"`
 	Actions     []*FileAction     `bson:"actions"`
 	EventBegin  time.Time         `bson:"eventBegin"`
-	ActionsLock *sync.Mutex       `bson:"-"`
+	ActionsLock sync.Mutex `bson:"-"`
 }
 
 // NewFileEvent returns a FileEvent, a container for multiple FileActions that occur due to the
@@ -24,7 +25,7 @@ func NewFileEvent() types.FileEvent {
 		EventId:     types.FileEventId(primitive.NewObjectID().Hex()),
 		EventBegin:  time.Now(),
 		Actions:     []*FileAction{},
-		ActionsLock: &sync.Mutex{},
+		ActionsLock: sync.Mutex{},
 	}
 }
 
@@ -63,13 +64,13 @@ func (fe *FileEvent) NewCreateAction(file types.WeblensFile) types.FileAction {
 func (fe *FileEvent) NewMoveAction(originId types.FileId, file types.WeblensFile) types.FileAction {
 	lt := types.SERV.FileTree.GetJournal().GetLifetimeByFileId(originId)
 	if lt == nil {
-		util.Error.Println("Cannot not find existing lifetime for originId", originId)
+		wlog.Error.Println("Cannot not find existing lifetime for originId", originId)
 		return nil
 	}
 	latest := lt.GetLatestAction()
 
 	if latest.GetDestinationId() != originId {
-		util.Error.Println("File previous destination does not match move origin")
+		wlog.Error.Println("File previous destination does not match move origin")
 	}
 
 	newAction := &FileAction{
@@ -93,7 +94,7 @@ func (fe *FileEvent) NewMoveAction(originId types.FileId, file types.WeblensFile
 func (fe *FileEvent) NewDeleteAction(originId types.FileId) types.FileAction {
 	lt := types.SERV.FileTree.GetJournal().GetLifetimeByFileId(originId)
 	if lt == nil {
-		util.ShowErr(
+		wlog.ShowErr(
 			types.WeblensErrorMsg(
 				fmt.Sprintf(
 					"Cannot not find existing lifetime for originId [%s]", originId,
@@ -105,7 +106,7 @@ func (fe *FileEvent) NewDeleteAction(originId types.FileId) types.FileAction {
 	latest := lt.GetLatestAction()
 
 	if latest.GetDestinationId() != originId {
-		util.Error.Println("File previous destination does not match move origin")
+		wlog.Error.Println("File previous destination does not match move origin")
 	}
 
 	newAction := &FileAction{

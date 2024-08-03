@@ -6,12 +6,14 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type instanceService struct {
 	instanceMap     map[types.InstanceId]types.Instance
 	instanceMapLock *sync.RWMutex
 	local           types.Instance
+	core types.Instance
 	localLoading    map[string]bool
 
 	store types.InstanceStore
@@ -39,6 +41,9 @@ func (is *instanceService) Init(store types.InstanceStore) error {
 		if server.IsLocal() {
 			is.local = server
 			continue
+		}
+		if server.IsCore() {
+			is.core = server
 		}
 		is.instanceMap[server.ServerId()] = server
 	}
@@ -79,13 +84,17 @@ func (is *instanceService) Add(i types.Instance) error {
 }
 
 func (is *instanceService) Get(iId types.InstanceId) types.Instance {
-	util.ShowErr(types.ErrNotImplemented("instance Get"))
-	return nil
+	is.instanceMapLock.RLock()
+	defer is.instanceMapLock.RUnlock()
+	return is.instanceMap[iId]
 }
 
 func (is *instanceService) GetLocal() types.Instance {
 	return is.local
-	// return nil, types.ErrNotImplemented("instance GetLocal")
+}
+
+func (is *instanceService) GetCore() types.Instance {
+	return is.core
 }
 
 func (is *instanceService) Del(iId types.InstanceId) error {
@@ -125,7 +134,7 @@ func (is *instanceService) RemoveLoading(loadingKey string) {
 	if is.IsLocalLoaded() {
 		err := types.SERV.RestartRouter()
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 		}
 		types.SERV.Caster.PushWeblensEvent("weblens_loaded")
 	}
@@ -181,18 +190,19 @@ func (is *instanceService) InitBackup(name, coreAddr string, key types.WeblensAp
 	is.store = store
 
 	srvId := types.InstanceId(util.GlobbyHash(12, name, time.Now().String()))
-	i := New(srvId, name, key, types.Backup, true, coreAddr)
-	remote, err := is.store.AttachToCore(i)
+	thisServer := New(srvId, name, "", types.Backup, true, "")
+	core := New("", "", key, types.Core, false, coreAddr)
+	core, err := is.store.AttachToCore(thisServer, core)
 	if err != nil {
 		return err
 	}
 
-	err = is.Add(i)
+	err = is.Add(thisServer)
 	if err != nil {
 		return err
 	}
 
-	err = is.Add(remote)
+	err = is.Add(core)
 	if err != nil {
 		return err
 	}

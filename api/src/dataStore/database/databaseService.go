@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -24,6 +25,8 @@ type databaseService struct {
 	apiKeys     *mongo.Collection
 }
 
+const maxRetries = 5
+
 func New(mongoUri, mongoDbName string) types.StoreService {
 	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second)
 	var err error
@@ -32,6 +35,24 @@ func New(mongoUri, mongoDbName string) types.StoreService {
 	if err != nil {
 		panic(err)
 	}
+
+	retries := 0
+	for retries < maxRetries {
+		err = mongoc.Ping(context.TODO(), nil)
+		if err == nil {
+			break
+		}
+		wlog.Warning.Printf("Failed to connect to mongo, trying %d more time(s)", maxRetries-retries)
+		time.Sleep(time.Second * 1)
+		retries++
+	}
+	if err != nil {
+		wlog.Error.Printf("Failed to connect to database after %d retries", maxRetries)
+		panic(err)
+	}
+
+	wlog.Debug.Println("Connected to mongo")
+
 	mongodb := mongoc.Database(mongoDbName)
 
 	return &databaseService{

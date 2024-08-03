@@ -19,6 +19,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/saracen/fastzip"
 )
 
@@ -131,7 +132,7 @@ func createZipFromPaths(t *task) {
 	defer func(fp *os.File) {
 		err := fp.Close()
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		}
 	}(fp)
 
@@ -147,7 +148,7 @@ func createZipFromPaths(t *task) {
 	defer func(a *fastzip.Archiver) {
 		err := a.Close()
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		}
 	}(a)
 
@@ -165,7 +166,7 @@ func createZipFromPaths(t *task) {
 		zipMeta.files, func(file types.WeblensFile, acc int64) int64 {
 			num, err := file.Size()
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 			}
 			return acc + num
 		}, 0,
@@ -186,7 +187,7 @@ func createZipFromPaths(t *task) {
 		}
 		sinceUpdate++
 		bytes, entries = a.Written()
-		util.Debug.Println(bytes, entries)
+		wlog.Debug.Println(bytes, entries)
 		if bytes != prevBytes {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
@@ -322,7 +323,7 @@ func handleFileUploads(t *task) {
 			if f != nil {
 				err = f.RemoveTask(t.TaskId())
 				if err != nil {
-					util.ShowErr(err)
+					wlog.ShowErr(err)
 				}
 			}
 		}
@@ -332,7 +333,7 @@ func handleFileUploads(t *task) {
 	defer func() {
 		err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		}
 	}()
 
@@ -389,7 +390,7 @@ WriterLoop:
 			// Write the bytes to the real file
 			err = fileMap[chunk.FileId].file.WriteAt(chunk.Chunk, bottom)
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 			}
 
 			// When file is finished writing
@@ -407,7 +408,7 @@ WriterLoop:
 				// Move the file from /tmp to its permanent location
 				err = types.SERV.FileTree.AttachFile(fileMap[chunk.FileId].file, bufCaster)
 				if err != nil {
-					util.ShowErr(err)
+					wlog.ShowErr(err)
 				}
 
 				fileEvent.NewCreateAction(fileMap[chunk.FileId].file)
@@ -415,7 +416,7 @@ WriterLoop:
 				// Unlock the file
 				err = fileMap[chunk.FileId].file.RemoveTask(t.TaskId())
 				if err != nil {
-					util.ShowErr(err)
+					wlog.ShowErr(err)
 				}
 
 				// Remove the file from our local map
@@ -452,7 +453,7 @@ WriterLoop:
 		if tl.IsDir() {
 			err = types.SERV.FileTree.ResizeDown(tl, t.caster)
 			if err != nil {
-				util.ShowErr(err)
+				wlog.ShowErr(err)
 			}
 			bufCaster.PushFileUpdate(tl)
 			newTp.ScanDirectory(tl, t.caster)
@@ -590,7 +591,7 @@ func hashFile(t *task) {
 	defer func(fp *os.File) {
 		err := fp.Close()
 		if err != nil {
-			util.ShowErr(err)
+			wlog.ShowErr(err)
 		}
 	}(fp)
 

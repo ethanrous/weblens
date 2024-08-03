@@ -110,7 +110,7 @@ export const useSubscribe = (
             SubToFolder(cId, sId, wsSend)
             return () => UnsubFromFolder(cId, wsSend)
         }
-    }, [readyState, sId, cId, usr.homeId, usr.trashId, wsSend])
+    }, [readyState, sId, cId, usr, wsSend])
 
     // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
     useEffect(() => {
@@ -120,7 +120,7 @@ export const useSubscribe = (
 
         SubToFolder(usr.homeId, sId, wsSend)
         return () => UnsubFromFolder(usr.homeId, wsSend)
-    }, [usr.homeId, sId, readyState])
+    }, [usr, sId, readyState])
 
     // Listen for incoming websocket messages
     useEffect(() => {
@@ -146,7 +146,6 @@ interface wsMsgInfo {
 
     taskType?: string
     error?: string
-    broadcastType?: boolean
 }
 
 interface wsMsgContent {
@@ -289,6 +288,7 @@ function filebrowserWebsocketHandler(
                     tasksComplete: msgData.content.completedFiles,
                     tasksTotal: msgData.content.totalFiles,
                     note: 'No note',
+                    taskType: msgData.taskType,
                 })
                 return
             }
@@ -315,6 +315,7 @@ function filebrowserWebsocketHandler(
                     tasksTotal: msgData.content.tasks_total,
                     note: msgData.content.note,
                     workingOn: msgData.content.filename,
+                    taskType: msgData.taskType,
                 })
 
                 return

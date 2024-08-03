@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 // Tasks //
@@ -65,7 +66,7 @@ func (m scanMetadata) MetaString() string {
 		// "Deep":      m.deepScan,
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -90,7 +91,7 @@ func (m zipMetadata) MetaString() string {
 		"ShareId":  m.shareId,
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -120,7 +121,7 @@ func (m moveMeta) MetaString() string {
 		"NewFileName": m.newFilename,
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -152,7 +153,7 @@ func (m writeFileMeta) MetaString() string {
 		"TotalSize":  m.totalSize,
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -171,7 +172,7 @@ func (m fsStatMeta) MetaString() string {
 		"RootFolder": m.rootDir.ID(),
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -196,7 +197,7 @@ func (m backupMeta) MetaString() string {
 		"remoteId": m.remoteId,
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -215,7 +216,7 @@ func (m hashFileMeta) MetaString() string {
 		"fileId":   m.file.ID(),
 	}
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }
@@ -226,6 +227,7 @@ func (m hashFileMeta) FormatToResult() types.TaskResult {
 
 type backupCoreFileMeta struct {
 	file types.WeblensFile
+	core types.Client
 }
 
 func (m backupCoreFileMeta) MetaString() string {
@@ -235,7 +237,7 @@ func (m backupCoreFileMeta) MetaString() string {
 	}
 
 	bs, err := json.Marshal(data)
-	util.ErrTrace(err)
+	wlog.ErrTrace(err)
 
 	return string(bs)
 }

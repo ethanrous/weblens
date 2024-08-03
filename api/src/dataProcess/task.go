@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type task struct {
@@ -14,7 +15,6 @@ type task struct {
 	taskPool      types.TaskPool
 	childTaskPool types.TaskPool
 	caster        types.BroadcasterAgent
-	requester     types.Requester
 	work          taskHandler
 	taskType      types.TaskType
 	metadata      types.TaskMetadata
@@ -27,7 +27,7 @@ type task struct {
 	err any
 
 	timeout   time.Time
-	timerLock *sync.Mutex
+	timerLock sync.Mutex
 
 	exitStatus types.TaskExitStatus // "success", "error" or "cancelled"
 
@@ -48,7 +48,7 @@ type task struct {
 	signal     int
 	signalChan chan int
 
-	waitMu *sync.Mutex
+	waitMu sync.Mutex
 }
 
 type taskQueueState string
@@ -101,13 +101,13 @@ func (t *task) SetCaster(c types.BroadcasterAgent) {
 // NewTask(...).Q(). Returns the given task to further support this
 func (t *task) Q(tp types.TaskPool) types.Task {
 	if tp == nil {
-		util.Error.Println("nil task pool")
+		wlog.Error.Println("nil task pool")
 		return nil
 		// tp = GetGlobalQueue()
 	}
 	err := tp.QueueTask(t)
 	if err != nil {
-		util.ShowErr(err)
+		wlog.ShowErr(err)
 		return nil
 	}
 
@@ -171,7 +171,7 @@ func (t *task) ClearAndRecompute() {
 		delete(t.result, k)
 	}
 	if t.err != nil {
-		util.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId(), t.err)
+		wlog.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId(), t.err)
 		t.err = nil
 	}
 	t.queueState = PreQueued
@@ -234,11 +234,11 @@ func (t *task) ErrorAndExit(err error, info ...any) {
 		return
 	}
 
-	util.ShowErr(err, fmt.Sprintf("Task %s exited with an error", t.TaskId()))
+	wlog.ShowErr(err, fmt.Sprintf("Task %s exited with an error", t.TaskId()))
 	// _, filename, line, _ := runtime.Caller(1)
 	// util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\n", t.TaskId(), filename, line, err.Error())
 	if len(info) != 0 {
-		util.ErrorCatcher.Printf("Reported by task: %s", fmt.Sprint(info...))
+		wlog.ErrorCatcher.Printf("Reported by task: %s", fmt.Sprint(info...))
 	}
 	t.error(err)
 	panic(ErrTaskError)
@@ -286,7 +286,7 @@ func (t *task) success(msg ...any) {
 	t.queueState = Exited
 	t.exitStatus = TaskSuccess
 	if len(msg) != 0 {
-		util.Info.Println("Task succeeded with a message:", fmt.Sprint(msg...))
+		wlog.Info.Println("Task succeeded with a message:", fmt.Sprint(msg...))
 	}
 
 	t.sw.Stop()

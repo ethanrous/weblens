@@ -14,6 +14,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 /*
@@ -38,6 +39,9 @@ type WeblensFile struct {
 
 	// The absolute path of the real file on disk
 	absolutePath string
+
+	// Path of the content file on a backup server
+	backupPath string
 
 	// Base of the filepath, the actual name of the file.
 	filename string
@@ -67,18 +71,17 @@ type WeblensFile struct {
 	watching bool
 
 	// If this file is a directory, these are the files that are housed by this directory.
-	childLock   *sync.RWMutex
+	childLock sync.RWMutex
 	childrenMap map[string]*WeblensFile
 	childIds    []types.FileId
 
 	// General RW lock on file updates to prevent data races
-	updateLock *sync.RWMutex
+	updateLock sync.RWMutex
 
-	// array of tasks that currently claim are using this file.
-	// TODO: allow single task-claiming of a file for file
-	// operations required to be "atomic"
+	// task operations required to be "atomic" need to lock the file to prevent
+	// multiple changes being made at the same time
 	taskUsing types.Task
-	tasksLock *sync.Mutex
+	tasksLock sync.Mutex
 
 	// the share that belongs to this file
 	share types.Share
@@ -115,9 +118,9 @@ func (f *WeblensFile) Copy() types.WeblensFile {
 		c.isDir = &boolCopy
 	}
 
-	c.childLock = &sync.RWMutex{}
-	c.tasksLock = &sync.Mutex{}
-	c.updateLock = &sync.RWMutex{}
+	c.childLock = sync.RWMutex{}
+	c.tasksLock = sync.Mutex{}
+	c.updateLock = sync.RWMutex{}
 
 	// WeblensFile interface requires pointer
 	return &c
@@ -130,7 +133,7 @@ func (f *WeblensFile) Copy() types.WeblensFile {
 // ID of a nil file.
 func (f *WeblensFile) ID() types.FileId {
 	if f == nil {
-		util.ShowErr(types.WeblensErrorMsg("Tried to get ID of nil file"))
+		wlog.ShowErr(types.WeblensErrorMsg("Tried to get ID of nil file"))
 		return ""
 	}
 
@@ -155,6 +158,30 @@ func (f *WeblensFile) Filename() string {
 	return f.filename
 }
 
+func (f *WeblensFile) setAbsPath(absPath string) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.absolutePath = absPath
+}
+
+func (f *WeblensFile) setBackupPath(backupPath string) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.backupPath = backupPath
+}
+
+func (f *WeblensFile) getAbsPathInternal() string {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
+	return f.absolutePath
+}
+
+func (f *WeblensFile) getBackupPathInternal() string {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
+	return f.backupPath
+}
+
 // GetAbsPath returns string of the absolute path to file
 func (f *WeblensFile) GetAbsPath() string {
 	if f == nil {
@@ -164,27 +191,38 @@ func (f *WeblensFile) GetAbsPath() string {
 		return ""
 	}
 
-	f.updateLock.Lock()
-	defer f.updateLock.Unlock()
+	if backup := f.getBackupPathInternal(); backup != "" {
+		return backup
+	}
 
-	if f.absolutePath == "" {
-		if f.id == "ROOT" {
-			f.absolutePath = util.GetMediaRootPath()
-			return f.absolutePath
+	if f.id == "ROOT" {
+		f.setAbsPath(util.GetMediaRootPath())
+		return f.getAbsPathInternal()
+	}
+
+	if types.SERV.InstanceService.GetLocal().IsCore() || f.Owner().IsSystemUser() {
+		// If this is a core server, attach filename to the and of the parent directory path
+		if f.getAbsPathInternal() == "" {
+			f.setAbsPath(filepath.Join(f.parent.GetAbsPath(), f.filename))
 		}
-		f.absolutePath = filepath.Join(f.parent.GetAbsPath(), f.filename)
+
+		// Directories must and with a "/"
+		if f.IsDir() && f.getAbsPathInternal()[len(f.getAbsPathInternal())-1:] != "/" {
+			f.setAbsPath(f.getAbsPathInternal() + "/")
+		}
+	} else {
+		// If this is a backup server, we use the backup path for the "real" path
+		f.setBackupPath(filepath.Join(types.SERV.FileTree.Get("ROOT").GetAbsPath(), string(f.GetContentId())))
+		return f.getBackupPathInternal()
 	}
-	if f.IsDir() && f.absolutePath[len(f.absolutePath)-1] != '/' {
-		f.absolutePath = f.absolutePath + "/"
-	}
-	return f.absolutePath
+	return f.getAbsPathInternal()
 }
 
 func (f *WeblensFile) GetPortablePath() types.WeblensFilepath {
 	return FilepathFromAbs(f.GetAbsPath())
 }
 
-// Owner returns the username of the owner of the file
+// Owner returns the user that owns the file
 func (f *WeblensFile) Owner() types.User {
 	if f == nil {
 		panic("attempt to get owner on nil wf")
@@ -197,7 +235,7 @@ func (f *WeblensFile) Owner() types.User {
 				panic(types.NewWeblensError("I don't even know man... look at Owner() on WeblensFile"))
 			}
 		} else {
-			util.Debug.Println("ABS PATH", f.GetAbsPath())
+			wlog.Debug.Println("ABS PATH", f.GetAbsPath())
 			f.owner = f.GetParent().Owner()
 		}
 	}
@@ -222,7 +260,7 @@ func (f *WeblensFile) IsDir() bool {
 	if f.isDir == nil {
 		stat, err := f.tree.db.StatFile(f)
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 			return false
 		}
 		f.isDir = boolPointer(stat.IsDir)
@@ -234,7 +272,7 @@ func (f *WeblensFile) ModTime() (t time.Time) {
 	if f.modifyDate.Unix() <= 0 {
 		err := f.LoadStat()
 		if err != nil {
-			util.ErrTrace(err)
+			wlog.ErrTrace(err)
 		}
 	}
 	return f.modifyDate
@@ -318,7 +356,7 @@ func (f *WeblensFile) Write(data []byte) error {
 	if f.IsDir() {
 		return types.ErrDirNotAllowed
 	}
-	err := os.WriteFile(f.absolutePath, data, 0660)
+	err := os.WriteFile(f.GetAbsPath(), data, 0660)
 	if err == nil {
 		f.size.Store(int64(len(data)))
 		f.modifyDate = time.Now()
@@ -445,12 +483,12 @@ func (f *WeblensFile) ReadDir() ([]types.WeblensFile, error) {
 
 func (f *WeblensFile) GetChild(childName string) (types.WeblensFile, error) {
 	f.loadChildrenFromIds()
+	f.childLock.RLock()
+	defer f.childLock.RUnlock()
 	if len(f.childrenMap) == 0 || childName == "" {
 		return nil, types.ErrNoFileName(childName)
 	}
 
-	f.childLock.RLock()
-	defer f.childLock.RUnlock()
 	child := f.childrenMap[childName]
 	if child == nil {
 		return nil, types.ErrNoFileName(childName)
@@ -495,7 +533,7 @@ func (f *WeblensFile) GetChildrenInfo(acc types.AccessMeta) []types.FileInfo {
 		f.GetChildren(), func(file types.WeblensFile) (types.FileInfo, bool) {
 			info, err := file.FormatFileInfo(acc)
 			if err != nil {
-				util.ErrTrace(err)
+				wlog.ErrTrace(err)
 				return info, false
 			}
 			return info, true
@@ -540,7 +578,7 @@ func (f *WeblensFile) UnmarshalJSON(bs []byte) error {
 	f.isDir = boolPointer(data["isDir"].(bool))
 	f.modifyDate = time.UnixMilli(int64(data["modifyTimestamp"].(float64)))
 	if f.modifyDate.Unix() <= 0 {
-		util.Error.Println("AHHHH")
+		wlog.Error.Println("AHHHH")
 	}
 
 	parentId := types.FileId(data["parentId"].(string))
@@ -550,11 +588,11 @@ func (f *WeblensFile) UnmarshalJSON(bs []byte) error {
 			return types.ErrNoFile(parentId)
 		}
 		f.parent = parent.(*WeblensFile)
+		err = parent.AddChild(f)
+		if err != nil {
+			return err
+		}
 	}
-
-	f.childLock = &sync.RWMutex{}
-	f.tasksLock = &sync.Mutex{}
-	f.updateLock = &sync.RWMutex{}
 
 	f.childIds = util.Map(
 		util.SliceConvert[string](data["childrenIds"].([]any)), func(cId string) types.FileId {
@@ -563,7 +601,6 @@ func (f *WeblensFile) UnmarshalJSON(bs []byte) error {
 	)
 
 	f.share = types.SERV.ShareService.Get(types.ShareId(data["shareId"].(string)))
-
 	f.tree.addInternal(f.id, f)
 
 	return nil
@@ -629,14 +666,14 @@ func (f *WeblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 	var size int64
 	size, err = f.Size()
 	if err != nil {
-		util.ShowErr(err, fmt.Sprintf("Failed to get file size of [ %s (ID: %s) ]", f.absolutePath, f.id))
+		wlog.ShowErr(err, fmt.Sprintf("Failed to get file size of [ %s (ID: %s) ]", f.absolutePath, f.id))
 		return
 	}
 
 	var shareId types.ShareId
 	if f.GetShare() != nil {
 		shareId = f.GetShare().GetShareId()
-		util.Debug.Println("ShareId", shareId)
+		wlog.Debug.Println("ShareId", shareId)
 	}
 
 	var parentId types.FileId
@@ -795,11 +832,11 @@ func (f *WeblensFile) GetTask() types.Task {
 
 func (f *WeblensFile) RemoveTask(tId types.TaskId) error {
 	if f.taskUsing == nil {
-		util.Error.Printf("Task ID %s tried giving up file %s, but the file does not have a task", tId, f.GetAbsPath())
+		wlog.Error.Printf("Task ID %s tried giving up file %s, but the file does not have a task", tId, f.GetAbsPath())
 		panic(types.ErrBadTask)
 	}
 	if f.taskUsing.TaskId() != tId {
-		util.Error.Printf(
+		wlog.Error.Printf(
 			"Task ID %s tried giving up file %s, but the file is owned by %s does not own it", tId, f.GetAbsPath(),
 			f.taskUsing.TaskId(),
 		)

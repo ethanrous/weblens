@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 func envReadString(s string) string {
@@ -33,7 +35,7 @@ func GetAppRootDir() string {
 	apiDir := envReadString("APP_ROOT")
 	if apiDir == "" {
 		apiDir = "/app"
-		Info.Println("Api root directory not set, defaulting to", apiDir)
+		wlog.Info.Println("Api root directory not set, defaulting to", apiDir)
 	}
 	return apiDir
 }
@@ -41,7 +43,7 @@ func GetAppRootDir() string {
 func GetRouterIp() string {
 	ip := envReadString("SERVER_IP")
 	if ip == "" {
-		Info.Println("SERVER_IP not provided, falling back to 0.0.0.0")
+		wlog.Info.Println("SERVER_IP not provided, falling back to 0.0.0.0")
 		return "0.0.0.0"
 	} else {
 		return ip
@@ -51,7 +53,7 @@ func GetRouterIp() string {
 func GetRouterPort() string {
 	port := envReadString("SERVER_PORT")
 	if port == "" {
-		Info.Println("SERVER_PORT not provided, falling back to 8080")
+		wlog.Info.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
 	} else {
 		return port
@@ -62,8 +64,12 @@ func GetMediaRootPath() string {
 	path := envReadString("MEDIA_ROOT_PATH")
 	if path == "" {
 		path = "/media"
-		Warning.Println("Did not find MEDIA_ROOT_PATH, assuming docker default of", path)
+		wlog.Warning.Println("Did not find MEDIA_ROOT_PATH, assuming docker default of", path)
 	}
+	if path[len(path)-1:] != "/" {
+		path = path + "/"
+	}
+
 	return path
 }
 
@@ -86,11 +92,24 @@ func DetachUi() bool {
 	return envReadBool("DETATCH_UI")
 }
 
+var cachesPath string
+
+func getCacheRoot() string {
+	if cachesPath == "" {
+		cachesPath = envReadString("CACHES_PATH")
+		if cachesPath == "" {
+			cachesPath = "/cache"
+			wlog.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesPath)
+		}
+	}
+	return cachesPath
+}
+
 // GetCacheDir
 // Returns the path of the directory for storing cached files. This includes photo thumbnails,
 // temp uploaded files, and zip files.
 func GetCacheDir() string {
-	cacheString := envReadString("CACHES_PATH") + "/cache"
+	cacheString := getCacheRoot() + "/cache"
 	_, err := os.Stat(cacheString)
 	if err != nil {
 		err = os.MkdirAll(cacheString, 0755)
@@ -103,7 +122,7 @@ func GetCacheDir() string {
 
 // GetTakeoutDir Takeout directory, stores zip files after creation
 func GetTakeoutDir() string {
-	takeoutString := envReadString("CACHES_PATH") + "/takeout"
+	takeoutString := getCacheRoot() + "/takeout"
 	_, err := os.Stat(takeoutString)
 	if err != nil {
 		err = os.MkdirAll(takeoutString, 0755)
@@ -115,16 +134,12 @@ func GetTakeoutDir() string {
 }
 
 func GetTmpDir() string {
-	caches := envReadString("CACHES_PATH")
-	if caches == "" {
-		panic("CACHES_PATH not provided")
-	}
-	tmpString := caches + "/tmp"
+	tmpString := getCacheRoot() + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
 		err = os.MkdirAll(tmpString, 0755)
 		if err != nil {
-			ShowErr(err)
+			wlog.ShowErr(err)
 			panic("CACHES_PATH provided, but the tmp dir (`CACHES_PATH`/tmp) does not exist and Weblens failed to create it")
 		}
 	}
@@ -134,9 +149,9 @@ func GetTmpDir() string {
 func GetMongoURI() string {
 	mongoStr := envReadString("MONGODB_URI")
 	if mongoStr == "" {
-		Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
+		wlog.Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
 	}
-	Debug.Printf("Using MONGODB_URI: %s\n", mongoStr)
+	wlog.Debug.Printf("Using MONGODB_URI: %s\n", mongoStr)
 	return mongoStr
 }
 
@@ -152,10 +167,8 @@ func GetVideoConstBitrate() int {
 	return 400000 * 2
 }
 
+var hostUrl string
 func GetHostURL() string {
-	host := envReadString("HOST_URL")
-	if host == "" {
-		panic("HOST_URL not provided")
-	}
-	return host
+	hostUrl = envReadString("HOST_URL")
+	return hostUrl
 }

@@ -8,6 +8,7 @@ export default {
                 'main-accent': '#3636ca',
                 'bottom-grey': '#121212',
                 'raised-grey': '#212124',
+                'light-paper': '#381eaa',
                 background: '#111418',
             },
             boxShadow: {
@@ -26,4 +27,4 @@ export default {
         },
     },
     plugins: [],
-};
+}

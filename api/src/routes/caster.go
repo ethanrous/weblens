@@ -8,6 +8,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 type unbufferedCaster struct {
@@ -20,7 +21,7 @@ type bufferedCaster struct {
 	autoFlush         atomic.Bool
 	enabled           atomic.Bool
 	autoFlushInterval time.Duration
-	bufLock           *sync.Mutex
+	bufLock sync.Mutex
 }
 
 func NewCaster() types.BroadcasterAgent {
@@ -83,7 +84,7 @@ func (c *unbufferedCaster) PushPoolUpdate(pool types.TaskPool, event types.TaskE
 	}
 
 	if pool.IsGlobal() {
-		util.Warning.Println("Not pushing update on global pool")
+		wlog.Warning.Println("Not pushing update on global pool")
 		return
 	}
 
@@ -124,7 +125,7 @@ func (c *unbufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return
 	}
 
@@ -152,7 +153,7 @@ func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 	)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return
 	}
 
@@ -190,7 +191,7 @@ func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveF
 
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return
 	}
 
@@ -255,6 +256,14 @@ func (c *unbufferedCaster) UnsubTask(task types.Task) {
 	}
 }
 
+func (c *unbufferedCaster) Relay(msg types.WsResponseInfo) {
+	if !c.enabled {
+		return
+	}
+
+	send(msg)
+}
+
 // NewBufferedCaster Gets a new buffered caster with the auto-flusher pre-enabled.
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
@@ -268,7 +277,7 @@ func NewBufferedCaster() types.BufferedBroadcasterAgent {
 		bufLimit:          100,
 		buffer:            []types.WsResponseInfo{},
 		autoFlushInterval: time.Second,
-		bufLock:           &sync.Mutex{},
+		bufLock: sync.Mutex{},
 	}
 
 	newCaster.enabled.Store(true)
@@ -292,7 +301,7 @@ func (c *bufferedCaster) Disable() {
 
 func (c *bufferedCaster) Close() {
 	if !c.enabled.Load() {
-		util.ErrTrace(ErrCasterDoubleClose)
+		wlog.ErrTrace(ErrCasterDoubleClose)
 		return
 	}
 
@@ -331,7 +340,7 @@ func (c *bufferedCaster) PushFileCreate(newFile types.WeblensFile) {
 	acc := dataStore.NewAccessMeta(nil).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := newFile.FormatFileInfo(acc)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return
 	}
 
@@ -357,7 +366,7 @@ func (c *bufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 	acc := dataStore.NewAccessMeta(types.SERV.UserService.Get("WEBLENS")).SetRequestMode(dataStore.WebsocketFileUpdate)
 	fileInfo, err := updatedFile.FormatFileInfo(acc)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return
 	}
 
@@ -393,7 +402,7 @@ func (c *bufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveFil
 	acc := dataStore.NewAccessMeta(types.SERV.UserService.Get("WEBLENS")).SetRequestMode(dataStore.WebsocketFileUpdate)
 	postInfo, err := postMoveFile.FormatFileInfo(acc)
 	if err != nil {
-		util.ErrTrace(err)
+		wlog.ErrTrace(err)
 		return
 	}
 
@@ -452,7 +461,7 @@ func (c *bufferedCaster) PushTaskUpdate(task types.Task, event types.TaskEvent, 
 
 func (c *bufferedCaster) PushPoolUpdate(pool types.TaskPool, event types.TaskEvent, result types.TaskResult) {
 	if pool.IsGlobal() {
-		util.Warning.Println("Not pushing update on global pool")
+		wlog.Warning.Println("Not pushing update on global pool")
 		return
 	}
 
@@ -465,7 +474,6 @@ func (c *bufferedCaster) PushPoolUpdate(pool types.TaskPool, event types.TaskEve
 	}
 
 	c.bufferAndFlush(msg)
-	// c.Send(string(event), types.SubId(taskId), []types.WsC{types.WsC(result)})
 }
 
 func (c *bufferedCaster) PushShareUpdate(username types.Username, newShareInfo types.Share) {
@@ -557,7 +565,7 @@ func send(r types.WsResponseInfo) {
 	defer util.RecoverPanic("Panic caught while broadcasting")
 
 	if r.SubscribeKey == "" {
-		util.Error.Println("Trying to broadcast on empty key")
+		wlog.Error.Println("Trying to broadcast on empty key")
 		return
 	}
 
@@ -569,9 +577,18 @@ func send(r types.WsResponseInfo) {
 		clients = util.OnlyUnique(clients)
 	}
 
+	if r.BroadcastType == types.TaskSubscribe {
+		clients = append(
+			clients, types.SERV.ClientManager.GetSubscribers(
+				types.TaskTypeSubscribe,
+				types.SubId(r.TaskType),
+			)...,
+		)
+	}
+
 	if len(clients) != 0 {
 		for _, c := range clients {
-			c.(*client).Send(r)
+			c.(*clientConn).Send(r)
 		}
 	} else {
 		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.

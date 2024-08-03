@@ -7,6 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
 func (p *ProxyStore) GetAllMedia() ([]types.Media, error) {
@@ -48,7 +49,7 @@ func (p *ProxyStore) DeleteAllMedia() error {
 }
 
 func (p *ProxyStore) GetFetchMediaCacheImage(ctx context.Context) ([]byte, error) {
-	util.Debug.Println("Cache miss")
+	wlog.Debug.Println("Cache miss")
 	ret, err := p.CallHome(
 		"GET", fmt.Sprintf(
 			"/api/core/media/%s/content?quality=%s&page=%d",
