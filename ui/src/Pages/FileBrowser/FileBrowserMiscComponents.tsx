@@ -22,7 +22,7 @@ import React, {
     useMemo,
     useState,
 } from 'react'
-import { useMedia, useResize } from '../../components/hooks'
+import { useResize } from '../../components/hooks'
 
 import './style/fileBrowserStyle.scss'
 import { WebsocketContext } from '../../Context'
@@ -40,6 +40,7 @@ import WeblensButton from '../../components/WeblensButton'
 import { useMouse } from '@mantine/hooks'
 import { useFileBrowserStore } from './FBStateControl'
 import { useSessionStore } from '../../components/UserInfo'
+import { useMediaStore } from '../../Media/MediaStateControl'
 
 export const TransferCard = ({
     action,
@@ -338,7 +339,9 @@ export const IconDisplay = ({
 }) => {
     const [containerRef, setContainerRef] = useState(null)
     const containerSize = useResize(containerRef)
-    const mediaData = useMedia(file.GetMediaId())
+    const mediaData = useMediaStore((state) =>
+        state.mediaMap.get(file.GetMediaId())
+    )
 
     if (!file) {
         return null
@@ -348,7 +351,7 @@ export const IconDisplay = ({
         return <IconFolder stroke={1} className="w-3/4 h-3/4 shrink-0" />
     }
 
-    if (mediaData && (!file.IsImported() || !allowMedia)) {
+    if (mediaData && (!mediaData.IsImported() || !allowMedia)) {
         return <IconPhoto stroke={1} className="shrink-0" />
     } else if (mediaData && allowMedia && mediaData.IsImported()) {
         return <MediaImage media={mediaData} quality="thumbnail" />
@@ -415,7 +418,9 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
 
 export const PresentationFile = ({ file }: { file: WeblensFile }) => {
     const { progDispatch } = useContext(TaskProgContext)
-    const mediaData = useMedia(file.GetMediaId())
+    const mediaData = useMediaStore((state) =>
+        state.mediaMap.get(file.GetMediaId())
+    )
     const auth = useSessionStore((state) => state.auth)
     const wsSend = useContext(WebsocketContext)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
@@ -427,47 +432,53 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
     if (mediaData) {
         return (
             <div
-                className="flex flex-col justify-center w-[40%] h-max gap-2"
+                className="flex grow w-[10%]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <p className="font-semibold text-3xl">{file.GetFilename()}</p>
-                <p className="text-2xl">
-                    {size}
-                    {units}
-                </p>
-                <div className="flex gap-1">
-                    <IconFile />
-                    <p className="text-xl">
-                        {file.GetModified().toLocaleDateString('en-us', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                        })}
+                <div className="flex flex-col justify-center h-max max-w-full gap-2">
+                    <p className="font-semibold text-3xl truncate">
+                        {file.GetFilename()}
                     </p>
-                </div>
-                <WeblensButton
-                    label={'Download'}
-                    Left={IconDownload}
-                    onClick={() => {
-                        downloadSelected(
-                            [file],
-                            removeLoading,
-                            progDispatch,
-                            wsSend,
-                            auth
-                        )
-                    }}
-                />
-                <Divider />
-                <div className="flex gap-1">
-                    <IconPhoto />
-                    <p className="text-xl">
-                        {mediaData.GetCreateDate().toLocaleDateString('en-us', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                        })}
+                    <p className="text-2xl">
+                        {size}
+                        {units}
                     </p>
+                    <div className="flex gap-1">
+                        <IconFile />
+                        <p className="text-xl">
+                            {file.GetModified().toLocaleDateString('en-us', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                            })}
+                        </p>
+                    </div>
+                    <WeblensButton
+                        label={'Download'}
+                        Left={IconDownload}
+                        onClick={() => {
+                            downloadSelected(
+                                [file],
+                                removeLoading,
+                                progDispatch,
+                                wsSend,
+                                auth
+                            )
+                        }}
+                    />
+                    <Divider />
+                    <div className="flex gap-1">
+                        <IconPhoto />
+                        <p className="text-xl">
+                            {mediaData
+                                .GetCreateDate()
+                                .toLocaleDateString('en-us', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                })}
+                        </p>
+                    </div>
                 </div>
             </div>
         )
@@ -477,7 +488,7 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                 className="flex flex-row h-max w-full items-center justify-center"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="w-flex [60%] justify-center">
+                <div className="w-flex w-[60%] justify-center">
                     <IconDisplay file={file} allowMedia />
                 </div>
                 <Space w={30} />
@@ -499,10 +510,10 @@ export const PresentationFile = ({ file }: { file: WeblensFile }) => {
                         </div>
                     )}
                     {!file.IsFolder() && (
-                        <Text style={{ fontSize: '25px' }}>
+                        <p className="text-2xl">
                             {size}
                             {units}
-                        </Text>
+                        </p>
                     )}
                 </div>
             </div>
@@ -526,13 +537,7 @@ const EmptyIcon = ({ folderId, usr }) => {
     return null
 }
 
-export const GetStartedCard = ({
-    uploadDispatch,
-    wsSend,
-}: {
-    uploadDispatch
-    wsSend
-}) => {
+export const GetStartedCard = () => {
     const user = useSessionStore((state) => state.user)
     const auth = useSessionStore((state) => state.auth)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -564,9 +569,7 @@ export const GetStartedCard = ({
                                     folderInfo.Id(),
                                     false,
                                     '',
-                                    auth,
-                                    uploadDispatch,
-                                    wsSend
+                                    auth
                                 )
                             }}
                             accept="file"

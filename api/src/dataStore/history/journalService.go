@@ -52,7 +52,7 @@ func (j *journalService) Init(store types.HistoryStore) error {
 			return err
 		}
 
-		sw.Lap("Proxy read all local lifetimes")
+		sw.Lap("Read all local lifetimes")
 
 		j.lifetimeMapLock.Lock()
 		j.latestMapLock.Lock()
@@ -63,7 +63,7 @@ func (j *journalService) Init(store types.HistoryStore) error {
 		j.latestMapLock.Unlock()
 		j.lifetimeMapLock.Unlock()
 
-		sw.Lap("Proxy add all local lifetimes")
+		sw.Lap("Add all local lifetimes")
 
 		latest, err := proxyStore.GetLatestAction()
 		if err != nil {
@@ -91,28 +91,22 @@ func (j *journalService) Init(store types.HistoryStore) error {
 		}
 
 		sw.Lap("Proxy upsert lifetime updates")
-	}
-	lifetimes, err = store.GetAllLifetimes()
-	if err != nil {
-		return err
-	}
-
-	sw.Lap("Got all lifetimes")
-
-	if hasProxy {
-		if len(lifetimes) != len(j.lifetimes) {
-			wlog.Error.Println("Local lifetime count does not match remote lifetime count")
-		}
 	} else {
-		slices.SortFunc(
-			lifetimes, func(a, b types.Lifetime) int {
-				aActions := a.GetActions()
-				bActions := b.GetActions()
-				return len(aActions[len(aActions)-1].GetDestinationPath()) - len(bActions[len(bActions)-1].GetDestinationPath())
-			},
-		)
+		lifetimes, err = store.GetAllLifetimes()
+		if err != nil {
+			return err
+		}
+		sw.Lap("Get all local lifetimes")
 
-		sw.Lap("Sorted all lifetimes")
+		// slices.SortFunc(
+		// 	lifetimes, func(a, b types.Lifetime) int {
+		// 		aActions := a.GetActions()
+		// 		bActions := b.GetActions()
+		// 		return len(aActions[len(aActions)-1].GetDestinationPath()) - len(bActions[len(bActions)-1].GetDestinationPath())
+		// 	},
+		// )
+		//
+		// sw.Lap("Sorted all lifetimes")
 
 		j.lifetimeMapLock.Lock()
 		j.latestMapLock.Lock()
@@ -293,7 +287,6 @@ func (j *journalService) GetPastFolderInfo(folder types.WeblensFile, time time.T
 			infos,
 			types.FileInfo{
 				Id:             action.GetDestinationId(),
-				Imported:       true,
 				Displayable:    displayable,
 				IsDir:          isDir,
 				Modifiable:     false,
@@ -327,37 +320,58 @@ func (j *journalService) Get(lId types.LifetimeId) types.Lifetime {
 }
 
 func (j *journalService) Add(lt types.Lifetime) error {
+	// Check if this is a new or existing lifetime
 	existing := j.Get(lt.ID())
 	if existing != nil {
+		// Check if the existing lifetime has a differing number of actions.
 		if len(lt.GetActions()) != len(existing.GetActions()) {
 			newActions := lt.GetActions()
+
+			/* DEBUG - TODO remove if not needed */
+			if !slices.IsSortedFunc(
+				newActions, func(a, b types.FileAction) int {
+					return a.GetTimestamp().Compare(b.GetTimestamp())
+				},
+			) {
+				wlog.Error.Printf("Actions for lifetime [%s] are NOT sorted", lt.ID())
+			}
+			/* END DEBUG */
+
+			// Ensure that the actions are in time order, so we grab only the new ones to update
 			slices.SortFunc(
 				newActions, func(a, b types.FileAction) int {
 					return a.GetTimestamp().Compare(b.GetTimestamp())
 				},
 			)
-			// newActionsCount := len(newActions) - len(existing.GetActions())
+			// Add every action that is newer than the previously existing latest to the lifetime
 			for _, a := range newActions[len(existing.GetActions()):] {
 				existing.Add(a)
 			}
 
+			// Update lifetime with new actions in mongo
 			err := j.store.UpsertLifetime(lt)
 			if err != nil {
 				return err
 			}
+		} else {
+			// If it were to have the same actions, it should not require an update
+			return nil
 		}
 		lt = existing
 	} else {
+		// If the lifetime does not exist, just add it right to mongo
 		err := j.store.UpsertLifetime(lt)
 		if err != nil {
 			return err
 		}
 	}
 
+	// Add to lifetime map
 	j.lifetimeMapLock.Lock()
 	defer j.lifetimeMapLock.Unlock()
 	j.lifetimes[lt.ID()] = lt
 
+	// Add to latest update map
 	j.latestMapLock.Lock()
 	defer j.latestMapLock.Unlock()
 	j.latestUpdate[lt.GetLatestFileId()] = lt

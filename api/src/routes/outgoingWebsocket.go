@@ -24,15 +24,15 @@ func WebsocketToCore(core types.Instance) error {
 		return types.WeblensErrorMsg("Core server address is empty")
 	}
 
-	re, err := regexp.Compile(`http(?:s)?://([^/]*)`)
+	re, err := regexp.Compile(`http(s)?://([^/]*)`)
 	if err != nil {
 		return types.WeblensErrorFromError(err)
 	}
 
 	parts := re.FindStringSubmatch(addrStr)
 
-	addr := flag.String("addr", parts[1], "http service address")
-	host := url.URL{Scheme: "ws", Host: *addr, Path: "/api/core/ws"}
+	addr := flag.String("addr", parts[2], "http service address")
+	host := url.URL{Scheme: "ws" + parts[1], Host: *addr, Path: "/api/core/ws"}
 	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
 
 	authHeader := http.Header{}
@@ -46,6 +46,7 @@ func WebsocketToCore(core types.Instance) error {
 					"Failed to connect to core server at %s, trying again in %s",
 					host.String(), retryInterval,
 				)
+				wlog.Debug.Println("Error was", err)
 				time.Sleep(retryInterval)
 				continue
 			}
@@ -57,6 +58,7 @@ func WebsocketToCore(core types.Instance) error {
 }
 
 func dial(dialer *websocket.Dialer, host url.URL, authHeader http.Header, core types.Instance) (*clientConn, error) {
+	wlog.Debug.Println("Dialing", host.String())
 	conn, _, err := dialer.Dial(host.String(), authHeader)
 	if err != nil {
 		return nil, types.WeblensErrorFromError(err)

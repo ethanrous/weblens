@@ -39,3 +39,5 @@ func (p *ProxyStore) AddUsersToAlbum(aId types.AlbumId, us []types.User) error {
 	// TODO implement me
 	panic("implement me")
 }
+
+func (p *ProxyStore) DeleteAlbum(aId types.AlbumId) error { panic("implement me") }

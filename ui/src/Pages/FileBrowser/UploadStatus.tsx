@@ -1,263 +1,301 @@
-import {
-    Center,
-    CloseButton,
-    Divider,
-    RingProgress,
-    Text,
-    Tooltip,
-} from '@mantine/core'
-import { IconCheck, IconFile, IconFolder, IconX } from '@tabler/icons-react'
+import { Divider } from '@mantine/core'
+import { IconFile, IconFolder, IconX } from '@tabler/icons-react'
 
-import React, { Dispatch, useMemo, useReducer } from 'react'
+import React, { useMemo } from 'react'
 import { humanFileSize } from '../../util'
 
 import './style/uploadStatusStyle.scss'
 import '../../components/style.scss'
+import { create, StateCreator } from 'zustand'
+import WeblensButton from '../../components/WeblensButton'
+import { WeblensProgress } from '../../components/WeblensProgress'
 
-function uploadReducer(state: UploadStateType, action) {
-    switch (action.type) {
-        case 'add_new': {
-            const newUploadMeta: UploadMeta = {
-                key: action.key,
-                isDir: action.isDir,
-                friendlyName: action.name,
-                parent: action?.parent,
-                progress: 0,
-                subProgress: 0,
-                total: action.size ? action.size : 0,
-                speed: [],
-                complete: false,
-            }
-            if (action.parent) {
-                const parent = state.uploadsMap.get(action.parent)
-                parent.total += 1
-                state.uploadsMap.set(action.parent, parent)
-            }
-            state.uploadsMap.set(newUploadMeta.key, newUploadMeta)
-            return { ...state, uploadsMap: new Map(state.uploadsMap) }
-        }
-        case 'finished_chunk': {
-            if (!state.uploadsMap.get(action.key)) {
-                console.error("Looking for upload key that doesn't exist")
-                return { ...state }
-            }
-
-            const replaceItem = state.uploadsMap.get(action.key)
-            replaceItem.subProgress = 0
-
-            // if (action.speed && replaceItem.speed.push(action.speed) >= 15) {
-            //     // replaceItem.speed.shift()
-            // }
-
-            if (
-                !replaceItem.complete &&
-                replaceItem.progress === replaceItem.total &&
-                replaceItem.parent
-            ) {
-                const parent = state.uploadsMap.get(replaceItem.parent)
-                parent.progress += 1
-                replaceItem.complete = true
-
-                state.uploadsMap.set(replaceItem.parent, parent)
-            }
-
-            state.uploadsMap.set(action.key, replaceItem)
-            return { ...state, uploadsMap: new Map(state.uploadsMap) }
-        }
-        case 'update_progress': {
-            const replaceItem = state.uploadsMap.get(action.key)
-            if (!replaceItem) {
-                console.error("Looking for upload key that doesn't exist")
-                return { ...state }
-            }
-
-            replaceItem.progress += action.progress
-
-            const now = Date.now()
-            if (
-                replaceItem.speed.push({
-                    time: now,
-                    bytes: replaceItem.progress,
-                }) >= 100
-            ) {
-                replaceItem.speed.shift()
-            }
-
-            state.uploadsMap.set(action.key, replaceItem)
-            return { ...state, uploadsMap: new Map(state.uploadsMap) }
-        }
-        case 'clear': {
-            state.uploadsMap.clear()
-            return { ...state, uploadsMap: new Map(state.uploadsMap) }
-        }
-        default: {
-            console.error('Got unexpected upload status action', action.type)
-            return { ...state }
-        }
-    }
+type chunkT = {
+    bytesSoFar: number
+    sizeTotal: number
+    complete: boolean
+    speed: number
 }
 
-type UploadMeta = {
+export interface UploadStatusStateT {
+    uploads: Map<string, SingleUpload>
+
+    newUpload: (
+        key: string,
+        name: string,
+        isDir: boolean,
+        total: number,
+        parent?: string
+    ) => void
+    createChunk: (key: string, chunkIndex: number, chunkSize: number) => void
+    updateProgress: (
+        key: string,
+        chunk: number,
+        progress: number,
+        speed: number
+    ) => void
+    chunkComplete: (key: string, chunkIndex: number) => void
+    clearUploads: () => void
+}
+
+class SingleUpload {
     key: string
     isDir: boolean
     friendlyName: string
     subProgress: number // bytes written in current chunk, files only
-    progress: number
+    bytes: number
+    files: number
     total: number // total size in bytes of the file, or number of files in the dir
-    speed: { time: number; bytes: number }[]
+    // speed: { time: number; bytes: number }[]
+    speed: number[]
+    prevTime: number // milliseconds timestamp
     parent: string // For files if they have a directory parent at the top level
     complete: boolean
-}
-type UploadStateType = {
-    uploadsMap: Map<string, UploadMeta>
-}
 
-export function useUploadStatus() {
-    const [uploadState, uploadDispatch]: [UploadStateType, Dispatch<any>] =
-        useReducer(uploadReducer, {
-            uploadsMap: new Map<string, UploadMeta>(),
-        })
+    chunks: chunkT[]
+    prevBytes: number
 
-    return { uploadState, uploadDispatch }
-}
+    constructor(
+        key: string,
+        name: string,
+        isDir: boolean,
+        total: number,
+        parent?: string
+    ) {
+        this.key = key
+        this.friendlyName = name
+        this.isDir = isDir
+        this.total = total
+        this.parent = parent
 
-const getSpeed = (stamps: { time: number; bytes: number }[]) => {
-    let speed = 0
-    if (stamps.length !== 0) {
-        speed =
-            (stamps[stamps.length - 1].bytes - stamps[0].bytes) /
-            ((stamps[stamps.length - 1].time - stamps[0].time) / 1000)
+        this.bytes = 0
+        this.files = 0
+        this.chunks = []
+
+        this.prevBytes = 0
+        this.speed = []
     }
 
-    return speed
+    incFiles() {
+        this.files += 1
+        if (this.files == this.total) {
+            this.complete = true
+        }
+    }
+
+    addChunk(chunkNum: number, chunkSize: number): void {
+        while (chunkNum >= this.chunks.length - 1) {
+            this.chunks.push(null)
+        }
+        this.chunks[chunkNum] = {
+            bytesSoFar: 0,
+            sizeTotal: chunkSize,
+            complete: false,
+            speed: 0,
+        }
+    }
+
+    // Bytes is the new number of bytes uploaded so far
+    updateChunk(chunkIndex: number, bytes: number, speed: number): number {
+        if (this.isDir && !this.prevTime) {
+            this.prevTime = Date.now()
+            this.bytes = bytes
+            this.prevBytes = 0
+        } else if (this.isDir) {
+            this.bytes += bytes
+            const now = Date.now()
+            const msSinceLastSample = now - this.prevTime
+            if (msSinceLastSample > 250) {
+                this.addSpeed(
+                    ((this.bytes - this.prevBytes) / msSinceLastSample) * 1000
+                )
+                this.prevBytes = this.bytes
+                this.prevTime = now
+            }
+        } else {
+            if (!this.chunks[chunkIndex]) {
+                console.error(
+                    'Cannot find chunk at index',
+                    chunkIndex,
+                    this.chunks
+                )
+                return 0
+            }
+            const newTime = Date.now()
+            const difference = bytes - this.chunks[chunkIndex].bytesSoFar
+            this.chunks[chunkIndex].bytesSoFar = bytes
+            this.chunks[chunkIndex].speed = speed
+            this.prevTime = newTime
+
+            return difference
+        }
+
+        return 0
+    }
+
+    chunkComplete(chunkIndex: number) {
+        this.chunks[chunkIndex].complete = true
+    }
+
+    areChunksComplete(): boolean {
+        const allComplete =
+            this.chunks.findIndex((c) => c && !c.complete) === -1
+        if (allComplete) {
+            this.complete = true
+        }
+        return allComplete
+    }
+
+    getSpeed() {
+        if (this.speed.length === 0 || this.complete) {
+            return 0
+        }
+
+        if (this.isDir) {
+            return this.speed.reduce((acc, v) => acc + v, 0) / this.speed.length
+        } else {
+            const speed = this.chunks.reduce(
+                (acc, c) => (!c || c.complete ? acc : c.speed + acc),
+                0
+            )
+            return speed
+        }
+    }
+
+    addSpeed(speed: number): void {
+        if (this.speed.length > 5) {
+            this.speed.shift()
+        }
+        this.speed.push(speed)
+    }
 }
 
-function UploadCard({ uploadMetadata }: { uploadMetadata: UploadMeta }) {
+function UploadCard({
+    uploadMetadata,
+    subUploads,
+}: {
+    uploadMetadata: SingleUpload
+    subUploads: SingleUpload[]
+}) {
     let prog = 0
     let statusText = ''
+    let speed = 0
     if (uploadMetadata.isDir) {
-        if (uploadMetadata.progress === -1) {
+        if (uploadMetadata.files === -1) {
             prog = -1
         } else {
-            prog = (uploadMetadata.progress / uploadMetadata.total) * 100
+            prog = (uploadMetadata.files / uploadMetadata.total) * 100
         }
-        statusText = `${uploadMetadata.progress} of ${uploadMetadata.total} files`
-    } else if (uploadMetadata.subProgress || uploadMetadata.progress) {
-        prog =
-            ((uploadMetadata.subProgress + uploadMetadata.progress) /
-                uploadMetadata.total) *
-            100
-        const [val, unit] = humanFileSize(getSpeed(uploadMetadata.speed), true)
-        statusText = `${val}${unit}/s`
+        statusText = `${uploadMetadata.files} of ${uploadMetadata.total} files`
+        speed = subUploads.reduce((acc, f) => f.getSpeed() + acc, 0)
+    } else if (uploadMetadata.chunks.length !== 0) {
+        const soFar = uploadMetadata.chunks.reduce(
+            (acc, chunk) => acc + (chunk ? chunk.bytesSoFar : 0),
+            0
+        )
+
+        prog = (soFar / uploadMetadata.total) * 100
+        const [soFarString, soFarUnits] = humanFileSize(soFar)
+        const [totalString, totalUnits] = humanFileSize(uploadMetadata.total)
+        statusText = `${soFarString}${soFarUnits} of ${totalString}${totalUnits}`
+        speed = uploadMetadata.getSpeed()
     }
 
-    return (
-        <div className="flex flex-row h-max min-h-[50px] shrink-0 p-1 m-[1px] items-center">
-            {uploadMetadata.isDir && (
-                <IconFolder
-                    color="white"
-                    style={{ minHeight: '25px', minWidth: '25px' }}
-                />
-            )}
-            {!uploadMetadata.isDir && (
-                <IconFile
-                    color="white"
-                    style={{ minHeight: '25px', minWidth: '25px' }}
-                />
-            )}
+    const [speedStr, speedUnits] = humanFileSize(speed)
 
-            <div className="flex flex-col h-max w-0 items-start justify-center p-2 grow">
-                <p className="truncate font-semibold text-white w-full">
-                    {uploadMetadata.friendlyName}
-                </p>
-                {statusText && prog !== 100 && prog !== -1 && (
-                    <p className="text-nowrap pr-[4px] text-sm mt-1">
-                        {statusText}
+    return (
+        <div className="flex w-full flex-col p-2">
+            <div className="flex flex-row h-max min-h-[40px] shrink-0 m-[1px] items-center">
+                <div className="flex flex-col h-max w-0 items-start justify-center grow">
+                    <p className="truncate font-semibold text-white w-full">
+                        {uploadMetadata.friendlyName}
                     </p>
+                    {statusText && prog !== 100 && prog !== -1 && (
+                        <div>
+                            <p className="text-nowrap pr-[4px] text-sm mt-1">
+                                {statusText}
+                            </p>
+                            <p className="text-nowrap pr-[4px] text-sm mt-1">
+                                {speedStr} {speedUnits}/s
+                            </p>
+                        </div>
+                    )}
+                </div>
+                {uploadMetadata.isDir && (
+                    <IconFolder
+                        color="white"
+                        style={{ minHeight: '25px', minWidth: '25px' }}
+                    />
+                )}
+                {!uploadMetadata.isDir && (
+                    <IconFile
+                        color="white"
+                        style={{ minHeight: '25px', minWidth: '25px' }}
+                    />
                 )}
             </div>
 
-            {uploadMetadata.progress === -1 && (
-                <RingProgress
-                    size={10}
-                    thickness={1}
-                    sections={[{ value: 100, color: 'red' }]}
-                    style={{ justifySelf: 'flex-end' }}
-                    label={
-                        <Center>
-                            <IconX color="red" />
-                        </Center>
-                    }
-                />
-            )}
-            {prog >= 0 && prog < 100 && (
-                <RingProgress
-                    size={35}
-                    thickness={5}
-                    style={{ justifySelf: 'flex-end' }}
-                    sections={[{ value: prog, color: '#4444ff' }]}
-                />
-            )}
-            {prog === 100 && (
-                <RingProgress
-                    sections={[{ value: prog, color: '#44ee44' }]}
-                    size={30}
-                    thickness={4}
-                    style={{ justifySelf: 'flex-end' }}
-                    label={
-                        <Center>
-                            <IconCheck color="white" />
-                        </Center>
-                    }
-                />
-            )}
+            {!uploadMetadata.complete && <WeblensProgress value={prog} />}
         </div>
     )
 }
 
-const UploadStatus = ({
-    uploadState,
-    uploadDispatch,
-}: {
-    uploadState: UploadStateType
-    uploadDispatch
-}) => {
+const UploadStatus = () => {
+    const uploadsMap = useUploadStatus((state) => state.uploads)
+    const clearUploads = useUploadStatus((state) => state.clearUploads)
+
     const uploadCards = useMemo(() => {
         const uploadCards = []
 
-        const uploads = Array.from(uploadState.uploadsMap.values())
-            .filter((val) => !val.parent)
-            .sort((a, b) => {
-                const aVal = a.progress / a.total
-                const bVal = b.progress / b.total
-                if (aVal === bVal) {
-                    return 0
-                } else if (aVal !== 1 && bVal === 1) {
-                    return -1
-                } else if (bVal !== 1 && aVal === 1) {
-                    return 1
-                } else if (aVal >= 0 && aVal <= 1) {
-                    return 1
+        const parents: SingleUpload[] = []
+        const childrenMap = new Map<string, SingleUpload[]>()
+        for (const upload of Array.from(uploadsMap.values())) {
+            if (upload.parent) {
+                if (childrenMap.get(upload.parent)) {
+                    childrenMap.get(upload.parent).push(upload)
+                } else {
+                    childrenMap.set(upload.parent, [upload])
                 }
-
+            } else {
+                parents.push(upload)
+            }
+        }
+        parents.sort((a, b) => {
+            const aVal = a.bytes / a.total
+            const bVal = b.bytes / b.total
+            if (aVal === bVal) {
                 return 0
-            })
+            } else if (aVal !== 1 && bVal === 1) {
+                return -1
+            } else if (bVal !== 1 && aVal === 1) {
+                return 1
+            } else if (aVal >= 0 && aVal <= 1) {
+                return 1
+            }
 
-        for (const uploadMeta of uploads) {
+            return 0
+        })
+
+        for (const uploadMeta of parents) {
             uploadCards.push(
-                <UploadCard key={uploadMeta.key} uploadMetadata={uploadMeta} />
+                <UploadCard
+                    key={uploadMeta.key}
+                    uploadMetadata={uploadMeta}
+                    subUploads={childrenMap.get(uploadMeta.key)}
+                />
             )
         }
         return uploadCards
-    }, [uploadState.uploadsMap])
+    }, [uploadsMap])
 
-    if (uploadState.uploadsMap.size === 0) {
+    if (uploadCards.length === 0) {
         return null
     }
 
-    const topLevelCount: number = Array.from(
-        uploadState.uploadsMap.values()
-    ).filter((val) => !val.parent).length
+    const topLevelCount = Array.from(uploadsMap.values()).filter(
+        (val) => !val.parent
+    ).length
+
     return (
         <div className="upload-status-container">
             <div className="flex flex-col h-max max-h-full w-full bg-[#ffffff11] p-2 pb-0 mb-1 rounded overflow-hidden">
@@ -268,19 +306,11 @@ const UploadStatus = ({
                 <Divider h={2} w={'100%'} />
                 <div className="flex flex-row justify-center h-max p-2">
                     <div className="flex flex-row h-full w-[97%] items-center justify-between">
-                        <Text c={'white'} fw={600} size="16px">
+                        <p className="text-white font-semibold text-lg">
                             Uploading {topLevelCount} item
                             {topLevelCount !== 1 ? 's' : ''}
-                        </Text>
-                        <Tooltip label={'Clear'}>
-                            <CloseButton
-                                c={'white'}
-                                variant="transparent"
-                                onClick={() =>
-                                    uploadDispatch({ type: 'clear' })
-                                }
-                            />
-                        </Tooltip>
+                        </p>
+                        <WeblensButton Left={IconX} onClick={clearUploads} />
                     </div>
                 </div>
             </div>
@@ -288,4 +318,103 @@ const UploadStatus = ({
     )
 }
 
+const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
+    set
+) => ({
+    uploads: new Map<string, SingleUpload>(),
+
+    newUpload: (
+        key: string,
+        name: string,
+        isDir: boolean,
+        total: number,
+        parentId?: string
+    ) => {
+        set((state) => {
+            const upload = new SingleUpload(key, name, isDir, total, parentId)
+
+            state.uploads.set(key, upload)
+
+            if (parentId) {
+                const parent = state.uploads.get(parentId)
+                if (!parent) {
+                    console.error(
+                        'Could not get parent of new upload: ',
+                        parentId
+                    )
+                }
+                parent.total += 1
+            }
+
+            return {
+                uploads: new Map<string, SingleUpload>(state.uploads),
+            }
+        })
+    },
+
+    createChunk: (key: string, chunkIndex: number, chunkSize: number) => {
+        set((state) => {
+            const uploadToUpdate = state.uploads.get(key)
+
+            if (!uploadToUpdate) {
+                console.error('Trying to update upload with unknown key:', key)
+                return
+            }
+
+            uploadToUpdate.addChunk(chunkIndex, chunkSize)
+
+            return { uploads: new Map(state.uploads) }
+        })
+    },
+
+    updateProgress: (
+        key: string,
+        chunk: number,
+        progress: number,
+        speed: number
+    ) => {
+        set((state) => {
+            const uploadToUpdate = state.uploads.get(key)
+
+            if (!uploadToUpdate) {
+                console.error('Trying to update upload with unknown key:', key)
+                return
+            }
+
+            const diff = uploadToUpdate.updateChunk(chunk, progress, speed)
+            uploadToUpdate.addSpeed(speed)
+            if (uploadToUpdate.parent) {
+                state.uploads
+                    .get(uploadToUpdate.parent)
+                    .updateChunk(-1, diff, speed)
+            }
+
+            return { uploads: new Map(state.uploads) }
+        })
+    },
+
+    chunkComplete: (key: string, chunkIndex: number) => {
+        set((state) => {
+            const uploadToUpdate = state.uploads.get(key)
+
+            if (!uploadToUpdate) {
+                console.error('Trying to update upload with unknown key:', key)
+                return
+            }
+
+            uploadToUpdate.chunkComplete(chunkIndex)
+            if (uploadToUpdate.parent && uploadToUpdate.areChunksComplete()) {
+                state.uploads.get(uploadToUpdate.parent).incFiles()
+            }
+
+            return { uploads: new Map(state.uploads) }
+        })
+    },
+
+    clearUploads: () => {
+        set({ uploads: new Map() })
+    },
+})
+
+export const useUploadStatus = create<UploadStatusStateT>()(UploadStatusControl)
 export default UploadStatus

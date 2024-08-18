@@ -29,7 +29,7 @@
     width: 600px;
     height: 600px;
     z-index: inherit;
-    background-color: #18191aee;
+    background-color: #18191acc;
     /* background-color: #ffffff; */
     box-shadow: rgba(0, 0, 0, 0.1) 0 4px 30px;
     border: 1px solid #3034364d;
@@ -52,7 +52,6 @@
     flex-shrink: 0;
     transition: 200ms opacity ease-in-out, 200ms transform ease-in-out;
     gap: 10px;
-    overflow: scroll;
 }
 
 .setup-content-box:where([data-on-deck="active"]) {

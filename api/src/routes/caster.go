@@ -174,7 +174,7 @@ func (c *unbufferedCaster) PushFileUpdate(updatedFile types.WeblensFile) {
 		EventTag:     "file_updated",
 		SubscribeKey: types.SubId(updatedFile.GetParent().ID()),
 		Content:      types.WsC{"fileInfo": fileInfo},
-		// broadcastType: types.FolderSubscribe
+		BroadcastType: types.FolderSubscribe,
 	}
 
 	send(msg)
@@ -199,7 +199,6 @@ func (c *unbufferedCaster) PushFileMove(preMoveFile types.WeblensFile, postMoveF
 		EventTag:      "file_moved",
 		SubscribeKey:  types.SubId(preMoveFile.GetParent().ID()),
 		Content:       types.WsC{"oldId": preMoveFile.ID(), "newFile": postInfo},
-		Error:         "",
 		BroadcastType: types.FolderSubscribe,
 	}
 

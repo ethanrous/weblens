@@ -53,7 +53,7 @@ func (s *FileShare) AddUsers(newUsers []types.User) error {
 		return err
 	}
 
-	s.Accessors = util.AddToSet(s.Accessors, newUsers)
+	s.Accessors = util.AddToSet(s.Accessors, newUsers...)
 	return nil
 }
 

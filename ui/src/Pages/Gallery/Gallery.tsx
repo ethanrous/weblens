@@ -13,7 +13,6 @@ import { Albums } from '../../Albums/Albums'
 
 import HeaderBar from '../../components/HeaderBar'
 import Presentation from '../../components/Presentation'
-import { MediaContext } from '../../Context'
 
 import './galleryStyle.scss'
 import { AlbumData, GalleryStateT, PresentType } from '../../types/Types'
@@ -30,16 +29,23 @@ import { IconFilter } from '@tabler/icons-react'
 import { MiniAlbumCover } from '../../Albums/AlbumDisplay'
 import { useClick, useKeyDown } from '../../components/hooks'
 import { useSessionStore } from '../../components/UserInfo'
+import { useMediaStore } from '../../Media/MediaStateControl'
 
 export function GalleryFilters() {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
-    const { mediaState, mediaDispatch } = useContext(MediaContext)
     const [optionsOpen, setOptionsOpen] = useState(false)
     const [disabledAlbums, setDisabledAlbums] = useState([
         ...galleryState.albumsFilter,
     ])
-    const [rawOn, setRawOn] = useState(mediaState.isShowingRaw())
-    const [hiddenOn, setHiddenOn] = useState(mediaState.isShowingHidden())
+
+    const showRaw = useMediaStore((state) => state.showRaw)
+    const showHidden = useMediaStore((state) => state.showHidden)
+
+    const setShowRaw = useMediaStore((state) => state.setShowingRaw)
+    const setShowHidden = useMediaStore((state) => state.setShowingHidden)
+
+    const [rawOn, setRawOn] = useState(showRaw)
+    const [hiddenOn, setHiddenOn] = useState(showHidden)
 
     const albumsOptions = useMemo(() => {
         return Array.from(galleryState.albumsMap.values()).map((a) => {
@@ -53,8 +59,8 @@ export function GalleryFilters() {
                 type: 'set_albums_filter',
                 albumNames: disabled,
             })
-            mediaDispatch({ type: 'set_raw_toggle', raw: raw })
-            mediaDispatch({ type: 'set_hidden_toggle', hidden: hidden })
+            setShowRaw(raw)
+            setShowHidden(hidden)
         },
         [galleryDispatch]
     )
@@ -83,9 +89,7 @@ export function GalleryFilters() {
                 allowRepeat
                 onClick={() => setOptionsOpen((p) => !p)}
                 disabled={galleryState.selecting}
-                toggleOn={
-                    disabledAlbums.length !== 0 || mediaState.isShowingRaw()
-                }
+                toggleOn={disabledAlbums.length !== 0 || showRaw}
             />
             <div
                 className="options-dropdown"
@@ -145,11 +149,11 @@ const Gallery = () => {
         holdingShift: false,
         hoverIndex: -1,
         lastSelId: '',
+        albumId: '',
     })
 
     const nav = useNavigate()
     const server = useSessionStore((state) => state.server)
-    const { mediaState, mediaDispatch } = useContext(MediaContext)
 
     const loc = useLocation()
     const page =
@@ -159,7 +163,7 @@ const Gallery = () => {
     const albumId = useParams()['*']
     const viewportRef: React.Ref<HTMLDivElement> = useRef()
 
-    useKeyDownGallery(galleryState, galleryDispatch, mediaState, mediaDispatch)
+    useKeyDownGallery(galleryState, galleryDispatch)
 
     useEffect(() => {
         if (!server) {
@@ -181,6 +185,10 @@ const Gallery = () => {
     useEffect(() => {
         localStorage.setItem('imageSize', JSON.stringify(bouncedSize))
     }, [bouncedSize])
+
+    useEffect(() => {
+        galleryDispatch({ type: 'set_viewing_album', albumId: albumId })
+    }, [albumId])
 
     return (
         <GalleryContext.Provider

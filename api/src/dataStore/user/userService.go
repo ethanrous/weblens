@@ -6,6 +6,7 @@ import (
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type userService struct {
@@ -58,7 +59,6 @@ func (us *userService) Init(db types.UserStore) error {
 		Username:     "PUBLIC",
 		Activated:    true,
 		isSystemUser: true,
-
 	}
 
 	us.publicUser = publicUser
@@ -89,7 +89,7 @@ func (us *userService) Add(user types.User) error {
 	if user.(*User).Id == [12]uint8{0} {
 		user.(*User).Id = primitive.NewObjectID()
 	}
-	err := types.SERV.StoreService.CreateUser(user)
+	err := us.db.CreateUser(user)
 	if err != nil {
 		return err
 	}
@@ -114,6 +114,24 @@ func (us *userService) Del(un types.Username) error {
 	return nil
 }
 
+func (us *userService) ActivateUser(u types.User) (err error) {
+	realU := u.(*User)
+
+	// _, err = u.CreateHomeFolder()
+	// if err != nil {
+	// 	return err
+	// }
+
+	err = us.db.ActivateUser(u.GetUsername())
+	if err != nil {
+		return err
+	}
+
+	realU.Activated = true
+
+	return
+}
+
 func (us *userService) GetAll() ([]types.User, error) {
 	us.userLock.RLock()
 	defer us.userLock.RUnlock()
@@ -136,7 +154,7 @@ func (us *userService) Get(username types.Username) types.User {
 }
 
 func (us *userService) SearchByUsername(searchString string) ([]types.User, error) {
-	usernames, err := types.SERV.StoreService.SearchUsers(searchString)
+	usernames, err := us.db.SearchUsers(searchString)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +173,34 @@ func (us *userService) SetUserAdmin(u types.User, admin bool) error {
 	}
 
 	u.(*User).Admin = admin
+
+	return nil
+}
+
+func (us *userService) UpdateUserPassword(
+	username types.Username, oldPassword, newPassword string,
+	allowEmptyOld bool,
+) error {
+	usr := us.userMap[username]
+
+	if !allowEmptyOld || oldPassword != "" {
+		if auth := usr.CheckLogin(oldPassword); !auth {
+			return types.ErrBadPassword
+		}
+	}
+
+	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(newPassword), 11)
+	if err != nil {
+		return err
+	}
+
+	passHashStr := string(passHashBytes)
+
+	err = us.db.UpdatePasswordByUsername(username, passHashStr)
+	if err != nil {
+		return err
+	}
+	usr.Password = passHashStr
 
 	return nil
 }

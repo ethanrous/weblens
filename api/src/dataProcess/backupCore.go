@@ -2,6 +2,7 @@ package dataProcess
 
 import (
 	"fmt"
+	"io"
 	"slices"
 	"time"
 
@@ -30,7 +31,7 @@ func doBackup(t *task) {
 	meta := t.metadata.(backupMeta)
 	localRole := types.SERV.InstanceService.GetLocal().ServerRole()
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
-	t.setChildTaskPool(pool)
+	t.setChildTaskPool(pool.(*taskPool))
 
 	if localRole == types.Initialization {
 		t.ErrorAndExit(types.ErrServerNotInit)
@@ -128,6 +129,9 @@ func doBackup(t *task) {
 		}
 		stat, _ := localStore.StatFile(f)
 		if !stat.Exists {
+			if !coreClient.IsOpen() {
+				coreClient = types.SERV.ClientManager.GetClientByInstanceId(meta.remoteId)
+			}
 			pool.CopyFileFromCore(f, coreClient, t.caster)
 		}
 	}
@@ -152,24 +156,36 @@ func copyFileFromCore(t *task) {
 		t.ErrorAndExit(types.WeblensErrorMsg("cannot run copy core file task without proxy service initialized"))
 	}
 
-	bs, err := proxyService.ReadFile(f)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
+	sw := util.NewStopwatch("Write file")
 
-	err = proxyService.TouchFile(f)
+	writeFile, err := f.Writeable()
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
+	defer writeFile.Close()
+	sw.Lap("Get Writeable")
 
-	err = f.Write(bs)
+	fileReader, err := proxyService.StreamFile(f)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
+	defer fileReader.Close()
+	sw.Lap("Get File Stream")
+
+	_, err = io.Copy(writeFile, fileReader)
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+	sw.Lap("DO COPY")
 
 	poolProgress := getScanResult(t)
 	poolProgress["filename"] = f.Filename()
 	t.caster.PushPoolUpdate(t.taskPool, SubTaskCompleteEvent, poolProgress)
-	meta.core.PushPoolUpdate(t.taskPool, SubTaskCompleteEvent, poolProgress)
+	if meta.core.IsOpen() {
+		meta.core.PushPoolUpdate(t.taskPool, SubTaskCompleteEvent, poolProgress)
+	}
 	t.success()
+	sw.Lap("Success")
+	sw.Stop()
+	// sw.PrintResults(false)
 }

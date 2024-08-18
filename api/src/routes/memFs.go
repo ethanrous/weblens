@@ -122,15 +122,34 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 
 	data := addIndexTag("url", fmt.Sprintf("%s/%s", util.GetHostURL(), loc), string(index.realFile.data))
 
-	if strings.HasPrefix(loc, "files/share/") {
-		loc = loc[len("files/share/"):]
-		slashIndex := strings.Index(loc, "/")
+	fields := getIndexFields(loc)
+	for _, field := range fields {
+		data = addIndexTag(field.tag, field.content, data)
+	}
+
+	index.realFile.data = []byte(data)
+
+	return index
+}
+
+type indexField struct {
+	tag     string
+	content string
+}
+
+func getIndexFields(path string) []indexField {
+	var fields []indexField
+	var hasImage bool
+
+	if strings.HasPrefix(path, "files/share/") {
+		path = path[len("files/share/"):]
+		slashIndex := strings.Index(path, "/")
 		if slashIndex == -1 {
-			wlog.Debug.Println("Could not find slash in path:", loc)
-			return index
+			wlog.Debug.Println("Could not find slash in path:", path)
+			return fields
 		}
-		
-		shareId := types.ShareId(loc[:slashIndex])
+
+		shareId := types.ShareId(path[:slashIndex])
 		share := types.SERV.ShareService.Get(shareId)
 		if share != nil {
 			f := types.SERV.FileTree.Get(types.FileId(share.GetItemId()))
@@ -138,29 +157,118 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 			if f != nil {
 				if f.IsDir() {
 					imgUrl := fmt.Sprintf("%s/api/static/folder.png", util.GetHostURL())
-					data = addIndexTag("image", imgUrl, data)
+					hasImage = true
+					fields = append(
+						fields, indexField{
+							tag:     "image",
+							content: imgUrl,
+						},
+					)
 				}
 
-				data = addIndexTag("title", f.Filename(), data)
-				data = addIndexTag("description", "Weblens file share", data)
+				fields = append(
+					fields, indexField{
+						tag:     "title",
+						content: f.Filename(),
+					},
+				)
+
+				fields = append(
+					fields, indexField{
+						tag:     "description",
+						content: "Weblens file share",
+					},
+				)
 				if m != nil {
 					if m.GetMediaType().IsVideo() {
-						imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.webp", util.GetHostURL(), f.GetContentId())
-						data = addIndexTag("image", imgUrl, data)
+						imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", util.GetHostURL(), f.GetContentId())
+						hasImage = true
+						fields = append(
+							fields, indexField{
+								tag:     "image",
+								content: imgUrl,
+							},
+						)
 						videoUrl := fmt.Sprintf("%s/api/media/%s/stream", util.GetHostURL(), f.GetContentId())
-						data = addIndexTag("type", "video.other", data)
-						data = addIndexTag("video", videoUrl, data)
-						data = addIndexTag("video:secure_url", videoUrl, data)
-						data = addIndexTag("video:type", "text/html", data)
+						fields = append(
+							fields, indexField{
+								tag:     "type",
+								content: "video.other",
+							},
+						)
+						fields = append(
+							fields, indexField{
+								tag:     "video",
+								content: videoUrl,
+							},
+						)
+						fields = append(
+							fields, indexField{
+								tag:     "description",
+								content: "Weblens file share",
+							},
+						)
+						fields = append(
+							fields, indexField{
+								tag:     "video:type",
+								content: "text/html",
+							},
+						)
+						// data = addIndexTag("video:secure_url", videoUrl, data)
+
 					}
 				}
 			}
 		}
+	} else if strings.HasPrefix(path, "albums/") {
+		albumId := types.AlbumId(path[len("albums/"):])
+		album := types.SERV.AlbumManager.Get(albumId)
+		if album != nil {
+			media := types.SERV.MediaRepo.Get(album.GetCover())
+			if media != nil {
+				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", util.GetHostURL(), media.ID())
+				hasImage = true
+				fields = append(
+					fields, indexField{
+						tag:     "image",
+						content: imgUrl,
+					},
+				)
+			}
+
+			fields = append(
+				fields, indexField{
+					tag:     "title",
+					content: album.GetName(),
+				},
+			)
+
+			fields = append(
+				fields, indexField{
+					tag:     "description",
+					content: "Weblens album share",
+				},
+			)
+		}
 	}
 
-	index.realFile.data = []byte(data)
+	if !hasImage {
+		// imgUrl := fmt.Sprintf("%s/logo.png", util.GetHostURL())
+		fields = append(
+			fields, indexField{
+				tag:     "image",
+				content: "/logo_1200.png",
+			},
+		)
+	}
+	// fields = append(
+	// 	fields, indexField{
+	// 		tag:     "canonical",
+	// 		content: util.GetHostURL(),
+	// 	},
+	// )
 
-	return index
+	return fields
 }
 
 func readFile(filePath string, fs *InMemoryFS) *memFileReal {

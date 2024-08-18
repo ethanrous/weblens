@@ -1,75 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
-import { createUser, login } from '../../api/ApiFetch'
-import { Divider, Input, Space, Tabs } from '@mantine/core'
+import { useCallback, useState } from 'react'
+import { login } from '../../api/ApiFetch'
+import { Divider, Space } from '@mantine/core'
 import WeblensButton from '../../components/WeblensButton'
 import { useKeyDown } from '../../components/hooks'
 import WeblensInput from '../../components/WeblensInput'
 import { useSessionStore } from '../../components/UserInfo'
 import { useCookies } from 'react-cookie'
-import {
-    LOGIN_TOKEN_COOKIE_KEY,
-    UserInfoT,
-    USERNAME_COOKIE_KEY,
-} from '../../types/Types'
-
-async function CheckCreds(
-    username: string,
-    password: string,
-    setCookie,
-    setUser: (user: UserInfoT) => void
-) {
-    if (!username || !password) {
-        return false
-    }
-    return await login(username, password)
-        .then((data) => {
-            setCookie(USERNAME_COOKIE_KEY, data.user.username)
-            setCookie(LOGIN_TOKEN_COOKIE_KEY, data.token)
-
-            setUser({ ...data.user, isLoggedIn: true })
-
-            return true
-        })
-        .catch((r) => {
-            console.error(r)
-            return false
-        })
-}
-
-async function CreateUser(
-    username: string,
-    password: string
-): Promise<boolean> {
-    return await createUser(username, password)
-        .then(() => true)
-        .catch((r) => {
-            console.error(r)
-            return false
-        })
-}
-
-export const useKeyDownLogin = (login) => {
-    const onKeyDown = useCallback(
-        (event) => {
-            if (event.key === 'Enter') {
-                login()
-            }
-        },
-        [login]
-    )
-
-    useEffect(() => {
-        document.addEventListener('keydown', onKeyDown)
-        return () => {
-            document.removeEventListener('keydown', onKeyDown)
-        }
-    }, [onKeyDown])
-}
+import { LOGIN_TOKEN_COOKIE_KEY, USERNAME_COOKIE_KEY } from '../../types/Types'
 
 const Login = () => {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
-    const [tab, setTab] = useState('login')
 
     const setUser = useSessionStore((state) => state.setUserInfo)
     const [, setCookie] = useCookies([
@@ -83,7 +24,18 @@ const Login = () => {
             buttonRef.click()
         }
     })
-    const badUsername = userInput[0] === '.' || userInput.includes('/')
+    // const badUsername = userInput[0] === '.' || userInput.includes('/')
+
+    const doLogin = useCallback(async (username: string, password: string) => {
+        if (username === '' || password === '') {
+            return Promise.reject('username and password must not be empty')
+        }
+        return login(username, password).then((data) => {
+            setCookie(USERNAME_COOKIE_KEY, data.user.username)
+            setCookie(LOGIN_TOKEN_COOKIE_KEY, data.token)
+            setUser({ ...data.user, isLoggedIn: true })
+        })
+    }, [])
 
     return (
         <div
@@ -102,14 +54,12 @@ const Login = () => {
                 <WeblensInput
                     value={userInput}
                     autoFocus
-                    onComplete={() => {}}
                     valueCallback={setUserInput}
                     height={40}
                 />
                 <p className="w-full">Password</p>
                 <WeblensInput
                     value={passInput}
-                    onComplete={() => {}}
                     valueCallback={setPassInput}
                     height={40}
                     password
@@ -121,9 +71,7 @@ const Login = () => {
                     squareSize={50}
                     disabled={userInput === '' || passInput === ''}
                     centerContent
-                    onClick={() =>
-                        CheckCreds(userInput, passInput, setCookie, setUser)
-                    }
+                    onClick={async () => doLogin(userInput, passInput)}
                     setButtonRef={setButtonRef}
                 />
 

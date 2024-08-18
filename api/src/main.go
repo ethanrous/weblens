@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
@@ -27,8 +27,22 @@ import (
 )
 
 func main() {
-	go setup(util.GetMongoDBName())
-	routes.DoRoutes()
+	err := godotenv.Load()
+	if err != nil {
+		wlog.Warning.Println("Could not load .env file", err)
+	}
+
+	util.LabelThread(
+		func(_ context.Context) {
+			go setup(util.GetMongoDBName())
+		}, "", "Setup",
+	)
+
+	util.LabelThread(
+		func(_ context.Context) {
+			routes.DoRoutes()
+		}, "", "Router",
+	)
 	wlog.Info.Println("Weblens exited...")
 }
 
@@ -52,17 +66,13 @@ func setup(mongoName string) {
 	defer setupRecovery()
 
 	sw := util.NewStopwatch("Initialization")
-	err := godotenv.Load()
-	if err != nil {
-		wlog.Warning.Println("Could not load .env file", err)
-	}
 
 	if util.IsDevMode() {
 		wlog.DoDebug()
 		wlog.Debug.Println("Starting weblens in development mode")
 	} else {
-		gin.SetMode(gin.ReleaseMode)
 	}
+	gin.SetMode(gin.ReleaseMode)
 
 	sw.Lap()
 
@@ -73,7 +83,7 @@ func setup(mongoName string) {
 
 	/* Instance Service */
 	instanceService := instance.NewService()
-	err = instanceService.Init(localStore)
+	err := instanceService.Init(localStore)
 	if err != nil {
 		panic(err)
 	}
@@ -107,7 +117,11 @@ func setup(mongoName string) {
 			panic(err)
 		}
 
-		proxyStore := proxy.NewProxyStore(coreAddr, localServer.GetUsingKey())
+		if coreAddr == "" || instanceService.GetCore().GetUsingKey() == "" {
+			panic("could not get core address or key")
+		}
+
+		proxyStore := proxy.NewProxyStore(coreAddr, instanceService.GetCore().GetUsingKey())
 		sw.Lap("Init proxy store")
 
 		proxyStore.Init(localStore)
@@ -187,8 +201,17 @@ func setup(mongoName string) {
 
 	/* Give journal to file tree, and start workers */
 	ft.SetJournal(journal)
-	go journal.JournalWorker()
-	go journal.FileWatcher()
+	util.LabelThread(
+		func(_ context.Context) {
+			go journal.JournalWorker()
+		}, "", "Journal Worker",
+	)
+
+	util.LabelThread(
+		func(_ context.Context) {
+			go journal.FileWatcher()
+		}, "", "File Watcher",
+	)
 
 	/* The global broadcaster is created and disabled here so that we don't
 	read information about files before they are ready to be accessed */
@@ -199,32 +222,22 @@ func setup(mongoName string) {
 	/* Enable the worker pool held by the task tracker
 	loading the filesystem might dispatch tasks,
 	so we have to start the pool first */
-	workerPool, taskDispatcher := dataProcess.NewWorkerPool(runtime.NumCPU() - 2)
+	workerPool, taskDispatcher := dataProcess.NewWorkerPool(util.GetWorkerCount())
 	types.SERV.SetWorkerPool(workerPool)
 	types.SERV.SetTaskDispatcher(taskDispatcher)
 	workerPool.Run()
 	sw.Lap("Worker pool enabled")
 
-	/* Load filesystem into tree */
-	wlog.Info.Println("Loading filesystem...")
-	hashCaster := routes.NewCaster()
-	err = dataStore.InitMediaRoot(ft, hashCaster)
-	if err != nil {
-		panic(err)
+	if types.SERV.InstanceService.GetLocal().ServerRole() != types.Initialization {
+		/* Load filesystem into tree */
+		wlog.Debug.Println("Loading filesystem...")
+		hashCaster := routes.NewCaster()
+		err = dataStore.InitMediaRoot(ft, hashCaster)
+		if err != nil {
+			panic(err)
+		}
+		sw.Lap("Loaded Filesystem")
 	}
-	sw.Lap("Loaded Filesystem")
-
-	err = dataStore.ClearTempDir(ft)
-	if err != nil {
-		panic(err)
-	}
-	sw.Lap("Clear tmp dir")
-
-	err = dataStore.ClearTakeoutDir(ft)
-	if err != nil {
-		panic(err)
-	}
-	sw.Lap("Clear takeout dir")
 
 	/* If we are on a backup server, launch the backup daemon */
 	if localServer.ServerRole() == types.Backup {
@@ -235,8 +248,11 @@ func setup(mongoName string) {
 
 	sw.Stop()
 	sw.PrintResults(false)
+	wlog.Info.Printf(
+		"Weblens loaded in %s. %d files and %d medias\n", sw.GetTotalTime(false), ft.Size(),
+		mediaService.Size(),
+	)
 
 	types.SERV.InstanceService.RemoveLoading("all")
 
-	wlog.Info.Printf("Weblens loaded. %d files and %d medias\n", ft.Size(), mediaService.Size())
 }

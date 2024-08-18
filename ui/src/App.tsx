@@ -1,24 +1,23 @@
 import { MantineProvider } from '@mantine/core'
-import React, { Suspense, useEffect, useReducer } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import {
     BrowserRouter as Router,
     useLocation,
     useNavigate,
     useRoutes,
 } from 'react-router-dom'
-import { fetchMediaTypes } from './api/ApiFetch'
 import ErrorBoundary, { ErrorDisplay } from './components/Error'
 
 import WeblensLoader from './components/Loading'
 import useR, { useSessionStore } from './components/UserInfo'
-import { MediaContext } from './Context'
 
 import '@mantine/notifications/styles.css'
 import '@mantine/core/styles.css'
-import { mediaReducer, MediaStateT } from './Media/Media'
 import StartUp from './Pages/Startup/StartupPage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CookiesProvider } from 'react-cookie'
+import { fetchMediaTypes } from './Media/MediaQuery'
+import { useMediaStore } from './Media/MediaStateControl'
 
 const Gallery = React.lazy(() => import('./Pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./Pages/FileBrowser/FileBrowser'))
@@ -26,8 +25,9 @@ const Wormhole = React.lazy(() => import('./Pages/FileBrowser/Wormhole'))
 const Login = React.lazy(() => import('./Pages/Login/Login'))
 const Setup = React.lazy(() => import('./Pages/Setup/Setup'))
 
-const setTypeMap = () => {
+const saveMediaTypeMap = (setState) => {
     fetchMediaTypes().then((r) => {
+        setState(r)
         localStorage.setItem(
             'mediaTypeMap',
             JSON.stringify({ typeMap: r, time: Date.now() })
@@ -45,6 +45,8 @@ const WeblensRoutes = () => {
     const loc = useLocation()
     const nav = useNavigate()
 
+    const setTypeMap = useMediaStore((state) => state.setTypeMap)
+
     useEffect(() => {
         fetchServerInfo()
     }, [])
@@ -53,8 +55,6 @@ const WeblensRoutes = () => {
         if (!server) {
             return
         }
-
-        console.log(user)
         if (loc.pathname !== '/setup' && server.info.role === 'init') {
             console.debug('Nav setup')
             nav('/setup')
@@ -69,17 +69,20 @@ const WeblensRoutes = () => {
             console.debug('Nav files home')
             nav('/files/home')
         } else if (
-            !user?.isLoggedIn &&
+            user !== null &&
+            !user.isLoggedIn &&
             loc.pathname !== '/login' &&
             server.info.role !== 'init' &&
-            !loc.pathname.startsWith('/files') &&
-            loc.pathname === '/files/home'
+            !loc.pathname.startsWith('/files/share/')
         ) {
             console.debug('Nav login')
-            nav('/login')
+            nav('/login', { state: { returnTo: loc.pathname } })
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
-            console.debug('Nav timeline')
-            nav('/timeline')
+            if (loc.state?.returnTo) {
+                nav(loc.state.returnTo)
+            } else {
+                nav('/timeline')
+            }
         } else if (
             (loc.pathname === '/timeline' ||
                 loc.pathname.startsWith('/album')) &&
@@ -93,17 +96,6 @@ const WeblensRoutes = () => {
         }
     }, [loc, server, user])
 
-    const [mediaState, mediaDispatch] = useReducer(
-        mediaReducer,
-        null,
-        () =>
-            new MediaStateT(
-                null,
-                JSON.parse(localStorage.getItem('showRaws')) || false,
-                JSON.parse(localStorage.getItem('showHidden')) || false
-            )
-    )
-
     useEffect(() => {
         if (!server || !server.started || server.info.role === 'init') {
             return
@@ -111,7 +103,7 @@ const WeblensRoutes = () => {
 
         const typeMapStr = localStorage.getItem('mediaTypeMap')
         if (!typeMapStr) {
-            setTypeMap()
+            saveMediaTypeMap(setTypeMap)
         }
 
         try {
@@ -123,14 +115,15 @@ const WeblensRoutes = () => {
                 !typeMap.time ||
                 Date.now() - typeMap.time > 3_600_000
             ) {
-                setTypeMap()
+                saveMediaTypeMap(setTypeMap)
             }
+            setTypeMap(typeMap.typeMap)
         } catch {
-            setTypeMap()
+            saveMediaTypeMap(setTypeMap)
         }
-    }, [])
+    }, [server])
 
-    if (!server) {
+    if (!server || !user) {
         return null
     }
 
@@ -139,15 +132,8 @@ const WeblensRoutes = () => {
     return (
         <QueryClientProvider client={queryClient}>
             <ErrorBoundary fallback={ErrorDisplay}>
-                <MediaContext.Provider
-                    value={{
-                        mediaState,
-                        mediaDispatch,
-                    }}
-                >
-                    {server.started && <PageSwitcher />}
-                    {!server.started && <StartUp />}
-                </MediaContext.Provider>
+                {server.started && user && <PageSwitcher />}
+                {!server.started && <StartUp />}
             </ErrorBoundary>
         </QueryClientProvider>
     )
@@ -156,7 +142,7 @@ const WeblensRoutes = () => {
 function PageLoader() {
     return (
         <div style={{ position: 'absolute', right: 15, bottom: 10 }}>
-            <WeblensLoader loading={['page']} progress={0} />
+            <WeblensLoader loading={['page']} />
         </div>
     )
 }

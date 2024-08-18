@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/api/util"
 	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
 )
@@ -163,6 +165,7 @@ func KeyOnlyAuth(c *gin.Context) {
 	if types.SERV.AccessService.Get(types.WeblensApiKey(cred)).Key != "" {
 		c.Next()
 	} else {
+		wlog.Debug.Println("Failed to find key with this id:", cred)
 		c.AbortWithStatus(http.StatusUnauthorized)
 	}
 }
@@ -191,16 +194,24 @@ func colorTime(dur time.Duration) string {
 func WeblensLogger(c *gin.Context) {
 	start := time.Now()
 	path := c.Request.RequestURI
-	// raw := c.Request.URL.RawQuery
 
-	c.Next()
+	handler := runtime.FuncForPC(reflect.ValueOf(c.Handler()).Pointer()).Name()
+	handler = handler[strings.LastIndex(handler, ".")+1:]
+
+	util.LabelThread(
+		func(_ context.Context) {
+			c.Next()
+		}, "Req Path", path, "Handler Func", handler,
+	)
+
+	status := c.Writer.Status()
+	if !util.IsDevMode() && status < 400 {
+		return
+	}
 
 	timeTotal := time.Since(start)
 	remote := c.ClientIP()
-	status := c.Writer.Status()
 	method := c.Request.Method
-	handler := runtime.FuncForPC(reflect.ValueOf(c.Handler()).Pointer()).Name()
-	handler = handler[strings.LastIndex(handler, ".")+1:]
 
 	fmt.Printf(
 		"\u001B[0m[API] %s | %s | %12s | [%s] %s %s %s\n", start.Format("Jan 02 15:04:05"), remote,

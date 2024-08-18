@@ -1,16 +1,15 @@
 import { AuthHeaderT, GalleryStateT } from '../types/Types'
 import API_ENDPOINT from '../api/ApiEndpoint'
-import WeblensMedia, { MediaAction, MediaStateT } from './Media'
+import { notifications } from '@mantine/notifications'
+import { useMediaStore } from './MediaStateControl'
+import WeblensMedia from './Media'
+import { useSessionStore } from '../components/UserInfo'
 
-export async function FetchData(
-    galleryState: GalleryStateT,
-    mediaState: MediaStateT,
-    mediaDispatch: (a: MediaAction) => void,
-    authHeader: AuthHeaderT
-) {
+export async function FetchData(galleryState: GalleryStateT) {
+    const auth = useSessionStore.getState().auth
     if (
-        !authHeader ||
-        authHeader.Authorization === ''
+        !auth ||
+        auth.Authorization === ''
         // mediaState.albumsMap.size === 0
     ) {
         return
@@ -18,10 +17,13 @@ export async function FetchData(
 
     try {
         const url = new URL(`${API_ENDPOINT}/media`)
-        url.searchParams.append('raw', mediaState.isShowingRaw().toString())
+        url.searchParams.append(
+            'raw',
+            useMediaStore.getState().showRaw.toString()
+        )
         url.searchParams.append(
             'hidden',
-            mediaState.isShowingHidden().toString()
+            useMediaStore.getState().showHidden.toString()
         )
         url.searchParams.append('limit', '100000')
         if (galleryState.albumsFilter) {
@@ -34,7 +36,7 @@ export async function FetchData(
                 )
             )
         }
-        const data = await fetch(url.toString(), { headers: authHeader }).then(
+        const data = await fetch(url.toString(), { headers: auth }).then(
             (res) => {
                 if (res.status !== 200) {
                     return Promise.reject('Failed to get media')
@@ -48,9 +50,95 @@ export async function FetchData(
                 return new WeblensMedia(m)
             })
 
-            mediaDispatch({ type: 'add_medias', medias: medias })
+            useMediaStore.getState().addMedias(medias)
         }
     } catch (error) {
         console.error(error)
     }
+}
+
+export async function getMedia(
+    mediaId,
+    authHeader: AuthHeaderT
+): Promise<WeblensMedia> {
+    if (!mediaId) {
+        console.error('trying to get media with no mediaId')
+        notifications.show({
+            title: 'Failed to get media',
+            message: 'no media id provided',
+            color: 'red',
+        })
+        return
+    }
+    const url = new URL(`${API_ENDPOINT}/media/${mediaId}`)
+    url.searchParams.append('meta', 'true')
+    const mediaMeta: WeblensMedia = await fetch(url, {
+        headers: authHeader,
+    }).then((r) => r.json())
+    return mediaMeta
+}
+
+export async function fetchMediaTypes() {
+    const url = new URL(`${API_ENDPOINT}/media/types`)
+    return await fetch(url).then((r) => {
+        if (r.status === 200) {
+            return r.json()
+        } else {
+            return Promise.reject(r.status)
+        }
+    })
+}
+
+export async function hideMedia(
+    mediaIds: string[],
+    hidden: boolean,
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/media/hide`)
+    url.searchParams.append('hidden', hidden.toString())
+    return await fetch(url, {
+        body: JSON.stringify({ mediaIds: mediaIds }),
+        method: 'PATCH',
+        headers: authHeader,
+    })
+}
+
+export async function adjustMediaTime(
+    mediaId: string,
+    newDate: Date,
+    extraMedias: string[],
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/media/date`)
+    return await fetch(url, {
+        method: 'PATCH',
+        headers: authHeader,
+        body: JSON.stringify({
+            anchorId: mediaId,
+            newTime: newDate,
+            mediaIds: extraMedias,
+        }),
+    }).then((r) => {
+        if (r.status !== 200) {
+            return Promise.reject(r.statusText)
+        }
+        return r.statusText
+    })
+}
+
+export async function likeMedia(
+    mediaId: string,
+    liked: boolean,
+    authHeader: AuthHeaderT
+) {
+    const url = new URL(`${API_ENDPOINT}/media/${mediaId}/liked`)
+    url.searchParams.append('liked', String(liked))
+
+    return fetch(url, { headers: authHeader, method: 'POST' })
+}
+
+export async function getRandomThumbs() {
+    const url = new URL(`${API_ENDPOINT}/media/random`)
+    url.searchParams.append('count', '50')
+    return await fetch(url).then((r) => r.json())
 }

@@ -1,11 +1,11 @@
 import { createContext, Dispatch } from 'react'
 import {
-    TasksProgress,
+    TaskProgressState,
     TasksProgressAction,
 } from '../Pages/FileBrowser/TaskProgress'
 
 export type TaskProgContextT = {
-    progState: TasksProgress
+    progState: TaskProgressState
     progDispatch: Dispatch<TasksProgressAction>
 }
 

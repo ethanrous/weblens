@@ -22,6 +22,8 @@ type FileTree interface {
 
 	AttachFile(f WeblensFile, c ...BroadcasterAgent) error
 
+	CreateHomeFolder(User) (WeblensFile, error)
+
 	GetRoot() WeblensFile
 	SetRoot(WeblensFile)
 	GetJournal() JournalService
@@ -31,7 +33,6 @@ type FileTree interface {
 	Size() int
 	GetAllFiles() ([]WeblensFile, error)
 
-	AddRoot(r WeblensFile) error
 	NewRoot(
 		id FileId, filename, absPath string, owner User,
 		parent WeblensFile,
@@ -79,7 +80,8 @@ type WeblensFile interface {
 	CreateSelf() error
 	Write([]byte) error
 	WriteAt([]byte, int64) error
-	Read() (*os.File, error)
+	Readable() (*os.File, error)
+	Writeable() (*os.File, error)
 	ReadAll() ([]byte, error)
 	ReadDir() ([]WeblensFile, error)
 	GetContentId() ContentId
@@ -133,14 +135,9 @@ type FileMapFunc func(WeblensFile) error
 // FileInfo is a structure for safely sending file information to the client
 type FileInfo struct {
 	Id FileId `json:"id"`
-
-	// If the media has been loaded into the database, only if it should be.
-	// If media is not required to be imported, this will be set true
-	Imported bool `json:"imported"`
-
-	// If the content of the file can be displayed visually.
-	// Say the file is a jpg, mov, arw, etc. and not a zip,
-	// txt, doc, directory etc.
+	/* If the content of the file can be displayed visually.
+	Say the file is a jpg, mov, arw, etc. and not a zip,
+	txt, doc, directory etc. */
 	Displayable bool `json:"displayable"`
 
 	IsDir          bool     `json:"isDir"`
@@ -149,12 +146,12 @@ type FileInfo struct {
 	ModTime        int64    `json:"modTime"`
 	Filename       string   `json:"filename"`
 	ParentFolderId FileId   `json:"parentFolderId"`
-	MediaData      Media    `json:"mediaData"`
+	MediaData Media   `json:"mediaData,omitempty"`
 	Owner          Username `json:"owner"`
 	PathFromHome   string   `json:"pathFromHome"`
-	ShareId        ShareId  `json:"shareId"`
+	ShareId   ShareId `json:"shareId,omitempty"`
 	Children       []FileId `json:"children"`
-	PastFile       bool     `json:"pastFile"`
+	PastFile  bool    `json:"pastFile,omitempty"`
 }
 
 var ErrNoFile = func(id FileId) WeblensError {
@@ -174,7 +171,9 @@ var ErrNoFileName = func(name string) WeblensError {
 }
 var ErrDirectoryRequired = NewWeblensError("attempted to perform an action that requires a directory, but found regular file")
 var ErrDirAlreadyExists = NewWeblensError("directory already exists in destination location")
-var ErrFileAlreadyExists = func(path string) WeblensError { return NewWeblensError("file already exists in destination location: " + path) }
+var ErrFileAlreadyExists = func(path string) WeblensError {
+	return NewWeblensError("file already exists in destination location: " + path)
+}
 var ErrNoChildren = NewWeblensError("file does not have any children")
 var ErrChildAlreadyExists = NewWeblensError("file already has the child being added")
 var ErrDirNotAllowed = NewWeblensError("attempted to perform action using a directory, where the action does not support directories")

@@ -62,6 +62,7 @@ import {
     useFileBrowserStore,
 } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from '../components/UserInfo'
+import { WeblensShare } from '../Share/Share'
 
 type footerNote = {
     hint: string
@@ -203,18 +204,17 @@ export function FileContextMenu() {
     )
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
-    const setBlock = useFileBrowserStore((state) => state.setBlockFocus)
 
-    useEffect(() => {
-        setBlock(menuMode !== FbMenuModeT.Closed)
-    }, [menuMode])
-
-    useKeyDown('Escape', (e) => {
-        if (menuMode !== FbMenuModeT.Closed) {
-            e.stopPropagation()
-            setMenu({ menuState: FbMenuModeT.Closed })
-        }
-    })
+    useKeyDown(
+        'Escape',
+        (e) => {
+            if (menuMode !== FbMenuModeT.Closed) {
+                e.stopPropagation()
+                setMenu({ menuState: FbMenuModeT.Closed })
+            }
+        },
+        menuMode === FbMenuModeT.Closed
+    )
 
     useClick((e) => {
         if (menuMode !== FbMenuModeT.Closed && e.button === 0) {
@@ -252,7 +252,7 @@ export function FileContextMenu() {
     }
 
     let menuBody: ReactElement
-    if (user.trashId === folderInfo.Id()) {
+    if (user?.trashId === folderInfo.Id()) {
         menuBody = (
             <InTrashMenu
                 activeItems={activeItems.items}
@@ -526,7 +526,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
         if (!item) {
             return
         }
-        item.LoadShare(auth).then((share) => {
+        item.GetShare(auth).then((share) => {
             if (share) {
                 setIsPublic(share.IsPublic())
                 setAccessors(share.GetAccessors())
@@ -555,8 +555,8 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     const updateShare = useCallback(
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
-            const share = await item.LoadShare(auth)
-            let req: Promise<Response>
+            const share = await item.GetShare(auth)
+            let req: Promise<Response | boolean>
             if (share) {
                 req = addUsersToFileShare(
                     share.Id(),
@@ -570,7 +570,10 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                     isPublic,
                     accessors.map((u) => u),
                     auth
-                )
+                ).then((si) => {
+                    item.SetShare(new WeblensShare(si))
+                    return true
+                })
             }
             return req
                 .then(() => {
@@ -616,11 +619,12 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                         fillWidth
                         centerContent
                         Left={IconLink}
+                        disabled={!isPublic && accessors.length === 0}
                         onClick={async (e) => {
                             e.stopPropagation()
                             return await updateShare(e)
                                 .then(async () => {
-                                    const share = await item.LoadShare(auth)
+                                    const share = await item.GetShare(auth)
                                     if (!share) {
                                         console.error('No Shares!')
                                         return false
@@ -868,20 +872,17 @@ function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
     }, [menuMode])
 
     const getMediasInFolders = useCallback(
-        ({ queryKey }: { queryKey: [string, WeblensFile[], FbMenuModeT] }) => {
+        ({ queryKey }: { queryKey: [string, string[], FbMenuModeT] }) => {
             if (queryKey[2] !== FbMenuModeT.AddToAlbum) {
                 return []
             }
-            return getFoldersMedia(
-                queryKey[1].map((f) => f.Id()),
-                auth
-            )
+            return getFoldersMedia(queryKey[1], auth)
         },
         [auth]
     )
 
     const medias = useQuery({
-        queryKey: ['selected-medias', activeItems, menuMode],
+        queryKey: ['selected-medias', activeItems.map((i) => i.Id()), menuMode],
         queryFn: getMediasInFolders,
     })
 

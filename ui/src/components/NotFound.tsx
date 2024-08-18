@@ -12,7 +12,7 @@ function NotFound({
     link: string
     setNotFound: (b: boolean) => void
 }) {
-    const user = useSessionStore((state) => state.user)
+    const { user } = useSessionStore()
     const nav = useNavigate()
     return (
         <div className="flex flex-col justify-center items-center h-full w-full">

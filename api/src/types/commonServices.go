@@ -56,16 +56,18 @@ func (srv *weblensServicePackage) SetRouter(router *http.Server) {
 }
 
 func (srv *weblensServicePackage) RestartRouter() error {
-	for SERV.router == nil {
-		time.Sleep(200 * time.Millisecond)
-	}
-
 	SERV.RouterLock.Lock()
-	SERV.RouterLock.Unlock()
-	err := SERV.router.Shutdown(context.TODO())
-	if err != nil {
-		return WeblensErrorFromError(err)
+	for SERV.router == nil {
+		SERV.RouterLock.Unlock()
+		time.Sleep(200 * time.Millisecond)
+		SERV.RouterLock.Lock()
 	}
+	SERV.RouterLock.Unlock()
+
+	go SERV.router.Shutdown(context.TODO())
+	// if err != nil {
+	// 	return WeblensErrorFromError(err)
+	// }
 
 	return nil
 }

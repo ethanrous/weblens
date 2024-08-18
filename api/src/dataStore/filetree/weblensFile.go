@@ -137,12 +137,26 @@ func (f *WeblensFile) ID() types.FileId {
 		return ""
 	}
 
-	if f.id != "" {
-		return f.id
+	id := f.getIdInternal()
+	if id != "" {
+		return id
 	}
 
-	f.id = f.tree.GenerateFileId(f.GetAbsPath())
+	id = f.tree.GenerateFileId(f.GetAbsPath())
+	f.setIdInternal(id)
+	return id
+}
+
+func (f *WeblensFile) getIdInternal() types.FileId {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
 	return f.id
+}
+
+func (f *WeblensFile) setIdInternal(id types.FileId) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.id = id
 }
 
 // GetTree returns a pointer to the parent tree of the file
@@ -212,7 +226,7 @@ func (f *WeblensFile) GetAbsPath() string {
 		}
 	} else {
 		// If this is a backup server, we use the backup path for the "real" path
-		f.setBackupPath(filepath.Join(types.SERV.FileTree.Get("ROOT").GetAbsPath(), string(f.GetContentId())))
+		f.setBackupPath(filepath.Join(f.tree.Get("ROOT").GetAbsPath(), string(f.GetContentId())))
 		return f.getBackupPathInternal()
 	}
 	return f.getAbsPathInternal()
@@ -243,6 +257,8 @@ func (f *WeblensFile) Owner() types.User {
 }
 
 func (f *WeblensFile) SetOwner(o types.User) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
 	f.owner = o
 }
 
@@ -301,7 +317,7 @@ func (f *WeblensFile) recomputeSize() (int64, error) {
 		}
 		f.size.Store(newSize)
 	} else {
-		err := f.LoadStat()
+		err := f.LoadStat(types.SERV.Caster)
 		if err != nil {
 			return f.size.Load(), types.WeblensErrorFromError(err)
 		}
@@ -318,7 +334,7 @@ func (f *WeblensFile) Size() (int64, error) {
 	return f.size.Load(), nil
 }
 
-func (f *WeblensFile) Read() (*os.File, error) {
+func (f *WeblensFile) Readable() (*os.File, error) {
 	if f.IsDir() {
 		return nil, fmt.Errorf("attempt to read from directory")
 	}
@@ -329,6 +345,19 @@ func (f *WeblensFile) Read() (*os.File, error) {
 	}
 
 	return os.Open(path)
+}
+
+func (f *WeblensFile) Writeable() (*os.File, error) {
+	if f.IsDir() {
+		return nil, fmt.Errorf("attempt to read from directory")
+	}
+
+	path := f.GetAbsPath()
+	if f.detached {
+		path = "/tmp/" + f.filename
+	}
+
+	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0660)
 }
 
 func (f *WeblensFile) ReadAll() (data []byte, err error) {
@@ -462,7 +491,7 @@ func (f *WeblensFile) ReadDir() ([]types.WeblensFile, error) {
 	var children []types.WeblensFile
 	for _, file := range entries {
 		var u types.User
-		if f == types.SERV.FileTree.GetRoot() {
+		if f == f.tree.GetRoot() {
 			u = types.SERV.UserService.Get(types.Username(file.Name))
 		} else {
 			u = f.Owner()
@@ -548,7 +577,15 @@ func (f *WeblensFile) GetChildrenInfo(acc types.AccessMeta) []types.FileInfo {
 }
 
 func (f *WeblensFile) GetParent() types.WeblensFile {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
 	return f.parent
+}
+
+func (f *WeblensFile) setParentInternal(parent *WeblensFile) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.parent = parent
 }
 
 func (f *WeblensFile) CreateSelf() error {
@@ -654,14 +691,7 @@ func (f *WeblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 		return
 	}
 
-	var imported = false
-	var m types.Media
-	if !f.IsDir() {
-		m = types.SERV.MediaRepo.Get(f.GetContentId())
-		if m != nil {
-			imported = true
-		}
-	}
+	m := types.SERV.MediaRepo.Get(f.GetContentId())
 
 	var size int64
 	size, err = f.Size()
@@ -702,7 +732,6 @@ func (f *WeblensFile) FormatFileInfo(acc types.AccessMeta) (formattedInfo types.
 
 	formattedInfo = types.FileInfo{
 		Id:          f.ID(),
-		Imported:    imported,
 		Displayable: f.IsDisplayable(),
 		IsDir:       f.IsDir(),
 		Modifiable: acc.GetTime().Unix() <= 0 &&
@@ -928,18 +957,7 @@ func (f *WeblensFile) LoadStat(c ...types.BroadcasterAgent) (err error) {
 	var newSize int64 = 0
 
 	if f.pastFile {
-		// statPath := ""
-		if f.currentId != "" {
-			// statPath = f.tree.Get(f.currentId).GetAbsPath()
-		} else {
-			// statPath = filepath.Join(
-			// 	f.GetTree().Get("CONTENT_LNIKS").GetAbsPath(),
-			// 	string(f.contentId),
-			// )
-		}
-
 		stat, err := f.tree.db.StatFile(f)
-		// stat, err := os.Stat(statPath)
 		if err != nil {
 			return err
 		}

@@ -163,7 +163,7 @@ func InitMediaRoot(tree types.FileTree, hashCaster types.BroadcasterAgent) error
 	hashTaskPool.SignalAllQueued()
 	hashTaskPool.AddCleanup(
 		func() {
-			err = tree.GetJournal().LogEvent(fileEvent)
+			err := tree.GetJournal().LogEvent(fileEvent)
 			if err != nil {
 				wlog.Error.Println(err)
 			}
@@ -191,24 +191,14 @@ func InitMediaRoot(tree types.FileTree, hashCaster types.BroadcasterAgent) error
 
 	sw.Lap("Load external files")
 
-	// Compute size for the whole tree, and ensure children are loaded while we're at it.
-	err = tree.ResizeDown(tree.GetRoot())
-	if err != nil {
-		return err
-	}
-
-	err = cacheRoot.LeafMap(
-		func(wf types.WeblensFile) error {
-			_, err = wf.Size()
+	if types.SERV.InstanceService.GetLocal().IsCore() {
+		// Compute size for the whole tree, and ensure children are loaded while we're at it.
+		err = tree.ResizeDown(tree.GetRoot())
+		if err != nil {
 			return err
-		},
-	)
-	if err != nil {
-		return err
-	}
+		}
 
-	if externalRoot.GetParent() != tree.GetRoot() {
-		err = externalRoot.LeafMap(
+		err = cacheRoot.LeafMap(
 			func(wf types.WeblensFile) error {
 				_, err = wf.Size()
 				return err
@@ -217,9 +207,21 @@ func InitMediaRoot(tree types.FileTree, hashCaster types.BroadcasterAgent) error
 		if err != nil {
 			return err
 		}
-	}
 
-	sw.Lap("Compute Sizes")
+		if externalRoot.GetParent() != tree.GetRoot() {
+			err = externalRoot.LeafMap(
+				func(wf types.WeblensFile) error {
+					_, err = wf.Size()
+					return err
+				},
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		sw.Lap("Compute Sizes")
+	}
 
 	for _, sh := range types.SERV.ShareService.GetAllShares() {
 		switch sh.GetShareType() {
@@ -238,11 +240,48 @@ func InitMediaRoot(tree types.FileTree, hashCaster types.BroadcasterAgent) error
 
 	sw.Lap("Link file shares")
 
-	// hashTaskPool.Wait(false)
-	// sw.Lap("Wait for hash pool")
+	err = ClearTempDir(tree)
+	if err != nil {
+		panic(err)
+	}
+	sw.Lap("Clear tmp dir")
 
+	err = ClearTakeoutDir(tree)
+	if err != nil {
+		panic(err)
+	}
+	sw.Lap("Clear takeout dir")
+
+	files, err := tree.GetAllFiles()
+	if err != nil {
+		return err
+	}
+
+	lifetimes := tree.GetJournal().GetAllLifetimes()
+	ltMap := map[types.FileId]types.Lifetime{}
+	for _, lt := range lifetimes {
+		if lt.GetLatestFileId() == "" {
+			if lt.GetLatestAction().GetActionType() != types.FileDelete {
+				wlog.Error.Println("Skipping lifetime with no latest id, that has not been marked as delted")
+			}
+			continue
+		}
+		if _, ok := ltMap[lt.GetLatestFileId()]; ok {
+			wlog.Warning.Println("Already have fileid in lifetimes", lt.GetLatestFileId())
+			continue
+		}
+		ltMap[lt.GetLatestFileId()] = lt
+	}
+	for _, file := range files {
+		delete(ltMap, file.ID())
+	}
+	if len(ltMap) != 0 {
+		wlog.Error.Println("Leftover lifetimes: ", ltMap)
+	}
+	sw.Lap("Check for dangling lifetimes")
 	sw.Stop()
 	sw.PrintResults(false)
+
 	return nil
 }
 
@@ -250,9 +289,6 @@ func importFilesRecursive(
 	f types.WeblensFile, fileEvent types.FileEvent,
 	hashTaskPool types.TaskPool, hashCaster types.BroadcasterAgent,
 ) error {
-	// if types.SERV.InstanceService.GetLocal().ServerRole() == types.Backup {
-	// 	return nil
-	// }
 	var toLoad = []types.WeblensFile{f}
 	for len(toLoad) != 0 {
 		var fileToLoad types.WeblensFile
@@ -580,7 +616,7 @@ func GenerateContentId(f types.WeblensFile) (types.ContentId, error) {
 	bufSize := math.Min(float64(fileSize), 1000*1000)
 	buf := make([]byte, int64(bufSize))
 	newHash := sha256.New()
-	fp, err := f.Read()
+	fp, err := f.Readable()
 	if err != nil {
 		return "", err
 	}

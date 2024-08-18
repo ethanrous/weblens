@@ -2,6 +2,7 @@ package routes
 
 import (
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -65,7 +66,21 @@ func getFileBytes(ctx *gin.Context) {
 		return
 	}
 
-	ctx.File(f.GetAbsPath())
+	readable, err := f.Readable()
+	if err != nil {
+		wlog.ErrTrace(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+	defer readable.Close()
+
+	_, err = io.Copy(ctx.Writer, readable)
+	if err != nil {
+		wlog.ErrTrace(err)
+		ctx.Status(http.StatusInternalServerError)
+	}
+
+	// ctx.File(f.GetAbsPath())
 }
 
 func getFileMeta(ctx *gin.Context) {

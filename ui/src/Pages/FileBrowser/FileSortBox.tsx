@@ -12,7 +12,7 @@ import { useFileBrowserStore } from './FBStateControl'
 
 const fileSortTypes = [
     { Name: 'Name', Icon: IconSortAZ },
-    { Name: 'Create Date', Icon: IconCalendar },
+    { Name: 'Date Modified', Icon: IconCalendar },
     { Name: 'Size', Icon: IconFileAnalytics },
 ]
 

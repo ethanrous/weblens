@@ -14,19 +14,13 @@ import { create, StateCreator } from 'zustand'
 const useR = () => {
     const [cookies] = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
 
-    const server = useSessionStore((state) => state.server)
-    const authHeader = useSessionStore((state) => state.auth)
-    const user = useSessionStore((state) => state.user)
-
-    const setAuthHeader = useSessionStore((state) => state.setAuthHeader)
-    const setUserInfo = useSessionStore((state) => state.setUserInfo)
+    const { server, user, auth, setAuthHeader, setUserInfo } = useSessionStore()
 
     useEffect(() => {
-        if (cookies[LOGIN_TOKEN_COOKIE_KEY] && authHeader === null) {
+        if (cookies[LOGIN_TOKEN_COOKIE_KEY] && auth === null) {
             // Auth header unset, but the cookies are ready
             const loginStr = `${cookies[USERNAME_COOKIE_KEY]}:${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
             const login64 = window.btoa(loginStr)
-            console.log(login64.toString())
             setAuthHeader(login64.toString())
         } else if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
             setUserInfo({ isLoggedIn: false } as UserInfoT)
@@ -38,10 +32,10 @@ const useR = () => {
             return
         }
 
-        if (authHeader && !user) {
+        if (auth && !user) {
             // Auth header set, but no user data, go get the user data
             const url = new URL(`${API_ENDPOINT}/user`)
-            fetch(url.toString(), { headers: authHeader })
+            fetch(url.toString(), { headers: auth })
                 .then((res) => {
                     if (res.status !== 200) {
                         return Promise.reject(res.statusText)
@@ -59,7 +53,7 @@ const useR = () => {
                     setUserInfo({ isLoggedIn: false } as UserInfoT)
                 })
         }
-    }, [server, authHeader])
+    }, [server, auth])
 }
 
 export interface WeblensSessionT {
@@ -113,7 +107,6 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
             user: null,
             auth: null,
         })
-        console.log(removeCoookie)
         removeCoookie(USERNAME_COOKIE_KEY)
         removeCoookie(LOGIN_TOKEN_COOKIE_KEY)
     },

@@ -25,6 +25,7 @@ import WeblensButton from './WeblensButton'
 import WeblensInput from './WeblensInput'
 import { useSessionStore } from './UserInfo'
 import { useCookies } from 'react-cookie'
+import { useMediaStore } from '../Media/MediaStateControl'
 
 type HeaderBarProps = {
     setBlockFocus: (block: boolean) => void
@@ -45,6 +46,7 @@ const SettingsMenu = ({
 }) => {
     const [oldP, setOldP] = useState('')
     const [newP, setNewP] = useState('')
+    const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
     const nav = useNavigate()
     const logout = useSessionStore((state) => state.logout)
     const [, , deleteCookie] = useCookies([
@@ -62,18 +64,30 @@ const SettingsMenu = ({
 
     const updateFunc = useCallback(async () => {
         if (oldP == '' || newP == '' || oldP === newP) {
-            return
+            return Promise.reject(
+                'Old and new password cannot be empty or match'
+            )
         }
-        const res =
-            (await UpdatePassword(user.username, oldP, newP, authHeader))
-                .status === 200
-        if (res) {
-            setOldP('')
-            setNewP('')
-        }
-        setTimeout(() => setClosed(), 2000)
-        return res
+        return UpdatePassword(user.username, oldP, newP, authHeader).then(
+            (r) => {
+                if (r.status !== 200) {
+                    return Promise.reject(r.statusText)
+                }
+                setTimeout(() => {
+                    setNewP('')
+                    setOldP('')
+                }, 2000)
+                return true
+            }
+        )
     }, [user.username, String(oldP), String(newP), authHeader])
+
+    useKeyDown('Enter', () => {
+        if (buttonRef) {
+            console.log('EH?')
+            buttonRef.click()
+        }
+    })
 
     if (!open) {
         return <></>
@@ -95,12 +109,14 @@ const SettingsMenu = ({
                         Change Password
                     </p>
                     <WeblensInput
+                        value={oldP}
                         placeholder="Old Password"
+                        password
                         valueCallback={setOldP}
                         height={50}
                     />
                     <WeblensInput
-                        onComplete={updateFunc}
+                        value={newP}
                         placeholder="New Password"
                         valueCallback={setNewP}
                         height={50}
@@ -114,6 +130,7 @@ const SettingsMenu = ({
                         showSuccess
                         disabled={oldP == '' || newP == '' || oldP === newP}
                         onClick={updateFunc}
+                        setButtonRef={setButtonRef}
                     />
                 </div>
                 <WeblensButton
@@ -122,6 +139,7 @@ const SettingsMenu = ({
                     danger
                     centerContent
                     onClick={() => {
+                        useMediaStore.getState().clear()
                         logout(deleteCookie)
                         nav('/login')
                     }}
@@ -136,16 +154,25 @@ const SettingsMenu = ({
 
 const HeaderBar = memo(
     ({ setBlockFocus, loading }: HeaderBarProps) => {
-        const user = useSessionStore((state) => state.user)
-        const auth = useSessionStore((state) => state.auth)
+        const { user, auth } = useSessionStore()
+        const clearMedia = useMediaStore((state) => state.clear)
         const nav = useNavigate()
         const [settings, setSettings] = useState(false)
         const [admin, setAdmin] = useState(false)
         const loc = useLocation()
 
-        const navToTimeline = useCallback(() => nav('/'), [nav])
-        const navToAlbums = useCallback(() => nav('/albums'), [nav])
-        const navToFiles = useCallback(() => nav('/files/home'), [nav])
+        const navToTimeline = useCallback(() => {
+            clearMedia()
+            nav('/')
+        }, [nav])
+        const navToAlbums = useCallback(() => {
+            clearMedia()
+            nav('/albums')
+        }, [nav])
+        const navToFiles = useCallback(() => {
+            clearMedia()
+            nav('/files/home')
+        }, [nav])
 
         const server = useSessionStore((state) => state.server)
 
@@ -193,7 +220,10 @@ const HeaderBar = memo(
                                     toggleOn={loc.pathname === '/timeline'}
                                     Left={IconLibraryPhoto}
                                     onClick={navToTimeline}
-                                    disabled={server.info.role === 'backup'}
+                                    disabled={
+                                        server.info.role === 'backup' ||
+                                        !user.isLoggedIn
+                                    }
                                 />
                                 <div className="p-1" />
                                 <WeblensButton
@@ -206,7 +236,10 @@ const HeaderBar = memo(
                                     )}
                                     Left={IconAlbum}
                                     onClick={navToAlbums}
-                                    disabled={server.info.role === 'backup'}
+                                    disabled={
+                                        server.info.role === 'backup' ||
+                                        !user.isLoggedIn
+                                    }
                                 />
                                 <div className="p-1" />
                                 <WeblensButton
@@ -257,7 +290,7 @@ const HeaderBar = memo(
                         />
                     )}
                     <WeblensButton
-                        label={user !== null ? 'User Settings' : 'Login'}
+                        label={user.isLoggedIn ? 'User Settings' : 'Login'}
                         labelOnHover
                         Left={IconUser}
                         onClick={() => {

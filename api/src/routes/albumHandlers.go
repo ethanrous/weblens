@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net/http"
+	"slices"
 
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/dataStore/album"
@@ -11,6 +12,7 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
+	"github.com/modern-go/reflect2"
 )
 
 func getAlbum(ctx *gin.Context) {
@@ -26,16 +28,37 @@ func getAlbum(ctx *gin.Context) {
 		return
 	}
 
+	if albumData.GetOwner().GetUsername() != user.GetUsername() && !slices.Contains(
+		albumData.GetSharedWith(), user.GetUsername(),
+	) {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	raw := ctx.Query("raw") == "true"
 	medias := albumData.GetMedias()
+	medias = util.Filter(
+		medias, func(m types.Media) bool {
+			wlog.Debug.Println(m)
+			if reflect2.IsNil(m) || m.GetMediaType() == nil {
+				return false
+			}
+			return true
+		},
+	)
 	if !raw {
 		medias = util.Filter(
-			medias, func(t types.Media) bool {
-				return !t.GetMediaType().IsRaw()
+			medias, func(m types.Media) bool {
+				wlog.Debug.Println(m)
+				if reflect2.IsNil(m) || m.GetMediaType() == nil {
+					return false
+				}
+				return !m.GetMediaType().IsRaw()
 			},
 		)
 	}
 
+	wlog.Debug.Println(medias)
 	ctx.JSON(http.StatusOK, gin.H{"albumMeta": albumData, "medias": medias})
 }
 
@@ -94,6 +117,7 @@ func createAlbum(ctx *gin.Context) {
 	newAlbum := album.New(albumData.Name, user)
 	err = types.SERV.AlbumManager.Add(newAlbum)
 	if err != nil {
+		wlog.ShowErr(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Album creation failed"})
 	}
 
@@ -164,16 +188,15 @@ func updateAlbum(ctx *gin.Context) {
 			return
 		}
 
-		if a.GetCover() == nil || a.GetPrimaryColor() == "" {
-			if a.GetCover() == nil {
-				err = a.SetCover(ms[0])
-				if err != nil {
-					wlog.ErrTrace(err)
-					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
-					return
-				}
+		if a.GetCover() == "" {
+			err = types.SERV.AlbumManager.SetAlbumCover(a.ID(), ms[0])
+			if err != nil {
+				wlog.ErrTrace(err)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+				return
 			}
 		}
+
 	}
 
 	if update.RemoveMedia != nil {
@@ -191,7 +214,7 @@ func updateAlbum(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Cover id not found"})
 			return
 		}
-		err = a.SetCover(cover)
+		err = types.SERV.AlbumManager.SetAlbumCover(a.ID(), cover)
 		if err != nil {
 			wlog.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
@@ -313,7 +336,7 @@ func albumPreviewMedia(ctx *gin.Context) {
 	for len(albumMs) != 0 && len(randomMs) < 9 {
 		index := rand.Intn(len(albumMs))
 		m := types.SERV.MediaRepo.Get(albumMs[index].ID())
-		if m != nil && !m.GetMediaType().IsRaw() && m != a.GetCover() {
+		if m != nil && !m.GetMediaType().IsRaw() && m.ID() != a.GetCover() {
 			randomMs = append(randomMs, m.ID())
 		}
 

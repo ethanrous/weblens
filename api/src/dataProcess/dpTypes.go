@@ -84,6 +84,7 @@ type zipMetadata struct {
 }
 
 func (m zipMetadata) MetaString() string {
+	
 	data := map[string]any{
 		"TaskType": CreateZipTask,
 		"Files":    m.files,

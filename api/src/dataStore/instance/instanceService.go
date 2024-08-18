@@ -80,6 +80,10 @@ func (is *instanceService) Add(i types.Instance) error {
 		is.local = i
 	}
 
+	if i.IsCore() {
+		is.core = i
+	}
+
 	return nil
 }
 

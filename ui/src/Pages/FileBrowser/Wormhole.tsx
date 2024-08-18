@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { GetWormholeInfo } from '../../api/FileBrowserApi'
 import { FileButton, Space, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import UploadStatus, { useUploadStatus } from './UploadStatus'
+import UploadStatus from './UploadStatus'
 import { IconFolder, IconUpload } from '@tabler/icons-react'
 import { HandleDrop, HandleUploadButton } from './FileBrowserLogic'
 
@@ -13,26 +13,14 @@ import { ShareInfo } from '../../Share/Share'
 import { useSessionStore } from '../../components/UserInfo'
 import { DraggingStateT } from '../../Files/FBTypes'
 
-const UploadPlaque = ({
-    wormholeId,
-    uploadDispatch,
-}: {
-    wormholeId: string
-    uploadDispatch
-}) => {
+const UploadPlaque = ({ wormholeId }: { wormholeId: string }) => {
     return (
         <div className="h-[45vh]">
             <FileButton
                 onChange={(files) => {
-                    HandleUploadButton(
-                        files,
-                        wormholeId,
-                        true,
-                        wormholeId,
-                        { Authorization: '' },
-                        uploadDispatch,
-                        () => {}
-                    )
+                    HandleUploadButton(files, wormholeId, true, wormholeId, {
+                        Authorization: '',
+                    })
                 }}
                 accept="file"
                 multiple
@@ -74,14 +62,12 @@ const WormholeWrapper = ({
     wormholeName,
     fileId,
     validWormhole,
-    uploadDispatch,
     children,
 }: {
     wormholeId: string
     wormholeName: string
     fileId: string
     validWormhole: boolean
-    uploadDispatch
     children
 }) => {
     const authHeader = useSessionStore((state) => state.auth)
@@ -121,9 +107,7 @@ const WormholeWrapper = ({
                             [],
                             true,
                             wormholeId,
-                            authHeader,
-                            uploadDispatch,
-                            () => {}
+                            authHeader
                         )
                     }
                     dropSpotTitle={wormholeName}
@@ -145,7 +129,6 @@ export default function Wormhole() {
     const wormholeId = useParams()['*']
     const authHeader = useSessionStore((state) => state.auth)
     const [wormholeInfo, setWormholeInfo] = useState<ShareInfo>(null)
-    const { uploadState, uploadDispatch } = useUploadStatus()
 
     useEffect(() => {
         if (wormholeId !== '') {
@@ -172,16 +155,12 @@ export default function Wormhole() {
 
     return (
         <div>
-            <UploadStatus
-                uploadState={uploadState}
-                uploadDispatch={uploadDispatch}
-            />
+            <UploadStatus />
             <WormholeWrapper
                 wormholeId={wormholeId}
                 wormholeName={wormholeInfo?.shareName}
                 fileId={wormholeInfo?.fileId}
                 validWormhole={valid}
-                uploadDispatch={uploadDispatch}
             >
                 <div className="flex flex-row h-[20vh] w-max items-center">
                     <div className="h-max w-max">
@@ -205,12 +184,7 @@ export default function Wormhole() {
                         {wormholeInfo?.shareName}
                     </Text>
                 </div>
-                {valid && (
-                    <UploadPlaque
-                        wormholeId={wormholeId}
-                        uploadDispatch={uploadDispatch}
-                    />
-                )}
+                {valid && <UploadPlaque wormholeId={wormholeId} />}
             </WormholeWrapper>
         </div>
     )

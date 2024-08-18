@@ -31,7 +31,15 @@ func (db *databaseService) CreateUser(user types.User) error {
 }
 
 func (db *databaseService) UpdatePasswordByUsername(username types.Username, newPasswordHash string) error {
-	return types.NewWeblensError("Not yet implemented")
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"password": newPasswordHash}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+
+	return nil
 }
 
 func (db *databaseService) SetAdminByUsername(username types.Username, isAdmin bool) error {

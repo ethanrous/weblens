@@ -11,77 +11,11 @@ import {
 } from '../../api/FileBrowserApi'
 
 import Upload, { fileUploadMetadata } from '../../api/Upload'
-import { WeblensFile, WeblensFileParams } from '../../Files/File'
+import { FbMenuModeT, WeblensFile } from '../../Files/File'
 import { DraggingStateT } from '../../Files/FBTypes'
-import {
-    AuthHeaderT,
-    MediaDispatchT,
-    TPDispatchT,
-    UserInfoT,
-} from '../../types/Types'
+import { AuthHeaderT, TPDispatchT, UserInfoT } from '../../types/Types'
 
-import WeblensMedia from '../../Media/Media'
-import {
-    FBDispatchT,
-    FbModeT,
-    FileBrowserAction,
-    useFileBrowserStore,
-} from './FBStateControl'
-import { WsSendT } from '../../api/Websocket'
-
-// const handleSelect = (state: FbStateT, action: FileBrowserAction): FbStateT => {
-//     if (action.fileIds) {
-//         for (const fId of action.fileIds) {
-//             state.dirMap.get(fId).SetSelected(SelectedState.Selected);
-//             state.selected.set(fId, true);
-//         }
-//         state.lastSelected = action.fileIds[action.fileIds.length - 1];
-//     } else {
-//         const file = state.dirMap.get(action.fileId);
-//         if (!file) {
-//             console.error('Failed to handle select: file does not exist:  ', action.fileId);
-//             return { ...state };
-//         }
-//         // If action.selected is undefined, i.e. not passed to the request,
-//         // we treat that as a request to toggle the selection
-//         if (action.selected === undefined) {
-//             if (state.selected.get(action.fileId)) {
-//                 file.UnsetSelected(SelectedState.Selected);
-//                 state.selected.delete(action.fileId);
-//             } else {
-//                 file.SetSelected(SelectedState.Selected);
-//                 state.selected.set(action.fileId, true);
-//                 return {
-//                     ...state,
-//                     lastSelected: action.fileId,
-//                     selected: new Map(state.selected),
-//                 };
-//             }
-//         }
-//
-//         // state.selected.get returns undefined if not selected,
-//         // so we not (!) it to make boolean, and again to match... yay javascript :/
-//         else if (!!state.selected.get(action.fileId) === action.selected) {
-//             // If the file is already in the correct state, we do nothing.
-//             // Specifically, we do not overwrite lastSelected
-//         } else {
-//             if (action.selected) {
-//                 state.lastSelected = action.fileId;
-//                 file.SetSelected(SelectedState.Selected);
-//                 state.selected.set(action.fileId, true);
-//             } else {
-//                 file.UnsetSelected(SelectedState.Selected);
-//                 state.selected.delete(action.fileId);
-//             }
-//         }
-//
-//         if (state.selected.size === 0) {
-//             state.lastSelected = '';
-//         }
-//     }
-//
-//     return { ...state, selected: new Map(state.selected) };
-// };
+import { FbModeT, useFileBrowserStore } from './FBStateControl'
 
 export const getRealId = async (
     contentId: string,
@@ -136,7 +70,7 @@ export const handleRename = (
 async function getFile(file): Promise<File> {
     try {
         return await file.getAsFile()
-    } catch (err) {
+    } catch {
         return await new Promise((resolve, reject) =>
             file.file(resolve, reject)
         )
@@ -253,9 +187,7 @@ export async function HandleDrop(
     conflictNames: string[],
     isPublic: boolean,
     shareId: string,
-    authHeader: AuthHeaderT,
-    uploadDispatch,
-    wsSend: WsSendT
+    authHeader: AuthHeaderT
 ) {
     const files: fileUploadMetadata[] = []
     const topLevels = []
@@ -297,15 +229,7 @@ export async function HandleDrop(
     await Promise.all(topLevels)
 
     if (files.length !== 0) {
-        Upload(
-            files,
-            isPublic,
-            shareId,
-            rootFolderId,
-            authHeader,
-            uploadDispatch,
-            wsSend
-        )
+        Upload(files, isPublic, shareId, rootFolderId, authHeader)
     }
 }
 
@@ -314,9 +238,7 @@ export function HandleUploadButton(
     parentFolderId: string,
     isPublic: boolean,
     shareId: string,
-    authHeader: AuthHeaderT,
-    uploadDispatch,
-    wsSend: (action: string, content) => void
+    authHeader: AuthHeaderT
 ) {
     const uploads: fileUploadMetadata[] = []
     for (const f of files) {
@@ -330,15 +252,7 @@ export function HandleUploadButton(
     }
 
     if (uploads.length !== 0) {
-        Upload(
-            uploads,
-            isPublic,
-            shareId,
-            parentFolderId,
-            authHeader,
-            uploadDispatch,
-            wsSend
-        )
+        Upload(uploads, isPublic, shareId, parentFolderId, authHeader)
     }
 }
 
@@ -386,12 +300,16 @@ export function downloadSelected(
 }
 
 export const useKeyDownFileBrowser = () => {
-    const isSearching = useFileBrowserStore((state) => state.isSearching)
     const blockFocus = useFileBrowserStore((state) => state.blockFocus)
     const presentingId = useFileBrowserStore((state) => state.presentingId)
     const lastSelected = useFileBrowserStore((state) => state.lastSelectedId)
     const searchContent = useFileBrowserStore((state) => state.searchContent)
+    const isSearching = useFileBrowserStore((state) => state.isSearching)
+    const menuMode = useFileBrowserStore((state) => state.menuMode)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+
     const selectAll = useFileBrowserStore((state) => state.selectAll)
+    const setIsSearching = useFileBrowserStore((state) => state.setIsSearching)
     const clearSelected = useFileBrowserStore((state) => state.clearSelected)
     const setHoldingShift = useFileBrowserStore(
         (state) => state.setHoldingShift
@@ -402,11 +320,13 @@ export const useKeyDownFileBrowser = () => {
 
     useEffect(() => {
         const onKeyDown = (event) => {
-            if (isSearching) {
-                return
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault()
+                event.stopPropagation()
+                setIsSearching(!isSearching)
             }
             if (!blockFocus) {
-                if (event.metaKey && event.key === 'a') {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'a') {
                     event.preventDefault()
                     selectAll()
                 } else if (
@@ -422,28 +342,30 @@ export const useKeyDownFileBrowser = () => {
                     //     type: 'move_selection',
                     //     direction: event.key,
                     // });
-                } else if (event.key === 'Escape') {
+                } else if (
+                    event.key === 'Escape' &&
+                    menuMode === FbMenuModeT.Closed &&
+                    presentingId === ''
+                ) {
                     event.preventDefault()
                     clearSelected()
-                    // if (fbState.pasteImg) {
-                    //     dispatch({ type: 'paste_image', img: null });
-                    // } else {
-                    // }
                 } else if (event.key === 'Shift') {
                     setHoldingShift(true)
-                    // } else if (event.key === 'Enter' && fbState.pasteImg) {
-                    //     if (fbState.folderInfo.Id() === 'shared' || fbState.folderInfo.Id() === usr.trashId) {
-                    //         console.error('This folder does not allow paste-to-upload');
-                    //         return;
-                    //     }
-                    //     uploadViaUrl(
-                    //         fbState.pasteImg,
-                    //         folderInfo.Id(),
-                    //         fbState.dirMap,
-                    //         authHeader,
-                    //         dispatch,
-                    //         wsSend,
-                    //     );
+                } else if (event.key === 'Enter') {
+                    console.log('NOT ME RIGHT?')
+                    if (!folderInfo.IsModifiable()) {
+                        console.error(
+                            'This folder does not allow paste-to-upload'
+                        )
+                        return
+                    }
+                    // uploadViaUrl(
+                    //     fbState.pasteImg,
+                    //     folderInfo.Id(),
+                    //     filesList,
+                    //     auth,
+                    //     wsSend
+                    // )
                 } else if (event.key === ' ') {
                     event.preventDefault()
                     if (lastSelected && !presentingId) {
@@ -472,9 +394,10 @@ export const useKeyDownFileBrowser = () => {
     }, [
         blockFocus,
         searchContent,
-        // fbState.pasteImg,
         presentingId,
         lastSelected,
+        isSearching,
+        menuMode,
     ])
 }
 
@@ -499,6 +422,7 @@ export const usePaste = (
     blockFocus: boolean
 ) => {
     const setSearch = useFileBrowserStore((state) => state.setSearch)
+    const setPaste = useFileBrowserStore((state) => state.setPasteImgBytes)
 
     const handlePaste = useCallback(
         async (e) => {
@@ -526,9 +450,10 @@ export const usePaste = (
                             )
                             return
                         }
-                        const img = await item.getType(mime)
-                        console.error('Paste img not impl', img)
-                        // dispatch({ type: 'paste_image', img: img });
+                        const img: ArrayBuffer = await (
+                            await item.getType(mime)
+                        ).arrayBuffer()
+                        setPaste(img)
                     } else if (mime === 'text/plain') {
                         const text = await (
                             await item.getType('text/plain')
@@ -577,9 +502,7 @@ export async function uploadViaUrl(
     img: ArrayBuffer,
     folderId: string,
     dirMap: Map<string, WeblensFile>,
-    authHeader: AuthHeaderT,
-    dispatch: (Action: FileBrowserAction) => void,
-    wsSend
+    authHeader: AuthHeaderT
 ) {
     const names = Array.from(dirMap.values()).map((v) => v.GetFilename())
     let imgNumber = 1
@@ -596,8 +519,7 @@ export async function uploadViaUrl(
         topLevelParentKey: '',
         isTopLevel: true,
     }
-    await Upload([meta], false, '', folderId, authHeader, () => {}, wsSend)
-    dispatch({ type: 'paste_image', img: null })
+    await Upload([meta], false, '', folderId, authHeader)
 }
 
 export function selectedMediaIds(
@@ -614,57 +536,6 @@ export function selectedFolderIds(
     selectedIds: string[]
 ): string[] {
     return selectedIds.filter((id) => dirMap.get(id).IsFolder())
-}
-
-export function SetFileData(
-    data: {
-        self?: WeblensFileParams
-        children?: WeblensFileParams[]
-        parents?: WeblensFileParams[]
-        error?
-    },
-    fbDispatch: FBDispatchT,
-    mediaDispatch: MediaDispatchT,
-    usr: UserInfoT
-) {
-    if (!data) {
-        console.error('Trying to set null file data')
-        return
-    }
-    if (data.error) {
-        console.error(data.error)
-        return
-    }
-
-    let parents: WeblensFile[]
-    if (!data.parents) {
-        parents = []
-    } else {
-        parents = data.parents.map((f) => new WeblensFile(f))
-        parents.reverse()
-    }
-
-    const children = data.children ? data.children : []
-
-    const medias: WeblensMedia[] = []
-    for (const child of children) {
-        if (child.mediaData) {
-            medias.push(new WeblensMedia(child.mediaData))
-        }
-    }
-
-    mediaDispatch({ type: 'add_medias', medias: medias })
-
-    const self = new WeblensFile(data.self)
-    self.SetParents(parents)
-
-    fbDispatch({
-        type: 'set_folder_info',
-        file: self,
-        user: usr,
-    })
-
-    fbDispatch({ type: 'update_many', files: children, user: usr })
 }
 
 export const historyDate = (timestamp: number) => {

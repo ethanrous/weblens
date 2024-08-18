@@ -73,6 +73,8 @@ type Media struct {
 	// but the media stays behind because it can be re-used if needed.
 	Enabled bool `json:"enabled" bson:"enabled"`
 
+	LikedBy []types.Username `json:"likedBy" bson:"likedBy"`
+
 	/* NON-DATABASE FIELDS */
 
 	// Real media type of the media, loaded from the MimeType
@@ -218,6 +220,9 @@ func (m *Media) SetCreateDate(t time.Time) error {
 }
 
 func (m *Media) GetMediaType() types.MediaType {
+	if m.mediaType != nil {
+		wlog.Debug.Println("MEDIA TYPE", m.mediaType)
+	}
 	if m.mediaType != nil && m.mediaType.GetMime() != "" {
 		return m.mediaType
 	}
@@ -261,7 +266,7 @@ func (m *Media) getExistingFiles() []types.FileId {
 }
 
 func (m *Media) AddFile(f types.WeblensFile) error {
-	m.FileIds = util.AddToSet(m.FileIds, []types.FileId{f.ID()})
+	m.FileIds = util.AddToSet(m.FileIds, f.ID())
 	if m.IsImported() {
 		return types.SERV.StoreService.AddFileToMedia(m.ID(), f.ID())
 	}
@@ -758,11 +763,13 @@ func (m *Media) cacheDisplayable(q types.Quality, data []byte, pageNum int, ft t
 
 	cacheRoot := ft.Get("CACHE")
 	f, err := ft.Touch(cacheRoot, cacheFileName, false, nil)
-	if err != nil && !strings.Contains(err.Error(), "file already exists") {
-		wlog.ErrTrace(err)
-		return nil
-	} else if strings.Contains(err.Error(), "file already exists") {
-		return f
+	if err != nil {
+		if !strings.Contains(err.Error(), "file already exists") {
+			wlog.ErrTrace(err)
+			return nil
+		} else {
+			return f
+		}
 	}
 
 	err = f.Write(data)
@@ -810,6 +817,7 @@ func (m *Media) getCacheFilename(q types.Quality, pageNum int) string {
 }
 
 func (m *Media) getImageRecognitionTags() (err error) {
+	wlog.Warning.Println("Skipping image recognition tags")
 	return nil
 	bs, err := m.ReadDisplayable(types.Thumbnail, 0)
 	if err != nil {
@@ -913,6 +921,21 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.CreateDate = time.UnixMilli(raw.Lookup("createDate").Int64())
 	m.MimeType = raw.Lookup("mimeType").StringValue()
 
+	likedArr, ok := raw.Lookup("likedBy").ArrayOK()
+	if ok {
+		likedValues, err := likedArr.Values()
+		if err != nil {
+			return types.WeblensErrorFromError(err)
+		}
+		m.LikedBy = util.Map(
+			likedValues, func(e bson.RawValue) types.Username {
+				return types.Username(e.StringValue())
+			},
+		)
+	} else {
+		m.LikedBy = []types.Username{}
+	}
+
 	rtArr, ok := raw.Lookup("recognitionTags").ArrayOK()
 	if ok {
 		rts, err := rtArr.Values()
@@ -938,6 +961,7 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 }
 
 func (m *Media) MarshalJSON() ([]byte, error) {
+	wlog.Debug.Println(m)
 	data := map[string]any{
 		"contentId":        m.ContentId,
 		"fileIds":          m.FileIds,
@@ -953,6 +977,7 @@ func (m *Media) MarshalJSON() ([]byte, error) {
 		"pageCount": m.PageCount,
 		"imported":  m.imported,
 		"hidden":    m.Hidden,
+		"likedBy": m.LikedBy,
 		// "videoLength":      m.VideoLength,
 	}
 

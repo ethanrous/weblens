@@ -41,6 +41,7 @@ func createUser(ctx *gin.Context) {
 		return
 	}
 
+
 	u, err := user.New(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate)
 	if err != nil {
 		if errors.Is(err, types.ErrUserAlreadyExists) {
@@ -51,6 +52,14 @@ func createUser(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
+
+	// homeDir, err := u.CreateHomeFolder()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// newUser.homeFolder = homeDir
+	// newUser.trashFolder = homeDir.GetChildren()[0]
 
 	err = types.SERV.UserService.Add(u)
 	if err != nil {

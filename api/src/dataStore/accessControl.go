@@ -182,5 +182,5 @@ func (acc *accessMeta) CanAccessShare(s types.Share) bool {
 }
 
 func (acc *accessMeta) CanAccessAlbum(a types.Album) bool {
-	return acc.User() == a.GetOwner() || slices.Contains(a.GetUsers(), acc.User())
+	return acc.User() == a.GetOwner() || slices.Contains(a.GetSharedWith(), acc.User().GetUsername())
 }

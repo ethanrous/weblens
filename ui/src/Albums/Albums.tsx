@@ -7,42 +7,37 @@ import {
     IconPlus,
     IconSearch,
 } from '@tabler/icons-react'
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, {
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMediaType } from '../components/hooks'
 import NotFound from '../components/NotFound'
 import WeblensButton from '../components/WeblensButton'
 import WeblensInput from '../components/WeblensInput'
-import { MediaContext } from '../Context'
 import { PhotoGallery } from '../Media/MediaDisplay'
 import { GalleryContext, GalleryContextT } from '../Pages/Gallery/GalleryLogic'
 import WeblensMedia from '../Media/Media'
 
-import { AlbumData } from '../types/Types'
 import { AlbumScroller } from './AlbumDisplay'
 import { createAlbum, getAlbumMedia, getAlbums } from './AlbumQuery'
 import { WeblensProgress } from '../components/WeblensProgress'
 import { GalleryFilters } from '../Pages/Gallery/Gallery'
 import { useSessionStore } from '../components/UserInfo'
+import { useQuery } from '@tanstack/react-query'
+import { useMediaStore } from '../Media/MediaStateControl'
 
-function AlbumNoContent({
-    albumData,
-}: {
-    albumData: {
-        albumMeta: AlbumData
-        media: WeblensMedia[]
-    }
-}) {
+export function AlbumNoContent({ hasContent }: { hasContent: boolean }) {
     const nav = useNavigate()
     return (
         <div className="flex flex-col w-full items-center">
-            <p className="flex justify-center font-bold text-7xl select-none">
-                {albumData.albumMeta.name}
-            </p>
             <div className="flex flex-col pt-40 w-max items-center">
-                {albumData.albumMeta.medias.length !== 0 && (
+                {hasContent && (
                     <div className="flex flex-col items-center">
-                        <p className="font-extrabold text-3xl">
+                        <p className="font-extrabold text-3xl mb-10">
                             No media in current filters
                         </p>
                         <Space h={5} />
@@ -53,16 +48,14 @@ function AlbumNoContent({
                         <Divider label="or" mx={30} />
                     </div>
                 )}
-                {albumData.albumMeta.medias.length === 0 && (
-                    <p className="font-extrabold text-3xl">
-                        This album has no media
-                    </p>
+                {!hasContent && (
+                    <p className="font-extrabold text-3xl m-2">No Media</p>
                 )}
                 <Space h={10} />
                 <WeblensButton
                     squareSize={40}
                     centerContent
-                    label="FileBrowser"
+                    label="Upload"
                     Left={IconFolder}
                     onClick={() => nav('/files/home')}
                 />
@@ -71,52 +64,59 @@ function AlbumNoContent({
     )
 }
 
+const AlbumTitle = ({ startColor, endColor, title }) => {
+    const sc = startColor ? `#${startColor}` : '#447bff'
+    const ec = endColor ? `#${endColor}` : '#6700ff'
+    const style = {
+        background: `linear-gradient(to right, ${sc}, ${ec}) text`,
+    }
+    return (
+        <div className="flex h-max w-full justify-center">
+            <h1
+                className={`text-7xl font-extrabold select-none inline-block text-transparent `}
+                style={style}
+            >
+                {title}
+            </h1>
+        </div>
+    )
+}
+
 function AlbumContent({ albumId }: { albumId: string }) {
-    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const { galleryState } = useContext(GalleryContext)
     const auth = useSessionStore((state) => state.auth)
-
-    const [albumData, setAlbumData]: [
-        albumData: { albumMeta: AlbumData; media: WeblensMedia[] },
-        setAlbumData: any,
-    ] = useState(null)
-    const mType = useMediaType()
     const [notFound, setNotFound] = useState(false)
-    const { mediaState } = useContext(MediaContext)
 
-    const fetchAlbum = useCallback(() => {
-        if (!mType) {
-            return
-        }
-        galleryDispatch({ type: 'add_loading', loading: 'album_media' })
-        getAlbumMedia(albumId, mediaState.isShowingRaw(), auth)
-            .then((m) => {
-                setAlbumData(m)
-            })
-            .catch((r) => {
-                if (r === 404) {
+    const showRaw = useMediaStore((state) => state.showRaw)
+    const addMedias = useMediaStore((state) => state.addMedias)
+
+    const albumContentRes = useQuery({
+        queryKey: ['albumContent', albumId, showRaw],
+        queryFn: async () => {
+            const data = await getAlbumMedia(albumId, showRaw, auth).catch(
+                (r) => {
+                    console.error(r)
                     setNotFound(true)
-                    return
                 }
-                console.error(r)
-            })
-            .finally(() =>
-                galleryDispatch({
-                    type: 'remove_loading',
-                    loading: 'album_media',
-                })
             )
-    }, [albumId, mediaState.isShowingRaw(), mType])
+            if (!data) {
+                return
+            }
 
-    useEffect(() => {
-        fetchAlbum()
-    }, [fetchAlbum])
+            const medias = data.mediaInfos
+                ? data.mediaInfos.map((m) => new WeblensMedia(m))
+                : []
+            addMedias(medias)
+            return { albumMeta: data.albumMeta, medias: medias }
+        },
+    })
 
     const media = useMemo(() => {
-        if (!albumData) {
+        if (!albumContentRes.data) {
             return []
         }
-        if (albumData.media) {
-            const media = albumData.media
+        if (albumContentRes.data.medias) {
+            const media = albumContentRes.data.medias
                 ?.filter((v) => {
                     if (galleryState.searchContent === '') {
                         return true
@@ -129,9 +129,10 @@ function AlbumContent({ albumId }: { albumId: string }) {
         }
 
         return []
-    }, [albumData?.media, galleryState.searchContent])
+    }, [albumContentRes.data?.medias, galleryState.searchContent])
 
-    if (notFound) {
+    if (notFound || albumContentRes.error) {
+        console.error(albumContentRes.error)
         return (
             <NotFound
                 resourceType="Album"
@@ -141,19 +142,29 @@ function AlbumContent({ albumId }: { albumId: string }) {
         )
     }
 
-    if (!albumData) {
+    if (!albumContentRes.data) {
         return null
     }
 
     return (
-        <div className="w-full">
-            {media.length === 0 && <AlbumNoContent albumData={albumData} />}
+        <div className="flex flex-col items-center h-1/2 w-full relative grow">
+            <AlbumTitle
+                title={albumContentRes.data.albumMeta.name}
+                endColor={albumContentRes.data.albumMeta.secondaryColor}
+                startColor={albumContentRes.data.albumMeta.primaryColor}
+            />
+            {media.length === 0 && (
+                <AlbumNoContent
+                    hasContent={
+                        albumContentRes.data.albumMeta.medias.length !== 0
+                    }
+                />
+            )}
 
             {media.length !== 0 && (
                 <PhotoGallery
                     medias={media}
-                    album={albumData.albumMeta}
-                    // fetchAlbum={fetchAlbum}
+                    album={albumContentRes.data.albumMeta}
                 />
             )}
         </div>
@@ -206,21 +217,6 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
     const nav = useNavigate()
     const { galleryState, galleryDispatch }: GalleryContextT =
         useContext(GalleryContext)
-    // const { mediaState, mediaDispatch } = useContext(MediaContext)
-
-    // const click = useCallback(
-    //     () =>
-    //         mediaDispatch({
-    //             type: 'set_raw_toggle',
-    //             raw: !mediaState.isShowingRaw(),
-    //         }),
-    //     [galleryDispatch, mediaState.isShowingRaw()]
-    // )
-    //
-    // const setSize = useCallback(
-    //     (s) => galleryDispatch({ type: 'set_image_size', size: s }),
-    //     [galleryDispatch]
-    // )
 
     if (albumId === '') {
         return (
@@ -235,7 +231,6 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
                         valueCallback={(v) =>
                             galleryDispatch({ type: 'set_search', search: v })
                         }
-                        onComplete={() => {}}
                     />
                 </div>
             </div>
@@ -256,15 +251,22 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
             <Divider orientation="vertical" className="mr-5 my-1" />
 
             <div className="h-10 w-56">
-                <WeblensProgress
-                    value={((galleryState.imageSize - 150) / 350) * 100}
-                    seekCallback={(s) => {
-                        galleryDispatch({
-                            type: 'set_image_size',
-                            size: s * 350 + 150,
-                        })
-                    }}
-                />
+                <div className="relative h-10 w-56 shrink-0">
+                    <WeblensProgress
+                        height={40}
+                        value={((galleryState.imageSize - 150) / 350) * 100}
+                        disabled={galleryState.selecting}
+                        seekCallback={(s) => {
+                            if (s === 0) {
+                                s = 1
+                            }
+                            galleryDispatch({
+                                type: 'set_image_size',
+                                size: (s / 100) * 350 + 150,
+                            })
+                        }}
+                    />
+                </div>
             </div>
 
             <GalleryFilters />

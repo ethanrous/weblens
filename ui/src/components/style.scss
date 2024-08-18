@@ -88,6 +88,10 @@
     &::-webkit-scrollbar-thumb {
         background-color: transparent;
     }
+
+    :focus-visible {
+        outline: none;
+    }
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -103,6 +107,7 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    border-radius: 4px;
 }
 
 .weblens-menu {
@@ -316,35 +321,10 @@
     user-select: none;
 }
 
-.hover-icon {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    color: white;
-    height: 28px;
-    width: 28px;
-    background-color: #00000055;
-    border-radius: 4px;
-    margin: 5px;
-    padding: 2px;
-    transition: width 150ms ease-in-out, background-color 100ms ease-in-out;
-    overflow: hidden;
-    //opacity: inherit;
-
-    //&[data-visible='true'] {
-    //    opacity: 100%;
-    //}
-}
-
-.hover-icon:hover {
-    justify-content: flex-start;
-    background-color: #000000aa;
-}
-
-.close-icon {
+.presentation-icon {
     position: absolute;
-    left: 15px;
-    top: 15px;
+    //left: 15px;
+    //top: 15px;
     cursor: pointer;
     color: white;
     opacity: 0;

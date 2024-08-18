@@ -75,3 +75,12 @@ func (db *databaseService) AddUsersToAlbum(aId types.AlbumId, us []types.User) e
 	return nil
 
 }
+
+func (db *databaseService) DeleteAlbum(id types.AlbumId) error {
+	filter := bson.M{"_id": id}
+	_, err := db.albums.DeleteOne(db.ctx, filter)
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+	return nil
+}

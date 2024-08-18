@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
@@ -67,7 +66,6 @@ func (db *databaseService) GetFetchMediaCacheImage(ctx context.Context) ([]byte,
 	defer util.RecoverPanic("Failed to fetch media image into cache")
 
 	m := ctx.Value("media").(types.Media)
-	// util.Debug.Printf("Media cache miss [%s]", m.ID())
 
 	q := ctx.Value("quality").(types.Quality)
 	pageNum := ctx.Value("pageNum").(int)
@@ -78,7 +76,7 @@ func (db *databaseService) GetFetchMediaCacheImage(ctx context.Context) ([]byte,
 	}
 
 	if f == nil {
-		panic("This should never happen...")
+		panic("This should never happen... file is nil in GetFetchMediaCacheImage")
 	}
 
 	data, err := f.ReadAll()
@@ -86,8 +84,23 @@ func (db *databaseService) GetFetchMediaCacheImage(ctx context.Context) ([]byte,
 		return nil, err
 	}
 	if len(data) == 0 {
-		err = fmt.Errorf("displayable bytes empty")
+		err = types.WeblensErrorMsg("displayable bytes empty")
 		return nil, err
 	}
 	return data, nil
+}
+
+func (db *databaseService) AddLikeToMedia(id types.ContentId, user types.Username, liked bool) error {
+	filter := bson.M{"contentId": id}
+	var update bson.M
+	if liked {
+		update = bson.M{"$addToSet": bson.M{"likedBy": user}}
+	} else {
+		update = bson.M{"$pull": bson.M{"likedBy": user}}
+	}
+	_, err := db.media.UpdateOne(db.ctx, filter, update)
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+	return nil
 }

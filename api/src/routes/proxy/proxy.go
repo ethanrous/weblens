@@ -24,13 +24,13 @@ func NewProxyStore(coreAddress string, apiKey types.WeblensApiKey) *ProxyStore {
 }
 
 func (p *ProxyStore) Init(db types.StoreService) {
-	core := types.SERV.InstanceService.GetCore()
-	addr, err := core.GetAddress()
-	if err != nil {
-		panic(err)
-	}
-	p.coreAddress = addr
-	p.apiKey = core.GetUsingKey()
+	// core := types.SERV.InstanceService.GetCore()
+	// addr, err := core.GetAddress()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// p.coreAddress = addr
+	// p.apiKey = core.GetUsingKey()
 	p.db = db
 }
 

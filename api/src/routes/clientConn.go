@@ -27,6 +27,10 @@ type clientConn struct {
 	remote        types.Instance
 }
 
+func (cc *clientConn) IsOpen() bool {
+	return cc.Active
+}
+
 func (cc *clientConn) GetClientId() types.ClientId {
 	return cc.connId
 }

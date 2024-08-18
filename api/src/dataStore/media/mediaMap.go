@@ -13,10 +13,11 @@ import (
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
+	"github.com/modern-go/reflect2"
 )
 
 type mediaRepo struct {
-	mediaMap    map[types.ContentId]types.Media
+	mediaMap map[types.ContentId]*Media
 	mapLock     *sync.RWMutex
 	typeService types.MediaTypeService
 	exif        *exiftool.Exiftool
@@ -27,7 +28,7 @@ type mediaRepo struct {
 
 func NewRepo(mediaTypeServ types.MediaTypeService) types.MediaRepo {
 	return &mediaRepo{
-		mediaMap:    make(map[types.ContentId]types.Media),
+		mediaMap: make(map[types.ContentId]*Media),
 		mapLock:     &sync.RWMutex{},
 		typeService: mediaTypeServ,
 		exif:        NewExif(1000*1000*100, 0, nil),
@@ -47,7 +48,7 @@ func (mr *mediaRepo) Init(db types.MediaStore) error {
 	defer mr.mapLock.Unlock()
 
 	for _, m := range ms {
-		mr.mediaMap[m.ID()] = m
+		mr.mediaMap[m.ID()] = m.(*Media)
 	}
 
 	return nil
@@ -85,7 +86,7 @@ func (mr *mediaRepo) Add(m types.Media) error {
 		}
 	}
 
-	mr.mediaMap[m.ID()] = m
+	mr.mediaMap[m.ID()] = m.(*Media)
 
 	return nil
 }
@@ -103,6 +104,10 @@ func (mr *mediaRepo) Get(mId types.ContentId) types.Media {
 	m := mr.mediaMap[mId]
 	mr.mapLock.RUnlock()
 
+	if reflect2.IsNil(m) {
+		return nil
+	}
+
 	return m
 }
 
@@ -110,7 +115,7 @@ func (mr *mediaRepo) GetAll() []types.Media {
 	mr.mapLock.RLock()
 	defer mr.mapLock.RUnlock()
 	medias := util.MapToValues(mr.mediaMap)
-	return medias
+	return util.SliceConvert[types.Media](medias)
 }
 
 func (mr *mediaRepo) Del(cId types.ContentId) error {
@@ -162,7 +167,7 @@ func (mr *mediaRepo) FetchCacheImg(m types.Media, q types.Quality, pageNum int) 
 
 	cache, err := mr.mediaCache.GetFetch(ctx, cacheKey, types.SERV.StoreService.GetFetchMediaCacheImage)
 	if err != nil {
-		return nil, err
+		return nil, types.WeblensErrorFromError(err)
 	}
 	return cache, nil
 }
@@ -216,7 +221,7 @@ func (mr *mediaRepo) GetFilteredMedia(
 	allMs := util.MapToValues(mr.mediaMap)
 	mr.mapLock.RUnlock()
 	allMs = util.Filter(
-		allMs, func(m types.Media) bool {
+		allMs, func(m *Media) bool {
 			mt := m.GetMediaType()
 			if mt == nil {
 				return false
@@ -235,10 +240,10 @@ func (mr *mediaRepo) GetFilteredMedia(
 	)
 
 	slices.SortFunc(
-		allMs, func(a, b types.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
+		allMs, func(a, b *Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
 	)
 
-	return allMs, nil
+	return util.SliceConvert[types.Media](allMs), nil
 }
 
 func AdjustMediaDates(anchor types.Media, newTime time.Time, extraMedias []types.Media) error {
@@ -315,4 +320,30 @@ func fetchAndCacheMedia(ctx context.Context) (data []byte, err error) {
 		return
 	}
 	return
+}
+
+func (mr *mediaRepo) SetMediaLiked(mediaId types.ContentId, liked bool, username types.Username) error {
+	mr.mapLock.Lock()
+	defer mr.mapLock.Unlock()
+	m, ok := mr.mediaMap[mediaId]
+	if !ok {
+		return types.WeblensErrorMsg(fmt.Sprintf("Could not find media trying to like with id [%s]", mediaId))
+	}
+
+	err := mr.db.AddLikeToMedia(mediaId, username, liked)
+	if err != nil {
+		return err
+	}
+
+	if liked {
+		m.LikedBy = util.AddToSet(m.LikedBy, username)
+	} else {
+		m.LikedBy = util.Filter(
+			m.LikedBy, func(u types.Username) bool {
+				return u != username
+			},
+		)
+	}
+
+	return nil
 }

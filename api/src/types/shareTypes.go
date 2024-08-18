@@ -41,6 +41,7 @@ type ShareService interface {
 	WeblensService[ShareId, Share, ShareStore]
 	GetSharedWithUser(u User) ([]Share, error)
 	GetAllShares() []Share
+	UpdateShareItem(ShareId, string) error
 }
 
 type RequestMode string

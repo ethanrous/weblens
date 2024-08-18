@@ -18,6 +18,7 @@ import (
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/ethrousseau/weblens/api/util/wlog"
 	"github.com/gin-gonic/gin"
+	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
 func createFolder(ctx *gin.Context) {
@@ -116,7 +117,11 @@ func formatRespondFolderInfo(dir types.WeblensFile, acc types.AccessMeta, ctx *g
 	packagedInfo := gin.H{"self": selfData, "children": filteredDirInfo, "parents": parentsInfo}
 	ctx.JSON(http.StatusOK, packagedInfo)
 
-	if slices.ContainsFunc(filteredDirInfo, func(i types.FileInfo) bool { return !i.Imported && i.Displayable }) {
+	if slices.ContainsFunc(
+		dir.GetChildren(), func(f types.WeblensFile) bool {
+			return types.SERV.MediaRepo.Get(f.GetContentId()) == nil && f.IsDisplayable()
+		},
+	) {
 		c := NewBufferedCaster()
 		t := types.SERV.TaskDispatcher.ScanDirectory(dir, c)
 		t.SetCleanup(
@@ -458,6 +463,20 @@ func getDirectoryContent(ctx *gin.Context) {
 
 func autocompletePath(ctx *gin.Context) {
 	searchPath := ctx.Query("searchPath")
+	if len(searchPath) == 0 {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	user := getUserFromCtx(ctx)
+
+	if strings.HasPrefix(searchPath, "~/") {
+		searchPath = "MEDIA:" + string(user.GetUsername()) + "/" + ctx.Query("searchPath")[2:]
+	} else if searchPath[:1] == "/" && user.IsAdmin() {
+		searchPath = "MEDIA:" + ctx.Query("searchPath")[1:]
+	} else {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
 
 	lastSlashIndex := strings.LastIndex(searchPath, "/")
 	if lastSlashIndex == -1 {
@@ -476,9 +495,32 @@ func autocompletePath(ctx *gin.Context) {
 	}
 
 	postFix := searchPath[lastSlashIndex+1:]
+	allChildren := folder.GetChildren()
+	childNames := util.Map(
+		allChildren, func(c types.WeblensFile) string {
+			return c.Filename()
+		},
+	)
+
+	matches := fuzzy.RankFindFold(postFix, childNames)
+	slices.SortFunc(
+		matches, func(a, b fuzzy.Rank) int {
+			diff := a.Distance - b.Distance
+			if diff != 0 {
+				return diff
+			}
+
+			return allChildren[a.OriginalIndex].ModTime().Compare(allChildren[b.OriginalIndex].ModTime())
+		},
+	)
+
 	children := util.FilterMap(
-		folder.GetChildren(), func(c types.WeblensFile) (types.WeblensFile, bool) {
-			return c, strings.HasPrefix(c.Filename(), postFix)
+		matches, func(match fuzzy.Rank) (types.WeblensFile, bool) {
+			f := allChildren[match.OriginalIndex]
+			if f == user.GetTrashFolder() {
+				return nil, false
+			}
+			return f, true
 		},
 	)
 
@@ -486,7 +528,8 @@ func autocompletePath(ctx *gin.Context) {
 }
 
 func getFileDataFromPath(ctx *gin.Context) {
-	searchPath := ctx.Query("searchPath")
+	user := getUserFromCtx(ctx)
+	searchPath := "MEDIA:" + string(user.GetUsername()) + "/" + ctx.Query("searchPath")
 	folderId := types.SERV.FileTree.GenerateFileId(filetree.FilepathFromPortable(searchPath).ToAbsPath() + "/")
 
 	folder := types.SERV.FileTree.Get(folderId)
@@ -496,4 +539,47 @@ func getFileDataFromPath(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, folder)
+}
+
+func searchByFilename(ctx *gin.Context) {
+	u := getUserFromCtx(ctx)
+	if u == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
+	filenameSearch := ctx.Query("search")
+	if filenameSearch == "" {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	var fileIds []types.FileId
+	var filenames []string
+	_ = u.GetHomeFolder().RecursiveMap(
+		func(f types.WeblensFile) error {
+			fileIds = append(fileIds, f.ID())
+			filenames = append(filenames, f.Filename())
+			return nil
+		},
+	)
+
+	matches := fuzzy.RankFindFold(filenameSearch, filenames)
+	slices.SortFunc(
+		matches, func(a, b fuzzy.Rank) int {
+			return a.Distance - b.Distance
+		},
+	)
+
+	files := util.FilterMap(
+		matches, func(match fuzzy.Rank) (types.WeblensFile, bool) {
+			f := types.SERV.FileTree.Get(fileIds[match.OriginalIndex])
+			if f == u.GetHomeFolder() || f == u.GetTrashFolder() {
+				return nil, false
+			}
+			return f, true
+		},
+	)
+
+	ctx.JSON(http.StatusOK, files)
 }

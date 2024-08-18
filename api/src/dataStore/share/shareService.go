@@ -63,30 +63,14 @@ func (ss *shareService) Del(sId types.ShareId) (err error) {
 	if ss.repo[sId] == nil {
 		return types.ErrNoShare
 	}
-	delete(ss.repo, sId)
-	return types.NewWeblensError("not impl - delete from share repo")
 
-	// switch s.GetShareType() {
-	// case dataStore.FileShare:
-	// 	err = dataStore.dbServer.removeFileShare(s.GetShareId())
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	f := ft.Get(types.FileId(s.GetContentId()))
-	// 	err = f.RemoveShare(s.GetShareId())
-	// 	if err != nil {
-	// 		return
-	// 	}
-	//
-	// 	util.Each(c, func(caster types.BroadcasterAgent) {
-	// 		caster.PushFileUpdate(f)
-	// 	})
-	//
-	// default:
-	// 	err = dataStore.ErrBadShareType
-	// }
-	//
-	// return
+	err = ss.db.DeleteShare(sId)
+	if err != nil {
+		return err
+	}
+
+	delete(ss.repo, sId)
+	return nil
 }
 
 func (ss *shareService) Get(sId types.ShareId) types.Share {
@@ -103,4 +87,15 @@ func (ss *shareService) Size() int {
 
 func (ss *shareService) GetSharedWithUser(u types.User) ([]types.Share, error) {
 	return types.SERV.StoreService.GetSharedWithUser(u.GetUsername())
+}
+
+func (ss *shareService) UpdateShareItem(shareId types.ShareId, newItemId string) error {
+	share := ss.Get(shareId)
+	share.SetItemId(newItemId)
+	err := ss.db.UpdateShare(share)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

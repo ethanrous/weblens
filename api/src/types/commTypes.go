@@ -21,6 +21,8 @@ type ClientManager interface {
 type Client interface {
 	BasicCaster
 
+	IsOpen() bool
+
 	ReadOne() (int, []byte, error)
 
 	Subscribe(key SubId, action WsAction, acc AccessMeta) (complete bool, results map[string]any)

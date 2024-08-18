@@ -1,6 +1,7 @@
 package database
 
 import (
+	"io"
 	"os"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -61,6 +62,10 @@ func (db *databaseService) ReadFile(f types.WeblensFile) ([]byte, error) {
 		return nil, types.WeblensErrorFromError(err)
 	}
 	return bs, nil
+}
+
+func (db *databaseService) StreamFile(f types.WeblensFile) (io.ReadCloser, error) {
+	return f.Readable()
 }
 
 func (db *databaseService) ReadDir(f types.WeblensFile) ([]types.FileStat, error) {

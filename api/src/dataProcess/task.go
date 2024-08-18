@@ -3,6 +3,7 @@ package dataProcess
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethrousseau/weblens/api/types"
@@ -12,8 +13,8 @@ import (
 
 type task struct {
 	taskId        types.TaskId
-	taskPool      types.TaskPool
-	childTaskPool types.TaskPool
+	taskPool      *taskPool
+	childTaskPool *taskPool
 	caster        types.BroadcasterAgent
 	work          taskHandler
 	taskType      types.TaskType
@@ -45,7 +46,7 @@ type task struct {
 	// to exit prematurely, for example. The signalChan serves the same purpose, but is
 	// used when a task might block waiting for another channel.
 	// Key: 1 is exit,
-	signal     int
+	signal atomic.Int64
 	signalChan chan int
 
 	waitMu sync.Mutex
@@ -69,7 +70,15 @@ func (t *task) TaskType() types.TaskType {
 }
 
 func (t *task) GetTaskPool() types.TaskPool {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
 	return t.taskPool
+}
+
+func (t *task) setTaskPoolInternal(pool *taskPool) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.taskPool = pool
 }
 
 func (t *task) GetChildTaskPool() types.TaskPool {
@@ -78,7 +87,7 @@ func (t *task) GetChildTaskPool() types.TaskPool {
 	return t.childTaskPool
 }
 
-func (t *task) setChildTaskPool(pool types.TaskPool) {
+func (t *task) setChildTaskPool(pool *taskPool) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.childTaskPool = pool
@@ -145,21 +154,24 @@ func (t *task) Cancel() {
 		return
 	}
 
-	if t.queueState == Exited || t.signal != 0 {
+	if t.queueState == Exited || t.signal.Load() != 0 {
 		return
 	}
-	t.signal = 1
+	t.signal.Store(1)
 	t.signalChan <- 1
 	if t.exitStatus == TaskNoStatus {
 		t.exitStatus = TaskCanceled
 	}
-	t.queueState = Exited
+
+	// Do not exit task here, so that .Wait() -ing on a task will wait until the task actually exits,
+	// before starting again
+	// t.queueState = Exited
 }
 
-// This should be used intermittently to check if the task should exit.
+// CheckExit should be used intermittently to check if the task should exit.
 // If the task should exit, it panics back to the top of safety work
 func (t *task) CheckExit() {
-	if t.signal != 0 {
+	if t.signal.Load() != 0 {
 		panic(ErrTaskExit)
 	}
 }
@@ -167,16 +179,30 @@ func (t *task) CheckExit() {
 func (t *task) ClearAndRecompute() {
 	t.Cancel()
 	t.Wait()
+
+	t.updateMu.Lock()
+	t.exitStatus = TaskNoStatus
+	t.signal.Store(0)
+	t.queueState = PreQueued
+	t.updateMu.Unlock()
+
+	t.waitMu.TryLock()
+
 	for k := range t.result {
 		delete(t.result, k)
 	}
+
 	if t.err != nil {
 		wlog.Warning.Printf("Retrying task (%s) that has previous error: %v", t.TaskId(), t.err)
 		t.err = nil
 	}
-	t.queueState = PreQueued
-	t.waitMu.TryLock()
-	t.taskPool.QueueTask(t)
+
+	err := t.taskPool.QueueTask(t)
+	if err != nil {
+		return
+	}
+
+	t.taskPool.workerPool.taskMap[t.taskId] = t
 }
 
 func (t *task) GetResult(resultKey string) any {
@@ -188,6 +214,8 @@ func (t *task) GetResult(resultKey string) any {
 }
 
 func (t *task) GetResults() types.TaskResult {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
 	if t.result == nil {
 		t.result = types.TaskResult{}
 	}
@@ -306,6 +334,8 @@ func (t *task) ClearTimeout() {
 }
 
 func (t *task) setResult(results types.TaskResult) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
 	t.result = results
 	// if t.result == nil {
 	// 	t.result = make(map[string]string)

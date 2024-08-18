@@ -54,7 +54,12 @@ export const MediaImage = memo(
         const auth = useSessionStore((state) => state.auth)
 
         useEffect(() => {
-            if (doFetch && media.Id() && !media.HasQualityLoaded(quality)) {
+            if (
+                media.GetMediaType() &&
+                doFetch &&
+                media.Id() &&
+                !media.HasQualityLoaded(quality)
+            ) {
                 media.LoadBytes(
                     quality,
                     auth,
@@ -86,7 +91,7 @@ export const MediaImage = memo(
             } else if (media.HighestQualityLoaded() !== '' && src.url === '') {
                 setUrl({ url: media.GetObjectUrl('thumbnail'), id: media.Id() })
             }
-        }, [media, quality, doFetch])
+        }, [media, quality, doFetch, media.GetMediaType()])
 
         const containerClick = useCallback(
             (e) => {
@@ -99,6 +104,10 @@ export const MediaImage = memo(
 
         const shouldShowVideo =
             media.GetMediaType()?.IsVideo && quality === 'fullres'
+
+        // if (!media.GetMediaType()) {
+        //     return null
+        // }
 
         return (
             <div
@@ -113,6 +122,7 @@ export const MediaImage = memo(
                     !media.Id() ||
                     !media.HighestQualityLoaded()) && <IconPhoto />}
                 {media.Id() !== '' &&
+                    media.GetMediaType() &&
                     quality === 'fullres' &&
                     media.HighestQualityLoaded() !== 'fullres' &&
                     !loadError &&
@@ -133,7 +143,8 @@ export const MediaImage = memo(
                     data-hide={
                         src.url === '' ||
                         media.HasLoadError() ||
-                        shouldShowVideo
+                        shouldShowVideo ||
+                        !media.HighestQualityLoaded()
                     }
                     draggable={false}
                     src={src.url}
@@ -152,15 +163,6 @@ export const MediaImage = memo(
                     isPlaying={isPlaying}
                     playtime={playtime}
                 />
-
-                {/* {media?.blurHash && lazy && !imgData && (
-                 <Blurhash
-                 style={{ position: "absolute" }}
-                 height={visibleRef?.current?.clientHeight ? visibleRef.current.clientHeight : 0}
-                 width={visibleRef?.current?.clientWidth ? visibleRef.current.clientWidth : 0}
-                 hash={media.blurHash}
-                 />
-                 )} */}
             </div>
         )
     },
@@ -196,21 +198,26 @@ function VideoWrapper({
     isPlaying,
     playtime,
 }: {
-    url
-    shouldShowVideo
-    fitLogic
-    media
+    url: string
+    shouldShowVideo: boolean
+    fitLogic: string
+    media: WeblensMedia
     imgStyle
     videoRef: HTMLVideoElement
-    setVideoRef
-    isPlaying
-    playtime
+    setVideoRef: (r) => void
+    isPlaying: boolean
+    playtime: number
 }) {
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const size = useResize(containerRef)
     const auth = useSessionStore((state) => state.auth)
     const [showUi, setShowUi] = useState<NodeJS.Timeout>()
     const [volume, setVolume] = useState(0)
+    const [playtimeInternal, setPlaytime] = useState(0)
+
+    useEffect(() => {
+        setPlaytime(playtime)
+    }, [playtime])
 
     useEffect(() => {
         if (!videoRef) {
@@ -237,7 +244,7 @@ function VideoWrapper({
         }
     }, [isPlaying, videoRef])
 
-    useKeyDown(' ', togglePlayState)
+    useKeyDown(' ', togglePlayState, !shouldShowVideo)
 
     if (!shouldShowVideo) {
         return null
@@ -280,7 +287,7 @@ function VideoWrapper({
                 }}
             >
                 <IconVolume3
-                    className="w-4 h-4 pointer-events-auto cursor-pointer"
+                    className="w-5 h-5 pointer-events-auto cursor-pointer"
                     onClick={() => {
                         setVolume(20)
                     }}
@@ -317,10 +324,11 @@ function VideoWrapper({
                 <div className="flex flex-row h-2 w-[98%] justify-around absolute">
                     <div className="relative w-[80%]">
                         <WeblensProgress
-                            value={
-                                (playtime * 100) /
-                                (media.GetVideoLength() / 1000)
-                            }
+                            height={12}
+                            value={Math.round(
+                                (playtimeInternal * 100000) /
+                                    media.GetVideoLength()
+                            )}
                             secondaryValue={
                                 videoRef && videoRef.buffered.length
                                     ? videoRef.buffered.end(
@@ -329,16 +337,21 @@ function VideoWrapper({
                                     : 0
                             }
                             seekCallback={(v) => {
-                                videoRef.currentTime =
-                                    (media.GetVideoLength() / 1000) * v
+                                if (videoRef) {
+                                    const newTime =
+                                        media.GetVideoLength() * (v / 100000)
+                                    videoRef.currentTime = newTime
+                                    setPlaytime(newTime)
+                                }
                             }}
                         />
                     </div>
                     <div className="relative w-[10%]">
                         <WeblensProgress
+                            height={12}
                             value={volume}
                             seekCallback={(v) => {
-                                setVolume(v * 100)
+                                setVolume(v)
                             }}
                         />
                     </div>

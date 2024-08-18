@@ -8,13 +8,13 @@ import (
 )
 
 type albumService struct {
-	repo map[types.AlbumId]types.Album
+	repo map[types.AlbumId]*Album
 	db   types.AlbumsStore
 }
 
 func NewService() types.AlbumService {
 	return &albumService{
-		repo: make(map[types.AlbumId]types.Album),
+		repo: make(map[types.AlbumId]*Album),
 	}
 }
 
@@ -26,7 +26,7 @@ func (as *albumService) Init(db types.AlbumsStore) error {
 	}
 
 	for _, a := range albs {
-		as.repo[a.ID()] = a
+		as.repo[a.ID()] = a.(*Album)
 	}
 
 	return nil
@@ -35,11 +35,12 @@ func (as *albumService) Init(db types.AlbumsStore) error {
 func (as *albumService) GetAllByUser(u types.User) []types.Album {
 	albs := util.MapToValues(as.repo)
 	albs = util.Filter(
-		albs, func(t types.Album) bool {
-			return t.GetOwner() == u || slices.Contains(t.GetUsers(), u)
+		albs, func(t *Album) bool {
+			return t.GetOwner() == u || slices.Contains(t.GetSharedWith(), u.GetUsername())
 		},
 	)
-	return albs
+
+	return util.SliceConvert[types.Album](albs)
 }
 
 func (as *albumService) Size() int {
@@ -56,13 +57,17 @@ func (as *albumService) Add(a types.Album) error {
 		return err
 	}
 
-	as.repo[a.ID()] = a
+	as.repo[a.ID()] = a.(*Album)
 
 	return nil
 }
 
 func (as *albumService) Del(aId types.AlbumId) error {
 	if _, ok := as.repo[aId]; ok {
+		err := as.db.DeleteAlbum(aId)
+		if err != nil {
+			return err
+		}
 		delete(as.repo, aId)
 		return nil
 	} else {
@@ -83,6 +88,27 @@ func (as *albumService) RemoveMediaFromAny(mediaId types.ContentId) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (as *albumService) SetAlbumCover(albumId types.AlbumId, cover types.Media) error {
+	album, ok := as.repo[albumId]
+	if !ok {
+		return ErrNoAlbum
+	}
+
+	colors, err := cover.GetProminentColors()
+	if err != nil {
+		return err
+	}
+
+	err = as.db.SetAlbumCover(albumId, colors[0], colors[1], cover.ID())
+	if err != nil {
+		return err
+	}
+
+	album.setCover(cover.ID(), colors[0], colors[1])
 
 	return nil
 }

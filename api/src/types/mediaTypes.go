@@ -23,6 +23,7 @@ type MediaRepo interface {
 	RunExif(path string) ([]exiftool.FileMetadata, error)
 	GetAll() []Media
 	NukeCache() error
+	SetMediaLiked(mediaId ContentId, liked bool, username Username) error
 }
 
 type Media interface {

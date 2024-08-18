@@ -2,17 +2,17 @@ import { IconFolder, IconLayersIntersect } from '@tabler/icons-react'
 import { memo, useCallback, useContext, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import WeblensButton from '../../components/WeblensButton'
-import { MediaContext } from '../../Context'
 import { PhotoGallery } from '../../Media/MediaDisplay'
 import { FetchData } from '../../Media/MediaQuery'
 import { GalleryContext } from './GalleryLogic'
 import { WeblensProgress } from '../../components/WeblensProgress'
 import { GalleryFilters } from './Gallery'
 import { useSessionStore } from '../../components/UserInfo'
+import { useMediaStore } from '../../Media/MediaStateControl'
 
 const TimelineControls = () => {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
-    const { mediaState } = useContext(MediaContext)
+    const hasMedia = useMediaStore((state) => state.mediaMap.size !== 0)
 
     const selectClick = useCallback(() => {
         galleryDispatch({
@@ -23,8 +23,9 @@ const TimelineControls = () => {
 
     return (
         <div className="timeline-controls">
-            <div className="h-10 w-56 shrink-0">
+            <div className="relative h-10 w-56 shrink-0">
                 <WeblensProgress
+                    height={40}
                     value={((galleryState.imageSize - 150) / 350) * 100}
                     disabled={galleryState.selecting}
                     seekCallback={(s) => {
@@ -50,7 +51,7 @@ const TimelineControls = () => {
                     Left={IconLayersIntersect}
                     toggleOn={galleryState.selecting}
                     onClick={selectClick}
-                    disabled={mediaState.mediaMap.size === 0}
+                    disabled={!hasMedia}
                 />
             </div>
         </div>
@@ -85,8 +86,9 @@ const NoMediaDisplay = () => {
 export const Timeline = memo(
     ({ page }: { page: string }) => {
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
-        const auth = useSessionStore((state) => state.auth)
-        const { mediaState, mediaDispatch } = useContext(MediaContext)
+        const showRaw = useMediaStore((state) => state.showRaw)
+        const showHidden = useMediaStore((state) => state.showHidden)
+        const medias = useMediaStore((state) => [...state.mediaMap.values()])
 
         useEffect(() => {
             if (!galleryState || galleryState.loading.includes('media')) {
@@ -94,30 +96,19 @@ export const Timeline = memo(
             }
 
             galleryDispatch({ type: 'add_loading', loading: 'media' })
-            FetchData(galleryState, mediaState, mediaDispatch, auth).then(
-                () => {
-                    galleryDispatch({
-                        type: 'remove_loading',
-                        loading: 'media',
-                    })
-                }
-            )
+            FetchData(galleryState).then(() => {
+                galleryDispatch({
+                    type: 'remove_loading',
+                    loading: 'media',
+                })
+            })
         }, [
-            mediaState.isShowingRaw(),
-            mediaState.isShowingHidden(),
+            showRaw,
+            showHidden,
             galleryState?.albumsFilter,
             galleryState?.albumsMap,
             page,
         ])
-
-        const medias = useMemo(() => {
-            if (!galleryState || !mediaState) {
-                return []
-            }
-
-            const medias = mediaState.getMedias()
-            return medias
-        }, [mediaState, galleryState?.searchContent])
 
         if (galleryState.loading.includes('media')) {
             return null

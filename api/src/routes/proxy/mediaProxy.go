@@ -68,3 +68,7 @@ func (p *ProxyStore) GetFetchMediaCacheImage(ctx context.Context) ([]byte, error
 
 	return bs, nil
 }
+
+func (p *ProxyStore) AddLikeToMedia(id types.ContentId, user types.Username, liked bool) error {
+	return types.ErrNotImplemented("AddLikeToMedia proxy")
+}

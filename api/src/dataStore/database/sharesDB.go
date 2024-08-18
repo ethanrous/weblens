@@ -5,6 +5,7 @@ import (
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func (db *databaseService) GetAllShares() ([]types.Share, error) {
@@ -20,7 +21,15 @@ func (db *databaseService) GetAllShares() ([]types.Share, error) {
 }
 
 func (db *databaseService) UpdateShare(s types.Share) error {
-	return types.ErrNotImplemented("UpdateShare() has not yet been implemented")
+	filter := bson.M{"_id": s.GetShareId()}
+	update := bson.M{"$set": s}
+	o := options.Update().SetUpsert(true)
+	_, err := db.shares.UpdateOne(db.ctx, filter, update, o)
+	if err != nil {
+		return types.WeblensErrorFromError(err)
+	}
+
+	return nil
 }
 
 func (db *databaseService) SetShareEnabledById(sId types.ShareId, enabled bool) error {

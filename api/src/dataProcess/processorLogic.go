@@ -107,7 +107,7 @@ func createZipFromPaths(t *task) {
 	}
 	if zipExists {
 		t.setResult(types.TaskResult{"takeoutId": zipFile.ID().String(), "filename": zipFile.Filename()})
-		t.caster.PushTaskUpdate(t, TaskCompleteEvent, t.result) // Let any client subscribers know we are done
+		t.caster.PushTaskUpdate(t, ZipCompleteEvent, t.result) // Let any client subscribers know we are done
 		t.success()
 		return
 	}
@@ -187,7 +187,6 @@ func createZipFromPaths(t *task) {
 		}
 		sinceUpdate++
 		bytes, entries = a.Written()
-		wlog.Debug.Println(bytes, entries)
 		if bytes != prevBytes {
 			byteDiff := bytes - prevBytes
 			timeNs := updateInterval * sinceUpdate
@@ -331,9 +330,11 @@ func handleFileUploads(t *task) {
 
 	fileEvent := history.NewFileEvent()
 	defer func() {
-		err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)
-		if err != nil {
-			wlog.ShowErr(err)
+		if t.signal.Load() == 0 {
+			err = types.SERV.FileTree.GetJournal().LogEvent(fileEvent)
+			if err != nil {
+				wlog.ShowErr(err)
+			}
 		}
 	}()
 
@@ -584,7 +585,7 @@ func hashFile(t *task) {
 	}
 
 	var contentId types.ContentId
-	fp, err := meta.file.Read()
+	fp, err := meta.file.Readable()
 	if err != nil {
 		t.ErrorAndExit(err)
 	}

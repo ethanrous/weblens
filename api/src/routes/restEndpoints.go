@@ -138,9 +138,11 @@ func addApiRoutes(api *gin.RouterGroup) {
 	api.GET("/media/:mediaId/info", getMediaInfo)
 	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
 	api.GET("/media/:mediaId/thumbnail.webp", getMediaThumbnail)
+	api.GET("/media/:mediaId/thumbnail.png", getMediaThumbnailPng)
 	api.GET("/media/:mediaId/fullres", getMediaFullres)
 	api.GET("/media/:mediaId/stream", streamVideo)
 	api.GET("/media/:mediaId/:chunkName", streamVideo)
+	api.POST("/media/:mediaId/liked", likeMedia)
 	api.PATCH("/media/hide", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
@@ -153,6 +155,7 @@ func addApiRoutes(api *gin.RouterGroup) {
 	// Files
 	api.GET("/files/:folderId/stats", getFolderStats)
 	api.GET("/files/shared", getSharedFiles)
+	api.GET("/files/search", searchByFilename)
 	api.PATCH("/files", moveFiles)
 	api.PATCH("/files/trash", trashFiles)
 	api.PATCH("/files/untrash", unTrashFiles)
@@ -280,7 +283,6 @@ func addUiRoutes() {
 				ctx.Status(http.StatusNotFound)
 				return
 			}
-			strings.Index(ctx.Request.RequestURI, "/assets")
 
 			if strings.HasPrefix(ctx.Request.RequestURI, "/assets") {
 				ctx.Writer.Header().Set("Content-Encoding", "gzip")

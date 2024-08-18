@@ -24,6 +24,18 @@ function getIcon(folderName: string): (p) => JSX.Element {
     }
 }
 
+export interface WeblensFileInfo {
+    filename: string
+    id: string
+    isDir: boolean
+    modifyTimestamp: number
+    ownerName: string
+    parentId: string
+    portablePath: string
+    shareId: string
+    size: number
+}
+
 export interface WeblensFileParams {
     id?: string
     owner?: string
@@ -58,7 +70,6 @@ export class WeblensFile {
 
     isDir?: boolean
     pastFile?: boolean
-    imported?: boolean
     modifiable?: boolean
     displayable?: boolean
 
@@ -219,10 +230,6 @@ export class WeblensFile {
         return this.selected
     }
 
-    IsImported(): boolean {
-        return this.imported
-    }
-
     IsPastFile(): boolean {
         return this.pastFile
     }
@@ -274,8 +281,24 @@ export class WeblensFile {
         }
     }
 
-    public async LoadShare(authHeader: AuthHeaderT) {
+    public SetShare(share: WeblensShare) {
+        if (this.shareId && this.shareId !== share.id) {
+            console.error(
+                'Trying to set share with mismatched id, expected',
+                this.shareId,
+                'but got',
+                share.id
+            )
+            return
+        } else if (!this.shareId) {
+            this.shareId = share.id
+        }
+        this.share = share
+    }
+
+    public async GetShare(authHeader: AuthHeaderT) {
         if (this.share) {
+            console.log('oh', this.share)
             return this.share
         } else if (!this.shareId) {
             return null
@@ -286,6 +309,7 @@ export class WeblensFile {
             headers: authHeader,
         })
             .then((r) => {
+                console.log('HERE?', r.status)
                 if (r.status === 200) {
                     return r.json()
                 } else {
@@ -294,15 +318,12 @@ export class WeblensFile {
             })
             .then((j) => {
                 this.share = new WeblensShare(j as ShareInfo)
+                console.log('WHAT?', this.share)
                 return this.share
             })
             .catch((e: Error) => {
                 console.error('Failed to load share:', e)
             })
-    }
-
-    GetShare(): WeblensShare {
-        return this.share
     }
 
     GetVisitRoute(

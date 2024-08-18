@@ -104,18 +104,6 @@ func (ft *fileTree) NewFile(parent types.WeblensFile, filename string, isDir boo
 	return newFile
 }
 
-func (ft *fileTree) AddRoot(r types.WeblensFile) error {
-	if !r.IsDir() {
-		return types.ErrDirectoryRequired
-	}
-	self := r.(*WeblensFile)
-	// Root directory must be its own parent
-	self.parent = self
-	ft.addInternal(r.ID(), r)
-
-	return nil
-}
-
 func (ft *fileTree) NewRoot(
 	id types.FileId, filename, absPath string, owner types.User,
 	parent types.WeblensFile,
@@ -184,9 +172,9 @@ func (ft *fileTree) Add(f types.WeblensFile) error {
 		return err
 	}
 
-	if !f.IsDir() && f.GetContentId() == "" && f.(*WeblensFile).size.Load() != 0 {
-		return types.WeblensErrorMsg("Trying to add file to tree with no content Id")
-	}
+	// if !f.IsDir() && f.GetContentId() == "" && f.(*WeblensFile).size.Load() != 0 {
+	// 	wlog.Warning.Println("Adding file to tree with no contentId")
+	// }
 
 	if slices.Contains(IgnoreFilenames, f.Filename()) {
 		return nil
@@ -395,7 +383,7 @@ func (ft *fileTree) Move(
 
 			realW := w.(*WeblensFile)
 			if f == w {
-				realW.parent = newParent.(*WeblensFile)
+				realW.setParentInternal(newParent.(*WeblensFile))
 			}
 
 			err := preFile.GetParent().(*WeblensFile).removeChild(w)
@@ -406,7 +394,7 @@ func (ft *fileTree) Move(
 
 			ft.deleteInternal(realW.id)
 
-			realW.id = ""
+			realW.setIdInternal("")
 			realW.absolutePath = filepath.Join(w.GetParent().GetAbsPath(), w.Filename())
 			if realW.IsDir() {
 				realW.absolutePath += "/"
@@ -592,7 +580,31 @@ func (ft *fileTree) AttachFile(f types.WeblensFile, c ...types.BroadcasterAgent)
 	}
 
 	return os.Remove(tmpPath)
+}
 
+func (ft *fileTree) CreateHomeFolder(u types.User) (types.WeblensFile, error) {
+	mediaRoot := ft.GetRoot()
+	event := history.NewFileEvent()
+	homeDir, err := ft.MkDir(mediaRoot, strings.ToLower(string(u.GetUsername())), event)
+	if err != nil && errors.Is(err, types.ErrDirAlreadyExists) {
+
+	} else if err != nil {
+		return nil, err
+	}
+
+	homeDir.SetOwner(u)
+
+	_, err = ft.MkDir(homeDir, ".user_trash", event)
+	if err != nil {
+		return homeDir, err
+	}
+
+	err = ft.GetJournal().LogEvent(event)
+	if err != nil {
+		return homeDir, types.WeblensErrorFromError(err)
+	}
+
+	return homeDir, nil
 }
 
 func (ft *fileTree) GenerateFileId(absPath string) types.FileId {
@@ -663,7 +675,7 @@ func (ft *fileTree) ResizeUp(f types.WeblensFile, c ...types.BroadcasterAgent) e
 func (ft *fileTree) ResizeDown(f types.WeblensFile, c ...types.BroadcasterAgent) error {
 	return f.LeafMap(
 		func(w types.WeblensFile) error {
-			_, err := w.Size()
+			_, err := w.(*WeblensFile).recomputeSize()
 			return err
 		},
 	)

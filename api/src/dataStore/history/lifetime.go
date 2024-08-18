@@ -29,11 +29,16 @@ func NewLifetime(id types.LifetimeId, createAction types.FileAction) (types.Life
 
 	createAction.SetLifetimeId(id)
 
+	file := types.SERV.FileTree.Get(createAction.GetDestinationId())
+	if file == nil {
+		return nil, types.WeblensErrorMsg("Could not find file to create lifetime with")
+	}
+
 	return &Lifetime{
 		Id:         id,
 		LiveFileId: createAction.GetDestinationId(),
 		Actions:    []*FileAction{createAction.(*FileAction)},
-		ContentId:  types.SERV.FileTree.Get(createAction.GetDestinationId()).GetContentId(),
+		ContentId: file.GetContentId(),
 		ServerId:   types.SERV.InstanceService.GetLocal().ServerId(),
 
 		actionsLock: &sync.RWMutex{},

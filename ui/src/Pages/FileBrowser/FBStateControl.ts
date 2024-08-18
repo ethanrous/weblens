@@ -4,11 +4,11 @@ import {
     WeblensFile,
     WeblensFileParams,
 } from '../../Files/File'
-import { FbViewOptsT, MediaDispatchT, UserInfoT } from '../../types/Types'
+import { FbViewOptsT, UserInfoT } from '../../types/Types'
 import { DraggingStateT } from '../../Files/FBTypes'
-import { Dispatch } from 'react'
 import { create, StateCreator } from 'zustand'
 import WeblensMedia from '../../Media/Media'
+import { useMediaStore } from '../../Media/MediaStateControl'
 
 export enum FbModeT {
     unset,
@@ -18,55 +18,6 @@ export enum FbModeT {
     stats,
     search,
 }
-
-export type FileBrowserAction = {
-    type: string
-
-    loading?: string
-    fileId?: string
-    fileName?: string
-    search?: string
-    presentingId?: string
-    hoveringId?: string
-    direction?: string
-    realId?: string
-    shareId?: string
-    sortType?: string
-    taskType?: string
-    target?: string
-    note?: string
-    dirViewMode?: string
-
-    mode?: FbModeT
-    menuMode?: FbMenuModeT
-
-    fileIds?: string[]
-
-    dragging?: DraggingStateT
-    selected?: boolean
-    external?: boolean
-    blockFocus?: boolean
-    shift?: boolean
-    open?: boolean
-    isSearching?: boolean
-
-    numCols?: number
-    sortDirection?: number
-    time?: number
-
-    user?: UserInfoT
-
-    img?: ArrayBuffer
-    pos?: { x: number; y: number }
-
-    file?: WeblensFile
-    fileInfo?: WeblensFileParams
-    files?: WeblensFileParams[]
-
-    past?: Date
-}
-
-export type FBDispatchT = Dispatch<FileBrowserAction>
 
 function fileIsInView(
     newFileInfo: WeblensFileParams,
@@ -94,379 +45,46 @@ function fileIsInView(
     return true
 }
 
-// export const fileBrowserReducer = (state: FBState, action: FileBrowserAction): FBState => {
-//     switch (action.type) {
-//         case 'create_file': {
-//             if (action.files === undefined) {
-//                 return state
-//             }
-//
-//             for (const newFileInfo of action.files) {
-//                 if (!fileIsInView(newFileInfo, state.fbMode, state.contentId, state.shareId, state.searchContent)) {
-//                     continue;
-//                 }
-//                 const file = new WeblensFile(newFileInfo);
-//                 state.filesMap.set(file.Id(), file);
-//             }
-//             return { ...state, filesMap: new Map(state.filesMap), filesList: Array.from(state.filesMap.values()) };
-//         }
-//
-//         case 'replace_file': {
-//             state.filesMap.delete(action.fileId);
-//
-//             // save if it was previously selected
-//             const sel = state.selected.delete(action.fileId);
-//
-//             if (action.fileInfo.parentFolderId !== state.folderInfo.Id()) {
-//                 return {
-//                     ...state,
-//                     filesMap: new Map(state.filesMap),
-//                     selected: new Map(state.selected),
-//                     filesList: Array.from(state.filesMap.values()),
-//                 };
-//             }
-//
-//             const newFile = new WeblensFile(action.fileInfo);
-//             state.filesMap.set(newFile.Id(), newFile);
-//             if (sel) {
-//                 state.selected.set(newFile.Id(), true);
-//             }
-//
-//             return {
-//                 ...state,
-//                 filesMap: new Map(state.filesMap),
-//                 selected: new Map(state.selected),
-//                 filesList: Array.from(state.filesMap.values()),
-//             };
-//         }
-//
-//         case 'update_many': {
-//             if (!action.files) {
-//                 return state;
-//             }
-//             for (const newFileInfo of action.files) {
-//                 if (newFileInfo.id === state.contentId && state.folderInfo !== null) {
-//                     state.folderInfo.SetSize(newFileInfo.size);
-//                 }
-//                 if (newFileInfo.id === action.user.homeId) {
-//                     state.homeDirSize = newFileInfo.size;
-//                     continue;
-//                 }
-//                 if (newFileInfo.id === action.user.trashId) {
-//                     state.trashDirSize = newFileInfo.size;
-//                     continue;
-//                 }
-//
-//                 if (!fileIsInView(newFileInfo, state.fbMode, state.contentId, state.shareId, state.searchContent)) {
-//                     continue;
-//                 }
-//
-//                 const file = new WeblensFile(newFileInfo);
-//
-//                 state.filesMap.set(file.Id(), file);
-//             }
-//             return { ...state, filesMap: new Map(state.filesMap), filesList: Array.from(state.filesMap.values()) };
-//         }
-//
-//         case 'set_folder_info': {
-//             if (!action.file || !action.file.Id() || !action.user) {
-//                 console.error('Trying to set undefined file info or user');
-//                 return { ...state };
-//             }
-//
-//             return { ...state, folderInfo: action.file };
-//         }
-//
-//         case 'add_loading': {
-//             const newLoading = state.loading.filter(v => v !== action.loading);
-//             newLoading.push(action.loading);
-//             return {
-//                 ...state,
-//                 loading: newLoading,
-//             };
-//         }
-//
-//         case 'remove_loading': {
-//             const newLoading = state.loading.filter(v => v !== action.loading);
-//             return {
-//                 ...state,
-//                 loading: newLoading,
-//             };
-//         }
-//
-//         case 'set_search': {
-//             return {
-//                 ...state,
-//                 searchContent: action.search,
-//             };
-//         }
-//
-//         case 'set_is_searching': {
-//             return {
-//                 ...state,
-//                 isSearching: action.isSearching,
-//             };
-//         }
-//
-//         case 'set_dragging': {
-//             if (!state.folderInfo || (!state.folderInfo.IsModifiable() && !action.external)) {
-//                 return {
-//                     ...state,
-//                     draggingState: DraggingStateT.NoDrag,
-//                 };
-//             }
-//
-//             let dragging: number;
-//
-//             if (!action.dragging) {
-//                 dragging = 0;
-//             } else if (action.dragging && !action.external) {
-//                 dragging = 1;
-//             } else if (action.dragging && action.external) {
-//                 dragging = 2;
-//             }
-//
-//             return {
-//                 ...state,
-//                 draggingState: dragging,
-//             };
-//         }
-//
-//         case 'set_hovering': {
-//             if (state.hoveringId === action.hoveringId) {
-//                 return state;
-//             }
-//             state.hoveringId = action.hoveringId;
-//         }
-//
-//         case 'set_selected': {
-//             // state = handleSelect(state, action);
-//             state.filesMap.get(state.hoveringId).SetSelected(SelectedState.Selected);
-//             state.selected.set(state.hoveringId, true);
-//             return { ...state };
-//         }
-//
-//         case 'select_all': {
-//             for (const file of state.filesList) {
-//                 state.selected.set(file.Id(), true);
-//             }
-//             return {
-//                 ...state,
-//                 menuMode: FbMenuModeT.Closed,
-//                 selected: new Map(state.selected),
-//             };
-//         }
-//
-//         case 'select_ids': {
-//             for (const id of action.fileIds) {
-//                 state.selected.set(id, true);
-//             }
-//             return { ...state, selected: new Map(state.selected) };
-//         }
-//
-//         case 'set_block_focus': {
-//             state.blockFocus = action.blockFocus;
-//             break;
-//         }
-//
-//         case 'clear_files': {
-//             state.filesMap.clear();
-//             state.selected.clear();
-//             state.folderInfo = null;
-//             state.parents = [];
-//             state.lastSelectedId = '';
-//             state.hoveringId = '';
-//             state.presentingId = '';
-//
-//             break;
-//         }
-//
-//         case 'clear_selected': {
-//             if (state.selected.size === 0) {
-//                 return state;
-//             }
-//
-//             state.lastSelectedId = '';
-//             state.selected = new Map(state.selected);
-//
-//             break;
-//         }
-//
-//         case 'delete_from_map': {
-//             for (const fileId of action.fileIds) {
-//                 state.filesMap.delete(fileId);
-//                 state.selected.delete(fileId);
-//             }
-//             state.filesMap = new Map(state.filesMap);
-//             state.selected = new Map(state.selected);
-//             break;
-//         }
-//
-//         case 'holding_shift': {
-//             state.holdingShift = action.shift;
-//             break;
-//         }
-//
-//         case 'stop_presenting':
-//         case 'set_presentation': {
-//             if (action.presentingId) {
-//                 state.selected.clear();
-//                 state.selected.set(action.presentingId, true);
-//             }
-//             state.presentingId = action.presentingId;
-//             break;
-//         }
-//
-//         case 'set_col_count': {
-//             state.numCols = action.numCols;
-//             break;
-//         }
-//
-//         case 'set_menu_open': {
-//             return {
-//                 ...state,
-//                 menuMode: action.menuMode,
-//             };
-//         }
-//
-//         case 'set_menu_target': {
-//             return { ...state, menuTargetId: action.fileId };
-//         }
-//
-//         case 'set_menu_pos': {
-//             return { ...state, menuPos: action.pos };
-//         }
-//
-//         case 'set_selected_moved': {
-//             state.selected.forEach((_, k) => state.filesMap.get(k).SetSelected(SelectedState.Moved));
-//             return { ...state };
-//         }
-//
-//         case 'presentation_next': {
-//             const index = state.filesList.findIndex(f => f.Id() === state.lastSelectedId);
-//             let lastSelected = state.lastSelectedId;
-//             if (index + 1 < state.filesList.length) {
-//                 state.selected.clear();
-//                 lastSelected = state.filesList[index + 1].Id();
-//                 state.selected.set(lastSelected, true);
-//             }
-//             return {
-//                 ...state,
-//                 lastSelectedId: lastSelected,
-//                 presentingId: lastSelected,
-//             };
-//         }
-//
-//         case 'presentation_previous': {
-//             const index = state.filesList.findIndex(f => f.Id() === state.lastSelectedId);
-//             let lastSelected = state.lastSelectedId;
-//             if (index - 1 >= 0) {
-//                 state.selected.clear();
-//                 lastSelected = state.filesList[index - 1].Id();
-//                 state.selected.set(lastSelected, true);
-//             }
-//             return {
-//                 ...state,
-//                 lastSelectedId: lastSelected,
-//                 presentingId: lastSelected,
-//             };
-//         }
-//
-//         case 'move_selection': {
-//             if (state.presentingId) {
-//                 const presentingIndex = state.filesMap.get(state.presentingId).GetIndex();
-//                 let newId;
-//                 if (action.direction === 'ArrowLeft' && presentingIndex !== 0) {
-//                     newId = state.filesList[presentingIndex - 1];
-//                 } else if (action.direction === 'ArrowRight' && presentingIndex !== state.filesList.length - 1) {
-//                     newId = state.filesList[presentingIndex + 1];
-//                 } else {
-//                     return state;
-//                 }
-//
-//                 return { ...state, presentingId: newId };
-//             }
-//
-//             let lastSelected = state.lastSelectedId;
-//             const prevIndex = state.lastSelectedId
-//                 ? state.filesList.findIndex(f => f.Id() === state.lastSelectedId)
-//                 : -1;
-//             let finalIndex = -1;
-//             if (action.direction === 'ArrowDown') {
-//                 if (prevIndex === -1) {
-//                     finalIndex = 0;
-//                 } else if (prevIndex + state.numCols < state.filesList.length) {
-//                     finalIndex = prevIndex + state.numCols;
-//                 }
-//             } else if (action.direction === 'ArrowUp') {
-//                 if (prevIndex === -1) {
-//                     finalIndex = state.filesList.length - 1;
-//                 } else if (prevIndex - state.numCols >= 0) {
-//                     finalIndex = prevIndex - state.numCols;
-//                 }
-//             } else if (action.direction === 'ArrowLeft') {
-//                 if (prevIndex === -1) {
-//                     finalIndex = state.filesList.length - 1;
-//                 }
-//                 if (prevIndex - 1 >= 0 && prevIndex % state.numCols !== 0) {
-//                     finalIndex = prevIndex - 1;
-//                 }
-//             } else if (action.direction === 'ArrowRight') {
-//                 if (prevIndex === -1) {
-//                     finalIndex = 0;
-//                 } else if (prevIndex + 1 < state.filesList.length && prevIndex % state.numCols !== state.numCols -
-// 1) { finalIndex = prevIndex + 1; } }  if (finalIndex !== -1) { if (!state.holdingShift) { state.selected.clear();
-// state.selected.set(state.filesList[finalIndex].Id(), true); } else { if (prevIndex < finalIndex) { for (const file
-// of state.filesList.slice(prevIndex, finalIndex + 1)) { state.selected.set(file.Id(), true); } } else { for (const
-// file of state.filesList.slice(finalIndex, prevIndex + 1)) { state.selected.set(file.Id(), true); } } } lastSelected
-// = state.filesList[finalIndex].Id(); }  return { ...state, lastSelectedId: lastSelected, presentingId:
-// state.presentingId ? lastSelected : '', selected: new Map(state.selected), }; }  case 'paste_image': { return {
-// ...state, pasteImgBytes: action.img }; }  case 'set_scroll_to': { return { ...state, scrollTo: action.fileId }; }
-// case 'set_move_dest': { return { ...state, moveDest: action.fileName }; }  case 'set_location_state': { if
-// (action.realId !== undefined) { state.contentId = action.realId; } if (action.mode !== undefined) { state.fbMode =
-// action.mode; } if (action.shareId !== undefined) { state.shareId = action.shareId; } return { ...state, }; }  case 'set_sort': { if (action.sortType) { state.viewOpts = { ...state.viewOpts, sortFunc: action.sortType }; return { ...state }; } else if (action.sortDirection) { state.viewOpts = { ...state.viewOpts, sortDirection: action.sortDirection }; return { ...state }; } else { return { ...state }; } }  case 'set_file_view': { state.viewOpts = { ...state.viewOpts, dirViewMode: action.dirViewMode }; return { ...state }; }  case 'set_past_time': { return { ...state, viewingPast: action.past }; }  default: { console.error('Got unexpected dispatch type: ', action.type); return state; } }  return new FBState(state); };
-
 export interface FileBrowserStateT {
     filesMap: Map<string, WeblensFile>
     filesList: WeblensFile[]
     selected: Map<string, boolean>
-    // uploadMap: Map<string, boolean>;
+
     menuPos: { x: number; y: number }
     viewOpts: FbViewOptsT
     fbMode: FbModeT
-    //
+
     folderInfo: WeblensFile
-    // parents: WeblensFile[];
-    //
+
     draggingState: DraggingStateT
     loading: string[]
-    // numCols: number;
-    //
+    numCols: number
+
     menuTargetId: string
     presentingId: string
     hoveringId: string
     lastSelectedId: string
-    //
+
     searchContent: string
     isSearching: boolean
     holdingShift: boolean
-    //
+
     homeDirSize: number
     trashDirSize: number
-    //
+
     blockFocus: boolean
-    //
+
     scrollTo: string
     moveDest: string
-    //
+
     menuMode: FbMenuModeT
-    //
+
     // fileInfoMenu: boolean;
-    //
+
     shareId: string
     contentId: string
     viewingPast: Date
-    // pasteImgBytes: ArrayBuffer;
+    pasteImgBytes: ArrayBuffer
 
     addToFilesMap: (file: WeblensFileParams) => void
     updateFile: (fileParams: WeblensFileParams, user: UserInfoT) => void
@@ -487,7 +105,6 @@ export interface FileBrowserStateT {
         self: WeblensFileParams,
         children: WeblensFileParams[],
         parents: WeblensFileParams[],
-        mediaDispatch: MediaDispatchT,
         user: UserInfoT
     ) => void
     setScrollTarget: (scrollTarget: string) => void
@@ -501,6 +118,10 @@ export interface FileBrowserStateT {
     setMoveDest: (dest: string) => void
     setHovering: (hovering: string) => void
     setSelectedMoved: (movedIds?: string[]) => void
+    setIsSearching: (isSearching: boolean) => void
+    setNumCols: (cols: number) => void
+    setPasteImgBytes: (bytes: ArrayBuffer) => void
+
     setMenu: SetMenuT
     setViewOptions: SetViewOptionsT
 }
@@ -526,22 +147,52 @@ function loadViewOptions(): FbViewOptsT {
 }
 
 function getSortFunc(sortType: string, sortDirection: number) {
+    let sorterBase: (a: WeblensFile, b: WeblensFile) => number
+    const timeCoeff = 60000
     switch (sortType) {
         case 'Name':
-            return (a: WeblensFile, b: WeblensFile) =>
+            sorterBase = (a: WeblensFile, b: WeblensFile) =>
                 a.GetFilename().localeCompare(b.GetFilename(), 'en-US', {
                     numeric: true,
                 }) * sortDirection
+            break
         case 'Date Modified':
-            return (a: WeblensFile, b: WeblensFile) => {
+            sorterBase = (a: WeblensFile, b: WeblensFile) => {
+                // Round each to the nearest minute since that is what is displayed
+                // in the UI. This allows sorting alpabetically when many files have
+                // seemingly the same time values, and would appear in random order
+                // otherwise
                 return (
-                    (b.GetModified().getTime() - a.GetModified().getTime()) *
+                    (Math.floor(b.GetModified().getTime() / timeCoeff) -
+                        Math.floor(a.GetModified().getTime() / timeCoeff)) *
                     sortDirection
                 )
             }
+            break
         case 'Size':
-            return (a: WeblensFile, b: WeblensFile) =>
+            sorterBase = (a: WeblensFile, b: WeblensFile) =>
                 (b.GetSize() - a.GetSize()) * sortDirection
+            break
+        default:
+            console.error('Unknown file sort type:', sortType)
+            return
+    }
+
+    return (a, b) => {
+        // Get comparison of selected sort type
+        const cmp = sorterBase(a, b)
+
+        if (cmp !== 0) {
+            return cmp
+        }
+
+        // If the selected sort function claims the 2 are the same,
+        // fall back to sorting alphabetically
+        return (
+            a.GetFilename().localeCompare(b.GetFilename(), 'en-US', {
+                numeric: true,
+            }) * sortDirection
+        )
     }
 }
 
@@ -627,10 +278,12 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
     menuMode: 0,
     homeDirSize: 0,
     trashDirSize: 0,
+    numCols: 0,
     fbMode: FbModeT.unset,
     viewOpts: loadViewOptions(),
     draggingState: DraggingStateT.NoDrag,
     menuPos: { x: 0, y: 0 },
+    pasteImgBytes: null,
 
     addLoading: (loading: string) =>
         set((state: FileBrowserStateT) => {
@@ -712,12 +365,18 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                     state.searchContent
                 )
             ) {
+                if (state.lastSelectedId === oldId) {
+                    state.lastSelectedId = newF.Id()
+                }
                 state.filesMap.set(newParams.id, newF)
+            } else if (state.lastSelectedId === oldId) {
+                state.lastSelectedId = ''
             }
 
             return {
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
                 selected: new Map<string, boolean>(state.selected),
+                lastSelectedId: state.lastSelectedId,
                 filesList: getSortedFilesList(
                     state.filesMap,
                     state.viewOpts.sortFunc,
@@ -790,7 +449,6 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         selfInfo: WeblensFileParams,
         childrenInfo: WeblensFileParams[],
         parentsInfo: WeblensFileParams[],
-        mediaDispatch: MediaDispatchT,
         user: UserInfoT
     ) => {
         const parents = parentsInfo?.map((f) => new WeblensFile(f))
@@ -807,7 +465,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
 
         const children = childrenInfo.map((c) => new WeblensFile(c))
 
-        mediaDispatch({ type: 'add_medias', medias: medias })
+        useMediaStore.getState().addMedias(medias)
 
         const self = new WeblensFile(selfInfo)
         if (parents) {
@@ -817,6 +475,12 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         set({
             folderInfo: self,
         })
+
+        if (!self.IsFolder() && selfInfo.mediaData) {
+            useMediaStore
+                .getState()
+                .addMedias([new WeblensMedia(selfInfo.mediaData)])
+        }
 
         set((state) => {
             for (const newFileInfo of children) {
@@ -860,6 +524,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             )
             return {
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
+                loading: state.loading.filter((l) => l !== 'files'),
                 filesList: getSortedFilesList(
                     state.filesMap,
                     state.viewOpts.sortFunc,
@@ -879,12 +544,17 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         set((state) => {
             if (!state.holdingShift) {
                 for (const fId of selected) {
-                    state.selected.set(fId, true)
                     const f = state.filesMap.get(fId)
-                    if (f.GetSelectedState() & SelectedState.Selected) {
-                        f.UnsetSelected(SelectedState.Selected)
+                    if (f) {
+                        if (f.GetSelectedState() & SelectedState.Selected) {
+                            state.selected.delete(fId)
+                            f.UnsetSelected(SelectedState.Selected)
+                        } else {
+                            state.selected.set(fId, true)
+                            f.SetSelected(SelectedState.Selected)
+                        }
                     } else {
-                        f.SetSelected(SelectedState.Selected)
+                        return
                     }
                 }
             }
@@ -975,7 +645,6 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         menuPos?: { x: number; y: number }
         menuTarget?: string
     }) => {
-        // console.trace(menuState, menuPos, menuTarget)
         set((state) => ({
             menuMode: menuState !== undefined ? menuState : state.menuMode,
             menuPos: menuPos ? menuPos : state.menuPos,
@@ -998,6 +667,10 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
 
             return { filesMap: new Map<string, WeblensFile>(state.filesMap) }
         })
+    },
+
+    setNumCols: (cols: number) => {
+        set({ numCols: cols })
     },
 
     setViewOptions: ({
@@ -1025,6 +698,12 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 sortDirection ? sortDirection : state.viewOpts.sortDirection
             ),
         }))
+    },
+    setIsSearching: (isSearching: boolean) => set({ isSearching }),
+    setPasteImgBytes: (bytes: ArrayBuffer) => {
+        set({
+            pasteImgBytes: bytes,
+        })
     },
 })
 

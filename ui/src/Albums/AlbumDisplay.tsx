@@ -16,7 +16,7 @@ import { FixedSizeList } from 'react-window'
 import { AutocompleteUsers } from '../api/ApiFetch'
 
 import './albumStyle.scss'
-import { useKeyDown, useMedia, useResize } from '../components/hooks'
+import { useKeyDown, useResize } from '../components/hooks'
 import WeblensButton from '../components/WeblensButton'
 import WeblensInput from '../components/WeblensInput'
 
@@ -25,6 +25,8 @@ import { GalleryContext } from '../Pages/Gallery/GalleryLogic'
 import { AlbumData, UserInfoT } from '../types/Types'
 import { DeleteAlbum, LeaveAlbum, ShareAlbum } from './AlbumQuery'
 import { useSessionStore } from '../components/UserInfo'
+import WeblensMedia from '../Media/Media'
+import { useMediaStore } from '../Media/MediaStateControl'
 
 function AlbumShareMenu({
     album,
@@ -35,8 +37,7 @@ function AlbumShareMenu({
     isOpen: boolean
     closeShareMenu: () => void
 }) {
-    const auth = useSessionStore((state) => state.auth)
-    const user = useSessionStore((state) => state.user)
+    const { user, auth } = useSessionStore()
     const [users, setUsers] = useState(album.sharedWith)
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState([])
@@ -86,17 +87,18 @@ function AlbumShareMenu({
                                 No Search Results
                             </p>
                         )}
-                        {userSearchResults.map((u) => {
+                        {userSearchResults.map((u: UserInfoT) => {
+                            console.log(u)
                             return (
                                 <WeblensButton
                                     squareSize={40}
-                                    label={u}
+                                    label={u.username}
                                     Right={IconPlus}
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         setUsers((p) => {
                                             const newP = [...p]
-                                            newP.push(u)
+                                            newP.push(u.username)
                                             return newP
                                         })
                                         setUserSearchResults((p) => {
@@ -194,7 +196,7 @@ export function MiniAlbumCover({
     album: AlbumData
     disabled?: boolean
 }) {
-    const mediaData = useMedia(album.cover)
+    const mediaData = useMediaStore((state) => state.mediaMap.get(album.cover))
 
     return (
         <div
@@ -214,11 +216,21 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
     const { galleryDispatch } = useContext(GalleryContext)
     const user = useSessionStore((state) => state.user)
     const auth = useSessionStore((state) => state.auth)
+    const addMedias = useMediaStore((state) => state.addMedias)
     const nav = useNavigate()
 
     const [sharing, setSharing] = useState(false)
     const fontSize = Math.floor(Math.pow(0.975, album.name.length) * 40)
-    const mediaData = useMedia(album.cover)
+    const mediaData = useMediaStore((state) => state.mediaMap.get(album.cover))
+
+    useEffect(() => {
+        if (!mediaData) {
+            const newM = new WeblensMedia({ contentId: album.cover })
+            newM.LoadInfo().then(() => {
+                addMedias([newM])
+            })
+        }
+    }, [mediaData])
 
     useEffect(() => {
         galleryDispatch({ type: 'set_block_focus', block: sharing })

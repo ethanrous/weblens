@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strings"
 	"time"
@@ -131,7 +133,7 @@ func Banish[T any](s []T, i int) []T {
 	return s
 }
 
-func AddToSet[T comparable](set []T, add []T) []T {
+func AddToSet[T comparable](set []T, add ...T) []T {
 	for _, a := range add {
 		if !slices.Contains(set, a) {
 			set = append(set, a)
@@ -266,7 +268,7 @@ type Stopwatch interface {
 	Lap(tag ...any)
 	Stop() time.Duration
 	PrintResults(firstLapIsStart bool)
-	GetTotalTime(bool) time.Duration
+	GetTotalTime(firstLapIsStart bool) time.Duration
 }
 
 type sw struct {
@@ -276,18 +278,21 @@ type sw struct {
 	stop  time.Time
 }
 
-type prod_sw bool
+type prod_sw struct {
+	start time.Time
+	stop  time.Time
+}
 
-func (prod_sw) Stop() (t time.Duration)         { return }
-func (prod_sw) Lap(tag ...any)                  {}
-func (prod_sw) PrintResults(bool)               {}
-func (prod_sw) GetTotalTime(bool) time.Duration { return time.Millisecond * 0 }
+func (sw prod_sw) Stop() (t time.Duration)         { sw.stop = time.Now(); return sw.stop.Sub(sw.start) }
+func (sw prod_sw) Lap(tag ...any)                  {}
+func (sw prod_sw) PrintResults(bool)               {}
+func (sw prod_sw) GetTotalTime(bool) time.Duration { return sw.stop.Sub(sw.start) }
 
 func NewStopwatch(name string) Stopwatch {
 	if IsDevMode() {
 		return &sw{name: name, start: time.Now()}
 	}
-	return prod_sw(false)
+	return prod_sw{start: time.Now()}
 }
 
 func (s *sw) Stop() time.Duration {
@@ -389,4 +394,15 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 func ShowCaller() {
 	_, file, line, _ := runtime.Caller(2)
 	wlog.Debug.Println(file, line)
+}
+
+func LabelThread(next func(ctx context.Context), labels ...string) {
+	if IsDevMode() {
+		ls := pprof.Labels(labels...)
+		pprof.Do(
+			context.Background(), ls, next,
+		)
+	} else {
+		next(nil)
+	}
 }

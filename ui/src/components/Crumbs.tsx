@@ -12,10 +12,7 @@ import { memo, MouseEventHandler, useEffect, useState } from 'react'
 import { useClick, useResize } from './hooks'
 
 import './crumbs.scss'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '../Pages/FileBrowser/FBStateControl'
+import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from './UserInfo'
 
 type breadcrumbProps = {
@@ -235,7 +232,6 @@ const Crumbs = memo(
 
         const mode = useFileBrowserStore((state) => state.fbMode)
         const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-        const contentId = useFileBrowserStore((state) => state.contentId)
         const shareId = useFileBrowserStore((state) => state.shareId)
 
         const setPresentationTarget = useFileBrowserStore(
@@ -243,24 +239,6 @@ const Crumbs = memo(
         )
 
         const crumbs = []
-        if (mode === FbModeT.share && folderInfo.GetOwner() !== user.username) {
-            crumbs.push(
-                <StyledBreadcrumb
-                    key={'shared-crumb'}
-                    label={'Shared'}
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        nav('/files/shared')
-                    }}
-                    dragging={dragging}
-                    onMouseUp={(e) => {
-                        e.stopPropagation()
-                    }}
-                    setMoveDest={setMoveDest}
-                    isCurrent={!contentId}
-                />
-            )
-        }
 
         if (!user || !folderInfo?.Id()) {
             return <StyledLoaf crumbs={crumbs} postText={''} />

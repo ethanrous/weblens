@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/ethrousseau/weblens/api/dataProcess"
 	"github.com/ethrousseau/weblens/api/dataStore"
@@ -652,10 +653,17 @@ func getUsers(ctx *gin.Context) {
 }
 
 func updateUserPassword(ctx *gin.Context) {
-	u := getUserFromCtx(ctx)
-	if u == nil {
+	reqUser := getUserFromCtx(ctx)
+	if reqUser == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
+	}
+
+	updateUsername := types.Username(ctx.Param("username"))
+	updateUser := types.SERV.UserService.Get(updateUsername)
+
+	if updateUser == nil {
+		ctx.Status(http.StatusNotFound)
 	}
 
 	passUpd, err := readCtxBody[passwordUpdateBody](ctx)
@@ -663,11 +671,20 @@ func updateUserPassword(ctx *gin.Context) {
 		return
 	}
 
-	if passUpd.OldPass == "" || passUpd.NewPass == "" {
+	if updateUser.GetUsername() != reqUser.GetUsername() && !reqUser.IsOwner() {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	if (passUpd.OldPass == "" && !reqUser.IsOwner()) || passUpd.NewPass == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Both oldPassword and newPassword fields are required"})
 		return
 	}
-	err = u.UpdatePassword(passUpd.OldPass, passUpd.NewPass)
+
+	err = types.SERV.UserService.UpdateUserPassword(
+		updateUser.GetUsername(), passUpd.OldPass, passUpd.NewPass, reqUser.IsOwner(),
+	)
+
 	if err != nil {
 		wlog.ShowErr(err)
 		switch {
@@ -678,6 +695,8 @@ func updateUserPassword(ctx *gin.Context) {
 		}
 		return
 	}
+
+	ctx.Status(http.StatusOK)
 }
 
 func setUserAdmin(ctx *gin.Context) {
@@ -711,10 +730,9 @@ func setUserAdmin(ctx *gin.Context) {
 func activateUser(ctx *gin.Context) {
 	username := types.Username(ctx.Param("username"))
 	u := types.SERV.UserService.Get(username)
-
-	if err := u.Activate(); err != nil {
-		wlog.ShowErr(err)
-		ctx.Status(http.StatusBadRequest)
+	err := types.SERV.UserService.ActivateUser(u)
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 
@@ -1005,12 +1023,28 @@ func initializeServer(ctx *gin.Context) {
 			return
 		}
 
-		for _, remote := range types.SERV.InstanceService.GetRemotes() {
-			if remote.IsLocal() {
-				continue
-			}
-			types.SERV.TaskDispatcher.Backup(remote.ServerId(), types.SERV.Caster)
+		hashCaster := NewCaster()
+		err = dataStore.InitMediaRoot(types.SERV.FileTree, hashCaster)
+		if err != nil {
+			wlog.ErrTrace(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
 		}
+
+		core := types.SERV.InstanceService.GetCore()
+		err = WebsocketToCore(core)
+		if err != nil {
+			wlog.ErrTrace(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		for types.SERV.ClientManager.GetClientByInstanceId(core.ServerId()) == nil {
+			wlog.Info.Println("Waiting for core websocket to connect")
+			time.Sleep(retryInterval)
+		}
+
+		types.SERV.TaskDispatcher.Backup(core.ServerId(), types.SERV.Caster)
 	}
 
 	// We must spawn a go routine for a router restart coming from an HTTP request,

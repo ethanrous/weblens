@@ -28,7 +28,7 @@ type databaseService struct {
 const maxRetries = 5
 
 func New(mongoUri, mongoDbName string) types.StoreService {
-	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second)
+	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second * 2)
 	var err error
 	ctx := context.TODO()
 	mongoc, err := mongo.Connect(ctx, clientOptions)
@@ -43,7 +43,7 @@ func New(mongoUri, mongoDbName string) types.StoreService {
 			break
 		}
 		wlog.Warning.Printf("Failed to connect to mongo, trying %d more time(s)", maxRetries-retries)
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 5)
 		retries++
 	}
 	if err != nil {

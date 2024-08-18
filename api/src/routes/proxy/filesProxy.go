@@ -63,6 +63,15 @@ func (p *ProxyStore) ReadFile(f types.WeblensFile) ([]byte, error) {
 	return bs, nil
 }
 
+func (p *ProxyStore) StreamFile(f types.WeblensFile) (io.ReadCloser, error) {
+	resp, err := p.CallHome("GET", fmt.Sprintf("/api/core/file/%s/content", f.ID()), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
+}
+
 func (p *ProxyStore) ReadDir(f types.WeblensFile) ([]types.FileStat, error) {
 	if !f.IsDir() {
 		return nil, types.WeblensErrorMsg("trying to read directory on regular file")

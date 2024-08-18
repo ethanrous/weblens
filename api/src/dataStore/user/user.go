@@ -2,11 +2,8 @@ package user
 
 import (
 	"encoding/json"
-	"errors"
-	"strings"
 	"sync"
 
-	"github.com/ethrousseau/weblens/api/dataStore/history"
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/ethrousseau/weblens/api/util/wlog"
@@ -34,10 +31,7 @@ type User struct {
 }
 
 func New(username types.Username, password string, isAdmin, autoActivate bool) (types.User, error) {
-	if types.SERV.UserService.Get(username) != nil {
-		return nil, types.ErrUserAlreadyExists
-	}
-	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 11)
 	if err != nil {
 		return nil, err
 	}
@@ -52,33 +46,7 @@ func New(username types.Username, password string, isAdmin, autoActivate bool) (
 		Activated:  autoActivate,
 	}
 
-	homeDir, err := newUser.CreateHomeFolder()
-	if err != nil {
-		return nil, err
-	}
-
-	newUser.homeFolder = homeDir
-	newUser.trashFolder = homeDir.GetChildren()[0]
-
 	return newUser, nil
-}
-
-func (u *User) Activate() (err error) {
-	u.Activated = true
-
-	_, err = u.CreateHomeFolder()
-	if err != nil {
-		return err
-	}
-
-	err = types.SERV.StoreService.ActivateUser(u.GetUsername())
-	if err != nil {
-		return err
-	}
-
-	u.Activated = true
-
-	return
 }
 
 func (u *User) GetUsername() types.Username {
@@ -99,31 +67,6 @@ func (u *User) SetHomeFolder(f types.WeblensFile) error {
 	u.homeFolder = f
 	u.HomeId = f.ID()
 	return nil
-}
-
-func (u *User) CreateHomeFolder() (types.WeblensFile, error) {
-	mediaRoot := types.SERV.FileTree.GetRoot()
-	event := history.NewFileEvent()
-	homeDir, err := types.SERV.FileTree.MkDir(mediaRoot, strings.ToLower(string(u.Username)), event)
-	if err != nil && errors.Is(err, types.ErrDirAlreadyExists) {
-
-	} else if err != nil {
-		return nil, err
-	}
-
-	homeDir.SetOwner(u)
-
-	_, err = types.SERV.FileTree.MkDir(homeDir, ".user_trash", event)
-	if err != nil {
-		return homeDir, err
-	}
-
-	err = types.SERV.FileTree.GetJournal().LogEvent(event)
-	if err != nil {
-		return homeDir, types.WeblensErrorFromError(err)
-	}
-
-	return homeDir, nil
 }
 
 func (u *User) GetTrashFolder() types.WeblensFile {
@@ -186,21 +129,6 @@ func (u *User) GetToken() string {
 
 func (u *User) CheckLogin(password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) == nil
-}
-
-func (u *User) UpdatePassword(oldPass, newPass string) (err error) {
-	if auth := u.CheckLogin(oldPass); !auth {
-		return types.ErrBadPassword
-	}
-
-	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(newPass), 14)
-	if err != nil {
-		return err
-	}
-	u.Password = string(passHashBytes)
-
-	return types.ErrNotImplemented("UpdatePassword user")
-	// return u.service.db.UpdatePasswordByUsername(u.Username, u.Password)
 }
 
 func MakeOwner(u types.User) error {

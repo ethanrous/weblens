@@ -15,13 +15,10 @@ type User interface {
 	GetToken() string
 	GetHomeFolder() WeblensFile
 	SetHomeFolder(WeblensFile) error
-	CreateHomeFolder() (WeblensFile, error)
 	GetTrashFolder() WeblensFile
 	SetTrashFolder(WeblensFile) error
 
 	CheckLogin(password string) bool
-	UpdatePassword(oldPass, newPass string) error
-	Activate() error
 
 	FormatArchive() (map[string]any, error)
 	UnmarshalJSON(data []byte) error
@@ -33,8 +30,9 @@ type UserService interface {
 	GetPublicUser() User
 	SearchByUsername(searchString string) ([]User, error)
 	SetUserAdmin(User, bool) error
+	ActivateUser(User) error
+	UpdateUserPassword(username Username, oldPassword, newPassword string, allowEmptyOld bool) error
 }
 
-var ErrUserNotAuthenticated = NewWeblensError("user credentials are invalid")
 var ErrBadPassword = NewWeblensError("password provided does not authenticate user")
 var ErrUserAlreadyExists = NewWeblensError("cannot create two users with the same username")

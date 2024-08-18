@@ -3,8 +3,11 @@ package util
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 
+	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util/wlog"
 )
 
@@ -29,6 +32,21 @@ func GetConfigDir() string {
 		configDir = GetAppRootDir() + "/config"
 	}
 	return configDir
+}
+
+func GetWorkerCount() int {
+	workerCountStr := envReadString("POOL_WORKERS_COUNT")
+	var workerCount int64
+	if workerCountStr == "" {
+		workerCount = int64(runtime.NumCPU() - 2)
+	} else {
+		var err error
+		workerCount, err = strconv.ParseInt(workerCountStr, 10, 64)
+		if err != nil {
+			panic(types.WeblensErrorFromError(err))
+		}
+	}
+	return int(workerCount)
 }
 
 func GetAppRootDir() string {
@@ -60,7 +78,13 @@ func GetRouterPort() string {
 	}
 }
 
+var mediaRoot string
+
 func GetMediaRootPath() string {
+	if mediaRoot != "" {
+		return mediaRoot
+	}
+
 	path := envReadString("MEDIA_ROOT_PATH")
 	if path == "" {
 		path = "/media"
@@ -70,7 +94,9 @@ func GetMediaRootPath() string {
 		path = path + "/"
 	}
 
-	return path
+	mediaRoot = path
+
+	return mediaRoot
 }
 
 func GetExternalPaths() []string {
@@ -81,9 +107,15 @@ func GetImgRecognitionUrl() string {
 	return envReadString("IMG_RECOGNITION_URI")
 }
 
+var isDevMode *bool
+
 // IsDevMode Enables debug logging and puts the router in development mode
 func IsDevMode() bool {
-	return envReadBool("DEV_MODE")
+	if isDevMode == nil {
+		dev := envReadBool("DEV_MODE")
+		isDevMode = &dev
+	}
+	return *isDevMode
 }
 
 // DetachUi Controls if we host UI routes on this server. UI can be hosted elsewhere and
@@ -168,7 +200,10 @@ func GetVideoConstBitrate() int {
 }
 
 var hostUrl string
+
 func GetHostURL() string {
-	hostUrl = envReadString("HOST_URL")
+	if hostUrl == "" {
+		hostUrl = envReadString("HOST_URL")
+	}
 	return hostUrl
 }

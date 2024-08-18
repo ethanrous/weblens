@@ -26,8 +26,8 @@ const FileGridVisual = ({ file }) => {
 
 export const FileTextBox = ({ itemTitle }) => {
     return (
-        <div className="flex w-full">
-            <p className="h-max max-w-full p-2 text-2xl items-center justify-center truncate relative">
+        <div className="file-text-container">
+            <p className="p-2 truncate relative content-center text-[40cqh]">
                 {itemTitle}
             </p>
         </div>
@@ -39,43 +39,37 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
     const auth = useSessionStore((state) => state.auth)
     const nav = useNavigate()
 
-    const draggingState = useFileBrowserStore((state) => state.draggingState)
-    const mode = useFileBrowserStore((state) => state.fbMode)
-    const shareId = useFileBrowserStore((state) => state.shareId)
-    const menuMode = useFileBrowserStore((state) => state.menuMode)
-    const selectedMap = useFileBrowserStore((state) => state.selected)
+    const {
+        draggingState,
+        fbMode,
+        shareId,
+        menuMode,
+        folderInfo,
+        selected,
+        setMoveDest,
+        setHovering,
+        setSelected,
+        setDragging,
+        setPresentationTarget,
+        setMenu,
+        clearSelected,
+        setSelectedMoved,
+    } = useFileBrowserStore()
 
-    const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
-    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const setHovering = useFileBrowserStore((state) => state.setHovering)
-    const setSelected = useFileBrowserStore((state) => state.setSelected)
-    const setDragging = useFileBrowserStore((state) => state.setDragging)
-    const setPresentationTarget = useFileBrowserStore(
-        (state) => state.setPresentationTarget
-    )
-    const setMenu = useFileBrowserStore((state) => state.setMenu)
-    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
-    const setSelectedMoved = useFileBrowserStore(
-        (state) => state.setSelectedMoved
-    )
-
-    const addLoading = useFileBrowserStore((state) => state.addLoading)
-    const removeLoading = useFileBrowserStore((state) => state.removeLoading)
-
-    const selected = useFileBrowserStore((state) =>
-        state.filesMap.get(file.Id()).GetSelectedState()
-    )
+    const selState = useFileBrowserStore((state) => {
+        return state.filesMap.get(file?.Id())?.GetSelectedState()
+    })
 
     return (
         <div
             className="weblens-file animate-fade"
             data-clickable={!draggingState || file.IsFolder()}
-            data-hovering={selected & SelectedState.Hovering}
-            data-in-range={(selected & SelectedState.InRange) >> 1}
-            data-selected={(selected & SelectedState.Selected) >> 2}
-            data-last-selected={(selected & SelectedState.LastSelected) >> 3}
-            data-droppable={(selected & SelectedState.Droppable) >> 4}
-            data-moved={(selected & SelectedState.Moved) >> 5}
+            data-hovering={selState & SelectedState.Hovering}
+            data-in-range={(selState & SelectedState.InRange) >> 1}
+            data-selected={(selState & SelectedState.Selected) >> 2}
+            data-last-selected={(selState & SelectedState.LastSelected) >> 3}
+            data-droppable={(selState & SelectedState.Droppable) >> 4}
+            data-moved={(selState & SelectedState.Moved) >> 5}
             onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
                 handleMouseOver(
                     e,
@@ -103,7 +97,15 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                 setSelected([file.Id()])
             }}
             onDoubleClick={(e) =>
-                visitFile(e, mode, shareId, file, nav, setPresentationTarget)
+                visitFile(
+                    e,
+                    fbMode,
+                    shareId,
+                    file,
+                    folderInfo.IsTrash(),
+                    nav,
+                    setPresentationTarget
+                )
             }
             onContextMenu={(e) =>
                 fileHandleContextMenu(e, menuMode, setMenu, file)
@@ -112,7 +114,7 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                 handleMouseUp(
                     file,
                     draggingState,
-                    Array.from(selectedMap.keys()),
+                    Array.from(selected.keys()),
                     auth,
                     setSelectedMoved,
                     clearSelected,
@@ -135,11 +137,11 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
             <FileGridVisual file={file} />
             <div
                 className="file-size-box"
-                data-moved={(selected & SelectedState.Moved) >> 5}
+                data-moved={(selState & SelectedState.Moved) >> 5}
             >
                 <p>{file.FormatSize()}</p>
             </div>
-            <div className="flex relative items-center h-[16%] w-[260px]">
+            <div className="flex relative items-center h-[16%] w-full">
                 <FileTextBox itemTitle={file.GetFilename()} />
             </div>
         </div>

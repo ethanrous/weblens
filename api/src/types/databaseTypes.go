@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -50,6 +51,8 @@ type AlbumsStore interface {
 	RemoveMediaFromAlbum(AlbumId, ContentId) error
 
 	AddUsersToAlbum(aId AlbumId, us []User) error
+
+	DeleteAlbum(aId AlbumId) error
 }
 
 type MediaStore interface {
@@ -60,6 +63,7 @@ type MediaStore interface {
 	AddFileToMedia(mId ContentId, fId FileId) error
 	RemoveFileFromMedia(mId ContentId, fId FileId) error
 	GetFetchMediaCacheImage(ctx context.Context) ([]byte, error)
+	AddLikeToMedia(ContentId, Username, bool) error
 
 	DeleteAllMedia() error
 }
@@ -111,4 +115,5 @@ type FilesStore interface {
 	ReadDir(WeblensFile) ([]FileStat, error)
 	TouchFile(WeblensFile) error
 	GetFile(FileId) (WeblensFile, error)
+	StreamFile(WeblensFile) (io.ReadCloser, error)
 }

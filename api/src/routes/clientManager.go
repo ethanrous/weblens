@@ -151,7 +151,7 @@ func (cm *clientManager) GetSubscribers(st types.WsAction, key types.SubId) (cli
 			cm.taskTypeMu.Unlock()
 		}
 	default:
-		wlog.Error.Println("Unknown subscriber type", st)
+		wlog.Error.Printf("Unknown subscriber type: [%s]", st)
 	}
 
 	// Copy slice to not modify reference to mapped slice

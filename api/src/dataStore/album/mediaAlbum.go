@@ -8,20 +8,21 @@ import (
 	"github.com/ethrousseau/weblens/api/types"
 	"github.com/ethrousseau/weblens/api/util"
 	"github.com/ethrousseau/weblens/api/util/wlog"
+	"github.com/modern-go/reflect2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Album struct {
-	Id             types.AlbumId `bson:"_id"`
-	Name           string        `bson:"name"`
-	Owner          types.User    `bson:"owner"`
-	Medias         []types.Media `bson:"medias"`
-	Cover          types.Media   `bson:"cover"`
-	PrimaryColor   string        `bson:"primaryColor"`
-	SecondaryColor string        `bson:"secondaryColor"`
-	SharedWith     []types.User  `bson:"sharedWith"`
-	ShowOnTimeline bool          `bson:"showOnTimeline"`
+	Id             types.AlbumId    `bson:"_id"`
+	Name           string           `bson:"name"`
+	Owner          types.User       `bson:"owner"`
+	Medias         []types.Media    `bson:"medias"`
+	Cover          types.ContentId  `bson:"cover"`
+	PrimaryColor   string           `bson:"primaryColor"`
+	SecondaryColor string           `bson:"secondaryColor"`
+	SharedWith     []types.Username `bson:"sharedWith"`
+	ShowOnTimeline bool             `bson:"showOnTimeline"`
 }
 
 func New(albumName string, owner types.User) types.Album {
@@ -32,6 +33,7 @@ func New(albumName string, owner types.User) types.Album {
 		Owner:          owner,
 		Medias:         []types.Media{},
 		ShowOnTimeline: true,
+		SharedWith: []types.Username{},
 	}
 }
 
@@ -83,22 +85,13 @@ func (a *Album) Rename(newName string) error {
 	return types.NewWeblensError("not impl - album rename")
 }
 
-func (a *Album) SetCover(cover types.Media) error {
-	colors, err := cover.GetProminentColors()
-	if err != nil {
-		return err
-	}
-
-	err = types.SERV.StoreService.SetAlbumCover(a.Id, colors[0], colors[1], cover.ID())
-	if err != nil {
-		return err
-	}
-
+func (a *Album) setCover(cover types.ContentId, color1, color2 string) {
 	a.Cover = cover
-	return nil
+	a.PrimaryColor = color1
+	a.PrimaryColor = color2
 }
 
-func (a *Album) GetCover() types.Media {
+func (a *Album) GetCover() types.ContentId {
 	return a.Cover
 }
 
@@ -123,19 +116,29 @@ func (a *Album) AddUsers(us ...types.User) error {
 		return err
 	}
 
-	a.SharedWith = util.AddToSet(a.SharedWith, us)
+	a.SharedWith = util.AddToSet(
+		a.SharedWith, util.Map(
+			us, func(u types.User) types.Username {
+				return u.GetUsername()
+			},
+		)...,
+	)
 
 	return nil
 }
 
-func (a *Album) GetUsers() []types.User {
+func (a *Album) GetSharedWith() []types.Username {
+	if a.SharedWith == nil {
+		a.SharedWith = []types.Username{}
+	}
+
 	return a.SharedWith
 }
 
 func (a *Album) RemoveUsers(uns ...types.Username) error {
 	a.SharedWith = util.Filter(
-		a.SharedWith, func(u types.User) bool {
-			return !slices.Contains(uns, u.GetUsername())
+		a.SharedWith, func(un types.Username) bool {
+			return !slices.Contains(uns, un)
 		},
 	)
 	return types.NewWeblensError("not impl - album remove users")
@@ -155,7 +158,7 @@ func (a *Album) UnmarshalBSON(bs []byte) error {
 	a.Medias = util.FilterMap(
 		data["medias"].(primitive.A), func(mId any) (types.Media, bool) {
 			m := types.SERV.MediaRepo.Get(types.ContentId(mId.(string)))
-			if m == nil {
+			if reflect2.IsNil(m) {
 				// util.Error.Printf("Nil media [%s] while loading album (%s)", mId, a.Name)
 				return nil, false
 			}
@@ -163,12 +166,12 @@ func (a *Album) UnmarshalBSON(bs []byte) error {
 		},
 	)
 
-	a.Cover = types.SERV.MediaRepo.Get(types.ContentId(data["cover"].(string)))
+	a.Cover = types.ContentId(data["cover"].(string))
 	a.PrimaryColor = data["primaryColor"].(string)
 	a.SecondaryColor = data["secondaryColor"].(string)
 	a.SharedWith = util.Map(
-		data["sharedWith"].(primitive.A), func(un any) types.User {
-			return types.SERV.UserService.Get(types.Username(un.(string)))
+		data["sharedWith"].(primitive.A), func(username any) types.Username {
+			return types.Username(username.(string))
 		},
 	)
 	a.ShowOnTimeline = data["showOnTimeline"].(bool)
@@ -184,7 +187,7 @@ func (a *Album) MarshalJSON() ([]byte, error) {
 	data["owner"] = a.Owner.GetUsername()
 	data["medias"] = util.FilterMap(
 		a.Medias, func(m types.Media) (types.ContentId, bool) {
-			if m == nil {
+			if reflect2.IsNil(m) {
 				return "", false
 			}
 			return m.ID(), true
@@ -192,16 +195,10 @@ func (a *Album) MarshalJSON() ([]byte, error) {
 	)
 
 	data["cover"] = ""
-	if a.Cover != nil {
-		data["cover"] = a.Cover.ID()
-	}
+	data["cover"] = a.Cover
 	data["primaryColor"] = a.PrimaryColor
 	data["secondaryColor"] = a.SecondaryColor
-	data["sharedWith"] = util.Map(
-		a.SharedWith, func(u types.User) types.Username {
-			return u.GetUsername()
-		},
-	)
+	data["sharedWith"] = a.SharedWith
 	data["showOnTimeline"] = a.ShowOnTimeline
 
 	return json.Marshal(data)
@@ -219,16 +216,11 @@ func (a *Album) MarshalBSON() ([]byte, error) {
 		},
 	)
 	data["cover"] = ""
-	if a.Cover != nil {
-		data["cover"] = a.Cover.ID()
-	}
+	data["cover"] = a.Cover
+
 	data["primaryColor"] = a.PrimaryColor
 	data["secondaryColor"] = a.SecondaryColor
-	data["sharedWith"] = util.Map(
-		a.SharedWith, func(u types.User) types.Username {
-			return u.GetUsername()
-		},
-	)
+	data["sharedWith"] = a.SharedWith
 	data["showOnTimeline"] = a.ShowOnTimeline
 
 	return bson.Marshal(data)

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethanrous/bimg"
 	"github.com/ethrousseau/weblens/api/dataStore"
 	"github.com/ethrousseau/weblens/api/dataStore/media"
 	"github.com/ethrousseau/weblens/api/types"
@@ -95,11 +96,15 @@ func getMediaInfo(ctx *gin.Context) {
 }
 
 func getMediaThumbnail(ctx *gin.Context) {
-	getProcessedMedia(ctx, types.Thumbnail)
+	getProcessedMedia(ctx, types.Thumbnail, "")
+}
+
+func getMediaThumbnailPng(ctx *gin.Context) {
+	getProcessedMedia(ctx, types.Thumbnail, "png")
 }
 
 func getMediaFullres(ctx *gin.Context) {
-	getProcessedMedia(ctx, types.Fullres)
+	getProcessedMedia(ctx, types.Fullres, "")
 }
 
 func streamVideo(ctx *gin.Context) {
@@ -151,10 +156,10 @@ func streamVideo(ctx *gin.Context) {
 
 func fetchMediaBytes(ctx *gin.Context) {
 	q := types.Quality(ctx.Query("quality"))
-	getProcessedMedia(ctx, q)
+	getProcessedMedia(ctx, q, "")
 }
 
-func getProcessedMedia(ctx *gin.Context, q types.Quality) {
+func getProcessedMedia(ctx *gin.Context, q types.Quality, format string) {
 	mediaId := types.ContentId(ctx.Param("mediaId"))
 
 	var pageNum int
@@ -198,6 +203,16 @@ func getProcessedMedia(ctx *gin.Context, q types.Quality) {
 		wlog.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 		return
+	}
+
+	if format == "png" {
+		image := bimg.NewImage(bs)
+		bs, err = image.Convert(bimg.PNG)
+		if err != nil {
+			wlog.ErrTrace(err)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to convert image to PNG"})
+			return
+		}
 	}
 
 	_, err = ctx.Writer.Write(bs)
@@ -267,4 +282,24 @@ func adjustMediaDate(ctx *gin.Context) {
 func getMediaArchive(ctx *gin.Context) {
 	ms := types.SERV.MediaRepo.GetAll()
 	ctx.JSON(http.StatusOK, ms)
+}
+
+func likeMedia(ctx *gin.Context) {
+	u := getUserFromCtx(ctx)
+	if u == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
+	mediaId := types.ContentId(ctx.Param("mediaId"))
+	liked := ctx.Query("liked") == "true"
+
+	err := types.SERV.MediaRepo.SetMediaLiked(mediaId, liked, u.GetUsername())
+	if err != nil {
+		wlog.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }

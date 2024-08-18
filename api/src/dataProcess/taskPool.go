@@ -1,7 +1,6 @@
 package dataProcess
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -84,14 +83,15 @@ func (tp *taskPool) newTask(
 		updateMu:  &sync.RWMutex{},
 		waitMu:    sync.Mutex{},
 		timerLock: sync.Mutex{},
+		signal: atomic.Int64{},
 
 		queueState: PreQueued,
 
 		// signal chan must be buffered so caller doesn't block trying to close many tasks
 		signalChan: make(chan int, 1),
 
-		sw:        util.NewStopwatch(fmt.Sprintf("%s Task [%s]", taskType, taskId.String())),
-		caster:    caster,
+		sw:     util.NewStopwatch(fmt.Sprintf("%s Task [%s]", taskType, taskId.String())),
+		caster: caster,
 	}
 
 	// Lock the waiter gate immediately. The task cleanup routine will clear
@@ -186,7 +186,7 @@ func (tp *taskPool) WriteToFile(
 
 	// We don't queue upload tasks right away, once the first chunk comes through,
 	// we will add it to the buffer, and then load the task onto the queue.
-	t.(*task).taskPool = tp
+	t.(*task).setTaskPoolInternal(tp)
 
 	return t
 }
@@ -448,8 +448,12 @@ func (tp *taskPool) AddError(t types.Task) {
 }
 
 func (tp *taskPool) AddCleanup(fn func()) {
+	tp.exitLock.Lock()
+	defer tp.exitLock.Unlock()
 	if tp.allQueuedFlag.Load() && tp.completedTasks.Load() == tp.totalTasks.Load() {
-		fn()
+		// Caller expects `AddCleanup` to execute asynchronously, so we must run the
+		// cleanup function in its own go routine
+		go fn()
 		return
 	}
 
@@ -503,13 +507,15 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 		// again, but it cannot be transferred
 		if t.taskPool != tp {
 			wlog.Warning.Printf("Attempted to re-queue a [%s] task that is already in a queue", t.taskType)
+			return
 		}
+		t.taskPool.tasks[t.taskId] = t
 		return
 	}
 
 	if tp.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
-		return errors.New("attempting to add task to closed task queue")
+		return types.WeblensErrorMsg("attempting to add task to closed task queue")
 	}
 
 	tp.totalTasks.Add(1)
@@ -537,6 +543,7 @@ func (tp *taskPool) QueueTask(Task types.Task) (err error) {
 		tp.workerPool.taskStream <- t
 	}
 
+	t.taskPool.tasks[t.taskId] = t
 	return
 }
 
