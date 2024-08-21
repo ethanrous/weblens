@@ -1,0 +1,107 @@
+package database
+
+import (
+	"github.com/ethrousseau/weblens/api"
+	"github.com/ethrousseau/weblens/api/internal"
+	error2 "github.com/ethrousseau/weblens/api/internal/werror"
+	"github.com/ethrousseau/weblens/api/types"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func (db *databaseService) GetAllUsers() ([]types.User, error) {
+	ret, err := db.users.Find(db.ctx, bson.M{})
+	if err != nil {
+		return nil, error2.Wrap(err)
+	}
+	var users []*weblens.User
+	err = ret.All(db.ctx, &users)
+	if err != nil {
+		return nil, error2.Wrap(err)
+	}
+
+	return internal.SliceConvert[types.User](users), nil
+}
+
+func (db *databaseService) CreateUser(user types.User) error {
+	_, err := db.users.InsertOne(db.ctx, user)
+	if err != nil {
+		return error2.Wrap(err)
+	}
+	return nil
+}
+
+func (db *databaseService) UpdatePasswordByUsername(username types.Username, newPasswordHash string) error {
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"password": newPasswordHash}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+
+	if err != nil {
+		return error2.Wrap(err)
+	}
+
+	return nil
+}
+
+func (db *databaseService) SetAdminByUsername(username types.Username, isAdmin bool) error {
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"admin": isAdmin}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+
+	if err != nil {
+		return error2.Wrap(err)
+	}
+
+	return nil
+}
+
+func (db *databaseService) ActivateUser(username types.Username) error {
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"activated": true}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+	return err
+}
+
+func (db *databaseService) AddTokenToUser(username types.Username, token string) error {
+	filter := bson.M{"username": username}
+	update := bson.M{"$addToSet": bson.M{"tokens": token}}
+	_, err := db.users.UpdateOne(db.ctx, filter, update)
+	return err
+}
+
+func (db *databaseService) SearchUsers(search string) ([]types.Username, error) {
+	opts := options.Find().SetProjection(bson.M{"username": 1, "_id": 0})
+	ret, err := db.users.Find(db.ctx, bson.M{"username": bson.M{"$regex": search, "$options": "i"}}, opts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var users []struct {
+		Username string `bson:"username"`
+	}
+	err = ret.All(db.ctx, &users)
+	if err != nil {
+		return nil, err
+	}
+
+	return internal.Map(
+		users, func(
+			un struct {
+			Username string `bson:"username"`
+		},
+		) types.Username {
+			return types.Username(un.Username)
+		},
+	), nil
+}
+
+func (db *databaseService) DeleteUserByUsername(username types.Username) error {
+	_, err := db.users.DeleteOne(db.ctx, bson.M{"username": username})
+	return err
+}
+
+func (db *databaseService) DeleteAllUsers() error {
+	_, err := db.users.DeleteMany(db.ctx, bson.M{})
+	return err
+}
