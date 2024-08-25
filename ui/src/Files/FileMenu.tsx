@@ -766,10 +766,10 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                 fillWidth
                 height={50}
                 buttonIcon={IconPlus}
-                onComplete={(newName) => {
+                onComplete={async (newName) => {
                     const itemIds = items.map((f) => f.Id())
                     setMoved(itemIds)
-                    CreateFolder(
+                    await CreateFolder(
                         folderInfo.Id(),
                         newName,
                         itemIds,
@@ -803,8 +803,8 @@ function FileRenameInput() {
                 fillWidth
                 height={50}
                 buttonIcon={IconPlus}
-                onComplete={(newName) => {
-                    RenameFile(menuTarget.Id(), newName, auth)
+                onComplete={async (newName) => {
+                    await RenameFile(menuTarget.Id(), newName, auth)
                         .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
                         .catch((r) => console.error(r))
                 }}
@@ -921,8 +921,8 @@ function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
                     height={40}
                     autoFocus
                     closeInput={() => setNewAlbum(false)}
-                    onComplete={(v: string) => {
-                        createAlbum(v, auth).then(() => {
+                    onComplete={async (v: string) => {
+                        await createAlbum(v, auth).then(() => {
                             setNewAlbum(false)
                             albums.refetch()
                         })

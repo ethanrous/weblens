@@ -1,66 +1,139 @@
 package werror
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"path/filepath"
 	"runtime"
+	"strconv"
 )
 
-type WErr interface {
-	Error() string
-	ErrorTrace() string
+type base struct {
+	msg string
 }
 
-type WeblensError struct {
-	err        error
-	sourceFile string
-	sourceLine int
-	trace      string
+type werr struct {
+	error
+	code int
+	text string
+	*stack
 }
 
-func Wrap(err error) WErr {
-	wlErr, ok := err.(WErr)
-	if !ok {
-		return NewWeblensError(err.Error())
+func callers() *stack {
+	const depth = 32
+	var pcs [depth]uintptr
+	n := runtime.Callers(3, pcs[:])
+	var st stack = pcs[0:n]
+	return &st
+}
+
+type stack []uintptr
+
+func (s *stack) String() (stack string) {
+	for _, pc := range *s {
+		stack += fmt.Sprintf("%+v\n", Frame(pc))
 	}
-	return wlErr
+	return
 }
 
-func WErrMsg(errMsg string) WErr {
-	return NewWeblensError(errMsg)
+type withStack struct {
+	err   error
+	stack *stack
 }
 
-func NewWeblensError(err string) WErr {
-	_, filename, line, _ := runtime.Caller(2)
-	buf := make([]byte, 1<<16)
+func WithStack(err error) error {
+	if err == nil {
+		return nil
+	}
 
-	runtime.Stack(buf, false)
-	buf = bytes.Trim(buf, "\x00")
-	return WeblensError{errors.New(err), filepath.Base(filename), line, string(buf)}
+	if _, ok := err.(StackError); ok {
+		return err
+	}
+
+	if err == nil {
+		return nil
+	}
+	return &withStack{
+		err:   err,
+		stack: callers(),
+	}
 }
 
-func (e WeblensError) Error() string {
-	return fmt.Sprintf("%s:%d: %s", e.sourceFile, e.sourceLine, e.err)
+func New(msg string) error {
+	return base{
+		msg: msg,
+	}
 }
 
-func (e WeblensError) ErrorTrace() string {
-	return fmt.Sprintf("%s:%d: %s\n%s", e.sourceFile, e.sourceLine, e.err, e.trace)
+func Errorf(format string, args ...any) StackError {
+	return &withStack{
+		err:   fmt.Errorf(format, args...),
+		stack: callers(),
+	}
 }
 
-func (e WeblensError) GetSourceFile() string {
-	return e.sourceFile
+func (err *withStack) Stack() string {
+	return fmt.Sprintf("\u001b[31m%s\u001B[0m\n%s", err.err, err.stack.String())
 }
 
-func (e WeblensError) GetSourceLine() int {
-	return e.sourceLine
+func (err *withStack) Unwrap() error {
+	return err.err
 }
 
-var NotImplemented = func(note string) WErr {
-	return NewWeblensError(
-		fmt.Sprint(
-			"not implemented: ", note,
-		),
+func (err *withStack) Error() string {
+	topFrame := Frame((*err.stack)[0])
+	return fmt.Sprintf(
+		"%s:%d: \u001b[31m%s\u001B[0m\n", topFrame.file(),
+		topFrame.line(), err.err,
 	)
+}
+
+func (err base) Error() string {
+	return err.msg
+}
+
+var NotImplemented = func(note string) error {
+	return &withStack{
+		err:   fmt.Errorf("not implemented: %s", note),
+		stack: callers(),
+	}
+}
+
+var _ StackError = (*withStack)(nil)
+
+type StackError interface {
+	Error() string
+	Stack() string
+}
+
+type Frame uintptr
+
+func (f Frame) pc() uintptr { return uintptr(f) - 1 }
+
+func (f Frame) file() string {
+	fn := runtime.FuncForPC(f.pc())
+	if fn == nil {
+		return "unknown"
+	}
+	file, _ := fn.FileLine(f.pc())
+	return file
+}
+
+func (f Frame) line() int {
+	fn := runtime.FuncForPC(f.pc())
+	if fn == nil {
+		return 0
+	}
+	_, line := fn.FileLine(f.pc())
+	return line
+}
+
+func (f Frame) name() string {
+	fn := runtime.FuncForPC(f.pc())
+	if fn == nil {
+		return "unknown"
+	}
+	return fn.Name()
+}
+
+func (f Frame) String() (str string) {
+	return f.name() + "\n\t" + f.file() + ":" + strconv.Itoa(f.line())
 }

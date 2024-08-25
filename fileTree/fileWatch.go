@@ -3,8 +3,7 @@ package fileTree
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/api/internal/wlog"
-	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -97,10 +96,10 @@ WatcherLoop:
 	}
 
 	// Not reached
-	wlog.Error.Panicln("File watcher exiting...")
+	log.Error.Panicln("File watcher exiting...")
 }
 
-func (j *JournalServiceImpl) WatchFolder(f *fileTree.WeblensFile) error {
+func (j *JournalServiceImpl) WatchFolder(f *WeblensFile) error {
 	// if !f.IsDir() {
 	// 	return dataStore.ErrDirectoryRequired
 	// }

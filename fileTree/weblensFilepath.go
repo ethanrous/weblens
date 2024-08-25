@@ -1,30 +1,24 @@
 package fileTree
 
 import (
-	"path/filepath"
 	"strings"
-
-	"github.com/ethrousseau/weblens/api/types"
 )
 
 type WeblensFilepath struct {
-	base string
-	ext  string
+	rootAlias string
+	relPath   string
 }
 
-func FilepathFromAbs(absolutePath string) WeblensFilepath {
-
-	rootPath := types.SERV.FileTree.GetRoot().GetAbsPath()
-	ext := strings.TrimPrefix(absolutePath, rootPath)
+func NewFilePath(root, rootAlias, absolutePath string) WeblensFilepath {
+	path := strings.TrimPrefix(absolutePath, root)
 
 	return WeblensFilepath{
-		// TODO
-		base: "",
-		ext:  ext,
+		rootAlias: rootAlias,
+		relPath:   path,
 	}
 }
 
-func FilepathFromPortable(portablePath string) WeblensFilepath {
+func ParsePortable(portablePath string) WeblensFilepath {
 	colonIndex := strings.Index(portablePath, ":")
 	if colonIndex == -1 {
 		// util.ShowErr(
@@ -40,23 +34,21 @@ func FilepathFromPortable(portablePath string) WeblensFilepath {
 	prefix := portablePath[:colonIndex]
 	postfix := portablePath[colonIndex+1:]
 	return WeblensFilepath{
-		base: prefix,
-		ext:  postfix,
+		rootAlias: prefix,
+		relPath:   postfix,
 	}
 }
 
-func (wf WeblensFilepath) ToAbsPath() string {
-	mediaRoot := types.SERV.FileTree.GetRoot()
-	var realBase string
-	// TODO
-	if wf.base == "" {
-		realBase = mediaRoot.GetAbsPath()
-	}
-	return filepath.Join(realBase, wf.ext)
+func (wf WeblensFilepath) RootName() string {
+	return wf.rootAlias
+}
+
+func (wf WeblensFilepath) RelativePath() string {
+	return wf.relPath
 }
 
 func (wf WeblensFilepath) ToPortable() string {
-	return string(wf.base) + ":" + wf.ext
+	return string(wf.rootAlias) + ":" + wf.relPath
 }
 
 func (wf WeblensFilepath) String() string {

@@ -80,13 +80,13 @@ async function getSharedWithMe(authHeader: AuthHeaderT) {
     const url = new URL(`${API_ENDPOINT}/files/shared`)
     return fetch(url.toString(), authHeader ? { headers: authHeader } : null)
         .then((res) => res.json())
-        .then((data) => {
+        .then((sharedFiles) => {
             const sharedFolder = new WeblensFile({
                 id: 'shared',
                 isDir: true,
                 filename: 'Shared',
             })
-            return { children: data.files, self: sharedFolder }
+            return { children: sharedFiles, self: sharedFolder }
         })
 }
 
@@ -135,6 +135,11 @@ export async function GetFolderData(
     }
     if (fbMode === FbModeT.external) {
         return getExternalFiles(contentId, authHeader)
+    }
+
+    if (!contentId) {
+        console.error('Tried to get folder with no id')
+        return
     }
 
     const url = new URL(`${API_ENDPOINT}/folder/${contentId}`)
@@ -402,9 +407,7 @@ export async function shareFile(
         headers: authHeader,
         method: 'POST',
         body: JSON.stringify(body),
-    })
-        .then((res) => res.json())
-        .then((j) => j.shareData)
+    }).then((res) => res.json())
 }
 
 export async function setFileSharePublic(

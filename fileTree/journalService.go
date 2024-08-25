@@ -1,112 +1,101 @@
 package fileTree
 
 import (
-	"fmt"
-	"path/filepath"
+	"context"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/api"
-	"github.com/ethrousseau/weblens/api/internal"
-	"github.com/ethrousseau/weblens/api/internal/werror"
-	"github.com/ethrousseau/weblens/api/internal/wlog"
-	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethrousseau/weblens/internal/log"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var _ JournalService = (*JournalServiceImpl)(nil)
 
 type JournalServiceImpl struct {
 	lifetimes       map[LifetimeId]*Lifetime
 	lifetimeMapLock sync.RWMutex
-
 	latestUpdate  map[FileId]*Lifetime
 	latestMapLock sync.Mutex
+	eventStream chan *FileEvent
 
-	collection *mongo.Collection
+	serverId string
+
+	fileTree *FileTreeImpl
+	col      *mongo.Collection
 }
 
-func NewJournalService(col *mongo.Collection) JournalService {
-	return &JournalServiceImpl{
+func NewJournalService(col *mongo.Collection, serverId string) (JournalService, error) {
+	j := &JournalServiceImpl{
 		lifetimes:    make(map[LifetimeId]*Lifetime),
 		latestUpdate: make(map[FileId]*Lifetime),
-		collection:   col,
+		eventStream: make(chan *FileEvent, 10),
+		col:         col,
+		serverId:    serverId,
 	}
-}
-
-func (j *JournalServiceImpl) Init(store types.HistoryStore) error {
-	j.store = store
 
 	var lifetimes []*Lifetime
 	// var updatedLifetimes []*Lifetime
 	var err error
-	var hasProxy bool
-	var proxyStore types.ProxyStore
+	// var hasProxy bool
 
-	sw := internal.NewStopwatch("Journal init")
-
-	if proxyStore, hasProxy = store.(types.ProxyStore); hasProxy {
+	// if proxyStore, hasProxy = store.(types.ProxyStore); hasProxy {
+	if false {
 		// Get all lifetimes from the local database
-		localLifetimes, err := proxyStore.GetLocalStore().GetAllLifetimes()
-		if err != nil {
-			return err
-		}
-
-		sw.Lap("Read all local lifetimes")
-
-		j.lifetimeMapLock.Lock()
-		j.latestMapLock.Lock()
-		for _, l := range localLifetimes {
-			j.lifetimes[l.ID()] = l
-			j.latestUpdate[l.GetLatestFileId()] = l
-		}
-		j.latestMapLock.Unlock()
-		j.lifetimeMapLock.Unlock()
-
-		sw.Lap("Add all local lifetimes")
-
-		latest, err := proxyStore.GetLatestAction()
-		if err != nil {
-			return err
-		}
-
-		var latestTimestamp time.Time
-		if latest != nil {
-			latestTimestamp = latest.GetTimestamp()
-		}
-
-		remoteLifetimes, err := types.SERV.StoreService.GetLifetimesSince(latestTimestamp)
-		if err != nil {
-			return err
-		}
-
-		sw.Lap("Proxy got lifetime updates")
-
-		// Upsert lifetimes that have been updated on remote server
-		for _, l := range remoteLifetimes {
-			err = j.Add(l)
-			if err != nil {
-				return err
-			}
-		}
-
-		sw.Lap("Proxy upsert lifetime updates")
-	} else {
-		lifetimes, err = store.GetAllLifetimes()
-		if err != nil {
-			return err
-		}
-		sw.Lap("Get all local lifetimes")
-
-		// slices.SortFunc(
-		// 	lifetimes, func(a, b *Lifetime) int {
-		// 		aActions := a.GetActions()
-		// 		bActions := b.GetActions()
-		// 		return len(aActions[len(aActions)-1].GetDestinationPath()) - len(bActions[len(bActions)-1].GetDestinationPath())
-		// 	},
-		// )
+		// localLifetimes, err := proxyStore.GetLocalStore().GetAllLifetimes()
+		// if err != nil {
+		// 	return err
+		// }
 		//
-		// sw.Lap("Sorted all lifetimes")
+		// sw.Lap("Read all local lifetimes")
+		//
+		// j.lifetimeMapLock.Lock()
+		// j.latestMapLock.Lock()
+		// for _, l := range localLifetimes {
+		// 	j.lifetimes[l.ID()] = l
+		// 	j.latestUpdate[l.GetLatestFileId()] = l
+		// }
+		// j.latestMapLock.Unlock()
+		// j.lifetimeMapLock.Unlock()
+		//
+		// sw.Lap("Add all local lifetimes")
+		//
+		// latest, err := proxyStore.GetLatestAction()
+		// if err != nil {
+		// 	return err
+		// }
+		//
+		// var latestTimestamp time.Time
+		// if latest != nil {
+		// 	latestTimestamp = latest.GetTimestamp()
+		// }
+		//
+		// remoteLifetimes, err := types.SERV.StoreService.GetLifetimesSince(latestTimestamp)
+		// if err != nil {
+		// 	return err
+		// }
+		//
+		// sw.Lap("Proxy got lifetime updates")
+		//
+		// // Upsert lifetimes that have been updated on remote server
+		// for _, l := range remoteLifetimes {
+		// 	err = j.Add(l)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
+		//
+		// sw.Lap("Proxy upsert lifetime updates")
+	} else {
+		lifetimes, err = getAllLifetimes(j.col)
+		if err != nil {
+			return nil, err
+		}
 
 		j.lifetimeMapLock.Lock()
 		j.latestMapLock.Lock()
@@ -116,14 +105,37 @@ func (j *JournalServiceImpl) Init(store types.HistoryStore) error {
 		}
 		j.latestMapLock.Unlock()
 		j.lifetimeMapLock.Unlock()
-
-		sw.Lap("Added all lifetimes")
 	}
 
-	sw.Stop()
-	sw.PrintResults(false)
+	return j, nil
+}
 
-	return nil
+func getAllLifetimes(col *mongo.Collection) ([]*Lifetime, error) {
+	ret, err := col.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*Lifetime
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
+}
+
+func (j *JournalServiceImpl) NewEvent() *FileEvent {
+	return &FileEvent{
+		EventId:    FileEventId(primitive.NewObjectID().Hex()),
+		EventBegin: time.Now(),
+		journal:    j,
+		ServerId:   j.serverId,
+	}
+}
+
+func (j *JournalServiceImpl) SetFileTree(ft *FileTreeImpl) {
+	j.fileTree = ft
 }
 
 func (j *JournalServiceImpl) GetActiveLifetimes() []*Lifetime {
@@ -148,107 +160,22 @@ func (j *JournalServiceImpl) GetAllFileEvents() ([]*FileEvent, error) {
 	return nil, werror.NotImplemented("get all file events")
 }
 
-func (j *JournalServiceImpl) LogEvent(fe *FileEvent) error {
-	if len(fe.GetActions()) == 0 {
-		return nil
+func (j *JournalServiceImpl) LogEvent(fe *FileEvent) {
+	if fe != nil && len(fe.Actions) != 0 {
+		j.eventStream <- fe
 	}
-
-	actions := fe.GetActions()
-	slices.SortFunc(
-		actions, func(a, b *FileAction) int {
-			return a.GetTimestamp().Compare(b.GetTimestamp())
-		},
-	)
-
-	var updated []*Lifetime
-
-	j.latestMapLock.Lock()
-	defer j.latestMapLock.Unlock()
-	j.lifetimeMapLock.Lock()
-	defer j.lifetimeMapLock.Unlock()
-
-	for _, action := range fe.GetActions() {
-		if action.GetFile() != nil {
-			size, err := action.GetFile().Size()
-			if err != nil {
-				return werror.Wrap(err)
-			}
-			action.SetSize(size)
-		}
-
-		switch action.GetActionType() {
-		case FileCreate:
-			newL, err := NewLifetime("", action)
-			if err != nil {
-				return err
-			}
-
-			if newL == nil {
-				return werror.WErrMsg("failed to create new lifetime")
-			}
-
-			f := types.SERV.FileTree.Get(action.GetDestinationId())
-			sz, _ := f.Size()
-			if !f.IsDir() && sz != 0 {
-				contentId := f.GetContentId()
-				if contentId == "" {
-					return werror.NewWeblensError(
-						fmt.Sprintln(
-							"No content ID in FileCreate lifetime update", action.GetDestinationPath(),
-						),
-					)
-				}
-				newL.SetContentId(contentId)
-			}
-
-			j.lifetimes[newL.ID()] = newL
-			j.latestUpdate[action.GetDestinationId()] = newL
-			updated = append(updated, newL)
-		case FileMove:
-			existing := j.latestUpdate[action.GetOriginId()]
-			delete(j.latestUpdate, existing.GetLatestFileId())
-			existing.Add(action)
-			j.latestUpdate[existing.GetLatestFileId()] = existing
-
-			updated = append(updated, existing)
-		case FileDelete:
-			existing := j.latestUpdate[action.GetOriginId()]
-			delete(j.latestUpdate, existing.GetLatestFileId())
-			existing.Add(action)
-
-			updated = append(updated, existing)
-		}
-	}
-
-	for _, update := range updated {
-		f := types.SERV.FileTree.Get(update.GetLatestFileId())
-		if f != nil {
-			sz, _ := f.Size()
-			if update.GetContentId() == "" && !f.IsDir() && sz != 0 {
-				return werror.WErrMsg("No content ID in lifetime update")
-			}
-		} else if update.GetLatestAction().GetActionType() != FileDelete {
-			return werror.WErrMsg("Could not find file for non-delete lifetime update")
-		}
-		err := types.SERV.StoreService.UpsertLifetime(update)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
-func (j *JournalServiceImpl) GetActionsByPath(path *WeblensFilepath) ([]*FileAction, error) {
-	return j.store.GetActionsByPath(path)
+func (j *JournalServiceImpl) GetActionsByPath(path WeblensFilepath) ([]*FileAction, error) {
+	return getActionsByPath(path, j.col)
 }
 
 func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFile, time time.Time) (
-	[]weblens.FileInfo, error,
+	[]*WeblensFile, error,
 ) {
-	actions, err := types.SERV.StoreService.GetActionsByPath(folder.GetPortablePath())
+	actions, err := getActionsByPath(folder.GetPortablePath(), j.col)
 	if err != nil {
-		return nil, werror.Wrap(err)
+		return nil, werror.WithStack(err)
 	}
 
 	actionsMap := map[string]*FileAction{}
@@ -274,39 +201,40 @@ func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFile, time time.Ti
 		}
 	}
 
-	infos := make([]weblens.FileInfo, 0, len(actionsMap))
+	children := make([]*WeblensFile, 0, len(actionsMap))
 	for _, action := range actionsMap {
-		isDir := strings.HasSuffix(action.GetDestinationPath(), "/")
-		filename := filepath.Base(action.GetDestinationPath())
-		m := types.SERV.MediaRepo.Get(j.lifetimes[action.GetLifetimeId()].GetContentId())
-
-		var displayable bool
-		if m != nil && m.GetMediaType() != nil {
-			displayable = m.GetMediaType().IsDisplayable()
-		}
-
-		infos = append(
-			infos,
-			weblens.FileInfo{
-				Id:             action.GetDestinationId(),
-				Displayable:    displayable,
-				IsDir:          isDir,
-				Modifiable:     false,
-				Size:           action.GetSize(),
-				ModTime:        action.GetTimestamp().UnixMilli(),
-				Filename:       filename,
-				ParentFolderId: action.GetParentId(),
-				MediaData:      m,
-				Owner:          "",
-				PathFromHome:   action.GetDestinationPath(),
-				ShareId:        "",
-				Children:       nil,
-				PastFile:       true,
-			},
-		)
+		children = append(children, j.fileTree.Get(action.GetDestinationId()))
+		// isDir := strings.HasSuffix(action.GetDestinationPath(), "/")
+		// filename := filepath.Base(action.GetDestinationPath())
+		// m := types.SERV.MediaRepo.Get(j.lifetimes[action.GetLifetimeId()].GetContentId())
+		//
+		// var displayable bool
+		// if m != nil && m.GetMediaType() != nil {
+		// 	displayable = m.GetMediaType().IsDisplayable()
+		// }
+		//
+		// infos = append(
+		// 	infos,
+		// 	weblens.FileInfo{
+		// 		Id:             action.GetDestinationId(),
+		// 		Displayable:    displayable,
+		// 		IsDir:          isDir,
+		// 		Modifiable:     false,
+		// 		Size:           action.GetSize(),
+		// 		ModTime:        action.GetTimestamp().UnixMilli(),
+		// 		Filename:       filename,
+		// 		ParentFolderId: action.GetParentId(),
+		// 		MediaData:      m,
+		// 		Owner:          "",
+		// 		PathFromHome:   action.GetDestinationPath(),
+		// 		ShareId:        "",
+		// 		Children:       nil,
+		// 		PastFile:       true,
+		// 	},
+		// )
 	}
 
-	return infos, nil
+	return children, nil
 }
 
 func (j *JournalServiceImpl) GetLifetimeByFileId(fId FileId) *Lifetime {
@@ -335,7 +263,7 @@ func (j *JournalServiceImpl) Add(lt *Lifetime) error {
 					return a.GetTimestamp().Compare(b.GetTimestamp())
 				},
 			) {
-				wlog.Error.Printf("Actions for lifetime [%s] are NOT sorted", lt.ID())
+				log.Error.Printf("Actions for lifetime [%s] are NOT sorted", lt.ID())
 			}
 			/* END DEBUG */
 
@@ -351,7 +279,7 @@ func (j *JournalServiceImpl) Add(lt *Lifetime) error {
 			}
 
 			// Update lifetime with new actions in mongo
-			err := j.store.UpsertLifetime(lt)
+			err := upsertLifetime(lt, j.col)
 			if err != nil {
 				return err
 			}
@@ -362,7 +290,7 @@ func (j *JournalServiceImpl) Add(lt *Lifetime) error {
 		lt = existing
 	} else {
 		// If the lifetime does not exist, just add it right to mongo
-		err := j.store.UpsertLifetime(lt)
+		err := upsertLifetime(lt, j.col)
 		if err != nil {
 			return err
 		}
@@ -385,26 +313,257 @@ func (j *JournalServiceImpl) Del(lId LifetimeId) error {
 	return werror.NotImplemented("journal del")
 }
 
-func (j *JournalServiceImpl) Size() int {
-	return len(j.lifetimes)
+func (j *JournalServiceImpl) GetLifetimesSince(date time.Time) ([]*Lifetime, error) {
+	return getLifetimesSince(date, j.col)
+}
+
+func (j *JournalServiceImpl) EventWorker() {
+	for {
+		e := <-j.eventStream
+		if err := j.handleFileEvent(e); err != nil {
+			log.ErrTrace(err)
+		}
+	}
+}
+
+func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
+	if len(event.GetActions()) == 0 {
+		return nil
+	}
+
+	actions := event.GetActions()
+	slices.SortFunc(
+		actions, func(a, b *FileAction) int {
+			return a.GetTimestamp().Compare(b.GetTimestamp())
+		},
+	)
+
+	var updated []*Lifetime
+
+	j.latestMapLock.Lock()
+	defer j.latestMapLock.Unlock()
+	j.lifetimeMapLock.Lock()
+	defer j.lifetimeMapLock.Unlock()
+
+	for _, action := range event.GetActions() {
+		if action.GetFile() != nil {
+			size, err := action.GetFile().Size()
+			if err != nil {
+				return err
+			}
+			action.SetSize(size)
+		}
+
+		switch action.GetActionType() {
+		case FileCreate:
+			newL, err := NewLifetime("", action)
+			if err != nil {
+				return err
+			}
+
+			if newL == nil {
+				return werror.New("failed to create new lifetime")
+			}
+
+			// f := types.SERV.FileTree.Get(action.GetDestinationId())
+			// sz, _ := f.Size()
+			// if !f.IsDir() && sz != 0 {
+			// 	contentId := f.GetContentId()
+			// 	if contentId == "" {
+			// 		return werror.New(
+			// 			fmt.Sprintln(
+			// 				"No content ID in FileCreate lifetime update", action.GetDestinationPath(),
+			// 			),
+			// 		)
+			// 	}
+			// 	newL.SetContentId(contentId)
+			// }
+
+			j.lifetimes[newL.ID()] = newL
+			j.latestUpdate[action.GetDestinationId()] = newL
+			updated = append(updated, newL)
+		case FileMove:
+			existing := j.latestUpdate[action.GetOriginId()]
+			delete(j.latestUpdate, existing.GetLatestFileId())
+			existing.Add(action)
+			j.latestUpdate[existing.GetLatestFileId()] = existing
+
+			updated = append(updated, existing)
+		case FileDelete:
+			existing := j.latestUpdate[action.GetOriginId()]
+			delete(j.latestUpdate, existing.GetLatestFileId())
+			existing.Add(action)
+
+			updated = append(updated, existing)
+		}
+	}
+
+	for _, lt := range updated {
+		f := j.fileTree.Get(lt.GetLatestFileId())
+		if f != nil {
+			sz, _ := f.Size()
+			if lt.GetContentId() == "" && !f.IsDir() && sz != 0 {
+				return werror.New("No content ID in lifetime update")
+			}
+		} else if lt.GetLatestAction().GetActionType() != FileDelete {
+			return werror.New("Could not find file for non-delete lifetime update")
+		}
+		filter := bson.M{"_id": lt.ID()}
+		update := bson.M{"$set": lt}
+		o := options.Update().SetUpsert(true)
+		_, err := j.col.UpdateOne(context.Background(), filter, update, o)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func upsertLifetime(lt *Lifetime, col *mongo.Collection) error {
+	filter := bson.M{"_id": lt.ID()}
+	update := bson.M{"$set": lt}
+	o := options.Update().SetUpsert(true)
+	_, err := col.UpdateOne(context.Background(), filter, update, o)
+
+	return err
+}
+
+func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileAction, error) {
+	pipe := bson.A{
+		bson.D{{"$unwind", bson.D{{"path", "$actions"}}}},
+		bson.D{
+			{
+				"$match",
+				bson.D{
+					{
+						"$or",
+						bson.A{
+							bson.D{{"actions.originPath", bson.D{{"$regex", path.ToPortable() + "[^/]*/?$"}}}},
+							bson.D{{"actions.destinationPath", bson.D{{"$regex", path.ToPortable() + "[^/]*/?$"}}}},
+						},
+					},
+				},
+			},
+		},
+		bson.D{{"$replaceRoot", bson.D{{"newRoot", "$actions"}}}},
+	}
+
+	ret, err := col.Aggregate(context.TODO(), pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*FileAction
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
+}
+
+func getLifetimesSince(date time.Time, col *mongo.Collection) ([]*Lifetime, error) {
+	pipe := bson.A{
+		// bson.D{{"$unwind", bson.D{{"path", "$actions"}}}},
+		bson.D{
+			{
+				"$match",
+				bson.D{{"actions.timestamp", bson.D{{"$gt", date}}}},
+			},
+		},
+		// bson.D{{"$replaceRoot", bson.D{{"newRoot", "$actions"}}}},
+		bson.D{{"$sort", bson.D{{"actions.timestamp", 1}}}},
+	}
+	ret, err := col.Aggregate(context.Background(), pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*Lifetime
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
+}
+
+type HollowJournalService struct{}
+
+func (h HollowJournalService) Get(id LifetimeId) *Lifetime {
+	return nil
+}
+
+func (h HollowJournalService) Add(lifetime *Lifetime) error {
+	return nil
+}
+
+func (h HollowJournalService) Del(id LifetimeId) error {
+	return nil
+}
+
+func (h HollowJournalService) SetFileTree(ft *FileTreeImpl) {}
+
+func (h HollowJournalService) NewEvent() *FileEvent {
+	return &FileEvent{}
+}
+
+func (h HollowJournalService) WatchFolder(f *WeblensFile) error {
+	return nil
+}
+
+func (h HollowJournalService) LogEvent(fe *FileEvent) {}
+
+func (h HollowJournalService) GetActionsByPath(filepath WeblensFilepath) ([]*FileAction, error) {
+	return nil, nil
+}
+
+func (h HollowJournalService) GetPastFolderInfo(folder *WeblensFile, time time.Time) ([]*WeblensFile, error) {
+	return nil, nil
+}
+
+func (h HollowJournalService) GetLifetimesSince(date time.Time) ([]*Lifetime, error) {
+	return nil, nil
+}
+
+func (h HollowJournalService) EventWorker() {}
+
+func (h HollowJournalService) FileWatcher() {}
+
+func (h HollowJournalService) GetActiveLifetimes() []*Lifetime {
+	return nil
+}
+
+func (h HollowJournalService) GetAllLifetimes() []*Lifetime {
+	return nil
+}
+
+func (h HollowJournalService) GetLifetimeByFileId(fId FileId) *Lifetime {
+	return nil
+}
+
+func NewHollowJournalService() JournalService {
+	return &HollowJournalService{}
 }
 
 type JournalService interface {
-	Init(store types.HistoryStore) error
-	Size() int
-
 	Get(id LifetimeId) *Lifetime
 	Add(lifetime *Lifetime) error
 	Del(id LifetimeId) error
 
+	SetFileTree(ft *FileTreeImpl)
+
+	NewEvent() *FileEvent
 	WatchFolder(f *WeblensFile) error
 
-	LogEvent(fe *FileEvent) error
+	LogEvent(fe *FileEvent)
 
-	GetActionsByPath(*WeblensFilepath) ([]*FileAction, error)
-	GetPastFolderInfo(folder *WeblensFile, time time.Time) ([]weblens.FileInfo, error)
+	GetActionsByPath(WeblensFilepath) ([]*FileAction, error)
+	GetPastFolderInfo(folder *WeblensFile, time time.Time) ([]*WeblensFile, error)
+	GetLifetimesSince(date time.Time) ([]*Lifetime, error)
 
-	JournalWorker()
+	EventWorker()
 	FileWatcher()
 	GetActiveLifetimes() []*Lifetime
 	GetAllLifetimes() []*Lifetime

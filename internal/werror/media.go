@@ -1,4 +1,5 @@
 package werror
 
-var ErrNoMedia = NewWeblensError("no media found")
-var ErrNoExiftool = NewWeblensError("exiftool not initialized")
+var ErrNoMedia = New("no media found")
+var ErrNoExiftool = New("exiftool not initialized")
+var ErrNoCache = New("could not find or generate requested media cache file")

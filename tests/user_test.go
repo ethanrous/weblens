@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	"github.com/ethrousseau/weblens/api"
-	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/models/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,15 +15,15 @@ const (
 )
 
 func TestUserService(t *testing.T) {
-	store := newMockUserStore()
-	userService := weblens.NewUserService()
-	err := userService.Init(store)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// store := newMockUserStore()
+	userService := service.NewUserService(nil)
+	// err := userService.Init(store)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
 	// test user 1, do not auto activate
-	testUser1, err := weblens.NewUser(testUser1Name, testUserPass, false, false)
+	testUser1, err := models.NewUser(testUser1Name, testUserPass, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestUserService(t *testing.T) {
 	assert.Equal(t, 1, userService.Size())
 
 	// test user 2, do auto activate
-	testUser2, err := weblens.NewUser(testUser2Name, testUserPass, false, true)
+	testUser2, err := models.NewUser(testUser2Name, testUserPass, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,36 +79,36 @@ func TestUserService(t *testing.T) {
 type mockUserStore struct {
 }
 
-func (us *mockUserStore) GetAllUsers() ([]types.User, error) {
-	return []types.User{}, nil
+func (us *mockUserStore) GetAllUsers() ([]*models.User, error) {
+	return []*models.User{}, nil
 }
 
-func (us *mockUserStore) UpdatePasswordByUsername(username types.Username, newPasswordHash string) error {
+func (us *mockUserStore) UpdatePasswordByUsername(username models.Username, newPasswordHash string) error {
 	return nil
 }
 
-func (us *mockUserStore) SetAdminByUsername(username types.Username, b bool) error {
+func (us *mockUserStore) SetAdminByUsername(username models.Username, b bool) error {
 	return nil
 }
 
-func (us *mockUserStore) CreateUser(user types.User) error {
+func (us *mockUserStore) CreateUser(user *models.User) error {
 	return nil
 }
 
-func (us *mockUserStore) ActivateUser(username types.Username) error {
+func (us *mockUserStore) ActivateUser(username models.Username) error {
 	return nil
 }
 
-func (us *mockUserStore) AddTokenToUser(username types.Username, token string) error {
+func (us *mockUserStore) AddTokenToUser(username models.Username, token string) error {
 	return nil
 }
 
-func (us *mockUserStore) SearchUsers(search string) ([]types.Username, error) {
+func (us *mockUserStore) SearchUsers(search string) ([]models.Username, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (us *mockUserStore) DeleteUserByUsername(username types.Username) error {
+func (us *mockUserStore) DeleteUserByUsername(username models.Username) error {
 	return nil
 }
 
@@ -116,6 +116,6 @@ func (us *mockUserStore) DeleteAllUsers() error {
 	return nil
 }
 
-func newMockUserStore() types.UserStore {
-	return &mockUserStore{}
-}
+// func newMockUserStore() *weblens.UserStore {
+// 	return &mockUserStore{}
+// }

@@ -457,6 +457,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         }
 
         const medias: WeblensMedia[] = []
+        console.log(childrenInfo)
         for (const child of childrenInfo) {
             if (child.mediaData) {
                 medias.push(new WeblensMedia(child.mediaData))

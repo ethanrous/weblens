@@ -8,13 +8,13 @@ services:
       - 8080:8080
     environment:
       MONGODB_URI: "mongodb://{ MONGO_ROOT_USERNAME }:{ MONGO_ROOT_PASSWORD }@mongo:27017"
-      MEDIA_ROOT_PATH: ["/media"]
-      CACHES_PATH: ["/cache"]
-      HOST_URL: ["https://{ WWW.MY_WEBLENS_SERVER.COM }"]
+      MEDIA_ROOT_PATH: [ "/media" ]
+      CACHES_PATH: [ "/cache" ]
+      HOST_URL: [ "https://{ WWW.MY_WEBLENS_SERVER.COM }" ]
       DEV_MODE: true/[false]
     volumes:
-      - { /MEDIA/PATH/ON/HOST }:/media
-      - { /CACHE/PATH/ON/HOST }:/cache
+      -{ /MEDIA/PATH/ON/HOST }:/media
+      -{ /CACHE/PATH/ON/HOST }:/cache
 
   mongo:
     container_name: mongo
@@ -25,4 +25,4 @@ services:
       MONGO_INITDB_ROOT_USERNAME: { MONGO_ROOT_USERNAME }
       MONGO_INITDB_ROOT_PASSWORD: { MONGO_ROOT_PASSWORD }
     volumes:
-      - { /DATABASE/PATH/ON/HOST }:/data/db
+      -{ /DATABASE/PATH/ON/HOST }:/data/db

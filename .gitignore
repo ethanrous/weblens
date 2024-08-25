@@ -38,4 +38,5 @@ api/.env
 __debug*
 __pycache__
 
+qodana.yaml
 media_proc/

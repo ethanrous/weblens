@@ -2,35 +2,15 @@ package dataStore
 
 import (
 	"errors"
-
-	error2 "github.com/ethrousseau/weblens/api/internal/werror"
-	"github.com/ethrousseau/weblens/api/types"
-)
-
-const (
-	FileGet types.RequestMode = "fileGet"
-
-	// WebsocketFileUpdate Grant access unconditionally. This is for sending
-	// out updates where the user has already subscribed
-	// elsewhere, and we just need to format the data for them
-	WebsocketFileUpdate types.RequestMode = "wsFileUpdate"
-	MarshalFile         types.RequestMode = "marshalFile"
-
-	FileSubscribeRequest types.RequestMode = "fileSub"
-
-	ApiKeyCreate types.RequestMode = "apiKeyCreate"
-	ApiKeyGet    types.RequestMode = "apiKeyGet"
-
-	BackupFileScan types.RequestMode = "backupFileScan"
 )
 
 // Errors
 
-var ErrNoCache = func() error2.WErr {
-	return error2.NewWeblensError("media references cache file that does not exist")
+var ErrNoCache = func() error {
+	return errors.New("media references cache file that does not exist")
 }
-var ErrNoUser = error2.WErrMsg("user does not exist")
-var ErrNoFileAccess = error2.NewWeblensError("user does not have access to file")
+var ErrNoUser = errors.New("user does not exist")
+var ErrNoFileAccess = errors.New("user does not have access to file")
 var ErrPageOutOfRange = errors.New("page number does not exist on media")
 var ErrNoImage = errors.New("media is missing required image")
 var ErrKeyInUse = errors.New("api key is already being used to identify another remote server")

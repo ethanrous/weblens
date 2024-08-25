@@ -1,3 +1,3 @@
 package werror
 
-var ErrNoAlbum = NewWeblensError("album not found")
+var ErrNoAlbum = New("album not found")

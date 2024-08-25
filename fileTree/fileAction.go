@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ethrousseau/weblens/api/internal/werror"
+	"github.com/ethrousseau/weblens/internal/werror"
 )
 
 type FileActionType string
@@ -23,6 +23,7 @@ type FileAction struct {
 
 	Size     int64  `json:"size" bson:"size"`
 	ParentId FileId `json:"parentId" bson:"ParentId"`
+	ServerId string `json:"serverId" bson:"serverId"`
 
 	LifeNext *FileAction  `json:"-" bson:"-"`
 	LifePrev *FileAction  `json:"-" bson:"-"`
@@ -106,7 +107,7 @@ func (fa *FileAction) UnmarshalJSON(bs []byte) error {
 	data := map[string]any{}
 	err := json.Unmarshal(bs, &data)
 	if err != nil {
-		return werror.Wrap(err)
+		return werror.WithStack(err)
 	}
 
 	fa.Timestamp = time.UnixMilli(int64(data["timestamp"].(float64)))

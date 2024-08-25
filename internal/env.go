@@ -7,14 +7,14 @@ import (
 	"strconv"
 	"strings"
 
-	error2 "github.com/ethrousseau/weblens/api/internal/werror"
-	"github.com/ethrousseau/weblens/api/internal/wlog"
+	"github.com/ethrousseau/weblens/internal/log"
 )
 
 func envReadString(s string) string {
 	val := os.Getenv(s)
 	return val
 }
+
 func envReadBool(s string) bool {
 	val := os.Getenv(s)
 	if val == "true" || val == "1" {
@@ -43,7 +43,7 @@ func GetWorkerCount() int {
 		var err error
 		workerCount, err = strconv.ParseInt(workerCountStr, 10, 64)
 		if err != nil {
-			panic(error2.Wrap(err))
+			panic(err)
 		}
 	}
 	return int(workerCount)
@@ -53,7 +53,7 @@ func GetAppRootDir() string {
 	apiDir := envReadString("APP_ROOT")
 	if apiDir == "" {
 		apiDir = "/app"
-		wlog.Info.Println("Api root directory not set, defaulting to", apiDir)
+		log.Info.Println("App root directory not set, defaulting to", apiDir)
 	}
 	return apiDir
 }
@@ -61,7 +61,7 @@ func GetAppRootDir() string {
 func GetRouterIp() string {
 	ip := envReadString("SERVER_IP")
 	if ip == "" {
-		wlog.Info.Println("SERVER_IP not provided, falling back to 0.0.0.0")
+		log.Info.Println("SERVER_IP not provided, falling back to 0.0.0.0")
 		return "0.0.0.0"
 	} else {
 		return ip
@@ -71,7 +71,7 @@ func GetRouterIp() string {
 func GetRouterPort() string {
 	port := envReadString("SERVER_PORT")
 	if port == "" {
-		wlog.Info.Println("SERVER_PORT not provided, falling back to 8080")
+		log.Info.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
 	} else {
 		return port
@@ -88,7 +88,7 @@ func GetMediaRootPath() string {
 	path := envReadString("MEDIA_ROOT_PATH")
 	if path == "" {
 		path = "/media"
-		wlog.Warning.Println("Did not find MEDIA_ROOT_PATH, assuming docker default of", path)
+		log.Warning.Println("Did not find MEDIA_ROOT_PATH, assuming docker default of", path)
 	}
 	if path[len(path)-1:] != "/" {
 		path = path + "/"
@@ -118,7 +118,7 @@ func IsDevMode() bool {
 	return *isDevMode
 }
 
-// DetachUi Controls if we host UI http on this server. UI can be hosted elsewhere and
+// DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
 // must proxy any /api/* requests back to this server
 func DetachUi() bool {
 	return envReadBool("DETATCH_UI")
@@ -126,22 +126,22 @@ func DetachUi() bool {
 
 var cachesPath string
 
-func getCacheRoot() string {
+func GetCacheRoot() string {
 	if cachesPath == "" {
 		cachesPath = envReadString("CACHES_PATH")
 		if cachesPath == "" {
 			cachesPath = "/cache"
-			wlog.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesPath)
+			log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesPath)
 		}
 	}
 	return cachesPath
 }
 
-// GetCacheDir
+// GetThumbsDir
 // Returns the path of the directory for storing cached files. This includes photo thumbnails,
 // temp uploaded files, and zip files.
-func GetCacheDir() string {
-	cacheString := getCacheRoot() + "/cache"
+func GetThumbsDir() string {
+	cacheString := GetCacheRoot() + "/cache"
 	_, err := os.Stat(cacheString)
 	if err != nil {
 		err = os.MkdirAll(cacheString, 0755)
@@ -154,7 +154,7 @@ func GetCacheDir() string {
 
 // GetTakeoutDir Takeout directory, stores zip files after creation
 func GetTakeoutDir() string {
-	takeoutString := getCacheRoot() + "/takeout"
+	takeoutString := GetCacheRoot() + "/takeout"
 	_, err := os.Stat(takeoutString)
 	if err != nil {
 		err = os.MkdirAll(takeoutString, 0755)
@@ -166,12 +166,12 @@ func GetTakeoutDir() string {
 }
 
 func GetTmpDir() string {
-	tmpString := getCacheRoot() + "/tmp"
+	tmpString := GetCacheRoot() + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
 		err = os.MkdirAll(tmpString, 0755)
 		if err != nil {
-			wlog.ShowErr(err)
+			log.ShowErr(err)
 			panic("CACHES_PATH provided, but the tmp dir (`CACHES_PATH`/tmp) does not exist and Weblens failed to create it")
 		}
 	}
@@ -181,9 +181,9 @@ func GetTmpDir() string {
 func GetMongoURI() string {
 	mongoStr := envReadString("MONGODB_URI")
 	if mongoStr == "" {
-		wlog.Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
+		log.Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
 	}
-	wlog.Debug.Printf("Using MONGODB_URI: %s\n", mongoStr)
+	log.Debug.Printf("Using MONGODB_URI: %s\n", mongoStr)
 	return mongoStr
 }
 

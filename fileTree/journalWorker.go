@@ -1,24 +1,21 @@
 package fileTree
 
 import (
-	"errors"
 	"sync"
-
-	"github.com/ethrousseau/weblens/api/types"
 )
 
 type eventMask struct {
-	actionType types.FileActionType
+	actionType FileActionType
 	path       string
 	backupId   string
 }
 
-var jeStream = make(chan types.FileAction, 20)
+var jeStream = make(chan FileAction, 20)
 
 var eventMasks []eventMask
 var masksLock = sync.Mutex{}
 
-func MaskEvent(action types.FileActionType, path string) {
+func MaskEvent(action FileActionType, path string) {
 	em := eventMask{
 		actionType: action,
 		path:       path,
@@ -31,15 +28,15 @@ func MaskEvent(action types.FileActionType, path string) {
 
 var journalWorkerRunning = false
 
-func (j *JournalServiceImpl) JournalWorker() {
-	if journalWorkerRunning {
-		panic(errors.New("attempted to start duplicate journal worker"))
-	}
-
-	journalWorkerRunning = true
-	defer func() { journalWorkerRunning = false }()
-
-	for _ = range jeStream {
+// func (j *JournalServiceImpl) JournalWorker() {
+// 	if journalWorkerRunning {
+// 		panic(errors.New("attempted to start duplicate journal worker"))
+// 	}
+//
+// 	journalWorkerRunning = true
+// 	defer func() { journalWorkerRunning = false }()
+//
+// 	for _ = range jeStream {
 		// masksLock.Lock()
 		// index := slices.IndexFunc(eventMasks, func(m eventMask) bool { return m.path == action.GetDestinationPath() })
 		// var m eventMask
@@ -152,5 +149,5 @@ func (j *JournalServiceImpl) JournalWorker() {
 		// 		return
 		// 	}
 		// }
-	}
-}
+// }
+// }

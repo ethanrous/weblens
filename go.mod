@@ -1,4 +1,4 @@
-module github.com/ethrousseau/weblens/api
+module github.com/ethrousseau/weblens
 
 go 1.23
 

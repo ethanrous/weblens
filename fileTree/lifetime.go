@@ -3,28 +3,26 @@ package fileTree
 import (
 	"sync"
 
-	"github.com/ethrousseau/weblens/api"
-	"github.com/ethrousseau/weblens/api/internal"
-	"github.com/ethrousseau/weblens/api/internal/werror"
-	"github.com/ethrousseau/weblens/api/types"
+	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type LifetimeId string
 
 type Lifetime struct {
-	Id         LifetimeId        `bson:"_id" json:"id"`
-	LiveFileId FileId            `bson:"liveFileId" json:"liveFileId"`
-	ContentId  weblens.ContentId `bson:"contentId,omitempty" json:"contentId,omitempty"`
-	Actions    []*FileAction     `bson:"actions" json:"actions"`
-	ServerId   types.InstanceId  `bson:"serverId" json:"serverId"`
+	Id         LifetimeId    `bson:"_id" json:"id"`
+	LiveFileId FileId        `bson:"liveFileId" json:"liveFileId"`
+	ContentId  string        `bson:"contentId,omitempty" json:"contentId,omitempty"`
+	Actions    []*FileAction `bson:"actions" json:"actions"`
+	ServerId   string        `bson:"serverId" json:"serverId"`
 
 	actionsLock sync.RWMutex
 }
 
-func NewLifetime(id LifetimeId, createAction types.FileAction) (*Lifetime, error) {
+func NewLifetime(id LifetimeId, createAction *FileAction) (*Lifetime, error) {
 	if createAction.GetActionType() != FileCreate {
-		return nil, werror.NewWeblensError("First Lifetime action must be of type FileCreate")
+		return nil, werror.New("First Lifetime action must be of type FileCreate")
 	}
 
 	if id == "" {
@@ -33,17 +31,16 @@ func NewLifetime(id LifetimeId, createAction types.FileAction) (*Lifetime, error
 
 	createAction.SetLifetimeId(id)
 
-	file := types.SERV.FileTree.Get(createAction.GetDestinationId())
-	if file == nil {
-		return nil, werror.WErrMsg("Could not find file to create lifetime with")
+	if createAction.file == nil {
+		return nil, werror.New("Could not find file to create lifetime with")
 	}
 
 	return &Lifetime{
 		Id:         id,
 		LiveFileId: createAction.GetDestinationId(),
-		Actions:    []*FileAction{createAction.(*FileAction)},
-		ContentId: file.GetContentId(),
-		ServerId: InstanceService.GetLocal().ServerId(),
+		Actions:   []*FileAction{createAction},
+		ContentId: createAction.file.GetContentId(),
+		ServerId:  createAction.ServerId,
 	}, nil
 }
 
@@ -51,12 +48,12 @@ func (l *Lifetime) ID() LifetimeId {
 	return l.Id
 }
 
-func (l *Lifetime) Add(action types.FileAction) {
+func (l *Lifetime) Add(action *FileAction) {
 	l.actionsLock.Lock()
 	defer l.actionsLock.Unlock()
 
 	action.SetLifetimeId(l.Id)
-	l.Actions = append(l.Actions, action.(*FileAction))
+	l.Actions = append(l.Actions, action)
 	l.LiveFileId = action.GetDestinationId()
 }
 
@@ -64,15 +61,15 @@ func (l *Lifetime) GetLatestFileId() FileId {
 	return l.LiveFileId
 }
 
-func (l *Lifetime) GetLatestAction() types.FileAction {
+func (l *Lifetime) GetLatestAction() *FileAction {
 	return l.Actions[len(l.Actions)-1]
 }
 
-func (l *Lifetime) GetContentId() weblens.ContentId {
+func (l *Lifetime) GetContentId() string {
 	return l.ContentId
 }
 
-func (l *Lifetime) SetContentId(cId weblens.ContentId) {
+func (l *Lifetime) SetContentId(cId string) {
 	l.ContentId = cId
 }
 
@@ -83,8 +80,8 @@ func (l *Lifetime) IsLive() bool {
 	return l.Actions[len(l.Actions)-1].DestinationId != ""
 }
 
-func (l *Lifetime) GetActions() []types.FileAction {
+func (l *Lifetime) GetActions() []*FileAction {
 	l.actionsLock.RLock()
 	defer l.actionsLock.RUnlock()
-	return internal.SliceConvert[types.FileAction](l.Actions)
+	return internal.SliceConvert[*FileAction](l.Actions)
 }
