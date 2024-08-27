@@ -8,16 +8,25 @@ import (
 type FileService interface {
 	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFile, error)
 	GetFileOwner(file *fileTree.WeblensFile) *User
-
 	IsFileInTrash(file *fileTree.WeblensFile) bool
-	MoveFileToTrash(file *fileTree.WeblensFile, mover *User, share *FileShare, caster FileCaster) error
-	ReturnFilesFromTrash(files []*fileTree.WeblensFile, caster FileCaster) error
+
 	MoveFile(
 		file *fileTree.WeblensFile, destFolder *fileTree.WeblensFile, newFilename string,
 		caster FileCaster,
 	) error
+	MoveFileToTrash(file *fileTree.WeblensFile, mover *User, share *FileShare, caster FileCaster) error
+	ReturnFilesFromTrash(files []*fileTree.WeblensFile, caster FileCaster) error
+	PermanentlyDeleteFiles(files []*fileTree.WeblensFile, caster FileCaster) error
+
+	DeleteCacheFile(file *fileTree.WeblensFile) error
+	GetThumbFileName(filename string) (*fileTree.WeblensFile, error)
+	NewCacheFile(contentId string, quality MediaQuality, pageNum int) (*fileTree.WeblensFile, error)
+
+	AddTask(f *fileTree.WeblensFile, t *task.Task) error
+	RemoveTask(f *fileTree.WeblensFile, t *task.Task) error
+	GetTasks(f *fileTree.WeblensFile) []*task.Task
+
 	GetMediaJournal() fileTree.JournalService
-	AttachFile(file *fileTree.WeblensFile, caster FileCaster) error
 
 	ResizeDown(file *fileTree.WeblensFile, caster FileCaster) error
 	ResizeUp(file *fileTree.WeblensFile, caster FileCaster) error
@@ -26,7 +35,7 @@ type FileService interface {
 
 type FileCaster interface {
 	// PushWeblensEvent(eventTag string)
-	PushFileUpdate(updatedFile *fileTree.WeblensFile)
+	PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media)
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
 	PushFileCreate(newFile *fileTree.WeblensFile)

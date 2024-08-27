@@ -1,3 +1,8 @@
 package werror
 
-var ErrNoAlbum = New("album not found")
+import "errors"
+
+var ErrNoAlbum = &clientSafeErr{
+	safeErr:    errors.New("album not found"),
+	statusCode: 404,
+}

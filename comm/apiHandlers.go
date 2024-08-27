@@ -3,19 +3,18 @@ package comm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"regexp"
 	"slices"
 	"strconv"
 
-	"github.com/ethrousseau/weblens/dataStore"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/models/service"
-	"github.com/pkg/errors"
 
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/task"
@@ -26,13 +25,14 @@ import (
 
 // Create new file upload task, and wait for data
 func newUploadTask(ctx *gin.Context) {
+	u := getUserFromCtx(ctx)
 	upInfo, err := readCtxBody[newUploadBody](ctx)
 	if err != nil {
 		return
 	}
 
 	c := NewBufferedCaster(ClientService)
-	meta := models.WriteFileMeta{
+	meta := models.UploadFilesMeta{
 		ChunkStream:  make(chan models.FileChunk, 10),
 		RootFolderId: upInfo.RootFolderId,
 		ChunkSize:    upInfo.ChunkSize,
@@ -41,9 +41,10 @@ func newUploadTask(ctx *gin.Context) {
 		MediaService: MediaService,
 		TaskService:  TaskService,
 		TaskSubber:   ClientService,
+		User: u,
 		Caster:       c,
 	}
-	t, err := TaskService.DispatchJob(models.WriteFileTask, meta, nil)
+	t, err := TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -93,7 +94,7 @@ func handleNewFile(uploadTaskId task.TaskId, newFInfo newFileBody, ctx *gin.Cont
 
 	err = uTask.Manipulate(
 		func(meta task.TaskMetadata) error {
-			meta.(models.WriteFileMeta).ChunkStream <- models.FileChunk{
+			meta.(models.UploadFilesMeta).ChunkStream <- models.FileChunk{
 				NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
 			}
 
@@ -148,7 +149,7 @@ func handleUploadChunk(ctx *gin.Context) {
 	err = t.Manipulate(
 		func(meta task.TaskMetadata) error {
 			chunkData := models.FileChunk{FileId: fileId, Chunk: chunk, ContentRange: ctx.GetHeader("Content-Range")}
-			meta.(models.WriteFileMeta).ChunkStream <- chunkData
+			meta.(models.UploadFilesMeta).ChunkStream <- chunkData
 
 			return nil
 		},
@@ -383,11 +384,10 @@ func deleteFiles(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	var failed []fileTree.FileId
-
 	caster := NewBufferedCaster(ClientService)
 	defer caster.Close()
 
+	var files []*fileTree.WeblensFile
 	for _, fileId := range fileIds {
 		file, err := FileService.GetFileSafe(fileId, u, nil)
 		if err != nil {
@@ -400,17 +400,13 @@ func deleteFiles(ctx *gin.Context) {
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete file not in trash"})
 			return
 		}
-
-		err = FileService.PermanentlyDeleteFile(file, caster)
-		if err != nil {
-			log.ErrTrace(err)
-			failed = append(failed, fileId)
-			continue
-		}
+		files = append(files, file)
 	}
 
-	if len(failed) != 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"failedIds": failed})
+	err = FileService.PermanentlyDeleteFiles(files, caster)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
 		return
 	}
 
@@ -476,7 +472,7 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	share, err := getFileShareFromCtx(ctx)
+	share, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
 		return
 	}
@@ -501,10 +497,10 @@ func createTakeout(ctx *gin.Context) {
 
 	caster := NewSimpleCaster(ClientService)
 	meta := models.ZipMeta{
-		Files:    files,
-		Username: u.GetUsername(),
-		Share:    share,
-		Caster:   caster,
+		Files:     files,
+		Requester: u,
+		Share:     share,
+		Caster:    caster,
 	}
 	t, err := TaskService.DispatchJob(models.CreateZipTask, meta, nil)
 
@@ -524,7 +520,7 @@ func downloadFile(ctx *gin.Context) {
 
 	fileId := fileTree.FileId(ctx.Param("fileId"))
 
-	share, err := getFileShareFromCtx(ctx)
+	share, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
 		return
 	}
@@ -583,7 +579,7 @@ func getUserInfo(ctx *gin.Context) {
 
 func getUsers(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
-	if u == nil || u.IsAdmin() {
+	if u == nil || !u.IsAdmin() {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -655,7 +651,7 @@ func setUserAdmin(ctx *gin.Context) {
 
 	err = UserService.SetUserAdmin(u, update.Admin)
 	if err != nil {
-		if errors.Is(err, dataStore.ErrNoUser) {
+		if errors.Is(err, werror.ErrUserNotFound) {
 			ctx.Status(http.StatusNotFound)
 			return
 		}
@@ -795,12 +791,12 @@ func deleteShare(ctx *gin.Context) {
 func addUserToFileShare(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 
-	share, err := getFileShareFromCtx(ctx)
+	share, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
 		return
 	}
 
-	if !AccessService.CanUserAccessShare(user, share) {
+	if !AccessService.CanUserModifyShare(user, share) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -859,7 +855,7 @@ func getApiKeys(ctx *gin.Context) {
 
 func deleteApiKey(ctx *gin.Context) {
 	key := models.WeblensApiKey(ctx.Param("keyId"))
-	keyInfo, err := AccessService.GetApiKeyById(key)
+	keyInfo, err := AccessService.Get(key)
 	if err != nil || keyInfo.Key == "" {
 		log.ShowErr(err)
 		ctx.Status(http.StatusNotFound)

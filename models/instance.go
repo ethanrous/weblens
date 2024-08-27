@@ -1,11 +1,11 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -160,14 +160,14 @@ type ApiKeyInfo struct {
 }
 
 type AccessService interface {
+	Init() error
 	Get(key WeblensApiKey) (ApiKeyInfo, error)
 	Del(key WeblensApiKey) error
 	GenerateApiKey(creator *User) (ApiKeyInfo, error)
 	CanUserAccessFile(user *User, file *fileTree.WeblensFile, share *FileShare) bool
-	CanUserAccessShare(user *User, share Share) bool
-	CanUserAccessAlbum(user *User, album *Album) bool
-
-	GetApiKeyById(key WeblensApiKey) (ApiKeyInfo, error)
+	CanUserModifyShare(user *User, share Share) bool
+	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
+	
 	GetAllKeys(accessor *User) ([]ApiKeyInfo, error)
 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
 }

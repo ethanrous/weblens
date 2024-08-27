@@ -40,10 +40,8 @@ export type mediaType = {
 export type AlbumData = {
     id: string
     medias: string[]
-    sharedWith: string[]
     name: string
     cover: string
-    // CoverMedia: WeblensMedia;
     primaryColor: string
     secondaryColor: string
     owner: string

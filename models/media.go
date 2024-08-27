@@ -3,6 +3,7 @@ package models
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,7 +14,6 @@ import (
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/pkg/errors"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -28,13 +28,6 @@ type Media struct {
 	// Slices of files whos content hash to the contentId
 	FileIds []fileTree.FileId `json:"fileIds" bson:"fileIds"`
 
-	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
-	// because fullres images could be multi-page, and a cache file is created per page
-	HighResCacheIds []fileTree.FileId `json:"fullresCacheIds" bson:"fullresCacheIds"`
-
-	// WEBP thumbnail cache fileId
-	ThumbnailCacheId fileTree.FileId `json:"thumbnailCacheId" bson:"thumbnailCacheId"`
-
 	CreateDate time.Time `json:"createDate" bson:"createDate"`
 
 	// User who owns the file that resulted in this media being created
@@ -48,10 +41,10 @@ type Media struct {
 	PageCount int `json:"pageCount" bson:"pageCount"`
 
 	// Total time, in milliseconds, of a video
-	VideoLength int `json:"videoLength" bson:"videoLength"`
+	Duration int `json:"duration" bson:"duration"`
 
 	// Unused
-	BlurHash string `json:"blurHash,omitempty" bson:"blurHash,omitempty"`
+	// BlurHash string `json:"blurHash,omitempty" bson:"blurHash,omitempty"`
 
 	// Mime-type key of the media
 	MimeType string `json:"mimeType" bson:"mimeType"`
@@ -60,6 +53,7 @@ type Media struct {
 	RecognitionTags []string `json:"recognitionTags" bson:"recognitionTags"`
 
 	// If the media is hidden from the timeline
+	// TODO - make this per user
 	Hidden bool `json:"hidden" bson:"hidden"`
 
 	// If the media disabled. This can happen when the backing file(s) are deleted,
@@ -73,16 +67,19 @@ type Media struct {
 	// Lock to synchronize updates to the media
 	updateMu sync.RWMutex
 
+	// The rotation of the image from its original. Found from the exif data
+	Rotate string
+
 	// If the media is imported into the databse yet. If not, we shouldn't ask about
 	// things like cache, dimentions, etc., as it might not have them.
 	imported bool
 
-	// The rotation of the image from its original. Found from the exif data
-	Rotate string `json:"-" bson:"-"`
+	// WEBP thumbnail cache fileId
+	lowresCacheFile *fileTree.WeblensFile
 
-	// Bytes of the image(s) being processed into WEBP format for caching
-	// image  *bimg.Image
-	// images []*bimg.Image
+	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
+	// because fullres images could be multi-page, and a cache file is created per page
+	highResCacheFiles []*fileTree.WeblensFile
 }
 
 func NewMedia(contentId ContentId) *Media {
@@ -162,7 +159,7 @@ func (m *Media) GetPageCount() int {
 func (m *Media) GetVideoLength() int {
 	m.updateMu.RLock()
 	defer m.updateMu.RUnlock()
-	return m.VideoLength
+	return m.Duration
 }
 
 func (m *Media) SetOwner(owner Username) {
@@ -225,6 +222,26 @@ func (m *Media) setHidden(hidden bool) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.Hidden = hidden
+}
+
+func (m *Media) SetLowresCacheFile(thumb *fileTree.WeblensFile) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+	m.lowresCacheFile = thumb
+}
+
+func (m *Media) GetLowresCacheFile() *fileTree.WeblensFile {
+	return m.lowresCacheFile
+}
+
+func (m *Media) SetHighresCacheFiles(highresFiles []*fileTree.WeblensFile) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+	m.highResCacheFiles = highresFiles
+}
+
+func (m *Media) GetHighresCacheFiles() []*fileTree.WeblensFile {
+	return m.highResCacheFiles
 }
 
 // Private
@@ -313,19 +330,19 @@ func (m *Media) setHidden(hidden bool) {
 // 	cacheRoot := types.SERV.FileTree.Get("CACHE")
 //
 // 	var cacheFileId fileTree.FileId
-// 	if q == HighRes && len(m.HighResCacheIds) > pageNum && m.HighResCacheIds[pageNum] != "" {
-// 		cacheFileId = m.HighResCacheIds[pageNum]
+// 	if q == HighRes && len(m.highResCacheFiles) > pageNum && m.highResCacheFiles[pageNum] != "" {
+// 		cacheFileId = m.highResCacheFiles[pageNum]
 // 	} else if q == HighRes {
 // 		cacheFileId = m.getCacheId(q, pageNum, cacheRoot)
-// 		m.HighResCacheIds = make([]fileTree.FileId, m.PageCount)
-// 		m.HighResCacheIds[pageNum] = cacheFileId
+// 		m.highResCacheFiles = make([]fileTree.FileId, m.PageCount)
+// 		m.highResCacheFiles[pageNum] = cacheFileId
 // 	}
 //
 // 	if q == LowRes {
-// 		if m.ThumbnailCacheId == "" {
-// 			m.ThumbnailCacheId = m.getCacheId(q, pageNum, cacheRoot)
+// 		if m.lowresCacheFile == "" {
+// 			m.lowresCacheFile = m.getCacheId(q, pageNum, cacheRoot)
 // 		}
-// 		cacheFileId = m.ThumbnailCacheId
+// 		cacheFileId = m.lowresCacheFile
 // 	}
 //
 // 	f = types.SERV.FileTree.Get(cacheFileId)
@@ -503,15 +520,15 @@ const ThumbnailHeight float32 = 500
 // 		return f
 // 	}
 //
-// 	if len(m.HighResCacheIds) != m.PageCount {
-// 		m.HighResCacheIds = make([]fileTree.FileId, m.PageCount)
+// 	if len(m.highResCacheFiles) != m.PageCount {
+// 		m.highResCacheFiles = make([]fileTree.FileId, m.PageCount)
 // 	}
 //
-// 	if q == LowRes && m.ThumbnailCacheId == "" || m.thumbCacheFile == nil {
-// 		m.ThumbnailCacheId = f.ID()
+// 	if q == LowRes && m.lowresCacheFile == "" || m.thumbCacheFile == nil {
+// 		m.lowresCacheFile = f.ID()
 // 		m.thumbCacheFile = f
-// 	} else if q == HighRes && m.HighResCacheIds[pageNum] == "" || m.fullresCacheFiles[pageNum] == nil {
-// 		m.HighResCacheIds[pageNum] = f.ID()
+// 	} else if q == HighRes && m.highResCacheFiles[pageNum] == "" || m.fullresCacheFiles[pageNum] == nil {
+// 		m.highResCacheFiles[pageNum] = f.ID()
 // 		m.fullresCacheFiles[pageNum] = f
 // 	}
 //
@@ -574,9 +591,9 @@ func (m *Media) MarshalBSON() ([]byte, error) {
 	data := map[string]any{
 		"contentId":        m.ContentId,
 		"fileIds":          m.FileIds,
-		"thumbnailCacheId": m.ThumbnailCacheId,
-		"fullresCacheIds":  m.HighResCacheIds,
-		"blurHash":         m.BlurHash,
+		"thumbnailCacheId": m.lowresCacheFile,
+		"fullresCacheIds":  m.highResCacheFiles,
+		// "blurHash":         m.BlurHash,
 		"owner":            m.Owner,
 		"width":            m.MediaWidth,
 		"height":           m.MediaHeight,
@@ -584,7 +601,7 @@ func (m *Media) MarshalBSON() ([]byte, error) {
 		"mimeType":         m.MimeType,
 		"recognitionTags":  m.RecognitionTags,
 		"pageCount":        m.PageCount,
-		"videoLength":      m.VideoLength,
+		"videoLength": m.Duration,
 	}
 
 	return bson.Marshal(data)
@@ -597,8 +614,6 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 		return errors.New("failed to parse contentId")
 	}
 	m.ContentId = ContentId(contentId)
-
-	var err error
 
 	filesArr, ok := raw.Lookup("fileIds").ArrayOK()
 	if ok {
@@ -615,31 +630,14 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 		m.FileIds = []fileTree.FileId{}
 	}
 
-	m.ThumbnailCacheId = fileTree.FileId(raw.Lookup("thumbnailCacheId").StringValue())
-
 	m.PageCount = int(raw.Lookup("pageCount").Int32())
 
 	videoLength, ok := raw.Lookup("videoLength").Int32OK()
 	if ok {
-		m.VideoLength = int(videoLength)
+		m.Duration = int(videoLength)
 	}
 
-	highResIds, err := raw.Lookup("fullresCacheIds").Array().Elements()
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	m.HighResCacheIds = internal.Map(
-		highResIds, func(e bson.RawElement) fileTree.FileId {
-			return fileTree.FileId(e.Value().StringValue())
-		},
-	)
-
-	if len(m.HighResCacheIds) != m.PageCount {
-		return werror.WithStack(errors.New("media mismatch between highResCacheIds and pageCount"))
-	}
-
-	m.BlurHash = raw.Lookup("blurHash").StringValue()
+	// m.BlurHash = raw.Lookup("blurHash").StringValue()
 	m.Owner = Username(raw.Lookup("owner").StringValue())
 	m.MediaWidth = int(raw.Lookup("width").Int32())
 	m.MediaHeight = int(raw.Lookup("height").Int32())
@@ -687,22 +685,18 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 
 func (m *Media) MarshalJSON() ([]byte, error) {
 	data := map[string]any{
-		"contentId":        m.ContentId,
-		"fileIds":          m.FileIds,
-		"thumbnailCacheId": m.ThumbnailCacheId,
-		"fullresCacheIds":  m.HighResCacheIds,
-		"owner":            m.Owner,
-		"width":            m.MediaWidth,
-		"height":           m.MediaHeight,
-		"createDate":       m.CreateDate.UnixMilli(),
-		"mimeType":         m.MimeType,
-		"pageCount":        m.PageCount,
-		"imported":         m.imported,
-		"hidden":           m.Hidden,
-		"likedBy":          m.LikedBy,
-		"videoLength":      m.VideoLength,
-		// "blurHash":         m.BlurHash,
-		// "recognitionTags":  m.RecognitionTags,
+		"contentId":   m.ContentId,
+		"fileIds":     m.FileIds,
+		"owner":       m.Owner,
+		"width":       m.MediaWidth,
+		"height":      m.MediaHeight,
+		"createDate":  m.CreateDate.UnixMilli(),
+		"mimeType":    m.MimeType,
+		"pageCount":   m.PageCount,
+		"imported":    m.imported,
+		"hidden":      m.Hidden,
+		"likedBy":     m.LikedBy,
+		"videoLength": m.Duration,
 	}
 
 	return json.Marshal(data)
@@ -716,18 +710,10 @@ func (m *Media) UnmarshalJSON(bs []byte) error {
 	}
 
 	m.ContentId = ContentId(data["contentId"].(string))
-	m.ThumbnailCacheId = fileTree.FileId(data["thumbnailCacheId"].(string))
 
-	idsStrings := internal.SliceConvert[string](data["fullresCacheIds"].([]any))
-
-	m.HighResCacheIds = internal.Map(
-		idsStrings, func(s string) fileTree.FileId {
-			return fileTree.FileId(s)
-		},
-	)
-	if data["blurHash"] != nil {
-		m.BlurHash = data["blurHash"].(string)
-	}
+	// if data["blurHash"] != nil {
+	// 	m.BlurHash = data["blurHash"].(string)
+	// }
 	// m.Owner = types.SERV.UserService.Get(Username(data["owner"].(string)))
 	m.MediaWidth = int(data["width"].(float64))
 	m.MediaHeight = int(data["height"].(float64))
@@ -743,14 +729,13 @@ func (m *Media) UnmarshalJSON(bs []byte) error {
 	m.Hidden = data["hidden"].(bool)
 
 	if data["videoLength"] != nil {
-		m.VideoLength = int(data["videoLength"].(float64))
+		m.Duration = int(data["videoLength"].(float64))
 	}
 
 	return nil
 }
 
 type MediaService interface {
-	Init() error
 	Size() int
 	Add(media *Media) error
 
@@ -761,6 +746,7 @@ type MediaService interface {
 	HideMedia(m *Media, hidden bool) error
 
 	LoadMediaFromFile(m *Media, file *fileTree.WeblensFile) error
+	RemoveFileFromMedia(media *Media, fileId fileTree.FileId) error
 
 	GetMediaType(m *Media) MediaType
 	GetMediaTypes() MediaTypeService
@@ -773,7 +759,7 @@ type MediaService interface {
 	NukeCache() error
 
 	GetFilteredMedia(
-		requester *User, sort string, sortDirection int, albumFilter []AlbumId, raw bool, hidden bool,
+		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool,
 	) ([]*Media, error)
 	RecursiveGetMedia(folders ...*fileTree.WeblensFile) []ContentId
 
@@ -838,7 +824,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFile, speed string) 
 }
 
 func (vs *VideoStreamer) Encode(f *fileTree.WeblensFile) *VideoStreamer {
-	if vs.streamDirPath == "" && !vs.encodingBegun {
+	if !vs.encodingBegun {
 		vs.encodingBegun = true
 		go vs.transcodeChunks(f, "ultrafast")
 	}

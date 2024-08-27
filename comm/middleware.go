@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ethrousseau/weblens/dataStore"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/metrics"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/gin"
 )
@@ -48,16 +48,13 @@ func validateBasicAuth(cred string) (*models.User, error) {
 	u := UserService.Get(models.Username(userAndToken[0]))
 	if u == nil {
 		if UserService.Size() == 0 {
-			// c.JSON(comm.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
-			return nil, dataStore.ErrNoUser
+			return nil, werror.ErrUserNotFound
 		}
-		// c.AbortWithStatusJSON(comm.StatusNotFound, gin.H{"error": "u not found"})
-		return nil, dataStore.ErrNoUser
+		return nil, werror.ErrUserNotFound
 	}
 
-	if u.GetToken() != userAndToken[1] { // {u, token}
+	if u.GetToken() != userAndToken[1] {
 		log.Info.Printf("Rejecting authorization for %s due to invalid token", userAndToken[0])
-		// c.AbortWithStatus(comm.StatusUnauthorized)
 		return nil, werror.ErrBasicAuthFormat
 	}
 
@@ -77,26 +74,21 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (*models.User, *models.I
 	} else if scheme == "Basic" {
 		user, err = validateBasicAuth(cred)
 		if err != nil {
-			var weblensError error
-			switch {
-			case errors.As(err, &weblensError):
-				return nil, nil, err
-			default:
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return nil, nil, err
-			}
+			safe, code := werror.TrySafeErr(err)
+			c.JSON(code, safe)
+			return nil, nil, err
 		}
 	} else if scheme == "Bearer" {
-		key, err := AccessService.GetApiKeyById(models.WeblensApiKey(cred))
+		key, err := AccessService.Get(models.WeblensApiKey(cred))
 		if err != nil {
 			return nil, nil, err
 		}
 		if key.RemoteUsing == "" {
-			return nil, nil, werror.New("Bad bearer token in websocket auth")
+			return nil, nil, errors.New("Bad bearer token in websocket auth")
 		}
 		instance = InstanceService.Get(key.RemoteUsing)
 		if instance == nil {
-			return nil, nil, werror.New("No remote using key in websocket auth")
+			return nil, nil, errors.New("No remote using key in websocket auth")
 		}
 	} else {
 		return nil, nil, werror.ErrBadAuthScheme
@@ -107,6 +99,7 @@ func WebsocketAuth(c *gin.Context, authHeader []string) (*models.User, *models.I
 
 func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		metrics.RequestsCounter.Inc()
 		authHeader := c.Request.Header["Authorization"]
 		scheme, cred, err := parseAuthHeader(authHeader)
 		if err != nil {
@@ -116,7 +109,7 @@ func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
 		}
 
 		if scheme == "Bearer" {
-			key, err := AccessService.GetApiKeyById(models.WeblensApiKey(cred))
+			key, err := AccessService.Get(models.WeblensApiKey(cred))
 			if err != nil {
 				c.Status(http.StatusNotFound)
 				return
@@ -165,7 +158,7 @@ func KeyOnlyAuth(c *gin.Context) {
 		return
 	}
 
-	key, err := AccessService.GetApiKeyById(models.WeblensApiKey(cred))
+	key, err := AccessService.Get(models.WeblensApiKey(cred))
 	if err != nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return

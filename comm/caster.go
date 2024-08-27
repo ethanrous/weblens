@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 )
@@ -157,7 +157,7 @@ func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
+func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media) {
 	if !c.enabled {
 		return
 	}
@@ -165,7 +165,7 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  SubId(updatedFile.ID()),
-		Content:       WsC{"fileInfo": updatedFile},
+		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -336,7 +336,7 @@ func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
+func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -344,7 +344,7 @@ func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  SubId(updatedFile.ID()),
-		Content:       WsC{"fileInfo": updatedFile},
+		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -358,7 +358,7 @@ func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  SubId(parentId),
-		Content:       WsC{"fileInfo": updatedFile},
+		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -537,7 +537,7 @@ func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
 type BasicCaster interface {
 	PushWeblensEvent(eventTag string)
 
-	PushFileUpdate(updatedFile *fileTree.WeblensFile)
+	PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media)
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
 }

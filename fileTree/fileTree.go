@@ -2,7 +2,7 @@ package fileTree
 
 import (
 	"context"
-	"io"
+	"errors"
 	"iter"
 	"os"
 	"path/filepath"
@@ -14,7 +14,7 @@ import (
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var _ FileTree = (*FileTreeImpl)(nil)
@@ -151,7 +151,7 @@ func (ft *FileTreeImpl) has(id FileId) bool {
 
 func (ft *FileTreeImpl) Add(f *WeblensFile) error {
 	if f == nil {
-		return werror.WithStack(werror.New("trying to add a nil file to file tree"))
+		return werror.WithStack(errors.New("trying to add a nil file to file tree"))
 	}
 	if ft.has(f.ID()) {
 		return werror.Errorf(
@@ -186,7 +186,7 @@ func (ft *FileTreeImpl) Add(f *WeblensFile) error {
 	return nil
 }
 
-func (ft *FileTreeImpl) Del(fId FileId) ([]*WeblensFile, error) {
+func (ft *FileTreeImpl) Del(fId FileId, deleteEvent *FileEvent) ([]*WeblensFile, error) {
 	f := ft.Get(fId)
 
 	// If the file does not already have an id, generating the id can lock the file tree,
@@ -203,7 +203,11 @@ func (ft *FileTreeImpl) Del(fId FileId) ([]*WeblensFile, error) {
 		return nil, err
 	}
 
-	deleteEvent := ft.GetJournal().NewEvent()
+	var localDeleteEvent bool
+	if deleteEvent == nil {
+		deleteEvent = ft.GetJournal().NewEvent()
+		localDeleteEvent = true
+	}
 
 	var deleted []*WeblensFile
 
@@ -264,14 +268,16 @@ func (ft *FileTreeImpl) Del(fId FileId) ([]*WeblensFile, error) {
 		return nil, err
 	}
 
-	if f.IsDir() {
-		err = os.RemoveAll(f.GetAbsPath())
-		if err != nil {
-			return nil, err
-		}
+	// if f.IsDir() {
+	// }
+	err = os.RemoveAll(f.GetAbsPath())
+	if err != nil {
+		return nil, err
 	}
 
-	ft.journalService.LogEvent(deleteEvent)
+	if localDeleteEvent {
+		ft.journalService.LogEvent(deleteEvent)
+	}
 
 	return deleted, nil
 }
@@ -331,9 +337,6 @@ func (ft *FileTreeImpl) Move(
 
 	// Point of no return //
 
-	// Overwrite filename
-	f.filename = newFilename
-
 	var hasExternalEvent bool
 	if event == nil {
 		hasExternalEvent = false
@@ -351,6 +354,7 @@ func (ft *FileTreeImpl) Move(
 				if err != nil {
 					return err
 				}
+				f.filename = newFilename
 				w.setParentInternal(newParent)
 				err = w.GetParent().AddChild(w)
 				if err != nil {
@@ -358,22 +362,17 @@ func (ft *FileTreeImpl) Move(
 				}
 			}
 
-			ft.deleteInternal(w.getIdInternal())
-
 			newChildAbsPath := filepath.Join(w.GetParent().GetAbsPath(), w.Filename())
 			if w.IsDir() {
 				newChildAbsPath += "/"
 			}
 			w.setAbsPath(newChildAbsPath)
-			w.setIdInternal(ft.GenerateFileId(w.absolutePath))
 
 			portable, err := ft.AbsToPortable(w.getAbsPathInternal())
 			if err != nil {
 				return err
 			}
 			w.setPortable(portable)
-
-			ft.addInternal(w.ID(), w)
 
 			event.NewMoveAction(preFile.ID(), w)
 
@@ -416,10 +415,15 @@ func (ft *FileTreeImpl) Size() int {
 
 func (ft *FileTreeImpl) Touch(parentFolder *WeblensFile, newFileName string, detach bool) (*WeblensFile, error) {
 	absPath := filepath.Join(parentFolder.GetAbsPath(), newFileName)
+	portable, err := ft.AbsToPortable(absPath)
+	if err != nil {
+		return nil, err
+	}
+
 	f := &WeblensFile{
 		id:           ft.GenerateFileId(absPath),
 		absolutePath: absPath,
-		portablePath: WeblensFilepath{},
+		portablePath: portable,
 		filename:     newFileName,
 		isDir:        boolPointer(false),
 		modifyDate:   time.Now(),
@@ -427,15 +431,15 @@ func (ft *FileTreeImpl) Touch(parentFolder *WeblensFile, newFileName string, det
 		parent:       parentFolder,
 		childrenMap:  map[string]*WeblensFile{},
 		childIds:     []FileId{},
-		detached:     detach,
 	}
 
-	e := ft.Get(f.ID())
-	if e != nil || f.Exists() {
-		return e, werror.ErrFileAlreadyExists
-	}
+	// TODO - convert to path
+	// e := ft.Get(f.ID())
+	// if e != nil || f.Exists() {
+	// 	return e, werror.ErrFileAlreadyExists
+	// }
 
-	err := f.CreateSelf()
+	err = f.CreateSelf()
 	if err != nil {
 		return f, err
 	}
@@ -535,42 +539,42 @@ func (ft *FileTreeImpl) ReadDir(dir *WeblensFile) ([]*WeblensFile, error) {
 	return children, nil
 }
 
-// AttachFile takes a detached file when it is ready to be inserted to the tree, and attaches it
-func (ft *FileTreeImpl) AttachFile(f *WeblensFile) error {
-	if ft.Get(f.ID()) != nil {
-		return werror.ErrFileAlreadyExists
-	}
-
-	tmpPath := filepath.Join("/tmp/", f.Filename())
-	tmpFile, err := os.Open(tmpPath)
-	if err != nil {
-		return err
-	}
-
-	// Mask the file create event. Since we cannot insert
-	// into the tree if the file is not present already,
-	// we must move the file first, which would create an
-	// insert event, which we wish to do manually below.
-	// Masking prevents the automatic insert event.
-	// history.MaskEvent(types.FileCreate, f.GetAbsPath())
-
-	destFile, err := os.Create(f.GetAbsPath())
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(destFile, tmpFile)
-	if err != nil {
-		return err
-	}
-
-	err = ft.Add(f)
-	if err != nil {
-		return err
-	}
-
-	return os.Remove(tmpPath)
-}
+// // AttachFile takes a detached file when it is ready to be inserted to the tree, and attaches it
+// func (ft *FileTreeImpl) AttachFile(f *WeblensFile) error {
+// 	if ft.Get(f.ID()) != nil {
+// 		return werror.ErrFileAlreadyExists
+// 	}
+//
+// 	tmpPath := filepath.Join("/tmp/", f.Filename())
+// 	tmpFile, err := os.Open(tmpPath)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	// Mask the file create event. Since we cannot insert
+// 	// into the tree if the file is not present already,
+// 	// we must move the file first, which would create an
+// 	// insert event, which we wish to do manually below.
+// 	// Masking prevents the automatic insert event.
+// 	// history.MaskEvent(types.FileCreate, f.GetAbsPath())
+//
+// 	destFile, err := os.Create(f.GetAbsPath())
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	_, err = io.Copy(destFile, tmpFile)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	err = ft.Add(f)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	return os.Remove(tmpPath)
+// }
 
 func (ft *FileTreeImpl) GetRoot() *WeblensFile {
 	if ft.root == nil {
@@ -580,6 +584,7 @@ func (ft *FileTreeImpl) GetRoot() *WeblensFile {
 }
 
 func (ft *FileTreeImpl) GenerateFileId(absPath string) FileId {
+	return FileId(primitive.NewObjectID().Hex())
 	fileHash := FileId(
 		internal.GlobbyHash(
 			8, NewFilePath(ft.GetRoot().GetAbsPath(), ft.GetRoot().Filename(), absPath),
@@ -590,7 +595,7 @@ func (ft *FileTreeImpl) GenerateFileId(absPath string) FileId {
 
 func (ft *FileTreeImpl) PortableToAbs(portable WeblensFilepath) (string, error) {
 	if portable.RootName() != ft.rootAlias {
-		return "", errors.Errorf(
+		return "", werror.Errorf(
 			"fileTree.PortableToAbs: portable path rootAlias [%s] does not match tree rootAlias [%s]",
 			portable.RootName(), ft.GetRoot().Filename(),
 		)
@@ -602,7 +607,7 @@ func (ft *FileTreeImpl) PortableToAbs(portable WeblensFilepath) (string, error) 
 
 func (ft *FileTreeImpl) AbsToPortable(absPath string) (WeblensFilepath, error) {
 	if !strings.HasPrefix(absPath, ft.GetRoot().GetAbsPath()) {
-		return WeblensFilepath{}, errors.Errorf(
+		return WeblensFilepath{}, werror.Errorf(
 			"fileTree.AbsToPortable: absPath [%s] does not match tree root prefix [%s]",
 			absPath, ft.GetRoot().GetAbsPath(),
 		)
@@ -616,54 +621,49 @@ var IgnoreFilenames = []string{
 }
 
 func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
-	var toLoad = []*WeblensFile{ft.root}
+	lifetimesByPath := map[string]*Lifetime{}
+	for _, lt := range ft.journalService.GetActiveLifetimes() {
+		lifetimesByPath[lt.GetLatestFilePath()] = lt
+	}
+
+	toLoad, err := ft.ReadDir(ft.root)
+	if err != nil {
+		return err
+	}
+
 	for len(toLoad) != 0 {
 		var fileToLoad *WeblensFile
 
 		// Pop from slice of files to load
 		fileToLoad, toLoad = toLoad[0], toLoad[1:]
-		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) || (fileToLoad.Filename() == "."+
-			"content" && fileToLoad.ID() != "CONTENT_LINKS") {
+		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) || (fileToLoad.Filename() == ".content") {
 			continue
 		}
 
-		// if InstanceService.GetLocal().ServerRole() == BackupServer {
-		// 	if fileToLoad.IsDir() {
-		// 		toLoad = append(toLoad, fileToLoad.GetChildren()...)
-		// 	} else if fileToLoad.GetContentId() == "" {
-		// 		fileToLoad.SetContentId(types.SERV.FileTree.GetJournal().GetLifetimeByFileId(fileToLoad.ID()).GetContentId())
-		// 	}
-		// 	continue
-		// }
-
-		lt := ft.journalService.GetLifetimeByFileId(fileToLoad.ID())
-		if lt == nil {
+		if activeLt, ok := lifetimesByPath[fileToLoad.GetPortablePath().ToPortable()]; ok {
+			fileToLoad.setIdInternal(activeLt.ID())
+			if !fileToLoad.IsDir() {
+				fileToLoad.SetContentId(activeLt.ContentId)
+			}
+		} else {
+			fileToLoad.setIdInternal(ft.GenerateFileId(fileToLoad.absolutePath))
 			fileSize, err := fileToLoad.Size()
 			if err != nil {
 				return err
 			}
 
-			if fileToLoad.GetContentId() == "" && !fileToLoad.IsDir() && fileSize != 0 {
+			if !fileToLoad.IsDir() && fileSize != 0 {
 				err = hasher.Hash(fileToLoad, event)
 				if err != nil {
 					return err
 				}
-			} else if fileToLoad.IsDir() || fileSize == 0 {
-				event.NewCreateAction(fileToLoad)
 			}
-
-		} else if !fileToLoad.IsDir() {
-			fileToLoad.SetContentId(lt.GetContentId())
+			event.NewCreateAction(fileToLoad)
 		}
 
-		if ft.Get(fileToLoad.ID()) == nil {
-			err := ft.Add(fileToLoad)
-			if err != nil {
-				return err
-			}
-		} else {
-			// util.Debug.Println("Skipping insert of a file already present in the tree:", fileToLoad.ID())
-			// continue
+		err = ft.Add(fileToLoad)
+		if err != nil {
+			return err
 		}
 
 		if fileToLoad.IsDir() {
@@ -679,6 +679,10 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 }
 
 func (ft *FileTreeImpl) importFromDirEntry(entry os.DirEntry, parent *WeblensFile) (*WeblensFile, error) {
+	if parent == nil {
+		return nil, werror.Errorf("Trying to add dirEntry with nil parent")
+	}
+
 	absPath := filepath.Join(parent.GetAbsPath(), entry.Name())
 	if entry.IsDir() {
 		absPath += "/"
@@ -694,7 +698,7 @@ func (ft *FileTreeImpl) importFromDirEntry(entry os.DirEntry, parent *WeblensFil
 	}
 
 	f := &WeblensFile{
-		id:           ft.GenerateFileId(absPath),
+		id: "",
 		absolutePath: absPath,
 		portablePath: portable,
 		filename:     entry.Name(),
@@ -725,11 +729,10 @@ type FileTree interface {
 	SetJournal(JournalService)
 
 	Add(file *WeblensFile) error
-	Del(id FileId) ([]*WeblensFile, error)
+	Del(id FileId, deleteEvent *FileEvent) ([]*WeblensFile, error)
 	Move(f, newParent *WeblensFile, newFilename string, overwrite bool, event *FileEvent) ([]MoveInfo, error)
 	Touch(parentFolder *WeblensFile, newFileName string, detach bool) (*WeblensFile, error)
 	MkDir(parentFolder *WeblensFile, newDirName string, event *FileEvent) (*WeblensFile, error)
-	AttachFile(f *WeblensFile) error
 
 	PortableToAbs(portable WeblensFilepath) (string, error)
 	GenerateFileId(absPath string) FileId

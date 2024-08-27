@@ -44,7 +44,7 @@ class WeblensMedia {
 
     constructor(init: MediaDataT) {
         if (typeof init.contentId !== 'string') {
-            console.trace()
+            console.trace(init)
         }
         this.data = init as MediaDataT
         this.data.selected = false

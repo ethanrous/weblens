@@ -26,7 +26,7 @@ function fileIsInView(
     shareId: string,
     searchContent: string
 ) {
-    if (mode === FbModeT.default && newFileInfo.parentFolderId !== viewingId) {
+    if (mode === FbModeT.default && newFileInfo.parentId !== viewingId) {
         return false
     } else if (
         mode === FbModeT.search &&
@@ -332,6 +332,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                     state.searchContent
                 )
             ) {
+                console.log('Not in view :(')
                 return state
             }
 
@@ -349,16 +350,16 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         })
     },
 
-    replaceFile: (oldId: string, newParams: WeblensFileParams) => {
+    replaceFile: (oldId: string, newInfo: WeblensFileParams) => {
         set((state) => {
             state.filesMap.delete(oldId)
             state.selected.delete(oldId)
 
-            const newF = new WeblensFile(newParams)
+            const newF = new WeblensFile(newInfo)
 
             if (
                 fileIsInView(
-                    newF,
+                    newInfo,
                     state.fbMode,
                     state.contentId,
                     state.shareId,
@@ -368,9 +369,10 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 if (state.lastSelectedId === oldId) {
                     state.lastSelectedId = newF.Id()
                 }
-                state.filesMap.set(newParams.id, newF)
+                state.filesMap.set(newInfo.id, newF)
             } else if (state.lastSelectedId === oldId) {
                 state.lastSelectedId = ''
+                return
             }
 
             return {
@@ -457,7 +459,6 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         }
 
         const medias: WeblensMedia[] = []
-        console.log(childrenInfo)
         for (const child of childrenInfo) {
             if (child.mediaData) {
                 medias.push(new WeblensMedia(child.mediaData))

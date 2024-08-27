@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"iter"
-	"maps"
 	"sync"
 
 	"github.com/ethrousseau/weblens/internal/werror"
@@ -77,7 +76,6 @@ func (us *UserServiceImpl) GetRootUser() *models.User {
 func (us *UserServiceImpl) Add(user *models.User) error {
 	if _, ok := us.userMap[user.GetUsername()]; ok {
 		return nil
-		// return types.New("user already exists")
 	}
 
 	if user.Id == [12]uint8{0} {
@@ -125,7 +123,16 @@ func (us *UserServiceImpl) GetAll() iter.Seq[*models.User] {
 	us.userLock.RLock()
 	defer us.userLock.RUnlock()
 
-	return maps.Values(us.userMap)
+	return func(yield func(user *models.User) bool) {
+		for _, u := range us.userMap {
+			if u.SystemUser {
+				continue
+			}
+			if !yield(u) {
+				return
+			}
+		}
+	}
 }
 
 func (us *UserServiceImpl) Get(username models.Username) *models.User {

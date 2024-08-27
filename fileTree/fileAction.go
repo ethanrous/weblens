@@ -14,11 +14,11 @@ type FileAction struct {
 	ActionType FileActionType `json:"actionType" bson:"actionType"`
 
 	OriginPath      string `json:"originPath" bson:"originPath,omitempty"`
-	OriginId        FileId `json:"originId" bson:"originId,omitempty"`
+	// OriginId        FileId `json:"originId" bson:"originId,omitempty"`
 	DestinationPath string `json:"destinationPath" bson:"destinationPath,omitempty"`
-	DestinationId   FileId `json:"destinationId" bson:"destinationId,omitempty"`
+	// DestinationId   FileId `json:"destinationId" bson:"destinationId,omitempty"`
 
-	LifeId  LifetimeId  `json:"lifeId" bson:"lifeId"`
+	LifeId FileId `json:"lifeId" bson:"lifeId"`
 	EventId FileEventId `json:"eventId" bson:"eventId"`
 
 	Size     int64  `json:"size" bson:"size"`
@@ -46,11 +46,11 @@ func (fa *FileAction) GetFile() *WeblensFile {
 	return fa.file
 }
 
-func (fa *FileAction) SetLifetimeId(lId LifetimeId) {
+func (fa *FileAction) SetLifetimeId(lId FileId) {
 	fa.LifeId = lId
 }
 
-func (fa *FileAction) GetLifetimeId() LifetimeId {
+func (fa *FileAction) GetLifetimeId() FileId {
 	return fa.LifeId
 }
 
@@ -58,17 +58,17 @@ func (fa *FileAction) GetOriginPath() string {
 	return fa.OriginPath
 }
 
-func (fa *FileAction) GetOriginId() FileId {
-	return fa.OriginId
-}
+// func (fa *FileAction) GetOriginId() FileId {
+// 	return fa.OriginId
+// }
 
 func (fa *FileAction) GetDestinationPath() string {
 	return fa.DestinationPath
 }
 
-func (fa *FileAction) GetDestinationId() FileId {
-	return fa.DestinationId
-}
+// func (fa *FileAction) GetDestinationId() FileId {
+// 	return fa.DestinationId
+// }
 
 func (fa *FileAction) SetActionType(actionType FileActionType) {
 	fa.ActionType = actionType
@@ -91,9 +91,9 @@ func (fa *FileAction) MarshalJSON() ([]byte, error) {
 		"timestamp":       fa.Timestamp.UnixMilli(),
 		"actionType":      fa.ActionType,
 		"originPath":      fa.OriginPath,
-		"originId":        fa.OriginId,
+		// "originId":        fa.OriginId,
 		"destinationPath": fa.DestinationPath,
-		"destinationId":   fa.DestinationId,
+		// "destinationId":   fa.DestinationId,
 		"lifeId":          fa.LifeId,
 		"eventId":         fa.EventId,
 		"size":            fa.Size,
@@ -113,10 +113,10 @@ func (fa *FileAction) UnmarshalJSON(bs []byte) error {
 	fa.Timestamp = time.UnixMilli(int64(data["timestamp"].(float64)))
 	fa.ActionType = FileActionType(data["actionType"].(string))
 	fa.OriginPath = data["originPath"].(string)
-	fa.OriginId = FileId(data["originId"].(string))
+	// fa.OriginId = FileId(data["originId"].(string))
 	fa.DestinationPath = data["destinationPath"].(string)
-	fa.DestinationId = FileId(data["destinationId"].(string))
-	fa.LifeId = LifetimeId(data["lifeId"].(string))
+	// fa.DestinationId = FileId(data["destinationId"].(string))
+	fa.LifeId = FileId(data["lifeId"].(string))
 	fa.EventId = FileEventId(data["eventId"].(string))
 	fa.Size = int64(data["size"].(float64))
 	fa.ParentId = FileId(data["parentId"].(string))

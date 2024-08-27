@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"path/filepath"
@@ -23,8 +24,8 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/pkg/errors"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/image/webp"
 
 	"github.com/modern-go/reflect2"
@@ -35,54 +36,63 @@ import (
 var _ models.MediaService = (*MediaServiceImpl)(nil)
 
 type MediaServiceImpl struct {
-	mediaMap    map[models.ContentId]*models.Media
-	streamerMap map[models.ContentId]*models.VideoStreamer
-	mapLock     sync.RWMutex
-	exif        *exiftool.Exiftool
-	mediaCache  *sturdyc.Client[[]byte]
+	mediaMap  map[models.ContentId]*models.Media
+	mediaLock sync.RWMutex
 
-	typeService  models.MediaTypeService
-	fileService  *FileServiceImpl
-	albumService *AlbumServiceImpl
+	streamerMap  map[models.ContentId]*models.VideoStreamer
+	streamerLock sync.RWMutex
+
+	exif       *exiftool.Exiftool
+	mediaCache *sturdyc.Client[[]byte]
+
+	typeService models.MediaTypeService
+	fileService models.FileService
 
 	collection *mongo.Collection
 }
 
 func NewMediaService(
-	fileService *FileServiceImpl, albumService *AlbumServiceImpl, mediaTypeServ models.MediaTypeService,
+	fileService models.FileService, mediaTypeServ models.MediaTypeService,
 	col *mongo.Collection,
-) *MediaServiceImpl {
-	return &MediaServiceImpl{
-		mediaMap:     make(map[models.ContentId]*models.Media),
-		typeService:  mediaTypeServ,
-		exif:         newExif(1000*1000*100, 0, nil),
-		mediaCache:   sturdyc.New[[]byte](1500, 10, time.Hour, 10),
-		fileService:  fileService,
-		albumService: albumService,
-		collection:   col,
+) (*MediaServiceImpl, error) {
+	ms := &MediaServiceImpl{
+		mediaMap:    make(map[models.ContentId]*models.Media),
+		streamerMap: make(map[models.ContentId]*models.VideoStreamer),
+		typeService: mediaTypeServ,
+		exif:        newExif(1000*1000*100, 0, nil),
+		mediaCache:  sturdyc.New[[]byte](1500, 10, time.Hour, 10),
+		fileService: fileService,
+		collection:  col,
 	}
-}
 
-func (ms *MediaServiceImpl) Init() error {
 	ret, err := ms.collection.Find(context.Background(), bson.M{})
 	if err != nil {
-		return werror.WithStack(err)
+		return nil, werror.WithStack(err)
 	}
 
-	ms.mapLock.Lock()
-	defer ms.mapLock.Unlock()
+	ms.mediaLock.Lock()
+	defer ms.mediaLock.Unlock()
 
 	cursorContext := context.Background()
 	for ret.Next(cursorContext) {
 		m := &models.Media{}
 		err = ret.Decode(m)
 		if err != nil {
-			return werror.WithStack(err)
+			return nil, werror.WithStack(err)
 		}
 		ms.mediaMap[m.ID()] = m
 	}
 
-	return nil
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{"contentId", 1}},
+		Options: (&options.IndexOptions{}).SetUnique(true),
+	}
+	_, err = col.Indexes().CreateOne(context.Background(), indexModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return ms, nil
 }
 
 func (ms *MediaServiceImpl) Size() int {
@@ -91,30 +101,44 @@ func (ms *MediaServiceImpl) Size() int {
 
 func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	if m == nil {
-		return werror.WithStack(werror.New("attempt to set nil Media in map"))
+		return werror.ErrMediaNil
 	}
 
 	if m.ID() == "" {
-		return werror.WithStack(werror.New("Media id is empty"))
+		return werror.ErrMediaNoId
 	}
 
 	if m.GetPageCount() == 0 {
-		return werror.WithStack(werror.New("Media page count is 0"))
+		return werror.ErrMediaNoPages
 	}
 
 	if m.MediaWidth == 0 || m.MediaHeight == 0 {
-		return werror.WithStack(werror.New("Media has unset dimentions"))
+		return werror.ErrMediaNoDimentions
 	}
 
 	if len(m.FileIds) == 0 {
-		return werror.WithStack(werror.New("Media has no files"))
+		return werror.ErrMediaNoFiles
 	}
 
-	ms.mapLock.Lock()
-	defer ms.mapLock.Unlock()
+	mt := ms.GetMediaType(m)
+	if mt.Mime == "" || mt.Mime == "generic" {
+		return werror.ErrMediaBadMime
+	}
+
+	isVideo := mt.IsVideo()
+	if isVideo && m.Duration == 0 {
+		return werror.ErrMediaNoDuration
+	}
+
+	if !isVideo && m.Duration != 0 {
+		return werror.ErrMediaHasDuration
+	}
+
+	ms.mediaLock.Lock()
+	defer ms.mediaLock.Unlock()
 
 	if ms.mediaMap[m.ID()] != nil {
-		return werror.New("attempt to re-add Media already in map")
+		return werror.ErrMediaAlreadyExists
 	}
 
 	if !m.IsImported() {
@@ -139,9 +163,9 @@ func (ms *MediaServiceImpl) Get(mId models.ContentId) *models.Media {
 		return nil
 	}
 
-	ms.mapLock.RLock()
+	ms.mediaLock.RLock()
 	m := ms.mediaMap[mId]
-	ms.mapLock.RUnlock()
+	ms.mediaLock.RUnlock()
 
 	if reflect2.IsNil(m) {
 		return nil
@@ -151,8 +175,8 @@ func (ms *MediaServiceImpl) Get(mId models.ContentId) *models.Media {
 }
 
 func (ms *MediaServiceImpl) GetAll() []*models.Media {
-	ms.mapLock.RLock()
-	defer ms.mapLock.RUnlock()
+	ms.mediaLock.RLock()
+	defer ms.mediaLock.RUnlock()
 	medias := internal.MapToValues(ms.mediaMap)
 	return internal.SliceConvert[*models.Media](medias)
 }
@@ -160,44 +184,52 @@ func (ms *MediaServiceImpl) GetAll() []*models.Media {
 func (ms *MediaServiceImpl) Del(cId models.ContentId) error {
 	m := ms.Get(cId)
 
-	f, werr := ms.getCacheFile(m, models.LowRes, 0)
-	if werr == nil {
-		werr = ms.fileService.DeleteCacheFile(f)
-		if werr != nil {
-			return werr
+	f, err := ms.getCacheFile(m, models.LowRes, 0)
+	if err == nil {
+		err = ms.fileService.DeleteCacheFile(f)
+		if err != nil && !errors.Is(err, werror.ErrNoCache) {
+			return err
 		}
 	}
 	f = nil
 	for page := range m.GetPageCount() + 1 {
-		f, werr = ms.getCacheFile(m, models.HighRes, page)
-		if werr == nil {
-			werr = ms.fileService.DeleteCacheFile(f)
-			if werr != nil {
-				return werr
+		f, err = ms.getCacheFile(m, models.HighRes, page)
+		if err == nil {
+			err = ms.fileService.DeleteCacheFile(f)
+			if err != nil && !errors.Is(err, werror.ErrNoCache) {
+				return err
 			}
 		}
 	}
 
-	werr = ms.albumService.RemoveMediaFromAny(m.ID())
-	if werr != nil {
-		return werr
-	}
+	// werr = ms.albumService.RemoveMediaFromAny(m.ID())
+	// if werr != nil {
+	// 	return werr
+	// }
 
 	filter := bson.M{"contentId": m.ID()}
-	_, err := ms.collection.DeleteOne(context.Background(), filter)
+	_, err = ms.collection.DeleteOne(context.Background(), filter)
 	if err != nil {
 		return werror.WithStack(err)
 	}
 
-	ms.mapLock.Lock()
-	defer ms.mapLock.Unlock()
+	ms.mediaLock.Lock()
+	defer ms.mediaLock.Unlock()
 	delete(ms.mediaMap, m.ID())
 
 	return nil
 }
 
 func (ms *MediaServiceImpl) HideMedia(m *models.Media, hidden bool) error {
-	return werror.NotImplemented("HideMedia")
+	filter := bson.M{"contentId": m.ID()}
+	_, err := ms.collection.UpdateOne(context.Background(), filter, bson.M{"$set": bson.M{"hidden": hidden}})
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	m.Hidden = hidden
+
+	return nil
 }
 
 func (ms *MediaServiceImpl) FetchCacheImg(m *models.Media, q models.MediaQuality, pageNum int) ([]byte, error) {
@@ -238,24 +270,14 @@ func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte
 }
 
 func (ms *MediaServiceImpl) GetFilteredMedia(
-	requester *models.User, sort string, sortDirection int, albumFilter []models.AlbumId,
+	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId,
 	allowRaw bool, allowHidden bool,
 ) ([]*models.Media, error) {
-	albums := internal.Map(
-		albumFilter, func(aId models.AlbumId) *models.Album {
-			return ms.albumService.Get(aId)
-		},
-	)
+	slices.Sort(excludeIds)
 
-	var mediaMask []models.ContentId
-	for _, a := range albums {
-		mediaMask = append(mediaMask, a.Medias...)
-	}
-	slices.Sort(mediaMask)
-
-	ms.mapLock.RLock()
+	ms.mediaLock.RLock()
 	allMs := internal.MapToValues(ms.mediaMap)
-	ms.mapLock.RUnlock()
+	ms.mediaLock.RUnlock()
 	allMs = internal.Filter(
 		allMs, func(m *models.Media) bool {
 			mt := ms.GetMediaType(m)
@@ -264,7 +286,7 @@ func (ms *MediaServiceImpl) GetFilteredMedia(
 			}
 
 			// Exclude Media if it is present in the filter
-			_, e := slices.BinarySearch(mediaMask, m.ID())
+			_, e := slices.BinarySearch(excludeIds, m.ID())
 			return !e
 		},
 	)
@@ -291,24 +313,8 @@ func AdjustMediaDates(anchor *models.Media, newTime time.Time, extraMedias []*mo
 }
 
 func (ms *MediaServiceImpl) IsCached(m *models.Media) bool {
-	if m.ThumbnailCacheId == "" {
-		return false
-	}
-	cache, err := ms.fileService.GetThumbFileId(m.ThumbnailCacheId)
-	if err != nil {
-		return false
-	}
-
-	if len(m.HighResCacheIds) != 0 {
-		for i := range m.PageCount {
-			cache, err = ms.fileService.GetThumbFileId(m.HighResCacheIds[i])
-			if cache == nil {
-				return false
-			}
-		}
-	}
-
-	return true
+	cacheFile, err := ms.getCacheFile(m, models.LowRes, 0)
+	return cacheFile != nil && err == nil
 }
 
 func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFile) bool {
@@ -363,6 +369,10 @@ func (ms *MediaServiceImpl) StreamVideo(
 ) (*models.VideoStreamer, error) {
 	var streamer *models.VideoStreamer
 	var ok bool
+
+	ms.streamerLock.Lock()
+	defer ms.streamerLock.Unlock()
+
 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
 		streamPath := fmt.Sprintf("%s/%s-stream/", internal.GetThumbsDir(), m.ID())
 		streamer = models.NewVideoStreamer(m, streamPath)
@@ -380,11 +390,11 @@ func (ms *MediaServiceImpl) StreamVideo(
 }
 
 func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, username models.Username) error {
-	ms.mapLock.Lock()
-	defer ms.mapLock.Unlock()
+	ms.mediaLock.Lock()
+	defer ms.mediaLock.Unlock()
 	m, ok := ms.mediaMap[mediaId]
 	if !ok {
-		return errors.Errorf("Could not find media with id [%s] while trying to update liked array", mediaId)
+		return werror.Errorf("Could not find media with id [%s] while trying to update liked array", mediaId)
 	}
 
 	filter := bson.M{"contentId": mediaId}
@@ -412,7 +422,54 @@ func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, 
 	return nil
 }
 
+func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
+	thumbCache, err := ms.getCacheFile(media, models.LowRes, 0)
+	if err != nil && !errors.Is(err, werror.ErrNoFile) {
+		return err
+	}
+
+	if thumbCache != nil {
+		err = ms.fileService.DeleteCacheFile(thumbCache)
+		if err != nil {
+			return err
+		}
+	}
+
+	highresCacheFile, err := ms.getCacheFile(media, models.HighRes, 0)
+	if err != nil && !errors.Is(err, werror.ErrNoFile) {
+		return err
+	}
+
+	if highresCacheFile != nil {
+		err = ms.fileService.DeleteCacheFile(highresCacheFile)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
+	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
+		err := ms.removeCacheFiles(media)
+		if err != nil {
+			return err
+		}
+
+		filter := bson.M{"contentId": media.ID()}
+		_, err = ms.collection.DeleteOne(context.Background(), filter)
+		if err != nil {
+			return err
+		}
+
+		ms.mediaLock.Lock()
+		delete(ms.mediaMap, media.ID())
+		ms.mediaLock.Unlock()
+
+		return nil
+	}
+
 	filter := bson.M{"contentId": media.ID()}
 	update := bson.M{"$pull": bson.M{"fileIds": fileId}}
 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
@@ -425,6 +482,10 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 			return fId != fileId
 		},
 	)
+
+	if len(media.FileIds) == 0 {
+
+	}
 
 	return nil
 }
@@ -490,7 +551,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			if err != nil {
 				return err
 			}
-			m.VideoLength = int(duration * 1000)
+			m.Duration = int(duration * 1000)
 		}
 	}
 
@@ -498,10 +559,6 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		m.PageCount = int(rawExif["PageCount"].(float64))
 	} else {
 		m.PageCount = 1
-	}
-
-	if len(m.HighResCacheIds) != m.PageCount {
-		m.HighResCacheIds = make([]fileTree.FileId, m.PageCount)
 	}
 
 	if m.Rotate == "" {
@@ -611,20 +668,6 @@ func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) ([]byte
 	f, err := ms.getCacheFile(m, q, pageNum)
 	if err != nil {
 		return nil, err
-		// caches, err := ms.generateCacheFiles(m)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		//
-		// if len(caches) <= pageNum+1 {
-		// 	return nil, werror.ErrNoCache
-		// }
-		//
-		// if q == LowRes {
-		// 	f = caches[0]
-		// } else {
-		// 	f = caches[pageNum+1]
-		// }
 	}
 
 	if f == nil {
@@ -645,6 +688,12 @@ func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) ([]byte
 func (ms *MediaServiceImpl) getCacheFile(
 	m *models.Media, quality models.MediaQuality, pageNum int,
 ) (*fileTree.WeblensFile, error) {
+	if quality == models.LowRes && m.GetLowresCacheFile() != nil {
+		return m.GetLowresCacheFile(), nil
+	} else if quality == models.HighRes && len(m.GetHighresCacheFiles()) > pageNum {
+		return m.GetHighresCacheFiles()[pageNum], nil
+	}
+
 	var pageNumStr string
 	if pageNum != 0 {
 		pageNumStr = fmt.Sprintf("_%d", pageNum)
@@ -655,18 +704,20 @@ func (ms *MediaServiceImpl) getCacheFile(
 	if err != nil {
 		return nil, werror.WithStack(werror.ErrNoCache)
 	}
+
+	if quality == models.LowRes {
+		m.SetLowresCacheFile(cacheFile)
+	} else {
+		log.Error.Println("Implement saving highres cache files")
+	}
+
 	return cacheFile, nil
 }
 
 func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*fileTree.WeblensFile, error) {
-	// thumbFile, err := ms.getCacheFile(m, models.LowRes, 0)
-	// if err == nil {
-	// 	return []*fileTree.WeblensFile{thumbFile}, nil
-	// }
-	var err error
-
 	img := bimg.NewImage(bs)
 
+	var err error
 	if ms.GetMediaType(m).IsRaw() {
 		switch m.Rotate {
 		case "Rotate 270 CW":
@@ -736,6 +787,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 
 			cacheFiles = append(cacheFiles, thumbFile)
 		}
+		m.SetLowresCacheFile(thumbFile)
 
 		var fullresFile *fileTree.WeblensFile
 		fullresFile, err = ms.fileService.NewCacheFile(string(m.ID()), models.HighRes, 0)
@@ -752,6 +804,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 			cacheFiles = append(cacheFiles, fullresFile)
 		}
 
+		m.SetHighresCacheFiles([]*fileTree.WeblensFile{fullresFile})
 	}
 
 	return cacheFiles, nil

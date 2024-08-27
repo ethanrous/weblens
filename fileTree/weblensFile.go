@@ -14,7 +14,6 @@ import (
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/pkg/errors"
 )
 
 /*
@@ -87,26 +86,9 @@ type WeblensFile struct {
 	// anymore, but was at some point in the past
 	pastFile bool
 
-	// If the file is a past file, and existed at the real id above, this
-	// current fileId is the location of the content right now, not in the past.
+	// If the file is in the trash, or a past file, this current fileId
+	// is the location of the content right now, not in the past.
 	currentId FileId
-
-	// detached is set when this file is currently existing outside the file tree that
-	// it is meant to belong to, most likely in the /tmp directory awaiting a move
-	detached bool
-}
-
-func NewFile(
-	parent *WeblensFile, filename string, isDir bool,
-) *WeblensFile {
-	newFile := &WeblensFile{
-		parent:      parent,
-		filename:    filename,
-		isDir:       boolPointer(isDir),
-		childrenMap: map[string]*WeblensFile{},
-	}
-
-	return newFile
 }
 
 // Freeze returns a "deep-enough" copy of the file descriptor. All only-locally-relevant
@@ -134,8 +116,8 @@ func (f *WeblensFile) Freeze() *WeblensFile {
 // ID of a nil file.
 func (f *WeblensFile) ID() FileId {
 	id := f.getIdInternal()
-	if f == nil || id == "" {
-		log.ErrTrace(werror.Errorf("Tried to get ID of nil file with path [%s]", f.absolutePath))
+	if id == "" {
+		log.ErrTrace(werror.Errorf("Tried to ID() file with no Id and path [%s]", f.absolutePath))
 		return ""
 	}
 
@@ -285,10 +267,6 @@ func (f *WeblensFile) Readable() (*os.File, error) {
 	}
 
 	path := f.absolutePath
-	if f.detached {
-		path = "/tmp/" + f.filename
-	}
-
 	return os.Open(path)
 }
 
@@ -298,10 +276,6 @@ func (f *WeblensFile) Writeable() (*os.File, error) {
 	}
 
 	path := f.GetAbsPath()
-	if f.detached {
-		path = "/tmp/" + f.filename
-	}
-
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0660)
 }
 
@@ -343,11 +317,6 @@ func (f *WeblensFile) WriteAt(data []byte, seekLoc int64) error {
 	}
 
 	path := f.GetAbsPath()
-
-	if f.detached {
-		path = "/tmp/" + f.Filename()
-	}
-
 	realFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0664)
 	if err != nil {
 		return err
@@ -476,7 +445,7 @@ func (f *WeblensFile) CreateSelf() error {
 	if f.IsDir() {
 		err := os.Mkdir(f.GetAbsPath(), 0755)
 		if err != nil {
-			return errors.WithStack(err)
+			return werror.WithStack(err)
 		}
 	} else {
 		_, err := os.Create(f.GetAbsPath())
@@ -690,7 +659,7 @@ func (f *WeblensFile) LoadStat() (newSize int64, err error) {
 		}
 		stat, err := os.Stat(f.absolutePath)
 		if err != nil {
-			return -1, errors.WithStack(err)
+			return -1, werror.WithStack(err)
 		}
 		f.updateLock.Lock()
 		f.modifyDate = stat.ModTime()
@@ -738,10 +707,6 @@ func (f *WeblensFile) LoadStat() (newSize int64, err error) {
 	// }
 
 	// return
-}
-
-func (f *WeblensFile) IsDetached() bool {
-	return f.detached
 }
 
 func (f *WeblensFile) getIdInternal() FileId {

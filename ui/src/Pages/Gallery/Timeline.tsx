@@ -89,14 +89,20 @@ export const Timeline = memo(
         const showRaw = useMediaStore((state) => state.showRaw)
         const showHidden = useMediaStore((state) => state.showHidden)
         const medias = useMediaStore((state) => [...state.mediaMap.values()])
+        const auth = useSessionStore.getState().auth
 
         useEffect(() => {
-            if (!galleryState || galleryState.loading.includes('media')) {
+            if (
+                !auth ||
+                auth.Authorization === '' ||
+                !galleryState ||
+                galleryState.loading.includes('media')
+            ) {
                 return
             }
 
             galleryDispatch({ type: 'add_loading', loading: 'media' })
-            FetchData(galleryState).then(() => {
+            FetchData(galleryState, auth).then(() => {
                 galleryDispatch({
                     type: 'remove_loading',
                     loading: 'media',
@@ -108,6 +114,7 @@ export const Timeline = memo(
             galleryState?.albumsFilter,
             galleryState?.albumsMap,
             page,
+            auth,
         ])
 
         if (galleryState.loading.includes('media')) {

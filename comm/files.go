@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethrousseau/weblens/dataStore"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
@@ -82,14 +81,17 @@ func createFolder(ctx *gin.Context) {
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
-	selfData, err := formatFileSafe(dir, u, nil)
+	share, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
-		if errors.Is(err, dataStore.ErrNoFileAccess) {
-			ctx.JSON(http.StatusNotFound, "Failed to get folder info")
-			return
-		}
-		log.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, "Failed to get folder info")
+		safeErr, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safeErr)
+		return
+	}
+
+	selfData, err := formatFileSafe(dir, u, share)
+	if err != nil {
+		safeErr, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safeErr)
 		return
 	}
 
@@ -106,10 +108,10 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 			// }
 		} else {
 			for _, child := range dir.GetChildren() {
-				childInfo, err := formatFileSafe(child, u, nil)
+				childInfo, err := formatFileSafe(child, u, share)
 				if err != nil {
-					log.ErrTrace(err)
-					ctx.JSON(http.StatusInternalServerError, "Failed to get folder info")
+					safeErr, code := werror.TrySafeErr(err)
+					ctx.JSON(code, safeErr)
 					return
 				}
 				filteredDirInfo = append(filteredDirInfo, childInfo)
@@ -123,13 +125,13 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 
 	var parentsInfo []service.FileInfo
 	parent := dir.GetParent()
-	for AccessService.CanUserAccessFile(
-		u, parent, nil,
+	for parent.ID() != "ROOT" && AccessService.CanUserAccessFile(
+		u, parent, share,
 	) && !FileService.GetFileOwner(parent).IsSystemUser() {
-		parentInfo, err := formatFileSafe(parent, u, nil)
+		parentInfo, err := formatFileSafe(parent, u, share)
 		if err != nil {
-			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, "Failed to format parent file info")
+			safeErr, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safeErr)
 			return
 		}
 		parentsInfo = append(parentsInfo, parentInfo)
@@ -170,8 +172,10 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 
 func getFolder(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
-	sh, err := getFileShareFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
 		return
 	}
 
@@ -228,7 +232,7 @@ func getExternalFolderInfo(ctx *gin.Context) {
 
 func scanDir(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
-	sh, err := getFileShareFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
 		return
 	}
@@ -406,8 +410,8 @@ func getSharedFiles(ctx *gin.Context) {
 
 	shares, err := ShareService.GetFileSharesWithUser(u)
 	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		safeErr, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safeErr)
 		return
 	}
 
@@ -415,14 +419,18 @@ func getSharedFiles(ctx *gin.Context) {
 	for _, share := range shares {
 		f, err := FileService.GetFileSafe(share.FileId, u, share)
 		if err != nil {
-			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			if errors.Is(err, werror.ErrNoFile) {
+				log.Warning.Println("Could not find file acompanying a file share")
+				continue
+			}
+			safeErr, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safeErr)
 			return
 		}
 		fInfo, err := formatFileSafe(f, u, share)
 		if err != nil {
-			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			safeErr, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safeErr)
 			return
 		}
 		filesInfos = append(filesInfos, fInfo)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"slices"
 	"strconv"
@@ -12,7 +13,6 @@ import (
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,37 +24,61 @@ type AccessServiceImpl struct {
 	keyMap   map[models.WeblensApiKey]models.ApiKeyInfo
 	keyMapMu *sync.RWMutex
 
-	collection *mongo.Collection
+	fileService models.FileService
+	collection  *mongo.Collection
+}
+
+func NewAccessService(fileService models.FileService, col *mongo.Collection) *AccessServiceImpl {
+	return &AccessServiceImpl{
+		keyMap:      map[models.WeblensApiKey]models.ApiKeyInfo{},
+		keyMapMu:    &sync.RWMutex{},
+		fileService: fileService,
+		collection:  col,
+	}
 }
 
 func (accSrv *AccessServiceImpl) CanUserAccessFile(
 	user *models.User, file *fileTree.WeblensFile, share *models.FileShare,
 ) bool {
-	// wlog.Error.Println("IMPLEMENT CAN USER ACCESS FILE")
-	return true
-}
-
-func (accSrv *AccessServiceImpl) CanUserAccessShare(user *models.User, share models.Share) bool {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (accSrv *AccessServiceImpl) CanUserAccessAlbum(user *models.User, album *models.Album) bool {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (accSrv *AccessServiceImpl) GetApiKeyById(key models.WeblensApiKey) (models.ApiKeyInfo, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func NewAccessService(col *mongo.Collection) *AccessServiceImpl {
-	return &AccessServiceImpl{
-		keyMap:     map[models.WeblensApiKey]models.ApiKeyInfo{},
-		keyMapMu:   &sync.RWMutex{},
-		collection: col,
+	if accSrv.fileService.GetFileOwner(file) == user {
+		return true
 	}
+	
+	if user.GetUsername() == "WEBLENS" {
+		return true
+	}
+
+	if share == nil || !share.Enabled || !slices.Contains(share.Accessors, user.GetUsername()) {
+		return false
+	}
+
+	tmpFile := file
+	for tmpFile.ID() != "ROOT" {
+		if tmpFile.ID() == share.FileId {
+			return true
+		}
+		tmpFile = tmpFile.GetParent()
+	}
+	return false
+}
+
+func (accSrv *AccessServiceImpl) CanUserModifyShare(user *models.User, share models.Share) bool {
+	return user.GetUsername() == share.GetOwner()
+}
+
+func (accSrv *AccessServiceImpl) CanUserAccessAlbum(
+	user *models.User, album *models.Album,
+	share *models.AlbumShare,
+) bool {
+	if album.Owner == user.GetUsername() {
+		return true
+	}
+
+	if share == nil || !share.Enabled || !slices.Contains(share.Accessors, user.GetUsername()) {
+		return false
+	}
+
+	return false
 }
 
 func (accSrv *AccessServiceImpl) Init() error {
@@ -77,10 +101,6 @@ func (accSrv *AccessServiceImpl) Init() error {
 	}
 
 	return nil
-}
-
-func (accSrv *AccessServiceImpl) Add(keyInfo models.ApiKeyInfo) error {
-	return werror.NotImplemented("accessService add")
 }
 
 func (accSrv *AccessServiceImpl) Get(key models.WeblensApiKey) (models.ApiKeyInfo, error) {
@@ -119,16 +139,7 @@ func (accSrv *AccessServiceImpl) Size() int {
 	return len(accSrv.keyMap)
 }
 
-func (accSrv *AccessServiceImpl) GetApiKeyInfo(key models.WeblensApiKey) models.ApiKeyInfo {
-	accSrv.keyMapMu.RLock()
-	defer accSrv.keyMapMu.RUnlock()
-
-	return accSrv.keyMap[key]
-}
-
 func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User) (models.ApiKeyInfo, error) {
-	// return ApiKeyInfo{}, types.ErrNotImplemented("CreateApiKey")
-
 	if !creator.IsAdmin() {
 		return models.ApiKeyInfo{}, werror.ErrUserNotAuthorized
 	}
@@ -157,11 +168,12 @@ func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User) (models.Ap
 
 func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, server *models.Instance) error {
 	return werror.NotImplemented("accessService setKeyUsedBy")
+	return werror.ErrKeyInUse
 }
 
 func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.ApiKeyInfo, error) {
 	if !accessor.IsAdmin() {
-		return nil, werror.New("non-admin attempting to get api keys")
+		return nil, errors.New("non-admin attempting to get api keys")
 	}
 
 	accSrv.keyMapMu.RLock()
@@ -169,11 +181,3 @@ func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.Api
 
 	return slices.Collect(maps.Values(accSrv.keyMap)), nil
 }
-
-// setRemoteUsing
-// filter := bson.M{"key": key}
-// update := bson.M{"$set": bson.M{"remoteUsing": remoteId}}
-// _, err := db.apiKeys.UpdateOne(db.ctx, filter, update)
-// if err != nil {
-// return error2.Wrap(err)
-// }

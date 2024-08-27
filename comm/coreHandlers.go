@@ -5,10 +5,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/ethrousseau/weblens/dataStore"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/gin"
 )
@@ -41,7 +41,7 @@ func attachRemote(ctx *gin.Context) {
 
 	err = InstanceService.Add(newRemote)
 	if err != nil {
-		if errors.Is(err, dataStore.ErrKeyInUse) {
+		if errors.Is(err, werror.ErrKeyInUse) {
 			ctx.Status(http.StatusConflict)
 			return
 		}

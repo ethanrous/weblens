@@ -492,7 +492,6 @@ export function PhotoGallery({
     const showHidden = useMediaStore((state) => state.showHidden)
 
     const rows: GalleryRow[] = useMemo(() => {
-        console.log(viewSize.width)
         if (medias.length === 0 || viewSize.width === -1) {
             return []
         }
@@ -621,8 +620,6 @@ export function PhotoGallery({
             windowRef.resetAfterIndex(0, true)
         }
     }, [rows])
-
-    console.log(rows)
 
     return (
         <div className="gallery-wrapper no-scrollbar" ref={setViewRef}>

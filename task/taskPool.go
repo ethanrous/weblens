@@ -1,6 +1,7 @@
 package task
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -8,10 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/pkg/errors"
+	"github.com/ethrousseau/weblens/internal/werror"
 )
 
 type TaskPool struct {
@@ -38,7 +37,7 @@ type TaskPool struct {
 
 	allQueuedFlag atomic.Bool
 
-	erroredTasks chan *Task
+	erroredTasks []*Task
 }
 
 func (tp *TaskPool) IsRoot() bool {
@@ -419,7 +418,9 @@ func (tp *TaskPool) UnlockExit() {
 }
 
 func (tp *TaskPool) AddError(t *Task) {
-	tp.erroredTasks <- t
+	tp.taskLock.Lock()
+	defer tp.taskLock.Unlock()
+	tp.erroredTasks = append(tp.erroredTasks, t)
 }
 
 func (tp *TaskPool) AddCleanup(fn func(pool Pool)) {
@@ -436,11 +437,7 @@ func (tp *TaskPool) AddCleanup(fn func(pool Pool)) {
 }
 
 func (tp *TaskPool) Errors() []*Task {
-	erroredTasks := []*Task{}
-	for len(tp.erroredTasks) != 0 {
-		erroredTasks = append(erroredTasks, <-tp.erroredTasks)
-	}
-	return internal.SliceConvert[*Task](erroredTasks)
+	return tp.erroredTasks
 }
 
 func (tp *TaskPool) Cancel() {

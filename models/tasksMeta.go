@@ -2,19 +2,22 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/task"
 )
 
 const (
 	ScanDirectoryTask = "scan_directory"
 	ScanFileTask      = "scan_file"
-	MoveFileTask      = "move_file"
-	WriteFileTask     = "write_file"
-	CreateZipTask     = "create_zip"
+	MoveFileTask    = "move_file"
+	UploadFilesTask = "write_file"
+	CreateZipTask   = "create_zip"
 	GatherFsStatsTask = "gather_filesystem_stats"
 	BackupTask        = "do_backup"
 	HashFile          = "hash_file"
@@ -65,11 +68,14 @@ func (m ScanMeta) JobName() string {
 	}
 }
 
+func (m ScanMeta) Verify() error {
+	return nil
+}
+
 type ZipMeta struct {
-	Files    []*fileTree.WeblensFile
-	Username Username
-	Share    *FileShare
-	Owner    *User
+	Files     []*fileTree.WeblensFile
+	Share     *FileShare
+	Requester *User
 
 	FileService FileService
 	Caster      FileCaster
@@ -82,16 +88,12 @@ func (m ZipMeta) MetaString() string {
 		},
 	)
 
-	data := map[string]any{
-		"JobName":  CreateZipTask,
-		"Files":    ids,
-		"Username": m.Username,
-		"Share":    m.Share,
-	}
-	bs, err := json.Marshal(data)
+	slices.Sort(ids)
+	idsString, err := json.Marshal(ids)
 	log.ErrTrace(err)
 
-	return string(bs)
+	data := CreateZipTask + string(idsString) + string(m.Requester.GetUsername()) + string(m.Share.ShareId) + m.Share.LastUpdated().String()
+	return data
 }
 
 func (m ZipMeta) FormatToResult() task.TaskResult {
@@ -106,6 +108,22 @@ func (m ZipMeta) FormatToResult() task.TaskResult {
 
 func (m ZipMeta) JobName() string {
 	return CreateZipTask
+}
+
+func (m ZipMeta) Verify() error {
+	if len(m.Files) == 0 {
+		return werror.ErrBadJobMetadata(m.JobName(), "files")
+	} else if m.Share == nil {
+		log.Warning.Println("No share in zip meta...")
+	} else if m.Requester == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "requester")
+	} else if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "fileService")
+	} else if m.Caster == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "caster")
+	}
+
+	return nil
 }
 
 type MoveMeta struct {
@@ -140,6 +158,10 @@ func (m MoveMeta) JobName() string {
 	return MoveFileTask
 }
 
+func (m MoveMeta) Verify() error {
+	return nil
+}
+
 type FileChunk struct {
 	FileId       fileTree.FileId
 	Chunk        []byte
@@ -148,7 +170,7 @@ type FileChunk struct {
 	NewFile *fileTree.WeblensFile
 }
 
-type WriteFileMeta struct {
+type UploadFilesMeta struct {
 	ChunkStream  chan FileChunk
 	RootFolderId fileTree.FileId
 	ChunkSize    int64
@@ -163,25 +185,42 @@ type WriteFileMeta struct {
 	Caster       FileCaster
 }
 
-func (m WriteFileMeta) MetaString() string {
-	data := map[string]any{
-		"JobName":    WriteFileTask,
-		"RootFolder": m.RootFolderId,
-		"ChunkSize":  m.ChunkSize,
-		"TotalSize":  m.TotalSize,
-	}
-	bs, err := json.Marshal(data)
-	log.ErrTrace(err)
-
-	return string(bs)
+func (m UploadFilesMeta) MetaString() string {
+	return fmt.Sprintf("%s%s%d%d", UploadFilesTask, m.RootFolderId, m.ChunkSize, m.TotalSize)
 }
 
-func (m WriteFileMeta) FormatToResult() task.TaskResult {
+func (m UploadFilesMeta) FormatToResult() task.TaskResult {
 	return task.TaskResult{}
 }
 
-func (m WriteFileMeta) JobName() string {
-	return WriteFileTask
+func (m UploadFilesMeta) JobName() string {
+	return UploadFilesTask
+}
+
+func (m UploadFilesMeta) Verify() error {
+	if m.ChunkStream == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "chunkStream")
+	} else if m.RootFolderId == "" {
+		return werror.ErrBadJobMetadata(m.JobName(), "rootFolderId")
+	} else if m.ChunkSize == 0 {
+		return werror.ErrBadJobMetadata(m.JobName(), "chunkSize")
+	} else if m.TotalSize == 0 {
+		return werror.ErrBadJobMetadata(m.JobName(), "totalSize")
+	} else if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "fileService")
+	} else if m.MediaService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "mediaService")
+	} else if m.TaskService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "taskService")
+	} else if m.TaskSubber == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "taskSubscriber")
+	} else if m.User == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "user")
+	} else if m.Caster == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "caster")
+	}
+	
+	return nil
 }
 
 type FsStatMeta struct {
@@ -205,6 +244,10 @@ func (m FsStatMeta) FormatToResult() task.TaskResult {
 
 func (m FsStatMeta) JobName() string {
 	return GatherFsStatsTask
+}
+
+func (m FsStatMeta) Verify() error {
+	return nil
 }
 
 type FileUploadProgress struct {
@@ -237,6 +280,10 @@ func (m BackupMeta) JobName() string {
 	return BackupTask
 }
 
+func (m BackupMeta) Verify() error {
+	return nil
+}
+
 type HashFileMeta struct {
 	File *fileTree.WeblensFile
 }
@@ -258,6 +305,10 @@ func (m HashFileMeta) FormatToResult() task.TaskResult {
 
 func (m HashFileMeta) JobName() string {
 	return HashFile
+}
+
+func (m HashFileMeta) Verify() error {
+	return nil
 }
 
 type BackupCoreFileMeta struct {
@@ -283,4 +334,8 @@ func (m BackupCoreFileMeta) FormatToResult() task.TaskResult {
 
 func (m BackupCoreFileMeta) JobName() string {
 	return CopyFileFromCore
+}
+
+func (m BackupCoreFileMeta) Verify() error {
+	return nil
 }

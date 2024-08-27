@@ -12,12 +12,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/task"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,9 +33,12 @@ type FileServiceImpl struct {
 
 	userService     models.UserService
 	accessService   models.AccessService
-	InstanceService models.InstanceService
+	mediaService    models.MediaService
+	instanceService models.InstanceService
 
-	trashCol *mongo.Collection
+	fileTaskLink map[fileTree.FileId][]*task.Task
+	fileTaskLock sync.RWMutex
+	trashCol     *mongo.Collection
 }
 
 // FileInfo is a structure for safely sending file information to the client
@@ -44,30 +49,32 @@ type FileInfo struct {
 	txt, doc, directory etc. */
 	Displayable bool `json:"displayable"`
 
-	IsDir          bool              `json:"isDir"`
-	Modifiable     bool              `json:"modifiable"`
-	Size           int64             `json:"size"`
-	ModTime        int64             `json:"modTime"`
-	Filename       string            `json:"filename"`
-	ParentFolderId fileTree.FileId   `json:"parentFolderId"`
-	MediaData      *models.Media     `json:"mediaData,omitempty"`
-	Owner          models.Username   `json:"owner"`
-	PathFromHome   string            `json:"pathFromHome"`
-	ShareId        models.ShareId    `json:"shareId,omitempty"`
-	Children       []fileTree.FileId `json:"children"`
-	PastFile       bool              `json:"pastFile,omitempty"`
+	IsDir        bool              `json:"isDir"`
+	Modifiable   bool              `json:"modifiable"`
+	Size         int64             `json:"size"`
+	ModTime      int64             `json:"modTime"`
+	Filename     string            `json:"filename"`
+	ParentId     fileTree.FileId   `json:"parentId"`
+	MediaData    *models.Media     `json:"mediaData,omitempty"`
+	Owner        models.Username   `json:"owner"`
+	PathFromHome string            `json:"pathFromHome"`
+	ShareId      models.ShareId    `json:"shareId,omitempty"`
+	Children     []fileTree.FileId `json:"children"`
+	PastFile     bool              `json:"pastFile,omitempty"`
 }
 
 func NewFileService(
 	mediaTree, cacheTree fileTree.FileTree, userService models.UserService,
-	accessService models.AccessService, trashCol *mongo.Collection,
+	accessService models.AccessService, mediaService models.MediaService, trashCol *mongo.Collection,
 ) (*FileServiceImpl, error) {
 	fs := &FileServiceImpl{
 		mediaTree:     mediaTree,
 		userService:   userService,
 		cachesTree:    cacheTree,
 		accessService: accessService,
+		mediaService: mediaService,
 		trashCol:      trashCol,
+		fileTaskLink: make(map[fileTree.FileId][]*task.Task),
 	}
 
 	sw := internal.NewStopwatch("File Service Init")
@@ -124,13 +131,21 @@ func (fs *FileServiceImpl) Size() int {
 	return fs.mediaTree.Size()
 }
 
+func (fs *FileServiceImpl) SetAccessService(accessService *AccessServiceImpl) {
+	fs.accessService = accessService
+}
+
+func (fs *FileServiceImpl) SetMediaService(mediaService *MediaServiceImpl) {
+	fs.mediaService = mediaService
+}
+
 func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, share *models.FileShare) (
 	*fileTree.WeblensFile,
 	error,
 ) {
 	f := fs.mediaTree.Get(id)
 	if f == nil {
-		return nil, werror.ErrNoFile
+		return nil, werror.WithStack(werror.ErrNoFile)
 	}
 
 	if !fs.accessService.CanUserAccessFile(user, f, share) {
@@ -138,7 +153,7 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 			"User [%s] attempted to access file at %s [%s], but they do not have access",
 			user.GetUsername(), f.GetPortablePath(), f.ID(),
 		)
-		return nil, werror.ErrNoFile
+		return nil, werror.WithStack(werror.ErrNoFileAccess)
 	}
 
 	return f, nil
@@ -182,7 +197,11 @@ func (fs *FileServiceImpl) NewCacheFile(contentId string, quality models.MediaQu
 }
 
 func (fs *FileServiceImpl) DeleteCacheFile(f *fileTree.WeblensFile) error {
-	panic("Delete cache file")
+	_, err := fs.cachesTree.Del(f.ID(), nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFile, fileName string) (*fileTree.WeblensFile, error) {
@@ -215,7 +234,7 @@ func (fs *FileServiceImpl) GetFileOwner(file *fileTree.WeblensFile) *models.User
 	// }
 	portable := file.GetPortablePath()
 	if portable.RootName() != "MEDIA" {
-		panic(werror.New("trying to get owner of file not in MEDIA tree"))
+		panic(errors.New("trying to get owner of file not in MEDIA tree"))
 	}
 	slashIndex := strings.Index(portable.RelativePath(), "/")
 	var username models.Username
@@ -229,10 +248,6 @@ func (fs *FileServiceImpl) GetFileOwner(file *fileTree.WeblensFile) *models.User
 		return fs.userService.GetRootUser()
 	}
 	return u
-}
-
-func (fs *FileServiceImpl) AttachFile(file *fileTree.WeblensFile, caster models.FileCaster) error {
-	return werror.NotImplemented("AttachFile")
 }
 
 func (fs *FileServiceImpl) MoveFileToTrash(
@@ -266,7 +281,7 @@ func (fs *FileServiceImpl) MoveFileToTrash(
 		return err
 	}
 
-	te.TrashFileId = file.ID()
+	te.FileId = file.ID()
 	_, err = fs.trashCol.InsertOne(context.Background(), te)
 	if err != nil {
 		return err
@@ -298,11 +313,11 @@ func (fs *FileServiceImpl) MoveFileToTrash(
 func (fs *FileServiceImpl) ReturnFilesFromTrash(
 	trashFiles []*fileTree.WeblensFile, c models.FileCaster,
 ) error {
-	trashFileIds := make([]fileTree.FileId, 0, len(trashFiles))
+	fileIds := make([]fileTree.FileId, 0, len(trashFiles))
 	for _, file := range trashFiles {
-		trashFileIds = append(trashFileIds, file.ID())
+		fileIds = append(fileIds, file.ID())
 	}
-	filter := bson.D{{"trashFileId", bson.M{"$in": trashFileIds}}}
+	filter := bson.D{{"fileId", bson.M{"$in": fileIds}}}
 	ret, err := fs.trashCol.Find(context.Background(), filter)
 	if err != nil {
 		return werror.WithStack(err)
@@ -315,7 +330,7 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 	}
 
 	if len(trashEntries) != len(trashFiles) {
-		return werror.New("ReturnFilesFromTrash: trashEntries count does not match trashFiles")
+		return errors.New("ReturnFilesFromTrash: trashEntries count does not match trashFiles")
 	}
 
 	event := fs.mediaTree.GetJournal().NewEvent()
@@ -336,7 +351,7 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 
 	res, err := fs.trashCol.DeleteMany(context.Background(), filter)
 	if res.DeletedCount != int64(len(trashEntries)) {
-		return werror.New("delete trash entry did not get expected delete count")
+		return errors.New("delete trash entry did not get expected delete count")
 	}
 	if err != nil {
 		return err
@@ -346,30 +361,50 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 }
 
 // PermanentlyDeleteFile removes file being pointed to from the tree and deletes it from the real filesystem
-func (fs *FileServiceImpl) PermanentlyDeleteFile(file *fileTree.WeblensFile, caster models.FileCaster) error {
-	if !fs.IsFileInTrash(file) {
-		return werror.New("Cannot delete file not in trash")
+func (fs *FileServiceImpl) PermanentlyDeleteFiles(files []*fileTree.WeblensFile, caster models.FileCaster) error {
+	deleteEvent := fs.mediaTree.GetJournal().NewEvent()
+
+	var deleted []fileTree.FileId
+	var delErr error
+	for _, file := range files {
+		if !fs.IsFileInTrash(file) {
+			delErr = errors.New("Cannot delete file not in trash")
+			break
+		}
+
+		_, delErr = fs.mediaTree.Del(file.ID(), deleteEvent)
+		if delErr != nil {
+			break
+		}
+
+		deleted = append(deleted, file.ID())
+
+		media := fs.mediaService.Get(models.ContentId(file.GetContentId()))
+		if media != nil {
+			delErr = fs.mediaService.RemoveFileFromMedia(media, file.ID())
+			if delErr != nil {
+				break
+			}
+		}
+
+		caster.PushFileDelete(file)
 	}
 
-	_, err := fs.mediaTree.Del(file.ID())
+	fs.mediaTree.GetJournal().LogEvent(deleteEvent)
+
+	_, err := fs.trashCol.DeleteMany(context.Background(), bson.M{"fileId": bson.M{"$in": deleted}})
 	if err != nil {
 		return err
 	}
 
-	caster.PushFileDelete(file)
-
+	// All files *should* share the same parent: the trash folder
+	err = fs.ResizeUp(files[0].GetParent(), caster)
 	if err != nil {
 		return err
 	}
 
-	_, err = fs.trashCol.DeleteOne(context.Background(), bson.M{"trashFileId": file.ID()})
-	if err != nil {
-		return err
-	}
-
-	err = fs.ResizeUp(file.GetParent(), caster)
-	if err != nil {
-		return err
+	if delErr != nil {
+		return delErr
 	}
 
 	return nil
@@ -457,6 +492,43 @@ func (fs *FileServiceImpl) PathToFile(searchPath string, u *models.User, share *
 	)
 
 	return folder, children, nil
+}
+
+func (fs *FileServiceImpl) AddTask(f *fileTree.WeblensFile, t *task.Task) error {
+	fs.fileTaskLock.Lock()
+	defer fs.fileTaskLock.Unlock()
+	tasks, ok := fs.fileTaskLink[f.ID()]
+	if !ok {
+		tasks = []*task.Task{}
+	} else if slices.Contains(tasks, t) {
+		return werror.ErrFileAlreadyHasTask
+	}
+
+	fs.fileTaskLink[f.ID()] = append(tasks, t)
+	return nil
+}
+
+func (fs *FileServiceImpl) RemoveTask(f *fileTree.WeblensFile, t *task.Task) error {
+	fs.fileTaskLock.Lock()
+	defer fs.fileTaskLock.Unlock()
+	tasks, ok := fs.fileTaskLink[f.ID()]
+	if !ok {
+		return werror.ErrFileNoTask
+	}
+
+	i := slices.Index(tasks, t)
+	if i == -1 {
+		return werror.ErrFileNoTask
+	}
+
+	fs.fileTaskLink[f.ID()] = internal.Banish(tasks, i)
+	return nil
+}
+
+func (fs *FileServiceImpl) GetTasks(f *fileTree.WeblensFile) []*task.Task {
+	fs.fileTaskLock.RLock()
+	defer fs.fileTaskLock.RUnlock()
+	return fs.fileTaskLink[f.ID()]
 }
 
 func GenerateContentId(f *fileTree.WeblensFile) (models.ContentId, error) {
@@ -629,7 +701,7 @@ func (fs *FileServiceImpl) ResizeUp(f *fileTree.WeblensFile, caster models.FileC
 				return err
 			}
 			if newSize != -1 {
-				caster.PushFileUpdate(w)
+				caster.PushFileUpdate(w, nil)
 			}
 
 			return nil
@@ -651,6 +723,8 @@ func (fs *FileServiceImpl) getFileByIdAndRoot(id fileTree.FileId, rootAlias stri
 	switch rootAlias {
 	case "MEDIA":
 		f = fs.mediaTree.Get(id)
+	case "CACHES":
+		f = fs.cachesTree.Get(id)
 	default:
 		return nil, werror.Errorf("Trying to get file on non-existant tree [%s]", rootAlias)
 	}
@@ -707,7 +781,7 @@ func (fs *FileServiceImpl) clearTakeoutDir() error {
 }
 
 func (fs *FileServiceImpl) clearThumbsDir() error {
-	_, err := fs.cachesTree.Del("THUMBS")
+	_, err := fs.cachesTree.Del("THUMBS", nil)
 	if err != nil {
 		return err
 	}
@@ -723,5 +797,5 @@ func (fs *FileServiceImpl) clearThumbsDir() error {
 type TrashEntry struct {
 	OrigParent   fileTree.FileId `bson:"originalParentId"`
 	OrigFilename string          `bson:"originalFilename"`
-	TrashFileId  fileTree.FileId `bson:"trashFileId"`
+	FileId fileTree.FileId `bson:"fileId"`
 }

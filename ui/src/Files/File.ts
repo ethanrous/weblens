@@ -42,7 +42,7 @@ export interface WeblensFileParams {
     modTime?: string
     filename?: string
     pathFromHome?: string
-    parentFolderId?: string
+    parentId?: string
 
     children?: string[]
 

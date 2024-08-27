@@ -8,8 +8,6 @@ import (
 	"github.com/ethrousseau/weblens/models"
 )
 
-// Websocket
-
 type folderSubscribeMeta struct {
 	Key       SubId          `json:"subscribeKey"`
 	Recursive bool           `json:"recursive"`
@@ -44,14 +42,6 @@ func (tsm *taskSubscribeMeta) GetKey() SubId {
 			tsm.realKey = SubId(fmt.Sprintf("TT#%s", tsm.JobName))
 		}
 	}
-
-	// if tsm.Key == "" && tsm.JobName != "" {
-	// 	taskPool := types.SERV.TaskService.GetTaskPoolByJobName(tsm.JobName)
-	// 	if taskPool == nil {
-	// 		return ""
-	// 	}
-	// 	tsm.Key = types.SubId(taskPool.ID())
-	// }
 	return tsm.realKey
 }
 
@@ -115,12 +105,10 @@ func newActionBody(msg WsRequestInfo) (WsR, error) {
 		err := json.Unmarshal([]byte(msg.Content), target)
 		return target, err
 	default:
-		return nil, werror.New(fmt.Sprint("did not recognize websocket action type: ", msg.Action))
+		return nil, werror.Errorf("did not recognize websocket action type [%s]", msg.Action)
 	}
 }
 
 func (tsm taskSubscribeMeta) ResultKeys() []string {
 	return tsm.LookingFor
 }
-
-// Physical of broadcasters to inform clients of updates in real time

@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ethrousseau/weblens/backup"
 	"github.com/ethrousseau/weblens/comm"
+	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
@@ -16,8 +21,7 @@ import (
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -55,28 +59,26 @@ func startup(mongoName string) {
 	if internal.IsDevMode() {
 		log.DoDebug()
 		log.Debug.Println("Starting weblens in development mode")
-	} else {
+
+		metricsServer := http.Server{
+			Addr:     "localhost:2112",
+			ErrorLog: log.ErrorCatcher,
+			Handler:  promhttp.Handler(),
+		}
+		go metricsServer.ListenAndServe()
 	}
+
 	gin.SetMode(gin.ReleaseMode)
 
 	sw.Lap()
 
 	/* Database connection */
-	db := connectToMongo(internal.GetMongoURI(), mongoName)
+	db := database.ConnectToMongo(internal.GetMongoURI(), mongoName)
 	sw.Lap("Connect to Mongo")
 
-	/* Access Service */
-	accessService := service.NewAccessService(db.Collection("apiKeys"))
-	err := accessService.Init()
-	if err != nil {
-		panic(err)
-	}
-	comm.AccessService = accessService
-	sw.Lap("Init access service")
-
 	/* Instance Service */
-	instanceService := service.NewInstanceService(accessService, db.Collection("servers"))
-	err = instanceService.Init()
+	instanceService := service.NewInstanceService(db.Collection("servers"))
+	err := instanceService.Init()
 	if err != nil {
 		panic(err)
 	}
@@ -144,7 +146,7 @@ func startup(mongoName string) {
 	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
 	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
 	workerPool.RegisterJob(models.MoveFileTask, jobs.MoveFile)
-	workerPool.RegisterJob(models.WriteFileTask, jobs.HandleFileUploads)
+	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
 	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
 	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
 	workerPool.RegisterJob(models.BackupTask, backup.DoBackup)
@@ -189,35 +191,65 @@ func startup(mongoName string) {
 	if err != nil {
 		panic(err)
 	}
+	sw.Lap("Init file trees")
 
 	fileService, err := service.NewFileService(
-		mediaFileTree, cachesTree, userService, accessService,
+		mediaFileTree, cachesTree, userService, nil, nil,
 		db.Collection("trash"),
 	)
 	if err != nil {
 		panic(err)
 	}
 	comm.FileService = fileService
-	sw.Lap("Init file tree service")
-
-	/* Client Manager */
-	clientService := comm.NewClientManager(fileService, workerPool)
-	comm.ClientService = clientService
-	sw.Lap("Init client service")
+	sw.Lap("Init file service")
 
 	/* Media type Service */
-	mediaTypeServ := models.NewTypeService()
+	// Only from config file, for now
+	typeJson, err := os.Open(filepath.Join(internal.GetConfigDir(), "mediaType.json"))
+	if err != nil {
+		panic(err)
+	}
+	defer func(typeJson *os.File) {
+		err := typeJson.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(typeJson)
+
+	typesBytes, err := io.ReadAll(typeJson)
+	marshMap := map[string]models.MediaType{}
+	err = json.Unmarshal(typesBytes, &marshMap)
+	if err != nil {
+		panic(err)
+	}
+	mediaTypeServ := models.NewTypeService(marshMap)
 	/* Media Service */
-	mediaService := service.NewMediaService(fileService, nil, mediaTypeServ, db.Collection("media"))
-	err = mediaService.Init()
+	mediaService, err := service.NewMediaService(fileService, mediaTypeServ, db.Collection("media"))
 	if err != nil {
 		panic(err)
 	}
 	comm.MediaService = mediaService
 	sw.Lap("Init media service")
 
+	/* Access Service */
+	accessService := service.NewAccessService(fileService, db.Collection("apiKeys"))
+	err = accessService.Init()
+	if err != nil {
+		panic(err)
+	}
+	comm.AccessService = accessService
+	sw.Lap("Init access service")
+
+	fileService.SetAccessService(accessService)
+	fileService.SetMediaService(mediaService)
+
+	/* Client Manager */
+	clientService := comm.NewClientManager(fileService, workerPool)
+	comm.ClientService = clientService
+	sw.Lap("Init client service")
+
 	/* Album Service */
-	albumService := service.NewAlbumService(db.Collection("albums"), mediaService)
+	albumService := service.NewAlbumService(db.Collection("albums"), mediaService, shareService)
 	err = albumService.Init()
 	if err != nil {
 		panic(err)
@@ -244,36 +276,6 @@ func startup(mongoName string) {
 	)
 
 	instanceService.RemoveLoading("all")
-}
-
-const maxRetries = 5
-
-func connectToMongo(mongoUri, mongoDbName string) *mongo.Database {
-	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second)
-	var err error
-	mongoc, err := mongo.Connect(context.Background(), clientOptions)
-	if err != nil {
-		panic(err)
-	}
-
-	retries := 0
-	for retries < maxRetries {
-		err = mongoc.Ping(context.Background(), nil)
-		if err == nil {
-			break
-		}
-		log.Warning.Printf("Failed to connect to mongo, trying %d more time(s)", maxRetries-retries)
-		time.Sleep(time.Second * 1)
-		retries++
-	}
-	if err != nil {
-		log.Error.Printf("Failed to connect to database after %d retries", maxRetries)
-		panic(err)
-	}
-
-	log.Debug.Println("Connected to mongo")
-
-	return mongoc.Database(mongoDbName)
 }
 
 func mainRecovery(msg string) {

@@ -9,6 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/gin"
 )
@@ -20,16 +21,22 @@ func getAlbum(ctx *gin.Context) {
 		return
 	}
 
-	album := AlbumService.Get(models.AlbumId(ctx.Param("albumId")))
-	if album == nil {
-		ctx.Status(http.StatusNotFound)
+	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
+
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
 		return
 	}
 
-	if album.GetOwner() != u.GetUsername() && !slices.Contains(
-		album.GetSharedWith(), u.GetUsername(),
-	) {
-		ctx.Status(http.StatusNotFound)
+	album := AlbumService.Get(models.AlbumId(ctx.Param("albumId")))
+	if album == nil {
+		ctx.JSON(http.StatusNotFound, werror.ErrNoAlbum)
+		return
+	}
+
+	if !AccessService.CanUserAccessAlbum(u, album, sh) {
+		ctx.JSON(http.StatusNotFound, werror.ErrNoAlbum)
 		return
 	}
 
@@ -46,7 +53,6 @@ func getAlbum(ctx *gin.Context) {
 		medias = append(medias, media)
 	}
 
-	log.Debug.Println(medias)
 	ctx.JSON(http.StatusOK, gin.H{"albumMeta": album, "medias": medias})
 }
 
@@ -57,8 +63,14 @@ func getAlbums(ctx *gin.Context) {
 		return
 	}
 
-	albums := AlbumService.GetAllByUser(user)
-	includeShared := ctx.Query("includeShared")
+	albums, err := AlbumService.GetAllByUser(user)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	// includeShared := ctx.Query("includeShared")
 
 	filterString := ctx.Query("filter")
 	var filter []string
@@ -70,23 +82,23 @@ func getAlbums(ctx *gin.Context) {
 			return
 		}
 	}
-	var e bool
-	albums = internal.Filter(
-		albums, func(a *models.Album) bool {
-			if includeShared == "false" && a.GetOwner() != user.GetUsername() {
-				return false
-			}
-			if len(filter) != 0 {
-				filter, _, e = internal.YoinkFunc(
-					filter, func(s string) bool {
-						return s == a.GetName()
-					},
-				)
-				return e
-			}
-			return true
-		},
-	)
+	// var e bool
+	// albums = internal.Filter(
+	// 	albums, func(a *models.Album) bool {
+	// 		if includeShared == "false" && a.GetOwner() != user.GetUsername() {
+	// 			return false
+	// 		}
+	// 		if len(filter) != 0 {
+	// 			filter, _, e = internal.YoinkFunc(
+	// 				filter, func(s string) bool {
+	// 					return s == a.GetName()
+	// 				},
+	// 			)
+	// 			return e
+	// 		}
+	// 		return true
+	// 	},
+	// )
 
 	ctx.JSON(http.StatusOK, gin.H{"albums": albums})
 }
@@ -114,6 +126,13 @@ func createAlbum(ctx *gin.Context) {
 
 func updateAlbum(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
 	albumId := models.AlbumId(ctx.Param("albumId"))
 	a := AlbumService.Get(albumId)
 	if a == nil {
@@ -217,7 +236,7 @@ func updateAlbum(ctx *gin.Context) {
 	}
 
 	if update.NewName != "" {
-		err = a.Rename(update.NewName)
+		err := AlbumService.RenameAlbum(a, update.NewName)
 		if err != nil {
 			log.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album name"})
@@ -226,7 +245,13 @@ func updateAlbum(ctx *gin.Context) {
 	}
 
 	if len(update.RemoveUsers) != 0 {
-		err = a.RemoveUsers(update.RemoveUsers...)
+		var users []*models.User
+		for _, username := range update.RemoveUsers {
+			users = append(users, UserService.Get(username))
+		}
+
+		err = ShareService.RemoveUsers(sh, users)
+
 		if err != nil {
 			log.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
@@ -235,13 +260,12 @@ func updateAlbum(ctx *gin.Context) {
 	}
 
 	if len(update.Users) != 0 {
-		users := internal.Map(
-			update.Users, func(u models.Username) *models.User {
-				return UserService.Get(u)
-			},
-		)
+		var users []*models.User
+		for _, username := range update.RemoveUsers {
+			users = append(users, UserService.Get(username))
+		}
 
-		err = AlbumService.AddUsersToAlbum(a, users...)
+		err = ShareService.AddUsers(sh, users)
 		if err != nil {
 			log.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share user(s)"})
@@ -254,8 +278,15 @@ func updateAlbum(ctx *gin.Context) {
 
 func deleteAlbum(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
 	if user == nil {
-		ctx.Status(http.StatusNotFound)
+		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
@@ -264,14 +295,14 @@ func deleteAlbum(ctx *gin.Context) {
 	a := AlbumService.Get(albumId)
 
 	// err or user does not have access to this album, claim not found
-	if a == nil || !AccessService.CanUserAccessAlbum(user, a) {
+	if a == nil || !AccessService.CanUserAccessAlbum(user, a, sh) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
 
 	// If the user is not the owner, then unshare them from the album
 	if a.GetOwner() != user.GetUsername() {
-		err := a.RemoveUsers([]models.Username{user.GetUsername()}...)
+		err = ShareService.RemoveUsers(sh, []*models.User{user})
 		if err != nil {
 			log.ErrTrace(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
@@ -281,7 +312,7 @@ func deleteAlbum(ctx *gin.Context) {
 		return
 	}
 
-	err := AlbumService.Del(albumId)
+	err = AlbumService.Del(albumId)
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -292,6 +323,13 @@ func deleteAlbum(ctx *gin.Context) {
 
 func unshareMeAlbum(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
 	albumId := models.AlbumId(ctx.Param("albumId"))
 	a := AlbumService.Get(albumId)
 	if a == nil {
@@ -299,12 +337,12 @@ func unshareMeAlbum(ctx *gin.Context) {
 		return
 	}
 
-	if !AccessService.CanUserAccessAlbum(user, a) {
+	if !AccessService.CanUserAccessAlbum(user, a, sh) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	err := a.RemoveUsers(user.GetUsername())
+	err = ShareService.RemoveUsers(sh, []*models.User{user})
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)

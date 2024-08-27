@@ -5,12 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 	"maps"
 	"math"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,61 +24,6 @@ import (
 	"github.com/ethrousseau/weblens/task"
 	"github.com/saracen/fastzip"
 )
-
-func ScanFile(t *task.Task) {
-	meta := t.GetMeta().(models.ScanMeta)
-
-	ext := filepath.Ext(meta.File.Filename())
-	if !meta.MediaService.GetMediaTypes().ParseExtension(ext).Displayable {
-		t.ErrorAndExit(werror.ErrNonDisplayable)
-	}
-
-	contentId := models.ContentId(meta.File.GetContentId())
-	if contentId == "" {
-		t.ErrorAndExit(fmt.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath()))
-	}
-
-	media := models.NewMedia(contentId)
-	if slices.ContainsFunc(
-		media.GetFiles(), func(fId fileTree.FileId) bool {
-			return fId == meta.File.ID()
-		},
-	) {
-		t.Success("Media already imported")
-	}
-
-	t.ExitIfSignaled()
-
-	if meta.PartialMedia == nil {
-		meta.PartialMedia = &models.Media{}
-	}
-
-	meta.PartialMedia.ContentId = models.ContentId(meta.File.GetContentId())
-	meta.PartialMedia.FileIds = []fileTree.FileId{meta.File.ID()}
-	meta.PartialMedia.Owner = meta.FileService.GetFileOwner(meta.File).GetUsername()
-
-	err := meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
-	if err != nil {
-		t.ErrorAndExit(err)
-		return
-	}
-
-	t.ExitIfSignaled()
-
-	err = meta.MediaService.Add(meta.PartialMedia)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-
-	meta.Caster.PushFileUpdate(meta.File)
-	if t.GetTaskPool().IsGlobal() {
-		meta.Caster.PushTaskUpdate(t, comm.TaskCompleteEvent, getScanResult(t))
-	} else {
-		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), comm.SubTaskCompleteEvent, getScanResult(t))
-	}
-
-	t.Success()
-}
 
 func getScanResult(t *task.Task) task.TaskResult {
 	var tp *task.TaskPool
@@ -159,7 +102,7 @@ func CreateZip(t *task.Task) {
 		zipName = zipName + ".zip"
 	}
 
-	zipFile, err := zipMeta.FileService.NewZip(zipName, zipMeta.Owner)
+	zipFile, err := zipMeta.FileService.NewZip(zipName, zipMeta.Requester)
 	if err != nil && strings.Contains(err.Error(), "file already exists") {
 		err = nil
 		zipExists = true
@@ -352,7 +295,7 @@ func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 // everything *after* the client has had its data read into memory, this is the "bottom half"
 // of the upload
 func HandleFileUploads(t *task.Task) {
-	meta := t.GetMeta().(models.WriteFileMeta)
+	meta := t.GetMeta().(models.UploadFilesMeta)
 
 	t.ExitIfSignaled()
 
@@ -501,6 +444,8 @@ WriterLoop:
 	// and allow these scans to take place independently
 	newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
 	for _, tl := range topLevels {
+		media := meta.MediaService.Get(models.ContentId(tl.GetContentId()))
+		meta.Caster.PushFileUpdate(tl, media)
 		if tl.IsDir() {
 			// err = t.taskPool.workerPool.fileTree.ResizeDown(tl, t.caster)
 			// if err != nil {
@@ -514,7 +459,7 @@ WriterLoop:
 			if err != nil {
 				t.ErrorAndExit(err)
 			}
-			meta.Caster.PushFileUpdate(tl)
+
 			scanMeta := models.ScanMeta{
 				File:         tl,
 				FileService:  meta.FileService,

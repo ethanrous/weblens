@@ -19,14 +19,18 @@ type AlbumServiceImpl struct {
 	albumsMap map[models.AlbumId]*models.Album
 
 	mediaService *MediaServiceImpl
+	shareService models.ShareService
 	collection   *mongo.Collection
 }
 
-func NewAlbumService(col *mongo.Collection, mediaService *MediaServiceImpl) *AlbumServiceImpl {
+func NewAlbumService(
+	col *mongo.Collection, mediaService *MediaServiceImpl, shareService models.ShareService,
+) *AlbumServiceImpl {
 	return &AlbumServiceImpl{
 		albumsMap: make(map[models.AlbumId]*models.Album),
 
 		mediaService: mediaService,
+		shareService: shareService,
 		collection:   col,
 	}
 }
@@ -50,15 +54,24 @@ func (as *AlbumServiceImpl) Init() error {
 	return nil
 }
 
-func (as *AlbumServiceImpl) GetAllByUser(u *models.User) []*models.Album {
+func (as *AlbumServiceImpl) GetAllByUser(u *models.User) ([]*models.Album, error) {
 	albs := slices.Collect(maps.Values(as.albumsMap))
 	albs = internal.Filter(
 		albs, func(t *models.Album) bool {
-			return t.GetOwner() == u.GetUsername() || slices.Contains(t.GetSharedWith(), u.GetUsername())
+			return t.GetOwner() == u.GetUsername()
 		},
 	)
 
-	return albs
+	albShares, err := as.shareService.GetAlbumSharesWithUser(u)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, share := range albShares {
+		albs = append(albs, as.Get(share.AlbumId))
+	}
+
+	return albs, nil
 }
 
 func (as *AlbumServiceImpl) Size() int {
@@ -93,6 +106,18 @@ func (as *AlbumServiceImpl) Del(aId models.AlbumId) error {
 	} else {
 		return werror.ErrNoAlbum
 	}
+}
+
+func (as *AlbumServiceImpl) RenameAlbum(album *models.Album, newName string) error {
+	filter := bson.M{"_id": album.ID()}
+	update := bson.M{"name": bson.M{"$set": newName}}
+	_, err := as.collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	as.albumsMap[album.ID()] = album
+	return nil
 }
 
 func (as *AlbumServiceImpl) RemoveMediaFromAny(mediaId models.ContentId) error {
@@ -175,25 +200,4 @@ func (as *AlbumServiceImpl) AddMediaToAlbum(album *models.Album, media ...*model
 
 func (as *AlbumServiceImpl) RemoveMediaFromAlbum(album *models.Album, mediaIds ...models.ContentId) error {
 	return werror.NotImplemented("RemoveMediaFromAlbum")
-}
-
-func (as *AlbumServiceImpl) AddUsersToAlbum(album *models.Album, us ...*models.User) error {
-	werror.NotImplemented("AddUsersToAlbum, this should be done in the access service now")
-	// filter := bson.M{"_id": album.ID()}
-	// update := bson.M{"$addToSet": bson.M{}}
-	// as.collection.UpdateOne()
-	// err := types.SERV.StoreService.AddUsersToAlbum(a.ID(), us)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// a.SharedWith = internal.AddToSet(
-	// 	a.SharedWith, internal.Map(
-	// 		us, func(u *User) Username {
-	// 			return u.GetUsername()
-	// 		},
-	// 	)...,
-	// )
-
-	return nil
 }

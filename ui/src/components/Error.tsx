@@ -2,6 +2,7 @@ import { Text } from '@mantine/core'
 import { Component } from 'react'
 import WeblensButton from './WeblensButton'
 import { useNavigate } from 'react-router-dom'
+import { useWebsocketStore } from '../api/Websocket'
 
 class ErrorBoundary extends Component<
     { children; fallback: (p) => JSX.Element },
@@ -23,17 +24,16 @@ class ErrorBoundary extends Component<
     }
 
     componentDidCatch(error, info) {
-        // Example "componentStack":
-        //   in ComponentThatThrows (created by App)
-        //   in ErrorBoundary (created by App)
-        //   in div (created by App)
-        //   in App
+        const wsSend = useWebsocketStore.getState().wsSend
+        console.log(wsSend)
+        if (wsSend != null) {
+            wsSend(error)
+        }
         console.error(error, info.componentStack)
     }
 
     render() {
         if (this.state.hasError) {
-            // You can render any custom fallback UI
             return (
                 <ErrorDisplay
                     clearError={() => {

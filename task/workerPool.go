@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strconv"
@@ -10,10 +11,10 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/metrics"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 type TaskHandler func(*Task)
@@ -127,7 +128,7 @@ func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
 	return nil
 }
 
-/* RegisterJob adds a template for a repeatable task that can be dispatched in the future */
+/* RegisterJob adds a template for a repeatable job that can be called upon later in the program */
 func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler) {
 	wp.taskMu.Lock()
 	defer wp.taskMu.Unlock()
@@ -139,8 +140,12 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		return nil, errors.New("job name does not match task metadata")
 	}
 
+	if err := meta.Verify(); err != nil {
+		return nil, err
+	}
+
 	if wp.registeredJobs[jobName] == nil {
-		return nil, errors.Errorf("trying to dispatch non-registered job: %s", jobName)
+		return nil, werror.Errorf("trying to dispatch non-registered job: %s", jobName)
 	}
 
 	if pool == nil {
@@ -200,7 +205,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		// We can call .ClearAndRecompute() on the task and it will queue it
 		// again, but it cannot be transferred
 		if t.taskPool != pool {
-			return nil, errors.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
+			return nil, werror.Errorf("Attempted to re-queue a [%s] task that is already in another queue", t.jobName)
 		}
 		pool.addTask(t)
 		return t, nil
@@ -411,6 +416,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
+					metrics.BusyWorkerGuage.Inc()
 					t.SwLap("Task start")
 					// wlog.Debug.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
 					// start := time.Now()
@@ -424,6 +430,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Dec tasks being processed
 					wp.busyCount.Add(-1)
+					metrics.BusyWorkerGuage.Dec()
 
 					// Wake any waiters on this task
 					t.waitMu.Unlock()
@@ -557,7 +564,6 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 		id:           TaskId(tpId.String()),
 		tasks:        map[TaskId]*Task{},
 		workerPool:     wp,
-		erroredTasks: make(chan *Task, 1000),
 		createdAt:      time.Now(),
 	}
 
@@ -616,7 +622,7 @@ func (wp *WorkerPool) bufferDrainer() {
 		time.Sleep(time.Second * 10)
 	}
 
-	log.ErrTrace(errors.New("buffer drainer exited"))
+	log.ErrTrace(werror.Errorf("buffer drainer exited"))
 }
 
 func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
@@ -626,15 +632,11 @@ func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
 }
 
 type TaskService interface {
-	Run()
-
 	RegisterJob(jobName string, fn TaskHandler)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
 
 	GetTask(taskId TaskId) *Task
 	GetTaskPool(TaskId) *TaskPool
-	GetTaskPoolByJobName(jobName string) *TaskPool
 
 	DispatchJob(jobName string, meta TaskMetadata, pool *TaskPool) (*Task, error)
-	AddHit(time time.Time, target *Task)
 }

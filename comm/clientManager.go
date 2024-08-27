@@ -1,6 +1,7 @@
 package comm
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -19,7 +20,6 @@ import (
 	"github.com/ethrousseau/weblens/task"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 var _ ClientManager = (*clientManager)(nil)
@@ -74,7 +74,7 @@ func (cm *clientManager) ClientConnect(conn *websocket.Conn, user *models.User) 
 	cm.webClientMap[user.GetUsername()] = &newClient
 	cm.clientMu.Unlock()
 
-	newClient.debug("Connected")
+	log.Debug.Printf("Websocket client [%s] connected", user.GetUsername())
 	return &newClient
 }
 
@@ -197,6 +197,14 @@ func (cm *clientManager) Subscribe(
 ) {
 	var sub Subscription
 
+	// *HACK* Ensure that subscribe requests are processed after unsubscribe requests
+	// that are sent at the same time from the client. A lower sleep value may be able
+	// to achieve the same effect, but this works for now...
+	time.Sleep(time.Millisecond * 100)
+
+	c.SubLock()
+	defer c.SubUnlock()
+
 	switch action {
 	case FolderSubscribe:
 		{
@@ -218,19 +226,24 @@ func (cm *clientManager) Subscribe(
 
 			folder, err = cm.fileService.GetFileSafe(fileId, c.GetUser(), fileShare)
 			if err != nil {
-				log.ShowErr(err)
-				c.Error(errors.Errorf("failed to find folder with id [%s] to subscribe to", fileId))
+				safe, _ := werror.TrySafeErr(err)
+				c.Error(safe)
+				// c.Error(werror.Errorf("failed to find folder with id [%s] to subscribe to", fileId))
 				return
 			}
 
 			sub = Subscription{Type: FolderSubscribe, Key: key}
-			c.PushFileUpdate(folder)
+			c.PushFileUpdate(folder, nil)
 
+			for _, t := range cm.fileService.GetTasks(folder) {
+				c.SubUnlock()
+				_, _, err = cm.Subscribe(c, SubId(t.TaskId()), TaskSubscribe, nil)
+				c.SubLock()
+				if err != nil {
+					return
+				}
+			}
 			// TODO
-			// Subscribe to task on this folder
-			// if t := folder.GetTask(); t != nil {
-			// 	c.Subscribe(SubId(t.TaskId()), TaskSubscribe, acc)
-			// }
 		}
 	case TaskSubscribe:
 		{
@@ -244,14 +257,14 @@ func (cm *clientManager) Subscribe(
 			complete, _ = t.Status()
 			results = t.GetResults()
 
-			c.mu.Lock()
+			c.updateMu.Lock()
 			if complete || slices.IndexFunc(
 				c.subscriptions, func(s Subscription) bool { return s.Key == key },
 			) != -1 {
-				c.mu.Unlock()
+				c.updateMu.Unlock()
 				return
 			}
-			c.mu.Unlock()
+			c.updateMu.Unlock()
 
 			sub = Subscription{Type: TaskSubscribe, Key: key}
 
@@ -261,10 +274,10 @@ func (cm *clientManager) Subscribe(
 		{
 			pool := cm.taskService.GetTaskPool(task.TaskId(key))
 			if pool == nil {
-				c.Error(werror.New(fmt.Sprintf("Could not find pool with id %s", key)))
+				c.Error(errors.New(fmt.Sprintf("Could not find pool with id %s", key)))
 				return
 			} else if pool.IsGlobal() {
-				c.Error(werror.New("Trying to subscribe to global pool"))
+				c.Error(errors.New("Trying to subscribe to global pool"))
 				return
 			}
 
@@ -291,17 +304,21 @@ func (cm *clientManager) Subscribe(
 			return
 		}
 	}
-	c.debug("Subscribed to", action, key)
 
-	c.mu.Lock()
+	log.Debug.Printf("[%s] subscribed to %s", c.user.GetUsername(), key)
+
+	c.updateMu.Lock()
 	c.subscriptions = append(c.subscriptions, sub)
-	c.mu.Unlock()
+	c.updateMu.Unlock()
 	cm.addSubscription(sub, c)
 
 	return
 }
 
 func (cm *clientManager) Unsubscribe(c *WsClient, key SubId) error {
+	c.SubLock()
+	defer c.SubUnlock()
+
 	var sub Subscription
 	for s := range c.GetSubscriptions() {
 		if s.Key == key {
@@ -313,6 +330,7 @@ func (cm *clientManager) Unsubscribe(c *WsClient, key SubId) error {
 	if sub == (Subscription{}) {
 		return werror.Errorf("Could not find subscription with key [%s]", key)
 	}
+	log.Debug.Printf("Removing [%s]'s subscription to [%s]", c.user.GetUsername(), key)
 
 	return cm.removeSubscription(sub, c, false)
 }
@@ -349,6 +367,7 @@ func (cm *clientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.T
 	subs := cm.GetSubscribers(FolderSubscribe, SubId(folderId))
 
 	for _, s := range subs {
+		log.Debug.Printf("Subscribing user %s on folder sub %s to pool %s", s.user.GetUsername(), folderId, poolId)
 		_, _, err := cm.Subscribe(s, SubId(poolId), PoolSubscribe, nil)
 		if err != nil {
 			log.ShowErr(err)

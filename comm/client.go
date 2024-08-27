@@ -1,7 +1,6 @@
 package comm
 
 import (
-	"errors"
 	"fmt"
 	"iter"
 	"runtime"
@@ -12,6 +11,7 @@ import (
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gorilla/websocket"
@@ -25,7 +25,8 @@ type WsClient struct {
 	Active        bool
 	connId        ClientId
 	conn          *websocket.Conn
-	mu            sync.Mutex
+	updateMu sync.Mutex
+	subsMu   sync.Mutex
 	subscriptions []Subscription
 	user          *models.User
 	remote        *models.Instance
@@ -63,21 +64,8 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 }
 
 func (wsc *WsClient) Error(err error) {
-	var weblensError error
-	ok := errors.As(err, &weblensError)
-
-	var msg WsResponseInfo
-	switch ok {
-	case true:
-		log.ShowErr(err)
-		// wsc.err(err)
-		msg = WsResponseInfo{EventTag: "error", Error: err.Error()}
-	case false:
-		wsc.errTrace(err)
-		msg = WsResponseInfo{EventTag: "error", Error: "Masked unexpected server error"}
-	}
-
-	wsc.send(msg)
+	safe, _ := werror.TrySafeErr(err)
+	wsc.send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string) {
@@ -90,11 +78,11 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string) {
 	wsc.send(msg)
 }
 
-func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
+func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  SubId(updatedFile.ID()),
-		Content:       WsC{"fileInfo": updatedFile},
+		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -103,7 +91,7 @@ func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile) {
 
 func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
 	msg := WsResponseInfo{
-		EventTag:      string(event),
+		EventTag: event,
 		SubscribeKey:  SubId(task.TaskId()),
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
@@ -120,7 +108,7 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      string(event),
+		EventTag: event,
 		SubscribeKey:  SubId(pool.ID()),
 		Content:       WsC(result),
 		TaskType:      pool.CreatedInTask().JobName(),
@@ -131,8 +119,8 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 }
 
 func (wsc *WsClient) GetSubscriptions() iter.Seq[Subscription] {
-	wsc.mu.Lock()
-	defer wsc.mu.Unlock()
+	wsc.updateMu.Lock()
+	defer wsc.updateMu.Unlock()
 	return slices.Values(wsc.subscriptions)
 }
 
@@ -140,41 +128,51 @@ func (wsc *WsClient) Raw(msg any) error {
 	return wsc.conn.WriteJSON(msg)
 }
 
+func (wsc *WsClient) SubLock() {
+	wsc.subsMu.Lock()
+}
+
+func (wsc *WsClient) SubUnlock() {
+	wsc.subsMu.Unlock()
+}
+
 func (wsc *WsClient) send(msg WsResponseInfo) {
-	if wsc != nil {
-		wsc.mu.Lock()
-		defer wsc.mu.Unlock()
+	if wsc != nil && wsc.Active {
+		wsc.updateMu.Lock()
+		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
 			wsc.errTrace(err)
 		}
+	} else {
+		log.Error.Println("Trying to send to closed client")
 	}
 }
 
 func (wsc *WsClient) unsubscribe(key SubId) {
-	wsc.mu.Lock()
+	wsc.updateMu.Lock()
 	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
 	if subIndex == -1 {
-		wsc.mu.Unlock()
+		wsc.updateMu.Unlock()
 		return
 	}
 	var subToRemove Subscription
 	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
-	wsc.mu.Unlock()
+	wsc.updateMu.Unlock()
 
-	wsc.debug("Unsubscribed from", subToRemove.Type, subToRemove.Key)
+	log.Debug.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
 }
 
 func (wsc *WsClient) disconnect() {
 	wsc.Active = false
 
-	wsc.mu.Lock()
+	wsc.updateMu.Lock()
 	err := wsc.conn.Close()
 	if err != nil {
 		log.ShowErr(err)
 		return
 	}
-	wsc.mu.Unlock()
+	wsc.updateMu.Unlock()
 	wsc.log("Disconnected")
 }
 
@@ -202,10 +200,6 @@ func (wsc *WsClient) errTrace(msg ...any) {
 	_, file, line, _ := runtime.Caller(2)
 	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
 	log.WsError.Printf(wsc.clientMsgFormat(msg...), string(debug.Stack()))
-}
-
-func (wsc *WsClient) debug(msg ...any) {
-	log.WsDebug.Printf(wsc.clientMsgFormat(msg...))
 }
 
 type ClientManager interface {
@@ -240,6 +234,9 @@ type Client interface {
 	GetSubscriptions() iter.Seq[Subscription]
 	GetClientId() ClientId
 	GetShortId() ClientId
+
+	SubLock()
+	SubUnlock()
 
 	GetUser() *models.User
 	GetRemote() *models.Instance

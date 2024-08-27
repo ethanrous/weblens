@@ -22,14 +22,10 @@ var Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.
 var ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001B[0m", log.LstdFlags)
 var WsError = log.New(os.Stdout, "\u001b[31m[WS ERROR] \u001B[0m", log.LstdFlags)
 
-var Debug *log.Logger = log.New(io.Discard, "", 0)
-var WsDebug *log.Logger = log.New(io.Discard, "", 0)
+var Debug = log.New(io.Discard, "", 0)
 
 // Debug writes logs in the color cyan with "DEBUG: " as prefix
 func DoDebug() {
 	prefix := fmt.Sprintf("\u001b[36m[%s] \u001B[0m", "DEBUG")
 	Debug = log.New(os.Stdout, prefix, log.LstdFlags|log.Lshortfile)
-
-	prefix = fmt.Sprintf("\u001b[36m[%s] \u001B[0m", "WS_DEBUG")
-	WsDebug = log.New(os.Stdout, prefix, log.LstdFlags|log.Lshortfile)
 }

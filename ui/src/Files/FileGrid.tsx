@@ -29,7 +29,7 @@ function SquareWrapper({ data, rowIndex, columnIndex, style }) {
     )
 }
 
-function FileScroller({ files }: { files: WeblensFile[] }) {
+function FileGrid({ files }: { files: WeblensFile[] }) {
     // TODO - scroll to index
 
     // const numCols = useFileBrowserStore((state) => state.numCols)
@@ -84,4 +84,4 @@ function FileScroller({ files }: { files: WeblensFile[] }) {
     )
 }
 
-export default FileScroller
+export default FileGrid

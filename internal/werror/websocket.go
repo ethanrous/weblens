@@ -1,3 +1,5 @@
 package werror
 
-var ErrSubscriptionNotFound = New("subscription not found")
+import "errors"
+
+var ErrSubscriptionNotFound = errors.New("subscription not found")

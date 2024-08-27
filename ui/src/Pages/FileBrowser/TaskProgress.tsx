@@ -349,10 +349,9 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                     </p>
                 </div>
             </div>
-            <div className="relative h-6 shrink-0 w-full m-3">
+            <div className="relative h-6 shrink-0 w-full m-2">
                 <WeblensProgress
                     value={prog.getProgress()}
-                    // complete={prog.stage === TaskStage.Complete}
                     loading={prog.stage === TaskStage.Queued}
                     failure={
                         prog.stage === TaskStage.Failure ||
@@ -361,23 +360,19 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                 />
             </div>
             {prog.stage !== TaskStage.Complete && (
-                <div className="flex flex-row w-full justify-between h-max gap-3">
-                    <Text
-                        size="10px"
-                        truncate="end"
-                        style={{ userSelect: 'none' }}
-                    >
+                <div className="flex flex-row w-full justify-between h-max gap-3 m-2">
+                    <p className="text-sm select-none text-nowrap truncate">
                         {prog.workingOn}
-                    </Text>
+                    </p>
                     {totalNum > 0 && (
-                        <Text size="10px" style={{ userSelect: 'none' }}>
+                        <p className="text-sm select-none">
                             {prog.tasksComplete}/{prog.tasksTotal}
-                        </Text>
+                        </p>
                     )}
                 </div>
             )}
 
-            <div className="flex flex-row w-full justify-between h-max gap-3">
+            <div className="flex flex-row w-full justify-between h-max gap-3 mt-2">
                 {prog.stage === TaskStage.Complete && (
                     <Text
                         size="10px"

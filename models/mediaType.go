@@ -2,11 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"io"
-	"os"
-	"path/filepath"
-
-	"github.com/ethrousseau/weblens/internal"
 )
 
 type MediaType struct {
@@ -26,30 +21,11 @@ type typeService struct {
 	extMap  map[string]MediaType
 }
 
-func NewTypeService() MediaTypeService {
+func NewTypeService(marshMap map[string]MediaType) MediaTypeService {
 
 	ts := &typeService{
 		mimeMap: make(map[string]MediaType),
 		extMap:  make(map[string]MediaType),
-	}
-
-	// Only from config file, for now
-	typeJson, err := os.Open(filepath.Join(internal.GetConfigDir(), "mediaType.json"))
-	if err != nil {
-		panic(err)
-	}
-	defer func(typeJson *os.File) {
-		err := typeJson.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(typeJson)
-
-	typesBytes, err := io.ReadAll(typeJson)
-	marshMap := map[string]MediaType{}
-	err = json.Unmarshal(typesBytes, &marshMap)
-	if err != nil {
-		panic(err)
 	}
 
 	for k, t := range marshMap {

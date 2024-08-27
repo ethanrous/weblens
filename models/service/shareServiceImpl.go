@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
@@ -42,7 +43,7 @@ func (ss *ShareServiceImpl) Init() error {
 	ss.repo = make(map[models.ShareId]models.Share)
 	for _, sh := range target {
 		if len(sh.GetAccessors()) == 0 && !sh.IsPublic() && (sh.GetShareType() != models.SharedFile || !sh.IsWormhole()) {
-			log.Debug.Println("Removing share on init...")
+			log.Debug.Printf("*NOT* Removing %sShare [%s] on init...", sh.GetShareType(), sh.ShareId)
 			// err = db.DeleteShare(sh.GetShareId())
 			if err != nil {
 				return err
@@ -50,6 +51,10 @@ func (ss *ShareServiceImpl) Init() error {
 			continue
 		}
 
+		if sh.Updated.Unix() <= 0 {
+			sh.UpdatedNow()
+			ss.writeUpdateTime(sh)
+		}
 		ss.repo[sh.GetShareId()] = sh
 	}
 
@@ -106,18 +111,34 @@ func (ss *ShareServiceImpl) AddUsers(share models.Share, newUsers []*models.User
 	)
 
 	filter := bson.M{"_id": share.GetShareId()}
-	update := bson.M{"$addToSet": bson.M{"accessors": bson.M{"$each": usernames}}}
+	update := bson.M{
+		"$addToSet": bson.M{"accessors": bson.M{"$each": usernames}}, "$set": bson.M{"updated": time.Now()},
+	}
 	_, err := ss.col.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
 
-	if fileShare, ok := share.(*models.FileShare); ok {
-		fileShare.AddUsers(usernames)
-	} else if _, ok := share.(*models.AlbumShare); ok {
-		// TODO
-		log.Error.Println("AlbumShare add users not impl")
+	share.AddUsers(usernames)
+	share.UpdatedNow()
+	return nil
+}
+
+func (ss *ShareServiceImpl) RemoveUsers(share models.Share, removeUsers []*models.User) error {
+	usernames := internal.Map(
+		removeUsers, func(u *models.User) models.Username {
+			return u.GetUsername()
+		},
+	)
+
+	filter := bson.M{"_id": share.GetShareId()}
+	update := bson.M{"$pull": bson.M{"accessors": bson.M{"$each": usernames}}, "$set": bson.M{"updated": time.Now()}}
+	_, err := ss.col.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
 	}
+
+	share.RemoveUsers(usernames)
 	return nil
 }
 
@@ -137,21 +158,26 @@ func (ss *ShareServiceImpl) GetFileSharesWithUser(u *models.User) ([]*models.Fil
 	return target, nil
 }
 
-func (ss *ShareServiceImpl) UpdateShareItem(shareId models.ShareId, newItemId string) error {
-	share := ss.Get(shareId)
-	share.SetItemId(newItemId)
-
-	_, err := ss.col.UpdateOne(context.Background(), bson.M{"_id": shareId}, bson.M{"$set": share})
+func (ss *ShareServiceImpl) GetAlbumSharesWithUser(u *models.User) ([]*models.AlbumShare, error) {
+	filter := bson.M{"accessors": u.GetUsername(), "shareType": "album"}
+	ret, err := ss.col.Find(context.Background(), filter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	var target []*models.AlbumShare
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
 }
 
 func (ss *ShareServiceImpl) EnableShare(share models.Share, enable bool) error {
 	_, err := ss.col.UpdateOne(
-		context.Background(), bson.M{"_id": share.GetShareId()}, bson.M{"$set": bson.M{"enable": enable}},
+		context.Background(), bson.M{"_id": share.GetShareId()},
+		bson.M{"$set": bson.M{"enable": enable, "updated": time.Now()}},
 	)
 	if err != nil {
 		return err
@@ -182,4 +208,17 @@ func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFile) (*models.FileS
 	}
 
 	return sh.(*models.FileShare), nil
+}
+
+func (ss *ShareServiceImpl) writeUpdateTime(sh models.Share) error {
+	_, err := ss.col.UpdateOne(
+		context.Background(), bson.M{"_id": sh.GetShareId()},
+		bson.M{"$set": bson.M{"updated": sh.LastUpdated()}},
+	)
+
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	return nil
 }

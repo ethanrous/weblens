@@ -34,7 +34,7 @@ import {
 } from '../../api/FileBrowserApi'
 import { useSubscribe } from '../../api/Websocket'
 import Crumbs from '../../components/Crumbs'
-import FilesGrid from '../../Files/FileScroller'
+import FileGrid from '../../Files/FileGrid'
 import HeaderBar from '../../components/HeaderBar'
 import { useResize, useResizeDrag, useWindowSize } from '../../components/hooks'
 import NotFound from '../../components/NotFound'
@@ -788,7 +788,7 @@ function DirView({
     } else if (viewOpts.dirViewMode === 'List') {
         fileDisplay = <FileRows files={filesList} />
     } else if (viewOpts.dirViewMode === 'Grid') {
-        fileDisplay = <FilesGrid files={filesList} />
+        fileDisplay = <FileGrid files={filesList} />
     } else {
         console.error('Could not find valid directory view from state')
         return null

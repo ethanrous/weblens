@@ -35,6 +35,7 @@ export interface UploadStatusStateT {
         speed: number
     ) => void
     chunkComplete: (key: string, chunkIndex: number) => void
+    setError: (key: string, error: string) => void
     clearUploads: () => void
 }
 
@@ -54,6 +55,8 @@ class SingleUpload {
 
     chunks: chunkT[]
     prevBytes: number
+
+    error: string
 
     constructor(
         key: string,
@@ -168,6 +171,17 @@ class SingleUpload {
         }
         this.speed.push(speed)
     }
+
+    setError(error: string) {
+        if (this.error) {
+            console.error(
+                'Trying to override upload error with another:',
+                error
+            )
+            return
+        }
+        this.error = error
+    }
 }
 
 function UploadCard({
@@ -202,6 +216,7 @@ function UploadCard({
     }
 
     const [speedStr, speedUnits] = humanFileSize(speed)
+    // console.log(uploadMetadata, uploadMetadata.error)
 
     return (
         <div className="flex w-full flex-col p-2">
@@ -235,7 +250,12 @@ function UploadCard({
                 )}
             </div>
 
-            {!uploadMetadata.complete && <WeblensProgress value={prog} />}
+            {!uploadMetadata.complete && (
+                <WeblensProgress
+                    value={prog}
+                    failure={Boolean(uploadMetadata.error)}
+                />
+            )}
         </div>
     )
 }
@@ -319,7 +339,8 @@ const UploadStatus = () => {
 }
 
 const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
-    set
+    set,
+    get
 ) => ({
     uploads: new Map<string, SingleUpload>(),
 
@@ -409,6 +430,16 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
 
             return { uploads: new Map(state.uploads) }
         })
+    },
+
+    setError: (key: string, error: string) => {
+        const upload = get().uploads.get(key)
+        if (!upload) {
+            console.error('Could not find upload with key', key)
+            return
+        }
+        upload.setError(error)
+        return { uploads: new Map(get().uploads) }
     },
 
     clearUploads: () => {

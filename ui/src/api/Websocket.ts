@@ -17,6 +17,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useSessionStore } from '../components/UserInfo'
 import { useMediaStore } from '../Media/MediaStateControl'
 import WeblensMedia from '../Media/Media'
+import { create, StateCreator } from 'zustand'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -28,6 +29,7 @@ export function useWeblensSocket() {
             onOpen: () => {
                 setGivenUp(false)
                 sendMessage(JSON.stringify({ auth: authHeader?.Authorization }))
+                useWebsocketStore.getState().setSender(sendMessage)
             },
             reconnectAttempts: 5,
             reconnectInterval: (last) => {
@@ -211,13 +213,18 @@ function filebrowserWebsocketHandler(
             }
 
             case 'file_updated': {
-                if (msgData.content.fileInfo.mediaData) {
-                    const newM = new WeblensMedia({
-                        contentId: msgData.content.fileInfo.mediaData.contentId,
-                    })
+                if (msgData.content.mediaData) {
+                    const newM = new WeblensMedia(msgData.content.mediaData)
                     useMediaStore.getState().addMedias([newM])
+                    msgData.content.fileInfo.mediaId = newM.Id()
                 }
-                dispatch.updateFile(msgData.content.fileInfo)
+
+                useFileBrowserStore
+                    .getState()
+                    .updateFile(
+                        msgData.content.fileInfo,
+                        useSessionStore.getState().user
+                    )
                 return
             }
 
@@ -406,3 +413,20 @@ function filebrowserWebsocketHandler(
         }
     }
 }
+
+export interface WebsocketControlT {
+    wsSend: (thing) => void
+    setSender: (sender: (thing) => void) => void
+}
+
+const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
+    wsSend: null,
+
+    setSender: (sender: (thing) => void) => {
+        set({
+            wsSend: sender,
+        })
+    },
+})
+
+export const useWebsocketStore = create<WebsocketControlT>()(WebsocketControl)

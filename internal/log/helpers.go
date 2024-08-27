@@ -8,13 +8,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethrousseau/weblens/internal/metrics"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+type StackError interface {
+	Error() string
+	Stack() string
+}
 
 func ErrTrace(err error, extras ...string) {
 	if err != nil {
-		fmter, ok := err.(werror.StackError)
+		fmter, ok := err.(StackError)
 		if ok {
 			ErrorCatcher.Println(fmter.Stack())
 			return
@@ -29,7 +35,7 @@ func ErrTrace(err error, extras ...string) {
 
 func ShowErr(err error, extras ...string) {
 	if err != nil {
-		fmter, ok := err.(werror.StackError)
+		fmter, ok := err.(StackError)
 		if ok {
 			errStr := fmter.Error()
 			if errStr[len(errStr)-1] == '\n' {
@@ -91,9 +97,15 @@ func ApiLogger(isDevMode bool) gin.HandlerFunc {
 			return
 		}
 
-		timeTotal := time.Since(start)
 		remote := c.ClientIP()
 		method := c.Request.Method
+		timeTotal := time.Since(start)
+
+		metrics.RequestsTimer.With(
+			prometheus.Labels{
+				"handler": handler, "method": c.Request.Method,
+			},
+		).Observe(timeTotal.Seconds())
 
 		fmt.Printf(
 			"\u001B[0m[%s][%s][%7s][%s][%s] %s %s\n", start.Format("Jan 02 15:04:05"), remote,

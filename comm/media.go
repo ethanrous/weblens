@@ -64,7 +64,13 @@ func getMediaBatch(ctx *gin.Context) {
 		return
 	}
 
-	ms, err := MediaService.GetFilteredMedia(u, sort, 1, albumFilter, raw, hidden)
+	var mediaFilter []models.ContentId
+	for _, albumId := range albumFilter {
+		a := AlbumService.Get(albumId)
+		mediaFilter = append(mediaFilter, a.GetMedias()...)
+	}
+
+	ms, err := MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden)
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media"})
@@ -109,8 +115,8 @@ func getMediaFullres(ctx *gin.Context) {
 }
 
 func streamVideo(ctx *gin.Context) {
-	u := getUserFromCtx(ctx)
-	sh, err := getFileShareFromCtx(ctx)
+	// u := getUserFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -126,7 +132,8 @@ func streamVideo(ctx *gin.Context) {
 		return
 	}
 
-	streamer, err := MediaService.StreamVideo(m, u, sh)
+	// TODO - figure out how to send auth headers when getting video from client
+	streamer, err := MediaService.StreamVideo(m, UserService.GetRootUser(), sh)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
@@ -178,6 +185,11 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 	m := MediaService.Get(mediaId)
 	if m == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
+		return
+	}
+
+	if m.Owner != u.GetUsername() {
+		ctx.Status(http.StatusNotFound)
 		return
 	}
 

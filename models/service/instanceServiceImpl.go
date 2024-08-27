@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -23,14 +23,14 @@ type InstanceServiceImpl struct {
 	localLoading    map[string]bool
 
 	col           *mongo.Collection
-	accessService models.AccessService
+
 }
 
-func NewInstanceService(accessService models.AccessService, col *mongo.Collection) *InstanceServiceImpl {
+func NewInstanceService(col *mongo.Collection) *InstanceServiceImpl {
 	return &InstanceServiceImpl{
 		instanceMap: make(map[models.InstanceId]*models.Instance),
 		localLoading:  map[string]bool{"all": true},
-		accessService: accessService,
+
 		col:         col,
 	}
 }
@@ -38,13 +38,13 @@ func NewInstanceService(accessService models.AccessService, col *mongo.Collectio
 func (is *InstanceServiceImpl) Init() error {
 	ret, err := is.col.Find(context.Background(), bson.M{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to find instances")
+		return werror.WithStack(err)
 	}
 
 	var servers []*models.Instance
 	err = ret.All(context.Background(), &servers)
 	if err != nil {
-		return errors.Wrap(err, "Failed to decode instances")
+		return werror.WithStack(err)
 	}
 
 	is.instanceMapLock.Lock()
@@ -69,7 +69,7 @@ func (is *InstanceServiceImpl) Init() error {
 
 func (is *InstanceServiceImpl) Add(i *models.Instance) error {
 	if i.ServerId() == "" && !i.IsLocal() {
-		return werror.New("Remote server must have specified id")
+		return errors.New("Remote server must have specified id")
 	} else if i.ServerId() == "" {
 		i.Id = is.GenerateNewId(i.GetName())
 	}
@@ -79,10 +79,10 @@ func (is *InstanceServiceImpl) Add(i *models.Instance) error {
 		return err
 	}
 
-	err = is.accessService.SetKeyUsedBy(i.GetUsingKey(), i)
-	if err != nil {
-		return err
-	}
+	// err = is.accessService.SetKeyUsedBy(i.GetUsingKey(), i)
+	// if err != nil {
+	// 	return err
+	// }
 
 	is.instanceMapLock.Lock()
 	defer is.instanceMapLock.Unlock()

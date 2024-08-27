@@ -5,16 +5,10 @@ import { useMediaStore } from './MediaStateControl'
 import WeblensMedia from './Media'
 import { useSessionStore } from '../components/UserInfo'
 
-export async function FetchData(galleryState: GalleryStateT) {
-    const auth = useSessionStore.getState().auth
-    if (
-        !auth ||
-        auth.Authorization === ''
-        // mediaState.albumsMap.size === 0
-    ) {
-        return
-    }
-
+export async function FetchData(
+    galleryState: GalleryStateT,
+    auth: AuthHeaderT
+) {
     try {
         const url = new URL(`${API_ENDPOINT}/media`)
         url.searchParams.append(

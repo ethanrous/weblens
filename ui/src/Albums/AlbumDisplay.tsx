@@ -38,7 +38,7 @@ function AlbumShareMenu({
     closeShareMenu: () => void
 }) {
     const { user, auth } = useSessionStore()
-    const [users, setUsers] = useState(album.sharedWith)
+    const [users, setUsers] = useState([])
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState([])
 
@@ -77,7 +77,7 @@ function AlbumShareMenu({
                             Icon={IconSearch}
                             value={userSearch}
                             valueCallback={setUserSearch}
-                            onComplete={() => {}}
+                            onComplete={async () => {}}
                         />
                     </div>
 
@@ -119,9 +119,12 @@ function AlbumShareMenu({
                         className="flex flex-col w-full max-h-20 overflow-y-scroll items-center p-1 cursor-default"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {users.length === 0 && (
-                            <p className="select-none text-white">Not Shared</p>
-                        )}
+                        {!users ||
+                            (users.length === 0 && (
+                                <p className="select-none text-white">
+                                    Not Shared
+                                </p>
+                            ))}
                         {users.map((u) => {
                             return (
                                 <WeblensButton
@@ -162,24 +165,25 @@ function AlbumShareMenu({
                             label={'Share'}
                             Left={IconUsersPlus}
                             onClick={async () => {
-                                return ShareAlbum(
-                                    album.id,
-                                    auth,
-                                    users,
-                                    album.sharedWith.filter(
-                                        (u) => !users.includes(u)
-                                    )
-                                )
-                                    .then((r) => {
-                                        if (r.status !== 200) {
-                                            return Promise.reject(
-                                                'Failed to share album'
-                                            )
-                                        }
-                                        setTimeout(() => closeShareMenu(), 1000)
-                                        return true
-                                    })
-                                    .catch(() => false)
+                                console.error('Share ablum not impl')
+                                // return ShareAlbum(
+                                //     album.id,
+                                //     auth,
+                                //     users,
+                                //     album.sharedWith.filter(
+                                //         (u) => !users.includes(u)
+                                //     )
+                                // )
+                                //     .then((r) => {
+                                //         if (r.status !== 200) {
+                                //             return Promise.reject(
+                                //                 'Failed to share album'
+                                //             )
+                                //         }
+                                //         setTimeout(() => closeShareMenu(), 1000)
+                                //         return true
+                                //     })
+                                //     .catch(() => false)
                             }}
                         />
                     </div>

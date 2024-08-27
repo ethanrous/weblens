@@ -13,7 +13,7 @@ import (
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
+	"errors"
 )
 
 func wsConnect(ctx *gin.Context) {

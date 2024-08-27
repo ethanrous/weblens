@@ -6,7 +6,6 @@ import (
 	"slices"
 
 	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
 )
 
@@ -20,7 +19,6 @@ type Album struct {
 	Cover          ContentId   `bson:"cover" json:"cover"`
 	PrimaryColor   string      `bson:"primaryColor" json:"primaryColor"`
 	SecondaryColor string      `bson:"secondaryColor" json:"secondaryColor"`
-	SharedWith     []Username  `bson:"sharedWith" json:"sharedWith"`
 	ShowOnTimeline bool        `bson:"showOnTimeline" json:"showOnTimeline"`
 }
 
@@ -32,7 +30,6 @@ func NewAlbum(albumName string, owner *User) *Album {
 		Owner:          owner.GetUsername(),
 		Medias:         []ContentId{},
 		ShowOnTimeline: true,
-		SharedWith:     []Username{},
 	}
 }
 
@@ -50,10 +47,6 @@ func (a *Album) RemoveMedia(toRemoveIds ...ContentId) {
 			return !slices.Contains(toRemoveIds, mediaId)
 		},
 	)
-}
-
-func (a *Album) Rename(newName string) error {
-	return werror.New("not impl - album rename")
 }
 
 func (a *Album) SetCover(cover ContentId, color1, color2 string) {
@@ -79,23 +72,6 @@ func (a *Album) GetOwner() Username {
 
 func (a *Album) GetPrimaryColor() string {
 	return a.PrimaryColor
-}
-
-func (a *Album) GetSharedWith() []Username {
-	if a.SharedWith == nil {
-		a.SharedWith = []Username{}
-	}
-
-	return a.SharedWith
-}
-
-func (a *Album) RemoveUsers(uns ...Username) error {
-	a.SharedWith = internal.Filter(
-		a.SharedWith, func(un Username) bool {
-			return !slices.Contains(uns, un)
-		},
-	)
-	return werror.New("not impl - album remove users")
 }
 
 // func (a *Album) UnmarshalBSON(bs []byte) error {
@@ -166,12 +142,12 @@ type AlbumService interface {
 	Get(id AlbumId) *Album
 	Add(album *Album) error
 	Del(id AlbumId) error
-	GetAllByUser(u *User) []*Album
+	GetAllByUser(u *User) ([]*Album, error)
 
 	GetAlbumMedias(album *Album) iter.Seq[*Media]
 
+	RenameAlbum(album *Album, newName string) error
 	SetAlbumCover(albumId AlbumId, cover *Media) error
-	AddUsersToAlbum(album *Album, us ...*User) error
 	AddMediaToAlbum(album *Album, media ...*Media) error
 	RemoveMediaFromAlbum(album *Album, mediaIds ...ContentId) error
 

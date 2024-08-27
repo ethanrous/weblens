@@ -100,10 +100,6 @@ async function queueChunks(
     authHeader: AuthHeaderT,
     taskQueue
 ) {
-    const createChunk = useUploadStatus.getState().createChunk
-    const updateProgress = useUploadStatus.getState().updateProgress
-    const chunkComplete = useUploadStatus.getState().chunkComplete
-
     const file: File = uploadMeta.file
     const key: string = uploadMeta.parentId + uploadMeta.file.name
 
@@ -112,6 +108,11 @@ async function queueChunks(
         parentFolderId: uploadMeta.parentId,
         newFileName: uploadMeta.file.name,
         fileSize: uploadMeta.file.size,
+    }
+
+    if (useUploadStatus.getState().uploads.get(key).error) {
+        console.warn(`Skipping upload with error: ${key}`)
+        return
     }
 
     const res = await fetch(url.toString(), {
@@ -126,11 +127,9 @@ async function queueChunks(
             return { code: r.response, data: null }
         })
 
-    if (res.code === 409) {
-        console.error(`Failed to greate file: ${file.name} already exists`)
-        return
-    } else if (res.code !== 201) {
-        console.error(`Failed to greate file: ${res.code}`)
+    if (res.code !== 201) {
+        useUploadStatus.getState().setError(key, `Failed ${res.code}`)
+        console.error(`Failed to create file: ${res.code}`)
         return
     }
 
@@ -146,7 +145,9 @@ async function queueChunks(
         const chunkHighByte =
             maxChunkHigh >= file.size ? file.size : maxChunkHigh
 
-        createChunk(key, thisChunkIndex, chunkHighByte - chunkLowByte)
+        useUploadStatus
+            .getState()
+            .createChunk(key, thisChunkIndex, chunkHighByte - chunkLowByte)
 
         chunkTasks.push(
             async () =>
@@ -158,16 +159,19 @@ async function queueChunks(
                     fileId,
                     authHeader,
                     (bytesWritten: number, bytesPerSecond: number) => {
-                        console.log(bytesPerSecond)
-                        updateProgress(
-                            key,
-                            thisChunkIndex,
-                            bytesWritten,
-                            bytesPerSecond ? Math.trunc(bytesPerSecond) : 0
-                        )
+                        useUploadStatus
+                            .getState()
+                            .updateProgress(
+                                key,
+                                thisChunkIndex,
+                                bytesWritten,
+                                bytesPerSecond ? Math.trunc(bytesPerSecond) : 0
+                            )
                     },
                     (rate) => {
-                        chunkComplete(key, thisChunkIndex)
+                        useUploadStatus
+                            .getState()
+                            .chunkComplete(key, thisChunkIndex)
                     }
                 )
         )

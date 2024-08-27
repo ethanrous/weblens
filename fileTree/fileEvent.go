@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 )
 
 type FileEventId string
@@ -53,10 +53,10 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFile) *FileAction {
 	}
 
 	newAction := &FileAction{
+		LifeId:   file.ID(),
 		Timestamp:       time.Now(),
 		ActionType:      FileCreate,
 		DestinationPath: file.GetPortablePath().ToPortable(),
-		DestinationId: file.ID(),
 		EventId:         fe.EventId,
 		ParentId: file.GetParentId(),
 		ServerId: fe.ServerId,
@@ -69,28 +69,27 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFile) *FileAction {
 	return newAction
 }
 
-func (fe *FileEvent) NewMoveAction(originId FileId, file *WeblensFile) *FileAction {
+func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFile) *FileAction {
 	if fe.journal == nil {
 		return nil
 	}
 
-	lt := fe.journal.GetLifetimeByFileId(originId)
+	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		log.Error.Println("Cannot not find existing lifetime for originId", originId)
+		log.Error.Println("Cannot not find existing lifetime for lifeId", lifeId)
 		return nil
 	}
 	latest := lt.GetLatestAction()
 
-	if latest.GetDestinationId() != originId {
-		log.Error.Println("File previous destination does not match move origin")
-	}
+	// if latest.GetDestinationId() != lifeId {
+	// 	log.Error.Println("File previous destination does not match move origin")
+	// }
 
 	newAction := &FileAction{
+		LifeId:   file.ID(),
 		Timestamp:       time.Now(),
 		ActionType:      FileMove,
-		OriginId:        latest.GetDestinationId(),
 		OriginPath:      latest.GetDestinationPath(),
-		DestinationId:   file.ID(),
 		DestinationPath: file.GetPortablePath().ToPortable(),
 		EventId:         fe.EventId,
 		ParentId:        file.GetParent().ID(),
@@ -104,26 +103,26 @@ func (fe *FileEvent) NewMoveAction(originId FileId, file *WeblensFile) *FileActi
 	return newAction
 }
 
-func (fe *FileEvent) NewDeleteAction(originId FileId) *FileAction {
+func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 	if fe.journal == nil {
 		return nil
 	}
 
-	lt := fe.journal.GetLifetimeByFileId(originId)
+	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		log.ShowErr(werror.Errorf("Cannot not find existing lifetime for originId [%s]", originId))
+		log.ShowErr(werror.Errorf("Cannot not find existing lifetime for lifeId [%s]", lifeId))
 		return nil
 	}
 	latest := lt.GetLatestAction()
 
-	if latest.GetDestinationId() != originId {
-		log.Error.Println("File previous destination does not match move origin")
-	}
+	// if latest.GetDestinationId() != lifeId {
+	// 	log.Error.Println("File previous destination does not match move origin")
+	// }
 
 	newAction := &FileAction{
+		LifeId:   lifeId,
 		Timestamp:  time.Now(),
 		ActionType: FileDelete,
-		OriginId:   latest.GetDestinationId(),
 		OriginPath: latest.GetDestinationPath(),
 		EventId:    fe.EventId,
 		ServerId: fe.ServerId,

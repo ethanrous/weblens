@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 )
 
 type TaskId string
@@ -279,8 +279,6 @@ func (t *Task) ErrorAndExit(err error, info ...any) {
 	}
 
 	log.ShowErr(err, fmt.Sprintf("Task %s exited with an error", t.TaskId()))
-	// _, filename, line, _ := runtime.Caller(1)
-	// util.ErrorCatcher.Printf("Task %s exited with an error\n\t%s:%d %s\n", t.TaskId(), filename, line, err.Error())
 	if len(info) != 0 {
 		log.ErrorCatcher.Printf("Reported by task: %s", fmt.Sprint(info...))
 	}
@@ -416,6 +414,7 @@ type TaskMetadata interface {
 	JobName() string
 	MetaString() string
 	FormatToResult() TaskResult
+	Verify() error
 }
 
 const (
