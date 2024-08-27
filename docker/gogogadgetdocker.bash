@@ -48,7 +48,7 @@ if [ ! -d ./build/bin ]; then
   mkdir -p ./build/bin
 fi
 
-sudo docker run -v ./:/source -v ./build/cache/go-pkg:/go -v ./build/cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
+sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
 "cd /source && export GIN_MODE=release && CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go"
 
 sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" -f ./docker/Dockerfile .
