@@ -33,7 +33,7 @@ jobs:
           libheif-dev \
           libwebp-dev \
           libglib2.0-dev \
-          libexpat1-dev
+          libexpat1-dev \
           exiftool
 
       - name: Start MongoDB
