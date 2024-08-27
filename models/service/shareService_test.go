@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/barasher/go-exiftool"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/stretchr/testify/assert"
@@ -38,171 +37,146 @@ func TestAdjustMediaDates(t *testing.T) {
 	}
 }
 
-func TestBackupBaseFile(t *testing.T) {
-	type args struct {
-		remoteId string
-		data     []byte
-		ft       fileTree.FileTree
-	}
-	tests := []struct {
-		name      string
-		args      args
-		wantBaseF *fileTree.WeblensFile
-		wantErr   assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				gotBaseF, err := BackupBaseFile(tt.args.remoteId, tt.args.data, tt.args.ft)
-				if !tt.wantErr(
-					t, err, fmt.Sprintf("BackupBaseFile(%v, %v, %v)", tt.args.remoteId, tt.args.data, tt.args.ft),
-				) {
-					return
-				}
-				assert.Equalf(
-					t, tt.wantBaseF, gotBaseF, "BackupBaseFile(%v, %v, %v)", tt.args.remoteId, tt.args.data, tt.args.ft,
-				)
-			},
-		)
-	}
-}
+// func TestBackupBaseFile(t *testing.T) {
+// 	type args struct {
+// 		remoteId string
+// 		data     []byte
+// 		ft       fileTree.FileTree
+// 	}
+// 	tests := []struct {
+// 		name      string
+// 		args      args
+// 		wantBaseF *fileTree.WeblensFile
+// 		wantErr   assert.ErrorAssertionFunc
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				gotBaseF, err := BackupBaseFile(tt.args.remoteId, tt.args.data, tt.args.ft)
+// 				if !tt.wantErr(
+// 					t, err, fmt.Sprintf("BackupBaseFile(%v, %v, %v)", tt.args.remoteId, tt.args.data, tt.args.ft),
+// 				) {
+// 					return
+// 				}
+// 				assert.Equalf(
+// 					t, tt.wantBaseF, gotBaseF, "BackupBaseFile(%v, %v, %v)", tt.args.remoteId, tt.args.data, tt.args.ft,
+// 				)
+// 			},
+// 		)
+// 	}
+// }
 
-func TestGenerateContentId(t *testing.T) {
-	type args struct {
-		f *fileTree.WeblensFile
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    models.ContentId
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				got, err := GenerateContentId(tt.args.f)
-				if !tt.wantErr(t, err, fmt.Sprintf("GenerateContentId(%v)", tt.args.f)) {
-					return
-				}
-				assert.Equalf(t, tt.want, got, "GenerateContentId(%v)", tt.args.f)
-			},
-		)
-	}
-}
+// func TestNewAccessService(t *testing.T) {
+// 	type args struct {
+// 		fileService models.FileService
+// 		col         *mongo.Collection
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want *AccessServiceImpl
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				assert.Equalf(
+// 					t, tt.want, NewAccessService(tt.args.fileService, tt.args.col), "NewAccessService(%v, %v)",
+// 					tt.args.fileService, tt.args.col,
+// 				)
+// 			},
+// 		)
+// 	}
+// }
 
-func TestNewAccessService(t *testing.T) {
-	type args struct {
-		fileService models.FileService
-		col         *mongo.Collection
-	}
-	tests := []struct {
-		name string
-		args args
-		want *AccessServiceImpl
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				assert.Equalf(
-					t, tt.want, NewAccessService(tt.args.fileService, tt.args.col), "NewAccessService(%v, %v)",
-					tt.args.fileService, tt.args.col,
-				)
-			},
-		)
-	}
-}
+// func TestNewAlbumService(t *testing.T) {
+// 	type args struct {
+// 		col          *mongo.Collection
+// 		mediaService *MediaServiceImpl
+// 		shareService models.ShareService
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want *AlbumServiceImpl
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				assert.Equalf(
+// 					t, tt.want, NewAlbumService(tt.args.col, tt.args.mediaService, tt.args.shareService),
+// 					"NewAlbumService(%v, %v, %v)", tt.args.col, tt.args.mediaService, tt.args.shareService,
+// 				)
+// 			},
+// 		)
+// 	}
+// }
 
-func TestNewAlbumService(t *testing.T) {
-	type args struct {
-		col          *mongo.Collection
-		mediaService *MediaServiceImpl
-		shareService models.ShareService
-	}
-	tests := []struct {
-		name string
-		args args
-		want *AlbumServiceImpl
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				assert.Equalf(
-					t, tt.want, NewAlbumService(tt.args.col, tt.args.mediaService, tt.args.shareService),
-					"NewAlbumService(%v, %v, %v)", tt.args.col, tt.args.mediaService, tt.args.shareService,
-				)
-			},
-		)
-	}
-}
+// func TestNewFileService(t *testing.T) {
+// 	type args struct {
+// 		mediaTree     fileTree.FileTree
+// 		cacheTree     fileTree.FileTree
+// 		userService   models.UserService
+// 		accessService models.AccessService
+// 		mediaService  models.MediaService
+// 		trashCol      *mongo.Collection
+// 	}
+// 	tests := []struct {
+// 		name    string
+// 		args    args
+// 		want    *FileServiceImpl
+// 		wantErr assert.ErrorAssertionFunc
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				got, err := NewFileService(
+// 					tt.args.mediaTree, tt.args.cacheTree, tt.args.userService, tt.args.accessService,
+// 					tt.args.mediaService, tt.args.trashCol,
+// 				)
+// 				if !tt.wantErr(
+// 					t, err, fmt.Sprintf(
+// 						"NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.mediaTree, tt.args.cacheTree,
+// 						tt.args.userService, tt.args.accessService, tt.args.mediaService, tt.args.trashCol,
+// 					),
+// 				) {
+// 					return
+// 				}
+// 				assert.Equalf(
+// 					t, tt.want, got, "NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.mediaTree, tt.args.cacheTree,
+// 					tt.args.userService, tt.args.accessService, tt.args.mediaService, tt.args.trashCol,
+// 				)
+// 			},
+// 		)
+// 	}
+// }
 
-func TestNewFileService(t *testing.T) {
-	type args struct {
-		mediaTree     fileTree.FileTree
-		cacheTree     fileTree.FileTree
-		userService   models.UserService
-		accessService models.AccessService
-		mediaService  models.MediaService
-		trashCol      *mongo.Collection
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *FileServiceImpl
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				got, err := NewFileService(
-					tt.args.mediaTree, tt.args.cacheTree, tt.args.userService, tt.args.accessService,
-					tt.args.mediaService, tt.args.trashCol,
-				)
-				if !tt.wantErr(
-					t, err, fmt.Sprintf(
-						"NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.mediaTree, tt.args.cacheTree,
-						tt.args.userService, tt.args.accessService, tt.args.mediaService, tt.args.trashCol,
-					),
-				) {
-					return
-				}
-				assert.Equalf(
-					t, tt.want, got, "NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.mediaTree, tt.args.cacheTree,
-					tt.args.userService, tt.args.accessService, tt.args.mediaService, tt.args.trashCol,
-				)
-			},
-		)
-	}
-}
-
-func TestNewInstanceService(t *testing.T) {
-	type args struct {
-		col *mongo.Collection
-	}
-	tests := []struct {
-		name string
-		args args
-		want *InstanceServiceImpl
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				assert.Equalf(t, tt.want, NewInstanceService(tt.args.col), "NewInstanceService(%v)", tt.args.col)
-			},
-		)
-	}
-}
+// func TestNewInstanceService(t *testing.T) {
+// 	type args struct {
+// 		col *mongo.Collection
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want *InstanceServiceImpl
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				assert.Equalf(t, tt.want, NewInstanceService(tt.args.col), "NewInstanceService(%v)", tt.args.col)
+// 			},
+// 		)
+// 	}
+// }
 
 // func TestNewMediaService(t *testing.T) {
 // 	type args struct {
@@ -254,25 +228,25 @@ func TestNewShareService(t *testing.T) {
 	}
 }
 
-func TestNewUserService(t *testing.T) {
-	type args struct {
-		col *mongo.Collection
-	}
-	tests := []struct {
-		name string
-		args args
-		want *UserServiceImpl
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				assert.Equalf(t, tt.want, NewUserService(tt.args.col), "NewUserService(%v)", tt.args.col)
-			},
-		)
-	}
-}
+// func TestNewUserService(t *testing.T) {
+// 	type args struct {
+// 		col *mongo.Collection
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want *UserServiceImpl
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				assert.Equalf(t, tt.want, NewUserService(tt.args.col), "NewUserService(%v)", tt.args.col)
+// 			},
+// 		)
+// 	}
+// }
 
 func TestShareServiceImpl_Add(t *testing.T) {
 	type fields struct {
@@ -692,27 +666,27 @@ func TestShareServiceImpl_writeUpdateTime(t *testing.T) {
 	}
 }
 
-func Test_newExif(t *testing.T) {
-	type args struct {
-		targetSize  int64
-		currentSize int64
-		gexift      *exiftool.Exiftool
-	}
-	tests := []struct {
-		name string
-		args args
-		want *exiftool.Exiftool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				assert.Equalf(
-					t, tt.want, newExif(tt.args.targetSize, tt.args.currentSize, tt.args.gexift), "newExif(%v, %v, %v)",
-					tt.args.targetSize, tt.args.currentSize, tt.args.gexift,
-				)
-			},
-		)
-	}
-}
+// func Test_newExif(t *testing.T) {
+// 	type args struct {
+// 		targetSize  int64
+// 		currentSize int64
+// 		gexift      *exiftool.Exiftool
+// 	}
+// 	tests := []struct {
+// 		name string
+// 		args args
+// 		want *exiftool.Exiftool
+// 	}{
+// 		// TODO: Add test cases.
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(
+// 			tt.name, func(t *testing.T) {
+// 				assert.Equalf(
+// 					t, tt.want, newExif(tt.args.targetSize, tt.args.currentSize, tt.args.gexift), "newExif(%v, %v, %v)",
+// 					tt.args.targetSize, tt.args.currentSize, tt.args.gexift,
+// 				)
+// 			},
+// 		)
+// 	}
+// }

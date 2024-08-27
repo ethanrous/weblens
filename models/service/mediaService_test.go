@@ -216,6 +216,8 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 	if err := mondb.Collection("media").Drop(context.Background()); err != nil {
 		panic(err)
 	}
+
+	panic("test")
 }
 
 func TestMediaServiceImpl_Del(t *testing.T) {
