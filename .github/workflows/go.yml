@@ -1,6 +1,13 @@
 name: Weblens
 
 on:
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Debug'
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [ "main" ]
   pull_request:
