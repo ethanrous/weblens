@@ -12,12 +12,12 @@ import {
     TasksProgressAction,
     TasksProgressDispatch,
 } from '../Pages/FileBrowser/TaskProgress'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '../Pages/FileBrowser/FBStateControl'
+import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
 import { useShallow } from 'zustand/react/shallow'
 import { useSessionStore } from '../components/UserInfo'
+import { useMediaStore } from '../Media/MediaStateControl'
+import WeblensMedia from '../Media/Media'
+import { create, StateCreator } from 'zustand'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -28,13 +28,14 @@ export function useWeblensSocket() {
         {
             onOpen: () => {
                 setGivenUp(false)
-                sendMessage(JSON.stringify({ auth: authHeader.Authorization }))
+                sendMessage(JSON.stringify({ auth: authHeader?.Authorization }))
+                useWebsocketStore.getState().setSender(sendMessage)
             },
             reconnectAttempts: 5,
             reconnectInterval: (last) => {
                 return ((last + 1) ^ 2) * 1000
             },
-            shouldReconnect: () => user.username !== '',
+            shouldReconnect: () => user?.username !== '',
             onReconnectStop: () => {
                 setGivenUp(true)
             },
@@ -80,7 +81,6 @@ export function dispatchSync(
 export const useSubscribe = (
     cId: string,
     sId: string,
-    mode: FbModeT,
     usr: UserInfoT,
     tasksDispatch: Dispatch<TasksProgressAction>,
     authHeader: AuthHeaderT
@@ -129,7 +129,6 @@ export const useSubscribe = (
             filebrowserWebsocketHandler(
                 sId,
                 fbDispatch,
-                usr,
                 tasksDispatch,
                 authHeader
             )
@@ -203,7 +202,6 @@ export interface FBSubscribeDispatchT {
 function filebrowserWebsocketHandler(
     shareId: string,
     dispatch: FBSubscribeDispatchT,
-    usr: UserInfoT,
     tasksDispatch: TasksProgressDispatch,
     authHeader: AuthHeaderT
 ) {
@@ -215,7 +213,18 @@ function filebrowserWebsocketHandler(
             }
 
             case 'file_updated': {
-                dispatch.updateFile(msgData.content.fileInfo)
+                if (msgData.content.mediaData) {
+                    const newM = new WeblensMedia(msgData.content.mediaData)
+                    useMediaStore.getState().addMedias([newM])
+                    msgData.content.fileInfo.mediaId = newM.Id()
+                }
+
+                useFileBrowserStore
+                    .getState()
+                    .updateFile(
+                        msgData.content.fileInfo,
+                        useSessionStore.getState().user
+                    )
                 return
             }
 
@@ -242,6 +251,9 @@ function filebrowserWebsocketHandler(
                         target: msgData.content.filename,
                     })
                 } else if (msgData.taskType === 'create_zip') {
+                    if (!msgData.content.filenames) {
+                        return
+                    }
                     let target = msgData.content.filenames[0]
                     if (msgData.content.filenames.length > 1) {
                         target = `${target} +${msgData.content.filenames.length - 1}`
@@ -401,3 +413,20 @@ function filebrowserWebsocketHandler(
         }
     }
 }
+
+export interface WebsocketControlT {
+    wsSend: (thing) => void
+    setSender: (sender: (thing) => void) => void
+}
+
+const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
+    wsSend: null,
+
+    setSender: (sender: (thing) => void) => {
+        set({
+            wsSend: sender,
+        })
+    },
+})
+
+export const useWebsocketStore = create<WebsocketControlT>()(WebsocketControl)

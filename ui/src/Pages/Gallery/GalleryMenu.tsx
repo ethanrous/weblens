@@ -2,7 +2,6 @@ import WeblensMedia from '../../Media/Media'
 import WeblensButton from '../../components/WeblensButton'
 import { useClick, useKeyDown } from '../../components/hooks'
 import { memo, useCallback, useContext, useMemo, useState } from 'react'
-import { MediaContext } from '../../Context'
 import {
     IconCalendarTime,
     IconCaretDown,
@@ -10,26 +9,12 @@ import {
     IconEyeOff,
     IconPolaroid,
 } from '@tabler/icons-react'
-import { adjustMediaTime, hideMedia } from '../../api/ApiFetch'
 import { GalleryDispatchT, newTimeOffset, TimeOffset } from '../../types/Types'
 import { SetAlbumCover } from '../../Albums/AlbumQuery'
 import { GalleryContext } from './GalleryLogic'
 import { useSessionStore } from '../../components/UserInfo'
-
-// const mediaDate = (timestamp: number) => {
-//     const dateObj = new Date(timestamp)
-//     const options: Intl.DateTimeFormatOptions = {
-//         month: 'long',
-//         day: 'numeric',
-//         minute: 'numeric',
-//         hour: 'numeric',
-//         timeZoneName: 'short',
-//     }
-//     if (dateObj.getFullYear() !== new Date().getFullYear()) {
-//         options.year = 'numeric'
-//     }
-//     return dateObj.toLocaleDateString('en-US', options)
-// }
+import { adjustMediaTime, hideMedia } from '../../Media/MediaQuery'
+import { useMediaStore } from '../../Media/MediaStateControl'
 
 function TimeSlice({
     value,
@@ -79,7 +64,7 @@ function TimeDialogue({
     isAnchor: boolean
     close: () => void
     offset: TimeOffset
-    adjustTime: (d: Date) => Promise<string>
+    adjustTime: (d: Date) => Promise<boolean>
     galleryDispatch: GalleryDispatchT
 }) {
     const [date, setDate] = useState<Date>(null)
@@ -237,7 +222,7 @@ function TimeDialogue({
                         squareSize={50}
                         onClick={(e) => {
                             e.stopPropagation()
-                            adjustTime(offsetDate)
+                            return adjustTime(offsetDate)
                         }}
                     />
                 </div>
@@ -252,17 +237,15 @@ export const GalleryMenu = memo(
         open,
         setOpen,
         updateAlbum,
-        albumId,
     }: {
         media: WeblensMedia
         open: boolean
         setOpen: (o: boolean) => void
         updateAlbum?: () => void
-        albumId?: string
     }) => {
         const auth = useSessionStore((state) => state.auth)
+
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
-        const { mediaState, mediaDispatch } = useContext(MediaContext)
         const [menuRef, setMenuRef] = useState(null)
 
         useClick(
@@ -293,7 +276,7 @@ export const GalleryMenu = memo(
 
                 let medias: string[] = []
                 if (galleryState.selecting) {
-                    medias = mediaState.getAllSelectedIds()
+                    medias = [...useMediaStore.getState().selectedMap.keys()]
                 }
                 medias.push(media.Id())
                 const r = await hideMedia(medias, hidden, auth)
@@ -302,11 +285,7 @@ export const GalleryMenu = memo(
                     return false
                 }
 
-                mediaDispatch({
-                    type: 'hide_medias',
-                    mediaIds: medias,
-                    hidden: hidden,
-                })
+                useMediaStore.getState().hideMedias(medias, hidden)
 
                 galleryDispatch({
                     type: 'set_selecting',
@@ -315,30 +294,32 @@ export const GalleryMenu = memo(
 
                 galleryDispatch({
                     type: 'set_menu_target',
-                    targetId: 'false',
+                    targetId: '',
                 })
 
                 return true
             },
-            [mediaState]
+            [galleryState.selecting]
         )
 
         const adjustTime = useCallback(
             async (newDate: Date) => {
-                const r = await adjustMediaTime(
-                    media.Id(),
-                    newDate,
-                    mediaState.getAllSelectedIds(),
-                    auth
-                )
-                galleryDispatch({
-                    type: 'set_time_offset',
-                    offset: null,
-                })
-
-                return r
+                console.error('adjust time not impl')
+                // const r = await adjustMediaTime(
+                //     media.Id(),
+                //     newDate,
+                //     mediaState.getAllSelectedIds(),
+                //     auth
+                // )
+                // galleryDispatch({
+                //     type: 'set_time_offset',
+                //     offset: null,
+                // })
+                //
+                // return r
+                return false
             },
-            [media, auth, mediaState]
+            [media, auth]
         )
 
         const hideStyle = useMemo(() => {
@@ -403,16 +384,15 @@ export const GalleryMenu = memo(
                             Left={IconPolaroid}
                             squareSize={40}
                             textMin={100}
-                            disabled={!albumId}
+                            disabled={!galleryState.albumId}
                             style={{ opacity: open ? '100%' : '0%' }}
                             onClick={async (e) => {
                                 e.stopPropagation()
                                 const r = await SetAlbumCover(
-                                    albumId,
+                                    galleryState.albumId,
                                     media.Id(),
                                     auth
                                 )
-                                updateAlbum()
                                 return r.status === 200
                             }}
                         />
@@ -440,9 +420,6 @@ export const GalleryMenu = memo(
             return false
         }
         if (prev.setOpen !== next.setOpen) {
-            return false
-        }
-        if (prev.albumId !== next.albumId) {
             return false
         }
         if (prev.updateAlbum !== next.updateAlbum) {

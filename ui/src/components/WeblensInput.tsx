@@ -1,5 +1,5 @@
 import { memo, ReactNode, useEffect, useState } from 'react'
-import { useIsFocused, useKeyDown, useResize } from './hooks'
+import { useIsFocused, useResize } from './hooks'
 import WeblensButton from './WeblensButton'
 
 import './weblensInput.scss'
@@ -17,13 +17,14 @@ const WeblensInput = memo(
         closeInput,
         autoFocus = false,
         stealFocus = false,
+        ignoreKeys = [],
         password = false,
         minimize = false,
         subtle = false,
         fillWidth = true,
         failed = false,
     }: {
-        onComplete?: (v: string) => void
+        onComplete?: (v: string) => Promise<void | Response>
         value?: string
         valueCallback?: (v: string) => void
         Icon?: (p) => ReactNode
@@ -34,6 +35,7 @@ const WeblensInput = memo(
         closeInput?: () => void
         autoFocus?: boolean
         stealFocus?: boolean
+        ignoreKeys?: string[]
         password?: boolean
         minimize?: boolean
         subtle?: boolean
@@ -42,9 +44,9 @@ const WeblensInput = memo(
     }) => {
         const [searchRef, setSearchRef] = useState(null)
         const [textRef, setTextRef] = useState(null)
-        const [editing, setEditing] = useState(autoFocus)
         const isFocused = useIsFocused(searchRef)
         const textSize = useResize(textRef)
+        const [error, setError] = useState(false)
 
         const [internalValue, setInternalValue] = useState(
             value !== undefined ? value : ''
@@ -56,49 +58,10 @@ const WeblensInput = memo(
         useEffect(() => {
             if (isFocused === true && openInput) {
                 openInput()
-                setEditing(true)
             } else if (isFocused === false && closeInput) {
-                // closeInput();
-                // setEditing(false);
+                closeInput()
             }
         }, [isFocused, value])
-
-        useKeyDown(
-            'Enter',
-            () => {
-                if (onComplete && isFocused === true) {
-                    onComplete(internalValue)
-                    if (closeInput) {
-                        closeInput()
-                    }
-                }
-            },
-            !isFocused
-        )
-
-        useKeyDown('Escape', (e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            if (searchRef) {
-                searchRef.blur()
-                setSearchRef(null)
-            }
-            setEditing(false)
-        })
-
-        useKeyDown(
-            (e) => {
-                return (
-                    stealFocus &&
-                    !e.metaKey &&
-                    ((e.which >= 65 && e.which <= 90) || e.key === 'Backspace')
-                )
-            },
-            (e) => {
-                e.stopPropagation()
-                setEditing(true)
-            }
-        )
 
         return (
             <div
@@ -107,11 +70,11 @@ const WeblensInput = memo(
                 data-value={internalValue}
                 data-minimize={minimize}
                 data-subtle={subtle}
-                data-failed={failed}
+                data-failed={failed || error}
                 data-fill-width={fillWidth}
                 onClick={(e) => {
                     e.stopPropagation()
-                    setEditing(true)
+
                     if (searchRef) {
                         searchRef.focus()
                     }
@@ -144,6 +107,46 @@ const WeblensInput = memo(
                     value={internalValue}
                     placeholder={placeholder}
                     type={password ? 'password' : ''}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            if (searchRef) {
+                                searchRef.blur()
+                                setSearchRef(null)
+                            }
+
+                            return
+                        } else if (e.key === 'Enter') {
+                            if (onComplete && isFocused === true) {
+                                e.stopPropagation()
+                                onComplete(internalValue)
+                                    .then(() => {
+                                        if (closeInput) {
+                                            closeInput()
+                                        }
+                                    })
+                                    .catch((err) => {
+                                        console.error(err)
+                                        setError(true)
+                                        setTimeout(() => setError(false), 2000)
+                                    })
+                            } else {
+                                return
+                            }
+                        }
+                        if (isFocused && !ignoreKeys.includes(e.key)) {
+                            e.stopPropagation()
+                        }
+                        if (
+                            stealFocus &&
+                            !e.metaKey &&
+                            ((e.which >= 65 && e.which <= 90) ||
+                                e.key === 'Backspace')
+                        ) {
+                            e.stopPropagation()
+                        }
+                    }}
                     onTouchStart={(e) => {
                         e.preventDefault()
                     }}

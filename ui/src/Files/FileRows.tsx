@@ -16,6 +16,7 @@ import { FixedSizeList as WindowList } from 'react-window'
 import './filesStyle.scss'
 import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from '../components/UserInfo'
+import { historyDate } from '../Pages/FileBrowser/FileBrowserLogic'
 
 function FileRow({
     data,
@@ -31,32 +32,24 @@ function FileRow({
     const authHeader = useSessionStore((state) => state.auth)
     const [mouseDown, setMouseDown] = useState(null)
 
-    const draggingState = useFileBrowserStore((state) => state.draggingState)
-    const mode = useFileBrowserStore((state) => state.fbMode)
-    const shareId = useFileBrowserStore((state) => state.shareId)
-    const menuMode = useFileBrowserStore((state) => state.menuMode)
-    const selectedIds = useFileBrowserStore((state) =>
-        Array.from(state.selected.keys())
-    )
+    const {
+        draggingState,
+        fbMode,
+        shareId,
+        menuMode,
+        folderInfo,
+        selected,
+        setMoveDest,
+        setHovering,
+        setSelected,
+        setDragging,
+        setPresentationTarget,
+        setMenu,
+        clearSelected,
+        setSelectedMoved,
+    } = useFileBrowserStore()
 
-    const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
-    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const setHovering = useFileBrowserStore((state) => state.setHovering)
-    const setSelected = useFileBrowserStore((state) => state.setSelected)
-    const setDragging = useFileBrowserStore((state) => state.setDragging)
-    const setPresentationTarget = useFileBrowserStore(
-        (state) => state.setPresentationTarget
-    )
-    const setMenu = useFileBrowserStore((state) => state.setMenu)
-    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
-    const setSelectedMoved = useFileBrowserStore(
-        (state) => state.setSelectedMoved
-    )
-
-    const addLoading = useFileBrowserStore((state) => state.addLoading)
-    const removeLoading = useFileBrowserStore((state) => state.removeLoading)
-
-    const selected = useFileBrowserStore((state) =>
+    const selState = useFileBrowserStore((state) =>
         state.filesMap.get(file.Id()).GetSelectedState()
     )
 
@@ -66,14 +59,14 @@ function FileRow({
                 className="weblens-file animate-fade-short"
                 data-row={true}
                 data-clickable={!draggingState || file.IsFolder()}
-                data-hovering={selected & SelectedState.Hovering}
-                data-in-range={(selected & SelectedState.InRange) >> 1}
-                data-selected={(selected & SelectedState.Selected) >> 2}
+                data-hovering={selState & SelectedState.Hovering}
+                data-in-range={(selState & SelectedState.InRange) >> 1}
+                data-selected={(selState & SelectedState.Selected) >> 2}
                 data-last-selected={
-                    (selected & SelectedState.LastSelected) >> 3
+                    (selState & SelectedState.LastSelected) >> 3
                 }
-                data-droppable={(selected & SelectedState.Droppable) >> 4}
-                data-moved={(selected & SelectedState.Moved) >> 5}
+                data-droppable={(selState & SelectedState.Droppable) >> 4}
+                data-moved={(selState & SelectedState.Moved) >> 5}
                 onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
                     handleMouseOver(
                         e,
@@ -103,9 +96,10 @@ function FileRow({
                 onDoubleClick={(e) =>
                     visitFile(
                         e,
-                        mode,
+                        fbMode,
                         shareId,
                         file,
+                        folderInfo.IsTrash(),
                         nav,
                         setPresentationTarget
                     )
@@ -117,7 +111,7 @@ function FileRow({
                     handleMouseUp(
                         file,
                         draggingState,
-                        selectedIds,
+                        Array.from(selected.keys()),
                         authHeader,
                         setSelectedMoved,
                         clearSelected,
@@ -137,17 +131,22 @@ function FileRow({
                     )
                 }
             >
-                <div className="flex h-full items-center">
+                <div className="flex h-full w-full items-center">
                     <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
                         <IconDisplay file={file} allowMedia={true} />
                     </div>
                     <FileTextBox itemTitle={file.GetFilename()} />
                 </div>
-                <div
-                    className="file-size-box"
-                    data-moved={(selected & SelectedState.Moved) >> 5}
-                >
-                    <p>{file.FormatSize()}</p>
+                <div className="flex flex-col h-full">
+                    <div
+                        className="file-size-box"
+                        data-moved={(selState & SelectedState.Moved) >> 5}
+                    >
+                        <p>{file.FormatSize()}</p>
+                    </div>
+                    <p className="absolute bottom-3 right-3 w-max text-sm">
+                        {historyDate(file.GetModified().getTime())}
+                    </p>
                 </div>
             </div>
         </div>

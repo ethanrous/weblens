@@ -375,6 +375,13 @@
     height: 100%;
     flex-shrink: 0;
     background-color: #222222;
+    transition: background-color 150ms ease-in-out;
+    transition-delay: 0ms;
+
+    :hover > & {
+        transition-delay: 100ms;
+        background-color: $main-accent;
+    }
 }
 
 .login-required-background {

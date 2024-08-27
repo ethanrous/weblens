@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { WeblensShare } from '../Share/Share'
-import { WeblensFileParams, WeblensFile } from '../Files/File'
+import { ShareInfo, WeblensShare } from '../Share/Share'
+import { WeblensFile, WeblensFileParams } from '../Files/File'
 import { AlbumData, AuthHeaderT, TPDispatchT } from '../types/Types'
 import { humanFileSize } from '../util'
 import API_ENDPOINT from './ApiEndpoint'
@@ -74,20 +74,26 @@ export function UnTrashFiles(fileIds: string[], authHeader: AuthHeaderT) {
 }
 
 async function getSharedWithMe(authHeader: AuthHeaderT) {
+    if (!authHeader) {
+        return { children: [], self: {} }
+    }
     const url = new URL(`${API_ENDPOINT}/files/shared`)
-    return fetch(url.toString(), { headers: authHeader })
+    return fetch(url.toString(), authHeader ? { headers: authHeader } : null)
         .then((res) => res.json())
-        .then((data) => {
+        .then((sharedFiles) => {
             const sharedFolder = new WeblensFile({
                 id: 'shared',
                 isDir: true,
                 filename: 'Shared',
             })
-            return { children: data.files, self: sharedFolder }
+            return { children: sharedFiles, self: sharedFolder }
         })
 }
 
 async function getExternalFiles(contentId: string, authHeader: AuthHeaderT) {
+    if (!authHeader) {
+        return { children: [], self: null }
+    }
     const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
     return fetch(url.toString(), { headers: authHeader })
         .then((res) => res.json())
@@ -131,12 +137,20 @@ export async function GetFolderData(
         return getExternalFiles(contentId, authHeader)
     }
 
+    if (!contentId) {
+        console.error('Tried to get folder with no id')
+        return
+    }
+
     const url = new URL(`${API_ENDPOINT}/folder/${contentId}`)
     if (fbMode === FbModeT.share) {
         url.searchParams.append('shareId', shareId)
     }
 
-    return fetch(url.toString(), { headers: authHeader }).then((res) => {
+    return fetch(
+        url.toString(),
+        authHeader ? { headers: authHeader } : null
+    ).then((res) => {
         if (res.status === 404) {
             return Promise.reject(404)
         } else if (res.status === 401) {
@@ -382,7 +396,7 @@ export async function shareFile(
     isPublic: boolean,
     users: string[] = [],
     authHeader: AuthHeaderT
-) {
+): Promise<ShareInfo> {
     const url = new URL(`${API_ENDPOINT}/share/files`)
     const body = {
         fileId: file.Id(),
@@ -393,9 +407,7 @@ export async function shareFile(
         headers: authHeader,
         method: 'POST',
         body: JSON.stringify(body),
-    })
-        .then((res) => res.json())
-        .then((j) => j.shareData)
+    }).then((res) => res.json())
 }
 
 export async function setFileSharePublic(
@@ -477,6 +489,10 @@ export async function getFilesystemStats(
 }
 
 export async function getFileHistory(fileId: string, authHeader: AuthHeaderT) {
+    if (!fileId) {
+        console.error('No fileId trying to get file history')
+        return null
+    }
     const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`)
     return await fetch(url, { headers: authHeader }).then((r) => {
         if (r.status !== 200) {

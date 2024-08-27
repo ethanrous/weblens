@@ -31,9 +31,14 @@ export function visitFile(
     mode: FbModeT,
     shareId: string,
     file: WeblensFile,
+    inTrash: boolean,
     nav,
     setPresentation: (presentingId: string) => void
 ) {
+    if (inTrash && file.IsFolder()) {
+        return
+    }
+
     e.stopPropagation()
     const jump = file.GetVisitRoute(mode, shareId, setPresentation)
     if (jump) {

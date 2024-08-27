@@ -44,10 +44,11 @@ export const WeblensProgress = memo(
                 const rect = boxRef.getBoundingClientRect()
                 const update = (e) => {
                     setPercentage(
-                        Math.min(
+                        clamp(
                             ((e.clientX - rect.left) /
                                 (rect.right - rect.left)) *
                                 100,
+                            0,
                             100
                         )
                     )
@@ -64,67 +65,81 @@ export const WeblensProgress = memo(
 
         return (
             <div
-                className="weblens-progress"
-                ref={setBoxRef}
-                data-loading={loading}
-                data-disabled={disabled}
-                data-complete={complete}
-                data-failure={failure}
-                onMouseDown={() => setDragging(true)}
-                onMouseUp={() => setDragging(false)}
-                onClick={(e) => {
-                    if (e.target instanceof HTMLDivElement) {
-                        const rect = e.target.getBoundingClientRect()
-                        let v =
-                            (e.clientX - rect.left) / (rect.right - rect.left)
-                        if (v < 0) {
-                            v = 0
-                        }
-                        setPercentage(v * 100)
-                    }
-                }}
+                className="weblens-progress-container"
+                data-scrubbing={dragging}
+                data-seekable={seekCallback !== undefined}
                 style={{
-                    justifyContent:
-                        orientation === 'horizontal'
-                            ? 'flex-start'
-                            : 'flex-end',
-                    ...style,
-                    cursor: seekCallback ? 'pointer' : 'default',
                     height: height,
+                    cursor: seekCallback ? 'pointer' : 'default',
                 }}
             >
-                <div
-                    className="weblens-progress-bar"
-                    data-complete={complete}
-                    style={{
-                        height:
-                            orientation === 'horizontal' ? '100%' : `${value}%`,
-                        width:
-                            orientation === 'horizontal' ? `${value}%` : '100%',
-                    }}
-                />
-                <div
-                    className="weblens-progress-bar"
-                    data-secondary={true}
-                    style={{
-                        height:
-                            orientation === 'horizontal'
-                                ? '100%'
-                                : `${secondaryValue}%`,
-                        width:
-                            orientation === 'horizontal'
-                                ? `${secondaryValue}%`
-                                : '100%',
-                    }}
-                />
                 {seekCallback !== undefined && (
                     <div
                         className="slider-handle"
+                        style={{
+                            left: `${value}%`,
+                            height: height,
+                            width: height,
+                        }}
                         onClick={(e) => e.stopPropagation()}
                         onMouseDown={() => setDragging(true)}
                         onMouseUp={() => setDragging(false)}
                     />
                 )}
+                <div
+                    className="weblens-progress"
+                    ref={setBoxRef}
+                    data-loading={loading}
+                    data-disabled={disabled}
+                    data-complete={complete}
+                    data-failure={failure}
+                    onMouseUp={() => setDragging(false)}
+                    onMouseDown={(e) => {
+                        if (e.target instanceof HTMLDivElement) {
+                            const rect = e.target.getBoundingClientRect()
+                            let v =
+                                (e.clientX - rect.left) /
+                                (rect.right - rect.left)
+                            if (v < 0) {
+                                v = 0
+                            }
+                            setPercentage(v * 100)
+                            setDragging(true)
+                        }
+                    }}
+                    style={{
+                        justifyContent:
+                            orientation === 'horizontal'
+                                ? 'flex-start'
+                                : 'flex-end',
+                        ...style,
+                    }}
+                >
+                    <div
+                        className="weblens-progress-bar"
+                        data-complete={complete}
+                        style={{
+                            height:
+                                orientation === 'horizontal' ? '' : `${value}%`,
+                            width:
+                                orientation === 'horizontal' ? `${value}%` : '',
+                        }}
+                    />
+                    <div
+                        className="weblens-progress-bar"
+                        data-secondary={true}
+                        style={{
+                            height:
+                                orientation === 'horizontal'
+                                    ? ''
+                                    : `${secondaryValue}%`,
+                            width:
+                                orientation === 'horizontal'
+                                    ? `${secondaryValue}%`
+                                    : '',
+                        }}
+                    />
+                </div>
             </div>
         )
     },

@@ -19,7 +19,7 @@ import WeblensLoader from '../../components/Loading'
 import { clamp } from '../../util'
 import { getFileHistory } from '../../api/FileBrowserApi'
 import { historyDate } from './FileBrowserLogic'
-import { useFileBrowserStore } from './FBStateControl'
+import { FbModeT, useFileBrowserStore } from './FBStateControl'
 import { useSessionStore } from '../../components/UserInfo'
 
 const SIDEBAR_BREAKPOINT = 650
@@ -85,8 +85,8 @@ export const FileInfoPane = () => {
                         onClick={() => setTab('history')}
                     />
                 </div>
-                {tab === 'info' && <FileInfo />}
-                {tab === 'history' && <FileHistory />}
+                {tab === 'info' && open && <FileInfo />}
+                {tab === 'history' && open && <FileHistory />}
             </div>
         </div>
     )
@@ -94,7 +94,9 @@ export const FileInfoPane = () => {
 
 function FileInfo() {
     const selectedFiles = useFileBrowserStore((state) =>
-        Array.from(state.selected.keys()).map((fId) => state.filesMap.get(fId))
+        Array.from(state.selected.keys())
+            .map((fId) => state.filesMap.get(fId))
+            .filter((f) => Boolean(f))
     )
 
     const titleText = useMemo(() => {
@@ -306,13 +308,19 @@ function FileHistory() {
 
     const filesMap = useFileBrowserStore((state) => state.filesMap)
     const contentId = useFileBrowserStore((state) => state.contentId)
+    const mode = useFileBrowserStore((state) => state.fbMode)
     const pastTimestamp = useFileBrowserStore((state) =>
-        state.viewingPast.getTime()
+        state.viewingPast?.getTime()
     )
 
     const { data: fileHistory, refetch } = useQuery<fileAction[]>({
         queryKey: ['fileHistory', contentId],
-        queryFn: () => getFileHistory(contentId, authHeader),
+        queryFn: () => {
+            if (mode === FbModeT.share) {
+                return null
+            }
+            return getFileHistory(contentId, authHeader)
+        },
     })
 
     useEffect(() => {
@@ -347,6 +355,13 @@ function FileHistory() {
         return { events, epoch }
     }, [fileHistory])
 
+    if (mode === FbModeT.share) {
+        return (
+            <div className="flex justify-center mt-10">
+                <p>Cannot get file history of shared file</p>
+            </div>
+        )
+    }
     if (!epoch) {
         return <WeblensLoader />
     }

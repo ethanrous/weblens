@@ -8,10 +8,10 @@ import { nsToHumanTime } from '../../util'
 import WeblensButton from '../../components/WeblensButton'
 import { WebsocketContext } from '../../Context'
 
-export class TasksProgress {
+export class TaskProgressState {
     private tasks: Map<string, TaskProgress>
 
-    constructor(prev?: TasksProgress) {
+    constructor(prev?: TaskProgressState) {
         if (prev) {
             this.tasks = prev.tasks
         } else {
@@ -54,8 +54,7 @@ export class TasksProgress {
         }
 
         if (stage === TaskStage.Complete && task.taskType === 'download_file') {
-            this.removeTask(taskId)
-            return
+            task.hide()
         }
 
         task.setTaskStage(stage)
@@ -350,10 +349,9 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                     </p>
                 </div>
             </div>
-            <div className="relative h-6 shrink-0 w-full m-3">
+            <div className="relative h-6 shrink-0 w-full m-2">
                 <WeblensProgress
                     value={prog.getProgress()}
-                    // complete={prog.stage === TaskStage.Complete}
                     loading={prog.stage === TaskStage.Queued}
                     failure={
                         prog.stage === TaskStage.Failure ||
@@ -362,23 +360,19 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                 />
             </div>
             {prog.stage !== TaskStage.Complete && (
-                <div className="flex flex-row w-full justify-between h-max gap-3">
-                    <Text
-                        size="10px"
-                        truncate="end"
-                        style={{ userSelect: 'none' }}
-                    >
+                <div className="flex flex-row w-full justify-between h-max gap-3 m-2">
+                    <p className="text-sm select-none text-nowrap truncate">
                         {prog.workingOn}
-                    </Text>
+                    </p>
                     {totalNum > 0 && (
-                        <Text size="10px" style={{ userSelect: 'none' }}>
+                        <p className="text-sm select-none">
                             {prog.tasksComplete}/{prog.tasksTotal}
-                        </Text>
+                        </p>
                     )}
                 </div>
             )}
 
-            <div className="flex flex-row w-full justify-between h-max gap-3">
+            <div className="flex flex-row w-full justify-between h-max gap-3 mt-2">
                 {prog.stage === TaskStage.Complete && (
                     <Text
                         size="10px"
@@ -428,108 +422,118 @@ export type TasksProgressAction = {
 export type TasksProgressDispatch = Dispatch<TasksProgressAction>
 
 export function taskProgressReducer(
-    state: TasksProgress,
+    state: TaskProgressState,
     action: TasksProgressAction
-): TasksProgress {
-    switch (action.type) {
-        case 'new_task': {
-            const prog = new TaskProgress(action.taskId, action.taskType)
-            prog.setTarget(action.target)
-            state.addTask(prog)
+): TaskProgressState {
+    try {
+        switch (action.type) {
+            case 'new_task': {
+                const prog = new TaskProgress(action.taskId, action.taskType)
+                prog.setTarget(action.target)
+                state.addTask(prog)
 
-            break
-        }
-        case 'task_complete': {
-            state.setTaskStage(action.taskId, TaskStage.Complete)
-
-            if (action.time) {
-                state.setTaskTime(action.taskId, action.time)
+                break
             }
-            if (action.note) {
+            case 'task_complete': {
+                state.setTaskStage(action.taskId, TaskStage.Complete)
+
+                if (action.time) {
+                    state.setTaskTime(action.taskId, action.time)
+                }
+                if (action.note) {
+                    state.setTaskNote(action.taskId, action.note)
+                }
+
+                break
+            }
+
+            case 'task_failure': {
+                state.setTaskStage(action.taskId, TaskStage.Failure)
+                if (action.note) {
+                    state.setTaskNote(action.taskId, action.note)
+                }
+
+                break
+            }
+
+            case 'task_cancelled': {
+                state.setTaskStage(action.taskId, TaskStage.Cancelled)
+                break
+            }
+
+            case 'update_scan_progress': {
+                if (!state.has(action.taskId)) {
+                    state.addTask(
+                        new TaskProgress(action.taskId, action.taskType)
+                    )
+                    break
+                    // task = new TaskProgress(action.taskId, action.taskType);
+                    // state.addTask(task);
+                }
+
+                state.setTaskStage(action.taskId, TaskStage.InProgress)
+
+                state.updateTaskProgress(
+                    action.taskId,
+                    action.progress,
+                    action.tasksComplete,
+                    action.tasksTotal
+                )
+
+                state.setWorkingOn(action.taskId, action.workingOn)
+                state.setTaskTarget(action.taskId, action.target)
                 state.setTaskNote(action.taskId, action.note)
+
+                break
             }
 
-            break
-        }
-
-        case 'task_failure': {
-            state.setTaskStage(action.taskId, TaskStage.Failure)
-            if (action.note) {
-                state.setTaskNote(action.taskId, action.note)
+            case 'add_pool_to_progress': {
+                if (!state.has(action.taskId)) {
+                    const newTask = new TaskProgress(
+                        action.taskId,
+                        action.taskType
+                    )
+                    state.addTask(newTask)
+                }
+                state.linkPoolToTask(action.taskId, action.poolId)
+                break
             }
 
-            break
-        }
+            case 'remove_task_progress': {
+                state.removeTask(action.taskId)
+                break
+            }
 
-        case 'task_cancelled': {
-            state.setTaskStage(action.taskId, TaskStage.Cancelled)
-            break
-        }
+            case 'clear_tasks': {
+                for (const task of state.getTasks()) {
+                    if (task.getTaskStage() === TaskStage.Complete) {
+                        state.removeTask(task.GetTaskId())
+                    }
+                }
+                break
+            }
 
-        case 'update_scan_progress': {
-            if (!state.has(action.taskId)) {
-                state.addTask(new TaskProgress(action.taskId, action.taskType))
+            case 'refresh': {
+                break
+            }
+
+            default: {
                 console.error(
-                    'Trying to update scan progress on task that does not exist [' +
-                        action.taskId +
-                        ']'
+                    'Unknown action type in task progress reducer ',
+                    action.type
                 )
                 return state
-                // task = new TaskProgress(action.taskId, action.taskType);
-                // state.addTask(task);
             }
-
-            state.setTaskStage(action.taskId, TaskStage.InProgress)
-
-            state.updateTaskProgress(
-                action.taskId,
-                action.progress,
-                action.tasksComplete,
-                action.tasksTotal
-            )
-
-            state.setWorkingOn(action.taskId, action.workingOn)
-            state.setTaskTarget(action.taskId, action.target)
-            state.setTaskNote(action.taskId, action.note)
-
-            break
         }
-
-        case 'add_pool_to_progress': {
-            if (!state.has(action.taskId)) {
-                const newTask = new TaskProgress(action.taskId, action.taskType)
-                state.addTask(newTask)
-            }
-            state.linkPoolToTask(action.taskId, action.poolId)
-            break
-        }
-
-        case 'remove_task_progress': {
-            state.removeTask(action.taskId)
-            break
-        }
-
-        case 'clear_tasks': {
-            for (const task of state.getTasks()) {
-                if (task.getTaskStage() === TaskStage.Complete) {
-                    state.removeTask(task.GetTaskId())
-                }
-            }
-            break
-        }
-
-        case 'refresh': {
-            break
-        }
-
-        default: {
-            console.error(
-                'Unknown action type in task progress reducer ',
-                action.type
-            )
-            return state
-        }
+    } catch (e) {
+        console.error(
+            'Exception in task progress reducer:',
+            e,
+            'action:',
+            action
+        )
+        return state
     }
 
-    return new TasksProgress(state)
+    return new TaskProgressState(state)
 }

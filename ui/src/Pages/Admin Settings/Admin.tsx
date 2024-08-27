@@ -16,8 +16,16 @@ import {
     DeleteUser,
     GetUsersInfo,
     SetUserAdmin,
+    UpdatePassword,
 } from '../../api/UserApi'
-import { IconCheck, IconClipboard, IconTrash, IconX } from '@tabler/icons-react'
+import {
+    IconClipboard,
+    IconLockOpen,
+    IconTrash,
+    IconUserShield,
+    IconUserUp,
+    IconX,
+} from '@tabler/icons-react'
 import {
     ApiKeyInfo,
     AuthHeaderT as AuthHeaderT,
@@ -186,52 +194,57 @@ function CreateUserBox({
     const [passInput, setPassInput] = useState('')
     const [makeAdmin, setMakeAdmin] = useState(false)
     return (
-        <div className="p-2 h-max w-full rounded bg-slate-800">
-            <p className="w-full h-max font-semibold text-xl select-none p-2">
-                Create User
+        <div className="flex flex-col p-2 h-max w-full rounded bg-slate-800 gap-2">
+            <p className="w-full h-max font-semibold text-xl select-none">
+                Add User
             </p>
-            <div className="flex flex-col w-60">
-                <WeblensInput
-                    placeholder="Username"
-                    height={50}
-                    onComplete={() => {}}
-                    valueCallback={setUserInput}
-                />
-                <WeblensInput
-                    placeholder="Password"
-                    height={50}
-                    onComplete={() => {}}
-                    valueCallback={setPassInput}
-                />
+            <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-1">
+                    <WeblensInput
+                        placeholder="Username"
+                        height={50}
+                        onComplete={null}
+                        fillWidth
+                        valueCallback={setUserInput}
+                    />
+                    <WeblensInput
+                        placeholder="Password"
+                        height={50}
+                        onComplete={null}
+                        fillWidth
+                        password
+                        valueCallback={setPassInput}
+                    />
+                </div>
+                <div className="flex">
+                    <WeblensButton
+                        Left={IconUserShield}
+                        label={'Admin'}
+                        allowRepeat
+                        squareSize={50}
+                        toggleOn={makeAdmin}
+                        onClick={() => setMakeAdmin(!makeAdmin)}
+                    />
+                    <WeblensButton
+                        label="Create User"
+                        squareSize={50}
+                        disabled={userInput === '' || passInput === ''}
+                        onClick={async () => {
+                            await adminCreateUser(
+                                userInput,
+                                passInput,
+                                makeAdmin,
+                                authHeader
+                            ).then(() => {
+                                GetUsersInfo(setAllUsersInfo, authHeader)
+                                setUserInput('')
+                                setPassInput('')
+                            })
+                            return true
+                        }}
+                    />
+                </div>
             </div>
-            <div className="pt-1 pb-2">
-                <WeblensButton
-                    Left={IconCheck}
-                    label={'Admin'}
-                    allowRepeat
-                    toggleOn={makeAdmin}
-                    onClick={() => setMakeAdmin(!makeAdmin)}
-                />
-            </div>
-
-            <WeblensButton
-                label="Create User"
-                squareSize={40}
-                disabled={userInput === '' || passInput === ''}
-                onClick={async () => {
-                    await adminCreateUser(
-                        userInput,
-                        passInput,
-                        makeAdmin,
-                        authHeader
-                    ).then(() => {
-                        GetUsersInfo(setAllUsersInfo, authHeader)
-                        setUserInput('')
-                        setPassInput('')
-                    })
-                    return true
-                }}
-            />
         </div>
     )
 }
@@ -247,10 +260,11 @@ const UserRow = ({
     setAllUsersInfo
     authHeader: AuthHeaderT
 }) => {
+    const [changingPass, setChangingPass] = useState(false)
     return (
         <div
             key={rowUser.username}
-            className="flex flex-row w-full h-16 justify-between items-center bg-bottom-grey rounded-sm p-2 rounded"
+            className="flex flex-row w-full h-16 justify-between items-center bg-bottom-grey p-2 rounded"
         >
             <div className="flex flex-col justify-center  w-max h-max">
                 <p className="font-semibold w-max text-white">
@@ -262,9 +276,43 @@ const UserRow = ({
                 {rowUser.owner && <p className="text-[#aaaaaa]">Owner</p>}
             </div>
             <div className="flex">
+                {!changingPass && accessor.owner && (
+                    <WeblensButton
+                        label="Change Password"
+                        labelOnHover={true}
+                        Left={IconLockOpen}
+                        squareSize={35}
+                        onClick={() => {
+                            setChangingPass(true)
+                        }}
+                    />
+                )}
+                {changingPass && (
+                    <WeblensInput
+                        placeholder="New Password"
+                        autoFocus={true}
+                        closeInput={() => setChangingPass(false)}
+                        onComplete={async (newPass) => {
+                            if (newPass === '') {
+                                return Promise.reject(
+                                    'Cannot update password to empty string'
+                                )
+                            }
+                            return UpdatePassword(
+                                rowUser.username,
+                                '',
+                                newPass,
+                                authHeader
+                            )
+                        }}
+                    />
+                )}
                 {!rowUser.admin && accessor.owner && (
                     <WeblensButton
-                        label="Make Admin"
+                        label="Promote to Admin"
+                        Left={IconUserUp}
+                        labelOnHover={true}
+                        allowShrink={false}
                         squareSize={35}
                         onClick={() => {
                             SetUserAdmin(
@@ -305,8 +353,8 @@ const UserRow = ({
                 )}
 
                 <WeblensButton
-                    label="Delete"
                     squareSize={35}
+                    Left={IconTrash}
                     danger
                     centerContent
                     disabled={rowUser.admin && !accessor.owner}
@@ -358,6 +406,10 @@ function UsersBox({
                 Users
             </p>
             {usersList}
+            <CreateUserBox
+                setAllUsersInfo={setAllUsersInfo}
+                authHeader={authHeader}
+            />
         </div>
     )
 }
@@ -595,10 +647,6 @@ export function Admin({ open, closeAdminMenu }) {
                             <UsersBox
                                 thisUserInfo={user}
                                 allUsersInfo={allUsersInfo}
-                                setAllUsersInfo={setAllUsersInfo}
-                                authHeader={auth}
-                            />
-                            <CreateUserBox
                                 setAllUsersInfo={setAllUsersInfo}
                                 authHeader={auth}
                             />

@@ -23,7 +23,6 @@ ui/dist/
 .env.development.local
 .env.test.local
 .env.production.local
-images
 
 
 npm-debug.log*
@@ -39,4 +38,7 @@ api/.env
 __debug*
 __pycache__
 
+qodana.yaml
 media_proc/
+
+/build/*

@@ -1,4 +1,4 @@
-import { IconX } from '@tabler/icons-react'
+import { IconHeart, IconX } from '@tabler/icons-react'
 import React, {
     memo,
     ReactNode,
@@ -11,8 +11,11 @@ import WeblensMedia from '../Media/Media'
 
 import { MediaImage } from '../Media/PhotoContainer'
 import { SizeT } from '../types/Types'
-import { useMedia, useResize } from './hooks'
+import { useResize, useResizeDrag } from './hooks'
 import WeblensButton from './WeblensButton'
+import { useSessionStore } from './UserInfo'
+import { likeMedia } from '../Media/MediaQuery'
+import { useMediaStore } from '../Media/MediaStateControl'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -25,7 +28,8 @@ export const PresentationContainer = ({
 }) => {
     return (
         <div
-            className="flex justify-center items-center top-0 left-0 p-6 h-full w-full z-50 fixed bg-bottom-grey bg-opacity-90 backdrop-blur"
+            className="flex justify-center items-center top-0 left-0 p-6 h-full 
+                        w-full z-50 fixed bg-bottom-grey bg-opacity-90 backdrop-blur absolute"
             onMouseMove={onMouseMove}
             onClick={onClick}
             children={children}
@@ -127,7 +131,7 @@ export const ContainerMedia = ({
 
     if (mediaData.GetPageCount() > 1) {
         return (
-            <div className="no-scrollbar gap-1">
+            <div className="flex flex-col no-scrollbar gap-1 h-full">
                 {[...Array(mediaData.GetPageCount())].map((p) => (
                     <MediaImage
                         key={p}
@@ -156,21 +160,43 @@ export const ContainerMedia = ({
     }
 }
 
-const PresentationVisual = ({
+export const PresentationVisual = ({
     mediaData,
     Element,
 }: {
     mediaData: WeblensMedia
     Element: () => ReactNode
 }) => {
+    const [screenRef, setScreenRef] = useState(null)
     const [containerRef, setContainerRef] = useState(null)
+    const [splitSize, setSplitSize] = useState(-1)
+    const [dragging, setDragging] = useState(false)
+    const screenSize = useResize(screenRef)
+    const splitCalc = useCallback(
+        (o) => {
+            if (screenSize.width === -1) {
+                return
+            }
+            setSplitSize(
+                (o - screenRef.getBoundingClientRect().left - 56) /
+                    screenSize.width
+            )
+        },
+        [screenSize.width]
+    )
+
+    useResizeDrag(dragging, setDragging, splitCalc)
 
     const imgStyle = useMemo(() => {
-        return { width: Element ? '50%' : '100%' }
-    }, [Element])
+        if (splitSize === -1) {
+            return { width: Element ? '50%' : '100%' }
+        } else {
+            return { width: splitSize * screenSize.width }
+        }
+    }, [Element, splitSize, screenSize])
 
     return (
-        <div className="flex items-center justify-around h-full w-full">
+        <div ref={setScreenRef} className="flex items-center h-full w-full">
             {mediaData && (
                 <div
                     className="flex items-center justify-center h-full"
@@ -183,23 +209,33 @@ const PresentationVisual = ({
                     />
                 </div>
             )}
+            {mediaData && Element && (
+                <div
+                    className="flex h-1/6 w-4 cursor-pointer justify-center m-12"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={() => setDragging(true)}
+                >
+                    <div className="h-full w-1/12 bg-[#666666] rounded" />
+                </div>
+            )}
             {Element && <Element />}
         </div>
     )
 }
 
 function useKeyDownPresentation(
-    itemId: string,
+    contentId: string,
     dispatch: PresentationDispatchT
 ) {
-    const mediaData = useMedia(itemId)
+    const mediaData = useMediaStore((state) => state.mediaMap.get(contentId))
 
     const keyDownHandler = useCallback(
         (event) => {
-            if (!itemId) {
+            if (!contentId) {
                 return
             } else if (event.key === 'Escape') {
                 event.preventDefault()
+                event.stopPropagation()
                 dispatch.setPresentationTarget('')
             } else if (event.key === 'ArrowLeft') {
                 event.preventDefault()
@@ -217,7 +253,7 @@ function useKeyDownPresentation(
                 event.preventDefault()
             }
         },
-        [itemId, dispatch, mediaData]
+        [contentId, dispatch, mediaData]
     )
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
@@ -252,12 +288,23 @@ const Presentation = memo(
 
         const [to, setTo] = useState(null)
         const [guiShown, setGuiShown] = useState(false)
+        const [likedHover, setLikedHover] = useState(false)
+        const { user, auth } = useSessionStore()
 
-        const mediaData = useMedia(mediaId)
+        const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
+        const isLiked = useMediaStore((state) => {
+            const m = state.mediaMap.get(mediaId)
+            return m ? m.GetLikedBy().includes(user.username) : false
+        })
+        const setMediaLiked = useMediaStore((state) => state.setLiked)
 
         if (!mediaId || !mediaData) {
             return null
         }
+
+        const otherLikes =
+            (!isLiked && mediaData.GetLikedBy()?.length > 0) ||
+            (isLiked && mediaData.GetLikedBy()?.length > 1)
 
         return (
             <PresentationContainer
@@ -273,18 +320,67 @@ const Presentation = memo(
                     Element={element}
                 />
 
-                <div className="close-icon" data-shown={guiShown}>
+                <div
+                    className="presentation-icon top-4 left-4"
+                    data-shown={guiShown}
+                >
                     <WeblensButton
                         subtle
                         Left={IconX}
                         onClick={() => dispatch.setPresentationTarget('')}
                     />
                 </div>
+                <div
+                    className="presentation-icon bottom-4 right-4"
+                    data-shown={guiShown || isLiked}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        likeMedia(mediaId, !isLiked, auth).then(() => {
+                            setMediaLiked(mediaId, user.username)
+                        })
+                    }}
+                    onMouseOver={() => {
+                        setLikedHover(true)
+                    }}
+                    onMouseLeave={() => {
+                        setLikedHover(false)
+                    }}
+                >
+                    <div className="flex flex-col h-max items-center justify-center">
+                        {mediaData.GetLikedBy()?.length !== 0 && (
+                            <p className="absolute text-xs right-0 -bottom-1">
+                                {mediaData.GetLikedBy()?.length}
+                            </p>
+                        )}
+                        <IconHeart
+                            size={30}
+                            fill={isLiked ? 'red' : ''}
+                            color={isLiked ? 'red' : 'white'}
+                        />
+                    </div>
+                    {likedHover && otherLikes && (
+                        <div className="flex flex-col bg-bottom-grey p-2 rounded items-center absolute bottom-7 right-0 w-max">
+                            <p>Likes</p>
+                            <div className="bg-raised-grey h-[1px] w-full m-1" />
+                            {mediaData.GetLikedBy().map((username: string) => {
+                                return (
+                                    <p className="text-lg" key={username}>
+                                        {username}
+                                    </p>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
             </PresentationContainer>
         )
     },
     (prev, next) => {
         if (prev.mediaId !== next.mediaId) {
+            return false
+        } else if (prev.element !== next.element) {
+            return false
+        } else if (prev.dispatch !== next.dispatch) {
             return false
         }
 

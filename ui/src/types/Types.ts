@@ -1,7 +1,7 @@
 // Global Types
 
-import React, { Dispatch } from 'react'
-import WeblensMedia, { MediaAction } from '../Media/Media'
+import { Dispatch } from 'react'
+import WeblensMedia from '../Media/Media'
 import { TasksProgressAction } from '../Pages/FileBrowser/TaskProgress'
 import { GalleryAction } from '../Pages/Gallery/GalleryLogic'
 
@@ -40,10 +40,8 @@ export type mediaType = {
 export type AlbumData = {
     id: string
     medias: string[]
-    sharedWith: string[]
     name: string
     cover: string
-    // CoverMedia: WeblensMedia;
     primaryColor: string
     secondaryColor: string
     owner: string
@@ -51,13 +49,6 @@ export type AlbumData = {
 }
 
 // Gallery Types
-
-export type GalleryBucketProps = {
-    bucketTitle: string
-    bucketData: WeblensMedia[]
-    scale: number
-    dispatch: React.Dispatch<any>
-}
 
 export type MediaWrapperProps = {
     mediaData: WeblensMedia
@@ -118,10 +109,10 @@ export type GalleryStateT = {
     hoverIndex: number
     lastSelId: string
     holdingShift: boolean
+    albumId: string
 }
 
 // File Browser Types
-export type MediaDispatchT = Dispatch<MediaAction>
 export type TPDispatchT = Dispatch<TasksProgressAction>
 export type GalleryDispatchT = (action: GalleryAction) => void
 

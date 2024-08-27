@@ -1,7 +1,7 @@
 import { notifications } from '@mantine/notifications'
 import API_ENDPOINT from './ApiEndpoint'
 import { ApiKeyInfo, AuthHeaderT, UserInfoT } from '../types/Types'
-import WeblensMedia from '../Media/Media'
+import { WeblensFileInfo } from '../Files/File'
 
 export function login(
     user: string,
@@ -67,38 +67,6 @@ export function clearCache(authHeader: AuthHeaderT) {
     })
 }
 
-export async function getMedia(
-    mediaId,
-    authHeader: AuthHeaderT
-): Promise<WeblensMedia> {
-    if (!mediaId) {
-        console.error('trying to get media with no mediaId')
-        notifications.show({
-            title: 'Failed to get media',
-            message: 'no media id provided',
-            color: 'red',
-        })
-        return
-    }
-    const url = new URL(`${API_ENDPOINT}/media/${mediaId}`)
-    url.searchParams.append('meta', 'true')
-    const mediaMeta: WeblensMedia = await fetch(url, {
-        headers: authHeader,
-    }).then((r) => r.json())
-    return mediaMeta
-}
-
-export async function fetchMediaTypes() {
-    const url = new URL(`${API_ENDPOINT}/media/types`)
-    return await fetch(url).then((r) => {
-        if (r.status === 200) {
-            return r.json()
-        } else {
-            return Promise.reject(r.status)
-        }
-    })
-}
-
 export async function newApiKey(authHeader: AuthHeaderT) {
     const url = new URL(`${API_ENDPOINT}/key`)
     return await fetch(url, { headers: authHeader, method: 'POST' }).then((r) =>
@@ -120,12 +88,6 @@ export async function getApiKeys(
     const url = new URL(`${API_ENDPOINT}/keys`)
     return (await fetch(url, { headers: authHeader }).then((r) => r.json()))
         .keys
-}
-
-export async function getRandomThumbs() {
-    const url = new URL(`${API_ENDPOINT}/media/random`)
-    url.searchParams.append('count', '50')
-    return await fetch(url).then((r) => r.json())
 }
 
 export async function initServer(
@@ -222,20 +184,6 @@ export async function deleteRemote(remoteId: string, authHeader: AuthHeaderT) {
     })
 }
 
-export async function hideMedia(
-    mediaIds: string[],
-    hidden: boolean,
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/media/hide`)
-    url.searchParams.append('hidden', hidden.toString())
-    return await fetch(url, {
-        body: JSON.stringify({ mediaIds: mediaIds }),
-        method: 'PATCH',
-        headers: authHeader,
-    })
-}
-
 export async function getAlbumPreview(
     albumId: string,
     authHeader: AuthHeaderT
@@ -249,33 +197,13 @@ export async function getAlbumPreview(
     })
 }
 
-export async function adjustMediaTime(
-    mediaId: string,
-    newDate: Date,
-    extraMedias: string[],
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/media/date`)
-    return await fetch(url, {
-        method: 'PATCH',
-        headers: authHeader,
-        body: JSON.stringify({
-            anchorId: mediaId,
-            newTime: newDate,
-            mediaIds: extraMedias,
-        }),
-    }).then((r) => {
-        if (r.status !== 200) {
-            return Promise.reject(r.statusText)
-        }
-        return r.statusText
-    })
-}
-
 export async function autocompletePath(
     pathQuery: string,
     authHeader: AuthHeaderT
-) {
+): Promise<{ folder: WeblensFileInfo; children: WeblensFileInfo[] }> {
+    if (!pathQuery) {
+        return
+    }
     const url = new URL(`${API_ENDPOINT}/files/autocomplete`)
     url.searchParams.append('searchPath', pathQuery)
     return await fetch(url, { headers: authHeader }).then((r) => r.json())
@@ -288,4 +216,16 @@ export async function getFileDataByPath(
     const url = new URL(`${API_ENDPOINT}/file/path`)
     url.searchParams.append('searchPath', pathQuery)
     return await fetch(url, { headers: authHeader }).then((r) => r.json())
+}
+
+export async function searchFilenames(
+    searchString: string,
+    authHeader: AuthHeaderT
+): Promise<WeblensFileInfo[]> {
+    if (searchString.length < 1) {
+        return []
+    }
+    const url = new URL(`${API_ENDPOINT}/files/search`)
+    url.searchParams.append('search', searchString)
+    return fetch(url, { headers: authHeader }).then((r) => r.json())
 }
