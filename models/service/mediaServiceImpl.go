@@ -192,7 +192,7 @@ func (ms *MediaServiceImpl) Del(cId models.ContentId) error {
 		}
 	}
 	f = nil
-	for page := range m.GetPageCount() + 1 {
+	for page := range m.GetPageCount() {
 		f, err = ms.getCacheFile(m, models.HighRes, page)
 		if err == nil {
 			err = ms.fileService.DeleteCacheFile(f)
@@ -707,8 +707,15 @@ func (ms *MediaServiceImpl) getCacheFile(
 
 	if quality == models.LowRes {
 		m.SetLowresCacheFile(cacheFile)
+	} else if quality == models.HighRes {
+		caches := m.GetHighresCacheFiles()
+		if caches == nil {
+			caches = make([]*fileTree.WeblensFile, m.GetPageCount())
+		}
+		caches[pageNum] = cacheFile
+		m.SetHighresCacheFiles(caches)
 	} else {
-		log.Error.Println("Implement saving highres cache files")
+		return nil, werror.Errorf("Unknown media quality [%s]", quality)
 	}
 
 	return cacheFile, nil
