@@ -10,6 +10,9 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        mongodb-version: [ '6.0', '7.0', '8.0' ]
     steps:
       - uses: actions/checkout@v4
 
@@ -18,8 +21,15 @@ jobs:
         with:
           go-version: '1.23'
 
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.11.0
+        with:
+          mongodb-version: ${{ matrix.mongodb-version }}
+
       - name: Build
-        run: go build -v ./cmd/weblens/main.go
+        run: |
+          set -x
+          go build -v ./cmd/weblens/main.go
 
       - name: Test
         run: go test -v ./...
