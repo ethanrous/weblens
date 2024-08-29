@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
@@ -57,8 +56,6 @@ func NewFileService(
 	}
 
 	sw := internal.NewStopwatch("File Service Init")
-
-	time.Sleep(time.Second * 5)
 
 	_, err := cacheTree.MkDir(cacheTree.GetRoot(), "thumbs", nil)
 	if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
