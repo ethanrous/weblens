@@ -372,7 +372,11 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 state.filesMap.set(newInfo.id, newF)
             } else if (state.lastSelectedId === oldId) {
                 state.lastSelectedId = ''
-                return
+                return {
+                    filesMap: new Map<string, WeblensFile>(state.filesMap),
+                    selected: new Map<string, boolean>(state.selected),
+                    lastSelectedId: '',
+                }
             }
 
             return {
@@ -416,7 +420,9 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 state.loading.splice(index, 1)
             }
 
-            return state
+            return {
+                loading: [...state.loading],
+            }
         }),
 
     setHoldingShift: (holdingShift: boolean) =>
@@ -556,16 +562,12 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                             f.SetSelected(SelectedState.Selected)
                         }
                     } else {
-                        return
+                        console.error('No file in set selected')
+                        return state
                     }
                 }
             }
             state = calculateMultiSelectHint(state, state.hoveringId, true)
-            // const newSelected = new Map<string, boolean>(state.selected)
-            // for (const id of selected) {
-            //     state.filesMap.get(id).SetSelected(SelectedState.Selected)
-            //     newSelected.set(id, true)
-            // }
 
             return {
                 selected: new Map<string, boolean>(state.selected),

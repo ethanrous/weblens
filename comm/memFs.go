@@ -28,6 +28,11 @@ func (fs *InMemoryFS) loadIndex() string {
 	}
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
+		ex, err := os.Executable()
+		if err != nil {
+			panic(err)
+		}
+		log.Error.Println("PWD", filepath.Dir(ex))
 		panic("Could not find index file")
 	}
 
@@ -41,7 +46,7 @@ func (fs *InMemoryFS) Open(name string) (http.File, error) {
 	}
 	var f *memFileReal
 	var ok bool
-	name = filepath.Join("../../ui/dist/", name)
+	name = filepath.Join("./ui/dist/", name)
 	fs.routesMu.RLock()
 	if f, ok = fs.routes[name]; ok && f.exists {
 		fs.routesMu.RUnlock()
@@ -116,9 +121,9 @@ func addIndexTag(tagName, toAdd, content string) string {
 
 func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 	index := newWrapFile(fs.index.Copy())
-	locIndex := strings.Index(loc, "../../ui/dist/")
+	locIndex := strings.Index(loc, "./ui/dist/")
 	if locIndex != -1 {
-		loc = loc[locIndex+len("../../ui/dist/"):]
+		loc = loc[locIndex+len("./ui/dist/"):]
 	}
 
 	data := addIndexTag("url", fmt.Sprintf("%s/%s", internal.GetHostURL(), loc), string(index.realFile.data))

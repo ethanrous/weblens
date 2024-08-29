@@ -1,4 +1,4 @@
-package comm
+package models
 
 import (
 	"fmt"
@@ -7,13 +7,14 @@ import (
 	"runtime/debug"
 	"slices"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -22,18 +23,36 @@ type ClientId string
 var _ Client = (*WsClient)(nil)
 
 type WsClient struct {
-	Active        bool
+	Active atomic.Bool
 	connId        ClientId
 	conn          *websocket.Conn
 	updateMu sync.Mutex
 	subsMu   sync.Mutex
 	subscriptions []Subscription
-	user          *models.User
-	remote        *models.Instance
+	user   *User
+	remote *Instance
+}
+
+func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
+	newClient := &WsClient{
+		connId:   ClientId(uuid.New().String()),
+		conn:     conn,
+		updateMu: sync.Mutex{},
+		subsMu:   sync.Mutex{},
+	}
+	newClient.Active.Store(true)
+
+	if socketUser.SocketType() == "webClient" {
+		newClient.user = socketUser.(*User)
+	} else if socketUser.SocketType() == "serverClient" {
+		newClient.remote = socketUser.(*Instance)
+	}
+
+	return newClient
 }
 
 func (wsc *WsClient) IsOpen() bool {
-	return wsc.Active
+	return wsc.Active.Load()
 }
 
 func (wsc *WsClient) GetClientId() ClientId {
@@ -51,11 +70,11 @@ func (wsc *WsClient) GetShortId() ClientId {
 	return wsc.connId[28:]
 }
 
-func (wsc *WsClient) GetUser() *models.User {
+func (wsc *WsClient) GetUser() *User {
 	return wsc.user
 }
 
-func (wsc *WsClient) GetRemote() *models.Instance {
+func (wsc *WsClient) GetRemote() *Instance {
 	return wsc.remote
 }
 
@@ -65,7 +84,7 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
-	wsc.send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string) {
@@ -75,10 +94,10 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string) {
 		BroadcastType: ServerEvent,
 	}
 
-	wsc.send(msg)
+	log.ErrTrace(wsc.Send(msg))
 }
 
-func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media) {
+func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  SubId(updatedFile.ID()),
@@ -86,7 +105,7 @@ func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *mo
 		BroadcastType: FolderSubscribe,
 	}
 
-	wsc.send(msg)
+	log.ErrTrace(wsc.Send(msg))
 }
 
 func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
@@ -98,7 +117,7 @@ func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.T
 		BroadcastType: TaskSubscribe,
 	}
 
-	wsc.send(msg)
+	log.ErrTrace(wsc.Send(msg))
 }
 
 func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.TaskResult) {
@@ -115,13 +134,19 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 		BroadcastType: TaskSubscribe,
 	}
 
-	wsc.send(msg)
+	log.ErrTrace(wsc.Send(msg))
 }
 
 func (wsc *WsClient) GetSubscriptions() iter.Seq[Subscription] {
 	wsc.updateMu.Lock()
 	defer wsc.updateMu.Unlock()
 	return slices.Values(wsc.subscriptions)
+}
+
+func (wsc *WsClient) AddSubscription(sub Subscription) {
+	wsc.updateMu.Lock()
+	defer wsc.updateMu.Unlock()
+	wsc.subscriptions = append(wsc.subscriptions, sub)
 }
 
 func (wsc *WsClient) Raw(msg any) error {
@@ -136,8 +161,8 @@ func (wsc *WsClient) SubUnlock() {
 	wsc.subsMu.Unlock()
 }
 
-func (wsc *WsClient) send(msg WsResponseInfo) {
-	if wsc != nil && wsc.Active {
+func (wsc *WsClient) Send(msg WsResponseInfo) error {
+	if wsc != nil && wsc.Active.Load() {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
@@ -145,8 +170,10 @@ func (wsc *WsClient) send(msg WsResponseInfo) {
 			wsc.errTrace(err)
 		}
 	} else {
-		log.Error.Println("Trying to send to closed client")
+		return werror.Errorf("trying to send to closed client")
 	}
+
+	return nil
 }
 
 func (wsc *WsClient) unsubscribe(key SubId) {
@@ -163,8 +190,8 @@ func (wsc *WsClient) unsubscribe(key SubId) {
 	log.Debug.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
 }
 
-func (wsc *WsClient) disconnect() {
-	wsc.Active = false
+func (wsc *WsClient) Disconnect() {
+	wsc.Active.Store(false)
 
 	wsc.updateMu.Lock()
 	err := wsc.conn.Close()
@@ -202,28 +229,6 @@ func (wsc *WsClient) errTrace(msg ...any) {
 	log.WsError.Printf(wsc.clientMsgFormat(msg...), string(debug.Stack()))
 }
 
-type ClientManager interface {
-	ClientConnect(conn *websocket.Conn, user *models.User) *WsClient
-	RemoteConnect(conn *websocket.Conn, remote *models.Instance) *WsClient
-	GetSubscribers(st WsAction, key SubId) (clients []*WsClient)
-	GetClientByUsername(username models.Username) *WsClient
-	GetClientByInstanceId(id models.InstanceId) *WsClient
-	GetAllClients() []*WsClient
-	GetConnectedAdmins() []*WsClient
-
-	FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId)
-
-	Subscribe(c *WsClient, key SubId, action WsAction, share models.Share) (
-		complete bool,
-		results map[string]any, err error,
-	)
-	Unsubscribe(c *WsClient, key SubId) error
-
-	Send(msg WsResponseInfo)
-
-	ClientDisconnect(c *WsClient)
-}
-
 type Client interface {
 	BasicCaster
 
@@ -238,8 +243,14 @@ type Client interface {
 	SubLock()
 	SubUnlock()
 
-	GetUser() *models.User
-	GetRemote() *models.Instance
+	AddSubscription(sub Subscription)
+
+	GetUser() *User
+	GetRemote() *Instance
 
 	Error(error)
+}
+
+type SocketUser interface {
+	SocketType() string
 }

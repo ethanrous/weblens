@@ -165,6 +165,15 @@ func (ft *FileTreeImpl) Add(f *WeblensFile) error {
 	}
 
 	ft.addInternal(f.ID(), f)
+
+	if f.parent == nil {
+		parent := ft.Get(f.parentId)
+		if parent == nil {
+			return werror.Errorf("could not get parent of file to add")
+		}
+		f.setParentInternal(parent)
+	}
+
 	err := f.GetParent().AddChild(f)
 	if err != nil {
 		return err
@@ -177,11 +186,21 @@ func (ft *FileTreeImpl) Add(f *WeblensFile) error {
 		}
 	}
 
-	portable, err := ft.AbsToPortable(f.getAbsPathInternal())
-	if err != nil {
-		return err
+	if f.getAbsPathInternal() == "" && f.GetPortablePath().relPath == "" {
+		return werror.Errorf("Cannot add file to tree without abs path or portable path")
+	} else if f.GetPortablePath().relPath == "" {
+		portable, err := ft.AbsToPortable(f.getAbsPathInternal())
+		if err != nil {
+			return err
+		}
+		f.setPortable(portable)
+	} else if f.getAbsPathInternal() == "" {
+		abs, err := ft.PortableToAbs(f.GetPortablePath())
+		if err != nil {
+			return err
+		}
+		f.setAbsPath(abs)
 	}
-	f.setPortable(portable)
 
 	return nil
 }
@@ -270,10 +289,10 @@ func (ft *FileTreeImpl) Del(fId FileId, deleteEvent *FileEvent) ([]*WeblensFile,
 
 	// if f.IsDir() {
 	// }
-	err = os.RemoveAll(f.GetAbsPath())
-	if err != nil {
-		return nil, err
-	}
+	// err = os.RemoveAll(f.GetAbsPath())
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	if localDeleteEvent {
 		ft.journalService.LogEvent(deleteEvent)
@@ -305,19 +324,16 @@ func (ft *FileTreeImpl) GetChildren(f *WeblensFile) iter.Seq[*WeblensFile] {
 func (ft *FileTreeImpl) Move(
 	f, newParent *WeblensFile, newFilename string, overwrite bool, event *FileEvent,
 ) ([]MoveInfo, error) {
-	if !newParent.IsDir() {
-		return nil, werror.ErrDirectoryRequired
+	if newParent == nil {
+		return nil, werror.WithStack(werror.ErrFileRequired)
+	} else if !newParent.IsDir() {
+		return nil, werror.WithStack(werror.ErrDirectoryRequired)
+	} else if newFilename == "" {
+		return nil, werror.WithStack(werror.ErrFilenameRequired)
 	}
 
-	var moved []MoveInfo
-
-	if (newFilename == "" || newFilename == f.Filename()) && newParent == f.GetParent() {
-		log.Warning.Println("Exiting early from move without updates")
-		return moved, nil
-	}
-
-	if newFilename == "" {
-		newFilename = f.Filename()
+	if newFilename == f.Filename() && newParent == f.GetParent() {
+		return nil, werror.WithStack(werror.ErrEmptyMove)
 	}
 
 	newAbsPath := filepath.Join(newParent.GetAbsPath(), newFilename)
@@ -344,6 +360,7 @@ func (ft *FileTreeImpl) Move(
 	}
 
 	// Sync file tree with new move, including f and all of its children.
+	var moved []MoveInfo
 	err := f.RecursiveMap(
 		func(w *WeblensFile) error {
 			preFile := w.Freeze()

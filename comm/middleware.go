@@ -138,6 +138,11 @@ func WeblensAuth(requireAdmin bool) gin.HandlerFunc {
 			c.Set("user", user)
 			c.Next()
 		} else {
+			if requireAdmin {
+				log.Warning.Printf("Request at admin endpoint from unauthorized source")
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
 			c.Next()
 			return
 		}
@@ -164,12 +169,13 @@ func KeyOnlyAuth(c *gin.Context) {
 		return
 	}
 
-	if key.Key != "" {
-		c.Next()
-	} else {
+	if key.Key == "" {
 		log.Debug.Println("Failed to find key with this id:", cred)
 		c.AbortWithStatus(http.StatusUnauthorized)
 	}
+	instance := InstanceService.Get(key.RemoteUsing)
+	c.Set("instance", instance)
+	c.Next()
 }
 
 func initSafety(c *gin.Context) {

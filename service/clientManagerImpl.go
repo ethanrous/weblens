@@ -1,12 +1,8 @@
-package comm
+package service
 
 import (
 	"errors"
-	"flag"
 	"fmt"
-	"net/http"
-	"net/url"
-	"regexp"
 	"slices"
 	"sync"
 	"time"
@@ -16,20 +12,18 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
 	"github.com/ethrousseau/weblens/task"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
-var _ ClientManager = (*clientManager)(nil)
+var _ models.ClientManager = (*ClientManager)(nil)
 
-type clientManager struct {
-	webClientMap    map[models.Username]*WsClient
-	remoteClientMap map[models.InstanceId]*WsClient
+type ClientManager struct {
+	webClientMap    map[models.Username]*models.WsClient
+	remoteClientMap map[models.InstanceId]*models.WsClient
 	clientMu        *sync.RWMutex
 
-	core *WsClient
+	core *models.WsClient
 
 	// Key: subscription identifier, value: clientConn instance
 	// Use map to take advantage of O(1) lookup time when finding or removing clients
@@ -40,47 +34,54 @@ type clientManager struct {
 	// 		*client2,
 	//     ]
 	// }
-	folderSubs   map[SubId][]*WsClient
-	taskSubs     map[SubId][]*WsClient
-	taskTypeSubs map[SubId][]*WsClient
+	folderSubs   map[models.SubId][]*models.WsClient
+	taskSubs     map[models.SubId][]*models.WsClient
+	taskTypeSubs map[models.SubId][]*models.WsClient
 	folderMu     sync.Mutex
 	taskMu       sync.Mutex
 	taskTypeMu   sync.Mutex
 
-	fileService *service.FileServiceImpl
-	taskService task.TaskService
+	fileService     *FileServiceImpl
+	taskService     task.TaskService
+	instanceService models.InstanceService
 }
 
-func NewClientManager(fileService *service.FileServiceImpl, taskService task.TaskService) ClientManager {
-	return &clientManager{
-		webClientMap:    map[models.Username]*WsClient{},
-		remoteClientMap: map[models.InstanceId]*WsClient{},
+func NewClientManager(
+	fileService *FileServiceImpl, taskService task.TaskService,
+	instanceService models.InstanceService,
+) *ClientManager {
+	return &ClientManager{
+		webClientMap:    map[models.Username]*models.WsClient{},
+		remoteClientMap: map[models.InstanceId]*models.WsClient{},
 		clientMu:        &sync.RWMutex{},
 
-		folderSubs:   map[SubId][]*WsClient{},
-		taskSubs:     map[SubId][]*WsClient{},
-		taskTypeSubs: map[SubId][]*WsClient{},
+		folderSubs:   map[models.SubId][]*models.WsClient{},
+		taskSubs:     map[models.SubId][]*models.WsClient{},
+		taskTypeSubs: map[models.SubId][]*models.WsClient{},
 
-		fileService: fileService,
-		taskService: taskService,
+		fileService:     fileService,
+		taskService:     taskService,
+		instanceService: instanceService,
 	}
 }
 
-func (cm *clientManager) ClientConnect(conn *websocket.Conn, user *models.User) *WsClient {
-	connectionId := ClientId(uuid.New().String())
-	newClient := WsClient{Active: true, connId: connectionId, conn: conn, user: user}
-
-	cm.clientMu.Lock()
-	cm.webClientMap[user.GetUsername()] = &newClient
-	cm.clientMu.Unlock()
-
-	log.Debug.Printf("Websocket client [%s] connected", user.GetUsername())
-	return &newClient
+func (cm *ClientManager) SetFileService(fileService *FileServiceImpl) {
+	cm.fileService = fileService
 }
 
-func (cm *clientManager) RemoteConnect(conn *websocket.Conn, remote *models.Instance) *WsClient {
-	connectionId := ClientId(uuid.New().String())
-	newClient := &WsClient{Active: true, conn: conn, remote: remote, connId: connectionId}
+func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *models.User) *models.WsClient {
+	newClient := models.NewClient(conn, user)
+
+	cm.clientMu.Lock()
+	cm.webClientMap[user.GetUsername()] = newClient
+	cm.clientMu.Unlock()
+
+	log.Debug.Printf("Web client [%s] connected", user.GetUsername())
+	return newClient
+}
+
+func (cm *ClientManager) RemoteConnect(conn *websocket.Conn, remote *models.Instance) *models.WsClient {
+	newClient := models.NewClient(conn, remote)
 
 	cm.clientMu.Lock()
 	cm.remoteClientMap[remote.ServerId()] = newClient
@@ -90,10 +91,11 @@ func (cm *clientManager) RemoteConnect(conn *websocket.Conn, remote *models.Inst
 		cm.core = newClient
 	}
 
+	log.Debug.Printf("Server [%s] connected", remote.Name)
 	return newClient
 }
 
-func (cm *clientManager) ClientDisconnect(c *WsClient) {
+func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 	for s := range c.GetSubscriptions() {
 		err := cm.removeSubscription(s, c, true)
 
@@ -112,63 +114,63 @@ func (cm *clientManager) ClientDisconnect(c *WsClient) {
 		delete(cm.remoteClientMap, c.GetRemote().ServerId())
 	}
 
-	c.disconnect()
+	c.Disconnect()
 }
 
-func (cm *clientManager) GetClientByUsername(username models.Username) *WsClient {
+func (cm *ClientManager) GetClientByUsername(username models.Username) *models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
 	return cm.webClientMap[username]
 }
 
-func (cm *clientManager) GetClientByInstanceId(instanceId models.InstanceId) *WsClient {
+func (cm *ClientManager) GetClientByInstanceId(instanceId models.InstanceId) *models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
 	return cm.remoteClientMap[instanceId]
 }
 
-func (cm *clientManager) GetAllClients() []*WsClient {
+func (cm *ClientManager) GetAllClients() []*models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
 	return internal.MapToValues(cm.webClientMap)
 }
 
-func (cm *clientManager) GetConnectedAdmins() []*WsClient {
+func (cm *ClientManager) GetConnectedAdmins() []*models.WsClient {
 	clients := cm.GetAllClients()
 	admins := internal.Filter(
-		clients, func(c *WsClient) bool {
+		clients, func(c *models.WsClient) bool {
 			return c.GetUser().IsAdmin()
 		},
 	)
 	return admins
 }
 
-func (cm *clientManager) GetSubscribers(st WsAction, key SubId) (clients []*WsClient) {
+func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (clients []*models.WsClient) {
 	switch st {
-	case FolderSubscribe:
+	case models.FolderSubscribe:
 		{
 			cm.folderMu.Lock()
 			clients = cm.folderSubs[key]
 			cm.folderMu.Unlock()
 		}
-	case TaskSubscribe:
+	case models.TaskSubscribe:
 		{
 			cm.taskMu.Lock()
 			clients = cm.taskSubs[key]
 			cm.taskMu.Unlock()
 		}
-	case UserSubscribe:
+	case models.UserSubscribe:
 		{
 			cm.clientMu.Lock()
 			allClients := internal.MapToValues(cm.webClientMap)
 			cm.clientMu.Unlock()
 			clients = internal.Filter(
-				allClients, func(c *WsClient) bool {
-					return SubId(c.GetUser().GetUsername()) == key
+				allClients, func(c *models.WsClient) bool {
+					return models.SubId(c.GetUser().GetUsername()) == key
 				},
 			)
 		}
-	case TaskTypeSubscribe:
+	case models.TaskTypeSubscribe:
 		{
 			cm.taskTypeMu.Lock()
 			clients = cm.taskTypeSubs[key]
@@ -187,15 +189,15 @@ func (cm *clientManager) GetSubscribers(st WsAction, key SubId) (clients []*WsCl
 //
 // Returns "true" and the results at meta.LookingFor if the task is completed, false and nil otherwise.
 // Subscriptions to types that represent ongoing events like FolderSubscribe never return a truthy completed
-func (cm *clientManager) Subscribe(
-	c *WsClient,
-	key SubId, action WsAction, share models.Share,
+func (cm *ClientManager) Subscribe(
+	c *models.WsClient,
+	key models.SubId, action models.WsAction, share models.Share,
 ) (
 	complete bool,
 	results map[string]any,
 	err error,
 ) {
-	var sub Subscription
+	var sub models.Subscription
 
 	// *HACK* Ensure that subscribe requests are processed after unsubscribe requests
 	// that are sent at the same time from the client. A lower sleep value may be able
@@ -206,7 +208,7 @@ func (cm *clientManager) Subscribe(
 	defer c.SubUnlock()
 
 	switch action {
-	case FolderSubscribe:
+	case models.FolderSubscribe:
 		{
 			if key == "" {
 				err = fmt.Errorf("cannot subscribe with empty folder id")
@@ -232,12 +234,12 @@ func (cm *clientManager) Subscribe(
 				return
 			}
 
-			sub = Subscription{Type: FolderSubscribe, Key: key}
+			sub = models.Subscription{Type: models.FolderSubscribe, Key: key}
 			c.PushFileUpdate(folder, nil)
 
 			for _, t := range cm.fileService.GetTasks(folder) {
 				c.SubUnlock()
-				_, _, err = cm.Subscribe(c, SubId(t.TaskId()), TaskSubscribe, nil)
+				_, _, err = cm.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, nil)
 				c.SubLock()
 				if err != nil {
 					return
@@ -245,7 +247,7 @@ func (cm *clientManager) Subscribe(
 			}
 			// TODO
 		}
-	case TaskSubscribe:
+	case models.TaskSubscribe:
 		{
 			t := cm.taskService.GetTask(task.TaskId(key))
 			if t == nil {
@@ -257,20 +259,21 @@ func (cm *clientManager) Subscribe(
 			complete, _ = t.Status()
 			results = t.GetResults()
 
-			c.updateMu.Lock()
-			if complete || slices.IndexFunc(
-				c.subscriptions, func(s Subscription) bool { return s.Key == key },
-			) != -1 {
-				c.updateMu.Unlock()
+			if complete {
 				return
 			}
-			c.updateMu.Unlock()
 
-			sub = Subscription{Type: TaskSubscribe, Key: key}
+			for clientSub := range c.GetSubscriptions() {
+				if clientSub.Key == key {
+					return
+				}
+			}
 
-			c.PushTaskUpdate(t, TaskCreatedEvent, t.GetMeta().FormatToResult())
+			sub = models.Subscription{Type: models.TaskSubscribe, Key: key}
+
+			c.PushTaskUpdate(t, models.TaskCreatedEvent, t.GetMeta().FormatToResult())
 		}
-	case PoolSubscribe:
+	case models.PoolSubscribe:
 		{
 			pool := cm.taskService.GetTaskPool(task.TaskId(key))
 			if pool == nil {
@@ -282,19 +285,19 @@ func (cm *clientManager) Subscribe(
 			}
 
 			log.Debug.Printf("%s subscribed to pool [%s]", c.GetUser().GetUsername(), pool.ID())
-			sub = Subscription{Type: TaskSubscribe, Key: key}
+			sub = models.Subscription{Type: models.TaskSubscribe, Key: key}
 
 			c.PushPoolUpdate(
-				pool, PoolCreatedEvent, task.TaskResult{
+				pool, models.PoolCreatedEvent, task.TaskResult{
 					"createdBy": pool.CreatedInTask().
 						TaskId(),
 				},
 			)
 		}
-	case TaskTypeSubscribe:
+	case models.TaskTypeSubscribe:
 		{
-			log.Debug.Printf("%s subscribed to task type [%s]", c.user.GetUsername(), key)
-			sub = Subscription{Type: TaskTypeSubscribe, Key: key}
+			log.Debug.Printf("%s subscribed to task type [%s]", c.GetUser().GetUsername(), key)
+			sub = models.Subscription{Type: models.TaskTypeSubscribe, Key: key}
 		}
 	default:
 		{
@@ -305,21 +308,19 @@ func (cm *clientManager) Subscribe(
 		}
 	}
 
-	log.Debug.Printf("[%s] subscribed to %s", c.user.GetUsername(), key)
+	log.Debug.Printf("[%s] subscribed to %s", c.GetUser().GetUsername(), key)
 
-	c.updateMu.Lock()
-	c.subscriptions = append(c.subscriptions, sub)
-	c.updateMu.Unlock()
+	c.AddSubscription(sub)
 	cm.addSubscription(sub, c)
 
 	return
 }
 
-func (cm *clientManager) Unsubscribe(c *WsClient, key SubId) error {
+func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId) error {
 	c.SubLock()
 	defer c.SubUnlock()
 
-	var sub Subscription
+	var sub models.Subscription
 	for s := range c.GetSubscriptions() {
 		if s.Key == key {
 			sub = s
@@ -327,29 +328,29 @@ func (cm *clientManager) Unsubscribe(c *WsClient, key SubId) error {
 		}
 	}
 
-	if sub == (Subscription{}) {
+	if sub == (models.Subscription{}) {
 		return werror.Errorf("Could not find subscription with key [%s]", key)
 	}
-	log.Debug.Printf("Removing [%s]'s subscription to [%s]", c.user.GetUsername(), key)
+	log.Debug.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key)
 
 	return cm.removeSubscription(sub, c, false)
 }
 
-func (cm *clientManager) addSubscription(subInfo Subscription, client *WsClient) {
+func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *models.WsClient) {
 	switch subInfo.Type {
-	case FolderSubscribe:
+	case models.FolderSubscribe:
 		{
 			cm.folderMu.Lock()
 			addSub(cm.folderSubs, subInfo, client)
 			cm.folderMu.Unlock()
 		}
-	case TaskSubscribe:
+	case models.TaskSubscribe:
 		{
 			cm.taskMu.Lock()
 			addSub(cm.taskSubs, subInfo, client)
 			cm.taskMu.Unlock()
 		}
-	case TaskTypeSubscribe:
+	case models.TaskTypeSubscribe:
 		{
 			cm.taskTypeMu.Lock()
 			addSub(cm.taskTypeSubs, subInfo, client)
@@ -363,34 +364,48 @@ func (cm *clientManager) addSubscription(subInfo Subscription, client *WsClient)
 	}
 }
 
-func (cm *clientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId) {
-	subs := cm.GetSubscribers(FolderSubscribe, SubId(folderId))
+func (cm *ClientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId) {
+	subs := cm.GetSubscribers(models.FolderSubscribe, models.SubId(folderId))
 
 	for _, s := range subs {
-		log.Debug.Printf("Subscribing user %s on folder sub %s to pool %s", s.user.GetUsername(), folderId, poolId)
-		_, _, err := cm.Subscribe(s, SubId(poolId), PoolSubscribe, nil)
+		log.Debug.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), folderId, poolId)
+		_, _, err := cm.Subscribe(s, models.SubId(poolId), models.PoolSubscribe, nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
 	}
 }
 
-func (cm *clientManager) removeSubscription(subInfo Subscription, client *WsClient, removeAll bool) error {
+func (cm *ClientManager) TaskSubToPool(taskId task.TaskId, poolId task.TaskId) {
+	subs := cm.GetSubscribers(models.TaskSubscribe, models.SubId(taskId))
+
+	for _, s := range subs {
+		log.Debug.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), taskId, poolId)
+		_, _, err := cm.Subscribe(s, models.SubId(poolId), models.PoolSubscribe, nil)
+		if err != nil {
+			log.ShowErr(err)
+		}
+	}
+}
+
+func (cm *ClientManager) removeSubscription(
+	subInfo models.Subscription, client *models.WsClient, removeAll bool,
+) error {
 	var err error
 	switch subInfo.Type {
-	case FolderSubscribe:
+	case models.FolderSubscribe:
 		{
 			cm.folderMu.Lock()
 			err = removeSubs(cm.folderSubs, subInfo, client, removeAll)
 			cm.folderMu.Unlock()
 		}
-	case TaskSubscribe:
+	case models.TaskSubscribe:
 		{
 			cm.taskMu.Lock()
 			err = removeSubs(cm.taskSubs, subInfo, client, removeAll)
 			cm.taskMu.Unlock()
 		}
-	case TaskTypeSubscribe:
+	case models.TaskTypeSubscribe:
 		{
 			cm.taskTypeMu.Lock()
 			err = removeSubs(cm.taskTypeSubs, subInfo, client, removeAll)
@@ -405,7 +420,7 @@ func (cm *clientManager) removeSubscription(subInfo Subscription, client *WsClie
 	return err
 }
 
-func (cm *clientManager) Send(msg WsResponseInfo) {
+func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 	defer internal.RecoverPanic("Panic caught while broadcasting")
 
 	if msg.SubscribeKey == "" {
@@ -413,26 +428,30 @@ func (cm *clientManager) Send(msg WsResponseInfo) {
 		return
 	}
 
-	var clients []*WsClient
-	if !InstanceService.IsLocalLoaded() || msg.BroadcastType == ServerEvent {
+	var clients []*models.WsClient
+
+	if !cm.instanceService.IsLocalLoaded() || msg.BroadcastType == models.ServerEvent {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)
 		clients = internal.OnlyUnique(clients)
 	}
 
-	if msg.BroadcastType == TaskSubscribe {
+	if msg.BroadcastType == models.TaskSubscribe {
 		clients = append(
 			clients, cm.GetSubscribers(
-				TaskTypeSubscribe,
-				SubId(msg.TaskType),
+				models.TaskTypeSubscribe,
+				models.SubId(msg.TaskType),
 			)...,
 		)
 	}
 
 	if len(clients) != 0 {
 		for _, c := range clients {
-			c.send(msg)
+			err := c.Send(msg)
+			if err != nil {
+				log.ErrTrace(err)
+			}
 		}
 	} else {
 		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.
@@ -441,27 +460,29 @@ func (cm *clientManager) Send(msg WsResponseInfo) {
 	}
 }
 
-func addSub(subMap map[SubId][]*WsClient, subInfo Subscription, client *WsClient) {
+func addSub(subMap map[models.SubId][]*models.WsClient, subInfo models.Subscription, client *models.WsClient) {
 	subs, ok := subMap[subInfo.Key]
 
 	if !ok {
-		subs = []*WsClient{}
+		subs = []*models.WsClient{}
 	}
 
 	subMap[subInfo.Key] = append(subs, client)
 }
 
 func removeSubs(
-	subMap map[SubId][]*WsClient, subInfo Subscription, client *WsClient, removeAll bool,
+	subMap map[models.SubId][]*models.WsClient, subInfo models.Subscription, client *models.WsClient, removeAll bool,
 ) error {
 	subs, ok := subMap[subInfo.Key]
 	if !ok {
 		return werror.Errorf("Tried to unsubscribe from non-existent key [%s]", subInfo.Key)
 	}
 	if removeAll {
-		subs = internal.Filter(subs, func(c *WsClient) bool { return c.GetClientId() != client.GetClientId() })
+		subs = internal.Filter(subs, func(c *models.WsClient) bool { return c.GetClientId() != client.GetClientId() })
 	} else {
-		index := slices.IndexFunc(subs, func(c *WsClient) bool { return c.GetClientId() == client.GetClientId() })
+		index := slices.IndexFunc(
+			subs, func(c *models.WsClient) bool { return c.GetClientId() == client.GetClientId() },
+		)
 		if index != -1 {
 			subs = internal.Banish(subs, index)
 		}
@@ -471,88 +492,3 @@ func removeSubs(
 	return nil
 }
 
-type WsAuthorize struct {
-	Auth string `json:"auth"`
-}
-
-const RetryInterval = time.Second * 10
-
-func WebsocketToCore(core *models.Instance, clientService *clientManager) error {
-	addrStr, err := core.GetAddress()
-	if err != nil {
-		return err
-	}
-
-	if addrStr == "" {
-		return errors.New("Core server address is empty")
-	}
-
-	re, err := regexp.Compile(`http(s)?://([^/]*)`)
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	parts := re.FindStringSubmatch(addrStr)
-
-	addr := flag.String("addr", parts[2], "http service address")
-	host := url.URL{Scheme: "ws" + parts[1], Host: *addr, Path: "/api/core/ws"}
-	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
-
-	authHeader := http.Header{}
-	authHeader.Add("Authorization", "Bearer "+string(core.GetUsingKey()))
-	var conn *WsClient
-	go func() {
-		for {
-			conn, err = dial(dialer, host, authHeader, core, clientService)
-			if err != nil {
-				log.Warning.Printf(
-					"Failed to connect to core server at %s, trying again in %s",
-					host.String(), RetryInterval,
-				)
-				log.Debug.Println("Error was", err)
-				time.Sleep(RetryInterval)
-				continue
-			}
-			coreWsHandler(conn)
-			log.Warning.Printf("Connection to core websocket closed, reconnecting...")
-		}
-	}()
-	return nil
-}
-
-func dial(
-	dialer *websocket.Dialer, host url.URL, authHeader http.Header, core *models.Instance,
-	clientService *clientManager,
-) (
-	*WsClient, error,
-) {
-	log.Debug.Println("Dialing", host.String())
-	conn, _, err := dialer.Dial(host.String(), authHeader)
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
-
-	client := clientService.RemoteConnect(conn, core)
-
-	err = client.Raw(WsAuthorize{Auth: authHeader.Get("Authorization")})
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
-
-	log.Info.Printf("Connection to core server at %s successfully established", host.String())
-	return client, nil
-}
-
-func coreWsHandler(c *WsClient) {
-	defer func() { c.disconnect() }()
-	defer func() { recover() }()
-
-	for {
-		mt, message, err := c.ReadOne()
-		if err != nil {
-			log.ShowErr(werror.WithStack(err))
-			break
-		}
-		log.Debug.Println(mt, string(message))
-	}
-}

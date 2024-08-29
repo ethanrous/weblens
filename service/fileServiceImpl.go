@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
@@ -41,28 +42,6 @@ type FileServiceImpl struct {
 	trashCol     *mongo.Collection
 }
 
-// FileInfo is a structure for safely sending file information to the client
-type FileInfo struct {
-	Id fileTree.FileId `json:"id"`
-	/* If the content of the file can be displayed visually.
-	Say the file is a jpg, mov, arw, etc. and not a zip,
-	txt, doc, directory etc. */
-	Displayable bool `json:"displayable"`
-
-	IsDir        bool              `json:"isDir"`
-	Modifiable   bool              `json:"modifiable"`
-	Size         int64             `json:"size"`
-	ModTime      int64             `json:"modTime"`
-	Filename     string            `json:"filename"`
-	ParentId     fileTree.FileId   `json:"parentId"`
-	MediaData    *models.Media     `json:"mediaData,omitempty"`
-	Owner        models.Username   `json:"owner"`
-	PathFromHome string            `json:"pathFromHome"`
-	ShareId      models.ShareId    `json:"shareId,omitempty"`
-	Children     []fileTree.FileId `json:"children"`
-	PastFile     bool              `json:"pastFile,omitempty"`
-}
-
 func NewFileService(
 	mediaTree, cacheTree fileTree.FileTree, userService models.UserService,
 	accessService models.AccessService, mediaService models.MediaService, trashCol *mongo.Collection,
@@ -79,6 +58,8 @@ func NewFileService(
 
 	sw := internal.NewStopwatch("File Service Init")
 
+	time.Sleep(time.Second * 5)
+
 	_, err := cacheTree.MkDir(cacheTree.GetRoot(), "thumbs", nil)
 	if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 		return nil, werror.WithStack(err)
@@ -89,7 +70,10 @@ func NewFileService(
 
 	sw.Lap("Make journal event dir")
 
-	users := userService.GetAll()
+	users, err := userService.GetAll()
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
 	sw.Lap("Get users iter")
 
 	for u := range users {
@@ -139,6 +123,22 @@ func (fs *FileServiceImpl) SetMediaService(mediaService *MediaServiceImpl) {
 	fs.mediaService = mediaService
 }
 
+func (fs *FileServiceImpl) GetFile(id fileTree.FileId) (*fileTree.WeblensFile, error) {
+	return fs.getFileByIdAndRoot(id, "MEDIA")
+}
+
+func (fs *FileServiceImpl) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFile, error) {
+	var files []*fileTree.WeblensFile
+	for _, id := range ids {
+		f, err := fs.getFileByIdAndRoot(id, "MEDIA")
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, nil
+}
+
 func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, share *models.FileShare) (
 	*fileTree.WeblensFile,
 	error,
@@ -177,6 +177,10 @@ func (fs *FileServiceImpl) GetThumbFileId(id fileTree.FileId) (*fileTree.Weblens
 
 func (fs *FileServiceImpl) IsFileInTrash(f *fileTree.WeblensFile) bool {
 	return strings.Contains(f.GetAbsPath(), ".user_trash")
+}
+
+func (fs *FileServiceImpl) ImportFile(f *fileTree.WeblensFile) error {
+	return fs.mediaTree.Add(f)
 }
 
 func (fs *FileServiceImpl) NewCacheFile(contentId string, quality models.MediaQuality, pageNum int) (
@@ -299,14 +303,6 @@ func (fs *FileServiceImpl) MoveFileToTrash(
 
 	caster.PushFileMove(preMoveFile, file)
 
-	// TODO - set share status
-	// if file.GetShare() != nil {
-	// 	err = file.GetShare().SetEnabled(false)
-	// 	if err != nil {
-	// 		wlog.ShowErr(err)
-	// 	}
-	// }
-
 	return nil
 }
 
@@ -330,7 +326,7 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 	}
 
 	if len(trashEntries) != len(trashFiles) {
-		return errors.New("ReturnFilesFromTrash: trashEntries count does not match trashFiles")
+		return werror.Errorf("ReturnFilesFromTrash: trashEntries count does not match trashFiles")
 	}
 
 	event := fs.mediaTree.GetJournal().NewEvent()
@@ -360,39 +356,44 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 	return nil
 }
 
-// PermanentlyDeleteFile removes file being pointed to from the tree and deletes it from the real filesystem
+// PermanentlyDeleteFiles removes files being pointed to from the tree and deletes it from the real filesystem
 func (fs *FileServiceImpl) PermanentlyDeleteFiles(files []*fileTree.WeblensFile, caster models.FileCaster) error {
 	deleteEvent := fs.mediaTree.GetJournal().NewEvent()
 
-	var deleted []fileTree.FileId
+	var deletedIds []fileTree.FileId
 	var delErr error
 	for _, file := range files {
 		if !fs.IsFileInTrash(file) {
-			delErr = errors.New("Cannot delete file not in trash")
+			delErr = errors.New("cannot delete file not in trash")
 			break
 		}
 
-		_, delErr = fs.mediaTree.Del(file.ID(), deleteEvent)
+		var delFiles []*fileTree.WeblensFile
+		delFiles, delErr = fs.mediaTree.Del(file.ID(), deleteEvent)
 		if delErr != nil {
 			break
 		}
 
-		deleted = append(deleted, file.ID())
+		deletedIds = append(deletedIds, file.ID())
 
-		media := fs.mediaService.Get(models.ContentId(file.GetContentId()))
-		if media != nil {
-			delErr = fs.mediaService.RemoveFileFromMedia(media, file.ID())
-			if delErr != nil {
-				break
+		for _, delFile := range delFiles {
+			if delFile.IsDir() {
+				continue
+			}
+			media := fs.mediaService.Get(models.ContentId(delFile.GetContentId()))
+			if media != nil {
+				err := fs.mediaService.RemoveFileFromMedia(media, delFile.ID())
+				if err != nil {
+					log.ErrTrace(err)
+				}
 			}
 		}
-
 		caster.PushFileDelete(file)
 	}
 
 	fs.mediaTree.GetJournal().LogEvent(deleteEvent)
 
-	_, err := fs.trashCol.DeleteMany(context.Background(), bson.M{"fileId": bson.M{"$in": deleted}})
+	_, err := fs.trashCol.DeleteMany(context.Background(), bson.M{"fileId": bson.M{"$in": deletedIds}})
 	if err != nil {
 		return err
 	}
@@ -410,14 +411,61 @@ func (fs *FileServiceImpl) PermanentlyDeleteFiles(files []*fileTree.WeblensFile,
 	return nil
 }
 
+func (fs *FileServiceImpl) ReadFile(f *fileTree.WeblensFile) (io.ReadCloser, error) {
+	panic("not implemented")
+}
+
 func (fs *FileServiceImpl) NewZip(zipName string, owner *models.User) (*fileTree.WeblensFile, error) {
 	panic("not implemented")
 }
 
-func (fs *FileServiceImpl) MoveFile(
-	file *fileTree.WeblensFile, destParent *fileTree.WeblensFile, newFilename string, caster models.FileCaster,
+func (fs *FileServiceImpl) MoveFiles(
+	files []*fileTree.WeblensFile, destFolder *fileTree.WeblensFile, caster models.FileCaster,
 ) error {
-	panic("not implemented")
+	if len(files) == 0 {
+		return nil
+	}
+
+	event := fs.mediaTree.GetJournal().NewEvent()
+	prevParent := files[0].GetParent()
+
+	for _, file := range files {
+		preFile := file.Freeze()
+		newFilename := MakeUniqueChildName(destFolder, file.Filename())
+
+		_, err := fs.mediaTree.Move(file, destFolder, newFilename, false, event)
+		if err != nil {
+			return err
+		}
+
+		caster.PushFileMove(preFile, file)
+	}
+
+	fs.mediaTree.GetJournal().LogEvent(event)
+
+	err := fs.ResizeUp(destFolder, caster)
+	if err != nil {
+		return err
+	}
+
+	err = fs.ResizeUp(prevParent, caster)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *FileServiceImpl) RenameFile(file *fileTree.WeblensFile, newName string, caster models.FileCaster) error {
+	preFile := file.Freeze()
+	_, err := fs.mediaTree.Move(file, file.GetParent(), newName, false, nil)
+	if err != nil {
+		return err
+	}
+
+	caster.PushFileMove(preFile, file)
+
+	return nil
 }
 
 func (fs *FileServiceImpl) GetMediaRoot() *fileTree.WeblensFile {
@@ -431,8 +479,6 @@ func (fs *FileServiceImpl) GetMediaJournal() fileTree.JournalService {
 func (fs *FileServiceImpl) PathToFile(searchPath string, u *models.User, share *models.FileShare) (
 	*fileTree.WeblensFile, []*fileTree.WeblensFile, error,
 ) {
-	// return nil, werror.NotImplemented("PathToFile")
-
 	if strings.HasPrefix(searchPath, "~/") {
 		searchPath = "MEDIA:" + string(u.GetUsername()) + "/" + searchPath[2:]
 	} else if searchPath[:1] == "/" && u.IsAdmin() {
@@ -572,64 +618,6 @@ func GenerateContentId(f *fileTree.WeblensFile) (models.ContentId, error) {
 	return models.ContentId(contentId), nil
 }
 
-func BackupBaseFile(remoteId string, data []byte, ft fileTree.FileTree) (baseF *fileTree.WeblensFile, err error) {
-	// if thisServer.Role != BackupServerServer {
-	// 	err = ErrNotBackup
-	// 	return
-	// }
-
-	// baseContentId := util.GlobbyHash(8, data)
-	//
-	// mediaRoot := ft.Get("MEDIA")
-	// // Get or create dir for remote core
-	// remoteDir, err := ft.MkDir(mediaRoot, remoteId)
-	// if err != nil && !werror.Is(err, types.ErrDirAlreadyExists) {
-	// 	return
-	// }
-	//
-	// dataDir, err := ft.MkDir(remoteDir, "data")
-	// if err != nil && !werror.Is(err, types.ErrDirAlreadyExists) {
-	// 	return
-	// }
-	//
-	// baseF, err = ft.Touch(dataDir, baseContentId+".base", false, nil)
-	// if werror.Is(err, types.ErrFileAlreadyExists) {
-	// 	return
-	// } else if err != nil {
-	// 	return
-	// }
-	//
-	// err = baseF.Write(data)
-	return nil, werror.NotImplemented("BackupBaseFile")
-}
-
-// func CacheBaseMedia(mediaId ContentId, data [][]byte, ft types.FileTree) (
-// 	newThumb, newFullres *fileTree.WeblensFile, err error,
-// ) {
-// 	cacheRoot := ft.Get("CACHE")
-// 	newThumb, err = ft.Touch(cacheRoot, string(mediaId)+"-thumbnail.cache", false, nil)
-// 	if err != nil && !strings.Contains(err.Error(), "file already exists") {
-// 		return nil, nil, err
-// 	} else if !strings.Contains(err.Error(), "file already exists") {
-// 		err = newThumb.Write(data[0])
-// 		if err != nil {
-// 			return
-// 		}
-// 	}
-//
-// 	newFullres, err = ft.Touch(cacheRoot, string(mediaId)+"-fullres.cache", false, nil)
-// 	if err != nil && !strings.Contains(err.Error(), "file already exists") {
-// 		return nil, nil, err
-// 	} else if !strings.Contains(err.Error(), "file already exists") {
-// 		err = newFullres.Write(data[1])
-// 		if err != nil {
-// 			return
-// 		}
-// 	}
-//
-// 	return
-// }
-
 func MakeUniqueChildName(parent *fileTree.WeblensFile, childName string) string {
 	dupeCount := 0
 	_, e := parent.GetChild(childName)
@@ -646,30 +634,6 @@ func MakeUniqueChildName(parent *fileTree.WeblensFile, childName string) string 
 
 	return newFilename
 }
-
-var IgnoreFilenames = []string{
-	".DS_Store",
-}
-
-// func (fs *FileServiceImpl) GetChildrenInfo(f *fileTree.WeblensFile, accessor *User, share *FileShare) []FileInfo {
-// 	childrenInfo := internal.FilterMap(
-// 		f.GetChildren(), func(file *fileTree.WeblensFile) (FileInfo, bool) {
-//
-// 			info, err := fs.formatFileInfo(file, accessor, share)
-// 			if err != nil {
-// 				wlog.ErrTrace(err)
-// 				return info, false
-// 			}
-// 			return info, true
-// 		},
-// 	)
-//
-// 	if childrenInfo == nil {
-// 		return []FileInfo{}
-// 	}
-//
-// 	return childrenInfo
-// }
 
 func (fs *FileServiceImpl) resizeMultiple(old, new *fileTree.WeblensFile, caster models.FileCaster) (err error) {
 	// Check if either of the files are a parent of the other
@@ -730,7 +694,7 @@ func (fs *FileServiceImpl) getFileByIdAndRoot(id fileTree.FileId, rootAlias stri
 	}
 
 	if f == nil {
-		return nil, werror.Errorf("Could not find file with id [%s] on tree [%s]", id, rootAlias)
+		return nil, werror.ErrNoFile
 	}
 
 	return f, nil

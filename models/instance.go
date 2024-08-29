@@ -112,6 +112,10 @@ func (wi *Instance) SetAddress(address string) error {
 	return nil
 }
 
+func (wi *Instance) SocketType() string {
+	return "serverClient"
+}
+
 type ServerInfo struct {
 	Id   InstanceId `json:"id"`
 	Name string     `json:"name"`

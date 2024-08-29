@@ -25,6 +25,7 @@ import (
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/image/webp"
 
@@ -49,10 +50,12 @@ type MediaServiceImpl struct {
 	fileService models.FileService
 
 	collection *mongo.Collection
+
+	AlbumService models.AlbumService
 }
 
 func NewMediaService(
-	fileService models.FileService, mediaTypeServ models.MediaTypeService,
+	fileService models.FileService, mediaTypeServ models.MediaTypeService, albumService models.AlbumService,
 	col *mongo.Collection,
 ) (*MediaServiceImpl, error) {
 	ms := &MediaServiceImpl{
@@ -63,6 +66,16 @@ func NewMediaService(
 		mediaCache:  sturdyc.New[[]byte](1500, 10, time.Hour, 10),
 		fileService: fileService,
 		collection:  col,
+		AlbumService: albumService,
+	}
+
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{"contentId", 1}},
+		Options: (&options.IndexOptions{}).SetUnique(true),
+	}
+	_, err := col.Indexes().CreateOne(context.Background(), indexModel)
+	if err != nil {
+		return nil, err
 	}
 
 	ret, err := ms.collection.Find(context.Background(), bson.M{})
@@ -81,15 +94,6 @@ func NewMediaService(
 			return nil, werror.WithStack(err)
 		}
 		ms.mediaMap[m.ID()] = m
-	}
-
-	indexModel := mongo.IndexModel{
-		Keys:    bson.D{{"contentId", 1}},
-		Options: (&options.IndexOptions{}).SetUnique(true),
-	}
-	_, err = col.Indexes().CreateOne(context.Background(), indexModel)
-	if err != nil {
-		return nil, err
 	}
 
 	return ms, nil
@@ -112,7 +116,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 		return werror.ErrMediaNoPages
 	}
 
-	if m.MediaWidth == 0 || m.MediaHeight == 0 {
+	if m.Width == 0 || m.Height == 0 {
 		return werror.ErrMediaNoDimentions
 	}
 
@@ -143,6 +147,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 
 	if !m.IsImported() {
 		m.SetImported(true)
+		m.MediaId = primitive.NewObjectID()
 		_, err := ms.collection.InsertOne(context.Background(), m)
 		if err != nil {
 			return werror.WithStack(err)
@@ -183,29 +188,12 @@ func (ms *MediaServiceImpl) GetAll() []*models.Media {
 
 func (ms *MediaServiceImpl) Del(cId models.ContentId) error {
 	m := ms.Get(cId)
+	err := ms.removeCacheFiles(m)
 
-	f, err := ms.getCacheFile(m, models.LowRes, 0)
-	if err == nil {
-		err = ms.fileService.DeleteCacheFile(f)
-		if err != nil && !errors.Is(err, werror.ErrNoCache) {
-			return err
-		}
+	err = ms.AlbumService.RemoveMediaFromAny(m.ID())
+	if err != nil {
+		return err
 	}
-	f = nil
-	for page := range m.GetPageCount() {
-		f, err = ms.getCacheFile(m, models.HighRes, page)
-		if err == nil {
-			err = ms.fileService.DeleteCacheFile(f)
-			if err != nil && !errors.Is(err, werror.ErrNoCache) {
-				return err
-			}
-		}
-	}
-
-	// werr = ms.albumService.RemoveMediaFromAny(m.ID())
-	// if werr != nil {
-	// 	return werr
-	// }
 
 	filter := bson.M{"contentId": m.ID()}
 	_, err = ms.collection.DeleteOne(context.Background(), filter)
@@ -452,22 +440,7 @@ func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
 
 func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
 	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
-		err := ms.removeCacheFiles(media)
-		if err != nil {
-			return err
-		}
-
-		filter := bson.M{"contentId": media.ID()}
-		_, err = ms.collection.DeleteOne(context.Background(), filter)
-		if err != nil {
-			return err
-		}
-
-		ms.mediaLock.Lock()
-		delete(ms.mediaMap, media.ID())
-		ms.mediaLock.Unlock()
-
-		return nil
+		return ms.Del(media.ID())
 	}
 
 	filter := bson.M{"contentId": media.ID()}
@@ -482,10 +455,6 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 			return fId != fileId
 		},
 	)
-
-	if len(media.FileIds) == 0 {
-
-	}
 
 	return nil
 }
@@ -752,10 +721,10 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 		return nil, werror.WithStack(err)
 	}
 
-	m.MediaHeight = imgSize.Height
-	m.MediaWidth = imgSize.Width
+	m.Height = imgSize.Height
+	m.Width = imgSize.Width
 
-	thumbW := int((models.ThumbnailHeight / float32(m.MediaHeight)) * float32(m.MediaWidth))
+	thumbW := int((models.ThumbnailHeight / float32(m.Height)) * float32(m.Width))
 
 	var cacheFiles []*fileTree.WeblensFile
 
@@ -774,7 +743,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 			return nil, werror.WithStack(err)
 		} else {
 			thumbRatio := float64(thumbSize.Width) / float64(thumbSize.Height)
-			mediaRatio := float64(m.MediaWidth) / float64(m.MediaHeight)
+			mediaRatio := float64(m.Width) / float64(m.Height)
 			if (thumbRatio < 1 && mediaRatio > 1) || (thumbRatio > 1 && mediaRatio < 1) {
 				log.Error.Println("Mismatched media sizes")
 			}

@@ -55,4 +55,4 @@ sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${a
 
 sudo docker push ethrous/weblens:"${docker_tag}-${arch}"
 
-printf "\nBUILD COMPLETE. Container tag: $docker_tag-$arch"
+printf "\nBUILD COMPLETE. Container tag: $docker_tag-$arch\n"

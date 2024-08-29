@@ -23,7 +23,6 @@ type InstanceServiceImpl struct {
 	localLoading    map[string]bool
 
 	col           *mongo.Collection
-
 }
 
 func NewInstanceService(col *mongo.Collection) *InstanceServiceImpl {

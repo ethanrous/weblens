@@ -25,11 +25,14 @@ class ErrorBoundary extends Component<
 
     componentDidCatch(error, info) {
         const wsSend = useWebsocketStore.getState().wsSend
-        console.log(wsSend)
         if (wsSend != null) {
-            wsSend(error)
+            wsSend(
+                JSON.stringify({
+                    action: 'show_web_error',
+                    content: error.message,
+                })
+            )
         }
-        console.error(error, info.componentStack)
     }
 
     render() {

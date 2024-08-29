@@ -15,7 +15,6 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -79,6 +78,14 @@ func getUserFromCtx(ctx *gin.Context) *models.User {
 	return user.(*models.User)
 }
 
+func getRemoteFromCtx(ctx *gin.Context) *models.Instance {
+	instance, ok := ctx.Get("instance")
+	if !ok {
+		return nil
+	}
+	return instance.(*models.Instance)
+}
+
 func getShareFromCtx[T models.Share](ctx *gin.Context) (T, error) {
 	shareId := models.ShareId(ctx.Query("shareId"))
 	if shareId == "" {
@@ -101,7 +108,7 @@ func getShareFromCtx[T models.Share](ctx *gin.Context) (T, error) {
 }
 
 func formatFileSafe(f *fileTree.WeblensFile, accessor *models.User, share *models.FileShare) (
-	formattedInfo service.FileInfo,
+	formattedInfo FileInfo,
 	err error,
 ) {
 	if f == nil {
@@ -152,7 +159,7 @@ func formatFileSafe(f *fileTree.WeblensFile, accessor *models.User, share *model
 		shareId = share.GetShareId()
 	}
 
-	formattedInfo = service.FileInfo{
+	formattedInfo = FileInfo{
 		Id:          f.ID(),
 		Displayable: MediaService.IsFileDisplayable(f),
 		IsDir:       f.IsDir(),

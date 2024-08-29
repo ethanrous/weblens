@@ -4,26 +4,31 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/gin"
 )
 
 // Archive means sending ALL fields, including password and token information
 func getUsersArchive(ctx *gin.Context) {
-	users := UserService.GetAll()
+	usersIter, err := UserService.GetAll()
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
 
-	var archives []map[string]any
-	for u := range users {
+	var users []map[string]any
+	for u := range usersIter {
 		archive, err := u.FormatArchive()
 		if err != nil {
 			log.ErrTrace(err)
 		}
-		archives = append(archives, archive)
+		users = append(users, archive)
 	}
 
-	ctx.JSON(http.StatusOK, archives)
+	ctx.JSON(http.StatusOK, users)
 }
 
 func createUser(ctx *gin.Context) {

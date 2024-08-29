@@ -4,7 +4,7 @@ Weblens
 __Self-Hosted file manager and photo server__
 
 <p align="center">
-  <img style="float: center;" src="images/logo.png" alt="weblens logo"  width=200 />
+  <img style="float: center;" src="images/brand/logo.png" alt="weblens logo"  width=200 />
 </p>
 
 ## Overview

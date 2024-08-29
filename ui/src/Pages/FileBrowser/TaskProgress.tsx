@@ -40,6 +40,7 @@ export class TaskProgressState {
     }
 
     public addTask(task: TaskProgress) {
+        console.log('Adding task to task progress')
         this.tasks.set(task.GetTaskId(), task)
     }
 

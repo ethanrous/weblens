@@ -14,13 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/comm"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
+	"github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/saracen/fastzip"
 )
@@ -116,12 +115,12 @@ func CreateZip(t *task.Task) {
 	if zipExists {
 		t.SetResult(task.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.Filename()})
 		// Let any client subscribers know we are done
-		zipMeta.Caster.PushTaskUpdate(t, comm.ZipCompleteEvent, t.GetResults())
+		zipMeta.Caster.PushTaskUpdate(t, models.ZipCompleteEvent, t.GetResults())
 		t.Success()
 		return
 	}
 
-	zipMeta.Caster.PushTaskUpdate(t, comm.TaskCreatedEvent, task.TaskResult{"totalFiles": len(filesInfoMap)})
+	zipMeta.Caster.PushTaskUpdate(t, models.TaskCreatedEvent, task.TaskResult{"totalFiles": len(filesInfoMap)})
 
 	// if zipMeta.Share != nil {
 	// 	sh := types.SERV.ShareService.Get(zipMeta.shareId)
@@ -201,7 +200,7 @@ func CreateZip(t *task.Task) {
 			timeNs := updateInterval * sinceUpdate
 
 			zipMeta.Caster.PushTaskUpdate(
-				t, comm.ZipProgressEvent, task.TaskResult{
+				t, models.ZipProgressEvent, task.TaskResult{
 					"completedFiles": int(entries), "totalFiles": totalFiles,
 					"bytesSoFar": bytes,
 					"bytesTotal": bytesTotal,
@@ -220,52 +219,49 @@ func CreateZip(t *task.Task) {
 
 	t.SetResult(task.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.Filename()})
 	zipMeta.Caster.PushTaskUpdate(
-		t, comm.ZipCompleteEvent, t.GetResults(),
+		t, models.ZipCompleteEvent, t.GetResults(),
 	) // Let any client subscribers know we are done
 	t.Success()
 }
 
-func MoveFile(t *task.Task) {
-	moveMeta := t.GetMeta().(models.MoveMeta)
-
-	file, err := moveMeta.FileService.GetFileSafe(moveMeta.FileId, moveMeta.User, nil)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-
-	destinationFolder, err := moveMeta.FileService.GetFileSafe(moveMeta.DestinationFolderId, moveMeta.User, nil)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-	if moveMeta.FileService.IsFileInTrash(destinationFolder) {
-		err = moveMeta.FileService.MoveFileToTrash(file, moveMeta.User, nil, moveMeta.Caster)
-		if err != nil {
-			t.ErrorAndExit(err, "Failed while assuming move file was into trash")
-		}
-		return
-	} else if moveMeta.FileService.IsFileInTrash(file) {
-		err = moveMeta.FileService.ReturnFilesFromTrash([]*fileTree.WeblensFile{file}, moveMeta.Caster)
-		if err != nil {
-			t.ErrorAndExit(err, "Failed while assuming move file was returning from trash")
-		}
-		return
-	}
-
-	err = moveMeta.FileService.MoveFile(
-		file, destinationFolder, moveMeta.NewFilename,
-		moveMeta.Caster,
-	)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-
-	// err = t.taskPool.workerPool.fileTree.GetJournal().LogEvent(moveEvent)
-	// if err != nil {
-	// 	t.ErrorAndExit(err)
-	// }
-
-	t.Success()
-}
+// func MoveFiles(t *task.Task) {
+// 	moveMeta := t.GetMeta().(models.MoveMeta)
+//
+// 	file, err := moveMeta.FileService.GetFileSafe(moveMeta.FileIds, moveMeta.User, nil)
+// 	if err != nil {
+// 		t.ErrorAndExit(err)
+// 	}
+//
+// 	destinationFolder, err := moveMeta.FileService.GetFileSafe(moveMeta.DestinationFolderId, moveMeta.User, nil)
+// 	if err != nil {
+// 		t.ErrorAndExit(err)
+// 	}
+// 	if moveMeta.FileService.IsFileInTrash(destinationFolder) {
+// 		err = moveMeta.FileService.MoveFileToTrash(file, moveMeta.User, nil, moveMeta.Caster)
+// 		if err != nil {
+// 			t.ErrorAndExit(err, "Failed while assuming move file was into trash")
+// 		}
+// 		return
+// 	} else if moveMeta.FileService.IsFileInTrash(file) {
+// 		err = moveMeta.FileService.ReturnFilesFromTrash([]*fileTree.WeblensFile{file}, moveMeta.Caster)
+// 		if err != nil {
+// 			t.ErrorAndExit(err, "Failed while assuming move file was returning from trash")
+// 		}
+// 		return
+// 	}
+//
+// 	err = moveMeta.FileService.MoveFiles(file, destinationFolder, moveMeta.Caster)
+// 	if err != nil {
+// 		t.ErrorAndExit(err)
+// 	}
+//
+// 	// err = t.taskPool.workerPool.fileTree.GetJournal().LogEvent(moveEvent)
+// 	// if err != nil {
+// 	// 	t.ErrorAndExit(err)
+// 	// }
+//
+// 	t.Success()
+// }
 
 func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 	rangeAndSize := strings.Split(contentRange, "/")
@@ -615,6 +611,14 @@ func HashFile(t *task.Task) {
 	// if err != nil {
 	// 	t.ErrorAndExit(err)
 	// }
+	poolStatus := t.GetTaskPool().Status()
+	meta.Caster.PushTaskUpdate(
+		t, models.TaskCompleteEvent, task.TaskResult{
+			"fileName":      meta.File.Filename(),
+			"tasksTotal":    poolStatus.Total,
+			"tasksComplete": poolStatus.Complete,
+		},
+	)
 
 	t.Success()
 }

@@ -11,7 +11,7 @@ import (
 
 	"github.com/ethanrous/bimg"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models/service"
+	"github.com/ethrousseau/weblens/service"
 
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"

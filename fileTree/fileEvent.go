@@ -104,10 +104,6 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFile) *FileAction
 }
 
 func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
-	if fe.journal == nil {
-		return nil
-	}
-
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
 		log.ShowErr(werror.Errorf("Cannot not find existing lifetime for lifeId [%s]", lifeId))

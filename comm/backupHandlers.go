@@ -30,7 +30,7 @@ func launchBackup(ctx *gin.Context) {
 		time.Sleep(time.Millisecond * 100)
 	}
 
-	_, _, err = ClientService.Subscribe(wsClient, SubId(t.GetChildTaskPool().ID()), PoolSubscribe, nil)
+	_, _, err = ClientService.Subscribe(wsClient, models.SubId(t.GetChildTaskPool().ID()), models.PoolSubscribe, nil)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
