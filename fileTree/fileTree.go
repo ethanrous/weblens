@@ -286,13 +286,11 @@ func (ft *FileTreeImpl) Del(fId FileId, deleteEvent *FileEvent) ([]*WeblensFile,
 	if err != nil {
 		return nil, err
 	}
-
-	// if f.IsDir() {
-	// }
-	// err = os.RemoveAll(f.GetAbsPath())
-	// if err != nil {
-	// 	return nil, err
-	// }
+	
+	err = os.RemoveAll(f.GetAbsPath())
+	if err != nil {
+		return nil, err
+	}
 
 	if localDeleteEvent {
 		ft.journalService.LogEvent(deleteEvent)
