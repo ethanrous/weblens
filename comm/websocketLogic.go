@@ -2,6 +2,7 @@ package comm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,8 +14,11 @@ import (
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
-	"errors"
 )
+
+type WsAuthorize struct {
+	Auth string `json:"auth"`
+}
 
 func wsConnect(ctx *gin.Context) {
 	if ClientService == nil {
@@ -72,9 +76,9 @@ func wsConnect(ctx *gin.Context) {
 	}
 }
 
-func wsMain(c *WsClient) {
+func wsMain(c *models.WsClient) {
 	defer ClientService.ClientDisconnect(c)
-	var switchboard func([]byte, *WsClient)
+	var switchboard func([]byte, *models.WsClient)
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
@@ -91,13 +95,18 @@ func wsMain(c *WsClient) {
 	}
 }
 
-func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
+func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 	defer wsRecover(c)
 
-	var msg WsRequestInfo
+	var msg models.WsRequestInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
 		c.Error(err)
+		return
+	}
+
+	if msg.Action == models.ReportError {
+		log.Error.Println("Client error:", msg.Content)
 		return
 	}
 
@@ -108,7 +117,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 	}
 
 	switch subInfo.Action() {
-	case FolderSubscribe:
+	case models.FolderSubscribe:
 		{
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 			if err != nil {
@@ -126,7 +135,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 				}
 			}
 
-			complete, result, err := ClientService.Subscribe(c, subInfo.GetKey(), FolderSubscribe, share)
+			complete, result, err := ClientService.Subscribe(c, subInfo.GetKey(), models.FolderSubscribe, share)
 			if err != nil {
 				c.Error(err)
 				return
@@ -134,12 +143,12 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 
 			if complete {
 				Caster.PushTaskUpdate(
-					TaskService.GetTask(task.TaskId(subInfo.GetKey())), TaskCompleteEvent,
+					TaskService.GetTask(task.TaskId(subInfo.GetKey())), models.TaskCompleteEvent,
 					result,
 				)
 			}
 		}
-	case TaskSubscribe:
+	case models.TaskSubscribe:
 		key := subInfo.GetKey()
 		if key == "" {
 			return
@@ -147,7 +156,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 
 		if strings.HasPrefix(string(key), "TID#") {
 			key = key[4:]
-			complete, result, err := ClientService.Subscribe(c, key, TaskSubscribe, nil)
+			complete, result, err := ClientService.Subscribe(c, key, models.TaskSubscribe, nil)
 			if err != nil {
 				c.Error(err)
 				return
@@ -155,17 +164,17 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 
 			if complete {
 				Caster.PushTaskUpdate(
-					TaskService.GetTask(task.TaskId(key)), TaskCompleteEvent,
+					TaskService.GetTask(task.TaskId(key)), models.TaskCompleteEvent,
 					result,
 				)
 			}
 		} else if strings.HasPrefix(string(key), "TT#") {
 			key = key[3:]
 
-			ClientService.Subscribe(c, key, TaskTypeSubscribe, nil)
+			ClientService.Subscribe(c, key, models.TaskTypeSubscribe, nil)
 		}
 
-	case Unsubscribe:
+	case models.Unsubscribe:
 		key := subInfo.GetKey()
 		if key == "" {
 			return
@@ -183,7 +192,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 			return
 		}
 
-	case ScanDirectory:
+	case models.ScanDirectory:
 		{
 			if InstanceService.GetLocal().ServerRole() == models.BackupServer {
 				return
@@ -195,7 +204,8 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 				return
 			}
 
-			newCaster := NewBufferedCaster(ClientService)
+			newCaster := models.NewSimpleCaster(ClientService)
+			// newCaster := models.NewBufferedCaster(ClientService)
 			meta := models.ScanMeta{
 				File:         folder,
 				FileService:  FileService,
@@ -215,14 +225,14 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 				},
 			)
 
-			_, _, err = ClientService.Subscribe(c, SubId(t.TaskId()), TaskSubscribe, nil)
+			_, _, err = ClientService.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, nil)
 			if err != nil {
 				c.Error(err)
 				return
 			}
 		}
 
-	case CancelTask:
+	case models.CancelTask:
 		{
 			tpId := subInfo.GetKey()
 			taskPool := TaskService.GetTaskPool(task.TaskId(tpId))
@@ -232,7 +242,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 			}
 
 			taskPool.Cancel()
-			c.PushTaskUpdate(taskPool.CreatedInTask(), TaskCanceledEvent, nil)
+			c.PushTaskUpdate(taskPool.CreatedInTask(), models.TaskCanceledEvent, nil)
 		}
 
 	default:
@@ -242,10 +252,10 @@ func wsWebClientSwitchboard(msgBuf []byte, c *WsClient) {
 	}
 }
 
-func wsInstanceClientSwitchboard(msgBuf []byte, c *WsClient) {
+func wsInstanceClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 	defer wsRecover(c)
 
-	var msg WsResponseInfo
+	var msg models.WsResponseInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
 		c.Error(err)
@@ -255,6 +265,6 @@ func wsInstanceClientSwitchboard(msgBuf []byte, c *WsClient) {
 	Caster.Relay(msg)
 }
 
-func wsRecover(c Client) {
+func wsRecover(c models.Client) {
 	internal.RecoverPanic(fmt.Sprintf("[%s] websocket panic", c.GetUser().GetUsername()))
 }

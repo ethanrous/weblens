@@ -122,20 +122,14 @@ func (as *AlbumServiceImpl) RenameAlbum(album *models.Album, newName string) err
 
 func (as *AlbumServiceImpl) RemoveMediaFromAny(mediaId models.ContentId) error {
 	filter := bson.M{"medias": mediaId}
-	ret, err := as.collection.Find(context.Background(), filter)
+	update := bson.M{"$pull": bson.M{"medias": mediaId}}
+	_, err := as.collection.UpdateMany(context.Background(), filter, update)
 	if err != nil {
 		return werror.WithStack(err)
 	}
 
-	var target = make([]*models.Album, 0)
-	err = ret.All(context.Background(), &target)
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	for _, album := range target {
-		a := as.albumsMap[album.ID()]
-		a.RemoveMedia(mediaId)
+	for _, album := range as.albumsMap {
+		album.RemoveMedia(mediaId)
 	}
 
 	return nil

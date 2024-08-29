@@ -424,6 +424,9 @@ func (f *WeblensFile) AddChild(child *WeblensFile) error {
 
 	f.childLock.Lock()
 	defer f.childLock.Unlock()
+	if f.childrenMap == nil {
+		f.childrenMap = make(map[string]*WeblensFile)
+	}
 	f.childrenMap[child.Filename()] = child
 
 	return nil
@@ -442,16 +445,17 @@ func (f *WeblensFile) GetParentId() FileId {
 }
 
 func (f *WeblensFile) CreateSelf() error {
+	var err error
 	if f.IsDir() {
-		err := os.Mkdir(f.GetAbsPath(), 0755)
-		if err != nil {
-			return werror.WithStack(err)
-		}
+		err = os.Mkdir(f.GetAbsPath(), 0755)
 	} else {
-		_, err := os.Create(f.GetAbsPath())
-		if err != nil {
-			return werror.WithStack(err)
+		_, err = os.Create(f.GetAbsPath())
+	}
+	if err != nil {
+		if os.IsExist(err) {
+			return werror.ErrFileAlreadyExists
 		}
+		return werror.WithStack(err)
 	}
 
 	return nil
@@ -506,13 +510,17 @@ func (f *WeblensFile) MarshalJSON() ([]byte, error) {
 
 	data := map[string]any{
 		"id":              f.id,
-		"portablePath": f.portablePath,
+		"portablePath": f.portablePath.ToPortable(),
 		"filename":        f.filename,
 		"size":            f.size.Load(),
 		"isDir":           f.IsDir(),
 		"modifyTimestamp": f.ModTime().UnixMilli(),
 		"parentId":        parentId,
 		"childrenIds":  internal.Map(f.GetChildren(), func(c *WeblensFile) FileId { return c.ID() }),
+	}
+
+	if f.ModTime().UnixMilli() < 0 {
+		log.Debug.Println("AH")
 	}
 
 	return json.Marshal(data)
@@ -591,7 +599,7 @@ func (f *WeblensFile) BubbleMap(fn func(*WeblensFile) error) error {
 	}
 
 	parent := f.GetParent()
-	if parent == f {
+	if parent == nil {
 		return nil
 	}
 	return parent.BubbleMap(fn)
@@ -767,7 +775,7 @@ func (f *WeblensFile) hasChildren() bool {
 }
 
 func (f *WeblensFile) removeChild(child *WeblensFile) error {
-	if f.childrenMap == nil {
+	if len(f.childrenMap) == 0 {
 		return werror.WithStack(werror.ErrNoChildren)
 	}
 

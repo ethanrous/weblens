@@ -6,7 +6,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethrousseau/weblens/comm"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/metrics"
@@ -16,21 +15,12 @@ import (
 )
 
 func ScanDirectory(t *task.Task) {
-	// if InstanceService.GetLocal().ServerRole() == weblens.BackupServer {
-	// 	t.Success()
-	// 	return
-	// }
-
-	// if types.SERV.MediaRepo == nil {
-	// 	t.ErrorAndExit(errors.New("cannot scan directory without valid initilized media repo"))
-	// }
-
 	meta := t.GetMeta().(models.ScanMeta)
 
 	if meta.FileService.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
 		meta.Caster.PushTaskUpdate(
-			t, comm.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
+			t, models.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
 		)
 		t.Success("No media to scan")
 		return
@@ -59,6 +49,7 @@ func ScanDirectory(t *task.Task) {
 
 	meta.TaskSubber.FolderSubToPool(meta.File.ID(), pool.GetRootPool().ID())
 	meta.TaskSubber.FolderSubToPool(meta.File.GetParent().ID(), pool.GetRootPool().ID())
+	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
 	err = meta.File.LeafMap(
 		func(wf *fileTree.WeblensFile) error {
@@ -67,12 +58,6 @@ func ScanDirectory(t *task.Task) {
 				// TODO: Lock directory files while scanning to be able to check what task is using each file
 				// wf.AddTask(t)
 			}
-
-			// If this file is already being processed, don't queue it again
-			// fileTask := wf.GetTask()
-			// if fileTask != nil && fileTask.TaskType() == ScanFileTask {
-			// 	return nil
-			// }
 
 			if !meta.MediaService.IsFileDisplayable(wf) {
 				return nil
@@ -116,12 +101,12 @@ func ScanDirectory(t *task.Task) {
 	if len(errs) != 0 {
 		// Let any client subscribers know we failed
 		meta.Caster.PushTaskUpdate(
-			t, comm.TaskFailedEvent, task.TaskResult{
+			t, models.TaskFailedEvent, task.TaskResult{
 				"failed_count": len(errs),
 			},
 		)
 		meta.Caster.PushPoolUpdate(
-			pool, comm.TaskFailedEvent, task.TaskResult{
+			pool, models.TaskFailedEvent, task.TaskResult{
 				"failed_count": len(errs),
 			},
 		)
@@ -130,11 +115,11 @@ func ScanDirectory(t *task.Task) {
 
 	// Let any client subscribers know we are done
 	meta.Caster.PushPoolUpdate(
-		pool.GetRootPool(), comm.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
+		pool.GetRootPool(), models.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
 	)
 
 	result := getScanResult(t)
-	meta.Caster.PushTaskUpdate(t, comm.SubTaskCompleteEvent, result)
+	meta.Caster.PushTaskUpdate(t, models.SubTaskCompleteEvent, result)
 	t.Success()
 }
 
@@ -180,8 +165,8 @@ func ScanFile(t *task.Task) {
 	t.ExitIfSignaled()
 
 	existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
-	if existingMedia == nil || existingMedia.MediaHeight != meta.PartialMedia.MediaHeight || existingMedia.
-		MediaWidth != meta.PartialMedia.MediaWidth || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
+	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
+		Width != meta.PartialMedia.Width || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
 		err = meta.MediaService.Add(meta.PartialMedia)
 		if err != nil {
 			t.ErrorAndExit(err)
@@ -190,9 +175,9 @@ func ScanFile(t *task.Task) {
 
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)
 	if t.GetTaskPool().IsGlobal() {
-		meta.Caster.PushTaskUpdate(t, comm.TaskCompleteEvent, getScanResult(t))
+		meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, getScanResult(t))
 	} else {
-		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), comm.SubTaskCompleteEvent, getScanResult(t))
+		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.SubTaskCompleteEvent, getScanResult(t))
 	}
 
 	t.Success()

@@ -119,7 +119,7 @@ func (us *UserServiceImpl) ActivateUser(u *models.User) error {
 	return nil
 }
 
-func (us *UserServiceImpl) GetAll() iter.Seq[*models.User] {
+func (us *UserServiceImpl) GetAll() (iter.Seq[*models.User], error) {
 	us.userLock.RLock()
 	defer us.userLock.RUnlock()
 
@@ -132,7 +132,7 @@ func (us *UserServiceImpl) GetAll() iter.Seq[*models.User] {
 				return
 			}
 		}
-	}
+	}, nil
 }
 
 func (us *UserServiceImpl) Get(username models.Username) *models.User {

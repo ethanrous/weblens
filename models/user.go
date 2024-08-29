@@ -103,6 +103,10 @@ func (u *User) AddToken(tokenString string) {
 	u.Tokens = append(u.Tokens, tokenString)
 }
 
+func (u *User) SocketType() string {
+	return "webClient"
+}
+
 func MakeOwner(u *User) {
 	u.IsServerOwner = true
 }
@@ -156,7 +160,7 @@ type UserService interface {
 	Get(id Username) *User
 	Add(user *User) error
 	Del(id Username) error
-	GetAll() iter.Seq[*User]
+	GetAll() (iter.Seq[*User], error)
 	GetPublicUser() *User
 	SearchByUsername(searchString string) (iter.Seq[*User], error)
 	SetUserAdmin(*User, bool) error

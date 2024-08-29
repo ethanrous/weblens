@@ -14,9 +14,10 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/mock"
-	"github.com/ethrousseau/weblens/models/service"
+	"github.com/ethrousseau/weblens/service"
+	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -33,7 +34,7 @@ type mediaServiceFields struct {
 
 type testMedia struct {
 	name  string
-	media *models.Media
+	media models.Media
 	err   error
 }
 
@@ -56,117 +57,118 @@ var mondb *mongo.Database
 var sampleMediaValid = []testMedia{
 	{
 		name: "good media",
-		media: &models.Media{
-			ContentId:   "yBjwGUnv5-flkMAmSH-1",
-			FileIds:     []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  1080,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    0,
-			MimeType:    "image/x-sony-arw",
+		media: models.Media{
+			ContentId:  "yBjwGUnv5-flkMAmSH-1",
+			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      1080,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   0,
+			MimeType:   "image/x-sony-arw",
 		},
 	},
 }
 
 var sampleMediaInvalid = []testMedia{
 	{
-		name:  "nil media",
-		media: nil,
-		err:   werror.ErrMediaNil,
+		name: "empty media",
+		err:  werror.ErrMediaNoId,
 	},
 	{
 		name: "media missing Id",
-		media: &models.Media{
-			ContentId:   "",
-			FileIds:     []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  1080,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    0,
-			MimeType:    "image/x-sony-arw",
+		media: models.Media{
+			ContentId:  "",
+			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      1080,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   0,
+			MimeType:   "image/x-sony-arw",
 		},
 		err: werror.ErrMediaNoId,
 	},
 	{
 		name: "media missing fileIds",
-		media: &models.Media{
-			ContentId:   "yBjwGUnv5-flkMAmSH-3",
-			FileIds:     nil,
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  1080,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    0,
-			MimeType:    "image/x-sony-arw",
+		media: models.Media{
+			ContentId:  "yBjwGUnv5-flkMAmSH-3",
+			FileIds:    nil,
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      1080,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   0,
+			MimeType:   "image/x-sony-arw",
 		},
 		err: werror.ErrMediaNoFiles,
 	},
 	{
 		name: "media missing width",
-		media: &models.Media{
-			ContentId:   "yBjwGUnv5-flkMAmSH-4",
-			FileIds:     []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  0,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    0,
-			MimeType:    "image/x-sony-arw",
+		media: models.Media{
+			ContentId:  "yBjwGUnv5-flkMAmSH-4",
+			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      0,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   0,
+			MimeType:   "image/x-sony-arw",
 		},
 		err: werror.ErrMediaNoDimentions,
 	},
 	{
 		name: "image with duration",
-		media: &models.Media{
-			ContentId:   "yBjwGUnv5-flkMAmSH-5",
-			FileIds:     []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  1080,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    1,
-			MimeType:    "image/x-sony-arw",
+		media: models.Media{
+			ContentId:  "yBjwGUnv5-flkMAmSH-5",
+			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      1080,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   1,
+			MimeType:   "image/x-sony-arw",
 		},
 		err: werror.ErrMediaHasDuration,
 	},
 	{
 		name: "video with no duration",
-		media: &models.Media{
-			ContentId:   "yBjwGUnv5-flkMAmSH-6",
-			FileIds:     []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  1080,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    0,
-			MimeType:    "video/mp4",
+		media: models.Media{
+			ContentId:  "yBjwGUnv5-flkMAmSH-6",
+			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      1080,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   0,
+			MimeType:   "video/mp4",
 		},
 		err: werror.ErrMediaNoDuration,
 	},
 	{
 		name: "media bad mime",
-		media: &models.Media{
-			ContentId:   "yBjwGUnv5-flkMAmSH-7",
-			FileIds:     []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
-			CreateDate:  time.Now(),
-			Owner:       "weblens",
-			MediaWidth:  1080,
-			MediaHeight: 1616,
-			PageCount:   1,
-			Duration:    0,
-			MimeType:    "itsa me, a mario",
+		media: models.Media{
+			ContentId:  "yBjwGUnv5-flkMAmSH-7",
+			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
+			CreateDate: time.Now(),
+			Owner:      "weblens",
+			Width:      1080,
+			Height:     1616,
+			PageCount:  1,
+			Duration:   0,
+			MimeType:   "itsa me, a mario",
 		},
 		err: werror.ErrMediaBadMime,
 	},
 }
+
+var typeService models.MediaTypeService
 
 func init() {
 	if internal.IsDevMode() {
@@ -177,6 +179,8 @@ func init() {
 	if err := mondb.Collection("media").Drop(context.Background()); err != nil {
 		panic(err)
 	}
+
+	typeService = models.NewTypeService(testMimes)
 }
 
 func TestMediaServiceImpl_Add(t *testing.T) {
@@ -188,16 +192,23 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 		args    args
 		wantErr error
 	}
-	var tests []testArgs
+
+	var tests = []testArgs{
+		{
+			"nil media",
+			args{m: nil},
+			werror.ErrMediaNil,
+		},
+	}
 	for _, mTest := range sampleMediaValid {
-		tests = append(tests, testArgs{mTest.name, args{m: mTest.media}, mTest.err})
+		tests = append(tests, testArgs{mTest.name, args{m: &mTest.media}, mTest.err})
 	}
 	for _, mTest := range sampleMediaInvalid {
-		tests = append(tests, testArgs{mTest.name, args{m: mTest.media}, mTest.err})
+		tests = append(tests, testArgs{mTest.name, args{m: &mTest.media}, mTest.err})
 	}
 
 	ms, err := service.NewMediaService(
-		nil, models.NewTypeService(testMimes),
+		nil, typeService, &mock.MockAlbumService{},
 		mondb.Collection("media"),
 	)
 
@@ -226,7 +237,10 @@ func TestMediaServiceImpl_Del(t *testing.T) {
 		}
 	}
 
-	ms, err := service.NewMediaService(&mock.MockFileService{}, nil, mondb.Collection("media"))
+	ms, err := service.NewMediaService(
+		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
+		mondb.Collection("media"),
+	)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
@@ -265,7 +279,7 @@ func TestMediaServiceImpl_FetchCacheImg(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				got, err := ms.FetchCacheImg(tt.args.m, tt.args.q, tt.args.pageNum)
 				if !tt.wantErr(
 					t, err, fmt.Sprintf("FetchCacheImg(%v, %v, %v)", tt.args.m, tt.args.q, tt.args.pageNum),
@@ -293,7 +307,7 @@ func TestMediaServiceImpl_Get(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.Get(tt.args.mId), "Get(%v)", tt.args.mId)
 			},
 		)
@@ -312,7 +326,7 @@ func TestMediaServiceImpl_GetAll(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.GetAll(), "GetAll()")
 			},
 		)
@@ -341,7 +355,7 @@ func TestMediaServiceImpl_GetFilteredMedia(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				got, err := ms.GetFilteredMedia(
 					tt.args.requester, tt.args.sort, tt.args.sortDirection, nil, tt.args.allowRaw,
 					tt.args.allowHidden,
@@ -379,7 +393,7 @@ func TestMediaServiceImpl_GetMediaType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.GetMediaType(tt.args.m), "GetMediaType(%v)", tt.args.m)
 			},
 		)
@@ -398,7 +412,7 @@ func TestMediaServiceImpl_GetMediaTypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.GetMediaTypes(), "GetMediaTypes()")
 			},
 		)
@@ -422,7 +436,7 @@ func TestMediaServiceImpl_GetProminentColors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				gotProm, err := ms.GetProminentColors(tt.args.media)
 				if !tt.wantErr(t, err, fmt.Sprintf("GetProminentColors(%v)", tt.args.media)) {
 					return
@@ -450,7 +464,7 @@ func TestMediaServiceImpl_HideMedia(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				tt.wantErr(
 					t, ms.HideMedia(tt.args.m, tt.args.hidden),
 					fmt.Sprintf("HideMedia(%v, %v)", tt.args.m, tt.args.hidden),
@@ -476,7 +490,7 @@ func TestMediaServiceImpl_IsCached(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.IsCached(tt.args.m), "IsCached(%v)", tt.args.m)
 			},
 		)
@@ -499,7 +513,7 @@ func TestMediaServiceImpl_IsFileDisplayable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.IsFileDisplayable(tt.args.f), "IsFileDisplayable(%v)", tt.args.f)
 			},
 		)
@@ -523,7 +537,7 @@ func TestMediaServiceImpl_LoadMediaFromFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				tt.wantErr(
 					t, ms.LoadMediaFromFile(tt.args.m, tt.args.file),
 					fmt.Sprintf("LoadMediaFromFile(%v, %v)", tt.args.m, tt.args.file),
@@ -545,7 +559,7 @@ func TestMediaServiceImpl_NukeCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				tt.wantErr(t, ms.NukeCache(), fmt.Sprintf("NukeCache()"))
 			},
 		)
@@ -578,30 +592,45 @@ func TestMediaServiceImpl_RecursiveGetMedia(t *testing.T) {
 }
 
 func TestMediaServiceImpl_RemoveFileFromMedia(t *testing.T) {
+	err := mondb.Collection("media").Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
 
-	type args struct {
-		media  *models.Media
-		fileId fileTree.FileId
+	ms, err := service.NewMediaService(
+		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
+		mondb.Collection("media"),
+	)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
-	tests := []struct {
-		name    string
-		fields  mediaServiceFields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
+
+	m := sampleMediaValid[0].media
+	err = ms.Add(&m)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
-				tt.wantErr(
-					t, ms.RemoveFileFromMedia(tt.args.media, tt.args.fileId),
-					fmt.Sprintf("RemoveFileFromMedia(%v, %v)", tt.args.media, tt.args.fileId),
-				)
-			},
-		)
+
+	assert.Equal(t, 1, ms.Size())
+
+	count, err := mondb.Collection("media").CountDocuments(context.Background(), bson.M{})
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
+	assert.Equal(t, 1, int(count))
+
+	err = ms.RemoveFileFromMedia(&m, m.FileIds[0])
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	assert.Equal(t, 0, ms.Size())
+
+	count, err = mondb.Collection("media").CountDocuments(context.Background(), bson.M{})
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	assert.Equal(t, 0, int(count))
 }
 
 func TestMediaServiceImpl_SetMediaLiked(t *testing.T) {
@@ -622,7 +651,7 @@ func TestMediaServiceImpl_SetMediaLiked(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				tt.wantErr(
 					t, ms.SetMediaLiked(tt.args.mediaId, tt.args.liked, tt.args.username),
 					fmt.Sprintf("SetMediaLiked(%v, %v, %v)", tt.args.mediaId, tt.args.liked, tt.args.username),
@@ -644,7 +673,7 @@ func TestMediaServiceImpl_Size(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.Size(), "Size()")
 			},
 		)
@@ -670,7 +699,7 @@ func TestMediaServiceImpl_StreamCacheVideo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				got, err := ms.StreamCacheVideo(tt.args.m, tt.args.startByte, tt.args.endByte)
 				if !tt.wantErr(
 					t, err, fmt.Sprintf("StreamCacheVideo(%v, %v, %v)", tt.args.m, tt.args.startByte, tt.args.endByte),
@@ -704,7 +733,7 @@ func TestMediaServiceImpl_StreamVideo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				got, err := ms.StreamVideo(tt.args.m, tt.args.u, tt.args.share)
 				if !tt.wantErr(t, err, fmt.Sprintf("StreamVideo(%v, %v, %v)", tt.args.m, tt.args.u, tt.args.share)) {
 					return
@@ -727,7 +756,7 @@ func TestMediaServiceImpl_TypeService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ms, _ := service.NewMediaService(nil, nil, nil)
+				ms, _ := service.NewMediaService(nil, nil, &mock.MockAlbumService{}, nil)
 				assert.Equalf(t, tt.want, ms.TypeService(), "TypeService()")
 			},
 		)

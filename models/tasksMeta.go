@@ -13,19 +13,20 @@ import (
 )
 
 const (
-	ScanDirectoryTask = "scan_directory"
-	ScanFileTask      = "scan_file"
-	MoveFileTask    = "move_file"
-	UploadFilesTask = "write_file"
-	CreateZipTask   = "create_zip"
-	GatherFsStatsTask = "gather_filesystem_stats"
-	BackupTask        = "do_backup"
-	HashFile          = "hash_file"
-	CopyFileFromCore  = "copy_file_from_core"
+	ScanDirectoryTask    = "scan_directory"
+	ScanFileTask         = "scan_file"
+	MoveFileTask         = "move_file"
+	UploadFilesTask      = "write_file"
+	CreateZipTask        = "create_zip"
+	GatherFsStatsTask    = "gather_filesystem_stats"
+	BackupTask           = "do_backup"
+	HashFileTask         = "hash_file"
+	CopyFileFromCoreTask = "copy_file_from_core"
 )
 
 type TaskSubscriber interface {
-	FolderSubToPool(fileTree.FileId, task.TaskId)
+	FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId)
+	TaskSubToPool(taskId task.TaskId, poolId task.TaskId)
 }
 
 type ScanMeta struct {
@@ -44,7 +45,7 @@ type ScanMeta struct {
 func (m ScanMeta) MetaString() string {
 	data := map[string]any{
 		"JobName": ScanFileTask,
-		"FileId":  m.File.ID(),
+		"FileIds": m.File.ID(),
 		// "Recursive": m.recursive,
 		// "Deep":      m.deepScan,
 	}
@@ -127,7 +128,7 @@ func (m ZipMeta) Verify() error {
 }
 
 type MoveMeta struct {
-	FileId              fileTree.FileId
+	FileIds []fileTree.FileId
 	DestinationFolderId fileTree.FileId
 	NewFilename         string
 	FileEvent           *fileTree.FileEvent
@@ -140,7 +141,7 @@ type MoveMeta struct {
 func (m MoveMeta) MetaString() string {
 	data := map[string]any{
 		"JobName":     MoveFileTask,
-		"FileId":      m.FileId,
+		"FileIds": m.FileIds,
 		"DestId":      m.DestinationFolderId,
 		"NewFileName": m.NewFilename,
 	}
@@ -219,7 +220,7 @@ func (m UploadFilesMeta) Verify() error {
 	} else if m.Caster == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "caster")
 	}
-	
+
 	return nil
 }
 
@@ -257,8 +258,17 @@ type FileUploadProgress struct {
 }
 
 type BackupMeta struct {
-	RemoteId        InstanceId
-	InstanceService InstanceService
+	RemoteId            InstanceId
+	FileService         FileService
+	ProxyFileService    FileService
+	ProxyJournalService fileTree.JournalService
+	UserService         UserService
+	ProxyUserService    UserService
+	ProxyMediaService   MediaService
+	WebsocketService    ClientManager
+	InstanceService     InstanceService
+	TaskService         task.TaskService
+	Caster              Broadcaster
 }
 
 func (m BackupMeta) MetaString() string {
@@ -281,16 +291,41 @@ func (m BackupMeta) JobName() string {
 }
 
 func (m BackupMeta) Verify() error {
+	if m.RemoteId == "" {
+		return werror.ErrBadJobMetadata(m.JobName(), "RemoteId")
+	} else if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
+	} else if m.ProxyFileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ProxyFileService")
+	} else if m.ProxyJournalService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ProxyJournalService")
+	} else if m.UserService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "UserService")
+	} else if m.ProxyUserService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ProxyUserService")
+	} else if m.ProxyMediaService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ProxyMediaService")
+	} else if m.WebsocketService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "WebsocketService")
+	} else if m.InstanceService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "InstanceService")
+	} else if m.TaskService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "TaskService")
+	} else if m.Caster == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Caster")
+	}
+
 	return nil
 }
 
 type HashFileMeta struct {
 	File *fileTree.WeblensFile
+	Caster Broadcaster
 }
 
 func (m HashFileMeta) MetaString() string {
 	data := map[string]any{
-		"JobName": HashFile,
+		"JobName": HashFileTask,
 		"fileId":  m.File.ID(),
 	}
 	bs, err := json.Marshal(data)
@@ -304,7 +339,7 @@ func (m HashFileMeta) FormatToResult() task.TaskResult {
 }
 
 func (m HashFileMeta) JobName() string {
-	return HashFile
+	return HashFileTask
 }
 
 func (m HashFileMeta) Verify() error {
@@ -312,13 +347,15 @@ func (m HashFileMeta) Verify() error {
 }
 
 type BackupCoreFileMeta struct {
-	File *fileTree.WeblensFile
+	ProxyFileService FileService
+	File             *fileTree.WeblensFile
+	Caster           Broadcaster
 	// Client comm.Client
 }
 
 func (m BackupCoreFileMeta) MetaString() string {
 	data := map[string]any{
-		"JobName":    CopyFileFromCore,
+		"JobName": CopyFileFromCoreTask,
 		"backupFile": m.File.ID(),
 	}
 
@@ -333,7 +370,7 @@ func (m BackupCoreFileMeta) FormatToResult() task.TaskResult {
 }
 
 func (m BackupCoreFileMeta) JobName() string {
-	return CopyFileFromCore
+	return CopyFileFromCoreTask
 }
 
 func (m BackupCoreFileMeta) Verify() error {

@@ -14,7 +14,7 @@ import (
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
+	"github.com/ethrousseau/weblens/service"
 
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/task"
@@ -31,7 +31,7 @@ func newUploadTask(ctx *gin.Context) {
 		return
 	}
 
-	c := NewBufferedCaster(ClientService)
+	c := models.NewBufferedCaster(ClientService)
 	meta := models.UploadFilesMeta{
 		ChunkStream:  make(chan models.FileChunk, 10),
 		RootFolderId: upInfo.RootFolderId,
@@ -232,7 +232,7 @@ func searchFolder(ctx *gin.Context) {
 		return
 	}
 
-	var filesData []service.FileInfo
+	var filesData []FileInfo
 	for _, f := range files {
 		info, err := formatFileSafe(f, u, nil)
 		if err != nil {
@@ -294,32 +294,10 @@ func updateFile(ctx *gin.Context) {
 		return
 	}
 
-	// If the directory does not change, just assume this is a rename
-	if updateInfo.NewParentId == "" {
-		updateInfo.NewParentId = file.GetParent().ID()
-	}
-
-	caster := NewBufferedCaster(ClientService)
-	defer caster.Close()
-
-	meta := models.MoveMeta{
-		FileId:              fileId,
-		DestinationFolderId: updateInfo.NewParentId,
-		NewFilename:         updateInfo.NewName,
-		Caster:              caster,
-	}
-	t, err := TaskService.DispatchJob(models.MoveFileTask, meta, nil)
+	err = FileService.RenameFile(file, updateInfo.NewName, Caster)
 	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	t.Wait()
-
-	if t.ReadError() != nil {
-		log.Error.Println(t.ReadError())
-		ctx.Status(http.StatusBadRequest)
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
 		return
 	}
 
@@ -333,7 +311,7 @@ func trashFiles(ctx *gin.Context) {
 	}
 	u := getUserFromCtx(ctx)
 
-	caster := NewBufferedCaster(ClientService)
+	caster := models.NewBufferedCaster(ClientService)
 	defer caster.Close()
 
 	var failed []fileTree.FileId
@@ -384,7 +362,7 @@ func deleteFiles(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	caster := NewBufferedCaster(ClientService)
+	caster := models.NewBufferedCaster(ClientService)
 	defer caster.Close()
 
 	var files []*fileTree.WeblensFile
@@ -434,7 +412,7 @@ func unTrashFiles(ctx *gin.Context) {
 		return
 	}
 
-	caster := NewBufferedCaster(ClientService)
+	caster := models.NewBufferedCaster(ClientService)
 	defer caster.Close()
 
 	var files []*fileTree.WeblensFile
@@ -495,7 +473,7 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	caster := NewSimpleCaster(ClientService)
+	caster := models.NewSimpleCaster(ClientService)
 	meta := models.ZipMeta{
 		Files:     files,
 		Requester: u,
@@ -584,8 +562,14 @@ func getUsers(ctx *gin.Context) {
 		return
 	}
 
-	us := slices.Collect(UserService.GetAll())
-	ctx.JSON(http.StatusOK, us)
+	usersIter, err := UserService.GetAll()
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, slices.Collect(usersIter))
 }
 
 func updateUserPassword(ctx *gin.Context) {

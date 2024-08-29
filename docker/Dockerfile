@@ -6,10 +6,10 @@ RUN apt update
 RUN apt-get install -y libvips exiftool ffmpeg
 
 WORKDIR /app
-COPY ../ui/dist /ui/dist
+COPY ui/dist /app/ui/dist
 COPY build/bin/weblensbin /app/weblens
 COPY config/ /app/config
-COPY images/ /app/static
+COPY images/brand /app/static
 
 EXPOSE 8080
 

@@ -23,7 +23,7 @@ type Media struct {
 	MediaId primitive.ObjectID `json:"-" bson:"_id"`
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentId ContentId `json:"mediaId" bson:"mediaId"`
+	ContentId ContentId `json:"contentId" bson:"contentId"`
 
 	// Slices of files whos content hash to the contentId
 	FileIds []fileTree.FileId `json:"fileIds" bson:"fileIds"`
@@ -34,8 +34,8 @@ type Media struct {
 	Owner Username `json:"owner" bson:"owner"`
 
 	// Full-res image dimentions
-	MediaWidth  int `json:"mediaWidth" bson:"mediaWidth"`
-	MediaHeight int `json:"mediaHeight" bson:"mediaHeight"`
+	Width  int `json:"width" bson:"width"`
+	Height int `json:"height" bson:"height"`
 
 	// Number of pages (typically 1, 0 in not a valid page count)
 	PageCount int `json:"pageCount" bson:"pageCount"`
@@ -115,10 +115,10 @@ func (m *Media) SetContentId(id ContentId) {
 // 		// if m.BlurHash == "" {
 // 		// 	return false, "blurhash"
 // 		// }
-// 		if m.MediaWidth == 0 {
+// 		if m.Width == 0 {
 // 			return false, "Media width"
 // 		}
-// 		if m.MediaHeight == 0 {
+// 		if m.Height == 0 {
 // 			return false, "Media height"
 // 		}
 // 		// if m.ThumbWidth == 0 {
@@ -281,8 +281,8 @@ func (m *Media) GetHighresCacheFiles() []*fileTree.WeblensFile {
 // 		return
 // 	}
 //
-// 	m.MediaHeight = imgSize.Height
-// 	m.MediaWidth = imgSize.Width
+// 	m.Height = imgSize.Height
+// 	m.Width = imgSize.Width
 //
 // 	return nil
 // }
@@ -308,8 +308,8 @@ func (m *Media) GetHighresCacheFiles() []*fileTree.WeblensFile {
 // 		return
 // 	}
 //
-// 	m.MediaHeight = imgSize.Height
-// 	m.MediaWidth = imgSize.Width
+// 	m.Height = imgSize.Height
+// 	m.Width = imgSize.Width
 //
 // 	return nil
 // }
@@ -383,7 +383,7 @@ const ThumbnailHeight float32 = 500
 // 	_, err = m.GetCacheFile(HighRes, false, 0)
 // 	hasFullresCache := err == nil
 //
-// 	if hasThumbCache && hasFullresCache && m.MediaWidth != 0 && m.MediaHeight != 0 {
+// 	if hasThumbCache && hasFullresCache && m.Width != 0 && m.Height != 0 {
 // 		return nil
 // 	}
 //
@@ -444,7 +444,7 @@ const ThumbnailHeight float32 = 500
 // 		return dataStore.ErrNoImage
 // 	}
 //
-// 	thumbW := int((ThumbnailHeight / float32(m.MediaHeight)) * float32(m.MediaWidth))
+// 	thumbW := int((ThumbnailHeight / float32(m.Height)) * float32(m.Width))
 //
 // 	var thumbBytes []byte
 // 	if !m.mediaType.IsMultiPage() && m.image != nil {
@@ -461,7 +461,7 @@ const ThumbnailHeight float32 = 500
 // 			wlog.ShowErr(err)
 // 		} else {
 // 			thumbRatio := float64(thumbSize.Width) / float64(thumbSize.Height)
-// 			mediaRatio := float64(m.MediaWidth) / float64(m.MediaHeight)
+// 			mediaRatio := float64(m.Width) / float64(m.Height)
 // 			// util.Debug.Println(thumbRatio, mediaRatio)
 // 			if (thumbRatio < 1 && mediaRatio > 1) || (thumbRatio > 1 && mediaRatio < 1) {
 // 				wlog.Error.Println("Mismatched media sizes")
@@ -587,31 +587,31 @@ func (m *Media) getImageRecognitionTags() (err error) {
 	// return
 }
 
-func (m *Media) MarshalBSON() ([]byte, error) {
-	data := map[string]any{
-		"contentId":        m.ContentId,
-		"fileIds":          m.FileIds,
-		"thumbnailCacheId": m.lowresCacheFile,
-		"fullresCacheIds":  m.highResCacheFiles,
-		// "blurHash":         m.BlurHash,
-		"owner":            m.Owner,
-		"width":            m.MediaWidth,
-		"height":           m.MediaHeight,
-		"createDate":       m.CreateDate.UnixMilli(),
-		"mimeType":         m.MimeType,
-		"recognitionTags":  m.RecognitionTags,
-		"pageCount":        m.PageCount,
-		"videoLength": m.Duration,
-	}
-
-	return bson.Marshal(data)
-}
+// func (m *Media) MarshalBSON() ([]byte, error) {
+// 	data := map[string]any{
+// 		"contentId":        m.ContentId,
+// 		"fileIds":          m.FileIds,
+// 		"thumbnailCacheId": m.lowresCacheFile,
+// 		"fullresCacheIds":  m.highResCacheFiles,
+// 		// "blurHash":         m.BlurHash,
+// 		"owner":           m.Owner,
+// 		"width":           m.Width,
+// 		"height":          m.Height,
+// 		"createDate":      m.CreateDate,
+// 		"mimeType":        m.MimeType,
+// 		"recognitionTags": m.RecognitionTags,
+// 		"pageCount":       m.PageCount,
+// 		"videoLength":     m.Duration,
+// 	}
+//
+// 	return bson.Marshal(data)
+// }
 
 func (m *Media) UnmarshalBSON(bs []byte) error {
 	raw := bson.Raw(bs)
 	contentId, ok := raw.Lookup("contentId").StringValueOK()
 	if !ok {
-		return errors.New("failed to parse contentId")
+		return werror.Errorf("failed to parse contentId")
 	}
 	m.ContentId = ContentId(contentId)
 
@@ -639,9 +639,9 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 
 	// m.BlurHash = raw.Lookup("blurHash").StringValue()
 	m.Owner = Username(raw.Lookup("owner").StringValue())
-	m.MediaWidth = int(raw.Lookup("width").Int32())
-	m.MediaHeight = int(raw.Lookup("height").Int32())
-	m.CreateDate = time.UnixMilli(raw.Lookup("createDate").Int64())
+	m.Width = int(raw.Lookup("width").Int32())
+	m.Height = int(raw.Lookup("height").Int32())
+	m.CreateDate = raw.Lookup("createDate").Time()
 	m.MimeType = raw.Lookup("mimeType").StringValue()
 
 	likedArr, ok := raw.Lookup("likedBy").ArrayOK()
@@ -688,8 +688,8 @@ func (m *Media) MarshalJSON() ([]byte, error) {
 		"contentId":   m.ContentId,
 		"fileIds":     m.FileIds,
 		"owner":       m.Owner,
-		"width":       m.MediaWidth,
-		"height":      m.MediaHeight,
+		"width":  m.Width,
+		"height": m.Height,
 		"createDate":  m.CreateDate.UnixMilli(),
 		"mimeType":    m.MimeType,
 		"pageCount":   m.PageCount,
@@ -715,8 +715,8 @@ func (m *Media) UnmarshalJSON(bs []byte) error {
 	// 	m.BlurHash = data["blurHash"].(string)
 	// }
 	// m.Owner = types.SERV.UserService.Get(Username(data["owner"].(string)))
-	m.MediaWidth = int(data["width"].(float64))
-	m.MediaHeight = int(data["height"].(float64))
+	m.Width = int(data["width"].(float64))
+	m.Height = int(data["height"].(float64))
 	m.CreateDate = time.UnixMilli(int64(data["createDate"].(float64)))
 	m.MimeType = data["mimeType"].(string)
 

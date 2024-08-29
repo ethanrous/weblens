@@ -55,10 +55,14 @@ func attachRemote(ctx *gin.Context) {
 }
 
 func getFileBytes(ctx *gin.Context) {
-	u := getUserFromCtx(ctx)
+	remote := getRemoteFromCtx(ctx)
+	if remote == nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
 
 	fileId := fileTree.FileId(ctx.Param("fileId"))
-	f, err := FileService.GetFileSafe(fileId, u, nil)
+	f, err := FileService.GetFile(fileId)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -99,44 +103,37 @@ func getFileMeta(ctx *gin.Context) {
 }
 
 func getFilesMeta(ctx *gin.Context) {
-	files := []*fileTree.WeblensFile{}
-	err := FileService.GetMediaRoot().RecursiveMap(
+	ids, err := readCtxBody[[]fileTree.FileId](ctx)
+	if err != nil {
+		// safe, code := werror.TrySafeErr(err)
+		// ctx.JSON(code, safe)
+		return
+	}
+
+	if len(ids) != 0 {
+		files, err := FileService.GetFiles(ids)
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safe)
+			return
+		}
+		ctx.JSON(http.StatusOK, files)
+	}
+
+	var files []*fileTree.WeblensFile
+	err = FileService.GetMediaRoot().RecursiveMap(
 		func(file *fileTree.WeblensFile) error {
 			files = append(files, file)
 			return nil
 		},
 	)
 	if err != nil {
-		log.ErrTrace(err)
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
 	}
-	// files, err := FileService.GetAllFiles()
-	// if err != nil {
-	// 	util.ErrTrace(err)
-	// 	ctx.Status(comm.StatusInternalServerError)
-	// 	return
-	// }
 
 	ctx.JSON(http.StatusOK, files)
-
-	// fIds, err := readCtxBody[[]fileTree.FileId](ctx)
-	// if err != nil {
-	// 	return
-	// }
-	// var files []map[string]any
-	// var notFound []fileTree.FileId
-	//
-	// if len(fIds) == 0 {
-	// }
-	//
-	// for _, id := range fIds {
-	// 	f := FileService.Get(id)
-	// 	if f == nil {
-	// 		notFound = append(notFound, id)
-	// 	} else {
-	// 		files = append(files, f.MarshalArchive())
-	// 	}
-	// }
-	// ctx.JSON(comm.StatusOK, gin.H{"files": files, "notFound": notFound})
 }
 
 func getRemotes(ctx *gin.Context) {

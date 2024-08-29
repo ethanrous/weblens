@@ -11,7 +11,7 @@ import (
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
+	"github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
@@ -29,8 +29,8 @@ var ShareService models.ShareService
 var InstanceService models.InstanceService
 var AlbumService models.AlbumService
 var TaskService task.TaskService
-var ClientService ClientManager
-var Caster Broadcaster
+var ClientService models.ClientManager
+var Caster models.Broadcaster
 var Server *http.Server
 
 var routerLock sync.Mutex
@@ -66,8 +66,8 @@ func DoRoutes() {
 		if local.ServerRole() == models.InitServer {
 			api.Use(WeblensAuth(true))
 			addInitializationRoutes(api)
-			log.Info.Println("Ignoring requests from public IPs until weblens is initialized")
-			router.Use(initSafety)
+			// log.Info.Println("Ignoring requests from public IPs until weblens is initialized")
+			// router.Use(initSafety)
 		} else {
 			addApiRoutes(api)
 			addAdminRoutes(admin)
@@ -86,6 +86,10 @@ func DoRoutes() {
 	srv = &http.Server{
 		Addr:    internal.GetRouterIp() + ":" + internal.GetRouterPort(),
 		Handler: router,
+	}
+
+	if InstanceService.IsLocalLoaded() {
+		Caster.PushWeblensEvent("weblens_loaded")
 	}
 
 	log.Debug.Println("Starting router at", srv.Addr)
@@ -235,10 +239,12 @@ func addCoreRoutes(core *gin.RouterGroup) {
 
 	// Get all users
 	core.GET("/users", getUsersArchive)
+
+	// Get all media
 	core.GET("/media", getMediaArchive)
 	core.GET("/media/:mediaId/content", fetchMediaBytes)
 
-	core.GET("/files", getFilesMeta)
+	core.POST("/files", getFilesMeta)
 	core.GET("/file/:fileId", getFileMeta)
 	core.GET("/file/:fileId/stat", getFileStat)
 	core.GET("/file/:fileId/directory", getDirectoryContent)

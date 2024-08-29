@@ -19,7 +19,7 @@ import (
 var _ JournalService = (*JournalServiceImpl)(nil)
 
 type JournalServiceImpl struct {
-	lifetimes map[FileId]*Lifetime
+	lifetimes   map[FileId]*Lifetime
 	lifetimeMapLock sync.RWMutex
 	eventStream chan *FileEvent
 
@@ -37,9 +37,17 @@ func NewJournalService(col *mongo.Collection, serverId string) (JournalService, 
 		serverId:    serverId,
 	}
 
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{{"actions.timestamp", -1}},
+	}
+	_, err := col.Indexes().CreateOne(context.Background(), indexModel)
+	if err != nil {
+		return nil, err
+	}
+
 	var lifetimes []*Lifetime
 	// var updatedLifetimes []*Lifetime
-	var err error
+
 	// var hasProxy bool
 
 	// if proxyStore, hasProxy = store.(types.ProxyStore); hasProxy {
@@ -105,21 +113,6 @@ func NewJournalService(col *mongo.Collection, serverId string) (JournalService, 
 	return j, nil
 }
 
-func getAllLifetimes(col *mongo.Collection) ([]*Lifetime, error) {
-	ret, err := col.Find(context.Background(), bson.M{})
-	if err != nil {
-		return nil, err
-	}
-
-	var target []*Lifetime
-	err = ret.All(context.Background(), &target)
-	if err != nil {
-		return nil, err
-	}
-
-	return target, nil
-}
-
 func (j *JournalServiceImpl) NewEvent() *FileEvent {
 	return &FileEvent{
 		EventId:    FileEventId(primitive.NewObjectID().Hex()),
@@ -157,6 +150,24 @@ func (j *JournalServiceImpl) LogEvent(fe *FileEvent) {
 
 func (j *JournalServiceImpl) GetActionsByPath(path WeblensFilepath) ([]*FileAction, error) {
 	return getActionsByPath(path, j.col)
+}
+
+func (j *JournalServiceImpl) GetLatestAction() (*FileAction, error) {
+	opts := options.FindOne().SetSort(bson.M{"actions.timestamp": -1})
+
+	ret := j.col.FindOne(context.Background(), bson.M{}, opts)
+	if ret.Err() != nil {
+		return nil, werror.WithStack(ret.Err())
+	}
+
+	var target Lifetime
+	err := ret.Decode(&target)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	return target.Actions[len(target.Actions)-1], nil
+
 }
 
 func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFile, time time.Time) (
@@ -302,6 +313,21 @@ func (j *JournalServiceImpl) EventWorker() {
 			log.ErrTrace(err)
 		}
 	}
+}
+
+func getAllLifetimes(col *mongo.Collection) ([]*Lifetime, error) {
+	ret, err := col.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*Lifetime
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
 }
 
 func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
@@ -464,64 +490,6 @@ func getLifetimesSince(date time.Time, col *mongo.Collection) ([]*Lifetime, erro
 	return target, nil
 }
 
-type HollowJournalService struct{}
-
-func (h HollowJournalService) Get(id FileId) *Lifetime {
-	return nil
-}
-
-func (h HollowJournalService) Add(lifetime *Lifetime) error {
-	return nil
-}
-
-func (h HollowJournalService) Del(id FileId) error {
-	return nil
-}
-
-func (h HollowJournalService) SetFileTree(ft *FileTreeImpl) {}
-
-func (h HollowJournalService) NewEvent() *FileEvent {
-	return &FileEvent{}
-}
-
-func (h HollowJournalService) WatchFolder(f *WeblensFile) error {
-	return nil
-}
-
-func (h HollowJournalService) LogEvent(fe *FileEvent) {}
-
-func (h HollowJournalService) GetActionsByPath(filepath WeblensFilepath) ([]*FileAction, error) {
-	return nil, nil
-}
-
-func (h HollowJournalService) GetPastFolderInfo(folder *WeblensFile, time time.Time) ([]*WeblensFile, error) {
-	return nil, nil
-}
-
-func (h HollowJournalService) GetLifetimesSince(date time.Time) ([]*Lifetime, error) {
-	return nil, nil
-}
-
-func (h HollowJournalService) EventWorker() {}
-
-func (h HollowJournalService) FileWatcher() {}
-
-func (h HollowJournalService) GetActiveLifetimes() []*Lifetime {
-	return nil
-}
-
-func (h HollowJournalService) GetAllLifetimes() []*Lifetime {
-	return nil
-}
-
-func (h HollowJournalService) GetLifetimeByFileId(fId FileId) *Lifetime {
-	return nil
-}
-
-func NewHollowJournalService() JournalService {
-	return &HollowJournalService{}
-}
-
 type JournalService interface {
 	Get(id FileId) *Lifetime
 	Add(lifetime *Lifetime) error
@@ -536,6 +504,7 @@ type JournalService interface {
 
 	GetActionsByPath(WeblensFilepath) ([]*FileAction, error)
 	GetPastFolderInfo(folder *WeblensFile, time time.Time) ([]*WeblensFile, error)
+	GetLatestAction() (*FileAction, error)
 	GetLifetimesSince(date time.Time) ([]*Lifetime, error)
 
 	EventWorker()

@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"io"
+
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
@@ -9,6 +11,16 @@ import (
 var _ models.FileService = (*MockFileService)(nil)
 
 type MockFileService struct{}
+
+func (mfs *MockFileService) GetFile(id fileTree.FileId) (*fileTree.WeblensFile, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (mfs *MockFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFile, error) {
+	// TODO implement me
+	panic("implement me")
+}
 
 func (mfs *MockFileService) GetFileSafe(
 	id fileTree.FileId, accessor *models.User, share *models.FileShare,
@@ -24,10 +36,18 @@ func (mfs *MockFileService) IsFileInTrash(file *fileTree.WeblensFile) bool {
 	return false
 }
 
-func (mfs *MockFileService) MoveFile(
-	file *fileTree.WeblensFile, destFolder *fileTree.WeblensFile, newFilename string, caster models.FileCaster,
+func (mfs *MockFileService) ImportFile(f *fileTree.WeblensFile) error {
+	return nil
+}
+
+func (mfs *MockFileService) MoveFiles(
+	files []*fileTree.WeblensFile, destFolder *fileTree.WeblensFile, caster models.FileCaster,
 ) error {
 	return nil
+}
+
+func (mfs *MockFileService) RenameFile(file *fileTree.WeblensFile, newName string, caster models.FileCaster) error {
+	panic("implement me")
 }
 
 func (mfs *MockFileService) MoveFileToTrash(
@@ -42,6 +62,10 @@ func (mfs *MockFileService) ReturnFilesFromTrash(files []*fileTree.WeblensFile, 
 
 func (mfs *MockFileService) PermanentlyDeleteFiles(files []*fileTree.WeblensFile, caster models.FileCaster) error {
 	return nil
+}
+
+func (mfs *MockFileService) ReadFile(file *fileTree.WeblensFile) (io.ReadCloser, error) {
+	return nil, nil
 }
 
 func (mfs *MockFileService) AddTask(f *fileTree.WeblensFile, t *task.Task) error {

@@ -8,11 +8,12 @@ import (
 
 type Hasher struct {
 	taskService task.TaskService
+	caster Broadcaster
 	pool        *task.TaskPool
 }
 
-func NewHasher(service task.TaskService) *Hasher {
-	return &Hasher{taskService: service}
+func NewHasher(service task.TaskService, caster Broadcaster) *Hasher {
+	return &Hasher{taskService: service, caster: caster}
 }
 
 func NewHollowHasher() *Hasher {
@@ -28,8 +29,8 @@ func (h *Hasher) Hash(file *fileTree.WeblensFile, event *fileTree.FileEvent) err
 		h.pool = h.taskService.NewTaskPool(false, nil)
 	}
 
-	hashMeta := HashFileMeta{File: file}
-	t, err := h.taskService.DispatchJob(HashFile, hashMeta, h.pool)
+	hashMeta := HashFileMeta{File: file, Caster: h.caster}
+	t, err := h.taskService.DispatchJob(HashFileTask, hashMeta, h.pool)
 	if err != nil {
 		return err
 	}

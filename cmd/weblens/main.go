@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ethrousseau/weblens/backup"
 	"github.com/ethrousseau/weblens/comm"
 	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/fileTree"
@@ -17,7 +16,8 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/jobs"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
+	"github.com/ethrousseau/weblens/service"
+	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -45,10 +45,6 @@ func main() {
 			}, "", "Router",
 		)
 	}
-}
-
-func _main() {
-
 }
 
 func startup(mongoName string) {
@@ -89,37 +85,6 @@ func startup(mongoName string) {
 	}
 	sw.Lap("Init instance service")
 
-	// TODO
-	/* If server is backup server, connect to core server */
-	// if localServer.ServerRole() == BackupServer {
-	// 	core := instanceService.GetCore()
-	// 	if core == nil {
-	// 		panic("could not get core")
-	// 	}
-	//
-	// 	err = websocket.WebsocketToCore(core)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	//
-	// 	var coreAddr string
-	// 	coreAddr, err = core.GetAddress()
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	//
-	// 	if coreAddr == "" || instanceService.GetCore().GetUsingKey() == "" {
-	// 		panic("could not get core address or key")
-	// 	}
-	//
-	// 	proxyStore := proxy.NewProxyStore(coreAddr, instanceService.GetCore().GetUsingKey())
-	// 	sw.Lap("Init proxy store")
-	//
-	// 	proxyStore.Init(localStore)
-	// 	types.SERV.SetStore(proxyStore)
-	// 	localStore = proxyStore
-	// }
-
 	/* User Service */
 	userService := service.NewUserService(db.Collection("users"))
 	err = userService.Init()
@@ -129,6 +94,30 @@ func startup(mongoName string) {
 	comm.UserService = userService
 	sw.Lap("Init user service")
 
+	/* Enable the worker pool held by the task tracker
+	loading the filesystem might dispatch tasks,
+	so we have to start the pool first */
+	workerPool := task.NewWorkerPool(internal.GetWorkerCount())
+
+	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
+	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
+	// workerPool.RegisterJob(models.MoveFileTask, jobs.MoveFiles)
+	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
+	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
+	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
+	workerPool.RegisterJob(models.BackupTask, jobs.DoBackup)
+	workerPool.RegisterJob(models.HashFileTask, jobs.HashFile)
+	workerPool.RegisterJob(models.CopyFileFromCoreTask, jobs.CopyFileFromCore)
+
+	comm.TaskService = workerPool
+	workerPool.Run()
+	sw.Lap("Worker pool enabled")
+
+	/* Client Manager */
+	clientService := service.NewClientManager(nil, workerPool, instanceService)
+	comm.ClientService = clientService
+	sw.Lap("Init client service")
+
 	/* Once here, we can actually let the router start, this is the minimally
 	acceptable state to allow incoming HTTP, i.e. types.SERV.MinimallyReady() == true */
 
@@ -137,25 +126,6 @@ func startup(mongoName string) {
 			go comm.DoRoutes()
 		}, "", "Router",
 	)
-
-	/* Enable the worker pool held by the task tracker
-	loading the filesystem might dispatch tasks,
-	so we have to start the pool first */
-	workerPool := task.NewWorkerPool(internal.GetWorkerCount())
-
-	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
-	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
-	workerPool.RegisterJob(models.MoveFileTask, jobs.MoveFile)
-	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
-	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
-	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
-	workerPool.RegisterJob(models.BackupTask, backup.DoBackup)
-	workerPool.RegisterJob(models.HashFile, jobs.HashFile)
-	workerPool.RegisterJob(models.CopyFileFromCore, backup.CopyFileFromCore)
-
-	comm.TaskService = workerPool
-	workerPool.Run()
-	sw.Lap("Worker pool enabled")
 
 	/* Share Service */
 	shareService := service.NewShareService(db.Collection("shares"))
@@ -176,8 +146,12 @@ func startup(mongoName string) {
 	}
 	sw.Lap("Init journal service")
 
+	/* Baseic global caster */
+	caster := models.NewSimpleCaster(clientService)
+	comm.Caster = caster
+
 	// Hasher
-	hasher := models.NewHasher(workerPool)
+	hasher := models.NewHasher(workerPool, caster)
 
 	/* FileTree Service */
 	mediaFileTree, err := fileTree.NewFileTree(internal.GetMediaRootPath(), "MEDIA", hasher, mediaJournal)
@@ -185,7 +159,7 @@ func startup(mongoName string) {
 		panic(err)
 	}
 
-	hollowJournal := fileTree.NewHollowJournalService()
+	hollowJournal := mock.NewHollowJournalService()
 	hollowHasher := models.NewHollowHasher()
 	cachesTree, err := fileTree.NewFileTree(internal.GetCacheRoot(), "CACHES", hollowHasher, hollowJournal)
 	if err != nil {
@@ -224,7 +198,10 @@ func startup(mongoName string) {
 	}
 	mediaTypeServ := models.NewTypeService(marshMap)
 	/* Media Service */
-	mediaService, err := service.NewMediaService(fileService, mediaTypeServ, db.Collection("media"))
+	mediaService, err := service.NewMediaService(
+		fileService, mediaTypeServ, &mock.MockAlbumService{},
+		db.Collection("media"),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -242,11 +219,32 @@ func startup(mongoName string) {
 
 	fileService.SetAccessService(accessService)
 	fileService.SetMediaService(mediaService)
+	clientService.SetFileService(fileService)
 
-	/* Client Manager */
-	clientService := comm.NewClientManager(fileService, workerPool)
-	comm.ClientService = clientService
-	sw.Lap("Init client service")
+	/* If server is backup server, connect to core server and launch backup daemon */
+	if localServer.ServerRole() == models.BackupServer {
+		core := instanceService.GetCore()
+		if core == nil {
+			panic("could not get core")
+		}
+
+		err = comm.WebsocketToCore(core, clientService)
+		if err != nil {
+			panic(err)
+		}
+
+		var coreAddr string
+		coreAddr, err = core.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+
+		if coreAddr == "" || instanceService.GetCore().GetUsingKey() == "" {
+			panic("could not get core address or key")
+		}
+
+		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
+	}
 
 	/* Album Service */
 	albumService := service.NewAlbumService(db.Collection("albums"), mediaService, shareService)
@@ -257,16 +255,7 @@ func startup(mongoName string) {
 	comm.AlbumService = albumService
 	sw.Lap("Init album service")
 
-	/* Give journal to file tree, and start workers */
-
-	/* If we are on a backup server, launch the backup daemon */
-	if localServer.ServerRole() == models.BackupServer {
-		go backup.BackupD(time.Hour, instanceService, workerPool)
-	}
-
-	/* Base / global caster */
-	caster := comm.NewSimpleCaster(clientService)
-	comm.Caster = caster
+	mediaService.AlbumService = albumService
 
 	sw.Stop()
 	sw.PrintResults(false)

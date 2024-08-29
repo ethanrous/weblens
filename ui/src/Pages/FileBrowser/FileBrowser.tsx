@@ -866,35 +866,32 @@ const FileBrowser = () => {
 
     const [notFound, setNotFound] = useState(false)
 
+    const {
+        viewOpts,
+        blockFocus,
+        viewingPast,
+        loading,
+        filesMap,
+        presentingId,
+        isSearching,
+        pasteImgBytes,
+        addLoading,
+        removeLoading,
+        setLocationState,
+        clearFiles,
+        setSearch,
+        setScrollTarget,
+        setSelected,
+        setFilesData,
+        setBlockFocus,
+        setPresentationTarget,
+    } = useFileBrowserStore()
     const fbLocationContext = useFileBrowserStore(
         useShallow((state) => ({
             mode: state.fbMode,
             contentId: state.contentId,
             shareId: state.shareId,
         }))
-    )
-    const fbViewOpts = useFileBrowserStore((state) => state.viewOpts)
-    const blockFocus = useFileBrowserStore((state) => state.blockFocus)
-    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
-    const loading = useFileBrowserStore((state) => state.loading)
-    const filesMap = useFileBrowserStore((state) => state.filesMap)
-    const presentingId = useFileBrowserStore((state) => state.presentingId)
-    const isSearching = useFileBrowserStore((state) => state.isSearching)
-    const pasteImage = useFileBrowserStore((state) => state.pasteImgBytes)
-
-    const addLoading = useFileBrowserStore((state) => state.addLoading)
-    const removeLoading = useFileBrowserStore((state) => state.removeLoading)
-    const setLocation = useFileBrowserStore((state) => state.setLocationState)
-    const clearFiles = useFileBrowserStore((state) => state.clearFiles)
-    const setSearch = useFileBrowserStore((state) => state.setSearch)
-    const setScrollTarget = useFileBrowserStore(
-        (state) => state.setScrollTarget
-    )
-    const setSelected = useFileBrowserStore((state) => state.setSelected)
-    const setFilesData = useFileBrowserStore((state) => state.setFilesData)
-    const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
-    const setPresentationTarget = useFileBrowserStore(
-        (state) => state.setPresentationTarget
     )
 
     const [taskProg, taskProgDispatch] = useReducer<
@@ -906,8 +903,8 @@ const FileBrowser = () => {
     >(taskProgressReducer, null, () => new TaskProgressState())
 
     useEffect(() => {
-        localStorage.setItem('fbViewOpts', JSON.stringify(fbViewOpts))
-    }, [fbViewOpts])
+        localStorage.setItem('fbViewOpts', JSON.stringify(viewOpts))
+    }, [viewOpts])
 
     useEffect(() => {
         if (!user) {
@@ -954,7 +951,7 @@ const FileBrowser = () => {
             })
         } else {
             getRealId(contentId, mode, user).then((contentId) => {
-                setLocation(contentId, mode, shareId)
+                setLocationState(contentId, mode, shareId)
                 removeLoading('files')
             })
         }
@@ -1103,7 +1100,7 @@ const FileBrowser = () => {
                         element={presentingElement}
                         dispatch={{ setPresentationTarget }}
                     />
-                    {pasteImage && <PasteImageDialogue />}
+                    {pasteImgBytes && <PasteImageDialogue />}
                     {isSearching && <SearchDialogue />}
                     <FileContextMenu />
                     <div className="absolute bottom-1 left-1">

@@ -23,6 +23,7 @@ export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
     const authHeader = useSessionStore((state) => state.auth)
     const [givenUp, setGivenUp] = useState(false)
+    console.log('DOING WEBSOCKET')
     const { sendMessage, lastMessage, readyState } = useWebSocket(
         API_WS_ENDPOINT,
         {

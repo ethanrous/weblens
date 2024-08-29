@@ -1,4 +1,4 @@
-package comm
+package models
 
 import (
 	"sync"
@@ -8,7 +8,6 @@ import (
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 )
 
@@ -126,7 +125,7 @@ func (c *SimpleCaster) PushPoolUpdate(
 	// c.c.cm.Send(string(event), types.SubId(taskId), []types.WsC{types.WsC(result)})
 }
 
-func (c *SimpleCaster) PushShareUpdate(username models.Username, newShareInfo models.Share) {
+func (c *SimpleCaster) PushShareUpdate(username Username, newShareInfo Share) {
 	if !c.enabled {
 		return
 	}
@@ -157,7 +156,7 @@ func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media) {
+func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
 	if !c.enabled {
 		return
 	}
@@ -171,13 +170,13 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *
 
 	c.cm.Send(msg)
 
-	if updatedFile.GetParent().ID() == "ROOT" {
+	if updatedFile.GetParent() == nil || updatedFile.GetParent().ID() == "ROOT" {
 		return
 	}
 
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey:  SubId(updatedFile.GetParent().ID()),
+		SubscribeKey: SubId(updatedFile.GetParentId()),
 		Content:       WsC{"fileInfo": updatedFile},
 		BroadcastType: FolderSubscribe,
 	}
@@ -239,16 +238,16 @@ func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.TaskI
 	}
 }
 
-func (c *SimpleCaster) UnsubTask(task *task.Task) {
-	if !c.enabled {
-		return
-	}
-
-	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(task.TaskId()))
-	for _, s := range subs {
-		s.unsubscribe(SubId(task.TaskId()))
-	}
-}
+// func (c *SimpleCaster) UnsubTask(task *task.Task) {
+// 	if !c.enabled {
+// 		return
+// 	}
+//
+// 	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(task.TaskId()))
+// 	for _, s := range subs {
+// 		s.unsubscribe(SubId(task.TaskId()))
+// 	}
+// }
 
 func (c *SimpleCaster) Relay(msg WsResponseInfo) {
 	if !c.enabled {
@@ -336,7 +335,7 @@ func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media) {
+func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -350,15 +349,14 @@ func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media
 
 	c.bufferAndFlush(msg)
 
-	parentId := updatedFile.GetParentId()
-	if parentId == "" || parentId == "ROOT" {
+	if updatedFile.GetParent() == nil || updatedFile.GetParent().ID() == "ROOT" {
 		return
 	}
 
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey:  SubId(parentId),
-		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
+		SubscribeKey: SubId(updatedFile.GetParentId()),
+		Content:      WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -450,7 +448,7 @@ func (c *BufferedCaster) PushPoolUpdate(
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushShareUpdate(username models.Username, newShareInfo models.Share) {
+func (c *BufferedCaster) PushShareUpdate(username Username, newShareInfo Share) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -495,12 +493,12 @@ func (c *BufferedCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Tas
 	}
 }
 
-func (c *BufferedCaster) UnsubTask(task *task.Task) {
-	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(task.TaskId()))
-	for _, s := range subs {
-		s.unsubscribe(SubId(task.TaskId()))
-	}
-}
+// func (c *BufferedCaster) UnsubTask(task *task.Task) {
+// 	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(task.TaskId()))
+// 	for _, s := range subs {
+// 		s.unsubscribe(SubId(task.TaskId()))
+// 	}
+// }
 
 func (c *BufferedCaster) Relay(msg WsResponseInfo) {
 	if !c.enabled.Load() {
@@ -537,7 +535,7 @@ func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
 type BasicCaster interface {
 	PushWeblensEvent(eventTag string)
 
-	PushFileUpdate(updatedFile *fileTree.WeblensFile, media *models.Media)
+	PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media)
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
 }
@@ -547,14 +545,14 @@ type Broadcaster interface {
 	PushFileCreate(newFile *fileTree.WeblensFile)
 	PushFileMove(preMoveFile *fileTree.WeblensFile, postMoveFile *fileTree.WeblensFile)
 	PushFileDelete(deletedFile *fileTree.WeblensFile)
-	PushShareUpdate(username models.Username, newShareInfo models.Share)
+	PushShareUpdate(username Username, newShareInfo Share)
 	Enable()
 	Disable()
 	IsEnabled() bool
 	IsBuffered() bool
 
 	FolderSubToTask(folder fileTree.FileId, taskId task.TaskId)
-	UnsubTask(task *task.Task)
+	// UnsubTask(task *task.Task)
 	DisableAutoFlush()
 	AutoFlushEnable()
 	Flush()
@@ -584,6 +582,7 @@ const (
 	Unsubscribe       WsAction = "unsubscribe"
 	ScanDirectory     WsAction = "scan_directory"
 	CancelTask        WsAction = "cancel_task"
+	ReportError WsAction = "show_web_error"
 )
 
 const (

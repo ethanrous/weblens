@@ -15,7 +15,6 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/models/service"
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 )
@@ -56,7 +55,7 @@ func createFolder(ctx *gin.Context) {
 		}
 	}
 
-	caster := NewBufferedCaster(ClientService)
+	caster := models.NewBufferedCaster(ClientService)
 	defer caster.Close()
 
 	newDir, err := FileService.CreateFolder(parentFolder, body.NewFolderName, caster)
@@ -66,13 +65,11 @@ func createFolder(ctx *gin.Context) {
 		return
 	}
 
-	for _, child := range children {
-		err = FileService.MoveFile(child, newDir, "", caster)
-		if err != nil {
-			log.ShowErr(err)
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+	err = FileService.MoveFiles(children, newDir, caster)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.ID()})
@@ -95,7 +92,7 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 		return
 	}
 
-	var filteredDirInfo []service.FileInfo
+	var filteredDirInfo []FileInfo
 	if dir.IsDir() {
 		if pastTime.Unix() > 0 {
 			ctx.Status(http.StatusNotImplemented)
@@ -120,10 +117,10 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 	}
 
 	if filteredDirInfo == nil {
-		filteredDirInfo = []service.FileInfo{}
+		filteredDirInfo = []FileInfo{}
 	}
 
-	var parentsInfo []service.FileInfo
+	var parentsInfo []FileInfo
 	parent := dir.GetParent()
 	for parent.ID() != "ROOT" && AccessService.CanUserAccessFile(
 		u, parent, share,
@@ -143,7 +140,7 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 
 	for _, child := range dir.GetChildren() {
 		if MediaService.Get(models.ContentId(child.GetContentId())) == nil && MediaService.IsFileDisplayable(child) {
-			c := NewBufferedCaster(ClientService)
+			c := models.NewBufferedCaster(ClientService)
 			meta := models.ScanMeta{
 				File:         dir,
 				FileService:  FileService,
@@ -256,7 +253,7 @@ func scanDir(ctx *gin.Context) {
 		return
 	}
 
-	caster := NewBufferedCaster(ClientService)
+	caster := models.NewBufferedCaster(ClientService)
 	meta := models.ScanMeta{
 		File:         dir,
 		FileService:  FileService,
@@ -367,36 +364,41 @@ func restorePastFiles(ctx *gin.Context) {
 
 func moveFiles(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
+	sh, err := getShareFromCtx[*models.FileShare](ctx)
+	if err != nil {
+		return
+	}
+
 	filesData, err := readCtxBody[updateMany](ctx)
 	if err != nil {
 		return
 	}
 
-	pool := TaskService.NewTaskPool(false, nil)
-
-	caster := NewBufferedCaster(ClientService)
-	defer caster.Close()
-
-	// fileEvent := fileTree.NewFileEvent()
-
-	for _, fileId := range filesData.Files {
-		meta := models.MoveMeta{
-			FileId:              fileId,
-			DestinationFolderId: filesData.NewParentId,
-			Caster:              caster,
-			User:                u,
-			FileService:         FileService,
-		}
-		_, err = TaskService.DispatchJob(models.MoveFileTask, meta, pool)
-		if err != nil {
-			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
-			return
-		}
+	newParent, err := FileService.GetFileSafe(filesData.NewParentId, u, sh)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
 	}
 
-	pool.SignalAllQueued()
-	pool.Wait(false)
+	var files []*fileTree.WeblensFile
+	for _, fileId := range filesData.Files {
+		f, err := FileService.GetFileSafe(fileId, u, sh)
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safe)
+			return
+		}
+
+		files = append(files, f)
+	}
+
+	err = FileService.MoveFiles(files, newParent, Caster)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
 
 	ctx.Status(http.StatusOK)
 }
@@ -415,7 +417,7 @@ func getSharedFiles(ctx *gin.Context) {
 		return
 	}
 
-	var filesInfos = make([]service.FileInfo, 0)
+	var filesInfos = make([]FileInfo, 0)
 	for _, share := range shares {
 		f, err := FileService.GetFileSafe(share.FileId, u, share)
 		if err != nil {

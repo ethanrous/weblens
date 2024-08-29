@@ -278,10 +278,11 @@ func (t *Task) ErrorAndExit(err error, info ...any) {
 		return
 	}
 
-	log.ShowErr(err, fmt.Sprintf("Task %s exited with an error", t.TaskId()))
-	if len(info) != 0 {
-		log.ErrorCatcher.Printf("Reported by task: %s", fmt.Sprint(info...))
+	var infoMsg string
+	if len(info) > 0 {
+		infoMsg = fmt.Sprintln(info...)
 	}
+	log.ErrTrace(werror.Errorf("%sTask [%s] exited with an error: %s", infoMsg, t.TaskId(), err.Error()))
 	t.error(err)
 	panic(werror.ErrTaskError)
 }

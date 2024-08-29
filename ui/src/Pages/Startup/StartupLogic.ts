@@ -7,12 +7,12 @@ export function startupWebsocketHandler(setSetupProgress, setSetupMostRecent) {
             }
             case 'task_complete': {
                 setSetupProgress(
-                    (msgData.content.queue_remaining /
-                        msgData.content.queue_total) *
+                    (msgData.content.tasksComplete /
+                        msgData.content.tasksTotal) *
                         100
                 )
                 setSetupMostRecent(
-                    `${msgData.taskType}: ${msgData.content.task_id}`
+                    `${msgData.taskType}: ${msgData.content.fileName}`
                 )
                 break
             }

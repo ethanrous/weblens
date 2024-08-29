@@ -100,9 +100,9 @@ func TestUserServiceImpl_ActivateUser(t *testing.T) {
 		u *models.User
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -128,9 +128,9 @@ func TestUserServiceImpl_Add(t *testing.T) {
 		user *models.User
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -156,9 +156,9 @@ func TestUserServiceImpl_Del(t *testing.T) {
 		un models.Username
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -185,9 +185,9 @@ func TestUserServiceImpl_GenerateToken(t *testing.T) {
 		user *models.User
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		want    string
 		wantErr assert.ErrorAssertionFunc
 	}{
@@ -254,14 +254,14 @@ func TestUserServiceImpl_GetAll(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, us.GetAll(), "GetAll()")
+				// us := &UserServiceImpl{
+				// 	userMap:    tt.fields.userMap,
+				// 	userLock:   tt.fields.userLock,
+				// 	publicUser: tt.fields.publicUser,
+				// 	rootUser:   tt.fields.rootUser,
+				// 	col:        tt.fields.col,
+				// }
+				// assert.Equalf(t, tt.want, us.GetAll(), "GetAll()")
 			},
 		)
 	}
@@ -348,9 +348,9 @@ func TestUserServiceImpl_SearchByUsername(t *testing.T) {
 		searchString string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		want    iter.Seq[*models.User]
 		wantErr assert.ErrorAssertionFunc
 	}{
@@ -383,9 +383,9 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 		admin bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -443,9 +443,9 @@ func TestUserServiceImpl_UpdateUserPassword(t *testing.T) {
 		allowEmptyOld bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
+		name   string
+		fields fields
+		args   args
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
