@@ -23,8 +23,8 @@ type User struct {
 	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
 
 	// non-database types
-	homeFolder  *fileTree.WeblensFile
-	trashFolder *fileTree.WeblensFile
+	homeFolder  *fileTree.WeblensFileImpl
+	trashFolder *fileTree.WeblensFileImpl
 	tokensLock sync.RWMutex
 	SystemUser bool
 }
@@ -55,12 +55,12 @@ func (u *User) GetUsername() Username {
 	return u.Username
 }
 
-func (u *User) SetHomeFolder(f *fileTree.WeblensFile) {
+func (u *User) SetHomeFolder(f *fileTree.WeblensFileImpl) {
 	u.homeFolder = f
 	u.HomeId = f.ID()
 }
 
-func (u *User) SetTrashFolder(f *fileTree.WeblensFile) {
+func (u *User) SetTrashFolder(f *fileTree.WeblensFileImpl) {
 	u.trashFolder = f
 	u.TrashId = f.ID()
 }

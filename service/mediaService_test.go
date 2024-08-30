@@ -38,21 +38,6 @@ type testMedia struct {
 	err   error
 }
 
-var testMimes = map[string]models.MediaType{
-	"image/x-sony-arw": {
-		Mime:        "image/x-sony-arw",
-		Displayable: true,
-		Raw:         true,
-		Video:       false,
-	},
-	"video/mp4": {
-		Mime:        "video/mp4",
-		Displayable: true,
-		Raw:         false,
-		Video:       true,
-	},
-}
-
 var mondb *mongo.Database
 var sampleMediaValid = []testMedia{
 	{
@@ -176,14 +161,20 @@ func init() {
 	}
 
 	mondb = database.ConnectToMongo("mongodb://localhost:27017", "weblens-test")
-	if err := mondb.Collection("media").Drop(context.Background()); err != nil {
-		panic(err)
-	}
 
-	typeService = models.NewTypeService(testMimes)
+	marshMap := map[string]models.MediaType{}
+	internal.ReadTypesConfig(&marshMap)
+	typeService = models.NewTypeService(marshMap)
 }
 
 func TestMediaServiceImpl_Add(t *testing.T) {
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
+
 	type args struct {
 		m *models.Media
 	}
@@ -209,7 +200,7 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 
 	ms, err := service.NewMediaService(
 		nil, typeService, &mock.MockAlbumService{},
-		mondb.Collection("media"),
+		col,
 	)
 
 	if !assert.NoError(t, err) {
@@ -223,15 +214,18 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 			},
 		)
 	}
-
-	if err := mondb.Collection("media").Drop(context.Background()); err != nil {
-		panic(err)
-	}
 }
 
 func TestMediaServiceImpl_Del(t *testing.T) {
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
+
 	for _, m := range sampleMediaValid {
-		_, err := mondb.Collection("media").InsertOne(context.Background(), m.media)
+		_, err := col.InsertOne(context.Background(), m.media)
 		if !assert.NoError(t, err) {
 			t.FailNow()
 		}
@@ -239,7 +233,7 @@ func TestMediaServiceImpl_Del(t *testing.T) {
 
 	ms, err := service.NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
-		mondb.Collection("media"),
+		col,
 	)
 	if !assert.NoError(t, err) {
 		t.FailNow()
@@ -500,7 +494,7 @@ func TestMediaServiceImpl_IsCached(t *testing.T) {
 func TestMediaServiceImpl_IsFileDisplayable(t *testing.T) {
 
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name   string
@@ -524,7 +518,7 @@ func TestMediaServiceImpl_LoadMediaFromFile(t *testing.T) {
 
 	type args struct {
 		m    *models.Media
-		file *fileTree.WeblensFile
+		file *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name    string
@@ -569,7 +563,7 @@ func TestMediaServiceImpl_NukeCache(t *testing.T) {
 func TestMediaServiceImpl_RecursiveGetMedia(t *testing.T) {
 
 	type args struct {
-		folders []*fileTree.WeblensFile
+		folders []*fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name   string
@@ -592,14 +586,16 @@ func TestMediaServiceImpl_RecursiveGetMedia(t *testing.T) {
 }
 
 func TestMediaServiceImpl_RemoveFileFromMedia(t *testing.T) {
-	err := mondb.Collection("media").Drop(context.Background())
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
 	if err != nil {
 		panic(err)
 	}
+	defer col.Drop(context.Background())
 
 	ms, err := service.NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
-		mondb.Collection("media"),
+		col,
 	)
 	if !assert.NoError(t, err) {
 		t.FailNow()
@@ -613,7 +609,7 @@ func TestMediaServiceImpl_RemoveFileFromMedia(t *testing.T) {
 
 	assert.Equal(t, 1, ms.Size())
 
-	count, err := mondb.Collection("media").CountDocuments(context.Background(), bson.M{})
+	count, err := col.CountDocuments(context.Background(), bson.M{})
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
@@ -626,7 +622,7 @@ func TestMediaServiceImpl_RemoveFileFromMedia(t *testing.T) {
 
 	assert.Equal(t, 0, ms.Size())
 
-	count, err = mondb.Collection("media").CountDocuments(context.Background(), bson.M{})
+	count, err = col.CountDocuments(context.Background(), bson.M{})
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
@@ -773,7 +769,7 @@ func TestMediaServiceImpl_TypeService(t *testing.T) {
 // 		name    string
 // 		fields  mediaServiceFields
 // 		args    args
-// 		want    []*fileTree.WeblensFile
+// 		want    []*fileTree.WeblensFileImpl
 // 		wantErr assert.ErrorAssertionFunc
 // 	}{
 // 		// TODO: Add test cases.
@@ -803,7 +799,7 @@ func TestMediaServiceImpl_TypeService(t *testing.T) {
 // 		name    string
 // 		fields  mediaServiceFields
 // 		args    args
-// 		want    *fileTree.WeblensFile
+// 		want    *fileTree.WeblensFileImpl
 // 		wantErr assert.ErrorAssertionFunc
 // 	}{
 // 		// TODO: Add test cases.

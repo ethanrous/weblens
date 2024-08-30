@@ -75,11 +75,11 @@ type Media struct {
 	imported bool
 
 	// WEBP thumbnail cache fileId
-	lowresCacheFile *fileTree.WeblensFile
+	lowresCacheFile fileTree.WeblensFile
 
 	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
 	// because fullres images could be multi-page, and a cache file is created per page
-	highResCacheFiles []*fileTree.WeblensFile
+	highResCacheFiles []fileTree.WeblensFile
 }
 
 func NewMedia(contentId ContentId) *Media {
@@ -180,13 +180,13 @@ func (m *Media) GetFiles() []fileTree.FileId {
 	return m.FileIds
 }
 
-func (m *Media) addFile(f *fileTree.WeblensFile) {
+func (m *Media) addFile(f *fileTree.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.FileIds = internal.AddToSet(m.FileIds, f.ID())
 }
 
-func (m *Media) removeFile(f *fileTree.WeblensFile) error {
+func (m *Media) removeFile(f *fileTree.WeblensFileImpl) error {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.FileIds = internal.Filter(
@@ -224,23 +224,23 @@ func (m *Media) setHidden(hidden bool) {
 	m.Hidden = hidden
 }
 
-func (m *Media) SetLowresCacheFile(thumb *fileTree.WeblensFile) {
+func (m *Media) SetLowresCacheFile(thumb fileTree.WeblensFile) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.lowresCacheFile = thumb
 }
 
-func (m *Media) GetLowresCacheFile() *fileTree.WeblensFile {
+func (m *Media) GetLowresCacheFile() fileTree.WeblensFile {
 	return m.lowresCacheFile
 }
 
-func (m *Media) SetHighresCacheFiles(highresFiles []*fileTree.WeblensFile) {
+func (m *Media) SetHighresCacheFiles(highresFiles []fileTree.WeblensFile) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.highResCacheFiles = highresFiles
 }
 
-func (m *Media) GetHighresCacheFiles() []*fileTree.WeblensFile {
+func (m *Media) GetHighresCacheFiles() []fileTree.WeblensFile {
 	return m.highResCacheFiles
 }
 
@@ -314,7 +314,7 @@ func (m *Media) GetHighresCacheFiles() []*fileTree.WeblensFile {
 // 	return nil
 // }
 
-// func (m *Media) GetCacheFile(q MediaQuality, generateIfMissing bool, pageNum int) (f *fileTree.WeblensFile, err error) {
+// func (m *Media) GetCacheFile(q MediaQuality, generateIfMissing bool, pageNum int) (f *fileTree.WeblensFileImpl, err error) {
 // 	if q == LowRes && m.thumbCacheFile != nil && m.thumbCacheFile.Exists() {
 // 		f = m.thumbCacheFile
 // 		return
@@ -377,7 +377,7 @@ func (m *Media) GetHighresCacheFiles() []*fileTree.WeblensFile {
 
 const ThumbnailHeight float32 = 500
 
-// func (m *Media) handleCacheCreation(f *fileTree.WeblensFile) (err error) {
+// func (m *Media) handleCacheCreation(f *fileTree.WeblensFileImpl) (err error) {
 // 	_, err = m.GetCacheFile(LowRes, false, 0)
 // 	hasThumbCache := err == nil
 // 	_, err = m.GetCacheFile(HighRes, false, 0)
@@ -495,7 +495,7 @@ const ThumbnailHeight float32 = 500
 // 	return
 // }
 
-// func (m *Media) cacheDisplayable(q MediaQuality, data []byte, pageNum int, ft types.FileTree) *fileTree.WeblensFile {
+// func (m *Media) cacheDisplayable(q MediaQuality, data []byte, pageNum int, ft types.FileTree) *fileTree.WeblensFileImpl {
 // 	cacheFileName := m.getCacheFilename(q, pageNum)
 //
 // 	if len(data) == 0 {
@@ -535,7 +535,7 @@ const ThumbnailHeight float32 = 500
 // 	return f
 // }
 
-// func (m *Media) getCacheId(q MediaQuality, pageNum int, cacheDir *fileTree.WeblensFile) fileTree.FileId {
+// func (m *Media) getCacheId(q MediaQuality, pageNum int, cacheDir *fileTree.WeblensFileImpl) fileTree.FileId {
 // 	return cacheDir.GetTree().GenerateFileId(
 // 		filepath.Join(
 // 			cacheDir.GetAbsPath(), m.getCacheFilename(
@@ -641,7 +641,14 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.Owner = Username(raw.Lookup("owner").StringValue())
 	m.Width = int(raw.Lookup("width").Int32())
 	m.Height = int(raw.Lookup("height").Int32())
-	m.CreateDate = raw.Lookup("createDate").Time()
+
+	create := raw.Lookup("createDate")
+	createTime, ok := create.TimeOK()
+	if !ok {
+		m.CreateDate = time.UnixMilli(create.Int64())
+	} else {
+		m.CreateDate = createTime
+	}
 	m.MimeType = raw.Lookup("mimeType").StringValue()
 
 	likedArr, ok := raw.Lookup("likedBy").ArrayOK()
@@ -745,12 +752,12 @@ type MediaService interface {
 	Del(id ContentId) error
 	HideMedia(m *Media, hidden bool) error
 
-	LoadMediaFromFile(m *Media, file *fileTree.WeblensFile) error
+	LoadMediaFromFile(m *Media, file *fileTree.WeblensFileImpl) error
 	RemoveFileFromMedia(media *Media, fileId fileTree.FileId) error
 
 	GetMediaType(m *Media) MediaType
 	GetMediaTypes() MediaTypeService
-	IsFileDisplayable(file *fileTree.WeblensFile) bool
+	IsFileDisplayable(file *fileTree.WeblensFileImpl) bool
 	IsCached(m *Media) bool
 
 	FetchCacheImg(m *Media, quality MediaQuality, pageNum int) ([]byte, error)
@@ -761,7 +768,7 @@ type MediaService interface {
 	GetFilteredMedia(
 		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool,
 	) ([]*Media, error)
-	RecursiveGetMedia(folders ...*fileTree.WeblensFile) []ContentId
+	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []ContentId
 
 	SetMediaLiked(mediaId ContentId, liked bool, username Username) error
 }
@@ -789,7 +796,7 @@ func NewVideoStreamer(media *Media, destPath string) *VideoStreamer {
 	}
 }
 
-func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFile, speed string) {
+func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed string) {
 	defer func() { vs.encodingBegun = false }()
 
 	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
@@ -823,7 +830,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFile, speed string) 
 	}
 }
 
-func (vs *VideoStreamer) Encode(f *fileTree.WeblensFile) *VideoStreamer {
+func (vs *VideoStreamer) Encode(f *fileTree.WeblensFileImpl) *VideoStreamer {
 	if !vs.encodingBegun {
 		vs.encodingBegun = true
 		go vs.transcodeChunks(f, "ultrafast")
@@ -844,7 +851,7 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 	return vs.encodingBegun
 }
 
-func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFile) (int, error) {
+func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (int, error) {
 	probeJson, err := ffmpeg.Probe(f.GetAbsPath())
 	if err != nil {
 		return 0, err

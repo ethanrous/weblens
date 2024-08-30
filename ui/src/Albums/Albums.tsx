@@ -156,7 +156,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
             {media.length === 0 && (
                 <AlbumNoContent
                     hasContent={
-                        albumContentRes.data.albumMeta.medias.length !== 0
+                        albumContentRes.data.albumMeta.medias?.length !== 0
                     }
                 />
             )}

@@ -16,11 +16,7 @@ func NewHasher(service task.TaskService, caster Broadcaster) *Hasher {
 	return &Hasher{taskService: service, caster: caster}
 }
 
-func NewHollowHasher() *Hasher {
-	return &Hasher{}
-}
-
-func (h *Hasher) Hash(file *fileTree.WeblensFile, event *fileTree.FileEvent) error {
+func (h *Hasher) Hash(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent) error {
 	if h.taskService == nil {
 		return nil
 	}

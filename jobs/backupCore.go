@@ -30,10 +30,10 @@ func BackupD(
 				continue
 			}
 
-			wsConn := websocketService.GetClientByInstanceId(remote.ServerId())
-			if wsConn == nil {
-				time.Sleep(time.Millisecond * 100)
-			}
+			// wsConn := websocketService.GetClientByInstanceId(remote.ServerId())
+			// if wsConn == nil {
+			// 	time.Sleep(time.Millisecond * 100)
+			// }
 
 			meta := models.BackupMeta{
 				RemoteId:            remote.ServerId(),
@@ -53,7 +53,11 @@ func BackupD(
 				log.ErrTrace(err)
 			}
 		}
-		time.Sleep(interval)
+
+		now := time.Now()
+		sleepFor := now.Truncate(interval).Add(interval).Sub(now)
+		log.Debug.Println("BackupD going to sleep for", sleepFor)
+		time.Sleep(sleepFor)
 	}
 }
 
@@ -137,7 +141,7 @@ func DoBackup(t *task.Task) {
 	newFiles, err := meta.ProxyFileService.GetFiles(newFileIds)
 
 	// files := internal.FilterMap(
-	// 	SERV.FileTree.GetJournal().GetActiveLifetimes(), func(lt Lifetime) (*fileTree.WeblensFile, bool) {
+	// 	SERV.FileTree.GetJournal().GetActiveLifetimes(), func(lt Lifetime) (*fileTree.WeblensFileImpl, bool) {
 	// 		f := SERV.FileTree.Get(lt.GetLatestFileId())
 	// 		if f == nil && lt.GetLatestAction().GetActionType() != FileDelete {
 	// 			f, err = proxyService.GetFile(lt.GetLatestFileId())
@@ -157,13 +161,14 @@ func DoBackup(t *task.Task) {
 	// )
 
 	slices.SortFunc(
-		newFiles, func(a, b *fileTree.WeblensFile) int {
+		newFiles, func(a, b *fileTree.WeblensFileImpl) int {
 			return len(a.GetAbsPath()) - len(b.GetAbsPath())
 		},
 	)
 
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 	t.SetChildTaskPool(pool)
+	meta.WebsocketService.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
 	for _, f := range newFiles {
 		_, err := meta.FileService.GetFile(f.ID())

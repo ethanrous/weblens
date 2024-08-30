@@ -26,8 +26,8 @@ type FileAction struct {
 	ServerId string `json:"serverId" bson:"serverId"`
 
 	LifeNext *FileAction  `json:"-" bson:"-"`
-	LifePrev *FileAction  `json:"-" bson:"-"`
-	file     *WeblensFile `bson:"-"`
+	LifePrev *FileAction      `json:"-" bson:"-"`
+	file     *WeblensFileImpl `bson:"-"`
 }
 
 func (fa *FileAction) GetTimestamp() time.Time {
@@ -42,7 +42,7 @@ func (fa *FileAction) GetSize() int64 {
 	return fa.Size
 }
 
-func (fa *FileAction) GetFile() *WeblensFile {
+func (fa *FileAction) GetFile() *WeblensFileImpl {
 	return fa.file
 }
 

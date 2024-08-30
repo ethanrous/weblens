@@ -41,7 +41,7 @@ func (pjs *ProxyJournalService) NewEvent() *fileTree.FileEvent {
 	panic("implement me")
 }
 
-func (pjs *ProxyJournalService) WatchFolder(f *fileTree.WeblensFile) error {
+func (pjs *ProxyJournalService) WatchFolder(f *fileTree.WeblensFileImpl) error {
 	// TODO implement me
 	panic("implement me")
 }
@@ -56,8 +56,8 @@ func (pjs *ProxyJournalService) GetActionsByPath(filepath fileTree.WeblensFilepa
 	panic("implement me")
 }
 
-func (pjs *ProxyJournalService) GetPastFolderInfo(folder *fileTree.WeblensFile, time time.Time) (
-	[]*fileTree.WeblensFile, error,
+func (pjs *ProxyJournalService) GetPastFolderInfo(folder *fileTree.WeblensFileImpl, time time.Time) (
+	[]*fileTree.WeblensFileImpl, error,
 ) {
 	// TODO implement me
 	panic("implement me")

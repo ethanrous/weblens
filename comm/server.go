@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
@@ -39,7 +38,6 @@ func DoRoutes() {
 	routerLock.Lock()
 	if srv != nil {
 		// Wait for request to finish before shutting down router
-		time.Sleep(time.Millisecond * 100)
 		err := srv.Shutdown(context.Background())
 		log.ErrTrace(err)
 		srv = nil

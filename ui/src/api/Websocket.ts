@@ -23,7 +23,6 @@ export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
     const authHeader = useSessionStore((state) => state.auth)
     const [givenUp, setGivenUp] = useState(false)
-    console.log('DOING WEBSOCKET')
     const { sendMessage, lastMessage, readyState } = useWebSocket(
         API_WS_ENDPOINT,
         {
@@ -46,6 +45,7 @@ export function useWeblensSocket() {
         (action: string, content) => {
             const msg = {
                 action: action,
+                sentAt: Date.now(),
                 content: JSON.stringify(content),
             }
             console.log('WSSend', msg)
@@ -168,6 +168,7 @@ interface wsMsgContent {
     speedBytes?: number
     tasks_total?: number
     tasks_complete?: number
+    tasks_failed?: number
     completedFiles?: number
     execution_time?: number
     percent_progress?: number
@@ -325,7 +326,9 @@ function filebrowserWebsocketHandler(
                     taskId: msgData.subscribeKey,
                     progress: msgData.content.percent_progress,
                     tasksComplete: msgData.content.tasks_complete,
+                    tasksFailed: msgData.content.tasks_failed,
                     tasksTotal: msgData.content.tasks_total,
+                    target: msgData.content.task_job_target,
                     note: msgData.content.note,
                     workingOn: msgData.content.filename,
                     taskType: msgData.taskType,

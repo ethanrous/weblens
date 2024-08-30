@@ -1,8 +1,11 @@
 package internal
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -49,13 +52,28 @@ func GetWorkerCount() int {
 	return int(workerCount)
 }
 
+var appRoot string
 func GetAppRootDir() string {
-	apiDir := envReadString("APP_ROOT")
-	if apiDir == "" {
-		apiDir = "/app"
-		log.Info.Println("App root directory not set, defaulting to", apiDir)
+	if appRoot != "" {
+		return appRoot
 	}
-	return apiDir
+
+	appRoot = envReadString("APP_ROOT")
+	if appRoot == "" {
+		wd, err := filepath.Abs(".")
+		if err != nil {
+			panic(err)
+		}
+		weblensIndex := strings.LastIndex(wd, "weblens")
+
+		if weblensIndex == -1 {
+			appRoot = "/app"
+			log.Info.Println("APP_ROOT not set and could not be calculated, defaulting to", appRoot)
+		} else {
+			appRoot = wd[:weblensIndex+len("weblens")] + "/"
+		}
+	}
+	return appRoot
 }
 
 func GetRouterIp() string {
@@ -206,4 +224,38 @@ func GetHostURL() string {
 		hostUrl = envReadString("HOST_URL")
 	}
 	return hostUrl
+}
+
+var testMediaPath string
+
+func GetTestMediaPath() string {
+	if testMediaPath != "" {
+		return testMediaPath
+	}
+	testMediaPath = envReadString("TEST_MEDIA_PATH")
+	if testMediaPath == "" {
+		testMediaPath = filepath.Join(GetAppRootDir(), "/images/testMedia")
+		log.Warning.Printf("Did not find TEST_MEDIA_PATH, assuming default of %s", testMediaPath)
+	}
+	return testMediaPath
+}
+
+func ReadTypesConfig(target any) {
+	typeJson, err := os.Open(filepath.Join(GetConfigDir(), "mediaType.json"))
+	if err != nil {
+		panic(err)
+	}
+	defer func(typeJson *os.File) {
+		err := typeJson.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(typeJson)
+
+	typesBytes, err := io.ReadAll(typeJson)
+	// marshMap := map[string]models.MediaType{}
+	err = json.Unmarshal(typesBytes, target)
+	if err != nil {
+		panic(err)
+	}
 }

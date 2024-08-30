@@ -171,7 +171,7 @@ func updateAlbum(ctx *gin.Context) {
 
 	if update.AddFolders != nil && len(update.AddFolders) != 0 {
 		folders := internal.Map(
-			update.AddFolders, func(fId fileTree.FileId) *fileTree.WeblensFile {
+			update.AddFolders, func(fId fileTree.FileId) *fileTree.WeblensFileImpl {
 				f, err := FileService.GetFileSafe(fId, u, nil)
 				if err != nil {
 					log.ShowErr(err)

@@ -1,10 +1,7 @@
 package models
 
 import (
-	"fmt"
 	"iter"
-	"runtime"
-	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -84,7 +81,10 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
-	wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	if err != nil {
+		log.ErrTrace(err)
+	}
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string) {
@@ -97,7 +97,7 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string) {
 	log.ErrTrace(wsc.Send(msg))
 }
 
-func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
+func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  SubId(updatedFile.ID()),
@@ -167,7 +167,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
-			wsc.errTrace(err)
+			log.ErrTrace(err)
 		}
 	} else {
 		return werror.Errorf("trying to send to closed client")
@@ -200,33 +200,7 @@ func (wsc *WsClient) Disconnect() {
 		return
 	}
 	wsc.updateMu.Unlock()
-	wsc.log("Disconnected")
-}
-
-func (wsc *WsClient) clientMsgFormat(msg ...any) string {
-	var clientName string
-	if wsc.GetUser() != nil {
-		clientName = string(wsc.GetUser().GetUsername())
-	} else {
-		clientName = wsc.GetRemote().GetName()
-	}
-	return fmt.Sprintf("| %s (%s) | %s", wsc.GetShortId(), clientName, fmt.Sprintln(msg...))
-}
-
-func (wsc *WsClient) log(msg ...any) {
-	log.WsInfo.Printf(wsc.clientMsgFormat(msg...))
-}
-
-func (wsc *WsClient) err(msg ...any) {
-	_, file, line, _ := runtime.Caller(2)
-	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
-	log.WsError.Printf(wsc.clientMsgFormat(msg...))
-}
-
-func (wsc *WsClient) errTrace(msg ...any) {
-	_, file, line, _ := runtime.Caller(2)
-	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
-	log.WsError.Printf(wsc.clientMsgFormat(msg...), string(debug.Stack()))
+	log.Debug.Printf("Disconnected [%s]", wsc.user.GetUsername())
 }
 
 type Client interface {

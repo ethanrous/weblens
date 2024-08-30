@@ -99,7 +99,7 @@ WatcherLoop:
 	log.Error.Panicln("File watcher exiting...")
 }
 
-func (j *JournalServiceImpl) WatchFolder(f *WeblensFile) error {
+func (j *JournalServiceImpl) WatchFolder(f *WeblensFileImpl) error {
 	// if !f.IsDir() {
 	// 	return dataStore.ErrDirectoryRequired
 	// }

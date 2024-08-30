@@ -120,9 +120,9 @@ func getFilesMeta(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, files)
 	}
 
-	var files []*fileTree.WeblensFile
+	var files []*fileTree.WeblensFileImpl
 	err = FileService.GetMediaRoot().RecursiveMap(
-		func(file *fileTree.WeblensFile) error {
+		func(file *fileTree.WeblensFileImpl) error {
 			files = append(files, file)
 			return nil
 		},

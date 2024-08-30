@@ -305,7 +305,7 @@ func (ms *MediaServiceImpl) IsCached(m *models.Media) bool {
 	return cacheFile != nil && err == nil
 }
 
-func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFile) bool {
+func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFileImpl) bool {
 	ext := filepath.Ext(f.Filename())
 	return ms.typeService.ParseExtension(ext).Displayable
 }
@@ -459,7 +459,7 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 	return nil
 }
 
-func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFile) error {
+func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
 	fileMetas := ms.exif.ExtractMetadata(file.GetAbsPath())
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
@@ -574,7 +574,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		}
 	}
 
-	_, err = ms.generateCacheFiles(m, bs)
+	err = ms.generateCacheFiles(m, bs)
 	if err != nil {
 		return err
 	}
@@ -590,7 +590,7 @@ func (ms *MediaServiceImpl) GetMediaTypes() models.MediaTypeService {
 	return ms.typeService
 }
 
-func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFile) []models.ContentId {
+func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
 	var medias []models.ContentId
 
 	for _, f := range folders {
@@ -608,7 +608,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFile) 
 			continue
 		}
 		err := f.RecursiveMap(
-			func(f *fileTree.WeblensFile) error {
+			func(f *fileTree.WeblensFileImpl) error {
 				if !f.IsDir() && ms.IsFileDisplayable(f) {
 					m := ms.Get(models.ContentId(f.GetContentId()))
 					if m != nil {
@@ -656,7 +656,7 @@ func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) ([]byte
 
 func (ms *MediaServiceImpl) getCacheFile(
 	m *models.Media, quality models.MediaQuality, pageNum int,
-) (*fileTree.WeblensFile, error) {
+) (fileTree.WeblensFile, error) {
 	if quality == models.LowRes && m.GetLowresCacheFile() != nil {
 		return m.GetLowresCacheFile(), nil
 	} else if quality == models.HighRes && len(m.GetHighresCacheFiles()) > pageNum {
@@ -679,7 +679,7 @@ func (ms *MediaServiceImpl) getCacheFile(
 	} else if quality == models.HighRes {
 		caches := m.GetHighresCacheFiles()
 		if caches == nil {
-			caches = make([]*fileTree.WeblensFile, m.GetPageCount())
+			caches = make([]fileTree.WeblensFile, m.GetPageCount())
 		}
 		caches[pageNum] = cacheFile
 		m.SetHighresCacheFiles(caches)
@@ -690,7 +690,7 @@ func (ms *MediaServiceImpl) getCacheFile(
 	return cacheFile, nil
 }
 
-func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*fileTree.WeblensFile, error) {
+func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error {
 	img := bimg.NewImage(bs)
 
 	var err error
@@ -707,18 +707,18 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 			err = werror.Errorf("Unknown rotate name [%s]", m.Rotate)
 		}
 		if err != nil {
-			return nil, werror.WithStack(err)
+			return werror.WithStack(err)
 		}
 	}
 
 	_, err = img.Convert(bimg.WEBP)
 	if err != nil {
-		return nil, werror.WithStack(err)
+		return werror.WithStack(err)
 	}
 
 	imgSize, err := img.Size()
 	if err != nil {
-		return nil, werror.WithStack(err)
+		return werror.WithStack(err)
 	}
 
 	m.Height = imgSize.Height
@@ -726,7 +726,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 
 	thumbW := int((models.ThumbnailHeight / float32(m.Height)) * float32(m.Width))
 
-	var cacheFiles []*fileTree.WeblensFile
+	var cacheFiles []fileTree.WeblensFile
 
 	mType := ms.GetMediaType(m)
 	if !mType.IsMultiPage() {
@@ -736,11 +736,11 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 
 		thumbBytes, err := thumbImg.Resize(thumbW, int(models.ThumbnailHeight))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		thumbSize, err := thumbImg.Size()
 		if err != nil {
-			return nil, werror.WithStack(err)
+			return werror.WithStack(err)
 		} else {
 			thumbRatio := float64(thumbSize.Width) / float64(thumbSize.Height)
 			mediaRatio := float64(m.Width) / float64(m.Height)
@@ -749,41 +749,41 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 			}
 		}
 
-		var thumbFile *fileTree.WeblensFile
+		var thumbFile fileTree.WeblensFile
 		thumbFile, err = ms.fileService.NewCacheFile(string(m.ID()), models.LowRes, 0)
 		if err != nil {
 			if !errors.Is(err, werror.ErrFileAlreadyExists) {
-				return nil, err
+				return err
 			}
 		} else {
 			err = thumbFile.Write(thumbBytes)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			cacheFiles = append(cacheFiles, thumbFile)
 		}
 		m.SetLowresCacheFile(thumbFile)
 
-		var fullresFile *fileTree.WeblensFile
+		var fullresFile fileTree.WeblensFile
 		fullresFile, err = ms.fileService.NewCacheFile(string(m.ID()), models.HighRes, 0)
 		if err != nil {
 			if !errors.Is(err, werror.ErrFileAlreadyExists) {
-				return nil, err
+				return err
 			}
 		} else {
 			err = fullresFile.Write(img.Image())
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			cacheFiles = append(cacheFiles, fullresFile)
 		}
 
-		m.SetHighresCacheFiles([]*fileTree.WeblensFile{fullresFile})
+		m.SetHighresCacheFiles([]fileTree.WeblensFile{fullresFile})
 	}
 
-	return cacheFiles, nil
+	return nil
 }
 
 func newExif(targetSize, currentSize int64, gexift *exiftool.Exiftool) *exiftool.Exiftool {

@@ -135,7 +135,9 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 				}
 			}
 
-			complete, result, err := ClientService.Subscribe(c, subInfo.GetKey(), models.FolderSubscribe, share)
+			complete, result, err := ClientService.Subscribe(
+				c, subInfo.GetKey(), models.FolderSubscribe, time.UnixMilli(msg.SentAt), share,
+			)
 			if err != nil {
 				c.Error(err)
 				return
@@ -156,7 +158,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 
 		if strings.HasPrefix(string(key), "TID#") {
 			key = key[4:]
-			complete, result, err := ClientService.Subscribe(c, key, models.TaskSubscribe, nil)
+			complete, result, err := ClientService.Subscribe(c, key, models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
 				c.Error(err)
 				return
@@ -171,7 +173,10 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 		} else if strings.HasPrefix(string(key), "TT#") {
 			key = key[3:]
 
-			ClientService.Subscribe(c, key, models.TaskTypeSubscribe, nil)
+			_, _, err := ClientService.Subscribe(c, key, models.TaskTypeSubscribe, time.Now(), nil)
+			if err != nil {
+				c.Error(err)
+			}
 		}
 
 	case models.Unsubscribe:
@@ -186,7 +191,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 			key = key[3:]
 		}
 
-		err = ClientService.Unsubscribe(c, key)
+		err = ClientService.Unsubscribe(c, key, time.UnixMilli(msg.SentAt))
 		if err != nil {
 			c.Error(err)
 			return
@@ -220,12 +225,12 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 				return
 			}
 			t.SetCleanup(
-				func() {
+				func(t *task.Task) {
 					newCaster.Close()
 				},
 			)
 
-			_, _, err = ClientService.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, nil)
+			_, _, err = ClientService.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
 				c.Error(err)
 				return

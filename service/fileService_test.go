@@ -25,7 +25,7 @@ func TestFileServiceImpl_AddTask(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 		t *task.Task
 	}
 	tests := []struct {
@@ -69,14 +69,14 @@ func TestFileServiceImpl_CreateFile(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		parent   *fileTree.WeblensFile
+		parent *fileTree.WeblensFileImpl
 		fileName string
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -118,7 +118,7 @@ func TestFileServiceImpl_CreateFolder(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		parent     *fileTree.WeblensFile
+		parent *fileTree.WeblensFileImpl
 		folderName string
 		caster     models.FileCaster
 	}
@@ -126,7 +126,7 @@ func TestFileServiceImpl_CreateFolder(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -172,7 +172,7 @@ func TestFileServiceImpl_DeleteCacheFile(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name    string
@@ -215,7 +215,7 @@ func TestFileServiceImpl_GetFileOwner(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		file *fileTree.WeblensFile
+		file *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name   string
@@ -266,7 +266,7 @@ func TestFileServiceImpl_GetFileSafe(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -351,7 +351,7 @@ func TestFileServiceImpl_GetMediaRoot(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 	}{
 		// TODO: Add test cases.
 	}
@@ -388,7 +388,7 @@ func TestFileServiceImpl_GetTasks(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name   string
@@ -437,7 +437,7 @@ func TestFileServiceImpl_GetThumbFileId(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -485,7 +485,7 @@ func TestFileServiceImpl_GetThumbFileName(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -527,7 +527,7 @@ func TestFileServiceImpl_IsFileInTrash(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name   string
@@ -570,8 +570,8 @@ func TestFileServiceImpl_MoveFile(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		file        *fileTree.WeblensFile
-		destParent  *fileTree.WeblensFile
+		file       *fileTree.WeblensFileImpl
+		destParent *fileTree.WeblensFileImpl
 		newFilename string
 		caster      models.FileCaster
 	}
@@ -621,7 +621,7 @@ func TestFileServiceImpl_MoveFileToTrash(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		file   *fileTree.WeblensFile
+		file *fileTree.WeblensFileImpl
 		user   *models.User
 		share  *models.FileShare
 		caster models.FileCaster
@@ -679,7 +679,7 @@ func TestFileServiceImpl_NewCacheFile(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -733,7 +733,7 @@ func TestFileServiceImpl_NewZip(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -783,8 +783,8 @@ func TestFileServiceImpl_PathToFile(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
-		want1   []*fileTree.WeblensFile
+		want  *fileTree.WeblensFileImpl
+		want1 []*fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -829,7 +829,7 @@ func TestFileServiceImpl_PermanentlyDeleteFiles(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		files  []*fileTree.WeblensFile
+		files []*fileTree.WeblensFileImpl
 		caster models.FileCaster
 	}
 	tests := []struct {
@@ -876,7 +876,7 @@ func TestFileServiceImpl_RemoveTask(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 		t *task.Task
 	}
 	tests := []struct {
@@ -922,7 +922,7 @@ func TestFileServiceImpl_ResizeDown(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f      *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 		caster models.FileCaster
 	}
 	tests := []struct {
@@ -969,7 +969,7 @@ func TestFileServiceImpl_ResizeUp(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		f      *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 		caster models.FileCaster
 	}
 	tests := []struct {
@@ -1016,7 +1016,7 @@ func TestFileServiceImpl_ReturnFilesFromTrash(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		trashFiles []*fileTree.WeblensFile
+		trashFiles []*fileTree.WeblensFileImpl
 		c          models.FileCaster
 	}
 	tests := []struct {
@@ -1310,7 +1310,7 @@ func TestFileServiceImpl_getFileByIdAndRoot(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *fileTree.WeblensFile
+		want *fileTree.WeblensFileImpl
 		wantErr assert.ErrorAssertionFunc
 	}{
 		// TODO: Add test cases.
@@ -1352,8 +1352,8 @@ func TestFileServiceImpl_resizeMultiple(t *testing.T) {
 		trashCol        *mongo.Collection
 	}
 	type args struct {
-		old    *fileTree.WeblensFile
-		new    *fileTree.WeblensFile
+		old *fileTree.WeblensFileImpl
+		new *fileTree.WeblensFileImpl
 		caster models.FileCaster
 	}
 	tests := []struct {

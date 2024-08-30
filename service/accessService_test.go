@@ -58,7 +58,7 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	}
 	type args struct {
 		user  *models.User
-		file  *fileTree.WeblensFile
+		file *fileTree.WeblensFileImpl
 		share *models.FileShare
 	}
 	tests := []struct {

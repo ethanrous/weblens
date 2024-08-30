@@ -19,8 +19,8 @@ type TaskPool struct {
 	treatAsGlobal  bool
 	hasQueueThread bool
 
-	tasks map[TaskId]*Task
-	taskLock sync.Mutex
+	tasks    map[TaskId]*Task
+	taskLock sync.RWMutex
 
 	totalTasks     atomic.Int64
 	completedTasks atomic.Int64
@@ -280,8 +280,6 @@ func (tp *TaskPool) RemoveTask(taskId TaskId) {
 
 func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 
-	tp.completedTasks.Add(1)
-
 	// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
 	// we check if we are empty and finished, and if so, wake any waiters.
 	if !tp.treatAsGlobal {
@@ -302,7 +300,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 				// Should only loop a handful of times, if at all, we just need to wait for the waiters to
 				// lock and then release immediately. Should take, like, nanoseconds (?) each
 				for tp.waiterCount.Load() != 0 {
-					time.Sleep(time.Millisecond * 10)
+					time.Sleep(time.Millisecond * 1)
 				}
 			}
 
@@ -363,8 +361,13 @@ func (tp *TaskPool) Status() PoolStatus {
 		progress = 0
 	}
 
+	tp.taskLock.RLock()
+	errorCount := len(tp.erroredTasks)
+	tp.taskLock.RUnlock()
+
 	return PoolStatus{
 		Complete: complete,
+		Failed: errorCount,
 		Total:    total,
 		Progress: progress,
 		Runtime:  time.Since(tp.createdAt),
@@ -392,8 +395,13 @@ func (tp *TaskPool) Wait(supplementWorker bool) {
 		tp.workerPool.addReplacementWorker()
 	}
 
+
 	_, file, line, _ := runtime.Caller(1)
 	log.Debug.Printf("Parking on worker pool from %s:%d\n", file, line)
+
+	if !tp.allQueuedFlag.Load() {
+		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
+	}
 
 	tp.waiterCount.Add(1)
 	tp.waiterGate.Lock()
@@ -556,8 +564,12 @@ func (tp *TaskPool) SignalAllQueued() {
 }
 
 type PoolStatus struct {
-	// The count of tasks that have completed on this task pool
+	// The count of tasks that have completed on this task pool.
+	// Complete *DOES* include failed tasks
 	Complete int64
+
+	// The count of failed tasks on this task pool
+	Failed int
 
 	// The count of all tasks that have been queued on this task pool
 	Total int64

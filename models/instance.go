@@ -168,7 +168,7 @@ type AccessService interface {
 	Get(key WeblensApiKey) (ApiKeyInfo, error)
 	Del(key WeblensApiKey) error
 	GenerateApiKey(creator *User) (ApiKeyInfo, error)
-	CanUserAccessFile(user *User, file *fileTree.WeblensFile, share *FileShare) bool
+	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
 	

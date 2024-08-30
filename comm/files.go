@@ -15,6 +15,7 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 )
@@ -42,7 +43,7 @@ func createFolder(ctx *gin.Context) {
 		return
 	}
 
-	var children []*fileTree.WeblensFile
+	var children []*fileTree.WeblensFileImpl
 	if len(body.Children) != 0 {
 		for _, fileId := range body.Children {
 			child, err := FileService.GetFileSafe(fileId, u, nil)
@@ -55,20 +56,17 @@ func createFolder(ctx *gin.Context) {
 		}
 	}
 
-	caster := models.NewBufferedCaster(ClientService)
-	defer caster.Close()
-
-	newDir, err := FileService.CreateFolder(parentFolder, body.NewFolderName, caster)
+	newDir, err := FileService.CreateFolder(parentFolder, body.NewFolderName, Caster)
 	if err != nil {
-		log.ShowErr(err)
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe.Error()})
 		return
 	}
 
-	err = FileService.MoveFiles(children, newDir, caster)
+	err = FileService.MoveFiles(children, newDir, Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, gin.H{"error": safe})
+		ctx.JSON(code, gin.H{"error": safe.Error()})
 		return
 	}
 
@@ -76,7 +74,7 @@ func createFolder(ctx *gin.Context) {
 }
 
 // Format and write back directory information. Authorization checks should be done before this function
-func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx *gin.Context) {
+func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, pastTime time.Time, ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
 	share, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
@@ -156,7 +154,7 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFile, pastTime time.Time, ctx 
 				return
 			}
 			t.SetCleanup(
-				func() {
+				func(t *task.Task) {
 					if c.IsEnabled() {
 						c.Close()
 					}
@@ -269,7 +267,7 @@ func scanDir(ctx *gin.Context) {
 		return
 	}
 	t.SetCleanup(
-		func() {
+		func(t *task.Task) {
 			if caster.IsEnabled() {
 				caster.Close()
 			}
@@ -381,7 +379,7 @@ func moveFiles(ctx *gin.Context) {
 		return
 	}
 
-	var files []*fileTree.WeblensFile
+	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range filesData.Files {
 		f, err := FileService.GetFileSafe(fileId, u, sh)
 		if err != nil {
@@ -495,7 +493,7 @@ func getDirectoryContent(ctx *gin.Context) {
 	}
 
 	children := internal.Map(
-		f.GetChildren(), func(c *fileTree.WeblensFile) FileStat {
+		f.GetChildren(), func(c *fileTree.WeblensFileImpl) FileStat {
 			size, err := c.Size()
 			if err != nil {
 				log.ShowErr(err)
@@ -565,7 +563,7 @@ func searchByFilename(ctx *gin.Context) {
 	var fileIds []fileTree.FileId
 	var filenames []string
 	_ = userHome.RecursiveMap(
-		func(f *fileTree.WeblensFile) error {
+		func(f *fileTree.WeblensFileImpl) error {
 			fileIds = append(fileIds, f.ID())
 			filenames = append(filenames, f.Filename())
 			return nil
@@ -580,7 +578,7 @@ func searchByFilename(ctx *gin.Context) {
 	)
 
 	files := internal.FilterMap(
-		matches, func(match fuzzy.Rank) (*fileTree.WeblensFile, bool) {
+		matches, func(match fuzzy.Rank) (*fileTree.WeblensFileImpl, bool) {
 			f, err := FileService.GetFileSafe(fileIds[match.OriginalIndex], u, nil)
 			if err != nil {
 				return nil, false

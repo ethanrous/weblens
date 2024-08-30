@@ -1,12 +1,8 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/ethrousseau/weblens/comm"
@@ -32,36 +28,27 @@ func main() {
 		log.Warning.Println("Could not load .env file", err)
 	}
 
-	internal.LabelThread(
-		func(_ context.Context) {
-			startup(internal.GetMongoDBName())
-		}, "", "Setup",
-	)
-
-	for {
-		internal.LabelThread(
-			func(_ context.Context) {
-				comm.DoRoutes()
-			}, "", "Router",
-		)
-	}
+	startup(internal.GetMongoDBName())
+	comm.DoRoutes()
 }
 
 func startup(mongoName string) {
 	defer mainRecovery("WEBLENS STARTUP FAILED")
 
+	log.Info.Println("Starting Weblens")
+
 	sw := internal.NewStopwatch("Initialization")
 
 	if internal.IsDevMode() {
 		log.DoDebug()
-		log.Debug.Println("Starting weblens in development mode")
+		log.Debug.Println("Starting Weblens in debug mode")
 
 		metricsServer := http.Server{
 			Addr:     "localhost:2112",
 			ErrorLog: log.ErrorCatcher,
 			Handler:  promhttp.Handler(),
 		}
-		go metricsServer.ListenAndServe()
+		go log.ErrTrace(metricsServer.ListenAndServe())
 	}
 
 	gin.SetMode(gin.ReleaseMode)
@@ -118,14 +105,33 @@ func startup(mongoName string) {
 	comm.ClientService = clientService
 	sw.Lap("Init client service")
 
+	/* If server is backup server, connect to core server and launch backup daemon */
+	if localServer.ServerRole() == models.BackupServer {
+		core := instanceService.GetCore()
+		if core == nil {
+			panic("could not get core")
+		}
+
+		err = comm.WebsocketToCore(core, clientService)
+		if err != nil {
+			panic(err)
+		}
+
+		var coreAddr string
+		coreAddr, err = core.GetAddress()
+		if err != nil {
+			panic(err)
+		}
+
+		if coreAddr == "" || instanceService.GetCore().GetUsingKey() == "" {
+			panic("could not get core address or key")
+		}
+	}
+
 	/* Once here, we can actually let the router start, this is the minimally
 	acceptable state to allow incoming HTTP, i.e. types.SERV.MinimallyReady() == true */
 
-	internal.LabelThread(
-		func(_ context.Context) {
-			go comm.DoRoutes()
-		}, "", "Router",
-	)
+	go comm.DoRoutes()
 
 	/* Share Service */
 	shareService := service.NewShareService(db.Collection("shares"))
@@ -160,7 +166,7 @@ func startup(mongoName string) {
 	}
 
 	hollowJournal := mock.NewHollowJournalService()
-	hollowHasher := models.NewHollowHasher()
+	hollowHasher := mock.NewMockHasher()
 	cachesTree, err := fileTree.NewFileTree(internal.GetCacheRoot(), "CACHES", hollowHasher, hollowJournal)
 	if err != nil {
 		panic(err)
@@ -179,23 +185,8 @@ func startup(mongoName string) {
 
 	/* Media type Service */
 	// Only from config file, for now
-	typeJson, err := os.Open(filepath.Join(internal.GetConfigDir(), "mediaType.json"))
-	if err != nil {
-		panic(err)
-	}
-	defer func(typeJson *os.File) {
-		err := typeJson.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(typeJson)
-
-	typesBytes, err := io.ReadAll(typeJson)
 	marshMap := map[string]models.MediaType{}
-	err = json.Unmarshal(typesBytes, &marshMap)
-	if err != nil {
-		panic(err)
-	}
+	internal.ReadTypesConfig(&marshMap)
 	mediaTypeServ := models.NewTypeService(marshMap)
 	/* Media Service */
 	mediaService, err := service.NewMediaService(
@@ -221,31 +212,6 @@ func startup(mongoName string) {
 	fileService.SetMediaService(mediaService)
 	clientService.SetFileService(fileService)
 
-	/* If server is backup server, connect to core server and launch backup daemon */
-	if localServer.ServerRole() == models.BackupServer {
-		core := instanceService.GetCore()
-		if core == nil {
-			panic("could not get core")
-		}
-
-		err = comm.WebsocketToCore(core, clientService)
-		if err != nil {
-			panic(err)
-		}
-
-		var coreAddr string
-		coreAddr, err = core.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-
-		if coreAddr == "" || instanceService.GetCore().GetUsingKey() == "" {
-			panic("could not get core address or key")
-		}
-
-		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
-	}
-
 	/* Album Service */
 	albumService := service.NewAlbumService(db.Collection("albums"), mediaService, shareService)
 	err = albumService.Init()
@@ -263,6 +229,10 @@ func startup(mongoName string) {
 		"Weblens loaded in %s. %d files and %d medias\n", sw.GetTotalTime(false), fileService.Size(),
 		mediaService.Size(),
 	)
+
+	if localServer.ServerRole() == models.BackupServer {
+		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
+	}
 
 	instanceService.RemoveLoading("all")
 }

@@ -30,7 +30,7 @@ type TaskSubscriber interface {
 }
 
 type ScanMeta struct {
-	File         *fileTree.WeblensFile
+	File *fileTree.WeblensFileImpl
 	FileBytes    []byte
 	PartialMedia *Media
 
@@ -74,7 +74,7 @@ func (m ScanMeta) Verify() error {
 }
 
 type ZipMeta struct {
-	Files     []*fileTree.WeblensFile
+	Files []*fileTree.WeblensFileImpl
 	Share     *FileShare
 	Requester *User
 
@@ -84,7 +84,7 @@ type ZipMeta struct {
 
 func (m ZipMeta) MetaString() string {
 	ids := internal.Map(
-		m.Files, func(f *fileTree.WeblensFile) fileTree.FileId {
+		m.Files, func(f *fileTree.WeblensFileImpl) fileTree.FileId {
 			return f.ID()
 		},
 	)
@@ -100,7 +100,7 @@ func (m ZipMeta) MetaString() string {
 func (m ZipMeta) FormatToResult() task.TaskResult {
 	return task.TaskResult{
 		"filenames": internal.Map(
-			m.Files, func(f *fileTree.WeblensFile) string {
+			m.Files, func(f *fileTree.WeblensFileImpl) string {
 				return f.Filename()
 			},
 		),
@@ -168,7 +168,7 @@ type FileChunk struct {
 	Chunk        []byte
 	ContentRange string
 
-	NewFile *fileTree.WeblensFile
+	NewFile *fileTree.WeblensFileImpl
 }
 
 type UploadFilesMeta struct {
@@ -225,7 +225,7 @@ func (m UploadFilesMeta) Verify() error {
 }
 
 type FsStatMeta struct {
-	RootDir *fileTree.WeblensFile
+	RootDir *fileTree.WeblensFileImpl
 }
 
 func (m FsStatMeta) MetaString() string {
@@ -252,7 +252,7 @@ func (m FsStatMeta) Verify() error {
 }
 
 type FileUploadProgress struct {
-	File          *fileTree.WeblensFile
+	File *fileTree.WeblensFileImpl
 	BytesWritten  int64
 	FileSizeTotal int64
 }
@@ -319,7 +319,7 @@ func (m BackupMeta) Verify() error {
 }
 
 type HashFileMeta struct {
-	File *fileTree.WeblensFile
+	File *fileTree.WeblensFileImpl
 	Caster Broadcaster
 }
 
@@ -348,7 +348,7 @@ func (m HashFileMeta) Verify() error {
 
 type BackupCoreFileMeta struct {
 	ProxyFileService FileService
-	File             *fileTree.WeblensFile
+	File *fileTree.WeblensFileImpl
 	Caster           Broadcaster
 	// Client comm.Client
 }

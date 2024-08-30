@@ -13,7 +13,7 @@ export class TaskProgressState {
 
     constructor(prev?: TaskProgressState) {
         if (prev) {
-            this.tasks = prev.tasks
+            this.tasks = new Map<string, TaskProgress>(prev.tasks)
         } else {
             this.tasks = new Map<string, TaskProgress>()
         }
@@ -40,7 +40,6 @@ export class TaskProgressState {
     }
 
     public addTask(task: TaskProgress) {
-        console.log('Adding task to task progress')
         this.tasks.set(task.GetTaskId(), task)
     }
 
@@ -51,6 +50,7 @@ export class TaskProgressState {
     public setTaskStage(taskId: string, stage: TaskStage): void {
         const task = this.tasks.get(taskId)
         if (!task) {
+            console.error('Could not find task to set stage', taskId)
             return
         }
 
@@ -59,6 +59,7 @@ export class TaskProgressState {
         }
 
         task.setTaskStage(stage)
+        this.tasks.set(taskId, task)
     }
 
     public setTaskTime(taskId: string, taskTimeNs: number) {
@@ -110,9 +111,10 @@ export class TaskProgressState {
 
     updateTaskProgress(
         taskId: string,
-        progress?: number,
-        completeCount?: number | string,
-        totalCount?: number | string
+        progress: number,
+        completeCount: number | string,
+        failedCount: number | string,
+        totalCount: number | string
     ): void {
         const task = this.tasks.get(taskId)
         if (!task) {
@@ -131,6 +133,10 @@ export class TaskProgressState {
             if (totalCount !== undefined) {
                 task.tasksTotal = totalCount
             }
+        }
+
+        if (failedCount) {
+            task.tasksFailed = failedCount
         }
     }
 
@@ -177,6 +183,7 @@ export class TaskProgress {
     timeNs: number
     progressPercent: number
     tasksComplete: number | string
+    tasksFailed: number | string
     tasksTotal: number | string
 
     stage: TaskStage
@@ -204,14 +211,14 @@ export class TaskProgress {
         return this.taskId
     }
 
-    FormatTaskType(): string {
+    FormatTaskName(): string {
         switch (this.taskType) {
             case 'scan_directory':
-                return 'Folder Scan'
+                return `Import ${this.target ? this.target : 'folder'}`
             case 'create_zip':
-                return 'Zip'
+                return `Zip ${this.target ? this.target : ''}`
             case 'download_file':
-                return 'Download'
+                return `Download ${this.target ? this.target : ''}`
         }
     }
 
@@ -246,7 +253,26 @@ export class TaskProgress {
         if (this.stage === TaskStage.Complete) {
             return 100
         }
+
+        if (this.tasksFailed) {
+            const healthyTasks =
+                Number(this.tasksComplete) - Number(this.tasksFailed)
+            return (healthyTasks * 100) / Number(this.tasksTotal)
+        }
+
         return this.progressPercent
+    }
+
+    getErrorProgress(): number {
+        if (this.stage === TaskStage.Complete) {
+            return 100
+        }
+
+        if (this.tasksFailed) {
+            return (Number(this.tasksComplete) * 100) / Number(this.tasksTotal)
+        }
+
+        return 0
     }
 
     hide(): void {
@@ -309,8 +335,8 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
             <div className="flex flex-row w-full max-w-full h-max items-center">
                 <div className="flex flex-col w-full">
                     <div className="flex flex-row justify-between items-center w-full h-max">
-                        <p className="text-sm select-none text-nowrap">
-                            {prog.FormatTaskType()}
+                        <p className="text-sm select-none text-nowrap truncaate">
+                            {prog.FormatTaskName()}
                         </p>
                         <WeblensButton
                             Right={IconX}
@@ -345,19 +371,18 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                             }}
                         />
                     </div>
-                    <p className="text-lg font-semibold select-none text-nowrap truncate">
-                        {prog.target}
-                    </p>
                 </div>
             </div>
             <div className="relative h-6 shrink-0 w-full m-2">
                 <WeblensProgress
                     value={prog.getProgress()}
+                    secondaryValue={prog.getErrorProgress()}
                     loading={prog.stage === TaskStage.Queued}
-                    failure={
-                        prog.stage === TaskStage.Failure ||
-                        prog.stage === TaskStage.Cancelled
-                    }
+                    // failure={
+                    //     prog.stage === TaskStage.Failure ||
+                    //     prog.stage === TaskStage.Cancelled
+                    // }
+                    secondaryColor={'red'}
                 />
             </div>
             {prog.stage !== TaskStage.Complete && (
@@ -417,6 +442,7 @@ export type TasksProgressAction = {
     time?: number
     progress?: number
     tasksComplete?: number | string
+    tasksFailed?: number | string
     tasksTotal?: number | string
 }
 
@@ -426,6 +452,14 @@ export function taskProgressReducer(
     state: TaskProgressState,
     action: TasksProgressAction
 ): TaskProgressState {
+    // Ensure any taskIds coming in as poolIds are translated to their parent tasks
+    if (action.taskId) {
+        const task = state.getTask(action.taskId)
+        if (task) {
+            action.taskId = task.taskId
+        }
+    }
+
     try {
         switch (action.type) {
             case 'new_task': {
@@ -478,6 +512,7 @@ export function taskProgressReducer(
                     action.taskId,
                     action.progress,
                     action.tasksComplete,
+                    action.tasksFailed,
                     action.tasksTotal
                 )
 

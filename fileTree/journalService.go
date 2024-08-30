@@ -170,8 +170,8 @@ func (j *JournalServiceImpl) GetLatestAction() (*FileAction, error) {
 
 }
 
-func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFile, time time.Time) (
-	[]*WeblensFile, error,
+func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFileImpl, time time.Time) (
+	[]*WeblensFileImpl, error,
 ) {
 	actions, err := getActionsByPath(folder.GetPortablePath(), j.col)
 	if err != nil {
@@ -201,7 +201,7 @@ func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFile, time time.Ti
 		}
 	}
 
-	children := make([]*WeblensFile, 0, len(actionsMap))
+	children := make([]*WeblensFileImpl, 0, len(actionsMap))
 	for _, action := range actionsMap {
 		children = append(children, j.fileTree.Get(action.LifeId))
 		// isDir := strings.HasSuffix(action.GetDestinationPath(), "/")
@@ -498,12 +498,12 @@ type JournalService interface {
 	SetFileTree(ft *FileTreeImpl)
 
 	NewEvent() *FileEvent
-	WatchFolder(f *WeblensFile) error
+	WatchFolder(f *WeblensFileImpl) error
 
 	LogEvent(fe *FileEvent)
 
 	GetActionsByPath(WeblensFilepath) ([]*FileAction, error)
-	GetPastFolderInfo(folder *WeblensFile, time time.Time) ([]*WeblensFile, error)
+	GetPastFolderInfo(folder *WeblensFileImpl, time time.Time) ([]*WeblensFileImpl, error)
 	GetLatestAction() (*FileAction, error)
 	GetLifetimesSince(date time.Time) ([]*Lifetime, error)
 

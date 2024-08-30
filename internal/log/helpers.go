@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -26,10 +25,8 @@ func ErrTrace(err error, extras ...string) {
 			return
 		}
 
-		msg := strings.Join(extras, " ")
-		ErrorCatcher.Printf(
-			"%s: %s\n----- STACK FOR ERROR ABOVE -----\n%s", msg, err, debug.Stack(),
-		)
+		_, file, no, _ := runtime.Caller(1)
+		ErrorCatcher.Printf("%s:%d (no stack) %s", file, no, err.Error())
 	}
 }
 

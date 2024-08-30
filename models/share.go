@@ -41,7 +41,7 @@ type AlbumShare struct {
 }
 
 func NewFileShare(
-	f *fileTree.WeblensFile, u *User, accessors []*User, public bool, wormhole bool,
+	f *fileTree.WeblensFileImpl, u *User, accessors []*User, public bool, wormhole bool,
 ) Share {
 	return &FileShare{
 		ShareId: ShareId(primitive.NewObjectID().Hex()),
@@ -260,7 +260,7 @@ type ShareService interface {
 	GetFileSharesWithUser(u *User) ([]*FileShare, error)
 	GetAlbumSharesWithUser(u *User) ([]*AlbumShare, error)
 
-	GetFileShare(f *fileTree.WeblensFile) (*FileShare, error)
+	GetFileShare(f *fileTree.WeblensFileImpl) (*FileShare, error)
 }
 
 type ShareType string

@@ -41,7 +41,7 @@ func (pms *ProxyMediaService) HideMedia(m *models.Media, hidden bool) error {
 	panic("implement me")
 }
 
-func (pms *ProxyMediaService) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFile) error {
+func (pms *ProxyMediaService) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
 	// TODO implement me
 	panic("implement me")
 }
@@ -61,7 +61,7 @@ func (pms *ProxyMediaService) GetMediaTypes() models.MediaTypeService {
 	panic("implement me")
 }
 
-func (pms *ProxyMediaService) IsFileDisplayable(file *fileTree.WeblensFile) bool {
+func (pms *ProxyMediaService) IsFileDisplayable(file *fileTree.WeblensFileImpl) bool {
 	// TODO implement me
 	panic("implement me")
 }
@@ -100,7 +100,7 @@ func (pms *ProxyMediaService) GetFilteredMedia(
 	panic("implement me")
 }
 
-func (pms *ProxyMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFile) []models.ContentId {
+func (pms *ProxyMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
 	// TODO implement me
 	panic("implement me")
 }

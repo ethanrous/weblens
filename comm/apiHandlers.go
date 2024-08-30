@@ -31,7 +31,7 @@ func newUploadTask(ctx *gin.Context) {
 		return
 	}
 
-	c := models.NewBufferedCaster(ClientService)
+	// c := models.NewBufferedCaster(ClientService)
 	meta := models.UploadFilesMeta{
 		ChunkStream:  make(chan models.FileChunk, 10),
 		RootFolderId: upInfo.RootFolderId,
@@ -42,7 +42,7 @@ func newUploadTask(ctx *gin.Context) {
 		TaskService:  TaskService,
 		TaskSubber:   ClientService,
 		User: u,
-		Caster:       c,
+		Caster: Caster,
 	}
 	t, err := TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if err != nil {
@@ -175,7 +175,7 @@ func getFoldersMedia(ctx *gin.Context) {
 		return
 	}
 
-	var folders []*fileTree.WeblensFile
+	var folders []*fileTree.WeblensFileImpl
 	for _, folderId := range folderIds {
 		f, err := FileService.GetFileSafe(folderId, u, nil)
 		if err != nil {
@@ -214,9 +214,9 @@ func searchFolder(ctx *gin.Context) {
 		return
 	}
 
-	var files []*fileTree.WeblensFile
+	var files []*fileTree.WeblensFileImpl
 	err = dir.RecursiveMap(
-		func(w *fileTree.WeblensFile) error {
+		func(w *fileTree.WeblensFileImpl) error {
 			if r.MatchString(w.Filename()) {
 				if w.Filename() == ".user_trash" {
 					return nil
@@ -311,23 +311,7 @@ func trashFiles(ctx *gin.Context) {
 	}
 	u := getUserFromCtx(ctx)
 
-	caster := models.NewBufferedCaster(ClientService)
-	defer caster.Close()
-
 	var failed []fileTree.FileId
-
-	// shareId := weblens.ShareId(ctx.Query("shareId"))
-	// var share weblens.Share
-	// if shareId != "" {
-	// 	share = ShareService.Get(shareId)
-	// 	if share == nil {
-	// 		ctx.JSON(comm.StatusNotFound, gin.H{"error": "Could not find valid fileShare"})
-	// 		return
-	// 	} else if _, ok := share.(*weblens.FileShare); !ok {
-	// 		ctx.JSON(comm.StatusNotFound, gin.H{"error": "Could not find valid fileShare"})
-	// 		return
-	// 	}
-	// }
 
 	for _, fileId := range fileIds {
 		file, err := FileService.GetFileSafe(fileId, u, nil)
@@ -341,7 +325,7 @@ func trashFiles(ctx *gin.Context) {
 			return
 		}
 
-		err = FileService.MoveFileToTrash(file, u, nil, caster)
+		err = FileService.MoveFileToTrash(file, u, nil, Caster)
 		if err != nil {
 			log.ErrTrace(err)
 			failed = append(failed, fileId)
@@ -362,10 +346,10 @@ func deleteFiles(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	caster := models.NewBufferedCaster(ClientService)
-	defer caster.Close()
+	// caster := models.NewBufferedCaster(ClientService)
+	// defer caster.Close()
 
-	var files []*fileTree.WeblensFile
+	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
 		file, err := FileService.GetFileSafe(fileId, u, nil)
 		if err != nil {
@@ -381,7 +365,7 @@ func deleteFiles(ctx *gin.Context) {
 		files = append(files, file)
 	}
 
-	err = FileService.PermanentlyDeleteFiles(files, caster)
+	err = FileService.PermanentlyDeleteFiles(files, Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -415,7 +399,7 @@ func unTrashFiles(ctx *gin.Context) {
 	caster := models.NewBufferedCaster(ClientService)
 	defer caster.Close()
 
-	var files []*fileTree.WeblensFile
+	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
 		file, err := FileService.GetFileSafe(fileId, u, nil)
 		if err != nil || u != FileService.GetFileOwner(file) {
@@ -455,7 +439,7 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	var files []*fileTree.WeblensFile
+	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range takeoutRequest.FileIds {
 		file, err := FileService.GetFileSafe(fileId, u, share)
 		if err == nil {

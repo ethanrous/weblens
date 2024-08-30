@@ -78,7 +78,7 @@ func dial(
 		return nil, werror.WithStack(err)
 	}
 
-	log.Info.Printf("Connection to core server at %s successfully established", host.String())
+	log.Debug.Printf("Connection to core server at %s successfully established", host.String())
 	return client, nil
 }
 

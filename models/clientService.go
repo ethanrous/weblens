@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gorilla/websocket"
@@ -18,11 +20,10 @@ type ClientManager interface {
 	FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId)
 	TaskSubToPool(taskId task.TaskId, poolId task.TaskId)
 
-	Subscribe(c *WsClient, key SubId, action WsAction, share Share) (
-		complete bool,
-		results map[string]any, err error,
+	Subscribe(c *WsClient, key SubId, action WsAction, subTime time.Time, share Share) (
+		complete bool, results map[string]any, err error,
 	)
-	Unsubscribe(c *WsClient, key SubId) error
+	Unsubscribe(c *WsClient, key SubId, unSubTime time.Time) error
 
 	Send(msg WsResponseInfo)
 

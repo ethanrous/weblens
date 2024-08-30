@@ -26,7 +26,7 @@ func (h *HollowJournalService) NewEvent() *fileTree.FileEvent {
 	return &fileTree.FileEvent{}
 }
 
-func (h *HollowJournalService) WatchFolder(f *fileTree.WeblensFile) error {
+func (h *HollowJournalService) WatchFolder(f *fileTree.WeblensFileImpl) error {
 	return nil
 }
 
@@ -36,8 +36,8 @@ func (h *HollowJournalService) GetActionsByPath(filepath fileTree.WeblensFilepat
 	return nil, nil
 }
 
-func (h *HollowJournalService) GetPastFolderInfo(folder *fileTree.WeblensFile, time time.Time) (
-	[]*fileTree.WeblensFile, error,
+func (h *HollowJournalService) GetPastFolderInfo(folder *fileTree.WeblensFileImpl, time time.Time) (
+	[]*fileTree.WeblensFileImpl, error,
 ) {
 	return nil, nil
 }
@@ -63,8 +63,7 @@ func (h *HollowJournalService) GetLifetimeByFileId(fId fileTree.FileId) *fileTre
 }
 
 func (h *HollowJournalService) GetLatestAction() (*fileTree.FileAction, error) {
-	// TODO implement me
-	panic("implement me")
+	return nil, nil
 }
 
 func NewHollowJournalService() fileTree.JournalService {

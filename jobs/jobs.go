@@ -24,42 +24,6 @@ import (
 	"github.com/saracen/fastzip"
 )
 
-func getScanResult(t *task.Task) task.TaskResult {
-	var tp *task.TaskPool
-
-	if t.GetTaskPool() != nil {
-		tp = t.GetTaskPool().GetRootPool()
-	}
-
-	var result = task.TaskResult{}
-	meta, ok := t.GetMeta().(models.ScanMeta)
-	if ok {
-		result = task.TaskResult{
-			"filename": meta.File.Filename(),
-		}
-		if tp != nil && tp.CreatedInTask() != nil {
-			result["task_job_target"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()
-		} else if tp == nil {
-			result["task_job_target"] = meta.File.Filename()
-		}
-	}
-
-	if tp != nil {
-		status := tp.Status()
-		result["percent_progress"] = status.Progress
-		result["tasks_complete"] = status.Complete
-		result["tasks_total"] = status.Total
-		result["runtime"] = status.Runtime
-		if tp.CreatedInTask() != nil {
-			result["task_job_name"] = tp.CreatedInTask().JobName()
-		}
-	} else {
-		result["task_job_name"] = t.JobName()
-	}
-
-	return result
-}
-
 func CreateZip(t *task.Task) {
 	zipMeta := t.GetMeta().(models.ZipMeta)
 
@@ -71,9 +35,9 @@ func CreateZip(t *task.Task) {
 
 	internal.Map(
 		zipMeta.Files,
-		func(file *fileTree.WeblensFile) error {
+		func(file *fileTree.WeblensFileImpl) error {
 			return file.RecursiveMap(
-				func(f *fileTree.WeblensFile) error {
+				func(f *fileTree.WeblensFileImpl) error {
 					stat, err := os.Stat(f.GetAbsPath())
 					if err != nil {
 						t.ErrorAndExit(err)
@@ -171,7 +135,7 @@ func CreateZip(t *task.Task) {
 	}()
 
 	bytesTotal := internal.Reduce(
-		zipMeta.Files, func(file *fileTree.WeblensFile, acc int64) int64 {
+		zipMeta.Files, func(file *fileTree.WeblensFileImpl, acc int64) int64 {
 			num, err := file.Size()
 			if err != nil {
 				log.ShowErr(err)
@@ -243,7 +207,7 @@ func CreateZip(t *task.Task) {
 // 		}
 // 		return
 // 	} else if moveMeta.FileService.IsFileInTrash(file) {
-// 		err = moveMeta.FileService.ReturnFilesFromTrash([]*fileTree.WeblensFile{file}, moveMeta.Caster)
+// 		err = moveMeta.FileService.ReturnFilesFromTrash([]*fileTree.WeblensFileImpl{file}, moveMeta.Caster)
 // 		if err != nil {
 // 			t.ErrorAndExit(err, "Failed while assuming move file was returning from trash")
 // 		}
@@ -310,7 +274,7 @@ func HandleFileUploads(t *task.Task) {
 
 	// meta.Caster.DisableAutoFlush()
 	var usingFiles []fileTree.FileId
-	var topLevels []*fileTree.WeblensFile
+	var topLevels []*fileTree.WeblensFileImpl
 
 	// TODO
 	// Release all the files once we are finished here, if they haven't been already.
@@ -358,7 +322,7 @@ WriterLoop:
 					tmpFile = tmpFile.GetParent()
 				}
 				if tmpFile.GetParent() == rootFile && !slices.ContainsFunc(
-					topLevels, func(f *fileTree.WeblensFile) bool { return f.ID() == tmpFile.ID() },
+					topLevels, func(f *fileTree.WeblensFileImpl) bool { return f.ID() == tmpFile.ID() },
 				) {
 					topLevels = append(topLevels, tmpFile)
 				}
@@ -521,7 +485,7 @@ func GatherFilesystemStats(t *task.Task) {
 	// external := dataStore.GetExternalDir()
 	// dataStore.ResizeDown(media)
 
-	sizeFunc := func(wf *fileTree.WeblensFile) error {
+	sizeFunc := func(wf *fileTree.WeblensFileImpl) error {
 		if wf.IsDir() {
 			folderCount++
 			return nil

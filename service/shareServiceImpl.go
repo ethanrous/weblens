@@ -187,7 +187,7 @@ func (ss *ShareServiceImpl) EnableShare(share models.Share, enable bool) error {
 	return nil
 }
 
-func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFile) (*models.FileShare, error) {
+func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFileImpl) (*models.FileShare, error) {
 	ret := ss.col.FindOne(context.Background(), bson.M{"fileId": f.ID()})
 	if ret.Err() != nil {
 		if errors.Is(ret.Err(), mongo.ErrNoDocuments) {

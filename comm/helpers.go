@@ -107,7 +107,7 @@ func getShareFromCtx[T models.Share](ctx *gin.Context) (T, error) {
 	return empty, err
 }
 
-func formatFileSafe(f *fileTree.WeblensFile, accessor *models.User, share *models.FileShare) (
+func formatFileSafe(f *fileTree.WeblensFileImpl, accessor *models.User, share *models.FileShare) (
 	formattedInfo FileInfo,
 	err error,
 ) {
@@ -176,7 +176,7 @@ func formatFileSafe(f *fileTree.WeblensFile, accessor *models.User, share *model
 		MediaData:    MediaService.Get(models.ContentId(f.GetContentId())),
 		ShareId:      shareId,
 		Children: internal.Map(
-			f.GetChildren(), func(wf *fileTree.WeblensFile) fileTree.FileId { return wf.ID() },
+			f.GetChildren(), func(wf *fileTree.WeblensFileImpl) fileTree.FileId { return wf.ID() },
 		),
 	}
 

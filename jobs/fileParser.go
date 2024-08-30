@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -31,7 +32,7 @@ func ScanDirectory(t *task.Task) {
 	// uploading into this directory as a scan comes through.
 	// We will block until the upload finishes, then continue this scan
 	// meta.File.AddTask(t)
-	// defer func(meta.File *fileTree.WeblensFile, id task.TaskId) {
+	// defer func(meta.File *fileTree.WeblensFileImpl, id task.TaskId) {
 	// 	err := meta.File.RemoveTask(id)
 	// 	if err != nil {
 	// 		wlog.ShowErr(err)
@@ -39,7 +40,7 @@ func ScanDirectory(t *task.Task) {
 	// }(meta.File, t.TaskId())
 
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
-	log.Info.Printf("Beginning directory scan for %s\n", meta.File.GetPortablePath())
+	t.SetChildTaskPool(pool)
 
 	err := meta.FileService.AddTask(meta.File, t)
 	if err != nil {
@@ -48,11 +49,13 @@ func ScanDirectory(t *task.Task) {
 	defer func() { err = meta.FileService.RemoveTask(meta.File, t); log.ErrTrace(err) }()
 
 	meta.TaskSubber.FolderSubToPool(meta.File.ID(), pool.GetRootPool().ID())
-	meta.TaskSubber.FolderSubToPool(meta.File.GetParent().ID(), pool.GetRootPool().ID())
+	meta.TaskSubber.FolderSubToPool(meta.File.GetParentId(), pool.GetRootPool().ID())
 	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
+	log.Debug.Printf("Beginning directory scan for %s\n", meta.File.GetPortablePath())
+
 	err = meta.File.LeafMap(
-		func(wf *fileTree.WeblensFile) error {
+		func(wf *fileTree.WeblensFileImpl) error {
 			if wf.IsDir() {
 				return nil
 				// TODO: Lock directory files while scanning to be able to check what task is using each file
@@ -75,10 +78,12 @@ func ScanDirectory(t *task.Task) {
 				TaskService:  meta.TaskService,
 				Caster:       meta.Caster,
 			}
-			_, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
+			newT, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
 			}
+
+			newT.SetCleanup(reportSubscanStatus)
 
 			return nil
 		},
@@ -129,6 +134,7 @@ func ScanFile(t *task.Task) {
 
 	ext := filepath.Ext(meta.File.Filename())
 	if !meta.MediaService.GetMediaTypes().ParseExtension(ext).Displayable {
+		log.Error.Printf("Trying to process file with [%s] ext", ext)
 		t.ErrorAndExit(werror.ErrNonDisplayable)
 	}
 
@@ -168,18 +174,59 @@ func ScanFile(t *task.Task) {
 	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
 		Width != meta.PartialMedia.Width || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
 		err = meta.MediaService.Add(meta.PartialMedia)
-		if err != nil {
+		if err != nil && errors.Is(err, werror.ErrMediaAlreadyExists) {
 			t.ErrorAndExit(err)
 		}
 	}
 
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)
+
+	t.Success()
+	metrics.MediaProcessTime.Observe(float64(time.Since(start)))
+}
+
+func reportSubscanStatus(t *task.Task) {
+	meta := t.GetMeta().(models.ScanMeta)
 	if t.GetTaskPool().IsGlobal() {
 		meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, getScanResult(t))
 	} else {
 		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.SubTaskCompleteEvent, getScanResult(t))
 	}
+}
 
-	t.Success()
-	metrics.MediaProcessTime.Observe(float64(time.Since(start)))
+func getScanResult(t *task.Task) task.TaskResult {
+	var tp *task.TaskPool
+
+	if t.GetTaskPool() != nil {
+		tp = t.GetTaskPool().GetRootPool()
+	}
+
+	var result = task.TaskResult{}
+	meta, ok := t.GetMeta().(models.ScanMeta)
+	if ok {
+		result = task.TaskResult{
+			"filename": meta.File.Filename(),
+		}
+		if tp != nil && tp.CreatedInTask() != nil {
+			result["task_job_target"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()
+		} else if tp == nil {
+			result["task_job_target"] = meta.File.Filename()
+		}
+	}
+
+	if tp != nil {
+		status := tp.Status()
+		result["percent_progress"] = status.Progress
+		result["tasks_complete"] = status.Complete
+		result["tasks_failed"] = status.Failed
+		result["tasks_total"] = status.Total
+		result["runtime"] = status.Runtime
+		if tp.CreatedInTask() != nil {
+			result["task_job_name"] = tp.CreatedInTask().JobName()
+		}
+	} else {
+		result["task_job_name"] = t.JobName()
+	}
+
+	return result
 }

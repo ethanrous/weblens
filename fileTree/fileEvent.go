@@ -47,7 +47,7 @@ func (fe *FileEvent) GetActions() []*FileAction {
 	return internal.SliceConvert[*FileAction](fe.Actions)
 }
 
-func (fe *FileEvent) NewCreateAction(file *WeblensFile) *FileAction {
+func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 	if fe.journal == nil {
 		return nil
 	}
@@ -69,7 +69,7 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFile) *FileAction {
 	return newAction
 }
 
-func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFile) *FileAction {
+func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAction {
 	if fe.journal == nil {
 		return nil
 	}
@@ -80,10 +80,6 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFile) *FileAction
 		return nil
 	}
 	latest := lt.GetLatestAction()
-
-	// if latest.GetDestinationId() != lifeId {
-	// 	log.Error.Println("File previous destination does not match move origin")
-	// }
 
 	newAction := &FileAction{
 		LifeId:   file.ID(),
@@ -104,6 +100,10 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFile) *FileAction
 }
 
 func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
+	if fe.journal == nil {
+		return nil
+	}
+
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
 		log.ShowErr(werror.Errorf("Cannot not find existing lifetime for lifeId [%s]", lifeId))

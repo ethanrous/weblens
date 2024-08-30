@@ -514,7 +514,7 @@ func TestInstanceServiceImpl_Size(t *testing.T) {
 
 func TestMakeUniqueChildName(t *testing.T) {
 	type args struct {
-		parent    *fileTree.WeblensFile
+		parent *fileTree.WeblensFileImpl
 		childName string
 	}
 	tests := []struct {

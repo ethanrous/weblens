@@ -46,7 +46,7 @@ func TestAdjustMediaDates(t *testing.T) {
 // 	tests := []struct {
 // 		name      string
 // 		args      args
-// 		wantBaseF *fileTree.WeblensFile
+// 		wantBaseF *fileTree.WeblensFileImpl
 // 		wantErr   assert.ErrorAssertionFunc
 // 	}{
 // 		// TODO: Add test cases.
@@ -481,7 +481,7 @@ func TestShareServiceImpl_GetFileShare(t *testing.T) {
 		col    *mongo.Collection
 	}
 	type args struct {
-		f *fileTree.WeblensFile
+		f *fileTree.WeblensFileImpl
 	}
 	tests := []struct {
 		name    string

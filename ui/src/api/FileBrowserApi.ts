@@ -5,8 +5,9 @@ import { AlbumData, AuthHeaderT, TPDispatchT } from '../types/Types'
 import { humanFileSize } from '../util'
 import API_ENDPOINT from './ApiEndpoint'
 import { FbModeT } from '../Pages/FileBrowser/FBStateControl'
+import { WsSendT } from './Websocket'
 
-export function SubToFolder(subId: string, shareId: string, wsSend) {
+export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
         return
     }

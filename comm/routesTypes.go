@@ -23,9 +23,9 @@ func (fsm *folderSubscribeMeta) GetKey() models.SubId {
 }
 
 type taskSubscribeMeta struct {
-	Key     models.SubId `json:"subscribeKey"`
-	JobName string       `json:"taskType"`
-	LookingFor []string `json:"lookingFor"`
+	Key        models.SubId `json:"subscribeKey"`
+	JobName    string       `json:"taskType"`
+	LookingFor []string     `json:"lookingFor"`
 
 	realKey models.SubId
 }

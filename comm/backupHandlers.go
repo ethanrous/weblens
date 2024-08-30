@@ -24,13 +24,14 @@ func launchBackup(ctx *gin.Context) {
 	user := getUserFromCtx(ctx)
 	wsClient := ClientService.GetClientByUsername(user.GetUsername())
 
-	time.Sleep(time.Millisecond * 10)
-	exited, _ := t.Status()
-	for t.GetChildTaskPool() == nil && !exited {
-		time.Sleep(time.Millisecond * 100)
-	}
+	// exited, _ := t.Status()
+	// for t.GetChildTaskPool() == nil && !exited {
+	// 	time.Sleep(time.Millisecond * 100)
+	// }
 
-	_, _, err = ClientService.Subscribe(wsClient, models.SubId(t.GetChildTaskPool().ID()), models.PoolSubscribe, nil)
+	_, _, err = ClientService.Subscribe(
+		wsClient, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil,
+	)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return

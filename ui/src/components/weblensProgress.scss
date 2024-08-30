@@ -86,11 +86,15 @@
     z-index: 2;
     pointer-events: none;
 
+    [data-seekable='true'] & {
+        transition: width 100ms ease-in-out;
+    }
+
     &[data-secondary='true'] {
+        transition: width 100ms ease-in-out;
         position: absolute;
         z-index: 1;
         background-color: $dark-paper;
-        //transform: translateY(-100%);
     }
 
     &[data-complete='true'] {

@@ -32,7 +32,7 @@ func (c *SimpleCaster) Flush() {
 }
 
 func (c *SimpleCaster) Close() {
-	c.enabled = false
+	// c.enabled = false
 }
 
 type BufferedCaster struct {
@@ -47,11 +47,6 @@ type BufferedCaster struct {
 }
 
 func NewSimpleCaster(cm ClientManager) *SimpleCaster {
-	// serverInfo := InstanceService.GetLocal()
-	// if serverInfo == nil {
-	// 	return &unbufferedCaster{enabled: false}
-	// }
-
 	newCaster := &SimpleCaster{
 		enabled: true,
 		cm:      cm,
@@ -140,7 +135,7 @@ func (c *SimpleCaster) PushShareUpdate(username Username, newShareInfo Share) {
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
+func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
 	if !c.enabled {
 		return
 	}
@@ -156,7 +151,7 @@ func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
+func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
 	if !c.enabled {
 		return
 	}
@@ -184,7 +179,7 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFile, postMoveFile *fileTree.WeblensFile) {
+func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
 	if !c.enabled {
 		return
 	}
@@ -208,7 +203,7 @@ func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFile, postMoveF
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFile) {
+func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 	if !c.enabled {
 		return
 	}
@@ -231,7 +226,7 @@ func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.TaskI
 	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(folder))
 
 	for _, s := range subs {
-		_, _, err := c.cm.Subscribe(s, SubId(taskId), TaskSubscribe, nil)
+		_, _, err := c.cm.Subscribe(s, SubId(taskId), TaskSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
@@ -320,7 +315,7 @@ func (c *BufferedCaster) PushWeblensEvent(eventTag string) {
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
+func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -335,7 +330,7 @@ func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFile) {
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
+func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -363,7 +358,7 @@ func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFile, media
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFile, postMoveFile *fileTree.WeblensFile) {
+func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -387,7 +382,7 @@ func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFile, postMov
 	c.bufferAndFlush(msg)
 }
 
-func (c *BufferedCaster) PushFileDelete(deletedFile *fileTree.WeblensFile) {
+func (c *BufferedCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
 	}
@@ -486,7 +481,7 @@ func (c *BufferedCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Tas
 	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(folder))
 
 	for _, s := range subs {
-		_, _, err := c.cm.Subscribe(s, SubId(taskId), TaskSubscribe, nil)
+		_, _, err := c.cm.Subscribe(s, SubId(taskId), TaskSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
@@ -535,16 +530,16 @@ func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
 type BasicCaster interface {
 	PushWeblensEvent(eventTag string)
 
-	PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media)
+	PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media)
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
 }
 
 type Broadcaster interface {
 	BasicCaster
-	PushFileCreate(newFile *fileTree.WeblensFile)
-	PushFileMove(preMoveFile *fileTree.WeblensFile, postMoveFile *fileTree.WeblensFile)
-	PushFileDelete(deletedFile *fileTree.WeblensFile)
+	PushFileCreate(newFile *fileTree.WeblensFileImpl)
+	PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl)
+	PushFileDelete(deletedFile *fileTree.WeblensFileImpl)
 	PushShareUpdate(username Username, newShareInfo Share)
 	Enable()
 	Disable()
@@ -593,6 +588,7 @@ const (
 type Subscription struct {
 	Type WsAction
 	Key  SubId
+	When time.Time
 }
 
 type WsResponseInfo struct {
@@ -606,6 +602,7 @@ type WsResponseInfo struct {
 
 type WsRequestInfo struct {
 	Action  WsAction `json:"action"`
+	SentAt int64 `json:"sentAt"`
 	Content string   `json:"content"`
 }
 

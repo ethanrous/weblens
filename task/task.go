@@ -17,7 +17,7 @@ type TaskId string
 type TaskExitStatus string
 type TaskResult map[string]any
 
-var _ TaskInterface = (*Task)(nil)
+// var _ TaskInterface = (*Task)(nil)
 
 type Task struct {
 	taskId        TaskId
@@ -42,10 +42,10 @@ type Task struct {
 	postAction func(result TaskResult)
 
 	// Function to be run to clean up when the task completes, no matter the exit status
-	cleanup func()
+	cleanup TaskHandler
 
 	// Function to be run to clean up if the task errors
-	errorCleanup func()
+	errorCleanup TaskHandler
 
 	sw internal.Stopwatch
 
@@ -252,7 +252,9 @@ func (t *Task) error(err error) {
 
 	// Run the cleanup routine for errors, if any
 	if t.errorCleanup != nil {
-		t.errorCleanup()
+		t.updateMu.Unlock()
+		t.errorCleanup(t)
+		t.updateMu.Lock()
 		t.errorCleanup = nil
 	}
 
@@ -307,11 +309,11 @@ func (t *Task) SetPostAction(action func(TaskResult)) {
 
 // Pass a function to run if the task throws an error, in theory
 // to cleanup any half-processed state that could litter if not finished
-func (t *Task) SetErrorCleanup(cleanup func()) {
+func (t *Task) SetErrorCleanup(cleanup TaskHandler) {
 	t.errorCleanup = cleanup
 }
 
-func (t *Task) SetCleanup(cleanup func()) {
+func (t *Task) SetCleanup(cleanup TaskHandler) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.cleanup = cleanup
@@ -324,11 +326,6 @@ func (t *Task) ReadError() any {
 func (t *Task) Success(msg ...any) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-
-	if t.cleanup != nil {
-		t.cleanup()
-		t.cleanup = nil
-	}
 
 	t.queueState = Exited
 	t.exitStatus = TaskSuccess
