@@ -146,7 +146,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 
 func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	if os.Getenv("REMOTE_TESTS") != "true" {
-		t.Skip("REMOTE_TESTS not true, Skipping TestInstanceServiceImpl_InitBackup")
+		t.Skip("REMOTE_TESTS not set")
 	}
 
 	coreAddress := os.Getenv("CORE_ADDRESS")

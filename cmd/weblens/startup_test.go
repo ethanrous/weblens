@@ -63,8 +63,8 @@ func TestStartupCore(t *testing.T) {
 }
 
 func TestStartupBackup(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping backup startup test in short mode")
+	if os.Getenv("REMOTE_TESTS") != "true" {
+		t.Skip("REMOTE_TESTS not set")
 	}
 
 	t.Setenv("SERVER_PORT", "8085")

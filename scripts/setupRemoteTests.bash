@@ -36,7 +36,7 @@ curl --location 'http://localhost:8089/api/init' \
     "role": "core",
     "username": "ethan",
     "password": "password"
-}'
+}' 2> /dev/null
 echo "CURL STATUS $?"
 
 token=$(curl --location 'http://localhost:8089/api/login' \
