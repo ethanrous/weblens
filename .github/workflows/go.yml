@@ -72,8 +72,9 @@ jobs:
         if: ${{ inputs.remote_tests == true }}
         run: |
           set -x
+          export APP_ROOT=$(pwd)
           source ./scripts/setupRemoteTests.bash
-          REMOTE_TESTS=true APP_ROOT=$(pwd) go test -v -race ./...
+          REMOTE_TESTS=true go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
