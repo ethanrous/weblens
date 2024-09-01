@@ -51,7 +51,7 @@ func TestStartupCore(t *testing.T) {
 	go main()
 	start := time.Now()
 	for time.Since(start) < time.Second*5 {
-		if services != nil && services.InstanceService != nil && services.InstanceService.IsLocalLoaded() {
+		if services != nil && services.Loaded.Load() {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -78,7 +78,7 @@ func TestStartupBackup(t *testing.T) {
 	go main()
 	start := time.Now()
 	for {
-		if services != nil && services.InstanceService != nil && services.InstanceService.IsLocalLoaded() &&
+		if services != nil && services.Loaded.Load() &&
 			services.ClientService.GetClientByInstanceId("TEST_REMOTE") != nil {
 			break
 		}
