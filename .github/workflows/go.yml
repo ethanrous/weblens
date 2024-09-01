@@ -32,6 +32,13 @@ jobs:
 
       - name: Install Deps
         run: |
+          echo "remote tests: $REMOTE_TESTS"
+          if [ $REMOTE_TESTS ]; then
+            wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
+            echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+            sudo apt-get update
+            sudo apt-get install -y mongodb-mongosh
+          fi
           sudo apt update
           sudo apt-get install -y \
           libvips-dev \
@@ -40,6 +47,8 @@ jobs:
           libglib2.0-dev \
           libexpat1-dev \
           exiftool
+        env:
+          REMOTE_TESTS: ${{ inputs.remote_tests == 'true' }}
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0

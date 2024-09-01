@@ -169,7 +169,7 @@ func startup(mongoName string, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init journal service")
 
 	/* Access Service */
-	accessService, err := service.NewAccessService(pack, db.Collection("apiKeys"))
+	accessService, err := service.NewAccessService(userService, db.Collection("apiKeys"))
 	if err != nil {
 		panic(err)
 	}
