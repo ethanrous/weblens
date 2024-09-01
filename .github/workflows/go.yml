@@ -74,7 +74,7 @@ jobs:
           set -x
           export APP_ROOT=$(pwd)
           source ./scripts/setupRemoteTests.bash
-          REMOTE_TESTS=true go test -v -race ./...
+          REMOTE_TESTS=true ENV_FILE="$(pwd)/config/test.env" go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,20 +17,20 @@ import (
 )
 
 func init() {
-	internal.SetAppRoot("/Users/ethan/repos/weblens/")
+	// internal.SetAppRoot("/Users/ethan/repos/weblens/")
+	//
+	// err := os.Unsetenv("MONGODB_NAME")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// err = os.Unsetenv("SERVER_PORT")
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	err := os.Unsetenv("MONGODB_NAME")
+	err := godotenv.Load(internal.GetEnvFile())
 	if err != nil {
-		panic(err)
-	}
-	err = os.Unsetenv("SERVER_PORT")
-	if err != nil {
-		panic(err)
-	}
-
-	err = godotenv.Load(filepath.Join(internal.GetConfigDir(), "core-test.env"))
-	if err != nil {
-		log.Warning.Println("Could not load core-test.env file", err)
+		log.Warning.Println("Could not load env file", err)
 	}
 }
 
@@ -104,7 +103,7 @@ func setServerState(role models.ServerRole) error {
 		panic(werror.Errorf("MongoDB name (%s) does not include \"test\" during test", mongoName))
 	}
 
-	mondb, err := database.ConnectToMongo(internal.GetMongoURI(), internal.GetMongoDBName())
+	mondb, err := database.ConnectToMongo(internal.GetMongoURI(), mongoName)
 	if err != nil {
 		return werror.WithStack(err)
 	}
@@ -125,7 +124,7 @@ func setServerState(role models.ServerRole) error {
 		remoteCore := models.NewInstance(
 			"TEST_REMOTE", "test remote", models.WeblensApiKey(
 				internal.GetCoreApiKey(),
-			), models.CoreServer, false, "http://localhost:8080",
+			), models.CoreServer, false, "http://localhost:8089",
 		)
 		_, err = servers.InsertOne(context.Background(), remoteCore)
 		if err != nil {
