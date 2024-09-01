@@ -1,3 +1,4 @@
+ps aux | grep weblens
 pkill weblens || true
 
 mkdir -p ./build/bin
@@ -10,11 +11,18 @@ mongosh --eval "use weblens-core-test" --eval "db.dropDatabase()"
 mongosh --eval "use weblens-backup-test" --eval "db.dropDatabase()"
 
 ENV_FILE=$(pwd)/config/core-test.env ./build/bin/weblens &
+echo $?
 
+counter=0
 while [ "$(curl -s --location 'http://127.0.0.1:8084/api/info' 2> /dev/null | jq '.started')" != "true" ]
 do
   echo "Waiting 500ms for Weblens startup"
   sleep 0.5
+  ((counter++))
+  if [ $counter -ge 20 ]; then
+    echo "Failed to connect to weblens core after 10 seconds, exiting..."
+    return 1
+  fi
 done
 
 curl --location 'http://127.0.0.1:8084/api/init' \
