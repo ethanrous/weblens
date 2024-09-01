@@ -1,3 +1,5 @@
+set +e
+
 ps aux | grep weblens
 pkill weblens || true
 
