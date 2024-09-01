@@ -71,6 +71,7 @@ jobs:
       - name: Test (Remotes)
         if: ${{ inputs.remote_tests == true }}
         run: |
+          set -x
           source ./scripts/setupRemoteTests.bash
           REMOTE_TESTS=true APP_ROOT=$(pwd) go test -v -race ./...
           exit $?
