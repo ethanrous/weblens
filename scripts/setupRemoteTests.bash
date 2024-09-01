@@ -18,7 +18,7 @@ ENV_FILE=$(pwd)/config/core-test.env ./build/bin/weblens &
 echo $?
 
 counter=0
-while [ "$(curl -s --location 'http://localhost:8084/api/info' 2> /dev/null | jq '.started')" != "true" ]
+while [ "$(curl -s --location 'http://localhost:8089/api/info' 2> /dev/null | jq '.started')" != "true" ]
 do
   echo "Waiting 500ms for Weblens startup"
   sleep 0.5
@@ -29,7 +29,7 @@ do
   fi
 done
 
-curl --location 'http://localhost:8084/api/init' \
+curl --location 'http://localhost:8089/api/init' \
 --header 'Content-Type: application/json' \
 --data '{
     "name": "core-test",
@@ -39,7 +39,7 @@ curl --location 'http://localhost:8084/api/init' \
 }'
 echo "CURL STATUS $?"
 
-token=$(curl --location 'http://localhost:8084/api/login' \
+token=$(curl --location 'http://localhost:8089/api/login' \
         --header 'Content-Type: application/json' \
         --data '{
             "username": "ethan",
@@ -48,11 +48,11 @@ token=$(curl --location 'http://localhost:8084/api/login' \
 
 echo $token
 
-apiKey=$(curl --location --request POST 'http://localhost:8084/api/key' \
+apiKey=$(curl --location --request POST 'http://localhost:8089/api/key' \
 --header "Authorization: Bearer $token" 2> /dev/null | jq -r '.key."key"')
 
 echo $apiKey
 export CORE_API_KEY=$apiKey
-export CORE_ADDRESS="http://localhost:8084"
+export CORE_ADDRESS="http://localhost:8089"
 
 #ENV_FILE=$(pwd)/config/backup-test.env ./build/bin/weblens &
