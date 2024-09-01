@@ -1,4 +1,4 @@
-pkill weblens
+pkill weblens || true
 
 mkdir -p ./build/bin
 go build -v -o ./build/bin/weblens ./cmd/weblens/main.go
@@ -10,7 +10,6 @@ mongosh --eval "use weblens-core-test" --eval "db.dropDatabase()"
 mongosh --eval "use weblens-backup-test" --eval "db.dropDatabase()"
 
 ENV_FILE=$(pwd)/config/core-test.env ./build/bin/weblens &
-
 
 while [ "$(curl -s --location 'http://127.0.0.1:8084/api/info' 2> /dev/null | jq '.started')" != "true" ]
 do
