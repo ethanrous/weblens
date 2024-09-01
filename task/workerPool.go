@@ -1,7 +1,6 @@
 package task
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"runtime/debug"
@@ -47,10 +46,13 @@ type WorkerPool struct {
 	retryBuffer []*Task
 	hitStream    hitChannel
 
-	exitFlag atomic.Int64
+	exitFlag   atomic.Int64
+	exitSignal chan bool
+
+	logLevel int
 }
 
-func NewWorkerPool(initWorkers int) *WorkerPool {
+func NewWorkerPool(initWorkers int, logLevel int) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
@@ -67,6 +69,10 @@ func NewWorkerPool(initWorkers int) *WorkerPool {
 		retryBuffer: []*Task{},
 
 		hitStream: make(hitChannel, initWorkers*2),
+
+		exitSignal: make(chan bool),
+
+		logLevel: logLevel,
 	}
 	// Worker pool starts disabled
 	newWp.exitFlag.Store(1)
@@ -239,28 +245,35 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	return t, nil
 }
 
-func workerRecover(task *Task, workerId int64) {
-	err := recover()
-	if err != nil {
+func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
+	recovered := recover()
+	if recovered != nil {
 		// Make sure what we got is an error
-		switch err.(type) {
+		switch err := recovered.(type) {
 		case error:
-			if err.(error).Error() == werror.ErrTaskExit.Error() || err.(error).Error() == werror.ErrTaskError.Error() {
+			if err.Error() == werror.ErrTaskError.Error() {
+				if wp.logLevel != -1 {
+					log.Error.Printf("Task [%s] exited with an error", task.TaskId())
+					log.ErrTrace(task.err)
+				}
+				return
+			} else if err.Error() == werror.ErrTaskExit.Error() {
 				return
 			}
 		default:
-			err = errors.New(fmt.Sprint(err))
+			recovered = errors.New(fmt.Sprint(recovered))
 		}
-
-		log.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, err, debug.Stack())
-		task.error(err.(error))
+		if wp.logLevel != -1 {
+			log.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, recovered, debug.Stack())
+		}
+		task.error(recovered.(error))
 	}
 }
 
 // saftyWork wraps the task execution with a recover, so if there are any panics
 // during the task, we can catch them, display them, and safely remove the task.
-func safetyWork(task *Task, workerId int64) {
-	defer workerRecover(task, workerId)
+func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
+	defer wp.workerRecover(task, workerId)
 	task.work(task)
 
 	task.updateMu.Lock()
@@ -283,6 +296,12 @@ func (wp *WorkerPool) reaper() {
 	timerStream := make(chan *Task)
 	for wp.exitFlag.Load() == 0 {
 		select {
+		case _, ok := <-wp.exitSignal:
+			if !ok {
+				log.Debug.Println("reaper exiting")
+				return
+			}
+			log.Debug.Println("reaper not exiting?")
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
@@ -304,25 +323,13 @@ func (wp *WorkerPool) Run() {
 	wp.exitFlag.Store(0)
 
 	// Spawn the timeout checker
-	internal.LabelThread(
-		func(_ context.Context) {
-			go wp.reaper()
-		}, "", "Reaper",
-	)
+	go wp.reaper()
 
 	// Spawn the buffer worker
-	internal.LabelThread(
-		func(_ context.Context) {
-			go wp.bufferDrainer()
-		}, "", "Buffer Drainer",
-	)
+	go wp.bufferDrainer()
 
 	// Spawn the status printer
-	internal.LabelThread(
-		func(_ context.Context) {
-			go wp.statusReporter()
-		}, "", "Status Reporter",
-	)
+	go wp.statusReporter()
 
 	var i int64
 	for i = 0; i < wp.maxWorkers.Load(); i++ {
@@ -330,6 +337,14 @@ func (wp *WorkerPool) Run() {
 		// so they are NOT replacement workers. See wp.execWorker
 		// for more info
 		wp.execWorker(false)
+	}
+}
+
+func (wp *WorkerPool) Stop() {
+	wp.exitFlag.Store(1)
+	close(wp.exitSignal)
+	for wp.currentWorkers.Load() != 0 {
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -361,10 +376,6 @@ func (wp *WorkerPool) removeTask(taskId TaskId) {
 	delete(wp.taskMap, taskId)
 }
 
-// For debugging only. This does nothing if the DEV_MODE env var is set to false, as no stopwatch results
-// will be printed reguardless
-const printStopwatchResults = false
-
 // Main worker method, spawn a worker and loop over the task channel
 //
 // `replacement` specifies if the worker is a temporary replacement for another
@@ -378,146 +389,150 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 		defer wp.currentWorkers.Add(-1)
 		// util.Debug.Printf("Worker %d reporting for duty o7", workerId)
 
-	WorkLoop:
-		for t := range wp.taskStream {
-
-			// Even if we get a new task, if the wp is marked for exit, we just exit
-			if wp.exitFlag.Load() == 1 {
-				// We don't care about the exitLock here, since the whole wp
-				// is going down anyway.
-
-				break WorkLoop
-			}
-
-			// Replacement workers are not allowed to do "scan_directory" tasks
-			// TODO - generalize
-			if replacement && t.jobName == "scan_directory" {
-
-				// If there are twice the number of free spaces in the chan, don't bother pulling
-				// everything into the waiting buffer, just put it at the end right now.
-				if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
-					// util.Debug.Println("Replacement worker putting scan dir task back")
-					wp.taskStream <- t
-					continue
+		// WorkLoop:
+		for {
+			select {
+			case _, ok := <-wp.exitSignal:
+				if !ok {
+					log.Debug.Printf("worker %d exiting", workerId)
+					return
 				}
-				tBuf := []*Task{t}
-				for t = range wp.taskStream {
-					if t.jobName == "scan_directory" {
-						tBuf = append(tBuf, t)
+			case t := <-wp.taskStream:
+				{
+					// Even if we get a new task, if the wp is marked for exit, we just exit
+					if wp.exitFlag.Load() == 1 {
+						// We don't care about the exitLock here, since the whole wp
+						// is going down anyway.
+
+						return
+					}
+
+					// Replacement workers are not allowed to do "scan_directory" tasks
+					// TODO - generalize
+					if replacement && t.jobName == "scan_directory" {
+
+						// If there are twice the number of free spaces in the chan, don't bother pulling
+						// everything into the waiting buffer, just put it at the end right now.
+						if cap(wp.taskStream)-len(wp.taskStream) > int(wp.currentWorkers.Load())*2 {
+							// util.Debug.Println("Replacement worker putting scan dir task back")
+							wp.taskStream <- t
+							continue
+						}
+						tBuf := []*Task{t}
+						for t = range wp.taskStream {
+							if t.jobName == "scan_directory" {
+								tBuf = append(tBuf, t)
+							} else {
+								break
+							}
+						}
+						wp.addToRetryBuffer(tBuf...)
+					}
+
+					// Inc tasks being processed
+					wp.busyCount.Add(1)
+					metrics.BusyWorkerGuage.Inc()
+					t.SwLap("Task start")
+					// wlog.Debug.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
+					// start := time.Now()
+					wp.safetyWork(t, workerId)
+					// wlog.Debug.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, time.Since(start))
+					t.SwLap("Task finish")
+					t.sw.Stop()
+
+					// Dec tasks being processed
+					wp.busyCount.Add(-1)
+					metrics.BusyWorkerGuage.Dec()
+
+					// Tasks must set their completed flag before exiting
+					// if it wasn't done in the work body, we do it for them
+					if t.queueState != Exited {
+						t.Success("closed by worker pool")
+					}
+
+					result := t.GetResults()
+					result["task_id"] = t.taskId
+					result["exit_status"] = t.exitStatus
+					wp.poolMu.Lock()
+					var complete int64
+					for _, p := range wp.poolMap {
+						status := p.Status()
+						complete += status.Complete
+					}
+					wp.poolMu.Unlock()
+					result["queue_remaining"] = complete
+					result["queue_total"] = wp.lifetimeQueuedCount.Load()
+
+					// Wake any waiters on this task
+					t.waitMu.Unlock()
+
+					// Potentially find the task pool that houses this task pool. All child
+					// task pools report their status to the root task pool as well.
+					// Do not use any global pool as the root
+					rootTaskPool := t.taskPool.GetRootPool()
+
+					if t.exitStatus == TaskError && !rootTaskPool.IsGlobal() {
+						rootTaskPool.AddError(t)
+					}
+
+					if !t.persistent {
+						wp.removeTask(t.taskId)
+					}
+
+					canContinue := true
+					directParent := t.GetTaskPool()
+
+					directParent.completedTasks.Add(1)
+
+					// We want the pool completed and error count to reflec the task has completed
+					// when we are doing cleanup. Cleanup is intended to execute "after" the task
+					// has finished, so we must inc the completed tasks counter (above) before cleanup
+					if t.cleanup != nil {
+						t.cleanup(t)
+						t.cleanup = nil
+					}
+
+					if directParent.IsRoot() {
+						// Updating the number of workers and then checking it's value is dangerous
+						// to do concurrently. Specifically, the waiterGate lock on the queue will,
+						// very rarely, attempt to unlock twice if two tasks finish at the same time.
+						// So we must treat this whole area as a critical section
+						directParent.LockExit()
+
+						// Set values and notifications now that task has completed. Returns
+						// a bool that specifies if this thread should continue and grab another
+						// task, or if it should exit
+						canContinue = directParent.handleTaskExit(replacement)
+
+						directParent.UnlockExit()
 					} else {
-						break
+						rootTaskPool.completedTasks.Add(1)
+
+						// Must hold both locks (and must acquire root lock first) to enter a dual-update.
+						// Any other ordering will result in race conditions or deadlocks
+						rootTaskPool.LockExit()
+
+						directParent.LockExit()
+						uncompletedTasks := directParent.totalTasks.Load() - directParent.completedTasks.Load()
+						log.Debug.Printf(
+							"Uncompleted tasks on tp created by %s: %d",
+							directParent.CreatedInTask().TaskId(), uncompletedTasks-1,
+						)
+						canContinue = directParent.handleTaskExit(replacement)
+
+						// We *should* get the same canContinue value from here, so we do not
+						// check it a second time. If we *don't* get the same value, we can safely ignore it
+						rootTaskPool.handleTaskExit(replacement)
+
+						directParent.UnlockExit()
+						rootTaskPool.UnlockExit()
+					}
+
+					if !canContinue {
+						return
 					}
 				}
-				wp.addToRetryBuffer(tBuf...)
 			}
-
-			// Inc tasks being processed
-			wp.busyCount.Add(1)
-			metrics.BusyWorkerGuage.Inc()
-			t.SwLap("Task start")
-			// wlog.Debug.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
-			// start := time.Now()
-			safetyWork(t, workerId)
-			// wlog.Debug.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, time.Since(start))
-			t.SwLap("Task finish")
-
-			// Dec tasks being processed
-			wp.busyCount.Add(-1)
-			metrics.BusyWorkerGuage.Dec()
-
-			// Wake any waiters on this task
-			t.waitMu.Unlock()
-
-			// Tasks must set their completed flag before exiting
-			// if it wasn't done in the work body, we do it for them
-			if t.queueState != Exited {
-				t.Success("closed by worker pool")
-			}
-
-			// Notify this task has completed, and unsubscribe any subscribers to it
-			result := t.GetResults()
-			result["task_id"] = t.taskId
-			result["exit_status"] = t.exitStatus
-			wp.poolMu.Lock()
-			var complete int64
-			for _, p := range wp.poolMap {
-				status := p.Status()
-				complete += status.Complete
-			}
-			wp.poolMu.Unlock()
-			result["queue_remaining"] = complete
-			result["queue_total"] = wp.lifetimeQueuedCount.Load()
-
-			// Potentially find the task pool that houses this task pool. All child
-			// task pools report their status to the root task pool as well.
-			// Do not use any global pool as the root
-			rootTaskPool := t.taskPool.GetRootPool()
-
-			if printStopwatchResults {
-				t.sw.PrintResults(true)
-			}
-			if t.exitStatus == TaskError && !rootTaskPool.IsGlobal() {
-				rootTaskPool.AddError(t)
-				// util.Warning.Printf("T[%s] exited with error status: %s\n", t.taskId, t.exitStatus)
-			}
-
-			if !t.persistent {
-				wp.removeTask(t.taskId)
-			}
-
-			canContinue := true
-			directParent := t.GetTaskPool()
-
-			directParent.completedTasks.Add(1)
-
-			// We want the pool completed and error count to reflec the task has completed
-			// when we are doing cleanup. Cleanup is intended to execute "after" the task
-			// has finished, so we must inc the completed tasks counter (above) before cleanup
-			if t.cleanup != nil {
-				t.cleanup(t)
-				t.cleanup = nil
-			}
-
-			if directParent.IsRoot() {
-				// Updating the number of workers and then checking it's value is dangerous
-				// to do concurrently. Specifically, the waiterGate lock on the queue will,
-				// very rarely, attempt to unlock twice if two tasks finish at the same time.
-				// So we must treat this whole area as a critical section
-				directParent.LockExit()
-
-				// Set values and notifications now that task has completed. Returns
-				// a bool that specifies if this thread should continue and grab another
-				// task, or if it should exit
-				canContinue = directParent.handleTaskExit(replacement)
-
-				directParent.UnlockExit()
-			} else {
-				rootTaskPool.completedTasks.Add(1)
-
-				// Must hold both locks (and must acquire root lock first) to enter a dual-update.
-				// Any other ordering will result in race conditions or deadlocks
-				rootTaskPool.LockExit()
-
-				directParent.LockExit()
-				uncompletedTasks := directParent.totalTasks.Load() - directParent.completedTasks.Load()
-				log.Debug.Printf(
-					"Uncompleted tasks on tp created by %s: %d",
-					directParent.CreatedInTask().TaskId(), uncompletedTasks-1,
-				)
-				canContinue = directParent.handleTaskExit(replacement)
-
-				// We *should* get the same canContinue value from here, so we do not
-				// check it a second time. If we *don't* get the same value, we can safely ignore it
-				rootTaskPool.handleTaskExit(replacement)
-
-				directParent.UnlockExit()
-				rootTaskPool.UnlockExit()
-			}
-
-			if !canContinue {
-				break WorkLoop
-			}
-
 		}
 	}(wp.currentWorkers.Load())
 }
@@ -611,7 +626,7 @@ func (wp *WorkerPool) bufferDrainer() {
 		time.Sleep(time.Second * 10)
 	}
 
-	log.ErrTrace(werror.Errorf("buffer drainer exited"))
+	log.Debug.Println("buffer drainer exited")
 }
 
 func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {

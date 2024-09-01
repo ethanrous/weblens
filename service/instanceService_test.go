@@ -1,537 +1,185 @@
-package service
+package service_test
 
 import (
-	"fmt"
-	"sync"
+	"context"
+	"os"
 	"testing"
 
-	"github.com/ethrousseau/weblens/fileTree"
+	"github.com/ethrousseau/weblens/database"
+	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
+	. "github.com/ethrousseau/weblens/service"
+	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func TestInstanceServiceImpl_Add(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	type args struct {
-		i *models.Instance
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				tt.wantErr(t, is.Add(tt.args.i), fmt.Sprintf("Add(%v)", tt.args.i))
-			},
-		)
+func init() {
+	if mondb == nil {
+		var err error
+		mondb, err = database.ConnectToMongo(internal.GetMongoURI(), internal.GetMongoDBName()+"-test")
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
-func TestInstanceServiceImpl_AddLoading(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
+func TestInstanceServiceImpl_Add(t *testing.T) {
+	t.Parallel()
+
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
 	}
-	type args struct {
-		loadingKey string
+	defer col.Drop(context.Background())
+
+	is, err := NewInstanceService(col)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
+
+	if !assert.NotNil(t, is.GetLocal()) {
+		t.FailNow()
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				is.AddLoading(tt.args.loadingKey)
-			},
-		)
+	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
+
+	localInstance := models.NewInstance("", "My server", "", models.CoreServer, true, "")
+	assert.NotEmpty(t, localInstance.ServerId())
+
+	err = is.Add(localInstance)
+	assert.ErrorIs(t, err, werror.ErrDuplicateLocalServer)
+
+	assert.Nil(t, is.GetCore())
+	// assert.Equal(t, localInstance.ServerId(), is.GetLocal().ServerId())
+
+	remoteId := models.InstanceId(primitive.NewObjectID().Hex())
+	remoteBackup := models.NewInstance(
+		remoteId, "My remote server", "deadbeefdeadbeef", models.BackupServer, false,
+		"http://notrighthere.com",
+	)
+
+	assert.Equal(t, remoteId, remoteBackup.ServerId())
+
+	err = is.Add(remoteBackup)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
+
+	remoteFetch := is.Get(remoteId)
+	assert.Equal(t, remoteId, remoteFetch.ServerId())
+
+	noName := models.NewInstance("", "", "deadbeefdeadbeef", models.BackupServer, false, "")
+	err = is.Add(noName)
+	assert.ErrorIs(t, err, werror.ErrNoServerName)
+
+	noName.UsingKey = ""
+	err = is.Add(noName)
+	assert.ErrorIs(t, err, werror.ErrNoServerKey)
+
+	noName.Id = ""
+	err = is.Add(noName)
+	assert.ErrorIs(t, err, werror.ErrNoServerId)
+
+	anotherCore := models.NewInstance("", "Another Core", "deadbeefdeadbeef", models.CoreServer, false, "")
+	err = is.Add(anotherCore)
+	assert.ErrorIs(t, err, werror.ErrNoCoreAddress)
 }
 
 func TestInstanceServiceImpl_Del(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	type args struct {
-		iId models.InstanceId
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				tt.wantErr(t, is.Del(tt.args.iId), fmt.Sprintf("Del(%v)", tt.args.iId))
-			},
-		)
-	}
-}
 
-func TestInstanceServiceImpl_GenerateNewId(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	type args struct {
-		name string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   models.InstanceId
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.GenerateNewId(tt.args.name), "GenerateNewId(%v)", tt.args.name)
-			},
-		)
-	}
-}
-
-func TestInstanceServiceImpl_Get(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	type args struct {
-		iId models.InstanceId
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *models.Instance
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.Get(tt.args.iId), "Get(%v)", tt.args.iId)
-			},
-		)
-	}
-}
-
-func TestInstanceServiceImpl_GetCore(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *models.Instance
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.GetCore(), "GetCore()")
-			},
-		)
-	}
-}
-
-func TestInstanceServiceImpl_GetLocal(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *models.Instance
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.GetLocal(), "GetLocal()")
-			},
-		)
-	}
-}
-
-func TestInstanceServiceImpl_GetRemotes(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   []*models.Instance
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.GetRemotes(), "GetRemotes()")
-			},
-		)
-	}
-}
-
-func TestInstanceServiceImpl_Init(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				tt.wantErr(t, is.Init(), fmt.Sprintf("Init()"))
-			},
-		)
-	}
-}
-
-func TestInstanceServiceImpl_InitBackup(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
-	}
-	type args struct {
-		name     string
-		coreAddr string
-		key      models.WeblensApiKey
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				tt.wantErr(
-					t, is.InitBackup(tt.args.name, tt.args.coreAddr, tt.args.key),
-					fmt.Sprintf("InitBackup(%v, %v, %v)", tt.args.name, tt.args.coreAddr, tt.args.key),
-				)
-			},
-		)
-	}
 }
 
 func TestInstanceServiceImpl_InitCore(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
+	t.Parallel()
+
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err = col.Drop(context.Background()); err != nil {
+		t.Fatalf(err.Error())
 	}
-	type args struct {
-		instance *models.Instance
+	defer col.Drop(context.Background())
+
+	is, err := NewInstanceService(col)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
+
+	if !assert.NotNil(t, is.GetLocal()) {
+		t.FailNow()
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				tt.wantErr(t, is.InitCore(tt.args.instance), fmt.Sprintf("InitCore(%v)", tt.args.instance))
-			},
-		)
+	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
+	assert.Nil(t, is.GetCore())
+
+	err = is.InitCore("My Core Server")
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
+
+	assert.Equal(t, models.CoreServer, is.GetLocal().GetRole())
+	assert.NotNil(t, is.GetCore())
+
+	if err = col.Drop(context.Background()); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	badMongo := &mock.MockFailMongoCol{
+		RealCol:    col,
+		InsertFail: true,
+		FindFail:   false,
+		UpdateFail: false,
+		DeleteFail: false,
+	}
+
+	badIs, err := NewInstanceService(badMongo)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	err = badIs.InitCore("My Core Server")
+	assert.Error(t, err)
+
+	assert.Equal(t, models.InitServer, badIs.GetLocal().GetRole())
+	assert.Nil(t, badIs.GetCore())
 }
 
-func TestInstanceServiceImpl_IsLocalLoaded(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
+func TestInstanceServiceImpl_InitBackup(t *testing.T) {
+	if os.Getenv("REMOTE_TESTS") != "true" {
+		t.Skip("REMOTE_TESTS not true, Skipping TestInstanceServiceImpl_InitBackup")
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.IsLocalLoaded(), "IsLocalLoaded()")
-			},
-		)
-	}
-}
 
-func TestInstanceServiceImpl_RemoveLoading(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
+	coreAddress := os.Getenv("CORE_ADDRESS")
+	if coreAddress == "" {
+		t.Fatalf("CORE_ADDRESS environment variable required for %s", t.Name())
 	}
-	type args struct {
-		loadingKey string
+	coreKey := os.Getenv("CORE_API_KEY")
+	if coreKey == "" {
+		t.Fatalf("CORE_API_KEY environment variable required for %s", t.Name())
 	}
-	tests := []struct {
-		name            string
-		fields          fields
-		args            args
-		wantDoneLoading bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(
-					t, tt.wantDoneLoading, is.RemoveLoading(tt.args.loadingKey), "RemoveLoading(%v)",
-					tt.args.loadingKey,
-				)
-			},
-		)
-	}
-}
 
-func TestInstanceServiceImpl_Size(t *testing.T) {
-	type fields struct {
-		instanceMap     map[models.InstanceId]*models.Instance
-		instanceMapLock sync.RWMutex
-		local           *models.Instance
-		core            *models.Instance
-		localLoading    map[string]bool
-		col             *mongo.Collection
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err = col.Drop(context.Background()); err != nil {
+		t.Fatalf(err.Error())
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   int
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				is := &InstanceServiceImpl{
-					instanceMap:     tt.fields.instanceMap,
-					instanceMapLock: tt.fields.instanceMapLock,
-					local:           tt.fields.local,
-					core:            tt.fields.core,
-					localLoading:    tt.fields.localLoading,
-					col:             tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, is.Size(), "Size()")
-			},
-		)
-	}
-}
+	defer col.Drop(context.Background())
 
-func TestMakeUniqueChildName(t *testing.T) {
-	type args struct {
-		parent *fileTree.WeblensFileImpl
-		childName string
+	is, err := NewInstanceService(col)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		// TODO: Add test cases.
+
+	if !assert.NotNil(t, is.GetLocal()) {
+		t.FailNow()
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				assert.Equalf(
-					t, tt.want, MakeUniqueChildName(tt.args.parent, tt.args.childName), "MakeUniqueChildName(%v, %v)",
-					tt.args.parent, tt.args.childName,
-				)
-			},
-		)
+	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
+
+	err = is.InitBackup("My backup server", coreAddress, models.WeblensApiKey(coreKey))
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
+
+	assert.Equal(t, models.BackupServer, is.GetLocal().GetRole())
+
 }

@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"time"
+
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/models"
 )
@@ -56,6 +58,11 @@ func (pms *ProxyMediaService) GetMediaType(m *models.Media) models.MediaType {
 	panic("implement me")
 }
 
+func (pms *ProxyMediaService) GetProminentColors(media *models.Media) (prom []string, err error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (pms *ProxyMediaService) GetMediaTypes() models.MediaTypeService {
 	// TODO implement me
 	panic("implement me")
@@ -106,6 +113,13 @@ func (pms *ProxyMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFile
 }
 
 func (pms *ProxyMediaService) SetMediaLiked(mediaId models.ContentId, liked bool, username models.Username) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (pms *ProxyMediaService) AdjustMediaDates(
+	anchor *models.Media, newTime time.Time, extraMedias []*models.Media,
+) error {
 	// TODO implement me
 	panic("implement me")
 }

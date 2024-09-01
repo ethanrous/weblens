@@ -12,6 +12,30 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+func TestMakeUniqueChildName(t *testing.T) {
+	type args struct {
+		parent    *fileTree.WeblensFileImpl
+		childName string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				assert.Equalf(
+					t, tt.want, MakeUniqueChildName(tt.args.parent, tt.args.childName), "MakeUniqueChildName(%v, %v)",
+					tt.args.parent, tt.args.childName,
+				)
+			},
+		)
+	}
+}
+
 func TestFileServiceImpl_AddTask(t *testing.T) {
 	type fields struct {
 		mediaTree       fileTree.FileTree
@@ -1051,45 +1075,6 @@ func TestFileServiceImpl_ReturnFilesFromTrash(t *testing.T) {
 }
 
 func TestFileServiceImpl_SetAccessService(t *testing.T) {
-	type fields struct {
-		mediaTree       fileTree.FileTree
-		cachesTree      fileTree.FileTree
-		userService     models.UserService
-		accessService   models.AccessService
-		mediaService    models.MediaService
-		instanceService models.InstanceService
-		fileTaskLink    map[fileTree.FileId][]*task.Task
-		fileTaskLock    sync.RWMutex
-		trashCol        *mongo.Collection
-	}
-	type args struct {
-		accessService *AccessServiceImpl
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				fs := &FileServiceImpl{
-					mediaTree:       tt.fields.mediaTree,
-					cachesTree:      tt.fields.cachesTree,
-					userService:     tt.fields.userService,
-					accessService:   tt.fields.accessService,
-					mediaService:    tt.fields.mediaService,
-					instanceService: tt.fields.instanceService,
-					fileTaskLink:    tt.fields.fileTaskLink,
-					fileTaskLock:    tt.fields.fileTaskLock,
-					trashCol:        tt.fields.trashCol,
-				}
-				fs.SetAccessService(tt.args.accessService)
-			},
-		)
-	}
 }
 
 func TestFileServiceImpl_SetMediaService(t *testing.T) {

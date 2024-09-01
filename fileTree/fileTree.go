@@ -1,7 +1,6 @@
 package fileTree
 
 import (
-	"context"
 	"errors"
 	"iter"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -40,8 +38,6 @@ func boolPointer(b bool) *bool {
 }
 
 func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal JournalService) (FileTree, error) {
-	sw := internal.NewStopwatch(rootAlias + " Filetree Init")
-
 	if _, err := os.Stat(rootPath); errors.Is(err, os.ErrNotExist) {
 		err = os.MkdirAll(rootPath, os.ModePerm)
 		if err != nil {
@@ -50,8 +46,6 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal JournalServi
 	} else if err != nil {
 		return nil, err
 	}
-
-	sw.Lap("Find or mkdir root directory")
 
 	root := &WeblensFileImpl{
 		id:       "ROOT",
@@ -68,7 +62,6 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal JournalServi
 	}
 
 	root.size.Store(-1)
-	sw.Lap("Init root struct")
 
 	tree := &FileTreeImpl{
 		fMap: map[FileId]*WeblensFileImpl{root.id: root},
@@ -77,23 +70,11 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal JournalServi
 		journalService: journal,
 		rootAlias:      rootAlias,
 	}
-	sw.Lap("Init tree struct")
 
 	journal.SetFileTree(tree)
 
-	internal.LabelThread(
-		func(_ context.Context) {
-			go journal.EventWorker()
-		}, "", "Journal Worker",
-	)
-
-	internal.LabelThread(
-		func(_ context.Context) {
-			go journal.FileWatcher()
-		}, "", "File Watcher",
-	)
-
-	sw.Lap("Launch workers")
+	go journal.EventWorker()
+	// go journal.FileWatcher()
 
 	event := tree.GetJournal().NewEvent()
 	err := tree.loadFromRoot(event, hasher)
@@ -101,18 +82,11 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal JournalServi
 		return nil, err
 	}
 
-	sw.Lap("Load files")
-
 	if waiter, ok := hasher.(HashWaiter); ok {
 		waiter.Wait()
 	}
 
-	sw.Lap("Wait for hashes")
-
 	journal.LogEvent(event)
-	sw.Lap("Log file event")
-	sw.Stop()
-	sw.PrintResults(false)
 
 	return tree, nil
 }
@@ -126,14 +100,18 @@ func (ft *FileTreeImpl) SetJournal(j JournalService) {
 }
 
 func (ft *FileTreeImpl) addInternal(id FileId, f *WeblensFileImpl) {
+	log.Trace.Println("[addInternal] Locking tree")
 	ft.fsTreeLock.Lock()
 	defer ft.fsTreeLock.Unlock()
+
+	log.Trace.Printf("Adding %s to tree", f.id)
 
 	// Do not use .ID() inside critical section, as it may need to use the locks
 	ft.fMap[id] = f
 	if f.id == "ROOT" {
 		ft.root = f
 	}
+	log.Trace.Println("[addInternal] Unocking tree")
 }
 
 func (ft *FileTreeImpl) deleteInternal(id FileId) {
@@ -149,13 +127,9 @@ func (ft *FileTreeImpl) has(id FileId) bool {
 	return ok
 }
 
-func (ft *FileTreeImpl) Add(file WeblensFile) error {
-	if file == nil {
+func (ft *FileTreeImpl) Add(f *WeblensFileImpl) error {
+	if f == nil {
 		return werror.WithStack(errors.New("trying to add a nil file to file tree"))
-	}
-	f, ok := file.(*WeblensFileImpl)
-	if !ok {
-		return werror.Errorf("trying to add a file to file tree that is not *WeblensFileImpl")
 	}
 
 	if ft.has(f.ID()) {
@@ -244,7 +218,7 @@ func (ft *FileTreeImpl) Del(fId FileId, deleteEvent *FileEvent) ([]*WeblensFileI
 			// 	t.Cancel()
 			// }
 			// if f.GetShare() != nil {
-			// 	err := types.SERV.ShareService.Del(f.GetShare().GetShareId())
+			// 	err := types.SERV.ShareService.DeleteApiKey(f.GetShare().GetShareId())
 			// 	if err != nil {
 			// 		wlog.ErrTrace(err)
 			// 	}
@@ -291,7 +265,7 @@ func (ft *FileTreeImpl) Del(fId FileId, deleteEvent *FileEvent) ([]*WeblensFileI
 	if err != nil {
 		return nil, err
 	}
-	
+
 	err = os.RemoveAll(f.GetAbsPath())
 	if err != nil {
 		return nil, err
@@ -651,6 +625,8 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 		return err
 	}
 
+	log.Trace.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad))
+
 	for len(toLoad) != 0 {
 		var fileToLoad *WeblensFileImpl
 
@@ -660,7 +636,10 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 			continue
 		}
 
+		log.Trace.Printf("[loadFromRoot] Loading file [%s], %d others remain", fileToLoad.filename, len(toLoad))
+
 		if activeLt, ok := lifetimesByPath[fileToLoad.GetPortablePath().ToPortable()]; ok {
+			log.Trace.Printf("[loadFromRoot] Got existing lifetime: %s", activeLt.Id)
 			fileToLoad.setIdInternal(activeLt.ID())
 			if !fileToLoad.IsDir() {
 				fileToLoad.SetContentId(activeLt.ContentId)
@@ -673,6 +652,7 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 			}
 
 			if !fileToLoad.IsDir() && fileSize != 0 {
+				log.Trace.Printf("[loadFromRoot] Hashing file %s", fileToLoad.id)
 				err = hasher.Hash(fileToLoad, event)
 				if err != nil {
 					return err
@@ -687,13 +667,18 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 		}
 
 		if fileToLoad.IsDir() {
+			log.Trace.Printf("[loadFromRoot] Loading directory [%s]", fileToLoad.filename)
 			children, err := ft.ReadDir(fileToLoad)
 			if err != nil {
 				return err
 			}
+			log.Trace.Printf("[loadFromRoot] Adding %d more children", len(children))
 			toLoad = append(toLoad, children...)
 		}
+
 	}
+
+	log.Trace.Printf("[loadFromRoot] Complete")
 
 	return nil
 }
@@ -748,7 +733,7 @@ type FileTree interface {
 	GetJournal() JournalService
 	SetJournal(JournalService)
 
-	Add(file WeblensFile) error
+	Add(file *WeblensFileImpl) error
 	Del(id FileId, deleteEvent *FileEvent) ([]*WeblensFileImpl, error)
 	Move(f, newParent *WeblensFileImpl, newFilename string, overwrite bool, event *FileEvent) ([]MoveInfo, error)
 	Touch(parentFolder *WeblensFileImpl, newFileName string, detach bool) (*WeblensFileImpl, error)

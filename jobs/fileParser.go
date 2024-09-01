@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"slices"
 	"time"
@@ -75,7 +74,6 @@ func ScanDirectory(t *task.Task) {
 				File:         wf,
 				FileService:  meta.FileService,
 				MediaService: meta.MediaService,
-				TaskService:  meta.TaskService,
 				Caster:       meta.Caster,
 			}
 			newT, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
@@ -129,18 +127,28 @@ func ScanDirectory(t *task.Task) {
 }
 
 func ScanFile(t *task.Task) {
-	start := time.Now()
 	meta := t.GetMeta().(models.ScanMeta)
+	start := time.Now()
+	err := ScanFile_(meta)
+	stop := time.Now()
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+	metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
 
+	t.Success()
+}
+
+func ScanFile_(meta models.ScanMeta) error {
 	ext := filepath.Ext(meta.File.Filename())
 	if !meta.MediaService.GetMediaTypes().ParseExtension(ext).Displayable {
 		log.Error.Printf("Trying to process file with [%s] ext", ext)
-		t.ErrorAndExit(werror.ErrNonDisplayable)
+		return werror.ErrNonDisplayable
 	}
 
 	contentId := models.ContentId(meta.File.GetContentId())
 	if contentId == "" {
-		t.ErrorAndExit(fmt.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath()))
+		return werror.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath())
 	}
 
 	media := models.NewMedia(contentId)
@@ -149,10 +157,8 @@ func ScanFile(t *task.Task) {
 			return fId == meta.File.ID()
 		},
 	) {
-		t.Success("Media already imported")
+		return nil
 	}
-
-	t.ExitIfSignaled()
 
 	if meta.PartialMedia == nil {
 		meta.PartialMedia = &models.Media{}
@@ -164,25 +170,21 @@ func ScanFile(t *task.Task) {
 
 	err := meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
 	if err != nil {
-		t.ErrorAndExit(err)
-		return
+		return err
 	}
-
-	t.ExitIfSignaled()
 
 	existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
 	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
 		Width != meta.PartialMedia.Width || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
 		err = meta.MediaService.Add(meta.PartialMedia)
 		if err != nil && errors.Is(err, werror.ErrMediaAlreadyExists) {
-			t.ErrorAndExit(err)
+			return err
 		}
 	}
 
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)
 
-	t.Success()
-	metrics.MediaProcessTime.Observe(float64(time.Since(start)))
+	return nil
 }
 
 func reportSubscanStatus(t *task.Task) {

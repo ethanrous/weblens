@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,6 +31,13 @@ type User struct {
 }
 
 func NewUser(username Username, password string, isAdmin, autoActivate bool) (*User, error) {
+	if username == "" {
+		return nil, werror.Errorf("username is empty")
+	}
+	if password == "" {
+		return nil, werror.Errorf("password is empty")
+	}
+
 	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 11)
 	if err != nil {
 		return nil, err
@@ -155,7 +163,6 @@ func (u *User) UnmarshalJSON(data []byte) error {
 type Username string
 
 type UserService interface {
-	Init() error
 	Size() int
 	Get(id Username) *User
 	Add(user *User) error
@@ -167,6 +174,5 @@ type UserService interface {
 	ActivateUser(*User) error
 	GetRootUser() *User
 
-	GenerateToken(user *User) (string, error)
 	UpdateUserPassword(username Username, oldPassword, newPassword string, allowEmptyOld bool) error
 }

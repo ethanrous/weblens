@@ -55,9 +55,7 @@ func (s *sw) Lap(tag ...any) {
 		time: time.Now(),
 	}
 	s.laps = append(s.laps, l)
-	// if l.tag != "" {
-	// 	Debug.Println(l.tag)
-	// }
+	log.Trace.Println(l.tag)
 }
 
 func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {

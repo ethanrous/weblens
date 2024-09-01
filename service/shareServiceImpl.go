@@ -21,23 +21,21 @@ type ShareServiceImpl struct {
 	col    *mongo.Collection
 }
 
-func NewShareService(collection *mongo.Collection) models.ShareService {
-	return &ShareServiceImpl{
+func NewShareService(collection *mongo.Collection) (models.ShareService, error) {
+	ss := &ShareServiceImpl{
 		repo: make(map[models.ShareId]models.Share),
 		col:  collection,
 	}
-}
 
-func (ss *ShareServiceImpl) Init() error {
 	ret, err := ss.col.Find(context.Background(), bson.M{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var target []*models.FileShare
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ss.repo = make(map[models.ShareId]models.Share)
@@ -46,19 +44,22 @@ func (ss *ShareServiceImpl) Init() error {
 			log.Debug.Printf("*NOT* Removing %sShare [%s] on init...", sh.GetShareType(), sh.ShareId)
 			// err = db.DeleteShare(sh.GetShareId())
 			if err != nil {
-				return err
+				return nil, err
 			}
 			continue
 		}
 
 		if sh.Updated.Unix() <= 0 {
 			sh.UpdatedNow()
-			ss.writeUpdateTime(sh)
+			err = ss.writeUpdateTime(sh)
+			if err != nil {
+				return nil, err
+			}
 		}
 		ss.repo[sh.GetShareId()] = sh
 	}
 
-	return nil
+	return ss, nil
 }
 
 func (ss *ShareServiceImpl) Add(sh models.Share) error {

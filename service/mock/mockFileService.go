@@ -24,6 +24,32 @@ var usernames = []string{
 	"Pam Silva",
 }
 
+func (mfs *MockFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (mfs *MockFileService) PathToFile(
+	searchPath string, user *models.User, share *models.FileShare,
+) (*fileTree.WeblensFileImpl, []*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string) (
+	*fileTree.WeblensFileImpl, error,
+) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (mfs *MockFileService) CreateFolder(
+	parent *fileTree.WeblensFileImpl, foldername string, caster models.FileCaster,
+) (*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (mfs *MockFileService) GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
 	// TODO implement me
 	panic("implement me")
@@ -125,8 +151,7 @@ func (mfs *MockFileService) NewCacheFile(contentId string, quality models.MediaQ
 		pageNumStr = fmt.Sprintf("_%d", pageNum)
 	}
 	filename := fmt.Sprintf("%s-%s%s.cache", contentId, quality, pageNumStr)
-	return &MemFile{
-		Filename: filename,
-	}, nil
-
+	cache := fileTree.NewWeblensFile("TODO", filename, nil, false)
+	cache.SetMemOnly(true)
+	return cache, nil
 }

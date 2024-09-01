@@ -5,15 +5,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 )
 
 func callHome(remote *models.Instance, method, endpoint string, body any) (*http.Response, error) {
-	// if p.coreAddress == "" {
-	// 	return nil, error2.WErrMsg("Trying to dial core with no address")
-	// }
 	if remote.UsingKey == "" {
 		return nil, werror.Errorf("Trying to dial core without api key")
 	}
@@ -27,12 +25,12 @@ func callHome(remote *models.Instance, method, endpoint string, body any) (*http
 		buf = bytes.NewBuffer(bs)
 	}
 
-	// Remove the leading slash from the endpoint
-	// if endpoint[0] == '/' {
-	// 	endpoint = endpoint[1:]
-	// }
+	reqUrl, err := url.JoinPath(remote.Address, "/api/core", endpoint)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
 
-	req, err := http.NewRequest(method, remote.Address+"api/core"+endpoint, buf)
+	req, err := http.NewRequest(method, reqUrl, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +48,7 @@ func callHome(remote *models.Instance, method, endpoint string, body any) (*http
 	return resp, err
 }
 
-func callHomeStruct[T any](remote *models.Instance, method, endpoint string, body any) (T, error) {
+func CallHomeStruct[T any](remote *models.Instance, method, endpoint string, body any) (T, error) {
 	r, err := callHome(remote, method, endpoint, body)
 
 	var target T

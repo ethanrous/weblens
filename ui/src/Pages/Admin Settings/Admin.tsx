@@ -442,7 +442,8 @@ export function ApiKeys({ authHeader }) {
             <p className="w-full h-max font-semibold text-xl select-none p-2">
                 API Keys
             </p>
-            {keys.data.length !== 0 && (
+
+            {Boolean(keys.data?.length) && (
                 <div className="flex flex-col items-center p-1 rounded w-full">
                     {keys.data.map((k) => {
                         return (

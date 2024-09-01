@@ -283,7 +283,7 @@ export function downloadSingleFile(
         target: filename,
     })
 
-    axios
+    return axios
         .get(url.toString(), {
             responseType: 'blob',
             headers: authHeader,
@@ -333,15 +333,10 @@ export async function requestZipCreate(
         headers: authHeader,
         method: 'POST',
         body: JSON.stringify({ fileIds: fileIds }),
+    }).then(async (res) => {
+        const json = await res.json()
+        return { json: json, status: res.status }
     })
-        .then(async (res) => {
-            const json = await res.json()
-            return { json: json, status: res.status }
-        })
-        .catch((r) => {
-            console.error(`Failed to request takeout: ${r}`)
-            return { json: null, status: 0 }
-        })
 }
 
 export async function AutocompleteAlbums(

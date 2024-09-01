@@ -70,7 +70,7 @@ func (pjs *ProxyJournalService) GetLatestAction() (*fileTree.FileAction, error) 
 
 func (pjs *ProxyJournalService) GetLifetimesSince(date time.Time) ([]*fileTree.Lifetime, error) {
 	endpoint := fmt.Sprintf("/history/since/%d", date.UnixMilli())
-	lts, err := callHomeStruct[[]*fileTree.Lifetime](pjs.Core, http.MethodGet, endpoint, nil)
+	lts, err := CallHomeStruct[[]*fileTree.Lifetime](pjs.Core, http.MethodGet, endpoint, nil)
 	return lts, err
 }
 

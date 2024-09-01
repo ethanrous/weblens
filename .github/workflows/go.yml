@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+      remote_tests:
+        description: 'Run tests with remote servers'
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [ "main" ]
   pull_request:
@@ -44,11 +49,21 @@ jobs:
       - name: Build
         run: |
           set -x
-          go build -v ./cmd/weblens/main.go
+          go build -v -o ./weblens ./cmd/weblens/main.go
 
-      - name: Test
+      - name: Test (No Remotes)
+        if: ${{ inputs.remote_tests == 'false' }}
         run: |
-          go test -v ./...
+          APP_ROOT=$(pwd) go test -v -race ./...
+          exit $?
+        env:
+          DEV_MODE: ${{ inputs.debug }}
+
+      - name: Test (Remotes)
+        if: ${{ inputs.remote_tests == 'true' }}
+        run: |
+          source ./scripts/setupRemoteTests.bash
+          REMOTE_TESTS=true APP_ROOT=$(pwd) go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}

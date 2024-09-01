@@ -2,15 +2,15 @@ package service
 
 import (
 	"context"
-	"errors"
+	"net/http"
 	"sync"
-	"time"
 
+	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/service/proxy"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var _ models.InstanceService = (*InstanceServiceImpl)(nil)
@@ -20,30 +20,25 @@ type InstanceServiceImpl struct {
 	instanceMapLock sync.RWMutex
 	local       *models.Instance
 	core        *models.Instance
-	localLoading    map[string]bool
 
-	col           *mongo.Collection
+	col database.MongoCollection
 }
 
-func NewInstanceService(col *mongo.Collection) *InstanceServiceImpl {
-	return &InstanceServiceImpl{
+func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, error) {
+	is := &InstanceServiceImpl{
 		instanceMap: make(map[models.InstanceId]*models.Instance),
-		localLoading:  map[string]bool{"all": true},
-
 		col:         col,
 	}
-}
 
-func (is *InstanceServiceImpl) Init() error {
 	ret, err := is.col.Find(context.Background(), bson.M{})
 	if err != nil {
-		return werror.WithStack(err)
+		return nil, werror.WithStack(err)
 	}
 
 	var servers []*models.Instance
 	err = ret.All(context.Background(), &servers)
 	if err != nil {
-		return werror.WithStack(err)
+		return nil, werror.WithStack(err)
 	}
 
 	is.instanceMapLock.Lock()
@@ -54,23 +49,35 @@ func (is *InstanceServiceImpl) Init() error {
 			continue
 		}
 		if server.IsCore() {
+			if is.core != nil {
+				return nil, werror.WithStack(werror.ErrDuplicateCoreServer)
+			}
 			is.core = server
 		}
 		is.instanceMap[server.ServerId()] = server
 	}
 
 	if is.local == nil {
-		is.local = &models.Instance{IsThisServer: true, Role: models.InitServer}
+		is.local = models.NewInstance("", "", "", models.InitServer, true, "")
 	}
 
-	return nil
+	return is, nil
 }
 
 func (is *InstanceServiceImpl) Add(i *models.Instance) error {
-	if i.ServerId() == "" && !i.IsLocal() {
-		return errors.New("Remote server must have specified id")
-	} else if i.ServerId() == "" {
-		i.Id = is.GenerateNewId(i.GetName())
+	// Validate
+	if i.ServerId() == "" {
+		return werror.WithStack(werror.ErrNoServerId)
+	} else if !i.IsLocal() && i.GetUsingKey() == "" {
+		// The key and the address are ALWAYS on the remote
+		return werror.WithStack(werror.ErrNoServerKey)
+	} else if i.GetName() == "" {
+		return werror.WithStack(werror.ErrNoServerName)
+	} else if i.IsLocal() {
+		return werror.WithStack(werror.ErrDuplicateLocalServer)
+	} else if i.IsCore() && i.Address == "" {
+		// The key and the address are ALWAYS on the remote
+		return werror.WithStack(werror.ErrNoCoreAddress)
 	}
 
 	_, err := is.col.InsertOne(context.Background(), i)
@@ -141,94 +148,68 @@ func (is *InstanceServiceImpl) Size() int {
 	return len(is.instanceMap)
 }
 
-func (is *InstanceServiceImpl) IsLocalLoaded() bool {
-	is.instanceMapLock.RLock()
-	defer is.instanceMapLock.RUnlock()
-	return len(is.localLoading) == 0
-}
-
-func (is *InstanceServiceImpl) AddLoading(loadingKey string) {
-	is.instanceMapLock.Lock()
-	defer is.instanceMapLock.Unlock()
-	is.localLoading[loadingKey] = true
-}
-
-func (is *InstanceServiceImpl) RemoveLoading(loadingKey string) (doneLoading bool) {
-	is.instanceMapLock.Lock()
-	delete(is.localLoading, loadingKey)
-	is.instanceMapLock.Unlock()
-
-	return is.IsLocalLoaded()
-}
-
-func (is *InstanceServiceImpl) GenerateNewId(name string) models.InstanceId {
-	return models.InstanceId(internal.GlobbyHash(12, name, time.Now().String()))
-}
-
 func (is *InstanceServiceImpl) GetRemotes() []*models.Instance {
 	return internal.MapToValues(is.instanceMap)
 }
 
-func (is *InstanceServiceImpl) InitCore(instance *models.Instance) error {
-	// u := us.Get(username)
-	//
-	// // Init with existing u
-	// if u != nil {
-	// 	if !u.CheckLogin(password) {
-	// 		return types.ErrUserNotAuthenticated
-	// 	} else if !u.IsAdmin() {
-	// 		return types.New("TODO")
-	// 		// err := u.SetOwner()
-	// 		// if err != nil {
-	// 		// 	return err
-	// 		// }
-	// 	}
-	//
-	// } else { // create new user, this will be the case 99% of the time
-	// 	err := user.New(username, password, true, true, ft)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	//
-	// srvId := InstanceId(util.GlobbyHash(12, name, time.Now().String()))
-	// wi.Id = srvId
-	// wi.Name = name
-	// wi.IsThisServer = true
-	// wi.Role = Core
-	//
-	// err := wi.db.NewServer(srvId, name, true, Core)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// return nil
+func (is *InstanceServiceImpl) InitCore(serverName string) error {
+	local := is.GetLocal()
+	if local == nil {
+		return werror.WithStack(werror.ErrNoLocal)
+	}
 
-	return werror.NotImplemented("instance InitCore")
+	local.Name = serverName
+	local.Role = models.CoreServer
+
+	_, err := is.col.InsertOne(context.Background(), local)
+	if err != nil {
+		// Revert name and role if db write fails
+		local.Name = ""
+		local.Role = models.InitServer
+		return werror.WithStack(err)
+	}
+
+	is.core = local
+
+	return nil
 }
 
 func (is *InstanceServiceImpl) InitBackup(
 	name, coreAddr string, key models.WeblensApiKey,
 ) error {
+	local := is.GetLocal()
+	if local == nil {
+		return werror.WithStack(werror.ErrNoLocal)
+	}
 
-	return werror.NotImplemented("instance InitBackup")
-	// srvId := InstanceId(internal.GlobbyHash(12, name, time.Now().String()))
-	// thisServer := NewInstance(srvId, name, "", BackupServer, true, "")
-	// core := NewInstance("", "", key, CoreServer, false, coreAddr)
-	// core, err := is.store.AttachToCore(thisServer, core)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// err = is.Add(thisServer)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// err = is.Add(core)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// return nil
+	local.Name = name
+	local.Role = models.BackupServer
+
+	core := models.NewInstance("", "", key, models.CoreServer, false, coreAddr)
+	// NewInstance will generate an Id if one is not given. We want to fill the id from what the core
+	// server reports it is, not make a new one
+	core.Id = ""
+
+	type newServerBody struct {
+		Id       models.InstanceId    `json:"serverId"`
+		Role     models.ServerRole    `json:"role"`
+		Name     string               `json:"name"`
+		UsingKey models.WeblensApiKey `json:"usingKey"`
+	}
+	body := newServerBody{Id: local.ServerId(), Role: models.BackupServer, Name: local.GetName(), UsingKey: key}
+
+	newCore, err := proxy.CallHomeStruct[*models.Instance](core, http.MethodPost, "/remote", body)
+	if err != nil {
+		return err
+	}
+
+	newCore.UsingKey = key
+	newCore.Address = coreAddr
+
+	err = is.Add(newCore)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

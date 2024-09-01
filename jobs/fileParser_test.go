@@ -9,7 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/jobs"
+	. "github.com/ethrousseau/weblens/jobs"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
@@ -22,27 +22,28 @@ var mondb *mongo.Database
 var typeService models.MediaTypeService
 
 func init() {
-	if internal.IsDevMode() {
-		log.DoDebug()
-	}
+	log.SetLogLevel(log.DEBUG)
 
-	mondb = database.ConnectToMongo("mongodb://localhost:27017", "weblens-test")
+	var err error
+	mondb, err = database.ConnectToMongo(internal.GetMongoURI(), internal.GetMongoDBName()+"-test")
+	if err != nil {
+		panic(err)
+	}
 
 	marshMap := map[string]models.MediaType{}
 	internal.ReadTypesConfig(&marshMap)
 	typeService = models.NewTypeService(marshMap)
 }
 
-func TestFileScan(t *testing.T) {
+func TestScanFile(t *testing.T) {
+	t.Parallel()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
 		panic(err)
 	}
 	defer col.Drop(context.Background())
-
-	wp := task.NewWorkerPool(4)
-	wp.RegisterJob(models.ScanFileTask, jobs.ScanFile)
 
 	testMediaTree, err := fileTree.NewFileTree(
 		internal.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
@@ -59,34 +60,27 @@ func TestFileScan(t *testing.T) {
 		t.FailNow()
 	}
 
-	pool := wp.NewTaskPool(false, nil)
-	wp.Run()
-
-	var queuedCount int
 	for _, file := range testMediaTree.GetRoot().GetChildren() {
 		ext := filepath.Ext(file.Filename())
 		if !mediaService.GetMediaTypes().ParseExtension(ext).Displayable {
 			continue
 		}
-		subMeta := models.ScanMeta{
+		scanMeta := models.ScanMeta{
 			File:         file,
 			FileService:  &mock.MockFileService{},
 			MediaService: mediaService,
-			TaskService:  wp,
 			Caster:       &mock.MockCaster{},
 		}
-
-		_, err = wp.DispatchJob(models.ScanFileTask, subMeta, pool)
+		err = ScanFile_(scanMeta)
 		assert.NoError(t, err)
-		queuedCount++
 	}
-	pool.SignalAllQueued()
-	pool.Wait(false)
-	assert.Equal(t, 0, len(pool.Errors()))
-	assert.Equal(t, queuedCount, mediaService.Size())
+
+	assert.Equal(t, len(testMediaTree.GetRoot().GetChildren()), mediaService.Size())
 }
 
 func TestScanDirectory(t *testing.T) {
+	t.Parallel()
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -94,9 +88,9 @@ func TestScanDirectory(t *testing.T) {
 	}
 	defer col.Drop(context.Background())
 
-	wp := task.NewWorkerPool(4)
-	wp.RegisterJob(models.ScanFileTask, jobs.ScanFile)
-	wp.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
+	wp := task.NewWorkerPool(4, -1)
+	wp.RegisterJob(models.ScanFileTask, ScanFile)
+	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 
 	testMediaTree, err := fileTree.NewFileTree(
 		internal.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
@@ -114,7 +108,7 @@ func TestScanDirectory(t *testing.T) {
 	}
 
 	wp.Run()
-	subMeta := models.ScanMeta{
+	scanMeta := models.ScanMeta{
 		File:         testMediaTree.GetRoot(),
 		FileService:  &mock.MockFileService{},
 		MediaService: mediaService,
@@ -123,7 +117,7 @@ func TestScanDirectory(t *testing.T) {
 		TaskSubber:   &mock.MockClientService{},
 	}
 
-	tsk, err := wp.DispatchJob(models.ScanDirectoryTask, subMeta, nil)
+	tsk, err := wp.DispatchJob(models.ScanDirectoryTask, scanMeta, nil)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}

@@ -37,6 +37,14 @@ func GetConfigDir() string {
 	return configDir
 }
 
+func GetEnvFile() string {
+	envFile := envReadString("ENV_FILE")
+	if envFile == "" {
+		envFile = filepath.Join(GetConfigDir(), ".env")
+	}
+	return envFile
+}
+
 func GetWorkerCount() int {
 	workerCountStr := envReadString("POOL_WORKERS_COUNT")
 	var workerCount int64
@@ -74,6 +82,10 @@ func GetAppRootDir() string {
 		}
 	}
 	return appRoot
+}
+
+func SetAppRoot(path string) {
+	appRoot = path
 }
 
 func GetRouterIp() string {
@@ -126,6 +138,10 @@ func GetImgRecognitionUrl() string {
 }
 
 var isDevMode *bool
+
+func SetDevMode(devMode bool) {
+	isDevMode = &devMode
+}
 
 // IsDevMode Enables debug logging and puts the router in development mode
 func IsDevMode() bool {
@@ -199,9 +215,11 @@ func GetTmpDir() string {
 func GetMongoURI() string {
 	mongoStr := envReadString("MONGODB_URI")
 	if mongoStr == "" {
-		log.Error.Panicf("MONGODB_URI not set! MongoDB is required to use Weblens. Docs for mongo connection strings are here:\nhttps://www.mongodb.com/docs/manual/reference/connection-string/")
+		mongoStr = "mongodb://localhost:27017"
+		log.Warning.Println("MONGODB_URI not set, defaulting to", mongoStr)
+	} else {
+		log.Debug.Printf("Got MONGODB_URI: %s\n", mongoStr)
 	}
-	log.Debug.Printf("Using MONGODB_URI: %s\n", mongoStr)
 	return mongoStr
 }
 
@@ -235,7 +253,7 @@ func GetTestMediaPath() string {
 	testMediaPath = envReadString("TEST_MEDIA_PATH")
 	if testMediaPath == "" {
 		testMediaPath = filepath.Join(GetAppRootDir(), "/images/testMedia")
-		log.Warning.Printf("Did not find TEST_MEDIA_PATH, assuming default of %s", testMediaPath)
+		log.Warning.Printf("TEST_MEDIA_PATH not set, defaulting to %s", testMediaPath)
 	}
 	return testMediaPath
 }
@@ -258,4 +276,8 @@ func ReadTypesConfig(target any) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func GetCoreApiKey() string {
+	return envReadString("CORE_API_KEY")
 }

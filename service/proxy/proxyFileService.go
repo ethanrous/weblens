@@ -15,6 +15,32 @@ type ProxyFileService struct {
 	Core *models.Instance
 }
 
+func (pfs *ProxyFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) PathToFile(
+	searchPath string, user *models.User, share *models.FileShare,
+) (*fileTree.WeblensFileImpl, []*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string) (
+	*fileTree.WeblensFileImpl, error,
+) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) CreateFolder(
+	parent *fileTree.WeblensFileImpl, foldername string, caster models.FileCaster,
+) (*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (pfs *ProxyFileService) GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
 	// TODO implement me
 	panic("implement me")
@@ -24,7 +50,7 @@ func (pfs *ProxyFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.Weblen
 	if len(ids) == 0 {
 		return []*fileTree.WeblensFileImpl{}, nil
 	}
-	return callHomeStruct[[]*fileTree.WeblensFileImpl](pfs.Core, "POST", "/files", ids)
+	return CallHomeStruct[[]*fileTree.WeblensFileImpl](pfs.Core, "POST", "/files", ids)
 }
 
 func (pfs *ProxyFileService) GetFileSafe(

@@ -32,7 +32,7 @@ type Task struct {
 
 	updateMu sync.RWMutex
 
-	err any
+	err error
 
 	timeout   time.Time
 	timerLock sync.Mutex
@@ -275,16 +275,11 @@ func (t *Task) error(err error) {
 
 }
 
-func (t *Task) ErrorAndExit(err error, info ...any) {
+func (t *Task) ErrorAndExit(err error) {
 	if err == nil {
 		return
 	}
 
-	var infoMsg string
-	if len(info) > 0 {
-		infoMsg = fmt.Sprintln(info...)
-	}
-	log.ErrTrace(werror.Errorf("%sTask [%s] exited with an error: %s", infoMsg, t.TaskId(), err.Error()))
 	t.error(err)
 	panic(werror.ErrTaskError)
 }

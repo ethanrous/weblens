@@ -425,7 +425,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 
 	var clients []*models.WsClient
 
-	if !cm.instanceService.IsLocalLoaded() || msg.BroadcastType == models.ServerEvent {
+	if msg.BroadcastType == models.ServerEvent {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)

@@ -18,13 +18,13 @@ var _ models.AlbumService = (*AlbumServiceImpl)(nil)
 type AlbumServiceImpl struct {
 	albumsMap map[models.AlbumId]*models.Album
 
-	mediaService *MediaServiceImpl
+	mediaService models.MediaService
 	shareService models.ShareService
 	collection   *mongo.Collection
 }
 
 func NewAlbumService(
-	col *mongo.Collection, mediaService *MediaServiceImpl, shareService models.ShareService,
+	col *mongo.Collection, mediaService models.MediaService, shareService models.ShareService,
 ) *AlbumServiceImpl {
 	return &AlbumServiceImpl{
 		albumsMap: make(map[models.AlbumId]*models.Album),

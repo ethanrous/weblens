@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"net/http"
@@ -10,6 +10,7 @@ import (
 )
 
 func getLifetimesSince(ctx *gin.Context) {
+	pack := getServices(ctx)
 	millisString := ctx.Param("timestamp")
 	millis, err := strconv.ParseInt(millisString, 10, 64)
 	if err != nil {
@@ -20,7 +21,7 @@ func getLifetimesSince(ctx *gin.Context) {
 
 	date := time.UnixMilli(millis)
 
-	lifetimes, err := FileService.GetMediaJournal().GetLifetimesSince(date)
+	lifetimes, err := pack.FileService.GetMediaJournal().GetLifetimesSince(date)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -31,6 +32,7 @@ func getLifetimesSince(ctx *gin.Context) {
 }
 
 func getHistory(ctx *gin.Context) {
-	lts := FileService.GetMediaJournal().GetAllLifetimes()
+	pack := getServices(ctx)
+	lts := pack.FileService.GetMediaJournal().GetAllLifetimes()
 	ctx.JSON(http.StatusOK, lts)
 }

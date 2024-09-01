@@ -111,10 +111,6 @@ func (fs *FileServiceImpl) Size() int {
 	return fs.mediaTree.Size()
 }
 
-func (fs *FileServiceImpl) SetAccessService(accessService *AccessServiceImpl) {
-	fs.accessService = accessService
-}
-
 func (fs *FileServiceImpl) SetMediaService(mediaService *MediaServiceImpl) {
 	fs.mediaService = mediaService
 }
@@ -327,9 +323,11 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 		return werror.Errorf("ReturnFilesFromTrash: trashEntries count does not match trashFiles")
 	}
 
+	trash := trashFiles[0].GetParent()
+
 	event := fs.mediaTree.GetJournal().NewEvent()
 	for i, trashEntry := range trashEntries {
-
+		preFile := trashFiles[i].Freeze()
 		oldParent := fs.mediaTree.Get(trashEntry.OrigParent)
 		if oldParent == nil {
 			homeId := fs.GetFileOwner(trashFiles[i]).HomeId
@@ -337,16 +335,24 @@ func (fs *FileServiceImpl) ReturnFilesFromTrash(
 		}
 
 		_, err = fs.mediaTree.Move(trashFiles[i], oldParent, trashEntry.OrigFilename, false, event)
+		c.PushFileMove(preFile, trashFiles[i])
 
 		if err != nil {
 			return err
 		}
 	}
+	fs.mediaTree.GetJournal().LogEvent(event)
 
 	res, err := fs.trashCol.DeleteMany(context.Background(), filter)
+	if err != nil {
+		return err
+	}
+
 	if res.DeletedCount != int64(len(trashEntries)) {
 		return errors.New("delete trash entry did not get expected delete count")
 	}
+
+	err = fs.ResizeUp(trash, c)
 	if err != nil {
 		return err
 	}
@@ -594,12 +600,14 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 		return "", err
 	}
 
-	defer func(fp *os.File) {
-		err := fp.Close()
-		if err != nil {
-			log.ShowErr(err)
-		}
-	}(fp)
+	if closer, ok := fp.(io.Closer); ok {
+		defer func(fp io.Closer) {
+			err := fp.Close()
+			if err != nil {
+				log.ShowErr(err)
+			}
+		}(closer)
+	}
 
 	_, err = io.CopyBuffer(newHash, fp, buf)
 	if err != nil {

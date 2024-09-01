@@ -51,7 +51,6 @@ import {
 import WeblensButton from '../components/WeblensButton'
 import WeblensInput from '../components/WeblensInput'
 import { WebsocketContext } from '../Context'
-import { downloadSelected } from '../Pages/FileBrowser/FileBrowserLogic'
 import { AlbumData, AuthHeaderT, UserInfoT } from '../types/Types'
 import { clamp } from '../util'
 import { FbMenuModeT, SelectedState, WeblensFile } from './File'
@@ -63,6 +62,7 @@ import {
 } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from '../components/UserInfo'
 import { WeblensShare } from '../Share/Share'
+import { downloadSelected } from '../Pages/FileBrowser/FileBrowserLogic'
 
 type footerNote = {
     hint: string
@@ -430,9 +430,9 @@ function StandardFileMenu({
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
                     }
-                    onClick={(e) => {
+                    onClick={async (e) => {
                         e.stopPropagation()
-                        downloadSelected(
+                        return await downloadSelected(
                             activeItems.items,
                             removeLoading,
                             progDispatch,
@@ -440,6 +440,8 @@ function StandardFileMenu({
                             auth,
                             shareId
                         )
+                            .then(() => true)
+                            .catch(() => false)
                     }}
                 />
             </div>

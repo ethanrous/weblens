@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 )
 
@@ -19,21 +20,20 @@ type InMemoryFS struct {
 	routes   map[string]*memFileReal
 	index    *memFileReal
 	routesMu *sync.RWMutex
+	Pack *models.ServicePack
 }
 
 func (fs *InMemoryFS) loadIndex() string {
-	indexPath, err := filepath.Abs("./ui/dist/index.html")
-	if err != nil {
-		panic("Could not find index file")
-	}
+	indexPath := filepath.Join(internal.GetAppRootDir(), "/ui/dist/index.html")
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
 		ex, err := os.Executable()
 		if err != nil {
 			panic(err)
 		}
-		log.Error.Println("PWD", filepath.Dir(ex))
-		panic("Could not find index file")
+		abs, _ := filepath.Abs(".")
+		log.Error.Println("PWD", filepath.Dir(ex), abs)
+		panic(werror.Errorf("Could not find index file at %s", indexPath))
 	}
 
 	return indexPath
@@ -128,7 +128,7 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 
 	data := addIndexTag("url", fmt.Sprintf("%s/%s", internal.GetHostURL(), loc), string(index.realFile.data))
 
-	fields := getIndexFields(loc)
+	fields := getIndexFields(loc, fs.Pack)
 	for _, field := range fields {
 		data = addIndexTag(field.tag, field.content, data)
 	}
@@ -143,7 +143,8 @@ type indexField struct {
 	content string
 }
 
-func getIndexFields(path string) []indexField {
+func getIndexFields(path string, pack *models.ServicePack) []indexField {
+
 	var fields []indexField
 	var hasImage bool
 
@@ -156,14 +157,16 @@ func getIndexFields(path string) []indexField {
 		}
 
 		shareId := models.ShareId(path[:slashIndex])
-		share := ShareService.Get(shareId)
+		share := pack.ShareService.Get(shareId)
 		if share != nil {
-			f, err := FileService.GetFileSafe(fileTree.FileId(share.GetItemId()), UserService.GetRootUser(), nil)
+			f, err := pack.FileService.GetFileSafe(
+				fileTree.FileId(share.GetItemId()), pack.UserService.GetRootUser(), nil,
+			)
 			if err != nil {
 				log.ErrTrace(err)
 				return fields
 			}
-			m := MediaService.Get(models.ContentId(f.GetContentId()))
+			m := pack.MediaService.Get(models.ContentId(f.GetContentId()))
 			if f != nil {
 				if f.IsDir() {
 					imgUrl := fmt.Sprintf("%s/api/static/folder.png", internal.GetHostURL())
@@ -190,7 +193,7 @@ func getIndexFields(path string) []indexField {
 					},
 				)
 				if m != nil {
-					if MediaService.GetMediaType(m).IsVideo() {
+					if pack.MediaService.GetMediaType(m).IsVideo() {
 						imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", internal.GetHostURL(), f.GetContentId())
 						hasImage = true
 						fields = append(
@@ -232,9 +235,9 @@ func getIndexFields(path string) []indexField {
 		}
 	} else if strings.HasPrefix(path, "albums/") {
 		albumId := models.AlbumId(path[len("albums/"):])
-		album := AlbumService.Get(albumId)
+		album := pack.AlbumService.Get(albumId)
 		if album != nil {
-			media := MediaService.Get(album.GetCover())
+			media := pack.MediaService.Get(album.GetCover())
 			if media != nil {
 				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", internal.GetHostURL(), media.ID())
 				hasImage = true

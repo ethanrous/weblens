@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 )
@@ -18,7 +17,7 @@ type FileEvent struct {
 	ServerId   string        `bson:"serverId"`
 
 	journal     JournalService `bson:"-"`
-	ActionsLock sync.Mutex     `bson:"-"`
+	ActionsLock sync.RWMutex `bson:"-"`
 }
 
 // NewFileEvent returns a FileEvent, a container for multiple FileActions that occur due to the
@@ -44,7 +43,10 @@ func (fe *FileEvent) addAction(a *FileAction) {
 }
 
 func (fe *FileEvent) GetActions() []*FileAction {
-	return internal.SliceConvert[*FileAction](fe.Actions)
+	fe.ActionsLock.RLock()
+	defer fe.ActionsLock.RUnlock()
+
+	return fe.Actions
 }
 
 func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {

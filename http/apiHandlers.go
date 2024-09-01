@@ -1,7 +1,6 @@
-package comm
+package http
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -12,11 +11,9 @@ import (
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service"
-
-	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
 )
@@ -25,26 +22,27 @@ import (
 
 // Create new file upload task, and wait for data
 func newUploadTask(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	upInfo, err := readCtxBody[newUploadBody](ctx)
 	if err != nil {
 		return
 	}
 
-	// c := models.NewBufferedCaster(ClientService)
+	// c := models.NewBufferedCaster (pack.ClientService)
 	meta := models.UploadFilesMeta{
 		ChunkStream:  make(chan models.FileChunk, 10),
 		RootFolderId: upInfo.RootFolderId,
 		ChunkSize:    upInfo.ChunkSize,
 		TotalSize:    upInfo.TotalUploadSize,
-		FileService:  FileService,
-		MediaService: MediaService,
-		TaskService:  TaskService,
-		TaskSubber:   ClientService,
-		User: u,
-		Caster: Caster,
+		FileService:  pack.FileService,
+		MediaService: pack.MediaService,
+		TaskService:  pack.TaskService,
+		TaskSubber:   pack.ClientService,
+		User:         u,
+		Caster:       pack.Caster,
 	}
-	t, err := TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
+	t, err := pack.TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -64,8 +62,9 @@ func newFileUpload(ctx *gin.Context) {
 }
 
 func handleNewFile(uploadTaskId task.TaskId, newFInfo newFileBody, ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	uTask := TaskService.GetTask(uploadTaskId)
+	uTask := pack.TaskService.GetTask(uploadTaskId)
 	if uTask == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -77,15 +76,18 @@ func handleNewFile(uploadTaskId task.TaskId, newFInfo newFileBody, ctx *gin.Cont
 		return
 	}
 
-	parent, err := FileService.GetFileSafe(newFInfo.ParentFolderId, u, nil)
+	parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, nil)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	newName := service.MakeUniqueChildName(parent, newFInfo.NewFileName)
+	child, _ := parent.GetChild(newFInfo.NewFileName)
+	if child != nil {
+		ctx.JSON(http.StatusConflict, gin.H{"error": "File with the same name already exists in folder"})
+	}
 
-	newF, err := FileService.CreateFile(parent, newName)
+	newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -120,9 +122,10 @@ func handleNewFile(uploadTaskId task.TaskId, newFInfo newFileBody, ctx *gin.Cont
 
 // Add chunks of file to previously created task
 func handleUploadChunk(ctx *gin.Context) {
+	pack := getServices(ctx)
 	uploadId := task.TaskId(ctx.Param("uploadId"))
 
-	t := TaskService.GetTask(uploadId)
+	t := pack.TaskService.GetTask(uploadId)
 	if t == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "No upload exists with given id"})
 		return
@@ -165,6 +168,7 @@ func handleUploadChunk(ctx *gin.Context) {
 }
 
 func getFoldersMedia(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	folderIdsStr := ctx.Query("folderIds")
 	var folderIds []fileTree.FileId
@@ -177,7 +181,7 @@ func getFoldersMedia(ctx *gin.Context) {
 
 	var folders []*fileTree.WeblensFileImpl
 	for _, folderId := range folderIds {
-		f, err := FileService.GetFileSafe(folderId, u, nil)
+		f, err := pack.FileService.GetFileSafe(folderId, u, nil)
 		if err != nil {
 			log.ShowErr(err)
 			ctx.Status(http.StatusNotFound)
@@ -186,16 +190,17 @@ func getFoldersMedia(ctx *gin.Context) {
 		folders = append(folders, f)
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"medias": MediaService.RecursiveGetMedia(folders...)})
+	ctx.JSON(http.StatusOK, gin.H{"medias": pack.MediaService.RecursiveGetMedia(folders...)})
 }
 
 func searchFolder(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	folderId := fileTree.FileId(ctx.Param("folderId"))
 	searchStr := ctx.Query("search")
 	filterStr := ctx.Query("filter")
 
-	dir, err := FileService.GetFileSafe(folderId, u, nil)
+	dir, err := pack.FileService.GetFileSafe(folderId, u, nil)
 	if dir == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -234,7 +239,7 @@ func searchFolder(ctx *gin.Context) {
 
 	var filesData []FileInfo
 	for _, f := range files {
-		info, err := formatFileSafe(f, u, nil)
+		info, err := formatFileSafe(f, u, nil, pack)
 		if err != nil {
 			log.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
@@ -247,13 +252,14 @@ func searchFolder(ctx *gin.Context) {
 }
 
 func getFile(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		return
 	}
 
 	fileId := fileTree.FileId(ctx.Param("fileId"))
-	file, err := FileService.GetFileSafe(fileId, u, nil)
+	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file"})
@@ -265,7 +271,7 @@ func getFile(ctx *gin.Context) {
 		return
 	}
 
-	formattedInfo, err := formatFileSafe(file, u, nil)
+	formattedInfo, err := formatFileSafe(file, u, nil, pack)
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to format file info"})
@@ -276,6 +282,7 @@ func getFile(ctx *gin.Context) {
 }
 
 func updateFile(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	fileId := fileTree.FileId(ctx.Param("fileId"))
 	updateInfo, err := readCtxBody[fileUpdateBody](ctx)
@@ -283,18 +290,18 @@ func updateFile(ctx *gin.Context) {
 		return
 	}
 
-	file, err := FileService.GetFileSafe(fileId, u, nil)
+	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	if FileService.IsFileInTrash(file) {
+	if pack.FileService.IsFileInTrash(file) {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "cannot rename file in trash"})
 		return
 	}
 
-	err = FileService.RenameFile(file, updateInfo.NewName, Caster)
+	err = pack.FileService.RenameFile(file, updateInfo.NewName, pack.Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -305,6 +312,7 @@ func updateFile(ctx *gin.Context) {
 }
 
 func trashFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
 	fileIds, err := readCtxBody[[]fileTree.FileId](ctx)
 	if err != nil {
 		return
@@ -314,18 +322,18 @@ func trashFiles(ctx *gin.Context) {
 	var failed []fileTree.FileId
 
 	for _, fileId := range fileIds {
-		file, err := FileService.GetFileSafe(fileId, u, nil)
+		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 		if file == nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to trash"})
 			return
 		}
 
-		if u != FileService.GetFileOwner(file) {
+		if u != pack.FileService.GetFileOwner(file) {
 			ctx.Status(http.StatusNotFound)
 			return
 		}
 
-		err = FileService.MoveFileToTrash(file, u, nil, Caster)
+		err = pack.FileService.MoveFileToTrash(file, u, nil, pack.Caster)
 		if err != nil {
 			log.ErrTrace(err)
 			failed = append(failed, fileId)
@@ -341,31 +349,32 @@ func trashFiles(ctx *gin.Context) {
 }
 
 func deleteFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	fileIds, err := readCtxBody[[]fileTree.FileId](ctx)
 	if err != nil {
 		return
 	}
-	// caster := models.NewBufferedCaster(ClientService)
+	// caster := models.NewBufferedCaster (pack.ClientService)
 	// defer caster.Close()
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
-		file, err := FileService.GetFileSafe(fileId, u, nil)
+		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
 			return
-		} else if u != FileService.GetFileOwner(file) {
+		} else if u != pack.FileService.GetFileOwner(file) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
 			return
-		} else if !FileService.IsFileInTrash(file) {
+		} else if !pack.FileService.IsFileInTrash(file) {
 			ctx.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete file not in trash"})
 			return
 		}
 		files = append(files, file)
 	}
 
-	err = FileService.PermanentlyDeleteFiles(files, Caster)
+	err = pack.FileService.PermanentlyDeleteFiles(files, pack.Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -376,6 +385,7 @@ func deleteFiles(ctx *gin.Context) {
 }
 
 func unTrashFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
@@ -396,20 +406,20 @@ func unTrashFiles(ctx *gin.Context) {
 		return
 	}
 
-	caster := models.NewBufferedCaster(ClientService)
+	caster := models.NewBufferedCaster(pack.ClientService)
 	defer caster.Close()
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
-		file, err := FileService.GetFileSafe(fileId, u, nil)
-		if err != nil || u != FileService.GetFileOwner(file) {
+		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+		if err != nil || u != pack.FileService.GetFileOwner(file) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to untrash"})
 			return
 		}
 		files = append(files, file)
 	}
 
-	err = FileService.ReturnFilesFromTrash(files, caster)
+	err = pack.FileService.ReturnFilesFromTrash(files, caster)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -420,9 +430,10 @@ func unTrashFiles(ctx *gin.Context) {
 }
 
 func createTakeout(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		u = UserService.GetPublicUser()
+		u = pack.UserService.GetPublicUser()
 	}
 
 	takeoutRequest, err := readCtxBody[takeoutFiles](ctx)
@@ -441,7 +452,7 @@ func createTakeout(ctx *gin.Context) {
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range takeoutRequest.FileIds {
-		file, err := FileService.GetFileSafe(fileId, u, share)
+		file, err := pack.FileService.GetFileSafe(fileId, u, share)
 		if err == nil {
 			ctx.JSON(http.StatusNotFound, err)
 			return
@@ -457,14 +468,14 @@ func createTakeout(ctx *gin.Context) {
 		return
 	}
 
-	caster := models.NewSimpleCaster(ClientService)
+	caster := models.NewSimpleCaster(pack.ClientService)
 	meta := models.ZipMeta{
 		Files:     files,
 		Requester: u,
 		Share:     share,
 		Caster:    caster,
 	}
-	t, err := TaskService.DispatchJob(models.CreateZipTask, meta, nil)
+	t, err := pack.TaskService.DispatchJob(models.CreateZipTask, meta, nil)
 
 	completed, status := t.Status()
 	if completed && status == task.TaskSuccess {
@@ -475,9 +486,10 @@ func createTakeout(ctx *gin.Context) {
 }
 
 func downloadFile(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		u = UserService.GetPublicUser()
+		u = pack.UserService.GetPublicUser()
 	}
 
 	fileId := fileTree.FileId(ctx.Param("fileId"))
@@ -487,7 +499,7 @@ func downloadFile(ctx *gin.Context) {
 		return
 	}
 
-	file, err := FileService.GetFileSafe(fileId, u, share)
+	file, err := pack.FileService.GetFileSafe(fileId, u, share)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, err)
 		return
@@ -497,12 +509,13 @@ func downloadFile(ctx *gin.Context) {
 }
 
 func loginUser(ctx *gin.Context) {
+	pack := getServices(ctx)
 	userCredentials, err := readCtxBody[loginBody](ctx)
 	if err != nil {
 		return
 	}
 
-	u := UserService.Get(userCredentials.Username)
+	u := pack.UserService.Get(userCredentials.Username)
 	if u == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -511,25 +524,27 @@ func loginUser(ctx *gin.Context) {
 	if u.CheckLogin(userCredentials.Password) {
 		log.Info.Printf("Valid login for [%s]\n", userCredentials.Username)
 
-		if token := u.GetToken(); token == "" {
-			ctx.Status(http.StatusInternalServerError)
-		} else {
-			ctx.JSON(http.StatusOK, gin.H{"token": token, "user": u})
+		var token string
+		if token = u.GetToken(); token == "" {
+			token, err = pack.AccessService.GenerateJwtToken(u)
+			if err != nil || token == "" {
+				log.Error.Println("Could not get login token")
+				ctx.Status(http.StatusInternalServerError)
+			}
 		}
+		ctx.JSON(http.StatusOK, gin.H{"token": token, "user": u})
 	} else {
+		log.Error.Printf("Invalid login for [%s]", userCredentials.Username)
 		ctx.Status(http.StatusNotFound)
 	}
 
 }
 
 func getUserInfo(ctx *gin.Context) {
-	// if types.SERV.GetFileTreeSafley() == nil {
-	// 	ctx.Status(comm.StatusServiceUnavailable)
-	// 	return
-	// }
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		if InstanceService.GetLocal().ServerRole() == models.InitServer {
+		if pack.InstanceService.GetLocal().ServerRole() == models.InitServer {
 			ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 			return
 		}
@@ -540,13 +555,14 @@ func getUserInfo(ctx *gin.Context) {
 }
 
 func getUsers(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil || !u.IsAdmin() {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	usersIter, err := UserService.GetAll()
+	usersIter, err := pack.UserService.GetAll()
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -557,6 +573,7 @@ func getUsers(ctx *gin.Context) {
 }
 
 func updateUserPassword(ctx *gin.Context) {
+	pack := getServices(ctx)
 	reqUser := getUserFromCtx(ctx)
 	if reqUser == nil {
 		ctx.Status(http.StatusUnauthorized)
@@ -564,7 +581,7 @@ func updateUserPassword(ctx *gin.Context) {
 	}
 
 	updateUsername := models.Username(ctx.Param("username"))
-	updateUser := UserService.Get(updateUsername)
+	updateUser := pack.UserService.Get(updateUsername)
 
 	if updateUser == nil {
 		ctx.Status(http.StatusNotFound)
@@ -585,7 +602,7 @@ func updateUserPassword(ctx *gin.Context) {
 		return
 	}
 
-	err = UserService.UpdateUserPassword(
+	err = pack.UserService.UpdateUserPassword(
 		updateUser.GetUsername(), passUpd.OldPass, passUpd.NewPass, reqUser.IsOwner(),
 	)
 
@@ -604,6 +621,7 @@ func updateUserPassword(ctx *gin.Context) {
 }
 
 func setUserAdmin(ctx *gin.Context) {
+	pack := getServices(ctx)
 	owner := getUserFromCtx(ctx)
 	if !owner.IsOwner() {
 		ctx.Status(http.StatusUnauthorized)
@@ -615,9 +633,9 @@ func setUserAdmin(ctx *gin.Context) {
 	}
 
 	username := models.Username(ctx.Param("username"))
-	u := UserService.Get(username)
+	u := pack.UserService.Get(username)
 
-	err = UserService.SetUserAdmin(u, update.Admin)
+	err = pack.UserService.SetUserAdmin(u, update.Admin)
 	if err != nil {
 		if errors.Is(err, werror.ErrUserNotFound) {
 			ctx.Status(http.StatusNotFound)
@@ -632,9 +650,10 @@ func setUserAdmin(ctx *gin.Context) {
 }
 
 func activateUser(ctx *gin.Context) {
+	pack := getServices(ctx)
 	username := models.Username(ctx.Param("username"))
-	u := UserService.Get(username)
-	err := UserService.ActivateUser(u)
+	u := pack.UserService.Get(username)
+	err := pack.UserService.ActivateUser(u)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -644,17 +663,18 @@ func activateUser(ctx *gin.Context) {
 }
 
 func deleteUser(ctx *gin.Context) {
+	pack := getServices(ctx)
 	username := models.Username(ctx.Param("username"))
 	// User to delete username
 	// *cannot* use getUserFromCtx() here because that
 	// will grab the user making the request, not the
 	// username from the Param  \/
-	u := UserService.Get(username)
+	u := pack.UserService.Get(username)
 	if u == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "user with given username does not exist"})
 		return
 	}
-	err := UserService.Del(u.GetUsername())
+	err := pack.UserService.Del(u.GetUsername())
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -665,7 +685,8 @@ func deleteUser(ctx *gin.Context) {
 }
 
 func clearCache(ctx *gin.Context) {
-	err := MediaService.NukeCache()
+	pack := getServices(ctx)
+	err := pack.MediaService.NukeCache()
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -677,13 +698,14 @@ func clearCache(ctx *gin.Context) {
 }
 
 func searchUsers(ctx *gin.Context) {
+	pack := getServices(ctx)
 	filter := ctx.Query("filter")
 	if len(filter) < 2 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User autocomplete must contain at least 2 characters"})
 		return
 	}
 
-	users, err := UserService.SearchByUsername(filter)
+	users, err := pack.UserService.SearchByUsername(filter)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -694,6 +716,7 @@ func searchUsers(ctx *gin.Context) {
 }
 
 func createFileShare(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
@@ -705,13 +728,13 @@ func createFileShare(ctx *gin.Context) {
 		return
 	}
 
-	f, err := FileService.GetFileSafe(shareInfo.FileId, u, nil)
+	f, err := pack.FileService.GetFileSafe(shareInfo.FileId, u, nil)
 	if err != nil {
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
-	_, err = ShareService.GetFileShare(f)
+	_, err = pack.ShareService.GetFileShare(f)
 	if err == nil {
 		ctx.Status(http.StatusConflict)
 		return
@@ -723,12 +746,12 @@ func createFileShare(ctx *gin.Context) {
 
 	accessors := internal.Map(
 		shareInfo.Users, func(un models.Username) *models.User {
-			return UserService.Get(un)
+			return pack.UserService.Get(un)
 		},
 	)
 	newShare := models.NewFileShare(f, u, accessors, shareInfo.Public, shareInfo.Wormhole)
 
-	err = ShareService.Add(newShare)
+	err = pack.ShareService.Add(newShare)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -739,14 +762,15 @@ func createFileShare(ctx *gin.Context) {
 }
 
 func deleteShare(ctx *gin.Context) {
+	pack := getServices(ctx)
 	shareId := models.ShareId(ctx.Param("shareId"))
 
-	s := ShareService.Get(shareId)
+	s := pack.ShareService.Get(shareId)
 	if s == nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-	err := ShareService.Del(s.GetShareId())
+	err := pack.ShareService.Del(s.GetShareId())
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -757,6 +781,7 @@ func deleteShare(ctx *gin.Context) {
 }
 
 func addUserToFileShare(ctx *gin.Context) {
+	pack := getServices(ctx)
 	user := getUserFromCtx(ctx)
 
 	share, err := getShareFromCtx[*models.FileShare](ctx)
@@ -764,7 +789,7 @@ func addUserToFileShare(ctx *gin.Context) {
 		return
 	}
 
-	if !AccessService.CanUserModifyShare(user, share) {
+	if !pack.AccessService.CanUserModifyShare(user, share) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -776,8 +801,8 @@ func addUserToFileShare(ctx *gin.Context) {
 		return
 	}
 
-	users := internal.Map(ub.Users, func(un models.Username) *models.User { return UserService.Get(un) })
-	err = ShareService.AddUsers(share, users)
+	users := internal.Map(ub.Users, func(un models.Username) *models.User { return pack.UserService.Get(un) })
+	err = pack.ShareService.AddUsers(share, users)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -788,13 +813,14 @@ func addUserToFileShare(ctx *gin.Context) {
 }
 
 func newApiKey(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if !u.IsAdmin() {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
-	newKey, err := AccessService.GenerateApiKey(u)
+	newKey, err := pack.AccessService.GenerateApiKey(u)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -805,13 +831,14 @@ func newApiKey(ctx *gin.Context) {
 }
 
 func getApiKeys(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
-	keys, err := AccessService.GetAllKeys(u)
+	keys, err := pack.AccessService.GetAllKeys(u)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -822,15 +849,16 @@ func getApiKeys(ctx *gin.Context) {
 }
 
 func deleteApiKey(ctx *gin.Context) {
+	pack := getServices(ctx)
 	key := models.WeblensApiKey(ctx.Param("keyId"))
-	keyInfo, err := AccessService.Get(key)
+	keyInfo, err := pack.AccessService.GetApiKey(key)
 	if err != nil || keyInfo.Key == "" {
 		log.ShowErr(err)
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	err = AccessService.Del(key)
+	err = pack.AccessService.DeleteApiKey(key)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -841,14 +869,15 @@ func deleteApiKey(ctx *gin.Context) {
 }
 
 func getFolderStats(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		u = UserService.GetPublicUser()
+		u = pack.UserService.GetPublicUser()
 	}
 
 	fileId := fileTree.FileId(ctx.Param("folderId"))
 
-	rootFolder, err := FileService.GetFileSafe(fileId, u, nil)
+	rootFolder, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -881,8 +910,9 @@ func getRandomMedias(ctx *gin.Context) {
 }
 
 func initializeServer(ctx *gin.Context) {
+	pack := getServices(ctx)
 	// Can't init server if already initialized
-	if InstanceService.GetLocal().ServerRole() != models.InitServer {
+	if pack.InstanceService.GetLocal().ServerRole() != models.InitServer {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -894,99 +924,60 @@ func initializeServer(ctx *gin.Context) {
 		return
 	}
 
+	if (si.Role != models.CoreServer && si.Role != models.BackupServer) || si.Name == "" {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
 	if si.Role == models.CoreServer {
-		localCore := models.NewInstance("", si.Name, si.CoreKey, models.BackupServer, true, si.CoreAddress)
-		err := InstanceService.InitCore(localCore)
+		if si.Username == "" || si.Password == "" {
+			ctx.Status(http.StatusBadRequest)
+			return
+		}
+
+		owner, err := models.NewUser(si.Username, si.Password, true, true)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		err = pack.UserService.Add(owner)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		err = pack.InstanceService.InitCore(si.Name)
 		if err != nil {
 			log.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
 			return
 		}
-		ctx.Status(http.StatusCreated)
+
+		pack.Server.UseCore()
 	} else if si.Role == models.BackupServer {
 
 		if si.CoreAddress[len(si.CoreAddress)-1:] != "/" {
 			si.CoreAddress += "/"
 		}
-
-		// proxyStore := proxy.NewProxyStore(si.CoreAddress, si.CoreKey)
-		// proxyStore.Init(types.SERV.StoreService)
-		// types.SERV.SetStore(proxyStore)
-		//
-		// err = InstanceService.InitBackup(si.Name, si.CoreAddress, si.CoreKey, proxyStore)
-		// if err != nil {
-		// 	types.SERV.SetStore(dbStore)
-		// 	wlog.ShowErr(err)
-		// 	ctx.Status(http.StatusBadRequest)
-		// 	return
-		// }
-		//
-		// err = UserService.Init(proxyStore)
-		// if err != nil {
-		// 	wlog.ShowErr(err)
-		// 	ctx.Status(http.StatusInternalServerError)
-		// 	return
-		// }
-		//
-		// err = FileService.GetJournal().Init(proxyStore)
-		// if err != nil {
-		// 	wlog.ShowErr(err)
-		// 	ctx.Status(http.StatusInternalServerError)
-		// 	return
-		// }
-		//
-		// err = FileService.Init(proxyStore)
-		// if err != nil {
-		// 	wlog.ShowErr(err)
-		// 	ctx.Status(http.StatusInternalServerError)
-		// 	return
-		// }
-		//
-		// hashCaster := NewCaster(ClientService)
-		// err = FileService.InitMediaRoot(hashCaster)
-		// if err != nil {
-		// 	wlog.ErrTrace(err)
-		// 	ctx.Status(http.StatusInternalServerError)
-		// 	return
-		// }
-		//
-		// core := InstanceService.GetCore()
-		// err = WebsocketToCore(core, ClientService)
-		// if err != nil {
-		// 	wlog.ErrTrace(err)
-		// 	ctx.Status(http.StatusInternalServerError)
-		// 	return
-		// }
-		//
-		// for types.SERV.ClientManager.GetClientByInstanceId(core.ServerId()) == nil {
-		// 	wlog.Info.Println("Waiting for core websocket to connect")
-		// 	time.Sleep(RetryInterval)
-		// }
-		//
-		// meta := weblens.BackupMeta{RemoteId: core.ServerId()}
-		// _, err = TaskService.DispatchJob(weblens.BackupTask, meta, nil)
-		// if err != nil {
-		// 	wlog.ShowErr(err)
-		// 	ctx.Status(http.StatusInternalServerError)
-		// 	return
-		// }
+		err = pack.InstanceService.InitBackup(si.Name, si.CoreAddress, si.CoreKey)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusBadRequest)
+			return
+		}
 	}
 
-	// We must spawn a go routine for a router restart coming from an HTTP request,
-	// or else we will enter a deadlock where the router waits for this HTTP request to finish,
-	// and this thread waits for the router to close...
-	go func() {
-		err = Server.Shutdown(context.Background())
-		if err != nil {
-			log.ErrTrace(err)
-		}
-	}()
+	pack.Server.UseApi()
 
 	ctx.Status(http.StatusCreated)
 }
 
 func getServerInfo(ctx *gin.Context) {
-	// if InstanceService.GetLocal().ServerRole() == types.Initialization {
+	pack := getServices(ctx)
+	// if  pack.InstanceService.GetLocal().ServerRole() == types.Initialization {
 	// 	ctx.JSON(comm.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 	// 	return
 	// }
@@ -994,9 +985,9 @@ func getServerInfo(ctx *gin.Context) {
 	ctx.JSON(
 		http.StatusOK,
 		gin.H{
-			"info":      InstanceService.GetLocal(),
-			"started":   InstanceService.IsLocalLoaded(),
-			"userCount": UserService.Size(),
+			"info":      pack.InstanceService.GetLocal(),
+			"started":   pack.Loaded.Load(),
+			"userCount": pack.UserService.Size(),
 		},
 	)
 }

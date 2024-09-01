@@ -62,7 +62,6 @@ func BackupD(
 }
 
 func DoBackup(t *task.Task) {
-	// t.ErrorAndExit(errors.New("backup task not implemented"))
 	meta := t.GetMeta().(models.BackupMeta)
 	localRole := meta.InstanceService.GetLocal().ServerRole()
 
@@ -74,7 +73,7 @@ func DoBackup(t *task.Task) {
 
 	coreClient := meta.WebsocketService.GetClientByInstanceId(meta.RemoteId)
 	if coreClient == nil {
-		t.ErrorAndExit(errors.New("Core websocket not connected"))
+		t.ErrorAndExit(werror.Errorf("Core websocket not connected"))
 	}
 
 	users, err := meta.ProxyUserService.GetAll()

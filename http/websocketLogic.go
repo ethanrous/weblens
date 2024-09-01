@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"encoding/json"
@@ -14,14 +14,24 @@ import (
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
+	gorilla "github.com/gorilla/websocket"
 )
 
 type WsAuthorize struct {
 	Auth string `json:"auth"`
 }
 
+var upgrader = gorilla.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
 func wsConnect(ctx *gin.Context) {
-	if ClientService == nil {
+	pack := getServices(ctx)
+	if pack.ClientService == nil {
 		ctx.Status(http.StatusServiceUnavailable)
 		return
 	}
@@ -65,20 +75,20 @@ func wsConnect(ctx *gin.Context) {
 	}
 
 	if user != nil {
-		client := ClientService.ClientConnect(conn, user)
-		go wsMain(client)
+		client := pack.ClientService.ClientConnect(conn, user)
+		go wsMain(client, pack)
 	} else if instance != nil {
-		client := ClientService.RemoteConnect(conn, instance)
-		go wsMain(client)
+		client := pack.ClientService.RemoteConnect(conn, instance)
+		go wsMain(client, pack)
 	} else {
 		log.Error.Println("Hat trick nil on WebsocketAuth", auth.Auth)
 		return
 	}
 }
 
-func wsMain(c *models.WsClient) {
-	defer ClientService.ClientDisconnect(c)
-	var switchboard func([]byte, *models.WsClient)
+func wsMain(c *models.WsClient, pack *models.ServicePack) {
+	defer pack.ClientService.ClientDisconnect(c)
+	var switchboard func([]byte, *models.WsClient, *models.ServicePack)
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
@@ -91,11 +101,11 @@ func wsMain(c *models.WsClient) {
 		if err != nil {
 			break
 		}
-		go switchboard(buf, c)
+		go switchboard(buf, c, pack)
 	}
 }
 
-func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
+func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
 	defer wsRecover(c)
 
 	var msg models.WsRequestInfo
@@ -106,7 +116,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 	}
 
 	if msg.Action == models.ReportError {
-		log.Error.Println("Client error:", msg.Content)
+		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)
 		return
 	}
 
@@ -128,14 +138,14 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 			folderSub := subInfo.(*folderSubscribeMeta)
 			var share models.Share
 			if folderSub.ShareId != "" {
-				share = ShareService.Get(folderSub.ShareId)
+				share = pack.ShareService.Get(folderSub.ShareId)
 				if share == nil {
 					c.Error(errors.New("share not found"))
 					return
 				}
 			}
 
-			complete, result, err := ClientService.Subscribe(
+			complete, result, err := pack.ClientService.Subscribe(
 				c, subInfo.GetKey(), models.FolderSubscribe, time.UnixMilli(msg.SentAt), share,
 			)
 			if err != nil {
@@ -144,8 +154,8 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 			}
 
 			if complete {
-				Caster.PushTaskUpdate(
-					TaskService.GetTask(task.TaskId(subInfo.GetKey())), models.TaskCompleteEvent,
+				pack.Caster.PushTaskUpdate(
+					pack.TaskService.GetTask(task.TaskId(subInfo.GetKey())), models.TaskCompleteEvent,
 					result,
 				)
 			}
@@ -158,22 +168,22 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 
 		if strings.HasPrefix(string(key), "TID#") {
 			key = key[4:]
-			complete, result, err := ClientService.Subscribe(c, key, models.TaskSubscribe, time.Now(), nil)
+			complete, result, err := pack.ClientService.Subscribe(c, key, models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
 				c.Error(err)
 				return
 			}
 
 			if complete {
-				Caster.PushTaskUpdate(
-					TaskService.GetTask(task.TaskId(key)), models.TaskCompleteEvent,
+				pack.Caster.PushTaskUpdate(
+					pack.TaskService.GetTask(task.TaskId(key)), models.TaskCompleteEvent,
 					result,
 				)
 			}
 		} else if strings.HasPrefix(string(key), "TT#") {
 			key = key[3:]
 
-			_, _, err := ClientService.Subscribe(c, key, models.TaskTypeSubscribe, time.Now(), nil)
+			_, _, err := pack.ClientService.Subscribe(c, key, models.TaskTypeSubscribe, time.Now(), nil)
 			if err != nil {
 				c.Error(err)
 			}
@@ -191,7 +201,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 			key = key[3:]
 		}
 
-		err = ClientService.Unsubscribe(c, key, time.UnixMilli(msg.SentAt))
+		err = pack.ClientService.Unsubscribe(c, key, time.UnixMilli(msg.SentAt))
 		if err != nil {
 			c.Error(err)
 			return
@@ -199,27 +209,27 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 
 	case models.ScanDirectory:
 		{
-			if InstanceService.GetLocal().ServerRole() == models.BackupServer {
+			if pack.InstanceService.GetLocal().ServerRole() == models.BackupServer {
 				return
 			}
 
-			folder, err := FileService.GetFileSafe(fileTree.FileId(subInfo.GetKey()), c.GetUser(), nil)
+			folder, err := pack.FileService.GetFileSafe(fileTree.FileId(subInfo.GetKey()), c.GetUser(), nil)
 			if err != nil {
 				c.Error(errors.New("could not find directory to scan"))
 				return
 			}
 
-			newCaster := models.NewSimpleCaster(ClientService)
-			// newCaster := models.NewBufferedCaster(ClientService)
+			newCaster := models.NewSimpleCaster(pack.ClientService)
+			// newCaster := models.NewBufferedCaster (pack.ClientService)
 			meta := models.ScanMeta{
 				File:         folder,
-				FileService:  FileService,
-				MediaService: MediaService,
-				TaskService:  TaskService,
+				FileService:  pack.FileService,
+				MediaService: pack.MediaService,
+				TaskService:  pack.TaskService,
 				Caster:       newCaster,
-				TaskSubber:   ClientService,
+				TaskSubber:   pack.ClientService,
 			}
-			t, err := TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
+			t, err := pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
 			if err != nil {
 				c.Error(err)
 				return
@@ -230,7 +240,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 				},
 			)
 
-			_, _, err = ClientService.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil)
+			_, _, err = pack.ClientService.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
 				c.Error(err)
 				return
@@ -240,7 +250,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 	case models.CancelTask:
 		{
 			tpId := subInfo.GetKey()
-			taskPool := TaskService.GetTaskPool(task.TaskId(tpId))
+			taskPool := pack.TaskService.GetTaskPool(task.TaskId(tpId))
 			if taskPool == nil {
 				c.Error(errors.New("could not find task pool to cancel"))
 				return
@@ -257,7 +267,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 	}
 }
 
-func wsInstanceClientSwitchboard(msgBuf []byte, c *models.WsClient) {
+func wsInstanceClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
 	defer wsRecover(c)
 
 	var msg models.WsResponseInfo
@@ -267,7 +277,7 @@ func wsInstanceClientSwitchboard(msgBuf []byte, c *models.WsClient) {
 		return
 	}
 
-	Caster.Relay(msg)
+	pack.Caster.Relay(msg)
 }
 
 func wsRecover(c models.Client) {

@@ -1,11 +1,8 @@
-package comm
+package http
 
 import (
-	"errors"
-	"flag"
 	"net/http"
 	"net/url"
-	"regexp"
 	"time"
 
 	"github.com/ethrousseau/weblens/internal/log"
@@ -22,19 +19,23 @@ func WebsocketToCore(core *models.Instance, clientService models.ClientManager) 
 		return err
 	}
 
-	if addrStr == "" {
-		return errors.New("Core server address is empty")
-	}
-
-	re, err := regexp.Compile(`http(s)?://([^/]*)`)
+	coreUrl, err := url.Parse(addrStr)
 	if err != nil {
 		return werror.WithStack(err)
 	}
 
-	parts := re.FindStringSubmatch(addrStr)
+	if coreUrl.Host == "" {
+		return werror.Errorf("Failed to parse core address: %s", addrStr)
+	}
 
-	addr := flag.String("addr", parts[2], "http service address")
-	host := url.URL{Scheme: "ws" + parts[1], Host: *addr, Path: "/api/core/ws"}
+	if coreUrl.Scheme == "https" {
+		coreUrl.Scheme = "wss"
+	} else {
+		coreUrl.Scheme = "ws"
+	}
+
+	coreUrl.Path = "/api/ws"
+
 	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
 
 	authHeader := http.Header{}
@@ -42,13 +43,12 @@ func WebsocketToCore(core *models.Instance, clientService models.ClientManager) 
 	var conn *models.WsClient
 	go func() {
 		for {
-			conn, err = dial(dialer, host, authHeader, core, clientService)
+			conn, err = dial(dialer, *coreUrl, authHeader, core, clientService)
 			if err != nil {
-				log.Warning.Printf(
-					"Failed to connect to core server at %s, trying again in %s",
-					host.String(), RetryInterval,
+				log.Error.Printf(
+					"Failed to connect to core server at %s:\n%sTrying again in %s",
+					coreUrl.String(), err, RetryInterval,
 				)
-				log.Debug.Println("Error was", err)
 				time.Sleep(RetryInterval)
 				continue
 			}

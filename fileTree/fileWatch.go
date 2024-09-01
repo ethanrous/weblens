@@ -107,13 +107,13 @@ func (j *JournalServiceImpl) WatchFolder(f *WeblensFileImpl) error {
 	// 	return nil
 	// }
 
-	err := f.SetWatching()
-	if err != nil {
-		return err
-	}
+	// err := f.SetWatching()
+	// if err != nil {
+	// 	return err
+	// }
 
-	newMod := watcherPathMod{path: f.GetAbsPath(), add: true}
-	pathModChan <- newMod
+	// newMod := watcherPathMod{path: f.GetAbsPath(), add: true}
+	// pathModChan <- newMod
 
 	return nil
 }

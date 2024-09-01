@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"errors"
@@ -14,7 +14,8 @@ import (
 )
 
 func ping(ctx *gin.Context) {
-	local := InstanceService.GetLocal()
+	pack := getServices(ctx)
+	local := pack.InstanceService.GetLocal()
 	if local == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "weblens not initialized"})
 		return
@@ -23,7 +24,8 @@ func ping(ctx *gin.Context) {
 }
 
 func attachRemote(ctx *gin.Context) {
-	local := InstanceService.GetLocal()
+	pack := getServices(ctx)
+	local := pack.InstanceService.GetLocal()
 	if local.ServerRole() == models.BackupServer {
 		ctx.JSON(
 			http.StatusBadRequest,
@@ -39,7 +41,7 @@ func attachRemote(ctx *gin.Context) {
 
 	newRemote := models.NewInstance(nr.Id, nr.Name, nr.UsingKey, models.BackupServer, false, "")
 
-	err = InstanceService.Add(newRemote)
+	err = pack.InstanceService.Add(newRemote)
 	if err != nil {
 		if errors.Is(err, werror.ErrKeyInUse) {
 			ctx.Status(http.StatusConflict)
@@ -51,10 +53,11 @@ func attachRemote(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, InstanceService.GetLocal())
+	ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
 }
 
 func getFileBytes(ctx *gin.Context) {
+	pack := getServices(ctx)
 	remote := getRemoteFromCtx(ctx)
 	if remote == nil {
 		ctx.Status(http.StatusBadRequest)
@@ -62,7 +65,7 @@ func getFileBytes(ctx *gin.Context) {
 	}
 
 	fileId := fileTree.FileId(ctx.Param("fileId"))
-	f, err := FileService.GetFile(fileId)
+	f, err := pack.FileService.GetFile(fileId)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -78,7 +81,9 @@ func getFileBytes(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
-	defer readable.Close()
+	if closer, ok := readable.(io.Closer); ok {
+		defer closer.Close()
+	}
 
 	_, err = io.Copy(ctx.Writer, readable)
 	if err != nil {
@@ -90,10 +95,11 @@ func getFileBytes(ctx *gin.Context) {
 }
 
 func getFileMeta(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 
 	fileId := fileTree.FileId(ctx.Param("fileId"))
-	f, err := FileService.GetFileSafe(fileId, u, nil)
+	f, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -103,6 +109,7 @@ func getFileMeta(ctx *gin.Context) {
 }
 
 func getFilesMeta(ctx *gin.Context) {
+	pack := getServices(ctx)
 	ids, err := readCtxBody[[]fileTree.FileId](ctx)
 	if err != nil {
 		// safe, code := werror.TrySafeErr(err)
@@ -111,7 +118,7 @@ func getFilesMeta(ctx *gin.Context) {
 	}
 
 	if len(ids) != 0 {
-		files, err := FileService.GetFiles(ids)
+		files, err := pack.FileService.GetFiles(ids)
 		if err != nil {
 			safe, code := werror.TrySafeErr(err)
 			ctx.JSON(code, safe)
@@ -121,7 +128,7 @@ func getFilesMeta(ctx *gin.Context) {
 	}
 
 	var files []*fileTree.WeblensFileImpl
-	err = FileService.GetMediaRoot().RecursiveMap(
+	err = pack.FileService.GetMediaRoot().RecursiveMap(
 		func(file *fileTree.WeblensFileImpl) error {
 			files = append(files, file)
 			return nil
@@ -137,7 +144,8 @@ func getFilesMeta(ctx *gin.Context) {
 }
 
 func getRemotes(ctx *gin.Context) {
-	srvs := InstanceService.GetRemotes()
+	pack := getServices(ctx)
+	srvs := pack.InstanceService.GetRemotes()
 
 	serverInfos := internal.Map(
 		srvs, func(srv *models.Instance) models.ServerInfo {
@@ -149,7 +157,7 @@ func getRemotes(ctx *gin.Context) {
 				Role:         srv.ServerRole(),
 				IsThisServer: srv.IsLocal(),
 				Address:      addr,
-				Online: ClientService.GetClientByInstanceId(srv.ServerId()) != nil,
+				Online: pack.ClientService.GetClientByInstanceId(srv.ServerId()) != nil,
 			}
 		},
 	)
@@ -158,12 +166,13 @@ func getRemotes(ctx *gin.Context) {
 }
 
 func removeRemote(ctx *gin.Context) {
+	pack := getServices(ctx)
 	body, err := readCtxBody[deleteRemoteBody](ctx)
 	if err != nil {
 		return
 	}
 
-	err = InstanceService.Del(body.RemoteId)
+	err = pack.InstanceService.Del(body.RemoteId)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)

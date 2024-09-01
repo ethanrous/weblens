@@ -11,11 +11,20 @@ type FileService interface {
 	GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
 	GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error)
 	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFileImpl, error)
+	GetMediaRoot() *fileTree.WeblensFileImpl
+	PathToFile(searchPath string, user *User, share *FileShare) (
+		*fileTree.WeblensFileImpl,
+		[]*fileTree.WeblensFileImpl, error,
+	)
+
+	CreateFile(parent *fileTree.WeblensFileImpl, filename string) (*fileTree.WeblensFileImpl, error)
+	CreateFolder(parent *fileTree.WeblensFileImpl, foldername string, caster FileCaster) (
+		*fileTree.WeblensFileImpl, error,
+	)
+	ImportFile(f *fileTree.WeblensFileImpl) error
 
 	GetFileOwner(file *fileTree.WeblensFileImpl) *User
 	IsFileInTrash(file *fileTree.WeblensFileImpl) bool
-
-	ImportFile(f *fileTree.WeblensFileImpl) error
 
 	MoveFiles(files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, caster FileCaster,) error
 	RenameFile(file *fileTree.WeblensFileImpl, newName string, caster FileCaster) error

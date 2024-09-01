@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"encoding/json"
@@ -10,16 +10,15 @@ import (
 	"time"
 
 	"github.com/ethanrous/bimg"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/service"
-
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/gin"
 )
 
 func getMediaBatch(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
@@ -66,11 +65,11 @@ func getMediaBatch(ctx *gin.Context) {
 
 	var mediaFilter []models.ContentId
 	for _, albumId := range albumFilter {
-		a := AlbumService.Get(albumId)
+		a := pack.AlbumService.Get(albumId)
 		mediaFilter = append(mediaFilter, a.GetMedias()...)
 	}
 
-	ms, err := MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden)
+	ms, err := pack.MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden)
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve media"})
@@ -88,12 +87,14 @@ func getMediaBatch(ctx *gin.Context) {
 }
 
 func getMediaTypes(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, MediaService.GetMediaTypes())
+	pack := getServices(ctx)
+	ctx.JSON(http.StatusOK, pack.MediaService.GetMediaTypes())
 }
 
 func getMediaInfo(ctx *gin.Context) {
+	pack := getServices(ctx)
 	mediaId := models.ContentId(ctx.Param("mediaId"))
-	m := MediaService.Get(mediaId)
+	m := pack.MediaService.Get(mediaId)
 	if m == nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -115,6 +116,7 @@ func getMediaFullres(ctx *gin.Context) {
 }
 
 func streamVideo(ctx *gin.Context) {
+	pack := getServices(ctx)
 	// u := getUserFromCtx(ctx)
 	sh, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
@@ -123,17 +125,17 @@ func streamVideo(ctx *gin.Context) {
 	}
 
 	mediaId := models.ContentId(ctx.Param("mediaId"))
-	m := MediaService.Get(mediaId)
+	m := pack.MediaService.Get(mediaId)
 	if m == nil {
 		ctx.Status(http.StatusNotFound)
 		return
-	} else if !MediaService.GetMediaType(m).IsVideo() {
+	} else if !pack.MediaService.GetMediaType(m).IsVideo() {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "media is not of type video"})
 		return
 	}
 
 	// TODO - figure out how to send auth headers when getting video from client
-	streamer, err := MediaService.StreamVideo(m, UserService.GetRootUser(), sh)
+	streamer, err := pack.MediaService.StreamVideo(m, pack.UserService.GetRootUser(), sh)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
@@ -168,6 +170,7 @@ func fetchMediaBytes(ctx *gin.Context) {
 }
 
 func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	mediaId := models.ContentId(ctx.Param("mediaId"))
 
@@ -182,7 +185,7 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		}
 	}
 
-	m := MediaService.Get(mediaId)
+	m := pack.MediaService.Get(mediaId)
 	if m == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
 		return
@@ -193,25 +196,25 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		return
 	}
 
-	if q == models.Video && !MediaService.GetMediaType(m).IsVideo() {
+	if q == models.Video && !pack.MediaService.GetMediaType(m).IsVideo() {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "media type is not video"})
 		return
 	}
 
-	bs, err := MediaService.FetchCacheImg(m, q, pageNum)
+	bs, err := pack.MediaService.FetchCacheImg(m, q, pageNum)
 
 	if errors.Is(err, werror.ErrNoCache) {
-		f, err := FileService.GetFileSafe(m.GetFiles()[0], u, nil)
+		f, err := pack.FileService.GetFileSafe(m.GetFiles()[0], u, nil)
 		if err == nil {
 			meta := models.ScanMeta{
 				File:         f.GetParent(),
-				FileService:  FileService,
-				MediaService: MediaService,
-				TaskService:  TaskService,
-				TaskSubber:   ClientService,
-				Caster:       Caster,
+				FileService:  pack.FileService,
+				MediaService: pack.MediaService,
+				TaskService:  pack.TaskService,
+				TaskSubber:   pack.ClientService,
+				Caster:       pack.Caster,
 			}
-			_, err = TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
+			_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
 			if err != nil {
 				log.ShowErr(err)
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to launch process media task"})
@@ -242,6 +245,7 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		}
 	}
 
+	ctx.Status(http.StatusOK)
 	_, err = ctx.Writer.Write(bs)
 
 	if err != nil {
@@ -252,6 +256,7 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 }
 
 func hideMedia(ctx *gin.Context) {
+	pack := getServices(ctx)
 	body, err := readCtxBody[mediaIdsBody](ctx)
 	if err != nil {
 		return
@@ -261,7 +266,7 @@ func hideMedia(ctx *gin.Context) {
 
 	medias := make([]*models.Media, len(body.MediaIds))
 	for i, mId := range body.MediaIds {
-		m := MediaService.Get(mId)
+		m := pack.MediaService.Get(mId)
 		if m == nil {
 			ctx.Status(http.StatusNotFound)
 			return
@@ -270,7 +275,7 @@ func hideMedia(ctx *gin.Context) {
 	}
 
 	for _, m := range medias {
-		err = MediaService.HideMedia(m, hidden)
+		err = pack.MediaService.HideMedia(m, hidden)
 		if err != nil {
 			log.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
@@ -282,21 +287,22 @@ func hideMedia(ctx *gin.Context) {
 }
 
 func adjustMediaDate(ctx *gin.Context) {
+	pack := getServices(ctx)
 	body, err := readCtxBody[mediaTimeBody](ctx)
 	if err != nil {
 		return
 	}
 
-	anchor := MediaService.Get(body.AnchorId)
+	anchor := pack.MediaService.Get(body.AnchorId)
 	if anchor == nil {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 	extras := internal.Map(
-		body.MediaIds, func(mId models.ContentId) *models.Media { return MediaService.Get(body.AnchorId) },
+		body.MediaIds, func(mId models.ContentId) *models.Media { return pack.MediaService.Get(body.AnchorId) },
 	)
 
-	err = service.AdjustMediaDates(anchor, body.NewTime, extras)
+	err = pack.MediaService.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
@@ -307,11 +313,13 @@ func adjustMediaDate(ctx *gin.Context) {
 }
 
 func getMediaArchive(ctx *gin.Context) {
-	ms := MediaService.GetAll()
+	pack := getServices(ctx)
+	ms := pack.MediaService.GetAll()
 	ctx.JSON(http.StatusOK, ms)
 }
 
 func likeMedia(ctx *gin.Context) {
+	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
 		ctx.Status(http.StatusUnauthorized)
@@ -321,7 +329,7 @@ func likeMedia(ctx *gin.Context) {
 	mediaId := models.ContentId(ctx.Param("mediaId"))
 	liked := ctx.Query("liked") == "true"
 
-	err := MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
+	err := pack.MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)

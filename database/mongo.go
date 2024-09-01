@@ -11,12 +11,13 @@ import (
 
 const maxRetries = 5
 
-func ConnectToMongo(mongoUri, mongoDbName string) *mongo.Database {
+func ConnectToMongo(mongoUri, mongoDbName string) (*mongo.Database, error) {
+	log.Debug.Printf("Connecting to Mongo at %s", mongoUri)
 	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second * 5)
 	var err error
 	mongoc, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	retries := 0
@@ -31,10 +32,22 @@ func ConnectToMongo(mongoUri, mongoDbName string) *mongo.Database {
 	}
 	if err != nil {
 		log.Error.Printf("Failed to connect to database after %d retries", maxRetries)
-		panic(err)
+		return nil, err
 	}
 
 	log.Debug.Println("Connected to mongo")
+	log.Debug.Printf("Using Mongo database %s", mongoDbName)
 
-	return mongoc.Database(mongoDbName)
+	return mongoc.Database(mongoDbName), nil
+}
+
+type MongoCollection interface {
+	InsertOne(ctx context.Context, document interface{}, opts ...*options.InsertOneOptions) (
+		*mongo.InsertOneResult, error,
+	)
+	Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (cur *mongo.Cursor, err error)
+	UpdateOne(
+		ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions,
+	) (*mongo.UpdateResult, error)
+	DeleteOne(ctx context.Context, filter interface{}, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error)
 }

@@ -42,7 +42,7 @@ type AlbumShare struct {
 
 func NewFileShare(
 	f *fileTree.WeblensFileImpl, u *User, accessors []*User, public bool, wormhole bool,
-) Share {
+) *FileShare {
 	return &FileShare{
 		ShareId: ShareId(primitive.NewObjectID().Hex()),
 		FileId:  f.ID(),
@@ -247,7 +247,6 @@ type Share interface {
 }
 
 type ShareService interface {
-	Init() error
 	Size() int
 
 	Get(id ShareId) Share

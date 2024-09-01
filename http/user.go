@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"errors"
@@ -12,7 +12,8 @@ import (
 
 // Archive means sending ALL fields, including password and token information
 func getUsersArchive(ctx *gin.Context) {
-	usersIter, err := UserService.GetAll()
+	pack := getServices(ctx)
+	usersIter, err := pack.UserService.GetAll()
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -32,6 +33,7 @@ func getUsersArchive(ctx *gin.Context) {
 }
 
 func createUser(ctx *gin.Context) {
+	pack := getServices(ctx)
 	userInfo, err := readCtxBody[newUserBody](ctx)
 	if err != nil {
 		return
@@ -56,7 +58,7 @@ func createUser(ctx *gin.Context) {
 	// newUser.homeFolder = homeDir
 	// newUser.trashFolder = homeDir.GetChildren()[0]
 
-	err = UserService.Add(u)
+	err = pack.UserService.Add(u)
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)

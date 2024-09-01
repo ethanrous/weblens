@@ -1,367 +1,123 @@
-package service
+package service_test
 
 import (
-	"fmt"
-	"sync"
+	"context"
 	"testing"
 
-	"github.com/ethrousseau/weblens/fileTree"
+	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
+	. "github.com/ethrousseau/weblens/service"
+	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func TestAccessServiceImpl_CanUserAccessAlbum(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+var billUser *models.User
+var dipperUser *models.User
+
+func init() {
+	var err error
+	billUser, err = models.NewUser("billcypher", "shakemyhand", false, true)
+	if err != nil {
+		log.ErrTrace(err)
+		panic(err)
 	}
-	type args struct {
-		user  *models.User
-		album *models.Album
-		share *models.AlbumShare
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				assert.Equalf(
-					t, tt.want, accSrv.CanUserAccessAlbum(tt.args.user, tt.args.album, tt.args.share),
-					"CanUserAccessAlbum(%v, %v, %v)", tt.args.user, tt.args.album, tt.args.share,
-				)
-			},
-		)
+
+	dipperUser, err = models.NewUser("dipperpines", "ivegotabook", false, true)
+	if err != nil {
+		log.ErrTrace(err)
+		panic(err)
 	}
 }
 
 func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
-	}
-	type args struct {
-		user  *models.User
-		file *fileTree.WeblensFileImpl
-		share *models.FileShare
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				assert.Equalf(
-					t, tt.want, accSrv.CanUserAccessFile(tt.args.user, tt.args.file, tt.args.share),
-					"CanUserAccessFile(%v, %v, %v)", tt.args.user, tt.args.file, tt.args.share,
-				)
-			},
-		)
-	}
-}
+	t.Parallel()
 
-func TestAccessServiceImpl_CanUserModifyShare(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
-	type args struct {
-		user  *models.User
-		share models.Share
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				assert.Equalf(
-					t, tt.want, accSrv.CanUserModifyShare(tt.args.user, tt.args.share), "CanUserModifyShare(%v, %v)",
-					tt.args.user, tt.args.share,
-				)
-			},
-		)
-	}
-}
+	defer col.Drop(context.Background())
 
-func TestAccessServiceImpl_Del(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	userCol := mondb.Collection(t.Name() + "-users")
+	userService, err := NewUserService(userCol)
+	if err != nil {
+		t.Fatal(err)
 	}
-	type args struct {
-		key models.WeblensApiKey
+
+	acc, err := NewAccessService(userService, col)
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
+
+	// Make file tree
+	ft := mock.NewMemFileTree("MEDIA")
+	// Make bills home in tree
+	billHome, err := ft.MkDir(ft.GetRoot(), string(billUser.Username), nil)
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				tt.wantErr(t, accSrv.Del(tt.args.key), fmt.Sprintf("Del(%v)", tt.args.key))
-			},
-		)
+	// Make dippers home
+	dipperHome, err := ft.MkDir(ft.GetRoot(), string(dipperUser.Username), nil)
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
+
+	// Bill can access his home folder, but nobody else can without a share
+	assert.True(t, acc.CanUserAccessFile(billUser, billHome, nil))
+	assert.False(t, acc.CanUserAccessFile(dipperUser, billHome, nil))
+
+	// Make a share for bills home, and check dipper can now access it
+	// if he is using the share
+	billHomeShare := models.NewFileShare(billHome, billUser, []*models.User{dipperUser}, false, false)
+	assert.True(t, acc.CanUserAccessFile(dipperUser, billHome, billHomeShare))
+
+	// Check public share grants access, even if user is not in share
+	dipperHomeShare := models.NewFileShare(dipperHome, dipperUser, []*models.User{}, true, false)
+	assert.True(t, acc.CanUserAccessFile(billUser, dipperHome, dipperHomeShare))
 }
 
 func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
-	}
-	type args struct {
-		creator *models.User
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    models.ApiKeyInfo
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				got, err := accSrv.GenerateApiKey(tt.args.creator)
-				if !tt.wantErr(t, err, fmt.Sprintf("GenerateApiKey(%v)", tt.args.creator)) {
-					return
-				}
-				assert.Equalf(t, tt.want, got, "GenerateApiKey(%v)", tt.args.creator)
-			},
-		)
-	}
-}
+	t.Parallel()
 
-func TestAccessServiceImpl_Get(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
-	type args struct {
-		key models.WeblensApiKey
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    models.ApiKeyInfo
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				got, err := accSrv.Get(tt.args.key)
-				if !tt.wantErr(t, err, fmt.Sprintf("Get(%v)", tt.args.key)) {
-					return
-				}
-				assert.Equalf(t, tt.want, got, "Get(%v)", tt.args.key)
-			},
-		)
-	}
-}
+	defer col.Drop(context.Background())
 
-func TestAccessServiceImpl_GetAllKeys(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	userCol := mondb.Collection(t.Name() + "-users")
+	userService, err := NewUserService(userCol)
+	if err != nil {
+		t.Fatal(err)
 	}
-	type args struct {
-		accessor *models.User
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []models.ApiKeyInfo
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				got, err := accSrv.GetAllKeys(tt.args.accessor)
-				if !tt.wantErr(t, err, fmt.Sprintf("GetAllKeys(%v)", tt.args.accessor)) {
-					return
-				}
-				assert.Equalf(t, tt.want, got, "GetAllKeys(%v)", tt.args.accessor)
-			},
-		)
-	}
-}
 
-func TestAccessServiceImpl_Init(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	acc, err := NewAccessService(userService, col)
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				tt.wantErr(t, accSrv.Init(), fmt.Sprintf("Init()"))
-			},
-		)
-	}
-}
 
-func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
 	}
-	type args struct {
-		key    models.WeblensApiKey
-		server *models.Instance
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				tt.wantErr(
-					t, accSrv.SetKeyUsedBy(tt.args.key, tt.args.server),
-					fmt.Sprintf("SetKeyUsedBy(%v, %v)", tt.args.key, tt.args.server),
-				)
-			},
-		)
-	}
-}
 
-func TestAccessServiceImpl_Size(t *testing.T) {
-	type fields struct {
-		keyMap      map[models.WeblensApiKey]models.ApiKeyInfo
-		keyMapMu    *sync.RWMutex
-		fileService models.FileService
-		collection  *mongo.Collection
+	_, err = acc.GenerateApiKey(billUser)
+	assert.Error(t, err)
+
+	billUser.Admin = true
+
+	key, err := acc.GenerateApiKey(billUser)
+	if !assert.NoError(t, err) {
+		t.FailNow()
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   int
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				accSrv := &AccessServiceImpl{
-					keyMap:      tt.fields.keyMap,
-					keyMapMu:    tt.fields.keyMapMu,
-					fileService: tt.fields.fileService,
-					collection:  tt.fields.collection,
-				}
-				assert.Equalf(t, tt.want, accSrv.Size(), "Size()")
-			},
-		)
-	}
+	assert.Equal(t, billUser.Username, key.Owner)
 }

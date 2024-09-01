@@ -29,6 +29,10 @@ type TaskSubscriber interface {
 	TaskSubToPool(taskId task.TaskId, poolId task.TaskId)
 }
 
+type TaskDispatcher interface {
+	DispatchJob(jobName string, meta task.TaskMetadata, pool *task.TaskPool) (*task.Task, error)
+}
+
 type ScanMeta struct {
 	File *fileTree.WeblensFileImpl
 	FileBytes    []byte
@@ -36,7 +40,7 @@ type ScanMeta struct {
 
 	FileService  FileService
 	MediaService MediaService
-	TaskService  task.TaskService
+	TaskService TaskDispatcher
 	TaskSubber   TaskSubscriber
 	Caster       FileCaster
 }

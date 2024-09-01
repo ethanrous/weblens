@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"net/http"
@@ -9,27 +9,28 @@ import (
 )
 
 func launchBackup(ctx *gin.Context) {
-	core := InstanceService.GetCore()
+	pack := getServices(ctx)
+	core := pack.InstanceService.GetCore()
 
 	backupMeta := models.BackupMeta{
 		RemoteId:        core.ServerId(),
-		InstanceService: InstanceService,
+		InstanceService: pack.InstanceService,
 	}
-	t, err := TaskService.DispatchJob(models.BackupTask, backupMeta, nil)
+	t, err := pack.TaskService.DispatchJob(models.BackupTask, backupMeta, nil)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
 	user := getUserFromCtx(ctx)
-	wsClient := ClientService.GetClientByUsername(user.GetUsername())
+	wsClient := pack.ClientService.GetClientByUsername(user.GetUsername())
 
 	// exited, _ := t.Status()
 	// for t.GetChildTaskPool() == nil && !exited {
 	// 	time.Sleep(time.Millisecond * 100)
 	// }
 
-	_, _, err = ClientService.Subscribe(
+	_, _, err = pack.ClientService.Subscribe(
 		wsClient, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil,
 	)
 	if err != nil {

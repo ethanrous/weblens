@@ -1,4 +1,4 @@
-package comm
+package http
 
 import (
 	"github.com/ethrousseau/weblens/fileTree"
