@@ -17,15 +17,11 @@ import (
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func init() {
-	err := godotenv.Load(internal.GetEnvFile())
-	if err != nil {
-		log.Warning.Println("Could not load env file", err)
-	}
+	internal.ReadEnv()
 }
 
 var server *Server

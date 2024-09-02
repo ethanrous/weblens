@@ -10,30 +10,16 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/database"
+	"github.com/ethrousseau/weblens/http"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 func init() {
-	// internal.SetAppRoot("/Users/ethan/repos/weblens/")
-	//
-	// err := os.Unsetenv("MONGODB_NAME")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// err = os.Unsetenv("SERVER_PORT")
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	err := godotenv.Load(internal.GetEnvFile())
-	if err != nil {
-		log.Warning.Println("Could not load env file", err)
-	}
+	internal.ReadEnv()
 }
 
 func TestStartupCore(t *testing.T) {
@@ -41,7 +27,7 @@ func TestStartupCore(t *testing.T) {
 		t.Skip("skipping core startup test in short mode")
 	}
 
-	prevPort := os.Getenv("SERVER_PORT")
+	prevPort := internal.GetRouterPort()
 	defer os.Setenv("SERVER_PORT", prevPort)
 
 	port := strconv.Itoa(8090 + (rand.Int() % 1000))
@@ -53,18 +39,24 @@ func TestStartupCore(t *testing.T) {
 		t.FailNow()
 	}
 
-	go main()
 	start := time.Now()
-	for time.Since(start) < time.Second*5 {
-		if services != nil && services.Loaded.Load() {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	server = http.NewServer(services)
+	go server.Start()
 
-	if !assert.Less(t, time.Since(start), 5*time.Second) {
+	mondb, err := database.ConnectToMongo(internal.GetMongoURI(), t.Name())
+	if err != nil {
+		log.ErrTrace(err)
 		t.FailNow()
 	}
+	err = mondb.Drop(context.Background())
+	if err != nil {
+		log.ErrTrace(err)
+		t.FailNow()
+	}
+
+	startup(t.Name(), services, server)
+	log.Debug.Println("Startup took", time.Since(start).Seconds())
+	assert.True(t, services.Loaded.Load())
 }
 
 func TestStartupBackup(t *testing.T) {

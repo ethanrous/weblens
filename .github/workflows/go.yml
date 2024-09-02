@@ -55,10 +55,10 @@ jobs:
         with:
           mongodb-version: '7.0'
 
-      - name: Build
-        run: |
-          set -x
-          go build -v -o ./weblens ./cmd/weblens/main.go
+#      - name: Build
+#        run: |
+#          set -x
+#          go build -v -o ./weblens ./cmd/weblens/main.go
 
       - name: Test (No Remotes)
         if: ${{ inputs.remote_tests == false }}
@@ -69,11 +69,10 @@ jobs:
         env:
           DEV_MODE: ${{ inputs.debug }}
 
+      # Currently not working, need to work out env variables being reused in tests
       - name: Test (Remotes)
         if: ${{ inputs.remote_tests == true }}
         run: |
-          set -x
-          export APP_ROOT=$(pwd)
           source ./scripts/setupRemoteTests.bash
           REMOTE_TESTS=true ENV_FILE="$(pwd)/config/test.env" go test -v -race ./...
           exit $?

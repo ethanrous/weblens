@@ -1,6 +1,6 @@
 set +e
+set -x
 
-ps aux | grep weblens
 pkill weblens || true
 
 export APP_ROOT=$(pwd)

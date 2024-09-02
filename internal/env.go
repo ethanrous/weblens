@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/joho/godotenv"
 )
 
 var envLock sync.RWMutex
@@ -30,6 +31,23 @@ func envReadBool(s string) bool {
 	} else {
 		panic(fmt.Errorf("failed to make boolean out of value: %s", val))
 	}
+}
+
+var envRead = false
+
+func ReadEnv() {
+	envLock.Lock()
+	defer envLock.Unlock()
+
+	if envRead {
+		return
+	}
+
+	err := godotenv.Load(GetEnvFile())
+	if err != nil {
+		log.Warning.Println("Failed to load env file")
+	}
+	envRead = true
 }
 
 func GetConfigDir() string {
@@ -65,6 +83,10 @@ func GetWorkerCount() int {
 
 var appRoot string
 func GetAppRootDir() string {
+	if !envRead {
+		ReadEnv()
+	}
+
 	envLock.Lock()
 	defer envLock.Unlock()
 	if appRoot != "" {
@@ -91,10 +113,6 @@ func GetAppRootDir() string {
 	return appRoot
 }
 
-func SetAppRoot(path string) {
-	appRoot = path
-}
-
 func GetRouterIp() string {
 	ip := envReadString("SERVER_IP")
 	if ip == "" {
@@ -118,6 +136,12 @@ func GetRouterPort() string {
 var mediaRoot string
 
 func GetMediaRootPath() string {
+	if !envRead {
+		ReadEnv()
+	}
+
+	envLock.Lock()
+	defer envLock.Unlock()
 	if mediaRoot != "" {
 		return mediaRoot
 	}
@@ -259,9 +283,12 @@ func GetTestMediaPath() string {
 	if testMediaPath != "" {
 		return testMediaPath
 	}
+
 	testMediaPath = envReadString("TEST_MEDIA_PATH")
 	if testMediaPath == "" {
+		envLock.Unlock()
 		testMediaPath = filepath.Join(GetAppRootDir(), "/images/testMedia")
+		envLock.Lock()
 		log.Warning.Printf("TEST_MEDIA_PATH not set, defaulting to %s", testMediaPath)
 	}
 	return testMediaPath
