@@ -63,7 +63,8 @@ jobs:
       - name: Test (No Remotes)
         if: ${{ inputs.remote_tests == false }}
         run: |
-          APP_ROOT=$(pwd) go test -v -race ./...
+          APP_ROOT=$(pwd)
+          ENV_FILE="$(pwd)/config/test.env" go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
