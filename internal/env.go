@@ -9,9 +9,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ethrousseau/weblens/internal/log"
 )
+
+var envLock sync.RWMutex
 
 func envReadString(s string) string {
 	val := os.Getenv(s)
@@ -247,6 +250,8 @@ func GetHostURL() string {
 var testMediaPath string
 
 func GetTestMediaPath() string {
+	envLock.Lock()
+	defer envLock.Unlock()
 	if testMediaPath != "" {
 		return testMediaPath
 	}

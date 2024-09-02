@@ -157,6 +157,9 @@ func (j *JournalServiceImpl) GetLatestAction() (*FileAction, error) {
 
 	ret := j.col.FindOne(context.Background(), bson.M{}, opts)
 	if ret.Err() != nil {
+		if errors.Is(ret.Err(), mongo.ErrNoDocuments) {
+			return nil, nil
+		}
 		return nil, werror.WithStack(ret.Err())
 	}
 

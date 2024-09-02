@@ -29,7 +29,7 @@ func init() {
 }
 
 var server *Server
-var services *models.ServicePack
+var services = &models.ServicePack{}
 
 func main() {
 	defer mainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR")
@@ -49,7 +49,6 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	services = &models.ServicePack{}
 	server = NewServer(services)
 	go startup(internal.GetMongoDBName(), services, server)
 

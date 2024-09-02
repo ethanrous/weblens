@@ -92,8 +92,13 @@ func DoBackup(t *task.Task) {
 		t.ErrorAndExit(err)
 	}
 
+	var latestTime time.Time
+	if latest != nil {
+		latestTime = latest.GetTimestamp()
+	}
+
 	// Get new history updates
-	updatedLifetimes, err := meta.ProxyJournalService.GetLifetimesSince(latest.GetTimestamp())
+	updatedLifetimes, err := meta.ProxyJournalService.GetLifetimesSince(latestTime)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}

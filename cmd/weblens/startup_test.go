@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +41,11 @@ func TestStartupCore(t *testing.T) {
 		t.Skip("skipping core startup test in short mode")
 	}
 
-	t.Setenv("SERVER_PORT", "8084")
+	prevPort := os.Getenv("SERVER_PORT")
+	defer os.Setenv("SERVER_PORT", prevPort)
+
+	port := strconv.Itoa(8090 + (rand.Int() % 1000))
+	t.Setenv("SERVER_PORT", port)
 
 	err := setServerState(models.CoreServer)
 	if err != nil {
@@ -66,7 +72,11 @@ func TestStartupBackup(t *testing.T) {
 		t.Skip("REMOTE_TESTS not set")
 	}
 
-	t.Setenv("SERVER_PORT", "8085")
+	prevPort := os.Getenv("SERVER_PORT")
+	defer os.Setenv("SERVER_PORT", prevPort)
+
+	port := strconv.Itoa(8090 + (rand.Int() % 1000))
+	t.Setenv("SERVER_PORT", port)
 
 	err := setServerState(models.BackupServer)
 	if err != nil {
