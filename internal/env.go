@@ -65,12 +65,16 @@ func GetWorkerCount() int {
 
 var appRoot string
 func GetAppRootDir() string {
+	envLock.Lock()
+	defer envLock.Unlock()
 	if appRoot != "" {
 		return appRoot
 	}
 
 	appRoot = envReadString("APP_ROOT")
 	if appRoot == "" {
+		panic("APP_ROOT not set...")
+		log.Warning.Println("APP_ROOT not set attempting to find from path...", appRoot)
 		wd, err := filepath.Abs(".")
 		if err != nil {
 			panic(err)
@@ -79,7 +83,7 @@ func GetAppRootDir() string {
 
 		if weblensIndex == -1 {
 			appRoot = "/app"
-			log.Info.Println("APP_ROOT not set and could not be calculated, defaulting to", appRoot)
+			log.Warning.Println("APP_ROOT not set and could not be calculated, defaulting to", appRoot)
 		} else {
 			appRoot = wd[:weblensIndex+len("weblens")] + "/"
 		}
