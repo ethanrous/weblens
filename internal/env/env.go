@@ -263,3 +263,43 @@ func ReadTypesConfig(target any) error {
 func GetCoreApiKey() string {
 	return os.Getenv("CORE_API_KEY")
 }
+
+func GetMediaRoot() string {
+	mediaRoot := os.Getenv("MEDIA_ROOT")
+	if mediaRoot != "" {
+		return mediaRoot
+	}
+
+	config, err := ReadConfig("", os.Getenv("CONFIG_PATH"))
+	if err != nil {
+		panic(err)
+	}
+
+	mediaRoot = config["mediaRoot"].(string)
+	if mediaRoot[0] == '.' {
+		mediaRoot = mediaRoot[1:]
+		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
+	}
+
+	return mediaRoot
+}
+
+func GetCachesRoot() string {
+	cachesRoot := os.Getenv("CACHES_ROOT")
+	if cachesRoot != "" {
+		return cachesRoot
+	}
+
+	config, err := ReadConfig("", os.Getenv("CONFIG_PATH"))
+	if err != nil {
+		panic(err)
+	}
+
+	cachesRoot = config["cachesRoot"].(string)
+	if cachesRoot[0] == '.' {
+		cachesRoot = cachesRoot[1:]
+		cachesRoot = filepath.Join(GetAppRootDir(), cachesRoot)
+	}
+
+	return cachesRoot
+}

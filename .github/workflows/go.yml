@@ -72,6 +72,8 @@ jobs:
           export VITE_BUILD=true
           npm run build
           cd ..
+          export MEDIA_ROOT=$(mkdir ../test/media; cd ../test/media; pwd)
+          export CACHES_ROOT=$(mkdir ../test/caches; cd ../test/caches; pwd)
           CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
           exit $?
         env:

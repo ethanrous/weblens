@@ -182,7 +182,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	/* FileTree Service */
 	mediaFileTree, err := fileTree.NewFileTree(
-		config["mediaRoot"].(string), "MEDIA", hasher,
+		env.GetMediaRoot(), "MEDIA", hasher,
 		mediaJournal,
 	)
 	if err != nil {
@@ -191,7 +191,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	hollowJournal := mock.NewHollowJournalService()
 	hollowHasher := mock.NewMockHasher()
-	cachesTree, err := fileTree.NewFileTree(config["cachesRoot"].(string), "CACHES", hollowHasher, hollowJournal)
+	cachesTree, err := fileTree.NewFileTree(env.GetCachesRoot(), "CACHES", hollowHasher, hollowJournal)
 	if err != nil {
 		panic(err)
 	}
