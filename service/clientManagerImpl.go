@@ -76,7 +76,7 @@ func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *models.User) 
 	cm.webClientMap[user.GetUsername()] = newClient
 	cm.clientMu.Unlock()
 
-	log.Debug.Printf("Web client [%s] connected", user.GetUsername())
+	log.Trace.Printf("Web client [%s] connected", user.GetUsername())
 	return newClient
 }
 
@@ -91,7 +91,7 @@ func (cm *ClientManager) RemoteConnect(conn *websocket.Conn, remote *models.Inst
 		cm.core = newClient
 	}
 
-	log.Debug.Printf("Server [%s] connected", remote.Name)
+	log.Trace.Printf("Server [%s] connected", remote.Name)
 	return newClient
 }
 
@@ -241,7 +241,7 @@ func (cm *ClientManager) Subscribe(
 		{
 			t := cm.taskService.GetTask(task.TaskId(key))
 			if t == nil {
-				err = fmt.Errorf("could not find task with ID %s", key)
+				err = werror.Errorf("could not find task with ID %s", key)
 				c.Error(err)
 				return
 			}
@@ -274,7 +274,6 @@ func (cm *ClientManager) Subscribe(
 				return
 			}
 
-			log.Debug.Printf("%s subscribed to pool [%s]", c.GetUser().GetUsername(), pool.ID())
 			sub = models.Subscription{Type: models.TaskSubscribe, Key: key, When: subTime}
 
 			c.PushPoolUpdate(
@@ -286,7 +285,6 @@ func (cm *ClientManager) Subscribe(
 		}
 	case models.TaskTypeSubscribe:
 		{
-			log.Debug.Printf("%s subscribed to task type [%s]", c.GetUser().GetUsername(), key)
 			sub = models.Subscription{Type: models.TaskTypeSubscribe, Key: key, When: subTime}
 		}
 	default:
@@ -298,7 +296,7 @@ func (cm *ClientManager) Subscribe(
 		}
 	}
 
-	log.Debug.Printf("[%s] subscribed to %s", c.GetUser().GetUsername(), key)
+	log.Trace.Printf("[%s] subscribed to [%s]", c.GetUser().GetUsername(), key)
 
 	c.AddSubscription(sub)
 	cm.addSubscription(sub, c)
@@ -326,7 +324,7 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	if sub == (models.Subscription{}) {
 		return werror.Errorf("Could not find subscription with key [%s]", key)
 	}
-	log.Debug.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key)
+	log.Trace.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key)
 
 	return cm.removeSubscription(sub, c, false)
 }
@@ -363,7 +361,7 @@ func (cm *ClientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.T
 	subs := cm.GetSubscribers(models.FolderSubscribe, models.SubId(folderId))
 
 	for _, s := range subs {
-		log.Debug.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), folderId, poolId)
+		log.Trace.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), folderId, poolId)
 		_, _, err := cm.Subscribe(s, models.SubId(poolId), models.PoolSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
@@ -375,7 +373,7 @@ func (cm *ClientManager) TaskSubToPool(taskId task.TaskId, poolId task.TaskId) {
 	subs := cm.GetSubscribers(models.TaskSubscribe, models.SubId(taskId))
 
 	for _, s := range subs {
-		log.Debug.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), taskId, poolId)
+		log.Trace.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), taskId, poolId)
 		_, _, err := cm.Subscribe(s, models.SubId(poolId), models.PoolSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)

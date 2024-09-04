@@ -97,7 +97,12 @@ func (m ZipMeta) MetaString() string {
 	idsString, err := json.Marshal(ids)
 	log.ErrTrace(err)
 
-	data := CreateZipTask + string(idsString) + string(m.Requester.GetUsername()) + string(m.Share.ShareId) + m.Share.LastUpdated().String()
+	var shareBit string
+	if m.Share != nil {
+		shareBit = string(m.Share.ShareId) + m.Share.LastUpdated().String()
+	}
+
+	data := CreateZipTask + string(idsString) + string(m.Requester.GetUsername()) + shareBit
 	return data
 }
 
@@ -118,14 +123,16 @@ func (m ZipMeta) JobName() string {
 func (m ZipMeta) Verify() error {
 	if len(m.Files) == 0 {
 		return werror.ErrBadJobMetadata(m.JobName(), "files")
-	} else if m.Share == nil {
-		log.Warning.Println("No share in zip meta...")
 	} else if m.Requester == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "requester")
 	} else if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "fileService")
 	} else if m.Caster == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "caster")
+	}
+
+	if m.Share == nil {
+		log.Warning.Println("No share in zip meta...")
 	}
 
 	return nil

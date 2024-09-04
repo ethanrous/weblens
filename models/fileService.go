@@ -47,6 +47,7 @@ type FileService interface {
 	ResizeDown(file *fileTree.WeblensFileImpl, caster FileCaster) error
 	ResizeUp(file *fileTree.WeblensFileImpl, caster FileCaster) error
 	NewZip(zipName string, owner *User) (*fileTree.WeblensFileImpl, error)
+	GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
 }
 
 type FileCaster interface {

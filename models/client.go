@@ -187,7 +187,7 @@ func (wsc *WsClient) unsubscribe(key SubId) {
 	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
 	wsc.updateMu.Unlock()
 
-	log.Debug.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
+	log.Trace.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
 }
 
 func (wsc *WsClient) Disconnect() {
@@ -200,7 +200,7 @@ func (wsc *WsClient) Disconnect() {
 		return
 	}
 	wsc.updateMu.Unlock()
-	log.Debug.Printf("Disconnected [%s]", wsc.user.GetUsername())
+	log.Trace.Printf("Disconnected [%s]", wsc.user.GetUsername())
 }
 
 type Client interface {

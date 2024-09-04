@@ -15,6 +15,11 @@ type ProxyFileService struct {
 	Core *models.Instance
 }
 
+func (pfs *ProxyFileService) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (pfs *ProxyFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
 	// TODO implement me
 	panic("implement me")

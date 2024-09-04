@@ -16,7 +16,6 @@ type User struct {
 	Id            primitive.ObjectID `bson:"_id" json:"-"`
 	Username      Username           `bson:"username" json:"username"`
 	Password      string             `bson:"password" json:"-"`
-	Tokens        []string           `bson:"tokens" json:"-"`
 	Admin         bool               `bson:"admin" json:"admin"`
 	Activated     bool               `bson:"activated" json:"activated"`
 	IsServerOwner bool               `bson:"owner" json:"owner"`
@@ -24,6 +23,7 @@ type User struct {
 	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
 
 	// non-database types
+	tokens     []string
 	homeFolder  *fileTree.WeblensFileImpl
 	trashFolder *fileTree.WeblensFileImpl
 	tokensLock sync.RWMutex
@@ -48,7 +48,6 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 		Id:        primitive.NewObjectID(),
 		Username:  username,
 		Password:  passHash,
-		Tokens:    []string{},
 		Admin:     isAdmin,
 		Activated: autoActivate,
 	}
@@ -93,8 +92,8 @@ func (u *User) GetToken() string {
 	u.tokensLock.RLock()
 	defer u.tokensLock.RUnlock()
 
-	if len(u.Tokens) != 0 {
-		ret := u.Tokens[0]
+	if len(u.tokens) != 0 {
+		ret := u.tokens[0]
 		return ret
 	}
 
@@ -102,13 +101,21 @@ func (u *User) GetToken() string {
 }
 
 func (u *User) CheckLogin(password string) bool {
+	if !u.Activated {
+		return false
+	}
+
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) == nil
 }
 
 func (u *User) AddToken(tokenString string) {
+	if !u.Activated {
+		return
+	}
+
 	u.tokensLock.Lock()
 	defer u.tokensLock.Unlock()
-	u.Tokens = append(u.Tokens, tokenString)
+	u.tokens = append(u.tokens, tokenString)
 }
 
 func (u *User) SocketType() string {
@@ -123,7 +130,7 @@ func (u *User) FormatArchive() (map[string]any, error) {
 	data := map[string]any{
 		"username":     u.Username,
 		"password":     u.Password,
-		"tokens":       u.Tokens,
+		"tokens": u.tokens,
 		"admin":        u.Admin,
 		"activated":    u.Activated,
 		"owner":        u.IsServerOwner,
@@ -154,7 +161,7 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	u.IsServerOwner = obj["owner"].(bool)
 	u.HomeId = fileTree.FileId(obj["homeId"].(string))
 	u.TrashId = fileTree.FileId(obj["trashId"].(string))
-	u.Tokens = internal.SliceConvert[string](obj["tokens"].([]any))
+	u.tokens = internal.SliceConvert[string](obj["tokens"].([]any))
 	u.SystemUser = obj["isSystemUser"].(bool)
 
 	return nil

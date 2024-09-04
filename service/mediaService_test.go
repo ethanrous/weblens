@@ -10,7 +10,7 @@ import (
 	"github.com/creativecreature/sturdyc"
 	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
@@ -22,18 +22,18 @@ import (
 )
 
 func init() {
-	if internal.IsDevMode() {
+	if env.IsDevMode() {
 		log.SetLogLevel(log.DEBUG)
 	}
 
 	var err error
-	mondb, err = database.ConnectToMongo(internal.GetMongoURI(), internal.GetMongoDBName()+"-test")
+	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName()+"-test")
 	if err != nil {
 		panic(err)
 	}
 
 	marshMap := map[string]models.MediaType{}
-	internal.ReadTypesConfig(&marshMap)
+	env.ReadTypesConfig(&marshMap)
 	typeService = models.NewTypeService(marshMap)
 }
 

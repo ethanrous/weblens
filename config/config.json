@@ -1,0 +1,34 @@
+{
+    "PROD": {
+        "mongodbName": "weblens",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "",
+        "routerHost": "127.0.0.1",
+        "routerPort": "8080"
+    },
+    "TEST": {
+        "mongodbName": "weblens-test",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "debug",
+        "routerHost": "127.0.0.1",
+        "routerPort": "8085",
+        "mediaRoot": "/Users/ethan/weblens/test/media",
+        "cachesRoot": "/Users/ethan/weblens/test/caches"
+    },
+    "DEV-CORE": {
+        "mongodbName": "weblens-core",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "debug",
+        "routerHost": "127.0.0.1",
+        "routerPort": "8080",
+        "mediaRoot": "/Users/ethan/weblens/core/media",
+        "cachesRoot": "/Users/ethan/weblens/core/caches"
+    },
+    "TRACE": {
+        "mongodbName": "weblens-core",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "trace",
+        "routerHost": "127.0.0.1",
+        "routerPort": "8080"
+    }
+}

@@ -47,6 +47,10 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal JournalServi
 		return nil, err
 	}
 
+	if rootPath[len(rootPath)-1] != '/' {
+		rootPath = rootPath + "/"
+	}
+
 	root := &WeblensFileImpl{
 		id:       "ROOT",
 		parent:   nil,

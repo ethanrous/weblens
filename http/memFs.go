@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
@@ -24,7 +24,7 @@ type InMemoryFS struct {
 }
 
 func (fs *InMemoryFS) loadIndex() string {
-	indexPath := filepath.Join(internal.GetAppRootDir(), "/ui/dist/index.html")
+	indexPath := filepath.Join(env.GetAppRootDir(), "/ui/dist/index.html")
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
 		ex, err := os.Executable()
@@ -126,7 +126,7 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[locIndex+len("./ui/dist/"):]
 	}
 
-	data := addIndexTag("url", fmt.Sprintf("%s/%s", internal.GetHostURL(), loc), string(index.realFile.data))
+	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetHostURL(), loc), string(index.realFile.data))
 
 	fields := getIndexFields(loc, fs.Pack)
 	for _, field := range fields {
@@ -169,7 +169,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 			m := pack.MediaService.Get(models.ContentId(f.GetContentId()))
 			if f != nil {
 				if f.IsDir() {
-					imgUrl := fmt.Sprintf("%s/api/static/folder.png", internal.GetHostURL())
+					imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetHostURL())
 					hasImage = true
 					fields = append(
 						fields, indexField{
@@ -194,7 +194,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 				)
 				if m != nil {
 					if pack.MediaService.GetMediaType(m).IsVideo() {
-						imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", internal.GetHostURL(), f.GetContentId())
+						imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetHostURL(), f.GetContentId())
 						hasImage = true
 						fields = append(
 							fields, indexField{
@@ -202,7 +202,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 								content: imgUrl,
 							},
 						)
-						videoUrl := fmt.Sprintf("%s/api/media/%s/stream", internal.GetHostURL(), f.GetContentId())
+						videoUrl := fmt.Sprintf("%s/api/media/%s/stream", env.GetHostURL(), f.GetContentId())
 						fields = append(
 							fields, indexField{
 								tag:     "type",
@@ -239,7 +239,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 		if album != nil {
 			media := pack.MediaService.Get(album.GetCover())
 			if media != nil {
-				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", internal.GetHostURL(), media.ID())
+				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetHostURL(), media.ID())
 				hasImage = true
 				fields = append(
 					fields, indexField{

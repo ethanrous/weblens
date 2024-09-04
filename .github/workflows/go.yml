@@ -64,7 +64,7 @@ jobs:
         if: ${{ inputs.remote_tests == false }}
         run: |
           export APP_ROOT=$(pwd)
-          ENV_FILE="$(pwd)/config/test.env" go test -v -race ./...
+          CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
@@ -74,7 +74,7 @@ jobs:
         if: ${{ inputs.remote_tests == true }}
         run: |
           source ./scripts/setupRemoteTests.bash
-          REMOTE_TESTS=true ENV_FILE="$(pwd)/config/test.env" go test -v -race ./...
+          CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}

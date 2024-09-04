@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	. "github.com/ethrousseau/weblens/jobs"
 	"github.com/ethrousseau/weblens/models"
@@ -25,13 +25,13 @@ func init() {
 	log.SetLogLevel(log.DEBUG)
 
 	var err error
-	mondb, err = database.ConnectToMongo(internal.GetMongoURI(), internal.GetMongoDBName()+"-test")
+	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName()+"-test")
 	if err != nil {
 		panic(err)
 	}
 
 	marshMap := map[string]models.MediaType{}
-	internal.ReadTypesConfig(&marshMap)
+	env.ReadTypesConfig(&marshMap)
 	typeService = models.NewTypeService(marshMap)
 }
 
@@ -46,7 +46,7 @@ func TestScanFile(t *testing.T) {
 	defer col.Drop(context.Background())
 
 	testMediaTree, err := fileTree.NewFileTree(
-		internal.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
+		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
 	)
 	if err != nil {
 		panic(err)
@@ -93,7 +93,7 @@ func TestScanDirectory(t *testing.T) {
 	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 
 	testMediaTree, err := fileTree.NewFileTree(
-		internal.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
+		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
 	)
 	if err != nil {
 		panic(err)

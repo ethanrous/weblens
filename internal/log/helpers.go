@@ -15,6 +15,7 @@ import (
 type StackError interface {
 	Error() string
 	Stack() string
+	Errorln() string
 }
 
 func ErrTrace(err error, extras ...string) {
@@ -34,7 +35,7 @@ func ShowErr(err error, extras ...string) {
 	if err != nil {
 		fmter, ok := err.(StackError)
 		if ok {
-			errStr := fmter.Error()
+			errStr := fmter.Errorln()
 			if errStr[len(errStr)-1] == '\n' {
 				errStr = errStr[:len(errStr)-1]
 			}

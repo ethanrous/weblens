@@ -334,7 +334,7 @@ func TestUserServiceImpl_UpdateUserPassword(t *testing.T) {
 		panic(err)
 	}
 
-	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, true)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}

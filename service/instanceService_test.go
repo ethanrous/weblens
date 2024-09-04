@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	. "github.com/ethrousseau/weblens/service"
@@ -18,7 +18,7 @@ import (
 func init() {
 	if mondb == nil {
 		var err error
-		mondb, err = database.ConnectToMongo(internal.GetMongoURI(), internal.GetMongoDBName()+"-test")
+		mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName()+"-test")
 		if err != nil {
 			panic(err)
 		}

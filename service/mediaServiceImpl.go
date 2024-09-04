@@ -21,6 +21,7 @@ import (
 	"github.com/ethanrous/bimg"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
@@ -368,7 +369,7 @@ func (ms *MediaServiceImpl) StreamVideo(
 	defer ms.streamerLock.Unlock()
 
 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-		streamPath := fmt.Sprintf("%s/%s-stream/", internal.GetThumbsDir(), m.ID())
+		streamPath := fmt.Sprintf("%s/%s-stream/", env.GetThumbsDir(), m.ID())
 		streamer = models.NewVideoStreamer(m, streamPath)
 		ms.streamerMap[m.ID()] = streamer
 	}
@@ -757,7 +758,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error
 				return err
 			}
 		} else {
-			err = thumbFile.Write(thumbBytes)
+			_, err = thumbFile.Write(thumbBytes)
 			if err != nil {
 				return err
 			}
@@ -773,7 +774,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error
 				return err
 			}
 		} else {
-			err = fullresFile.Write(img)
+			_, err = fullresFile.Write(img)
 			if err != nil {
 				return err
 			}

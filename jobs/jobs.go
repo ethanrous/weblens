@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -68,10 +69,7 @@ func CreateZip(t *task.Task) {
 	if err != nil && strings.Contains(err.Error(), "file already exists") {
 		err = nil
 		zipExists = true
-	}
-
-	if err != nil {
-
+	} else if err != nil {
 		t.ErrorAndExit(err)
 	}
 
@@ -85,17 +83,6 @@ func CreateZip(t *task.Task) {
 
 	zipMeta.Caster.PushTaskUpdate(t, models.TaskCreatedEvent, task.TaskResult{"totalFiles": len(filesInfoMap)})
 
-	// if zipMeta.Share != nil {
-	// 	sh := types.SERV.ShareService.Get(zipMeta.shareId)
-	// 	if sh == nil {
-	// 		t.ErrorAndExit(types.ErrNoShare)
-	// 	}
-	// 	err := zipFile.SetShare(sh)
-	// 	if err != nil {
-	// 		t.ErrorAndExit(err)
-	// 	}
-	// }
-
 	fp, err := os.Create(zipFile.GetAbsPath())
 	if err != nil {
 		t.ErrorAndExit(err)
@@ -108,8 +95,10 @@ func CreateZip(t *task.Task) {
 	}(fp)
 
 	a, err := fastzip.NewArchiver(
-		fp, zipMeta.Files[0].GetParent().GetAbsPath(), fastzip.WithStageDirectory(zipFile.GetParent().GetAbsPath()),
-		fastzip.WithArchiverBufferSize(32),
+		fp, zipMeta.Files[0].GetParent().GetAbsPath(),
+		fastzip.WithStageDirectory(zipFile.GetParent().GetAbsPath()),
+		fastzip.WithArchiverBufferSize(1024*1024*1024),
+		fastzip.WithArchiverMethod(zip.Store),
 	)
 
 	if err != nil {

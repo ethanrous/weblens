@@ -1,4 +1,4 @@
-package internal
+package env
 
 import (
 	"encoding/json"
@@ -16,11 +16,6 @@ import (
 )
 
 var envLock sync.RWMutex
-
-func envReadString(s string) string {
-	val := os.Getenv(s)
-	return val
-}
 
 func envReadBool(s string) bool {
 	val := os.Getenv(s)
@@ -50,81 +45,65 @@ func ReadEnv() {
 	envRead = true
 }
 
-func GetConfigDir() string {
-	configDir := envReadString("CONFIG_PATH")
-	if configDir == "" {
-		configDir = GetAppRootDir() + "/config"
+var configData map[string]map[string]any
+
+func ReadConfig(configPath, configName string) (map[string]any, error) {
+	envLock.Lock()
+	defer envLock.Unlock()
+	if configData != nil {
+		return configData[configName], nil
 	}
-	return configDir
+
+	if configPath == "" {
+		configDir := os.Getenv("CONFIG_PATH")
+		configPath = filepath.Join(configDir, "config.json")
+	}
+
+	bs, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var config map[string]map[string]any
+	err = json.Unmarshal(bs, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	configData = config
+	return configData[configName], nil
 }
 
 func GetEnvFile() string {
-	envFile := envReadString("ENV_FILE")
+	envFile := os.Getenv("ENV_FILE")
 	if envFile == "" {
-		envFile = filepath.Join(GetConfigDir(), ".env")
+		panic("ENV_FILE not set")
 	}
 	return envFile
 }
 
 func GetWorkerCount() int {
-	workerCountStr := envReadString("POOL_WORKERS_COUNT")
-	var workerCount int64
-	if workerCountStr == "" {
-		workerCount = int64(runtime.NumCPU() - 2)
-	} else {
-		var err error
-		workerCount, err = strconv.ParseInt(workerCountStr, 10, 64)
-		if err != nil {
-			panic(err)
+	config, err := ReadConfig("", os.Getenv("CONFIG_NAME"))
+	if err == nil {
+		countStr := config["poolWorkerCount"]
+		if countStr != nil {
+			count, err := strconv.ParseInt(countStr.(string), 10, 64)
+			if err == nil {
+				return int(count)
+			}
 		}
 	}
-	return int(workerCount)
+
+	return runtime.NumCPU() - 2
 }
 
-var appRoot string
 func GetAppRootDir() string {
-	if !envRead {
-		ReadEnv()
-	}
-
-	envLock.Lock()
-	defer envLock.Unlock()
-	if appRoot != "" {
-		return appRoot
-	}
-
-	appRoot = envReadString("APP_ROOT")
-	if appRoot == "" {
-		panic("APP_ROOT not set...")
-		log.Warning.Println("APP_ROOT not set attempting to find from path...", appRoot)
-		wd, err := filepath.Abs(".")
-		if err != nil {
-			panic(err)
-		}
-		weblensIndex := strings.LastIndex(wd, "weblens")
-
-		if weblensIndex == -1 {
-			appRoot = "/app"
-			log.Warning.Println("APP_ROOT not set and could not be calculated, defaulting to", appRoot)
-		} else {
-			appRoot = wd[:weblensIndex+len("weblens")] + "/"
-		}
-	}
-	return appRoot
-}
-
-func GetRouterIp() string {
-	ip := envReadString("SERVER_IP")
-	if ip == "" {
-		log.Info.Println("SERVER_IP not provided, falling back to 0.0.0.0")
-		return "0.0.0.0"
-	} else {
-		return ip
-	}
+	rootPath := filepath.Dir(os.Getenv("CONFIG_PATH"))
+	return rootPath
 }
 
 func GetRouterPort() string {
-	port := envReadString("SERVER_PORT")
+	port := os.Getenv("SERVER_PORT")
 	if port == "" {
 		log.Info.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
@@ -133,54 +112,22 @@ func GetRouterPort() string {
 	}
 }
 
-var mediaRoot string
-
-func GetMediaRootPath() string {
-	if !envRead {
-		ReadEnv()
-	}
-
-	envLock.Lock()
-	defer envLock.Unlock()
-	if mediaRoot != "" {
-		return mediaRoot
-	}
-
-	path := envReadString("MEDIA_ROOT_PATH")
-	if path == "" {
-		path = "/media"
-		log.Warning.Println("Did not find MEDIA_ROOT_PATH, assuming docker default of", path)
-	}
-	if path[len(path)-1:] != "/" {
-		path = path + "/"
-	}
-
-	mediaRoot = path
-
-	return mediaRoot
-}
-
 func GetExternalPaths() []string {
-	return strings.Split(envReadString("EXTERNAL_PATHS"), " ")
+	return strings.Split(os.Getenv("EXTERNAL_PATHS"), " ")
 }
 
 func GetImgRecognitionUrl() string {
-	return envReadString("IMG_RECOGNITION_URI")
-}
-
-var isDevMode *bool
-
-func SetDevMode(devMode bool) {
-	isDevMode = &devMode
+	return os.Getenv("IMG_RECOGNITION_URI")
 }
 
 // IsDevMode Enables debug logging and puts the router in development mode
 func IsDevMode() bool {
-	if isDevMode == nil {
-		dev := envReadBool("DEV_MODE")
-		isDevMode = &dev
+	config, err := ReadConfig("", os.Getenv("CONFIG_NAME"))
+	if err != nil {
+		return false
 	}
-	return *isDevMode
+
+	return config["logLevel"].(string) == "debug"
 }
 
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
@@ -193,7 +140,7 @@ var cachesPath string
 
 func GetCacheRoot() string {
 	if cachesPath == "" {
-		cachesPath = envReadString("CACHES_PATH")
+		cachesPath = os.Getenv("CACHES_PATH")
 		if cachesPath == "" {
 			cachesPath = "/cache"
 			log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesPath)
@@ -244,7 +191,9 @@ func GetTmpDir() string {
 }
 
 func GetMongoURI() string {
-	mongoStr := envReadString("MONGODB_URI")
+	envLock.Lock()
+	defer envLock.Unlock()
+	mongoStr := os.Getenv("MONGODB_URI")
 	if mongoStr == "" {
 		mongoStr = "mongodb://localhost:27017"
 		log.Warning.Println("MONGODB_URI not set, defaulting to", mongoStr)
@@ -255,22 +204,18 @@ func GetMongoURI() string {
 }
 
 func GetMongoDBName() string {
-	mongoDBName := envReadString("MONGODB_NAME")
-	if mongoDBName == "" {
-		mongoDBName = "weblens"
+	config, err := ReadConfig("", os.Getenv("CONFIG_NAME"))
+	if err != nil {
+		panic(err)
 	}
-	return mongoDBName
-}
-
-func GetVideoConstBitrate() int {
-	return 400000 * 2
+	return config["mongodbName"].(string)
 }
 
 var hostUrl string
 
 func GetHostURL() string {
 	if hostUrl == "" {
-		hostUrl = envReadString("HOST_URL")
+		hostUrl = os.Getenv("HOST_URL")
 	}
 	return hostUrl
 }
@@ -284,7 +229,7 @@ func GetTestMediaPath() string {
 		return testMediaPath
 	}
 
-	testMediaPath = envReadString("TEST_MEDIA_PATH")
+	testMediaPath = os.Getenv("TEST_MEDIA_PATH")
 	if testMediaPath == "" {
 		envLock.Unlock()
 		testMediaPath = filepath.Join(GetAppRootDir(), "/images/testMedia")
@@ -294,26 +239,27 @@ func GetTestMediaPath() string {
 	return testMediaPath
 }
 
-func ReadTypesConfig(target any) {
-	typeJson, err := os.Open(filepath.Join(GetConfigDir(), "mediaType.json"))
+func ReadTypesConfig(target any) error {
+	typeJson, err := os.Open(filepath.Join(os.Getenv("CONFIG_PATH"), "mediaType.json"))
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer func(typeJson *os.File) {
-		err := typeJson.Close()
+		err = typeJson.Close()
 		if err != nil {
-			panic(err)
+			log.ErrTrace(err)
 		}
 	}(typeJson)
 
 	typesBytes, err := io.ReadAll(typeJson)
-	// marshMap := map[string]models.MediaType{}
-	err = json.Unmarshal(typesBytes, target)
+	err = json.Unmarshal(typesBytes, &target)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func GetCoreApiKey() string {
-	return envReadString("CORE_API_KEY")
+	return os.Getenv("CORE_API_KEY")
 }

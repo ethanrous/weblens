@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/contrib/static"
@@ -22,16 +22,16 @@ type Server struct {
 	hostStr    string
 }
 
-func NewServer(services *models.ServicePack) *Server {
+func NewServer(host, port string, services *models.ServicePack) *Server {
 	srv := &Server{
 		router:   gin.New(),
 		services: services,
-		hostStr:  internal.GetRouterIp() + ":" + internal.GetRouterPort(),
+		hostStr: host + ":" + port,
 	}
 
 	srv.router.Use(withServices(services))
 	srv.router.Use(gin.Recovery())
-	srv.router.Use(log.ApiLogger(internal.IsDevMode()))
+	srv.router.Use(log.ApiLogger(env.IsDevMode()))
 	srv.router.Use(CORSMiddleware())
 
 	services.Server = srv
@@ -44,7 +44,7 @@ func (s *Server) Start() {
 	s.router.GET("/api/info", getServerInfo)
 	s.router.GET("/api/ws", wsConnect)
 
-	if !internal.DetachUi() {
+	if !env.DetachUi() {
 		s.UseUi()
 	}
 
@@ -91,6 +91,7 @@ func (s *Server) UseApi() {
 
 	// File
 	api.GET("/file/:fileId", getFile)
+	api.GET("/file/:fileId/text", getFileText)
 	api.GET("/file/share/:shareId", getFileShare)
 	api.GET("/file/:fileId/download", downloadFile)
 	api.PATCH("/file/:fileId", updateFile)
@@ -141,6 +142,7 @@ func (s *Server) UseApi() {
 
 	api.POST("/login", loginUser)
 	api.POST("/takeout", createTakeout)
+	api.GET("/takeout/:fileId", downloadTakeout)
 
 	/* Static content */
 	api.GET("/static/:filename", serveStaticContent)

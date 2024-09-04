@@ -362,6 +362,7 @@ function filebrowserWebsocketHandler(
                     authHeader,
                     tasksDispatch,
                     msgData.content['filename'],
+                    true,
                     shareId
                 )
                 return

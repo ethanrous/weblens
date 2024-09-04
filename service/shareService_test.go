@@ -3,6 +3,11 @@ package service_test
 import (
 	"context"
 	"testing"
+
+	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/service"
+	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShareServiceImplBasic(t *testing.T) {
@@ -15,7 +20,20 @@ func TestShareServiceImplBasic(t *testing.T) {
 	}
 	defer col.Drop(context.Background())
 
-	// models.NewFileShare()
+	ss, err := service.NewShareService(col)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ft := mock.NewMemFileTree("MEDIA")
+	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
+
+	sh := models.NewFileShare(newDir, billUser, []*models.User{dipperUser}, false, false)
+
+	err = ss.Add(sh)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
 }
 
 // func TestBackupBaseFile(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/werror"
 	. "github.com/ethrousseau/weblens/task"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +14,7 @@ var jobName = "Test Job"
 var subpoolJobName = "Test Subpool Job"
 
 func init() {
-	internal.IsDevMode()
+	env.IsDevMode()
 }
 
 func TestWorkerPoolBasic(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"runtime/pprof"
 	"strings"
 
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 )
 
@@ -104,7 +105,7 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 }
 
 func LabelThread(next func(ctx context.Context), labels ...string) {
-	if IsDevMode() {
+	if env.IsDevMode() {
 		ls := pprof.Labels(labels...)
 		pprof.Do(
 			context.Background(), ls, next,

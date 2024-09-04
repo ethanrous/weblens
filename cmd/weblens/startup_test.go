@@ -11,39 +11,39 @@ import (
 
 	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/http"
-	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
-
-func init() {
-	internal.ReadEnv()
-}
 
 func TestStartupCore(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping core startup test in short mode")
 	}
 
-	prevPort := internal.GetRouterPort()
+	prevPort := env.GetRouterPort()
 	defer os.Setenv("SERVER_PORT", prevPort)
 
 	port := strconv.Itoa(8090 + (rand.Int() % 1000))
 	t.Setenv("SERVER_PORT", port)
 
-	err := setServerState(models.CoreServer)
+	config, err := env.ReadConfig("", os.Getenv("CONFIG_NAME"))
+
+	err = setServerState(models.CoreServer)
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
 	}
 
+	gin.SetMode(gin.ReleaseMode)
 	start := time.Now()
-	server = http.NewServer(services)
+	server = http.NewServer(config["routerHost"].(string), config["routerPort"].(string), services)
 	go server.Start()
 
-	mondb, err := database.ConnectToMongo(internal.GetMongoURI(), t.Name())
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), t.Name())
 	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
@@ -54,7 +54,7 @@ func TestStartupCore(t *testing.T) {
 		t.FailNow()
 	}
 
-	startup(t.Name(), services, server)
+	startup(config, services, server)
 	log.Debug.Println("Startup took", time.Since(start).Seconds())
 	assert.True(t, services.Loaded.Load())
 }
@@ -100,12 +100,12 @@ func TestStartupBackup(t *testing.T) {
 }
 
 func setServerState(role models.ServerRole) error {
-	mongoName := internal.GetMongoDBName()
+	mongoName := env.GetMongoDBName()
 	if !strings.Contains(mongoName, "test") {
 		panic(werror.Errorf("MongoDB name (%s) does not include \"test\" during test", mongoName))
 	}
 
-	mondb, err := database.ConnectToMongo(internal.GetMongoURI(), mongoName)
+	mondb, err := database.ConnectToMongo(env.GetMongoURI(), mongoName)
 	if err != nil {
 		return werror.WithStack(err)
 	}
@@ -125,7 +125,7 @@ func setServerState(role models.ServerRole) error {
 	if role == models.BackupServer {
 		remoteCore := models.NewInstance(
 			"TEST_REMOTE", "test remote", models.WeblensApiKey(
-				internal.GetCoreApiKey(),
+				env.GetCoreApiKey(),
 			), models.CoreServer, false, "http://localhost:8089",
 		)
 		_, err = servers.InsertOne(context.Background(), remoteCore)

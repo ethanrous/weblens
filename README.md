@@ -1,3 +1,5 @@
+[![Weblens Fulltest](https://github.com/ethanrous/weblens/actions/workflows/go.yml/badge.svg?branch=main&event=push)](https://github.com/ethanrous/weblens/actions/workflows/go.yml)
+
 Weblens
 ===============
 

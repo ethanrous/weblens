@@ -263,6 +263,7 @@ export function downloadSingleFile(
     authHeader: AuthHeaderT,
     progDispatch: TPDispatchT,
     filename: string,
+    isZip: boolean,
     shareId: string
 ) {
     if (!fileId) {
@@ -270,7 +271,12 @@ export function downloadSingleFile(
         return
     }
 
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}/download`)
+    let url
+    if (isZip) {
+        url = new URL(`${API_ENDPOINT}/takeout/${fileId}`)
+    } else {
+        url = new URL(`${API_ENDPOINT}/file/${fileId}/download`)
+    }
     if (shareId) {
         url.searchParams.append('shareId', shareId)
     }
@@ -546,4 +552,11 @@ export async function restoreFiles(
             return
         }
     })
+}
+
+export async function GetFileText(fileId: string, authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)
+    return await fetch(url, {
+        headers: authHeader,
+    }).then((r) => r.text())
 }

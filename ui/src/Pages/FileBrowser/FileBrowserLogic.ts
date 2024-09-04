@@ -270,6 +270,7 @@ export async function downloadSelected(
             authHeader,
             taskProgDispatch,
             files[0].GetFilename(),
+            false,
             shareId
         )
     }
@@ -285,6 +286,7 @@ export async function downloadSelected(
                 authHeader,
                 taskProgDispatch,
                 json.filename,
+                true,
                 shareId
             )
         } else if (status === 202) {

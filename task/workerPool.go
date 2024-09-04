@@ -433,12 +433,11 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					wp.busyCount.Add(1)
 					metrics.BusyWorkerGuage.Inc()
 					t.SwLap("Task start")
-					// wlog.Debug.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
-					// start := time.Now()
+					log.Trace.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
 					wp.safetyWork(t, workerId)
-					// wlog.Debug.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, time.Since(start))
 					t.SwLap("Task finish")
 					t.sw.Stop()
+					log.Trace.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, t.ExeTime())
 
 					// Dec tasks being processed
 					wp.busyCount.Add(-1)

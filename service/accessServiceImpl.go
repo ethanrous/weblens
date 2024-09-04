@@ -135,6 +135,9 @@ func (accSrv *AccessServiceImpl) GenerateJwtToken(user *models.User) (string, er
 		return "", err
 	}
 
+	accSrv.tokenMapMu.RLock()
+	accSrv.tokenMap[tokenString] = user
+	accSrv.tokenMapMu.RUnlock()
 	user.AddToken(tokenString)
 
 	return tokenString, nil

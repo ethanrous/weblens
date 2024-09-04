@@ -341,7 +341,7 @@ export class WeblensFile {
             } else if (mode === FbModeT.default) {
                 return `/files/${this.id}`
             }
-        } else if (this.displayable) {
+        } else if (this.displayable || !this.displayable) {
             setPresentation(this.id)
             return
         }

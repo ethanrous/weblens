@@ -38,9 +38,9 @@ import FileGrid from '../../Files/FileGrid'
 import HeaderBar from '../../components/HeaderBar'
 import { useResize, useResizeDrag, useWindowSize } from '../../components/hooks'
 import NotFound from '../../components/NotFound'
-import Presentation, {
+import {
     PresentationContainer,
-    PresentationVisual,
+    PresentationFile,
 } from '../../components/Presentation'
 import WeblensButton from '../../components/WeblensButton'
 import WeblensInput from '../../components/WeblensInput'
@@ -71,7 +71,6 @@ import {
     DraggingCounter,
     DropSpot,
     GetStartedCard,
-    PresentationFile,
     TransferCard,
     WebsocketStatus,
 } from './FileBrowserMiscComponents'
@@ -624,14 +623,8 @@ const SingleFile = memo(
 
         return (
             <div className="flex flex-row w-full h-full justify-around pb-2">
-                <div
-                    // ref={setContainerRef}
-                    className="flex justify-center items-center p-6 h-full w-full"
-                >
-                    <PresentationVisual
-                        mediaData={mediaData}
-                        Element={() => PresentationFile({ file })}
-                    />
+                <div className="flex justify-center items-center p-6 h-full w-full">
+                    <PresentationFile file={file} />
                 </div>
             </div>
         )
@@ -1075,14 +1068,6 @@ const FileBrowser = () => {
         syncState().then(() => removeLoading('files'))
     }, [syncState])
 
-    const presentingElement = useCallback(
-        () =>
-            PresentationFile({
-                file: filesMap.get(presentingId),
-            }),
-        [filesMap, presentingId]
-    )
-
     return (
         <WebsocketContext.Provider value={wsSend}>
             <TaskProgContext.Provider
@@ -1095,11 +1080,7 @@ const FileBrowser = () => {
                         loading={loading}
                     />
                     <DraggingCounter />
-                    <Presentation
-                        mediaId={filesMap.get(presentingId)?.GetMediaId()}
-                        element={presentingElement}
-                        dispatch={{ setPresentationTarget }}
-                    />
+                    <PresentationFile file={filesMap.get(presentingId)} />
                     {pasteImgBytes && <PasteImageDialogue />}
                     {isSearching && <SearchDialogue />}
                     <FileContextMenu />

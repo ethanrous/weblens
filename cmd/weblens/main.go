@@ -9,6 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/fileTree"
 	. "github.com/ethrousseau/weblens/http"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/jobs"
@@ -20,18 +21,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func init() {
-	internal.ReadEnv()
-}
-
 var server *Server
 var services = &models.ServicePack{}
 
 func main() {
+	config, err := env.ReadConfig("", os.Getenv("CONFIG_NAME"))
+	if err != nil {
+		panic(err)
+	}
+
 	defer mainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR")
 	log.Info.Println("Starting Weblens")
 
-	if internal.IsDevMode() {
+	if config["logLevel"].(string) == "debug" {
 		log.SetLogLevel(log.DEBUG)
 		log.Debug.Println("Starting Weblens in debug mode")
 
@@ -42,16 +44,16 @@ func main() {
 		}
 		go func() { log.ErrTrace(metricsServer.ListenAndServe()) }()
 	} else {
-		gin.SetMode(gin.ReleaseMode)
 	}
+	gin.SetMode(gin.ReleaseMode)
 
-	server = NewServer(services)
-	go startup(internal.GetMongoDBName(), services, server)
+	server = NewServer(config["routerHost"].(string), config["routerPort"].(string), services)
+	go startup(config, services, server)
 
 	server.Start()
 }
 
-func startup(mongoName string, pack *models.ServicePack, srv *Server) {
+func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	defer mainRecovery("WEBLENS STARTUP FAILED")
 
 	log.Trace.Println("Beginning service setup")
@@ -60,7 +62,7 @@ func startup(mongoName string, pack *models.ServicePack, srv *Server) {
 	sw.Lap()
 
 	/* Database connection */
-	db, err := database.ConnectToMongo(internal.GetMongoURI(), mongoName)
+	db, err := database.ConnectToMongo(config["mongodbUri"].(string), config["mongodbName"].(string))
 	if err != nil {
 		panic(err)
 	}
@@ -84,13 +86,13 @@ func startup(mongoName string, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init user service")
 
 	wpLogLevel := 0
-	if internal.IsDevMode() {
+	if env.IsDevMode() {
 		wpLogLevel = 1
 	}
 	/* Enable the worker pool held by the task tracker
 	loading the filesystem might dispatch tasks,
 	so we have to start the pool first */
-	workerPool := task.NewWorkerPool(internal.GetWorkerCount(), wpLogLevel)
+	workerPool := task.NewWorkerPool(env.GetWorkerCount(), wpLogLevel)
 
 	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
 	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
@@ -179,14 +181,17 @@ func startup(mongoName string, pack *models.ServicePack, srv *Server) {
 	hasher := models.NewHasher(workerPool, caster)
 
 	/* FileTree Service */
-	mediaFileTree, err := fileTree.NewFileTree(internal.GetMediaRootPath(), "MEDIA", hasher, mediaJournal)
+	mediaFileTree, err := fileTree.NewFileTree(
+		config["mediaRoot"].(string), "MEDIA", hasher,
+		mediaJournal,
+	)
 	if err != nil {
 		panic(err)
 	}
 
 	hollowJournal := mock.NewHollowJournalService()
 	hollowHasher := mock.NewMockHasher()
-	cachesTree, err := fileTree.NewFileTree(internal.GetCacheRoot(), "CACHES", hollowHasher, hollowJournal)
+	cachesTree, err := fileTree.NewFileTree(config["cachesRoot"].(string), "CACHES", hollowHasher, hollowJournal)
 	if err != nil {
 		panic(err)
 	}
@@ -205,7 +210,11 @@ func startup(mongoName string, pack *models.ServicePack, srv *Server) {
 	/* Media type Service */
 	// Only from config file, for now
 	marshMap := map[string]models.MediaType{}
-	internal.ReadTypesConfig(&marshMap)
+	err = env.ReadTypesConfig(&marshMap)
+	if err != nil {
+		panic(err)
+	}
+
 	mediaTypeServ := models.NewTypeService(marshMap)
 	/* Media Service */
 	mediaService, err := service.NewMediaService(

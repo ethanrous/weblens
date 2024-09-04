@@ -16,6 +16,7 @@ import (
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
@@ -420,7 +421,30 @@ func (fs *FileServiceImpl) ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser,
 }
 
 func (fs *FileServiceImpl) NewZip(zipName string, owner *models.User) (*fileTree.WeblensFileImpl, error) {
-	panic("not implemented")
+	cacheRoot := fs.cachesTree.GetRoot()
+	takeoutDir, err := cacheRoot.GetChild("takeout")
+	if err != nil {
+		return nil, err
+	}
+
+	zipFile, err := fs.cachesTree.Touch(takeoutDir, zipName, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return zipFile, nil
+}
+
+func (fs *FileServiceImpl) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+	takeoutFile := fs.cachesTree.Get(id)
+	if takeoutFile == nil {
+		return nil, werror.ErrNoFile
+	}
+	if takeoutFile.GetParent().Filename() != "takeout" {
+		return nil, werror.ErrNoFile
+	}
+
+	return takeoutFile, nil
 }
 
 func (fs *FileServiceImpl) MoveFiles(
@@ -715,7 +739,7 @@ func (fs *FileServiceImpl) clearTempDir() (err error) {
 	}
 
 	for _, file := range files {
-		err := os.RemoveAll(filepath.Join(internal.GetTmpDir(), file.Name()))
+		err := os.RemoveAll(filepath.Join(env.GetTmpDir(), file.Name()))
 		if err != nil {
 			return err
 		}

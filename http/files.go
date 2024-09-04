@@ -605,3 +605,199 @@ func searchByFilename(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, files)
 }
+
+func getFile(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+	if u == nil {
+		return
+	}
+
+	fileId := fileTree.FileId(ctx.Param("fileId"))
+	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+	if err != nil {
+		log.ShowErr(err)
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file"})
+		return
+	}
+
+	if file == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file"})
+		return
+	}
+
+	formattedInfo, err := formatFileSafe(file, u, nil, pack)
+	if err != nil {
+		log.ErrTrace(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to format file info"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, formattedInfo)
+}
+
+func getFileText(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+	if u == nil {
+		return
+	}
+
+	fileId := fileTree.FileId(ctx.Param("fileId"))
+	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
+	ctx.File(file.GetAbsPath())
+}
+
+func updateFile(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+	fileId := fileTree.FileId(ctx.Param("fileId"))
+	updateInfo, err := readCtxBody[fileUpdateBody](ctx)
+	if err != nil {
+		return
+	}
+
+	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+	if err != nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	if pack.FileService.IsFileInTrash(file) {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "cannot rename file in trash"})
+		return
+	}
+
+	err = pack.FileService.RenameFile(file, updateInfo.NewName, pack.Caster)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func trashFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
+	fileIds, err := readCtxBody[[]fileTree.FileId](ctx)
+	if err != nil {
+		return
+	}
+	u := getUserFromCtx(ctx)
+
+	var failed []fileTree.FileId
+
+	for _, fileId := range fileIds {
+		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+		if file == nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to trash"})
+			return
+		}
+
+		if u != pack.FileService.GetFileOwner(file) {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+
+		err = pack.FileService.MoveFileToTrash(file, u, nil, pack.Caster)
+		if err != nil {
+			log.ErrTrace(err)
+			failed = append(failed, fileId)
+			continue
+		}
+	}
+
+	if len(failed) != 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"failedIds": failed})
+		return
+	}
+	ctx.Status(http.StatusOK)
+}
+
+func deleteFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+	fileIds, err := readCtxBody[[]fileTree.FileId](ctx)
+	if err != nil {
+		return
+	}
+	// caster := models.NewBufferedCaster (pack.ClientService)
+	// defer caster.Close()
+
+	var files []*fileTree.WeblensFileImpl
+	for _, fileId := range fileIds {
+		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+		if err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
+			return
+		} else if u != pack.FileService.GetFileOwner(file) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
+			return
+		} else if !pack.FileService.IsFileInTrash(file) {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete file not in trash"})
+			return
+		}
+		files = append(files, file)
+	}
+
+	err = pack.FileService.PermanentlyDeleteFiles(files, pack.Caster)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func unTrashFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+	if u == nil {
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+	bodyBytes, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		log.ErrTrace(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	var fileIds []fileTree.FileId
+	err = json.Unmarshal(bodyBytes, &fileIds)
+	if err != nil {
+		ctx.Status(http.StatusInternalServerError)
+		log.ShowErr(err)
+		return
+	}
+
+	caster := models.NewBufferedCaster(pack.ClientService)
+	defer caster.Close()
+
+	var files []*fileTree.WeblensFileImpl
+	for _, fileId := range fileIds {
+		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
+		if err != nil || u != pack.FileService.GetFileOwner(file) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to untrash"})
+			return
+		}
+		files = append(files, file)
+	}
+
+	err = pack.FileService.ReturnFilesFromTrash(files, caster)
+	if err != nil {
+		log.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}

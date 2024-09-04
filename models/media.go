@@ -435,7 +435,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 	err = ffmpeg.Input(f.GetAbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
 		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
 			"c:v":                "libx264",
-			"b:v":                internal.GetVideoConstBitrate(),
+			"b:v": 400000 * 2,
 			"b:a":                autioRate,
 			"crf":                18,
 			"preset":             speed,

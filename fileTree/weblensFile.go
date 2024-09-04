@@ -262,14 +262,14 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 	return data, nil
 }
 
-func (f *WeblensFileImpl) Write(data []byte) error {
+func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 	if f.IsDir() {
-		return werror.ErrDirNotAllowed
+		return 0, werror.ErrDirNotAllowed
 	}
 
 	if f.memOnly {
 		f.buffer = data
-		return nil
+		return len(data), nil
 	}
 
 	err := os.WriteFile(f.GetAbsPath(), data, 0660)
@@ -277,7 +277,7 @@ func (f *WeblensFileImpl) Write(data []byte) error {
 		f.size.Store(int64(len(data)))
 		f.modifyDate = time.Now()
 	}
-	return err
+	return len(data), err
 }
 
 func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
@@ -687,6 +687,6 @@ func (f *WeblensFileImpl) modifiedNow() {
 
 type WeblensFile interface {
 	ID() FileId
-	Write(data []byte) error
+	Write(data []byte) (int, error)
 	ReadAll() ([]byte, error)
 }

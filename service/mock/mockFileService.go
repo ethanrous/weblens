@@ -13,6 +13,11 @@ var _ models.FileService = (*MockFileService)(nil)
 
 type MockFileService struct{}
 
+func (mfs *MockFileService) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 var usernames = []string{
 	"Rosalie Haas",
 	"Morris Coleman",

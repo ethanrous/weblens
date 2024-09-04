@@ -24,6 +24,10 @@ func TestUserPassword(t *testing.T) {
 	wrongPassCheck := u.CheckLogin("wrongPassword")
 	assert.False(t, wrongPassCheck)
 
+	wrongPassCheck2 := u.CheckLogin(password)
+	assert.False(t, wrongPassCheck2)
+
+	u.Activated = true
 	rightPassCheck := u.CheckLogin(password)
 	assert.True(t, rightPassCheck)
 }

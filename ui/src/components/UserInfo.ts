@@ -19,9 +19,8 @@ const useR = () => {
     useEffect(() => {
         if (cookies[LOGIN_TOKEN_COOKIE_KEY] && auth === null) {
             // Auth header unset, but the cookies are ready
-            const loginStr = `${cookies[USERNAME_COOKIE_KEY]}:${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
-            const login64 = window.btoa(loginStr)
-            setAuthHeader(login64.toString())
+            const loginStr = `Bearer ${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
+            setAuthHeader(loginStr)
         } else if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
             setUserInfo({ isLoggedIn: false } as UserInfoT)
         }
@@ -89,7 +88,7 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
             })
         } else {
             set({
-                auth: { Authorization: `Basic ${token}` },
+                auth: { Authorization: token },
             })
         }
     },

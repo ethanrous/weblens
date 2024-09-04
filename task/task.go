@@ -362,7 +362,6 @@ func (t *Task) SwLap(label string) {
 	t.sw.Lap(label)
 }
 
-// Add a lap in the tasks stopwatch
 func (t *Task) ExeTime() time.Duration {
 	return t.sw.GetTotalTime(true)
 }
