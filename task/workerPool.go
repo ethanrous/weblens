@@ -450,6 +450,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					}
 
 					result := t.GetResults()
+					t.updateMu.Lock()
 					result["task_id"] = t.taskId
 					result["exit_status"] = t.exitStatus
 					wp.poolMu.Lock()
@@ -463,6 +464,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					result["queue_total"] = wp.lifetimeQueuedCount.Load()
 
 					// Wake any waiters on this task
+					t.updateMu.Unlock()
 					t.waitMu.Unlock()
 
 					// Potentially find the task pool that houses this task pool. All child
