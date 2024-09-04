@@ -46,7 +46,9 @@ jobs:
           libwebp-dev \
           libglib2.0-dev \
           libexpat1-dev \
-          exiftool
+          exiftool \
+          nodejs \
+          npm
         env:
           REMOTE_TESTS: ${{ inputs.remote_tests }}
 
@@ -63,7 +65,11 @@ jobs:
       - name: Test (No Remotes)
         if: ${{ inputs.remote_tests == false }}
         run: |
-          export APP_ROOT=$(pwd)
+          cd ./ui
+          export VITE_APP_BUILD_TAG=test
+          export VITE_BUILD=true
+          npm run build
+          cd ..
           CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
           exit $?
         env:
