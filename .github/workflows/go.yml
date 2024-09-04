@@ -67,6 +67,7 @@ jobs:
         if: ${{ inputs.remote_tests == false }}
         run: |
           cd ./ui
+          npm install
           export VITE_APP_BUILD_TAG=test
           export VITE_BUILD=true
           npm run build
