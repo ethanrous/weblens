@@ -33,7 +33,7 @@ type Media struct {
 	// User who owns the file that resulted in this media being created
 	Owner Username `json:"owner" bson:"owner"`
 
-	// Full-res image dimentions
+	// Full-res image dimensions
 	Width  int `json:"width" bson:"width"`
 	Height int `json:"height" bson:"height"`
 
@@ -71,7 +71,7 @@ type Media struct {
 	Rotate string
 
 	// If the media is imported into the databse yet. If not, we shouldn't ask about
-	// things like cache, dimentions, etc., as it might not have them.
+	// things like cache, dimensions, etc., as it might not have them.
 	imported bool
 
 	// WEBP thumbnail cache fileId
@@ -322,8 +322,8 @@ func (m *Media) MarshalJSON() ([]byte, error) {
 		"contentId":   m.ContentId,
 		"fileIds":     m.FileIds,
 		"owner":       m.Owner,
-		"width":  m.Width,
-		"height": m.Height,
+		"width":       m.Width,
+		"height":      m.Height,
 		"createDate":  m.CreateDate.UnixMilli(),
 		"mimeType":    m.MimeType,
 		"pageCount":   m.PageCount,
@@ -435,7 +435,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 	err = ffmpeg.Input(f.GetAbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
 		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
 			"c:v":                "libx264",
-			"b:v": 400000 * 2,
+			"b:v":                400000 * 2,
 			"b:a":                autioRate,
 			"crf":                18,
 			"preset":             speed,

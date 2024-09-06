@@ -18,14 +18,14 @@ type FileAction struct {
 	DestinationPath string `json:"destinationPath" bson:"destinationPath,omitempty"`
 	// DestinationId   FileId `json:"destinationId" bson:"destinationId,omitempty"`
 
-	LifeId FileId `json:"lifeId" bson:"lifeId"`
+	LifeId  FileId      `json:"lifeId" bson:"lifeId"`
 	EventId FileEventId `json:"eventId" bson:"eventId"`
 
 	Size     int64  `json:"size" bson:"size"`
 	ParentId FileId `json:"parentId" bson:"ParentId"`
 	ServerId string `json:"serverId" bson:"serverId"`
 
-	LifeNext *FileAction `json:"-" bson:"-"`
+	LifeNext *FileAction      `json:"-" bson:"-"`
 	LifePrev *FileAction      `json:"-" bson:"-"`
 	file     *WeblensFileImpl `bson:"-"`
 }
@@ -126,9 +126,9 @@ func (fa *FileAction) UnmarshalJSON(bs []byte) error {
 
 const (
 	FileCreate  FileActionType = "fileCreate"
-	FileMove   FileActionType = "fileMove"
-	FileWrite  FileActionType = "fileWrite"
-	Backup     FileActionType = "backup"
-	FileDelete FileActionType = "fileDelete"
+	FileMove    FileActionType = "fileMove"
+	FileWrite   FileActionType = "fileWrite"
+	Backup      FileActionType = "backup"
+	FileDelete  FileActionType = "fileDelete"
 	FileRestore FileActionType = "fileRestore"
 )

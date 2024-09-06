@@ -113,12 +113,17 @@ func GetRouterPort() string {
 }
 
 func GetLogLevel() int {
-	config, err := ReadConfig(GetConfigName())
-	if err != nil {
-		panic(err)
+	level := os.Getenv("LOG_LEVEL")
+	if level == "" {
+		config, err := ReadConfig(GetConfigName())
+		if err != nil {
+			panic(err)
+		}
+
+		level, _ = config["logLevel"].(string)
 	}
 
-	if level, ok := config["logLevel"].(string); ok {
+	if level != "" {
 		switch level {
 		case "debug":
 			return log.DEBUG

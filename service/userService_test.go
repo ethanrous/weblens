@@ -10,6 +10,7 @@ import (
 	. "github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -102,9 +103,7 @@ func TestUserService(t *testing.T) {
 	}
 
 	failUserService, err := NewUserService(failingMongo)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = failUserService.Add(serviceUser1)
 	assert.Error(t, err)
@@ -183,19 +182,13 @@ func TestUserServiceImpl_Del(t *testing.T) {
 	}
 
 	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.Add(newUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.Del(testUser1Name)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	noUser := userService.Get(testUser1Name)
 	assert.Nil(t, noUser)
@@ -217,27 +210,17 @@ func TestUserServiceImpl_SearchByUsername(t *testing.T) {
 	}
 
 	stanUser, err := models.NewUser("stan", testUser1Pass, false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 	err = userService.Add(stanUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	blanUser, err := models.NewUser("blan", testUser1Pass, false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 	err = userService.Add(blanUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	userIter, err := userService.SearchByUsername("st")
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	userResults := slices.Collect(userIter)
 	assert.Equal(t, 1, len(userResults))
@@ -246,9 +229,7 @@ func TestUserServiceImpl_SearchByUsername(t *testing.T) {
 	}
 
 	userIter2, err := userService.SearchByUsername("an")
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	userResults2 := slices.Collect(userIter2)
 	assert.Equal(t, 2, len(userResults2))
@@ -269,23 +250,17 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 	}
 
 	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.Add(newUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.SetUserAdmin(newUser, true)
 	assert.Error(t, err)
 	assert.False(t, newUser.IsAdmin())
 
 	err = userService.ActivateUser(newUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.SetUserAdmin(newUser, true)
 	assert.NoError(t, err)
@@ -300,14 +275,10 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 	}
 
 	failUserService, err := NewUserService(failingMongo)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	newUser2, err := models.NewUser(testUser2Name, testUser2Pass, false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 	assert.True(t, newUser2.IsActive())
 
 	err = failUserService.Add(newUser2)
@@ -335,19 +306,13 @@ func TestUserServiceImpl_UpdateUserPassword(t *testing.T) {
 	}
 
 	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.Add(newUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = userService.UpdateUserPassword(newUser.Username, testUser1Pass, testUser2Pass, false)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.False(t, newUser.CheckLogin(testUser1Pass))
 	assert.True(t, newUser.CheckLogin(testUser2Pass))

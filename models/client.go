@@ -20,14 +20,14 @@ type ClientId string
 var _ Client = (*WsClient)(nil)
 
 type WsClient struct {
-	Active   atomic.Bool
+	Active        atomic.Bool
 	connId        ClientId
 	conn          *websocket.Conn
-	updateMu sync.Mutex
-	subsMu   sync.Mutex
+	updateMu      sync.Mutex
+	subsMu        sync.Mutex
 	subscriptions []Subscription
-	user     *User
-	remote   *Instance
+	user          *User
+	remote        *Instance
 }
 
 func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
@@ -90,7 +90,7 @@ func (wsc *WsClient) Error(err error) {
 func (wsc *WsClient) PushWeblensEvent(eventTag string) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
-		SubscribeKey: "WEBLENS",
+		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
 	}
 
@@ -100,8 +100,8 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string) {
 func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey: updatedFile.ID(),
-		Content:      WsC{"fileInfo": updatedFile, "mediaData": media},
+		SubscribeKey:  updatedFile.ID(),
+		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -110,8 +110,8 @@ func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media
 
 func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
 	msg := WsResponseInfo{
-		EventTag:     event,
-		SubscribeKey: task.TaskId(),
+		EventTag:      event,
+		SubscribeKey:  task.TaskId(),
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
@@ -127,8 +127,8 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 	}
 
 	msg := WsResponseInfo{
-		EventTag:     event,
-		SubscribeKey: pool.ID(),
+		EventTag:      event,
+		SubscribeKey:  pool.ID(),
 		Content:       WsC(result),
 		TaskType:      pool.CreatedInTask().JobName(),
 		BroadcastType: TaskSubscribe,

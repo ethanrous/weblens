@@ -5,6 +5,7 @@ import (
 
 	. "github.com/ethrousseau/weblens/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var username = "bob"
@@ -12,11 +13,9 @@ var password = "b0bz!23"
 
 func TestUserPassword(t *testing.T) {
 	t.Parallel()
-	
+
 	u, err := NewUser(Username(username), password, false, false)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	// u.Password is the hash of the password, they should not match
 	assert.NotEqual(t, u.Password, password)

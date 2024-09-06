@@ -50,7 +50,7 @@ func NewClientManager(
 	fileService *FileServiceImpl, taskService task.TaskService,
 	instanceService models.InstanceService,
 ) *ClientManager {
-	return &ClientManager{
+	cm := &ClientManager{
 		webClientMap:    map[models.Username]*models.WsClient{},
 		remoteClientMap: map[models.InstanceId]*models.WsClient{},
 		clientMu:        &sync.RWMutex{},
@@ -63,6 +63,8 @@ func NewClientManager(
 		taskService:     taskService,
 		instanceService: instanceService,
 	}
+
+	return cm
 }
 
 func (cm *ClientManager) SetFileService(fileService *FileServiceImpl) {

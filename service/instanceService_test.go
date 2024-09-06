@@ -12,6 +12,7 @@ import (
 	. "github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -36,9 +37,7 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	defer col.Drop(context.Background())
 
 	is, err := NewInstanceService(col)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	if !assert.NotNil(t, is.GetLocal()) {
 		t.FailNow()
@@ -63,9 +62,7 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	assert.Equal(t, remoteId, remoteBackup.ServerId())
 
 	err = is.Add(remoteBackup)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	remoteFetch := is.Get(remoteId)
 	assert.Equal(t, remoteId, remoteFetch.ServerId())
@@ -102,9 +99,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	defer col.Drop(context.Background())
 
 	is, err := NewInstanceService(col)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	if !assert.NotNil(t, is.GetLocal()) {
 		t.FailNow()
@@ -113,9 +108,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	assert.Nil(t, is.GetCore())
 
 	err = is.InitCore("My Core Server")
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, models.CoreServer, is.GetLocal().GetRole())
 	assert.NotNil(t, is.GetCore())
@@ -133,9 +126,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	}
 
 	badIs, err := NewInstanceService(badMongo)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = badIs.InitCore("My Core Server")
 	assert.Error(t, err)
@@ -166,9 +157,7 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	defer col.Drop(context.Background())
 
 	is, err := NewInstanceService(col)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	if !assert.NotNil(t, is.GetLocal()) {
 		t.FailNow()
@@ -176,9 +165,7 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
 
 	err = is.InitBackup("My backup server", coreAddress, models.WeblensApiKey(coreKey))
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, models.BackupServer, is.GetLocal().GetRole())
 

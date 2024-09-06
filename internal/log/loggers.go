@@ -7,6 +7,25 @@ import (
 	"os"
 )
 
+var Info *log.Logger
+var Warning *log.Logger
+var Error *log.Logger
+var ErrorCatcher *log.Logger
+
+func init() {
+	Info = log.New(os.Stdout, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
+
+	// Warning writes logs in the color yellow with "WARNING: " as prefix
+	Warning = log.New(os.Stdout, "\u001b[33m[WARNING] \u001B[0m", log.LstdFlags|log.Lshortfile)
+
+	// Error writes logs in the color red with "ERROR: " as prefix
+	Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
+
+	// ErrorCatcher Same as error, but don't print the file and line. It is expected that what is being printed will include a file and line
+	// Useful for a generic panic cather function, where the line of the catcher function is not useful
+	ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001B[0m", log.LstdFlags)
+}
+
 type Logger interface {
 	Printf(format string, v ...any)
 	Println(v ...any)
@@ -16,20 +35,6 @@ type emptyLogger struct{}
 
 func (emptyLogger) Printf(format string, v ...any) {}
 func (emptyLogger) Println(v ...any)               {}
-
-// Info writes logs in the color blue with "INFO: " as prefix
-var Info = log.New(os.Stdout, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
-var WsInfo = log.New(os.Stdout, "\u001b[34m[WS INFO] \u001B[0m", log.LstdFlags)
-
-// Warning writes logs in the color yellow with "WARNING: " as prefix
-var Warning = log.New(os.Stdout, "\u001b[33m[WARNING] \u001B[0m", log.LstdFlags|log.Lshortfile)
-
-// Error writes logs in the color red with "ERROR: " as prefix
-var Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
-
-// ErrorCatcher Same as error, but don't print the file and line. It is expected that what is being printed will include a file and line
-// Useful for a generic panic cather function, where the line of the catcher function is not useful
-var ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001B[0m", log.LstdFlags)
 
 var Debug Logger = emptyLogger{}
 var Trace Logger = emptyLogger{}

@@ -29,15 +29,5 @@
         "mediaRoot": "./core/media",
         "cachesRoot": "./core/caches",
         "hostUrl": "https://weblens.app"
-    },
-    "TRACE-CORE": {
-        "mongodbName": "weblens-core",
-        "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
-        "routerHost": "127.0.0.1",
-        "routerPort": "8080",
-        "mediaRoot": "./core/media",
-        "cachesRoot": "./core/caches",
-        "hostUrl": "https://weblens.app"
     }
 }

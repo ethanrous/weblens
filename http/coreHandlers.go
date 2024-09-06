@@ -157,7 +157,7 @@ func getRemotes(ctx *gin.Context) {
 				Role:         srv.ServerRole(),
 				IsThisServer: srv.IsLocal(),
 				Address:      addr,
-				Online: pack.ClientService.GetClientByInstanceId(srv.ServerId()) != nil,
+				Online:       pack.ClientService.GetClientByInstanceId(srv.ServerId()) != nil,
 			}
 		},
 	)

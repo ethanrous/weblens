@@ -16,10 +16,10 @@ import (
 var _ models.InstanceService = (*InstanceServiceImpl)(nil)
 
 type InstanceServiceImpl struct {
-	instanceMap map[models.InstanceId]*models.Instance
+	instanceMap     map[models.InstanceId]*models.Instance
 	instanceMapLock sync.RWMutex
-	local       *models.Instance
-	core        *models.Instance
+	local           *models.Instance
+	core            *models.Instance
 
 	col database.MongoCollection
 }

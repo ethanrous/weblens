@@ -39,7 +39,7 @@ type FileService interface {
 	RemoveTask(f *fileTree.WeblensFileImpl, t *task.Task) error
 	GetTasks(f *fileTree.WeblensFileImpl) []*task.Task
 
-	GetMediaJournal() fileTree.JournalService
+	GetMediaJournal() fileTree.Journal
 
 	ResizeDown(file *fileTree.WeblensFileImpl, caster FileCaster) error
 	ResizeUp(file *fileTree.WeblensFileImpl, caster FileCaster) error

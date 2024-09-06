@@ -7,8 +7,8 @@ import (
 )
 
 var ErrNoFile = &clientSafeErr{
-	realError: errors.New("file does not exist"),
-	safeErr: errors.New("file does not exist or user does not have access to it"),
+	realError:  errors.New("file does not exist"),
+	safeErr:    errors.New("file does not exist or user does not have access to it"),
 	statusCode: http.StatusNotFound,
 }
 

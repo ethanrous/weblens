@@ -6,13 +6,12 @@ import (
 	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnectToMongo(t *testing.T) {
 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.NotNil(t, mondb)
 

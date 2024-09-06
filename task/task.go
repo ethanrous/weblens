@@ -20,7 +20,7 @@ type TaskResult = map[string]any
 // var _ TaskInterface = (*Task)(nil)
 
 type Task struct {
-	taskId Id
+	taskId        Id
 	taskPool      *TaskPool
 	childTaskPool *TaskPool
 	work          TaskHandler
@@ -53,7 +53,7 @@ type Task struct {
 	// to exit prematurely, for example. The signalChan serves the same purpose, but is
 	// used when a task might block waiting for another channel.
 	// Key: 1 is exit,
-	signal atomic.Int64
+	signal     atomic.Int64
 	signalChan chan int
 
 	waitMu sync.Mutex
@@ -236,7 +236,7 @@ func (t *Task) GetMeta() TaskMetadata {
 /*
 Manipulate is used to change the metadata of a task while it is running.
 This can be useful to have a task be waiting for input from a client,
-and this function can be used to send that data to the task via a chan, for exmaple.
+and this function can be used to send that data to the task via a chan, for example.
 */
 func (t *Task) Manipulate(fn func(meta TaskMetadata) error) error {
 	return fn(t.metadata)

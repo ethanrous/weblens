@@ -383,8 +383,6 @@ func (wp *WorkerPool) removeTask(taskId Id) {
 // different to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
-		wp.currentWorkers.Add(1)
-
 		// Inc alive workers
 		defer wp.currentWorkers.Add(-1)
 		// util.Debug.Printf("Worker %d reporting for duty o7", workerId)
@@ -480,7 +478,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						wp.removeTask(t.taskId)
 					}
 
-					canContinue := true
+					var canContinue = true
 					directParent := t.GetTaskPool()
 
 					directParent.completedTasks.Add(1)
@@ -535,7 +533,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				}
 			}
 		}
-	}(wp.currentWorkers.Load())
+	}(wp.currentWorkers.Add(1) - 1)
 }
 
 /*

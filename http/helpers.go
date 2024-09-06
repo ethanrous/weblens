@@ -181,7 +181,7 @@ func formatFileSafe(
 		ParentId:     parentId,
 		Owner:        owner.GetUsername(),
 		PathFromHome: pathString,
-		MediaData: pack.MediaService.Get(models.ContentId(f.GetContentId())),
+		MediaData:    pack.MediaService.Get(models.ContentId(f.GetContentId())),
 		ShareId:      shareId,
 		Children: internal.Map(
 			f.GetChildren(), func(wf *fileTree.WeblensFileImpl) fileTree.FileId { return wf.ID() },

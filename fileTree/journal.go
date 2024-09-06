@@ -17,9 +17,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var _ JournalService = (*JournalServiceImpl)(nil)
+var _ Journal = (*JournalImpl)(nil)
 
-type JournalServiceImpl struct {
+type JournalImpl struct {
 	lifetimes   map[FileId]*Lifetime
 	lifetimeMapLock sync.RWMutex
 	eventStream chan *FileEvent
@@ -30,8 +30,8 @@ type JournalServiceImpl struct {
 	col      *mongo.Collection
 }
 
-func NewJournalService(col *mongo.Collection, serverId string) (JournalService, error) {
-	j := &JournalServiceImpl{
+func NewJournal(col *mongo.Collection, serverId string) (*JournalImpl, error) {
+	j := &JournalImpl{
 		lifetimes: make(map[FileId]*Lifetime),
 		eventStream: make(chan *FileEvent, 10),
 		col:         col,
@@ -111,10 +111,12 @@ func NewJournalService(col *mongo.Collection, serverId string) (JournalService, 
 		j.lifetimeMapLock.Unlock()
 	}
 
+	go j.EventWorker()
+
 	return j, nil
 }
 
-func (j *JournalServiceImpl) NewEvent() *FileEvent {
+func (j *JournalImpl) NewEvent() *FileEvent {
 	return &FileEvent{
 		EventId:    FileEventId(primitive.NewObjectID().Hex()),
 		EventBegin: time.Now(),
@@ -123,11 +125,11 @@ func (j *JournalServiceImpl) NewEvent() *FileEvent {
 	}
 }
 
-func (j *JournalServiceImpl) SetFileTree(ft *FileTreeImpl) {
+func (j *JournalImpl) SetFileTree(ft *FileTreeImpl) {
 	j.fileTree = ft
 }
 
-func (j *JournalServiceImpl) GetActiveLifetimes() []*Lifetime {
+func (j *JournalImpl) GetActiveLifetimes() []*Lifetime {
 	var result []*Lifetime
 	for _, l := range j.lifetimes {
 		if l.IsLive() {
@@ -137,13 +139,13 @@ func (j *JournalServiceImpl) GetActiveLifetimes() []*Lifetime {
 	return result
 }
 
-func (j *JournalServiceImpl) GetAllLifetimes() []*Lifetime {
+func (j *JournalImpl) GetAllLifetimes() []*Lifetime {
 	j.lifetimeMapLock.RLock()
 	defer j.lifetimeMapLock.RUnlock()
 	return internal.MapToValues(j.lifetimes)
 }
 
-func (j *JournalServiceImpl) LogEvent(fe *FileEvent) {
+func (j *JournalImpl) LogEvent(fe *FileEvent) {
 	log.Trace.Printf("Dropping off event with %d actions", len(fe.Actions))
 
 	if fe != nil && len(fe.Actions) != 0 {
@@ -151,11 +153,11 @@ func (j *JournalServiceImpl) LogEvent(fe *FileEvent) {
 	}
 }
 
-func (j *JournalServiceImpl) GetActionsByPath(path WeblensFilepath) ([]*FileAction, error) {
+func (j *JournalImpl) GetActionsByPath(path WeblensFilepath) ([]*FileAction, error) {
 	return getActionsByPath(path, j.col)
 }
 
-func (j *JournalServiceImpl) GetLatestAction() (*FileAction, error) {
+func (j *JournalImpl) GetLatestAction() (*FileAction, error) {
 	opts := options.FindOne().SetSort(bson.M{"actions.timestamp": -1})
 
 	ret := j.col.FindOne(context.Background(), bson.M{}, opts)
@@ -176,7 +178,7 @@ func (j *JournalServiceImpl) GetLatestAction() (*FileAction, error) {
 
 }
 
-func (j *JournalServiceImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) (
+func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) (
 	[]*WeblensFileImpl, error,
 ) {
 	actions, err := getActionsByPath(folder.GetPortablePath(), j.col)
@@ -222,13 +224,13 @@ func (j *JournalServiceImpl) GetPastFolderChildren(folder *WeblensFileImpl, time
 	return children, nil
 }
 
-func (j *JournalServiceImpl) Get(lId FileId) *Lifetime {
+func (j *JournalImpl) Get(lId FileId) *Lifetime {
 	j.lifetimeMapLock.RLock()
 	defer j.lifetimeMapLock.RUnlock()
 	return j.lifetimes[lId]
 }
 
-func (j *JournalServiceImpl) Add(lt *Lifetime) error {
+func (j *JournalImpl) Add(lt *Lifetime) error {
 	// Check if this is a new or existing lifetime
 	existing := j.Get(lt.ID())
 	if existing != nil {
@@ -283,39 +285,31 @@ func (j *JournalServiceImpl) Add(lt *Lifetime) error {
 	return nil
 }
 
-func (j *JournalServiceImpl) Del(lId FileId) error {
-	return werror.NotImplemented("journal delete")
-}
-
-func (j *JournalServiceImpl) GetLifetimesSince(date time.Time) ([]*Lifetime, error) {
+func (j *JournalImpl) GetLifetimesSince(date time.Time) ([]*Lifetime, error) {
 	return getLifetimesSince(date, j.col)
 }
 
-func (j *JournalServiceImpl) EventWorker() {
+func (j *JournalImpl) Close() {
+	close(j.eventStream)
+}
+
+func (j *JournalImpl) EventWorker() {
 	for {
-		e := <-j.eventStream
+		e, ok := <-j.eventStream
+		if !ok {
+			return
+		}
+		if e == nil {
+			log.Error.Println("Got nil event in event stream...")
+			continue
+		}
 		if err := j.handleFileEvent(e); err != nil {
 			log.ErrTrace(err)
 		}
 	}
 }
 
-func getAllLifetimes(col *mongo.Collection) ([]*Lifetime, error) {
-	ret, err := col.Find(context.Background(), bson.M{})
-	if err != nil {
-		return nil, err
-	}
-
-	var target []*Lifetime
-	err = ret.All(context.Background(), &target)
-	if err != nil {
-		return nil, err
-	}
-
-	return target, nil
-}
-
-func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
+func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 	if len(event.GetActions()) == 0 {
 		return nil
 	}
@@ -346,6 +340,10 @@ func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
 				return werror.Errorf("failed to create new lifetime")
 			}
 
+			if _, ok := j.lifetimes[newL.ID()]; ok {
+				return werror.Errorf("trying to add create action to already existing lifetime")
+			}
+
 			j.lifetimeMapLock.Lock()
 			j.lifetimes[newL.ID()] = newL
 			j.lifetimeMapLock.Unlock()
@@ -370,15 +368,15 @@ func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
 	log.Trace.Printf("Updating %d lifetimes", len(updated))
 
 	for _, lt := range updated {
-		f := j.fileTree.Get(lt.ID())
-		if f != nil {
-			sz := f.Size()
-			if lt.GetContentId() == "" && !f.IsDir() && sz != 0 {
-				return werror.Errorf("No content ID in lifetime update")
-			}
-		} else if lt.GetLatestAction().GetActionType() != FileDelete {
-			return werror.Errorf("Could not find file for non-delete lifetime update")
-		}
+		// f := j.fileTree.Get(lt.ID())
+		// if f != nil {
+		// 	sz := f.Size()
+		// 	if lt.GetContentId() == "" && !f.IsDir() && sz != 0 {
+		// 		return werror.Errorf("No content ID in lifetime update")
+		// 	}
+		// } else if lt.GetLatestAction().GetActionType() != FileDelete {
+		// 	return werror.Errorf("Could not find file for non-delete lifetime update")
+		// }
 		filter := bson.M{"_id": lt.ID()}
 		update := bson.M{"$set": lt}
 		o := options.Update().SetUpsert(true)
@@ -389,6 +387,21 @@ func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
 	}
 
 	return nil
+}
+
+func getAllLifetimes(col *mongo.Collection) ([]*Lifetime, error) {
+	ret, err := col.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	var target []*Lifetime
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
 }
 
 func upsertLifetime(lt *Lifetime, col *mongo.Collection) error {
@@ -461,10 +474,9 @@ func getLifetimesSince(date time.Time, col *mongo.Collection) ([]*Lifetime, erro
 	return target, nil
 }
 
-type JournalService interface {
+type Journal interface {
 	Get(id FileId) *Lifetime
 	Add(lifetime *Lifetime) error
-	Del(id FileId) error
 
 	SetFileTree(ft *FileTreeImpl)
 

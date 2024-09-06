@@ -15,6 +15,7 @@ import (
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -59,9 +60,7 @@ func TestScanFile(t *testing.T) {
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
 		col,
 	)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	for _, file := range testMediaTree.GetRoot().GetChildren() {
 		ext := filepath.Ext(file.Filename())
@@ -109,9 +108,7 @@ func TestScanDirectory(t *testing.T) {
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
 		col,
 	)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	wp.Run()
 	scanMeta := models.ScanMeta{
@@ -124,9 +121,7 @@ func TestScanDirectory(t *testing.T) {
 	}
 
 	tsk, err := wp.DispatchJob(models.ScanDirectoryTask, scanMeta, nil)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	tsk.Wait()
 

@@ -121,7 +121,7 @@ func (mfs *MockFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 	return nil
 }
 
-func (mfs *MockFileService) GetMediaJournal() fileTree.JournalService {
+func (mfs *MockFileService) GetMediaJournal() fileTree.Journal {
 	return nil
 }
 

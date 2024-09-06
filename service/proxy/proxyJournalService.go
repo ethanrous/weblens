@@ -9,7 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/models"
 )
 
-var _ fileTree.JournalService = (*ProxyJournalService)(nil)
+var _ fileTree.Journal = (*ProxyJournalService)(nil)
 
 type ProxyJournalService struct {
 	Core *models.Instance

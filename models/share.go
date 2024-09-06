@@ -18,15 +18,15 @@ type ShareId string
 type FileShare struct {
 	ShareId   ShareId         `bson:"_id" json:"shareId"`
 	FileId    fileTree.FileId `bson:"fileId" json:"fileId"`
-	ShareName string     `bson:"shareName" json:"shareName"`
-	Owner     Username   `bson:"owner" json:"owner"`
-	Accessors []Username `bson:"accessors" json:"accessors"`
-	Public    bool       `bson:"public" json:"public"`
-	Wormhole  bool       `bson:"wormhole" json:"wormhole"`
-	Enabled   bool       `bson:"enabled" json:"enabled"`
-	Expires   time.Time  `bson:"expires" json:"expires"`
-	Updated   time.Time  `bson:"updated" json:"updated"`
-	ShareType ShareType  `bson:"shareType" json:"shareType"`
+	ShareName string          `bson:"shareName" json:"shareName"`
+	Owner     Username        `bson:"owner" json:"owner"`
+	Accessors []Username      `bson:"accessors" json:"accessors"`
+	Public    bool            `bson:"public" json:"public"`
+	Wormhole  bool            `bson:"wormhole" json:"wormhole"`
+	Enabled   bool            `bson:"enabled" json:"enabled"`
+	Expires   time.Time       `bson:"expires" json:"expires"`
+	Updated   time.Time       `bson:"updated" json:"updated"`
+	ShareType ShareType       `bson:"shareType" json:"shareType"`
 }
 
 type AlbumShare struct {
@@ -79,8 +79,8 @@ func NewAlbumShare(
 	}
 }
 
-func (s *FileShare) ID() ShareId             { return s.ShareId }
-func (s *FileShare) GetShareType() ShareType { return SharedFile }
+func (s *FileShare) ID() ShareId              { return s.ShareId }
+func (s *FileShare) GetShareType() ShareType  { return SharedFile }
 func (s *FileShare) GetItemId() string        { return string(s.FileId) }
 func (s *FileShare) SetItemId(fileId string)  { s.FileId = fileTree.FileId(fileId) }
 func (s *FileShare) GetAccessors() []Username { return s.Accessors }
@@ -164,8 +164,8 @@ func (s *FileShare) LastUpdated() time.Time {
 // 	return bson.Marshal(data)
 // }
 
-func (s *AlbumShare) ID() ShareId             { return s.ShareId }
-func (s *AlbumShare) GetShareType() ShareType { return SharedAlbum }
+func (s *AlbumShare) ID() ShareId              { return s.ShareId }
+func (s *AlbumShare) GetShareType() ShareType  { return SharedAlbum }
 func (s *AlbumShare) GetItemId() string        { return string(s.AlbumId) }
 func (s *AlbumShare) SetItemId(albumId string) { s.AlbumId = AlbumId(albumId) }
 func (s *AlbumShare) GetAccessors() []Username { return s.Accessors }

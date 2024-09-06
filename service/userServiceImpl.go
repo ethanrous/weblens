@@ -19,7 +19,7 @@ type UserServiceImpl struct {
 	userLock   sync.RWMutex
 	publicUser *models.User
 	rootUser   *models.User
-	col database.MongoCollection
+	col        database.MongoCollection
 }
 
 func NewUserService(col database.MongoCollection) (*UserServiceImpl, error) {

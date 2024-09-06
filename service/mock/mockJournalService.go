@@ -66,6 +66,6 @@ func (h *HollowJournalService) GetLatestAction() (*fileTree.FileAction, error) {
 	return nil, nil
 }
 
-func NewHollowJournalService() fileTree.JournalService {
+func NewHollowJournalService() fileTree.Journal {
 	return &HollowJournalService{}
 }

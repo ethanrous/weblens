@@ -34,13 +34,13 @@ type TaskDispatcher interface {
 }
 
 type ScanMeta struct {
-	File *fileTree.WeblensFileImpl
+	File         *fileTree.WeblensFileImpl
 	FileBytes    []byte
 	PartialMedia *Media
 
 	FileService  FileService
 	MediaService MediaService
-	TaskService TaskDispatcher
+	TaskService  TaskDispatcher
 	TaskSubber   TaskSubscriber
 	Caster       FileCaster
 }
@@ -78,7 +78,7 @@ func (m ScanMeta) Verify() error {
 }
 
 type ZipMeta struct {
-	Files []*fileTree.WeblensFileImpl
+	Files     []*fileTree.WeblensFileImpl
 	Share     *FileShare
 	Requester *User
 
@@ -139,7 +139,7 @@ func (m ZipMeta) Verify() error {
 }
 
 type MoveMeta struct {
-	FileIds []fileTree.FileId
+	FileIds             []fileTree.FileId
 	DestinationFolderId fileTree.FileId
 	NewFilename         string
 	FileEvent           *fileTree.FileEvent
@@ -152,7 +152,7 @@ type MoveMeta struct {
 func (m MoveMeta) MetaString() string {
 	data := map[string]any{
 		"JobName":     MoveFileTask,
-		"FileIds": m.FileIds,
+		"FileIds":     m.FileIds,
 		"DestId":      m.DestinationFolderId,
 		"NewFileName": m.NewFilename,
 	}
@@ -263,7 +263,7 @@ func (m FsStatMeta) Verify() error {
 }
 
 type FileUploadProgress struct {
-	File *fileTree.WeblensFileImpl
+	File          *fileTree.WeblensFileImpl
 	BytesWritten  int64
 	FileSizeTotal int64
 }
@@ -272,7 +272,7 @@ type BackupMeta struct {
 	RemoteId            InstanceId
 	FileService         FileService
 	ProxyFileService    FileService
-	ProxyJournalService fileTree.JournalService
+	ProxyJournalService fileTree.Journal
 	UserService         UserService
 	ProxyUserService    UserService
 	ProxyMediaService   MediaService
@@ -330,7 +330,7 @@ func (m BackupMeta) Verify() error {
 }
 
 type HashFileMeta struct {
-	File *fileTree.WeblensFileImpl
+	File   *fileTree.WeblensFileImpl
 	Caster Broadcaster
 }
 
@@ -359,14 +359,14 @@ func (m HashFileMeta) Verify() error {
 
 type BackupCoreFileMeta struct {
 	ProxyFileService FileService
-	File *fileTree.WeblensFileImpl
+	File             *fileTree.WeblensFileImpl
 	Caster           Broadcaster
 	// Client comm.Client
 }
 
 func (m BackupCoreFileMeta) MetaString() string {
 	data := map[string]any{
-		"JobName": CopyFileFromCoreTask,
+		"JobName":    CopyFileFromCoreTask,
 		"backupFile": m.File.ID(),
 	}
 

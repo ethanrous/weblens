@@ -19,7 +19,7 @@ type TaskPool struct {
 	treatAsGlobal  bool
 	hasQueueThread bool
 
-	tasks map[Id]*Task
+	tasks    map[Id]*Task
 	taskLock sync.RWMutex
 
 	totalTasks     atomic.Int64
@@ -157,7 +157,7 @@ func (tp *TaskPool) Status() PoolStatus {
 
 	return PoolStatus{
 		Complete: complete,
-		Failed: errorCount,
+		Failed:   errorCount,
 		Total:    total,
 		Progress: progress,
 		Runtime:  time.Since(tp.createdAt),
@@ -184,7 +184,6 @@ func (tp *TaskPool) Wait(supplementWorker bool) {
 		tp.workerPool.busyCount.Add(-1)
 		tp.workerPool.addReplacementWorker()
 	}
-
 
 	_, file, line, _ := runtime.Caller(1)
 	log.Debug.Printf("Parking on worker pool from %s:%d\n", file, line)

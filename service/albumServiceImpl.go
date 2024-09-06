@@ -159,10 +159,10 @@ func (as *AlbumServiceImpl) SetAlbumCover(albumId models.AlbumId, cover *models.
 }
 
 func (as *AlbumServiceImpl) GetAlbumMedias(album *models.Album) iter.Seq[*models.Media] {
-	return func(yeild func(*models.Media) bool) {
+	return func(yield func(*models.Media) bool) {
 		for _, id := range album.Medias {
 			m := as.mediaService.Get(id)
-			if !yeild(m) {
+			if !yield(m) {
 				return
 			}
 		}

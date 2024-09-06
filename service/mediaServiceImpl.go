@@ -65,12 +65,12 @@ func NewMediaService(
 	col *mongo.Collection,
 ) (*MediaServiceImpl, error) {
 	ms := &MediaServiceImpl{
-		mediaMap:    make(map[models.ContentId]*models.Media),
-		streamerMap: make(map[models.ContentId]*models.VideoStreamer),
-		typeService: mediaTypeServ,
-		mediaCache:  sturdyc.New[[]byte](1500, 10, time.Hour, 10),
-		fileService: fileService,
-		collection:  col,
+		mediaMap:     make(map[models.ContentId]*models.Media),
+		streamerMap:  make(map[models.ContentId]*models.VideoStreamer),
+		typeService:  mediaTypeServ,
+		mediaCache:   sturdyc.New[[]byte](1500, 10, time.Hour, 10),
+		fileService:  fileService,
+		collection:   col,
 		AlbumService: albumService,
 	}
 
@@ -122,7 +122,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	}
 
 	if m.Width == 0 || m.Height == 0 {
-		return werror.ErrMediaNoDimentions
+		return werror.ErrMediaNoDimensions
 	}
 
 	if len(m.FileIds) == 0 {

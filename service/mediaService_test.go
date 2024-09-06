@@ -13,6 +13,7 @@ import (
 	. "github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -98,7 +99,7 @@ var sampleMediaInvalid = []testMedia{
 			Duration:   0,
 			MimeType:   "image/x-sony-arw",
 		},
-		err: werror.ErrMediaNoDimentions,
+		err: werror.ErrMediaNoDimensions,
 	},
 	{
 		name: "image with duration",
@@ -187,9 +188,7 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 		col,
 	)
 
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(
@@ -221,9 +220,7 @@ func TestMediaServiceImpl_Del(t *testing.T) {
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
 		col,
 	)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	if !assert.Equal(t, len(sampleMediaValid), ms.Size()) {
 		t.FailNow()

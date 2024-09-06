@@ -7,7 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/models"
 	. "github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAlbumServiceImpl_Add(t *testing.T) {
@@ -28,21 +28,15 @@ func TestAlbumServiceImpl_Add(t *testing.T) {
 	defer shareCol.Drop(context.Background())
 
 	ss, err := NewShareService(shareCol)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	albs := NewAlbumService(col, &mock.MockMediaService{}, ss)
 
 	alb := models.NewAlbum("My precious photos", billUser)
 
 	err = albs.Add(alb)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 }

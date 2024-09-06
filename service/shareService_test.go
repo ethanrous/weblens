@@ -8,6 +8,7 @@ import (
 	"github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -27,14 +28,10 @@ func TestShareServiceImpl_Add(t *testing.T) {
 	}
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("MEDIA")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
@@ -68,9 +65,7 @@ func TestShareServiceImpl_Del(t *testing.T) {
 	}
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("MEDIA")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
@@ -78,9 +73,7 @@ func TestShareServiceImpl_Del(t *testing.T) {
 	sh := models.NewFileShare(newDir, billUser, nil, true, false)
 
 	err = ss.Add(sh)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, 1, ss.Size())
 	docs, err := col.CountDocuments(context.Background(), bson.M{})
@@ -90,9 +83,7 @@ func TestShareServiceImpl_Del(t *testing.T) {
 	assert.Equal(t, int64(1), docs)
 
 	err = ss.Del(sh.ID())
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, 0, ss.Size())
 	emptyDocs, err := col.CountDocuments(context.Background(), bson.M{})
@@ -118,14 +109,10 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 	}
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	dipperUser, err := models.NewUser("dipperpines", "journalboy123", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	ft := mock.NewMemFileTree("MEDIA")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
@@ -133,9 +120,7 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 	sh := models.NewFileShare(newDir, billUser, nil, true, false)
 
 	err = ss.Add(sh)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	err = ss.AddUsers(sh, []*models.User{dipperUser})
 	assert.NoError(t, err)
@@ -322,4 +307,3 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 // 		)
 // 	}
 // }
-

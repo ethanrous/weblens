@@ -14,7 +14,7 @@ type watcherPathMod struct {
 
 var pathModChan = make(chan (watcherPathMod), 5)
 
-func (j *JournalServiceImpl) FileWatcher() {
+func (j *JournalImpl) FileWatcher() {
 	_, err := fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
@@ -99,7 +99,7 @@ WatcherLoop:
 	log.Error.Panicln("File watcher exiting...")
 }
 
-func (j *JournalServiceImpl) WatchFolder(f *WeblensFileImpl) error {
+func (j *JournalImpl) WatchFolder(f *WeblensFileImpl) error {
 	// if !f.IsDir() {
 	// 	return dataStore.ErrDirectoryRequired
 	// }

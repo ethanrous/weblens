@@ -28,7 +28,7 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 	srv := &Server{
 		router:   gin.New(),
 		services: services,
-		hostStr: host + ":" + port,
+		hostStr:  host + ":" + port,
 	}
 
 	srv.router.Use(withServices(services))

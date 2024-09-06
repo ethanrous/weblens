@@ -3,8 +3,8 @@ package werror
 import "errors"
 
 var ErrNoFileAccess = &clientSafeErr{
-	realError: errors.New("user does not have access to file"),
-	safeErr:   errors.New("file does not exist or user does not have access to it"),
+	realError:  errors.New("user does not have access to file"),
+	safeErr:    errors.New("file does not exist or user does not have access to it"),
 	statusCode: 404,
 }
 

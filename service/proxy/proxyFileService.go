@@ -149,7 +149,7 @@ func (pfs *ProxyFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task 
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) GetMediaJournal() fileTree.JournalService {
+func (pfs *ProxyFileService) GetMediaJournal() fileTree.Journal {
 	// TODO implement me
 	panic("implement me")
 }

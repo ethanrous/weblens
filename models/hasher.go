@@ -8,7 +8,7 @@ import (
 
 type Hasher struct {
 	taskService task.TaskService
-	caster Broadcaster
+	caster      Broadcaster
 	pool        *task.TaskPool
 }
 

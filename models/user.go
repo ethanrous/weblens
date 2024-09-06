@@ -23,11 +23,11 @@ type User struct {
 	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
 
 	// non-database types
-	tokens     []string
+	tokens      []string
 	homeFolder  *fileTree.WeblensFileImpl
 	trashFolder *fileTree.WeblensFileImpl
-	tokensLock sync.RWMutex
-	SystemUser bool
+	tokensLock  sync.RWMutex
+	SystemUser  bool
 }
 
 func NewUser(username Username, password string, isAdmin, autoActivate bool) (*User, error) {
@@ -130,7 +130,7 @@ func (u *User) FormatArchive() (map[string]any, error) {
 	data := map[string]any{
 		"username":     u.Username,
 		"password":     u.Password,
-		"tokens": u.tokens,
+		"tokens":       u.tokens,
 		"admin":        u.Admin,
 		"activated":    u.Activated,
 		"owner":        u.IsServerOwner,

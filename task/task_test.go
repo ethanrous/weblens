@@ -7,6 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/internal/werror"
 	. "github.com/ethrousseau/weblens/task"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var jobName = "Test Job"
@@ -20,9 +21,7 @@ func TestWorkerPoolBasic(t *testing.T) {
 	wp.Run()
 
 	tsk, err := wp.DispatchJob(jobName, fakeJobMeta{}, nil)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	tsk.Wait()
 	tskResult := tsk.GetResult("test")
@@ -49,9 +48,7 @@ func TestSubPool(t *testing.T) {
 			subTaskCount: rand.Int() % 1024,
 		}, nil,
 	)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	tsk.Wait()
 	tskResult := tsk.GetResult("test")
@@ -77,9 +74,7 @@ func TestFailedJob(t *testing.T) {
 	wp.Run()
 
 	tsk, err := wp.DispatchJob(jobName, fakeJobMeta{shouldFail: true}, nil)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 	tsk.Wait()
 
 	_, exitStatus := tsk.Status()

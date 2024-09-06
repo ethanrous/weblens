@@ -4,7 +4,7 @@ import { AlbumData, AuthHeaderT, TPDispatchT } from '../types/Types'
 import { humanFileSize } from '../util'
 import API_ENDPOINT from './ApiEndpoint'
 import { FbModeT } from '../Pages/FileBrowser/FBStateControl'
-import { WsSendT } from './Websocket'
+import { useWebsocketStore, WsSendT } from './Websocket'
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
@@ -24,7 +24,8 @@ export function SubToTask(taskId: string, lookingFor: string[], wsSend) {
 }
 
 export function UnsubFromFolder(subId: string, wsSend) {
-    if (!subId) {
+    if (!subId || useWebsocketStore.getState().readyState < 1) {
+        console.log("Not sending unsub message")
         return
     }
     wsSend('unsubscribe', { subscribeKey: subId })

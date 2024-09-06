@@ -16,13 +16,13 @@ type FileEvent struct {
 	EventBegin time.Time     `bson:"eventBegin"`
 	ServerId   string        `bson:"serverId"`
 
-	journal     JournalService `bson:"-"`
+	journal     Journal      `bson:"-"`
 	ActionsLock sync.RWMutex `bson:"-"`
 }
 
 // NewFileEvent returns a FileEvent, a container for multiple FileActions that occur due to the
 // same event (move, delete, etc.)
-// func NewFileEvent(journal JournalService) *FileEvent {
+// func NewFileEvent(journal Journal) *FileEvent {
 // 	return &FileEvent{
 // 		EventId: FileEventId(primitive.NewObjectID().Hex()),
 // 		EventBegin:  time.Now(),
@@ -55,13 +55,13 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 	}
 
 	newAction := &FileAction{
-		LifeId:   file.ID(),
+		LifeId:          file.ID(),
 		Timestamp:       time.Now(),
 		ActionType:      FileCreate,
 		DestinationPath: file.GetPortablePath().ToPortable(),
 		EventId:         fe.EventId,
-		ParentId: file.GetParentId(),
-		ServerId: fe.ServerId,
+		ParentId:        file.GetParentId(),
+		ServerId:        fe.ServerId,
 
 		file: file,
 	}
@@ -84,14 +84,14 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAc
 	latest := lt.GetLatestAction()
 
 	newAction := &FileAction{
-		LifeId:   file.ID(),
+		LifeId:          file.ID(),
 		Timestamp:       time.Now(),
 		ActionType:      FileMove,
 		OriginPath:      latest.GetDestinationPath(),
 		DestinationPath: file.GetPortablePath().ToPortable(),
 		EventId:         fe.EventId,
 		ParentId:        file.GetParent().ID(),
-		ServerId: fe.ServerId,
+		ServerId:        fe.ServerId,
 
 		file: file,
 	}
@@ -118,12 +118,12 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 	// }
 
 	newAction := &FileAction{
-		LifeId:   lifeId,
+		LifeId:     lifeId,
 		Timestamp:  time.Now(),
 		ActionType: FileDelete,
 		OriginPath: latest.GetDestinationPath(),
 		EventId:    fe.EventId,
-		ServerId: fe.ServerId,
+		ServerId:   fe.ServerId,
 	}
 
 	fe.addAction(newAction)

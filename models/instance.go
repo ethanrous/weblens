@@ -8,8 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type InstanceId string
-type ServerRole string
+type InstanceId = string
+type ServerRole = string
 
 const (
 	InitServer   ServerRole = "init"
@@ -38,7 +38,6 @@ type Instance struct {
 	service InstanceService
 }
 
-
 func NewInstance(
 	id InstanceId, name string, key WeblensApiKey, role ServerRole, isThisServer bool,
 	address string,
@@ -52,7 +51,7 @@ func NewInstance(
 		UsingKey:     key,
 		Role:         role,
 		IsThisServer: isThisServer,
-		Address: address,
+		Address:      address,
 	}
 }
 
@@ -167,7 +166,7 @@ type AccessService interface {
 	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
-	
+
 	GetAllKeys(accessor *User) ([]ApiKeyInfo, error)
 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
 }

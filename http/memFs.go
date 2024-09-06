@@ -20,7 +20,7 @@ type InMemoryFS struct {
 	routes   map[string]*memFileReal
 	index    *memFileReal
 	routesMu *sync.RWMutex
-	Pack *models.ServicePack
+	Pack     *models.ServicePack
 }
 
 func (fs *InMemoryFS) loadIndex() string {

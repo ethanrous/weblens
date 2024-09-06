@@ -16,6 +16,11 @@ type MockFailMongoCol struct {
 	FindFail   bool
 	UpdateFail bool
 	DeleteFail bool
+
+	Inserts []any
+	Finds   []any
+	Updates []any
+	Deletes []any
 }
 
 func (fc *MockFailMongoCol) InsertOne(
@@ -24,7 +29,8 @@ func (fc *MockFailMongoCol) InsertOne(
 	if fc.InsertFail {
 		return nil, mongo.ErrNoDocuments
 	}
-	return nil, nil
+
+	return fc.RealCol.InsertOne(ctx, document, opts...)
 }
 
 func (fc *MockFailMongoCol) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (
@@ -33,6 +39,7 @@ func (fc *MockFailMongoCol) Find(ctx context.Context, filter interface{}, opts .
 	if fc.FindFail {
 		return nil, mongo.ErrNoDocuments
 	}
+
 	return fc.RealCol.Find(ctx, filter, opts...)
 }
 
@@ -42,7 +49,7 @@ func (fc *MockFailMongoCol) UpdateOne(
 	if fc.UpdateFail {
 		return nil, mongo.ErrNoDocuments
 	}
-	return nil, nil
+	return fc.RealCol.UpdateOne(ctx, filter, update, opts...)
 }
 
 func (fc *MockFailMongoCol) DeleteOne(
@@ -51,5 +58,5 @@ func (fc *MockFailMongoCol) DeleteOne(
 	if fc.DeleteFail {
 		return nil, mongo.ErrNoDocuments
 	}
-	return nil, nil
+	return fc.RealCol.DeleteOne(ctx, filter, opts...)
 }

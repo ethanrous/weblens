@@ -26,4 +26,3 @@ type FileInfo struct {
 	Children     []fileTree.FileId `json:"children"`
 	PastFile     bool              `json:"pastFile,omitempty"`
 }
-

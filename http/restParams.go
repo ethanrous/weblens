@@ -13,7 +13,7 @@ type loginBody struct {
 }
 
 type fileUpdateBody struct {
-	NewName string `json:"newName"`
+	NewName     string          `json:"newName"`
 	NewParentId fileTree.FileId `json:"newParentId"`
 }
 
@@ -45,8 +45,8 @@ type newUserBody struct {
 
 type newFileBody struct {
 	ParentFolderId fileTree.FileId `json:"parentFolderId"`
-	NewFileName string `json:"newFileName"`
-	FileSize    int64  `json:"fileSize"`
+	NewFileName    string          `json:"newFileName"`
+	FileSize       int64           `json:"fileSize"`
 }
 
 type newUploadBody struct {
@@ -99,7 +99,7 @@ type restoreBody struct {
 
 type createFolderBody struct {
 	ParentFolderId fileTree.FileId   `json:"parentFolderId"`
-	NewFolderName string `json:"newFolderName"`
+	NewFolderName  string            `json:"newFolderName"`
 	Children       []fileTree.FileId `json:"children"`
 }
 

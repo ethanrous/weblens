@@ -50,9 +50,9 @@ func NewFileService(
 		userService:   userService,
 		cachesTree:    cacheTree,
 		accessService: accessService,
-		mediaService: mediaService,
+		mediaService:  mediaService,
 		trashCol:      trashCol,
-		fileTaskLink: make(map[fileTree.FileId][]*task.Task),
+		fileTaskLink:  make(map[fileTree.FileId][]*task.Task),
 	}
 
 	sw := internal.NewStopwatch("File Service Init")
@@ -190,7 +190,7 @@ func (fs *FileServiceImpl) NewCacheFile(contentId string, quality models.MediaQu
 		return nil, err
 	}
 
-	return fs.cachesTree.Touch(thumbsDir, filename, false)
+	return fs.cachesTree.Touch(thumbsDir, filename, nil)
 }
 
 func (fs *FileServiceImpl) DeleteCacheFile(f fileTree.WeblensFile) error {
@@ -204,10 +204,14 @@ func (fs *FileServiceImpl) DeleteCacheFile(f fileTree.WeblensFile) error {
 func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFileImpl, fileName string) (
 	*fileTree.WeblensFileImpl, error,
 ) {
-	newF, err := fs.mediaTree.Touch(parent, fileName, false)
+	event := fs.mediaTree.GetJournal().NewEvent()
+
+	newF, err := fs.mediaTree.Touch(parent, fileName, event)
 	if err != nil {
 		return nil, err
 	}
+
+	fs.mediaTree.GetJournal().LogEvent(event)
 
 	return newF, nil
 }
@@ -439,7 +443,7 @@ func (fs *FileServiceImpl) NewZip(zipName string, owner *models.User) (*fileTree
 		return nil, err
 	}
 
-	zipFile, err := fs.cachesTree.Touch(takeoutDir, zipName, false)
+	zipFile, err := fs.cachesTree.Touch(takeoutDir, zipName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +516,7 @@ func (fs *FileServiceImpl) GetMediaRoot() *fileTree.WeblensFileImpl {
 	return fs.mediaTree.GetRoot()
 }
 
-func (fs *FileServiceImpl) GetMediaJournal() fileTree.JournalService {
+func (fs *FileServiceImpl) GetMediaJournal() fileTree.Journal {
 	return fs.mediaTree.GetJournal()
 }
 
@@ -744,7 +748,7 @@ func (fs *FileServiceImpl) getFileByIdAndRoot(id fileTree.FileId, rootAlias stri
 	case "CACHES":
 		f = fs.cachesTree.Get(id)
 	default:
-		return nil, werror.Errorf("Trying to get file on non-existant tree [%s]", rootAlias)
+		return nil, werror.Errorf("Trying to get file on non-existent tree [%s]", rootAlias)
 	}
 
 	if f == nil {
@@ -815,5 +819,5 @@ func (fs *FileServiceImpl) clearThumbsDir() error {
 type TrashEntry struct {
 	OrigParent   fileTree.FileId `bson:"originalParentId"`
 	OrigFilename string          `bson:"originalFilename"`
-	FileId fileTree.FileId `bson:"fileId"`
+	FileId       fileTree.FileId `bson:"fileId"`
 }

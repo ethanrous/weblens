@@ -291,10 +291,10 @@ func createTakeout(ctx *gin.Context) {
 
 	caster := models.NewSimpleCaster(pack.ClientService)
 	meta := models.ZipMeta{
-		Files:     files,
-		Requester: u,
-		Share:     share,
-		Caster:    caster,
+		Files:       files,
+		Requester:   u,
+		Share:       share,
+		Caster:      caster,
 		FileService: pack.FileService,
 	}
 	t, err := pack.TaskService.DispatchJob(models.CreateZipTask, meta, nil)

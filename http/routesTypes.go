@@ -9,8 +9,8 @@ import (
 )
 
 type folderSubscribeMeta struct {
-	Key       models.SubId `json:"subscribeKey"`
-	Recursive bool         `json:"recursive"`
+	Key       models.SubId   `json:"subscribeKey"`
+	Recursive bool           `json:"recursive"`
 	ShareId   models.ShareId `json:"shareId"`
 }
 

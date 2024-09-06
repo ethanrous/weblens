@@ -9,6 +9,7 @@ import (
 	. "github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
@@ -35,14 +36,10 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	}
 
 	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	// Make file tree
 	ft := mock.NewMemFileTree("MEDIA")
@@ -108,24 +105,18 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 	billUser.Admin = true
 
 	key, err := acc.GenerateApiKey(billUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 	assert.Equal(t, billUser.Username, key.Owner)
 
 	fetchedKey, err := acc.GetApiKey(key.Key)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	if !assert.NotNil(t, fetchedKey) {
 		t.FailNow()
 	}
 
 	err = acc.DeleteApiKey(key.Key)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	_, err = acc.GetApiKey(key.Key)
 	assert.Error(t, err)
@@ -161,21 +152,15 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 	}
 
 	key, err := acc.GenerateApiKey(billUser)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServer, false, "")
 
 	err = acc.SetKeyUsedBy(key.Key, backupServer)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	fetchedKey, err := acc.GetApiKey(key.Key)
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, backupServer.ServerId(), fetchedKey.RemoteUsing)
 

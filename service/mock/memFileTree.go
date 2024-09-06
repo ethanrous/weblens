@@ -50,11 +50,11 @@ func (ft *MemFileTree) Size() int {
 	return len(ft.fMap)
 }
 
-func (ft *MemFileTree) GetJournal() fileTree.JournalService {
+func (ft *MemFileTree) GetJournal() fileTree.Journal {
 	return nil
 }
 
-func (ft *MemFileTree) SetJournal(service fileTree.JournalService) {
+func (ft *MemFileTree) SetJournal(service fileTree.Journal) {
 }
 
 func (ft *MemFileTree) Add(file *fileTree.WeblensFileImpl) error {
@@ -86,7 +86,7 @@ func (ft *MemFileTree) Move(
 }
 
 func (ft *MemFileTree) Touch(
-	parentFolder *fileTree.WeblensFileImpl, newFileName string, detach bool,
+	parentFolder *fileTree.WeblensFileImpl, newFileName string, event *fileTree.FileEvent,
 ) (*fileTree.WeblensFileImpl, error) {
 	// TODO implement me
 	panic("implement me")

@@ -107,10 +107,9 @@ func ApiLogger(logLevel int) gin.HandlerFunc {
 			},
 		).Observe(timeTotal.Seconds())
 
-		fmt.Printf(
-			"\u001B[0m[%s][%s][%7s][%s][%s] %s %s\n", start.Format("Jan 02 15:04:05"), remote,
-			colorTime(timeTotal),
-			handler, colorStatus(status), method, path,
+		Info.Printf(
+			"\u001B[0m[%s][%7s][%s][%s] %s %s\n", remote, colorTime(timeTotal), handler, colorStatus(status), method,
+			path,
 		)
 	}
 }

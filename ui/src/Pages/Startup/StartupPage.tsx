@@ -5,7 +5,7 @@ import { startupWebsocketHandler } from './StartupLogic'
 import { WeblensProgress } from '../../components/WeblensProgress'
 
 export default function StartUp() {
-    const { wsSend, lastMessage, readyState } = useWeblensSocket()
+    const { lastMessage } = useWeblensSocket()
     const [setupProgress, setSetupProgress] = useState(0)
     const [setupMostRecent, setSetupMostRecent] = useState('')
     useEffect(() => {
@@ -14,8 +14,6 @@ export default function StartUp() {
             startupWebsocketHandler(setSetupProgress, setSetupMostRecent)
         )
     }, [lastMessage])
-
-    console.log('Startup page!')
 
     return (
         <div className="flex flex-col justify-center items-center w-screen h-screen bg-background">

@@ -54,10 +54,12 @@ export function useWeblensSocket() {
         [sendMessage]
     )
 
+    useEffect(() => {
+        useWebsocketStore.getState().setReadyState(givenUp ? -1 : readyState)
+    }, [readyState, givenUp])
     return {
         wsSend,
         lastMessage,
-        readyState: givenUp ? -1 : readyState,
     }
 }
 
@@ -86,7 +88,8 @@ export const useSubscribe = (
     tasksDispatch: Dispatch<TasksProgressAction>,
     authHeader: AuthHeaderT
 ) => {
-    const { wsSend, lastMessage, readyState } = useWeblensSocket()
+    const { wsSend, lastMessage } = useWeblensSocket()
+    const readyState = useWebsocketStore((state) => state.readyState)
 
     const fbDispatch: FBSubscribeDispatchT = useFileBrowserStore(
         useShallow((state) => ({
@@ -100,7 +103,7 @@ export const useSubscribe = (
     useEffect(() => {
         if (
             readyState === 1 &&
-            cId != null &&
+            cId !== null &&
             cId !== 'shared' &&
             usr !== null
         ) {
@@ -403,6 +406,11 @@ function filebrowserWebsocketHandler(
                 return
             }
 
+            case 'going_down': {
+                useWebsocketStore.getState().setReadyState(-1)
+                return
+            }
+
             case 'error': {
                 console.error(msgData.error)
                 return
@@ -421,16 +429,24 @@ function filebrowserWebsocketHandler(
 
 export interface WebsocketControlT {
     wsSend: (thing) => void
+    readyState: number
+
     setSender: (sender: (thing) => void) => void
+    setReadyState: (readyState: number) => void
 }
 
 const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
     wsSend: null,
+    readyState: 0,
 
     setSender: (sender: (thing) => void) => {
         set({
             wsSend: sender,
         })
+    },
+
+    setReadyState: (readyState: number) => {
+        set({ readyState: readyState })
     },
 })
 

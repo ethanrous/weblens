@@ -77,9 +77,9 @@ type WeblensFileImpl struct {
 	watching bool
 
 	// If this file is a directory, these are the files that are housed by this directory.
-	childLock sync.RWMutex
+	childLock   sync.RWMutex
 	childrenMap map[string]*WeblensFileImpl
-	childIds  []FileId
+	childIds    []FileId
 
 	// General RW lock on file updates to prevent data races
 	updateLock sync.RWMutex
@@ -525,15 +525,15 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 
 	data := map[string]any{
 		"id":              f.id,
-		"portablePath": f.portablePath.ToPortable(),
+		"portablePath":    f.portablePath.ToPortable(),
 		"filename":        f.filename,
 		"size":            f.size.Load(),
 		"isDir":           f.IsDir(),
 		"modifyTimestamp": f.ModTime().UnixMilli(),
 		"parentId":        parentId,
-		"childrenIds":  internal.Map(f.GetChildren(), func(c *WeblensFileImpl) FileId { return c.ID() }),
-		"contentId":    f.contentId,
-		"pastFile":     f.pastFile,
+		"childrenIds":     internal.Map(f.GetChildren(), func(c *WeblensFileImpl) FileId { return c.ID() }),
+		"contentId":       f.contentId,
+		"pastFile":        f.pastFile,
 	}
 
 	if f.ModTime().UnixMilli() < 0 {
