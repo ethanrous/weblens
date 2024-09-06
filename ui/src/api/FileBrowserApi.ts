@@ -1,12 +1,12 @@
 import axios from 'axios'
-import { ShareInfo, WeblensShare } from '../Share/Share'
 import { WeblensFile, WeblensFileParams } from '../Files/File'
 import { AlbumData, AuthHeaderT, TPDispatchT } from '../types/Types'
 import { humanFileSize } from '../util'
 import API_ENDPOINT from './ApiEndpoint'
 import { FbModeT } from '../Pages/FileBrowser/FBStateControl'
+import { useWebsocketStore, WsSendT } from './Websocket'
 
-export function SubToFolder(subId: string, shareId: string, wsSend) {
+export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
         return
     }
@@ -24,7 +24,8 @@ export function SubToTask(taskId: string, lookingFor: string[], wsSend) {
 }
 
 export function UnsubFromFolder(subId: string, wsSend) {
-    if (!subId) {
+    if (!subId || useWebsocketStore.getState().readyState < 1) {
+        console.log("Not sending unsub message")
         return
     }
     wsSend('unsubscribe', { subscribeKey: subId })
@@ -262,6 +263,7 @@ export function downloadSingleFile(
     authHeader: AuthHeaderT,
     progDispatch: TPDispatchT,
     filename: string,
+    isZip: boolean,
     shareId: string
 ) {
     if (!fileId) {
@@ -269,7 +271,12 @@ export function downloadSingleFile(
         return
     }
 
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}/download`)
+    let url
+    if (isZip) {
+        url = new URL(`${API_ENDPOINT}/takeout/${fileId}`)
+    } else {
+        url = new URL(`${API_ENDPOINT}/file/${fileId}/download`)
+    }
     if (shareId) {
         url.searchParams.append('shareId', shareId)
     }
@@ -282,7 +289,7 @@ export function downloadSingleFile(
         target: filename,
     })
 
-    axios
+    return axios
         .get(url.toString(), {
             responseType: 'blob',
             headers: authHeader,
@@ -332,15 +339,10 @@ export async function requestZipCreate(
         headers: authHeader,
         method: 'POST',
         body: JSON.stringify({ fileIds: fileIds }),
+    }).then(async (res) => {
+        const json = await res.json()
+        return { json: json, status: res.status }
     })
-        .then(async (res) => {
-            const json = await res.json()
-            return { json: json, status: res.status }
-        })
-        .catch((r) => {
-            console.error(`Failed to request takeout: ${r}`)
-            return { json: null, status: 0 }
-        })
 }
 
 export async function AutocompleteAlbums(
@@ -373,15 +375,6 @@ export async function NewWormhole(folderId: string, authHeader: AuthHeaderT) {
     return res
 }
 
-export async function DeleteShare(shareId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
-    const res = await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'DELETE',
-    })
-    return res
-}
-
 export async function GetWormholeInfo(
     shareId: string,
     authHeader: AuthHeaderT
@@ -389,67 +382,6 @@ export async function GetWormholeInfo(
     const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
 
     return fetch(url.toString(), { headers: authHeader })
-}
-
-export async function shareFile(
-    file: WeblensFile,
-    isPublic: boolean,
-    users: string[] = [],
-    authHeader: AuthHeaderT
-): Promise<ShareInfo> {
-    const url = new URL(`${API_ENDPOINT}/share/files`)
-    const body = {
-        fileId: file.Id(),
-        users: users,
-        public: isPublic,
-    }
-    return await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'POST',
-        body: JSON.stringify(body),
-    }).then((res) => res.json())
-}
-
-export async function setFileSharePublic(
-    shareId: string,
-    isPublic: boolean,
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}/public`)
-    const body = {
-        isPublic: isPublic,
-    }
-    return await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'PATCH',
-        body: JSON.stringify(body),
-    })
-}
-
-export async function addUsersToFileShare(
-    shareId: string,
-    users: string[] = [],
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}/accessors`)
-    const body = {
-        users: users,
-    }
-    return await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'PATCH',
-        body: JSON.stringify(body),
-    })
-}
-
-export async function getFileShare(shareId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/file/share/${shareId}`)
-    return await fetch(url.toString(), { headers: authHeader })
-        .then((res) => res.json())
-        .then((j) => {
-            return new WeblensShare(j)
-        })
-        .catch((r) => Promise.reject(r))
 }
 
 export async function searchFolder(
@@ -550,4 +482,11 @@ export async function restoreFiles(
             return
         }
     })
+}
+
+export async function GetFileText(fileId: string, authHeader: AuthHeaderT) {
+    const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)
+    return await fetch(url, {
+        headers: authHeader,
+    }).then((r) => r.text())
 }

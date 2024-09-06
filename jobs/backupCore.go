@@ -30,10 +30,10 @@ func BackupD(
 				continue
 			}
 
-			wsConn := websocketService.GetClientByInstanceId(remote.ServerId())
-			if wsConn == nil {
-				time.Sleep(time.Millisecond * 100)
-			}
+			// wsConn := websocketService.GetClientByInstanceId(remote.ServerId())
+			// if wsConn == nil {
+			// 	time.Sleep(time.Millisecond * 100)
+			// }
 
 			meta := models.BackupMeta{
 				RemoteId:            remote.ServerId(),
@@ -53,12 +53,15 @@ func BackupD(
 				log.ErrTrace(err)
 			}
 		}
-		time.Sleep(interval)
+
+		now := time.Now()
+		sleepFor := now.Truncate(interval).Add(interval).Sub(now)
+		log.Debug.Println("BackupD going to sleep for", sleepFor)
+		time.Sleep(sleepFor)
 	}
 }
 
 func DoBackup(t *task.Task) {
-	// t.ErrorAndExit(errors.New("backup task not implemented"))
 	meta := t.GetMeta().(models.BackupMeta)
 	localRole := meta.InstanceService.GetLocal().ServerRole()
 
@@ -70,7 +73,7 @@ func DoBackup(t *task.Task) {
 
 	coreClient := meta.WebsocketService.GetClientByInstanceId(meta.RemoteId)
 	if coreClient == nil {
-		t.ErrorAndExit(errors.New("Core websocket not connected"))
+		t.ErrorAndExit(werror.Errorf("Core websocket not connected"))
 	}
 
 	users, err := meta.ProxyUserService.GetAll()
@@ -89,8 +92,13 @@ func DoBackup(t *task.Task) {
 		t.ErrorAndExit(err)
 	}
 
+	var latestTime time.Time
+	if latest != nil {
+		latestTime = latest.GetTimestamp()
+	}
+
 	// Get new history updates
-	updatedLifetimes, err := meta.ProxyJournalService.GetLifetimesSince(latest.GetTimestamp())
+	updatedLifetimes, err := meta.ProxyJournalService.GetLifetimesSince(latestTime)
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
@@ -137,7 +145,7 @@ func DoBackup(t *task.Task) {
 	newFiles, err := meta.ProxyFileService.GetFiles(newFileIds)
 
 	// files := internal.FilterMap(
-	// 	SERV.FileTree.GetJournal().GetActiveLifetimes(), func(lt Lifetime) (*fileTree.WeblensFile, bool) {
+	// 	SERV.FileTree.GetJournal().GetActiveLifetimes(), func(lt Lifetime) (*fileTree.WeblensFileImpl, bool) {
 	// 		f := SERV.FileTree.Get(lt.GetLatestFileId())
 	// 		if f == nil && lt.GetLatestAction().GetActionType() != FileDelete {
 	// 			f, err = proxyService.GetFile(lt.GetLatestFileId())
@@ -157,13 +165,14 @@ func DoBackup(t *task.Task) {
 	// )
 
 	slices.SortFunc(
-		newFiles, func(a, b *fileTree.WeblensFile) int {
+		newFiles, func(a, b *fileTree.WeblensFileImpl) int {
 			return len(a.GetAbsPath()) - len(b.GetAbsPath())
 		},
 	)
 
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 	t.SetChildTaskPool(pool)
+	meta.WebsocketService.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
 	for _, f := range newFiles {
 		_, err := meta.FileService.GetFile(f.ID())

@@ -95,6 +95,10 @@ func (err *withStack) Unwrap() error {
 }
 
 func (err *withStack) Error() string {
+	return err.Unwrap().Error()
+}
+
+func (err *withStack) Errorln() string {
 	topFrame := frame((*err.stack)[0])
 	return fmt.Sprintf(
 		"%s:%d: \u001b[31m%s\u001B[0m\n", topFrame.file(),

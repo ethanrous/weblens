@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 )
 
@@ -27,21 +28,8 @@ type sw struct {
 	stop  time.Time
 }
 
-type prod_sw struct {
-	start time.Time
-	stop  time.Time
-}
-
-func (sw prod_sw) Stop() (t time.Duration)         { sw.stop = time.Now(); return sw.stop.Sub(sw.start) }
-func (sw prod_sw) Lap(tag ...any)                  {}
-func (sw prod_sw) PrintResults(bool)               {}
-func (sw prod_sw) GetTotalTime(bool) time.Duration { return sw.stop.Sub(sw.start) }
-
 func NewStopwatch(name string) Stopwatch {
-	if IsDevMode() {
-		return &sw{name: name, start: time.Now()}
-	}
-	return prod_sw{start: time.Now()}
+	return &sw{name: name, start: time.Now()}
 }
 
 func (s *sw) Stop() time.Duration {
@@ -55,9 +43,6 @@ func (s *sw) Lap(tag ...any) {
 		time: time.Now(),
 	}
 	s.laps = append(s.laps, l)
-	// if l.tag != "" {
-	// 	Debug.Println(l.tag)
-	// }
 }
 
 func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
@@ -80,6 +65,10 @@ func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
 }
 
 func (s *sw) PrintResults(firstLapIsStart bool) {
+	if env.GetLogLevel() < 2 {
+		return
+	}
+
 	if s.stop.Unix() < 0 {
 		log.Error.Println("Stopwatch cannot provide results before being stopped")
 		return

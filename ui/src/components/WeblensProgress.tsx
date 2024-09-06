@@ -14,6 +14,7 @@ type progressProps = {
     failure?: boolean
     seekCallback?: (v: number) => void
     style?: CSSProperties
+    secondaryColor?: string
 }
 
 export const WeblensProgress = memo(
@@ -28,9 +29,13 @@ export const WeblensProgress = memo(
         failure = false,
         seekCallback,
         style,
+        secondaryColor,
     }: progressProps) => {
         const [dragging, setDragging] = useState(false)
         const [percentage, setPercentage] = useState(clamp(value, 0, 100))
+        const [secondaryPercentage, setSecondaryPercentage] = useState(
+            clamp(secondaryValue, 0, 100)
+        )
         const [boxRef, setBoxRef] = useState(null)
 
         useEffect(() => {
@@ -137,6 +142,9 @@ export const WeblensProgress = memo(
                                 orientation === 'horizontal'
                                     ? `${secondaryValue}%`
                                     : '',
+                            backgroundColor: secondaryColor
+                                ? secondaryColor
+                                : '',
                         }}
                     />
                 </div>
@@ -145,6 +153,9 @@ export const WeblensProgress = memo(
     },
     (prev, next) => {
         if (prev.value !== next.value) {
+            return false
+        }
+        if (prev.secondaryValue !== next.secondaryValue) {
             return false
         }
         if (prev.complete !== next.complete) {

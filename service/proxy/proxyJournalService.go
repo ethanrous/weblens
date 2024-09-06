@@ -9,7 +9,7 @@ import (
 	"github.com/ethrousseau/weblens/models"
 )
 
-var _ fileTree.JournalService = (*ProxyJournalService)(nil)
+var _ fileTree.Journal = (*ProxyJournalService)(nil)
 
 type ProxyJournalService struct {
 	Core *models.Instance
@@ -41,7 +41,7 @@ func (pjs *ProxyJournalService) NewEvent() *fileTree.FileEvent {
 	panic("implement me")
 }
 
-func (pjs *ProxyJournalService) WatchFolder(f *fileTree.WeblensFile) error {
+func (pjs *ProxyJournalService) WatchFolder(f *fileTree.WeblensFileImpl) error {
 	// TODO implement me
 	panic("implement me")
 }
@@ -56,8 +56,8 @@ func (pjs *ProxyJournalService) GetActionsByPath(filepath fileTree.WeblensFilepa
 	panic("implement me")
 }
 
-func (pjs *ProxyJournalService) GetPastFolderInfo(folder *fileTree.WeblensFile, time time.Time) (
-	[]*fileTree.WeblensFile, error,
+func (pjs *ProxyJournalService) GetPastFolderChildren(folder *fileTree.WeblensFileImpl, time time.Time) (
+	[]*fileTree.WeblensFileImpl, error,
 ) {
 	// TODO implement me
 	panic("implement me")
@@ -70,7 +70,7 @@ func (pjs *ProxyJournalService) GetLatestAction() (*fileTree.FileAction, error) 
 
 func (pjs *ProxyJournalService) GetLifetimesSince(date time.Time) ([]*fileTree.Lifetime, error) {
 	endpoint := fmt.Sprintf("/history/since/%d", date.UnixMilli())
-	lts, err := callHomeStruct[[]*fileTree.Lifetime](pjs.Core, http.MethodGet, endpoint, nil)
+	lts, err := CallHomeStruct[[]*fileTree.Lifetime](pjs.Core, http.MethodGet, endpoint, nil)
 	return lts, err
 }
 

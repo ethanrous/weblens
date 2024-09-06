@@ -8,6 +8,11 @@ on:
         required: true
         default: false
         type: boolean
+      remote_tests:
+        description: 'Run tests with remote servers'
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [ "main" ]
   pull_request:
@@ -27,6 +32,13 @@ jobs:
 
       - name: Install Deps
         run: |
+          echo "remote tests: $REMOTE_TESTS"
+          if [ $REMOTE_TESTS ]; then
+            wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
+            echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+            sudo apt-get update
+            sudo apt-get install -y mongodb-mongosh
+          fi
           sudo apt update
           sudo apt-get install -y \
           libvips-dev \
@@ -34,21 +46,40 @@ jobs:
           libwebp-dev \
           libglib2.0-dev \
           libexpat1-dev \
-          exiftool
+          exiftool \
+          nodejs \
+          npm
+          npm install -D vite
+        env:
+          REMOTE_TESTS: ${{ inputs.remote_tests }}
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0
         with:
           mongodb-version: '7.0'
 
-      - name: Build
+      - name: Test (No Remotes)
+        if: ${{ inputs.remote_tests == false }}
         run: |
-          set -x
-          go build -v ./cmd/weblens/main.go
-
-      - name: Test
-        run: |
-          go test -v ./...
+          cd ./ui
+          npm install
+          export VITE_APP_BUILD_TAG=test
+          export VITE_BUILD=true
+          npm run build
+          cd ..
+          export MEDIA_ROOT=$(mkdir -p ../test/media; cd ../test/media; pwd)
+          export CACHES_ROOT=$(mkdir -p ../test/caches; cd ../test/caches; pwd)
+          ./scripts/test.bash
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
+
+      - name: Test (Remotes)
+        if: ${{ inputs.remote_tests == true }}
+        run: |
+          source ./scripts/setupRemoteTests.bash
+          ./scripts/test.bash
+          exit $?
+        env:
+          DEV_MODE: ${{ inputs.debug }}
+          REMOTE_TESTS: ${{ inputs.remote_tests }}

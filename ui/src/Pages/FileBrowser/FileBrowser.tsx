@@ -26,7 +26,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
     CreateFolder,
     GetFileInfo,
-    getFileShare,
     GetFolderData,
     getPastFolderInfo,
     moveFiles,
@@ -38,9 +37,9 @@ import FileGrid from '../../Files/FileGrid'
 import HeaderBar from '../../components/HeaderBar'
 import { useResize, useResizeDrag, useWindowSize } from '../../components/hooks'
 import NotFound from '../../components/NotFound'
-import Presentation, {
+import {
     PresentationContainer,
-    PresentationVisual,
+    PresentationFile,
 } from '../../components/Presentation'
 import WeblensButton from '../../components/WeblensButton'
 import WeblensInput from '../../components/WeblensInput'
@@ -71,7 +70,6 @@ import {
     DraggingCounter,
     DropSpot,
     GetStartedCard,
-    PresentationFile,
     TransferCard,
     WebsocketStatus,
 } from './FileBrowserMiscComponents'
@@ -94,8 +92,9 @@ import { useShallow } from 'zustand/react/shallow'
 import { useSessionStore } from '../../components/UserInfo'
 import SearchDialogue from './SearchDialogue'
 import { MediaImage } from '../../Media/PhotoContainer'
-import WeblensMedia from '../../Media/Media'
+import WeblensMedia, { MediaDataT } from '../../Media/Media'
 import { useMediaStore } from '../../Media/MediaStateControl'
+import { getFileShare } from '../../Share/shareQuery'
 
 function PasteImageDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -607,11 +606,6 @@ function EmptySearch() {
 
 const SingleFile = memo(
     ({ file }: { file: WeblensFile }) => {
-        // const [containerRef, setContainerRef] = useState<HTMLDivElement>()
-        const mediaData = useMediaStore((state) =>
-            state.mediaMap.get(file.GetMediaId())
-        )
-
         if (!file.Id()) {
             return (
                 <NotFound
@@ -624,14 +618,8 @@ const SingleFile = memo(
 
         return (
             <div className="flex flex-row w-full h-full justify-around pb-2">
-                <div
-                    // ref={setContainerRef}
-                    className="flex justify-center items-center p-6 h-full w-full"
-                >
-                    <PresentationVisual
-                        mediaData={mediaData}
-                        Element={() => PresentationFile({ file })}
-                    />
+                <div className="flex justify-center items-center p-6 h-full w-full">
+                    <PresentationFile file={file} />
                 </div>
             </div>
         )
@@ -884,7 +872,6 @@ const FileBrowser = () => {
         setSelected,
         setFilesData,
         setBlockFocus,
-        setPresentationTarget,
     } = useFileBrowserStore()
     const fbLocationContext = useFileBrowserStore(
         useShallow((state) => ({
@@ -946,7 +933,7 @@ const FileBrowser = () => {
         }
 
         if (mode === FbModeT.share && shareId && !contentId) {
-            getFileShare(shareId, authHeader).then((s) => {
+            getFileShare(shareId).then((s) => {
                 nav(`/files/share/${shareId}/${s.GetFileId()}`)
             })
         } else {
@@ -1013,7 +1000,7 @@ const FileBrowser = () => {
             )
 
             setSearch(searchQuery)
-            setFilesData(folderData, searchResults, [], user)
+            setFilesData(folderData, searchResults, [], [], user)
             removeLoading('files')
             return
         }
@@ -1024,6 +1011,7 @@ const FileBrowser = () => {
             self?: WeblensFileParams
             children?: WeblensFileParams[]
             parents?: WeblensFileParams[]
+            medias?: MediaDataT[]
             error?: string
         }
         if (viewingPast !== null) {
@@ -1052,6 +1040,7 @@ const FileBrowser = () => {
                 fileData.self,
                 fileData.children,
                 fileData.parents,
+                fileData.medias,
                 user
             )
         }
@@ -1075,14 +1064,6 @@ const FileBrowser = () => {
         syncState().then(() => removeLoading('files'))
     }, [syncState])
 
-    const presentingElement = useCallback(
-        () =>
-            PresentationFile({
-                file: filesMap.get(presentingId),
-            }),
-        [filesMap, presentingId]
-    )
-
     return (
         <WebsocketContext.Provider value={wsSend}>
             <TaskProgContext.Provider
@@ -1095,11 +1076,7 @@ const FileBrowser = () => {
                         loading={loading}
                     />
                     <DraggingCounter />
-                    <Presentation
-                        mediaId={filesMap.get(presentingId)?.GetMediaId()}
-                        element={presentingElement}
-                        dispatch={{ setPresentationTarget }}
-                    />
+                    <PresentationFile file={filesMap.get(presentingId)} />
                     {pasteImgBytes && <PasteImageDialogue />}
                     {isSearching && <SearchDialogue />}
                     <FileContextMenu />

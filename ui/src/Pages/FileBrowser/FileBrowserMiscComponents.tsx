@@ -1,8 +1,8 @@
 import { Divider, FileButton, Space, Text, Tooltip } from '@mantine/core'
+import { useMouse } from '@mantine/hooks'
 
 import {
     IconChevronRight,
-    IconDownload,
     IconFile,
     IconFileZip,
     IconFolder,
@@ -15,32 +15,20 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
-import React, {
-    DragEventHandler,
-    memo,
-    useContext,
-    useMemo,
-    useState,
-} from 'react'
+import React, { DragEventHandler, memo, useMemo, useState } from 'react'
 import { useResize } from '../../components/hooks'
 
 import './style/fileBrowserStyle.scss'
-import { WebsocketContext } from '../../Context'
+import { useSessionStore } from '../../components/UserInfo'
+import WeblensButton from '../../components/WeblensButton'
+import { DraggingStateT } from '../../Files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '../../Files/File'
-import { DraggingStateT, TaskProgContext } from '../../Files/FBTypes'
+import { useMediaStore } from '../../Media/MediaStateControl'
+import { MediaImage } from '../../Media/PhotoContainer'
 import { UserInfoT } from '../../types/Types'
 import { friendlyFolderName, humanFileSize } from '../../util'
-import {
-    downloadSelected,
-    handleDragOver,
-    HandleUploadButton,
-} from './FileBrowserLogic'
-import { MediaImage } from '../../Media/PhotoContainer'
-import WeblensButton from '../../components/WeblensButton'
-import { useMouse } from '@mantine/hooks'
 import { useFileBrowserStore } from './FBStateControl'
-import { useSessionStore } from '../../components/UserInfo'
-import { useMediaStore } from '../../Media/MediaStateControl'
+import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
 
 export const TransferCard = ({
     action,
@@ -414,111 +402,6 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
             )}
         </div>
     )
-}
-
-export const PresentationFile = ({ file }: { file: WeblensFile }) => {
-    const { progDispatch } = useContext(TaskProgContext)
-    const mediaData = useMediaStore((state) =>
-        state.mediaMap.get(file.GetMediaId())
-    )
-    const auth = useSessionStore((state) => state.auth)
-    const wsSend = useContext(WebsocketContext)
-    const removeLoading = useFileBrowserStore((state) => state.removeLoading)
-
-    if (!file) {
-        return null
-    }
-    const [size, units] = humanFileSize(file.GetSize())
-    if (mediaData) {
-        return (
-            <div
-                className="flex grow w-[10%]"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex flex-col justify-center h-max max-w-full gap-2">
-                    <p className="font-semibold text-3xl truncate">
-                        {file.GetFilename()}
-                    </p>
-                    <p className="text-2xl">
-                        {size}
-                        {units}
-                    </p>
-                    <div className="flex gap-1">
-                        <IconFile />
-                        <p className="text-xl">
-                            {file.GetModified().toLocaleDateString('en-us', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                            })}
-                        </p>
-                    </div>
-                    <WeblensButton
-                        label={'Download'}
-                        Left={IconDownload}
-                        onClick={() => {
-                            downloadSelected(
-                                [file],
-                                removeLoading,
-                                progDispatch,
-                                wsSend,
-                                auth
-                            )
-                        }}
-                    />
-                    <Divider />
-                    <div className="flex gap-1">
-                        <IconPhoto />
-                        <p className="text-xl">
-                            {mediaData
-                                .GetCreateDate()
-                                .toLocaleDateString('en-us', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                })}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        )
-    } else {
-        return (
-            <div
-                className="flex flex-row h-max w-full items-center justify-center"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="w-flex w-[60%] justify-center">
-                    <IconDisplay file={file} allowMedia />
-                </div>
-                <Space w={30} />
-                <div className="flex w-[40%] justify-center">
-                    <Text fw={600} style={{ width: '100%' }}>
-                        {file.GetFilename()}
-                    </Text>
-                    {file.IsFolder() && (
-                        <div className="flex flex-row h-max w-1/2 items-center justify-center">
-                            <Text style={{ fontSize: '25px' }}>
-                                {file.GetChildren().length} Item
-                                {file.GetChildren().length !== 1 ? 's' : ''}
-                            </Text>
-                            <Divider orientation="vertical" size={2} mx={10} />
-                            <Text style={{ fontSize: '25px' }}>
-                                {size}
-                                {units}
-                            </Text>
-                        </div>
-                    )}
-                    {!file.IsFolder() && (
-                        <p className="text-2xl">
-                            {size}
-                            {units}
-                        </p>
-                    )}
-                </div>
-            </div>
-        )
-    }
 }
 
 const EmptyIcon = ({ folderId, usr }) => {

@@ -1,40 +1,43 @@
-package service
+package service_test
 
 import (
 	"context"
-	"fmt"
-	"iter"
+	"slices"
 	"sync"
 	"testing"
 
-	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/models"
+	. "github.com/ethrousseau/weblens/service"
+	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
 	testUser1Name = "testUser1"
 	testUser2Name = "testUser2"
-	testUserPass  = "testPass"
+	testUser1Pass = "testPass1"
+	testUser2Pass = "testPass2"
 )
 
 func TestUserService(t *testing.T) {
-	db := database.ConnectToMongo("mongodb://localhost:27017", "weblens-test")
-	// db := database.ConnectToMongo(internal.GetMongoURI(), "weblens-test")
-	err := db.Collection("users").Drop(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Parallel()
 
-	userService := NewUserService(db.Collection("users"))
-	err = userService.Init()
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
+
+	userService, err := NewUserService(col)
 	if err != nil {
 		panic(err)
 	}
 
 	// test user 1, do not auto activate
-	testUser1, err := models.NewUser(testUser1Name, testUserPass, false, false)
+	testUser1, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +61,7 @@ func TestUserService(t *testing.T) {
 	assert.Equal(t, 1, userService.Size())
 
 	// test user 2, do auto activate
-	testUser2, err := models.NewUser(testUser2Name, testUserPass, false, true)
+	testUser2, err := models.NewUser(testUser2Name, testUser1Pass, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,6 +88,26 @@ func TestUserService(t *testing.T) {
 	}
 
 	assert.Equal(t, 0, userService.Size())
+
+	err = col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	// Test mongo failures
+	failingMongo := &mock.MockFailMongoCol{
+		RealCol:    col,
+		InsertFail: true,
+		FindFail:   false,
+		UpdateFail: true,
+	}
+
+	failUserService, err := NewUserService(failingMongo)
+	require.NoError(t, err)
+
+	err = failUserService.Add(serviceUser1)
+	assert.Error(t, err)
+	assert.Nil(t, failUserService.Get(testUser1Name))
 }
 
 type fields struct {
@@ -110,365 +133,187 @@ func TestUserServiceImpl_ActivateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				tt.wantErr(t, us.ActivateUser(tt.args.u), fmt.Sprintf("ActivateUser(%v)", tt.args.u))
+
 			},
 		)
 	}
 }
 
 func TestUserServiceImpl_Add(t *testing.T) {
-	type args struct {
-		user *models.User
+	t.Parallel()
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
+	defer col.Drop(context.Background())
+
+	userService, err := NewUserService(col)
+	if err != nil {
+		panic(err)
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				tt.wantErr(t, us.Add(tt.args.user), fmt.Sprintf("Add(%v)", tt.args.user))
-			},
-		)
+
+	_, err = models.NewUser(testUser1Name, "", false, false)
+	assert.Error(t, err)
+	_, err = models.NewUser("", testUser1Pass, false, false)
+	assert.Error(t, err)
+
+	badUser := &models.User{
+		Username: "",
+		Password: "",
 	}
+
+	err = userService.Add(badUser)
+	assert.Error(t, err)
 }
 
 func TestUserServiceImpl_Del(t *testing.T) {
-	type args struct {
-		un models.Username
+	t.Parallel()
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				tt.wantErr(t, us.Del(tt.args.un), fmt.Sprintf("Del(%v)", tt.args.un))
-			},
-		)
-	}
-}
+	defer col.Drop(context.Background())
 
-func TestUserServiceImpl_GenerateToken(t *testing.T) {
+	userService, err := NewUserService(col)
+	if err != nil {
+		panic(err)
+	}
 
-	type args struct {
-		user *models.User
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want    string
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				got, err := us.GenerateToken(tt.args.user)
-				if !tt.wantErr(t, err, fmt.Sprintf("GenerateToken(%v)", tt.args.user)) {
-					return
-				}
-				assert.Equalf(t, tt.want, got, "GenerateToken(%v)", tt.args.user)
-			},
-		)
-	}
-}
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	require.NoError(t, err)
 
-func TestUserServiceImpl_Get(t *testing.T) {
+	err = userService.Add(newUser)
+	require.NoError(t, err)
 
-	type args struct {
-		username models.Username
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *models.User
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, us.Get(tt.args.username), "Get(%v)", tt.args.username)
-			},
-		)
-	}
-}
+	err = userService.Del(testUser1Name)
+	require.NoError(t, err)
 
-func TestUserServiceImpl_GetAll(t *testing.T) {
-
-	tests := []struct {
-		name   string
-		fields fields
-		want   iter.Seq[*models.User]
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				// us := &UserServiceImpl{
-				// 	userMap:    tt.fields.userMap,
-				// 	userLock:   tt.fields.userLock,
-				// 	publicUser: tt.fields.publicUser,
-				// 	rootUser:   tt.fields.rootUser,
-				// 	col:        tt.fields.col,
-				// }
-				// assert.Equalf(t, tt.want, us.GetAll(), "GetAll()")
-			},
-		)
-	}
-}
-
-func TestUserServiceImpl_GetPublicUser(t *testing.T) {
-
-	tests := []struct {
-		name   string
-		fields fields
-		want   *models.User
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, us.GetPublicUser(), "GetPublicUser()")
-			},
-		)
-	}
-}
-
-func TestUserServiceImpl_GetRootUser(t *testing.T) {
-
-	tests := []struct {
-		name   string
-		fields fields
-		want   *models.User
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, us.GetRootUser(), "GetRootUser()")
-			},
-		)
-	}
-}
-
-func TestUserServiceImpl_Init(t *testing.T) {
-
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				tt.wantErr(t, us.Init(), fmt.Sprintf("Init()"))
-			},
-		)
-	}
+	noUser := userService.Get(testUser1Name)
+	assert.Nil(t, noUser)
 }
 
 func TestUserServiceImpl_SearchByUsername(t *testing.T) {
+	t.Parallel()
 
-	type args struct {
-		searchString string
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want    iter.Seq[*models.User]
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
+	defer col.Drop(context.Background())
+
+	userService, err := NewUserService(col)
+	if err != nil {
+		panic(err)
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				got, err := us.SearchByUsername(tt.args.searchString)
-				if !tt.wantErr(t, err, fmt.Sprintf("SearchByUsername(%v)", tt.args.searchString)) {
-					return
-				}
-				assert.Equalf(t, tt.want, got, "SearchByUsername(%v)", tt.args.searchString)
-			},
-		)
+
+	stanUser, err := models.NewUser("stan", testUser1Pass, false, true)
+	require.NoError(t, err)
+	err = userService.Add(stanUser)
+	require.NoError(t, err)
+
+	blanUser, err := models.NewUser("blan", testUser1Pass, false, true)
+	require.NoError(t, err)
+	err = userService.Add(blanUser)
+	require.NoError(t, err)
+
+	userIter, err := userService.SearchByUsername("st")
+	require.NoError(t, err)
+
+	userResults := slices.Collect(userIter)
+	assert.Equal(t, 1, len(userResults))
+	if len(userResults) != 0 {
+		assert.Equal(t, "stan", userResults[0].Username)
 	}
+
+	userIter2, err := userService.SearchByUsername("an")
+	require.NoError(t, err)
+
+	userResults2 := slices.Collect(userIter2)
+	assert.Equal(t, 2, len(userResults2))
 }
 
 func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
+	t.Parallel()
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
 
-	type args struct {
-		u     *models.User
-		admin bool
+	userService, err := NewUserService(col)
+	if err != nil {
+		panic(err)
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				tt.wantErr(
-					t, us.SetUserAdmin(tt.args.u, tt.args.admin),
-					fmt.Sprintf("SetUserAdmin(%v, %v)", tt.args.u, tt.args.admin),
-				)
-			},
-		)
-	}
-}
 
-func TestUserServiceImpl_Size(t *testing.T) {
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	require.NoError(t, err)
 
-	tests := []struct {
-		name   string
-		fields fields
-		want   int
-	}{
-		// TODO: Add test cases.
+	err = userService.Add(newUser)
+	require.NoError(t, err)
+
+	err = userService.SetUserAdmin(newUser, true)
+	assert.Error(t, err)
+	assert.False(t, newUser.IsAdmin())
+
+	err = userService.ActivateUser(newUser)
+	require.NoError(t, err)
+
+	err = userService.SetUserAdmin(newUser, true)
+	assert.NoError(t, err)
+	assert.True(t, newUser.IsAdmin())
+
+	// Test mongo failures
+	failingMongo := &mock.MockFailMongoCol{
+		RealCol:    col,
+		InsertFail: false,
+		FindFail:   false,
+		UpdateFail: true,
 	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				assert.Equalf(t, tt.want, us.Size(), "Size()")
-			},
-		)
-	}
+
+	failUserService, err := NewUserService(failingMongo)
+	require.NoError(t, err)
+
+	newUser2, err := models.NewUser(testUser2Name, testUser2Pass, false, true)
+	require.NoError(t, err)
+	assert.True(t, newUser2.IsActive())
+
+	err = failUserService.Add(newUser2)
+	assert.NoError(t, err)
+	assert.NotNil(t, failUserService.Get(testUser1Name))
+	assert.False(t, newUser2.IsAdmin())
+
+	err = failUserService.SetUserAdmin(newUser2, true)
+	assert.Error(t, err)
+	assert.False(t, newUser2.IsAdmin())
 }
 
 func TestUserServiceImpl_UpdateUserPassword(t *testing.T) {
+	t.Parallel()
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
 
-	type args struct {
-		username      models.Username
-		oldPassword   string
-		newPassword   string
-		allowEmptyOld bool
+	userService, err := NewUserService(col)
+	if err != nil {
+		panic(err)
 	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				us := &UserServiceImpl{
-					userMap:    tt.fields.userMap,
-					userLock:   tt.fields.userLock,
-					publicUser: tt.fields.publicUser,
-					rootUser:   tt.fields.rootUser,
-					col:        tt.fields.col,
-				}
-				tt.wantErr(
-					t, us.UpdateUserPassword(
-						tt.args.username, tt.args.oldPassword, tt.args.newPassword, tt.args.allowEmptyOld,
-					), fmt.Sprintf(
-						"UpdateUserPassword(%v, %v, %v, %v)", tt.args.username, tt.args.oldPassword,
-						tt.args.newPassword, tt.args.allowEmptyOld,
-					),
-				)
-			},
-		)
-	}
+
+	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, true)
+	require.NoError(t, err)
+
+	err = userService.Add(newUser)
+	require.NoError(t, err)
+
+	err = userService.UpdateUserPassword(newUser.Username, testUser1Pass, testUser2Pass, false)
+	require.NoError(t, err)
+
+	assert.False(t, newUser.CheckLogin(testUser1Pass))
+	assert.True(t, newUser.CheckLogin(testUser2Pass))
 }

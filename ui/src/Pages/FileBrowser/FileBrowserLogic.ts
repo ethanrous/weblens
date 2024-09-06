@@ -256,7 +256,7 @@ export function HandleUploadButton(
     }
 }
 
-export function downloadSelected(
+export async function downloadSelected(
     files: WeblensFile[],
     removeLoading: (loading: string) => void,
     taskProgDispatch: TPDispatchT,
@@ -265,38 +265,37 @@ export function downloadSelected(
     shareId?: string
 ) {
     if (files.length === 1 && !files[0].IsFolder()) {
-        downloadSingleFile(
+        return downloadSingleFile(
             files[0].Id(),
             authHeader,
             taskProgDispatch,
             files[0].GetFilename(),
+            false,
             shareId
         )
-        return
     }
 
-    requestZipCreate(
+    return requestZipCreate(
         files.map((f) => f.Id()),
         shareId,
         authHeader
-    )
-        .then(({ json, status }) => {
-            if (status === 200) {
-                downloadSingleFile(
-                    json.takeoutId,
-                    authHeader,
-                    taskProgDispatch,
-                    json.filename,
-                    shareId
-                )
-            } else if (status === 202) {
-                SubToTask(json.taskId, ['takeoutId'], wsSend)
-            } else if (status !== 0) {
-                console.error(json.error)
-            }
-            removeLoading('zipCreate')
-        })
-        .catch((r) => console.error(r))
+    ).then(({ json, status }) => {
+        if (status === 200) {
+            downloadSingleFile(
+                json.takeoutId,
+                authHeader,
+                taskProgDispatch,
+                json.filename,
+                true,
+                shareId
+            )
+        } else if (status === 202) {
+            SubToTask(json.taskId, ['takeoutId'], wsSend)
+        } else if (status !== 0) {
+            console.error(json.error)
+        }
+        removeLoading('zipCreate')
+    })
 }
 
 export const useKeyDownFileBrowser = () => {

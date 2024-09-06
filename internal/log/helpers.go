@@ -16,6 +16,7 @@ import (
 type StackError interface {
 	Error() string
 	Stack() string
+	Errorln() string
 }
 
 func ErrTrace(err error, extras ...string) {
@@ -26,10 +27,9 @@ func ErrTrace(err error, extras ...string) {
 			return
 		}
 
-		msg := strings.Join(extras, " ")
-		ErrorCatcher.Printf(
-			"%s: %s\n----- STACK FOR ERROR ABOVE -----\n%s", msg, err, debug.Stack(),
-		)
+		_, file, no, _ := runtime.Caller(1)
+		ErrorCatcher.Println(string(debug.Stack()))
+		ErrorCatcher.Printf("%s:%d (no stack) %s", file, no, err.Error())
 	}
 }
 
@@ -37,7 +37,7 @@ func ShowErr(err error, extras ...string) {
 	if err != nil {
 		fmter, ok := err.(StackError)
 		if ok {
-			errStr := fmter.Error()
+			errStr := fmter.Errorln()
 			if errStr[len(errStr)-1] == '\n' {
 				errStr = errStr[:len(errStr)-1]
 			}
@@ -82,7 +82,7 @@ func colorTime(dur time.Duration) string {
 	}
 }
 
-func ApiLogger(isDevMode bool) gin.HandlerFunc {
+func ApiLogger(logLevel int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.RequestURI
@@ -93,7 +93,7 @@ func ApiLogger(isDevMode bool) gin.HandlerFunc {
 		c.Next()
 
 		status := c.Writer.Status()
-		if !isDevMode && status < 400 {
+		if logLevel == -1 && status < 400 {
 			return
 		}
 
@@ -107,10 +107,9 @@ func ApiLogger(isDevMode bool) gin.HandlerFunc {
 			},
 		).Observe(timeTotal.Seconds())
 
-		fmt.Printf(
-			"\u001B[0m[%s][%s][%7s][%s][%s] %s %s\n", start.Format("Jan 02 15:04:05"), remote,
-			colorTime(timeTotal),
-			handler, colorStatus(status), method, path,
+		Info.Printf(
+			"\u001B[0m[%s][%7s][%s][%s] %s %s\n", remote, colorTime(timeTotal), handler, colorStatus(status), method,
+			path,
 		)
 	}
 }

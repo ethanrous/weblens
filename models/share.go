@@ -1,6 +1,7 @@
 package models
 
 import (
+	"slices"
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -17,15 +18,15 @@ type ShareId string
 type FileShare struct {
 	ShareId   ShareId         `bson:"_id" json:"shareId"`
 	FileId    fileTree.FileId `bson:"fileId" json:"fileId"`
-	ShareName string          `bson:"shareName"`
-	Owner     Username        `bson:"owner"`
-	Accessors []Username      `bson:"accessors"`
-	Public    bool            `bson:"public"`
-	Wormhole  bool            `bson:"wormhole"`
-	Enabled   bool            `bson:"enabled"`
-	Expires   time.Time       `bson:"expires"`
-	Updated   time.Time `bson:"updated"`
-	ShareType ShareType `bson:"shareType"`
+	ShareName string          `bson:"shareName" json:"shareName"`
+	Owner     Username        `bson:"owner" json:"owner"`
+	Accessors []Username      `bson:"accessors" json:"accessors"`
+	Public    bool            `bson:"public" json:"public"`
+	Wormhole  bool            `bson:"wormhole" json:"wormhole"`
+	Enabled   bool            `bson:"enabled" json:"enabled"`
+	Expires   time.Time       `bson:"expires" json:"expires"`
+	Updated   time.Time       `bson:"updated" json:"updated"`
+	ShareType ShareType       `bson:"shareType" json:"shareType"`
 }
 
 type AlbumShare struct {
@@ -41,8 +42,8 @@ type AlbumShare struct {
 }
 
 func NewFileShare(
-	f *fileTree.WeblensFile, u *User, accessors []*User, public bool, wormhole bool,
-) Share {
+	f *fileTree.WeblensFileImpl, u *User, accessors []*User, public bool, wormhole bool,
+) *FileShare {
 	return &FileShare{
 		ShareId: ShareId(primitive.NewObjectID().Hex()),
 		FileId:  f.ID(),
@@ -78,7 +79,7 @@ func NewAlbumShare(
 	}
 }
 
-func (s *FileShare) GetShareId() ShareId      { return s.ShareId }
+func (s *FileShare) ID() ShareId              { return s.ShareId }
 func (s *FileShare) GetShareType() ShareType  { return SharedFile }
 func (s *FileShare) GetItemId() string        { return string(s.FileId) }
 func (s *FileShare) SetItemId(fileId string)  { s.FileId = fileTree.FileId(fileId) }
@@ -88,8 +89,16 @@ func (s *FileShare) AddUsers(usernames []Username) {
 	s.Accessors = internal.AddToSet(s.Accessors, usernames...)
 }
 
+func (s *FileShare) SetAccessors(usernames []Username) {
+	s.Accessors = usernames
+}
+
 func (s *FileShare) RemoveUsers(usernames []Username) {
-	s.Accessors = internal.AddToSet(s.Accessors, usernames...)
+	s.Accessors = internal.Filter(
+		s.Accessors, func(un Username) bool {
+			return !slices.Contains(usernames, un)
+		},
+	)
 }
 
 func (s *FileShare) GetOwner() Username { return s.Owner }
@@ -155,11 +164,15 @@ func (s *FileShare) LastUpdated() time.Time {
 // 	return bson.Marshal(data)
 // }
 
-func (s *AlbumShare) GetShareId() ShareId      { return s.ShareId }
+func (s *AlbumShare) ID() ShareId              { return s.ShareId }
 func (s *AlbumShare) GetShareType() ShareType  { return SharedAlbum }
 func (s *AlbumShare) GetItemId() string        { return string(s.AlbumId) }
 func (s *AlbumShare) SetItemId(albumId string) { s.AlbumId = AlbumId(albumId) }
 func (s *AlbumShare) GetAccessors() []Username { return s.Accessors }
+
+func (s *AlbumShare) SetAccessors(usernames []Username) {
+	s.Accessors = usernames
+}
 
 func (s *AlbumShare) AddUsers(usernames []Username) {
 	s.Accessors = internal.AddToSet(s.Accessors, usernames...)
@@ -228,7 +241,7 @@ func (s *AlbumShare) MarshalBSON() ([]byte, error) {
 }
 
 type Share interface {
-	GetShareId() ShareId
+	ID() ShareId
 	GetShareType() ShareType
 	GetItemId() string
 	IsPublic() bool
@@ -237,6 +250,7 @@ type Share interface {
 	GetOwner() Username
 	AddUsers(usernames []Username)
 	RemoveUsers(usernames []Username)
+	SetAccessors(usernames []Username)
 
 	SetItemId(string)
 	SetPublic(bool)
@@ -247,7 +261,6 @@ type Share interface {
 }
 
 type ShareService interface {
-	Init() error
 	Size() int
 
 	Get(id ShareId) Share
@@ -259,8 +272,10 @@ type ShareService interface {
 	GetAllShares() []Share
 	GetFileSharesWithUser(u *User) ([]*FileShare, error)
 	GetAlbumSharesWithUser(u *User) ([]*AlbumShare, error)
+	GetFileShare(f *fileTree.WeblensFileImpl) (*FileShare, error)
 
-	GetFileShare(f *fileTree.WeblensFile) (*FileShare, error)
+	EnableShare(share Share, enabled bool) error
+	SetSharePublic(share Share, public bool) error
 }
 
 type ShareType string

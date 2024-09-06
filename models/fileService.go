@@ -8,45 +8,52 @@ import (
 )
 
 type FileService interface {
-	GetFile(id fileTree.FileId) (*fileTree.WeblensFile, error)
-	GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFile, error)
-	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFile, error)
+	GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
+	GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error)
+	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFileImpl, error)
+	GetMediaRoot() *fileTree.WeblensFileImpl
+	PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error)
 
-	GetFileOwner(file *fileTree.WeblensFile) *User
-	IsFileInTrash(file *fileTree.WeblensFile) bool
+	CreateFile(parent *fileTree.WeblensFileImpl, filename string) (*fileTree.WeblensFileImpl, error)
+	CreateFolder(parent *fileTree.WeblensFileImpl, foldername string, caster FileCaster) (
+		*fileTree.WeblensFileImpl, error,
+	)
+	ImportFile(f *fileTree.WeblensFileImpl) error
 
-	ImportFile(f *fileTree.WeblensFile) error
+	GetFileOwner(file *fileTree.WeblensFileImpl) *User
+	IsFileInTrash(file *fileTree.WeblensFileImpl) bool
 
-	MoveFiles(files []*fileTree.WeblensFile, destFolder *fileTree.WeblensFile, caster FileCaster,) error
-	RenameFile(file *fileTree.WeblensFile, newName string, caster FileCaster) error
-	MoveFileToTrash(file *fileTree.WeblensFile, mover *User, share *FileShare, caster FileCaster) error
-	ReturnFilesFromTrash(files []*fileTree.WeblensFile, caster FileCaster) error
-	PermanentlyDeleteFiles(files []*fileTree.WeblensFile, caster FileCaster) error
+	MoveFiles(files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, caster FileCaster) error
+	RenameFile(file *fileTree.WeblensFileImpl, newName string, caster FileCaster) error
+	MoveFilesToTrash(file []*fileTree.WeblensFileImpl, mover *User, share *FileShare, caster FileCaster) error
+	ReturnFilesFromTrash(files []*fileTree.WeblensFileImpl, caster FileCaster) error
+	PermanentlyDeleteFiles(files []*fileTree.WeblensFileImpl, caster FileCaster) error
 
-	ReadFile(f *fileTree.WeblensFile) (io.ReadCloser, error)
+	ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser, error)
 
-	GetThumbFileName(filename string) (*fileTree.WeblensFile, error)
-	NewCacheFile(contentId string, quality MediaQuality, pageNum int) (*fileTree.WeblensFile, error)
-	DeleteCacheFile(file *fileTree.WeblensFile) error
+	GetThumbFileName(filename string) (*fileTree.WeblensFileImpl, error)
+	NewCacheFile(contentId string, quality MediaQuality, pageNum int) (fileTree.WeblensFile, error)
+	DeleteCacheFile(file fileTree.WeblensFile) error
 
-	AddTask(f *fileTree.WeblensFile, t *task.Task) error
-	RemoveTask(f *fileTree.WeblensFile, t *task.Task) error
-	GetTasks(f *fileTree.WeblensFile) []*task.Task
+	AddTask(f *fileTree.WeblensFileImpl, t *task.Task) error
+	RemoveTask(f *fileTree.WeblensFileImpl, t *task.Task) error
+	GetTasks(f *fileTree.WeblensFileImpl) []*task.Task
 
-	GetMediaJournal() fileTree.JournalService
+	GetMediaJournal() fileTree.Journal
 
-	ResizeDown(file *fileTree.WeblensFile, caster FileCaster) error
-	ResizeUp(file *fileTree.WeblensFile, caster FileCaster) error
-	NewZip(zipName string, owner *User) (*fileTree.WeblensFile, error)
+	ResizeDown(file *fileTree.WeblensFileImpl, caster FileCaster) error
+	ResizeUp(file *fileTree.WeblensFileImpl, caster FileCaster) error
+	NewZip(zipName string, owner *User) (*fileTree.WeblensFileImpl, error)
+	GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
 }
 
 type FileCaster interface {
-	PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media)
+	PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media)
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
-	PushFileCreate(newFile *fileTree.WeblensFile)
-	PushFileMove(preMoveFile *fileTree.WeblensFile, postMoveFile *fileTree.WeblensFile)
+	PushFileCreate(newFile *fileTree.WeblensFileImpl)
+	PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl)
 
-	PushFileDelete(deletedFile *fileTree.WeblensFile)
+	PushFileDelete(deletedFile *fileTree.WeblensFileImpl)
 	Close()
 }

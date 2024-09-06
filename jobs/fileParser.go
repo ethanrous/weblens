@@ -1,7 +1,7 @@
 package jobs
 
 import (
-	"fmt"
+	"errors"
 	"path/filepath"
 	"slices"
 	"time"
@@ -31,7 +31,7 @@ func ScanDirectory(t *task.Task) {
 	// uploading into this directory as a scan comes through.
 	// We will block until the upload finishes, then continue this scan
 	// meta.File.AddTask(t)
-	// defer func(meta.File *fileTree.WeblensFile, id task.TaskId) {
+	// defer func(meta.File *fileTree.WeblensFileImpl, id task.TaskId) {
 	// 	err := meta.File.RemoveTask(id)
 	// 	if err != nil {
 	// 		wlog.ShowErr(err)
@@ -39,7 +39,7 @@ func ScanDirectory(t *task.Task) {
 	// }(meta.File, t.TaskId())
 
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
-	log.Info.Printf("Beginning directory scan for %s\n", meta.File.GetPortablePath())
+	t.SetChildTaskPool(pool)
 
 	err := meta.FileService.AddTask(meta.File, t)
 	if err != nil {
@@ -48,11 +48,13 @@ func ScanDirectory(t *task.Task) {
 	defer func() { err = meta.FileService.RemoveTask(meta.File, t); log.ErrTrace(err) }()
 
 	meta.TaskSubber.FolderSubToPool(meta.File.ID(), pool.GetRootPool().ID())
-	meta.TaskSubber.FolderSubToPool(meta.File.GetParent().ID(), pool.GetRootPool().ID())
+	meta.TaskSubber.FolderSubToPool(meta.File.GetParentId(), pool.GetRootPool().ID())
 	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
+	log.Debug.Printf("Beginning directory scan for %s\n", meta.File.GetPortablePath())
+
 	err = meta.File.LeafMap(
-		func(wf *fileTree.WeblensFile) error {
+		func(wf *fileTree.WeblensFileImpl) error {
 			if wf.IsDir() {
 				return nil
 				// TODO: Lock directory files while scanning to be able to check what task is using each file
@@ -72,13 +74,14 @@ func ScanDirectory(t *task.Task) {
 				File:         wf,
 				FileService:  meta.FileService,
 				MediaService: meta.MediaService,
-				TaskService:  meta.TaskService,
 				Caster:       meta.Caster,
 			}
-			_, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
+			newT, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
 			}
+
+			newT.SetCleanup(reportSubscanStatus)
 
 			return nil
 		},
@@ -124,17 +127,28 @@ func ScanDirectory(t *task.Task) {
 }
 
 func ScanFile(t *task.Task) {
-	start := time.Now()
 	meta := t.GetMeta().(models.ScanMeta)
+	start := time.Now()
+	err := ScanFile_(meta)
+	stop := time.Now()
+	if err != nil {
+		t.ErrorAndExit(err)
+	}
+	metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
 
+	t.Success()
+}
+
+func ScanFile_(meta models.ScanMeta) error {
 	ext := filepath.Ext(meta.File.Filename())
 	if !meta.MediaService.GetMediaTypes().ParseExtension(ext).Displayable {
-		t.ErrorAndExit(werror.ErrNonDisplayable)
+		log.Error.Printf("Trying to process file with [%s] ext", ext)
+		return werror.ErrNonDisplayable
 	}
 
 	contentId := models.ContentId(meta.File.GetContentId())
 	if contentId == "" {
-		t.ErrorAndExit(fmt.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath()))
+		return werror.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath())
 	}
 
 	media := models.NewMedia(contentId)
@@ -143,10 +157,8 @@ func ScanFile(t *task.Task) {
 			return fId == meta.File.ID()
 		},
 	) {
-		t.Success("Media already imported")
+		return nil
 	}
-
-	t.ExitIfSignaled()
 
 	if meta.PartialMedia == nil {
 		meta.PartialMedia = &models.Media{}
@@ -158,28 +170,65 @@ func ScanFile(t *task.Task) {
 
 	err := meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
 	if err != nil {
-		t.ErrorAndExit(err)
-		return
+		return err
 	}
-
-	t.ExitIfSignaled()
 
 	existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
 	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
 		Width != meta.PartialMedia.Width || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
 		err = meta.MediaService.Add(meta.PartialMedia)
-		if err != nil {
-			t.ErrorAndExit(err)
+		if err != nil && errors.Is(err, werror.ErrMediaAlreadyExists) {
+			return err
 		}
 	}
 
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)
+
+	return nil
+}
+
+func reportSubscanStatus(t *task.Task) {
+	meta := t.GetMeta().(models.ScanMeta)
 	if t.GetTaskPool().IsGlobal() {
 		meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, getScanResult(t))
 	} else {
 		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.SubTaskCompleteEvent, getScanResult(t))
 	}
+}
 
-	t.Success()
-	metrics.MediaProcessTime.Observe(float64(time.Since(start)))
+func getScanResult(t *task.Task) task.TaskResult {
+	var tp *task.TaskPool
+
+	if t.GetTaskPool() != nil {
+		tp = t.GetTaskPool().GetRootPool()
+	}
+
+	var result = task.TaskResult{}
+	meta, ok := t.GetMeta().(models.ScanMeta)
+	if ok {
+		result = task.TaskResult{
+			"filename": meta.File.Filename(),
+		}
+		if tp != nil && tp.CreatedInTask() != nil {
+			result["task_job_target"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()
+		} else if tp == nil {
+			result["task_job_target"] = meta.File.Filename()
+		}
+	}
+
+	if tp != nil {
+		status := tp.Status()
+		result["percent_progress"] = status.Progress
+		result["tasks_complete"] = status.Complete
+		result["tasks_failed"] = status.Failed
+		result["tasks_total"] = status.Total
+		result["runtime"] = status.Runtime
+		if tp.CreatedInTask() != nil {
+			result["task_job_name"] = tp.CreatedInTask().JobName()
+		}
+	} else {
+		result["task_job_name"] = t.JobName()
+	}
+
+	return result
 }

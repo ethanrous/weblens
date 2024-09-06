@@ -13,14 +13,14 @@ import (
 	"github.com/ethrousseau/weblens/internal/werror"
 )
 
-type TaskId string
-type TaskExitStatus string
-type TaskResult map[string]any
+type Id = string
+type TaskExitStatus = string
+type TaskResult = map[string]any
 
-var _ TaskInterface = (*Task)(nil)
+// var _ TaskInterface = (*Task)(nil)
 
 type Task struct {
-	taskId        TaskId
+	taskId        Id
 	taskPool      *TaskPool
 	childTaskPool *TaskPool
 	work          TaskHandler
@@ -32,7 +32,7 @@ type Task struct {
 
 	updateMu sync.RWMutex
 
-	err any
+	err error
 
 	timeout   time.Time
 	timerLock sync.Mutex
@@ -42,10 +42,10 @@ type Task struct {
 	postAction func(result TaskResult)
 
 	// Function to be run to clean up when the task completes, no matter the exit status
-	cleanup func()
+	cleanup TaskHandler
 
 	// Function to be run to clean up if the task errors
-	errorCleanup func()
+	errorCleanup TaskHandler
 
 	sw internal.Stopwatch
 
@@ -53,7 +53,7 @@ type Task struct {
 	// to exit prematurely, for example. The signalChan serves the same purpose, but is
 	// used when a task might block waiting for another channel.
 	// Key: 1 is exit,
-	signal atomic.Int64
+	signal     atomic.Int64
 	signalChan chan int
 
 	waitMu sync.Mutex
@@ -68,7 +68,7 @@ const (
 	Exited    QueueState = "exited"
 )
 
-func (t *Task) TaskId() TaskId {
+func (t *Task) TaskId() Id {
 	return t.taskId
 }
 
@@ -236,7 +236,7 @@ func (t *Task) GetMeta() TaskMetadata {
 /*
 Manipulate is used to change the metadata of a task while it is running.
 This can be useful to have a task be waiting for input from a client,
-and this function can be used to send that data to the task via a chan, for exmaple.
+and this function can be used to send that data to the task via a chan, for example.
 */
 func (t *Task) Manipulate(fn func(meta TaskMetadata) error) error {
 	return fn(t.metadata)
@@ -252,7 +252,9 @@ func (t *Task) error(err error) {
 
 	// Run the cleanup routine for errors, if any
 	if t.errorCleanup != nil {
-		t.errorCleanup()
+		t.updateMu.Unlock()
+		t.errorCleanup(t)
+		t.updateMu.Lock()
 		t.errorCleanup = nil
 	}
 
@@ -273,16 +275,11 @@ func (t *Task) error(err error) {
 
 }
 
-func (t *Task) ErrorAndExit(err error, info ...any) {
+func (t *Task) ErrorAndExit(err error) {
 	if err == nil {
 		return
 	}
 
-	var infoMsg string
-	if len(info) > 0 {
-		infoMsg = fmt.Sprintln(info...)
-	}
-	log.ErrTrace(werror.Errorf("%sTask [%s] exited with an error: %s", infoMsg, t.TaskId(), err.Error()))
 	t.error(err)
 	panic(werror.ErrTaskError)
 }
@@ -307,11 +304,11 @@ func (t *Task) SetPostAction(action func(TaskResult)) {
 
 // Pass a function to run if the task throws an error, in theory
 // to cleanup any half-processed state that could litter if not finished
-func (t *Task) SetErrorCleanup(cleanup func()) {
+func (t *Task) SetErrorCleanup(cleanup TaskHandler) {
 	t.errorCleanup = cleanup
 }
 
-func (t *Task) SetCleanup(cleanup func()) {
+func (t *Task) SetCleanup(cleanup TaskHandler) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 	t.cleanup = cleanup
@@ -324,11 +321,6 @@ func (t *Task) ReadError() any {
 func (t *Task) Success(msg ...any) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-
-	if t.cleanup != nil {
-		t.cleanup()
-		t.cleanup = nil
-	}
 
 	t.queueState = Exited
 	t.exitStatus = TaskSuccess
@@ -370,7 +362,6 @@ func (t *Task) SwLap(label string) {
 	t.sw.Lap(label)
 }
 
-// Add a lap in the tasks stopwatch
 func (t *Task) ExeTime() time.Duration {
 	return t.sw.GetTotalTime(true)
 }
@@ -385,7 +376,7 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 }
 
 type TaskInterface interface {
-	TaskId() TaskId
+	TaskId() Id
 	JobName() string
 	GetTaskPool() *TaskPool
 	GetChildTaskPool() *TaskPool

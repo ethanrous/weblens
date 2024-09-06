@@ -115,10 +115,10 @@ export const useWindowSize = () => {
         width: window.innerWidth,
         height: window.innerHeight,
     })
-    const onResize = (e) => {
+    const onResize = () => {
         setWindowSize({
-            width: e.target.innerWidth,
-            height: e.target.innerHeight,
+            width: window.innerWidth,
+            height: window.innerHeight,
         })
     }
 
@@ -166,22 +166,32 @@ export const useResizeDrag = (
     resizing: boolean,
     setResizing: (r: boolean) => void,
     setResizeOffset: (o: number) => void,
-    flip?: boolean
+    flip?: boolean,
+    vertical?: boolean
 ) => {
-    const windowSize = useWindowSize()
     const unDrag = useCallback(() => {
         setResizing(false)
     }, [setResizing])
 
     const moved = useCallback(
         (e) => {
-            if (flip) {
-                setResizeOffset(windowSize.width - e.clientX)
+            let val: number
+            let windowSize: number
+            if (vertical) {
+                val = e.clientY
+                windowSize = window.innerHeight
             } else {
-                setResizeOffset(e.clientX)
+                val = e.clientX
+                windowSize = window.innerWidth
+            }
+
+            if (flip) {
+                setResizeOffset(windowSize - val)
+            } else {
+                setResizeOffset(val)
             }
         },
-        [windowSize, setResizeOffset]
+        [setResizeOffset]
     )
 
     useEffect(() => {

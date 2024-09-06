@@ -4,7 +4,7 @@ import "errors"
 
 var ErrNoFileAccess = &clientSafeErr{
 	realError:  errors.New("user does not have access to file"),
-	safeErr:    errors.New("file not found"),
+	safeErr:    errors.New("file does not exist or user does not have access to it"),
 	statusCode: 404,
 }
 
@@ -23,3 +23,4 @@ var ErrUserNotAuthorized = &clientSafeErr{
 }
 
 var ErrKeyInUse = errors.New("api key already in use")
+var ErrKeyNotFound = errors.New("api was not found")

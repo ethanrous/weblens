@@ -1,6 +1,5 @@
 import { Divider } from '@mantine/core'
 
-import { useResizeDrag, useWindowSize } from '../../components/hooks'
 import { memo, useEffect, useMemo, useState } from 'react'
 import {
     IconArrowRight,
@@ -11,16 +10,23 @@ import {
     IconFile,
     IconFolder,
 } from '@tabler/icons-react'
-import { FriendlyFile, FriendlyPath } from './FileBrowserMiscComponents'
-import WeblensButton from '../../components/WeblensButton'
-import './style/history.scss'
+import { useResizeDrag, useWindowSize } from '@weblens/components/hooks'
+import {
+    FriendlyFile,
+    FriendlyPath,
+} from '@weblens/Pages/FileBrowser/FileBrowserMiscComponents'
+import WeblensButton from '@weblens/components/WeblensButton'
+import '@weblens/Pages/FileBrowser/style/history.scss'
 import { useQuery } from '@tanstack/react-query'
-import WeblensLoader from '../../components/Loading'
-import { clamp } from '../../util'
-import { getFileHistory } from '../../api/FileBrowserApi'
-import { historyDate } from './FileBrowserLogic'
-import { FbModeT, useFileBrowserStore } from './FBStateControl'
-import { useSessionStore } from '../../components/UserInfo'
+import WeblensLoader from '@weblens/components/Loading'
+import { clamp } from '@weblens/util'
+import { getFileHistory } from '@weblens/api/FileBrowserApi'
+import { historyDate } from '@weblens/Pages/FileBrowser/FileBrowserLogic'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/Pages/FileBrowser/FBStateControl'
+import { useSessionStore } from '@weblens/components/UserInfo'
 
 const SIDEBAR_BREAKPOINT = 650
 
@@ -35,7 +41,9 @@ export const FileInfoPane = () => {
     useResizeDrag(
         resizing,
         setResizing,
-        (v) => setResizeOffset(clamp(v, 300, 800)),
+        (v) => {
+            setResizeOffset(clamp(v, 300, 800))
+        },
         true
     )
 
@@ -141,147 +149,135 @@ function FileInfo() {
 }
 
 const portableToFolderName = (path: string) => {
-    const folderPath = path.slice(path.indexOf(':') + 1, path.lastIndexOf('/'))
-    const folderName = folderPath.slice(folderPath.lastIndexOf('/') + 1)
-    return folderName
-}
-const fileBase = (path: string) => {
-    if (path[path.length - 1] === '/') {
-        path = path.slice(0, path.length - 1)
+    if (path.endsWith('/')) {
+        path = path.substring(0, path.length - 1)
     }
-    return path.slice(path.lastIndexOf('/') + 1)
+    const lastSlash = path.lastIndexOf('/')
+    let folderPath = path.slice(
+        path.indexOf(':') + 1,
+        lastSlash === -1 ? path.length : lastSlash
+    )
+    folderPath = folderPath.slice(folderPath.lastIndexOf('/') + 1)
+    return folderPath
+}
+
+function ActionRow({
+    action,
+    folderName,
+}: {
+    action: fileAction
+    folderName: string
+}) {
+    const fromFolder = portableToFolderName(action.originPath)
+    const toFolder = portableToFolderName(action.destinationPath)
+
+    return (
+        <div className="history-detail-action-row">
+            {action.actionType === 'fileMove' && folderName === fromFolder && (
+                <FriendlyFile pathName={action.originPath} />
+            )}
+            {action.actionType === 'fileMove' && folderName !== fromFolder && (
+                <FriendlyPath pathName={action.originPath} />
+            )}
+            {action.actionType === 'fileCreate' && (
+                <FriendlyFile pathName={action.destinationPath} />
+            )}
+            {action.actionType === 'fileDelete' && (
+                <FriendlyFile pathName={action.originPath} />
+            )}
+            {action.actionType === 'fileRestore' && (
+                <FriendlyFile pathName={action.destinationPath} />
+            )}
+            {action.actionType === 'fileMove' && (
+                <IconArrowRight className="icon-noshrink" />
+            )}
+            {action.actionType === 'fileMove' && folderName !== toFolder && (
+                <FriendlyPath pathName={action.destinationPath} />
+            )}
+            {action.actionType === 'fileMove' && folderName === toFolder && (
+                <FriendlyFile pathName={action.destinationPath} />
+            )}
+        </div>
+    )
 }
 
 const HistoryEventRow = memo(
     ({
         event,
         folderPath,
-        viewing,
+        open,
+        setOpen,
     }: {
         event: fileAction[]
-        viewing: boolean
         folderPath: string
+        open: boolean
+        setOpen: (o: boolean) => void
     }) => {
-        const [open, setOpen] = useState(false)
-        const setPastTime = useFileBrowserStore((state) => state.setPastTime)
-
-        const timeStr = historyDate(event[0].timestamp)
         const folderName = portableToFolderName(folderPath)
+
+        let caretIcon
+        if (open) {
+            caretIcon = <IconCaretDown size={20} style={{ flexShrink: 0 }} />
+        } else {
+            caretIcon = <IconCaretRight size={20} style={{ flexShrink: 0 }} />
+        }
+
         return (
             <div className="flex flex-col w-full h-max justify-center p-2 rounded-lg">
-                <div className="file-history-summary">
-                    <div
-                        className="file-history-accordion-header"
-                        onClick={() => setOpen(!open)}
-                    >
-                        {open ? (
-                            <IconCaretDown
-                                size={20}
-                                style={{ flexShrink: 0 }}
-                            />
-                        ) : (
-                            <IconCaretRight
-                                size={20}
-                                style={{ flexShrink: 0 }}
-                            />
-                        )}
-                        <p className="text-white font-semibold truncate text-xl w-max text-nowrap p-2">
-                            {event.length} File
-                            {event.length !== 1 ? 's' : ''}{' '}
-                            {event[0].actionType.slice(4)}d
+                {event.length == 1 && (
+                    <div className="flex flex-row items-center outline-gray-700 outline p-2 rounded w-full justify-between">
+                        <ActionRow action={event[0]} folderName={folderName} />
+                        <p className="text-nowrap select-none">
+                            File {event[0].actionType.slice(4)}d
                         </p>
                     </div>
-                    <div className="grow" />
-                    <WeblensButton
-                        toggleOn={viewing}
-                        label={timeStr}
-                        centerContent
-                        allowRepeat
-                        onClick={() =>
-                            setPastTime(
-                                viewing ? null : new Date(event[0].timestamp)
-                            )
-                        }
-                    />
-                </div>
-                <div
-                    className="file-history-detail-accordion"
-                    data-open={open}
-                    style={{ height: open ? event.length * 36 + 24 : 0 }}
-                >
-                    <div className="file-history-detail no-scrollbar">
-                        {event.map((a, i) => {
-                            const fromFolder = portableToFolderName(
-                                a.originPath
-                            )
-                            const toFolder = portableToFolderName(
-                                a.destinationPath
-                            )
-
-                            const fromFile = fileBase(a.originPath)
-                            const toFile = fileBase(a.destinationPath)
-
-                            return (
-                                <div
-                                    key={`${fromFile}-${toFile}-${i}`}
-                                    className="history-detail-action-row"
-                                >
-                                    {a.actionType === 'fileMove' &&
-                                        folderName === fromFolder && (
-                                            <FriendlyFile
-                                                pathName={a.originPath}
+                )}
+                {event.length > 1 && (
+                    <div
+                        className="file-history-accordion-header"
+                        data-open={open}
+                        style={{ height: open ? 72 + event.length * 32 : 48 }}
+                    >
+                        <div
+                            className="flex flex-row items-center pl-4 h-12 shrink-0 cursor-pointer"
+                            onClick={() => setOpen(!open)}
+                        >
+                            <div className="event-caret">{caretIcon}</div>
+                            <p className="text-white font-semibold truncate text-xl w-max text-nowrap p-2 select-none">
+                                {event.length} File
+                                {event.length !== 1 ? 's' : ''}{' '}
+                                {event[0].actionType.slice(4)}d ...
+                            </p>
+                        </div>
+                        <div
+                            className="file-history-detail-accordion no-scrollbar"
+                            data-open={open}
+                        >
+                            {open && (
+                                <div className="file-history-detail">
+                                    {event.map((a, i) => {
+                                        return (
+                                            <ActionRow
+                                                key={a.eventId + i}
+                                                action={a}
+                                                folderName={folderName}
                                             />
-                                        )}
-                                    {a.actionType === 'fileMove' &&
-                                        folderName !== fromFolder && (
-                                            <FriendlyPath
-                                                pathName={a.originPath}
-                                            />
-                                        )}
-                                    {a.actionType === 'fileCreate' && (
-                                        <FriendlyFile
-                                            pathName={a.destinationPath}
-                                        />
-                                    )}
-                                    {a.actionType === 'fileDelete' && (
-                                        <FriendlyFile pathName={a.originPath} />
-                                    )}
-                                    {a.actionType === 'fileRestore' && (
-                                        <FriendlyFile
-                                            pathName={a.destinationPath}
-                                        />
-                                    )}
-                                    {a.actionType === 'fileMove' && (
-                                        <IconArrowRight className="icon-noshrink" />
-                                    )}
-
-                                    {a.actionType === 'fileMove' &&
-                                        folderName === toFolder && (
-                                            <FriendlyPath
-                                                pathName={a.destinationPath}
-                                            />
-                                        )}
-
-                                    {a.actionType === 'fileMove' &&
-                                        folderName !== toFolder && (
-                                            <FriendlyFile
-                                                pathName={a.destinationPath}
-                                            />
-                                        )}
-
-                                    {/*<p className="text-nowrap text-md">{new Date(a.timestamp).toLocaleTimeString()}</p>*/}
+                                        )
+                                    })}
                                 </div>
-                            )
-                        })}
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         )
     },
     (prev, next) => {
         if (prev.event !== next.event) {
             return false
-        } else if (prev.viewing !== next.viewing) {
+        } else if (prev.open !== next.open) {
+            return false
+        } else if (prev.setOpen !== next.setOpen) {
             return false
         } else if (prev.folderPath !== next.folderPath) {
             return false
@@ -290,6 +286,117 @@ const HistoryEventRow = memo(
         return true
     }
 )
+
+function RollbackBar({
+    events,
+    openEvents,
+}: {
+    events: fileAction[][]
+    openEvents: boolean[]
+}) {
+    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+
+    const [steps, setSteps] = useState(0)
+    const [dragging, setDragging] = useState(false)
+    useResizeDrag(
+        dragging,
+        setDragging,
+        (v) => {
+            v = v - 205
+            if (v < 0) {
+                v = 0
+            }
+
+            let offset = 0
+            let counter = 0
+            while (true) {
+                if (counter >= openEvents.length) {
+                    break
+                }
+                let nextOffset
+                if (!openEvents[counter]) {
+                    nextOffset = 64
+                } else {
+                    nextOffset = Math.min(500, 88 + events[counter].length * 32)
+                }
+
+                if (offset + nextOffset / 2 > v) {
+                    break
+                } else if (offset + nextOffset > v) {
+                    counter++
+                    break
+                }
+
+                offset += nextOffset
+                counter++
+            }
+            setSteps(counter)
+        },
+        false,
+        true
+    )
+
+    useEffect(() => {
+        if (!dragging) {
+            if (steps === 0) {
+                setPastTime(null)
+                return
+            }
+            const event = events[steps - 1]
+            if (event) {
+                setPastTime(
+                    new Date(
+                        Math.min(...events[steps - 1].map((a) => a.timestamp))
+                    )
+                )
+            }
+        }
+    }, [dragging])
+
+    const currentTime = useMemo(() => {
+        if (!dragging) {
+            return ''
+        }
+        if (steps === 0) {
+            return 'Now'
+        }
+
+        return historyDate(events[steps - 1][0].timestamp)
+    }, [dragging, steps])
+
+    const offset = useMemo(() => {
+        if (steps === 0) {
+            return 0
+        }
+        let offset = 5
+        for (let i = 0; i < steps; i++) {
+            if (!openEvents[i]) {
+                offset += 64
+            } else {
+                offset += Math.min(500, 88 + events[i].length * 32)
+            }
+        }
+        return offset
+    }, [openEvents, steps])
+
+    return (
+        <div
+            className="rollback-bar-wrapper"
+            style={{ top: offset }}
+            onMouseDown={() => setDragging(true)}
+            onMouseUp={() => setDragging(false)}
+        >
+            <div className="rollback-bar" data-moving={dragging} />
+            {dragging && (
+                <div className="bg-[#333333cc] p-1 rounded h-max w-max relative">
+                    <p className="relative select-none z-10 text-white">
+                        {currentTime}
+                    </p>
+                </div>
+            )}
+        </div>
+    )
+}
 
 type fileAction = {
     actionType: string
@@ -305,13 +412,9 @@ type fileAction = {
 function FileHistory() {
     const user = useSessionStore((state) => state.user)
     const authHeader = useSessionStore((state) => state.auth)
-
     const filesMap = useFileBrowserStore((state) => state.filesMap)
     const contentId = useFileBrowserStore((state) => state.contentId)
     const mode = useFileBrowserStore((state) => state.fbMode)
-    const pastTimestamp = useFileBrowserStore((state) =>
-        state.viewingPast?.getTime()
-    )
 
     const { data: fileHistory, refetch } = useQuery<fileAction[]>({
         queryKey: ['fileHistory', contentId],
@@ -325,7 +428,7 @@ function FileHistory() {
 
     useEffect(() => {
         refetch()
-    }, [filesMap])
+    }, [filesMap.size])
 
     const { events, epoch } = useMemo(() => {
         if (!fileHistory || !fileHistory.length) {
@@ -336,11 +439,11 @@ function FileHistory() {
         let epoch: fileAction
 
         fileHistory.forEach((a) => {
-            if (a.destinationId === contentId) {
+            if (a.lifeId === contentId) {
                 epoch = a
                 return
             }
-            if (a.destinationId === user.trashId) {
+            if (a.lifeId === user.trashId) {
                 return
             }
 
@@ -354,6 +457,12 @@ function FileHistory() {
 
         return { events, epoch }
     }, [fileHistory])
+
+    const [openEvents, setOpenEvents] = useState([])
+    useEffect(() => {
+        const openInit = events.map(() => false)
+        setOpenEvents(openInit)
+    }, [events])
 
     if (mode === FbModeT.share) {
         return (
@@ -369,14 +478,21 @@ function FileHistory() {
     const createTimeString = historyDate(epoch.timestamp)
 
     return (
-        <div className="flex flex-col items-center p-2 overflow-scroll h-[200px] grow">
-            {events.map((e) => {
+        <div className="flex flex-col items-center p-2 overflow-scroll h-[200px] grow relative pt-3">
+            <RollbackBar events={events} openEvents={openEvents} />
+            {events.map((e, i) => {
                 return (
                     <HistoryEventRow
                         key={e[0].eventId}
                         event={e}
                         folderPath={epoch.destinationPath}
-                        viewing={e[0].timestamp === pastTimestamp}
+                        open={openEvents[i]}
+                        setOpen={(o: boolean) =>
+                            setOpenEvents((p) => {
+                                p[i] = o
+                                return [...p]
+                            })
+                        }
                     />
                 )
             })}

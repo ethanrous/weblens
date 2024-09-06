@@ -13,21 +13,21 @@ type FileAction struct {
 	Timestamp  time.Time      `json:"timestamp" bson:"timestamp"`
 	ActionType FileActionType `json:"actionType" bson:"actionType"`
 
-	OriginPath      string `json:"originPath" bson:"originPath,omitempty"`
+	OriginPath string `json:"originPath" bson:"originPath,omitempty"`
 	// OriginId        FileId `json:"originId" bson:"originId,omitempty"`
 	DestinationPath string `json:"destinationPath" bson:"destinationPath,omitempty"`
 	// DestinationId   FileId `json:"destinationId" bson:"destinationId,omitempty"`
 
-	LifeId FileId `json:"lifeId" bson:"lifeId"`
+	LifeId  FileId      `json:"lifeId" bson:"lifeId"`
 	EventId FileEventId `json:"eventId" bson:"eventId"`
 
 	Size     int64  `json:"size" bson:"size"`
 	ParentId FileId `json:"parentId" bson:"ParentId"`
 	ServerId string `json:"serverId" bson:"serverId"`
 
-	LifeNext *FileAction  `json:"-" bson:"-"`
-	LifePrev *FileAction  `json:"-" bson:"-"`
-	file     *WeblensFile `bson:"-"`
+	LifeNext *FileAction      `json:"-" bson:"-"`
+	LifePrev *FileAction      `json:"-" bson:"-"`
+	file     *WeblensFileImpl `bson:"-"`
 }
 
 func (fa *FileAction) GetTimestamp() time.Time {
@@ -42,7 +42,7 @@ func (fa *FileAction) GetSize() int64 {
 	return fa.Size
 }
 
-func (fa *FileAction) GetFile() *WeblensFile {
+func (fa *FileAction) GetFile() *WeblensFileImpl {
 	return fa.file
 }
 
@@ -88,16 +88,16 @@ func (fa *FileAction) GetParentId() FileId {
 
 func (fa *FileAction) MarshalJSON() ([]byte, error) {
 	data := map[string]any{
-		"timestamp":       fa.Timestamp.UnixMilli(),
-		"actionType":      fa.ActionType,
-		"originPath":      fa.OriginPath,
+		"timestamp":  fa.Timestamp.UnixMilli(),
+		"actionType": fa.ActionType,
+		"originPath": fa.OriginPath,
 		// "originId":        fa.OriginId,
 		"destinationPath": fa.DestinationPath,
 		// "destinationId":   fa.DestinationId,
-		"lifeId":          fa.LifeId,
-		"eventId":         fa.EventId,
-		"size":            fa.Size,
-		"parentId":        fa.ParentId,
+		"lifeId":   fa.LifeId,
+		"eventId":  fa.EventId,
+		"size":     fa.Size,
+		"parentId": fa.ParentId,
 	}
 
 	return json.Marshal(data)
@@ -126,9 +126,9 @@ func (fa *FileAction) UnmarshalJSON(bs []byte) error {
 
 const (
 	FileCreate  FileActionType = "fileCreate"
-	FileRestore FileActionType = "fileRestore"
 	FileMove    FileActionType = "fileMove"
-	FileDelete  FileActionType = "fileDelete"
 	FileWrite   FileActionType = "fileWrite"
 	Backup      FileActionType = "backup"
+	FileDelete  FileActionType = "fileDelete"
+	FileRestore FileActionType = "fileRestore"
 )

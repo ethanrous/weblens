@@ -1,10 +1,7 @@
 package models
 
 import (
-	"fmt"
 	"iter"
-	"runtime"
-	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -23,14 +20,14 @@ type ClientId string
 var _ Client = (*WsClient)(nil)
 
 type WsClient struct {
-	Active atomic.Bool
+	Active        atomic.Bool
 	connId        ClientId
 	conn          *websocket.Conn
-	updateMu sync.Mutex
-	subsMu   sync.Mutex
+	updateMu      sync.Mutex
+	subsMu        sync.Mutex
 	subscriptions []Subscription
-	user   *User
-	remote *Instance
+	user          *User
+	remote        *Instance
 }
 
 func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
@@ -84,24 +81,27 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
-	wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	if err != nil {
+		log.ErrTrace(err)
+	}
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
-		SubscribeKey:  SubId("WEBLENS"),
+		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
 	}
 
 	log.ErrTrace(wsc.Send(msg))
 }
 
-func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Media) {
+func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey:  SubId(updatedFile.ID()),
-		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
+		SubscribeKey:  updatedFile.ID(),
+		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -110,8 +110,8 @@ func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFile, media *Me
 
 func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
 	msg := WsResponseInfo{
-		EventTag: event,
-		SubscribeKey:  SubId(task.TaskId()),
+		EventTag:      event,
+		SubscribeKey:  task.TaskId(),
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
@@ -127,8 +127,8 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 	}
 
 	msg := WsResponseInfo{
-		EventTag: event,
-		SubscribeKey:  SubId(pool.ID()),
+		EventTag:      event,
+		SubscribeKey:  pool.ID(),
 		Content:       WsC(result),
 		TaskType:      pool.CreatedInTask().JobName(),
 		BroadcastType: TaskSubscribe,
@@ -167,7 +167,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
-			wsc.errTrace(err)
+			log.ErrTrace(err)
 		}
 	} else {
 		return werror.Errorf("trying to send to closed client")
@@ -187,7 +187,7 @@ func (wsc *WsClient) unsubscribe(key SubId) {
 	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
 	wsc.updateMu.Unlock()
 
-	log.Debug.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
+	log.Trace.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
 }
 
 func (wsc *WsClient) Disconnect() {
@@ -200,33 +200,7 @@ func (wsc *WsClient) Disconnect() {
 		return
 	}
 	wsc.updateMu.Unlock()
-	wsc.log("Disconnected")
-}
-
-func (wsc *WsClient) clientMsgFormat(msg ...any) string {
-	var clientName string
-	if wsc.GetUser() != nil {
-		clientName = string(wsc.GetUser().GetUsername())
-	} else {
-		clientName = wsc.GetRemote().GetName()
-	}
-	return fmt.Sprintf("| %s (%s) | %s", wsc.GetShortId(), clientName, fmt.Sprintln(msg...))
-}
-
-func (wsc *WsClient) log(msg ...any) {
-	log.WsInfo.Printf(wsc.clientMsgFormat(msg...))
-}
-
-func (wsc *WsClient) err(msg ...any) {
-	_, file, line, _ := runtime.Caller(2)
-	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
-	log.WsError.Printf(wsc.clientMsgFormat(msg...))
-}
-
-func (wsc *WsClient) errTrace(msg ...any) {
-	_, file, line, _ := runtime.Caller(2)
-	msg = []any{any(fmt.Sprintf("%s:%d:", file, line)), msg}
-	log.WsError.Printf(wsc.clientMsgFormat(msg...), string(debug.Stack()))
+	log.Trace.Printf("Disconnected [%s]", wsc.user.GetUsername())
 }
 
 type Client interface {

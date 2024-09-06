@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,7 +16,6 @@ type User struct {
 	Id            primitive.ObjectID `bson:"_id" json:"-"`
 	Username      Username           `bson:"username" json:"username"`
 	Password      string             `bson:"password" json:"-"`
-	Tokens        []string           `bson:"tokens" json:"-"`
 	Admin         bool               `bson:"admin" json:"admin"`
 	Activated     bool               `bson:"activated" json:"activated"`
 	IsServerOwner bool               `bson:"owner" json:"owner"`
@@ -23,13 +23,21 @@ type User struct {
 	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
 
 	// non-database types
-	homeFolder  *fileTree.WeblensFile
-	trashFolder *fileTree.WeblensFile
-	tokensLock sync.RWMutex
-	SystemUser bool
+	tokens      []string
+	homeFolder  *fileTree.WeblensFileImpl
+	trashFolder *fileTree.WeblensFileImpl
+	tokensLock  sync.RWMutex
+	SystemUser  bool
 }
 
 func NewUser(username Username, password string, isAdmin, autoActivate bool) (*User, error) {
+	if username == "" {
+		return nil, werror.Errorf("username is empty")
+	}
+	if password == "" {
+		return nil, werror.Errorf("password is empty")
+	}
+
 	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 11)
 	if err != nil {
 		return nil, err
@@ -40,7 +48,6 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 		Id:        primitive.NewObjectID(),
 		Username:  username,
 		Password:  passHash,
-		Tokens:    []string{},
 		Admin:     isAdmin,
 		Activated: autoActivate,
 	}
@@ -55,12 +62,12 @@ func (u *User) GetUsername() Username {
 	return u.Username
 }
 
-func (u *User) SetHomeFolder(f *fileTree.WeblensFile) {
+func (u *User) SetHomeFolder(f *fileTree.WeblensFileImpl) {
 	u.homeFolder = f
 	u.HomeId = f.ID()
 }
 
-func (u *User) SetTrashFolder(f *fileTree.WeblensFile) {
+func (u *User) SetTrashFolder(f *fileTree.WeblensFileImpl) {
 	u.trashFolder = f
 	u.TrashId = f.ID()
 }
@@ -85,8 +92,8 @@ func (u *User) GetToken() string {
 	u.tokensLock.RLock()
 	defer u.tokensLock.RUnlock()
 
-	if len(u.Tokens) != 0 {
-		ret := u.Tokens[0]
+	if len(u.tokens) != 0 {
+		ret := u.tokens[0]
 		return ret
 	}
 
@@ -94,13 +101,21 @@ func (u *User) GetToken() string {
 }
 
 func (u *User) CheckLogin(password string) bool {
+	if !u.Activated {
+		return false
+	}
+
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) == nil
 }
 
 func (u *User) AddToken(tokenString string) {
+	if !u.Activated {
+		return
+	}
+
 	u.tokensLock.Lock()
 	defer u.tokensLock.Unlock()
-	u.Tokens = append(u.Tokens, tokenString)
+	u.tokens = append(u.tokens, tokenString)
 }
 
 func (u *User) SocketType() string {
@@ -115,7 +130,7 @@ func (u *User) FormatArchive() (map[string]any, error) {
 	data := map[string]any{
 		"username":     u.Username,
 		"password":     u.Password,
-		"tokens":       u.Tokens,
+		"tokens":       u.tokens,
 		"admin":        u.Admin,
 		"activated":    u.Activated,
 		"owner":        u.IsServerOwner,
@@ -139,23 +154,22 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	u.Username = Username(obj["username"].(string))
+	u.Username = obj["username"].(string)
 	u.Password = obj["password"].(string)
 	u.Activated = obj["activated"].(bool)
 	u.Admin = obj["admin"].(bool)
 	u.IsServerOwner = obj["owner"].(bool)
-	u.HomeId = fileTree.FileId(obj["homeId"].(string))
-	u.TrashId = fileTree.FileId(obj["trashId"].(string))
-	u.Tokens = internal.SliceConvert[string](obj["tokens"].([]any))
+	u.HomeId = obj["homeId"].(string)
+	u.TrashId = obj["trashId"].(string)
+	u.tokens = internal.SliceConvert[string](obj["tokens"].([]any))
 	u.SystemUser = obj["isSystemUser"].(bool)
 
 	return nil
 }
 
-type Username string
+type Username = string
 
 type UserService interface {
-	Init() error
 	Size() int
 	Get(id Username) *User
 	Add(user *User) error
@@ -167,6 +181,5 @@ type UserService interface {
 	ActivateUser(*User) error
 	GetRootUser() *User
 
-	GenerateToken(user *User) (string, error)
 	UpdateUserPassword(username Username, oldPassword, newPassword string, allowEmptyOld bool) error
 }

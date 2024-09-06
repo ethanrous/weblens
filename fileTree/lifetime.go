@@ -1,10 +1,10 @@
 package fileTree
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/werror"
 )
 
 type Lifetime struct {
@@ -20,11 +20,11 @@ type Lifetime struct {
 
 func NewLifetime(createAction *FileAction) (*Lifetime, error) {
 	if createAction.GetActionType() != FileCreate {
-		return nil, errors.New("First Lifetime action must be of type FileCreate")
+		return nil, werror.Errorf("First Lifetime action must be of type FileCreate")
 	}
 
 	if createAction.file == nil {
-		return nil, errors.New("Could not find file to create lifetime with")
+		return nil, werror.Errorf("Could not find file to create lifetime with")
 	}
 
 	return &Lifetime{

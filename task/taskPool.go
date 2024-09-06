@@ -14,13 +14,13 @@ import (
 )
 
 type TaskPool struct {
-	id TaskId
+	id Id
 
 	treatAsGlobal  bool
 	hasQueueThread bool
 
-	tasks map[TaskId]*Task
-	taskLock sync.Mutex
+	tasks    map[Id]*Task
+	taskLock sync.RWMutex
 
 	totalTasks     atomic.Int64
 	completedTasks atomic.Int64
@@ -51,7 +51,7 @@ func (tp *TaskPool) GetWorkerPool() *WorkerPool {
 	return tp.workerPool
 }
 
-func (tp *TaskPool) ID() TaskId {
+func (tp *TaskPool) ID() Id {
 	return tp.id
 }
 
@@ -61,226 +61,14 @@ func (tp *TaskPool) addTask(task *Task) {
 	tp.tasks[task.taskId] = task
 }
 
-// // newTask passes params to create new task, and return the task to the caller.
-// // If the task already exists, the existing task will be returned, and a new one will not be created
-// func (tp *TaskPool) newTask(
-// 	jobName weblens.TaskType, taskMeta TaskMetadata, caster websocket.BroadcasterAgent,
-// ) *Task {
-//
-// 	var taskId TaskId
-// 	if taskMeta == nil {
-// 		taskId = TaskId(internal.GlobbyHash(8, time.Now().String()))
-// 	} else {
-// 		taskId = TaskId(internal.GlobbyHash(8, taskMeta.MetaString(), jobName))
-// 	}
-//
-// 	existingTask := tp.GetWorkerPool().GetTask(taskId)
-// 	if existingTask != nil {
-// 		if jobName == "write_file" {
-// 			existingTask.ClearAndRecompute()
-// 		}
-// 		return existingTask
-// 	}
-//
-// 	newTask := &Task{
-// 		taskId:    taskId,
-// 		jobName:  jobName,
-// 		metadata:  taskMeta,
-// 		updateMu:  &sync.RWMutex{},
-// 		waitMu:    sync.Mutex{},
-// 		timerLock: sync.Mutex{},
-// 		signal: atomic.Int64{},
-//
-// 		queueState: PreQueued,
-//
-// 		// signal chan must be buffered so caller doesn't block trying to close many tasks
-// 		signalChan: make(chan int, 1),
-//
-// 		sw: internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId)),
-// 		caster: caster,
-// 	}
-//
-// 	// Lock the waiter gate immediately. The task cleanup routine will clear
-// 	// this lock when the task exits, which will allow any thread waiting on
-// 	// the task to return
-// 	newTask.waitMu.Lock()
-//
-// 	switch newTask.jobName {
-// 	case weblens.ScanDirectoryTask:
-// 		newTask.work = scanDirectory
-// 	case weblens.CreateZipTask:
-// 		// don't remove task when finished since we can just return the name of the already made zip
-// 		// file if asked for the same files again
-// 		newTask.persistent = true
-// 		newTask.work = weblens.createZipFromPaths
-// 	case weblens.ScanFileTask:
-// 		newTask.work = weblens.scanFile
-// 	case weblens.MoveFileTask:
-// 		newTask.work = weblens.moveFile
-// 	case weblens.WriteFileTask:
-// 		newTask.work = weblens.handleFileUploads
-// 	case weblens.GatherFsStatsTask:
-// 		newTask.work = weblens.gatherFilesystemStats
-// 	case weblens.BackupTask:
-// 		newTask.work = doBackup
-// 	case weblens.HashFile:
-// 		newTask.work = weblens.hashFile
-// 	case weblens.CopyFileFromCore:
-// 		newTask.work = copyFileFromCore
-// 	default:
-// 		wlog.ShowErr(error2.WErrMsg("unknown task type"))
-// 	}
-//
-// 	tp.workerPool.addTask(newTask)
-//
-// 	tp.taskLock.Lock()
-// 	defer tp.taskLock.Unlock()
-// 	tp.tasks[newTask.taskId] = newTask
-//
-// 	return newTask
-// }
-
-func (tp *TaskPool) RemoveTask(taskId TaskId) {
+func (tp *TaskPool) RemoveTask(taskId Id) {
 	tp.taskLock.Lock()
 	defer tp.taskLock.Unlock()
 	delete(tp.tasks, taskId)
 
 }
 
-// func (tp *TaskPool) ScanDirectory(directory *fileTree.WeblensFile, caster websocket.BroadcasterAgent) *Task {
-// 	// Partial media means nothing for a directory scan, so it's always nil
-//
-// 	if caster == nil {
-// 		wlog.Error.Println("caster is nil")
-// 		return nil
-// 	}
-//
-// 	scanMeta := weblens.scanMetadata{file: directory}
-// 	t := tp.newTask(weblens.ScanDirectoryTask, scanMeta, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) ScanFile(file *fileTree.WeblensFile, caster websocket.BroadcasterAgent) *Task {
-// 	scanMeta := weblens.scanMetadata{file: file}
-// 	t := tp.newTask(weblens.ScanFileTask, scanMeta, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) WriteToFile(
-// 	rootFolderId types.FileId, chunkSize, totalUploadSize int64,
-// 	caster websocket.BroadcasterAgent,
-// ) *Task {
-// 	numChunks := totalUploadSize / chunkSize
-// 	numChunks = int64(math.Max(float64(numChunks), 10))
-// 	writeMeta := weblens.writeFileMeta{
-// 		rootFolderId: rootFolderId, chunkSize: chunkSize, totalSize: totalUploadSize,
-// 		chunkStream: make(chan weblens.fileChunk, numChunks),
-// 	}
-// 	t := tp.newTask(weblens.WriteFileTask, writeMeta, caster)
-//
-// 	// We don't queue upload tasks right away, once the first chunk comes through,
-// 	// we will add it to the buffer, and then load the task onto the queue.
-// 	t.(*Task).setTaskPoolInternal(tp)
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) MoveFile(
-// 	fileId, destinationFolderId types.FileId, newFilename string, fileEvent types.FileEvent,
-// 	caster websocket.BroadcasterAgent,
-// ) *Task {
-// 	moveMeta := weblens.moveMeta{
-// 		fileId: fileId, destinationFolderId: destinationFolderId, newFilename: newFilename,
-// 		fileEvent: fileEvent,
-// 	}
-// 	t := tp.newTask(weblens.MoveFileTask, moveMeta, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) CreateZip(
-// 	files []*fileTree.WeblensFile, username weblens.Username, shareId types.ShareId,
-// 	casters websocket.BroadcasterAgent,
-// ) *Task {
-// 	meta := weblens.zipMetadata{files: files, username: username, shareId: shareId}
-// 	t := tp.newTask(weblens.CreateZipTask, meta, casters)
-// 	if c, _ := t.Status(); !c {
-// 		err := tp.QueueTask(t)
-// 		if err != nil {
-// 			wlog.ErrTrace(err)
-// 			return nil
-// 		}
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) GatherFsStats(rootDir *fileTree.WeblensFile, caster websocket.BroadcasterAgent) *Task {
-// 	t := tp.newTask(weblens.GatherFsStatsTask, weblens.fsStatMeta{rootDir: rootDir}, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) Backup(remoteId types.InstanceId, caster websocket.BroadcasterAgent) *Task {
-// 	t := tp.newTask(weblens.BackupTask, weblens.backupMeta{remoteId: remoteId}, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) CopyFileFromCore(
-// 	file *fileTree.WeblensFile, core types.Client, caster websocket.BroadcasterAgent,
-// ) *Task {
-// 	t := tp.newTask(weblens.CopyFileFromCore, weblens.backupCoreFileMeta{file: file, core: core}, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-//
-// func (tp *TaskPool) HashFile(f *fileTree.WeblensFile, caster websocket.BroadcasterAgent) *Task {
-// 	t := tp.newTask(weblens.HashFile, weblens.hashFileMeta{file: f}, caster)
-// 	err := tp.QueueTask(t)
-// 	if err != nil {
-// 		wlog.ErrTrace(err)
-// 		return nil
-// 	}
-//
-// 	return t
-// }
-
 func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
-
-	tp.completedTasks.Add(1)
 
 	// Global queues do not finish and cannot be waited on. If this is NOT a global queue,
 	// we check if we are empty and finished, and if so, wake any waiters.
@@ -291,7 +79,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 		// were queued, we do not wake the waiters
 		if uncompletedTasks == 0 && tp.allQueuedFlag.Load() {
 			if tp.waiterCount.Load() != 0 {
-				log.Debug.Println("Pool complete, waking sleepers!")
+				log.Trace.Println("Pool complete, waking sleepers!")
 				// TODO - move pool completion to cleanup function
 				// if tp.createdBy != nil && tp.createdBy.caster != nil {
 				// 	tp.createdBy.caster.PushPoolUpdate(tp, websocket.PoolCompleteEvent, nil)
@@ -302,7 +90,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 				// Should only loop a handful of times, if at all, we just need to wait for the waiters to
 				// lock and then release immediately. Should take, like, nanoseconds (?) each
 				for tp.waiterCount.Load() != 0 {
-					time.Sleep(time.Millisecond * 10)
+					time.Sleep(time.Millisecond * 1)
 				}
 			}
 
@@ -363,8 +151,13 @@ func (tp *TaskPool) Status() PoolStatus {
 		progress = 0
 	}
 
+	tp.taskLock.RLock()
+	errorCount := len(tp.erroredTasks)
+	tp.taskLock.RUnlock()
+
 	return PoolStatus{
 		Complete: complete,
+		Failed:   errorCount,
 		Total:    total,
 		Progress: progress,
 		Runtime:  time.Since(tp.createdAt),
@@ -394,6 +187,10 @@ func (tp *TaskPool) Wait(supplementWorker bool) {
 
 	_, file, line, _ := runtime.Caller(1)
 	log.Debug.Printf("Parking on worker pool from %s:%d\n", file, line)
+
+	if !tp.allQueuedFlag.Load() {
+		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
+	}
 
 	tp.waiterCount.Add(1)
 	tp.waiterGate.Lock()
@@ -556,8 +353,12 @@ func (tp *TaskPool) SignalAllQueued() {
 }
 
 type PoolStatus struct {
-	// The count of tasks that have completed on this task pool
+	// The count of tasks that have completed on this task pool.
+	// Complete *DOES* include failed tasks
 	Complete int64
+
+	// The count of failed tasks on this task pool
+	Failed int
 
 	// The count of all tasks that have been queued on this task pool
 	Total int64
@@ -570,7 +371,7 @@ type PoolStatus struct {
 }
 
 type Pool interface {
-	ID() TaskId
+	ID() Id
 
 	QueueTask(*Task) error
 
@@ -593,7 +394,7 @@ type Pool interface {
 	LockExit()
 	UnlockExit()
 
-	RemoveTask(TaskId)
+	RemoveTask(Id)
 
 	// NotifyTaskComplete(Task, websocket.BroadcasterAgent, ...any)
 

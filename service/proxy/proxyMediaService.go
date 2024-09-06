@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"time"
+
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/models"
 )
@@ -41,7 +43,7 @@ func (pms *ProxyMediaService) HideMedia(m *models.Media, hidden bool) error {
 	panic("implement me")
 }
 
-func (pms *ProxyMediaService) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFile) error {
+func (pms *ProxyMediaService) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
 	// TODO implement me
 	panic("implement me")
 }
@@ -56,12 +58,17 @@ func (pms *ProxyMediaService) GetMediaType(m *models.Media) models.MediaType {
 	panic("implement me")
 }
 
+func (pms *ProxyMediaService) GetProminentColors(media *models.Media) (prom []string, err error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (pms *ProxyMediaService) GetMediaTypes() models.MediaTypeService {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (pms *ProxyMediaService) IsFileDisplayable(file *fileTree.WeblensFile) bool {
+func (pms *ProxyMediaService) IsFileDisplayable(file *fileTree.WeblensFileImpl) bool {
 	// TODO implement me
 	panic("implement me")
 }
@@ -100,12 +107,19 @@ func (pms *ProxyMediaService) GetFilteredMedia(
 	panic("implement me")
 }
 
-func (pms *ProxyMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFile) []models.ContentId {
+func (pms *ProxyMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
 	// TODO implement me
 	panic("implement me")
 }
 
 func (pms *ProxyMediaService) SetMediaLiked(mediaId models.ContentId, liked bool, username models.Username) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (pms *ProxyMediaService) AdjustMediaDates(
+	anchor *models.Media, newTime time.Time, extraMedias []*models.Media,
+) error {
 	// TODO implement me
 	panic("implement me")
 }

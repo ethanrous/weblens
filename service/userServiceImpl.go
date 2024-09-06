@@ -5,12 +5,11 @@ import (
 	"iter"
 	"sync"
 
+	"github.com/ethrousseau/weblens/database"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -20,25 +19,23 @@ type UserServiceImpl struct {
 	userLock   sync.RWMutex
 	publicUser *models.User
 	rootUser   *models.User
-	col        *mongo.Collection
+	col        database.MongoCollection
 }
 
-func NewUserService(col *mongo.Collection) *UserServiceImpl {
-	return &UserServiceImpl{
+func NewUserService(col database.MongoCollection) (*UserServiceImpl, error) {
+	us := &UserServiceImpl{
 		userMap: make(map[models.Username]*models.User),
 		col:     col,
 	}
-}
 
-func (us *UserServiceImpl) Init() error {
 	ret, err := us.col.Find(context.Background(), bson.M{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var users []*models.User
 	err = ret.All(context.Background(), &users)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, user := range users {
@@ -58,7 +55,7 @@ func (us *UserServiceImpl) Init() error {
 	us.userMap["PUBLIC"] = us.publicUser
 	us.userMap["WEBLENS"] = us.rootUser
 
-	return nil
+	return us, nil
 }
 
 func (us *UserServiceImpl) Size() int {
@@ -74,6 +71,12 @@ func (us *UserServiceImpl) GetRootUser() *models.User {
 }
 
 func (us *UserServiceImpl) Add(user *models.User) error {
+	if user.GetUsername() == "" {
+		return werror.Errorf("Cannot add user with no username")
+	} else if user.Password == "" {
+		return werror.Errorf("Cannot add user with no password")
+	}
+
 	if _, ok := us.userMap[user.GetUsername()]; ok {
 		return nil
 	}
@@ -166,7 +169,7 @@ func (us *UserServiceImpl) SearchByUsername(searchString string) (iter.Seq[*mode
 
 	return func(yield func(*models.User) bool) {
 		for _, username := range users {
-			u := us.Get(models.Username(username.Username))
+			u := us.Get(username.Username)
 			if !yield(u) {
 				return
 			}
@@ -175,6 +178,10 @@ func (us *UserServiceImpl) SearchByUsername(searchString string) (iter.Seq[*mode
 }
 
 func (us *UserServiceImpl) SetUserAdmin(u *models.User, admin bool) error {
+	if !u.IsActive() {
+		return werror.WithStack(werror.ErrUserNotActive)
+	}
+
 	filter := bson.M{"username": u.GetUsername()}
 	update := bson.M{"$set": bson.M{"admin": admin}}
 	_, err := us.col.UpdateOne(context.Background(), filter, update)
@@ -217,23 +224,4 @@ func (us *UserServiceImpl) UpdateUserPassword(
 	usr.Password = passHashStr
 
 	return nil
-}
-
-func (us *UserServiceImpl) GenerateToken(user *models.User) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	tokenString, err := token.SignedString([]byte("key"))
-	if err != nil {
-		return "", err
-	}
-
-	filter := bson.M{"username": user.GetUsername()}
-	update := bson.M{"$addToSet": bson.M{"tokens": token}}
-	_, err = us.col.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		return "", err
-	}
-
-	user.AddToken(tokenString)
-
-	return tokenString, nil
 }

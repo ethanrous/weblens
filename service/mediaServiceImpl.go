@@ -21,6 +21,7 @@ import (
 	"github.com/ethanrous/bimg"
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
@@ -43,7 +44,6 @@ type MediaServiceImpl struct {
 	streamerMap  map[models.ContentId]*models.VideoStreamer
 	streamerLock sync.RWMutex
 
-	exif       *exiftool.Exiftool
 	mediaCache *sturdyc.Client[[]byte]
 
 	typeService models.MediaTypeService
@@ -54,18 +54,23 @@ type MediaServiceImpl struct {
 	AlbumService models.AlbumService
 }
 
+var exif *exiftool.Exiftool
+
+func init() {
+	exif = newExif(1000*1000*100, 0, nil)
+}
+
 func NewMediaService(
 	fileService models.FileService, mediaTypeServ models.MediaTypeService, albumService models.AlbumService,
 	col *mongo.Collection,
 ) (*MediaServiceImpl, error) {
 	ms := &MediaServiceImpl{
-		mediaMap:    make(map[models.ContentId]*models.Media),
-		streamerMap: make(map[models.ContentId]*models.VideoStreamer),
-		typeService: mediaTypeServ,
-		exif:        newExif(1000*1000*100, 0, nil),
-		mediaCache:  sturdyc.New[[]byte](1500, 10, time.Hour, 10),
-		fileService: fileService,
-		collection:  col,
+		mediaMap:     make(map[models.ContentId]*models.Media),
+		streamerMap:  make(map[models.ContentId]*models.VideoStreamer),
+		typeService:  mediaTypeServ,
+		mediaCache:   sturdyc.New[[]byte](1500, 10, time.Hour, 10),
+		fileService:  fileService,
+		collection:   col,
 		AlbumService: albumService,
 	}
 
@@ -117,7 +122,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	}
 
 	if m.Width == 0 || m.Height == 0 {
-		return werror.ErrMediaNoDimentions
+		return werror.ErrMediaNoDimensions
 	}
 
 	if len(m.FileIds) == 0 {
@@ -286,7 +291,9 @@ func (ms *MediaServiceImpl) GetFilteredMedia(
 	return allMs, nil
 }
 
-func AdjustMediaDates(anchor *models.Media, newTime time.Time, extraMedias []*models.Media) error {
+func (ms *MediaServiceImpl) AdjustMediaDates(
+	anchor *models.Media, newTime time.Time, extraMedias []*models.Media,
+) error {
 	offset := newTime.Sub(anchor.GetCreateDate())
 
 	anchor.SetCreateDate(anchor.GetCreateDate().Add(offset))
@@ -305,7 +312,7 @@ func (ms *MediaServiceImpl) IsCached(m *models.Media) bool {
 	return cacheFile != nil && err == nil
 }
 
-func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFile) bool {
+func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFileImpl) bool {
 	ext := filepath.Ext(f.Filename())
 	return ms.typeService.ParseExtension(ext).Displayable
 }
@@ -332,7 +339,7 @@ func (ms *MediaServiceImpl) NukeCache() error {
 	// ms.fileService.clearCacheDir()
 	// cache := types.SERV.FileTree.Get("CACHE")
 	// for _, child := range cache.GetChildren() {
-	// 	err := types.SERV.FileTree.Del(child.ID())
+	// 	err := types.SERV.FileTree.DeleteApiKey(child.ID())
 	// 	if err != nil {
 	// 		return err
 	// 	}
@@ -362,7 +369,7 @@ func (ms *MediaServiceImpl) StreamVideo(
 	defer ms.streamerLock.Unlock()
 
 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-		streamPath := fmt.Sprintf("%s/%s-stream/", internal.GetThumbsDir(), m.ID())
+		streamPath := fmt.Sprintf("%s/%s-stream/", env.GetThumbsDir(), m.ID())
 		streamer = models.NewVideoStreamer(m, streamPath)
 		ms.streamerMap[m.ID()] = streamer
 	}
@@ -459,21 +466,20 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 	return nil
 }
 
-func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFile) error {
-	fileMetas := ms.exif.ExtractMetadata(file.GetAbsPath())
+func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
+	fileMetas := exif.ExtractMetadata(file.GetAbsPath())
+
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
 			return fileMeta.Err
 		}
 	}
 
-	rawExif := fileMetas[0].Fields
-
 	var err error
 	if m.CreateDate.Unix() <= 0 {
-		r, ok := rawExif["SubSecCreateDate"]
+		r, ok := fileMetas[0].Fields["SubSecCreateDate"]
 		if !ok {
-			r, ok = rawExif["MediaCreateDate"]
+			r, ok = fileMetas[0].Fields["MediaCreateDate"]
 		}
 		if ok {
 			m.CreateDate, err = time.Parse("2006:01:02 15:04:05.000-07:00", r.(string))
@@ -495,7 +501,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	}
 
 	if m.MimeType == "" {
-		mimeType, ok := rawExif["MIMEType"].(string)
+		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
 		if !ok {
 			mimeType = "generic"
 		}
@@ -525,13 +531,13 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	}
 
 	if ms.typeService.ParseMime(m.MimeType).IsMultiPage() {
-		m.PageCount = int(rawExif["PageCount"].(float64))
+		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
 	} else {
 		m.PageCount = 1
 	}
 
 	if m.Rotate == "" {
-		rotate := rawExif["Orientation"]
+		rotate := fileMetas[0].Fields["Orientation"]
 		if rotate != nil {
 			m.Rotate = rotate.(string)
 		}
@@ -542,7 +548,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	mType := ms.GetMediaType(m)
 
 	if mType.IsRaw() {
-		raw64 := rawExif[mType.GetThumbExifKey()].(string)
+		raw64 := fileMetas[0].Fields[mType.GetThumbExifKey()].(string)
 		raw64 = raw64[strings.Index(raw64, ":")+1:]
 
 		imgBytes, err := base64.StdEncoding.DecodeString(raw64)
@@ -550,6 +556,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			return err
 		}
 		bs = imgBytes
+
 	} else if mType.IsVideo() {
 		out := bytes.NewBuffer(nil)
 		errOut := bytes.NewBuffer(nil)
@@ -574,7 +581,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		}
 	}
 
-	_, err = ms.generateCacheFiles(m, bs)
+	err = ms.generateCacheFiles(m, bs)
 	if err != nil {
 		return err
 	}
@@ -590,7 +597,7 @@ func (ms *MediaServiceImpl) GetMediaTypes() models.MediaTypeService {
 	return ms.typeService
 }
 
-func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFile) []models.ContentId {
+func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
 	var medias []models.ContentId
 
 	for _, f := range folders {
@@ -608,7 +615,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFile) 
 			continue
 		}
 		err := f.RecursiveMap(
-			func(f *fileTree.WeblensFile) error {
+			func(f *fileTree.WeblensFileImpl) error {
 				if !f.IsDir() && ms.IsFileDisplayable(f) {
 					m := ms.Get(models.ContentId(f.GetContentId()))
 					if m != nil {
@@ -656,7 +663,7 @@ func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) ([]byte
 
 func (ms *MediaServiceImpl) getCacheFile(
 	m *models.Media, quality models.MediaQuality, pageNum int,
-) (*fileTree.WeblensFile, error) {
+) (fileTree.WeblensFile, error) {
 	if quality == models.LowRes && m.GetLowresCacheFile() != nil {
 		return m.GetLowresCacheFile(), nil
 	} else if quality == models.HighRes && len(m.GetHighresCacheFiles()) > pageNum {
@@ -679,7 +686,7 @@ func (ms *MediaServiceImpl) getCacheFile(
 	} else if quality == models.HighRes {
 		caches := m.GetHighresCacheFiles()
 		if caches == nil {
-			caches = make([]*fileTree.WeblensFile, m.GetPageCount())
+			caches = make([]fileTree.WeblensFile, m.GetPageCount())
 		}
 		caches[pageNum] = cacheFile
 		m.SetHighresCacheFiles(caches)
@@ -690,16 +697,15 @@ func (ms *MediaServiceImpl) getCacheFile(
 	return cacheFile, nil
 }
 
-func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*fileTree.WeblensFile, error) {
-	img := bimg.NewImage(bs)
-
+func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error {
 	var err error
+	var rotate int
 	if ms.GetMediaType(m).IsRaw() {
 		switch m.Rotate {
 		case "Rotate 270 CW":
-			_, err = img.Rotate(270)
+			rotate = 270
 		case "Rotate 90 CW":
-			_, err = img.Rotate(90)
+			rotate = 90
 		case "Horizontal (normal)":
 		case "":
 			log.Debug.Println("empty orientation")
@@ -707,18 +713,23 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 			err = werror.Errorf("Unknown rotate name [%s]", m.Rotate)
 		}
 		if err != nil {
-			return nil, werror.WithStack(err)
+			return werror.WithStack(err)
 		}
 	}
 
-	_, err = img.Convert(bimg.WEBP)
-	if err != nil {
-		return nil, werror.WithStack(err)
+	opts := bimg.Options{
+		Rotate: bimg.Angle(rotate),
+		Type:   bimg.WEBP,
 	}
 
-	imgSize, err := img.Size()
+	img, err := bimg.Resize(bs, opts)
 	if err != nil {
-		return nil, werror.WithStack(err)
+		return werror.WithStack(err)
+	}
+
+	imgSize, err := bimg.Size(img)
+	if err != nil {
+		return werror.WithStack(err)
 	}
 
 	m.Height = imgSize.Height
@@ -726,64 +737,55 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) ([]*f
 
 	thumbW := int((models.ThumbnailHeight / float32(m.Height)) * float32(m.Width))
 
-	var cacheFiles []*fileTree.WeblensFile
+	var cacheFiles []fileTree.WeblensFile
 
 	mType := ms.GetMediaType(m)
 	if !mType.IsMultiPage() {
 
-		// Copy image buffer for the thumbnail
-		thumbImg := bimg.NewImage(img.Image())
-
-		thumbBytes, err := thumbImg.Resize(thumbW, int(models.ThumbnailHeight))
-		if err != nil {
-			return nil, err
+		thumbOpts := bimg.Options{
+			Width:  thumbW,
+			Height: int(models.ThumbnailHeight),
 		}
-		thumbSize, err := thumbImg.Size()
+		thumbBytes, err := bimg.Resize(img, thumbOpts)
 		if err != nil {
-			return nil, werror.WithStack(err)
-		} else {
-			thumbRatio := float64(thumbSize.Width) / float64(thumbSize.Height)
-			mediaRatio := float64(m.Width) / float64(m.Height)
-			if (thumbRatio < 1 && mediaRatio > 1) || (thumbRatio > 1 && mediaRatio < 1) {
-				log.Error.Println("Mismatched media sizes")
-			}
+			return err
 		}
 
-		var thumbFile *fileTree.WeblensFile
+		var thumbFile fileTree.WeblensFile
 		thumbFile, err = ms.fileService.NewCacheFile(string(m.ID()), models.LowRes, 0)
 		if err != nil {
 			if !errors.Is(err, werror.ErrFileAlreadyExists) {
-				return nil, err
+				return err
 			}
 		} else {
-			err = thumbFile.Write(thumbBytes)
+			_, err = thumbFile.Write(thumbBytes)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			cacheFiles = append(cacheFiles, thumbFile)
 		}
 		m.SetLowresCacheFile(thumbFile)
 
-		var fullresFile *fileTree.WeblensFile
+		var fullresFile fileTree.WeblensFile
 		fullresFile, err = ms.fileService.NewCacheFile(string(m.ID()), models.HighRes, 0)
 		if err != nil {
 			if !errors.Is(err, werror.ErrFileAlreadyExists) {
-				return nil, err
+				return err
 			}
 		} else {
-			err = fullresFile.Write(img.Image())
+			_, err = fullresFile.Write(img)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			cacheFiles = append(cacheFiles, fullresFile)
 		}
 
-		m.SetHighresCacheFiles([]*fileTree.WeblensFile{fullresFile})
+		m.SetHighresCacheFiles([]fileTree.WeblensFile{fullresFile})
 	}
 
-	return cacheFiles, nil
+	return nil
 }
 
 func newExif(targetSize, currentSize int64, gexift *exiftool.Exiftool) *exiftool.Exiftool {

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -9,8 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type InstanceId string
-type ServerRole string
+type InstanceId = string
+type ServerRole = string
 
 const (
 	InitServer   ServerRole = "init"
@@ -43,18 +42,17 @@ func NewInstance(
 	id InstanceId, name string, key WeblensApiKey, role ServerRole, isThisServer bool,
 	address string,
 ) *Instance {
+	if id == "" {
+		id = InstanceId(primitive.NewObjectID().Hex())
+	}
 	return &Instance{
 		Id:           id,
 		Name:         name,
 		UsingKey:     key,
 		Role:         role,
 		IsThisServer: isThisServer,
-		Address: address,
+		Address:      address,
 	}
-}
-
-func (wi *Instance) Info() *Instance {
-	return wi
 }
 
 func (wi *Instance) GetName() string {
@@ -99,14 +97,14 @@ func (wi *Instance) GetRole() ServerRole {
 
 func (wi *Instance) GetAddress() (string, error) {
 	if wi.Role != CoreServer {
-		return "", werror.WithStack(errors.New("Cannot get address of non-core instance"))
+		return "", werror.WithStack(werror.Errorf("Cannot get address of non-core instance"))
 	}
 	return wi.Address, nil
 }
 
 func (wi *Instance) SetAddress(address string) error {
 	if wi.Role != CoreServer {
-		return werror.WithStack(errors.New("Cannot set address of non-core instance"))
+		return werror.WithStack(werror.Errorf("Cannot set address of non-core instance"))
 	}
 	wi.Address = address
 	return nil
@@ -146,12 +144,8 @@ type InstanceService interface {
 	GetLocal() *Instance
 	GetCore() *Instance
 	GetRemotes() []*Instance
-	GenerateNewId(name string) InstanceId
-	InitCore(*Instance) error
+	InitCore(serverName string) error
 	InitBackup(name, coreAddr string, key WeblensApiKey) error
-	IsLocalLoaded() bool
-	AddLoading(loadingKey string)
-	RemoveLoading(loadingKey string) (doneLoading bool)
 }
 
 type WeblensApiKey string
@@ -164,14 +158,15 @@ type ApiKeyInfo struct {
 }
 
 type AccessService interface {
-	Init() error
-	Get(key WeblensApiKey) (ApiKeyInfo, error)
-	Del(key WeblensApiKey) error
+	GenerateJwtToken(user *User) (string, error)
+	GetApiKey(key WeblensApiKey) (ApiKeyInfo, error)
+	GetUserFromToken(token string) (*User, error)
+	DeleteApiKey(key WeblensApiKey) error
 	GenerateApiKey(creator *User) (ApiKeyInfo, error)
-	CanUserAccessFile(user *User, file *fileTree.WeblensFile, share *FileShare) bool
+	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
-	
+
 	GetAllKeys(accessor *User) ([]ApiKeyInfo, error)
 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
 }

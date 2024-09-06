@@ -18,13 +18,13 @@ var _ models.AlbumService = (*AlbumServiceImpl)(nil)
 type AlbumServiceImpl struct {
 	albumsMap map[models.AlbumId]*models.Album
 
-	mediaService *MediaServiceImpl
+	mediaService models.MediaService
 	shareService models.ShareService
 	collection   *mongo.Collection
 }
 
 func NewAlbumService(
-	col *mongo.Collection, mediaService *MediaServiceImpl, shareService models.ShareService,
+	col *mongo.Collection, mediaService models.MediaService, shareService models.ShareService,
 ) *AlbumServiceImpl {
 	return &AlbumServiceImpl{
 		albumsMap: make(map[models.AlbumId]*models.Album),
@@ -159,10 +159,10 @@ func (as *AlbumServiceImpl) SetAlbumCover(albumId models.AlbumId, cover *models.
 }
 
 func (as *AlbumServiceImpl) GetAlbumMedias(album *models.Album) iter.Seq[*models.Media] {
-	return func(yeild func(*models.Media) bool) {
+	return func(yield func(*models.Media) bool) {
 		for _, id := range album.Medias {
 			m := as.mediaService.Get(id)
-			if !yeild(m) {
+			if !yield(m) {
 				return
 			}
 		}

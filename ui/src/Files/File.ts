@@ -5,7 +5,7 @@ import {
     IconTrash,
     IconUser,
 } from '@tabler/icons-react'
-import { ShareInfo, WeblensShare } from '../Share/Share'
+import { ShareInfo, WeblensShare } from '../Share/share'
 import { MediaDataT } from '../Media/Media'
 import { AuthHeaderT } from '../types/Types'
 import { humanFileSize } from '../util'
@@ -43,6 +43,7 @@ export interface WeblensFileParams {
     filename?: string
     pathFromHome?: string
     parentId?: string
+    contentId?: string
 
     children?: string[]
 
@@ -83,7 +84,7 @@ export class WeblensFile {
     hovering?: boolean
     index?: number
 
-    private mediaId: string
+    private contentId: string
     private share: WeblensShare
 
     constructor(init: WeblensFileParams) {
@@ -91,19 +92,10 @@ export class WeblensFile {
             throw new Error('trying to construct WeblensFile with no id')
         }
         Object.assign(this, init)
-        // this.share = undefined;
         this.hovering = false
         this.modifyDate = new Date(init.modTime)
-
-        if (init.mediaData) {
-            this.mediaId = init.mediaData.contentId
-        }
-
         this.shareId = init.shareId
         this.selected = SelectedState.NotSelected
-        // if (init.shareId) {
-        //     new WeblensShare({ id: init.shareId });
-        // }
     }
 
     Id(): string {
@@ -122,8 +114,8 @@ export class WeblensFile {
         Object.assign(this, newInfo)
         // this.share = undefined;
 
-        if (newInfo.mediaData && newInfo.mediaData.contentId !== this.mediaId) {
-            this.mediaId = newInfo.mediaData.contentId
+        if (newInfo.mediaData && newInfo.mediaData.contentId !== this.contentId) {
+            this.contentId = newInfo.mediaData.contentId
         }
     }
 
@@ -200,7 +192,7 @@ export class WeblensFile {
     }
 
     GetMediaId(): string {
-        return this.mediaId
+        return this.contentId
     }
 
     IsTrash(): boolean {
@@ -282,16 +274,16 @@ export class WeblensFile {
     }
 
     public SetShare(share: WeblensShare) {
-        if (this.shareId && this.shareId !== share.id) {
+        if (this.shareId && this.shareId !== share.Id()) {
             console.error(
                 'Trying to set share with mismatched id, expected',
                 this.shareId,
                 'but got',
-                share.id
+                share.Id()
             )
             return
         } else if (!this.shareId) {
-            this.shareId = share.id
+            this.shareId = share.Id()
         }
         this.share = share
     }
@@ -341,7 +333,7 @@ export class WeblensFile {
             } else if (mode === FbModeT.default) {
                 return `/files/${this.id}`
             }
-        } else if (this.displayable) {
+        } else if (this.displayable || !this.displayable) {
             setPresentation(this.id)
             return
         }

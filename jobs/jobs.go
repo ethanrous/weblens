@@ -1,10 +1,10 @@
 package jobs
 
 import (
+	"archive/zip"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"io"
 	"maps"
 	"math"
@@ -24,42 +24,6 @@ import (
 	"github.com/saracen/fastzip"
 )
 
-func getScanResult(t *task.Task) task.TaskResult {
-	var tp *task.TaskPool
-
-	if t.GetTaskPool() != nil {
-		tp = t.GetTaskPool().GetRootPool()
-	}
-
-	var result = task.TaskResult{}
-	meta, ok := t.GetMeta().(models.ScanMeta)
-	if ok {
-		result = task.TaskResult{
-			"filename": meta.File.Filename(),
-		}
-		if tp != nil && tp.CreatedInTask() != nil {
-			result["task_job_target"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()
-		} else if tp == nil {
-			result["task_job_target"] = meta.File.Filename()
-		}
-	}
-
-	if tp != nil {
-		status := tp.Status()
-		result["percent_progress"] = status.Progress
-		result["tasks_complete"] = status.Complete
-		result["tasks_total"] = status.Total
-		result["runtime"] = status.Runtime
-		if tp.CreatedInTask() != nil {
-			result["task_job_name"] = tp.CreatedInTask().JobName()
-		}
-	} else {
-		result["task_job_name"] = t.JobName()
-	}
-
-	return result
-}
-
 func CreateZip(t *task.Task) {
 	zipMeta := t.GetMeta().(models.ZipMeta)
 
@@ -71,9 +35,9 @@ func CreateZip(t *task.Task) {
 
 	internal.Map(
 		zipMeta.Files,
-		func(file *fileTree.WeblensFile) error {
+		func(file *fileTree.WeblensFileImpl) error {
 			return file.RecursiveMap(
-				func(f *fileTree.WeblensFile) error {
+				func(f *fileTree.WeblensFileImpl) error {
 					stat, err := os.Stat(f.GetAbsPath())
 					if err != nil {
 						t.ErrorAndExit(err)
@@ -105,10 +69,7 @@ func CreateZip(t *task.Task) {
 	if err != nil && strings.Contains(err.Error(), "file already exists") {
 		err = nil
 		zipExists = true
-	}
-
-	if err != nil {
-
+	} else if err != nil {
 		t.ErrorAndExit(err)
 	}
 
@@ -122,17 +83,6 @@ func CreateZip(t *task.Task) {
 
 	zipMeta.Caster.PushTaskUpdate(t, models.TaskCreatedEvent, task.TaskResult{"totalFiles": len(filesInfoMap)})
 
-	// if zipMeta.Share != nil {
-	// 	sh := types.SERV.ShareService.Get(zipMeta.shareId)
-	// 	if sh == nil {
-	// 		t.ErrorAndExit(types.ErrNoShare)
-	// 	}
-	// 	err := zipFile.SetShare(sh)
-	// 	if err != nil {
-	// 		t.ErrorAndExit(err)
-	// 	}
-	// }
-
 	fp, err := os.Create(zipFile.GetAbsPath())
 	if err != nil {
 		t.ErrorAndExit(err)
@@ -145,8 +95,10 @@ func CreateZip(t *task.Task) {
 	}(fp)
 
 	a, err := fastzip.NewArchiver(
-		fp, zipMeta.Files[0].GetParent().GetAbsPath(), fastzip.WithStageDirectory(zipFile.GetParent().GetAbsPath()),
-		fastzip.WithArchiverBufferSize(32),
+		fp, zipMeta.Files[0].GetParent().GetAbsPath(),
+		fastzip.WithStageDirectory(zipFile.GetParent().GetAbsPath()),
+		fastzip.WithArchiverBufferSize(1024*1024*1024),
+		fastzip.WithArchiverMethod(zip.Store),
 	)
 
 	if err != nil {
@@ -171,11 +123,8 @@ func CreateZip(t *task.Task) {
 	}()
 
 	bytesTotal := internal.Reduce(
-		zipMeta.Files, func(file *fileTree.WeblensFile, acc int64) int64 {
-			num, err := file.Size()
-			if err != nil {
-				log.ShowErr(err)
-			}
+		zipMeta.Files, func(file *fileTree.WeblensFileImpl, acc int64) int64 {
+			num := file.Size()
 			return acc + num
 		}, 0,
 	)
@@ -224,45 +173,6 @@ func CreateZip(t *task.Task) {
 	t.Success()
 }
 
-// func MoveFiles(t *task.Task) {
-// 	moveMeta := t.GetMeta().(models.MoveMeta)
-//
-// 	file, err := moveMeta.FileService.GetFileSafe(moveMeta.FileIds, moveMeta.User, nil)
-// 	if err != nil {
-// 		t.ErrorAndExit(err)
-// 	}
-//
-// 	destinationFolder, err := moveMeta.FileService.GetFileSafe(moveMeta.DestinationFolderId, moveMeta.User, nil)
-// 	if err != nil {
-// 		t.ErrorAndExit(err)
-// 	}
-// 	if moveMeta.FileService.IsFileInTrash(destinationFolder) {
-// 		err = moveMeta.FileService.MoveFileToTrash(file, moveMeta.User, nil, moveMeta.Caster)
-// 		if err != nil {
-// 			t.ErrorAndExit(err, "Failed while assuming move file was into trash")
-// 		}
-// 		return
-// 	} else if moveMeta.FileService.IsFileInTrash(file) {
-// 		err = moveMeta.FileService.ReturnFilesFromTrash([]*fileTree.WeblensFile{file}, moveMeta.Caster)
-// 		if err != nil {
-// 			t.ErrorAndExit(err, "Failed while assuming move file was returning from trash")
-// 		}
-// 		return
-// 	}
-//
-// 	err = moveMeta.FileService.MoveFiles(file, destinationFolder, moveMeta.Caster)
-// 	if err != nil {
-// 		t.ErrorAndExit(err)
-// 	}
-//
-// 	// err = t.taskPool.workerPool.fileTree.GetJournal().LogEvent(moveEvent)
-// 	// if err != nil {
-// 	// 	t.ErrorAndExit(err)
-// 	// }
-//
-// 	t.Success()
-// }
-
 func parseRangeHeader(contentRange string) (min, max, total int64, err error) {
 	rangeAndSize := strings.Split(contentRange, "/")
 	rangeParts := strings.Split(rangeAndSize[0], "-")
@@ -297,9 +207,7 @@ func HandleFileUploads(t *task.Task) {
 
 	rootFile, err := meta.FileService.GetFileSafe(meta.RootFolderId, meta.User, meta.Share)
 	if err != nil {
-		t.ErrorAndExit(
-			err, "could not get root folder in upload. ID:", meta.RootFolderId,
-		)
+		t.ErrorAndExit(err)
 	}
 
 	var bottom, top, total int64
@@ -310,7 +218,7 @@ func HandleFileUploads(t *task.Task) {
 
 	// meta.Caster.DisableAutoFlush()
 	var usingFiles []fileTree.FileId
-	var topLevels []*fileTree.WeblensFile
+	var topLevels []*fileTree.WeblensFileImpl
 
 	// TODO
 	// Release all the files once we are finished here, if they haven't been already.
@@ -358,7 +266,7 @@ WriterLoop:
 					tmpFile = tmpFile.GetParent()
 				}
 				if tmpFile.GetParent() == rootFile && !slices.ContainsFunc(
-					topLevels, func(f *fileTree.WeblensFile) bool { return f.ID() == tmpFile.ID() },
+					topLevels, func(f *fileTree.WeblensFileImpl) bool { return f.ID() == tmpFile.ID() },
 				) {
 					topLevels = append(topLevels, tmpFile)
 				}
@@ -380,36 +288,40 @@ WriterLoop:
 				delete(fileMap, chunk.FileId)
 			}
 
+			chnk := fileMap[chunk.FileId]
+
 			// Add the new bytes to the counter for the file-size of this file.
 			// If we upload content in range e.g. 0-1 bytes, that includes 2 bytes,
 			// but top - bottom (1 - 0) is 1, so we add 1 to match
-			fileMap[chunk.FileId].BytesWritten += (top - bottom) + 1
+			chnk.BytesWritten += (top - bottom) + 1
 
 			// Write the bytes to the real file
-			err = fileMap[chunk.FileId].File.WriteAt(chunk.Chunk, bottom)
+			err = chnk.File.WriteAt(chunk.Chunk, bottom)
 			if err != nil {
 				log.ShowErr(err)
 			}
 
 			// When file is finished writing
-			if fileMap[chunk.FileId].BytesWritten >= fileMap[chunk.FileId].FileSizeTotal {
+			if chnk.BytesWritten >= chnk.FileSizeTotal {
 				// Hash file content to get content ID. Must do this before attaching the file,
 				// or the journal worker will beat us to it, which could break if scanning
 				// the file shortly after uploading.
-				_, err := service.GenerateContentId(fileMap[chunk.FileId].File)
+				_, err := service.GenerateContentId(chnk.File)
 				if err != nil {
-					t.ErrorAndExit(
-						err, "failed generating content id for file", fileMap[chunk.FileId].File.GetAbsPath(),
-					)
+					t.ErrorAndExit(err)
+				}
+
+				if !chnk.File.IsDir() {
+					meta.Caster.PushFileCreate(chnk.File)
 				}
 
 				// Move the file from /tmp to its permanent location
-				// err = meta.FileService.AttachFile(fileMap[chunk.FileId].File, meta.Caster)
+				// err = meta.FileService.AttachFile( f.File, meta.Caster)
 				// if err != nil {
 				// 	wlog.ShowErr(err)
 				// }
 
-				fileEvent.NewCreateAction(fileMap[chunk.FileId].File)
+				fileEvent.NewCreateAction(chnk.File)
 
 				// Remove the file from our local map
 				i, e := slices.BinarySearchFunc(
@@ -440,13 +352,7 @@ WriterLoop:
 	// and allow these scans to take place independently
 	newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
 	for _, tl := range topLevels {
-		media := meta.MediaService.Get(models.ContentId(tl.GetContentId()))
-		meta.Caster.PushFileUpdate(tl, media)
 		if tl.IsDir() {
-			// err = t.taskPool.workerPool.fileTree.ResizeDown(tl, t.caster)
-			// if err != nil {
-			// 	wlog.ShowErr(err)
-			// }
 			err = meta.FileService.ResizeDown(tl, meta.Caster)
 			if err != nil {
 				t.ErrorAndExit(err)
@@ -485,6 +391,8 @@ WriterLoop:
 			}
 			doingRootScan = true
 		}
+		media := meta.MediaService.Get(models.ContentId(tl.GetContentId()))
+		meta.Caster.PushFileUpdate(tl, media)
 	}
 	newTp.SignalAllQueued()
 
@@ -521,16 +429,13 @@ func GatherFilesystemStats(t *task.Task) {
 	// external := dataStore.GetExternalDir()
 	// dataStore.ResizeDown(media)
 
-	sizeFunc := func(wf *fileTree.WeblensFile) error {
+	sizeFunc := func(wf *fileTree.WeblensFileImpl) error {
 		if wf.IsDir() {
 			folderCount++
 			return nil
 		}
 		index := strings.LastIndex(wf.Filename(), ".")
-		size, err := wf.Size()
-		if err != nil {
-			return err
-		}
+		size := wf.Size()
 		if index == -1 {
 			filetypeSizeMap["other"] += size
 		} else {
@@ -560,20 +465,14 @@ func HashFile(t *task.Task) {
 	meta := t.GetMeta().(models.HashFileMeta)
 
 	if meta.File.IsDir() {
-		t.ErrorAndExit(
-			errors.New("cannot hash directory"),
-			meta.File.GetAbsPath(),
-		)
+		t.ErrorAndExit(werror.Errorf("cannot hash directory"))
 	}
 
 	if meta.File.GetContentId() != "" {
 		t.Success("Skipping file which already has content ID", meta.File.GetAbsPath())
 	}
 
-	fileSize, err := meta.File.Size()
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
+	fileSize := meta.File.Size()
 
 	if fileSize == 0 {
 		t.Success("Skipping file with no content: ", meta.File.GetAbsPath())
@@ -585,12 +484,15 @@ func HashFile(t *task.Task) {
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
-	defer func(fp *os.File) {
-		err := fp.Close()
-		if err != nil {
-			log.ShowErr(err)
-		}
-	}(fp)
+
+	if closer, ok := fp.(io.Closer); ok {
+		defer func(fp io.Closer) {
+			err := fp.Close()
+			if err != nil {
+				log.ShowErr(err)
+			}
+		}(closer)
+	}
 
 	// Read up to 1MB at a time
 	bufSize := math.Min(float64(fileSize), 1000*1000)

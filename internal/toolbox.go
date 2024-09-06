@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
-	"runtime/pprof"
 	"strings"
 
 	"github.com/ethrousseau/weblens/internal/log"
@@ -100,16 +98,5 @@ func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {
 			// Add more capacity (let append pick how much).
 			b = append(b, 0)[:len(b)]
 		}
-	}
-}
-
-func LabelThread(next func(ctx context.Context), labels ...string) {
-	if IsDevMode() {
-		ls := pprof.Labels(labels...)
-		pprof.Do(
-			context.Background(), ls, next,
-		)
-	} else {
-		next(nil)
 	}
 }

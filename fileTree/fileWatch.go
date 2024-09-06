@@ -14,7 +14,7 @@ type watcherPathMod struct {
 
 var pathModChan = make(chan (watcherPathMod), 5)
 
-func (j *JournalServiceImpl) FileWatcher() {
+func (j *JournalImpl) FileWatcher() {
 	_, err := fsnotify.NewWatcher()
 	if err != nil {
 		panic(err)
@@ -99,7 +99,7 @@ WatcherLoop:
 	log.Error.Panicln("File watcher exiting...")
 }
 
-func (j *JournalServiceImpl) WatchFolder(f *WeblensFile) error {
+func (j *JournalImpl) WatchFolder(f *WeblensFileImpl) error {
 	// if !f.IsDir() {
 	// 	return dataStore.ErrDirectoryRequired
 	// }
@@ -107,13 +107,13 @@ func (j *JournalServiceImpl) WatchFolder(f *WeblensFile) error {
 	// 	return nil
 	// }
 
-	err := f.SetWatching()
-	if err != nil {
-		return err
-	}
+	// err := f.SetWatching()
+	// if err != nil {
+	// 	return err
+	// }
 
-	newMod := watcherPathMod{path: f.GetAbsPath(), add: true}
-	pathModChan <- newMod
+	// newMod := watcherPathMod{path: f.GetAbsPath(), add: true}
+	// pathModChan <- newMod
 
 	return nil
 }

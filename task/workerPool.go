@@ -1,11 +1,9 @@
 package task
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"runtime/debug"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,29 +36,32 @@ type WorkerPool struct {
 	registeredJobs map[string]TaskHandler
 
 	taskMu  sync.Mutex
-	taskMap map[TaskId]*Task
+	taskMap map[Id]*Task
 
 	poolMu  sync.Mutex
-	poolMap map[TaskId]*TaskPool
+	poolMap map[Id]*TaskPool
 
 	taskStream   workChannel
 	taskBufferMu sync.Mutex
 	retryBuffer []*Task
 	hitStream    hitChannel
 
-	exitFlag atomic.Int64
+	exitFlag   atomic.Int64
+	exitSignal chan bool
+
+	logLevel int
 }
 
-func NewWorkerPool(initWorkers int) *WorkerPool {
+func NewWorkerPool(initWorkers int, logLevel int) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
-	log.Info.Printf("Starting new worker pool with %d workers", initWorkers)
+	log.Trace.Printf("Starting new worker pool with %d workers", initWorkers)
 
 	newWp := &WorkerPool{
 		registeredJobs: map[string]TaskHandler{},
-		taskMap:        map[TaskId]*Task{},
-		poolMap:        map[TaskId]*TaskPool{},
+		taskMap: map[Id]*Task{},
+		poolMap: map[Id]*TaskPool{},
 
 		busyCount: &atomic.Int64{},
 
@@ -68,6 +69,10 @@ func NewWorkerPool(initWorkers int) *WorkerPool {
 		retryBuffer: []*Task{},
 
 		hitStream: make(hitChannel, initWorkers*2),
+
+		exitSignal: make(chan bool),
+
+		logLevel: logLevel,
 	}
 	// Worker pool starts disabled
 	newWp.exitFlag.Store(1)
@@ -111,7 +116,7 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) *TaskPool {
 	return tp
 }
 
-func (wp *WorkerPool) GetTaskPool(tpId TaskId) *TaskPool {
+func (wp *WorkerPool) GetTaskPool(tpId Id) *TaskPool {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
 	return wp.poolMap[tpId]
@@ -152,11 +157,11 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		pool = wp.GetTaskPool("GLOBAL")
 	}
 
-	var taskId TaskId
+	var taskId Id
 	if meta == nil {
-		taskId = TaskId(globbyHash(8, time.Now().String()))
+		taskId = Id(globbyHash(8, time.Now().String()))
 	} else {
-		taskId = TaskId(globbyHash(8, meta.MetaString()))
+		taskId = Id(globbyHash(8, meta.MetaString()))
 	}
 
 	t := wp.GetTask(taskId)
@@ -240,28 +245,35 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	return t, nil
 }
 
-func workerRecover(task *Task, workerId int64) {
-	err := recover()
-	if err != nil {
+func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
+	recovered := recover()
+	if recovered != nil {
 		// Make sure what we got is an error
-		switch err.(type) {
+		switch err := recovered.(type) {
 		case error:
-			if err.(error).Error() == werror.ErrTaskExit.Error() || err.(error).Error() == werror.ErrTaskError.Error() {
+			if err.Error() == werror.ErrTaskError.Error() {
+				if wp.logLevel != -1 {
+					log.Error.Printf("Task [%s] exited with an error", task.TaskId())
+					log.ErrTrace(task.err)
+				}
+				return
+			} else if err.Error() == werror.ErrTaskExit.Error() {
 				return
 			}
 		default:
-			err = errors.New(fmt.Sprint(err))
+			recovered = errors.New(fmt.Sprint(recovered))
 		}
-
-		log.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, err, debug.Stack())
-		task.error(err.(error))
+		if wp.logLevel != -1 {
+			log.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, recovered, debug.Stack())
+		}
+		task.error(recovered.(error))
 	}
 }
 
 // saftyWork wraps the task execution with a recover, so if there are any panics
 // during the task, we can catch them, display them, and safely remove the task.
-func safetyWork(task *Task, workerId int64) {
-	defer workerRecover(task, workerId)
+func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
+	defer wp.workerRecover(task, workerId)
 	task.work(task)
 
 	task.updateMu.Lock()
@@ -284,6 +296,12 @@ func (wp *WorkerPool) reaper() {
 	timerStream := make(chan *Task)
 	for wp.exitFlag.Load() == 0 {
 		select {
+		case _, ok := <-wp.exitSignal:
+			if !ok {
+				log.Debug.Println("reaper exiting")
+				return
+			}
+			log.Debug.Println("reaper not exiting?")
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
@@ -305,25 +323,13 @@ func (wp *WorkerPool) Run() {
 	wp.exitFlag.Store(0)
 
 	// Spawn the timeout checker
-	internal.LabelThread(
-		func(_ context.Context) {
-			go wp.reaper()
-		}, "", "Reaper",
-	)
+	go wp.reaper()
 
 	// Spawn the buffer worker
-	internal.LabelThread(
-		func(_ context.Context) {
-			go wp.bufferDrainer()
-		}, "", "Buffer Drainer",
-	)
+	go wp.bufferDrainer()
 
 	// Spawn the status printer
-	internal.LabelThread(
-		func(_ context.Context) {
-			go wp.statusReporter()
-		}, "", "Status Reporter",
-	)
+	go wp.statusReporter()
 
 	var i int64
 	for i = 0; i < wp.maxWorkers.Load(); i++ {
@@ -334,7 +340,15 @@ func (wp *WorkerPool) Run() {
 	}
 }
 
-func (wp *WorkerPool) GetTask(taskId TaskId) *Task {
+func (wp *WorkerPool) Stop() {
+	wp.exitFlag.Store(1)
+	close(wp.exitSignal)
+	for wp.currentWorkers.Load() != 0 {
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (wp *WorkerPool) GetTask(taskId Id) *Task {
 	wp.taskMu.Lock()
 	t := wp.taskMap[taskId]
 	wp.taskMu.Unlock()
@@ -347,7 +361,7 @@ func (wp *WorkerPool) addTask(task *Task) {
 	wp.taskMap[task.TaskId()] = task
 }
 
-func (wp *WorkerPool) removeTask(taskId TaskId) {
+func (wp *WorkerPool) removeTask(taskId Id) {
 	wp.taskMu.Lock()
 	t := wp.taskMap[taskId]
 	wp.taskMu.Unlock()
@@ -362,34 +376,33 @@ func (wp *WorkerPool) removeTask(taskId TaskId) {
 	delete(wp.taskMap, taskId)
 }
 
-// For debugging only. This does nothing if the DEV_MODE env var is set to false, as no stopwatch results
-// will be printed reguardless
-const printStopwatchResults = false
-
 // Main worker method, spawn a worker and loop over the task channel
 //
 // `replacement` specifies if the worker is a temporary replacement for another
 // task that is parking for a long time. Replacement workers behave a bit
 // different to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(replacement bool) {
-	wp.currentWorkers.Add(1)
-	internal.LabelThread(
-		func(_ context.Context) {
-			go func(workerId int64) {
+	go func(workerId int64) {
+		// Inc alive workers
+		defer wp.currentWorkers.Add(-1)
+		// util.Debug.Printf("Worker %d reporting for duty o7", workerId)
 
-				// Inc alive workers
-				defer wp.currentWorkers.Add(-1)
-				// util.Debug.Printf("Worker %d reporting for duty o7", workerId)
-
-			WorkLoop:
-				for t := range wp.taskStream {
-
+		// WorkLoop:
+		for {
+			select {
+			case _, ok := <-wp.exitSignal:
+				if !ok {
+					log.Debug.Printf("worker %d exiting", workerId)
+					return
+				}
+			case t := <-wp.taskStream:
+				{
 					// Even if we get a new task, if the wp is marked for exit, we just exit
 					if wp.exitFlag.Load() == 1 {
 						// We don't care about the exitLock here, since the whole wp
 						// is going down anyway.
 
-						break WorkLoop
+						return
 					}
 
 					// Replacement workers are not allowed to do "scan_directory" tasks
@@ -418,22 +431,15 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					wp.busyCount.Add(1)
 					metrics.BusyWorkerGuage.Inc()
 					t.SwLap("Task start")
-					// wlog.Debug.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
-					// start := time.Now()
-					internal.LabelThread(
-						func(_ context.Context) {
-							safetyWork(t, workerId)
-						}, "Worker Id", strconv.FormatInt(workerId, 10), "Task", string(t.jobName),
-					)
-					// wlog.Debug.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, time.Since(start))
+					log.Trace.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
+					wp.safetyWork(t, workerId)
 					t.SwLap("Task finish")
+					t.sw.Stop()
+					log.Trace.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, t.ExeTime())
 
 					// Dec tasks being processed
 					wp.busyCount.Add(-1)
 					metrics.BusyWorkerGuage.Dec()
-
-					// Wake any waiters on this task
-					t.waitMu.Unlock()
 
 					// Tasks must set their completed flag before exiting
 					// if it wasn't done in the work body, we do it for them
@@ -441,8 +447,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						t.Success("closed by worker pool")
 					}
 
-					// Notify this task has completed, and unsubscribe any subscribers to it
 					result := t.GetResults()
+					t.updateMu.Lock()
 					result["task_id"] = t.taskId
 					result["exit_status"] = t.exitStatus
 					wp.poolMu.Lock()
@@ -455,41 +461,36 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					result["queue_remaining"] = complete
 					result["queue_total"] = wp.lifetimeQueuedCount.Load()
 
-					// wlog.Error.Println("NO CASTER")
-					// t.caster.PushTaskUpdate(
-					// 	t, websocket.TaskCompleteEvent,
-					// 	result,
-					// )
-					// t.caster.UnsubTask(t)
-
-					/* No websocket updates to the client past this point */
-
-					// A common use for the cleanup method is to close a caster,
-					// so we must do this after we push the final update
-					if t.cleanup != nil {
-						t.cleanup()
-						t.cleanup = nil
-					}
+					// Wake any waiters on this task
+					t.updateMu.Unlock()
+					t.waitMu.Unlock()
 
 					// Potentially find the task pool that houses this task pool. All child
 					// task pools report their status to the root task pool as well.
 					// Do not use any global pool as the root
 					rootTaskPool := t.taskPool.GetRootPool()
 
-					if printStopwatchResults {
-						t.sw.PrintResults(true)
-					}
 					if t.exitStatus == TaskError && !rootTaskPool.IsGlobal() {
 						rootTaskPool.AddError(t)
-						// util.Warning.Printf("T[%s] exited with error status: %s\n", t.taskId, t.exitStatus)
 					}
 
 					if !t.persistent {
 						wp.removeTask(t.taskId)
 					}
 
-					canContinue := true
+					var canContinue = true
 					directParent := t.GetTaskPool()
+
+					directParent.completedTasks.Add(1)
+
+					// We want the pool completed and error count to reflec the task has completed
+					// when we are doing cleanup. Cleanup is intended to execute "after" the task
+					// has finished, so we must inc the completed tasks counter (above) before cleanup
+					if t.cleanup != nil {
+						t.cleanup(t)
+						t.cleanup = nil
+					}
+
 					if directParent.IsRoot() {
 						// Updating the number of workers and then checking it's value is dangerous
 						// to do concurrently. Specifically, the waiterGate lock on the queue will,
@@ -504,6 +505,8 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 						directParent.UnlockExit()
 					} else {
+						rootTaskPool.completedTasks.Add(1)
+
 						// Must hold both locks (and must acquire root lock first) to enter a dual-update.
 						// Any other ordering will result in race conditions or deadlocks
 						rootTaskPool.LockExit()
@@ -525,13 +528,12 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					}
 
 					if !canContinue {
-						break WorkLoop
+						return
 					}
-
 				}
-			}(wp.currentWorkers.Load())
-		}, "Worker Id", strconv.FormatInt(wp.currentWorkers.Load(), 10), "Task", "Idle",
-	)
+			}
+		}
+	}(wp.currentWorkers.Add(1) - 1)
 }
 
 /*
@@ -561,10 +563,11 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	}
 
 	newQueue := &TaskPool{
-		id:           TaskId(tpId.String()),
-		tasks:        map[TaskId]*Task{},
-		workerPool:     wp,
-		createdAt:      time.Now(),
+		id:    Id(tpId.String()),
+		tasks: map[Id]*Task{},
+		workerPool:   wp,
+		createdAt:    time.Now(),
+		erroredTasks: make([]*Task, 0),
 	}
 
 	// The waiterGate begins locked, and will only unlock when all
@@ -574,7 +577,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	return newQueue
 }
 
-func (wp *WorkerPool) removeTaskPool(tpId TaskId) {
+func (wp *WorkerPool) removeTaskPool(tpId Id) {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
 	delete(wp.poolMap, tpId)
@@ -622,7 +625,7 @@ func (wp *WorkerPool) bufferDrainer() {
 		time.Sleep(time.Second * 10)
 	}
 
-	log.ErrTrace(werror.Errorf("buffer drainer exited"))
+	log.Debug.Println("buffer drainer exited")
 }
 
 func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
@@ -635,8 +638,8 @@ type TaskService interface {
 	RegisterJob(jobName string, fn TaskHandler)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
 
-	GetTask(taskId TaskId) *Task
-	GetTaskPool(TaskId) *TaskPool
+	GetTask(taskId Id) *Task
+	GetTaskPool(Id) *TaskPool
 
 	DispatchJob(jobName string, meta TaskMetadata, pool *TaskPool) (*Task, error)
 }

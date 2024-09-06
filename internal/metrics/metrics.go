@@ -28,7 +28,7 @@ var (
 	)
 	BusyWorkerGuage = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "weblens_busy_worker_count_guage",
+			Name: "weblens_busy_worker_count_gauge",
 			Help: "Number of workers curently executing a task",
 		},
 	)

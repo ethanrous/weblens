@@ -33,12 +33,9 @@ import { AutocompleteUsers } from '../api/ApiFetch'
 import '../Pages/FileBrowser/style/fileBrowserMenuStyle.scss'
 
 import {
-    addUsersToFileShare,
     CreateFolder,
     DeleteFiles,
     RenameFile,
-    setFileSharePublic,
-    shareFile,
     TrashFiles,
     UnTrashFiles,
 } from '../api/FileBrowserApi'
@@ -51,7 +48,6 @@ import {
 import WeblensButton from '../components/WeblensButton'
 import WeblensInput from '../components/WeblensInput'
 import { WebsocketContext } from '../Context'
-import { downloadSelected } from '../Pages/FileBrowser/FileBrowserLogic'
 import { AlbumData, AuthHeaderT, UserInfoT } from '../types/Types'
 import { clamp } from '../util'
 import { FbMenuModeT, SelectedState, WeblensFile } from './File'
@@ -62,7 +58,9 @@ import {
     useFileBrowserStore,
 } from '../Pages/FileBrowser/FBStateControl'
 import { useSessionStore } from '../components/UserInfo'
-import { WeblensShare } from '../Share/Share'
+import { WeblensShare } from '../Share/share'
+import { downloadSelected } from '../Pages/FileBrowser/FileBrowserLogic'
+import { shareFile } from '../Share/shareQuery'
 
 type footerNote = {
     hint: string
@@ -430,9 +428,9 @@ function StandardFileMenu({
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
                     }
-                    onClick={(e) => {
+                    onClick={async (e) => {
                         e.stopPropagation()
-                        downloadSelected(
+                        return await downloadSelected(
                             activeItems.items,
                             removeLoading,
                             progDispatch,
@@ -440,6 +438,8 @@ function StandardFileMenu({
                             auth,
                             shareId
                         )
+                            .then(() => true)
+                            .catch(() => false)
                     }}
                 />
             </div>
@@ -528,7 +528,10 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
         }
         item.GetShare(auth).then((share) => {
             if (share) {
-                setIsPublic(share.IsPublic())
+                console.log('PUBLIK?', share, share.IsPublic())
+                if (share.IsPublic() !== undefined) {
+                    setIsPublic(share.IsPublic())
+                }
                 setAccessors(share.GetAccessors())
             } else {
                 setIsPublic(false)
@@ -556,33 +559,23 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
             const share = await item.GetShare(auth)
-            let req: Promise<Response | boolean>
             if (share) {
-                req = addUsersToFileShare(
-                    share.Id(),
-                    accessors.map((u) => u),
-                    auth
-                )
-                req = setFileSharePublic(share.Id(), isPublic, auth)
+                return await share
+                    .UpdateShare(isPublic, accessors)
+                    .then(() => true)
+                    .catch(() => false)
             } else {
-                req = shareFile(
+                return await shareFile(
                     item,
                     isPublic,
-                    accessors.map((u) => u),
-                    auth
-                ).then((si) => {
-                    item.SetShare(new WeblensShare(si))
-                    return true
-                })
+                    accessors.map((u) => u)
+                )
+                    .then((si) => {
+                        item.SetShare(new WeblensShare(si))
+                        return true
+                    })
+                    .catch(() => false)
             }
-            return req
-                .then(() => {
-                    return true
-                })
-                .catch((r) => {
-                    console.error(r)
-                    return false
-                })
         },
         [item, isPublic, accessors, auth]
     )
@@ -608,7 +601,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                         Left={isPublic ? IconUsers : IconUser}
                         onClick={(e) => {
                             e.stopPropagation()
-                            setIsPublic(!isPublic)
+                            setIsPublic((p) => !p)
                         }}
                     />
                 </div>

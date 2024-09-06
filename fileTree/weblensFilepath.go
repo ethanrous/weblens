@@ -1,6 +1,7 @@
 package fileTree
 
 import (
+	"path/filepath"
 	"strings"
 )
 
@@ -11,6 +12,9 @@ type WeblensFilepath struct {
 
 func NewFilePath(root, rootAlias, absolutePath string) WeblensFilepath {
 	path := strings.TrimPrefix(absolutePath, root)
+	if path[0] == '/' {
+		path = path[1:]
+	}
 
 	return WeblensFilepath{
 		rootAlias: rootAlias,
@@ -49,6 +53,13 @@ func (wf WeblensFilepath) RelativePath() string {
 
 func (wf WeblensFilepath) ToPortable() string {
 	return string(wf.rootAlias) + ":" + wf.relPath
+}
+
+func (wf WeblensFilepath) Child(childName string) WeblensFilepath {
+	return WeblensFilepath{
+		rootAlias: wf.rootAlias,
+		relPath:   filepath.Join(wf.relPath, childName),
+	}
 }
 
 func (wf WeblensFilepath) String() string {
