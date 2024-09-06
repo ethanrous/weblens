@@ -82,6 +82,7 @@ func GetWorkerCount() int {
 }
 
 var appRoot string
+
 func GetAppRootDir() string {
 	if appRoot != "" {
 		return appRoot
@@ -149,10 +150,14 @@ func GetCachesRoot() string {
 			}
 			var ok bool
 			cachesRoot, ok = config["cachesRoot"].(string)
-			if !ok {
-				cachesRoot = "/cache"
-				log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesRoot)
+			if ok {
+				if cachesRoot[0] == '.' {
+					cachesRoot = filepath.Join(GetAppRootDir(), cachesRoot)
+				}
+				return cachesRoot
 			}
+			cachesRoot = "/cache"
+			log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesRoot)
 		}
 	}
 	return cachesRoot
@@ -235,7 +240,7 @@ func GetTestMediaPath() string {
 	testMediaPath, ok := config["testMediaPath"].(string)
 	if ok {
 		if testMediaPath[0] == '.' {
-			filepath.Join(GetAppRootDir(), testMediaPath)
+			testMediaPath = filepath.Join(GetAppRootDir(), testMediaPath)
 		}
 		return testMediaPath
 	}
@@ -292,7 +297,6 @@ func GetMediaRoot() string {
 
 	mediaRoot = config["mediaRoot"].(string)
 	if mediaRoot[0] == '.' {
-		mediaRoot = mediaRoot[1:]
 		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
 	}
 

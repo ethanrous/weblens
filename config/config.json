@@ -15,8 +15,8 @@
         "logLevel": "debug",
         "routerHost": "127.0.0.1",
         "routerPort": "8085",
-        "mediaRoot": "/Users/ethan/weblens/test/media",
-        "cachesRoot": "/Users/ethan/weblens/test/caches",
+        "mediaRoot": "./test/media",
+        "cachesRoot": "./test/caches",
 
         "testMediaPath": "./images/testMedia"
     },
@@ -26,8 +26,8 @@
         "logLevel": "debug",
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
-        "mediaRoot": "/Users/ethan/weblens/core/media",
-        "cachesRoot": "/Users/ethan/weblens/core/caches",
+        "mediaRoot": "./core/media",
+        "cachesRoot": "./core/caches",
         "hostUrl": "https://weblens.app"
     },
     "TRACE-CORE": {
@@ -36,8 +36,8 @@
         "logLevel": "trace",
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
-        "mediaRoot": "/Users/ethan/weblens/core/media",
-        "cachesRoot": "/Users/ethan/weblens/core/caches",
+        "mediaRoot": "./core/media",
+        "cachesRoot": "./core/caches",
         "hostUrl": "https://weblens.app"
     }
 }
