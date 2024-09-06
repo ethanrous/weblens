@@ -249,44 +249,58 @@ func (fs *FileServiceImpl) GetFileOwner(file *fileTree.WeblensFileImpl) *models.
 	return u
 }
 
-func (fs *FileServiceImpl) MoveFileToTrash(
-	file *fileTree.WeblensFileImpl, user *models.User, share *models.FileShare, caster models.FileCaster,
+func (fs *FileServiceImpl) MoveFilesToTrash(
+	files []*fileTree.WeblensFileImpl, user *models.User, share *models.FileShare, caster models.FileCaster,
 ) error {
-	if !file.Exists() {
-		return werror.Errorf("Cannot with id [%s] (%s) does not exist", file.ID(), file.GetAbsPath())
-	}
-	if fs.IsFileInTrash(file) {
-		return werror.Errorf("Cannot move file (%s) to trash because it is already in trash", file.GetAbsPath())
+	if len(files) == 0 {
+		return nil
 	}
 
-	if !fs.accessService.CanUserAccessFile(user, file, share) {
-		return werror.WithStack(werror.ErrNoFileAccess)
-	}
-
-	te := TrashEntry{
-		OrigParent:   file.GetParentId(),
-		OrigFilename: file.Filename(),
-	}
-
-	trashId := fs.GetFileOwner(file).TrashId
+	trashId := fs.GetFileOwner(files[0]).TrashId
 	trash, err := fs.getFileByIdAndRoot(trashId, "MEDIA")
-	newFilename := MakeUniqueChildName(trash, file.Filename())
-
-	preMoveFile := file.Freeze()
-
 	event := fs.mediaTree.GetJournal().NewEvent()
-	_, err = fs.mediaTree.Move(file, trash, newFilename, false, event)
+
+	oldParent := files[0].GetParent()
+
+	var trashEntries bson.A
+	for _, file := range files {
+		if !file.Exists() {
+			return werror.Errorf("Cannot with id [%s] (%s) does not exist", file.ID(), file.GetAbsPath())
+		}
+		if fs.IsFileInTrash(file) {
+			return werror.Errorf("Cannot move file (%s) to trash because it is already in trash", file.GetAbsPath())
+		}
+		if !fs.accessService.CanUserAccessFile(user, file, share) {
+			return werror.WithStack(werror.ErrNoFileAccess)
+		}
+		trashEntries = append(
+			trashEntries,
+			TrashEntry{
+				OrigParent:   file.GetParentId(),
+				OrigFilename: file.Filename(),
+				FileId:       file.ID(),
+			},
+		)
+
+		newFilename := MakeUniqueChildName(trash, file.Filename())
+		preMoveFile := file.Freeze()
+
+		_, err = fs.mediaTree.Move(file, trash, newFilename, false, event)
+		if err != nil {
+			return err
+		}
+
+		caster.PushFileMove(preMoveFile, file)
+	}
+
+	_, err = fs.trashCol.InsertMany(context.Background(), trashEntries)
 	if err != nil {
 		return err
 	}
 
-	te.FileId = file.ID()
-	_, err = fs.trashCol.InsertOne(context.Background(), te)
-	if err != nil {
-		return err
-	}
+	fs.mediaTree.GetJournal().LogEvent(event)
 
-	err = fs.ResizeUp(preMoveFile.GetParent(), caster)
+	err = fs.ResizeUp(oldParent, caster)
 	if err != nil {
 		log.ErrTrace(err)
 	}
@@ -295,8 +309,6 @@ func (fs *FileServiceImpl) MoveFileToTrash(
 	if err != nil {
 		log.ErrTrace(err)
 	}
-
-	caster.PushFileMove(preMoveFile, file)
 
 	return nil
 }
@@ -504,10 +516,29 @@ func (fs *FileServiceImpl) GetMediaJournal() fileTree.JournalService {
 	return fs.mediaTree.GetJournal()
 }
 
-func (fs *FileServiceImpl) PathToFile(searchPath string, u *models.User, share *models.FileShare) (
-	*fileTree.WeblensFileImpl, []*fileTree.WeblensFileImpl, error,
-) {
-	return nil, nil, werror.NotImplemented("PathToFile")
+func (fs *FileServiceImpl) PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error) {
+	// path, err := fs.mediaTree.AbsToPortable(searchPath)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	pathParts := strings.Split(searchPath, "/")
+	workingFile := fs.mediaTree.GetRoot()
+	for _, pathPart := range pathParts {
+		if pathPart == "" {
+			continue
+		}
+		child, err := workingFile.GetChild(pathPart)
+		if err != nil {
+			return nil, err
+		}
+		if child != nil {
+			workingFile = child
+		}
+	}
+
+	return workingFile, nil
+
 	// if strings.HasPrefix(searchPath, "~/") {
 	// 	searchPath = "MEDIA:" + string(u.GetUsername()) + "/" + searchPath[2:]
 	// } else if searchPath[:1] == "/" && u.IsAdmin() {
@@ -610,10 +641,7 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 		return models.ContentId(f.GetContentId()), nil
 	}
 
-	fileSize, err := f.Size()
-	if err != nil {
-		return "", err
-	}
+	fileSize := f.Size()
 
 	// Read up to 1MB at a time
 	bufSize := math.Min(float64(fileSize), 1000*1000)

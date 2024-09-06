@@ -23,3 +23,4 @@ var ErrUserNotAuthorized = &clientSafeErr{
 }
 
 var ErrKeyInUse = errors.New("api key already in use")
+var ErrKeyNotFound = errors.New("api was not found")

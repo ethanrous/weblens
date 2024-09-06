@@ -12,10 +12,12 @@ import (
 	"sync"
 
 	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/joho/godotenv"
+	"github.com/ethrousseau/weblens/internal/werror"
 )
 
-var envLock sync.RWMutex
+func init() {
+	log.SetLogLevel(GetLogLevel())
+}
 
 func envReadBool(s string) bool {
 	val := os.Getenv(s)
@@ -28,36 +30,18 @@ func envReadBool(s string) bool {
 	}
 }
 
-var envRead = false
-
-func ReadEnv() {
-	envLock.Lock()
-	defer envLock.Unlock()
-
-	if envRead {
-		return
-	}
-
-	err := godotenv.Load(GetEnvFile())
-	if err != nil {
-		log.Warning.Println("Failed to load env file")
-	}
-	envRead = true
-}
-
 var configData map[string]map[string]any
+var envLock sync.RWMutex
 
-func ReadConfig(configPath, configName string) (map[string]any, error) {
+func ReadConfig(configName string) (map[string]any, error) {
 	envLock.Lock()
 	defer envLock.Unlock()
 	if configData != nil {
 		return configData[configName], nil
 	}
 
-	if configPath == "" {
-		configDir := os.Getenv("CONFIG_PATH")
-		configPath = filepath.Join(configDir, "config.json")
-	}
+	configDir := GetConfigPath()
+	configPath := filepath.Join(configDir, "config.json")
 
 	bs, err := os.ReadFile(configPath)
 	if err != nil {
@@ -74,16 +58,16 @@ func ReadConfig(configPath, configName string) (map[string]any, error) {
 	return configData[configName], nil
 }
 
-func GetEnvFile() string {
-	envFile := os.Getenv("ENV_FILE")
-	if envFile == "" {
-		panic("ENV_FILE not set")
+func GetConfigName() string {
+	configName := os.Getenv("CONFIG_NAME")
+	if configName != "" {
+		return configName
 	}
-	return envFile
+	return "TEST"
 }
 
 func GetWorkerCount() int {
-	config, err := ReadConfig("", os.Getenv("CONFIG_NAME"))
+	config, err := ReadConfig(GetConfigName())
 	if err == nil {
 		countStr := config["poolWorkerCount"]
 		if countStr != nil {
@@ -97,8 +81,23 @@ func GetWorkerCount() int {
 	return runtime.NumCPU() - 2
 }
 
+var appRoot string
 func GetAppRootDir() string {
-	rootPath := filepath.Dir(os.Getenv("CONFIG_PATH"))
+	if appRoot != "" {
+		return appRoot
+	}
+
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic(werror.Errorf("Could not get caller"))
+	}
+
+	rootPath := filepath.Dir(filename)
+
+	for !strings.HasSuffix(rootPath, "weblens") {
+		rootPath = filepath.Dir(rootPath)
+	}
+	appRoot = rootPath
 	return rootPath
 }
 
@@ -112,22 +111,24 @@ func GetRouterPort() string {
 	}
 }
 
-func GetExternalPaths() []string {
-	return strings.Split(os.Getenv("EXTERNAL_PATHS"), " ")
-}
-
-func GetImgRecognitionUrl() string {
-	return os.Getenv("IMG_RECOGNITION_URI")
-}
-
-// IsDevMode Enables debug logging and puts the router in development mode
-func IsDevMode() bool {
-	config, err := ReadConfig("", os.Getenv("CONFIG_NAME"))
+func GetLogLevel() int {
+	config, err := ReadConfig(GetConfigName())
 	if err != nil {
-		return false
+		panic(err)
 	}
 
-	return config["logLevel"].(string) == "debug"
+	if level, ok := config["logLevel"].(string); ok {
+		switch level {
+		case "debug":
+			return log.DEBUG
+		case "trace":
+			return log.TRACE
+		case "quiet":
+			return log.QUIET
+		}
+	}
+
+	return log.DEFAULT
 }
 
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
@@ -136,49 +137,49 @@ func DetachUi() bool {
 	return envReadBool("DETATCH_UI")
 }
 
-var cachesPath string
+var cachesRoot string
 
-func GetCacheRoot() string {
-	if cachesPath == "" {
-		cachesPath = os.Getenv("CACHES_PATH")
-		if cachesPath == "" {
-			cachesPath = "/cache"
-			log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesPath)
+func GetCachesRoot() string {
+	if cachesRoot == "" {
+		cachesRoot = os.Getenv("CACHES_PATH")
+		if cachesRoot == "" {
+			config, err := ReadConfig(GetConfigName())
+			if err != nil {
+				panic(err)
+			}
+			var ok bool
+			cachesRoot, ok = config["cachesRoot"].(string)
+			if !ok {
+				cachesRoot = "/cache"
+				log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesRoot)
+			}
 		}
 	}
-	return cachesPath
+	return cachesRoot
 }
 
 // GetThumbsDir
 // Returns the path of the directory for storing cached files. This includes photo thumbnails,
 // temp uploaded files, and zip files.
 func GetThumbsDir() string {
-	cacheString := GetCacheRoot() + "/cache"
+	cacheString := GetCachesRoot() + "/cache"
 	_, err := os.Stat(cacheString)
 	if err != nil {
 		err = os.MkdirAll(cacheString, 0755)
 		if err != nil {
-			panic("CACHES_PATH provided, but the cache dir (`CACHES_PATH`/cache) does not exist and Weblens failed to create it")
+			newErr := werror.Errorf(
+				"Caches was found, "+
+					"but the cache dir (%s) does not exist and Weblens failed to create it: %s",
+				cacheString, err,
+			)
+			panic(newErr)
 		}
 	}
 	return cacheString
 }
 
-// GetTakeoutDir Takeout directory, stores zip files after creation
-func GetTakeoutDir() string {
-	takeoutString := GetCacheRoot() + "/takeout"
-	_, err := os.Stat(takeoutString)
-	if err != nil {
-		err = os.MkdirAll(takeoutString, 0755)
-		if err != nil {
-			panic("CACHES_PATH provided, but the takeout dir (`CACHES_PATH`/takeout) does not exist and Weblens failed to create it")
-		}
-	}
-	return takeoutString
-}
-
 func GetTmpDir() string {
-	tmpString := GetCacheRoot() + "/tmp"
+	tmpString := GetCachesRoot() + "/tmp"
 	_, err := os.Stat(tmpString)
 	if err != nil {
 		err = os.MkdirAll(tmpString, 0755)
@@ -191,56 +192,67 @@ func GetTmpDir() string {
 }
 
 func GetMongoURI() string {
-	envLock.Lock()
-	defer envLock.Unlock()
-	mongoStr := os.Getenv("MONGODB_URI")
-	if mongoStr == "" {
-		mongoStr = "mongodb://localhost:27017"
-		log.Warning.Println("MONGODB_URI not set, defaulting to", mongoStr)
-	} else {
-		log.Debug.Printf("Got MONGODB_URI: %s\n", mongoStr)
-	}
-	return mongoStr
-}
-
-func GetMongoDBName() string {
-	config, err := ReadConfig("", os.Getenv("CONFIG_NAME"))
+	config, err := ReadConfig(GetConfigName())
 	if err != nil {
 		panic(err)
 	}
-	return config["mongodbName"].(string)
+	uri, ok := config["mongodbUri"].(string)
+	if ok {
+		return uri
+	}
+
+	return "mongodb://localhost:27017"
 }
 
-var hostUrl string
+func GetMongoDBName() string {
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
+	}
+	name, ok := config["mongodbName"].(string)
+	if ok {
+		return name
+	}
+	return "weblens"
+}
 
 func GetHostURL() string {
-	if hostUrl == "" {
-		hostUrl = os.Getenv("HOST_URL")
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
 	}
+
+	hostUrl, _ := config["hostUrl"].(string)
 	return hostUrl
 }
 
-var testMediaPath string
-
 func GetTestMediaPath() string {
-	envLock.Lock()
-	defer envLock.Unlock()
-	if testMediaPath != "" {
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
+	}
+
+	testMediaPath, ok := config["testMediaPath"].(string)
+	if ok {
 		return testMediaPath
 	}
 
-	testMediaPath = os.Getenv("TEST_MEDIA_PATH")
-	if testMediaPath == "" {
-		envLock.Unlock()
-		testMediaPath = filepath.Join(GetAppRootDir(), "/images/testMedia")
-		envLock.Lock()
-		log.Warning.Printf("TEST_MEDIA_PATH not set, defaulting to %s", testMediaPath)
-	}
+	testMediaPath = filepath.Join(GetAppRootDir(), "/images/testMedia")
+	log.Warning.Printf("TEST_MEDIA_PATH not set, defaulting to %s", testMediaPath)
+
 	return testMediaPath
 }
 
+func GetConfigPath() string {
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath != "" {
+		return configPath
+	}
+	return GetAppRootDir() + "/config"
+}
+
 func ReadTypesConfig(target any) error {
-	typeJson, err := os.Open(filepath.Join(os.Getenv("CONFIG_PATH"), "mediaType.json"))
+	typeJson, err := os.Open(filepath.Join(GetConfigPath(), "mediaType.json"))
 	if err != nil {
 		return err
 	}
@@ -270,7 +282,7 @@ func GetMediaRoot() string {
 		return mediaRoot
 	}
 
-	config, err := ReadConfig("", os.Getenv("CONFIG_PATH"))
+	config, err := ReadConfig(GetConfigName())
 	if err != nil {
 		panic(err)
 	}
@@ -282,24 +294,4 @@ func GetMediaRoot() string {
 	}
 
 	return mediaRoot
-}
-
-func GetCachesRoot() string {
-	cachesRoot := os.Getenv("CACHES_ROOT")
-	if cachesRoot != "" {
-		return cachesRoot
-	}
-
-	config, err := ReadConfig("", os.Getenv("CONFIG_PATH"))
-	if err != nil {
-		panic(err)
-	}
-
-	cachesRoot = config["cachesRoot"].(string)
-	if cachesRoot[0] == '.' {
-		cachesRoot = cachesRoot[1:]
-		cachesRoot = filepath.Join(GetAppRootDir(), cachesRoot)
-	}
-
-	return cachesRoot
 }

@@ -14,6 +14,11 @@ type MemFileTree struct {
 	root      *fileTree.WeblensFileImpl
 }
 
+func (ft *MemFileTree) AbsToPortable(absPath string) (fileTree.WeblensFilepath, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func NewMemFileTree(rootAlias string) *MemFileTree {
 	fs := &MemFileTree{
 		rootAlias: rootAlias,

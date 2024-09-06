@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ func ErrTrace(err error, extras ...string) {
 		}
 
 		_, file, no, _ := runtime.Caller(1)
+		ErrorCatcher.Println(string(debug.Stack()))
 		ErrorCatcher.Printf("%s:%d (no stack) %s", file, no, err.Error())
 	}
 }
@@ -80,7 +82,7 @@ func colorTime(dur time.Duration) string {
 	}
 }
 
-func ApiLogger(isDevMode bool) gin.HandlerFunc {
+func ApiLogger(logLevel int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.RequestURI
@@ -91,7 +93,7 @@ func ApiLogger(isDevMode bool) gin.HandlerFunc {
 		c.Next()
 
 		status := c.Writer.Status()
-		if !isDevMode && status < 400 {
+		if logLevel == -1 && status < 400 {
 			return
 		}
 

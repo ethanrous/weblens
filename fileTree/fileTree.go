@@ -336,8 +336,9 @@ func (ft *FileTreeImpl) Move(
 
 	var hasExternalEvent bool
 	if event == nil {
-		hasExternalEvent = false
 		event = ft.GetJournal().NewEvent()
+	} else {
+		hasExternalEvent = true
 	}
 
 	// Sync file tree with new move, including f and all of its children.
@@ -650,10 +651,7 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 			}
 		} else {
 			fileToLoad.setIdInternal(ft.GenerateFileId())
-			fileSize, err := fileToLoad.Size()
-			if err != nil {
-				return err
-			}
+			fileSize := fileToLoad.Size()
 
 			if !fileToLoad.IsDir() && fileSize != 0 {
 				log.Trace.Printf("[loadFromRoot] Hashing file %s", fileToLoad.id)
@@ -707,7 +705,7 @@ func (ft *FileTreeImpl) importFromDirEntry(entry os.DirEntry, parent *WeblensFil
 	}
 
 	f := &WeblensFileImpl{
-		id: "",
+		id:          "",
 		absolutePath: absPath,
 		portablePath: portable,
 		filename:     entry.Name(),
@@ -744,6 +742,7 @@ type FileTree interface {
 	MkDir(parentFolder *WeblensFileImpl, newDirName string, event *FileEvent) (*WeblensFileImpl, error)
 
 	PortableToAbs(portable WeblensFilepath) (string, error)
+	AbsToPortable(absPath string) (WeblensFilepath, error)
 	GenerateFileId() FileId
 }
 

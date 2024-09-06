@@ -56,7 +56,7 @@ func (pjs *ProxyJournalService) GetActionsByPath(filepath fileTree.WeblensFilepa
 	panic("implement me")
 }
 
-func (pjs *ProxyJournalService) GetPastFolderInfo(folder *fileTree.WeblensFileImpl, time time.Time) (
+func (pjs *ProxyJournalService) GetPastFolderChildren(folder *fileTree.WeblensFileImpl, time time.Time) (
 	[]*fileTree.WeblensFileImpl, error,
 ) {
 	// TODO implement me

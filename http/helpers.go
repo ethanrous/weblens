@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -133,11 +132,7 @@ func formatFileSafe(
 	}
 
 	var size int64
-	size, err = f.Size()
-	if err != nil {
-		log.ShowErr(err, fmt.Sprintf("Failed to get file size of [ %s (ID: %s) ]", f.GetAbsPath(), f.ID()))
-		return
-	}
+	size = f.Size()
 
 	var parentId fileTree.FileId
 	owner := pack.FileService.GetFileOwner(f)
@@ -166,9 +161,10 @@ func formatFileSafe(
 	slices.Reverse(pathBits)
 	pathString := strings.Join(pathBits, "/")
 
+	fShare, _ := pack.ShareService.GetFileShare(f)
 	var shareId models.ShareId
-	if share != nil {
-		shareId = share.GetShareId()
+	if fShare != nil {
+		shareId = fShare.ID()
 	}
 
 	formattedInfo = FileInfo{

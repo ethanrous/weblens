@@ -25,7 +25,7 @@ var server *Server
 var services = &models.ServicePack{}
 
 func main() {
-	config, err := env.ReadConfig("", os.Getenv("CONFIG_NAME"))
+	config, err := env.ReadConfig(env.GetConfigName())
 	if err != nil {
 		panic(err)
 	}
@@ -33,8 +33,10 @@ func main() {
 	defer mainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR")
 	log.Info.Println("Starting Weblens")
 
-	if config["logLevel"].(string) == "debug" {
-		log.SetLogLevel(log.DEBUG)
+	logLevel := env.GetLogLevel()
+	log.SetLogLevel(logLevel)
+
+	if logLevel > 0 {
 		log.Debug.Println("Starting Weblens in debug mode")
 
 		metricsServer := http.Server{
@@ -85,14 +87,10 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	pack.UserService = userService
 	sw.Lap("Init user service")
 
-	wpLogLevel := 0
-	if env.IsDevMode() {
-		wpLogLevel = 1
-	}
 	/* Enable the worker pool held by the task tracker
 	loading the filesystem might dispatch tasks,
 	so we have to start the pool first */
-	workerPool := task.NewWorkerPool(env.GetWorkerCount(), wpLogLevel)
+	workerPool := task.NewWorkerPool(env.GetWorkerCount(), env.GetLogLevel())
 
 	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
 	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
@@ -240,6 +238,8 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init album service")
 
 	mediaService.AlbumService = albumService
+
+	// srv.UseWebdav(fileService, caster)
 
 	sw.Stop()
 	sw.PrintResults(false)

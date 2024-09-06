@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/werror"
 	. "github.com/ethrousseau/weblens/task"
 	"github.com/stretchr/testify/assert"
@@ -12,10 +11,6 @@ import (
 
 var jobName = "Test Job"
 var subpoolJobName = "Test Subpool Job"
-
-func init() {
-	env.IsDevMode()
-}
 
 func TestWorkerPoolBasic(t *testing.T) {
 	t.Parallel()
@@ -38,6 +33,10 @@ func TestWorkerPoolBasic(t *testing.T) {
 }
 
 func TestSubPool(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping %s in short mode", t.Name())
+	}
+
 	t.Parallel()
 
 	wp := NewWorkerPool(4, -1)
@@ -47,7 +46,7 @@ func TestSubPool(t *testing.T) {
 
 	tsk, err := wp.DispatchJob(
 		subpoolJobName, fakeJobMeta{
-			subTaskCount: rand.Int() % 64,
+			subTaskCount: rand.Int() % 1024,
 		}, nil,
 	)
 	if !assert.NoError(t, err) {

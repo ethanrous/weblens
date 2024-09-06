@@ -26,8 +26,8 @@ func (pfs *ProxyFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
 }
 
 func (pfs *ProxyFileService) PathToFile(
-	searchPath string, user *models.User, share *models.FileShare,
-) (*fileTree.WeblensFileImpl, []*fileTree.WeblensFileImpl, error) {
+	searchPath string,
+) (*fileTree.WeblensFileImpl, error) {
 	// TODO implement me
 	panic("implement me")
 }
@@ -93,8 +93,8 @@ func (pfs *ProxyFileService) MoveFiles(
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) MoveFileToTrash(
-	file *fileTree.WeblensFileImpl, mover *models.User, share *models.FileShare, caster models.FileCaster,
+func (pfs *ProxyFileService) MoveFilesToTrash(
+	file []*fileTree.WeblensFileImpl, mover *models.User, share *models.FileShare, caster models.FileCaster,
 ) error {
 	// TODO implement me
 	panic("implement me")

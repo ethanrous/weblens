@@ -13,14 +13,14 @@ import (
 	"github.com/ethrousseau/weblens/internal/werror"
 )
 
-type TaskId string
-type TaskExitStatus string
-type TaskResult map[string]any
+type Id = string
+type TaskExitStatus = string
+type TaskResult = map[string]any
 
 // var _ TaskInterface = (*Task)(nil)
 
 type Task struct {
-	taskId        TaskId
+	taskId Id
 	taskPool      *TaskPool
 	childTaskPool *TaskPool
 	work          TaskHandler
@@ -68,7 +68,7 @@ const (
 	Exited    QueueState = "exited"
 )
 
-func (t *Task) TaskId() TaskId {
+func (t *Task) TaskId() Id {
 	return t.taskId
 }
 
@@ -376,7 +376,7 @@ func globbyHash(charLimit int, dataToHash ...any) string {
 }
 
 type TaskInterface interface {
-	TaskId() TaskId
+	TaskId() Id
 	JobName() string
 	GetTaskPool() *TaskPool
 	GetChildTaskPool() *TaskPool

@@ -166,7 +166,7 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 			cm.clientMu.Unlock()
 			clients = internal.Filter(
 				allClients, func(c *models.WsClient) bool {
-					return models.SubId(c.GetUser().GetUsername()) == key
+					return c.GetUser().GetUsername() == key
 				},
 			)
 		}
@@ -191,7 +191,7 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 // Subscriptions to types that represent ongoing events like FolderSubscribe never return a truthy completed
 func (cm *ClientManager) Subscribe(
 	c *models.WsClient, key models.SubId, action models.WsAction, subTime time.Time, share models.Share,
-) (complete bool, results map[string]any, err error,) {
+) (complete bool, results map[string]any, err error) {
 	var sub models.Subscription
 
 	// *HACK* Ensure that subscribe requests are processed after unsubscribe requests
@@ -207,7 +207,7 @@ func (cm *ClientManager) Subscribe(
 				c.Error(err)
 				return
 			}
-			fileId := fileTree.FileId(key)
+			fileId := key
 			var folder *fileTree.WeblensFileImpl
 			if fileId == "external" {
 				fileId = "EXTERNAL"
@@ -229,17 +229,16 @@ func (cm *ClientManager) Subscribe(
 
 			for _, t := range cm.fileService.GetTasks(folder) {
 				c.SubUnlock()
-				_, _, err = cm.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil)
+				_, _, err = cm.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
 				c.SubLock()
 				if err != nil {
 					return
 				}
 			}
-			// TODO
 		}
 	case models.TaskSubscribe:
 		{
-			t := cm.taskService.GetTask(task.TaskId(key))
+			t := cm.taskService.GetTask(key)
 			if t == nil {
 				err = werror.Errorf("could not find task with ID %s", key)
 				c.Error(err)
@@ -265,7 +264,7 @@ func (cm *ClientManager) Subscribe(
 		}
 	case models.PoolSubscribe:
 		{
-			pool := cm.taskService.GetTaskPool(task.TaskId(key))
+			pool := cm.taskService.GetTaskPool(key)
 			if pool == nil {
 				c.Error(errors.New(fmt.Sprintf("Could not find pool with id %s", key)))
 				return
@@ -357,24 +356,24 @@ func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *mo
 	}
 }
 
-func (cm *ClientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId) {
-	subs := cm.GetSubscribers(models.FolderSubscribe, models.SubId(folderId))
+func (cm *ClientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.Id) {
+	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
 
 	for _, s := range subs {
 		log.Trace.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), folderId, poolId)
-		_, _, err := cm.Subscribe(s, models.SubId(poolId), models.PoolSubscribe, time.Now(), nil)
+		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
 	}
 }
 
-func (cm *ClientManager) TaskSubToPool(taskId task.TaskId, poolId task.TaskId) {
-	subs := cm.GetSubscribers(models.TaskSubscribe, models.SubId(taskId))
+func (cm *ClientManager) TaskSubToPool(taskId task.Id, poolId task.Id) {
+	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
 
 	for _, s := range subs {
 		log.Trace.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), taskId, poolId)
-		_, _, err := cm.Subscribe(s, models.SubId(poolId), models.PoolSubscribe, time.Now(), nil)
+		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
@@ -434,7 +433,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 		clients = append(
 			clients, cm.GetSubscribers(
 				models.TaskTypeSubscribe,
-				models.SubId(msg.TaskType),
+				msg.TaskType,
 			)...,
 		)
 	}
@@ -484,4 +483,3 @@ func removeSubs(
 
 	return nil
 }
-

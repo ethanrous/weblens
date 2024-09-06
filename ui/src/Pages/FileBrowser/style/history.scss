@@ -1,3 +1,5 @@
+@import "../../../components/theme";
+
 .file-history-menu {
     position: absolute;
     height: 400px;
@@ -63,36 +65,35 @@
     display: flex;
     flex-direction: row;
     align-items: center;
+    min-height: 0;
     height: 50px;
     justify-content: space-between;
     width: 100%;
 }
 
 .file-history-accordion-header {
-    cursor: pointer;
     display: flex;
-    align-items: center;
-    flex-direction: row;
-    user-select: none;
-    width: max-content;
+    flex-direction: column;
+    outline: 1px solid #374151;
+    border-radius: 0.25rem;
+    width: 100%;
+    flex-grow: 0;
+    overflow: hidden;
+    max-height: 500px;
+
+    transition: height 150ms ease-in-out;
 }
 
 .file-history-detail-accordion {
     width: 100%;
     display: flex;
-
-    overflow: hidden;
-    max-height: 0px;
     border-radius: 8px;
     flex-direction: column;
-    border: 0 solid #ffffff34;
-    transition: border-width 0ms 500ms, height 500ms ease-in-out, max-height 500ms ease-in-out;
+    height: 0;
+    flex-grow: 1;
 
     &[data-open='true'] {
-        transition: border-width 0ms 0ms, height 500ms ease-in-out;
-        max-height: 500px;
-        border: 2px solid #ffffff34;
-        overflow: scroll;
+        height: 100%;
     }
 }
 
@@ -104,9 +105,8 @@
     height: max-content;
     max-height: max-content;
     width: 100%;
-    padding: 12px;
+    padding: 4px;
     flex-grow: 0;
-    //position: relative;
 }
 
 .history-detail-action-row {
@@ -114,13 +114,53 @@
     height: 32px;
     max-height: 32px;
     padding: 4px;
-    width: 100%;
+    width: max-content;
     max-width: 100%;
 
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    flex-grow: 1;
+    flex-grow: 0;
     gap: 8px;
+}
+
+.rollback-bar {
+    position: absolute;
+    height: 4px;
+    width: 95%;
+    background-color: $disabled-grey;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 150ms ease-in-out;
+    z-index: 4;
+
+    :hover > & {
+        background-color: $main-accent;
+    }
+    &[data-moving='true'] {
+        background-color: $main-accent;
+    }
+}
+
+.rollback-bar-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 10px;
+    width: 100%;
+    cursor: pointer;
+    transition: top 100ms;
+    z-index: 4;
+}
+
+.event-caret{
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    transition: background-color 150ms ease-in-out;
+    :hover > & {
+        background-color: #393f4e;
+    }
 }

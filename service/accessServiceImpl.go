@@ -233,8 +233,30 @@ func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User) (models.Ap
 }
 
 func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, server *models.Instance) error {
-	return werror.NotImplemented("accessService setKeyUsedBy")
-	return werror.ErrKeyInUse
+	accSrv.keyMapMu.RLock()
+	keyInfo, ok := accSrv.apiKeyMap[key]
+	accSrv.keyMapMu.RUnlock()
+	if !ok {
+		return werror.ErrKeyNotFound
+	}
+
+	if keyInfo.RemoteUsing != "" {
+		return werror.ErrKeyInUse
+	}
+
+	filter := bson.M{"key": key}
+	update := bson.M{"$set": bson.M{"remoteUsing": server.ServerId()}}
+	_, err := accSrv.collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	keyInfo.RemoteUsing = server.ServerId()
+	accSrv.keyMapMu.Lock()
+	accSrv.apiKeyMap[key] = keyInfo
+	accSrv.keyMapMu.Unlock()
+
+	return nil
 }
 
 func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.ApiKeyInfo, error) {

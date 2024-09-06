@@ -1,26 +1,31 @@
 {
-    "compilerOptions": {
-        "target": "es2015",
-        "lib": [
-            "DOM",
-            "DOM.Iterable",
-            "ESNext"
-        ],
-        "types": [
-            "node",
-            "vite/client"
-        ],
-        "allowJs": false,
-        "isolatedModules": true,
-        "jsx": "react-jsx",
-        "module": "ESNext",
-        "strict": false,
-        "moduleResolution": "node",
-        "allowSyntheticDefaultImports": true
-    },
-    "include": [
-        "**/*.tsx",
-        "**/*.ts",
-        "src"
-    ]
+  "compilerOptions": {
+    "target": "es2015",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "types": [
+      "node",
+      "vite/client"
+    ],
+    "allowJs": false,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "strict": false,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@weblens/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.tsx",
+    "**/*.ts",
+    "src"
+  ]
 }

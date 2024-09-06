@@ -154,20 +154,20 @@ func (u *User) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	u.Username = Username(obj["username"].(string))
+	u.Username = obj["username"].(string)
 	u.Password = obj["password"].(string)
 	u.Activated = obj["activated"].(bool)
 	u.Admin = obj["admin"].(bool)
 	u.IsServerOwner = obj["owner"].(bool)
-	u.HomeId = fileTree.FileId(obj["homeId"].(string))
-	u.TrashId = fileTree.FileId(obj["trashId"].(string))
+	u.HomeId = obj["homeId"].(string)
+	u.TrashId = obj["trashId"].(string)
 	u.tokens = internal.SliceConvert[string](obj["tokens"].([]any))
 	u.SystemUser = obj["isSystemUser"].(bool)
 
 	return nil
 }
 
-type Username string
+type Username = string
 
 type UserService interface {
 	Size() int

@@ -18,8 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-/* ================ */
-
 // Create new file upload task, and wait for data
 func newUploadTask(ctx *gin.Context) {
 	pack := getServices(ctx)
@@ -52,7 +50,7 @@ func newUploadTask(ctx *gin.Context) {
 }
 
 func newFileUpload(ctx *gin.Context) {
-	uploadTaskId := task.TaskId(ctx.Param("uploadId"))
+	uploadTaskId := ctx.Param("uploadId")
 	newFInfo, err := readCtxBody[newFileBody](ctx)
 	if err != nil {
 		return
@@ -61,7 +59,7 @@ func newFileUpload(ctx *gin.Context) {
 	handleNewFile(uploadTaskId, newFInfo, ctx)
 }
 
-func handleNewFile(uploadTaskId task.TaskId, newFInfo newFileBody, ctx *gin.Context) {
+func handleNewFile(uploadTaskId task.Id, newFInfo newFileBody, ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	uTask := pack.TaskService.GetTask(uploadTaskId)
@@ -123,7 +121,7 @@ func handleNewFile(uploadTaskId task.TaskId, newFInfo newFileBody, ctx *gin.Cont
 // Add chunks of file to previously created task
 func handleUploadChunk(ctx *gin.Context) {
 	pack := getServices(ctx)
-	uploadId := task.TaskId(ctx.Param("uploadId"))
+	uploadId := ctx.Param("uploadId")
 
 	t := pack.TaskService.GetTask(uploadId)
 	if t == nil {
@@ -131,7 +129,7 @@ func handleUploadChunk(ctx *gin.Context) {
 		return
 	}
 
-	fileId := fileTree.FileId(ctx.Param("fileId"))
+	fileId := ctx.Param("fileId")
 
 	// We are about to read from the clientConn, which could take a while.
 	// Since we actually got this request, we know the clientConn is not abandoning us,
@@ -196,7 +194,7 @@ func getFoldersMedia(ctx *gin.Context) {
 func searchFolder(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	folderId := fileTree.FileId(ctx.Param("folderId"))
+	folderId := ctx.Param("folderId")
 	searchStr := ctx.Query("search")
 	filterStr := ctx.Query("filter")
 
@@ -322,7 +320,7 @@ func downloadFile(ctx *gin.Context) {
 		u = pack.UserService.GetPublicUser()
 	}
 
-	fileId := fileTree.FileId(ctx.Param("fileId"))
+	fileId := ctx.Param("fileId")
 
 	share, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
@@ -345,7 +343,7 @@ func downloadTakeout(ctx *gin.Context) {
 		u = pack.UserService.GetPublicUser()
 	}
 
-	fileId := fileTree.FileId(ctx.Param("fileId"))
+	fileId := ctx.Param("fileId")
 
 	// share, err := getShareFromCtx[*models.FileShare](ctx)
 	// if err != nil {
@@ -434,7 +432,7 @@ func updateUserPassword(ctx *gin.Context) {
 		return
 	}
 
-	updateUsername := models.Username(ctx.Param("username"))
+	updateUsername := ctx.Param("username")
 	updateUser := pack.UserService.Get(updateUsername)
 
 	if updateUser == nil {
@@ -486,7 +484,7 @@ func setUserAdmin(ctx *gin.Context) {
 		return
 	}
 
-	username := models.Username(ctx.Param("username"))
+	username := ctx.Param("username")
 	u := pack.UserService.Get(username)
 
 	err = pack.UserService.SetUserAdmin(u, update.Admin)
@@ -505,7 +503,7 @@ func setUserAdmin(ctx *gin.Context) {
 
 func activateUser(ctx *gin.Context) {
 	pack := getServices(ctx)
-	username := models.Username(ctx.Param("username"))
+	username := ctx.Param("username")
 	u := pack.UserService.Get(username)
 	err := pack.UserService.ActivateUser(u)
 	if err != nil {
@@ -518,7 +516,7 @@ func activateUser(ctx *gin.Context) {
 
 func deleteUser(ctx *gin.Context) {
 	pack := getServices(ctx)
-	username := models.Username(ctx.Param("username"))
+	username := ctx.Param("username")
 	// User to delete username
 	// *cannot* use getUserFromCtx() here because that
 	// will grab the user making the request, not the
@@ -624,7 +622,7 @@ func deleteShare(ctx *gin.Context) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-	err := pack.ShareService.Del(s.GetShareId())
+	err := pack.ShareService.Del(s.ID())
 	if err != nil {
 		log.ErrTrace(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -634,7 +632,7 @@ func deleteShare(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func addUserToFileShare(ctx *gin.Context) {
+func patchShareAccessors(ctx *gin.Context) {
 	pack := getServices(ctx)
 	user := getUserFromCtx(ctx)
 
@@ -655,8 +653,69 @@ func addUserToFileShare(ctx *gin.Context) {
 		return
 	}
 
-	users := internal.Map(ub.Users, func(un models.Username) *models.User { return pack.UserService.Get(un) })
-	err = pack.ShareService.AddUsers(share, users)
+	var addUsers []*models.User
+	for _, un := range ub.AddUsers {
+		u := pack.UserService.Get(un)
+		if u == nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find user with name " + un})
+			return
+		}
+		addUsers = append(addUsers, u)
+	}
+
+	var removeUsers []*models.User
+	for _, un := range ub.RemoveUsers {
+		u := pack.UserService.Get(un)
+		if u == nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find user with name " + un})
+			return
+		}
+		removeUsers = append(removeUsers, u)
+	}
+
+	if len(addUsers) > 0 {
+		err = pack.ShareService.AddUsers(share, addUsers)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if len(removeUsers) > 0 {
+		err = pack.ShareService.RemoveUsers(share, removeUsers)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func setSharePublic(ctx *gin.Context) {
+	pack := getServices(ctx)
+	user := getUserFromCtx(ctx)
+
+	share, err := getShareFromCtx[*models.FileShare](ctx)
+	if err != nil {
+		return
+	}
+
+	if !pack.AccessService.CanUserModifyShare(user, share) {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	pub, err := readCtxBody[sharePublicityBody](ctx)
+	if err != nil {
+		log.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	err = pack.ShareService.SetSharePublic(share, pub.Public)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -729,7 +788,7 @@ func getFolderStats(ctx *gin.Context) {
 		u = pack.UserService.GetPublicUser()
 	}
 
-	fileId := fileTree.FileId(ctx.Param("folderId"))
+	fileId := ctx.Param("folderId")
 
 	rootFolder, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {

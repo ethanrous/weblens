@@ -121,9 +121,9 @@ func addIndexTag(tagName, toAdd, content string) string {
 
 func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 	index := newWrapFile(fs.index.Copy())
-	locIndex := strings.Index(loc, "./ui/dist/")
+	locIndex := strings.Index(loc, "ui/dist/")
 	if locIndex != -1 {
-		loc = loc[locIndex+len("./ui/dist/"):]
+		loc = loc[locIndex+len("ui/dist/"):]
 	}
 
 	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetHostURL(), loc), string(index.realFile.data))
@@ -193,8 +193,11 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 					},
 				)
 				if m != nil {
-					if pack.MediaService.GetMediaType(m).IsVideo() {
-						imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetHostURL(), f.GetContentId())
+					if !pack.MediaService.GetMediaType(m).IsVideo() {
+						imgUrl := fmt.Sprintf(
+							"%s/api/media/%s/thumbnail.png?shareId=%s", env.GetHostURL(),
+							f.GetContentId(), share.ID(),
+						)
 						hasImage = true
 						fields = append(
 							fields, indexField{
@@ -202,33 +205,31 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 								content: imgUrl,
 							},
 						)
-						videoUrl := fmt.Sprintf("%s/api/media/%s/stream", env.GetHostURL(), f.GetContentId())
-						fields = append(
-							fields, indexField{
-								tag:     "type",
-								content: "video.other",
-							},
-						)
-						fields = append(
-							fields, indexField{
-								tag:     "video",
-								content: videoUrl,
-							},
-						)
+						// videoUrl := fmt.Sprintf("%s/api/media/%s/stream", env.GetHostURL(), f.GetContentId())
+						// fields = append(
+						// 	fields, indexField{
+						// 		tag:     "type",
+						// 		content: "video.other",
+						// 	},
+						// )
+						// fields = append(
+						// 	fields, indexField{
+						// 		tag:     "video",
+						// 		content: videoUrl,
+						// 	},
+						// )
 						fields = append(
 							fields, indexField{
 								tag:     "description",
 								content: "Weblens file share",
 							},
 						)
-						fields = append(
-							fields, indexField{
-								tag:     "video:type",
-								content: "text/html",
-							},
-						)
-						// data = addIndexTag("video:secure_url", videoUrl, data)
-
+						// fields = append(
+						// 	fields, indexField{
+						// 		tag:     "video:type",
+						// 		content: "text/html",
+						// 	},
+						// )
 					}
 				}
 			}

@@ -9,7 +9,7 @@ import { IconFolder, IconUpload } from '@tabler/icons-react'
 import { HandleDrop, HandleUploadButton } from './FileBrowserLogic'
 
 import './style/fileBrowserStyle.scss'
-import { ShareInfo } from '../../Share/Share'
+import { ShareInfo } from '../../Share/share'
 import { useSessionStore } from '../../components/UserInfo'
 import { DraggingStateT } from '../../Files/FBTypes'
 

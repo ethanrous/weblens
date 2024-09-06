@@ -8,8 +8,10 @@ import (
 	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/service"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/webdav"
 )
 
 // var Server *http.Server
@@ -31,8 +33,8 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 
 	srv.router.Use(withServices(services))
 	srv.router.Use(gin.Recovery())
-	srv.router.Use(log.ApiLogger(env.IsDevMode()))
-	srv.router.Use(CORSMiddleware())
+	srv.router.Use(log.ApiLogger(env.GetLogLevel()))
+	// srv.router.Use(CORSMiddleware())
 
 	services.Server = srv
 
@@ -124,9 +126,10 @@ func (s *Server) UseApi() {
 	api.POST("/user", createUser)
 	api.PATCH("/user/:username/password", updateUserPassword)
 
-	// ShareId
+	// Share
 	api.POST("/share/files", createFileShare)
-	api.PATCH("/share/:shareId/accessors", addUserToFileShare)
+	api.PATCH("/share/:shareId/accessors", patchShareAccessors)
+	api.PATCH("/share/:shareId/public", setSharePublic)
 	api.DELETE("/share/:shareId", deleteShare)
 
 	// Album
@@ -148,6 +151,28 @@ func (s *Server) UseApi() {
 	api.GET("/static/:filename", serveStaticContent)
 
 	s.UseAdmin()
+}
+
+func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCaster) {
+	fs := service.WebdavFs{
+		WeblensFs: fileService,
+		Caster:    caster,
+	}
+
+	handler := &webdav.Handler{
+		FileSystem: fs,
+		// FileSystem: webdav.Dir(env.GetMediaRoot()),
+		LockSystem: webdav.NewMemLS(),
+		Logger: func(r *http.Request, err error) {
+			if err != nil {
+				log.Error.Printf("WEBDAV [%s]: %s, ERROR: %s\n", r.Method, r.URL, err)
+			} else {
+				log.Info.Printf("WEBDAV [%s]: %s \n", r.Method, r.URL)
+			}
+		},
+	}
+
+	go http.ListenAndServe(":8081", handler)
 }
 
 func (s *Server) UseCore() {

@@ -36,10 +36,10 @@ type WorkerPool struct {
 	registeredJobs map[string]TaskHandler
 
 	taskMu  sync.Mutex
-	taskMap map[TaskId]*Task
+	taskMap map[Id]*Task
 
 	poolMu  sync.Mutex
-	poolMap map[TaskId]*TaskPool
+	poolMap map[Id]*TaskPool
 
 	taskStream   workChannel
 	taskBufferMu sync.Mutex
@@ -56,12 +56,12 @@ func NewWorkerPool(initWorkers int, logLevel int) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
-	log.Debug.Printf("Starting new worker pool with %d workers", initWorkers)
+	log.Trace.Printf("Starting new worker pool with %d workers", initWorkers)
 
 	newWp := &WorkerPool{
 		registeredJobs: map[string]TaskHandler{},
-		taskMap:        map[TaskId]*Task{},
-		poolMap:        map[TaskId]*TaskPool{},
+		taskMap: map[Id]*Task{},
+		poolMap: map[Id]*TaskPool{},
 
 		busyCount: &atomic.Int64{},
 
@@ -116,7 +116,7 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) *TaskPool {
 	return tp
 }
 
-func (wp *WorkerPool) GetTaskPool(tpId TaskId) *TaskPool {
+func (wp *WorkerPool) GetTaskPool(tpId Id) *TaskPool {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
 	return wp.poolMap[tpId]
@@ -157,11 +157,11 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		pool = wp.GetTaskPool("GLOBAL")
 	}
 
-	var taskId TaskId
+	var taskId Id
 	if meta == nil {
-		taskId = TaskId(globbyHash(8, time.Now().String()))
+		taskId = Id(globbyHash(8, time.Now().String()))
 	} else {
-		taskId = TaskId(globbyHash(8, meta.MetaString()))
+		taskId = Id(globbyHash(8, meta.MetaString()))
 	}
 
 	t := wp.GetTask(taskId)
@@ -348,7 +348,7 @@ func (wp *WorkerPool) Stop() {
 	}
 }
 
-func (wp *WorkerPool) GetTask(taskId TaskId) *Task {
+func (wp *WorkerPool) GetTask(taskId Id) *Task {
 	wp.taskMu.Lock()
 	t := wp.taskMap[taskId]
 	wp.taskMu.Unlock()
@@ -361,7 +361,7 @@ func (wp *WorkerPool) addTask(task *Task) {
 	wp.taskMap[task.TaskId()] = task
 }
 
-func (wp *WorkerPool) removeTask(taskId TaskId) {
+func (wp *WorkerPool) removeTask(taskId Id) {
 	wp.taskMu.Lock()
 	t := wp.taskMap[taskId]
 	wp.taskMu.Unlock()
@@ -565,8 +565,8 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	}
 
 	newQueue := &TaskPool{
-		id:           TaskId(tpId.String()),
-		tasks:        map[TaskId]*Task{},
+		id:    Id(tpId.String()),
+		tasks: map[Id]*Task{},
 		workerPool:   wp,
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),
@@ -579,7 +579,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	return newQueue
 }
 
-func (wp *WorkerPool) removeTaskPool(tpId TaskId) {
+func (wp *WorkerPool) removeTaskPool(tpId Id) {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
 	delete(wp.poolMap, tpId)
@@ -640,8 +640,8 @@ type TaskService interface {
 	RegisterJob(jobName string, fn TaskHandler)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
 
-	GetTask(taskId TaskId) *Task
-	GetTaskPool(TaskId) *TaskPool
+	GetTask(taskId Id) *Task
+	GetTaskPool(Id) *TaskPool
 
 	DispatchJob(jobName string, meta TaskMetadata, pool *TaskPool) (*Task, error)
 }

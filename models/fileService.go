@@ -12,10 +12,7 @@ type FileService interface {
 	GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error)
 	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFileImpl, error)
 	GetMediaRoot() *fileTree.WeblensFileImpl
-	PathToFile(searchPath string, user *User, share *FileShare) (
-		*fileTree.WeblensFileImpl,
-		[]*fileTree.WeblensFileImpl, error,
-	)
+	PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error)
 
 	CreateFile(parent *fileTree.WeblensFileImpl, filename string) (*fileTree.WeblensFileImpl, error)
 	CreateFolder(parent *fileTree.WeblensFileImpl, foldername string, caster FileCaster) (
@@ -26,9 +23,9 @@ type FileService interface {
 	GetFileOwner(file *fileTree.WeblensFileImpl) *User
 	IsFileInTrash(file *fileTree.WeblensFileImpl) bool
 
-	MoveFiles(files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, caster FileCaster,) error
+	MoveFiles(files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, caster FileCaster) error
 	RenameFile(file *fileTree.WeblensFileImpl, newName string, caster FileCaster) error
-	MoveFileToTrash(file *fileTree.WeblensFileImpl, mover *User, share *FileShare, caster FileCaster) error
+	MoveFilesToTrash(file []*fileTree.WeblensFileImpl, mover *User, share *FileShare, caster FileCaster) error
 	ReturnFilesFromTrash(files []*fileTree.WeblensFileImpl, caster FileCaster) error
 	PermanentlyDeleteFiles(files []*fileTree.WeblensFileImpl, caster FileCaster) error
 

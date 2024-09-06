@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { ShareInfo, WeblensShare } from '../Share/Share'
 import { WeblensFile, WeblensFileParams } from '../Files/File'
 import { AlbumData, AuthHeaderT, TPDispatchT } from '../types/Types'
 import { humanFileSize } from '../util'
@@ -375,15 +374,6 @@ export async function NewWormhole(folderId: string, authHeader: AuthHeaderT) {
     return res
 }
 
-export async function DeleteShare(shareId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
-    const res = await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'DELETE',
-    })
-    return res
-}
-
 export async function GetWormholeInfo(
     shareId: string,
     authHeader: AuthHeaderT
@@ -391,67 +381,6 @@ export async function GetWormholeInfo(
     const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
 
     return fetch(url.toString(), { headers: authHeader })
-}
-
-export async function shareFile(
-    file: WeblensFile,
-    isPublic: boolean,
-    users: string[] = [],
-    authHeader: AuthHeaderT
-): Promise<ShareInfo> {
-    const url = new URL(`${API_ENDPOINT}/share/files`)
-    const body = {
-        fileId: file.Id(),
-        users: users,
-        public: isPublic,
-    }
-    return await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'POST',
-        body: JSON.stringify(body),
-    }).then((res) => res.json())
-}
-
-export async function setFileSharePublic(
-    shareId: string,
-    isPublic: boolean,
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}/public`)
-    const body = {
-        isPublic: isPublic,
-    }
-    return await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'PATCH',
-        body: JSON.stringify(body),
-    })
-}
-
-export async function addUsersToFileShare(
-    shareId: string,
-    users: string[] = [],
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}/accessors`)
-    const body = {
-        users: users,
-    }
-    return await fetch(url.toString(), {
-        headers: authHeader,
-        method: 'PATCH',
-        body: JSON.stringify(body),
-    })
-}
-
-export async function getFileShare(shareId: string, authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/file/share/${shareId}`)
-    return await fetch(url.toString(), { headers: authHeader })
-        .then((res) => res.json())
-        .then((j) => {
-            return new WeblensShare(j)
-        })
-        .catch((r) => Promise.reject(r))
 }
 
 export async function searchFolder(

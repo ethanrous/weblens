@@ -25,8 +25,8 @@ const (
 )
 
 type TaskSubscriber interface {
-	FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId)
-	TaskSubToPool(taskId task.TaskId, poolId task.TaskId)
+	FolderSubToPool(folderId fileTree.FileId, poolId task.Id)
+	TaskSubToPool(taskId task.Id, poolId task.Id)
 }
 
 type TaskDispatcher interface {

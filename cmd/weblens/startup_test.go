@@ -21,7 +21,7 @@ import (
 
 func TestStartupCore(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping core startup test in short mode")
+		t.Skipf("skipping %s in short mode", t.Name())
 	}
 
 	prevPort := env.GetRouterPort()
@@ -30,7 +30,7 @@ func TestStartupCore(t *testing.T) {
 	port := strconv.Itoa(8090 + (rand.Int() % 1000))
 	t.Setenv("SERVER_PORT", port)
 
-	config, err := env.ReadConfig("", os.Getenv("CONFIG_NAME"))
+	config, err := env.ReadConfig(env.GetConfigName())
 
 	err = setServerState(models.CoreServer)
 	if err != nil {
@@ -60,8 +60,12 @@ func TestStartupCore(t *testing.T) {
 }
 
 func TestStartupBackup(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping %s in short mode", t.Name())
+	}
+
 	if os.Getenv("REMOTE_TESTS") != "true" {
-		t.Skip("REMOTE_TESTS not set")
+		t.Skipf("skipping %s without REMOTE_TESTS set", t.Name())
 	}
 
 	prevPort := os.Getenv("SERVER_PORT")

@@ -14,12 +14,12 @@ import (
 )
 
 type TaskPool struct {
-	id TaskId
+	id Id
 
 	treatAsGlobal  bool
 	hasQueueThread bool
 
-	tasks    map[TaskId]*Task
+	tasks map[Id]*Task
 	taskLock sync.RWMutex
 
 	totalTasks     atomic.Int64
@@ -51,7 +51,7 @@ func (tp *TaskPool) GetWorkerPool() *WorkerPool {
 	return tp.workerPool
 }
 
-func (tp *TaskPool) ID() TaskId {
+func (tp *TaskPool) ID() Id {
 	return tp.id
 }
 
@@ -61,7 +61,7 @@ func (tp *TaskPool) addTask(task *Task) {
 	tp.tasks[task.taskId] = task
 }
 
-func (tp *TaskPool) RemoveTask(taskId TaskId) {
+func (tp *TaskPool) RemoveTask(taskId Id) {
 	tp.taskLock.Lock()
 	defer tp.taskLock.Unlock()
 	delete(tp.tasks, taskId)
@@ -79,7 +79,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 		// were queued, we do not wake the waiters
 		if uncompletedTasks == 0 && tp.allQueuedFlag.Load() {
 			if tp.waiterCount.Load() != 0 {
-				log.Debug.Println("Pool complete, waking sleepers!")
+				log.Trace.Println("Pool complete, waking sleepers!")
 				// TODO - move pool completion to cleanup function
 				// if tp.createdBy != nil && tp.createdBy.caster != nil {
 				// 	tp.createdBy.caster.PushPoolUpdate(tp, websocket.PoolCompleteEvent, nil)
@@ -372,7 +372,7 @@ type PoolStatus struct {
 }
 
 type Pool interface {
-	ID() TaskId
+	ID() Id
 
 	QueueTask(*Task) error
 
@@ -395,7 +395,7 @@ type Pool interface {
 	LockExit()
 	UnlockExit()
 
-	RemoveTask(TaskId)
+	RemoveTask(Id)
 
 	// NotifyTaskComplete(Task, websocket.BroadcasterAgent, ...any)
 

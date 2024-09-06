@@ -118,7 +118,12 @@ type albumCreateBody struct {
 }
 
 type userListBody struct {
-	Users []models.Username `json:"users"`
+	AddUsers    []models.Username `json:"addUsers"`
+	RemoveUsers []models.Username `json:"removeUsers"`
+}
+
+type sharePublicityBody struct {
+	Public bool `json:"public"`
 }
 
 type scanBody struct {

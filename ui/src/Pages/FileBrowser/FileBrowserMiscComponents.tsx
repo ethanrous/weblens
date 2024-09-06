@@ -1,8 +1,8 @@
 import { Divider, FileButton, Space, Text, Tooltip } from '@mantine/core'
+import { useMouse } from '@mantine/hooks'
 
 import {
     IconChevronRight,
-    IconDownload,
     IconFile,
     IconFileZip,
     IconFolder,
@@ -15,32 +15,20 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
-import React, {
-    DragEventHandler,
-    memo,
-    useContext,
-    useMemo,
-    useState,
-} from 'react'
+import React, { DragEventHandler, memo, useMemo, useState } from 'react'
 import { useResize } from '../../components/hooks'
 
 import './style/fileBrowserStyle.scss'
-import { WebsocketContext } from '../../Context'
+import { useSessionStore } from '../../components/UserInfo'
+import WeblensButton from '../../components/WeblensButton'
+import { DraggingStateT } from '../../Files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '../../Files/File'
-import { DraggingStateT, TaskProgContext } from '../../Files/FBTypes'
+import { useMediaStore } from '../../Media/MediaStateControl'
+import { MediaImage } from '../../Media/PhotoContainer'
 import { UserInfoT } from '../../types/Types'
 import { friendlyFolderName, humanFileSize } from '../../util'
-import {
-    downloadSelected,
-    handleDragOver,
-    HandleUploadButton,
-} from './FileBrowserLogic'
-import { MediaImage } from '../../Media/PhotoContainer'
-import WeblensButton from '../../components/WeblensButton'
-import { useMouse } from '@mantine/hooks'
 import { useFileBrowserStore } from './FBStateControl'
-import { useSessionStore } from '../../components/UserInfo'
-import { useMediaStore } from '../../Media/MediaStateControl'
+import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
 
 export const TransferCard = ({
     action,

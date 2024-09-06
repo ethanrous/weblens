@@ -25,7 +25,7 @@ func init() {
 	log.SetLogLevel(log.DEBUG)
 
 	var err error
-	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName()+"-test")
+	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
 	if err != nil {
 		panic(err)
 	}
@@ -36,6 +36,9 @@ func init() {
 }
 
 func TestScanFile(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping %s in short mode", t.Name())
+	}
 	t.Parallel()
 
 	col := mondb.Collection(t.Name())
@@ -79,6 +82,9 @@ func TestScanFile(t *testing.T) {
 }
 
 func TestScanDirectory(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping %s in short mode", t.Name())
+	}
 	t.Parallel()
 
 	col := mondb.Collection(t.Name())

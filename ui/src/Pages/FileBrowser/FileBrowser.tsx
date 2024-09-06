@@ -26,7 +26,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
     CreateFolder,
     GetFileInfo,
-    getFileShare,
     GetFolderData,
     getPastFolderInfo,
     moveFiles,
@@ -93,8 +92,9 @@ import { useShallow } from 'zustand/react/shallow'
 import { useSessionStore } from '../../components/UserInfo'
 import SearchDialogue from './SearchDialogue'
 import { MediaImage } from '../../Media/PhotoContainer'
-import WeblensMedia from '../../Media/Media'
+import WeblensMedia, { MediaDataT } from '../../Media/Media'
 import { useMediaStore } from '../../Media/MediaStateControl'
+import { getFileShare } from '../../Share/shareQuery'
 
 function PasteImageDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -606,11 +606,6 @@ function EmptySearch() {
 
 const SingleFile = memo(
     ({ file }: { file: WeblensFile }) => {
-        // const [containerRef, setContainerRef] = useState<HTMLDivElement>()
-        const mediaData = useMediaStore((state) =>
-            state.mediaMap.get(file.GetMediaId())
-        )
-
         if (!file.Id()) {
             return (
                 <NotFound
@@ -877,7 +872,6 @@ const FileBrowser = () => {
         setSelected,
         setFilesData,
         setBlockFocus,
-        setPresentationTarget,
     } = useFileBrowserStore()
     const fbLocationContext = useFileBrowserStore(
         useShallow((state) => ({
@@ -939,7 +933,7 @@ const FileBrowser = () => {
         }
 
         if (mode === FbModeT.share && shareId && !contentId) {
-            getFileShare(shareId, authHeader).then((s) => {
+            getFileShare(shareId).then((s) => {
                 nav(`/files/share/${shareId}/${s.GetFileId()}`)
             })
         } else {
@@ -1006,7 +1000,7 @@ const FileBrowser = () => {
             )
 
             setSearch(searchQuery)
-            setFilesData(folderData, searchResults, [], user)
+            setFilesData(folderData, searchResults, [], [], user)
             removeLoading('files')
             return
         }
@@ -1017,6 +1011,7 @@ const FileBrowser = () => {
             self?: WeblensFileParams
             children?: WeblensFileParams[]
             parents?: WeblensFileParams[]
+            medias?: MediaDataT[]
             error?: string
         }
         if (viewingPast !== null) {
@@ -1045,6 +1040,7 @@ const FileBrowser = () => {
                 fileData.self,
                 fileData.children,
                 fileData.parents,
+                fileData.medias,
                 user
             )
         }

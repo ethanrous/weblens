@@ -169,7 +169,7 @@ func (us *UserServiceImpl) SearchByUsername(searchString string) (iter.Seq[*mode
 
 	return func(yield func(*models.User) bool) {
 		for _, username := range users {
-			u := us.Get(models.Username(username.Username))
+			u := us.Get(username.Username)
 			if !yield(u) {
 				return
 			}

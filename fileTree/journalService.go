@@ -3,6 +3,7 @@ package fileTree
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"slices"
 	"sync"
 	"time"
@@ -143,6 +144,8 @@ func (j *JournalServiceImpl) GetAllLifetimes() []*Lifetime {
 }
 
 func (j *JournalServiceImpl) LogEvent(fe *FileEvent) {
+	log.Trace.Printf("Dropping off event with %d actions", len(fe.Actions))
+
 	if fe != nil && len(fe.Actions) != 0 {
 		j.eventStream <- fe
 	}
@@ -173,7 +176,7 @@ func (j *JournalServiceImpl) GetLatestAction() (*FileAction, error) {
 
 }
 
-func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFileImpl, time time.Time) (
+func (j *JournalServiceImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) (
 	[]*WeblensFileImpl, error,
 ) {
 	actions, err := getActionsByPath(folder.GetPortablePath(), j.col)
@@ -183,58 +186,37 @@ func (j *JournalServiceImpl) GetPastFolderInfo(folder *WeblensFileImpl, time tim
 
 	actionsMap := map[string]*FileAction{}
 	for _, action := range actions {
-		if action.GetTimestamp().After(time) {
+		if action.GetTimestamp().UnixMilli() >= time.UnixMilli() || action.GetLifetimeId() == folder.ID() {
 			continue
 		}
-		var path string
-		switch action.GetActionType() {
-		case FileCreate:
-			path = action.GetDestinationPath()
-		case FileMove:
-			path = action.GetOriginPath()
-		case FileDelete:
-			path = action.GetOriginPath()
-		}
-		if existingAction, ok := actionsMap[path]; ok {
-			if action.GetTimestamp().After(existingAction.GetTimestamp()) {
-				actionsMap[path] = action
+
+		if _, ok := actionsMap[action.LifeId]; !ok {
+			if action.ParentId == folder.ID() {
+				actionsMap[action.LifeId] = action
+			} else {
+				actionsMap[action.LifeId] = nil
 			}
-		} else {
-			actionsMap[path] = action
 		}
 	}
 
 	children := make([]*WeblensFileImpl, 0, len(actionsMap))
 	for _, action := range actionsMap {
-		children = append(children, j.fileTree.Get(action.LifeId))
-		// isDir := strings.HasSuffix(action.GetDestinationPath(), "/")
-		// filename := filepath.Base(action.GetDestinationPath())
-		// m := types.SERV.MediaRepo.Get(j.lifetimes[action.GetLifetimeId()].GetContentId())
-		//
-		// var displayable bool
-		// if m != nil && m.GetMediaType() != nil {
-		// 	displayable = m.GetMediaType().IsDisplayable()
-		// }
-		//
-		// infos = append(
-		// 	infos,
-		// 	weblens.FileInfo{
-		// 		Id:             action.GetDestinationId(),
-		// 		Displayable:    displayable,
-		// 		IsDir:          isDir,
-		// 		Modifiable:     false,
-		// 		Size:           action.GetSize(),
-		// 		ModTime:        action.GetTimestamp().UnixMilli(),
-		// 		Filename:       filename,
-		// 		ParentFolderId: action.GetParentId(),
-		// 		MediaData:      m,
-		// 		Owner:          "",
-		// 		PathFromHome:   action.GetDestinationPath(),
-		// 		ShareId:        "",
-		// 		Children:       nil,
-		// 		PastFile:       true,
-		// 	},
-		// )
+		if action == nil {
+			continue
+		}
+
+		newChild := NewWeblensFile(
+			action.GetLifetimeId(), filepath.Base(action.DestinationPath), folder,
+			action.DestinationPath[len(action.DestinationPath)-1] == '/',
+		)
+		newChild.setModTime(time)
+		newChild.setPastFile(true)
+		newChild.size.Store(action.Size)
+		newChild.contentId = j.lifetimes[action.LifeId].ContentId
+
+		children = append(
+			children, newChild,
+		)
 	}
 
 	return children, nil
@@ -347,12 +329,9 @@ func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
 
 	var updated []*Lifetime
 
-	for _, action := range event.GetActions() {
+	for _, action := range actions {
 		if action.GetFile() != nil {
-			size, err := action.GetFile().Size()
-			if err != nil {
-				return err
-			}
+			size := action.GetFile().Size()
 			action.SetSize(size)
 		}
 
@@ -364,22 +343,8 @@ func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
 			}
 
 			if newL == nil {
-				return errors.New("failed to create new lifetime")
+				return werror.Errorf("failed to create new lifetime")
 			}
-
-			// f := types.SERV.FileTree.Get(action.GetDestinationId())
-			// sz, _ := f.Size()
-			// if !f.IsDir() && sz != 0 {
-			// 	contentId := f.GetContentId()
-			// 	if contentId == "" {
-			// 		return errors.New(
-			// 			fmt.Sprintln(
-			// 				"No content ID in FileCreate lifetime update", action.GetDestinationPath(),
-			// 			),
-			// 		)
-			// 	}
-			// 	newL.SetContentId(contentId)
-			// }
 
 			j.lifetimeMapLock.Lock()
 			j.lifetimes[newL.ID()] = newL
@@ -402,15 +367,17 @@ func (j *JournalServiceImpl) handleFileEvent(event *FileEvent) error {
 		}
 	}
 
+	log.Trace.Printf("Updating %d lifetimes", len(updated))
+
 	for _, lt := range updated {
 		f := j.fileTree.Get(lt.ID())
 		if f != nil {
-			sz, _ := f.Size()
+			sz := f.Size()
 			if lt.GetContentId() == "" && !f.IsDir() && sz != 0 {
-				return errors.New("No content ID in lifetime update")
+				return werror.Errorf("No content ID in lifetime update")
 			}
 		} else if lt.GetLatestAction().GetActionType() != FileDelete {
-			return errors.New("Could not find file for non-delete lifetime update")
+			return werror.Errorf("Could not find file for non-delete lifetime update")
 		}
 		filter := bson.M{"_id": lt.ID()}
 		update := bson.M{"$set": lt}
@@ -451,17 +418,18 @@ func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileActio
 			},
 		},
 		bson.D{{"$replaceRoot", bson.D{{"newRoot", "$actions"}}}},
+		bson.D{{"$sort", bson.D{{"timestamp", -1}}}},
 	}
 
 	ret, err := col.Aggregate(context.TODO(), pipe)
 	if err != nil {
-		return nil, err
+		return nil, werror.WithStack(err)
 	}
 
 	var target []*FileAction
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, err
+		return nil, werror.WithStack(err)
 	}
 
 	return target, nil
@@ -481,13 +449,13 @@ func getLifetimesSince(date time.Time, col *mongo.Collection) ([]*Lifetime, erro
 	}
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
-		return nil, err
+		return nil, werror.WithStack(err)
 	}
 
 	var target []*Lifetime
 	err = ret.All(context.Background(), &target)
 	if err != nil {
-		return nil, err
+		return nil, werror.WithStack(err)
 	}
 
 	return target, nil
@@ -506,7 +474,7 @@ type JournalService interface {
 	LogEvent(fe *FileEvent)
 
 	GetActionsByPath(WeblensFilepath) ([]*FileAction, error)
-	GetPastFolderInfo(folder *WeblensFileImpl, time time.Time) ([]*WeblensFileImpl, error)
+	GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) ([]*WeblensFileImpl, error)
 	GetLatestAction() (*FileAction, error)
 	GetLifetimesSince(date time.Time) ([]*Lifetime, error)
 

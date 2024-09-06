@@ -398,7 +398,7 @@ type MediaService interface {
 	SetMediaLiked(mediaId ContentId, liked bool, username Username) error
 }
 
-type ContentId string
+type ContentId = string
 type MediaQuality string
 
 const (

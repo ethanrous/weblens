@@ -34,9 +34,7 @@ func (mfs *MockFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
 	panic("implement me")
 }
 
-func (mfs *MockFileService) PathToFile(
-	searchPath string, user *models.User, share *models.FileShare,
-) (*fileTree.WeblensFileImpl, []*fileTree.WeblensFileImpl, error) {
+func (mfs *MockFileService) PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error) {
 	// TODO implement me
 	panic("implement me")
 }
@@ -93,8 +91,8 @@ func (mfs *MockFileService) RenameFile(file *fileTree.WeblensFileImpl, newName s
 	panic("implement me")
 }
 
-func (mfs *MockFileService) MoveFileToTrash(
-	file *fileTree.WeblensFileImpl, mover *models.User, share *models.FileShare, caster models.FileCaster,
+func (mfs *MockFileService) MoveFilesToTrash(
+	file []*fileTree.WeblensFileImpl, mover *models.User, share *models.FileShare, caster models.FileCaster,
 ) error {
 	return nil
 }

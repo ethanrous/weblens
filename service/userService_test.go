@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 
@@ -200,58 +201,57 @@ func TestUserServiceImpl_Del(t *testing.T) {
 	assert.Nil(t, noUser)
 }
 
-func TestUserServiceImpl_GenerateToken(t *testing.T) {
-
-	// type args struct {
-	// 	user *models.User
-	// }
-	// tests := []struct {
-	// 	name    string
-	// 	fields  fields
-	// 	args    args
-	// 	want    string
-	// 	wantErr assert.ErrorAssertionFunc
-	// }{
-	// 	// TODO: Add test cases.
-	// }
-	// for _, tt := range tests {
-	// 	t.Run(
-	// 		tt.name, func(t *testing.T) {
-	// 			Test
-	// 			if !tt.wantErr(t, err, fmt.Sprintf("GenerateToken(%v)", tt.args.user)) {
-	// 				return
-	// 			}
-	// 			assert.Equalf(t, tt.want, got, "GenerateToken(%v)", tt.args.user)
-	// 		},
-	// 	)
-	// }
-}
-
 func TestUserServiceImpl_SearchByUsername(t *testing.T) {
+	t.Parallel()
 
-	// type args struct {
-	// 	searchString string
-	// }
-	// tests := []struct {
-	// 	name    string
-	// 	fields  fields
-	// 	args    args
-	// 	want    iter.Seq[*models.User]
-	// 	wantErr assert.ErrorAssertionFunc
-	// }{
-	// 	// TODO: Add test cases.
-	// }
-	// for _, tt := range tests {
-	// 	t.Run(
-	// 		tt.name, func(t *testing.T) {
-	// 			Test
-	// 			if !tt.wantErr(t, err, fmt.Sprintf("SearchByUsername(%v)", tt.args.searchString)) {
-	// 				return
-	// 			}
-	// 			assert.Equalf(t, tt.want, got, "SearchByUsername(%v)", tt.args.searchString)
-	// 		},
-	// 	)
-	// }
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
+
+	userService, err := NewUserService(col)
+	if err != nil {
+		panic(err)
+	}
+
+	stanUser, err := models.NewUser("stan", testUser1Pass, false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	err = userService.Add(stanUser)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	blanUser, err := models.NewUser("blan", testUser1Pass, false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+	err = userService.Add(blanUser)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	userIter, err := userService.SearchByUsername("st")
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	userResults := slices.Collect(userIter)
+	assert.Equal(t, 1, len(userResults))
+	if len(userResults) != 0 {
+		assert.Equal(t, "stan", userResults[0].Username)
+	}
+
+	userIter2, err := userService.SearchByUsername("an")
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	userResults2 := slices.Collect(userIter2)
+	assert.Equal(t, 2, len(userResults2))
 }
 
 func TestUserServiceImpl_SetUserAdmin(t *testing.T) {

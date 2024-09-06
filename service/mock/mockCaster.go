@@ -39,7 +39,7 @@ func (m *MockCaster) IsBuffered() bool {
 	return false
 }
 
-func (m *MockCaster) FolderSubToTask(folder fileTree.FileId, taskId task.TaskId) {}
+func (m *MockCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {}
 
 func (m *MockCaster) DisableAutoFlush() {}
 

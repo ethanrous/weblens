@@ -73,7 +73,7 @@ func (c *SimpleCaster) IsEnabled() bool {
 func (c *SimpleCaster) PushWeblensEvent(eventTag string) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
-		SubscribeKey:  SubId("WEBLENS"),
+		SubscribeKey: "WEBLENS",
 		BroadcastType: ServerEvent,
 	}
 
@@ -86,8 +86,8 @@ func (c *SimpleCaster) PushTaskUpdate(task *task.Task, event string, result task
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      string(event),
-		SubscribeKey:  SubId(task.TaskId()),
+		EventTag:     event,
+		SubscribeKey: task.TaskId(),
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
@@ -109,8 +109,8 @@ func (c *SimpleCaster) PushPoolUpdate(
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      string(event),
-		SubscribeKey:  SubId(pool.ID()),
+		EventTag:     event,
+		SubscribeKey: pool.ID(),
 		Content:       WsC(result),
 		TaskType:      pool.CreatedInTask().JobName(),
 		BroadcastType: TaskSubscribe,
@@ -127,7 +127,7 @@ func (c *SimpleCaster) PushShareUpdate(username Username, newShareInfo Share) {
 
 	msg := WsResponseInfo{
 		EventTag:      "share_updated",
-		SubscribeKey:  SubId(username),
+		SubscribeKey: username,
 		Content:       WsC{"newShareInfo": newShareInfo},
 		BroadcastType: UserSubscribe,
 	}
@@ -142,7 +142,7 @@ func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
 
 	msg := WsResponseInfo{
 		EventTag:     "file_created",
-		SubscribeKey: SubId(newFile.GetParentId()),
+		SubscribeKey: newFile.GetParentId(),
 		Content:      WsC{"fileInfo": newFile},
 
 		BroadcastType: FolderSubscribe,
@@ -158,8 +158,8 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, med
 
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey:  SubId(updatedFile.ID()),
-		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
+		SubscribeKey: updatedFile.ID(),
+		Content:      WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -171,7 +171,7 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, med
 
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey: SubId(updatedFile.GetParentId()),
+		SubscribeKey: updatedFile.GetParentId(),
 		Content:       WsC{"fileInfo": updatedFile},
 		BroadcastType: FolderSubscribe,
 	}
@@ -186,7 +186,7 @@ func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postM
 
 	msg := WsResponseInfo{
 		EventTag:      "file_moved",
-		SubscribeKey:  SubId(preMoveFile.GetParentId()),
+		SubscribeKey: preMoveFile.GetParentId(),
 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
@@ -195,7 +195,7 @@ func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postM
 
 	msg = WsResponseInfo{
 		EventTag:      "file_moved",
-		SubscribeKey:  SubId(postMoveFile.GetParentId()),
+		SubscribeKey: postMoveFile.GetParentId(),
 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
@@ -210,7 +210,7 @@ func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 
 	msg := WsResponseInfo{
 		EventTag:      "file_deleted",
-		SubscribeKey:  SubId(deletedFile.GetParent().ID()),
+		SubscribeKey: deletedFile.GetParent().ID(),
 		Content:       WsC{"fileId": deletedFile.ID()},
 		BroadcastType: FolderSubscribe,
 	}
@@ -218,15 +218,15 @@ func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 	c.cm.Send(msg)
 }
 
-func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.TaskId) {
+func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
 	if !c.enabled {
 		return
 	}
 
-	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(folder))
+	subs := c.cm.GetSubscribers(FolderSubscribe, folder)
 
 	for _, s := range subs {
-		_, _, err := c.cm.Subscribe(s, SubId(taskId), TaskSubscribe, time.Now(), nil)
+		_, _, err := c.cm.Subscribe(s, taskId, TaskSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
@@ -308,7 +308,7 @@ func (c *BufferedCaster) IsEnabled() bool {
 func (c *BufferedCaster) PushWeblensEvent(eventTag string) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
-		SubscribeKey:  SubId("WEBLENS"),
+		SubscribeKey: "WEBLENS",
 		BroadcastType: ServerEvent,
 	}
 
@@ -322,7 +322,7 @@ func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
 
 	msg := WsResponseInfo{
 		EventTag:     "file_created",
-		SubscribeKey: SubId(newFile.GetParentId()),
+		SubscribeKey: newFile.GetParentId(),
 		Content:      WsC{"fileInfo": newFile},
 
 		BroadcastType: FolderSubscribe,
@@ -337,8 +337,8 @@ func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, m
 
 	msg := WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey:  SubId(updatedFile.ID()),
-		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
+		SubscribeKey: updatedFile.ID(),
+		Content:      WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -350,7 +350,7 @@ func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, m
 
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
-		SubscribeKey: SubId(updatedFile.GetParentId()),
+		SubscribeKey: updatedFile.GetParentId(),
 		Content:      WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
@@ -365,7 +365,7 @@ func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, pos
 
 	msg := WsResponseInfo{
 		EventTag:      "file_moved",
-		SubscribeKey:  SubId(preMoveFile.GetParentId()),
+		SubscribeKey: preMoveFile.GetParentId(),
 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
@@ -374,7 +374,7 @@ func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, pos
 
 	msg = WsResponseInfo{
 		EventTag:      "file_moved",
-		SubscribeKey:  SubId(postMoveFile.GetParentId()),
+		SubscribeKey: postMoveFile.GetParentId(),
 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
@@ -389,7 +389,7 @@ func (c *BufferedCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 
 	msg := WsResponseInfo{
 		EventTag:      "file_deleted",
-		SubscribeKey:  SubId(deletedFile.GetParent().ID()),
+		SubscribeKey: deletedFile.GetParent().ID(),
 		Content:       WsC{"fileId": deletedFile.ID()},
 		BroadcastType: FolderSubscribe,
 	}
@@ -403,8 +403,8 @@ func (c *BufferedCaster) PushTaskUpdate(task *task.Task, event string, result ta
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      string(event),
-		SubscribeKey:  SubId(task.TaskId()),
+		EventTag:     event,
+		SubscribeKey: task.TaskId(),
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
@@ -413,9 +413,9 @@ func (c *BufferedCaster) PushTaskUpdate(task *task.Task, event string, result ta
 	c.bufferAndFlush(msg)
 
 	msg = WsResponseInfo{
-		EventTag:      string(event),
-		SubscribeKey:  SubId(task.GetTaskPool().GetRootPool().ID()),
-		Content:       WsC(result),
+		EventTag:     event,
+		SubscribeKey: task.GetTaskPool().GetRootPool().ID(),
+		Content:      result,
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
 	}
@@ -433,8 +433,8 @@ func (c *BufferedCaster) PushPoolUpdate(
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      string(event),
-		SubscribeKey:  SubId(pool.ID()),
+		EventTag:     event,
+		SubscribeKey: pool.ID(),
 		Content:       WsC(result),
 		TaskType:      pool.CreatedInTask().JobName(),
 		BroadcastType: TaskSubscribe,
@@ -450,7 +450,7 @@ func (c *BufferedCaster) PushShareUpdate(username Username, newShareInfo Share) 
 
 	msg := WsResponseInfo{
 		EventTag:      "share_updated",
-		SubscribeKey:  SubId(username),
+		SubscribeKey: username,
 		Content:       WsC{"newShareInfo": newShareInfo},
 		BroadcastType: "user",
 	}
@@ -477,11 +477,11 @@ func (c *BufferedCaster) DisableAutoFlush() {
 }
 
 // FolderSubToTask Subscribes any subscribers of a folder to a task (presumably one that pertains to that folder)
-func (c *BufferedCaster) FolderSubToTask(folder fileTree.FileId, taskId task.TaskId) {
-	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(folder))
+func (c *BufferedCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
+	subs := c.cm.GetSubscribers(FolderSubscribe, folder)
 
 	for _, s := range subs {
-		_, _, err := c.cm.Subscribe(s, SubId(taskId), TaskSubscribe, time.Now(), nil)
+		_, _, err := c.cm.Subscribe(s, taskId, TaskSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
@@ -546,7 +546,7 @@ type Broadcaster interface {
 	IsEnabled() bool
 	IsBuffered() bool
 
-	FolderSubToTask(folder fileTree.FileId, taskId task.TaskId)
+	FolderSubToTask(folder fileTree.FileId, taskId task.Id)
 	// UnsubTask(task *task.Task)
 	DisableAutoFlush()
 	AutoFlushEnable()
@@ -560,7 +560,7 @@ type Broadcaster interface {
 
 // WsC is the generic WebSocket Content container
 type WsC map[string]any
-type SubId string
+type SubId = string
 type WsAction string
 type ClientType string
 

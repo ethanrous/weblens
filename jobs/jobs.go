@@ -124,10 +124,7 @@ func CreateZip(t *task.Task) {
 
 	bytesTotal := internal.Reduce(
 		zipMeta.Files, func(file *fileTree.WeblensFileImpl, acc int64) int64 {
-			num, err := file.Size()
-			if err != nil {
-				log.ShowErr(err)
-			}
+			num := file.Size()
 			return acc + num
 		}, 0,
 	)
@@ -438,10 +435,7 @@ func GatherFilesystemStats(t *task.Task) {
 			return nil
 		}
 		index := strings.LastIndex(wf.Filename(), ".")
-		size, err := wf.Size()
-		if err != nil {
-			return err
-		}
+		size := wf.Size()
 		if index == -1 {
 			filetypeSizeMap["other"] += size
 		} else {
@@ -478,10 +472,7 @@ func HashFile(t *task.Task) {
 		t.Success("Skipping file which already has content ID", meta.File.GetAbsPath())
 	}
 
-	fileSize, err := meta.File.Size()
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
+	fileSize := meta.File.Size()
 
 	if fileSize == 0 {
 		t.Success("Skipping file with no content: ", meta.File.GetAbsPath())

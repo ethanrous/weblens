@@ -8,9 +8,10 @@ import (
 	"github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-func TestShareServiceImplBasic(t *testing.T) {
+func TestShareServiceImpl_Add(t *testing.T) {
 	t.Parallel()
 
 	col := mondb.Collection(t.Name())
@@ -25,15 +26,132 @@ func TestShareServiceImplBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
 	ft := mock.NewMemFileTree("MEDIA")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
 
 	sh := models.NewFileShare(newDir, billUser, []*models.User{dipperUser}, false, false)
 
 	err = ss.Add(sh)
+	assert.NoError(t, err)
+
+	// Share does not expand permissions, it has no users, it is not public, etc.
+	// So this should not be allowed to be added
+	badShare := models.NewFileShare(newDir, billUser, nil, false, false)
+
+	err = ss.Add(badShare)
+	assert.Error(t, err)
+}
+
+func TestShareServiceImpl_Del(t *testing.T) {
+	t.Parallel()
+
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
+
+	ss, err := service.NewShareService(col)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
+
+	ft := mock.NewMemFileTree("MEDIA")
+	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
+
+	sh := models.NewFileShare(newDir, billUser, nil, true, false)
+
+	err = ss.Add(sh)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	assert.Equal(t, 1, ss.Size())
+	docs, err := col.CountDocuments(context.Background(), bson.M{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, int64(1), docs)
+
+	err = ss.Del(sh.ID())
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	assert.Equal(t, 0, ss.Size())
+	emptyDocs, err := col.CountDocuments(context.Background(), bson.M{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, int64(0), emptyDocs)
+}
+
+func TestShareServiceImpl_UpdateUsers(t *testing.T) {
+	t.Parallel()
+
+	col := mondb.Collection(t.Name())
+	err := col.Drop(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	defer col.Drop(context.Background())
+
+	ss, err := service.NewShareService(col)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	dipperUser, err := models.NewUser("dipperpines", "journalboy123", false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	ft := mock.NewMemFileTree("MEDIA")
+	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
+
+	sh := models.NewFileShare(newDir, billUser, nil, true, false)
+
+	err = ss.Add(sh)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	err = ss.AddUsers(sh, []*models.User{dipperUser})
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(sh.GetAccessors()))
+
+	err = ss.AddUsers(sh, []*models.User{dipperUser})
+	assert.Error(t, err)
+
+	err = ss.RemoveUsers(sh, []*models.User{dipperUser})
+	assert.NoError(t, err)
+
+	assert.Equal(t, 0, len(sh.GetAccessors()))
+
+	err = ss.RemoveUsers(sh, []*models.User{dipperUser})
+	assert.Error(t, err)
 }
 
 // func TestBackupBaseFile(t *testing.T) {

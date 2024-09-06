@@ -7,7 +7,7 @@ import {
 import { FbViewOptsT, UserInfoT } from '../../types/Types'
 import { DraggingStateT } from '../../Files/FBTypes'
 import { create, StateCreator } from 'zustand'
-import WeblensMedia from '../../Media/Media'
+import WeblensMedia, { MediaDataT } from '../../Media/Media'
 import { useMediaStore } from '../../Media/MediaStateControl'
 
 export enum FbModeT {
@@ -105,6 +105,7 @@ export interface FileBrowserStateT {
         self: WeblensFileParams,
         children: WeblensFileParams[],
         parents: WeblensFileParams[],
+        medias: MediaDataT[],
         user: UserInfoT
     ) => void
     setScrollTarget: (scrollTarget: string) => void
@@ -457,6 +458,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         selfInfo: WeblensFileParams,
         childrenInfo: WeblensFileParams[],
         parentsInfo: WeblensFileParams[],
+        mediaData: MediaDataT[],
         user: UserInfoT
     ) => {
         const parents = parentsInfo?.map((f) => new WeblensFile(f))
@@ -464,16 +466,10 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             parents.reverse()
         }
 
-        const medias: WeblensMedia[] = []
-        for (const child of childrenInfo) {
-            if (child.mediaData) {
-                medias.push(new WeblensMedia(child.mediaData))
-            }
+        if (mediaData) {
+            const medias = mediaData.map(m => new WeblensMedia(m))
+            useMediaStore.getState().addMedias(medias)
         }
-
-        const children = childrenInfo.map((c) => new WeblensFile(c))
-
-        useMediaStore.getState().addMedias(medias)
 
         const self = new WeblensFile(selfInfo)
         if (parents) {
@@ -491,7 +487,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         }
 
         set((state) => {
-            for (const newFileInfo of children) {
+            for (const newFileInfo of childrenInfo) {
                 if (
                     newFileInfo.id === state.contentId &&
                     state.folderInfo !== null
@@ -504,7 +500,9 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                     continue
                 }
                 if (newFileInfo.id === user.trashId) {
-                    state.trashDirSize = newFileInfo.size
+                    if (!newFileInfo.pastFile) {
+                        state.trashDirSize = newFileInfo.size
+                    }
                     continue
                 }
 

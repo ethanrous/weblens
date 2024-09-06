@@ -31,7 +31,7 @@ var upgrader = gorilla.Upgrader{
 
 func wsConnect(ctx *gin.Context) {
 	pack := getServices(ctx)
-	if pack.ClientService == nil {
+	if pack.ClientService == nil || pack.AccessService == nil {
 		ctx.Status(http.StatusServiceUnavailable)
 		return
 	}
@@ -168,7 +168,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			if complete {
 				pack.Caster.PushTaskUpdate(
-					pack.TaskService.GetTask(task.TaskId(subInfo.GetKey())), models.TaskCompleteEvent,
+					pack.TaskService.GetTask(task.Id(subInfo.GetKey())), models.TaskCompleteEvent,
 					result,
 				)
 			}
@@ -189,7 +189,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			if complete {
 				pack.Caster.PushTaskUpdate(
-					pack.TaskService.GetTask(task.TaskId(key)), models.TaskCompleteEvent,
+					pack.TaskService.GetTask(task.Id(key)), models.TaskCompleteEvent,
 					result,
 				)
 			}
@@ -263,7 +263,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	case models.CancelTask:
 		{
 			tpId := subInfo.GetKey()
-			taskPool := pack.TaskService.GetTaskPool(task.TaskId(tpId))
+			taskPool := pack.TaskService.GetTaskPool(task.Id(tpId))
 			if taskPool == nil {
 				c.Error(errors.New("could not find task pool to cancel"))
 				return

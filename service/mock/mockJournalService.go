@@ -36,7 +36,7 @@ func (h *HollowJournalService) GetActionsByPath(filepath fileTree.WeblensFilepat
 	return nil, nil
 }
 
-func (h *HollowJournalService) GetPastFolderInfo(folder *fileTree.WeblensFileImpl, time time.Time) (
+func (h *HollowJournalService) GetPastFolderChildren(folder *fileTree.WeblensFileImpl, time time.Time) (
 	[]*fileTree.WeblensFileImpl, error,
 ) {
 	return nil, nil

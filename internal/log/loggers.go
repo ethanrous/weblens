@@ -35,10 +35,10 @@ var Debug Logger = emptyLogger{}
 var Trace Logger = emptyLogger{}
 
 const (
-	ERRORS_ONLY = -1
-	DEFAULT     = 0
-	DEBUG       = 1
-	TRACE       = 2
+	QUIET   = -1
+	DEFAULT = 0
+	DEBUG   = 1
+	TRACE   = 2
 )
 
 var logLevel = 0
@@ -49,7 +49,7 @@ func SetLogLevel(level int) {
 	}
 	switch logLevel {
 	// Disable all loggers except for error
-	case ERRORS_ONLY:
+	case QUIET:
 		Info = log.New(io.Discard, "", 0)
 		Warning = log.New(io.Discard, "", 0)
 	// do nothing

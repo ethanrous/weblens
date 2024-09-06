@@ -45,6 +45,7 @@
     },
     "scripts": {
         "start": "vite",
+        "dev": "vite dev",
         "build": "vite build",
         "preview": "vite preview",
         "postbuild": "find ./dist/assets -type f \\( -name \\*.js -o -name \\*.css \\) -exec gzip {} \\; -exec mv {}.gz {} \\;",

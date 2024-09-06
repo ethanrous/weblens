@@ -191,10 +191,10 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		return
 	}
 
-	if m.Owner != u.GetUsername() {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
+	// if m.Owner != u.GetUsername() {
+	// 	ctx.Status(http.StatusNotFound)
+	// 	return
+	// }
 
 	if q == models.Video && !pack.MediaService.GetMediaType(m).IsVideo() {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "media type is not video"})

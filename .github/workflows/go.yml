@@ -74,7 +74,7 @@ jobs:
           cd ..
           export MEDIA_ROOT=$(mkdir -p ../test/media; cd ../test/media; pwd)
           export CACHES_ROOT=$(mkdir -p ../test/caches; cd ../test/caches; pwd)
-          CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
+          ./scripts/test.bash
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
@@ -84,7 +84,8 @@ jobs:
         if: ${{ inputs.remote_tests == true }}
         run: |
           source ./scripts/setupRemoteTests.bash
-          CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
+          ./scripts/test.bash
+#          CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v -race ./...
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}

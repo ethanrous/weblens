@@ -32,6 +32,11 @@ func TestAlbumServiceImpl_Add(t *testing.T) {
 		t.FailNow()
 	}
 
+	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
 	albs := NewAlbumService(col, &mock.MockMediaService{}, ss)
 
 	alb := models.NewAlbum("My precious photos", billUser)

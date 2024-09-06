@@ -43,7 +43,6 @@ func (s *sw) Lap(tag ...any) {
 		time: time.Now(),
 	}
 	s.laps = append(s.laps, l)
-	log.Trace.Println(l.tag)
 }
 
 func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
@@ -66,7 +65,7 @@ func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
 }
 
 func (s *sw) PrintResults(firstLapIsStart bool) {
-	if env.IsDevMode() {
+	if env.GetLogLevel() < 2 {
 		return
 	}
 

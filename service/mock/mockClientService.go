@@ -45,9 +45,9 @@ func (m *MockClientService) GetConnectedAdmins() []*models.WsClient {
 	panic("implement me")
 }
 
-func (m *MockClientService) FolderSubToPool(folderId fileTree.FileId, poolId task.TaskId) {}
+func (m *MockClientService) FolderSubToPool(folderId fileTree.FileId, poolId task.Id) {}
 
-func (m *MockClientService) TaskSubToPool(taskId task.TaskId, poolId task.TaskId) {}
+func (m *MockClientService) TaskSubToPool(taskId task.Id, poolId task.Id) {}
 
 func (m *MockClientService) Subscribe(
 	c *models.WsClient, key models.SubId, action models.WsAction, subTime time.Time, share models.Share,
