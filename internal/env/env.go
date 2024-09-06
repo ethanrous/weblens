@@ -234,6 +234,9 @@ func GetTestMediaPath() string {
 
 	testMediaPath, ok := config["testMediaPath"].(string)
 	if ok {
+		if testMediaPath[0] == '.' {
+			filepath.Join(GetAppRootDir(), testMediaPath)
+		}
 		return testMediaPath
 	}
 

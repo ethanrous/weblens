@@ -55,7 +55,7 @@ func TestStartupCore(t *testing.T) {
 	}
 
 	startup(config, services, server)
-	log.Debug.Println("Startup took", time.Since(start).Seconds())
+	log.Debug.Println("Startup took", time.Since(start))
 	assert.True(t, services.Loaded.Load())
 }
 
