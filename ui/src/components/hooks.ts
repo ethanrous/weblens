@@ -1,6 +1,6 @@
+import { fetchMediaTypes } from '@weblens/types/media/MediaQuery'
+import { mediaType } from '@weblens/types/Types'
 import { RefObject, useCallback, useEffect, useMemo, useState } from 'react'
-import { mediaType } from '../types/Types'
-import { fetchMediaTypes } from '../Media/MediaQuery'
 
 export const useResize = (
     elem: HTMLDivElement,

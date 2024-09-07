@@ -118,14 +118,14 @@ func (pfs *ProxyFileService) ReadFile(f *fileTree.WeblensFileImpl) (io.ReadClose
 	return resp.Body, nil
 }
 
-func (pfs *ProxyFileService) GetThumbFileName(filename string) (*fileTree.WeblensFileImpl, error) {
+func (pfs *ProxyFileService) GetMediaCacheByFilename(filename string) (*fileTree.WeblensFileImpl, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
 func (pfs *ProxyFileService) NewCacheFile(
-	contentId string, quality models.MediaQuality, pageNum int,
-) (fileTree.WeblensFile, error) {
+	media *models.Media, quality models.MediaQuality, pageNum int,
+) (*fileTree.WeblensFileImpl, error) {
 	return nil, nil
 }
 

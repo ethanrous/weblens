@@ -1,11 +1,15 @@
 #!/bin/bash
 set -e
 
-while getopts ":t:a:" opt; do
+local=false
+
+while getopts ":t:a:l" opt; do
   case $opt in
     t) docker_tag="$OPTARG"
     ;;
     a) arch="$OPTARG"
+    ;;
+    l) local=true
     ;;
     \?) echo "Invalid option -$OPTARG" >&2
     exit 1
@@ -31,7 +35,7 @@ then
 fi
 echo "Building for $arch"
 
-if [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2> /dev/null)" ]; then
+if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2> /dev/null)" ]; then
     echo "No weblens-go-build image found, attempting to build now..."
     sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
 fi
@@ -48,8 +52,12 @@ if [ ! -d ./build/bin ]; then
   mkdir -p ./build/bin
 fi
 
-sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
-"cd /source && export GIN_MODE=release && CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go"
+if [ $local == true ]; then
+  GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go
+else
+  sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
+  "cd /source && GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go"
+fi
 
 sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" -f ./docker/Dockerfile .
 

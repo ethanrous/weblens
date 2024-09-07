@@ -1,23 +1,23 @@
+import { useSessionStore } from '@weblens/components/UserInfo'
+import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    TasksProgressAction,
+    TasksProgressDispatch,
+} from '@weblens/pages/FileBrowser/TaskProgress'
+import { WeblensFileParams } from '@weblens/types/files/File'
+import WeblensMedia from '@weblens/types/media/Media'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { AuthHeaderT, UserInfoT } from '@weblens/types/Types'
 import { Dispatch, useCallback, useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
-import { AuthHeaderT, UserInfoT } from '../types/Types'
+import { create, StateCreator } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { API_WS_ENDPOINT } from './ApiEndpoint'
 import {
     downloadSingleFile,
     SubToFolder,
     UnsubFromFolder,
 } from './FileBrowserApi'
-import { WeblensFileParams } from '../Files/File'
-import {
-    TasksProgressAction,
-    TasksProgressDispatch,
-} from '../Pages/FileBrowser/TaskProgress'
-import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
-import { useShallow } from 'zustand/react/shallow'
-import { useSessionStore } from '../components/UserInfo'
-import { useMediaStore } from '../Media/MediaStateControl'
-import WeblensMedia from '../Media/Media'
-import { create, StateCreator } from 'zustand'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)

@@ -83,6 +83,9 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal Journal) (Fi
 	// go journal.FileWatcher()
 
 	event := tree.GetJournal().NewEvent()
+	if event.journal == nil {
+		event = nil
+	}
 	err := tree.loadFromRoot(event, hasher)
 	if err != nil {
 		return nil, err
@@ -106,18 +109,16 @@ func (ft *FileTreeImpl) SetJournal(j Journal) {
 }
 
 func (ft *FileTreeImpl) addInternal(id FileId, f *WeblensFileImpl) {
-	log.Trace.Println("[addInternal] Locking tree")
 	ft.fsTreeLock.Lock()
 	defer ft.fsTreeLock.Unlock()
 
-	log.Trace.Printf("Adding %s to tree", f.id)
+	log.Trace.Printf("Adding %s (%s) to file tree", f.filename, f.id)
 
 	// Do not use .ID() inside critical section, as it may need to use the locks
 	ft.fMap[id] = f
 	if f.id == "ROOT" {
 		ft.root = f
 	}
-	log.Trace.Println("[addInternal] Unocking tree")
 }
 
 func (ft *FileTreeImpl) deleteInternal(id FileId) {
@@ -582,8 +583,8 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 	}
 
 	log.Trace.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad))
-
 	for len(toLoad) != 0 {
+		// start := time.Now()
 		var fileToLoad *WeblensFileImpl
 
 		// Pop from slice of files to load
@@ -594,26 +595,31 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 
 		log.Trace.Printf("[loadFromRoot] Loading file [%s], %d others remain", fileToLoad.filename, len(toLoad))
 
-		if activeLt, ok := lifetimesByPath[fileToLoad.GetPortablePath().ToPortable()]; ok {
-			log.Trace.Printf("[loadFromRoot] Got existing lifetime: %s", activeLt.Id)
-			fileToLoad.setIdInternal(activeLt.ID())
-			if !fileToLoad.IsDir() {
-				fileToLoad.SetContentId(activeLt.ContentId)
+		if event != nil {
+			if activeLt, ok := lifetimesByPath[fileToLoad.GetPortablePath().ToPortable()]; ok {
+				log.Trace.Printf("[loadFromRoot] Got existing lifetime: %s", activeLt.Id)
+				fileToLoad.setIdInternal(activeLt.ID())
+				if !fileToLoad.IsDir() {
+					fileToLoad.SetContentId(activeLt.ContentId)
+				}
+			} else {
+				fileToLoad.setIdInternal(ft.GenerateFileId())
+				fileSize := fileToLoad.Size()
+
+				if !fileToLoad.IsDir() && fileSize != 0 {
+					log.Trace.Printf("[loadFromRoot] Hashing file %s", fileToLoad.id)
+					err = hasher.Hash(fileToLoad, event)
+					if err != nil {
+						return err
+					}
+				} else {
+					event.NewCreateAction(fileToLoad)
+				}
 			}
 		} else {
 			fileToLoad.setIdInternal(ft.GenerateFileId())
-			fileSize := fileToLoad.Size()
-
-			if !fileToLoad.IsDir() && fileSize != 0 {
-				log.Trace.Printf("[loadFromRoot] Hashing file %s", fileToLoad.id)
-				err = hasher.Hash(fileToLoad, event)
-				if err != nil {
-					return err
-				}
-			}
-			event.NewCreateAction(fileToLoad)
 		}
-
+		// log.Debug.Println(time.Since(start))
 		err = ft.Add(fileToLoad)
 		if err != nil {
 			return err
@@ -628,10 +634,10 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 			log.Trace.Printf("[loadFromRoot] Adding %d more children", len(children))
 			toLoad = append(toLoad, children...)
 		}
-
 	}
 
 	log.Trace.Printf("[loadFromRoot] Complete")
+	// log.Debug.Printf("Loaded %s file tree in %s", ft.rootAlias, time.Since(start))
 
 	return nil
 }

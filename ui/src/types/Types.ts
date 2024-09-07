@@ -1,9 +1,7 @@
-// Global Types
-
+import { TasksProgressAction } from '@weblens/pages/FileBrowser/TaskProgress'
+import { GalleryAction } from '@weblens/pages/Gallery/GalleryLogic'
+import WeblensMedia from '@weblens/types/media/Media'
 import { Dispatch } from 'react'
-import WeblensMedia from '../Media/Media'
-import { TasksProgressAction } from '../Pages/FileBrowser/TaskProgress'
-import { GalleryAction } from '../Pages/Gallery/GalleryLogic'
 
 export type AuthHeaderT = {
     Authorization: string

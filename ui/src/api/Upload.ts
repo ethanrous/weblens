@@ -1,7 +1,7 @@
-import API_ENDPOINT from './ApiEndpoint'
+import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStatus'
+import { AuthHeaderT } from '@weblens/types/Types'
 import axios from 'axios'
-import { AuthHeaderT } from '../types/Types'
-import { useUploadStatus } from '../Pages/FileBrowser/UploadStatus'
+import API_ENDPOINT from './ApiEndpoint'
 
 export type fileUploadMetadata = {
     file: File

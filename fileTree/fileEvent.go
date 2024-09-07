@@ -54,6 +54,8 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
+	log.Trace.Printf("Building create action for %s", file.Filename())
+
 	newAction := &FileAction{
 		LifeId:          file.ID(),
 		Timestamp:       time.Now(),

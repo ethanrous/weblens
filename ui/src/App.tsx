@@ -1,29 +1,27 @@
 import { MantineProvider } from '@mantine/core'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React, { Suspense, useEffect } from 'react'
+import { CookiesProvider } from 'react-cookie'
 import {
     BrowserRouter as Router,
     useLocation,
     useNavigate,
     useRoutes,
 } from 'react-router-dom'
-import ErrorBoundary, { ErrorDisplay } from './components/Error'
+import ErrorBoundary from './components/Error'
 
 import WeblensLoader from './components/Loading'
 import useR, { useSessionStore } from './components/UserInfo'
-
-import '@mantine/notifications/styles.css'
+import StartUp from './pages/Startup/StartupPage'
+import { fetchMediaTypes } from './types/media/MediaQuery'
+import { useMediaStore } from './types/media/MediaStateControl'
 import '@mantine/core/styles.css'
-import StartUp from './Pages/Startup/StartupPage'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { CookiesProvider } from 'react-cookie'
-import { fetchMediaTypes } from './Media/MediaQuery'
-import { useMediaStore } from './Media/MediaStateControl'
 
-const Gallery = React.lazy(() => import('./Pages/Gallery/Gallery'))
-const FileBrowser = React.lazy(() => import('./Pages/FileBrowser/FileBrowser'))
-const Wormhole = React.lazy(() => import('./Pages/FileBrowser/Wormhole'))
-const Login = React.lazy(() => import('./Pages/Login/Login'))
-const Setup = React.lazy(() => import('./Pages/Setup/Setup'))
+const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
+const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
+const Wormhole = React.lazy(() => import('./pages/FileBrowser/Wormhole'))
+const Login = React.lazy(() => import('./pages/Login/Login'))
+const Setup = React.lazy(() => import('./pages/Setup/Setup'))
 
 const saveMediaTypeMap = (setState) => {
     fetchMediaTypes().then((r) => {
@@ -131,7 +129,7 @@ const WeblensRoutes = () => {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <ErrorBoundary fallback={ErrorDisplay}>
+            <ErrorBoundary>
                 {server.started && user && <PageSwitcher />}
                 {!server.started && <StartUp />}
             </ErrorBoundary>

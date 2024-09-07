@@ -8,24 +8,24 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react'
-import React, { memo, useCallback, useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { UpdatePassword } from '../api/UserApi'
-import Admin from '../Pages/Admin Settings/Admin'
-import '../components/style.scss'
+import { UpdatePassword } from '@weblens/api/UserApi'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
+import Admin from '@weblens/pages/Admin Settings/Admin'
+import '@weblens/components/style.scss'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import {
     AuthHeaderT,
     LOGIN_TOKEN_COOKIE_KEY,
     UserInfoT,
     USERNAME_COOKIE_KEY,
-} from '../types/Types'
+} from '@weblens/types/Types'
+import React, { memo, useCallback, useEffect, useState } from 'react'
+import { useCookies } from 'react-cookie'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useKeyDown } from './hooks'
 import WeblensLoader from './Loading'
-import WeblensButton from './WeblensButton'
-import WeblensInput from './WeblensInput'
 import { useSessionStore } from './UserInfo'
-import { useCookies } from 'react-cookie'
-import { useMediaStore } from '../Media/MediaStateControl'
 
 type HeaderBarProps = {
     setBlockFocus: (block: boolean) => void

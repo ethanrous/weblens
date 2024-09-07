@@ -1,0 +1,294 @@
+@import "@weblens/components/theme";
+@import "@weblens/components/style";
+
+$button-margin: 4px;
+$button-padding: 8px;
+
+.weblens-button-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: $button-margin;
+    flex-shrink: 1;
+    overflow: visible;
+    max-width: max-content;
+    animation: fadeIn 200ms ease-in-out;
+
+    &[data-fill-width='true'] {
+        flex-grow: 1;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    &[data-text-on-hover='true'] {
+        transition: max-width 250ms ease-in-out;
+        &:hover {
+            max-width: max-content;
+        }
+    }
+}
+
+.weblens-button {
+    display: flex;
+    flex-shrink: 1;
+    font-size: 16px;
+    border-radius: 4px;
+    margin: $button-margin;
+    max-width: 100%;
+    min-height: 100%;
+    max-height: 100%;
+    width: max-content;
+    align-items: center;
+    padding: $button-padding;
+    cursor: pointer;
+    color: white;
+    font-weight: 500;
+    background-color: #3600cc;
+    outline-color: #4444ff00;
+    box-shadow: $hard-shadow-off;
+    overflow: hidden;
+    flex-grow: 0;
+    opacity: 100%;
+    transition:
+            background-color 200ms ease-in-out,
+            transform 200ms ease-in-out,
+            outline 200ms ease-in-out,
+            box-shadow 200ms ease-in-out;
+
+
+    &:hover {
+        box-shadow: $hard-shadow;
+        background-color: $dark-paper;
+        outline: 1px solid #4444ff;
+        transform: translateY(-1px);
+    }
+
+    &[data-subtle='true'] {
+        background-color: $dark-paper;
+    }
+
+    &[data-toggled='true'] {
+        background-color: $dark-paper;
+        //font-weight: 600;
+        background-color: #3600cc;
+        outline: 1px solid #3600cc00;
+        color: white;
+
+        &[data-repeat='true']:hover {
+            background-color: #3600cccc;
+        }
+
+        &[data-repeat='false'] {
+            cursor: default;
+            pointer-events: none;
+        }
+    }
+
+    &[data-toggled='false'] {
+        background-color: $dark-paper;
+        outline: 1px solid #3600cc;
+        &:hover {
+            color: white;
+            outline: 1px solid #4444ff;
+        }
+    }
+
+    &[data-fill-width='true'] {
+        flex-grow: 1;
+        width: 100%;
+    }
+
+    &[data-success='true'] {
+        background-color: #00b123;
+        outline: none;
+        cursor: default;
+        pointer-events: none;
+        box-shadow: $hard-shadow;
+    }
+
+    &[data-disabled='true'] {
+        box-shadow: $hard-shadow-off;
+        background-color: $disabled-grey;
+        pointer-events: none;
+        cursor: default;
+        color: $disabled-grey-text;
+        outline: 1px solid #3600cc00;
+    }
+
+    &[data-fail='true'] {
+        background-color: #ff3333;
+        cursor: default;
+        pointer-events: none;
+
+    }
+
+    &[data-danger='true'] {
+        background-color: $danger;
+        outline: 1px solid #ff444400;
+
+        &[data-subtle='true'] {
+            background-color: $danger-subtle;
+        }
+
+        &:hover {
+            background-color: $danger-subtle;
+            outline: 1px solid $danger;
+        }
+
+        &[data-disabled='true'] {
+            background-color: #521f22;
+            outline: 1px solid #ff333300;
+        }
+    }
+
+    &[data-center='true'] {
+        justify-content: center;
+    }
+
+    &[data-super='true']:hover {
+        animation: rainbow 15s ease-in-out infinite;
+        background: linear-gradient(
+            90deg,
+            #ff2400,
+            #e81d1d,
+            #e8b71d,
+            #e3e81d,
+            #1de840,
+            #1ddde8,
+            #2b1de8,
+            #dd00f3,
+            #dd00f3
+        );
+        background-size: 2000% 100%;
+        outline: 1px solid #00000000;
+        box-shadow: $hard-shadow;
+    }
+
+    [data-text-loaded='true'] & {
+        opacity: 100%;
+    }
+}
+
+@keyframes rainbow {
+    0% {
+        background-position: 75% 100%;
+    }
+    12.5% {
+        background-position: 100% 100%;
+    }
+    62.5% {
+        background-position: 0 100%;
+    }
+    100% {
+        background-position: 75% 100%;
+    }
+}
+
+.button-content {
+    display: flex;
+    position: relative;
+    flex-direction: row;
+    height: 100%;
+    width: max-content;
+    align-items: center;
+    flex-grow: 0;
+    opacity: 100%;
+    overflow: hidden;
+    transition: opacity 200ms ease-in-out;
+    width: max-content;
+
+    &[data-center='true'] {
+        width: 100%;
+        justify-content: center;
+    }
+
+    &[data-hidden='true'] {
+        pointer-events: none;
+        opacity: 0;
+    }
+
+    &[data-fill-width='true'] {
+        width: 100%;
+    }
+}
+
+.button-text-box {
+    display: flex;
+    position: relative;
+    flex-direction: column;
+    width: max-content;
+    height: max-content;
+    justify-content: center;
+    text-wrap: nowrap;
+    align-items: flex-start;
+    opacity: 100%;
+
+    &[data-center='true'] {
+        align-items: center;
+    }
+
+    &[data-show-text='false'] {
+        pointer-events: none;
+        position: absolute;
+        opacity: 0;
+    }
+}
+
+.button-text {
+    user-select: none;
+    width: max-content;
+    max-width: 100%;
+    height: max-content;
+    flex-shrink: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+
+    &[data-show-text='true'] {
+        opacity: 100%;
+        pointer-events: inherit;
+        display: block;
+    }
+
+    &:hover {
+        width: max-content;
+        max-width: 4000px;
+    }
+}
+
+.button-icon-box {
+    display: none;
+    flex-shrink: 0;
+    height: max-content;
+    max-height: max-content;
+    width: max-content;
+    align-items: center;
+    justify-content: center;
+    transition: margin-right 150ms ease-in-out, margin-left 150ms ease-in-out;
+
+    &[data-icon-side='right'] {
+        justify-content: right;
+    }
+
+    &[data-has-icon='true'] {
+        display: flex;
+
+        &[data-has-text='true'] {
+            margin-left: 4px;
+            margin-right: 4px;
+        }
+    }
+}
+
+.button-icon {
+    height: 100%;
+    width: 100%;
+    color: white;
+
+    [data-disabled='true'] & {
+        color: $disabled-grey-text;
+    }
+}

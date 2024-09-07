@@ -1,19 +1,16 @@
 import { Text } from '@mantine/core'
+import { useWebsocketStore } from '@weblens/api/Websocket'
+import WeblensButton from '@weblens/lib/WeblensButton'
 import { Component } from 'react'
-import WeblensButton from './WeblensButton'
 import { useNavigate } from 'react-router-dom'
-import { useWebsocketStore } from '../api/Websocket'
 
-class ErrorBoundary extends Component<
-    { children; fallback: (p) => JSX.Element },
-    { hasError: boolean }
-> {
+class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
     constructor(props) {
         super(props)
         this.state = { hasError: props.hasError }
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(_) {
         // Update state so the next render will show the fallback UI.
         return { hasError: true }
     }
@@ -23,7 +20,7 @@ class ErrorBoundary extends Component<
         this.setState({ hasError: false })
     }
 
-    componentDidCatch(error, info) {
+    componentDidCatch(error, _) {
         const wsSend = useWebsocketStore.getState().wsSend
         if (wsSend != null) {
             wsSend(
@@ -50,7 +47,7 @@ class ErrorBoundary extends Component<
     }
 }
 
-export function ErrorDisplay({ clearError }) {
+function ErrorDisplay({ clearError }) {
     const nav = useNavigate()
     return (
         <div className="flex flex-col h-screen w-screen items-center justify-center bg-bottom-grey">

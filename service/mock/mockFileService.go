@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -141,19 +140,15 @@ func (mfs *MockFileService) DeleteCacheFile(file fileTree.WeblensFile) error {
 	return nil
 }
 
-func (mfs *MockFileService) GetThumbFileName(filename string) (*fileTree.WeblensFileImpl, error) {
+func (mfs *MockFileService) GetMediaCacheByFilename(filename string) (*fileTree.WeblensFileImpl, error) {
 	return nil, nil
 }
 
-func (mfs *MockFileService) NewCacheFile(contentId string, quality models.MediaQuality, pageNum int) (
-	fileTree.WeblensFile,
-	error,
-) {
-	var pageNumStr string
-	if pageNum != 0 {
-		pageNumStr = fmt.Sprintf("_%d", pageNum)
-	}
-	filename := fmt.Sprintf("%s-%s%s.cache", contentId, quality, pageNumStr)
+func (mfs *MockFileService) NewCacheFile(
+	media *models.Media, quality models.MediaQuality, pageNum int,
+) (*fileTree.WeblensFileImpl, error) {
+	filename := media.FmtCacheFileName(quality, pageNum)
+
 	cache := fileTree.NewWeblensFile("TODO", filename, nil, false)
 	cache.SetMemOnly(true)
 	return cache, nil

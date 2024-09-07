@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
@@ -168,7 +167,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			if complete {
 				pack.Caster.PushTaskUpdate(
-					pack.TaskService.GetTask(task.Id(subInfo.GetKey())), models.TaskCompleteEvent,
+					pack.TaskService.GetTask(subInfo.GetKey()), models.TaskCompleteEvent,
 					result,
 				)
 			}
@@ -179,7 +178,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 			return
 		}
 
-		if strings.HasPrefix(string(key), "TID#") {
+		if strings.HasPrefix(key, "TID#") {
 			key = key[4:]
 			complete, result, err := pack.ClientService.Subscribe(c, key, models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
@@ -189,11 +188,11 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			if complete {
 				pack.Caster.PushTaskUpdate(
-					pack.TaskService.GetTask(task.Id(key)), models.TaskCompleteEvent,
+					pack.TaskService.GetTask(key), models.TaskCompleteEvent,
 					result,
 				)
 			}
-		} else if strings.HasPrefix(string(key), "TT#") {
+		} else if strings.HasPrefix(key, "TT#") {
 			key = key[3:]
 
 			_, _, err := pack.ClientService.Subscribe(c, key, models.TaskTypeSubscribe, time.Now(), nil)
@@ -208,9 +207,9 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 			return
 		}
 
-		if strings.HasPrefix(string(key), "TID#") {
+		if strings.HasPrefix(key, "TID#") {
 			key = key[4:]
-		} else if strings.HasPrefix(string(key), "TT#") {
+		} else if strings.HasPrefix(key, "TT#") {
 			key = key[3:]
 		}
 
@@ -226,14 +225,13 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				return
 			}
 
-			folder, err := pack.FileService.GetFileSafe(fileTree.FileId(subInfo.GetKey()), c.GetUser(), nil)
+			folder, err := pack.FileService.GetFileSafe(subInfo.GetKey(), c.GetUser(), nil)
 			if err != nil {
 				c.Error(errors.New("could not find directory to scan"))
 				return
 			}
 
 			newCaster := models.NewSimpleCaster(pack.ClientService)
-			// newCaster := models.NewBufferedCaster (pack.ClientService)
 			meta := models.ScanMeta{
 				File:         folder,
 				FileService:  pack.FileService,
@@ -242,7 +240,15 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				Caster:       newCaster,
 				TaskSubber:   pack.ClientService,
 			}
-			t, err := pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
+
+			var taskName string
+			if folder.IsDir() {
+				taskName = models.ScanDirectoryTask
+			} else {
+				taskName = models.ScanFileTask
+			}
+
+			t, err := pack.TaskService.DispatchJob(taskName, meta, nil)
 			if err != nil {
 				c.Error(err)
 				return
@@ -253,7 +259,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				},
 			)
 
-			_, _, err = pack.ClientService.Subscribe(c, models.SubId(t.TaskId()), models.TaskSubscribe, time.Now(), nil)
+			_, _, err = pack.ClientService.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
 				c.Error(err)
 				return
@@ -263,7 +269,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	case models.CancelTask:
 		{
 			tpId := subInfo.GetKey()
-			taskPool := pack.TaskService.GetTaskPool(task.Id(tpId))
+			taskPool := pack.TaskService.GetTaskPool(tpId)
 			if taskPool == nil {
 				c.Error(errors.New("could not find task pool to cancel"))
 				return

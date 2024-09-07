@@ -17,10 +17,11 @@
     "strict": false,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
+    "baseUrl": "./src",
     "paths": {
       "@weblens/*": [
-        "./src/*"
-      ]
+        "./*"
+      ],
     }
   },
   "include": [

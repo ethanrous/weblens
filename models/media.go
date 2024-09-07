@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -75,11 +76,11 @@ type Media struct {
 	imported bool
 
 	// WEBP thumbnail cache fileId
-	lowresCacheFile fileTree.WeblensFile
+	lowresCacheFile *fileTree.WeblensFileImpl
 
 	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
 	// because fullres images could be multi-page, and a cache file is created per page
-	highResCacheFiles []fileTree.WeblensFile
+	highResCacheFiles []*fileTree.WeblensFileImpl
 }
 
 func NewMedia(contentId ContentId) *Media {
@@ -183,24 +184,44 @@ func (m *Media) setHidden(hidden bool) {
 	m.Hidden = hidden
 }
 
-func (m *Media) SetLowresCacheFile(thumb fileTree.WeblensFile) {
+func (m *Media) SetLowresCacheFile(thumb *fileTree.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.lowresCacheFile = thumb
 }
 
-func (m *Media) GetLowresCacheFile() fileTree.WeblensFile {
+func (m *Media) GetLowresCacheFile() *fileTree.WeblensFileImpl {
+	m.updateMu.RLock()
+	defer m.updateMu.RUnlock()
 	return m.lowresCacheFile
 }
 
-func (m *Media) SetHighresCacheFiles(highresFiles []fileTree.WeblensFile) {
+func (m *Media) SetHighresCacheFiles(highresFile *fileTree.WeblensFileImpl, pageNum int) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
-	m.highResCacheFiles = highresFiles
+	if len(m.highResCacheFiles) < pageNum+1 {
+		m.highResCacheFiles = make([]*fileTree.WeblensFileImpl, m.PageCount)
+	}
+	m.highResCacheFiles[pageNum] = highresFile
 }
 
-func (m *Media) GetHighresCacheFiles() []fileTree.WeblensFile {
-	return m.highResCacheFiles
+func (m *Media) GetHighresCacheFiles(pageNum int) *fileTree.WeblensFileImpl {
+	m.updateMu.RLock()
+	defer m.updateMu.RUnlock()
+	if len(m.highResCacheFiles) < pageNum+1 {
+		return nil
+	}
+	return m.highResCacheFiles[pageNum]
+}
+
+func (m *Media) FmtCacheFileName(quality MediaQuality, pageNum int) string {
+	var pageNumStr string
+	if m.PageCount > 1 && quality == HighRes {
+		pageNumStr = fmt.Sprintf("_%d", pageNum)
+	}
+	filename := fmt.Sprintf("%s-%s%s.cache", m.ID(), quality, pageNumStr)
+
+	return filename
 }
 
 const ThumbnailHeight float32 = 500

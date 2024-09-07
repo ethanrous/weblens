@@ -34,7 +34,7 @@ func (h *Hasher) Hash(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent)
 	t.SetPostAction(
 		func(result task.TaskResult) {
 			if result["contentId"] != nil {
-				file.SetContentId(string(result["contentId"].(ContentId)))
+				file.SetContentId(result["contentId"].(ContentId))
 				event.NewCreateAction(file)
 			} else {
 				log.Error.Println("Failed to generate contentId for", file.Filename())

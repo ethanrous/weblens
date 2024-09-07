@@ -133,7 +133,7 @@ func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
 	return nil
 }
 
-/* RegisterJob adds a template for a repeatable job that can be called upon later in the program */
+// RegisterJob adds a template for a repeatable job that can be called upon later in the program
 func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler) {
 	wp.taskMu.Lock()
 	defer wp.taskMu.Unlock()
@@ -142,7 +142,7 @@ func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler) {
 
 func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskPool) (*Task, error) {
 	if meta.JobName() != jobName {
-		return nil, errors.New("job name does not match task metadata")
+		return nil, werror.Errorf("job name does not match task metadata")
 	}
 
 	if err := meta.Verify(); err != nil {
@@ -159,16 +159,13 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 	var taskId Id
 	if meta == nil {
-		taskId = Id(globbyHash(8, time.Now().String()))
+		taskId = globbyHash(8, time.Now().String())
 	} else {
-		taskId = Id(globbyHash(8, meta.MetaString()))
+		taskId = globbyHash(8, meta.MetaString())
 	}
 
 	t := wp.GetTask(taskId)
 	if t != nil {
-		// if jobName == "write_file" {
-		// 	existingTask.ClearAndRecompute()
-		// }
 		return t, nil
 	} else {
 		t = &Task{
@@ -563,7 +560,7 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	}
 
 	newQueue := &TaskPool{
-		id:    Id(tpId.String()),
+		id:    tpId.String(),
 		tasks: map[Id]*Task{},
 		workerPool:   wp,
 		createdAt:    time.Now(),

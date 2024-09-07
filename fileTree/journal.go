@@ -47,69 +47,17 @@ func NewJournal(col *mongo.Collection, serverId string) (*JournalImpl, error) {
 	}
 
 	var lifetimes []*Lifetime
-	// var updatedLifetimes []*Lifetime
 
-	// var hasProxy bool
-
-	// if proxyStore, hasProxy = store.(types.ProxyStore); hasProxy {
-	if false {
-		// Get all lifetimes from the local database
-		// localLifetimes, err := proxyStore.GetLocalStore().GetAllLifetimes()
-		// if err != nil {
-		// 	return err
-		// }
-		//
-		// sw.Lap("Read all local lifetimes")
-		//
-		// j.lifetimeMapLock.Lock()
-		// j.latestMapLock.Lock()
-		// for _, l := range localLifetimes {
-		// 	j.lifetimes[l.ID()] = l
-		// 	j.latestUpdate[l.GetLatestFileId()] = l
-		// }
-		// j.latestMapLock.Unlock()
-		// j.lifetimeMapLock.Unlock()
-		//
-		// sw.Lap("Add all local lifetimes")
-		//
-		// latest, err := proxyStore.GetLatestAction()
-		// if err != nil {
-		// 	return err
-		// }
-		//
-		// var latestTimestamp time.Time
-		// if latest != nil {
-		// 	latestTimestamp = latest.GetTimestamp()
-		// }
-		//
-		// remoteLifetimes, err := types.SERV.StoreService.GetLifetimesSince(latestTimestamp)
-		// if err != nil {
-		// 	return err
-		// }
-		//
-		// sw.Lap("Proxy got lifetime updates")
-		//
-		// // Upsert lifetimes that have been updated on remote server
-		// for _, l := range remoteLifetimes {
-		// 	err = j.Add(l)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
-		//
-		// sw.Lap("Proxy upsert lifetime updates")
-	} else {
-		lifetimes, err = getAllLifetimes(j.col)
-		if err != nil {
-			return nil, err
-		}
-
-		j.lifetimeMapLock.Lock()
-		for _, l := range lifetimes {
-			j.lifetimes[l.ID()] = l
-		}
-		j.lifetimeMapLock.Unlock()
+	lifetimes, err = getAllLifetimes(j.col)
+	if err != nil {
+		return nil, err
 	}
+
+	j.lifetimeMapLock.Lock()
+	for _, l := range lifetimes {
+		j.lifetimes[l.ID()] = l
+	}
+	j.lifetimeMapLock.Unlock()
 
 	go j.EventWorker()
 
@@ -297,6 +245,7 @@ func (j *JournalImpl) EventWorker() {
 	for {
 		e, ok := <-j.eventStream
 		if !ok {
+			log.Debug.Println("Event worker exiting...")
 			return
 		}
 		if e == nil {
@@ -328,6 +277,8 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			size := action.GetFile().Size()
 			action.SetSize(size)
 		}
+
+		log.Trace.Printf("Got %s action", action.ActionType)
 
 		switch action.GetActionType() {
 		case FileCreate:
@@ -450,14 +401,12 @@ func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileActio
 
 func getLifetimesSince(date time.Time, col *mongo.Collection) ([]*Lifetime, error) {
 	pipe := bson.A{
-		// bson.D{{"$unwind", bson.D{{"path", "$actions"}}}},
 		bson.D{
 			{
 				"$match",
 				bson.D{{"actions.timestamp", bson.D{{"$gt", date}}}},
 			},
 		},
-		// bson.D{{"$replaceRoot", bson.D{{"newRoot", "$actions"}}}},
 		bson.D{{"$sort", bson.D{{"actions.timestamp", 1}}}},
 	}
 	ret, err := col.Aggregate(context.Background(), pipe)

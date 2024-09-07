@@ -1,3 +1,4 @@
+import { Divider } from '@mantine/core'
 import {
     IconDownload,
     IconFolder,
@@ -5,6 +6,18 @@ import {
     IconPhoto,
     IconX,
 } from '@tabler/icons-react'
+import ReactCodeMirror from '@uiw/react-codemirror'
+import { GetFileText } from '@weblens/api/FileBrowserApi'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { TaskProgContext } from '@weblens/types/files/FBTypes'
+import { WeblensFile } from '@weblens/types/files/File'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
+import { likeMedia } from '@weblens/types/media/MediaQuery'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+
+import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import React, {
     memo,
     ReactNode,
@@ -14,23 +27,10 @@ import React, {
     useMemo,
     useState,
 } from 'react'
-import WeblensMedia from '../Media/Media'
-
-import { MediaImage } from '../Media/PhotoContainer'
-import { useResize, useResizeDrag } from './hooks'
-import WeblensButton from './WeblensButton'
-import { useSessionStore } from './UserInfo'
-import { likeMedia } from '../Media/MediaQuery'
-import { useMediaStore } from '../Media/MediaStateControl'
-import { WeblensFile } from '../Files/File'
-import { GetFileText } from '../api/FileBrowserApi'
-import { useFileBrowserStore } from '../Pages/FileBrowser/FBStateControl'
-import ReactCodeMirror from '@uiw/react-codemirror'
-import { TaskProgContext } from '../Files/FBTypes'
 import { WebsocketContext } from '../Context'
 import { humanFileSize } from '../util'
-import { downloadSelected } from '../Pages/FileBrowser/FileBrowserLogic'
-import { Divider } from '@mantine/core'
+import { useResize, useResizeDrag } from './hooks'
+import { useSessionStore } from './UserInfo'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -109,25 +109,29 @@ export const ContainerMedia = ({
     }
 
     if (mediaData.GetPageCount() > 1) {
+        const pages: ReactNode[] = []
+        for (let i = 0; i < mediaData.GetPageCount(); i++) {
+            pages.push(
+                <MediaImage
+                    key={mediaData.Id() + i}
+                    media={mediaData}
+                    quality={PhotoQuality.HighRes}
+                    pageNumber={i}
+                    containerStyle={style}
+                    preventClick
+                />
+            )
+        }
         return (
             <div className="flex flex-col no-scrollbar gap-1 h-full">
-                {[...Array(mediaData.GetPageCount())].map((p) => (
-                    <MediaImage
-                        key={p}
-                        media={mediaData}
-                        quality={'fullres'}
-                        pageNumber={p}
-                        containerStyle={style}
-                        preventClick
-                    />
-                ))}
+                {pages.map((p) => p)}
             </div>
         )
     } else {
         return (
             <MediaImage
                 media={mediaData}
-                quality={'fullres'}
+                quality={PhotoQuality.HighRes}
                 containerStyle={{
                     ...style,
                     borderRadius: 8,
