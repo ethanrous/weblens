@@ -96,10 +96,22 @@ func GetAppRootDir() string {
 	rootPath := filepath.Dir(filename)
 
 	for !strings.HasSuffix(rootPath, "weblens") {
-		rootPath = filepath.Dir(rootPath)
+		newPath := filepath.Dir(rootPath)
+		if newPath == rootPath {
+			panic(werror.Errorf("Could not find weblens root directory"))
+		}
+		rootPath = newPath
 	}
 	appRoot = rootPath
 	return rootPath
+}
+
+func GetUIPath() string {
+	indexPath := os.Getenv("UI_PATH")
+	if indexPath == "" {
+		indexPath = "/app/ui/dist"
+	}
+	return indexPath
 }
 
 func GetRouterPort() string {

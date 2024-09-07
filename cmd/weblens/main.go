@@ -3,8 +3,6 @@ package main
 import (
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/ethrousseau/weblens/database"
@@ -254,22 +252,22 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
 	}
 
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(
-		sigc,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
-	go func() {
-		sig := <-sigc
-		log.Debug.Println(sig)
-		caster.PushWeblensEvent("going_down")
-
-		os.Exit(0)
-	}()
+	// sigc := make(chan os.Signal, 1)
+	// signal.Notify(
+	// 	sigc,
+	// 	syscall.SIGHUP,
+	// 	syscall.SIGINT,
+	// 	syscall.SIGTERM,
+	// 	syscall.SIGQUIT,
+	// )
+	//
+	// go func() {
+	// 	sig := <-sigc
+	// 	log.Debug.Println(sig)
+	// 	caster.PushWeblensEvent("going_down")
+	//
+	// 	os.Exit(0)
+	// }()
 
 	log.Trace.Println("Service setup complete")
 	pack.Loaded.Store(true)

@@ -43,7 +43,6 @@ jobs:
 
       - name: GoGoGadgetDocker
         run: |
-          docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
           if [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
             BUILD_TAG="rc-$(git rev-parse --short HEAD)"
           elif [ -z "$BUILD_TAG" ]; then

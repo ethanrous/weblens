@@ -42,6 +42,8 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 }
 
 func (s *Server) Start() {
+	log.Debug.Println("Starting server")
+
 	s.router.GET("/ping", ping)
 	s.router.GET("/api/info", getServerInfo)
 	s.router.GET("/api/ws", wsConnect)
@@ -228,9 +230,12 @@ func (s *Server) UseAdmin() {
 }
 
 func (s *Server) UseUi() {
-	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
+	log.Debug.Println("Hosting UI routes")
 
+	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
 	memFs.loadIndex()
+
+	log.Debug.Println("Loaded Index")
 
 	serveFunc := static.Serve("/", memFs)
 	s.router.Use(
@@ -247,6 +252,8 @@ func (s *Server) UseUi() {
 		},
 	)
 
+	log.Debug.Println("Did UI Use")
+
 	s.router.NoRoute(
 		func(ctx *gin.Context) {
 			if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
@@ -259,4 +266,6 @@ func (s *Server) UseUi() {
 			}
 		},
 	)
+
+	log.Debug.Println("Did UI No-route")
 }
