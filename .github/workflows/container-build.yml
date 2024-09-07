@@ -36,10 +36,16 @@ jobs:
           libheif-dev \
           libwebp-dev \
           libglib2.0-dev \
-          libexpat1-dev
+          libexpat1-dev \
+          nodejs \
+          npm
+          npm install -D vite
 
       - name: GoGoGadgetDocker
         run: |
+          if [ -z "$BUILD_TAG" ]; then
+            BUILD_TAG="dev-$(git rev-parse --short HEAD)"
+          fi
           echo "HEAD REF $GITHUB_HEAD_REF" 
           echo "REF $GITHUB_REF" 
           ./scripts/gogogadgetdocker.bash -l -t $BUILD_TAG
