@@ -35,6 +35,7 @@ import {
     PresentationFile,
 } from '@weblens/components/Presentation'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import Crumbs from '@weblens/lib/Crumbs'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -50,6 +51,7 @@ import WeblensMedia, {
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { getFileShare } from '@weblens/types/share/shareQuery'
 import { AuthHeaderT } from '@weblens/types/Types'
+import { humanFileSize } from '@weblens/util'
 import React, {
     memo,
     ReactElement,
@@ -59,12 +61,10 @@ import React, {
     useState,
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import Crumbs from '@weblens/lib/Crumbs'
 import { useShallow } from 'zustand/react/shallow'
 
 // Weblens
 import { WebsocketContext } from '../../Context'
-import { humanFileSize } from '@weblens/util'
 import { FbModeT, useFileBrowserStore } from './FBStateControl'
 
 import {

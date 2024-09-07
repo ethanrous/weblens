@@ -30,7 +30,7 @@ var upgrader = gorilla.Upgrader{
 
 func wsConnect(ctx *gin.Context) {
 	pack := getServices(ctx)
-	if pack.ClientService == nil || pack.AccessService == nil {
+	if pack.ClientService == nil || pack.FileService == nil || pack.AccessService == nil {
 		ctx.Status(http.StatusServiceUnavailable)
 		return
 	}

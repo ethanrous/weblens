@@ -9,8 +9,8 @@ import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
 import { MediaDataT } from '@weblens/types/media/Media'
 import { ShareInfo, WeblensShare } from '@weblens/types/share/share'
-import { AuthHeaderT } from 'types/Types'
 import { humanFileSize } from '@weblens/util'
+import { AuthHeaderT } from 'types/Types'
 
 function getIcon(folderName: string): (p) => JSX.Element {
     if (folderName === 'HOME') {

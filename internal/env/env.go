@@ -109,7 +109,7 @@ func GetAppRootDir() string {
 func GetUIPath() string {
 	indexPath := os.Getenv("UI_PATH")
 	if indexPath == "" {
-		indexPath = "/app/ui/dist"
+		indexPath = filepath.Join(GetAppRootDir(), "/ui/dist")
 	}
 	return indexPath
 }

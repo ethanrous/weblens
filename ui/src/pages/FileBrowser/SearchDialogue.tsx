@@ -1,5 +1,6 @@
 import { IconFile, IconFolder } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
+import { autocompletePath, searchFilenames } from '@weblens/api/ApiFetch'
 import { useResize } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensInput from '@weblens/lib/WeblensInput'
@@ -7,7 +8,6 @@ import { WeblensFileInfo } from '@weblens/types/files/File'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FixedSizeList as WindowList, List } from 'react-window'
-import { autocompletePath, searchFilenames } from '@weblens/api/ApiFetch'
 import { useFileBrowserStore } from './FBStateControl'
 
 enum SearchModeT {

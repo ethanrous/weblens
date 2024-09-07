@@ -12,6 +12,7 @@ import { MiniAlbumCover } from '@weblens/types/albums/AlbumDisplay'
 import { Albums } from '@weblens/types/albums/Albums'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { AlbumData, GalleryStateT, PresentType } from '@weblens/types/Types'
+import { clamp } from '@weblens/util'
 import React, {
     useCallback,
     useContext,
@@ -22,7 +23,6 @@ import React, {
     useState,
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { clamp } from '@weblens/util'
 import {
     GalleryAction,
     GalleryContext,

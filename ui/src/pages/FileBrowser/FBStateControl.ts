@@ -7,8 +7,8 @@ import {
 } from '@weblens/types/files/File'
 import WeblensMedia, { MediaDataT } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { create, StateCreator } from 'zustand'
 import { FbViewOptsT, UserInfoT } from '@weblens/types/Types'
+import { create, StateCreator } from 'zustand'
 
 export enum FbModeT {
     unset,

@@ -43,9 +43,7 @@ jobs:
           elif [ -z "$BUILD_TAG" ]; then
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
           fi
-          echo "HEAD REF $GITHUB_HEAD_REF" 
-          echo "REF $GITHUB_REF"
-          echo "DOCKER CREDS: $(cat ~/.docker/config.json)"
+          echo "$BUILD_TAG-amd64" >> $GITHUB_OUTPUT
           ./scripts/gogogadgetdocker.bash -l -t $BUILD_TAG
           exit $?
         env:

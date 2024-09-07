@@ -1,15 +1,15 @@
 import { Divider, Space } from '@mantine/core'
+import { login } from '@weblens/api/ApiFetch'
 import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { useCallback, useState } from 'react'
-import { useCookies } from 'react-cookie'
-import { login } from '@weblens/api/ApiFetch'
 import {
     LOGIN_TOKEN_COOKIE_KEY,
     USERNAME_COOKIE_KEY,
 } from '@weblens/types/Types'
+import { useCallback, useState } from 'react'
+import { useCookies } from 'react-cookie'
 
 const Login = () => {
     const [userInput, setUserInput] = useState('')

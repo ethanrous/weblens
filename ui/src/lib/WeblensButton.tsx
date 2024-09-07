@@ -1,5 +1,6 @@
 import { Loader } from '@mantine/core'
 import { IconCheck, IconX } from '@tabler/icons-react'
+import { useResize } from '@weblens/components/hooks'
 import React, {
     CSSProperties,
     memo,
@@ -8,7 +9,6 @@ import React, {
     useMemo,
     useState,
 } from 'react'
-import { useResize } from '@weblens/components/hooks'
 
 import '@weblens/lib/weblensButton.scss'
 

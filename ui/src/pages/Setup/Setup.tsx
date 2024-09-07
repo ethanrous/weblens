@@ -6,14 +6,14 @@ import {
     IconPackage,
     IconRocket,
 } from '@tabler/icons-react'
+import { getUsers, initServer } from '@weblens/api/ApiFetch'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import '@weblens/components/setup.css'
 import WeblensInput from '@weblens/lib/WeblensInput'
+import { UserInfoT } from '@weblens/types/Types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getUsers, initServer } from '@weblens/api/ApiFetch'
-import { UserInfoT } from '@weblens/types/Types'
 
 const UserSelect = ({
     users,

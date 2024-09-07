@@ -230,12 +230,8 @@ func (s *Server) UseAdmin() {
 }
 
 func (s *Server) UseUi() {
-	log.Debug.Println("Hosting UI routes")
-
 	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
 	memFs.loadIndex()
-
-	log.Debug.Println("Loaded Index")
 
 	serveFunc := static.Serve("/", memFs)
 	s.router.Use(
@@ -252,8 +248,6 @@ func (s *Server) UseUi() {
 		},
 	)
 
-	log.Debug.Println("Did UI Use")
-
 	s.router.NoRoute(
 		func(ctx *gin.Context) {
 			if !strings.HasPrefix(ctx.Request.RequestURI, "/api") {
@@ -266,6 +260,4 @@ func (s *Server) UseUi() {
 			}
 		},
 	)
-
-	log.Debug.Println("Did UI No-route")
 }

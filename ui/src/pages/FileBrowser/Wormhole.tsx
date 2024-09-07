@@ -1,12 +1,12 @@
 import { FileButton, Space, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconFolder, IconUpload } from '@tabler/icons-react'
+import { GetWormholeInfo } from '@weblens/api/FileBrowserApi'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { ShareInfo } from '@weblens/types/share/share'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { GetWormholeInfo } from '@weblens/api/FileBrowserApi'
 import { HandleDrop, HandleUploadButton } from './FileBrowserLogic'
 
 import './style/fileBrowserStyle.scss'
