@@ -44,8 +44,8 @@ jobs:
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
           fi
           
-          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "Grab the new container at" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "docker.io/ethrous/weblens:$BUILD_TAG-amd64" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           
