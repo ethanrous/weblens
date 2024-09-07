@@ -1,5 +1,5 @@
+import { AuthHeaderT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
-import { AuthHeaderT } from '../types/Types'
 
 export function GetUsersInfo(setAllUsersInfo, authHeader: AuthHeaderT) {
     fetch(`${API_ENDPOINT}/users`, { headers: authHeader, method: 'GET' })

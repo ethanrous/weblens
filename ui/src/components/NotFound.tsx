@@ -1,6 +1,6 @@
 import { Space } from '@mantine/core'
+import WeblensButton from '@weblens/lib/WeblensButton'
 import { useNavigate } from 'react-router-dom'
-import WeblensButton from './WeblensButton'
 import { useSessionStore } from './UserInfo'
 
 function NotFound({

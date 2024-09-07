@@ -27,6 +27,10 @@ func NewLifetime(createAction *FileAction) (*Lifetime, error) {
 		return nil, werror.Errorf("Could not find file to create lifetime with")
 	}
 
+	if !createAction.file.IsDir() && createAction.file.GetContentId() == "" {
+		return nil, werror.Errorf("cannot create regular file lifetime without content id")
+	}
+
 	return &Lifetime{
 		Id:           createAction.LifeId,
 		LiveFilePath: createAction.GetDestinationPath(),

@@ -78,7 +78,7 @@ func NewFileService(
 			continue
 		}
 
-		home, err := mediaTree.MkDir(mediaTree.GetRoot(), string(u.GetUsername()), event)
+		home, err := mediaTree.MkDir(mediaTree.GetRoot(), u.GetUsername(), event)
 		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 			return nil, err
 		}
@@ -136,6 +136,10 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 	*fileTree.WeblensFileImpl,
 	error,
 ) {
+	if fs.mediaTree == nil {
+		log.Debug.Println("HUH??")
+	}
+
 	f := fs.mediaTree.Get(id)
 	if f == nil {
 		return nil, werror.WithStack(werror.ErrNoFile)
@@ -152,20 +156,12 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 	return f, nil
 }
 
-func (fs *FileServiceImpl) GetThumbFileName(thumbFileName string) (*fileTree.WeblensFileImpl, error) {
+func (fs *FileServiceImpl) GetMediaCacheByFilename(thumbFileName string) (*fileTree.WeblensFileImpl, error) {
 	thumbsDir, err := fs.cachesTree.GetRoot().GetChild("thumbs")
 	if err != nil {
 		return nil, err
 	}
 	return thumbsDir.GetChild(thumbFileName)
-}
-
-func (fs *FileServiceImpl) GetThumbFileId(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
-	f := fs.cachesTree.Get(id)
-	if f == nil {
-		return nil, werror.ErrNoFile
-	}
-	return f, nil
 }
 
 func (fs *FileServiceImpl) IsFileInTrash(f *fileTree.WeblensFileImpl) bool {
@@ -176,15 +172,11 @@ func (fs *FileServiceImpl) ImportFile(f *fileTree.WeblensFileImpl) error {
 	return fs.mediaTree.Add(f)
 }
 
-func (fs *FileServiceImpl) NewCacheFile(contentId string, quality models.MediaQuality, pageNum int) (
-	fileTree.WeblensFile,
-	error,
-) {
-	var pageNumStr string
-	if pageNum != 0 {
-		pageNumStr = fmt.Sprintf("_%d", pageNum)
-	}
-	filename := fmt.Sprintf("%s-%s%s.cache", contentId, quality, pageNumStr)
+func (fs *FileServiceImpl) NewCacheFile(
+	media *models.Media, quality models.MediaQuality, pageNum int,
+) (*fileTree.WeblensFileImpl, error) {
+	filename := media.FmtCacheFileName(quality, pageNum)
+
 	thumbsDir, err := fs.cachesTree.GetRoot().GetChild("thumbs")
 	if err != nil {
 		return nil, err
@@ -242,9 +234,9 @@ func (fs *FileServiceImpl) GetFileOwner(file *fileTree.WeblensFileImpl) *models.
 	slashIndex := strings.Index(portable.RelativePath(), "/")
 	var username models.Username
 	if slashIndex == -1 {
-		username = models.Username(portable.RelativePath())
+		username = portable.RelativePath()
 	} else {
-		username = models.Username(portable.RelativePath()[:slashIndex])
+		username = portable.RelativePath()[:slashIndex]
 	}
 	u := fs.userService.Get(username)
 	if u == nil {
@@ -401,7 +393,7 @@ func (fs *FileServiceImpl) PermanentlyDeleteFiles(files []*fileTree.WeblensFileI
 			if delFile.IsDir() {
 				continue
 			}
-			media := fs.mediaService.Get(models.ContentId(delFile.GetContentId()))
+			media := fs.mediaService.Get(delFile.GetContentId())
 			if media != nil {
 				err := fs.mediaService.RemoveFileFromMedia(media, delFile.ID())
 				if err != nil {
@@ -642,7 +634,7 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 	}
 
 	if f.GetContentId() != "" {
-		return models.ContentId(f.GetContentId()), nil
+		return f.GetContentId(), nil
 	}
 
 	fileSize := f.Size()
@@ -673,7 +665,7 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 	contentId := base64.URLEncoding.EncodeToString(newHash.Sum(nil))[:20]
 	f.SetContentId(contentId)
 
-	return models.ContentId(contentId), nil
+	return contentId, nil
 }
 
 func MakeUniqueChildName(parent *fileTree.WeblensFileImpl, childName string) string {

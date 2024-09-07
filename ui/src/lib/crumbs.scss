@@ -1,0 +1,94 @@
+@import '@weblens/components/theme';
+
+.crumb-text {
+    /* line-clamp: 1; */
+    color: white;
+    line-height: 1.2;
+    user-select: none;
+    font-size: 25px;
+    flex-grow: 0;
+    flex-shrink: 1;
+    width: max-content;
+    height: max-content;
+    text-wrap: nowrap;
+}
+
+.overflow-menu {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    z-index: 50;
+    background-color: $bottom-grey;
+    outline: 1px solid $main-accent;
+    width: max-content;
+    height: max-content;
+    //gap: px;
+    cursor: default;
+    border-radius: 4px;
+    padding: 8px;
+    opacity: 0%;
+    transition: opacity 150ms ease-in-out, transform 200ms ease-in-out, max-height 250ms ease-in-out;
+    margin-top: 10px;
+    pointer-events: none;
+    height: max-content;
+    max-height: 0px;
+    overflow: hidden;
+
+    &[data-open='true'] {
+        opacity: 100%;
+        pointer-events: auto;
+        max-height: 150px;
+        transform: translateY(-4px);
+    }
+}
+
+.loaf {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: max-content;
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding-right: 16px;
+}
+
+.crumb-box {
+    height: max-content;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 6px;
+    outline: 2px solid $main-accent-transparent;
+    background-color: $main-accent-transparent;
+
+    transition: all 150ms ease-in-out;
+
+    &:hover {
+        outline: 2px solid $main-accent;
+    }
+
+    &[data-compact='true'] {
+        height: max-content;
+        cursor: pointer;
+        border-radius: 2px;
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+    &[data-dragging='true'] {
+        background-color: $main-accent;
+
+        &:hover {
+            outline: 2px solid $main-accent;
+            background-color: $main-accent-transparent;
+        }
+    }
+
+    &[data-current='true'] {
+        cursor: default;
+        outline: 2px solid $main-accent-transparent;
+        background-color: $main-accent-transparent;
+    }
+}

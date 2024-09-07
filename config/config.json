@@ -15,8 +15,8 @@
         "logLevel": "debug",
         "routerHost": "127.0.0.1",
         "routerPort": "8085",
-        "mediaRoot": "./test/media",
-        "cachesRoot": "./test/caches",
+        "mediaRoot": "./build/fs/test/media",
+        "cachesRoot": "./build/fs/test/caches",
 
         "testMediaPath": "./images/testMedia"
     },
@@ -26,8 +26,8 @@
         "logLevel": "debug",
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
-        "mediaRoot": "./core/media",
-        "cachesRoot": "./core/caches",
+        "mediaRoot": "./build/fs/core/media",
+        "cachesRoot": "./build/fs/core/caches",
         "hostUrl": "https://weblens.app"
     }
 }

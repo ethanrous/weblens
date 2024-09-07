@@ -1,7 +1,7 @@
 import { notifications } from '@mantine/notifications'
+import { WeblensFileInfo } from '@weblens/types/files/File'
+import { ApiKeyInfo, AuthHeaderT, UserInfoT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
-import { ApiKeyInfo, AuthHeaderT, UserInfoT } from '../types/Types'
-import { WeblensFileInfo } from '../Files/File'
 
 export function login(
     user: string,

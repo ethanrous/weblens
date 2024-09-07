@@ -1,10 +1,9 @@
-import { getRandomInt } from '../util'
+import WeblensMedia from '@weblens/types/media/Media'
+import { getRandomThumbs } from '@weblens/types/media/MediaQuery'
+import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { useEffect, useMemo, useState } from 'react'
+import { getRandomInt } from '../util'
 import { useResize } from './hooks'
-import { MediaImage } from '../Media/PhotoContainer'
-
-import WeblensMedia from '../Media/Media'
-import { getRandomThumbs } from '../Media/MediaQuery'
 
 const ScatteredPhoto = ({
     media,

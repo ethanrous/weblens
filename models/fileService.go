@@ -31,8 +31,8 @@ type FileService interface {
 
 	ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser, error)
 
-	GetThumbFileName(filename string) (*fileTree.WeblensFileImpl, error)
-	NewCacheFile(contentId string, quality MediaQuality, pageNum int) (fileTree.WeblensFile, error)
+	GetMediaCacheByFilename(filename string) (*fileTree.WeblensFileImpl, error)
+	NewCacheFile(media *Media, quality MediaQuality, pageNum int) (*fileTree.WeblensFileImpl, error)
 	DeleteCacheFile(file fileTree.WeblensFile) error
 
 	AddTask(f *fileTree.WeblensFileImpl, t *task.Task) error

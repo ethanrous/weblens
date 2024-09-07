@@ -1,14 +1,14 @@
-import { useEffect } from 'react'
-import { useCookies } from 'react-cookie'
-import API_ENDPOINT from '../api/ApiEndpoint'
+import API_ENDPOINT from '@weblens/api/ApiEndpoint'
+import { getServerInfo } from '@weblens/api/ApiFetch'
 import {
     AuthHeaderT,
     LOGIN_TOKEN_COOKIE_KEY,
     ServerInfoT,
     UserInfoT,
     USERNAME_COOKIE_KEY,
-} from '../types/Types'
-import { getServerInfo } from '../api/ApiFetch'
+} from '@weblens/types/Types'
+import { useEffect } from 'react'
+import { useCookies } from 'react-cookie'
 import { create, StateCreator } from 'zustand'
 
 const useR = () => {

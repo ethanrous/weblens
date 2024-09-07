@@ -75,7 +75,13 @@ func RecoverPanic(preText string) {
 		return
 	}
 
-	log.ErrorCatcher.Println(preText, identifyPanic(), r)
+	err, ok := r.(error)
+	if !ok {
+		log.ErrorCatcher.Println(preText, identifyPanic(), r)
+	} else {
+		log.ErrTrace(err)
+	}
+
 }
 
 // TODO - Benchmark OracleReader

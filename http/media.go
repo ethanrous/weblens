@@ -93,7 +93,7 @@ func getMediaTypes(ctx *gin.Context) {
 
 func getMediaInfo(ctx *gin.Context) {
 	pack := getServices(ctx)
-	mediaId := models.ContentId(ctx.Param("mediaId"))
+	mediaId := ctx.Param("mediaId")
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
 		ctx.Status(http.StatusNotFound)
@@ -124,7 +124,7 @@ func streamVideo(ctx *gin.Context) {
 		return
 	}
 
-	mediaId := models.ContentId(ctx.Param("mediaId"))
+	mediaId := ctx.Param("mediaId")
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
 		ctx.Status(http.StatusNotFound)
@@ -172,18 +172,7 @@ func fetchMediaBytes(ctx *gin.Context) {
 func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	mediaId := models.ContentId(ctx.Param("mediaId"))
-
-	var pageNum int
-	var err error
-	pageString := ctx.Query("page")
-	if pageString != "" {
-		pageNum, err = strconv.Atoi(pageString)
-		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "bad page number"})
-			return
-		}
-	}
+	mediaId := ctx.Param("mediaId")
 
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
@@ -191,10 +180,17 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		return
 	}
 
-	// if m.Owner != u.GetUsername() {
-	// 	ctx.Status(http.StatusNotFound)
-	// 	return
-	// }
+	var pageNum int
+	var err error
+	if q == models.HighRes && m.PageCount > 1 {
+		pageString := ctx.Query("page")
+		pageNum, err = strconv.Atoi(pageString)
+		if err != nil {
+			log.Debug.Println("Bad page number trying to get fullres multi-page image")
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "bad page number"})
+			return
+		}
+	}
 
 	if q == models.Video && !pack.MediaService.GetMediaType(m).IsVideo() {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "media type is not video"})
@@ -326,7 +322,7 @@ func likeMedia(ctx *gin.Context) {
 		return
 	}
 
-	mediaId := models.ContentId(ctx.Param("mediaId"))
+	mediaId := ctx.Param("mediaId")
 	liked := ctx.Query("liked") == "true"
 
 	err := pack.MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
