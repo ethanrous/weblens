@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_tag:
-        description: 'Debug'
+        description: 'Build Tag'
         required: false
         default: ""
         type: string
@@ -30,7 +30,8 @@ jobs:
 
       - name: Install Deps
         run: |
-          apt-get install -y \
+          sudo apt update
+          sudo apt-get install -y \
           libvips-dev \
           libheif-dev \
           libwebp-dev \
