@@ -26,8 +26,9 @@ done
 if [ -z "$docker_tag" ]
 then
     docker_tag=devel_$(date +%b.%d.%y)
-    echo "WARN No tag specified. Using: $docker_tag"
+    echo "WARN No tag specified"
 fi
+echo "Using tag: $docker_tag"
 
 if [ -z "$arch" ]
 then
