@@ -107,11 +107,17 @@ func GetAppRootDir() string {
 }
 
 func GetUIPath() string {
-	indexPath := os.Getenv("UI_PATH")
-	if indexPath == "" {
-		indexPath = filepath.Join(GetAppRootDir(), "/ui/dist")
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
 	}
-	return indexPath
+
+	uiPath, ok := config["uiPath"].(string)
+	if ok {
+		return uiPath
+	}
+	// Container default
+	return "/app/ui/dist"
 }
 
 func GetRouterPort() string {
@@ -152,7 +158,13 @@ func GetLogLevel() int {
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
 // must proxy any /api/* requests back to this server
 func DetachUi() bool {
-	return envReadBool("DETATCH_UI")
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
+	}
+
+	detach, ok := config["detachUi"].(bool)
+	return ok && detach
 }
 
 var cachesRoot string
