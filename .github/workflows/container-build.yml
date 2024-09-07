@@ -43,7 +43,9 @@ jobs:
 
       - name: GoGoGadgetDocker
         run: |
-          if [ -z "$BUILD_TAG" ]; then
+          if [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
+            BUILD_TAG="rc-$(git rev-parse --short HEAD)"
+          elif [ -z "$BUILD_TAG" ]; then
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
           fi
           echo "HEAD REF $GITHUB_HEAD_REF" 

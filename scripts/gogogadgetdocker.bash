@@ -41,6 +41,7 @@ if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch
 fi
 
 cd ./ui
+npm install
 export VITE_APP_BUILD_TAG=$docker_tag-$arch
 export VITE_BUILD=true
 npm run build
