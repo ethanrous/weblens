@@ -65,7 +65,7 @@ func ScanDirectory(t *task.Task) {
 				return nil
 			}
 
-			m := meta.MediaService.Get(models.ContentId(wf.GetContentId()))
+			m := meta.MediaService.Get(wf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
 				return nil
 			}
@@ -146,7 +146,7 @@ func ScanFile_(meta models.ScanMeta) error {
 		return werror.ErrNonDisplayable
 	}
 
-	contentId := models.ContentId(meta.File.GetContentId())
+	contentId := meta.File.GetContentId()
 	if contentId == "" {
 		return werror.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath())
 	}
@@ -164,7 +164,7 @@ func ScanFile_(meta models.ScanMeta) error {
 		meta.PartialMedia = &models.Media{}
 	}
 
-	meta.PartialMedia.ContentId = models.ContentId(meta.File.GetContentId())
+	meta.PartialMedia.ContentId = meta.File.GetContentId()
 	meta.PartialMedia.FileIds = []fileTree.FileId{meta.File.ID()}
 	meta.PartialMedia.Owner = meta.FileService.GetFileOwner(meta.File).GetUsername()
 

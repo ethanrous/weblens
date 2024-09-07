@@ -618,6 +618,11 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 			}
 		} else {
 			fileToLoad.setIdInternal(ft.GenerateFileId())
+
+			// Random contentId to make tests happy, this should only
+			// be hit when the journal is mocking. This does happen in prod
+			// like on the caches tree, for example, which has a mock journal
+			fileToLoad.SetContentId(ft.GenerateFileId())
 		}
 		// log.Debug.Println(time.Since(start))
 		err = ft.Add(fileToLoad)

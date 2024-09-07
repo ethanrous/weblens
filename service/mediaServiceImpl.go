@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -90,7 +89,7 @@ func NewMediaService(
 		fileService:  fileService,
 		collection:   col,
 		AlbumService: albumService,
-		filesBuffer: sync.Pool{New: func() any { return new(bytes.Buffer) }},
+		filesBuffer: sync.Pool{New: func() any { return make([]byte, 0, 0) }},
 	}
 
 	indexModel := mongo.IndexModel{
@@ -562,20 +561,34 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		}
 	}
 
-	buf := ms.filesBuffer.Get().(*bytes.Buffer)
-	log.Debug.Println("Got buffer of size:", buf.Len())
-	buf.Reset()
+	buf := ms.filesBuffer.Get().([]byte)
+	if len(buf) > 0 {
+		log.Trace.Printf("Re-using buffer of %d bytes", len(buf))
+	}
 
 	mType := ms.GetMediaType(m)
 
 	if mType.IsRaw() {
-		binExif.ExtractMetadata(file.GetAbsPath())
-		raw64 := fileMetas[0].Fields[mType.GetThumbExifKey()].(string)
-		raw64 = raw64[strings.Index(raw64, ":")+1:]
+		binMeta := binExif.ExtractMetadata(file.GetAbsPath())
+		if binMeta[0].Err != nil {
+			return werror.WithStack(binMeta[0].Err)
+		}
+		raw64 := []byte(binMeta[0].Fields[mType.GetThumbExifKey()].(string))
 
-		buf.Grow(len(raw64))
-		_, err = base64.StdEncoding.Decode(buf.Bytes(), []byte(raw64))
+		// remove "base64:" from beginning of data
+		raw64 = raw64[7:]
 
+		padCount := 4 - len(raw64)%4
+		if padCount != 4 {
+			raw64 = raw64[:len(raw64)+padCount]
+			for i := range padCount {
+				raw64[len(raw64)-(i+1)] = '='
+			}
+		}
+
+		buf = slices.Grow(buf, base64.StdEncoding.DecodedLen(len(raw64)))
+		buf = buf[:base64.StdEncoding.DecodedLen(len(raw64))]
+		_, err = base64.StdEncoding.Decode(buf, raw64)
 		if err != nil {
 			return err
 		}
@@ -585,28 +598,35 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 
 		const frameNum = 10
 
+		bufbuf := bytes.NewBuffer(buf)
+		bufbuf.Reset()
+
 		err = ffmpeg.Input(file.GetAbsPath()).Filter(
 			"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
 		).Output(
 			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
-		).WithOutput(buf).WithErrorOutput(errOut).Run()
+		).WithOutput(bufbuf).WithErrorOutput(errOut).Run()
 		if err != nil {
 			log.Error.Println(errOut.String())
 			return werror.WithStack(err)
 		}
+		buf = bufbuf.Bytes()
 
 	} else {
 		fileReader, err := file.Readable()
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(buf, fileReader)
+		bufbuf := bytes.NewBuffer(buf)
+		bufbuf.Reset()
+		_, err = io.Copy(bufbuf, fileReader)
 		if err != nil {
 			return err
 		}
+		buf = bufbuf.Bytes()
 	}
 
-	err = ms.generateCacheFiles(m, buf.Bytes())
+	err = ms.generateCacheFiles(m, buf)
 	if err != nil {
 		return err
 	}
@@ -768,7 +788,7 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error
 	}
 	thumbBytes, err := bimg.Resize(imgs[0], thumbOpts)
 	if err != nil {
-		return err
+		return werror.WithStack(err)
 	}
 
 	var thumbFile *fileTree.WeblensFileImpl
@@ -804,27 +824,4 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error
 	}
 
 	return nil
-}
-
-func newExif(targetSize, currentSize int64, gexift *exiftool.Exiftool) *exiftool.Exiftool {
-	if targetSize <= currentSize {
-		return gexift
-	}
-	if gexift != nil {
-		err := gexift.Close()
-		log.ErrTrace(err)
-		gexift = nil
-	}
-	buf := make([]byte, int(targetSize))
-	et, err := exiftool.NewExiftool(
-		exiftool.Api("largefilesupport"),
-		exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer(buf, int(targetSize)),
-	)
-	if err != nil {
-		log.ErrTrace(err)
-		return nil
-	}
-	gexift = et
-
-	return gexift
 }
