@@ -49,7 +49,8 @@ jobs:
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
           fi
           echo "HEAD REF $GITHUB_HEAD_REF" 
-          echo "REF $GITHUB_REF" 
+          echo "REF $GITHUB_REF"
+          echo "DOCKER CREDS: $(cat ~/.docker/config.json)"
           ./scripts/gogogadgetdocker.bash -l -t $BUILD_TAG
           exit $?
         env:
