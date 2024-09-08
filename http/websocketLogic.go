@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ var upgrader = gorilla.Upgrader{
 
 func wsConnect(ctx *gin.Context) {
 	pack := getServices(ctx)
-	if pack.ClientService == nil || pack.FileService == nil || pack.AccessService == nil {
+	if pack.ClientService == nil || pack.AccessService == nil {
 		ctx.Status(http.StatusServiceUnavailable)
 		return
 	}
@@ -141,6 +142,11 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	switch subInfo.Action() {
 	case models.FolderSubscribe:
 		{
+			if pack.FileService == nil {
+				c.Error(werror.Errorf("file service not ready"))
+				return
+			}
+
 			err = json.Unmarshal([]byte(msg.Content), &subInfo)
 			if err != nil {
 				log.ErrTrace(err)
