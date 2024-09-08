@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
           if [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
-            BUILD_TAG="rc-$(git rev-parse --short HEAD)"
+            BUILD_TAG="amethyst-${{ github.run_attempt }}"
           elif [ -z "$BUILD_TAG" ]; then
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
           fi

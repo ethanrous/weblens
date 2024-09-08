@@ -25,16 +25,16 @@ done
 
 if [ -z "$docker_tag" ]
 then
-    docker_tag=devel_$(date +%b.%d.%y)
+    docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
     echo "WARN No tag specified"
 fi
-echo "Using tag: $docker_tag"
 
 if [ -z "$arch" ]
 then
     arch="amd64"
 fi
-echo "Building for $arch"
+
+echo "Using tag: $docker_tag-$arch"
 
 if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2> /dev/null)" ]; then
     echo "No weblens-go-build image found, attempting to build now..."

@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/ethrousseau/weblens/internal/log"
@@ -88,22 +87,9 @@ func GetAppRootDir() string {
 		return appRoot
 	}
 
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic(werror.Errorf("Could not get caller"))
-	}
+	appRoot = "/app"
 
-	rootPath := filepath.Dir(filename)
-
-	for !strings.HasSuffix(rootPath, "weblens") {
-		newPath := filepath.Dir(rootPath)
-		if newPath == rootPath {
-			panic(werror.Errorf("Could not find weblens root directory"))
-		}
-		rootPath = newPath
-	}
-	appRoot = rootPath
-	return rootPath
+	return appRoot
 }
 
 func GetUIPath() string {
@@ -185,7 +171,7 @@ func GetCachesRoot() string {
 				}
 				return cachesRoot
 			}
-			cachesRoot = "/cache"
+			cachesRoot = "/media/cache"
 			log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesRoot)
 		}
 	}
@@ -269,7 +255,10 @@ func GetTestMediaPath() string {
 	testMediaPath, ok := config["testMediaPath"].(string)
 	if ok {
 		if testMediaPath[0] == '.' {
-			testMediaPath = filepath.Join(GetAppRootDir(), testMediaPath)
+			testMediaPath, err = filepath.Abs(testMediaPath)
+			if err != nil {
+				panic(err)
+			}
 		}
 		return testMediaPath
 	}
@@ -285,7 +274,7 @@ func GetConfigPath() string {
 	if configPath != "" {
 		return configPath
 	}
-	return GetAppRootDir() + "/config"
+	return "/app/config"
 }
 
 func ReadTypesConfig(target any) error {
@@ -327,6 +316,11 @@ func GetMediaRoot() string {
 	mediaRoot = config["mediaRoot"].(string)
 	if mediaRoot[0] == '.' {
 		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
+	}
+
+	if mediaRoot == "" {
+		// Container default
+		mediaRoot = "/media/users"
 	}
 
 	return mediaRoot

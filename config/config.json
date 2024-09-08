@@ -5,7 +5,7 @@
         "logLevel": "",
         "routerHost": "0.0.0.0",
         "routerPort": "8080",
-        "mediaRoot": "/media/images",
+        "mediaRoot": "/media/users",
         "cachesRoot": "/media/cache",
         "hostUrl": "https://weblens.app"
     },

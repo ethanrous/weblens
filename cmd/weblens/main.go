@@ -239,7 +239,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	mediaService.AlbumService = albumService
 
-	// srv.UseWebdav(fileService, caster)
+	caster.PushWeblensEvent("weblens_loaded")
 
 	sw.Stop()
 	sw.PrintResults(false)
