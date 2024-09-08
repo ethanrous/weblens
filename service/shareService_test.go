@@ -221,7 +221,7 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 
 // func TestNewFileService(t *testing.T) {
 // 	type args struct {
-// 		mediaTree     fileTree.FileTree
+// 		usersTree     fileTree.FileTree
 // 		cacheTree     fileTree.FileTree
 // 		userService   models.UserService
 // 		accessService models.AccessService
@@ -240,19 +240,19 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 // 		t.Run(
 // 			tt.name, func(t *testing.T) {
 // 				got, err := NewFileService(
-// 					tt.args.mediaTree, tt.args.cacheTree, tt.args.userService, tt.args.accessService,
+// 					tt.args.usersTree, tt.args.cacheTree, tt.args.userService, tt.args.accessService,
 // 					tt.args.mediaService, tt.args.trashCol,
 // 				)
 // 				if !tt.wantErr(
 // 					t, err, fmt.Sprintf(
-// 						"NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.mediaTree, tt.args.cacheTree,
+// 						"NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.usersTree, tt.args.cacheTree,
 // 						tt.args.userService, tt.args.accessService, tt.args.mediaService, tt.args.trashCol,
 // 					),
 // 				) {
 // 					return
 // 				}
 // 				assert.Equalf(
-// 					t, tt.want, got, "NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.mediaTree, tt.args.cacheTree,
+// 					t, tt.want, got, "NewFileService(%v, %v, %v, %v, %v, %v)", tt.args.usersTree, tt.args.cacheTree,
 // 					tt.args.userService, tt.args.accessService, tt.args.mediaService, tt.args.trashCol,
 // 				)
 // 			},
