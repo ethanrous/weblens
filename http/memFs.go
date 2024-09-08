@@ -24,7 +24,7 @@ type InMemoryFS struct {
 }
 
 func (fs *InMemoryFS) loadIndex() string {
-	indexPath := filepath.Join(env.GetAppRootDir(), "/ui/dist/index.html")
+	indexPath := filepath.Join(env.GetUIPath(), "index.html")
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
 		ex, err := os.Executable()

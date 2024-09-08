@@ -96,10 +96,28 @@ func GetAppRootDir() string {
 	rootPath := filepath.Dir(filename)
 
 	for !strings.HasSuffix(rootPath, "weblens") {
-		rootPath = filepath.Dir(rootPath)
+		newPath := filepath.Dir(rootPath)
+		if newPath == rootPath {
+			panic(werror.Errorf("Could not find weblens root directory"))
+		}
+		rootPath = newPath
 	}
 	appRoot = rootPath
 	return rootPath
+}
+
+func GetUIPath() string {
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
+	}
+
+	uiPath, ok := config["uiPath"].(string)
+	if ok {
+		return uiPath
+	}
+	// Container default
+	return "/app/ui/dist"
 }
 
 func GetRouterPort() string {
@@ -140,7 +158,13 @@ func GetLogLevel() int {
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
 // must proxy any /api/* requests back to this server
 func DetachUi() bool {
-	return envReadBool("DETATCH_UI")
+	config, err := ReadConfig(GetConfigName())
+	if err != nil {
+		panic(err)
+	}
+
+	detach, ok := config["detachUi"].(bool)
+	return ok && detach
 }
 
 var cachesRoot string

@@ -1,6 +1,6 @@
+import { useIsFocused, useResize } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { memo, ReactNode, useEffect, useState } from 'react'
-import { useIsFocused, useResize } from '@weblens/components/hooks'
 
 import '@weblens/lib/weblensInput.scss'
 

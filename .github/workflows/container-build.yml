@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_tag:
-        description: 'Debug'
+        description: 'Build Tag'
         required: false
         default: ""
         type: string
@@ -17,12 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -30,17 +24,31 @@ jobs:
 
       - name: Install Deps
         run: |
-          apt-get install -y \
+          sudo apt update
+          sudo apt-get install -y \
           libvips-dev \
           libheif-dev \
           libwebp-dev \
           libglib2.0-dev \
-          libexpat1-dev
+          libexpat1-dev \
+          nodejs \
+          npm
+          npm install -D vite
 
       - name: GoGoGadgetDocker
         run: |
-          echo "HEAD REF $GITHUB_HEAD_REF" 
-          echo "REF $GITHUB_REF" 
+          sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          if [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
+            BUILD_TAG="rc-$(git rev-parse --short HEAD)"
+          elif [ -z "$BUILD_TAG" ]; then
+            BUILD_TAG="dev-$(git rev-parse --short HEAD)"
+          fi
+          
+          echo "Grab the new container at" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "docker.io/ethrous/weblens:$BUILD_TAG-amd64" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
           ./scripts/gogogadgetdocker.bash -l -t $BUILD_TAG
           exit $?
         env:

@@ -113,7 +113,7 @@ func ScanDirectory(t *task.Task) {
 				"failed_count": len(errs),
 			},
 		)
-		t.ErrorAndExit(werror.ErrChildTaskFailed)
+		t.ErrorAndExit(werror.WithStack(werror.ErrChildTaskFailed))
 	}
 
 	// Let any client subscribers know we are done

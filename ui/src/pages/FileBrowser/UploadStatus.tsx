@@ -2,12 +2,12 @@ import { Divider } from '@mantine/core'
 import { IconFile, IconFolder, IconX } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
-
-import React, { useMemo } from 'react'
-import { create, StateCreator } from 'zustand'
 import { humanFileSize } from '@weblens/util'
 
 import './style/uploadStatusStyle.scss'
+
+import React, { useMemo } from 'react'
+import { create, StateCreator } from 'zustand'
 import '@weblens/components/style.scss'
 
 type chunkT = {

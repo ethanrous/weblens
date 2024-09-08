@@ -523,7 +523,8 @@ export const WebsocketStatus = memo(
     }
 )
 
-export function FriendlyPath({ pathName }: { pathName: string }) {
+export function PathFmt({ pathName }: { pathName: string }) {
+    console.log(pathName)
     pathName = pathName.slice(pathName.indexOf(':') + 1)
     const parts = pathName.split('/')
     parts.shift()
@@ -531,6 +532,7 @@ export function FriendlyPath({ pathName }: { pathName: string }) {
     if (parts[parts.length - 1] === '') {
         parts.pop()
     }
+
 
     let StartIcon
     if (parts[0] === '.user_trash') {
@@ -563,7 +565,7 @@ export function FriendlyPath({ pathName }: { pathName: string }) {
     )
 }
 
-export function FriendlyFile({ pathName }: { pathName: string }) {
+export function FileFmt({ pathName }: { pathName: string }) {
     pathName = pathName.slice(pathName.indexOf(':') + 1)
     const parts = pathName.split('/')
     parts.shift()

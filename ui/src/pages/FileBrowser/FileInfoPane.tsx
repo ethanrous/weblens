@@ -21,8 +21,8 @@ import {
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
-    FriendlyFile,
-    FriendlyPath,
+    FileFmt,
+    PathFmt,
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { clamp } from '@weblens/util'
 
@@ -171,32 +171,35 @@ function ActionRow({
     const fromFolder = portableToFolderName(action.originPath)
     const toFolder = portableToFolderName(action.destinationPath)
 
+    let fromNode
+    if (action.actionType == "fileMove") {
+        if (folderName === fromFolder) {
+            fromNode = <FileFmt pathName={action.originPath} />
+        } else {
+            fromNode = <PathFmt pathName={action.originPath} />
+        }
+    } else if (action.actionType == "fileCreate" || action.actionType == "fileRestore" ) {
+        fromNode = <FileFmt pathName={action.destinationPath} />
+    }  else if (action.actionType == "fileDelete") {
+        fromNode = <FileFmt pathName={action.originPath} />
+    }
+
+    let toNode
+    if (action.actionType == "fileMove") {
+        if (folderName !== toFolder) {
+            toNode = <PathFmt pathName={toFolder} />
+        } else {
+            toNode = <FileFmt pathName={action.destinationPath} />
+        }
+    }
+
     return (
         <div className="history-detail-action-row">
-            {action.actionType === 'fileMove' && folderName === fromFolder && (
-                <FriendlyFile pathName={action.originPath} />
-            )}
-            {action.actionType === 'fileMove' && folderName !== fromFolder && (
-                <FriendlyPath pathName={action.originPath} />
-            )}
-            {action.actionType === 'fileCreate' && (
-                <FriendlyFile pathName={action.destinationPath} />
-            )}
-            {action.actionType === 'fileDelete' && (
-                <FriendlyFile pathName={action.originPath} />
-            )}
-            {action.actionType === 'fileRestore' && (
-                <FriendlyFile pathName={action.destinationPath} />
-            )}
+            {fromNode}
             {action.actionType === 'fileMove' && (
                 <IconArrowRight className="icon-noshrink" />
             )}
-            {action.actionType === 'fileMove' && folderName !== toFolder && (
-                <FriendlyPath pathName={action.destinationPath} />
-            )}
-            {action.actionType === 'fileMove' && folderName === toFolder && (
-                <FriendlyFile pathName={action.destinationPath} />
-            )}
+            {toNode}
         </div>
     )
 }
@@ -497,7 +500,7 @@ function FileHistory() {
                 )
             })}
             <div className="flex flex-col items-center p-2 pt-10">
-                <FriendlyFile pathName={epoch.destinationPath} />
+                <FileFmt pathName={epoch.destinationPath} />
                 <p className="text-nowrap select-none">
                     Created {createTimeString}
                 </p>

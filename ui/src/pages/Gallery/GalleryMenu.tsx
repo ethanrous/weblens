@@ -12,12 +12,12 @@ import { SetAlbumCover } from '@weblens/types/albums/AlbumQuery'
 import WeblensMedia from '@weblens/types/media/Media'
 import { hideMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { memo, useCallback, useContext, useMemo, useState } from 'react'
 import {
     GalleryDispatchT,
     newTimeOffset,
     TimeOffset,
 } from '@weblens/types/Types'
+import { memo, useCallback, useContext, useMemo, useState } from 'react'
 import { GalleryContext } from './GalleryLogic'
 
 function TimeSlice({

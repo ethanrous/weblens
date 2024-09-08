@@ -13,17 +13,18 @@
         "mongodbName": "weblens-test",
         "mongodbUri": "mongodb://localhost:27017",
         "logLevel": "debug",
+        "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8085",
         "mediaRoot": "./build/fs/test/media",
         "cachesRoot": "./build/fs/test/caches",
-
         "testMediaPath": "./images/testMedia"
     },
     "DEBUG-CORE": {
         "mongodbName": "weblens-core",
         "mongodbUri": "mongodb://localhost:27017",
         "logLevel": "debug",
+        "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
         "mediaRoot": "./build/fs/core/media",

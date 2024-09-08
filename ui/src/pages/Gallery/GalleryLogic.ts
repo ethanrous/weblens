@@ -1,7 +1,6 @@
 import WeblensMedia from '@weblens/types/media/Media'
 
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { createContext, useCallback, useEffect } from 'react'
 import {
     AlbumData,
     GalleryDispatchT,
@@ -9,6 +8,7 @@ import {
     PresentType,
     TimeOffset,
 } from '@weblens/types/Types'
+import { createContext, useCallback, useEffect } from 'react'
 
 export type GalleryAction = {
     type: string

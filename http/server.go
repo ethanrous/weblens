@@ -42,6 +42,8 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 }
 
 func (s *Server) Start() {
+	log.Debug.Println("Starting server")
+
 	s.router.GET("/ping", ping)
 	s.router.GET("/api/info", getServerInfo)
 	s.router.GET("/api/ws", wsConnect)
@@ -229,7 +231,6 @@ func (s *Server) UseAdmin() {
 
 func (s *Server) UseUi() {
 	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
-
 	memFs.loadIndex()
 
 	serveFunc := static.Serve("/", memFs)

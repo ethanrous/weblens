@@ -26,8 +26,9 @@ done
 if [ -z "$docker_tag" ]
 then
     docker_tag=devel_$(date +%b.%d.%y)
-    echo "WARN No tag specified. Using: $docker_tag"
+    echo "WARN No tag specified"
 fi
+echo "Using tag: $docker_tag"
 
 if [ -z "$arch" ]
 then
@@ -41,6 +42,7 @@ if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch
 fi
 
 cd ./ui
+npm install
 export VITE_APP_BUILD_TAG=$docker_tag-$arch
 export VITE_BUILD=true
 npm run build

@@ -1,13 +1,13 @@
 import { IconFolder } from '@tabler/icons-react'
+import { getFilesystemStats } from '@weblens/api/FileBrowserApi'
 import { useResize } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { WeblensFile } from '@weblens/types/files/File'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { AuthHeaderT } from '@weblens/types/Types'
 // import * as d3 from 'd3';
 import { humanFileSize } from '@weblens/util'
-import { getFilesystemStats } from '@weblens/api/FileBrowserApi'
-import { AuthHeaderT } from '@weblens/types/Types'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export type TreeNode = {
     type: 'node'

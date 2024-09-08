@@ -4,9 +4,9 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { TaskProgContext } from '@weblens/types/files/FBTypes'
+import { nsToHumanTime } from '@weblens/util'
 import { Dispatch, useContext, useMemo, useState } from 'react'
 import { WebsocketContext } from '../../Context'
-import { nsToHumanTime } from '@weblens/util'
 
 export class TaskProgressState {
     private tasks: Map<string, TaskProgress>
