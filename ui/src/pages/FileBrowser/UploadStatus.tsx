@@ -216,7 +216,6 @@ function UploadCard({
     }
 
     const [speedStr, speedUnits] = humanFileSize(speed)
-    // console.log(uploadMetadata, uploadMetadata.error)
 
     return (
         <div className="flex w-full flex-col p-2">

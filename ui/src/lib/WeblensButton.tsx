@@ -399,31 +399,22 @@ const WeblensButton = memo(
     },
     (prev, next) => {
         if (prev.toggleOn !== next.toggleOn) {
-            // console.log(next.label, 'TOGGLE')
             return false
         } else if (prev.label !== next.label) {
-            // console.log(next.label, 'LABEL')
             return false
         } else if (prev.disabled !== next.disabled) {
-            // console.log(next.label, 'DISABLED')
             return false
         } else if (prev.onClick !== next.onClick) {
-            // console.log(next.label, 'ONCLICK')
             return false
         } else if (prev.onMouseUp !== next.onMouseUp) {
-            // console.log(next.label, 'MOUSEUP')
             return false
         } else if (prev.onMouseOver !== next.onMouseOver) {
-            // console.log(next.label, 'MOUSEOVER')
             return false
         } else if (prev.squareSize !== next.squareSize) {
-            // console.log(next.label, 'SQUARESIZE')
             return false
         } else if (prev.style !== next.style) {
-            // console.log(next.label, 'STYLE')
             return false
         } else if (prev.Left !== next.Left) {
-            // console.log(next.label, 'LEFT')
             return false
         }
         return true

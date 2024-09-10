@@ -333,7 +333,6 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                     state.searchContent
                 )
             ) {
-                console.log('Not in view :(')
                 return state
             }
 

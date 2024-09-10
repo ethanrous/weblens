@@ -1,4 +1,5 @@
-import Media from '@weblens/types/media/Media'
+import WeblensMedia from '@weblens/types/media/Media'
+import Media, { MediaDataT } from '@weblens/types/media/Media'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
@@ -24,6 +25,7 @@ export interface MediaStateT {
     setLiked: (mediaId: string, likedBy: string) => void
     setTypeMap: (typeMap: any) => void
     getTypeMap: () => any
+    getMedia: (mediaId: string) => WeblensMedia
     clear: () => void
 }
 
@@ -126,7 +128,6 @@ export const useMediaStore = create<MediaStateT>()(
                 return
             }
             media.SetLikedBy(likedBy)
-            console.log('LIKED', media.GetLikedBy())
 
             set((state) => ({ mediaMap: new Map(state.mediaMap) }))
         },
@@ -142,6 +143,10 @@ export const useMediaStore = create<MediaStateT>()(
 
         setTypeMap: (typeMap: any) => {
             set({ mediaTypeMap: typeMap })
+        },
+
+        getMedia: (mediaId: string) => {
+            return get().mediaMap.get(mediaId)
         },
 
         getTypeMap: () => {

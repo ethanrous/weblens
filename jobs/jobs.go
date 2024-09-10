@@ -504,8 +504,7 @@ func HashFile(t *task.Task) {
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
-	contentId = models.ContentId(base64.URLEncoding.EncodeToString(newHash.Sum(nil)))[:20]
-	// meta.file.SetContentId(contentId)
+	contentId = base64.URLEncoding.EncodeToString(newHash.Sum(nil))[:20]
 	t.SetResult(task.TaskResult{"contentId": contentId})
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)

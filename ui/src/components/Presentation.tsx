@@ -144,7 +144,6 @@ export const ContainerMedia = ({
 }
 
 function TextDisplay({ file }: { file: WeblensFile }) {
-    const auth = useSessionStore((state) => state.auth)
     const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
     const [content, setContent] = useState('')
 
@@ -154,7 +153,7 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 
     useEffect(() => {
         setBlockFocus(true)
-        GetFileText(file.Id(), auth)
+        GetFileText(file.Id())
             .then((r) => {
                 setContent(r)
             })
@@ -189,7 +188,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetMediaId())
     )
-    const auth = useSessionStore((state) => state.auth)
+
     const wsSend = useContext(WebsocketContext)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
 
@@ -232,8 +231,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                             [file],
                             removeLoading,
                             progDispatch,
-                            wsSend,
-                            auth
+                            wsSend
                         )
                     }}
                 />
@@ -253,37 +251,6 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                             </p>
                         </div>
                     </div>
-                )}
-            </div>
-        </div>
-    )
-    return (
-        <div
-            className="flex flex-row h-max w-full items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-        >
-            <div className="flex flex-col w-[40%] items-end">
-                <p className={'text-3xl font-semibold w-max p-2'}>
-                    {file.GetFilename()}
-                </p>
-                {file.IsFolder() && (
-                    <div className="flex flex-row h-max w-max items-center justify-center p-2">
-                        <p className="text-2xl text-nowrap">
-                            {file.GetChildren().length} Item
-                            {file.GetChildren().length !== 1 ? 's' : ''}
-                        </p>
-                        <Divider orientation="vertical" size={2} mx={10} />
-                        <p style={{ fontSize: '25px' }}>
-                            {size}
-                            {units}
-                        </p>
-                    </div>
-                )}
-                {!file.IsFolder() && (
-                    <p className="text-2xl">
-                        {size}
-                        {units}
-                    </p>
                 )}
             </div>
         </div>
@@ -411,7 +378,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     const [guiShown, setGuiShown] = useState(false)
     const [likedHover, setLikedHover] = useState(false)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
-    const { user, auth } = useSessionStore()
+    const { user } = useSessionStore()
 
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file?.GetMediaId())
@@ -483,7 +450,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
                     data-shown={guiShown || isLiked}
                     onClick={(e) => {
                         e.stopPropagation()
-                        likeMedia(mediaData.Id(), !isLiked, auth).then(() => {
+                        likeMedia(mediaData.Id(), !isLiked).then(() => {
                             setMediaLiked(mediaData.Id(), user.username)
                         })
                     }}
@@ -540,7 +507,7 @@ const Presentation = memo(
         const [to, setTo] = useState(null)
         const [guiShown, setGuiShown] = useState(false)
         const [likedHover, setLikedHover] = useState(false)
-        const { user, auth } = useSessionStore()
+        const { user } = useSessionStore()
 
         const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
         const isLiked = useMediaStore((state) => {
@@ -586,7 +553,7 @@ const Presentation = memo(
                     data-shown={guiShown || isLiked}
                     onClick={(e) => {
                         e.stopPropagation()
-                        likeMedia(mediaId, !isLiked, auth).then(() => {
+                        likeMedia(mediaId, !isLiked).then(() => {
                             setMediaLiked(mediaId, user.username)
                         })
                     }}

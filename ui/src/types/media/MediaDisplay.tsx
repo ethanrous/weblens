@@ -11,7 +11,7 @@ import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
 import { AlbumNoContent } from '@weblens/types/albums/Albums'
 import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
-import WeblensMedia from '@weblens/types/media/Media'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
@@ -38,16 +38,11 @@ const goToFolder = async (
     filesInfo,
     setLoading,
     setMenuOpen,
-    setFileInfo,
-    authHeader
+    setFileInfo
 ) => {
     e.stopPropagation()
     if (fileIds.length === 1) {
-        const fileInfo: WeblensFileParams = await GetFileInfo(
-            fileIds[0],
-            '',
-            authHeader
-        )
+        const fileInfo: WeblensFileParams = await GetFileInfo(fileIds[0], '')
 
         const newFile = new WeblensFile(fileInfo)
 
@@ -61,7 +56,7 @@ const goToFolder = async (
     if (filesInfo.length === 0) {
         setLoading(true)
         const fileInfos = await Promise.all(
-            fileIds.map(async (v) => await GetFileInfo(v, '', authHeader))
+            fileIds.map(async (v) => await GetFileInfo(v, ''))
         )
         setFileInfo(fileInfos)
         setLoading(false)
@@ -136,7 +131,7 @@ const MediaInfoDisplay = ({
     mediaMenuOpen: boolean
     tooSmall: boolean
 }) => {
-    const { auth, user } = useSessionStore()
+    const { user } = useSessionStore()
     const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
     const [icon, name] = useMemo(() => {
         return TypeIcon(mediaData)
@@ -175,8 +170,7 @@ const MediaInfoDisplay = ({
                 filesInfo,
                 () => {},
                 setMenuOpen,
-                setFilesInfo,
-                auth
+                setFilesInfo
             ),
         []
     )
@@ -203,8 +197,7 @@ const MediaInfoDisplay = ({
                 data-show-anyway={liked || othersLiked}
                 onClick={(e) => {
                     e.stopPropagation()
-                    likeMedia(mediaId, !liked, auth).then(() => {
-                        console.log('HERE???')
+                    likeMedia(mediaId, !liked).then(() => {
                         setLiked(mediaId, user.username)
                     })
                 }}
@@ -337,7 +330,7 @@ const MediaWrapper = ({
     return (
         <div
             key={mediaData.Id()}
-            className="preview-card-container"
+            className="preview-card-container animate-fade"
             data-selecting={galleryState.selecting}
             data-selected={mediaData.IsSelected()}
             data-choosing={choosing}
@@ -354,7 +347,9 @@ const MediaWrapper = ({
         >
             <MediaImage
                 media={mediaData}
-                quality={presenting ? 'fullres' : 'thumbnail'}
+                quality={
+                    presenting ? PhotoQuality.HighRes : PhotoQuality.LowRes
+                }
                 doFetch={showMedia}
                 containerStyle={style}
             />
@@ -511,7 +506,6 @@ export function PhotoGallery({
             const val =
                 (m2.GetCreateTimestampUnix() - m1.GetCreateTimestampUnix()) *
                 sortDirection
-            // console.log(val)
             return val
         })
         innerMedias.forEach((m, i) => {

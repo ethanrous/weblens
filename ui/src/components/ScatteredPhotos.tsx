@@ -1,4 +1,4 @@
-import WeblensMedia from '@weblens/types/media/Media'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { getRandomThumbs } from '@weblens/types/media/MediaQuery'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { useEffect, useMemo, useState } from 'react'
@@ -12,8 +12,6 @@ const ScatteredPhoto = ({
     media: WeblensMedia
     attribute: attribute
 }) => {
-    const [mData, setMData] = useState(media)
-
     return (
         <div
             className="scattered-photo"
@@ -26,8 +24,8 @@ const ScatteredPhoto = ({
             }}
         >
             <MediaImage
-                media={mData}
-                quality="thumbnail"
+                media={media}
+                quality={PhotoQuality.LowRes}
                 imgStyle={{ filter: `blur(${attribute.blur}px)` }}
             />
         </div>

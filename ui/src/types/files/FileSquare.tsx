@@ -10,7 +10,6 @@ import {
     mouseMove,
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
-import { useSessionStore } from 'components/UserInfo'
 import React, { MouseEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -36,7 +35,7 @@ export const FileTextBox = ({ itemTitle }) => {
 
 export const FileSquare = ({ file }: { file: WeblensFile }) => {
     const [mouseDown, setMouseDown] = useState(null)
-    const auth = useSessionStore((state) => state.auth)
+
     const nav = useNavigate()
 
     const {
@@ -115,7 +114,6 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                     file,
                     draggingState,
                     Array.from(selected.keys()),
-                    auth,
                     setSelectedMoved,
                     clearSelected,
                     setMoveDest,

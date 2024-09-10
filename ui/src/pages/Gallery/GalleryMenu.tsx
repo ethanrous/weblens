@@ -6,7 +6,6 @@ import {
     IconPolaroid,
 } from '@tabler/icons-react'
 import { useClick, useKeyDown } from '@weblens/components/hooks'
-import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { SetAlbumCover } from '@weblens/types/albums/AlbumQuery'
 import WeblensMedia from '@weblens/types/media/Media'
@@ -247,7 +246,7 @@ export const GalleryMenu = memo(
         setOpen: (o: boolean) => void
         updateAlbum?: () => void
     }) => {
-        const auth = useSessionStore((state) => state.auth)
+        
 
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
         const [menuRef, setMenuRef] = useState(null)
@@ -283,7 +282,7 @@ export const GalleryMenu = memo(
                     medias = [...useMediaStore.getState().selectedMap.keys()]
                 }
                 medias.push(media.Id())
-                const r = await hideMedia(medias, hidden, auth)
+                const r = await hideMedia(medias, hidden)
 
                 if (r.status !== 200) {
                     return false
@@ -323,7 +322,7 @@ export const GalleryMenu = memo(
                 // return r
                 return false
             },
-            [media, auth]
+            [media]
         )
 
         const hideStyle = useMemo(() => {
@@ -394,8 +393,7 @@ export const GalleryMenu = memo(
                                 e.stopPropagation()
                                 const r = await SetAlbumCover(
                                     galleryState.albumId,
-                                    media.Id(),
-                                    auth
+                                    media.Id()
                                 )
                                 return r.status === 200
                             }}

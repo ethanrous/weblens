@@ -448,3 +448,18 @@
     stroke-width: 2;
 }
 
+.past-time-box {
+    display: flex;
+    flex-direction: row;
+    width: max-content;
+    height: max-content;
+    align-items: center;
+    position: absolute;
+    bottom: 16px;
+    background-color: $dark-paper;
+    border-radius: 6px;
+    z-index: 1;
+    padding: 8px;
+    margin-left: 12px;
+    outline: 1px solid $main-accent;
+}

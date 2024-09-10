@@ -27,7 +27,6 @@ import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import NotFound from 'components/NotFound'
-import { useSessionStore } from 'components/UserInfo'
 import React, {
     useCallback,
     useContext,
@@ -91,7 +90,6 @@ const AlbumTitle = ({ startColor, endColor, title }) => {
 
 function AlbumContent({ albumId }: { albumId: string }) {
     const { galleryState } = useContext(GalleryContext)
-    const auth = useSessionStore((state) => state.auth)
     const [notFound, setNotFound] = useState(false)
 
     const showRaw = useMediaStore((state) => state.showRaw)
@@ -100,12 +98,10 @@ function AlbumContent({ albumId }: { albumId: string }) {
     const albumContentRes = useQuery({
         queryKey: ['albumContent', albumId, showRaw],
         queryFn: async () => {
-            const data = await getAlbumMedia(albumId, showRaw, auth).catch(
-                (r) => {
-                    console.error(r)
-                    setNotFound(true)
-                }
-            )
+            const data = await getAlbumMedia(albumId, showRaw).catch((r) => {
+                console.error(r)
+                setNotFound(true)
+            })
             if (!data) {
                 return
             }
@@ -180,7 +176,6 @@ function AlbumContent({ albumId }: { albumId: string }) {
 
 function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
     const [newAlbumName, setNewAlbumName] = useState(null)
-    const auth = useSessionStore((state) => state.auth)
 
     return (
         <div className="flex items-center h-14 w-40">
@@ -199,10 +194,10 @@ function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
                 // <div className="flex flex-row w-10 items-center justify-center bg-dark-paper rounded p-2">
                 <WeblensInput
                     value={newAlbumName}
-                    height={40}
+                    squareSize={40}
                     autoFocus
                     onComplete={(val) =>
-                        createAlbum(val, auth)
+                        createAlbum(val)
                             .then(() => {
                                 setNewAlbumName(null)
                                 fetchAlbums()
@@ -234,7 +229,7 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
                         value={galleryState.searchContent}
                         Icon={IconSearch}
                         stealFocus={!galleryState.blockSearchFocus}
-                        height={40}
+                        squareSize={40}
                         valueCallback={(v) =>
                             galleryDispatch({ type: 'set_search', search: v })
                         }
@@ -349,12 +344,11 @@ function AlbumsHomeView({ fetchAlbums }: { fetchAlbums: () => void }) {
 }
 
 export function Albums({ selectedAlbum }: { selectedAlbum: string }) {
-    const auth = useSessionStore((state) => state.auth)
     const { galleryDispatch } = useContext(GalleryContext)
 
     const fetchAlbums = useCallback(() => {
         galleryDispatch({ type: 'add_loading', loading: 'albums' })
-        getAlbums(true, auth).then((val) => {
+        getAlbums(true).then((val) => {
             galleryDispatch({ type: 'set_albums', albums: val })
             galleryDispatch({ type: 'remove_loading', loading: 'albums' })
         })

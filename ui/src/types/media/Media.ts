@@ -1,6 +1,6 @@
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { AuthHeaderT, mediaType } from 'types/Types'
+import { mediaType } from 'types/Types'
 
 export interface MediaDataT {
     contentId: string
@@ -216,17 +216,14 @@ class WeblensMedia {
     SetLikedBy(username: string) {
         const index = this.data.likedBy.indexOf(username)
         if (index >= 0) {
-            console.log('Unliking media', index)
             this.data.likedBy.splice(index, 1)
         } else {
-            console.log('Liking media')
             this.data.likedBy.push(username)
         }
     }
 
     async LoadBytes(
         maxQuality: PhotoQuality,
-        auth: AuthHeaderT,
         pageNumber?,
         thumbFinished?: () => void,
         fullresFinished?: () => void
@@ -239,7 +236,6 @@ class WeblensMedia {
         if (!this.data.thumbnail) {
             thumb = this.getImageData(
                 PhotoQuality.LowRes,
-                auth,
                 this.data.abort.signal
             )
         }
@@ -250,7 +246,6 @@ class WeblensMedia {
         ) {
             fullres = this.getImageData(
                 PhotoQuality.HighRes,
-                auth,
                 this.data.abort.signal,
                 pageNumber
             )
@@ -281,7 +276,6 @@ class WeblensMedia {
         await fetch(url.toString())
             .then((r) => r.json())
             .then((r) => {
-                console.log(r)
                 this.data = {
                     ...this.data,
                     ...(r as MediaDataT),
@@ -299,13 +293,12 @@ class WeblensMedia {
         }
     }
 
-    public StreamVideoUrl(auth: AuthHeaderT): string {
+    public StreamVideoUrl(): string {
         return `${API_ENDPOINT}/media/${this.data.contentId}/stream`
     }
 
     private async getImageData(
         quality: PhotoQuality,
-        authHeader: AuthHeaderT,
         signal: AbortSignal,
         pageNumber?: number
     ) {
@@ -317,18 +310,11 @@ class WeblensMedia {
             `${API_ENDPOINT}/media/${this.data.contentId}/${quality}`
         )
 
-        console.log(quality, pageNumber)
-
         if (pageNumber !== undefined) {
             url.searchParams.append('page', pageNumber.toString())
         }
 
-        const res = fetch(url, {
-            headers: {
-                ...authHeader,
-            },
-            signal,
-        })
+        const res = fetch(url, { signal })
             .then((res) => {
                 if (res.status !== 200) {
                     return Promise.reject(res.statusText)

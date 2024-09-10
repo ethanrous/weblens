@@ -2,7 +2,6 @@ package env
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,17 +15,6 @@ import (
 
 func init() {
 	log.SetLogLevel(GetLogLevel())
-}
-
-func envReadBool(s string) bool {
-	val := os.Getenv(s)
-	if val == "true" || val == "1" {
-		return true
-	} else if val == "" || val == "false" || val == "0" {
-		return false
-	} else {
-		panic(fmt.Errorf("failed to make boolean out of value: %s", val))
-	}
 }
 
 var configData map[string]map[string]any
@@ -62,7 +50,7 @@ func GetConfigName() string {
 	if configName != "" {
 		return configName
 	}
-	return "TEST"
+	return "PROD"
 }
 
 func GetWorkerCount() int {
@@ -167,7 +155,10 @@ func GetCachesRoot() string {
 			cachesRoot, ok = config["cachesRoot"].(string)
 			if ok {
 				if cachesRoot[0] == '.' {
-					cachesRoot = filepath.Join(GetAppRootDir(), cachesRoot)
+					cachesRoot, err = filepath.Abs(cachesRoot)
+					if err != nil {
+						panic(err)
+					}
 				}
 				return cachesRoot
 			}
@@ -315,7 +306,10 @@ func GetMediaRoot() string {
 
 	mediaRoot = config["mediaRoot"].(string)
 	if mediaRoot[0] == '.' {
-		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
+		mediaRoot, err = filepath.Abs(mediaRoot)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if mediaRoot == "" {

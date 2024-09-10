@@ -10,7 +10,7 @@ class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
         this.state = { hasError: props.hasError }
     }
 
-    static getDerivedStateFromError(_) {
+    static getDerivedStateFromError() {
         // Update state so the next render will show the fallback UI.
         return { hasError: true }
     }
@@ -20,7 +20,7 @@ class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
         this.setState({ hasError: false })
     }
 
-    componentDidCatch(error, _) {
+    componentDidCatch(error) {
         const wsSend = useWebsocketStore.getState().wsSend
         if (wsSend != null) {
             wsSend(

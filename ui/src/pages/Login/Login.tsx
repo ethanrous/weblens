@@ -58,13 +58,13 @@ const Login = () => {
                     value={userInput}
                     autoFocus
                     valueCallback={setUserInput}
-                    height={40}
+                    squareSize={40}
                 />
                 <p className="w-full">Password</p>
                 <WeblensInput
                     value={passInput}
                     valueCallback={setPassInput}
-                    height={40}
+                    squareSize={40}
                     password
                 />
                 <Space h={'md'} />

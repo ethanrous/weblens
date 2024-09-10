@@ -1,8 +1,10 @@
+import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
+import { FileAction } from '@weblens/pages/FileBrowser/FileInfoPane'
 import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
-import { AlbumData, AuthHeaderT, TPDispatchT } from '@weblens/types/Types'
+import { AlbumData, TPDispatchT } from '@weblens/types/Types'
+import { humanFileSize } from '@weblens/util'
 import axios from 'axios'
-import { humanFileSize } from '../util'
 import API_ENDPOINT from './ApiEndpoint'
 import { useWebsocketStore, WsSendT } from './Websocket'
 
@@ -25,38 +27,30 @@ export function SubToTask(taskId: string, lookingFor: string[], wsSend) {
 
 export function UnsubFromFolder(subId: string, wsSend) {
     if (!subId || useWebsocketStore.getState().readyState < 1) {
-        console.log('Not sending unsub message')
         return
     }
     wsSend('unsubscribe', { subscribeKey: subId })
 }
 
-export function TrashFiles(
-    fileIds: string[],
-    shareId: string,
-    authHeader: AuthHeaderT
-) {
+export function TrashFiles(fileIds: string[], shareId: string) {
     const url = new URL(`${API_ENDPOINT}/files/trash`)
     if (shareId) {
         url.searchParams.append('shareId', shareId)
     }
 
-    return fetch(url.toString(), {
-        method: 'PATCH',
-        headers: authHeader,
-        body: JSON.stringify(fileIds),
-    }).catch((r) => {
-        console.error(r)
-        return { ok: false }
-    })
+    return wrapRequest(
+        fetch(url.toString(), {
+            method: 'PATCH',
+            body: JSON.stringify(fileIds),
+        })
+    )
 }
 
-export function DeleteFiles(fileIds: string[], authHeader: AuthHeaderT) {
+export function DeleteFiles(fileIds: string[]) {
     const url = new URL(`${API_ENDPOINT}/files`)
 
     return fetch(url.toString(), {
         method: 'DELETE',
-        headers: authHeader,
         body: JSON.stringify(fileIds),
     }).catch((r) => {
         console.error(r)
@@ -64,22 +58,18 @@ export function DeleteFiles(fileIds: string[], authHeader: AuthHeaderT) {
     })
 }
 
-export function UnTrashFiles(fileIds: string[], authHeader: AuthHeaderT) {
+export function UnTrashFiles(fileIds: string[]) {
     const url = new URL(`${API_ENDPOINT}/files/untrash`)
 
     return fetch(url.toString(), {
         method: 'PATCH',
-        headers: authHeader,
         body: JSON.stringify(fileIds),
     })
 }
 
-async function getSharedWithMe(authHeader: AuthHeaderT) {
-    if (!authHeader) {
-        return { children: [], self: {} }
-    }
+async function getSharedWithMe() {
     const url = new URL(`${API_ENDPOINT}/files/shared`)
-    return fetch(url.toString(), authHeader ? { headers: authHeader } : null)
+    return fetch(url.toString())
         .then((res) => res.json())
         .then((sharedFiles) => {
             const sharedFolder = new WeblensFile({
@@ -91,51 +81,45 @@ async function getSharedWithMe(authHeader: AuthHeaderT) {
         })
 }
 
-async function getExternalFiles(contentId: string, authHeader: AuthHeaderT) {
-    if (!authHeader) {
-        return { children: [], self: null }
-    }
+async function getExternalFiles(contentId: string) {
     const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
-    return fetch(url.toString(), { headers: authHeader })
-        .then((res) => res.json())
-        .then((data) => {
-            const ret = {
-                self: data.self,
-                parents: data.parents,
-                children: [],
-            }
-            if (data.children) {
-                ret.children = data.children
-            } else if (data.files) {
-                ret.children = data.files
-            }
-            return ret
-        })
+    return fetchJson(url.toString())
+    // .then((data) => {
+    //     const ret = {
+    //         self: data.self,
+    //         parents: data.parents,
+    //         children: [],
+    //     }
+    //     if (data.children) {
+    //         ret.children = data.children
+    //     } else if (data.files) {
+    //         ret.children = data.files
+    //     }
+    //     return ret
+    // })
 }
 
 export async function GetFileInfo(
     fileId: string,
-    shareId: string,
-    authHeader: AuthHeaderT
+    shareId: string
 ): Promise<WeblensFileParams> {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}`)
     if (shareId !== '') {
         url.searchParams.append('shareId', shareId)
     }
-    return (await fetch(url.toString(), { headers: authHeader })).json()
+    return fetchJson(url.toString())
 }
 
 export async function GetFolderData(
     contentId: string,
     fbMode: FbModeT,
-    shareId: string,
-    authHeader: AuthHeaderT
+    shareId: string
 ) {
     if (fbMode === FbModeT.share && !shareId) {
-        return getSharedWithMe(authHeader)
+        return getSharedWithMe()
     }
     if (fbMode === FbModeT.external) {
-        return getExternalFiles(contentId, authHeader)
+        return getExternalFiles(contentId)
     }
 
     if (!contentId) {
@@ -148,23 +132,7 @@ export async function GetFolderData(
         url.searchParams.append('shareId', shareId)
     }
 
-    return fetch(
-        url.toString(),
-        authHeader ? { headers: authHeader } : null
-    ).then((res) => {
-        if (res.status === 404) {
-            return Promise.reject(404)
-        } else if (res.status === 401) {
-            return Promise.reject('Not Authorized')
-        } else {
-            try {
-                const j = res.json()
-                return j
-            } catch {
-                return Promise.reject('Failed to decode response')
-            }
-        }
-    })
+    return fetchJson(url.toString())
 }
 
 export async function CreateFolder(
@@ -172,8 +140,7 @@ export async function CreateFolder(
     name: string,
     children: string[],
     isPublic: boolean,
-    shareId: string,
-    authHeader: AuthHeaderT
+    shareId: string
 ): Promise<string> {
     if (isPublic && !shareId) {
         throw new Error('Attempting to do public upload with no shareId')
@@ -189,7 +156,7 @@ export async function CreateFolder(
 
     const dirInfo = await fetch(url.toString(), {
         method: 'POST',
-        headers: authHeader,
+
         body: JSON.stringify({
             parentFolderId: parentFolderId,
             newFolderName: name,
@@ -203,24 +170,7 @@ export async function CreateFolder(
     return dirInfo?.folderId
 }
 
-export function moveFile(
-    currentParentId,
-    newParentId,
-    currentFilename,
-    authHeader: AuthHeaderT
-) {
-    const url = new URL(`${API_ENDPOINT}/file`)
-    url.searchParams.append('currentParentId', currentParentId)
-    url.searchParams.append('newParentId', newParentId)
-    url.searchParams.append('currentFilename', currentFilename)
-    return fetch(url.toString(), { method: 'PUT', headers: authHeader })
-}
-
-export function moveFiles(
-    fileIds: string[],
-    newParentId: string,
-    authHeader: AuthHeaderT
-) {
+export function moveFiles(fileIds: string[], newParentId: string) {
     const url = new URL(`${API_ENDPOINT}/files`)
     const body = {
         fileIds: fileIds,
@@ -229,21 +179,16 @@ export function moveFiles(
 
     return fetch(url.toString(), {
         method: 'PATCH',
-        headers: authHeader,
+
         body: JSON.stringify(body),
     })
 }
 
-export async function RenameFile(
-    fileId: string,
-    newName: string,
-    authHeader: AuthHeaderT
-) {
+export async function RenameFile(fileId: string, newName: string) {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}`)
     fetch(url.toString(), {
         method: 'PATCH',
         body: JSON.stringify({ newName: newName }),
-        headers: authHeader,
     })
 }
 
@@ -260,7 +205,6 @@ function downloadBlob(blob, filename) {
 
 export function downloadSingleFile(
     fileId: string,
-    authHeader: AuthHeaderT,
     progDispatch: TPDispatchT,
     filename: string,
     isZip: boolean,
@@ -292,7 +236,6 @@ export function downloadSingleFile(
     return axios
         .get(url.toString(), {
             responseType: 'blob',
-            headers: authHeader,
 
             onDownloadProgress: (p) => {
                 const [rateSize, rateUnits] = humanFileSize(p.rate)
@@ -325,18 +268,13 @@ export function downloadSingleFile(
         })
 }
 
-export async function requestZipCreate(
-    fileIds: string[],
-    shareId: string,
-    authHeader: AuthHeaderT
-) {
+export async function requestZipCreate(fileIds: string[], shareId: string) {
     const url = new URL(`${API_ENDPOINT}/takeout`)
     if (shareId) {
         url.searchParams.append('shareId', shareId)
     }
 
     return fetch(url.toString(), {
-        headers: authHeader,
         method: 'POST',
         body: JSON.stringify({ fileIds: fileIds }),
     }).then(async (res) => {
@@ -345,22 +283,16 @@ export async function requestZipCreate(
     })
 }
 
-export async function AutocompleteAlbums(
-    searchValue,
-    authHeader: AuthHeaderT
-): Promise<AlbumData[]> {
+export async function AutocompleteAlbums(searchValue): Promise<AlbumData[]> {
     if (searchValue.length < 2) {
         return []
     }
     const url = new URL(`${API_ENDPOINT}/albums`)
     url.searchParams.append('filter', searchValue)
-    const res = await fetch(url.toString(), { headers: authHeader }).then(
-        (res) => res.json()
-    )
-    return res.albums ? res.albums : []
+    return fetchJson(url.toString())
 }
 
-export async function NewWormhole(folderId: string, authHeader: AuthHeaderT) {
+export async function NewWormhole(folderId: string) {
     const url = new URL(`${API_ENDPOINT}/share/files`)
 
     const body = {
@@ -368,35 +300,30 @@ export async function NewWormhole(folderId: string, authHeader: AuthHeaderT) {
         wormhole: true,
     }
     const res = await fetch(url.toString(), {
-        headers: authHeader,
         method: 'POST',
         body: JSON.stringify(body),
     })
     return res
 }
 
-export async function GetWormholeInfo(
-    shareId: string,
-    authHeader: AuthHeaderT
-) {
+export async function GetWormholeInfo(shareId: string) {
     const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
-
-    return fetch(url.toString(), { headers: authHeader })
+    return wrapRequest(fetch(url.toString()))
 }
 
 export async function searchFolder(
     folderId: string,
     searchString: string,
-    filter: string,
-    authHeader: AuthHeaderT
+    filter: string
 ): Promise<WeblensFileParams[]> {
     const url = new URL(`${API_ENDPOINT}/folder/${folderId}/search`)
     url.searchParams.append('search', searchString)
     url.searchParams.append('filter', filter)
 
-    const files: { files: WeblensFileParams[] } = await fetch(url.toString(), {
-        headers: authHeader,
-    })
+    const files: { files: WeblensFileParams[] } = await fetch(
+        url.toString(),
+        {}
+    )
         .then((v) => v.json())
         .then((v) => {
             if (v.error) {
@@ -411,65 +338,28 @@ export async function searchFolder(
     return files.files
 }
 
-export async function getFilesystemStats(
-    folderId: string,
-    authHeader: AuthHeaderT
-) {
-    return await fetch(`${API_ENDPOINT}/files/${folderId}/stats`, {
-        headers: authHeader,
-    }).then((d) => d.json())
+export async function getFilesystemStats(folderId: string): Promise<{sizesByExtension: {name: string, size: number}[]}> {
+    return fetchJson(`${API_ENDPOINT}/files/${folderId}/stats`)
 }
 
-export async function getFileHistory(fileId: string, authHeader: AuthHeaderT) {
+export async function getFileHistory(fileId: string): Promise<FileAction[]> {
     if (!fileId) {
         console.error('No fileId trying to get file history')
         return null
     }
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`)
-    return await fetch(url, { headers: authHeader }).then((r) => {
-        if (r.status !== 200) {
-            return r.status
-        } else {
-            return r.json()
-        }
-    })
+    return fetchJson(`${API_ENDPOINT}/file/${fileId}/history`)
 }
 
-export async function getSnapshots(authHeader: AuthHeaderT) {
-    const url = new URL(`${API_ENDPOINT}/snapshots`)
-    return await fetch(url, { headers: authHeader }).then((r) => {
-        if (r.status !== 200) {
-            return r.status
-        } else {
-            return r.json()
-        }
-    })
-}
-
-export async function getPastFolderInfo(
-    folderId: string,
-    timestamp: Date,
-    authHeader: AuthHeaderT
-) {
+export async function getPastFolderInfo(folderId: string, timestamp: Date) {
     const millis = timestamp.getTime()
     const url = new URL(`${API_ENDPOINT}/file/rewind/${folderId}/${millis}`)
-    return await fetch(url, { headers: authHeader }).then((r) => {
-        if (r.status !== 200) {
-            return r.status
-        } else {
-            return r.json()
-        }
-    })
+
+    return fetchJson(url.toString())
 }
 
-export async function restoreFiles(
-    fileIds: string[],
-    timestamp: Date,
-    authHeader: AuthHeaderT
-) {
+export async function restoreFiles(fileIds: string[], timestamp: Date) {
     const url = new URL(`${API_ENDPOINT}/history/restore`)
     return await fetch(url, {
-        headers: authHeader,
         method: 'POST',
         body: JSON.stringify({
             fileIds: fileIds,
@@ -484,9 +374,7 @@ export async function restoreFiles(
     })
 }
 
-export async function GetFileText(fileId: string, authHeader: AuthHeaderT) {
+export async function GetFileText(fileId: string) {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)
-    return await fetch(url, {
-        headers: authHeader,
-    }).then((r) => r.text())
+    return await fetch(url, {}).then((r) => r.text())
 }

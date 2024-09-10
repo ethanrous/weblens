@@ -147,7 +147,7 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 
 	if !fs.accessService.CanUserAccessFile(user, f, share) {
 		log.Warning.Printf(
-			"User [%s] attempted to access file at %s [%s], but they do not have access",
+			"Username [%s] attempted to access file at %s [%s], but they do not have access",
 			user.GetUsername(), f.GetPortablePath(), f.ID(),
 		)
 		return nil, werror.WithStack(werror.ErrNoFileAccess)

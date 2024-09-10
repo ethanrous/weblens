@@ -3,11 +3,7 @@ import { GalleryAction } from '@weblens/pages/Gallery/GalleryLogic'
 import WeblensMedia from '@weblens/types/media/Media'
 import { Dispatch } from 'react'
 
-export type AuthHeaderT = {
-    Authorization: string
-}
-
-export const LOGIN_TOKEN_COOKIE_KEY = 'weblens-login-token'
+export const LOGIN_TOKEN_COOKIE_KEY = 'weblens-session-token'
 export const USERNAME_COOKIE_KEY = 'weblens-username'
 
 export type UserInfoT = {
@@ -114,30 +110,10 @@ export type GalleryStateT = {
 export type TPDispatchT = Dispatch<TasksProgressAction>
 export type GalleryDispatchT = (action: GalleryAction) => void
 
-export type ScanMeta = {
-    taskId: string
-    taskType: string
-    target: string
-    mostRecent: string
-    note: string
-
-    progress: number
-    tasksComplete: number
-    tasksTotal: number
-    time: number
-
-    complete: boolean
-}
-
 export interface FbViewOptsT {
     dirViewMode: string
     sortDirection: number // 1 or -1
     sortFunc: string
-}
-
-export type SizeT = {
-    height: number
-    width: number
 }
 
 export type ApiKeyInfo = {

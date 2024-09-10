@@ -7,6 +7,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+// TODO
+
 type watcherPathMod struct {
 	path string
 	add  bool

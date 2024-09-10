@@ -33,11 +33,7 @@ import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { TaskProgContext } from '@weblens/types/files/FBTypes'
 import { WeblensFileParams } from '@weblens/types/files/File'
-import {
-    ApiKeyInfo,
-    AuthHeaderT as AuthHeaderT,
-    UserInfoT as UserInfoT,
-} from '@weblens/types/Types'
+import { ApiKeyInfo, UserInfoT as UserInfoT } from '@weblens/types/Types'
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { WebsocketContext } from '../../Context'
 import { useFileBrowserStore } from '../FileBrowser/FBStateControl'
@@ -45,8 +41,6 @@ import { WebsocketStatus } from '../FileBrowser/FileBrowserMiscComponents'
 import { TaskProgress, TaskStage } from '../FileBrowser/TaskProgress'
 
 function PathAutocomplete() {
-    const auth = useSessionStore((state) => state.auth)
-
     const [pathSearch, setPathSearch] = useState('')
     const [hoverOffset, setHoverOffset] = useState(0)
     const [bouncedSearch] = useDebouncedValue(pathSearch, 100)
@@ -57,7 +51,7 @@ function PathAutocomplete() {
         queryKey: ['pathAutocomplete', bouncedSearch],
         initialData: { children: [], folder: null },
         queryFn: () =>
-            autocompletePath(bouncedSearch, auth).then((names) => {
+            autocompletePath(bouncedSearch).then((names) => {
                 names.children.sort((f1, f2) =>
                     f1.filename.localeCompare(f2.filename)
                 )
@@ -183,13 +177,7 @@ function PathAutocomplete() {
     )
 }
 
-function CreateUserBox({
-    setAllUsersInfo,
-    authHeader,
-}: {
-    setAllUsersInfo
-    authHeader: AuthHeaderT
-}) {
+function CreateUserBox({ setAllUsersInfo }: { setAllUsersInfo }) {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
     const [makeAdmin, setMakeAdmin] = useState(false)
@@ -202,14 +190,14 @@ function CreateUserBox({
                 <div className="flex gap-1">
                     <WeblensInput
                         placeholder="Username"
-                        height={50}
+                        squareSize={50}
                         onComplete={null}
                         fillWidth
                         valueCallback={setUserInput}
                     />
                     <WeblensInput
                         placeholder="Password"
-                        height={50}
+                        squareSize={50}
                         onComplete={null}
                         fillWidth
                         password
@@ -233,10 +221,9 @@ function CreateUserBox({
                             await adminCreateUser(
                                 userInput,
                                 passInput,
-                                makeAdmin,
-                                authHeader
+                                makeAdmin
                             ).then(() => {
-                                GetUsersInfo(setAllUsersInfo, authHeader)
+                                GetUsersInfo(setAllUsersInfo)
                                 setUserInput('')
                                 setPassInput('')
                             })
@@ -253,12 +240,10 @@ const UserRow = ({
     rowUser,
     accessor,
     setAllUsersInfo,
-    authHeader,
 }: {
     rowUser: UserInfoT
     accessor: UserInfoT
     setAllUsersInfo
-    authHeader: AuthHeaderT
 }) => {
     const [changingPass, setChangingPass] = useState(false)
     return (
@@ -298,12 +283,7 @@ const UserRow = ({
                                     'Cannot update password to empty string'
                                 )
                             }
-                            return UpdatePassword(
-                                rowUser.username,
-                                '',
-                                newPass,
-                                authHeader
-                            )
+                            return UpdatePassword(rowUser.username, '', newPass)
                         }}
                     />
                 )}
@@ -315,12 +295,8 @@ const UserRow = ({
                         allowShrink={false}
                         squareSize={35}
                         onClick={() => {
-                            SetUserAdmin(
-                                rowUser.username,
-                                true,
-                                authHeader
-                            ).then(() =>
-                                GetUsersInfo(setAllUsersInfo, authHeader)
+                            SetUserAdmin(rowUser.username, true).then(() =>
+                                GetUsersInfo(setAllUsersInfo)
                             )
                         }}
                     />
@@ -330,12 +306,8 @@ const UserRow = ({
                         label="Remove Admin"
                         squareSize={35}
                         onClick={() => {
-                            SetUserAdmin(
-                                rowUser.username,
-                                false,
-                                authHeader
-                            ).then(() =>
-                                GetUsersInfo(setAllUsersInfo, authHeader)
+                            SetUserAdmin(rowUser.username, false).then(() =>
+                                GetUsersInfo(setAllUsersInfo)
                             )
                         }}
                     />
@@ -345,8 +317,8 @@ const UserRow = ({
                         label="Activate"
                         squareSize={35}
                         onClick={() => {
-                            ActivateUser(rowUser.username, authHeader).then(
-                                () => GetUsersInfo(setAllUsersInfo, authHeader)
+                            ActivateUser(rowUser.username).then(() =>
+                                GetUsersInfo(setAllUsersInfo)
                             )
                         }}
                     />
@@ -359,8 +331,8 @@ const UserRow = ({
                     centerContent
                     disabled={rowUser.admin && !accessor.owner}
                     onClick={() => {
-                        DeleteUser(rowUser.username, authHeader).then(() =>
-                            GetUsersInfo(setAllUsersInfo, authHeader)
+                        DeleteUser(rowUser.username).then(() =>
+                            GetUsersInfo(setAllUsersInfo)
                         )
                     }}
                 />
@@ -373,12 +345,10 @@ function UsersBox({
     thisUserInfo,
     allUsersInfo,
     setAllUsersInfo,
-    authHeader,
 }: {
     thisUserInfo: UserInfoT
     allUsersInfo: UserInfoT[]
     setAllUsersInfo
-    authHeader: AuthHeaderT
 }) {
     const usersList = useMemo(() => {
         if (!allUsersInfo) {
@@ -394,11 +364,10 @@ function UsersBox({
                 rowUser={val}
                 accessor={thisUserInfo}
                 setAllUsersInfo={setAllUsersInfo}
-                authHeader={authHeader}
             />
         ))
         return usersList
-    }, [allUsersInfo, authHeader, setAllUsersInfo])
+    }, [allUsersInfo, setAllUsersInfo])
 
     return (
         <div className="flex flex-col p-2 shrink w-full h-max min-h-96 overflow-x-hidden bg-slate-800 rounded gap-2 no-scrollbar">
@@ -406,30 +375,26 @@ function UsersBox({
                 Users
             </p>
             {usersList}
-            <CreateUserBox
-                setAllUsersInfo={setAllUsersInfo}
-                authHeader={authHeader}
-            />
+            <CreateUserBox setAllUsersInfo={setAllUsersInfo} />
         </div>
     )
 }
 
-export function ApiKeys({ authHeader }) {
+export function ApiKeys() {
     const server = useSessionStore((state) => state.server)
-    const auth = useSessionStore((state) => state.auth)
 
     const keys: DefinedUseQueryResult<ApiKeyInfo[], Error> = useQuery<
         ApiKeyInfo[]
     >({
         queryKey: ['apiKeys'],
         initialData: [],
-        queryFn: () => getApiKeys(authHeader),
+        queryFn: () => getApiKeys(),
         retry: false,
     })
 
     const [remotes, setRemotes] = useState([])
     useEffect(() => {
-        getRemotes(authHeader).then((r) => {
+        getRemotes().then((r) => {
             if (r >= 400) {
                 return
             }
@@ -484,8 +449,8 @@ export function ApiKeys({ authHeader }) {
                                     Left={IconTrash}
                                     danger
                                     onClick={() => {
-                                        deleteApiKey(k.key, authHeader).then(
-                                            () => keys.refetch()
+                                        deleteApiKey(k.key).then(() =>
+                                            keys.refetch()
                                         )
                                     }}
                                 />
@@ -498,7 +463,7 @@ export function ApiKeys({ authHeader }) {
                 squareSize={40}
                 label="New Api Key"
                 onClick={() => {
-                    newApiKey(authHeader).then(() => keys.refetch())
+                    newApiKey().then(() => keys.refetch())
                 }}
             />
             <p className="w-full h-max font-semibold text-xl select-none p-2">
@@ -528,20 +493,14 @@ export function ApiKeys({ authHeader }) {
                             <WeblensButton
                                 label="Sync now"
                                 squareSize={40}
-                                onClick={async () => {
-                                    const res = await doBackup(auth)
-                                    if (res >= 300) {
-                                        return false
-                                    }
-                                    return true
-                                }}
+                                onClick={async () => doBackup()}
                             />
                             <WeblensButton
                                 Left={IconTrash}
                                 danger
                                 onClick={() => {
-                                    deleteRemote(r.id, authHeader).then(() => {
-                                        getRemotes(authHeader).then((r) => {
+                                    deleteRemote(r.id).then(() => {
+                                        getRemotes().then((r) => {
                                             if (r >= 400) {
                                                 return
                                             }
@@ -603,7 +562,6 @@ function BackupProgress() {
 }
 
 export function Admin({ open, closeAdminMenu }) {
-    const auth = useSessionStore((state) => state.auth)
     const user = useSessionStore((state) => state.user)
     const [allUsersInfo, setAllUsersInfo] = useState(null)
     const wsSend = useContext(WebsocketContext)
@@ -611,12 +569,8 @@ export function Admin({ open, closeAdminMenu }) {
     useKeyDown('Escape', closeAdminMenu)
 
     useEffect(() => {
-        if (!auth) {
-            closeAdminMenu()
-            return
-        }
         if (open && !allUsersInfo) {
-            GetUsersInfo(setAllUsersInfo, auth)
+            GetUsersInfo(setAllUsersInfo)
         }
     }, [open])
 
@@ -649,18 +603,17 @@ export function Admin({ open, closeAdminMenu }) {
                                 thisUserInfo={user}
                                 allUsersInfo={allUsersInfo}
                                 setAllUsersInfo={setAllUsersInfo}
-                                authHeader={auth}
                             />
                         </div>
                         <div className="flex flex-col w-1/2 gap-2 items-center">
-                            <ApiKeys authHeader={auth} />
+                            <ApiKeys />
                             <div className="flex flex-row w-full justify-around">
                                 <WeblensButton
                                     label="Clear Cache"
                                     squareSize={40}
                                     danger
                                     onClick={() => {
-                                        clearCache(auth).then(() =>
+                                        clearCache().then(() =>
                                             closeAdminMenu()
                                         )
                                     }}

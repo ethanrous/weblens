@@ -3,7 +3,6 @@ import { getFilesystemStats } from '@weblens/api/FileBrowserApi'
 import { useResize } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { WeblensFile } from '@weblens/types/files/File'
-import { AuthHeaderT } from '@weblens/types/Types'
 // import * as d3 from 'd3';
 import { humanFileSize } from '@weblens/util'
 import { useEffect, useState } from 'react'
@@ -27,13 +26,7 @@ type extSize = {
     value: number
 }
 
-export const StatTree = ({
-    folderInfo,
-    authHeader,
-}: {
-    folderInfo: WeblensFile
-    authHeader: AuthHeaderT
-}) => {
+export const StatTree = ({ folderInfo }: { folderInfo: WeblensFile }) => {
     const nav = useNavigate()
     const [stats, setStats]: [stats: extSize[], setStats: (s) => void] =
         useState([])
@@ -45,7 +38,7 @@ export const StatTree = ({
         if (!folderInfo.Id()) {
             return
         }
-        getFilesystemStats(folderInfo.Id(), authHeader).then((s) =>
+        getFilesystemStats(folderInfo.Id()).then((s) =>
             setStats(s.sizesByExtension)
         )
     }, [folderInfo.Id()])

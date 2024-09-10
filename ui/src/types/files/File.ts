@@ -6,11 +6,11 @@ import {
     IconUser,
 } from '@tabler/icons-react'
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
+import { fetchJson } from '@weblens/api/ApiFetch'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
 import { MediaDataT } from '@weblens/types/media/Media'
-import { ShareInfo, WeblensShare } from '@weblens/types/share/share'
+import { WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
-import { AuthHeaderT } from 'types/Types'
 
 function getIcon(folderName: string): (p) => JSX.Element {
     if (folderName === 'HOME') {
@@ -39,9 +39,9 @@ export interface WeblensFileInfo {
 export interface WeblensFileParams {
     id?: string
     owner?: string
-    modTime?: string
+    modifyTimestamp?: string
     filename?: string
-    pathFromHome?: string
+    portablePath?: string
     parentId?: string
     contentId?: string
 
@@ -62,7 +62,7 @@ export class WeblensFile {
     id?: string
     owner?: string
     filename?: string
-    pathFromHome?: string
+    portablePath?: string
     parentFolderId?: string
 
     modifyDate?: Date
@@ -93,7 +93,7 @@ export class WeblensFile {
         }
         Object.assign(this, init)
         this.hovering = false
-        this.modifyDate = new Date(init.modTime)
+        this.modifyDate = new Date(init.modifyTimestamp)
         this.shareId = init.shareId
         this.selected = SelectedState.NotSelected
     }
@@ -146,7 +146,7 @@ export class WeblensFile {
 
     GetPathParts(replaceIcons?: boolean): (string | ((p) => JSX.Element))[] {
         const parts: (string | ((p) => JSX.Element))[] =
-            this.pathFromHome.split('/')
+            this.portablePath.split('/')
         if (replaceIcons) {
             const icon = getIcon(String(parts[0]))
             if (icon !== null) {
@@ -161,7 +161,7 @@ export class WeblensFile {
     }
 
     GetFilename(): string {
-        if (this.pathFromHome === 'HOME') {
+        if (this.portablePath === 'HOME') {
             return 'Home'
         }
         if (this.filename === '.user_trash') {
@@ -238,10 +238,10 @@ export class WeblensFile {
     }
 
     GetBaseIcon(mustBeRoot?: boolean): (p) => JSX.Element {
-        if (!this.pathFromHome) {
+        if (!this.portablePath) {
             return null
         }
-        const parts = this.pathFromHome.split('/')
+        const parts = this.portablePath.split('/')
         if (mustBeRoot && parts.length > 1) {
             return null
         }
@@ -259,15 +259,15 @@ export class WeblensFile {
     }
 
     GetFileIcon() {
-        if (!this.pathFromHome) {
+        if (!this.portablePath) {
             return null
         }
 
-        if (this.pathFromHome === 'HOME') {
+        if (this.portablePath === 'HOME') {
             return IconHome
-        } else if (this.pathFromHome === 'TRASH') {
+        } else if (this.portablePath === 'TRASH') {
             return IconTrash
-        } else if (this.pathFromHome === 'SHARE') {
+        } else if (this.portablePath === 'SHARE') {
             return IconUser
         } else if (this.isDir) {
             return IconFolder
@@ -291,34 +291,15 @@ export class WeblensFile {
         this.share = share
     }
 
-    public async GetShare(authHeader: AuthHeaderT) {
+    public async GetShare(): Promise<WeblensShare> {
         if (this.share) {
-            console.log('oh', this.share)
             return this.share
         } else if (!this.shareId) {
             return null
         }
 
-        const url = new URL(`${API_ENDPOINT}/file/share/${this.shareId}`)
-        return fetch(url.toString(), {
-            headers: authHeader,
-        })
-            .then((r) => {
-                console.log('HERE?', r.status)
-                if (r.status === 200) {
-                    return r.json()
-                } else {
-                    return Promise.reject('Bad response: ' + r.statusText)
-                }
-            })
-            .then((j) => {
-                this.share = new WeblensShare(j as ShareInfo)
-                console.log('WHAT?', this.share)
-                return this.share
-            })
-            .catch((e: Error) => {
-                console.error('Failed to load share:', e)
-            })
+        const url = `${API_ENDPOINT}/file/share/${this.shareId}`
+        return fetchJson(url)
     }
 
     GetVisitRoute(

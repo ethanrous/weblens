@@ -186,16 +186,6 @@ func (j *JournalImpl) Add(lt *Lifetime) error {
 		if len(lt.GetActions()) != len(existing.GetActions()) {
 			newActions := lt.GetActions()
 
-			/* DEBUG - TODO remove if not needed */
-			if !slices.IsSortedFunc(
-				newActions, func(a, b *FileAction) int {
-					return a.GetTimestamp().Compare(b.GetTimestamp())
-				},
-			) {
-				log.Error.Printf("Actions for lifetime [%s] are NOT sorted", lt.ID())
-			}
-			/* END DEBUG */
-
 			// Ensure that the actions are in time order, so we grab only the new ones to update
 			slices.SortFunc(
 				newActions, func(a, b *FileAction) int {
@@ -277,8 +267,6 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			size := action.GetFile().Size()
 			action.SetSize(size)
 		}
-
-		log.Trace.Printf("Got %s action", action.ActionType)
 
 		switch action.GetActionType() {
 		case FileCreate:
@@ -385,7 +373,7 @@ func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileActio
 		bson.D{{"$sort", bson.D{{"timestamp", -1}}}},
 	}
 
-	ret, err := col.Aggregate(context.TODO(), pipe)
+	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}

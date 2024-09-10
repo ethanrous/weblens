@@ -6,6 +6,7 @@ import {
     IconPackage,
     IconRocket,
 } from '@tabler/icons-react'
+import { useQuery } from '@tanstack/react-query'
 import { getUsers, initServer } from '@weblens/api/ApiFetch'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
@@ -124,18 +125,25 @@ const Core = ({
 }) => {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
+    const [passwordVerify, setPasswordVerify] = useState('')
     const [serverName, setServerName] = useState(
         existingName ? existingName : ''
     )
-    const [users, setUsers] = useState([])
+
     const nav = useNavigate()
     const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
+    const serverInfo = useSessionStore((state) => state.server)
 
-    useEffect(() => {
-        getUsers(null).then((r) => {
-            setUsers(r)
-        })
-    }, [])
+    const { data: users } = useQuery({
+        queryKey: ['setupUsers'],
+        queryFn: () => {
+            if (serverInfo.info.role !== 'init') {
+                return getUsers(null)
+            }
+            return []
+        },
+        initialData: [],
+    })
 
     const owner = useMemo(() => {
         const owner: UserInfoT = users.filter((u) => u.owner)[0]
@@ -154,7 +162,7 @@ const Core = ({
 
     return (
         <div className="setup-content-box" data-on-deck={onDeck}>
-            <div className="w-full">
+            <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -164,30 +172,37 @@ const Core = ({
             </div>
             <div className="flex items-center gap-[20]">
                 <IconPackage color="white" size={'60px'} />
-                <Text className="header-text">Weblens Core</Text>
+                <p className="header-text pl-4">Core</p>
             </div>
             {users.length === 0 && (
-                <div className="w-full">
-                    <Text className="body-text">Create the Owner Account</Text>
-                    <Input
-                        className="weblens-input-wrapper"
-                        variant="unstyled"
-                        placeholder="Username"
-                        onChange={(e) => {
-                            setUsername(e.target.value)
-                        }}
-                    />
-                    <Input
-                        className="weblens-input-wrapper"
-                        variant="unstyled"
-                        type="password"
-                        placeholder="Password"
-                        onChange={(e) => {
-                            setPassword(e.target.value)
-                        }}
-                    />
+                <div className="flex flex-col w-full">
+                    <p className="body-text m-2">Create an Owner Account</p>
+                    <div className="flex flex-col p-4 outline-gray-700 outline rounded">
+                        <WeblensInput
+                            placeholder={'Username'}
+                            squareSize={50}
+                            valueCallback={setUsername}
+                        />
+                        <WeblensInput
+                            placeholder={'Password'}
+                            squareSize={50}
+                            password={true}
+                            valueCallback={setPassword}
+                        />
+                        <WeblensInput
+                            placeholder={'Verify Password'}
+                            squareSize={50}
+                            valueCallback={setPasswordVerify}
+                            failed={
+                                passwordVerify !== '' &&
+                                password !== passwordVerify
+                            }
+                            password={true}
+                        />
+                    </div>
                 </div>
             )}
+
             <UserSelect
                 users={users}
                 username={username}
@@ -201,43 +216,27 @@ const Core = ({
             {existingName && (
                 <div className="caution-box">
                     <div className="caution-header">
-                        <Text
-                            className="subheader-text"
-                            c="#ffffff"
-                            style={{ paddingTop: 0 }}
-                        >
+                        <p className="subheader-text text-white">
                             This server already has a name
-                        </Text>
+                        </p>
                         <IconExclamationCircle color="white" />
                     </div>
 
-                    <Input
-                        className="weblens-input-wrapper"
-                        styles={{
-                            input: {
-                                backgroundColor: '#00000000',
-                                color: 'white',
-                            },
-                        }}
-                        variant="unstyled"
-                        disabled
+                    <WeblensInput
+                        // disabled={true}
                         value={serverName}
                     />
                 </div>
             )}
             {!existingName && (
-                <div>
-                    <Text className="body-text">Name This Weblens Server</Text>
-                    <Input
-                        className="weblens-input-wrapper"
-                        // classNames={{ input: "weblens-input-wrapper" }}
-                        variant="unstyled"
-                        disabled={Boolean(existingName)}
+                <div className="flex flex-col w-full">
+                    <p className="body-text m-2">Name This Weblens Server</p>
+                    <WeblensInput
+                        // disabled={Boolean(existingName)}
                         value={serverName}
+                        squareSize={50}
                         placeholder="My Radical Weblens Server"
-                        onChange={(e) => {
-                            setServerName(e.target.value)
-                        }}
+                        valueCallback={setServerName}
                     />
                 </div>
             )}
@@ -247,7 +246,7 @@ const Core = ({
                 squareSize={50}
                 Left={IconRocket}
                 disabled={
-                    serverName === '' || username === '' || password === ''
+                    serverName === '' || username === '' || password === '' || password !== passwordVerify
                 }
                 doSuper
                 onClick={async () => {
@@ -412,7 +411,6 @@ const Setup = () => {
     const server = useSessionStore((state) => state.server)
     const [page, setPage] = useState('landing')
     const nav = useNavigate()
-
     useEffect(() => {
         if (!server) {
             return

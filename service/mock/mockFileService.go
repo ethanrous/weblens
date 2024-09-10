@@ -13,7 +13,7 @@ var _ models.FileService = (*MockFileService)(nil)
 type MockFileService struct{}
 
 func (mfs *MockFileService) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
-	// TODO implement me
+
 	panic("implement me")
 }
 
@@ -29,36 +29,36 @@ var usernames = []string{
 }
 
 func (mfs *MockFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
-	// TODO implement me
+
 	panic("implement me")
 }
 
 func (mfs *MockFileService) PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error) {
-	// TODO implement me
+
 	panic("implement me")
 }
 
 func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string) (
 	*fileTree.WeblensFileImpl, error,
 ) {
-	// TODO implement me
+
 	panic("implement me")
 }
 
 func (mfs *MockFileService) CreateFolder(
 	parent *fileTree.WeblensFileImpl, foldername string, caster models.FileCaster,
 ) (*fileTree.WeblensFileImpl, error) {
-	// TODO implement me
+
 	panic("implement me")
 }
 
 func (mfs *MockFileService) GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
-	// TODO implement me
+
 	panic("implement me")
 }
 
 func (mfs *MockFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error) {
-	// TODO implement me
+
 	panic("implement me")
 }
 

@@ -1,4 +1,3 @@
-import { Text } from '@mantine/core'
 import {
     IconChevronRight,
     IconCornerDownRight,
@@ -11,37 +10,41 @@ import { useClick, useResize } from '@weblens/components/hooks'
 import '@weblens/lib/crumbs.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { memo, MouseEventHandler, useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-type breadcrumbProps = {
-    label: string
-    onClick?: MouseEventHandler<HTMLDivElement>
-    onMouseUp?: (e) => void
-    dragging?: number
-    fontSize?: number
-    compact?: boolean
-    alwaysOn?: boolean
-    setMoveDest?
-    isCurrent: boolean
+type Crumb = {
+    name: string
+    id: string
+    visitRoute: string
+    navigable: boolean
 }
 
-const CrumbText = ({ label }) => {
-    if (label === 'Home') {
+type breadcrumbProps = {
+    crumbInfo: Crumb
+    moveSelectedTo
+    compact?: boolean
+    isCurrent?: boolean
+}
+
+const CrumbText = ({ crumb }: { crumb: Crumb }) => {
+    const usr = useSessionStore((state) => state.user)
+
+    if (crumb.id === usr.homeId) {
         return (
             <div className="h-[30px] w-[30px]">
                 <IconHome className="w-full h-full" />
             </div>
         )
     }
-    if (label === 'Shared') {
+    if (crumb.name === 'Shared') {
         return (
             <div className="h-[30px] w-[30px]">
                 <IconUsers className="w-full h-full" />
             </div>
         )
     }
-    if (label === 'Trash') {
+    if (crumb.id === usr.trashId) {
         return (
             <div className="h-[30px] w-[30px]">
                 <IconTrash className="w-full h-full" />
@@ -49,27 +52,34 @@ const CrumbText = ({ label }) => {
         )
     }
 
-    return <p className="crumb-text w-max max-w-full">{label}</p>
+    return <p className="crumb-text w-max max-w-full">{crumb.name}</p>
 }
 
 export const StyledBreadcrumb = ({
-    label,
-    onClick,
-    dragging,
-    onMouseUp = () => {},
+    crumbInfo,
     compact = false,
-    setMoveDest,
+    moveSelectedTo,
     isCurrent,
 }: breadcrumbProps) => {
+    if (!crumbInfo) {
+        console.error('NO CRUMB')
+        return null
+    }
+
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const dragging = useFileBrowserStore((state) => state.draggingState)
+    const nav = useNavigate()
+
     return (
         <div
             className={'crumb-box'}
+            data-navigable={crumbInfo.navigable}
             data-compact={compact}
             data-dragging={dragging === 1}
             data-current={isCurrent}
             onMouseOver={() => {
                 if (dragging && setMoveDest) {
-                    setMoveDest(label)
+                    setMoveDest(crumbInfo.name)
                 }
             }}
             onMouseLeave={() => {
@@ -78,34 +88,20 @@ export const StyledBreadcrumb = ({
                 }
             }}
             onMouseUp={(e) => {
-                onMouseUp(e)
+                e.stopPropagation()
+                if (!crumbInfo.navigable) {
+                    return
+                }
+
+                if (dragging !== 0) {
+                    moveSelectedTo(crumbInfo.id)
+                } else {
+                    nav(crumbInfo.visitRoute)
+                }
                 setMoveDest('')
             }}
-            onClick={onClick}
         >
-            <CrumbText label={label} />
-        </div>
-    )
-}
-
-// The crumb concatenateor, the Crumbcatenator
-const Crumbcatenator = ({ crumb, index, squished, setWidth }) => {
-    const [crumbRef, setCrumbRef] = useState(null)
-    const size = useResize(crumbRef)
-    useEffect(() => {
-        setWidth(index, size.width)
-    }, [size])
-
-    if (squished >= index + 1) {
-        return null
-    }
-
-    return (
-        <div className="flex items-center w-max" ref={setCrumbRef}>
-            {size.width > 10 && (
-                <IconChevronRight style={{ width: '20px', minWidth: '20px' }} />
-            )}
-            {crumb}
+            <CrumbText crumb={crumbInfo} />
         </div>
     )
 }
@@ -132,7 +128,13 @@ function LoafOverflowMenu({ open, reff, setOpen, crumbs }) {
     )
 }
 
-export const StyledLoaf = ({ crumbs, postText }) => {
+export const StyledLoaf = ({
+    crumbs,
+    moveSelectedTo,
+}: {
+    crumbs: Crumb[]
+    moveSelectedTo
+}) => {
     const [widths, setWidths] = useState(new Array(crumbs.length))
     // const [squished, setSquished] = useState(0)
     const [crumbsRef, setCrumbRef] = useState(null)
@@ -163,7 +165,22 @@ export const StyledLoaf = ({ crumbs, postText }) => {
 
     return (
         <div ref={setCrumbRef} className="loaf">
-            <div className="flex items-center w-max">{crumbs[0]}</div>
+            {/*<div className="flex items-center w-max">*/}
+            {/*    <StyledBreadcrumb crumbInfo={crumbs[0]} />*/}
+            {/*</div>*/}
+            {crumbs.map((c, i) => (
+                <div key={c.name} className="flex flex-row items-center">
+                    <StyledBreadcrumb
+                        crumbInfo={c}
+                        moveSelectedTo={moveSelectedTo}
+                    />
+                    {i !== crumbs.length - 1 && (
+                        <IconChevronRight
+                            style={{ width: '20px', minWidth: '20px' }}
+                        />
+                    )}
+                </div>
+            ))}
 
             {squished > 0 && (
                 <div
@@ -180,7 +197,7 @@ export const StyledLoaf = ({ crumbs, postText }) => {
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <Text className="crumb-text">...</Text>
+                        <p className="crumb-text">...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}
@@ -190,43 +207,18 @@ export const StyledLoaf = ({ crumbs, postText }) => {
                     </div>
                 </div>
             )}
-
-            {crumbs.slice(1).map((c, i) => (
-                <Crumbcatenator
-                    key={i}
-                    crumb={c}
-                    index={i}
-                    squished={squished}
-                    setWidth={(index: string | number, width: number) =>
-                        setWidths((p) => {
-                            p[index] = width
-                            return [...p]
-                        })
-                    }
-                />
-            ))}
-            <p className="crumb-text ml-[20px] text-[#c4c4c4] text-xl">
-                {postText}
-            </p>
         </div>
     )
 }
 
 const Crumbs = memo(
     ({
-        postText,
         moveSelectedTo,
         navOnLast,
-        setMoveDest,
-        dragging,
     }: {
-        postText?: string
         navOnLast: boolean
         moveSelectedTo?: (folderId: string) => void
-        setMoveDest?: (itemName: string) => void
-        dragging?: number
     }) => {
-        const nav = useNavigate()
         const user = useSessionStore((state) => state.user)
 
         const mode = useFileBrowserStore((state) => state.fbMode)
@@ -237,71 +229,46 @@ const Crumbs = memo(
             (state) => state.setPresentationTarget
         )
 
-        const crumbs = []
+        const crumbs: Crumb[] = []
 
         if (!user || !folderInfo?.Id()) {
-            return <StyledLoaf crumbs={crumbs} postText={''} />
+            return (
+                <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
+            )
         }
 
         if (!folderInfo.IsTrash()) {
-            const parents = folderInfo.FormatParents().map((parent) => {
-                return (
-                    <StyledBreadcrumb
-                        key={parent.Id()}
-                        label={parent.GetFilename()}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            const route = parent.GetVisitRoute(
-                                mode,
-                                shareId,
-                                setPresentationTarget
-                            )
-                            nav(route)
-                        }}
-                        dragging={dragging}
-                        onMouseUp={() => {
-                            if (dragging !== 0) {
-                                moveSelectedTo(parent.Id())
-                            }
-                        }}
-                        setMoveDest={setMoveDest}
-                        isCurrent={false}
-                    />
-                )
-            })
-            crumbs.push(...parents)
+            crumbs.push(
+                ...folderInfo.FormatParents().map((parent) => {
+                    return {
+                        name: parent.filename,
+                        id: parent.id,
+                        visitRoute: parent.GetVisitRoute(
+                            mode,
+                            shareId,
+                            setPresentationTarget
+                        ),
+                        navigable: true,
+                    } as Crumb
+                })
+            )
         }
 
-        crumbs.push(
-            <StyledBreadcrumb
-                key={folderInfo.Id()}
-                label={folderInfo.GetFilename()}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    if (!navOnLast) {
-                        return
-                    }
-                    const route = folderInfo.GetVisitRoute(
-                        mode,
-                        shareId,
-                        setPresentationTarget
-                    )
-                    nav(route)
-                }}
-                setMoveDest={setMoveDest}
-                isCurrent={true}
-            />
-        )
+        crumbs.push({
+            name: folderInfo.GetFilename(),
+            id: folderInfo.Id(),
+            visitRoute: folderInfo.GetVisitRoute(
+                mode,
+                shareId,
+                setPresentationTarget
+            ),
+            navigable: navOnLast,
+        } as Crumb)
 
-        return <StyledLoaf crumbs={crumbs} postText={postText} />
+        return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
     },
     (prev, next) => {
-        if (prev.postText !== next.postText) {
-            return false
-        } else if (prev.dragging !== next.dragging) {
-            return false
-        }
-        return true
+        return prev.navOnLast === next.navOnLast
     }
 )
 
