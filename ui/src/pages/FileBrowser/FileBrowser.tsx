@@ -664,7 +664,6 @@ function DirViewHeader({ moveSelected, searchQuery }) {
                         <p className="crumb-text m-2">in</p>
                         <IconFolder size={36} />
                         <p className="crumb-text">
-                            {' '}
                             {folderInfo?.GetFilename()}
                         </p>
                         <div className="w-2" />

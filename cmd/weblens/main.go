@@ -80,7 +80,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	localServer := instanceService.GetLocal()
 	sw.Lap("Init instance service")
 
-	/* Username Service */
+	/* User Service */
 	userService, err := service.NewUserService(db.Collection("users"))
 	if err != nil {
 		panic(err)

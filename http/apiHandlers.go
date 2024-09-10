@@ -345,6 +345,7 @@ func downloadTakeout(ctx *gin.Context) {
 
 	fileId := ctx.Param("fileId")
 
+	// TODO - only user who created zip file should be able to download it
 	// share, err := getShareFromCtx[*models.FileShare](ctx)
 	// if err != nil {
 	// 	return
@@ -518,7 +519,7 @@ func activateUser(ctx *gin.Context) {
 func deleteUser(ctx *gin.Context) {
 	pack := getServices(ctx)
 	username := ctx.Param("username")
-	// Username to delete username
+	// User to delete username
 	// *cannot* use getUserFromCtx() here because that
 	// will grab the user making the request, not the
 	// username from the Param  \/
