@@ -61,7 +61,7 @@ func (w WebdavFs) OpenFile(ctx context.Context, name string, flag int, perm os.F
 }
 
 func (w WebdavFs) RemoveAll(ctx context.Context, name string) error {
-	// TODO implement me
+	
 	panic("implement me")
 }
 

@@ -3,6 +3,7 @@ import { Divider, FileButton, Text } from '@mantine/core'
 // Icons
 import {
     IconArrowLeft,
+    IconClock,
     IconFiles,
     IconFolder,
     IconFolderPlus,
@@ -50,7 +51,6 @@ import WeblensMedia, {
 } from '@weblens/types/media/Media'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { getFileShare } from '@weblens/types/share/shareQuery'
-import { AuthHeaderT } from '@weblens/types/Types'
 import { humanFileSize } from '@weblens/util'
 import React, {
     memo,
@@ -107,8 +107,6 @@ function PasteImageDialogue() {
     const contentId = useFileBrowserStore((state) => state.contentId)
     const pasteImage = useFileBrowserStore((state) => state.pasteImgBytes)
 
-    const auth = useSessionStore((state) => state.auth)
-
     const setPasteImgBytes = useFileBrowserStore(
         (state) => state.setPasteImgBytes
     )
@@ -152,12 +150,9 @@ function PasteImageDialogue() {
                         fillWidth
                         onClick={(e) => {
                             e.stopPropagation()
-                            uploadViaUrl(
-                                pasteImage,
-                                contentId,
-                                filesMap,
-                                auth
-                            ).then(() => setPasteImgBytes(null))
+                            uploadViaUrl(pasteImage, contentId, filesMap).then(
+                                () => setPasteImgBytes(null)
+                            )
                         }}
                     />
                 </div>
@@ -171,7 +166,7 @@ const SIDEBAR_BREAKPOINT = 650
 function GlobalActions() {
     const nav = useNavigate()
     const user = useSessionStore((state) => state.user)
-    const authHeader = useSessionStore((state) => state.auth)
+
     const windowSize = useWindowSize()
     const [resizing, setResizing] = useState(false)
     const [resizeOffset, setResizeOffset] = useState(
@@ -224,7 +219,7 @@ function GlobalActions() {
             e.stopPropagation()
             setMoveDest('')
             if (draggingState !== DraggingStateT.NoDrag) {
-                moveFiles(selectedIds, user.homeId, authHeader)
+                moveFiles(selectedIds, user.homeId)
                 setDragging(DraggingStateT.NoDrag)
             } else {
                 setPastTime(null)
@@ -245,7 +240,7 @@ function GlobalActions() {
             e.stopPropagation()
             setMoveDest('')
             if (draggingState !== DraggingStateT.NoDrag) {
-                moveFiles(selectedIds, user.trashId, authHeader)
+                moveFiles(selectedIds, user.trashId)
                 setDragging(DraggingStateT.NoDrag)
             } else {
                 nav('/files/trash')
@@ -376,7 +371,7 @@ function GlobalActions() {
                     )}
                     {namingFolder && (
                         <WeblensInput
-                            height={48}
+                            squareSize={48}
                             placeholder={'New Folder'}
                             buttonIcon={IconPlus}
                             closeInput={() => setNamingFolder(false)}
@@ -386,8 +381,7 @@ function GlobalActions() {
                                     newName,
                                     [],
                                     false,
-                                    shareId,
-                                    authHeader
+                                    shareId
                                 ).then(() => setNamingFolder(false))
                             }
                         />
@@ -399,8 +393,7 @@ function GlobalActions() {
                                 files,
                                 folderInfo.Id(),
                                 false,
-                                '',
-                                authHeader
+                                ''
                             )
                         }}
                         accept="file"
@@ -641,11 +634,19 @@ function DirViewHeader({ moveSelected, searchQuery }) {
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const filesCount = useFileBrowserStore((state) => state.filesList.length)
     const viewingPast = useFileBrowserStore((state) => state.viewingPast)
-    const draggingState = useFileBrowserStore((state) => state.draggingState)
-    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const [viewingFolder, setViewingFolder] = useState<boolean>(false)
+
+    useEffect(() => {
+        if (!folderInfo) {
+            return
+        }
+
+        setViewingFolder(folderInfo.IsFolder())
+    }, [folderInfo])
 
     return (
-        <div className="flex flex-row h-max justify-between items-center p-2">
+        <div className="flex flex-col h-max">
+        <div className="flex flex-row h-[70px] justify-between items-center p-2">
             {mode === FbModeT.search && (
                 <div className="flex h-14 w-full items-center">
                     <WeblensButton
@@ -670,19 +671,18 @@ function DirViewHeader({ moveSelected, searchQuery }) {
                 </div>
             )}
             {(mode === FbModeT.default || mode === FbModeT.share) && (
-                <Crumbs
-                    postText={
-                        viewingPast
-                            ? `@ ${historyDate(viewingPast.getTime())}`
-                            : ''
-                    }
-                    navOnLast={false}
-                    dragging={draggingState}
-                    moveSelectedTo={moveSelected}
-                    setMoveDest={setMoveDest}
-                />
+                <Crumbs navOnLast={false} moveSelectedTo={moveSelected} />
             )}
-            {folderInfo?.IsFolder() && <FileSortBox />}
+            {viewingFolder && <FileSortBox />}
+        </div>
+            {viewingPast && (
+                <div className="past-time-box">
+                    <IconClock />
+                    <p className="crumb-text ml-2 text-[#c4c4c4] text-xl">
+                        {historyDate(viewingPast.getTime())}
+                    </p>
+                </div>
+            )}
         </div>
     )
 }
@@ -691,13 +691,11 @@ function DirView({
     notFound,
     setNotFound,
     searchQuery,
-    authHeader,
 }: {
     notFound: boolean
     setNotFound: (boolean) => void
     searchQuery: string
     searchFilter: string
-    authHeader: AuthHeaderT
 }) {
     const [contentViewRef, setContentViewRef] = useState(null)
     const [fullViewRef, setFullViewRef] = useState(null)
@@ -721,20 +719,12 @@ function DirView({
 
     const moveSelectedTo = useCallback(
         (folderId: string) => {
-            MoveSelected(
-                Array.from(selected.keys()),
-                folderId,
-                authHeader
-            ).then(() => {
+            MoveSelected(Array.from(selected.keys()), folderId).then(() => {
                 clearSelected()
             })
         },
-        [selected.size, contentId, authHeader]
+        [selected.size, contentId]
     )
-
-    if (loading.includes('files')) {
-        return null
-    }
 
     let fileDisplay: ReactElement
     if (notFound) {
@@ -776,9 +766,7 @@ function DirView({
             />
         )
     } else if (mode === FbModeT.stats) {
-        fileDisplay = (
-            <StatTree folderInfo={folderInfo} authHeader={authHeader} />
-        )
+        fileDisplay = <StatTree folderInfo={folderInfo} />
     } else if (viewOpts.dirViewMode === 'List') {
         fileDisplay = <FileRows files={filesList} />
     } else if (viewOpts.dirViewMode === 'Grid') {
@@ -809,8 +797,7 @@ function DirView({
                                 value.GetFilename()
                             ),
                             false,
-                            '',
-                            authHeader
+                            ''
                         )
                         setDragging(DraggingStateT.NoDrag)
                     }}
@@ -855,7 +842,7 @@ const FileBrowser = () => {
     const searchQuery = query('query')
     const searchFilter = query('filter')
     const user = useSessionStore((state) => state.user)
-    const authHeader = useSessionStore((state) => state.auth)
+
     const nav = useNavigate()
 
     const [notFound, setNotFound] = useState(false)
@@ -948,14 +935,13 @@ const FileBrowser = () => {
                 removeLoading('files')
             })
         }
-    }, [urlPath, authHeader, user])
+    }, [urlPath, user])
 
     const { wsSend, readyState } = useSubscribe(
         fbLocationContext.contentId,
         fbLocationContext.shareId,
         user,
-        taskProgDispatch,
-        authHeader
+        taskProgDispatch
     )
 
     useKeyDownFileBrowser()
@@ -989,8 +975,7 @@ const FileBrowser = () => {
         if (fbLocationContext.mode === FbModeT.search) {
             const folderData = await GetFileInfo(
                 fbLocationContext.contentId,
-                fbLocationContext.shareId,
-                authHeader
+                fbLocationContext.shareId
             )
 
             if (!folderData) {
@@ -1001,8 +986,7 @@ const FileBrowser = () => {
             const searchResults = await searchFolder(
                 fbLocationContext.contentId,
                 searchQuery,
-                searchFilter,
-                authHeader
+                searchFilter
             )
 
             setSearch(searchQuery)
@@ -1023,15 +1007,13 @@ const FileBrowser = () => {
         if (viewingPast !== null) {
             fileData = await getPastFolderInfo(
                 fbLocationContext.contentId,
-                viewingPast,
-                authHeader
+                viewingPast
             )
         } else {
             fileData = await GetFolderData(
                 fbLocationContext.contentId,
                 fbLocationContext.mode,
-                fbLocationContext.shareId,
-                authHeader
+                fbLocationContext.shareId
             ).catch((r) => {
                 if (r === 400 || r === 404) {
                     setNotFound(true)
@@ -1058,7 +1040,6 @@ const FileBrowser = () => {
         }
     }, [
         user,
-        authHeader,
         fbLocationContext.contentId,
         fbLocationContext.shareId,
         fbLocationContext.mode,
@@ -1097,7 +1078,6 @@ const FileBrowser = () => {
                                 setNotFound={setNotFound}
                                 searchQuery={searchQuery}
                                 searchFilter={searchFilter}
-                                authHeader={authHeader}
                             />
                         </DirViewWrapper>
                     </div>

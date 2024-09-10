@@ -384,6 +384,7 @@ func loginUser(ctx *gin.Context) {
 			}
 
 		}
+		ctx.Header("Set-Cookie", "weblens-session-token="+token)
 		ctx.JSON(http.StatusOK, gin.H{"token": token, "user": u})
 	} else {
 		log.Error.Printf("Invalid login for [%s]", userCredentials.Username)
@@ -517,7 +518,7 @@ func activateUser(ctx *gin.Context) {
 func deleteUser(ctx *gin.Context) {
 	pack := getServices(ctx)
 	username := ctx.Param("username")
-	// User to delete username
+	// Username to delete username
 	// *cannot* use getUserFromCtx() here because that
 	// will grab the user making the request, not the
 	// username from the Param  \/
@@ -553,7 +554,7 @@ func searchUsers(ctx *gin.Context) {
 	pack := getServices(ctx)
 	filter := ctx.Query("filter")
 	if len(filter) < 2 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User autocomplete must contain at least 2 characters"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Username autocomplete must contain at least 2 characters"})
 		return
 	}
 

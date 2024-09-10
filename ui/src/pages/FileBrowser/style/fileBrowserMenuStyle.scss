@@ -70,9 +70,9 @@ $menu-base-square-size: 250px;
     &[data-mode='4'] {
         scale: 1;
         width: 300px;
-        max-height: max-content;
+        height: max-content;
 
-        height: 515px + $menu-title-height;
+        max-height: 515px + $menu-title-height;
     }
 
     &[data-mode='5'] {

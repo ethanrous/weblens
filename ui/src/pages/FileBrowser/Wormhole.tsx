@@ -2,7 +2,7 @@ import { FileButton, Space, Text } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconFolder, IconUpload } from '@tabler/icons-react'
 import { GetWormholeInfo } from '@weblens/api/FileBrowserApi'
-import { useSessionStore } from '@weblens/components/UserInfo'
+import UploadStatus from '@weblens/pages/FileBrowser/UploadStatus'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { ShareInfo } from '@weblens/types/share/share'
 import { useCallback, useEffect, useState } from 'react'
@@ -11,16 +11,13 @@ import { HandleDrop, HandleUploadButton } from './FileBrowserLogic'
 
 import './style/fileBrowserStyle.scss'
 import { DropSpot } from './FileBrowserMiscComponents'
-import UploadStatus from './UploadStatus'
 
 const UploadPlaque = ({ wormholeId }: { wormholeId: string }) => {
     return (
         <div className="h-[45vh]">
             <FileButton
                 onChange={(files) => {
-                    HandleUploadButton(files, wormholeId, true, wormholeId, {
-                        Authorization: '',
-                    })
+                    HandleUploadButton(files, wormholeId, true, wormholeId)
                 }}
                 accept="file"
                 multiple
@@ -70,7 +67,6 @@ const WormholeWrapper = ({
     validWormhole: boolean
     children
 }) => {
-    const authHeader = useSessionStore((state) => state.auth)
     const [dragging, setDragging] = useState(0)
     const [dropSpotRef, setDropSpotRef] = useState(null)
     const handleDrag = useCallback(
@@ -107,7 +103,6 @@ const WormholeWrapper = ({
                             [],
                             true,
                             wormholeId,
-                            authHeader
                         )
                     }
                     dropSpotTitle={wormholeName}
@@ -127,12 +122,12 @@ const WormholeWrapper = ({
 
 export default function Wormhole() {
     const wormholeId = useParams()['*']
-    const authHeader = useSessionStore((state) => state.auth)
+
     const [wormholeInfo, setWormholeInfo] = useState<ShareInfo>(null)
 
     useEffect(() => {
         if (wormholeId !== '') {
-            GetWormholeInfo(wormholeId, authHeader)
+            GetWormholeInfo(wormholeId)
                 .then((v) => {
                     if (v.status !== 200) {
                         return Promise.reject(v.statusText)
@@ -150,7 +145,7 @@ export default function Wormhole() {
                     })
                 })
         }
-    }, [wormholeId, authHeader])
+    }, [wormholeId])
     const valid = Boolean(wormholeInfo)
 
     return (

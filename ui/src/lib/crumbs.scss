@@ -22,16 +22,14 @@
     outline: 1px solid $main-accent;
     width: max-content;
     height: max-content;
-    //gap: px;
     cursor: default;
     border-radius: 4px;
     padding: 8px;
-    opacity: 0%;
+    opacity: 0;
     transition: opacity 150ms ease-in-out, transform 200ms ease-in-out, max-height 250ms ease-in-out;
     margin-top: 10px;
     pointer-events: none;
-    height: max-content;
-    max-height: 0px;
+    max-height: 0;
     overflow: hidden;
 
     &[data-open='true'] {
@@ -57,7 +55,6 @@
 
 .crumb-box {
     height: max-content;
-    cursor: pointer;
     border-radius: 4px;
     padding: 6px;
     outline: 2px solid $main-accent-transparent;
@@ -65,8 +62,11 @@
 
     transition: all 150ms ease-in-out;
 
-    &:hover {
-        outline: 2px solid $main-accent;
+    &[data-navigable='true'] {
+        cursor: pointer;
+        &:hover {
+            outline: 2px solid $main-accent;
+        }
     }
 
     &[data-compact='true'] {

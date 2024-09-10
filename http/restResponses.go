@@ -16,7 +16,7 @@ type FileInfo struct {
 	IsDir        bool              `json:"isDir"`
 	Modifiable   bool              `json:"modifiable"`
 	Size         int64             `json:"size"`
-	ModTime      int64             `json:"modTime"`
+	ModTime int64 `json:"modifyTimestamp"`
 	Filename     string            `json:"filename"`
 	ParentId     fileTree.FileId   `json:"parentId"`
 	MediaData    *models.Media     `json:"mediaData,omitempty"`

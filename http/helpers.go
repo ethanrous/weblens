@@ -148,7 +148,7 @@ func formatFileSafe(
 		if tmpF.GetParent() == pack.FileService.GetMediaRoot() {
 			pathBits = append(pathBits, "HOME")
 			break
-		} else if share != nil && tmpF.ID() == fileTree.FileId(share.GetItemId()) {
+		} else if share != nil && tmpF.ID() == share.GetItemId() {
 			pathBits = append(pathBits, "SHARE")
 			break
 		} else if pack.FileService.IsFileInTrash(tmpF) {
@@ -181,7 +181,7 @@ func formatFileSafe(
 		ParentId:     parentId,
 		Owner:        owner.GetUsername(),
 		PathFromHome: pathString,
-		MediaData:    pack.MediaService.Get(models.ContentId(f.GetContentId())),
+		MediaData: pack.MediaService.Get(f.GetContentId()),
 		ShareId:      shareId,
 		Children: internal.Map(
 			f.GetChildren(), func(wf *fileTree.WeblensFileImpl) fileTree.FileId { return wf.ID() },
@@ -195,6 +195,6 @@ type FileStat struct {
 	Name    string    `json:"name"`
 	Size    int64     `json:"size"`
 	IsDir   bool      `json:"isDir"`
-	ModTime time.Time `json:"modTime"`
+	ModTime time.Time `json:"modifyTimestamp"`
 	Exists  bool      `json:"exists"`
 }

@@ -12,7 +12,6 @@ import {
 } from '@weblens/types/files/FileDragLogic'
 import { FileTextBox } from '@weblens/types/files/FileSquare'
 import { useResize } from 'components/hooks'
-import { useSessionStore } from 'components/UserInfo'
 import React, { MouseEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FixedSizeList as WindowList } from 'react-window'
@@ -29,7 +28,7 @@ function FileRow({
 }) {
     const file = data[index]
     const nav = useNavigate()
-    const authHeader = useSessionStore((state) => state.auth)
+
     const [mouseDown, setMouseDown] = useState(null)
 
     const {
@@ -112,7 +111,6 @@ function FileRow({
                         file,
                         draggingState,
                         Array.from(selected.keys()),
-                        authHeader,
                         setSelectedMoved,
                         clearSelected,
                         setMoveDest,

@@ -9,7 +9,6 @@ import {
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useKeyDown, useResize, useVideo } from 'components/hooks'
-import { useSessionStore } from 'components/UserInfo'
 import Hls from 'hls.js'
 
 import 'components/style.scss'
@@ -51,7 +50,6 @@ export const MediaImage = memo(
         const [src, setUrl] = useState({ url: '', id: media.Id() })
         const [videoRef, setVideoRef] = useState<HTMLVideoElement>()
         const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
-        const auth = useSessionStore((state) => state.auth)
 
         useEffect(() => {
             if (
@@ -62,7 +60,6 @@ export const MediaImage = memo(
             ) {
                 media.LoadBytes(
                     quality,
-                    auth,
                     pageNumber,
                     () => {
                         setUrl({
@@ -209,7 +206,7 @@ function VideoWrapper({
 }) {
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const size = useResize(containerRef)
-    const auth = useSessionStore((state) => state.auth)
+
     const [showUi, setShowUi] = useState<NodeJS.Timeout>()
     const [volume, setVolume] = useState(0)
     const [playtimeInternal, setPlaytime] = useState(0)
@@ -224,10 +221,10 @@ function VideoWrapper({
         }
 
         if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
-            videoRef.src = media.StreamVideoUrl(auth)
+            videoRef.src = media.StreamVideoUrl()
         } else if (Hls.isSupported()) {
             const hls = new Hls()
-            hls.loadSource(media.StreamVideoUrl(auth))
+            hls.loadSource(media.StreamVideoUrl())
             hls.attachMedia(videoRef)
         }
     }, [videoRef])

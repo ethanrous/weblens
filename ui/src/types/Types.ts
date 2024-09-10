@@ -3,11 +3,11 @@ import { GalleryAction } from '@weblens/pages/Gallery/GalleryLogic'
 import WeblensMedia from '@weblens/types/media/Media'
 import { Dispatch } from 'react'
 
-export type AuthHeaderT = {
-    Authorization: string
-}
+// export type AuthHeaderT = {
+//     Authorization: string
+// }
 
-export const LOGIN_TOKEN_COOKIE_KEY = 'weblens-login-token'
+export const LOGIN_TOKEN_COOKIE_KEY = 'weblens-session-token'
 export const USERNAME_COOKIE_KEY = 'weblens-username'
 
 export type UserInfoT = {

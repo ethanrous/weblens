@@ -86,6 +86,24 @@ func getMediaBatch(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"Media": slicedMs, "mediaCount": len(ms)})
 }
 
+func getMediaByIds(ctx *gin.Context) {
+	pack := getServices(ctx)
+	body, err := readCtxBody[mediaIdsBody](ctx)
+	if err != nil {
+		return
+	}
+
+	var medias []*models.Media
+	for _, mId := range body.MediaIds {
+		m := pack.MediaService.Get(mId)
+		if m != nil {
+			medias = append(medias, m)
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"medias": medias})
+}
+
 func getMediaTypes(ctx *gin.Context) {
 	pack := getServices(ctx)
 	ctx.JSON(http.StatusOK, pack.MediaService.GetMediaTypes())
@@ -134,7 +152,6 @@ func streamVideo(ctx *gin.Context) {
 		return
 	}
 
-	// TODO - figure out how to send auth headers when getting video from client
 	streamer, err := pack.MediaService.StreamVideo(m, pack.UserService.GetRootUser(), sh)
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)

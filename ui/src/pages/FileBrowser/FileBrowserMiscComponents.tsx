@@ -423,7 +423,6 @@ const EmptyIcon = ({ folderId, usr }) => {
 
 export const GetStartedCard = () => {
     const user = useSessionStore((state) => state.user)
-    const auth = useSessionStore((state) => state.auth)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const viewingPast = useFileBrowserStore((state) => state.viewingPast)
 
@@ -453,7 +452,6 @@ export const GetStartedCard = () => {
                                     folderInfo.Id(),
                                     false,
                                     '',
-                                    auth
                                 )
                             }}
                             accept="file"
@@ -524,15 +522,12 @@ export const WebsocketStatus = memo(
 )
 
 export function PathFmt({ pathName }: { pathName: string }) {
-    console.log(pathName)
     pathName = pathName.slice(pathName.indexOf(':') + 1)
     const parts = pathName.split('/')
-    parts.shift()
 
     if (parts[parts.length - 1] === '') {
         parts.pop()
     }
-
 
     let StartIcon
     if (parts[0] === '.user_trash') {
@@ -543,7 +538,7 @@ export function PathFmt({ pathName }: { pathName: string }) {
     }
 
     return (
-        <div className="flex m-2 items-center min-w-0">
+        <div className="flex items-center min-w-0">
             <StartIcon className="text-white shrink-0" />
             {parts.map((part) => {
                 return (

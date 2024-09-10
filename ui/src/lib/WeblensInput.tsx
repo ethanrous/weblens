@@ -11,7 +11,7 @@ const WeblensInput = memo(
         valueCallback,
         Icon,
         buttonIcon,
-        height,
+        squareSize,
         placeholder,
         openInput,
         closeInput,
@@ -29,7 +29,7 @@ const WeblensInput = memo(
         valueCallback?: (v: string) => void
         Icon?: (p) => ReactNode
         buttonIcon?: (p) => ReactNode
-        height?: number
+        squareSize?: number
         placeholder?: string
         openInput?: () => void
         closeInput?: () => void
@@ -66,7 +66,7 @@ const WeblensInput = memo(
         return (
             <div
                 className="weblens-input-wrapper"
-                style={{ height: height, minWidth: height }}
+                style={{ minHeight: squareSize, minWidth: squareSize }}
                 data-value={internalValue}
                 data-minimize={minimize}
                 data-subtle={subtle}
@@ -163,7 +163,7 @@ const WeblensInput = memo(
                     <div className="flex w-max justify-end" tabIndex={0}>
                         <WeblensButton
                             centerContent
-                            squareSize={height ? height * 0.75 : 40}
+                            squareSize={squareSize ? squareSize * 0.75 : 40}
                             Left={buttonIcon}
                             onClick={(e) => {
                                 e.stopPropagation()
@@ -189,7 +189,12 @@ const WeblensInput = memo(
             return false
         } else if (prev.placeholder !== next.placeholder) {
             return false
+        } else if (prev.failed !== next.failed) {
+            return false
+        } else if (prev.squareSize !== next.squareSize) {
+            return false
         }
+
         return true
     }
 )

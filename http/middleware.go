@@ -15,14 +15,14 @@ func ParseUserLogin(authHeader string, authService models.AccessService) (*model
 	if len(authHeader) == 0 {
 		return nil, werror.ErrNoAuth
 	}
-	authParts := strings.Split(authHeader, " ")
+	// authParts := strings.Split(authHeader, "=")
 
-	if len(authParts) < 2 || authParts[0] != "Bearer" {
-		// Bad auth header format
-		return nil, werror.ErrBadAuthScheme
-	}
+	// if len(authParts) < 2 || authParts[0] != "Bearer" {
+	// 	// Bad auth header format
+	// 	return nil, werror.ErrBadAuthScheme
+	// }
 
-	return authService.GetUserFromToken(authParts[1])
+	return authService.GetUserFromToken(authHeader)
 }
 
 func ParseApiKeyLogin(authHeader string, pack *models.ServicePack) (
@@ -61,13 +61,18 @@ func withServices(pack *models.ServicePack) gin.HandlerFunc {
 	}
 }
 
-func WeblensAuth(requireAdmin bool, pack *models.ServicePack) gin.HandlerFunc {
+func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		metrics.RequestsCounter.Inc()
-		authHeader := c.Request.Header["Authorization"]
-		if len(authHeader) != 0 {
-			usr, err := ParseUserLogin(authHeader[0], pack.AccessService)
+		sessionToken, _ := c.Cookie("weblens-session-token")
+
+		if len(sessionToken) != 0 {
+			usr, err := ParseUserLogin(sessionToken, pack.AccessService)
 			if err != nil {
+				if allowBadAuth {
+					c.Next()
+					return
+				}
 				log.ShowErr(err)
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
@@ -83,19 +88,19 @@ func WeblensAuth(requireAdmin bool, pack *models.ServicePack) gin.HandlerFunc {
 			return
 		}
 
-		authHeader = c.Request.Header["X-Api-Key"]
-		if len(authHeader) != 0 {
-			usr, _, err := ParseApiKeyLogin(authHeader[0], pack)
-			if err != nil {
-				log.ShowErr(err)
-				c.AbortWithStatus(http.StatusUnauthorized)
-				return
-			}
-
-			c.Set("user", usr)
-			c.Next()
-			return
-		}
+		// apiKey := c.Request.Header["X-Api-Key"][0]
+		// if len(apiKey) != 0 {
+		// 	usr, _, err := ParseApiKeyLogin(apiKey, pack)
+		// 	if err != nil {
+		// 		log.ShowErr(err)
+		// 		c.AbortWithStatus(http.StatusUnauthorized)
+		// 		return
+		// 	}
+		//
+		// 	c.Set("user", usr)
+		// 	c.Next()
+		// 	return
+		// }
 	}
 }
 

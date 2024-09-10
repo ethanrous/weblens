@@ -118,60 +118,91 @@ func (accSrv *AccessServiceImpl) GetApiKey(key models.WeblensApiKey) (models.Api
 	}
 }
 
+type MyCustomClaims struct {
+	Username string `json:"username"`
+	jwt.RegisteredClaims
+}
+
 func (accSrv *AccessServiceImpl) GenerateJwtToken(user *models.User) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
+	claims := MyCustomClaims{
+		user.GetUsername(),
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 7)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte("key"))
 	if err != nil {
 		return "", err
 	}
 
-	dbToken := models.Token{
-		Token:    tokenString,
-		Username: user.GetUsername(),
-	}
-
-	_, err = accSrv.collection.InsertOne(context.Background(), dbToken)
-	if err != nil {
-		return "", err
-	}
-
-	accSrv.tokenMapMu.RLock()
-	accSrv.tokenMap[tokenString] = user
-	accSrv.tokenMapMu.RUnlock()
-	user.AddToken(tokenString)
+	// dbToken := models.Token{
+	// 	Token:    tokenString,
+	// 	Username: user.GetUsername(),
+	// }
+	//
+	// _, err = accSrv.collection.InsertOne(context.Background(), dbToken)
+	// if err != nil {
+	// 	return "", err
+	// }
+	//
+	// accSrv.tokenMapMu.RLock()
+	// accSrv.tokenMap[tokenString] = user
+	// accSrv.tokenMapMu.RUnlock()
+	// user.AddToken(tokenString)
 
 	return tokenString, nil
 }
 
-func (accSrv *AccessServiceImpl) GetUserFromToken(token string) (*models.User, error) {
-	if token == "" {
+func (accSrv *AccessServiceImpl) GetUserFromToken(tokenStr string) (*models.User, error) {
+	if tokenStr == "" {
 		return nil, nil
 	}
 
-	accSrv.tokenMapMu.RLock()
-	usr, ok := accSrv.tokenMap[token]
-	accSrv.tokenMapMu.RUnlock()
-	if !ok {
-		var target models.Token
-		err := accSrv.collection.FindOne(context.Background(), bson.M{"token": token}).Decode(&target)
-		if err != nil {
-			return nil, werror.WithStack(err)
-		}
-
-		usr = accSrv.userService.Get(target.Username)
-
-		// This is ok even if the user is nil, because then the next lookup
-		// won't need to go to mongo to find no user, the map will remember
-		accSrv.tokenMapMu.Lock()
-		accSrv.tokenMap[token] = usr
-		accSrv.tokenMapMu.Unlock()
+	jwtToken, err := jwt.ParseWithClaims(
+		tokenStr, &MyCustomClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte("key"), nil
+		},
+	)
+	if err != nil {
+		return nil, werror.WithStack(err)
 	}
 
+	usr := accSrv.userService.Get(jwtToken.Claims.(*MyCustomClaims).Username)
 	if usr == nil {
-		return nil, werror.Errorf("Could not find token")
+		return nil, werror.ErrInvalidToken
 	}
 
 	return usr, nil
+
+	// log.Debug.Println(jwtToken)
+	//
+	// accSrv.tokenMapMu.RLock()
+	// usr, ok := accSrv.tokenMap[tokenStr]
+	// accSrv.tokenMapMu.RUnlock()
+	// if !ok {
+	// 	var target models.Token
+	// 	err := accSrv.collection.FindOne(context.Background(), bson.M{"token": tokenStr}).Decode(&target)
+	// 	if err != nil {
+	// 		return nil, werror.WithStack(err)
+	// 	}
+	//
+	// 	usr = accSrv.userService.Get(target.Username)
+	//
+	// 	// This is ok even if the user is nil, because then the next lookup
+	// 	// won't need to go to mongo to find no user, the map will remember
+	// 	accSrv.tokenMapMu.Lock()
+	// 	accSrv.tokenMap[tokenStr] = usr
+	// 	accSrv.tokenMapMu.Unlock()
+	// }
+	//
+	// if usr == nil {
+	// 	return nil, werror.Errorf("Could not find token")
+	// }
+	//
+	// return usr, nil
 	// if keyInfo, ok := accSrv.apiKeyMap[key]; !ok {
 	// 	return models.ApiKeyInfo{}, errors.New("Could not find api key")
 	// } else {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -79,7 +80,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	localServer := instanceService.GetLocal()
 	sw.Lap("Init instance service")
 
-	/* User Service */
+	/* Username Service */
 	userService, err := service.NewUserService(db.Collection("users"))
 	if err != nil {
 		panic(err)
@@ -202,7 +203,6 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	if err != nil {
 		panic(err)
 	}
-	pack.FileService = fileService
 	sw.Lap("Init file service")
 
 	/* Media type Service */
@@ -227,6 +227,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	fileService.SetMediaService(mediaService)
 	clientService.SetFileService(fileService)
+	pack.FileService = fileService
 
 	/* Album Service */
 	albumService := service.NewAlbumService(db.Collection("albums"), mediaService, shareService)

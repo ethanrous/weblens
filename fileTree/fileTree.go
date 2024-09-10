@@ -78,10 +78,6 @@ func NewFileTree(rootPath, rootAlias string, hasher Hasher, journal Journal) (Fi
 		rootAlias: rootAlias,
 	}
 
-	// TODO move to journal create
-	// go journal.EventWorker()
-	// go journal.FileWatcher()
-
 	event := tree.GetJournal().NewEvent()
 	if event.journal == nil {
 		event = nil

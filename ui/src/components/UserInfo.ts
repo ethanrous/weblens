@@ -1,7 +1,6 @@
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { getServerInfo } from '@weblens/api/ApiFetch'
 import {
-    AuthHeaderT,
     LOGIN_TOKEN_COOKIE_KEY,
     ServerInfoT,
     UserInfoT,
@@ -14,27 +13,30 @@ import { create, StateCreator } from 'zustand'
 const useR = () => {
     const [cookies] = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
 
-    const { server, user, auth, setAuthHeader, setUserInfo } = useSessionStore()
+    const { server, user, setUserInfo } = useSessionStore()
 
     useEffect(() => {
-        if (cookies[LOGIN_TOKEN_COOKIE_KEY] && auth === null) {
+        if (cookies[LOGIN_TOKEN_COOKIE_KEY]) {
             // Auth header unset, but the cookies are ready
-            const loginStr = `Bearer ${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
-            setAuthHeader(loginStr)
+            // const loginStr = `Bearer ${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
+            // setAuthHeader(loginStr)
         } else if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
             setUserInfo({ isLoggedIn: false } as UserInfoT)
         }
     }, [cookies])
 
     useEffect(() => {
-        if (!server || server.info.role === 'init') {
+        if (!server) {
             return
         }
+        if (server.info.role === 'init') {
+            setUserInfo({ isLoggedIn: false } as UserInfoT)
+        }
 
-        if (auth && !user) {
+        if (!user) {
             // Auth header set, but no user data, go get the user data
             const url = new URL(`${API_ENDPOINT}/user`)
-            fetch(url.toString(), { headers: auth })
+            fetch(url.toString())
                 .then((res) => {
                     if (res.status !== 200) {
                         return Promise.reject(res.statusText)
@@ -52,25 +54,27 @@ const useR = () => {
                     setUserInfo({ isLoggedIn: false } as UserInfoT)
                 })
         }
-    }, [server, auth])
+    }, [server])
 }
 
 export interface WeblensSessionT {
     user: UserInfoT
     server: { info: ServerInfoT; userCount: number; started: boolean }
-    auth: AuthHeaderT
+    nav: (loc: string) => void
 
     setUserInfo: (user: UserInfoT) => void
-    setAuthHeader: (token: string) => void
 
     fetchServerInfo: () => void
     logout: (removeCookie: (cookieKey: string) => void) => void
+
+    setNav: (navFunc: (loc: string) => void) => void
 }
 
 const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     user: null,
     server: null,
     auth: null,
+    nav: null,
 
     setUserInfo: (user) => {
         if (user.isLoggedIn === undefined) {
@@ -79,18 +83,6 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
         set({
             user: user,
         })
-    },
-
-    setAuthHeader: (token: string) => {
-        if (!token) {
-            set({
-                auth: null,
-            })
-        } else {
-            set({
-                auth: { Authorization: token },
-            })
-        }
     },
 
     fetchServerInfo: () => {
@@ -104,10 +96,15 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     logout: (removeCoookie) => {
         set({
             user: null,
-            auth: null,
         })
         removeCoookie(USERNAME_COOKIE_KEY)
         removeCoookie(LOGIN_TOKEN_COOKIE_KEY)
+    },
+
+    setNav: (navFunc: (loc: string) => void) => {
+        set({
+            nav: navFunc,
+        })
     },
 })
 

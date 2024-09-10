@@ -167,7 +167,10 @@ func GetCachesRoot() string {
 			cachesRoot, ok = config["cachesRoot"].(string)
 			if ok {
 				if cachesRoot[0] == '.' {
-					cachesRoot = filepath.Join(GetAppRootDir(), cachesRoot)
+					cachesRoot, err = filepath.Abs(cachesRoot)
+					if err != nil {
+						panic(err)
+					}
 				}
 				return cachesRoot
 			}
@@ -315,7 +318,10 @@ func GetMediaRoot() string {
 
 	mediaRoot = config["mediaRoot"].(string)
 	if mediaRoot[0] == '.' {
-		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
+		mediaRoot, err = filepath.Abs(mediaRoot)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if mediaRoot == "" {

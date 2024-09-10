@@ -7,7 +7,6 @@ import {
     WeblensFile,
 } from '@weblens/types/files/File'
 import { Dispatch, MouseEvent } from 'react'
-import { AuthHeaderT } from 'types/Types'
 
 export function mouseMove(
     e,
@@ -70,7 +69,6 @@ export function handleMouseUp(
     file: WeblensFile,
     draggingState: DraggingStateT,
     selected: string[],
-    authHeader: AuthHeaderT,
     setSelectedMoved: () => void,
     clearSelected: () => void,
     setMoveDest: (dest: string) => void,
@@ -83,9 +81,7 @@ export function handleMouseUp(
             file.IsFolder()
         ) {
             setSelectedMoved()
-            MoveSelected(selected, file.Id(), authHeader).then(() =>
-                clearSelected()
-            )
+            MoveSelected(selected, file.Id()).then(() => clearSelected())
         }
         setMoveDest('')
         setDragging(DraggingStateT.NoDrag)

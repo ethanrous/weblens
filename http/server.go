@@ -46,7 +46,8 @@ func (s *Server) Start() {
 
 	s.router.GET("/ping", ping)
 	s.router.GET("/api/info", getServerInfo)
-	s.router.GET("/api/ws", wsConnect)
+
+	s.router.GET("/api/ws", WeblensAuth(false, false, s.services), wsConnect)
 
 	if !env.DetachUi() {
 		s.UseUi()
@@ -72,7 +73,7 @@ func (s *Server) UseApi() {
 	log.Debug.Println("Using api routes")
 
 	api := s.router.Group("/api")
-	api.Use(WeblensAuth(false, s.services))
+	api.Use(WeblensAuth(false, false, s.services))
 
 	api.GET("/file/:fileId/history", getFolderHistory)
 	api.GET("/file/rewind/:folderId/:rewindTime", getPastFolderInfo)
@@ -90,6 +91,7 @@ func (s *Server) UseApi() {
 	api.GET("/media/:mediaId/stream", streamVideo)
 	api.GET("/media/:mediaId/:chunkName", streamVideo)
 	api.POST("/media/:mediaId/liked", likeMedia)
+	api.POST("/medias", getMediaByIds)
 	api.PATCH("/media/hide", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
@@ -122,7 +124,7 @@ func (s *Server) UseApi() {
 	// Folders
 	api.GET("/folders/media", getFoldersMedia)
 
-	// User
+	// Username
 	api.GET("/user", getUserInfo)
 	api.GET("/users/search", searchUsers)
 	api.POST("/user", createUser)
@@ -145,7 +147,9 @@ func (s *Server) UseApi() {
 	// Albums
 	api.GET("/albums", getAlbums)
 
-	api.POST("/login", loginUser)
+	login := s.router.Group("/api").Use(WeblensAuth(false, true, s.services))
+	login.POST("/login", loginUser)
+
 	api.POST("/takeout", createTakeout)
 	api.GET("/takeout/:fileId", downloadTakeout)
 
@@ -201,14 +205,13 @@ func (s *Server) UseCore() {
 	core.GET("/history/since/:timestamp", getLifetimesSince)
 	core.GET("/history", getHistory)
 	core.GET("/history/folder", getFolderHistory)
-	// core.GET("/ws", wsConnect)
 }
 
 func (s *Server) UseAdmin() {
 	log.Debug.Println("Using admin routes")
 
 	admin := s.router.Group("/api")
-	admin.Use(WeblensAuth(true, s.services))
+	admin.Use(WeblensAuth(true, false, s.services))
 
 	admin.GET("/files/external", getExternalDirs)
 	admin.GET("/files/external/:folderId", getExternalFolderInfo)

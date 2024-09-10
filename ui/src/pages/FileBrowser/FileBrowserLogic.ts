@@ -1,6 +1,5 @@
 import {
     CreateFolder,
-    DeleteFiles,
     downloadSingleFile,
     moveFiles,
     RenameFile,
@@ -11,10 +10,13 @@ import {
 import Upload, { fileUploadMetadata } from '@weblens/api/Upload'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
-import { AuthHeaderT, TPDispatchT, UserInfoT } from '@weblens/types/Types'
-import { DragEvent, useCallback, useEffect, useState } from 'react'
+import { TPDispatchT, UserInfoT } from '@weblens/types/Types'
+import { DragEvent, useCallback, useEffect } from 'react'
 
-import { FbModeT, useFileBrowserStore } from './FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 
 export const getRealId = async (
     contentId: string,
@@ -57,13 +59,10 @@ export const handleRename = (
     itemId: string,
     newName: string,
     addLoading: (loading: string) => void,
-    removeLoading: (loading: string) => void,
-    authHeader: AuthHeaderT
+    removeLoading: (loading: string) => void
 ) => {
     addLoading('renameFile')
-    RenameFile(itemId, newName, authHeader).then(() =>
-        removeLoading('renameFile')
-    )
+    RenameFile(itemId, newName).then(() => removeLoading('renameFile'))
 }
 
 async function getFile(file): Promise<File> {
@@ -82,8 +81,7 @@ async function addDir(
     topFolderKey: string,
     rootFolderId: string,
     isPublic: boolean,
-    shareId: string,
-    authHeader: AuthHeaderT
+    shareId: string
 ) {
     return await new Promise(
         // eslint-disable-next-line no-async-promise-executor
@@ -97,8 +95,7 @@ async function addDir(
                     fsEntry.name,
                     [],
                     isPublic,
-                    shareId,
-                    authHeader
+                    shareId
                 )
                 if (!folderId) {
                     reject()
@@ -155,8 +152,7 @@ async function addDir(
                             topFolderKey,
                             rootFolderId,
                             isPublic,
-                            shareId,
-                            authHeader
+                            shareId
                         ))
                     )
                 }
@@ -185,8 +181,7 @@ export async function HandleDrop(
     rootFolderId: string,
     conflictNames: string[],
     isPublic: boolean,
-    shareId: string,
-    authHeader: AuthHeaderT
+    shareId: string
 ) {
     const files: fileUploadMetadata[] = []
     const topLevels = []
@@ -212,8 +207,7 @@ export async function HandleDrop(
                     null,
                     rootFolderId,
                     isPublic,
-                    shareId,
-                    authHeader
+                    shareId
                 )
                     .then((newFiles) => {
                         files.push(...newFiles)
@@ -228,7 +222,7 @@ export async function HandleDrop(
     await Promise.all(topLevels)
 
     if (files.length !== 0) {
-        Upload(files, isPublic, shareId, rootFolderId, authHeader)
+        Upload(files, isPublic, shareId, rootFolderId)
     }
 }
 
@@ -236,8 +230,7 @@ export function HandleUploadButton(
     files: File[],
     parentFolderId: string,
     isPublic: boolean,
-    shareId: string,
-    authHeader: AuthHeaderT
+    shareId: string
 ) {
     const uploads: fileUploadMetadata[] = []
     for (const f of files) {
@@ -251,7 +244,7 @@ export function HandleUploadButton(
     }
 
     if (uploads.length !== 0) {
-        Upload(uploads, isPublic, shareId, parentFolderId, authHeader)
+        Upload(uploads, isPublic, shareId, parentFolderId)
     }
 }
 
@@ -260,13 +253,11 @@ export async function downloadSelected(
     removeLoading: (loading: string) => void,
     taskProgDispatch: TPDispatchT,
     wsSend: (action: string, content) => void,
-    authHeader: AuthHeaderT,
     shareId?: string
 ) {
     if (files.length === 1 && !files[0].IsFolder()) {
         return downloadSingleFile(
             files[0].Id(),
-            authHeader,
             taskProgDispatch,
             files[0].GetFilename(),
             false,
@@ -276,13 +267,11 @@ export async function downloadSelected(
 
     return requestZipCreate(
         files.map((f) => f.Id()),
-        shareId,
-        authHeader
+        shareId
     ).then(({ json, status }) => {
         if (status === 200) {
             downloadSingleFile(
                 json.takeoutId,
-                authHeader,
                 taskProgDispatch,
                 json.filename,
                 true,
@@ -350,7 +339,6 @@ export const useKeyDownFileBrowser = () => {
                 } else if (event.key === 'Shift') {
                     setHoldingShift(true)
                 } else if (event.key === 'Enter') {
-                    console.log('NOT ME RIGHT?')
                     if (!folderInfo.IsModifiable()) {
                         console.error(
                             'This folder does not allow paste-to-upload'
@@ -397,21 +385,6 @@ export const useKeyDownFileBrowser = () => {
         isSearching,
         menuMode,
     ])
-}
-
-export const useMousePosition = () => {
-    const [mousePosition, setMousePosition] = useState({ x: null, y: null })
-
-    useEffect(() => {
-        const updateMousePosition = (ev) => {
-            setMousePosition({ x: ev.clientX, y: ev.clientY })
-        }
-        window.addEventListener('mousemove', updateMousePosition)
-        return () => {
-            window.removeEventListener('mousemove', updateMousePosition)
-        }
-    }, [])
-    return mousePosition
 }
 
 export const usePaste = (
@@ -477,30 +450,14 @@ export const usePaste = (
     }, [handlePaste])
 }
 
-export function deleteSelected(
-    selectedMap: Map<string, boolean>,
-    dirMap: Map<string, WeblensFile>,
-    authHeader: AuthHeaderT
-) {
-    const fileIds = Array.from(selectedMap.keys())
-    DeleteFiles(fileIds, authHeader)
-}
-
-export function MoveSelected(
-    selected: string[],
-    destinationId: string,
-    authHeader: AuthHeaderT
-) {
-    return moveFiles(selected, destinationId, authHeader).catch((r) =>
-        console.error(r)
-    )
+export function MoveSelected(selected: string[], destinationId: string) {
+    return moveFiles(selected, destinationId).catch((r) => console.error(r))
 }
 
 export async function uploadViaUrl(
     img: ArrayBuffer,
     folderId: string,
-    dirMap: Map<string, WeblensFile>,
-    authHeader: AuthHeaderT
+    dirMap: Map<string, WeblensFile>
 ) {
     const names = Array.from(dirMap.values()).map((v) => v.GetFilename())
     let imgNumber = 1
@@ -517,23 +474,7 @@ export async function uploadViaUrl(
         topLevelParentKey: '',
         isTopLevel: true,
     }
-    await Upload([meta], false, '', folderId, authHeader)
-}
-
-export function selectedMediaIds(
-    dirMap: Map<string, WeblensFile>,
-    selectedIds: string[]
-): string[] {
-    return selectedIds
-        .map((id) => dirMap.get(id)?.GetMediaId())
-        .filter((v) => Boolean(v))
-}
-
-export function selectedFolderIds(
-    dirMap: Map<string, WeblensFile>,
-    selectedIds: string[]
-): string[] {
-    return selectedIds.filter((id) => dirMap.get(id).IsFolder())
+    await Upload([meta], false, '', folderId)
 }
 
 export const historyDate = (timestamp: number) => {

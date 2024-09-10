@@ -144,7 +144,7 @@ export const ContainerMedia = ({
 }
 
 function TextDisplay({ file }: { file: WeblensFile }) {
-    const auth = useSessionStore((state) => state.auth)
+    
     const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
     const [content, setContent] = useState('')
 
@@ -189,7 +189,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetMediaId())
     )
-    const auth = useSessionStore((state) => state.auth)
+    
     const wsSend = useContext(WebsocketContext)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
 

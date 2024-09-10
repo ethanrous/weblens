@@ -30,14 +30,12 @@ import { AlbumData, UserInfoT } from 'types/Types'
 
 function AlbumShareMenu({
     album,
-    isOpen,
     closeShareMenu,
 }: {
     album: AlbumData
-    isOpen: boolean
     closeShareMenu: () => void
 }) {
-    const { user, auth } = useSessionStore()
+    const { user } = useSessionStore()
     const [users, setUsers] = useState([])
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState([])
@@ -47,7 +45,7 @@ function AlbumShareMenu({
             setUserSearchResults([])
             return
         }
-        AutocompleteUsers(userSearch, auth).then((r) => {
+        AutocompleteUsers(userSearch).then((r) => {
             r = r.filter(
                 (u: UserInfoT) =>
                     u.username !== user.username && !users.includes(u.username)
@@ -88,7 +86,6 @@ function AlbumShareMenu({
                             </p>
                         )}
                         {userSearchResults.map((u: UserInfoT) => {
-                            console.log(u)
                             return (
                                 <WeblensButton
                                     squareSize={40}
@@ -219,7 +216,6 @@ export function MiniAlbumCover({
 export function SingleAlbumCover({ album }: { album: AlbumData }) {
     const { galleryDispatch } = useContext(GalleryContext)
     const user = useSessionStore((state) => state.user)
-    const auth = useSessionStore((state) => state.auth)
     const addMedias = useMediaStore((state) => state.addMedias)
     const nav = useNavigate()
 
@@ -228,7 +224,7 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
     const mediaData = useMediaStore((state) => state.mediaMap.get(album.cover))
 
     useEffect(() => {
-        if (!mediaData) {
+        if (!mediaData && album.cover) {
             const newM = new WeblensMedia({ contentId: album.cover })
             newM.LoadInfo().then(() => {
                 addMedias([newM])
@@ -298,9 +294,9 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                                     let rq: Promise<Response>
 
                                     if (album.owner !== user.username) {
-                                        rq = LeaveAlbum(album.id, auth).then()
+                                        rq = LeaveAlbum(album.id).then()
                                     } else {
-                                        rq = DeleteAlbum(album.id, auth)
+                                        rq = DeleteAlbum(album.id)
                                     }
 
                                     rq.then((r) => {
@@ -326,7 +322,6 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                 />
                 <AlbumShareMenu
                     album={album}
-                    isOpen={sharing}
                     closeShareMenu={() => setSharing(false)}
                 />
             </div>

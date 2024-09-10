@@ -23,7 +23,7 @@
     "DEBUG-CORE": {
         "mongodbName": "weblens-core",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "trace",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",

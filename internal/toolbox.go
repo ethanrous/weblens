@@ -84,8 +84,6 @@ func RecoverPanic(preText string) {
 
 }
 
-// TODO - Benchmark OracleReader
-
 // OracleReader is almost exactly like io.ReadAll, but if we know how long the content is,
 // we can allocate the whole array up front, saving a bit of time (I hope)
 func OracleReader(r io.Reader, readerSize int64) ([]byte, error) {

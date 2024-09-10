@@ -161,11 +161,23 @@ const portableToFolderName = (path: string) => {
     return folderPath
 }
 
+const portableToFileName = (path: string) => {
+    let filePath = path
+    if (path.endsWith('/')) {
+        filePath = filePath.substring(0, path.length - 1)
+    }
+    filePath = filePath.slice(
+        filePath.indexOf(':') + 1
+    )
+    filePath = filePath.slice(filePath.lastIndexOf('/') + 1)
+    return filePath
+}
+
 function ActionRow({
     action,
     folderName,
 }: {
-    action: fileAction
+    action: FileAction
     folderName: string
 }) {
     const fromFolder = portableToFolderName(action.originPath)
@@ -211,12 +223,12 @@ const HistoryEventRow = memo(
         open,
         setOpen,
     }: {
-        event: fileAction[]
+        event: FileAction[]
         folderPath: string
         open: boolean
         setOpen: (o: boolean) => void
     }) => {
-        const folderName = portableToFolderName(folderPath)
+        const folderName = portableToFileName(folderPath)
 
         let caretIcon
         if (open) {
@@ -294,7 +306,7 @@ function RollbackBar({
     events,
     openEvents,
 }: {
-    events: fileAction[][]
+    events: FileAction[][]
     openEvents: boolean[]
 }) {
     const setPastTime = useFileBrowserStore((state) => state.setPastTime)
@@ -401,7 +413,7 @@ function RollbackBar({
     )
 }
 
-type fileAction = {
+export type FileAction = {
     actionType: string
     destinationId: string
     destinationPath: string
@@ -414,18 +426,18 @@ type fileAction = {
 
 function FileHistory() {
     const user = useSessionStore((state) => state.user)
-    const authHeader = useSessionStore((state) => state.auth)
+    
     const filesMap = useFileBrowserStore((state) => state.filesMap)
     const contentId = useFileBrowserStore((state) => state.contentId)
     const mode = useFileBrowserStore((state) => state.fbMode)
 
-    const { data: fileHistory, refetch } = useQuery<fileAction[]>({
+    const { data: fileHistory, refetch } = useQuery<FileAction[]>({
         queryKey: ['fileHistory', contentId],
         queryFn: () => {
             if (mode === FbModeT.share) {
                 return null
             }
-            return getFileHistory(contentId, authHeader)
+            return getFileHistory(contentId)
         },
     })
 
@@ -438,8 +450,8 @@ function FileHistory() {
             return { events: [], epoch: null }
         }
 
-        const events: fileAction[][] = []
-        let epoch: fileAction
+        const events: FileAction[][] = []
+        let epoch: FileAction
 
         fileHistory.forEach((a) => {
             if (a.lifeId === contentId) {

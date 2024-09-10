@@ -43,56 +43,16 @@ func wsConnect(ctx *gin.Context) {
 		return
 	}
 
-	err = conn.SetReadDeadline(time.Now().Add(time.Second * 10))
-	if err != nil {
-		log.ErrTrace(err)
-		return
-	}
-
-	_, buf, err := conn.ReadMessage()
-	if err != nil {
-		_ = conn.Close()
-		return
-	}
-
-	err = conn.SetReadDeadline(time.Time{})
-	if err != nil {
-		log.ErrTrace(err)
-		return
-	}
-
-	var auth WsAuthorize
-	err = json.Unmarshal(buf, &auth)
-	if err != nil {
-		log.ErrTrace(err)
-		// ctx.Status(comm.StatusBadRequest)
-		return
-	}
-
-	var usr *models.User
-	var instance *models.Instance
-	if len(auth.Auth) != 0 && auth.Auth[0] == 'X' {
-		usr, instance, err = ParseApiKeyLogin(auth.Auth, pack)
-		if err != nil {
-			log.ShowErr(err)
-			return
-		}
-	} else {
-		usr, err = ParseUserLogin(auth.Auth, pack.AccessService)
-		if err != nil {
-			log.ShowErr(err)
-			return
-		}
-	}
+	usr := getUserFromCtx(ctx)
 
 	var client *models.WsClient
 	if usr != nil {
 		client = pack.ClientService.ClientConnect(conn, usr)
-	} else if instance != nil {
-		client = pack.ClientService.RemoteConnect(conn, instance)
+		// } else if instance != nil {
+		// 	client = pack.ClientService.RemoteConnect(conn, instance)
 	} else {
 		// this should not happen
-		log.Error.Println("Hat trick nil on WebsocketAuth", auth.Auth)
+		// log.Error.Println("Hat trick nil on WebsocketAuth", auth.Auth)
 		return
 	}
 
@@ -127,6 +87,8 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		c.Error(err)
 		return
 	}
+
+	log.Trace.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg)
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)

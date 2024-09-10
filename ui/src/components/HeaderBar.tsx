@@ -15,7 +15,6 @@ import Admin from '@weblens/pages/Admin Settings/Admin'
 import '@weblens/components/style.scss'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import {
-    AuthHeaderT,
     LOGIN_TOKEN_COOKIE_KEY,
     UserInfoT,
     USERNAME_COOKIE_KEY,
@@ -37,12 +36,10 @@ const SettingsMenu = ({
     open,
     setClosed,
     user,
-    authHeader,
 }: {
     open: boolean
     setClosed: () => void
     user: UserInfoT
-    authHeader: AuthHeaderT
 }) => {
     const [oldP, setOldP] = useState('')
     const [newP, setNewP] = useState('')
@@ -68,23 +65,20 @@ const SettingsMenu = ({
                 'Old and new password cannot be empty or match'
             )
         }
-        return UpdatePassword(user.username, oldP, newP, authHeader).then(
-            (r) => {
-                if (r.status !== 200) {
-                    return Promise.reject(r.statusText)
-                }
-                setTimeout(() => {
-                    setNewP('')
-                    setOldP('')
-                }, 2000)
-                return true
+        return UpdatePassword(user.username, oldP, newP).then((r) => {
+            if (r.status !== 200) {
+                return Promise.reject(r.statusText)
             }
-        )
-    }, [user.username, String(oldP), String(newP), authHeader])
+            setTimeout(() => {
+                setNewP('')
+                setOldP('')
+            }, 2000)
+            return true
+        })
+    }, [user.username, String(oldP), String(newP)])
 
     useKeyDown('Enter', () => {
         if (buttonRef) {
-            console.log('EH?')
             buttonRef.click()
         }
     })
@@ -113,13 +107,13 @@ const SettingsMenu = ({
                         placeholder="Old Password"
                         password
                         valueCallback={setOldP}
-                        height={50}
+                        squareSize={50}
                     />
                     <WeblensInput
                         value={newP}
                         placeholder="New Password"
                         valueCallback={setNewP}
-                        height={50}
+                        squareSize={50}
                         password
                     />
                     <div className="p2" />
@@ -154,7 +148,7 @@ const SettingsMenu = ({
 
 const HeaderBar = memo(
     ({ setBlockFocus, loading }: HeaderBarProps) => {
-        const { user, auth } = useSessionStore()
+        const { user } = useSessionStore()
         const clearMedia = useMediaStore((state) => state.clear)
         const nav = useNavigate()
         const [settings, setSettings] = useState(false)
@@ -193,7 +187,6 @@ const HeaderBar = memo(
                         setClosed={() => {
                             setSettings(false)
                         }}
-                        authHeader={auth}
                     />
                 )}
 

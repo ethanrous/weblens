@@ -48,6 +48,9 @@ import {
     WeblensFile,
 } from '@weblens/types/files/File'
 import { getFoldersMedia } from '@weblens/types/files/FilesQuery'
+import WeblensMedia from '@weblens/types/media/Media'
+import { getMedias } from '@weblens/types/media/MediaQuery'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { WeblensShare } from '@weblens/types/share/share'
 import { shareFile } from '@weblens/types/share/shareQuery'
 import {
@@ -67,8 +70,8 @@ import {
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlbumData, AuthHeaderT, UserInfoT } from 'types/Types'
-import { clamp } from 'util'
+import { AlbumData, UserInfoT } from 'types/Types'
+import { clamp } from '@weblens/util'
 
 type footerNote = {
     hint: string
@@ -267,7 +270,7 @@ export function FileContextMenu() {
         )
     } else if (menuMode === FbMenuModeT.Default) {
         if (viewingPast) {
-            menuBody = <HistoryFileMenu setFooterNote={setFooterNote} />
+            // menuBody = <HistoryFileMenu setFooterNote={setFooterNote} />
         } else if (menuTarget === '') {
             menuBody = <BackdropDefaultItems setFooterNote={setFooterNote} />
         } else {
@@ -320,7 +323,6 @@ function StandardFileMenu({
     activeItems: { items: WeblensFile[] }
 }) {
     const user = useSessionStore((state) => state.user)
-    const auth = useSessionStore((state) => state.auth)
     const { progDispatch } = useContext(TaskProgContext)
     const wsSend = useContext(WebsocketContext)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -398,6 +400,7 @@ function StandardFileMenu({
                     }
                     onClick={(e) => {
                         e.stopPropagation()
+                        setFooterNote({ hint: '', danger: false })
                         setMenu({ menuState: FbMenuModeT.AddToAlbum })
                     }}
                 />
@@ -443,7 +446,6 @@ function StandardFileMenu({
                             removeLoading,
                             progDispatch,
                             wsSend,
-                            auth,
                             shareId
                         )
                             .then(() => true)
@@ -485,17 +487,17 @@ function StandardFileMenu({
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
                     }
-                    onClick={(e) => {
+                    onClick={async (e) => {
                         e.stopPropagation()
                         activeItems.items.forEach((f) =>
                             f.SetSelected(SelectedState.Moved)
                         )
-                        TrashFiles(
+                        return TrashFiles(
                             activeItems.items.map((f) => f.Id()),
-                            shareId,
-                            auth
-                        )
-                        setMenu({ menuState: FbMenuModeT.Closed })
+                            shareId
+                        ).then(() => {
+                            setMenu({ menuState: FbMenuModeT.Closed })
+                        })
                     }}
                 />
             </div>
@@ -503,16 +505,15 @@ function StandardFileMenu({
     )
 }
 
-function HistoryFileMenu({
-    setFooterNote,
-}: {
-    setFooterNote: (n: footerNote) => void
-}) {
-    return null
-}
+// function HistoryFileMenu({
+//     setFooterNote,
+// }: {
+//     setFooterNote: (n: footerNote) => void
+// }) {
+//     return null
+// }
 
 function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
-    const auth = useSessionStore((state) => state.auth)
     const [isPublic, setIsPublic] = useState(false)
 
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
@@ -534,9 +535,9 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
         if (!item) {
             return
         }
-        item.GetShare(auth).then((share) => {
+        const setShareData = async () => {
+            const share = await item.GetShare()
             if (share) {
-                console.log('PUBLIK?', share, share.IsPublic())
                 if (share.IsPublic() !== undefined) {
                     setIsPublic(share.IsPublic())
                 }
@@ -544,13 +545,14 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
             } else {
                 setIsPublic(false)
             }
-        })
+        }
+        setShareData()
     }, [item])
 
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState<UserInfoT[]>([])
     useEffect(() => {
-        AutocompleteUsers(userSearch, auth).then((us) => {
+        AutocompleteUsers(userSearch).then((us) => {
             us = us.filter((u) => !accessors.includes(u.username))
             setUserSearchResults(us)
         })
@@ -566,7 +568,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     const updateShare = useCallback(
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
-            const share = await item.GetShare(auth)
+            const share = await item.GetShare()
             if (share) {
                 return await share
                     .UpdateShare(isPublic, accessors)
@@ -585,7 +587,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                     .catch(() => false)
             }
         },
-        [item, isPublic, accessors, auth]
+        [item, isPublic, accessors]
     )
 
     if (menuMode === FbMenuModeT.Closed) {
@@ -625,7 +627,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                             e.stopPropagation()
                             return await updateShare(e)
                                 .then(async () => {
-                                    const share = await item.GetShare(auth)
+                                    const share = await item.GetShare()
                                     if (!share) {
                                         console.error('No Shares!')
                                         return false
@@ -746,8 +748,6 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
 }
 
 function NewFolderName({ items }: { items: WeblensFile[] }) {
-    const auth = useSessionStore((state) => state.auth)
-
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const shareId = useFileBrowserStore((state) => state.shareId)
@@ -765,7 +765,7 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                 placeholder="New Folder Name"
                 autoFocus
                 fillWidth
-                height={50}
+                squareSize={50}
                 buttonIcon={IconPlus}
                 onComplete={async (newName) => {
                     const itemIds = items.map((f) => f.Id())
@@ -775,8 +775,7 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                         newName,
                         itemIds,
                         false,
-                        shareId,
-                        auth
+                        shareId
                     )
                         .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
                         .catch((r) => console.error(r))
@@ -788,7 +787,6 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
 }
 
 function FileRenameInput() {
-    const auth = useSessionStore((state) => state.auth)
     const menuTarget = useFileBrowserStore((state) =>
         state.filesMap.get(state.menuTargetId)
     )
@@ -802,10 +800,10 @@ function FileRenameInput() {
                 placeholder="Rename File"
                 autoFocus
                 fillWidth
-                height={50}
+                squareSize={50}
                 buttonIcon={IconPlus}
                 onComplete={async (newName) => {
-                    await RenameFile(menuTarget.Id(), newName, auth)
+                    await RenameFile(menuTarget.Id(), newName)
                         .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
                         .catch((r) => console.error(r))
                 }}
@@ -819,12 +817,10 @@ function AlbumCover({
     a,
     medias,
     albums,
-    authHeader,
 }: {
     a: AlbumData
     medias: string[]
     albums: UseQueryResult<AlbumData[], Error>
-    authHeader: AuthHeaderT
 }) {
     const hasAll = medias?.filter((v) => !a.medias?.includes(v)).length === 0
 
@@ -837,9 +833,7 @@ function AlbumCover({
                 if (hasAll) {
                     return
                 }
-                addMediaToAlbum(a.id, medias, [], authHeader).then(() =>
-                    albums.refetch()
-                )
+                addMediaToAlbum(a.id, medias, []).then(() => albums.refetch())
             }}
         >
             <MiniAlbumCover
@@ -851,35 +845,53 @@ function AlbumCover({
 }
 
 function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
-    const auth = useSessionStore((state) => state.auth)
     const [newAlbum, setNewAlbum] = useState(false)
 
-    const albums = useQuery({
+    const albums = useQuery<AlbumData[]>({
         queryKey: ['albums'],
         queryFn: () =>
-            getAlbums(false, auth).then((as) =>
+            getAlbums(false).then((as) =>
                 as.sort((a, b) => {
                     return a.name.localeCompare(b.name)
                 })
             ),
+        initialData: [],
     })
 
     const menuMode = useFileBrowserStore((state) => state.menuMode)
-
     const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const addMedias = useMediaStore((state) => state.addMedias)
+    const getMedia = useMediaStore((state) => state.getMedia)
 
     useEffect(() => {
         setNewAlbum(false)
     }, [menuMode])
+
+    useEffect(() => {
+        const newMediaIds: string[] = []
+        for (const album of albums.data) {
+            if (album.cover && !getMedia(album.cover)) {
+                newMediaIds.push(album.cover)
+            }
+        }
+        if (newMediaIds) {
+            getMedias(newMediaIds).then((mediaParams) => {
+                const medias = mediaParams.map(
+                    (mediaParam) => new WeblensMedia(mediaParam)
+                )
+                addMedias(medias)
+            })
+        }
+    }, [albums?.data.length])
 
     const getMediasInFolders = useCallback(
         ({ queryKey }: { queryKey: [string, string[], FbMenuModeT] }) => {
             if (queryKey[2] !== FbMenuModeT.AddToAlbum) {
                 return []
             }
-            return getFoldersMedia(queryKey[1], auth)
+            return getFoldersMedia(queryKey[1])
         },
-        [auth]
+        []
     )
 
     const medias = useQuery({
@@ -912,18 +924,17 @@ function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
                             a={a}
                             medias={medias.data}
                             albums={albums}
-                            authHeader={auth}
                         />
                     )
                 })}
             </div>
             {newAlbum && (
                 <WeblensInput
-                    height={40}
+                    squareSize={40}
                     autoFocus
                     closeInput={() => setNewAlbum(false)}
                     onComplete={async (v: string) => {
-                        await createAlbum(v, auth).then(() => {
+                        await createAlbum(v).then(() => {
                             setNewAlbum(false)
                             albums.refetch()
                         })
@@ -964,7 +975,6 @@ function InTrashMenu({
     setFooterNote: (n: footerNote) => void
 }) {
     const user = useSessionStore((state) => state.user)
-    const auth = useSessionStore((state) => state.auth)
 
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
@@ -993,8 +1003,7 @@ function InTrashMenu({
                 onClick={async (e) => {
                     e.stopPropagation()
                     const res = await UnTrashFiles(
-                        activeItems.map((f) => f.Id()),
-                        auth
+                        activeItems.map((f) => f.Id())
                     )
 
                     if (!res.ok) {
@@ -1021,14 +1030,14 @@ function InTrashMenu({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={async (e) => {
                     e.stopPropagation()
-                    let toDeleteIds = []
+                    let toDeleteIds: string[]
                     if (menuTarget === '') {
                         toDeleteIds = filesList.map((f) => f.Id())
                     } else {
                         toDeleteIds = activeItems.map((f) => f.Id())
                     }
                     setSelectedMoved(toDeleteIds)
-                    const res = await DeleteFiles(toDeleteIds, auth)
+                    const res = await DeleteFiles(toDeleteIds)
 
                     if (!res.ok) {
                         return false

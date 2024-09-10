@@ -40,6 +40,8 @@ const WeblensRoutes = () => {
     const server = useSessionStore((state) => state.server)
     const user = useSessionStore((state) => state.user)
 
+    const setNav = useSessionStore((state) => state.setNav)
+
     const loc = useLocation()
     const nav = useNavigate()
 
@@ -48,6 +50,12 @@ const WeblensRoutes = () => {
     useEffect(() => {
         fetchServerInfo()
     }, [])
+
+    useEffect(() => {
+        if (nav) {
+            setNav(nav)
+        }
+    }, [nav])
 
     useEffect(() => {
         if (!server) {
@@ -77,8 +85,10 @@ const WeblensRoutes = () => {
             nav('/login', { state: { returnTo: loc.pathname } })
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
             if (loc.state?.returnTo) {
+                console.debug('Nav return to')
                 nav(loc.state.returnTo)
             } else {
+                console.debug('Nav timeline')
                 nav('/timeline')
             }
         } else if (

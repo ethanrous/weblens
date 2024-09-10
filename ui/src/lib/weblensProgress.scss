@@ -67,7 +67,7 @@
     &[data-disabled='true'] {
         cursor: default;
         pointer-events: none;
-        box-shadow: 0px 0px 0px #00001100;
+        box-shadow: 0 0 0 #00001100;
     }
 }
 
@@ -84,11 +84,10 @@
     box-shadow: $soft-shadow;
     height: 100%;
     z-index: 2;
-    pointer-events: none;
 
-    [data-seekable='true'] & {
-        transition: width 100ms ease-in-out;
-    }
+    //[data-seekable='true'] & {
+    //    transition: width 100ms ease-in-out;
+    //}
 
     &[data-secondary='true'] {
         transition: width 100ms ease-in-out;

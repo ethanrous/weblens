@@ -7,7 +7,7 @@ import {
 import { WeblensFileParams } from '@weblens/types/files/File'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { AuthHeaderT, UserInfoT } from '@weblens/types/Types'
+import { UserInfoT } from '@weblens/types/Types'
 import { Dispatch, useCallback, useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { create, StateCreator } from 'zustand'
@@ -21,14 +21,12 @@ import {
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
-    const authHeader = useSessionStore((state) => state.auth)
     const [givenUp, setGivenUp] = useState(false)
     const { sendMessage, lastMessage, readyState } = useWebSocket(
         API_WS_ENDPOINT,
         {
             onOpen: () => {
                 setGivenUp(false)
-                sendMessage(JSON.stringify({ auth: authHeader?.Authorization }))
                 useWebsocketStore.getState().setSender(sendMessage)
             },
             reconnectAttempts: 5,
@@ -63,30 +61,13 @@ export function useWeblensSocket() {
     }
 }
 
-export type WsSendT = (action: string, content) => void
-
-export function dispatchSync(
-    folderIds: string | string[],
-    wsSend: WsSendT,
-    recursive: boolean,
-    full: boolean
-) {
-    folderIds = folderIds instanceof Array ? folderIds : [folderIds]
-    for (const folderId of folderIds) {
-        wsSend('scan_directory', {
-            folderId: folderId,
-            recursive: recursive,
-            full: full,
-        })
-    }
-}
+export type WsSendT = (action: string, content: object) => void
 
 export const useSubscribe = (
     cId: string,
     sId: string,
     usr: UserInfoT,
-    tasksDispatch: Dispatch<TasksProgressAction>,
-    authHeader: AuthHeaderT
+    tasksDispatch: Dispatch<TasksProgressAction>
 ) => {
     const { wsSend, lastMessage } = useWeblensSocket()
     const readyState = useWebsocketStore((state) => state.readyState)
@@ -130,14 +111,9 @@ export const useSubscribe = (
     useEffect(() => {
         HandleWebsocketMessage(
             lastMessage,
-            filebrowserWebsocketHandler(
-                sId,
-                fbDispatch,
-                tasksDispatch,
-                authHeader
-            )
+            filebrowserWebsocketHandler(sId, fbDispatch, tasksDispatch)
         )
-    }, [lastMessage, usr, authHeader])
+    }, [lastMessage, usr])
 
     return { wsSend, readyState }
 }
@@ -207,8 +183,7 @@ export interface FBSubscribeDispatchT {
 function filebrowserWebsocketHandler(
     shareId: string,
     dispatch: FBSubscribeDispatchT,
-    tasksDispatch: TasksProgressDispatch,
-    authHeader: AuthHeaderT
+    tasksDispatch: TasksProgressDispatch
 ) {
     return (msgData) => {
         switch (msgData.eventTag) {
@@ -362,7 +337,6 @@ function filebrowserWebsocketHandler(
                 })
                 downloadSingleFile(
                     msgData.content['takeoutId'],
-                    authHeader,
                     tasksDispatch,
                     msgData.content['filename'],
                     true,
