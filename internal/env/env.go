@@ -2,7 +2,6 @@ package env
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,17 +15,6 @@ import (
 
 func init() {
 	log.SetLogLevel(GetLogLevel())
-}
-
-func envReadBool(s string) bool {
-	val := os.Getenv(s)
-	if val == "true" || val == "1" {
-		return true
-	} else if val == "" || val == "false" || val == "0" {
-		return false
-	} else {
-		panic(fmt.Errorf("failed to make boolean out of value: %s", val))
-	}
 }
 
 var configData map[string]map[string]any

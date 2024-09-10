@@ -6,8 +6,7 @@
         "routerHost": "0.0.0.0",
         "routerPort": "8080",
         "mediaRoot": "/media/users",
-        "cachesRoot": "/media/cache",
-        "hostUrl": "https://weblens.app"
+        "cachesRoot": "/media/cache"
     },
     "TEST": {
         "mongodbName": "weblens-test",
@@ -28,7 +27,16 @@
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
         "mediaRoot": "./build/fs/core/media",
-        "cachesRoot": "./build/fs/core/caches",
-        "hostUrl": "https://weblens.app"
+        "cachesRoot": "./build/fs/core/caches"
+    },
+    "DEBUG-BACKUP": {
+        "mongodbName": "weblens-backup",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "trace",
+        "detachUi": true,
+        "routerHost": "127.0.0.1",
+        "routerPort": "8081",
+        "mediaRoot": "./build/fs/backup/media",
+        "cachesRoot": "./build/fs/backup/caches"
     }
 }
