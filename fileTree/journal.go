@@ -268,8 +268,6 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			action.SetSize(size)
 		}
 
-		log.Trace.Printf("Got %s action", action.ActionType)
-
 		switch action.GetActionType() {
 		case FileCreate:
 			newL, err := NewLifetime(action)

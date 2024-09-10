@@ -16,11 +16,7 @@ const useR = () => {
     const { server, user, setUserInfo } = useSessionStore()
 
     useEffect(() => {
-        if (cookies[LOGIN_TOKEN_COOKIE_KEY]) {
-            // Auth header unset, but the cookies are ready
-            // const loginStr = `Bearer ${cookies[LOGIN_TOKEN_COOKIE_KEY]}`
-            // setAuthHeader(loginStr)
-        } else if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
+        if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
             setUserInfo({ isLoggedIn: false } as UserInfoT)
         }
     }, [cookies])
@@ -73,7 +69,6 @@ export interface WeblensSessionT {
 const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     user: null,
     server: null,
-    auth: null,
     nav: null,
 
     setUserInfo: (user) => {

@@ -133,22 +133,6 @@ export async function GetFolderData(
     }
 
     return fetchJson(url.toString())
-    // return fetch(
-    //     url.toString(),
-    // ).then((res) => {
-    //     if (res.status === 404) {
-    //         return Promise.reject(404)
-    //     } else if (res.status === 401) {
-    //         return Promise.reject('Not Authorized')
-    //     } else {
-    //         try {
-    //             const j = res.json()
-    //             return j
-    //         } catch {
-    //             return Promise.reject('Failed to decode response')
-    //         }
-    //     }
-    // })
 }
 
 export async function CreateFolder(

@@ -62,7 +62,7 @@ func GetConfigName() string {
 	if configName != "" {
 		return configName
 	}
-	return "TEST"
+	return "PROD"
 }
 
 func GetWorkerCount() int {

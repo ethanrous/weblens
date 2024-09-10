@@ -646,35 +646,38 @@ function DirViewHeader({ moveSelected, searchQuery }) {
 
     return (
         <div className="flex flex-col h-max">
-        <div className="flex flex-row h-[70px] justify-between items-center p-2">
-            {mode === FbModeT.search && (
-                <div className="flex h-14 w-full items-center">
-                    <WeblensButton
-                        Left={IconArrowLeft}
-                        onClick={() => nav(-1)}
-                    />
-                    <div className="w-4" />
-                    <div
-                        className="flex items-center p-1 pr-2 rounded bg-dark-paper
+            <div className="flex flex-row h-[70px] justify-between items-center p-2">
+                {mode === FbModeT.search && (
+                    <div className="flex h-14 w-full items-center">
+                        <WeblensButton
+                            Left={IconArrowLeft}
+                            onClick={() => nav(-1)}
+                        />
+                        <div className="w-4" />
+                        <div
+                            className="flex items-center p-1 pr-2 rounded bg-dark-paper
                                     outline outline-main-accent gap-2 m-2"
-                    >
-                        <IconSearch />
-                        <p className="crumb-text">{searchQuery}</p>
+                        >
+                            <IconSearch />
+                            <p className="crumb-text">{searchQuery}</p>
+                        </div>
+                        <p className="crumb-text m-2">in</p>
+                        <IconFolder size={36} />
+                        <p className="crumb-text">
+                            {' '}
+                            {folderInfo?.GetFilename()}
+                        </p>
+                        <div className="w-2" />
+                        <p className="text-gray-400 select-none">
+                            {filesCount} results
+                        </p>
                     </div>
-                    <p className="crumb-text m-2">in</p>
-                    <IconFolder size={36} />
-                    <p className="crumb-text"> {folderInfo?.GetFilename()}</p>
-                    <div className="w-2" />
-                    <p className="text-gray-400 select-none">
-                        {filesCount} results
-                    </p>
-                </div>
-            )}
-            {(mode === FbModeT.default || mode === FbModeT.share) && (
-                <Crumbs navOnLast={false} moveSelectedTo={moveSelected} />
-            )}
-            {viewingFolder && <FileSortBox />}
-        </div>
+                )}
+                {(mode === FbModeT.default || mode === FbModeT.share) && (
+                    <Crumbs navOnLast={false} moveSelectedTo={moveSelected} />
+                )}
+                {viewingFolder && <FileSortBox />}
+            </div>
             {viewingPast && (
                 <div className="past-time-box">
                     <IconClock />
@@ -927,7 +930,7 @@ const FileBrowser = () => {
 
         if (mode === FbModeT.share && shareId && !contentId) {
             getFileShare(shareId).then((s) => {
-                nav(`/files/share/${shareId}/${s.GetFileId()}`)
+                nav(`/files/share/${shareId}/${s.fileId}`)
             })
         } else {
             getRealId(contentId, mode, user).then((contentId) => {
