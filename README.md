@@ -56,21 +56,21 @@ install instructions per platform are below.
 ### MacOS
 ```bash
 brew install vips mongodb-community@7.0 exiftool node npm &&
-npm install -D vite
+cd ./ui && npm install -D vite && cd ..
 ```
 
 ### Linux (Ubuntu)
 ```bash
 sudo apt update &&
 sudo apt-get install -y pkg-config libvips-dev exiftool nodejs npm &&
-npm install -D vite
+cd ./ui && npm install && cd ..
 ```
 
 ### Building / Testing
 Once you have successfully installed the dependencies for your platform, the easiest way
 to ensure your environment is correctly set up is by running 
 ```bash
-./scripts/test.bash
+./scripts/testWeblens
 ```
 This will build the frontend and backend, and run the backend tests. If you are pulling from the main branch, 
 these tests should pass, if this is the case: Congrats! You are ready to start writing! 
@@ -81,7 +81,7 @@ If they don't, there is likely a configuration issue.
 
 Building the server for debugging can be done with the following in the shell.
 ```bash
-./scripts/startWeblens.bash
+./scripts/startWeblens
 # On MacOS using Apple's new ld-prime linker you may get a 
 # `ld: warning` about malformed symbols, this can safely be ignored.
 ```
@@ -95,7 +95,6 @@ and set the following environment variables:
 ```
 CONFIG_NAME=DEBUG-CORE
 CONFIG_PATH={{ WEBLENS_REPO }}/config
-DETACH_UI=true
 ```
 
 ### WebUI

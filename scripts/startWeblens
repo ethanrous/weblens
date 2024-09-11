@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [[ ! -e ./cmd ]]; then
   echo "ERR Could not find ./cmd directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
   exit 1
