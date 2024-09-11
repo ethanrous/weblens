@@ -138,7 +138,7 @@ const Core = ({
         queryKey: ['setupUsers'],
         queryFn: () => {
             if (serverInfo.info.role !== 'init') {
-                return getUsers(null)
+                return getUsers()
             }
             return []
         },
@@ -246,7 +246,10 @@ const Core = ({
                 squareSize={50}
                 Left={IconRocket}
                 disabled={
-                    serverName === '' || username === '' || password === '' || password !== passwordVerify
+                    serverName === '' ||
+                    username === '' ||
+                    password === '' ||
+                    password !== passwordVerify
                 }
                 doSuper
                 onClick={async () => {
@@ -296,7 +299,7 @@ const Backup = ({
     }
     return (
         <div className="setup-content-box" data-on-deck={onDeck}>
-            <div style={{ width: '100%' }}>
+            <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
@@ -306,27 +309,27 @@ const Backup = ({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                 <IconDatabaseImport color="white" size={'60px'} />
-                <Text className="header-text">Weblens Backup</Text>
+                <p className="header-text">Backup</p>
             </div>
 
-            <p className="body-text">Name This Server</p>
-            <div className="flex h-10 w-full">
+            <div className="w-full h-14">
+                <p className="body-text m-2">Name This Server</p>
                 <WeblensInput
                     placeholder={'My Rad Backup Server'}
                     valueCallback={setServerName}
                 />
             </div>
 
-            <p className="body-text">Remote (Core) Weblens Address</p>
-            <div className="flex h-10 w-full">
+            <div className="w-full h-14">
+                <p className="body-text m-2">Remote (Core) Weblens Address</p>
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
                 />
             </div>
 
-            <p className="body-text">API Key</p>
-            <div className="flex h-10 w-full">
+            <div className="w-full h-14">
+                <p className="body-text m-2">API Key</p>
                 <WeblensInput
                     placeholder={'RUH8gHMH4EgQvw_n2...'}
                     valueCallback={setApiKey}
@@ -334,8 +337,10 @@ const Backup = ({
                 />
             </div>
 
+            <div/>
+
             <WeblensButton
-                label="Attach to Remote"
+                label="Attach to Core"
                 squareSize={40}
                 Left={IconRocket}
                 disabled={

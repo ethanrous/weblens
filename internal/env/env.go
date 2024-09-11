@@ -75,7 +75,11 @@ func GetAppRootDir() string {
 		return appRoot
 	}
 
-	appRoot = "/app"
+	appRoot = os.Getenv("APP_ROOT")
+	if appRoot == "" {
+		appRoot = "/app"
+	}
+
 
 	return appRoot
 }
@@ -246,10 +250,7 @@ func GetTestMediaPath() string {
 	testMediaPath, ok := config["testMediaPath"].(string)
 	if ok {
 		if testMediaPath[0] == '.' {
-			testMediaPath, err = filepath.Abs(testMediaPath)
-			if err != nil {
-				panic(err)
-			}
+			testMediaPath = filepath.Join(GetAppRootDir(), testMediaPath)
 		}
 		return testMediaPath
 	}

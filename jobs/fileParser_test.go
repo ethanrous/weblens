@@ -56,6 +56,10 @@ func TestScanFile(t *testing.T) {
 		panic(err)
 	}
 
+	if len(testMediaTree.GetRoot().GetChildren()) == 0 {
+		t.Fatal("no test files found")
+	}
+
 	mediaService, err := service.NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
 		col,
@@ -102,6 +106,10 @@ func TestScanDirectory(t *testing.T) {
 	)
 	if err != nil {
 		panic(err)
+	}
+
+	if len(testMediaTree.GetRoot().GetChildren()) == 0 {
+		t.Fatal("no test files found")
 	}
 
 	mediaService, err := service.NewMediaService(
