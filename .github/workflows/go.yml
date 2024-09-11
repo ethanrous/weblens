@@ -42,10 +42,6 @@ jobs:
           sudo apt update
           sudo apt-get install -y \
           libvips-dev \
-          libheif-dev \
-          libwebp-dev \
-          libglib2.0-dev \
-          libexpat1-dev \
           exiftool \
           nodejs \
           npm
