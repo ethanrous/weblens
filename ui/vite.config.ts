@@ -1,28 +1,27 @@
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
-import viteTsconfigPaths from 'vite-tsconfig-paths';
+import viteTsconfigPaths from 'vite-tsconfig-paths'
 
 export default ({ mode }) => {
-    console.log(mode)
     process.env = { ...process.env, ...loadEnv(mode, process.cwd()) }
-    console.log(
-        'VITE_PORT:',
-        process.env.VITE_PORT,
-        'VITE_PROXY_PORT:',
-        process.env.VITE_PROXY_PORT,
-        'VITE_PROXY_HOST',
-        process.env.VITE_PROXY_HOST
-    )
+    // console.log(
+    //     'VITE_PORT:',
+    //     process.env.VITE_PORT,
+    //     'VITE_PROXY_PORT:',
+    //     process.env.VITE_PROXY_PORT,
+    //     'VITE_PROXY_HOST',
+    //     process.env.VITE_PROXY_HOST
+    // )
     if (
         (!process.env.VITE_PROXY_HOST || !process.env.VITE_PROXY_PORT) &&
         process.env.VITE_BUILD !== 'true'
     ) {
-        console.warn(
-            'VITE_PROXY_HOST or VITE_PROXY_PORT not set in vite.config.ts, falling back to defaults'
-        )
         process.env.VITE_PROXY_HOST = 'localhost'
         process.env.VITE_PROXY_PORT = '8080'
+        console.warn(
+            `VITE_PROXY_HOST or VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`
+        )
     }
 
     return defineConfig({
@@ -50,8 +49,13 @@ export default ({ mode }) => {
         },
         resolve: {
             alias: [
-                { find: '@weblens', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
-            ]
+                {
+                    find: '@weblens',
+                    replacement: fileURLToPath(
+                        new URL('./src', import.meta.url)
+                    ),
+                },
+            ],
         },
     })
 }

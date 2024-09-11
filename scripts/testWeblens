@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [[ ! -e ./ui ]]; then
+  echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+  exit 1
+fi
+
+if [[ ! -e ./ui/dist/index.html ]]; then
+  cd ui
+  export VITE_APP_BUILD_TAG=test
+  export VITE_BUILD=true
+  npm install
+  npm run build
+  cd ..
+fi
+
+CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v ./...

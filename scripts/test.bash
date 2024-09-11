@@ -1,3 +1,0 @@
-export MEDIA_ROOT=$(pwd)/build/fs/test/users
-export CACHES_PATH=$(pwd)/build/fs/test/caches
-CONFIG_PATH=$(pwd)/config CONFIG_NAME=TEST go test -v ./...
