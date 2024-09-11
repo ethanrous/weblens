@@ -67,20 +67,18 @@ Once connected, you will see a screen like this, where you have 2 options, [Webl
 ![WeblensSetup.png](images/screenshots/WeblensSetup.png)
 
 ### Weblens Core
-If this is your main Weblens server, you will want to select the main option labeled "Set Up Weblens Core". 
-If you wish to configure this server to be an offsite backup of another Weblens server, click "Set Up As Backup"
-and skip to [Weblens Backup](#weblens-backup)
+If this is your main Weblens server, you will want to set up as core. 
+Alternatively, if you want this server to be an offsite backup of an existing Weblens server, see [Weblens Backup](#weblens-backup)
 
-Setup for a *core* server requires very little configuration.
+Setup for a *core* server requires little configuration.
 
 ![WeblensCoreConfiguration.png](images/screenshots/WeblensCoreConfiguration.png)
 
-1. Create a user to be the "owner" of the server. 
-   - This user is automatically an admin, as there
-   can be many admin users, but only this user will ever be the owner. 
-   - This user is still a regular user, however, so there is no need for both an "owner" and "personal" account.
+1. Create a user. This will be the "owner" of the server 
+   - This user is automatically an admin, as well. There can be many admin users, but only ever one owner. 
+   - The owner is still a regular user, however, so there is no need for both an "owner" and "personal" account
 2. Give this server a name, use whatever you like! 
-   - This will be the name shown to identify this server if connected to other instances.
+   - This will be the name shown to identify this server if connected to other instances
 3. Hit "Start Weblens", and you're good to go! 🥳
    - If prompted, login with the account you just created
 
