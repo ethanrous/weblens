@@ -12,7 +12,11 @@ export async function wrapRequest<T>(rq: Promise<T>): Promise<T> {
     })
 }
 
-export async function fetchJson<T>(url: string, method?: string, body?: object): Promise<T> {
+export async function fetchJson<T>(
+    url: string,
+    method?: string,
+    body?: object
+): Promise<T> {
     if (!method) {
         method = 'GET'
     }
@@ -151,7 +155,7 @@ export async function AutocompleteUsers(
     }
     const url = new URL(`${API_ENDPOINT}/users/search`)
     url.searchParams.append('filter', searchValue)
-    return fetchJson(url.toString())
+    return (await fetchJson<{ users: UserInfoT[] }>(url.toString())).users
 }
 
 export async function doBackup() {
@@ -160,8 +164,7 @@ export async function doBackup() {
 }
 
 export async function getRemotes() {
-    const url = new URL(`${API_ENDPOINT}/remotes`)
-    return await wrapRequest(fetch(url).then((r) => r.json()))
+    return fetchJson(`${API_ENDPOINT}/remotes`)
 }
 
 export async function deleteRemote(remoteId: string) {

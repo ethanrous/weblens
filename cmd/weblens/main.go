@@ -245,30 +245,13 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Stop()
 	sw.PrintResults(false)
 	log.Info.Printf(
-		"Weblens loaded in %s. %d files and %d medias\n", sw.GetTotalTime(false), fileService.Size(),
-		mediaService.Size(),
+		"Weblens loaded in %s. %d files, %d medias, and %d users\n", sw.GetTotalTime(false), fileService.Size(),
+		mediaService.Size(), userService.Size(),
 	)
 
 	if localServer.ServerRole() == models.BackupServer {
 		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
 	}
-
-	// sigc := make(chan os.Signal, 1)
-	// signal.Notify(
-	// 	sigc,
-	// 	syscall.SIGHUP,
-	// 	syscall.SIGINT,
-	// 	syscall.SIGTERM,
-	// 	syscall.SIGQUIT,
-	// )
-	//
-	// go func() {
-	// 	sig := <-sigc
-	// 	log.Debug.Println(sig)
-	// 	caster.PushWeblensEvent("going_down")
-	//
-	// 	os.Exit(0)
-	// }()
 
 	log.Trace.Println("Service setup complete")
 	pack.Loaded.Store(true)
