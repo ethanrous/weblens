@@ -61,15 +61,7 @@ jobs:
       - name: Test (No Remotes)
         if: ${{ inputs.remote_tests == false }}
         run: |
-          cd ./ui
-          npm install
-          export VITE_APP_BUILD_TAG=test
-          export VITE_BUILD=true
-          npm run build
-          cd ..
-          export MEDIA_ROOT=$(mkdir -p ../test/media; cd ../test/media; pwd)
-          export CACHES_ROOT=$(mkdir -p ../test/caches; cd ../test/caches; pwd)
-          ./scripts/test.bash
+          ./scripts/testWeblens
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
@@ -78,7 +70,7 @@ jobs:
         if: ${{ inputs.remote_tests == true }}
         run: |
           source ./scripts/setupRemoteTests.bash
-          ./scripts/test.bash
+          ./scripts/testWeblens
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
