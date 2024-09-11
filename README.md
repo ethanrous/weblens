@@ -1,7 +1,7 @@
-<h1 style="text-align: center">Weblens</h1>
-<h3 style="text-align: center">Self-Hosted file manager and photo server</h3>
+<h1 align="center">Weblens</h1>
+<h3 align="center">Self-Hosted file manager and photo server</h3>
 
-<p style="text-align: center">
+<p align="center">
     <img width="300" src="images/brand/logo.png" alt="weblens logo" />
     <br/>
     <br/>    
