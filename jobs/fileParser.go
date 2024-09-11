@@ -51,7 +51,7 @@ func ScanDirectory(t *task.Task) {
 	meta.TaskSubber.FolderSubToPool(meta.File.GetParentId(), pool.GetRootPool().ID())
 	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
-	log.Debug.Printf("Beginning directory scan for %s\n", meta.File.GetPortablePath())
+	log.Debug.Printf("Beginning directory scan for %s\n", meta.File.GetAbsPath())
 
 	err = meta.File.LeafMap(
 		func(wf *fileTree.WeblensFileImpl) error {

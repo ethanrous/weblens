@@ -1,15 +1,22 @@
 #!/bin/bash
-set -e
+
+if [[ ! -e ./scripts ]]; then
+  echo "ERR Could not find ./scripts directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+  exit 1
+fi
 
 local=false
+push=false
 
-while getopts ":t:a:l" opt; do
+while getopts ":t:a:l:p" opt; do
   case $opt in
     t) docker_tag="$OPTARG"
     ;;
     a) arch="$OPTARG"
     ;;
     l) local=true
+    ;;
+    p) push=true
     ;;
     \?) echo "Invalid option -$OPTARG" >&2
     exit 1
@@ -36,21 +43,41 @@ fi
 
 echo "Using tag: $docker_tag-$arch"
 
+printf "Running tests..."
+./scripts/testWeblens > /dev/null
+
+if [ $? != 0 ]; then
+  printf " FAILED\n"
+  echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
+  exit 1
+else
+  printf " PASS\n"
+fi
+
 if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2> /dev/null)" ]; then
     echo "No weblens-go-build image found, attempting to build now..."
     sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
 fi
 
 cd ./ui
-npm install
+printf "Building UI..."
+npm install &> /dev/null
 export VITE_APP_BUILD_TAG=$docker_tag-$arch
 export VITE_BUILD=true
-npm run build
+npm run build > /dev/null
+
+if [ $? != 0 ]; then
+  printf " FAILED\n"
+  echo "Aborting container build. Ensure npm run build completes successfully before building container"
+  exit 1
+else
+  printf " PASS\n"
+fi
 
 cd ..
 
 if [ ! -d ./build/bin ]; then
-  echo "Creating new build directory"
+  echo "Creating new build directory ./build/bin"
   mkdir -p ./build/bin
 fi
 
@@ -63,6 +90,8 @@ fi
 
 sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" -f ./docker/Dockerfile .
 
-sudo docker push ethrous/weblens:"${docker_tag}-${arch}"
+if [ $push == true ]; then
+  sudo docker push ethrous/weblens:"${docker_tag}-${arch}"
+fi
 
-printf "\nBUILD COMPLETE. Container tag: $docker_tag-$arch\n"
+printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:$docker_tag-$arch\n"

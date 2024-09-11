@@ -27,12 +27,30 @@ Weblens is a self-hosted File Management System that boasts a simple and snappy 
 
 Weblens is distributed as a Docker container, which can be configured minimally as such:
 ```bash
-docker run -p 8080:8080 \ 
+docker run --name weblens \
+-p 8080:8080 \ 
 -v /files/on/host:/media/users \ 
 -v /cache/on/host:/media/cache \
--e MONGODB_URI="mongodb://user:pass@mongo:27017"
+-e MONGODB_URI="mongodb://{{ MONGO_USER }}:{{ MONGO_PASS }}@weblens-mongo:27017"
 docker.io/ethrous/weblens:latest
 ```
+Weblens uses MongoDB. This can easily be done using another container
+```bash
+docker run --name weblens-mongo \
+-v /db/on/host:/data/db \
+-e MONGO_INITDB_ROOT_USERNAME: {{ MONGO_USER }} \
+-e MONGO_INITDB_ROOT_PASSWORD: {{ MONGO_PASS }} \
+mongo
+```
+Replace `{{ MONGO_USER }}` and `{{ MONGO_PASS }}` with a username and password, for the database, of your choosing.
+Also replace all of the `/(files | cache | db)/on/host` with paths to where you want the your stored. If you have fast and slow storage,
+such as an Unraid pool and array respectively, the "files" should go on the array, and the cache and db should be on the fast cache.
+
+Having the containers on the same docker network is extremely helpful, as it allows Docker to do DNS for you,
+and does not require you to open the port on your Mongo container. [Read how to set up a docker network](https://docs.docker.com/reference/cli/docker/network/create/).
+
+If the containers cannot be on the same newtwork, you may need to add `-p 27017:27017` to the Mongo container, 
+and change the "weblens-mongo" in the `MONGODB_URI` to a route the container will understand.
 
 <br/>
 
@@ -44,8 +62,8 @@ Feature suggestions and pull requests are encouraged here on GitHub
 ## Development Setup
 Weblens has a few dependencies that are needed during runtime,
 and a few more just for building. The Go compiler and MongoDB (on Ubuntu) are 
-to be installed manually via the links provided. For the rest, there are easy
-install instructions per platform are below.
+to be installed manually via the links provided. For the rest, easy install instructions
+per platform are below.
 
 * Go 1.23 or later - https://go.dev/doc/install
 * LibVips
@@ -71,9 +89,10 @@ to ensure your environment is correctly set up is by running
 ./scripts/testWeblens
 ```
 This will build the frontend and backend, and run the backend tests. If you are pulling from the main branch, 
-these tests should pass, if this is the case: Congrats! You are ready to start writing! 
+these tests should pass. If this is the case: Congrats! You are ready to start writing! 
 
-If they don't, there is likely a configuration issue.
+If they don't, there is likely a configuration issue. Please re-read the instructions and ensure the environemnt is set up as described, 
+and if there is still an issue, please leave a descriptive question on the [issues page](https://github.com/ethanrous/weblens/issues).
 
 ### Debugging
 
