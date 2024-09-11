@@ -55,15 +55,13 @@ install instructions per platform are below.
 
 ### MacOS
 ```bash
-brew install vips mongodb-community@7.0 exiftool node npm &&
-cd ./ui && npm install -D vite && cd ..
+brew install vips mongodb-community@7.0 exiftool node npm
 ```
 
 ### Linux (Ubuntu)
 ```bash
 sudo apt update &&
-sudo apt-get install -y pkg-config libvips-dev exiftool nodejs npm &&
-cd ./ui && npm install && cd ..
+sudo apt-get install -y pkg-config libvips-dev exiftool nodejs npm
 ```
 
 ### Building / Testing
