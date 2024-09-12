@@ -83,11 +83,10 @@ jobs:
         run: |
           brew update
           brew install go@1.23 vips exiftool node npm
-
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.11.0
-        with:
-          mongodb-version: '7.0'
+      
+          brew tap mongodb/brew
+          brew install mongodb-community
+          brew services start mongodb-community
 
       - name: Test (No Remotes)
         if: ${{ inputs.remote_tests == false }}
