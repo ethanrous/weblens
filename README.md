@@ -80,7 +80,7 @@ Setup for a *core* server requires little configuration.
 2. Give this server a name, use whatever you like! 
    - This will be the name shown to identify this server if connected to other instances
 3. Hit "Start Weblens", and you're good to go! 🥳
-   - If prompted, login with the account you just created
+   - If prompted, login with the account you just created   
 
 ### Weblens Backup
 
@@ -108,16 +108,15 @@ Bonus: In admin settings on the core server, you can now view the status of your
 Weblens aims to be feature-full and rock-solid stable, but it is still early in development (the term "beta" may be pushing it), so it is likely to have bugs or missing features. Bug reports, feature suggestions and pull requests are all welcome and encouraged here on GitHub 
 
 ## Development Setup
-Weblens has a few dependencies that are needed during runtime,
-and a few more just for building. The Go compiler and MongoDB (on Ubuntu) are 
-to be installed manually via the links provided. For the rest, easy install instructions
-per platform are below.
+Weblens has a few dependencies that are needed for developing. 
+The Go compiler needs to be installed manually via the link below. 
+For the rest, easy install instructions per platform are listed below.
 
 * Go 1.23 or later - https://go.dev/doc/install
 * LibVips
-* MongoDB - [Ubuntu Only](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/) see below for macOS
+* MongoDB
 * ExifTool
-* Node, NPM, Vite for frontend
+* Node and NPM for frontend
 
 ### MacOS
 ```bash
@@ -125,6 +124,7 @@ brew install vips mongodb-community@7.0 exiftool node npm
 ```
 
 ### Linux (Ubuntu)
+⚠️ On Ubuntu, installing MongoDB has a few extra steps. [Install MongoDB on Ubuntu](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)
 ```bash
 sudo apt update &&
 sudo apt-get install -y pkg-config libvips-dev exiftool nodejs npm
@@ -153,9 +153,8 @@ Building the server for debugging can be done with the following in the shell.
 This should start your Weblens server running at `localhost:8080`. To change the host, port or other config options 
 such as log level, see `./config/config.json` and edit the `DEBUG-CORE` config section, or create your own section.
 
-In an IDE, you must build from the main file `./cmd/weblens/main.go`, 
-and set the following environment variables:
-(make sure to replace `{{ WEBLENS_REPO }}` with the full path to this repo)
+In an IDE, you will need to choose the entry point for the compiler to `./cmd/weblens/main.go`. 
+You will also need to set the following environment variables (make sure to replace `{{ WEBLENS_REPO }}` with the full path to this repo):
 
 ```
 CONFIG_NAME=DEBUG-CORE

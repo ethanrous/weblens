@@ -45,7 +45,6 @@ jobs:
           exiftool \
           nodejs \
           npm
-          npm install -D vite
         env:
           REMOTE_TESTS: ${{ inputs.remote_tests }}
 
