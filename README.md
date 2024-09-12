@@ -113,7 +113,9 @@ Weblens has a few dependencies that are needed for developing. Easy install inst
 
 ### MacOS
 ```bash
-brew install go@1.23 vips mongodb-community@7.0 exiftool node npm
+brew tap mongodb/brew &&
+brew install go@1.23 mongodb-community vips mongodb-community@7.0 exiftool node npm &&
+brew services start mongodb-community
 ```
 
 ### Linux (Ubuntu)
