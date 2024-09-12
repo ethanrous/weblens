@@ -81,7 +81,8 @@ jobs:
 
       - name: Install Deps
         run: |
-          brew install go@1.23 vips mongodb-community@7.0 exiftool node npm
+          brew update
+          brew install go@1.23 vips exiftool node npm
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0
