@@ -1,9 +1,12 @@
 package http
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
@@ -17,8 +20,11 @@ import (
 // var Server *http.Server
 
 type Server struct {
-	Running    bool
+	Running     bool
+	StartupFunc func()
+
 	router     *gin.Engine
+	stdServer *http.Server
 	routerLock sync.Mutex
 	services   *models.ServicePack
 	hostStr    string
@@ -42,21 +48,38 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 }
 
 func (s *Server) Start() {
-	log.Debug.Println("Starting server")
+	for {
+		log.Debug.Println("Starting server")
 
-	s.router.GET("/ping", ping)
-	s.router.GET("/api/info", getServerInfo)
+		go s.StartupFunc()
 
-	s.router.GET("/api/ws", WeblensAuth(false, false, s.services), wsConnect)
+		s.router.GET("/ping", ping)
+		s.router.GET("/api/info", getServerInfo)
 
-	if !env.DetachUi() {
-		s.UseUi()
+		s.router.GET("/api/ws", WeblensAuth(false, false, s.services), wsConnect)
+
+		if !env.DetachUi() {
+			s.UseUi()
+		}
+
+		s.routerLock.Lock()
+		s.stdServer = &http.Server{
+			Addr:    s.hostStr,
+			Handler: s.router.Handler(),
+		}
+
+		s.Running = true
+		log.Info.Printf("Starting router at %s", s.hostStr)
+		s.routerLock.Unlock()
+		err := s.stdServer.ListenAndServe()
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Error.Fatalln(err)
+		}
+		s.routerLock.Lock()
+		s.Running = false
+		s.stdServer = nil
+		s.routerLock.Unlock()
 	}
-
-	s.Running = true
-	defer func() { s.Running = false }()
-	log.Info.Printf("Starting router at %s", s.hostStr)
-	log.Error.Fatalln(s.router.Run(s.hostStr))
 }
 
 func (s *Server) UseInit() {
@@ -230,6 +253,9 @@ func (s *Server) UseAdmin() {
 	admin.POST("/key", newApiKey)
 	admin.DELETE("/key/:keyId", deleteApiKey)
 	admin.DELETE("/remote", removeRemote)
+
+	/* DANGER */
+	admin.POST("/reset", resetServer)
 }
 
 func (s *Server) UseUi() {
@@ -263,4 +289,20 @@ func (s *Server) UseUi() {
 			}
 		},
 	)
+}
+
+func (s *Server) Restart() {
+	s.services.Caster.PushWeblensEvent("going_down")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := s.stdServer.Shutdown(ctx)
+	if err != nil {
+		log.ErrTrace(err)
+	}
+
+	select {
+	case <-ctx.Done():
+		log.Error.Println("timeout of 5 seconds.")
+	}
 }

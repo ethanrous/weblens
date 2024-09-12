@@ -5,10 +5,13 @@ import API_ENDPOINT from './ApiEndpoint'
 
 export async function wrapRequest<T>(rq: Promise<T>): Promise<T> {
     return await rq.catch((e) => {
+        console.log("ERR", e)
         if (e === 401) {
+            console.log("HERR?", e, useSessionStore.getState().nav)
+            useSessionStore.getState().setUserInfo({isLoggedIn: false} as UserInfoT)
             useSessionStore.getState().nav('/login')
         }
-        return null
+        return Promise.reject(e)
     })
 }
 
@@ -28,7 +31,15 @@ export async function fetchJson<T>(
         init.body = JSON.stringify(body)
     }
 
-    return wrapRequest(fetch(url, init).then((r) => r.json()))
+    return wrapRequest(
+        fetch(url, init).then((r) => {
+            if (r && r.status < 400) {
+                return r.json()
+            } else {
+                return Promise.reject(r.status)
+            }
+        })
+    )
 }
 
 export function login(
@@ -198,4 +209,8 @@ export async function searchFilenames(
     const url = new URL(`${API_ENDPOINT}/files/search`)
     url.searchParams.append('search', searchString)
     return fetchJson(url.toString())
+}
+
+export async function resetServer() {
+    return wrapRequest(fetch(`${API_ENDPOINT}/reset`, {method: 'POST'}))
 }

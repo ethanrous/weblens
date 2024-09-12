@@ -85,12 +85,12 @@ func getUserFromCtx(ctx *gin.Context) *models.User {
 	return user.(*models.User)
 }
 
-func getRemoteFromCtx(ctx *gin.Context) *models.Instance {
-	instance, ok := ctx.Get("instance")
+func getInstanceFromCtx(ctx *gin.Context) *models.Instance {
+	server, ok := ctx.Get("server")
 	if !ok {
 		return nil
 	}
-	return instance.(*models.Instance)
+	return server.(*models.Instance)
 }
 
 func getShareFromCtx[T models.Share](ctx *gin.Context) (T, error) {
@@ -174,7 +174,7 @@ func formatFileSafe(
 		Modifiable: !pack.FileService.IsFileInTrash(f) &&
 			owner == accessor &&
 			pack.FileService.GetFileOwner(f) != pack.UserService.GetRootUser() &&
-			pack.InstanceService.GetLocal().ServerRole() != models.BackupServer,
+			pack.InstanceService.GetLocal().GetRole() != models.BackupServer,
 		Size:         size,
 		ModTime:      f.ModTime().UnixMilli(),
 		Filename:     f.Filename(),

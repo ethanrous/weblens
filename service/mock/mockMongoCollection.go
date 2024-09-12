@@ -60,3 +60,12 @@ func (fc *MockFailMongoCol) DeleteOne(
 	}
 	return fc.RealCol.DeleteOne(ctx, filter, opts...)
 }
+
+func (fc *MockFailMongoCol) DeleteMany(
+	ctx context.Context, filter interface{}, opts ...*options.DeleteOptions,
+) (*mongo.DeleteResult, error) {
+	if fc.DeleteFail {
+		return nil, mongo.ErrNoDocuments
+	}
+	return fc.RealCol.DeleteMany(ctx, filter, opts...)
+}

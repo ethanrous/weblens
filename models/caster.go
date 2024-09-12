@@ -70,11 +70,15 @@ func (c *SimpleCaster) IsEnabled() bool {
 	return c.enabled
 }
 
-func (c *SimpleCaster) PushWeblensEvent(eventTag string) {
+func (c *SimpleCaster) PushWeblensEvent(eventTag string, content ...WsC) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
+	}
+
+	if len(content) != 0 {
+		msg.Content = content[0]
 	}
 
 	c.cm.Send(msg)
@@ -305,11 +309,15 @@ func (c *BufferedCaster) IsEnabled() bool {
 	return c.enabled.Load()
 }
 
-func (c *BufferedCaster) PushWeblensEvent(eventTag string) {
+func (c *BufferedCaster) PushWeblensEvent(eventTag string, content ...WsC) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
+	}
+
+	if len(content) != 0 {
+		msg.Content = content[0]
 	}
 
 	c.bufferAndFlush(msg)
@@ -528,7 +536,7 @@ func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
 }
 
 type BasicCaster interface {
-	PushWeblensEvent(eventTag string)
+	PushWeblensEvent(eventTag string, content ...WsC)
 
 	PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media)
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
@@ -613,6 +621,7 @@ type WsR interface {
 }
 
 const (
+	StartupProgressEvent = "startup_progress"
 	TaskCreatedEvent     = "task_created"
 	TaskCompleteEvent    = "task_complete"
 	SubTaskCompleteEvent = "sub_task_complete"

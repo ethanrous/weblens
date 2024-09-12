@@ -2,6 +2,10 @@ import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
 import { UserInfoT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
+export function GetUserInfo() {
+    return fetchJson<UserInfoT>(`${API_ENDPOINT}/user`)
+}
+
 export function GetUsersInfo(setAllUsersInfo) {
     const url = `${API_ENDPOINT}/users`
     fetchJson<UserInfoT[]>(url).then((data) => setAllUsersInfo(data))

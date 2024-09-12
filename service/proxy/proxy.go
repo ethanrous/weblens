@@ -60,9 +60,9 @@ func CallHomeStruct[T any](remote *models.Instance, method, endpoint string, bod
 
 	bs, err := io.ReadAll(r.Body)
 	if err != nil {
-		return target, err
+		return target, werror.WithStack(err)
 	}
 
 	err = json.Unmarshal(bs, &target)
-	return target, err
+	return target, werror.WithStack(err)
 }

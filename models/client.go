@@ -87,11 +87,15 @@ func (wsc *WsClient) Error(err error) {
 	}
 }
 
-func (wsc *WsClient) PushWeblensEvent(eventTag string) {
+func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
+	}
+
+	if len(content) != 0 {
+		msg.Content = content[0]
 	}
 
 	log.ErrTrace(wsc.Send(msg))
@@ -176,6 +180,20 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 	return nil
 }
 
+func (wsc *WsClient) Disconnect() {
+	wsc.Active.Store(false)
+
+	wsc.updateMu.Lock()
+	err := wsc.conn.Close()
+	if err != nil {
+		log.ShowErr(err)
+		return
+	}
+	wsc.updateMu.Unlock()
+
+	log.Trace.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName())
+}
+
 func (wsc *WsClient) unsubscribe(key SubId) {
 	wsc.updateMu.Lock()
 	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
@@ -190,18 +208,22 @@ func (wsc *WsClient) unsubscribe(key SubId) {
 	log.Trace.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
 }
 
-func (wsc *WsClient) Disconnect() {
-	wsc.Active.Store(false)
-
-	wsc.updateMu.Lock()
-	err := wsc.conn.Close()
-	if err != nil {
-		log.ShowErr(err)
-		return
+func (wsc *WsClient) getClientName() string {
+	if wsc.remote != nil {
+		return wsc.remote.GetName()
+	} else {
+		return wsc.user.GetUsername()
 	}
-	wsc.updateMu.Unlock()
-	log.Trace.Printf("Disconnected [%s]", wsc.user.GetUsername())
 }
+
+func (wsc *WsClient) getClientType() string {
+	if wsc.remote != nil {
+		return "server"
+	} else {
+		return "web"
+	}
+}
+
 
 type Client interface {
 	BasicCaster

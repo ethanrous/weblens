@@ -35,7 +35,7 @@ func ParseApiKeyLogin(authHeader string, pack *models.ServicePack) (
 	}
 	authParts := strings.Split(authHeader, " ")
 
-	if len(authParts) < 2 || authParts[0] != "X-Api-Key" {
+	if len(authParts) < 2 || authParts[0] != "Bearer" {
 		// Bad auth header format
 		return nil, nil, werror.ErrBadAuthScheme
 	}
@@ -64,9 +64,18 @@ func withServices(pack *models.ServicePack) gin.HandlerFunc {
 func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		metrics.RequestsCounter.Inc()
-		sessionToken, _ := c.Cookie("weblens-session-token")
 
-		if len(sessionToken) != 0 {
+		// If we are still starting, allow all unauthenticated requests,
+		// but everyone is the public user
+		if !pack.Loaded.Load() {
+			c.Set("user", pack.UserService.GetPublicUser())
+			c.Next()
+			return
+		}
+
+		sessionToken, err := c.Cookie("weblens-session-token")
+
+		if len(sessionToken) != 0 && err == nil {
 			usr, err := ParseUserLogin(sessionToken, pack.AccessService)
 			if err != nil {
 				if allowBadAuth {
@@ -84,6 +93,24 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 			}
 
 			c.Set("user", usr)
+			c.Next()
+			return
+		}
+
+		authHeader := c.GetHeader("Authorization")
+		if len(authHeader) != 0 {
+			usr, server, err := ParseApiKeyLogin(authHeader, pack)
+			if err != nil {
+				log.ShowErr(err)
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+
+			if server != nil {
+				c.Set("server", server)
+			} else {
+				c.Set("user", usr)
+			}
 			c.Next()
 			return
 		}
@@ -106,16 +133,21 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 
 func KeyOnlyAuth(pack *models.ServicePack) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.Request.Header["X-Api-Key"]
+		authHeader := c.Request.Header["Authorization"]
 		if len(authHeader) != 0 {
-			usr, _, err := ParseApiKeyLogin(authHeader[0], pack)
+			_, server, err := ParseApiKeyLogin(authHeader[0], pack)
 			if err != nil {
 				log.ShowErr(err)
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}
+			if server == nil {
+				log.Error.Println("Verified key-only login, but did not get server")
+				c.AbortWithStatus(http.StatusInternalServerError)
+				return
+			}
 
-			c.Set("user", usr)
+			c.Set("server", server)
 			c.Next()
 			return
 		} else {

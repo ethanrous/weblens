@@ -44,15 +44,16 @@ func wsConnect(ctx *gin.Context) {
 	}
 
 	usr := getUserFromCtx(ctx)
+	server := getInstanceFromCtx(ctx)
 
 	var client *models.WsClient
 	if usr != nil {
 		client = pack.ClientService.ClientConnect(conn, usr)
-		// } else if instance != nil {
-		// 	client = pack.ClientService.RemoteConnect(conn, instance)
+	} else if server != nil {
+		client = pack.ClientService.RemoteConnect(conn, server)
 	} else {
 		// this should not happen
-		// log.Error.Println("Hat trick nil on WebsocketAuth", auth.Auth)
+		log.Error.Println("Did not get valid websocket client")
 		return
 	}
 
@@ -65,8 +66,11 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
+		if !pack.Loaded.Load() {
+			c.PushWeblensEvent(models.StartupProgressEvent, models.WsC{"waitingOn": pack.GetStartupTasks()})
+		}
 	} else {
-		switchboard = wsInstanceClientSwitchboard
+		switchboard = wsServerClientSwitchboard
 	}
 
 	for {
@@ -189,7 +193,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 	case models.ScanDirectory:
 		{
-			if pack.InstanceService.GetLocal().ServerRole() == models.BackupServer {
+			if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
 				return
 			}
 
@@ -254,7 +258,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	}
 }
 
-func wsInstanceClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
+func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
 	defer wsRecover(c)
 
 	var msg models.WsResponseInfo

@@ -5,18 +5,20 @@ import {
 } from '@weblens/api/Websocket'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { useEffect, useState } from 'react'
-import { startupWebsocketHandler } from './StartupLogic'
+import { StartupTask, startupWebsocketHandler } from './StartupLogic'
 
 export default function StartUp() {
     const { lastMessage } = useWeblensSocket()
     const [setupProgress, setSetupProgress] = useState(0)
-    const [setupMostRecent, setSetupMostRecent] = useState('')
+    const [waitingOn, setWaitingOn] = useState<StartupTask[]>([])
     useEffect(() => {
         HandleWebsocketMessage(
             lastMessage,
-            startupWebsocketHandler(setSetupProgress, setSetupMostRecent)
+            startupWebsocketHandler(setSetupProgress, setWaitingOn)
         )
     }, [lastMessage])
+
+    console.log(waitingOn)
 
     return (
         <div className="flex flex-col justify-center items-center w-screen h-screen bg-background">
@@ -26,7 +28,13 @@ export default function StartUp() {
             {setupProgress !== 0 && (
                 <div className="flex flex-col relative w-[670px] max-w-full h-14 p-2 mt-16 gap-2">
                     <WeblensProgress value={setupProgress} />
-                    <p className="w-full h-4">{setupMostRecent}</p>
+                </div>
+            )}
+            {waitingOn && (
+                <div className="flex flex-col">
+                    {waitingOn.map((startupTask: StartupTask) => {
+                        return <p key={startupTask.Name} className="w-full h-4">{startupTask.Description}</p>
+                    })}
                 </div>
             )}
         </div>

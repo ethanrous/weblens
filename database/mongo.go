@@ -50,4 +50,5 @@ type MongoCollection interface {
 		ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions,
 	) (*mongo.UpdateResult, error)
 	DeleteOne(ctx context.Context, filter interface{}, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error)
+	DeleteMany(ctx context.Context, filter interface{}, opts ...*options.DeleteOptions) (*mongo.DeleteResult, error)
 }

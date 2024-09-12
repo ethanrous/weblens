@@ -32,7 +32,7 @@ func (m *MockClientService) GetClientByUsername(username models.Username) *model
 	return nil
 }
 
-func (m *MockClientService) GetClientByInstanceId(id models.InstanceId) *models.WsClient {
+func (m *MockClientService) GetClientByServerId(id models.InstanceId) *models.WsClient {
 	return nil
 }
 

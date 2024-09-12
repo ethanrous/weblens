@@ -3,10 +3,8 @@ package models
 import (
 	"encoding/json"
 	"iter"
-	"sync"
 
 	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
@@ -23,10 +21,8 @@ type User struct {
 	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
 
 	// non-database types
-	tokens      []string
 	homeFolder  *fileTree.WeblensFileImpl
 	trashFolder *fileTree.WeblensFileImpl
-	tokensLock  sync.RWMutex
 	SystemUser  bool
 }
 
@@ -88,34 +84,12 @@ func (u *User) IsSystemUser() bool {
 	return u.SystemUser
 }
 
-func (u *User) GetToken() string {
-	u.tokensLock.RLock()
-	defer u.tokensLock.RUnlock()
-
-	if len(u.tokens) != 0 {
-		ret := u.tokens[0]
-		return ret
-	}
-
-	return ""
-}
-
 func (u *User) CheckLogin(password string) bool {
 	if !u.Activated {
 		return false
 	}
 
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password)) == nil
-}
-
-func (u *User) AddToken(tokenString string) {
-	if !u.Activated {
-		return
-	}
-
-	u.tokensLock.Lock()
-	defer u.tokensLock.Unlock()
-	u.tokens = append(u.tokens, tokenString)
 }
 
 func (u *User) SocketType() string {
@@ -130,7 +104,6 @@ func (u *User) FormatArchive() (map[string]any, error) {
 	data := map[string]any{
 		"username":     u.Username,
 		"password":     u.Password,
-		"tokens":       u.tokens,
 		"admin":        u.Admin,
 		"activated":    u.Activated,
 		"owner":        u.IsServerOwner,
@@ -161,7 +134,6 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	u.IsServerOwner = obj["owner"].(bool)
 	u.HomeId = obj["homeId"].(string)
 	u.TrashId = obj["trashId"].(string)
-	u.tokens = internal.SliceConvert[string](obj["tokens"].([]any))
 	u.SystemUser = obj["isSystemUser"].(bool)
 
 	return nil

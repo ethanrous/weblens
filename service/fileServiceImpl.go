@@ -63,38 +63,7 @@ func NewFileService(
 	}
 	sw.Lap("Make thumbs dir")
 
-	event := mediaTree.GetJournal().NewEvent()
 
-	sw.Lap("Make journal event dir")
-
-	users, err := userService.GetAll()
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
-	sw.Lap("Get users iter")
-
-	for u := range users {
-		if u.IsSystemUser() {
-			continue
-		}
-
-		home, err := mediaTree.MkDir(mediaTree.GetRoot(), u.GetUsername(), event)
-		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
-			return nil, err
-		}
-		u.SetHomeFolder(home)
-
-		trash, err := mediaTree.MkDir(home, ".user_trash", event)
-		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
-			return nil, err
-		}
-		u.SetTrashFolder(trash)
-	}
-	sw.Lap("Find or create user directories")
-
-	mediaTree.GetJournal().LogEvent(event)
-
-	sw.Lap("Log file event")
 
 	err = fs.ResizeDown(mediaTree.GetRoot(), nil)
 	if err != nil {
@@ -116,7 +85,7 @@ func (fs *FileServiceImpl) SetMediaService(mediaService *MediaServiceImpl) {
 	fs.mediaService = mediaService
 }
 
-func (fs *FileServiceImpl) GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+func (fs *FileServiceImpl) GetUserFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
 	return fs.getFileByIdAndRoot(id, "MEDIA")
 }
 
@@ -136,10 +105,6 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 	*fileTree.WeblensFileImpl,
 	error,
 ) {
-	if fs.usersTree == nil {
-		log.Debug.Println("HUH??")
-	}
-
 	f := fs.usersTree.Get(id)
 	if f == nil {
 		return nil, werror.WithStack(werror.ErrNoFile)
@@ -215,7 +180,7 @@ func (fs *FileServiceImpl) CreateFolder(parent *fileTree.WeblensFileImpl, folder
 
 	newF, err := fs.usersTree.MkDir(parent, folderName, nil)
 	if err != nil {
-		return nil, err
+		return newF, err
 	}
 
 	caster.PushFileCreate(newF)

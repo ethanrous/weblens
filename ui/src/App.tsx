@@ -65,8 +65,8 @@ const WeblensRoutes = () => {
             console.debug('Nav setup')
             nav('/setup')
         } else if (loc.pathname === '/setup' && server.info.role !== 'init') {
-            console.debug('Nav timeline')
-            nav('/timeline')
+            console.debug('Nav files home')
+            nav('/files/home')
         } else if (
             server.info.role === 'backup' &&
             !loc.pathname.startsWith('/files') &&
@@ -74,22 +74,13 @@ const WeblensRoutes = () => {
         ) {
             console.debug('Nav files home')
             nav('/files/home')
-        } else if (
-            user !== null &&
-            !user.isLoggedIn &&
-            loc.pathname !== '/login' &&
-            server.info.role !== 'init' &&
-            !loc.pathname.startsWith('/files/share/')
-        ) {
-            console.debug('Nav login')
-            nav('/login', { state: { returnTo: loc.pathname } })
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
             if (loc.state?.returnTo) {
                 console.debug('Nav return to')
                 nav(loc.state.returnTo)
             } else {
-                console.debug('Nav timeline')
-                nav('/timeline')
+                console.debug('Nav files home')
+                nav('/files/home')
             }
         } else if (
             (loc.pathname === '/timeline' ||

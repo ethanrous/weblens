@@ -1,7 +1,7 @@
 package main
 
 import (
-	"net/http"
+	"errors"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -17,9 +17,9 @@ import (
 	"github.com/ethrousseau/weblens/models"
 	"github.com/ethrousseau/weblens/service"
 	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethrousseau/weblens/service/proxy"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var server *Server
@@ -37,22 +37,24 @@ func main() {
 	logLevel := env.GetLogLevel()
 	log.SetLogLevel(logLevel)
 
-	if logLevel > 0 {
-		log.Debug.Println("Starting Weblens in debug mode")
-
-		metricsServer := http.Server{
-			Addr:     "localhost:2112",
-			ErrorLog: log.ErrorCatcher,
-			Handler:  promhttp.Handler(),
-		}
-		go func() { log.ErrTrace(metricsServer.ListenAndServe()) }()
-	} else {
-	}
+	// if logLevel > 0 {
+	// 	log.Debug.Println("Starting Weblens in debug mode")
+	//
+	// 	metricsServer := http.Server{
+	// 		Addr:     "localhost:2112",
+	// 		ErrorLog: log.ErrorCatcher,
+	// 		Handler:  promhttp.Handler(),
+	// 	}
+	// 	go func() { log.ErrTrace(metricsServer.ListenAndServe()) }()
+	// } else {
+	// }
 	gin.SetMode(gin.ReleaseMode)
 
 	server = NewServer(config["routerHost"].(string), config["routerPort"].(string), services)
-	go startup(config, services, server)
-
+	server.StartupFunc = func() {
+		startup(config, services, server)
+	}
+	services.StartupChan = make(chan bool)
 	server.Start()
 }
 
@@ -62,7 +64,6 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	log.Trace.Println("Beginning service setup")
 
 	sw := internal.NewStopwatch("Initialization")
-	sw.Lap()
 
 	/* Database connection */
 	db, err := database.ConnectToMongo(config["mongodbUri"].(string), config["mongodbName"].(string))
@@ -81,10 +82,16 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init instance service")
 
 	/* User Service */
-	userService, err := service.NewUserService(db.Collection("users"))
-	if err != nil {
-		panic(err)
+	var userService models.UserService
+	if instanceService.GetLocal().GetRole() == models.BackupServer {
+		userService = proxy.NewProxyUserService(instanceService.GetCore())
+	} else {
+		userService, err = service.NewUserService(db.Collection("users"))
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	pack.UserService = userService
 	sw.Lap("Init user service")
 
@@ -111,22 +118,25 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	pack.ClientService = clientService
 	sw.Lap("Init client service")
 
-	log.Debug.Printf("Local server is %s", localServer.ServerRole())
+	/* Basic global caster */
+	caster := models.NewSimpleCaster(clientService)
+	pack.Caster = caster
 
-	if localServer.ServerRole() == models.InitServer {
+	log.Debug.Printf("Local server is %s", localServer.GetRole())
+
+	if localServer.GetRole() == models.InitServer {
 		srv.UseInit()
 	} else {
 		srv.UseApi()
 	}
 
 	/* If server is backup server, connect to core server and launch backup daemon */
-	if localServer.ServerRole() == models.BackupServer {
+	if localServer.GetRole() == models.BackupServer {
 		core := instanceService.GetCore()
 		if core == nil {
 			panic(werror.Errorf("Could not find core instance"))
 		}
 
-		pack.ClientService = clientService
 		err = WebsocketToCore(core, clientService)
 		if err != nil {
 			panic(err)
@@ -142,22 +152,26 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 			panic(werror.Errorf("could not get core address or key"))
 		}
 
-	} else if localServer.ServerRole() == models.CoreServer {
+	} else if localServer.GetRole() == models.CoreServer {
 		srv.UseCore()
 	}
 
 	/* Share Service */
+	pack.AddStartupTask("share_service", "Shares Service")
 	shareService, err := service.NewShareService(db.Collection("shares"))
 	if err != nil {
 		panic(err)
 	}
 	pack.ShareService = shareService
 	sw.Lap("Init share service")
+	if err = pack.RemoveStartupTask("share_service"); err != nil {
+		panic(err)
+	}
 
 	/* Journal Service */
 	mediaJournal, err := fileTree.NewJournal(
-		db.Collection("fileHistory"),
-		instanceService.GetLocal().ServerId(),
+		db.Collection("fileHistory"), instanceService.GetLocal().ServerId(),
+		instanceService.GetLocal().GetRole() == models.BackupServer,
 	)
 	if err != nil {
 		panic(err)
@@ -172,13 +186,10 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	pack.AccessService = accessService
 	sw.Lap("Init access service")
 
-	/* Baseic global caster */
-	caster := models.NewSimpleCaster(clientService)
-	pack.Caster = caster
-
 	/* Hasher */
 	hasher := models.NewHasher(workerPool, caster)
 
+	pack.AddStartupTask("file_services", "File Services")
 	/* FileTree Service */
 	mediaFileTree, err := fileTree.NewFileTree(
 		env.GetMediaRoot(), "MEDIA", hasher,
@@ -204,6 +215,39 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 		panic(err)
 	}
 	sw.Lap("Init file service")
+	if err = pack.RemoveStartupTask("file_services"); err != nil {
+		panic(err)
+	}
+
+	if instanceService.GetLocal().GetRole() == models.CoreServer {
+		event := fileService.GetMediaJournal().NewEvent()
+
+		users, err := userService.GetAll()
+		if err != nil {
+			panic(err)
+		}
+
+		for u := range users {
+			if u.IsSystemUser() {
+				continue
+			}
+
+			home, err := fileService.CreateFolder(fileService.GetMediaRoot(), u.GetUsername(), caster)
+			if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
+				panic(err)
+			}
+			u.SetHomeFolder(home)
+
+			trash, err := fileService.CreateFolder(home, ".user_trash", caster)
+			if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
+				panic(err)
+			}
+			u.SetTrashFolder(trash)
+		}
+
+		fileService.GetMediaJournal().LogEvent(event)
+		sw.Lap("Find or create user directories")
+	}
 
 	/* Media type Service */
 	// Only from config file, for now
@@ -240,7 +284,18 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	mediaService.AlbumService = albumService
 
-	caster.PushWeblensEvent("weblens_loaded")
+	if instanceService.GetLocal().GetRole() == models.BackupServer {
+		pack.AddStartupTask("core_connect", "Waiting for Core connection")
+		for clientService.GetClientByServerId(instanceService.GetCore().ServerId()) == nil {
+			time.Sleep(1 * time.Second)
+		}
+		err = pack.RemoveStartupTask("core_connect")
+		if err != nil {
+			panic(err)
+		}
+
+		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
+	}
 
 	sw.Stop()
 	sw.PrintResults(false)
@@ -249,12 +304,10 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 		mediaService.Size(), userService.Size(),
 	)
 
-	if localServer.ServerRole() == models.BackupServer {
-		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
-	}
-
 	log.Trace.Println("Service setup complete")
 	pack.Loaded.Store(true)
+	close(pack.StartupChan)
+	caster.PushWeblensEvent("weblens_loaded")
 }
 
 func mainRecovery(msg string) {

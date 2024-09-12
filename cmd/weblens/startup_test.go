@@ -41,7 +41,9 @@ func TestStartupCore(t *testing.T) {
 	gin.SetMode(gin.ReleaseMode)
 	start := time.Now()
 	server = http.NewServer(config["routerHost"].(string), config["routerPort"].(string), services)
-	go server.Start()
+	server.StartupFunc = func() {
+		startup(config, services, server)
+	}
 
 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), t.Name())
 	if err != nil {
@@ -54,7 +56,11 @@ func TestStartupCore(t *testing.T) {
 		t.FailNow()
 	}
 
-	startup(config, services, server)
+	services.StartupChan = make(chan bool)
+
+	go server.Start()
+	<-services.StartupChan
+
 	log.Debug.Println("Startup took", time.Since(start))
 	assert.True(t, services.Loaded.Load())
 }
@@ -84,7 +90,7 @@ func TestStartupBackup(t *testing.T) {
 	start := time.Now()
 	for {
 		if services != nil && services.Loaded.Load() &&
-			services.ClientService.GetClientByInstanceId("TEST_REMOTE") != nil {
+			services.ClientService.GetClientByServerId("TEST_REMOTE") != nil {
 			break
 		}
 
@@ -95,7 +101,7 @@ func TestStartupBackup(t *testing.T) {
 		time.Sleep(250 * time.Millisecond)
 	}
 
-	coreClient := services.ClientService.GetClientByInstanceId("TEST_REMOTE")
+	coreClient := services.ClientService.GetClientByServerId("TEST_REMOTE")
 	if !assert.NotNil(t, coreClient) {
 		t.FailNow()
 	}

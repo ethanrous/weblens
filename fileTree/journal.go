@@ -28,14 +28,19 @@ type JournalImpl struct {
 
 	fileTree *FileTreeImpl
 	col      *mongo.Collection
+
+	// Do not register actions that happen on the local server.
+	// This is used in backup servers.
+	ignoreLocal bool
 }
 
-func NewJournal(col *mongo.Collection, serverId string) (*JournalImpl, error) {
+func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool) (*JournalImpl, error) {
 	j := &JournalImpl{
 		lifetimes: make(map[FileId]*Lifetime),
 		eventStream: make(chan *FileEvent, 10),
 		col:         col,
 		serverId:    serverId,
+		ignoreLocal: ignoreLocal,
 	}
 
 	indexModel := mongo.IndexModel{
@@ -65,6 +70,10 @@ func NewJournal(col *mongo.Collection, serverId string) (*JournalImpl, error) {
 }
 
 func (j *JournalImpl) NewEvent() *FileEvent {
+	if j.ignoreLocal {
+		return &FileEvent{}
+	}
+
 	return &FileEvent{
 		EventId:    FileEventId(primitive.NewObjectID().Hex()),
 		EventBegin: time.Now(),
@@ -94,9 +103,13 @@ func (j *JournalImpl) GetAllLifetimes() []*Lifetime {
 }
 
 func (j *JournalImpl) LogEvent(fe *FileEvent) {
+	if fe == nil {
+		return
+	}
+
 	log.Trace.Printf("Dropping off event with %d actions", len(fe.Actions))
 
-	if fe != nil && len(fe.Actions) != 0 {
+	if len(fe.Actions) != 0 {
 		j.eventStream <- fe
 	}
 }

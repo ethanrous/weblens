@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
+	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
 )
 
@@ -69,7 +70,12 @@ func (pjs *ProxyJournalService) GetLatestAction() (*fileTree.FileAction, error) 
 }
 
 func (pjs *ProxyJournalService) GetLifetimesSince(date time.Time) ([]*fileTree.Lifetime, error) {
-	endpoint := fmt.Sprintf("/history/since/%d", date.UnixMilli())
+	millis := date.UnixMilli()
+	if millis < 0 {
+		return nil, werror.Errorf("Trying to get lifetimes with millis less than 0")
+	}
+
+	endpoint := fmt.Sprintf("/history/since/%d", millis)
 	lts, err := CallHomeStruct[[]*fileTree.Lifetime](pjs.Core, http.MethodGet, endpoint, nil)
 	return lts, err
 }

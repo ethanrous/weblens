@@ -18,6 +18,7 @@ import {
     getApiKeys,
     getRemotes,
     newApiKey,
+    resetServer,
 } from '@weblens/api/ApiFetch'
 import {
     ActivateUser,
@@ -624,6 +625,13 @@ export function Admin({ open, closeAdminMenu }) {
                     </div>
                     <PathAutocomplete />
                 </div>
+
+                <WeblensButton
+                    label={'Reset Server'}
+                    danger
+                    onClick={() => resetServer()}
+                />
+                <div className="h-10"/>
             </div>
         </div>
     )

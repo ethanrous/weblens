@@ -73,10 +73,10 @@ func dial(
 
 	client := clientService.RemoteConnect(conn, core)
 
-	err = client.Raw(WsAuthorize{Auth: authHeader.Get("Authorization")})
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
+	// err = client.Raw(WsAuthorize{Auth: authHeader.Get("Authorization")})
+	// if err != nil {
+	// 	return nil, werror.WithStack(err)
+	// }
 
 	log.Debug.Printf("Connection to core server at %s successfully established", host.String())
 	return client, nil
@@ -84,7 +84,16 @@ func dial(
 
 func coreWsHandler(c *models.WsClient) {
 	defer func() { c.Disconnect() }()
-	defer func() { recover() }()
+	defer func() {
+		e := recover()
+		if e != nil {
+			err, ok := e.(error)
+			if !ok {
+				err = werror.Errorf("%s", e)
+			}
+			log.ErrTrace(err)
+		}
+	}()
 
 	for {
 		mt, message, err := c.ReadOne()

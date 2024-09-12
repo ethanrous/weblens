@@ -1,6 +1,7 @@
 package models
 
 import (
+	"sync"
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -36,6 +37,7 @@ type Instance struct {
 	Address string `json:"coreAddress" bson:"coreAddress"`
 
 	service InstanceService
+	updateMu sync.RWMutex
 }
 
 func NewInstance(
@@ -83,16 +85,16 @@ func (wi *Instance) SetUsingKey(key WeblensApiKey) {
 	wi.UsingKey = key
 }
 
-func (wi *Instance) ServerRole() ServerRole {
+func (wi *Instance) GetRole() ServerRole {
+	wi.updateMu.RLock()
+	defer wi.updateMu.RUnlock()
 	return wi.Role
 }
 
-func (wi *Instance) GetRole() ServerRole {
-	return wi.Role
-	// if si == nil {
-	// 	return false
-	// }
-	// return si.Role == Core
+func (wi *Instance) SetRole(role ServerRole) {
+	wi.updateMu.Lock()
+	defer wi.updateMu.Unlock()
+	wi.Role = role
 }
 
 func (wi *Instance) GetAddress() (string, error) {
@@ -146,6 +148,7 @@ type InstanceService interface {
 	GetRemotes() []*Instance
 	InitCore(serverName string) error
 	InitBackup(name, coreAddr string, key WeblensApiKey) error
+	ResetAll() error
 }
 
 type WeblensApiKey string

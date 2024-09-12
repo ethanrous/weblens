@@ -382,6 +382,7 @@ function filebrowserWebsocketHandler(
 
             case 'going_down': {
                 useWebsocketStore.getState().setReadyState(-1)
+                setTimeout(() => location.reload(), 5000)
                 return
             }
 

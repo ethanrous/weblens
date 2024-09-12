@@ -19,12 +19,14 @@ func TestJournalImplSimple(t *testing.T) {
 	journal, err := NewJournal(
 		mondb.Collection(t.Name()),
 		"weblens_test_server",
+		false,
 	)
 	defer journal.Close()
 
 	tree, err := newTestFileTree()
-	tree.SetJournal(journal)
+	require.NoError(t, err)
 
+	tree.SetJournal(journal)
 	event := journal.NewEvent()
 
 	newDir, err := tree.MkDir(tree.GetRoot(), "newDir", event)

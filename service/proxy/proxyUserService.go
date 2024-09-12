@@ -4,7 +4,9 @@ import (
 	"iter"
 	"net/http"
 	"slices"
+	"sync"
 
+	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
 )
 
@@ -12,30 +14,65 @@ var _ models.UserService = (*ProxyUserService)(nil)
 
 type ProxyUserService struct {
 	Core *models.Instance
+
+	publicUser  *models.User
+	rootUser    *models.User
+	userMap     map[string]*models.User
+	userMapLock sync.RWMutex
 }
 
-func (pus *ProxyUserService) Init() error {
-	
-	panic("implement me")
+func NewProxyUserService(core *models.Instance) *ProxyUserService {
+	return &ProxyUserService{
+		Core: core,
+		publicUser: &models.User{
+			Username:   "PUBLIC",
+			Activated:  true,
+			SystemUser: true,
+		},
+		rootUser: &models.User{
+			Username:   "WEBLENS",
+			SystemUser: true,
+		},
+	}
 }
 
 func (pus *ProxyUserService) Size() int {
-	
-	panic("implement me")
+	if pus.userMap == nil {
+		return 0
+	}
+
+	return len(pus.userMap)
 }
 
 func (pus *ProxyUserService) Get(id models.Username) *models.User {
-	
-	panic("implement me")
+	pus.userMapLock.RLock()
+	defer pus.userMapLock.RUnlock()
+	if pus.userMap == nil {
+		return nil
+	}
+
+	return pus.userMap[id]
 }
 
 func (pus *ProxyUserService) Add(user *models.User) error {
-	
-	panic("implement me")
+	pus.userMapLock.Lock()
+	defer pus.userMapLock.Unlock()
+
+	if pus.userMap == nil {
+		pus.userMap = make(map[string]*models.User)
+	}
+
+	if pus.userMap[user.Username] == nil {
+		pus.userMap[user.Username] = user
+	}
+
+	log.Trace.Printf("Added user [%s] to proxy user service", user.Username)
+
+	return nil
 }
 
 func (pus *ProxyUserService) Del(id models.Username) error {
-	
+
 	panic("implement me")
 }
 
@@ -50,38 +87,36 @@ func (pus *ProxyUserService) GetAll() (iter.Seq[*models.User], error) {
 }
 
 func (pus *ProxyUserService) GetPublicUser() *models.User {
-	
-	panic("implement me")
+	return pus.publicUser
 }
 
 func (pus *ProxyUserService) SearchByUsername(searchString string) (iter.Seq[*models.User], error) {
-	
+
 	panic("implement me")
 }
 
 func (pus *ProxyUserService) SetUserAdmin(user *models.User, b bool) error {
-	
+
 	panic("implement me")
 }
 
 func (pus *ProxyUserService) ActivateUser(user *models.User) error {
-	
+
 	panic("implement me")
 }
 
 func (pus *ProxyUserService) GetRootUser() *models.User {
-	
-	panic("implement me")
+	return pus.rootUser
 }
 
 func (pus *ProxyUserService) GenerateToken(user *models.User) (string, error) {
-	
+
 	panic("implement me")
 }
 
 func (pus *ProxyUserService) UpdateUserPassword(
 	username models.Username, oldPassword, newPassword string, allowEmptyOld bool,
 ) error {
-	
+
 	panic("implement me")
 }
