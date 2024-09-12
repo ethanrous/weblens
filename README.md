@@ -80,7 +80,7 @@ Setup for a *core* server requires little configuration.
 2. Give this server a name, use whatever you like! 
    - This will be the name shown to identify this server if connected to other instances
 3. Hit "Start Weblens", and you're good to go! 🥳
-   - If prompted, login with the account you just created
+   - If prompted, login with the account you just created   
 
 ### Weblens Backup
 

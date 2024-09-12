@@ -8,7 +8,7 @@ fi
 local=false
 push=false
 
-while getopts ":t:a:l:p" opt; do
+while getopts ":t:a:lp" opt; do
   case $opt in
     t) docker_tag="$OPTARG"
     ;;
