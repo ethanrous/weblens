@@ -44,7 +44,7 @@ fi
 echo "Using tag: $docker_tag-$arch"
 
 printf "Running tests..."
-./scripts/testWeblens > /dev/null
+./scripts/testWeblens
 
 if [ $? != 0 ]; then
   printf " FAILED\n"
