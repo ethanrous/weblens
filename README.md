@@ -51,10 +51,10 @@ Replace all of the `/(files | cache | db)/on/host` with paths on your host where
 
 ⚠️ **Note** If you have both fast and slow storage, the "files" path should go on the large slow media, and the "cache" and "db" should be on the fast cache.
 
-⚠️ **Note** Having the containers on the same docker network is extremely helpful, as it allows Docker to do DNS for you,
-and does not require you to open the port on your Mongo container. [Read how to set up a docker network](https://docs.docker.com/reference/cli/docker/network/create/). 
+⚠️ **Note** Having the containers on the same Docker network is extremely helpful, as it allows Docker to do DNS for you,
+and does not require you to open the port on your Mongo container. [Read how to set up a Docker network](https://docs.docker.com/reference/cli/docker/network/create/). 
 If the containers cannot be on the same network, you will need to add `-p 27017:27017` to the Mongo container, 
-and change the "weblens-mongo" in the `MONGODB_URI` to a route the container will understand without docker DNS.
+and change the "weblens-mongo" in the `MONGODB_URI` to a route the container will understand without Docker DNS.
 
 ## Setup
 Once you have the containers configured and running, you can begin setting up your Weblens server. 
@@ -84,7 +84,7 @@ Setup for a *core* server requires little configuration.
 
 ### Weblens Backup
 
-⚠️ **Note** that a Backup server requires an existing core server, and to be set up by an admin of that server
+⚠️ **Note** that a Backup server requires an existing [core server](#weblens-core), and to be set up by an admin of that server
 
 ![WeblensBackupConfiguration.png](images/screenshots/WeblensBackupConfiguration.png)
 
