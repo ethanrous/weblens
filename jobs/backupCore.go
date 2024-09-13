@@ -32,11 +32,6 @@ func BackupD(
 				continue
 			}
 
-			// wsConn := websocketService.GetClientByInstanceId(remote.ServerId())
-			// if wsConn == nil {
-			// 	time.Sleep(time.Millisecond * 100)
-			// }
-
 			meta := models.BackupMeta{
 				RemoteId:            remote.ServerId(),
 				FileService:         fileService,
@@ -155,6 +150,9 @@ func DoBackup(t *task.Task) {
 		_, err = meta.FileService.GetUserFile(lt.ID())
 		if errors.Is(err, werror.ErrNoFile) {
 			i := sort.SearchStrings(newFileIds, lt.ID())
+			if len(newFileIds) > i && newFileIds[i] == lt.ID() {
+				continue
+			}
 			newFileIds = append(newFileIds, "")
 			copy(newFileIds[i+1:], newFileIds[i:])
 			newFileIds[i] = lt.ID()
@@ -172,26 +170,6 @@ func DoBackup(t *task.Task) {
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
-
-	// files := internal.FilterMap(
-	// 	SERV.FileTree.GetJournal().GetActiveLifetimes(), func(lt Lifetime) (*fileTree.WeblensFileImpl, bool) {
-	// 		f := SERV.FileTree.Get(lt.GetLatestFileId())
-	// 		if f == nil && lt.GetLatestAction().GetActionType() != FileDelete {
-	// 			f, err = proxyService.GetUserFile(lt.GetLatestFileId())
-	// 			if err != nil {
-	// 				wlog.ShowErr(err)
-	// 				wlog.Debug.Println("Failed to get file at", lt.GetLatestAction().GetDestinationPath())
-	// 				return nil, false
-	// 			}
-	// 			err = SERV.FileTree.Add(f)
-	// 			if err != nil {
-	// 				t.ErrorAndExit(err)
-	// 			}
-	// 		}
-	//
-	// 		return f, true
-	// 	},
-	// )
 
 	slices.SortFunc(
 		newFiles, func(a, b *fileTree.WeblensFileImpl) int {
@@ -281,9 +259,6 @@ func CopyFileFromCore(t *task.Task) {
 	poolProgress := getScanResult(t)
 	poolProgress["filename"] = meta.File.Filename()
 	meta.Caster.PushPoolUpdate(t.GetTaskPool(), models.SubTaskCompleteEvent, poolProgress)
-	// if meta..IsOpen() {
-	// 	meta.core.PushPoolUpdate(t.GetTaskPool(), models.SubTaskCompleteEvent, poolProgress)
-	// }
 
 	t.Success()
 }

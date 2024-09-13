@@ -137,7 +137,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 			panic(werror.Errorf("Could not find core instance"))
 		}
 
-		err = WebsocketToCore(core, clientService)
+		err = WebsocketToCore(core, services)
 		if err != nil {
 			panic(err)
 		}

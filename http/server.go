@@ -254,6 +254,8 @@ func (s *Server) UseAdmin() {
 	admin.DELETE("/key/:keyId", deleteApiKey)
 	admin.DELETE("/remote", removeRemote)
 
+	admin.POST("/backup", launchBackup)
+
 	/* DANGER */
 	admin.POST("/reset", resetServer)
 }

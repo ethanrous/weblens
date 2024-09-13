@@ -493,43 +493,6 @@ func (ft *FileTreeImpl) ReadDir(dir *WeblensFileImpl) ([]*WeblensFileImpl, error
 	return children, nil
 }
 
-// // AttachFile takes a detached file when it is ready to be inserted to the tree, and attaches it
-// func (ft *FileTreeImpl) AttachFile(f *WeblensFileImpl) error {
-// 	if ft.Get(f.ID()) != nil {
-// 		return werror.ErrFileAlreadyExists
-// 	}
-//
-// 	tmpPath := filepath.Join("/tmp/", f.Filename())
-// 	tmpFile, err := os.Open(tmpPath)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	// Mask the file create event. Since we cannot insert
-// 	// into the tree if the file is not present already,
-// 	// we must move the file first, which would create an
-// 	// insert event, which we wish to do manually below.
-// 	// Masking prevents the automatic insert event.
-// 	// history.MaskEvent(types.FileCreate, f.GetAbsPath())
-//
-// 	destFile, err := os.Create(f.GetAbsPath())
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	_, err = io.Copy(destFile, tmpFile)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	err = ft.Add(f)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	return os.Remove(tmpPath)
-// }
-
 func (ft *FileTreeImpl) GetRoot() *WeblensFileImpl {
 	if ft.root == nil {
 		log.Error.Println("GetRoot called on fileTree with nil root")
@@ -580,7 +543,6 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 
 	log.Trace.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad))
 	for len(toLoad) != 0 {
-		// start := time.Now()
 		var fileToLoad *WeblensFileImpl
 
 		// Pop from slice of files to load
@@ -620,7 +582,6 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 			// like on the caches tree, for example, which has a mock journal
 			fileToLoad.SetContentId(ft.GenerateFileId())
 		}
-		// log.Debug.Println(time.Since(start))
 		err = ft.Add(fileToLoad)
 		if err != nil {
 			return err
@@ -638,7 +599,6 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, hasher Hasher) error {
 	}
 
 	log.Trace.Printf("[loadFromRoot] Complete")
-	// log.Debug.Printf("Loaded %s file tree in %s", ft.rootAlias, time.Since(start))
 
 	return nil
 }

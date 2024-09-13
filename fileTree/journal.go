@@ -70,10 +70,6 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool) (*Jour
 }
 
 func (j *JournalImpl) NewEvent() *FileEvent {
-	if j.ignoreLocal {
-		return &FileEvent{}
-	}
-
 	return &FileEvent{
 		EventId:    FileEventId(primitive.NewObjectID().Hex()),
 		EventBegin: time.Now(),
@@ -103,7 +99,7 @@ func (j *JournalImpl) GetAllLifetimes() []*Lifetime {
 }
 
 func (j *JournalImpl) LogEvent(fe *FileEvent) {
-	if fe == nil {
+	if j.ignoreLocal || fe == nil {
 		return
 	}
 

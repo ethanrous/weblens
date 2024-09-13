@@ -1,13 +1,11 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { WeblensFileInfo } from '@weblens/types/files/File'
-import { ApiKeyInfo, UserInfoT } from '@weblens/types/Types'
+import { ApiKeyInfo, ServerInfoT, UserInfoT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
 export async function wrapRequest<T>(rq: Promise<T>): Promise<T> {
     return await rq.catch((e) => {
-        console.log("ERR", e)
         if (e === 401) {
-            console.log("HERR?", e, useSessionStore.getState().nav)
             useSessionStore.getState().setUserInfo({isLoggedIn: false} as UserInfoT)
             useSessionStore.getState().nav('/login')
         }
@@ -169,13 +167,14 @@ export async function AutocompleteUsers(
     return (await fetchJson<{ users: UserInfoT[] }>(url.toString())).users
 }
 
-export async function doBackup() {
+export async function doBackup(serverId: string) {
     const url = new URL(`${API_ENDPOINT}/backup`)
-    return wrapRequest(fetch(url))
+    url.searchParams.append('serverId', serverId)
+    return wrapRequest(fetch(url, {method: 'POST'}))
 }
 
-export async function getRemotes() {
-    return fetchJson(`${API_ENDPOINT}/remotes`)
+export async function getRemotes(): Promise<ServerInfoT[]> {
+    return fetchJson<ServerInfoT[]>(`${API_ENDPOINT}/remotes`)
 }
 
 export async function deleteRemote(remoteId: string) {

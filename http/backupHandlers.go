@@ -4,12 +4,30 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/models"
 	"github.com/gin-gonic/gin"
 )
 
 func launchBackup(ctx *gin.Context) {
 	pack := getServices(ctx)
+
+	if pack.InstanceService.GetLocal().IsCore() {
+		serverId := ctx.Query("serverId")
+		client := pack.ClientService.GetClientByServerId(serverId)
+		msg := models.WsResponseInfo{
+			EventTag: "do_backup",
+		}
+		err := client.Send(msg)
+		if err != nil {
+			log.ErrTrace(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		return
+	}
+
 	core := pack.InstanceService.GetCore()
 
 	backupMeta := models.BackupMeta{

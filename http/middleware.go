@@ -67,7 +67,7 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 
 		// If we are still starting, allow all unauthenticated requests,
 		// but everyone is the public user
-		if !pack.Loaded.Load() {
+		if !pack.Loaded.Load() || pack.InstanceService.GetLocal().GetRole() == models.InitServer {
 			c.Set("user", pack.UserService.GetPublicUser())
 			c.Next()
 			return
@@ -139,11 +139,6 @@ func KeyOnlyAuth(pack *models.ServicePack) gin.HandlerFunc {
 			if err != nil {
 				log.ShowErr(err)
 				c.AbortWithStatus(http.StatusUnauthorized)
-				return
-			}
-			if server == nil {
-				log.Error.Println("Verified key-only login, but did not get server")
-				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
 

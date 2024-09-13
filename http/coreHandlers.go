@@ -172,7 +172,7 @@ func getRemotes(ctx *gin.Context) {
 		},
 	)
 
-	ctx.JSON(http.StatusOK, gin.H{"remotes": serverInfos})
+	ctx.JSON(http.StatusOK, serverInfos)
 }
 
 func removeRemote(ctx *gin.Context) {
@@ -182,11 +182,26 @@ func removeRemote(ctx *gin.Context) {
 		return
 	}
 
+	remote := pack.InstanceService.Get(body.RemoteId)
+	if remote == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	err = pack.InstanceService.Del(body.RemoteId)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
+	}
+
+	if key := remote.GetUsingKey(); key != "" {
+		err = pack.AccessService.SetKeyUsedBy(key, remote)
+		if err != nil {
+			log.ErrTrace(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	ctx.Status(http.StatusOK)

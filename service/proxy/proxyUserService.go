@@ -62,7 +62,7 @@ func (pus *ProxyUserService) Add(user *models.User) error {
 		pus.userMap = make(map[string]*models.User)
 	}
 
-	if pus.userMap[user.Username] == nil {
+	if _, ok := pus.userMap[user.Username]; !ok {
 		pus.userMap[user.Username] = user
 	}
 

@@ -895,10 +895,42 @@ func initializeServer(ctx *gin.Context) {
 			return
 		}
 
-		pack.UserService = proxy.NewProxyUserService(pack.InstanceService.GetCore())
-		go jobs.BackupD(
-			time.Hour, pack.InstanceService, pack.TaskService, pack.FileService, pack.UserService, pack.ClientService,
-			pack.Caster,
+		pack.Loaded.Store(false)
+
+		err = WebsocketToCore(pack.InstanceService.GetCore(), pack)
+		if err != nil {
+			log.ErrTrace(err)
+		}
+
+		core := pack.InstanceService.GetCore()
+		pack.UserService = proxy.NewProxyUserService(core)
+		meta := models.BackupMeta{
+			RemoteId:            core.ServerId(),
+			FileService:         pack.FileService,
+			UserService:         pack.UserService,
+			WebsocketService:    pack.ClientService,
+			InstanceService:     pack.InstanceService,
+			TaskService:         pack.TaskService,
+			Caster:              pack.Caster,
+			ProxyFileService:    &proxy.ProxyFileService{Core: core},
+			ProxyJournalService: &proxy.ProxyJournalService{Core: core},
+			ProxyUserService:    proxy.NewProxyUserService(core),
+			ProxyMediaService:   &proxy.ProxyMediaService{Core: core},
+		}
+		t, err := pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+		if err != nil {
+			log.ErrTrace(err)
+		}
+		t.SetPostAction(
+			func(result task.TaskResult) {
+				pack.Loaded.Store(true)
+				pack.Caster.PushWeblensEvent("weblens_loaded")
+				go jobs.BackupD(
+					time.Hour, pack.InstanceService, pack.TaskService, pack.FileService, pack.UserService,
+					pack.ClientService,
+					pack.Caster,
+				)
+			},
 		)
 	}
 
