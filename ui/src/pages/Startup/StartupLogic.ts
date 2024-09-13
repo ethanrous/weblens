@@ -1,6 +1,16 @@
-export function startupWebsocketHandler(setSetupProgress, setSetupMostRecent) {
+export type StartupTask = {
+    Name: string
+    Description: string
+    StartedAt: string
+}
+
+export function startupWebsocketHandler(setSetupProgress, setSetupMostRecent: (waitingOn: StartupTask[]) => void) {
     return (msgData) => {
         switch (msgData.eventTag) {
+            case 'startup_progress': {
+                setSetupMostRecent(msgData.content.waitingOn)
+                break
+            }
             case 'weblens_loaded': {
                 setTimeout(() => location.reload(), 500)
                 break
@@ -11,13 +21,13 @@ export function startupWebsocketHandler(setSetupProgress, setSetupMostRecent) {
                         msgData.content.tasksTotal) *
                         100
                 )
-                setSetupMostRecent(
-                    `${msgData.taskType}: ${msgData.content.fileName}`
-                )
+                // setSetupMostRecent(
+                //     `${msgData.taskType}: ${msgData.content.fileName}`
+                // )
                 break
             }
             default: {
-                setSetupMostRecent(`${msgData.taskType}`)
+                // setSetupMostRecent(`${msgData.taskType}`)
             }
         }
     }

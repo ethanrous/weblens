@@ -8,6 +8,8 @@ import {
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { getUsers, initServer } from '@weblens/api/ApiFetch'
+import { GetUserInfo } from '@weblens/api/UserApi'
+import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import '@weblens/components/setup.css'
@@ -126,13 +128,15 @@ const Core = ({
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [passwordVerify, setPasswordVerify] = useState('')
+    const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
     const [serverName, setServerName] = useState(
         existingName ? existingName : ''
     )
 
-    const nav = useNavigate()
     const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
     const serverInfo = useSessionStore((state) => state.server)
+    const setUserInfo = useSessionStore((state) => state.setUserInfo)
+    useKeyDown("Enter", () => buttonRef.click())
 
     const { data: users } = useQuery({
         queryKey: ['setupUsers'],
@@ -243,6 +247,7 @@ const Core = ({
 
             <WeblensButton
                 label="Start Weblens"
+                setButtonRef={setButtonRef}
                 squareSize={50}
                 Left={IconRocket}
                 disabled={
@@ -266,8 +271,17 @@ const Core = ({
                         return false
                     }
 
+                    GetUserInfo()
+                        .then((info) => {
+                            console.log(info)
+                            setUserInfo({ ...info, isLoggedIn: true })
+                        })
+                        .catch((r) => {
+                            console.error(r)
+                            setUserInfo({ isLoggedIn: false } as UserInfoT)
+                        })
+
                     fetchServerInfo()
-                    nav('/files/home')
 
                     return true
                 }}
@@ -325,6 +339,7 @@ const Backup = ({
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
+                    failed={coreAddress && coreAddress.match("^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$") === null}
                 />
             </div>
 

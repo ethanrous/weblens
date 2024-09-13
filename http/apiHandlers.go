@@ -7,13 +7,16 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/internal"
 	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethrousseau/weblens/jobs"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/service/proxy"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
 )
@@ -374,17 +377,15 @@ func loginUser(ctx *gin.Context) {
 	}
 
 	if u.CheckLogin(userCredentials.Password) {
-		log.Info.Printf("Valid login for [%s]\n", userCredentials.Username)
+		log.Debug.Printf("Valid login for [%s]\n", userCredentials.Username)
 
 		var token string
-		if token = u.GetToken(); token == "" {
-			token, err = pack.AccessService.GenerateJwtToken(u)
-			if err != nil || token == "" {
-				log.Error.Println("Could not get login token")
-				ctx.Status(http.StatusInternalServerError)
-			}
-
+		token, err = pack.AccessService.GenerateJwtToken(u)
+		if err != nil || token == "" {
+			log.ErrTrace(werror.Errorf("Could not get login token"))
+			ctx.Status(http.StatusInternalServerError)
 		}
+
 		ctx.Header("Set-Cookie", "weblens-session-token="+token)
 		ctx.JSON(http.StatusOK, gin.H{"token": token, "user": u})
 	} else {
@@ -398,7 +399,7 @@ func getUserInfo(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	if u == nil {
-		if pack.InstanceService.GetLocal().ServerRole() == models.InitServer {
+		if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
 			ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 			return
 		}
@@ -827,7 +828,7 @@ func getRandomMedias(ctx *gin.Context) {
 func initializeServer(ctx *gin.Context) {
 	pack := getServices(ctx)
 	// Can't init server if already initialized
-	if pack.InstanceService.GetLocal().ServerRole() != models.InitServer {
+	if pack.InstanceService.GetLocal().GetRole() != models.InitServer {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
@@ -872,17 +873,65 @@ func initializeServer(ctx *gin.Context) {
 		}
 
 		pack.Server.UseCore()
-	} else if si.Role == models.BackupServer {
 
+		token, err := pack.AccessService.GenerateJwtToken(owner)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		ctx.Header("Set-Cookie", "weblens-session-token="+token)
+
+	} else if si.Role == models.BackupServer {
 		if si.CoreAddress[len(si.CoreAddress)-1:] != "/" {
 			si.CoreAddress += "/"
 		}
 		err = pack.InstanceService.InitBackup(si.Name, si.CoreAddress, si.CoreKey)
 		if err != nil {
+			pack.InstanceService.GetLocal().SetRole(models.InitServer)
 			log.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
 			return
 		}
+
+		pack.Loaded.Store(false)
+
+		err = WebsocketToCore(pack.InstanceService.GetCore(), pack)
+		if err != nil {
+			log.ErrTrace(err)
+		}
+
+		core := pack.InstanceService.GetCore()
+		pack.UserService = proxy.NewProxyUserService(core)
+		meta := models.BackupMeta{
+			RemoteId:            core.ServerId(),
+			FileService:         pack.FileService,
+			UserService:         pack.UserService,
+			WebsocketService:    pack.ClientService,
+			InstanceService:     pack.InstanceService,
+			TaskService:         pack.TaskService,
+			Caster:              pack.Caster,
+			ProxyFileService:    &proxy.ProxyFileService{Core: core},
+			ProxyJournalService: &proxy.ProxyJournalService{Core: core},
+			ProxyUserService:    proxy.NewProxyUserService(core),
+			ProxyMediaService:   &proxy.ProxyMediaService{Core: core},
+		}
+		t, err := pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+		if err != nil {
+			log.ErrTrace(err)
+		}
+		t.SetPostAction(
+			func(result task.TaskResult) {
+				pack.Loaded.Store(true)
+				pack.Caster.PushWeblensEvent("weblens_loaded")
+				go jobs.BackupD(
+					time.Hour, pack.InstanceService, pack.TaskService, pack.FileService, pack.UserService,
+					pack.ClientService,
+					pack.Caster,
+				)
+			},
+		)
 	}
 
 	pack.Server.UseApi()
@@ -905,6 +954,20 @@ func getServerInfo(ctx *gin.Context) {
 			"userCount": pack.UserService.Size(),
 		},
 	)
+}
+
+func resetServer(ctx *gin.Context) {
+	pack := getServices(ctx)
+	err := pack.InstanceService.ResetAll()
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+
+	pack.Server.Restart()
 }
 
 func serveStaticContent(ctx *gin.Context) {

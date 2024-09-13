@@ -46,7 +46,7 @@ func (pfs *ProxyFileService) CreateFolder(
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+func (pfs *ProxyFileService) GetUserFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
 	
 	panic("implement me")
 }

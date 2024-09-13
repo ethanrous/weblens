@@ -382,7 +382,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
 		// Inc alive workers
 		defer wp.currentWorkers.Add(-1)
-		// util.Debug.Printf("Worker %d reporting for duty o7", workerId)
+		log.Trace.Printf("Worker %d reporting for duty o7", workerId)
 
 		// WorkLoop:
 		for {

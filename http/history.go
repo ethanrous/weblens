@@ -13,7 +13,7 @@ func getLifetimesSince(ctx *gin.Context) {
 	pack := getServices(ctx)
 	millisString := ctx.Param("timestamp")
 	millis, err := strconv.ParseInt(millisString, 10, 64)
-	if err != nil {
+	if err != nil || millis < 0 {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return

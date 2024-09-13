@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"time"
@@ -8,12 +9,13 @@ import (
 	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/service/proxy"
 	"github.com/gorilla/websocket"
 )
 
 const RetryInterval = time.Second * 10
 
-func WebsocketToCore(core *models.Instance, clientService models.ClientManager) error {
+func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	addrStr, err := core.GetAddress()
 	if err != nil {
 		return err
@@ -43,16 +45,16 @@ func WebsocketToCore(core *models.Instance, clientService models.ClientManager) 
 	var conn *models.WsClient
 	go func() {
 		for {
-			conn, err = dial(dialer, *coreUrl, authHeader, core, clientService)
+			conn, err = dial(dialer, *coreUrl, authHeader, core, pack.ClientService)
 			if err != nil {
 				log.Error.Printf(
-					"Failed to connect to core server at %s:\n%sTrying again in %s",
+					"Failed to connect to core server at %s: %s Trying again in %s",
 					coreUrl.String(), err, RetryInterval,
 				)
 				time.Sleep(RetryInterval)
 				continue
 			}
-			coreWsHandler(conn)
+			coreWsHandler(conn, pack)
 			log.Warning.Printf("Connection to core websocket closed, reconnecting...")
 		}
 	}()
@@ -73,25 +75,60 @@ func dial(
 
 	client := clientService.RemoteConnect(conn, core)
 
-	err = client.Raw(WsAuthorize{Auth: authHeader.Get("Authorization")})
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
+	// err = client.Raw(WsAuthorize{Auth: authHeader.Get("Authorization")})
+	// if err != nil {
+	// 	return nil, werror.WithStack(err)
+	// }
 
 	log.Debug.Printf("Connection to core server at %s successfully established", host.String())
 	return client, nil
 }
 
-func coreWsHandler(c *models.WsClient) {
+func coreWsHandler(c *models.WsClient, pack *models.ServicePack) {
 	defer func() { c.Disconnect() }()
-	defer func() { recover() }()
 
 	for {
-		mt, message, err := c.ReadOne()
+		_, msgBuf, err := c.ReadOne()
 		if err != nil {
 			log.ShowErr(werror.WithStack(err))
 			break
 		}
-		log.Debug.Println(mt, string(message))
+
+		wsCoreClientSwitchboard(msgBuf, c, pack)
+	}
+}
+
+func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
+	defer wsRecover(c)
+
+	var msg models.WsResponseInfo
+	err := json.Unmarshal(msgBuf, &msg)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	switch msg.EventTag {
+	case "do_backup":
+		core := pack.InstanceService.GetCore()
+		meta := models.BackupMeta{
+			RemoteId:            core.ServerId(),
+			FileService:         pack.FileService,
+			UserService:         pack.UserService,
+			WebsocketService:    pack.ClientService,
+			InstanceService:     pack.InstanceService,
+			TaskService:         pack.TaskService,
+			Caster:              pack.Caster,
+			ProxyFileService:    &proxy.ProxyFileService{Core: core},
+			ProxyJournalService: &proxy.ProxyJournalService{Core: core},
+			ProxyUserService:    proxy.NewProxyUserService(core),
+			ProxyMediaService:   &proxy.ProxyMediaService{Core: core},
+		}
+		_, err = pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+		if err != nil {
+			c.Error(err)
+		}
+	default:
+		log.Error.Printf("Unknown ws message from core: %s", msg.EventTag)
 	}
 }

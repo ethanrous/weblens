@@ -21,6 +21,7 @@ export type ServerInfoT = {
     name: string
     role: string
     coreAddress: string
+    online: boolean
 }
 
 export type mediaType = {

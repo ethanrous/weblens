@@ -8,6 +8,11 @@ on:
         required: false
         default: ""
         type: string
+      do_release_build:
+        description: 'Release'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [ "main" ]
 
@@ -39,7 +44,10 @@ jobs:
       - name: GoGoGadgetDocker
         run: |
           sudo docker login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-          if [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
+          if [ -z "$BUILD_TAG" ] && [ $RELEASE_BUILD == true ]; then
+            echo "ERR BUILD_TAG must be specified when doing release build"
+            exit 1
+          elif [ -z "$BUILD_TAG" ] && [ "$GITHUB_REF" == "refs/heads/main" ]; then
             BUILD_TAG="amethyst-${{ github.run_number }}"
           elif [ -z "$BUILD_TAG" ]; then
             BUILD_TAG="dev-$(git rev-parse --short HEAD)"
@@ -50,7 +58,8 @@ jobs:
           echo "docker.io/ethrous/weblens:$BUILD_TAG-amd64" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           
-          ./scripts/gogogadgetdocker.bash -l -t $BUILD_TAG
+          ./scripts/gogogadgetdocker.bash -l -p -t $BUILD_TAG
           exit $?
         env:
           BUILD_TAG: ${{ inputs.build_tag }}
+          RELEASE_BUILD: ${{ inputs.do_release_build }}

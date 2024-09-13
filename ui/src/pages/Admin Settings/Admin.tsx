@@ -18,6 +18,7 @@ import {
     getApiKeys,
     getRemotes,
     newApiKey,
+    resetServer,
 } from '@weblens/api/ApiFetch'
 import {
     ActivateUser,
@@ -32,8 +33,12 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { TaskProgContext } from '@weblens/types/files/FBTypes'
-import { WeblensFileParams } from '@weblens/types/files/File'
-import { ApiKeyInfo, UserInfoT as UserInfoT } from '@weblens/types/Types'
+import { WeblensFileInfo } from '@weblens/types/files/File'
+import {
+    ApiKeyInfo,
+    ServerInfoT,
+    UserInfoT as UserInfoT,
+} from '@weblens/types/Types'
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { WebsocketContext } from '../../Context'
 import { useFileBrowserStore } from '../FileBrowser/FBStateControl'
@@ -44,10 +49,10 @@ function PathAutocomplete() {
     const [pathSearch, setPathSearch] = useState('')
     const [hoverOffset, setHoverOffset] = useState(0)
     const [bouncedSearch] = useDebouncedValue(pathSearch, 100)
-    const names: DefinedUseQueryResult<
-        { children: WeblensFileParams[]; folder: WeblensFileParams },
-        Error
-    > = useQuery<{ children: WeblensFileParams[]; folder: WeblensFileParams }>({
+    const { data: names } = useQuery<{
+        folder: WeblensFileInfo
+        children: WeblensFileInfo[]
+    }>({
         queryKey: ['pathAutocomplete', bouncedSearch],
         initialData: { children: [], folder: null },
         queryFn: () =>
@@ -68,8 +73,7 @@ function PathAutocomplete() {
 
     useKeyDown('Tab', (e) => {
         e.preventDefault()
-        const tabFile =
-            names.data.children[names.data.children.length - hoverOffset - 1]
+        const tabFile = names.children[names.children.length - hoverOffset - 1]
 
         if (!tabFile) {
             return
@@ -91,9 +95,7 @@ function PathAutocomplete() {
     useKeyDown('ArrowUp', (e) => {
         e.preventDefault()
         e.stopPropagation()
-        setHoverOffset((offset) =>
-            Math.min(offset + 1, names.data.children.length)
-        )
+        setHoverOffset((offset) => Math.min(offset + 1, names.children.length))
     })
 
     useKeyDown('ArrowDown', (e) => {
@@ -104,19 +106,16 @@ function PathAutocomplete() {
 
     const result = useMemo(() => {
         const lastSlash = pathSearch.lastIndexOf('/')
-        if (
-            (lastSlash === -1 || names.data.children.length === 0) &&
-            names.data.folder
-        ) {
-            return names.data.folder
+        if ((lastSlash === -1 || names.children.length === 0) && names.folder) {
+            return names.folder
         }
 
         if (pathSearch.slice(lastSlash + 1) === '') {
-            return names.data.folder
+            return names.folder
         }
 
-        if (names.data.children.length !== 0) {
-            return names.data.children[0]
+        if (names.children.length !== 0) {
+            return names.children[0]
         }
 
         return null
@@ -130,14 +129,14 @@ function PathAutocomplete() {
                 fillWidth
                 openInput={() => setBlockFocus(true)}
                 closeInput={() => setBlockFocus(false)}
-                failed={names.data.folder === null && pathSearch !== ''}
+                failed={names.folder === null && pathSearch !== ''}
                 placeholder={'File Search'}
             />
             <div
                 className="flex flex-col gap-1 absolute -translate-y-[100%] pb-12 pointer-events-none"
                 style={{ paddingLeft: pathSearch.length * 9 }}
             >
-                {names.data.children.map((cn, i) => {
+                {names.children.map((cn, i) => {
                     if (pathSearch.endsWith(cn.filename)) {
                         return null
                     }
@@ -148,7 +147,7 @@ function PathAutocomplete() {
                             style={{
                                 backgroundColor:
                                     i ===
-                                    names.data.children.length - hoverOffset - 1
+                                    names.children.length - hoverOffset - 1
                                         ? '#2549ff'
                                         : '#1c1049',
                             }}
@@ -358,7 +357,7 @@ function UsersBox({
             return a.username.localeCompare(b.username)
         })
 
-        const usersList = allUsersInfo.map((val) => (
+        return allUsersInfo.map((val) => (
             <UserRow
                 key={val.username}
                 rowUser={val}
@@ -366,7 +365,6 @@ function UsersBox({
                 setAllUsersInfo={setAllUsersInfo}
             />
         ))
-        return usersList
     }, [allUsersInfo, setAllUsersInfo])
 
     return (
@@ -383,24 +381,21 @@ function UsersBox({
 export function ApiKeys() {
     const server = useSessionStore((state) => state.server)
 
-    const keys: DefinedUseQueryResult<ApiKeyInfo[], Error> = useQuery<
-        ApiKeyInfo[]
-    >({
+    const keys = useQuery<ApiKeyInfo[]>({
         queryKey: ['apiKeys'],
         initialData: [],
         queryFn: () => getApiKeys(),
         retry: false,
     })
 
-    const [remotes, setRemotes] = useState([])
-    useEffect(() => {
-        getRemotes().then((r) => {
-            if (r >= 400) {
-                return
-            }
-            setRemotes(r.remotes)
-        })
-    }, [])
+    const { data: remotes, refetch: refetchRemotes } = useQuery<ServerInfoT[]>({
+        queryKey: ['remotes'],
+        initialData: [],
+        queryFn: () => getRemotes(),
+        retry: false,
+    })
+
+    console.log(remotes)
 
     return (
         <div className="flex flex-col bg-slate-800 rounded items-center p-1 w-full">
@@ -493,20 +488,14 @@ export function ApiKeys() {
                             <WeblensButton
                                 label="Sync now"
                                 squareSize={40}
-                                onClick={async () => doBackup()}
+                                onClick={async () => doBackup(r.id)}
                             />
                             <WeblensButton
                                 Left={IconTrash}
                                 danger
-                                onClick={() => {
-                                    deleteRemote(r.id).then(() => {
-                                        getRemotes().then((r) => {
-                                            if (r >= 400) {
-                                                return
-                                            }
-                                            setRemotes(r.remotes)
-                                        })
-                                    })
+                                onClick={async () => {
+                                    deleteRemote(r.id)
+                                    refetchRemotes()
                                 }}
                             />
                         </div>
@@ -624,6 +613,13 @@ export function Admin({ open, closeAdminMenu }) {
                     </div>
                     <PathAutocomplete />
                 </div>
+
+                <WeblensButton
+                    label={'Reset Server'}
+                    danger
+                    onClick={() => resetServer()}
+                />
+                <div className="h-10" />
             </div>
         </div>
     )

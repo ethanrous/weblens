@@ -52,7 +52,7 @@ func (mfs *MockFileService) CreateFolder(
 	panic("implement me")
 }
 
-func (mfs *MockFileService) GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+func (mfs *MockFileService) GetUserFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")
 }

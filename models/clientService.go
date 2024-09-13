@@ -13,7 +13,7 @@ type ClientManager interface {
 	RemoteConnect(conn *websocket.Conn, remote *Instance) *WsClient
 	GetSubscribers(st WsAction, key SubId) (clients []*WsClient)
 	GetClientByUsername(username Username) *WsClient
-	GetClientByInstanceId(id InstanceId) *WsClient
+	GetClientByServerId(id InstanceId) *WsClient
 	GetAllClients() []*WsClient
 	GetConnectedAdmins() []*WsClient
 

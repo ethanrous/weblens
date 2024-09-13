@@ -10,7 +10,7 @@ var _ models.Broadcaster = (*MockCaster)(nil)
 
 type MockCaster struct{}
 
-func (m *MockCaster) PushWeblensEvent(eventTag string) {}
+func (m *MockCaster) PushWeblensEvent(eventTag string, content ...models.WsC) {}
 
 func (m *MockCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *models.Media) {}
 

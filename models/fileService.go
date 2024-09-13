@@ -8,7 +8,7 @@ import (
 )
 
 type FileService interface {
-	GetFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
+	GetUserFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error)
 	GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error)
 	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFileImpl, error)
 	GetMediaRoot() *fileTree.WeblensFileImpl

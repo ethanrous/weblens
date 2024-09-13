@@ -125,7 +125,7 @@ func (cm *ClientManager) GetClientByUsername(username models.Username) *models.W
 	return cm.webClientMap[username]
 }
 
-func (cm *ClientManager) GetClientByInstanceId(instanceId models.InstanceId) *models.WsClient {
+func (cm *ClientManager) GetClientByServerId(instanceId models.InstanceId) *models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
 	return cm.remoteClientMap[instanceId]

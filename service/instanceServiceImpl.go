@@ -183,7 +183,7 @@ func (is *InstanceServiceImpl) InitBackup(
 	}
 
 	local.Name = name
-	local.Role = models.BackupServer
+	local.SetRole(models.BackupServer)
 
 	core := models.NewInstance("", "", key, models.CoreServer, false, coreAddr)
 	// NewInstance will generate an Id if one is not given. We want to fill the id from what the core
@@ -206,10 +206,49 @@ func (is *InstanceServiceImpl) InitBackup(
 	newCore.UsingKey = key
 	newCore.Address = coreAddr
 
+	_, err = is.col.InsertOne(context.Background(), local)
+	if err != nil {
+		// Revert name and role if db write fails
+		local.Name = ""
+		local.Role = models.InitServer
+		return werror.WithStack(err)
+	}
+
 	err = is.Add(newCore)
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// ResetAll will clear all known servers, including the local one,
+// and will reset this server to initialization mode.
+func (is *InstanceServiceImpl) ResetAll() error {
+	// Preserve local server id
+	localId := is.GetLocal().ServerId()
+
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
+	_, err := is.col.DeleteMany(context.Background(), bson.M{})
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	is.instanceMap = make(map[models.InstanceId]*models.Instance)
+	is.instanceMapLock.Unlock()
+
+	newLocal := models.NewInstance(localId, "", "", models.InitServer, true, "")
+
+	_, err = is.col.InsertOne(context.Background(), newLocal)
+	if err != nil {
+		return err
+	}
+
+	is.core = nil
+	is.local = newLocal
+
+	is.instanceMap[localId] = newLocal
 
 	return nil
 }

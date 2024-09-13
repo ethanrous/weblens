@@ -26,7 +26,7 @@ func ping(ctx *gin.Context) {
 func attachRemote(ctx *gin.Context) {
 	pack := getServices(ctx)
 	local := pack.InstanceService.GetLocal()
-	if local.ServerRole() == models.BackupServer {
+	if local.GetRole() == models.BackupServer {
 		ctx.JSON(
 			http.StatusBadRequest,
 			gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"},
@@ -53,19 +53,26 @@ func attachRemote(ctx *gin.Context) {
 		return
 	}
 
+	err = pack.AccessService.SetKeyUsedBy(nr.UsingKey, newRemote)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
 	ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
 }
 
 func getFileBytes(ctx *gin.Context) {
 	pack := getServices(ctx)
-	remote := getRemoteFromCtx(ctx)
+	remote := getInstanceFromCtx(ctx)
 	if remote == nil {
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
-	fileId := fileTree.FileId(ctx.Param("fileId"))
-	f, err := pack.FileService.GetFile(fileId)
+	fileId := ctx.Param("fileId")
+	f, err := pack.FileService.GetUserFile(fileId)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
 		return
@@ -82,7 +89,9 @@ func getFileBytes(ctx *gin.Context) {
 		return
 	}
 	if closer, ok := readable.(io.Closer); ok {
-		defer closer.Close()
+		defer func() {
+			log.ErrTrace(closer.Close())
+		}()
 	}
 
 	_, err = io.Copy(ctx.Writer, readable)
@@ -98,7 +107,7 @@ func getFileMeta(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 
-	fileId := fileTree.FileId(ctx.Param("fileId"))
+	fileId := ctx.Param("fileId")
 	f, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
 		ctx.Status(http.StatusNotFound)
@@ -112,8 +121,8 @@ func getFilesMeta(ctx *gin.Context) {
 	pack := getServices(ctx)
 	ids, err := readCtxBody[[]fileTree.FileId](ctx)
 	if err != nil {
-		// safe, code := werror.TrySafeErr(err)
-		// ctx.JSON(code, safe)
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
 		return
 	}
 
@@ -125,6 +134,7 @@ func getFilesMeta(ctx *gin.Context) {
 			return
 		}
 		ctx.JSON(http.StatusOK, files)
+		return
 	}
 
 	var files []*fileTree.WeblensFileImpl
@@ -145,24 +155,24 @@ func getFilesMeta(ctx *gin.Context) {
 
 func getRemotes(ctx *gin.Context) {
 	pack := getServices(ctx)
-	srvs := pack.InstanceService.GetRemotes()
+	remotes := pack.InstanceService.GetRemotes()
 
 	serverInfos := internal.Map(
-		srvs, func(srv *models.Instance) models.ServerInfo {
+		remotes, func(srv *models.Instance) models.ServerInfo {
 			addr, _ := srv.GetAddress()
 			return models.ServerInfo{
 				Id:           srv.ServerId(),
 				Name:         srv.GetName(),
 				UsingKey:     srv.GetUsingKey(),
-				Role:         srv.ServerRole(),
+				Role:   srv.GetRole(),
 				IsThisServer: srv.IsLocal(),
 				Address:      addr,
-				Online:       pack.ClientService.GetClientByInstanceId(srv.ServerId()) != nil,
+				Online: pack.ClientService.GetClientByServerId(srv.ServerId()) != nil,
 			}
 		},
 	)
 
-	ctx.JSON(http.StatusOK, gin.H{"remotes": serverInfos})
+	ctx.JSON(http.StatusOK, serverInfos)
 }
 
 func removeRemote(ctx *gin.Context) {
@@ -172,11 +182,26 @@ func removeRemote(ctx *gin.Context) {
 		return
 	}
 
+	remote := pack.InstanceService.Get(body.RemoteId)
+	if remote == nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
 	err = pack.InstanceService.Del(body.RemoteId)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
 		return
+	}
+
+	if key := remote.GetUsingKey(); key != "" {
+		err = pack.AccessService.SetKeyUsedBy(key, remote)
+		if err != nil {
+			log.ErrTrace(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	ctx.Status(http.StatusOK)

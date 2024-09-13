@@ -1,14 +1,15 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { WeblensFileInfo } from '@weblens/types/files/File'
-import { ApiKeyInfo, UserInfoT } from '@weblens/types/Types'
+import { ApiKeyInfo, ServerInfoT, UserInfoT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
 export async function wrapRequest<T>(rq: Promise<T>): Promise<T> {
     return await rq.catch((e) => {
         if (e === 401) {
+            useSessionStore.getState().setUserInfo({isLoggedIn: false} as UserInfoT)
             useSessionStore.getState().nav('/login')
         }
-        return null
+        return Promise.reject(e)
     })
 }
 
@@ -28,7 +29,15 @@ export async function fetchJson<T>(
         init.body = JSON.stringify(body)
     }
 
-    return wrapRequest(fetch(url, init).then((r) => r.json()))
+    return wrapRequest(
+        fetch(url, init).then((r) => {
+            if (r && r.status < 400) {
+                return r.json()
+            } else {
+                return Promise.reject(r.status)
+            }
+        })
+    )
 }
 
 export function login(
@@ -158,13 +167,14 @@ export async function AutocompleteUsers(
     return (await fetchJson<{ users: UserInfoT[] }>(url.toString())).users
 }
 
-export async function doBackup() {
+export async function doBackup(serverId: string) {
     const url = new URL(`${API_ENDPOINT}/backup`)
-    return wrapRequest(fetch(url))
+    url.searchParams.append('serverId', serverId)
+    return wrapRequest(fetch(url, {method: 'POST'}))
 }
 
-export async function getRemotes() {
-    return fetchJson(`${API_ENDPOINT}/remotes`)
+export async function getRemotes(): Promise<ServerInfoT[]> {
+    return fetchJson<ServerInfoT[]>(`${API_ENDPOINT}/remotes`)
 }
 
 export async function deleteRemote(remoteId: string) {
@@ -198,4 +208,8 @@ export async function searchFilenames(
     const url = new URL(`${API_ENDPOINT}/files/search`)
     url.searchParams.append('search', searchString)
     return fetchJson(url.toString())
+}
+
+export async function resetServer() {
+    return wrapRequest(fetch(`${API_ENDPOINT}/reset`, {method: 'POST'}))
 }

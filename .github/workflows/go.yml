@@ -19,8 +19,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-
-  build-and-test:
+  test-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +51,42 @@ jobs:
         uses: supercharge/mongodb-github-action@1.11.0
         with:
           mongodb-version: '7.0'
+
+      - name: Test (No Remotes)
+        if: ${{ inputs.remote_tests == false }}
+        run: |
+          ./scripts/testWeblens
+          exit $?
+        env:
+          DEV_MODE: ${{ inputs.debug }}
+
+      - name: Test (Remotes)
+        if: ${{ inputs.remote_tests == true }}
+        run: |
+          source ./scripts/setupRemoteTests.bash
+          ./scripts/testWeblens
+          exit $?
+        env:
+          DEV_MODE: ${{ inputs.debug }}
+          REMOTE_TESTS: ${{ inputs.remote_tests }}
+
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: homebrew/actions/setup-homebrew@master
+
+      - name: Install Deps
+        run: |
+          brew update
+          brew install go@1.23 vips exiftool node npm
+      
+          brew tap mongodb/brew
+          brew install mongodb-community
+          brew services start mongodb-community
 
       - name: Test (No Remotes)
         if: ${{ inputs.remote_tests == false }}

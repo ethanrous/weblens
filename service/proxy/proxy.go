@@ -42,7 +42,7 @@ func callHome(remote *models.Instance, method, endpoint string, body any) (*http
 	}
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
-		return nil, werror.Errorf("Failed to call home: %s", resp.Status)
+		return nil, werror.Errorf("Failed to call home to [%s]: %s", remote.Address, resp.Status)
 	}
 
 	return resp, err
@@ -60,9 +60,9 @@ func CallHomeStruct[T any](remote *models.Instance, method, endpoint string, bod
 
 	bs, err := io.ReadAll(r.Body)
 	if err != nil {
-		return target, err
+		return target, werror.WithStack(err)
 	}
 
 	err = json.Unmarshal(bs, &target)
-	return target, err
+	return target, werror.WithStack(err)
 }
