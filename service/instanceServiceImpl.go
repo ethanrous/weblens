@@ -82,7 +82,7 @@ func (is *InstanceServiceImpl) Add(i *models.Instance) error {
 
 	_, err := is.col.InsertOne(context.Background(), i)
 	if err != nil {
-		return err
+		return werror.WithStack(err)
 	}
 
 	// err = is.accessService.SetKeyUsedBy(i.GetUsingKey(), i)

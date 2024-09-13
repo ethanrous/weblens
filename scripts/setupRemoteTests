@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set +e
+
+if [[ "$0" == "$BASH_SOURCE" ]]; then
+    echo "ERR setupRemoteTests must be sourced, not executed. Try:"
+    echo "source ./scripts/setupRemoteTests"
+    exit 1
+fi
+
+if [[ ! -e ./scripts ]]; then
+  echo "ERR Could not find ./scripts directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+  return 1
+fi
+
+printf "Killing other instances of Weblens... "
+pkill weblens &> /dev/null || true
+printf "Done\n"
+
+export APP_ROOT=$PWD
+
+mkdir -p ./build/bin
+rm -f ./build/bin/weblens
+
+printf "Compiling Weblens... "
+if ! go build -v -race -o ./build/bin/weblens ./cmd/weblens/main.go &> ./build/logs/compile-mock-core.log; then
+  printf "\n"
+  echo "###########################################################################################"
+  cat ./build/logs/compile-mock-core.log
+  echo "###################################### ^ Compile Logs ^ ###################################"
+  echo "ERR Returned non-0 exit status, exiting..."
+  return 1
+fi
+printf "Done\n"
+
+mkdir -p ./build/core-test
+mkdir -p ./build/backup-test
+
+printf "Dropping old databases... "
+mongosh --eval "use weblens-mock-core" --eval "db.dropDatabase()" > /dev/null
+#mongosh --eval "use weblens-backup-test" --eval "db.dropDatabase()" > /dev/null
+printf "Done\n"
+
+mkdir -p ./build/logs/
+CONFIG_NAME=MOCK-CORE ./build/bin/weblens &> ./build/logs/core-test-target.log &
+printf "Launched core process\n"
+
+printf "Waiting up to 10s for Weblens startup... "
+counter=0
+while [ "$(curl -s --location 'http://localhost:8089/api/info' 2> /dev/null | jq '.started')" != "true" ]
+do
+  sleep 1
+  ((counter++))
+  if [ "$counter" -ge "10" ]; then
+    printf "\n"
+    echo "###########################################################################################"
+    cat ./build/logs/core-test-target.log
+    echo "###################################### ^ Core Logs ^ ######################################"
+    echo "ERR Failed to connect to weblens core after 10 seconds, exiting..."
+    return 1
+  fi
+done
+printf "Connected\n"
+
+printf "Initializing core server... "
+serverId=$(curl --location 'http://localhost:8089/api/init' \
+--header 'Content-Type: application/json' \
+--data '{
+    "name": "MOCK-CORE",
+    "role": "core",
+    "username": "ethan",
+    "password": "password"
+}' 2> /dev/null | jq -r '.id')
+printf "Done\n"
+
+printf "Logging in new user... "
+token=$(curl --location 'http://localhost:8089/api/login' \
+        --header 'Content-Type: application/json' \
+        --data '{
+            "username": "ethan",
+            "password": "password"
+        }' 2> /dev/null | jq -r '.token')
+printf "Done\n"
+
+printf "Generating API Key... "
+apiKey=$(curl --location --request POST 'http://localhost:8089/api/key' --cookie "weblens-session-token=$token" 2> /dev/null | jq -r '.key."key"')
+
+if [[ "$apiKey" == "" ]]; then
+  print "FAILED\n"
+  echo "ERR Did not get API key from core server, exiting..."
+  return 1
+fi
+printf "Done\n"
+
+export CORE_API_KEY=$apiKey
+export MOCK_CORE_ID=$serverId
+export CORE_ADDRESS="http://localhost:8089/"
+
+echo "CORE_API_KEY: $CORE_API_KEY"
+echo "MOCK_CORE_ID: $MOCK_CORE_ID"
+
+#ENV_FILE=$(pwd)/config/backup-test.env ./build/bin/weblens &

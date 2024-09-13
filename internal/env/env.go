@@ -21,6 +21,7 @@ var configData map[string]map[string]any
 var envLock sync.RWMutex
 
 func ReadConfig(configName string) (map[string]any, error) {
+	log.Trace.Println("Reading config", configName)
 	envLock.Lock()
 	defer envLock.Unlock()
 	if configData != nil {
@@ -76,10 +77,10 @@ func GetAppRootDir() string {
 	}
 
 	appRoot = os.Getenv("APP_ROOT")
+
 	if appRoot == "" {
 		appRoot = "/app"
 	}
-
 
 	return appRoot
 }
@@ -94,17 +95,54 @@ func GetUIPath() string {
 	if ok {
 		return uiPath
 	}
-	// Container default
-	return "/app/ui/dist"
+
+	// Default
+	return filepath.Join(GetAppRootDir(), "ui/dist")
 }
 
-func GetRouterPort() string {
-	port := os.Getenv("SERVER_PORT")
+func GetRouterPort(configName ...string) string {
+	if len(configName) == 0 {
+		configName = append(configName, GetConfigName())
+	}
+	config, err := ReadConfig(configName[0])
+	if err != nil {
+		panic(err)
+	}
+
+	port, _ := config["routerPort"].(string)
+	if port != "" {
+		return port
+	}
+
+	port = os.Getenv("SERVER_PORT")
 	if port == "" {
 		log.Info.Println("SERVER_PORT not provided, falling back to 8080")
 		return "8080"
 	} else {
 		return port
+	}
+}
+
+func GetRouterHost(configName ...string) string {
+	if len(configName) == 0 {
+		configName = append(configName, GetConfigName())
+	}
+	config, err := ReadConfig(configName[0])
+	if err != nil {
+		panic(err)
+	}
+
+	host, _ := config["routerHost"].(string)
+	if host != "" {
+		return host
+	}
+
+	host = os.Getenv("ROUTER_HOST")
+	if host == "" {
+		log.Info.Println("ROUTER_HOST not provided, falling back to localhost")
+		return "localhost"
+	} else {
+		return host
 	}
 }
 
@@ -206,11 +244,15 @@ func GetTmpDir() string {
 	return tmpString
 }
 
-func GetMongoURI() string {
-	config, err := ReadConfig(GetConfigName())
+func GetMongoURI(configName ...string) string {
+	if len(configName) == 0 {
+		configName = append(configName, GetConfigName())
+	}
+	config, err := ReadConfig(configName[0])
 	if err != nil {
 		panic(err)
 	}
+
 	uri, ok := config["mongodbUri"].(string)
 	if ok {
 		return uri
@@ -219,11 +261,15 @@ func GetMongoURI() string {
 	return "mongodb://localhost:27017"
 }
 
-func GetMongoDBName() string {
-	config, err := ReadConfig(GetConfigName())
+func GetMongoDBName(configName ...string) string {
+	if len(configName) == 0 {
+		configName = append(configName, GetConfigName())
+	}
+	config, err := ReadConfig(configName[0])
 	if err != nil {
 		panic(err)
 	}
+
 	name, ok := config["mongodbName"].(string)
 	if ok {
 		return name
@@ -266,7 +312,7 @@ func GetConfigPath() string {
 	if configPath != "" {
 		return configPath
 	}
-	return "/app/config"
+	return filepath.Join(GetAppRootDir(), "config")
 }
 
 func ReadTypesConfig(target any) error {
@@ -294,23 +340,23 @@ func GetCoreApiKey() string {
 	return os.Getenv("CORE_API_KEY")
 }
 
-func GetMediaRoot() string {
+func GetMediaRoot(configName ...string) string {
 	mediaRoot := os.Getenv("MEDIA_ROOT")
 	if mediaRoot != "" {
 		return mediaRoot
 	}
 
-	config, err := ReadConfig(GetConfigName())
+	if len(configName) == 0 {
+		configName = append(configName, GetConfigName())
+	}
+	config, err := ReadConfig(configName[0])
 	if err != nil {
 		panic(err)
 	}
 
 	mediaRoot = config["mediaRoot"].(string)
 	if mediaRoot[0] == '.' {
-		mediaRoot, err = filepath.Abs(mediaRoot)
-		if err != nil {
-			panic(err)
-		}
+		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
 	}
 
 	if mediaRoot == "" {

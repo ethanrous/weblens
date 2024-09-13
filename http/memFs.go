@@ -27,12 +27,6 @@ func (fs *InMemoryFS) loadIndex() string {
 	indexPath := filepath.Join(env.GetUIPath(), "index.html")
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
-		ex, err := os.Executable()
-		if err != nil {
-			panic(err)
-		}
-		abs, _ := filepath.Abs(".")
-		log.Error.Println("PWD", filepath.Dir(ex), abs)
 		panic(werror.Errorf("Could not find index file at %s", indexPath))
 	}
 

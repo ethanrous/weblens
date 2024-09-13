@@ -15,6 +15,9 @@ func callHome(remote *models.Instance, method, endpoint string, body any) (*http
 	if remote.UsingKey == "" {
 		return nil, werror.Errorf("Trying to dial core without api key")
 	}
+	if len(endpoint) == 0 {
+		return nil, werror.Errorf("Trying to dial core without endpoint")
+	}
 
 	buf := &bytes.Buffer{}
 	if body != nil {
@@ -42,7 +45,7 @@ func callHome(remote *models.Instance, method, endpoint string, body any) (*http
 	}
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
-		return nil, werror.Errorf("Failed to call home to [%s]: %s", remote.Address, resp.Status)
+		return nil, werror.Errorf("Failed to call home to [%s]: %s", reqUrl, resp.Status)
 	}
 
 	return resp, err

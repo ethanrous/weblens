@@ -8,21 +8,54 @@
         "mediaRoot": "/media/users",
         "cachesRoot": "/media/cache"
     },
+    "TRACE": {
+        "logLevel": "trace"
+    },
+    "MOCK-CORE": {
+        "mongodbName": "weblens-mock-core",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "trace",
+        "detachUi": true,
+        "routerHost": "127.0.0.1",
+        "routerPort": "8089",
+        "mediaRoot": "./build/fs/mock-core/media",
+        "cachesRoot": "./build/fs/mock-core/caches"
+    },
     "TEST": {
         "mongodbName": "weblens-test",
         "mongodbUri": "mongodb://localhost:27017",
         "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
-        "routerPort": "8085",
+        "routerPort": "8090",
         "mediaRoot": "./build/fs/test/media",
         "cachesRoot": "./build/fs/test/caches",
         "testMediaPath": "./images/testMedia"
     },
+    "TEST-CORE": {
+        "mongodbName": "weblens-core-test",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "debug",
+        "detachUi": true,
+        "routerHost": "127.0.0.1",
+        "routerPort": "8091",
+        "mediaRoot": "./build/fs/test-core/media",
+        "cachesRoot": "./build/fs/test-core/caches"
+    },
+    "TEST-BACKUP": {
+        "mongodbName": "weblens-backup-test",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "debug",
+        "detachUi": true,
+        "routerHost": "127.0.0.1",
+        "routerPort": "8092",
+        "mediaRoot": "./build/fs/test-backup/media",
+        "cachesRoot": "./build/fs/test-backup/caches"
+    },
     "DEBUG-CORE": {
         "mongodbName": "weblens-core",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
+        "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
@@ -32,7 +65,7 @@
     "DEBUG-BACKUP": {
         "mongodbName": "weblens-backup",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
+        "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8081",

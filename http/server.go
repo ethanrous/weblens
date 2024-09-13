@@ -49,18 +49,20 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 
 func (s *Server) Start() {
 	for {
-		log.Debug.Println("Starting server")
-
-		go s.StartupFunc()
+		if s.services.StartupChan == nil {
+			return
+		}
 
 		s.router.GET("/ping", ping)
 		s.router.GET("/api/info", getServerInfo)
-
 		s.router.GET("/api/ws", WeblensAuth(false, false, s.services), wsConnect)
 
 		if !env.DetachUi() {
 			s.UseUi()
 		}
+
+		go s.StartupFunc()
+		<-s.services.StartupChan
 
 		s.routerLock.Lock()
 		s.stdServer = &http.Server{
@@ -83,7 +85,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) UseInit() {
-	log.Info.Println("Adding initialization routes")
+	log.Debug.Println("Adding initialization routes")
 
 	init := s.router.Group("/api/init")
 
@@ -93,7 +95,7 @@ func (s *Server) UseInit() {
 }
 
 func (s *Server) UseApi() {
-	log.Debug.Println("Using api routes")
+	log.Trace.Println("Using api routes")
 
 	api := s.router.Group("/api")
 	api.Use(WeblensAuth(false, false, s.services))
@@ -231,7 +233,7 @@ func (s *Server) UseCore() {
 }
 
 func (s *Server) UseAdmin() {
-	log.Debug.Println("Using admin routes")
+	log.Trace.Println("Using admin routes")
 
 	admin := s.router.Group("/api")
 	admin.Use(WeblensAuth(true, false, s.services))
@@ -294,17 +296,17 @@ func (s *Server) UseUi() {
 }
 
 func (s *Server) Restart() {
-	s.services.Caster.PushWeblensEvent("going_down")
+	s.services.StartupChan = make(chan bool)
+	s.Stop()
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (s *Server) Stop() {
+	log.Warning.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
+	s.services.Caster.PushWeblensEvent(models.ServerGoingDownEvent)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := s.stdServer.Shutdown(ctx)
-	if err != nil {
-		log.ErrTrace(err)
-	}
-
-	select {
-	case <-ctx.Done():
-		log.Error.Println("timeout of 5 seconds.")
-	}
+	log.ErrTrace(err)
+	log.ErrTrace(ctx.Err())
 }

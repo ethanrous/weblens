@@ -41,14 +41,11 @@ type ClientManager struct {
 	taskMu       sync.Mutex
 	taskTypeMu   sync.Mutex
 
-	fileService     *FileServiceImpl
-	taskService     task.TaskService
-	instanceService models.InstanceService
+	pack *models.ServicePack
 }
 
 func NewClientManager(
-	fileService *FileServiceImpl, taskService task.TaskService,
-	instanceService models.InstanceService,
+	pack *models.ServicePack,
 ) *ClientManager {
 	cm := &ClientManager{
 		webClientMap:    map[models.Username]*models.WsClient{},
@@ -59,16 +56,10 @@ func NewClientManager(
 		taskSubs:     map[models.SubId][]*models.WsClient{},
 		taskTypeSubs: map[models.SubId][]*models.WsClient{},
 
-		fileService:     fileService,
-		taskService:     taskService,
-		instanceService: instanceService,
+		pack: pack,
 	}
 
 	return cm
-}
-
-func (cm *ClientManager) SetFileService(fileService *FileServiceImpl) {
-	cm.fileService = fileService
 }
 
 func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *models.User) *models.WsClient {
@@ -134,7 +125,7 @@ func (cm *ClientManager) GetClientByServerId(instanceId models.InstanceId) *mode
 func (cm *ClientManager) GetAllClients() []*models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
-	return internal.MapToValues(cm.webClientMap)
+	return append(internal.MapToValues(cm.webClientMap), internal.MapToValues(cm.remoteClientMap)...)
 }
 
 func (cm *ClientManager) GetConnectedAdmins() []*models.WsClient {
@@ -220,7 +211,7 @@ func (cm *ClientManager) Subscribe(
 				fileShare = fsh
 			}
 
-			folder, err = cm.fileService.GetFileSafe(fileId, c.GetUser(), fileShare)
+			folder, err = cm.pack.FileService.GetFileSafe(fileId, c.GetUser(), fileShare)
 			if err != nil {
 				c.Error(err)
 				return
@@ -229,7 +220,7 @@ func (cm *ClientManager) Subscribe(
 			sub = models.Subscription{Type: models.FolderSubscribe, Key: key, When: subTime}
 			c.PushFileUpdate(folder, nil)
 
-			for _, t := range cm.fileService.GetTasks(folder) {
+			for _, t := range cm.pack.FileService.GetTasks(folder) {
 				c.SubUnlock()
 				_, _, err = cm.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
 				c.SubLock()
@@ -240,7 +231,7 @@ func (cm *ClientManager) Subscribe(
 		}
 	case models.TaskSubscribe:
 		{
-			t := cm.taskService.GetTask(key)
+			t := cm.pack.TaskService.GetTask(key)
 			if t == nil {
 				err = werror.Errorf("could not find task with ID %s", key)
 				c.Error(err)
@@ -266,7 +257,7 @@ func (cm *ClientManager) Subscribe(
 		}
 	case models.PoolSubscribe:
 		{
-			pool := cm.taskService.GetTaskPool(key)
+			pool := cm.pack.TaskService.GetTaskPool(key)
 			if pool == nil {
 				c.Error(errors.New(fmt.Sprintf("Could not find pool with id %s", key)))
 				return
@@ -424,7 +415,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 
 	var clients []*models.WsClient
 
-	if msg.BroadcastType == models.ServerEvent || cm.fileService == nil {
+	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)

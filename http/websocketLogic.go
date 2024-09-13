@@ -268,6 +268,11 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 		return
 	}
 
+	if msg.EventTag == models.ServerGoingDownEvent {
+		c.Disconnect()
+		return
+	}
+
 	pack.Caster.Relay(msg)
 }
 

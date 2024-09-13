@@ -17,35 +17,18 @@ import (
 	"github.com/ethrousseau/weblens/task"
 )
 
-func BackupD(
-	interval time.Duration, instanceService models.InstanceService, taskService task.TaskService,
-	fileService models.FileService, userService models.UserService, websocketService models.ClientManager,
-	caster models.Broadcaster,
-) {
-	if instanceService.GetLocal().GetRole() != models.BackupServer {
+func BackupD(interval time.Duration, pack *models.ServicePack) {
+	if pack.InstanceService.GetLocal().GetRole() != models.BackupServer {
 		log.Error.Println("Backup service cannot be run on non-backup instance")
 		return
 	}
 	for {
-		for _, remote := range instanceService.GetRemotes() {
+		for _, remote := range pack.InstanceService.GetRemotes() {
 			if remote.IsLocal() {
 				continue
 			}
 
-			meta := models.BackupMeta{
-				RemoteId:            remote.ServerId(),
-				FileService:         fileService,
-				UserService:         userService,
-				WebsocketService:    websocketService,
-				InstanceService:     instanceService,
-				TaskService:         taskService,
-				Caster:              caster,
-				ProxyFileService:    &proxy.ProxyFileService{Core: remote},
-				ProxyJournalService: &proxy.ProxyJournalService{Core: remote},
-				ProxyUserService:    proxy.NewProxyUserService(remote),
-				ProxyMediaService:   &proxy.ProxyMediaService{Core: remote},
-			}
-			_, err := taskService.DispatchJob(models.BackupTask, meta, nil)
+			_, err := BackupOne(remote, pack)
 			if err != nil {
 				log.ErrTrace(err)
 			}
@@ -58,10 +41,27 @@ func BackupD(
 	}
 }
 
+func BackupOne(remote *models.Instance, pack *models.ServicePack) (*task.Task, error) {
+	meta := models.BackupMeta{
+		RemoteId:            remote.ServerId(),
+		FileService:         pack.FileService,
+		UserService:         pack.UserService,
+		WebsocketService:    pack.ClientService,
+		InstanceService:     pack.InstanceService,
+		TaskService:         pack.TaskService,
+		Caster:              pack.Caster,
+		ProxyFileService:    &proxy.ProxyFileService{Core: remote},
+		ProxyJournalService: &proxy.ProxyJournalService{Core: remote},
+		ProxyUserService:    proxy.NewProxyUserService(remote),
+		ProxyMediaService:   &proxy.ProxyMediaService{Core: remote},
+	}
+	return pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+}
+
 func DoBackup(t *task.Task) {
 	meta := t.GetMeta().(models.BackupMeta)
-	localRole := meta.InstanceService.GetLocal().GetRole()
 
+	localRole := meta.InstanceService.GetLocal().GetRole()
 	if localRole == models.InitServer {
 		t.ErrorAndExit(werror.ErrServerNotInitialized)
 	} else if localRole != models.BackupServer {

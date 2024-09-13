@@ -63,7 +63,7 @@ jobs:
       - name: Test (Remotes)
         if: ${{ inputs.remote_tests == true }}
         run: |
-          source ./scripts/setupRemoteTests.bash
+          source ./scripts/setupRemoteTests
           ./scripts/testWeblens
           exit $?
         env:
@@ -99,7 +99,7 @@ jobs:
       - name: Test (Remotes)
         if: ${{ inputs.remote_tests == true }}
         run: |
-          source ./scripts/setupRemoteTests.bash
+          source ./scripts/setupRemoteTests
           ./scripts/testWeblens
           exit $?
         env:

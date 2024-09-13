@@ -14,4 +14,11 @@ if [[ ! -e ./ui/dist/index.html ]]; then
   cd ..
 fi
 
+if [[ "$REMOTE_TESTS" == "true" ]]; then
+  if ! source ./scripts/setupRemoteTests; then
+    echo "ERR Failed to setup remote tests, not running tests"
+    exit 1
+  fi
+fi
+
 APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v ./...
