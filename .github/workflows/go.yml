@@ -11,7 +11,7 @@ on:
       remote_tests:
         description: 'Run tests with remote servers'
         required: true
-        default: false
+        default: true
         type: boolean
   push:
     branches: [ "main" ]
@@ -63,7 +63,6 @@ jobs:
       - name: Test (Remotes)
         if: ${{ inputs.remote_tests == true }}
         run: |
-          source ./scripts/setupRemoteTests
           ./scripts/testWeblens
           exit $?
         env:
@@ -99,7 +98,6 @@ jobs:
       - name: Test (Remotes)
         if: ${{ inputs.remote_tests == true }}
         run: |
-          source ./scripts/setupRemoteTests
           ./scripts/testWeblens
           exit $?
         env:
