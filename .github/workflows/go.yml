@@ -9,7 +9,7 @@ on:
         default: false
         type: boolean
       skip_remote_tests:
-        description: 'Don't run tests with remote servers'
+        description: "Don't run tests with remote servers"
         required: true
         default: false
         type: boolean
