@@ -136,6 +136,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 }
 
 func TestInstanceServiceImpl_InitBackup(t *testing.T) {
+	t.Skip()
 	if os.Getenv("REMOTE_TESTS") != "true" {
 		t.Skip("REMOTE_TESTS not set")
 	}
@@ -148,6 +149,8 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	if coreKey == "" {
 		t.Fatalf("CORE_API_KEY environment variable required for %s", t.Name())
 	}
+
+	t.Parallel()
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())

@@ -151,7 +151,7 @@ type InstanceService interface {
 	ResetAll() error
 }
 
-type WeblensApiKey string
+type WeblensApiKey = string
 type ApiKeyInfo struct {
 	Id          primitive.ObjectID `bson:"_id" json:"id"`
 	Key         WeblensApiKey      `bson:"key" json:"key"`

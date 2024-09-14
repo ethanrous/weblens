@@ -20,6 +20,7 @@ import (
 	"github.com/ethrousseau/weblens/service/proxy"
 	"github.com/ethrousseau/weblens/task"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var server *Server
@@ -50,89 +51,56 @@ func main() {
 	// }
 	gin.SetMode(gin.ReleaseMode)
 
-	server = NewServer(config["routerHost"].(string), config["routerPort"].(string), services)
+	configName := env.GetConfigName()
+
+	server = NewServer(config["routerHost"].(string), env.GetRouterPort(configName), services)
 	server.StartupFunc = func() {
-		startup(config, services, server)
+		startup(env.GetConfigName(), services, server)
 	}
 	services.StartupChan = make(chan bool)
 	server.Start()
 }
 
-func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
+func startup(configName string, pack *models.ServicePack, srv *Server) {
 	defer mainRecovery("WEBLENS STARTUP FAILED")
 
 	log.Trace.Println("Beginning service setup")
 
 	sw := internal.NewStopwatch("Initialization")
 
+
 	/* Database connection */
-	db, err := database.ConnectToMongo(config["mongodbUri"].(string), config["mongodbName"].(string))
+	db, err := database.ConnectToMongo(env.GetMongoURI(configName), env.GetMongoDBName(configName))
 	if err != nil {
 		panic(err)
 	}
 	sw.Lap("Connect to Mongo")
 
-	/* Instance Service */
-	instanceService, err := service.NewInstanceService(db.Collection("servers"))
-	if err != nil {
-		panic(err)
-	}
-	pack.InstanceService = instanceService
-	localServer := instanceService.GetLocal()
+	setupInstanceService(pack, db)
 	sw.Lap("Init instance service")
 
-	/* User Service */
-	var userService models.UserService
-	if instanceService.GetLocal().GetRole() == models.BackupServer {
-		userService = proxy.NewProxyUserService(instanceService.GetCore())
-	} else {
-		userService, err = service.NewUserService(db.Collection("users"))
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	pack.UserService = userService
+	setupUserService(pack, db)
 	sw.Lap("Init user service")
 
-	/* Enable the worker pool held by the task tracker
-	loading the filesystem might dispatch tasks,
-	so we have to start the pool first */
-	workerPool := task.NewWorkerPool(env.GetWorkerCount(), env.GetLogLevel())
-
-	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
-	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
-	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
-	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
-	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
-	workerPool.RegisterJob(models.BackupTask, jobs.DoBackup)
-	workerPool.RegisterJob(models.HashFileTask, jobs.HashFile)
-	workerPool.RegisterJob(models.CopyFileFromCoreTask, jobs.CopyFileFromCore)
-
-	pack.TaskService = workerPool
-	workerPool.Run()
+	setupTaskService(pack)
 	sw.Lap("Worker pool enabled")
 
 	/* Client Manager */
-	clientService := service.NewClientManager(nil, workerPool, instanceService)
-	pack.ClientService = clientService
+	pack.ClientService = service.NewClientManager(pack)
 	sw.Lap("Init client service")
 
-	/* Basic global caster */
-	caster := models.NewSimpleCaster(clientService)
-	pack.Caster = caster
+	/* Basic global pack.Caster */
+	pack.Caster = models.NewSimpleCaster(pack.ClientService)
 
-	log.Debug.Printf("Local server is %s", localServer.GetRole())
-
-	if localServer.GetRole() == models.InitServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
 		srv.UseInit()
 	} else {
 		srv.UseApi()
 	}
 
 	/* If server is backup server, connect to core server and launch backup daemon */
-	if localServer.GetRole() == models.BackupServer {
-		core := instanceService.GetCore()
+	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+		core := pack.InstanceService.GetCore()
 		if core == nil {
 			panic(werror.Errorf("Could not find core instance"))
 		}
@@ -148,11 +116,11 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 			panic(err)
 		}
 
-		if coreAddr == "" || instanceService.GetCore().GetUsingKey() == "" {
+		if coreAddr == "" || pack.InstanceService.GetCore().GetUsingKey() == "" {
 			panic(werror.Errorf("could not get core address or key"))
 		}
 
-	} else if localServer.GetRole() == models.CoreServer {
+	} else if pack.InstanceService.GetLocal().GetRole() == models.CoreServer {
 		srv.UseCore()
 	}
 
@@ -170,8 +138,8 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	/* Journal Service */
 	mediaJournal, err := fileTree.NewJournal(
-		db.Collection("fileHistory"), instanceService.GetLocal().ServerId(),
-		instanceService.GetLocal().GetRole() == models.BackupServer,
+		db.Collection("fileHistory"), pack.InstanceService.GetLocal().ServerId(),
+		pack.InstanceService.GetLocal().GetRole() == models.BackupServer,
 	)
 	if err != nil {
 		panic(err)
@@ -179,7 +147,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init journal service")
 
 	/* Access Service */
-	accessService, err := service.NewAccessService(userService, db.Collection("apiKeys"))
+	accessService, err := service.NewAccessService(pack.UserService, db.Collection("apiKeys"))
 	if err != nil {
 		panic(err)
 	}
@@ -187,7 +155,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init access service")
 
 	/* Hasher */
-	hasher := models.NewHasher(workerPool, caster)
+	hasher := models.NewHasher(pack.TaskService, pack.Caster)
 
 	pack.AddStartupTask("file_services", "File Services")
 	/* FileTree Service */
@@ -208,7 +176,7 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init file trees")
 
 	fileService, err := service.NewFileService(
-		mediaFileTree, cachesTree, userService, accessService, nil,
+		mediaFileTree, cachesTree, pack.UserService, accessService, nil,
 		db.Collection("trash"),
 	)
 	if err != nil {
@@ -219,10 +187,10 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 		panic(err)
 	}
 
-	if instanceService.GetLocal().GetRole() == models.CoreServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.CoreServer {
 		event := fileService.GetMediaJournal().NewEvent()
 
-		users, err := userService.GetAll()
+		users, err := pack.UserService.GetAll()
 		if err != nil {
 			panic(err)
 		}
@@ -232,13 +200,13 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 				continue
 			}
 
-			home, err := fileService.CreateFolder(fileService.GetMediaRoot(), u.GetUsername(), caster)
+			home, err := fileService.CreateFolder(fileService.GetMediaRoot(), u.GetUsername(), pack.Caster)
 			if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 				panic(err)
 			}
 			u.SetHomeFolder(home)
 
-			trash, err := fileService.CreateFolder(home, ".user_trash", caster)
+			trash, err := fileService.CreateFolder(home, ".user_trash", pack.Caster)
 			if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 				panic(err)
 			}
@@ -270,7 +238,6 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init media service")
 
 	fileService.SetMediaService(mediaService)
-	clientService.SetFileService(fileService)
 	pack.FileService = fileService
 
 	/* Album Service */
@@ -284,9 +251,9 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 
 	mediaService.AlbumService = albumService
 
-	if instanceService.GetLocal().GetRole() == models.BackupServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
 		pack.AddStartupTask("core_connect", "Waiting for Core connection")
-		for clientService.GetClientByServerId(instanceService.GetCore().ServerId()) == nil {
+		for pack.ClientService.GetClientByServerId(pack.InstanceService.GetCore().ServerId()) == nil {
 			time.Sleep(1 * time.Second)
 		}
 		err = pack.RemoveStartupTask("core_connect")
@@ -294,20 +261,22 @@ func startup(config map[string]any, pack *models.ServicePack, srv *Server) {
 			panic(err)
 		}
 
-		go jobs.BackupD(time.Hour, instanceService, workerPool, fileService, userService, clientService, caster)
+		go jobs.BackupD(time.Hour, pack)
 	}
 
 	sw.Stop()
 	sw.PrintResults(false)
 	log.Info.Printf(
 		"Weblens loaded in %s. %d files, %d medias, and %d users\n", sw.GetTotalTime(false), fileService.Size(),
-		mediaService.Size(), userService.Size(),
+		mediaService.Size(), pack.UserService.Size(),
 	)
 
-	log.Trace.Println("Service setup complete")
 	pack.Loaded.Store(true)
 	close(pack.StartupChan)
-	caster.PushWeblensEvent("weblens_loaded")
+	pack.StartupChan = nil
+
+	log.Trace.Println("Service setup complete")
+	pack.Caster.PushWeblensEvent("weblens_loaded")
 }
 
 func mainRecovery(msg string) {
@@ -317,4 +286,49 @@ func mainRecovery(msg string) {
 		log.ErrorCatcher.Println(msg)
 		os.Exit(1)
 	}
+}
+
+func setupInstanceService(pack *models.ServicePack, db *mongo.Database) {
+	instanceService, err := service.NewInstanceService(db.Collection("servers"))
+	if err != nil {
+		panic(err)
+	}
+	pack.InstanceService = instanceService
+
+	// Let router know it can start. Instance server is required for the most basic routes,
+	// so we can start the router only after that's set.
+	pack.StartupChan <- true
+
+	log.Debug.Printf("Local server role is %s", pack.InstanceService.GetLocal().GetRole())
+}
+
+func setupUserService(pack *models.ServicePack, db *mongo.Database) {
+	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+		pack.UserService = proxy.NewProxyUserService(pack.InstanceService.GetCore())
+	} else {
+		userService, err := service.NewUserService(db.Collection("users"))
+		if err != nil {
+			panic(err)
+		}
+		pack.UserService = userService
+	}
+}
+
+func setupTaskService(pack *models.ServicePack) {
+	/* Enable the worker pool held by the task tracker
+	loading the filesystem might dispatch tasks,
+	so we have to start the pool first */
+	workerPool := task.NewWorkerPool(env.GetWorkerCount(), env.GetLogLevel())
+
+	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
+	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)
+	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
+	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
+	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
+	workerPool.RegisterJob(models.BackupTask, jobs.DoBackup)
+	workerPool.RegisterJob(models.HashFileTask, jobs.HashFile)
+	workerPool.RegisterJob(models.CopyFileFromCoreTask, jobs.CopyFileFromCore)
+
+	pack.TaskService = workerPool
+	workerPool.Run()
 }

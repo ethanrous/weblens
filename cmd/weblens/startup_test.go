@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"math/rand"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,10 +10,11 @@ import (
 	"github.com/ethrousseau/weblens/http"
 	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethrousseau/weblens/jobs"
+	"github.com/ethrousseau/weblens/service/proxy"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStartupCore(t *testing.T) {
@@ -24,45 +22,46 @@ func TestStartupCore(t *testing.T) {
 		t.Skipf("skipping %s in short mode", t.Name())
 	}
 
-	prevPort := env.GetRouterPort()
-	defer os.Setenv("SERVER_PORT", prevPort)
-
-	port := strconv.Itoa(8090 + (rand.Int() % 1000))
-	t.Setenv("SERVER_PORT", port)
-
-	config, err := env.ReadConfig(env.GetConfigName())
-
-	err = setServerState(models.CoreServer)
-	if err != nil {
-		log.ErrTrace(err)
-		t.FailNow()
-	}
-
 	gin.SetMode(gin.ReleaseMode)
-	start := time.Now()
-	server = http.NewServer(config["routerHost"].(string), config["routerPort"].(string), services)
-	server.StartupFunc = func() {
-		startup(config, services, server)
-	}
 
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), t.Name())
-	if err != nil {
-		log.ErrTrace(err)
-		t.FailNow()
-	}
+	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-CORE"), env.GetMongoDBName("TEST-CORE"))
+	require.NoError(t, err)
 	err = mondb.Drop(context.Background())
-	if err != nil {
-		log.ErrTrace(err)
-		t.FailNow()
+	require.NoError(t, err)
+
+	start := time.Now()
+	server = http.NewServer(env.GetRouterHost("TEST-CORE"), env.GetRouterPort("TEST-CORE"), services)
+	server.StartupFunc = func() {
+		startup("TEST-CORE", services, server)
 	}
 
 	services.StartupChan = make(chan bool)
-
 	go server.Start()
-	<-services.StartupChan
 
-	log.Debug.Println("Startup took", time.Since(start))
+	log.Trace.Println("Waiting for core startup...")
+
+StartupWaitLoop:
+	for {
+		select {
+		case _, ok := <-services.StartupChan:
+			if ok {
+				services.StartupChan <- true
+			} else {
+				break StartupWaitLoop
+			}
+		case <-time.After(time.Second * 10):
+			t.Fatal("Core server setup timeout")
+		}
+	}
+
+	log.Trace.Println("Core startup took", time.Since(start))
 	assert.True(t, services.Loaded.Load())
+
+	err = services.InstanceService.InitCore("TEST-CORE")
+	log.ErrTrace(err)
+	require.NoError(t, err)
+
+	services.Server.Stop()
 }
 
 func TestStartupBackup(t *testing.T) {
@@ -74,75 +73,81 @@ func TestStartupBackup(t *testing.T) {
 		t.Skipf("skipping %s without REMOTE_TESTS set", t.Name())
 	}
 
-	prevPort := os.Getenv("SERVER_PORT")
-	defer os.Setenv("SERVER_PORT", prevPort)
+	gin.SetMode(gin.ReleaseMode)
 
-	port := strconv.Itoa(8090 + (rand.Int() % 1000))
-	t.Setenv("SERVER_PORT", port)
+	coreAddress := os.Getenv("CORE_ADDRESS")
+	require.NotEmpty(t, coreAddress)
 
-	err := setServerState(models.BackupServer)
-	if err != nil {
+	coreApiKey := env.GetCoreApiKey()
+	require.NotEmpty(t, coreApiKey)
+
+	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-BACKUP"), env.GetMongoDBName("TEST-BACKUP"))
+	require.NoError(t, err)
+	err = mondb.Drop(context.Background())
+	require.NoError(t, err)
+
+	start := time.Now()
+	server = http.NewServer(env.GetRouterHost("TEST-BACKUP"), env.GetRouterPort("TEST-BACKUP"), services)
+	server.StartupFunc = func() {
+		startup("TEST-BACKUP", services, server)
+	}
+	services.StartupChan = make(chan bool)
+	go server.Start()
+
+	log.Warning.Println("Waiting for backup startup...")
+
+StartupWaitLoop:
+	for {
+		select {
+		case _, ok := <-services.StartupChan:
+			if ok {
+				services.StartupChan <- true
+			} else {
+				break StartupWaitLoop
+			}
+		case <-time.After(time.Second * 10):
+			t.Fatal("Backup server setup timeout")
+		}
+	}
+
+	log.Warning.Println("Backup startup complete")
+
+	log.Trace.Println("Startup took", time.Since(start))
+	require.True(t, services.Loaded.Load())
+
+	err = services.InstanceService.InitBackup("TEST-BACKUP", coreAddress, coreApiKey)
+	log.ErrTrace(err)
+	require.NoError(t, err)
+
+	err = http.WebsocketToCore(services.InstanceService.GetCore(), services)
+	log.ErrTrace(err)
+
+	core := services.InstanceService.GetCore()
+	services.UserService = proxy.NewProxyUserService(core)
+
+	coreClient := services.ClientService.GetClientByServerId(core.ServerId())
+	retries := 0
+	for coreClient == nil && retries < 5 {
+		retries++
+		time.Sleep(time.Millisecond * 500)
+
+		coreClient = services.ClientService.GetClientByServerId(core.ServerId())
+	}
+	require.NotNil(t, coreClient)
+	assert.True(t, coreClient.Active.Load())
+
+	tsk, err := jobs.BackupOne(core, services)
+	log.ErrTrace(err)
+
+	tsk.Wait()
+	complete, _ := tsk.Status()
+	require.True(t, complete)
+
+	tskErr := tsk.ReadError()
+	if err, ok := tskErr.(error); err != nil || (!ok && tskErr != nil) {
 		log.ErrTrace(err)
 		t.FailNow()
 	}
 
-	go main()
-	start := time.Now()
-	for {
-		if services != nil && services.Loaded.Load() &&
-			services.ClientService.GetClientByServerId("TEST_REMOTE") != nil {
-			break
-		}
-
-		if time.Since(start) > time.Second*10 {
-			t.Fatal("Backup server setup timeout")
-		}
-
-		time.Sleep(250 * time.Millisecond)
-	}
-
-	coreClient := services.ClientService.GetClientByServerId("TEST_REMOTE")
-	if !assert.NotNil(t, coreClient) {
-		t.FailNow()
-	}
-
-	assert.True(t, coreClient.Active.Load())
-}
-
-func setServerState(role models.ServerRole) error {
-	mongoName := env.GetMongoDBName()
-	if !strings.Contains(mongoName, "test") {
-		panic(werror.Errorf("MongoDB name (%s) does not include \"test\" during test", mongoName))
-	}
-
-	mondb, err := database.ConnectToMongo(env.GetMongoURI(), mongoName)
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	servers := mondb.Collection("servers")
-	err = servers.Drop(context.Background())
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	thisServer := models.NewInstance("TEST_LOCAL", "test", "", role, true, "")
-	_, err = servers.InsertOne(context.Background(), thisServer)
-	if err != nil {
-		return werror.WithStack(err)
-	}
-
-	if role == models.BackupServer {
-		remoteCore := models.NewInstance(
-			"TEST_REMOTE", "test remote", models.WeblensApiKey(
-				env.GetCoreApiKey(),
-			), models.CoreServer, false, "http://localhost:8089",
-		)
-		_, err = servers.InsertOne(context.Background(), remoteCore)
-		if err != nil {
-			return werror.WithStack(err)
-		}
-	}
-
-	return nil
+	services.Server.Stop()
 }

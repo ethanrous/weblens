@@ -8,8 +8,8 @@ on:
         required: true
         default: false
         type: boolean
-      remote_tests:
-        description: 'Run tests with remote servers'
+      skip_remote_tests:
+        description: "Don't run tests with remote servers"
         required: true
         default: false
         type: boolean
@@ -32,7 +32,7 @@ jobs:
       - name: Install Deps
         run: |
           echo "remote tests: $REMOTE_TESTS"
-          if [ $REMOTE_TESTS ]; then
+          if [[ "$REMOTE_TESTS" == "true" ]]; then
             wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
             echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
             sudo apt-get update
@@ -45,30 +45,21 @@ jobs:
           nodejs \
           npm
         env:
-          REMOTE_TESTS: ${{ inputs.remote_tests }}
+          REMOTE_TESTS: ${{ inputs.skip_remote_tests == false }}
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0
         with:
           mongodb-version: '7.0'
 
-      - name: Test (No Remotes)
-        if: ${{ inputs.remote_tests == false }}
+      - name: Run Tests
         run: |
+          echo "Including remote tests: $REMOTE_TESTS"
           ./scripts/testWeblens
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
-
-      - name: Test (Remotes)
-        if: ${{ inputs.remote_tests == true }}
-        run: |
-          source ./scripts/setupRemoteTests.bash
-          ./scripts/testWeblens
-          exit $?
-        env:
-          DEV_MODE: ${{ inputs.debug }}
-          REMOTE_TESTS: ${{ inputs.remote_tests }}
+          REMOTE_TESTS: ${{ inputs.skip_remote_tests == false }}
 
   test-macos:
     runs-on: macos-latest
@@ -88,20 +79,11 @@ jobs:
           brew install mongodb-community
           brew services start mongodb-community
 
-      - name: Test (No Remotes)
-        if: ${{ inputs.remote_tests == false }}
+      - name: Run Tests
         run: |
+          echo "Including remote tests: $REMOTE_TESTS"
           ./scripts/testWeblens
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
-
-      - name: Test (Remotes)
-        if: ${{ inputs.remote_tests == true }}
-        run: |
-          source ./scripts/setupRemoteTests.bash
-          ./scripts/testWeblens
-          exit $?
-        env:
-          DEV_MODE: ${{ inputs.debug }}
-          REMOTE_TESTS: ${{ inputs.remote_tests }}
+          REMOTE_TESTS: ${{ inputs.skip_remote_tests == false }}

@@ -633,4 +633,5 @@ const (
 	ScanCompleteEvent    = "scan_complete"
 	ZipProgressEvent     = "create_zip_progress"
 	ZipCompleteEvent     = "zip_complete"
+	ServerGoingDownEvent = "going_down"
 )

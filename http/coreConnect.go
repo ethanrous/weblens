@@ -80,7 +80,7 @@ func dial(
 	// 	return nil, werror.WithStack(err)
 	// }
 
-	log.Debug.Printf("Connection to core server at %s successfully established", host.String())
+	log.Debug.Printf("Connection to core [%s] at [%s] successfully established", core.GetName(), host.String())
 	return client, nil
 }
 
@@ -129,6 +129,6 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			c.Error(err)
 		}
 	default:
-		log.Error.Printf("Unknown ws message from core: %s", msg.EventTag)
+		log.Error.Printf("Unknown ws event from %s: %s", c.GetRemote().GetName(), msg.EventTag)
 	}
 }

@@ -904,20 +904,9 @@ func initializeServer(ctx *gin.Context) {
 
 		core := pack.InstanceService.GetCore()
 		pack.UserService = proxy.NewProxyUserService(core)
-		meta := models.BackupMeta{
-			RemoteId:            core.ServerId(),
-			FileService:         pack.FileService,
-			UserService:         pack.UserService,
-			WebsocketService:    pack.ClientService,
-			InstanceService:     pack.InstanceService,
-			TaskService:         pack.TaskService,
-			Caster:              pack.Caster,
-			ProxyFileService:    &proxy.ProxyFileService{Core: core},
-			ProxyJournalService: &proxy.ProxyJournalService{Core: core},
-			ProxyUserService:    proxy.NewProxyUserService(core),
-			ProxyMediaService:   &proxy.ProxyMediaService{Core: core},
-		}
-		t, err := pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+
+		var t *task.Task
+		t, err = jobs.BackupOne(core, pack)
 		if err != nil {
 			log.ErrTrace(err)
 		}
@@ -925,18 +914,14 @@ func initializeServer(ctx *gin.Context) {
 			func(result task.TaskResult) {
 				pack.Loaded.Store(true)
 				pack.Caster.PushWeblensEvent("weblens_loaded")
-				go jobs.BackupD(
-					time.Hour, pack.InstanceService, pack.TaskService, pack.FileService, pack.UserService,
-					pack.ClientService,
-					pack.Caster,
-				)
+				go jobs.BackupD(time.Hour, pack)
 			},
 		)
 	}
 
 	pack.Server.UseApi()
 
-	ctx.Status(http.StatusCreated)
+	ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
 }
 
 func getServerInfo(ctx *gin.Context) {
@@ -945,13 +930,17 @@ func getServerInfo(ctx *gin.Context) {
 	// 	ctx.JSON(comm.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 	// 	return
 	// }
+	var userCount int
+	if pack.UserService != nil {
+		userCount = pack.UserService.Size()
+	}
 
 	ctx.JSON(
 		http.StatusOK,
 		gin.H{
 			"info":      pack.InstanceService.GetLocal(),
 			"started":   pack.Loaded.Load(),
-			"userCount": pack.UserService.Size(),
+			"userCount": userCount,
 		},
 	)
 }

@@ -79,4 +79,5 @@ type Server interface {
 	UseCore()
 	UseApi()
 	Restart()
+	Stop()
 }

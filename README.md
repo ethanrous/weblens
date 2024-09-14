@@ -137,6 +137,8 @@ This will build the frontend and backend, and run the backend tests. If you are 
 
 If they don't, there is likely a configuration issue. Please re-read the instructions and ensure the environment is set up as described, and if there is still an issue, please be descriptive in asking for help on the [issues page](https://github.com/ethanrous/weblens/issues)
 
+⚠️ **Note** that scripts must be run from the repo root, you cannot be in the scripts directory or anywhere else
+
 ### Debugging
 
 Building and running the server can be done with the following in the shell
@@ -145,11 +147,11 @@ Building and running the server can be done with the following in the shell
 ```
 This should start your Weblens server running at `localhost:8080`. To change the host, port or other config options such as log level, see `./config/config.json` and edit the `DEBUG-CORE` config section, or create your own section.
 
-In an IDE, you will need to choose the entry point for the compiler to `./cmd/weblens/main.go`. You will also need to set the following environment variables (make sure to replace `{{ WEBLENS_REPO }}` with the full path to this repo):
+In an IDE, you will need to choose the entry point for the compiler to `./cmd/weblens/main.go`. You will also need to set the following environment variables (replace `{{ WEBLENS_REPO }}` with the absolute path to this repo, i.e. `$(pwd)`):
 
 ```
 CONFIG_NAME=DEBUG-CORE
-CONFIG_PATH={{ WEBLENS_REPO }}/config
+APP_ROOT={{ WEBLENS_REPO }} 
 ```
 
 ### WebUI

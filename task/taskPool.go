@@ -186,7 +186,7 @@ func (tp *TaskPool) Wait(supplementWorker bool) {
 	}
 
 	_, file, line, _ := runtime.Caller(1)
-	log.Debug.Printf("Parking on worker pool from %s:%d\n", file, line)
+	log.Trace.Printf("Parking on worker pool from %s:%d\n", file, line)
 
 	if !tp.allQueuedFlag.Load() {
 		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
@@ -198,7 +198,7 @@ func (tp *TaskPool) Wait(supplementWorker bool) {
 	tp.waiterGate.Unlock()
 	tp.waiterCount.Add(-1)
 
-	log.Debug.Printf("Woke up, returning to %s:%d\n", file, line)
+	log.Trace.Printf("Woke up, returning to %s:%d\n", file, line)
 
 	if supplementWorker {
 		tp.workerPool.busyCount.Add(1)

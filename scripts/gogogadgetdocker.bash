@@ -5,10 +5,16 @@ if [[ ! -e ./scripts ]]; then
   exit 1
 fi
 
+# Build go binary locally, on host OS, rather than in a container
 local=false
+
+# Once the container is build, push it to docker hub
 push=false
 
-while getopts ":t:a:lp" opt; do
+# Skip testing
+skip=false
+
+while getopts ":t:a:lps" opt; do
   case $opt in
     t) docker_tag="$OPTARG"
     ;;
@@ -17,6 +23,8 @@ while getopts ":t:a:lp" opt; do
     l) local=true
     ;;
     p) push=true
+    ;;
+    s) skip=true
     ;;
     \?) echo "Invalid option -$OPTARG" >&2
     exit 1
@@ -43,16 +51,19 @@ fi
 
 echo "Using tag: $docker_tag-$arch"
 
-printf "Running tests..."
-./scripts/testWeblens > /dev/null
+if [ ! $skip == true ]; then
+  printf "Running tests..."
+  ./scripts/testWeblens > /dev/null
 
-if [ $? != 0 ]; then
-  printf " FAILED\n"
-  echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
-  exit 1
-else
-  printf " PASS\n"
+  if [ $? != 0 ]; then
+    printf " FAILED\n"
+    echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
+    exit 1
+  else
+    printf " PASS\n"
+  fi
 fi
+
 
 if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2> /dev/null)" ]; then
     echo "No weblens-go-build image found, attempting to build now..."
