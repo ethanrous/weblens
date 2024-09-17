@@ -17,7 +17,7 @@ export default ({ mode }) => {
         (!process.env.VITE_PROXY_HOST || !process.env.VITE_PROXY_PORT) &&
         process.env.VITE_BUILD !== 'true'
     ) {
-        process.env.VITE_PROXY_HOST = 'localhost'
+        process.env.VITE_PROXY_HOST = '127.0.0.1'
         process.env.VITE_PROXY_PORT = '8080'
         console.warn(
             `VITE_PROXY_HOST or VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`

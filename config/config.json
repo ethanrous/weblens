@@ -5,8 +5,8 @@
         "logLevel": "",
         "routerHost": "0.0.0.0",
         "routerPort": "8080",
-        "mediaRoot": "/media/users",
-        "cachesRoot": "/media/cache"
+        "dataRoot": "/data",
+        "cachesRoot": "/cache"
     },
     "TRACE": {
         "logLevel": "trace"
@@ -14,11 +14,11 @@
     "MOCK-CORE": {
         "mongodbName": "weblens-mock-core",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
+        "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8089",
-        "mediaRoot": "./build/fs/mock-core/media",
+        "dataRoot": "./build/fs/mock-core/data",
         "cachesRoot": "./build/fs/mock-core/caches"
     },
     "TEST": {
@@ -28,7 +28,7 @@
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8090",
-        "mediaRoot": "./build/fs/test/media",
+        "dataRoot": "./build/fs/test/data",
         "cachesRoot": "./build/fs/test/caches",
         "testMediaPath": "./images/testMedia"
     },
@@ -39,7 +39,7 @@
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8091",
-        "mediaRoot": "./build/fs/test-core/media",
+        "dataRoot": "./build/fs/test-core/data",
         "cachesRoot": "./build/fs/test-core/caches"
     },
     "TEST-BACKUP": {
@@ -49,7 +49,7 @@
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8092",
-        "mediaRoot": "./build/fs/test-backup/media",
+        "dataRoot": "./build/fs/test-backup/data",
         "cachesRoot": "./build/fs/test-backup/caches"
     },
     "DEBUG-CORE": {
@@ -59,7 +59,7 @@
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
-        "mediaRoot": "./build/fs/core/media",
+        "dataRoot": "./build/fs/core/data",
         "cachesRoot": "./build/fs/core/caches"
     },
     "DEBUG-BACKUP": {
@@ -69,7 +69,7 @@
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8081",
-        "mediaRoot": "./build/fs/backup/media",
+        "dataRoot": "./build/fs/backup/data",
         "cachesRoot": "./build/fs/backup/caches"
     }
 }

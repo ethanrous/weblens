@@ -82,9 +82,6 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
-	if err != nil {
-		log.ErrTrace(err)
-	}
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
@@ -171,7 +168,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
-			log.ErrTrace(err)
+			return werror.WithStack(err)
 		}
 	} else {
 		return werror.Errorf("trying to send to closed client")

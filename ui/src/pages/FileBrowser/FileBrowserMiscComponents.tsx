@@ -424,7 +424,7 @@ const EmptyIcon = ({ folderId, usr }) => {
 export const GetStartedCard = () => {
     const user = useSessionStore((state) => state.user)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
+    const viewingPast = useFileBrowserStore((state) => state.pastTime)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
@@ -451,7 +451,7 @@ export const GetStartedCard = () => {
                                     files,
                                     folderInfo.Id(),
                                     false,
-                                    '',
+                                    ''
                                 )
                             }}
                             accept="file"
@@ -534,11 +534,15 @@ export function PathFmt({ pathName }: { pathName: string }) {
         parts.shift()
         StartIcon = IconTrash
     } else {
+        parts.shift()
         StartIcon = IconHome
     }
 
     return (
-        <div className="flex items-center min-w-0">
+        <div
+            className="flex items-center min-w-0"
+            style={{ flexShrink: parts.length ? 1 : 0 }}
+        >
             <StartIcon className="text-white shrink-0" />
             {parts.map((part) => {
                 return (
@@ -561,13 +565,19 @@ export function PathFmt({ pathName }: { pathName: string }) {
 }
 
 export function FileFmt({ pathName }: { pathName: string }) {
+    if (!pathName) {
+        return null
+    }
+
+    console.log('PathName:', pathName)
+
     pathName = pathName.slice(pathName.indexOf(':') + 1)
     const parts = pathName.split('/')
     parts.shift()
 
     let StartIcon
     let nameText
-    if (parts.length === 1 && parts[0] === '') {
+    if (parts.length == 0 || (parts.length === 1 && parts[0] === '')) {
         StartIcon = IconHome
         nameText = 'Home'
     } else if (
@@ -588,7 +598,10 @@ export function FileFmt({ pathName }: { pathName: string }) {
     }
 
     return (
-        <div className="flex items-center w-max min-w-0">
+        <div
+            className="flex items-center w-max min-w-0"
+            style={{ flexShrink: parts.length ? 1 : 0 }}
+        >
             <StartIcon className="text-white m-1 shrink-0" />
             <p className="select-none text-white font-semibold text-lg text-nowrap truncate">
                 {nameText}

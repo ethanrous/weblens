@@ -335,7 +335,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
             <div className="flex flex-row w-full max-w-full h-max items-center">
                 <div className="flex flex-col w-full">
                     <div className="flex flex-row justify-between items-center w-full h-max">
-                        <p className="text-sm select-none text-nowrap truncaate">
+                        <p className="select-none text-nowrap truncaate">
                             {prog.FormatTaskName()}
                         </p>
                         <WeblensButton

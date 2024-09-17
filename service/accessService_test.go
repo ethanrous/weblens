@@ -42,7 +42,7 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make file tree
-	ft := mock.NewMemFileTree("MEDIA")
+	ft := mock.NewMemFileTree("USERS")
 	// Make bills home in tree
 	billHome, err := ft.MkDir(ft.GetRoot(), string(billUser.Username), nil)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	log.SetLogLevel(GetLogLevel())
+	//log.SetLogLevel(GetLogLevel("TEST"))
 }
 
 var configData map[string]map[string]any
@@ -77,6 +77,7 @@ func GetAppRootDir() string {
 	}
 
 	appRoot = os.Getenv("APP_ROOT")
+	log.Debug.Printf("APP_ROOT: %s", appRoot)
 
 	if appRoot == "" {
 		appRoot = "/app"
@@ -146,10 +147,10 @@ func GetRouterHost(configName ...string) string {
 	}
 }
 
-func GetLogLevel() int {
+func GetLogLevel(configName string) int {
 	level := os.Getenv("LOG_LEVEL")
 	if level == "" {
-		config, err := ReadConfig(GetConfigName())
+		config, err := ReadConfig(configName)
 		if err != nil {
 			panic(err)
 		}
@@ -204,7 +205,7 @@ func GetCachesRoot() string {
 				}
 				return cachesRoot
 			}
-			cachesRoot = "/media/cache"
+			cachesRoot = "/cache"
 			log.Warning.Println("Did not find CACHES_PATH, assuming docker default of", cachesRoot)
 		}
 	}
@@ -340,10 +341,10 @@ func GetCoreApiKey() string {
 	return os.Getenv("CORE_API_KEY")
 }
 
-func GetMediaRoot(configName ...string) string {
-	mediaRoot := os.Getenv("MEDIA_ROOT")
-	if mediaRoot != "" {
-		return mediaRoot
+func GetDataRoot(configName ...string) string {
+	dataRoot := os.Getenv("DATA_ROOT")
+	if dataRoot != "" {
+		return dataRoot
 	}
 
 	if len(configName) == 0 {
@@ -354,15 +355,15 @@ func GetMediaRoot(configName ...string) string {
 		panic(err)
 	}
 
-	mediaRoot = config["mediaRoot"].(string)
-	if mediaRoot[0] == '.' {
-		mediaRoot = filepath.Join(GetAppRootDir(), mediaRoot)
+	dataRoot = config["dataRoot"].(string)
+	if dataRoot[0] == '.' {
+		dataRoot = filepath.Join(GetAppRootDir(), dataRoot)
 	}
 
-	if mediaRoot == "" {
+	if dataRoot == "" {
 		// Container default
-		mediaRoot = "/media/users"
+		dataRoot = "/data"
 	}
 
-	return mediaRoot
+	return dataRoot
 }

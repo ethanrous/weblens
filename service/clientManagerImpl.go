@@ -288,7 +288,7 @@ func (cm *ClientManager) Subscribe(
 		}
 	}
 
-	log.Trace.Printf("[%s] subscribed to [%s]", c.GetUser().GetUsername(), key)
+	log.Trace.Printf("U[%s] subscribed to [%s]", c.GetUser().GetUsername(), key)
 
 	c.AddSubscription(sub)
 	cm.addSubscription(sub, c)
@@ -353,7 +353,10 @@ func (cm *ClientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.I
 	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
 
 	for _, s := range subs {
-		log.Trace.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), folderId, poolId)
+		log.Trace.Printf(
+			"Subscribing U[%s] to P[%s] due to F[%s]", s.GetUser().GetUsername(),
+			poolId, folderId,
+		)
 		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
@@ -439,8 +442,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 			}
 		}
 	} else {
-		// Although debug is our "verbose" mode, this one is *really* annoying, so it's disabled unless needed.
-		// util.Debug.Println("No subscribers to", msg.SubscribeKey)
+		log.Trace.Println("No subscribers to", msg.SubscribeKey)
 		return
 	}
 }

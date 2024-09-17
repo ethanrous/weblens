@@ -2,6 +2,7 @@ package models
 
 import (
 	"io"
+	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/task"
@@ -14,8 +15,8 @@ type FileService interface {
 	GetMediaRoot() *fileTree.WeblensFileImpl
 	PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error)
 
-	CreateFile(parent *fileTree.WeblensFileImpl, filename string) (*fileTree.WeblensFileImpl, error)
-	CreateFolder(parent *fileTree.WeblensFileImpl, foldername string, caster FileCaster) (
+	CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (*fileTree.WeblensFileImpl, error)
+	CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, caster FileCaster) (
 		*fileTree.WeblensFileImpl, error,
 	)
 	ImportFile(f *fileTree.WeblensFileImpl) error
@@ -27,7 +28,8 @@ type FileService interface {
 	RenameFile(file *fileTree.WeblensFileImpl, newName string, caster FileCaster) error
 	MoveFilesToTrash(file []*fileTree.WeblensFileImpl, mover *User, share *FileShare, caster FileCaster) error
 	ReturnFilesFromTrash(files []*fileTree.WeblensFileImpl, caster FileCaster) error
-	PermanentlyDeleteFiles(files []*fileTree.WeblensFileImpl, caster FileCaster) error
+	DeleteFiles(files []*fileTree.WeblensFileImpl, caster FileCaster) error
+	RestoreFiles(ids []fileTree.FileId, newParent *fileTree.WeblensFileImpl, restoreTime time.Time, caster FileCaster) error
 
 	ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser, error)
 
@@ -39,7 +41,7 @@ type FileService interface {
 	RemoveTask(f *fileTree.WeblensFileImpl, t *task.Task) error
 	GetTasks(f *fileTree.WeblensFileImpl) []*task.Task
 
-	GetMediaJournal() fileTree.Journal
+	GetUsersJournal() fileTree.Journal
 
 	ResizeDown(file *fileTree.WeblensFileImpl, caster FileCaster) error
 	ResizeUp(file *fileTree.WeblensFileImpl, caster FileCaster) error

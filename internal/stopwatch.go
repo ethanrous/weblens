@@ -5,7 +5,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/env"
 	"github.com/ethrousseau/weblens/internal/log"
 )
 
@@ -65,7 +64,7 @@ func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
 }
 
 func (s *sw) PrintResults(firstLapIsStart bool) {
-	if env.GetLogLevel() < 2 {
+	if log.GetLogLevel() < 2 {
 		return
 	}
 

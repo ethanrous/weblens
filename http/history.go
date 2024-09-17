@@ -13,7 +13,7 @@ import (
 func getLifetimesSince(ctx *gin.Context) {
 	pack := getServices(ctx)
 	log.Debug.Println(ctx.Params)
-	millisString := ctx.Param("timestamp")
+	millisString := ctx.Query("timestamp")
 	if millisString == "" {
 		log.Error.Println("No timestamp given trying to get lifetimes since date")
 		ctx.Status(http.StatusBadRequest)
@@ -29,7 +29,7 @@ func getLifetimesSince(ctx *gin.Context) {
 
 	date := time.UnixMilli(millis)
 
-	lifetimes, err := pack.FileService.GetMediaJournal().GetLifetimesSince(date)
+	lifetimes, err := pack.FileService.GetUsersJournal().GetLifetimesSince(date)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -41,6 +41,6 @@ func getLifetimesSince(ctx *gin.Context) {
 
 func getHistory(ctx *gin.Context) {
 	pack := getServices(ctx)
-	lts := pack.FileService.GetMediaJournal().GetAllLifetimes()
+	lts := pack.FileService.GetUsersJournal().GetAllLifetimes()
 	ctx.JSON(http.StatusOK, lts)
 }

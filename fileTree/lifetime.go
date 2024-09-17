@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/ethrousseau/weblens/internal"
+	"github.com/ethrousseau/weblens/internal/log"
 	"github.com/ethrousseau/weblens/internal/werror"
 )
 
@@ -19,15 +20,17 @@ type Lifetime struct {
 }
 
 func NewLifetime(createAction *FileAction) (*Lifetime, error) {
-	if createAction.GetActionType() != FileCreate {
-		return nil, werror.Errorf("First Lifetime action must be of type FileCreate")
+	actionType := createAction.GetActionType()
+	if actionType != FileCreate && actionType != FileRestore {
+		return nil, werror.Errorf("First Lifetime action must be of type FileCreate or FileRestore")
 	}
 
 	if createAction.file == nil {
 		return nil, werror.Errorf("Could not find file to create lifetime with")
 	}
 
-	if !createAction.file.IsDir() && createAction.file.GetContentId() == "" {
+	if !createAction.file.IsDir() && createAction.file.GetContentId() == "" && createAction.file.Size() != 0 {
+		log.Error.Printf("No content file: %s", createAction.OriginPath)
 		return nil, werror.Errorf("cannot create regular file lifetime without content id")
 	}
 
@@ -64,6 +67,16 @@ func (l *Lifetime) GetLatestFilePath() string {
 
 func (l *Lifetime) GetLatestAction() *FileAction {
 	return l.Actions[len(l.Actions)-1]
+}
+
+func (l *Lifetime) GetLatestSize() int64 {
+	for _, a := range l.Actions {
+		if a.Size != 0 {
+			return a.Size
+		}
+	}
+
+	return 0
 }
 
 func (l *Lifetime) GetContentId() string {

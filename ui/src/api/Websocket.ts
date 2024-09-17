@@ -82,6 +82,9 @@ export const useSubscribe = (
     )
 
     useEffect(() => {
+        if (useFileBrowserStore.getState().pastTime) {
+            return
+        }
         if (
             readyState === 1 &&
             cId !== null &&
@@ -99,6 +102,9 @@ export const useSubscribe = (
 
     // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
     useEffect(() => {
+        if (useFileBrowserStore.getState().pastTime) {
+            return
+        }
         if (usr === null || readyState !== 1) {
             return
         }
@@ -383,6 +389,11 @@ function filebrowserWebsocketHandler(
             case 'going_down': {
                 useWebsocketStore.getState().setReadyState(-1)
                 setTimeout(() => location.reload(), 5000)
+                return
+            }
+
+            case 'weblens_loaded': {
+                // NoOp if we are already loaded
                 return
             }
 

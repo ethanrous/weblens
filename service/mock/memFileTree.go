@@ -14,8 +14,13 @@ type MemFileTree struct {
 	root      *fileTree.WeblensFileImpl
 }
 
+func (ft *MemFileTree) ReplaceId(oldId, newId fileTree.FileId) error {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (ft *MemFileTree) AbsToPortable(absPath string) (fileTree.WeblensFilepath, error) {
-	
+
 	panic("implement me")
 }
 
@@ -73,22 +78,27 @@ func (ft *MemFileTree) Add(file *fileTree.WeblensFileImpl) error {
 	return nil
 }
 
-func (ft *MemFileTree) Del(id fileTree.FileId, deleteEvent *fileTree.FileEvent) ([]*fileTree.WeblensFileImpl, error) {
-	
+func (ft *MemFileTree) Remove(id fileTree.FileId) ([]*fileTree.WeblensFileImpl, error) {
+
+	panic("implement me")
+}
+
+func (ft *MemFileTree) Delete(id fileTree.FileId, event *fileTree.FileEvent) error {
+	// TODO implement me
 	panic("implement me")
 }
 
 func (ft *MemFileTree) Move(
 	f, newParent *fileTree.WeblensFileImpl, newFilename string, overwrite bool, event *fileTree.FileEvent,
 ) ([]fileTree.MoveInfo, error) {
-	
+
 	panic("implement me")
 }
 
 func (ft *MemFileTree) Touch(
 	parentFolder *fileTree.WeblensFileImpl, newFileName string, event *fileTree.FileEvent,
 ) (*fileTree.WeblensFileImpl, error) {
-	
+
 	panic("implement me")
 }
 
@@ -104,8 +114,12 @@ func (ft *MemFileTree) MkDir(
 	return newDir, nil
 }
 
+func (ft *MemFileTree) SetRootAlias(alias string) error {
+	panic("implement me")
+}
+
 func (ft *MemFileTree) PortableToAbs(portable fileTree.WeblensFilepath) (string, error) {
-	
+
 	panic("implement me")
 }
 

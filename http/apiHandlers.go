@@ -86,39 +86,37 @@ func handleNewFile(uploadTaskId task.Id, newFInfo newFileBody, ctx *gin.Context)
 	child, _ := parent.GetChild(newFInfo.NewFileName)
 	if child != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": "File with the same name already exists in folder"})
-	}
-
-	newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
+	var newFId fileTree.FileId
 	err = uTask.Manipulate(
 		func(meta task.TaskMetadata) error {
-			meta.(models.UploadFilesMeta).ChunkStream <- models.FileChunk{
-				NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
+			uploadMeta := meta.(models.UploadFilesMeta)
+
+			newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName, uploadMeta.UploadEvent)
+			if err != nil {
+				return err
 			}
 
-			// TODO
-			// We don't queue the upload task right away, we wait for the first file,
-			// then we add the task to the queue here
-			// if t.queueState == task.PreQueued {
-			// 	t.Q(t.taskPool)
-			// }
+			newFId = newF.ID()
+
+			uploadMeta.ChunkStream <- models.FileChunk{
+				NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
+			}
 
 			return nil
 		},
 	)
 
 	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		safe, code := werror.TrySafeErr(err)
+
+		ctx.JSON(code, gin.H{"error": safe})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"fileId": newF.ID()})
+	ctx.JSON(http.StatusCreated, gin.H{"fileId": newFId})
 }
 
 // Add chunks of file to previously created task
@@ -336,7 +334,7 @@ func downloadFile(ctx *gin.Context) {
 		return
 	}
 
-	ctx.File(file.GetAbsPath())
+	ctx.File(file.AbsPath())
 }
 
 func downloadTakeout(ctx *gin.Context) {
@@ -360,7 +358,7 @@ func downloadTakeout(ctx *gin.Context) {
 		return
 	}
 
-	ctx.File(file.GetAbsPath())
+	ctx.File(file.AbsPath())
 }
 
 func loginUser(ctx *gin.Context) {

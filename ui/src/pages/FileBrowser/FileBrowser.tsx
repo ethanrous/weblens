@@ -17,11 +17,8 @@ import {
 } from '@tabler/icons-react'
 import {
     CreateFolder,
-    GetFileInfo,
     GetFolderData,
-    getPastFolderInfo,
     moveFiles,
-    searchFolder,
 } from '@weblens/api/FileBrowserApi'
 import { useSubscribe } from '@weblens/api/Websocket'
 import HeaderBar from '@weblens/components/HeaderBar'
@@ -52,7 +49,7 @@ import WeblensMedia, {
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { getFileShare } from '@weblens/types/share/shareQuery'
 import { humanFileSize } from '@weblens/util'
-import React, {
+import {
     memo,
     ReactElement,
     useCallback,
@@ -60,7 +57,12 @@ import React, {
     useReducer,
     useState,
 } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import {
+    useLocation,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 
 // Weblens
@@ -101,6 +103,14 @@ import {
 import UploadStatus from './UploadStatus'
 import './style/fileBrowserStyle.scss'
 import '@weblens/components/style.scss'
+
+export type FolderInfo = {
+    self?: WeblensFileParams
+    children?: WeblensFileParams[]
+    parents?: WeblensFileParams[]
+    medias?: MediaDataT[]
+    error?: string
+}
 
 function PasteImageDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -187,7 +197,6 @@ function GlobalActions() {
 
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
 
     useEffect(() => {
         if (windowSize.width < SIDEBAR_BREAKPOINT && resizeOffset >= 300) {
@@ -222,7 +231,6 @@ function GlobalActions() {
                 moveFiles(selectedIds, user.homeId)
                 setDragging(DraggingStateT.NoDrag)
             } else {
-                setPastTime(null)
                 nav('/files/home')
             }
         },
@@ -633,8 +641,11 @@ function DirViewHeader({ moveSelected, searchQuery }) {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const filesCount = useFileBrowserStore((state) => state.filesList.length)
-    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
+    const viewingPast = useFileBrowserStore((state) => state.pastTime)
+    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+
     const [viewingFolder, setViewingFolder] = useState<boolean>(false)
+    const [hoverTime, setHoverTime] = useState<boolean>(false)
 
     useEffect(() => {
         if (!folderInfo) {
@@ -678,9 +689,34 @@ function DirViewHeader({ moveSelected, searchQuery }) {
                 {viewingFolder && <FileSortBox />}
             </div>
             {viewingPast && (
-                <div className="past-time-box">
-                    <IconClock />
-                    <p className="crumb-text ml-2 text-[#c4c4c4] text-xl">
+                <div
+                    className="past-time-box"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setHoverTime(false)
+                        setPastTime(null)
+                    }}
+                    onMouseOver={(e) => {
+                        e.stopPropagation()
+                        setHoverTime(true)
+                    }}
+                    onMouseLeave={(e) => {
+                        e.stopPropagation()
+                        setHoverTime(false)
+                    }}
+                >
+                    <p
+                        className="crumb-text absolute pointer-events-none ml-2 text-[#c4c4c4] text-xl"
+                        style={{ opacity: hoverTime ? 1 : 0 }}
+                    >
+                        Back to present?
+                    </p>
+                    {hoverTime && <IconArrowLeft />}
+                    {!hoverTime && <IconClock />}
+                    <p
+                        className="crumb-text ml-2 text-[#c4c4c4] text-xl"
+                        style={{ opacity: hoverTime ? 0 : 1 }}
+                    >
                         {historyDate(viewingPast.getTime())}
                     </p>
                 </div>
@@ -695,7 +731,7 @@ function DirView({
     searchQuery,
 }: {
     notFound: boolean
-    setNotFound: (boolean) => void
+    setNotFound: (notFound: boolean) => void
     searchQuery: string
     searchFilter: string
 }) {
@@ -841,10 +877,7 @@ function useSearch() {
 const FileBrowser = () => {
     const urlPath = useParams()['*']
     const query = useSearch()
-    const searchQuery = query('query')
-    const searchFilter = query('filter')
     const user = useSessionStore((state) => state.user)
-
     const nav = useNavigate()
 
     const [notFound, setNotFound] = useState(false)
@@ -852,7 +885,6 @@ const FileBrowser = () => {
     const {
         viewOpts,
         blockFocus,
-        viewingPast,
         loading,
         filesMap,
         presentingId,
@@ -862,17 +894,18 @@ const FileBrowser = () => {
         removeLoading,
         setLocationState,
         clearFiles,
-        setSearch,
         setScrollTarget,
         setSelected,
         setFilesData,
         setBlockFocus,
     } = useFileBrowserStore()
+
     const fbLocationContext = useFileBrowserStore(
         useShallow((state) => ({
             mode: state.fbMode,
             contentId: state.contentId,
             shareId: state.shareId,
+            pastTime: state.pastTime,
         }))
     )
 
@@ -887,6 +920,15 @@ const FileBrowser = () => {
     useEffect(() => {
         localStorage.setItem('fbViewOpts', JSON.stringify(viewOpts))
     }, [viewOpts])
+
+    // useEffect(() => {
+    //     if (viewingPast) {
+    //         const timestamp = viewingPast.getTime()
+    //         setSearchParams(`at=${timestamp.toString()}`)
+    //     } else {
+    //         setSearchParams()
+    //     }
+    // }, [viewingPast?.getTime()])
 
     useEffect(() => {
         if (!user) {
@@ -927,17 +969,23 @@ const FileBrowser = () => {
             contentId = splitPath[0]
         }
 
+        const timestamp = query('at')
+        let pastTime: Date
+        if (timestamp) {
+            pastTime = new Date(Number(timestamp))
+        }
+
         if (mode === FbModeT.share && shareId && !contentId) {
             getFileShare(shareId).then((s) => {
                 nav(`/files/share/${shareId}/${s.fileId}`)
             })
         } else {
             getRealId(contentId, mode, user).then((contentId) => {
-                setLocationState(contentId, mode, shareId)
+                setLocationState(contentId, mode, shareId, pastTime)
                 removeLoading('files')
             })
         }
-    }, [urlPath, user])
+    }, [urlPath, user, query('at')])
 
     const { wsSend, readyState } = useSubscribe(
         fbLocationContext.contentId,
@@ -953,16 +1001,16 @@ const FileBrowser = () => {
 
     // Reset most of the state when we change folders
     const syncState = useCallback(async () => {
+        console.log('Starting syncState', fbLocationContext.contentId)
+        clearFiles()
+        setNotFound(false)
+
         if (!urlPath) {
             nav('/files/home', { replace: true })
         }
 
         if (urlPath === user?.homeId) {
-            let redirect = '/files/home'
-            const jumpItem = query('jumpTo')
-            if (jumpItem) {
-                redirect += `?jumpTo=${jumpItem}`
-            }
+            const redirect = '/files/home' + window.location.search
             nav(redirect, { replace: true })
         }
 
@@ -971,59 +1019,20 @@ const FileBrowser = () => {
             return
         }
 
-        setNotFound(false)
-        clearFiles()
+        console.log('Continuing syncState', fbLocationContext.contentId)
 
-        if (fbLocationContext.mode === FbModeT.search) {
-            const folderData = await GetFileInfo(
-                fbLocationContext.contentId,
-                fbLocationContext.shareId
-            )
-
-            if (!folderData) {
-                console.error('No folder data')
-                return
+        const fileData = await GetFolderData(
+            fbLocationContext.contentId,
+            fbLocationContext.mode,
+            fbLocationContext.shareId,
+            fbLocationContext.pastTime
+        ).catch((r) => {
+            if (r === 400 || r === 404) {
+                setNotFound(true)
+            } else {
+                console.error(r)
             }
-
-            const searchResults = await searchFolder(
-                fbLocationContext.contentId,
-                searchQuery,
-                searchFilter
-            )
-
-            setSearch(searchQuery)
-            setFilesData(folderData, searchResults, [], [], user)
-            removeLoading('files')
-            return
-        }
-
-        setSearch('')
-
-        let fileData: {
-            self?: WeblensFileParams
-            children?: WeblensFileParams[]
-            parents?: WeblensFileParams[]
-            medias?: MediaDataT[]
-            error?: string
-        }
-        if (viewingPast !== null) {
-            fileData = await getPastFolderInfo(
-                fbLocationContext.contentId,
-                viewingPast
-            )
-        } else {
-            fileData = await GetFolderData(
-                fbLocationContext.contentId,
-                fbLocationContext.mode,
-                fbLocationContext.shareId
-            ).catch((r) => {
-                if (r === 400 || r === 404) {
-                    setNotFound(true)
-                } else {
-                    console.error(r)
-                }
-            })
-        }
+        })
 
         if (fileData) {
             setFilesData(
@@ -1045,8 +1054,7 @@ const FileBrowser = () => {
         fbLocationContext.contentId,
         fbLocationContext.shareId,
         fbLocationContext.mode,
-        searchQuery,
-        viewingPast,
+        fbLocationContext.pastTime,
     ])
 
     useEffect(() => {
@@ -1078,8 +1086,8 @@ const FileBrowser = () => {
                             <DirView
                                 notFound={notFound}
                                 setNotFound={setNotFound}
-                                searchQuery={searchQuery}
-                                searchFilter={searchFilter}
+                                searchQuery={''}
+                                searchFilter={''}
                             />
                         </DirViewWrapper>
                     </div>

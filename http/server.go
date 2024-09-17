@@ -39,7 +39,7 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 
 	srv.router.Use(withServices(services))
 	srv.router.Use(gin.Recovery())
-	srv.router.Use(log.ApiLogger(env.GetLogLevel()))
+	srv.router.Use(log.ApiLogger(log.GetLogLevel()))
 	// srv.router.Use(CORSMiddleware())
 
 	services.Server = srv
@@ -100,10 +100,6 @@ func (s *Server) UseApi() {
 	api := s.router.Group("/api")
 	api.Use(WeblensAuth(false, false, s.services))
 
-	api.GET("/file/:fileId/history", getFolderHistory)
-	api.GET("/file/rewind/:folderId/:rewindTime", getPastFolderInfo)
-	api.POST("/history/restore", restorePastFiles)
-
 	// Media
 	api.GET("/media", getMediaBatch)
 	api.GET("/media/types", getMediaTypes)
@@ -117,11 +113,12 @@ func (s *Server) UseApi() {
 	api.GET("/media/:mediaId/:chunkName", streamVideo)
 	api.POST("/media/:mediaId/liked", likeMedia)
 	api.POST("/medias", getMediaByIds)
-	api.PATCH("/media/hide", hideMedia)
+	api.PATCH("/media/visibility", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
 	// File
 	api.GET("/file/:fileId", getFile)
+	api.GET("/file/:fileId/history", getFolderHistory)
 	api.GET("/file/:fileId/text", getFileText)
 	api.GET("/file/share/:shareId", getFileShare)
 	api.GET("/file/:fileId/download", downloadFile)
@@ -131,10 +128,14 @@ func (s *Server) UseApi() {
 	api.GET("/files/:folderId/stats", getFolderStats)
 	api.GET("/files/shared", getSharedFiles)
 	api.GET("/files/search", searchByFilename)
+	api.POST("/files/restore", restoreFiles)
 	api.PATCH("/files", moveFiles)
 	api.PATCH("/files/trash", trashFiles)
 	api.PATCH("/files/untrash", unTrashFiles)
 	api.DELETE("/files", deleteFiles)
+
+	// History
+	api.POST("/history/restore", restorePastFiles)
 
 	// Upload
 	api.POST("/upload", newUploadTask)
@@ -192,7 +193,7 @@ func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCas
 
 	handler := &webdav.Handler{
 		FileSystem: fs,
-		// FileSystem: webdav.Dir(env.GetMediaRoot()),
+		// FileSystem: webdav.Dir(env.GetDataRoot()),
 		LockSystem: webdav.NewMemLS(),
 		Logger: func(r *http.Request, err error) {
 			if err != nil {
@@ -227,7 +228,7 @@ func (s *Server) UseCore() {
 	core.GET("/file/:fileId/directory", getDirectoryContent)
 	core.GET("/file/:fileId/content", getFileBytes)
 
-	core.GET("/history/since/:timestamp", getLifetimesSince)
+	core.GET("/history/since", getLifetimesSince)
 	core.GET("/history", getHistory)
 	core.GET("/history/folder", getFolderHistory)
 }

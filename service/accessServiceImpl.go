@@ -303,7 +303,7 @@ func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.Api
 
 func getFileOwnerName(file *fileTree.WeblensFileImpl) models.Username {
 	portable := file.GetPortablePath()
-	if portable.RootName() != "MEDIA" {
+	if portable.RootName() != "USERS" {
 		return "WEBLENS"
 	}
 	slashIndex := strings.Index(portable.RelativePath(), "/")

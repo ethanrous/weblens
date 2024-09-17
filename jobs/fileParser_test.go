@@ -50,7 +50,7 @@ func TestScanFile(t *testing.T) {
 	defer col.Drop(context.Background())
 
 	testMediaTree, err := fileTree.NewFileTree(
-		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
+		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(),
 	)
 	if err != nil {
 		panic(err)
@@ -102,7 +102,7 @@ func TestScanDirectory(t *testing.T) {
 	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 
 	testMediaTree, err := fileTree.NewFileTree(
-		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewMockHasher(), mock.NewHollowJournalService(),
+		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(),
 	)
 	if err != nil {
 		panic(err)

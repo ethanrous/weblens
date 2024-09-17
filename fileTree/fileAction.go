@@ -7,7 +7,7 @@ import (
 	"github.com/ethrousseau/weblens/internal/werror"
 )
 
-type FileActionType string
+type FileActionType = string
 
 type FileAction struct {
 	Timestamp  time.Time      `json:"timestamp" bson:"timestamp"`
@@ -125,10 +125,10 @@ func (fa *FileAction) UnmarshalJSON(bs []byte) error {
 }
 
 const (
-	FileCreate  FileActionType = "fileCreate"
-	FileMove    FileActionType = "fileMove"
-	FileWrite   FileActionType = "fileWrite"
-	Backup      FileActionType = "backup"
-	FileDelete  FileActionType = "fileDelete"
-	FileRestore FileActionType = "fileRestore"
+	FileCreate     FileActionType = "fileCreate"
+	FileMove       FileActionType = "fileMove"
+	FileSizeChange FileActionType = "fileSizeChange"
+	Backup         FileActionType = "backup"
+	FileDelete     FileActionType = "fileDelete"
+	FileRestore    FileActionType = "fileRestore"
 )

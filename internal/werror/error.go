@@ -41,15 +41,15 @@ func (cse *clientSafeErr) Safe() error {
 	return cse.safeErr
 }
 
-func TrySafeErr(err error) (safeErr error, statusCode int) {
+func TrySafeErr(err error) (error, int) {
 	if err == nil {
 		return nil, 200
 	}
 
-	safe, ok := err.(*clientSafeErr)
-	if ok {
+	var safeErr = &clientSafeErr{}
+	if errors.As(err, &safeErr) {
 		log.ShowErr(err)
-		return safe.Safe(), safe.statusCode
+		return safeErr.Safe(), safeErr.statusCode
 	}
 
 	log.ErrTrace(err)

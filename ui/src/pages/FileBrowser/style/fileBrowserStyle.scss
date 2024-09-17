@@ -295,8 +295,7 @@
     align-items: center;
     display: flex;
     flex-direction: column;
-    padding: 16px;
-    padding-top: 8px;
+    padding: 10px;
     background-color: $item-grey;
     border-radius: 4px;
     opacity: 100%;
@@ -378,7 +377,7 @@
     transition: background-color 150ms ease-in-out;
     transition-delay: 0ms;
 
-    :hover > & {
+    :hover>& {
         transition-delay: 100ms;
         background-color: $main-accent;
     }
@@ -418,7 +417,7 @@
 
 .leaf-text-back {
 
-    filter: drop-shadow( 3px 3px 2px #000000bb);
+    filter: drop-shadow(3px 3px 2px #000000bb);
     transition: fill 190ms ease-in-out;
 }
 
@@ -454,6 +453,7 @@
     width: max-content;
     height: max-content;
     align-items: center;
+    justify-content: center;
     position: absolute;
     bottom: 16px;
     background-color: $dark-paper;
@@ -462,4 +462,5 @@
     padding: 8px;
     margin-left: 12px;
     outline: 1px solid $main-accent;
+    cursor: pointer;
 }
