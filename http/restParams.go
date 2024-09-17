@@ -130,3 +130,9 @@ type scanBody struct {
 	FolderId fileTree.FileId `json:"folderId"`
 	Filename string          `json:"filename"`
 }
+
+type restoreFilesBody struct {
+	FileIds     []fileTree.FileId `json:"fileIds"`
+	NewParentId fileTree.FileId   `json:"newParentId"`
+	Timestamp   int64             `json:"timestamp"`
+}

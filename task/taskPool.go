@@ -334,6 +334,10 @@ func (tp *TaskPool) SignalAllQueued() {
 	if tp.treatAsGlobal {
 		log.Error.Println("Attempt to signal all queued for global queue")
 	}
+	if tp.allQueuedFlag.Load() {
+		log.Warning.Println("Trying to signal all queued on already all-queued task pool")
+		return
+	}
 
 	tp.exitLock.Lock()
 	// If all tasks finish (e.g. early failure, etc.) before we signal that they are all queued,

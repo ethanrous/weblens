@@ -84,6 +84,9 @@ type WeblensFileImpl struct {
 	// General RW lock on file updates to prevent data races
 	updateLock sync.RWMutex
 
+	// Lock to atomize long file events
+	fileLock sync.Mutex
+
 	// Mark file as read-only internally.
 	// This should be checked before any write action is to be taken
 	// this should not be changed during run-time, only set in InitMediaRoot.
@@ -114,12 +117,12 @@ func NewWeblensFile(id FileId, filename string, parent *WeblensFileImpl, isDir b
 	}
 	if parent != nil {
 		f.parentId = parent.ID()
-		f.portablePath = parent.portablePath.Child(filename)
+		f.portablePath = parent.portablePath.Child(filename, isDir)
 		if f.parent.memOnly {
 			f.memOnly = true
 		}
 	} else {
-		f.portablePath = ParsePortable("MEDIA:")
+		f.portablePath = ParsePortable("USERS:")
 	}
 
 	return f
@@ -175,8 +178,8 @@ func (f *WeblensFileImpl) Sys() any {
 	return nil
 }
 
-// GetAbsPath returns string of the absolute path to file
-func (f *WeblensFileImpl) GetAbsPath() string {
+// AbsPath returns string of the absolute path to file
+func (f *WeblensFileImpl) AbsPath() string {
 	if f == nil {
 		return ""
 	}
@@ -237,8 +240,20 @@ func (f *WeblensFileImpl) Size() int64 {
 	return f.size.Load()
 }
 
+func (f *WeblensFileImpl) SetSize(newSize int64) {
+	f.size.Store(newSize)
+}
+
 func (f *WeblensFileImpl) SetMemOnly(memOnly bool) {
 	f.memOnly = memOnly
+}
+
+// WithLock is a quick way to ensure locks on files are lifted if the function
+// using the file is to panic.
+func (f *WeblensFileImpl) WithLock(fn func() error) error {
+	f.fileLock.Lock()
+	defer f.fileLock.Unlock()
+	return fn()
 }
 
 func (f *WeblensFileImpl) Read(p []byte) (n int, err error) {
@@ -303,7 +318,7 @@ func (f *WeblensFileImpl) Writeable() (*os.File, error) {
 		return nil, fmt.Errorf("attempt to read from directory")
 	}
 
-	path := f.GetAbsPath()
+	path := f.AbsPath()
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0660)
 }
 
@@ -342,7 +357,7 @@ func (f *WeblensFileImpl) Write(data []byte) (int, error) {
 		return len(data), nil
 	}
 
-	err := os.WriteFile(f.GetAbsPath(), data, 0660)
+	err := os.WriteFile(f.AbsPath(), data, 0660)
 	if err == nil {
 		f.size.Store(int64(len(data)))
 		f.modifyDate = time.Now()
@@ -359,7 +374,7 @@ func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
 		panic(werror.NotImplemented("memOnly file write at"))
 	}
 
-	path := f.GetAbsPath()
+	path := f.AbsPath()
 	realFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0664)
 	if err != nil {
 		return err
@@ -390,7 +405,7 @@ func (f *WeblensFileImpl) Append(data []byte) error {
 		return nil
 	}
 
-	realFile, err := os.OpenFile(f.GetAbsPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
+	realFile, err := os.OpenFile(f.AbsPath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
 	if err != nil {
 		return err
 	}
@@ -407,12 +422,12 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 	f.childLock.RLock()
 	defer f.childLock.RUnlock()
 	if len(f.childrenMap) == 0 || childName == "" {
-		return nil, werror.WithStack(werror.ErrNoFileName(childName))
+		return nil, werror.WithStack(werror.NewErrNoFileName(childName))
 	}
 
 	child := f.childrenMap[childName]
 	if child == nil {
-		return nil, werror.WithStack(werror.ErrNoFileName(childName))
+		return nil, werror.WithStack(werror.NewErrNoFileName(childName))
 	}
 
 	return child, nil
@@ -462,13 +477,13 @@ func (f *WeblensFileImpl) GetParentId() FileId {
 func (f *WeblensFileImpl) CreateSelf() error {
 	var err error
 	if f.IsDir() {
-		err = os.Mkdir(f.GetAbsPath(), 0755)
+		err = os.Mkdir(f.AbsPath(), 0755)
 	} else {
-		_, err = os.Create(f.GetAbsPath())
+		_, err = os.Create(f.AbsPath())
 	}
 	if err != nil {
 		if os.IsExist(err) {
-			return werror.ErrFileAlreadyExists
+			return werror.WithStack(werror.ErrFileAlreadyExists)
 		}
 		return werror.WithStack(err)
 	}
@@ -537,7 +552,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	if f.ModTime().UnixMilli() < 0 {
-		log.Debug.Println("AH")
+		log.Warning.Printf("File [ %s ] has invalid mod time trying to marshal", f.GetPortablePath())
 	}
 
 	return json.Marshal(data)
@@ -573,7 +588,7 @@ behaves very differently than RecursiveMap. See below.
 
 Files are acted on in the order of their index number here, starting with the leftmost leaf
 
-		fx.LeafMap(fn) <- fn not called on root caller
+		fx.LeafMap(fn)
 		|
 		f5
 	   /  \
@@ -582,6 +597,9 @@ Files are acted on in the order of their index number here, starting with the le
 	f1  f2
 */
 func (f *WeblensFileImpl) LeafMap(fn func(*WeblensFileImpl) error) error {
+	if f == nil {
+		return werror.WithStack(werror.ErrNilFile)
+	}
 	if f.IsDir() {
 		for _, c := range f.GetChildren() {
 			err := c.LeafMap(fn)
@@ -623,7 +641,7 @@ func (f *WeblensFileImpl) BubbleMap(fn func(*WeblensFileImpl) error) error {
 }
 
 func (f *WeblensFileImpl) IsParentOf(child *WeblensFileImpl) bool {
-	return strings.HasPrefix(child.GetAbsPath(), f.GetAbsPath())
+	return strings.HasPrefix(child.AbsPath(), f.AbsPath())
 }
 
 func (f *WeblensFileImpl) SetWatching() error {
@@ -641,7 +659,7 @@ func (f *WeblensFileImpl) IsReadOnly() bool {
 
 // LoadStat will recompute the size and modify date of the file using os.Stat. If the
 // size of the file changes, LoadStat will return the newSize. If the size does not change,
-// LoadStat will return -1 for the newSize.
+// LoadStat will return -1 for the newSize. To get the current size of the file, use Size() instead.
 func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 	if f.absolutePath == "" {
 		return -1, nil

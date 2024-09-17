@@ -4,6 +4,7 @@ import (
 	"errors"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ethrousseau/weblens/database"
@@ -35,23 +36,10 @@ func main() {
 	defer mainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR")
 	log.Info.Println("Starting Weblens")
 
-	logLevel := env.GetLogLevel()
-	log.SetLogLevel(logLevel)
-
-	// if logLevel > 0 {
-	// 	log.Debug.Println("Starting Weblens in debug mode")
-	//
-	// 	metricsServer := http.Server{
-	// 		Addr:     "localhost:2112",
-	// 		ErrorLog: log.ErrorCatcher,
-	// 		Handler:  promhttp.Handler(),
-	// 	}
-	// 	go func() { log.ErrTrace(metricsServer.ListenAndServe()) }()
-	// } else {
-	// }
-	gin.SetMode(gin.ReleaseMode)
-
 	configName := env.GetConfigName()
+	logLevel := env.GetLogLevel(configName)
+	log.SetLogLevel(logLevel)
+	gin.SetMode(gin.ReleaseMode)
 
 	server = NewServer(config["routerHost"].(string), env.GetRouterPort(configName), services)
 	server.StartupFunc = func() {
@@ -67,7 +55,6 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	log.Trace.Println("Beginning service setup")
 
 	sw := internal.NewStopwatch("Initialization")
-
 
 	/* Database connection */
 	db, err := database.ConnectToMongo(env.GetMongoURI(configName), env.GetMongoDBName(configName))
@@ -136,10 +123,16 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 		panic(err)
 	}
 
+	/* Hasher */
+
+	hasherFactory := func() fileTree.Hasher {
+		return models.NewHasher(pack.TaskService, pack.Caster)
+	}
+
 	/* Journal Service */
 	mediaJournal, err := fileTree.NewJournal(
 		db.Collection("fileHistory"), pack.InstanceService.GetLocal().ServerId(),
-		pack.InstanceService.GetLocal().GetRole() == models.BackupServer,
+		pack.InstanceService.GetLocal().GetRole() == models.BackupServer, hasherFactory,
 	)
 	if err != nil {
 		panic(err)
@@ -154,29 +147,33 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	pack.AccessService = accessService
 	sw.Lap("Init access service")
 
-	/* Hasher */
-	hasher := models.NewHasher(pack.TaskService, pack.Caster)
-
 	pack.AddStartupTask("file_services", "File Services")
-	/* FileTree Service */
-	mediaFileTree, err := fileTree.NewFileTree(
-		env.GetMediaRoot(), "MEDIA", hasher,
-		mediaJournal,
+	/* Users FileTree */
+	usersFileTree, err := fileTree.NewFileTree(
+		filepath.Join(env.GetDataRoot(), "users"), "USERS", mediaJournal,
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	hollowJournal := mock.NewHollowJournalService()
-	hollowHasher := mock.NewMockHasher()
-	cachesTree, err := fileTree.NewFileTree(env.GetCachesRoot(), "CACHES", hollowHasher, hollowJournal)
+
+	/* Backup FileTree */
+	restoreFileTree, err := fileTree.NewFileTree(
+		filepath.Join(env.GetDataRoot(), ".restore"), "RESTORE", hollowJournal,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	cachesTree, err := fileTree.NewFileTree(env.GetCachesRoot(), "CACHES", hollowJournal)
 	if err != nil {
 		panic(err)
 	}
 	sw.Lap("Init file trees")
 
 	fileService, err := service.NewFileService(
-		mediaFileTree, cachesTree, pack.UserService, accessService, nil,
+		usersFileTree, cachesTree, restoreFileTree, pack.UserService, accessService, nil,
 		db.Collection("trash"),
 	)
 	if err != nil {
@@ -188,7 +185,7 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	}
 
 	if pack.InstanceService.GetLocal().GetRole() == models.CoreServer {
-		event := fileService.GetMediaJournal().NewEvent()
+		event := fileService.GetUsersJournal().NewEvent()
 
 		users, err := pack.UserService.GetAll()
 		if err != nil {
@@ -213,7 +210,7 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 			u.SetTrashFolder(trash)
 		}
 
-		fileService.GetMediaJournal().LogEvent(event)
+		fileService.GetUsersJournal().LogEvent(event)
 		sw.Lap("Find or create user directories")
 	}
 
@@ -275,6 +272,8 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	close(pack.StartupChan)
 	pack.StartupChan = nil
 
+	time.Sleep(10 * time.Second)
+
 	log.Trace.Println("Service setup complete")
 	pack.Caster.PushWeblensEvent("weblens_loaded")
 }
@@ -318,7 +317,7 @@ func setupTaskService(pack *models.ServicePack) {
 	/* Enable the worker pool held by the task tracker
 	loading the filesystem might dispatch tasks,
 	so we have to start the pool first */
-	workerPool := task.NewWorkerPool(env.GetWorkerCount(), env.GetLogLevel())
+	workerPool := task.NewWorkerPool(env.GetWorkerCount(), log.GetLogLevel())
 
 	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
 	workerPool.RegisterJob(models.ScanFileTask, jobs.ScanFile)

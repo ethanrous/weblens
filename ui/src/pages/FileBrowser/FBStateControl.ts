@@ -83,7 +83,7 @@ export interface FileBrowserStateT {
 
     shareId: string
     contentId: string
-    viewingPast: Date
+    pastTime: Date
     pasteImgBytes: ArrayBuffer
 
     addToFilesMap: (file: WeblensFileParams) => void
@@ -97,7 +97,8 @@ export interface FileBrowserStateT {
     setLocationState: (
         contentId: string,
         mode: FbModeT,
-        shareId: string
+        shareId: string,
+        pastTime: Date,
     ) => void
     clearFiles: () => void
     setSearch: (searchContent: string) => void
@@ -275,7 +276,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
     blockFocus: false,
     isSearching: false,
     holdingShift: false,
-    viewingPast: null,
+    pastTime: null,
     menuMode: 0,
     homeDirSize: 0,
     trashDirSize: 0,
@@ -436,12 +437,13 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             }
         }),
 
-    setLocationState: (contentId: string, mode: FbModeT, shareId: string) =>
+    setLocationState: (contentId: string, mode: FbModeT, shareId: string, pastTime: Date) =>
         set({
             contentId: contentId,
             fbMode: mode,
             shareId: shareId,
             lastSelectedId: '',
+            pastTime: pastTime,
         }),
 
     clearFiles: () =>
@@ -616,7 +618,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
     },
 
     setPastTime: (pastTime: Date) => {
-        set({ viewingPast: pastTime })
+        set({ pastTime: pastTime })
     },
 
     setMoveDest: (dest: string) => {

@@ -453,7 +453,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 
 	autioRate := 128000
 	outErr := bytes.NewBuffer(nil)
-	err = ffmpeg.Input(f.GetAbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
+	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
 		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
 			"c:v":                "libx264",
 			"b:v":                400000 * 2,
@@ -498,7 +498,7 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 }
 
 func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (int, error) {
-	probeJson, err := ffmpeg.Probe(f.GetAbsPath())
+	probeJson, err := ffmpeg.Probe(f.AbsPath())
 	if err != nil {
 		return 0, err
 	}

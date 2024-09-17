@@ -1,7 +1,11 @@
 import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
-import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
+import { FolderInfo } from '@weblens/pages/FileBrowser/FileBrowser'
 import { FileAction } from '@weblens/pages/FileBrowser/FileInfoPane'
-import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
+import { WeblensFileParams } from '@weblens/types/files/File'
 import { AlbumData, TPDispatchT } from '@weblens/types/Types'
 import { humanFileSize } from '@weblens/util'
 import axios from 'axios'
@@ -67,18 +71,19 @@ export function UnTrashFiles(fileIds: string[]) {
     })
 }
 
-async function getSharedWithMe() {
+async function getSharedWithMe(): Promise<FolderInfo> {
     const url = new URL(`${API_ENDPOINT}/files/shared`)
-    return fetch(url.toString())
-        .then((res) => res.json())
-        .then((sharedFiles) => {
-            const sharedFolder = new WeblensFile({
-                id: 'shared',
-                isDir: true,
-                filename: 'Shared',
-            })
-            return { children: sharedFiles, self: sharedFolder }
-        })
+    return fetchJson<FolderInfo>(url.toString())
+    // return fetch(url.toString())
+    //     .then((res) => res.json())
+    //     .then((sharedFiles) => {
+    //         const sharedFolder = new WeblensFile({
+    //             id: 'shared',
+    //             isDir: true,
+    //             filename: 'Shared',
+    //         })
+    //         return { children: sharedFiles, self: sharedFolder }
+    //     })
 }
 
 async function getExternalFiles(contentId: string) {
@@ -113,8 +118,9 @@ export async function GetFileInfo(
 export async function GetFolderData(
     contentId: string,
     fbMode: FbModeT,
-    shareId: string
-) {
+    shareId: string,
+    viewingTime?: Date
+): Promise<FolderInfo> {
     if (fbMode === FbModeT.share && !shareId) {
         return getSharedWithMe()
     }
@@ -128,6 +134,10 @@ export async function GetFolderData(
     }
 
     const url = new URL(`${API_ENDPOINT}/folder/${contentId}`)
+    if (viewingTime !== undefined && viewingTime !== null) {
+        url.searchParams.append('timestamp', viewingTime.getTime().toString())
+    }
+
     if (fbMode === FbModeT.share) {
         url.searchParams.append('shareId', shareId)
     }
@@ -338,16 +348,25 @@ export async function searchFolder(
     return files.files
 }
 
-export async function getFilesystemStats(folderId: string): Promise<{sizesByExtension: {name: string, size: number}[]}> {
+export async function getFilesystemStats(folderId: string): Promise<{
+    sizesByExtension: { name: string; size: number }[]
+}> {
     return fetchJson(`${API_ENDPOINT}/files/${folderId}/stats`)
 }
 
-export async function getFileHistory(fileId: string): Promise<FileAction[]> {
+export async function getFileHistory(
+    fileId: string,
+    timestamp: Date
+): Promise<FileAction[]> {
     if (!fileId) {
         console.error('No fileId trying to get file history')
         return null
     }
-    return fetchJson(`${API_ENDPOINT}/file/${fileId}/history`)
+    const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`)
+    if (timestamp) {
+        url.searchParams.append('timestamp', timestamp.getTime().toString())
+    }
+    return fetchJson(url.toString())
 }
 
 export async function getPastFolderInfo(folderId: string, timestamp: Date) {
@@ -357,22 +376,22 @@ export async function getPastFolderInfo(folderId: string, timestamp: Date) {
     return fetchJson(url.toString())
 }
 
-export async function restoreFiles(fileIds: string[], timestamp: Date) {
-    const url = new URL(`${API_ENDPOINT}/history/restore`)
-    return await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({
-            fileIds: fileIds,
-            timestamp: timestamp.getTime(),
-        }),
-    }).then((r) => {
-        if (r.status !== 200) {
-            return Promise.reject(r.statusText)
-        } else {
-            return
-        }
-    })
-}
+// export async function restoreFiles(fileIds: string[], timestamp: Date) {
+//     const url = new URL(`${API_ENDPOINT}/history/restore`)
+//     return await fetch(url, {
+//         method: 'POST',
+//         body: JSON.stringify({
+//             fileIds: fileIds,
+//             timestamp: timestamp.getTime(),
+//         }),
+//     }).then((r) => {
+//         if (r.status !== 200) {
+//             return Promise.reject(r.statusText)
+//         } else {
+//             return
+//         }
+//     })
+// }
 
 export async function GetFileText(fileId: string) {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)

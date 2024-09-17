@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"hash"
 	"slices"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -188,6 +189,8 @@ type UploadFilesMeta struct {
 	ChunkSize    int64
 	TotalSize    int64
 
+	UploadEvent *fileTree.FileEvent
+
 	FileService  FileService
 	MediaService MediaService
 	TaskService  task.TaskService
@@ -266,6 +269,7 @@ type FileUploadProgress struct {
 	File          *fileTree.WeblensFileImpl
 	BytesWritten  int64
 	FileSizeTotal int64
+	Hash          hash.Hash
 }
 
 type BackupMeta struct {

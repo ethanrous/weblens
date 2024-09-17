@@ -77,7 +77,8 @@ func (pus *ProxyUserService) Del(id models.Username) error {
 }
 
 func (pus *ProxyUserService) GetAll() (iter.Seq[*models.User], error) {
-	users, err := CallHomeStruct[[]*models.User](pus.Core, http.MethodGet, "/users", nil)
+	r := NewRequest(pus.Core, http.MethodGet, "/users")
+	users, err := CallHomeStruct[[]*models.User](r)
 
 	if err != nil {
 		return nil, err

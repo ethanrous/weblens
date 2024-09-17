@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -74,8 +73,55 @@ func createFolder(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, gin.H{"folderId": newDir.ID()})
 }
 
+func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, ctx *gin.Context) {
+	pack := getServices(ctx)
+
+	pastFile, err := pack.FileService.GetUsersJournal().GetPastFile(folderId, pastTime)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
+	var parentsInfo []*fileTree.WeblensFileImpl
+	parentId := pastFile.GetParentId()
+	if parentId == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find parent folder"})
+		return
+	}
+	for parentId != "ROOT" {
+		pastParent, err := pack.FileService.GetUsersJournal().GetPastFile(parentId, pastTime)
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, gin.H{"error": safe})
+			return
+		}
+
+		parentsInfo = append(parentsInfo, pastParent)
+		parentId = pastParent.GetParentId()
+	}
+
+	children, err := pack.FileService.GetUsersJournal().GetPastFolderChildren(pastFile, pastTime)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
+	var medias []*models.Media
+	for _, child := range children {
+		m := pack.MediaService.Get(child.GetContentId())
+		if m != nil {
+			medias = append(medias, m)
+		}
+	}
+
+	packagedInfo := gin.H{"self": pastFile, "children": children, "parents": parentsInfo, "medias": medias}
+	ctx.JSON(http.StatusOK, packagedInfo)
+}
+
 // Format and write back directory information. Authorization checks should be done before this function
-func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, pastTime time.Time, ctx *gin.Context) {
+func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	share, err := getShareFromCtx[*models.FileShare](ctx)
@@ -92,22 +138,6 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, pastTime time.Time, 
 		return
 	}
 
-	var children []*fileTree.WeblensFileImpl
-	if dir.IsDir() {
-		if pastTime.Unix() > 0 {
-			children, err = pack.FileService.GetMediaJournal().GetPastFolderChildren(dir, pastTime)
-			if err != nil {
-				safe, code := werror.TrySafeErr(err)
-				ctx.JSON(code, gin.H{"error": safe})
-				return
-			}
-
-			selfData.PastFile = true
-		} else {
-			children = dir.GetChildren()
-		}
-	}
-
 	var parentsInfo []FileInfo
 	parent := dir.GetParent()
 	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(
@@ -122,6 +152,8 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, pastTime time.Time, 
 		parentsInfo = append(parentsInfo, parentInfo)
 		parent = parent.GetParent()
 	}
+
+	children := dir.GetChildren()
 
 	var medias []*models.Media
 	for _, child := range children {
@@ -145,14 +177,39 @@ func getFolder(ctx *gin.Context) {
 		return
 	}
 
+	milliStr := ctx.Query("timestamp")
+	date := time.UnixMilli(0)
+	if milliStr != "" {
+		millis, err := strconv.ParseInt(milliStr, 10, 64)
+		if err != nil || millis < 0 {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safe)
+			return
+		}
+
+		date = time.UnixMilli(millis)
+	}
+
 	folderId := ctx.Param("folderId")
-	dir, err := pack.FileService.GetFileSafe(folderId, u, sh)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
+	if folderId == "" {
+		log.Trace.Println("No folder id provided")
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
-	formatRespondFolderInfo(dir, time.UnixMilli(0), ctx)
+	if date.Unix() != 0 {
+		formatRespondPastFolderInfo(folderId, date, ctx)
+		return
+	}
+
+	dir, err := pack.FileService.GetFileSafe(folderId, u, sh)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	formatRespondFolderInfo(dir, ctx)
 }
 
 func getExternalDirs(ctx *gin.Context) {
@@ -249,45 +306,42 @@ func scanDir(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func getPastFolderInfo(ctx *gin.Context) {
+func getFolderHistory(ctx *gin.Context) {
 	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	folderId := ctx.Param("folderId")
-	folder, err := pack.FileService.GetFileSafe(folderId, u, nil)
-	if err != nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
 
-	milliStr := ctx.Param("rewindTime")
-	millis, err := strconv.ParseInt(milliStr, 10, 64)
-	if err != nil {
-		log.ShowErr(err)
+	fileId := ctx.Param("fileId")
+	if fileId == "" {
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
-	pastTime := time.UnixMilli(millis)
 
-	formatRespondFolderInfo(folder, pastTime, ctx)
-}
+	pastTime := time.Now()
 
-func getFolderHistory(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+	milliStr := ctx.Query("timestamp")
+	if milliStr != "" {
+		millis, err := strconv.ParseInt(milliStr, 10, 64)
+		if err != nil {
+			log.ShowErr(werror.WithStack(err))
+			ctx.Status(http.StatusBadRequest)
+			return
+		}
+		pastTime = time.UnixMilli(millis)
+	}
 
-	f, err := pack.FileService.GetFileSafe(ctx.Param("fileId"), u, nil)
+	f, err := pack.FileService.GetUsersJournal().GetPastFile(fileId, pastTime)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
 		return
 	}
 
-	actions, err := pack.FileService.GetMediaJournal().GetActionsByPath(f.GetPortablePath())
+	actions, err := pack.FileService.GetUsersJournal().GetActionsByPath(f.GetPortablePath())
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
 		return
 	}
+	log.Trace.Printf("Found %d actions", len(actions))
 	ctx.JSON(http.StatusOK, actions)
 }
 
@@ -590,7 +644,7 @@ func getFileText(ctx *gin.Context) {
 		return
 	}
 
-	ctx.File(file.GetAbsPath())
+	ctx.File(file.AbsPath())
 }
 
 func updateFile(ctx *gin.Context) {
@@ -664,8 +718,11 @@ func deleteFiles(ctx *gin.Context) {
 	if err != nil {
 		return
 	}
-	// caster := models.NewBufferedCaster (pack.ClientService)
-	// defer caster.Close()
+
+	if len(fileIds) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No file ids provided"})
+		return
+	}
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
@@ -683,7 +740,7 @@ func deleteFiles(ctx *gin.Context) {
 		files = append(files, file)
 	}
 
-	err = pack.FileService.PermanentlyDeleteFiles(files, pack.Caster)
+	err = pack.FileService.DeleteFiles(files, pack.Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -736,4 +793,54 @@ func unTrashFiles(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusOK)
+}
+
+func restoreFiles(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+
+	body, err := readCtxBody[restoreFilesBody](ctx)
+	if err != nil {
+		return
+	}
+
+	if body.Timestamp == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing body parameter 'timestamp'"})
+		return
+	}
+	restoreTime := time.UnixMilli(body.Timestamp)
+
+	lt := pack.FileService.GetUsersJournal().Get(body.NewParentId)
+	if lt == nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find new parent"})
+		return
+	}
+
+	var newParent *fileTree.WeblensFileImpl
+	if lt.GetLatestAction().GetActionType() == fileTree.FileDelete {
+		newParent, err = pack.FileService.GetFileSafe(u.HomeId, u, nil)
+
+		// this should never error, but you never know
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safe)
+			return
+		}
+	} else {
+		newParent, err = pack.FileService.GetFileSafe(body.NewParentId, u, nil)
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safe)
+			return
+		}
+	}
+
+	err = pack.FileService.RestoreFiles(body.FileIds, newParent, restoreTime, pack.Caster)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"newParentId": newParent.ID()})
 }

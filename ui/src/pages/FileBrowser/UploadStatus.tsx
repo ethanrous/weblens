@@ -226,12 +226,14 @@ function UploadCard({
                     </p>
                     {statusText && prog !== 100 && prog !== -1 && (
                         <div>
-                            <p className="text-nowrap pr-[4px] text-sm mt-1">
+                            <p className="text-nowrap pr-[4px] text-sm my-1">
                                 {statusText}
                             </p>
-                            <p className="text-nowrap pr-[4px] text-sm mt-1">
-                                {speedStr} {speedUnits}/s
-                            </p>
+                            {!uploadMetadata.isDir && (
+                                <p className="text-nowrap pr-[4px] text-sm mt-1">
+                                    {speedStr} {speedUnits}/s
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
@@ -323,13 +325,17 @@ const UploadStatus = () => {
                 </div>
 
                 <Divider h={2} w={'100%'} />
-                <div className="flex flex-row justify-center h-max p-2">
-                    <div className="flex flex-row h-full w-[97%] items-center justify-between">
+                <div className="flex flex-row justify-center w-full h-max p-2">
+                    <div className="flex flex-row h-full w-full items-center justify-between">
                         <p className="text-white font-semibold text-lg">
                             Uploading {topLevelCount} item
                             {topLevelCount !== 1 ? 's' : ''}
                         </p>
-                        <WeblensButton Left={IconX} onClick={clearUploads} />
+                        <WeblensButton
+                            Left={IconX}
+                            squareSize={30}
+                            onClick={clearUploads}
+                        />
                     </div>
                 </div>
             </div>

@@ -20,9 +20,9 @@ import (
 var _ Journal = (*JournalImpl)(nil)
 
 type JournalImpl struct {
-	lifetimes   map[FileId]*Lifetime
+	lifetimes       map[FileId]*Lifetime
 	lifetimeMapLock sync.RWMutex
-	eventStream chan *FileEvent
+	eventStream     chan *FileEvent
 
 	serverId string
 
@@ -32,19 +32,27 @@ type JournalImpl struct {
 	// Do not register actions that happen on the local server.
 	// This is used in backup servers.
 	ignoreLocal bool
+
+	hasherFactory func() Hasher
 }
 
-func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool) (*JournalImpl, error) {
+func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasherFactory func() Hasher) (
+	*JournalImpl, error,
+) {
 	j := &JournalImpl{
-		lifetimes: make(map[FileId]*Lifetime),
-		eventStream: make(chan *FileEvent, 10),
-		col:         col,
-		serverId:    serverId,
-		ignoreLocal: ignoreLocal,
+		lifetimes:     make(map[FileId]*Lifetime),
+		eventStream:   make(chan *FileEvent, 10),
+		col:           col,
+		serverId:      serverId,
+		ignoreLocal:   ignoreLocal,
+		hasherFactory: hasherFactory,
 	}
 
 	indexModel := mongo.IndexModel{
-		Keys: bson.D{{"actions.timestamp", -1}},
+		Keys: bson.D{
+			{Key: "actions.timestamp", Value: -1}, {Key: "actions.originPath", Value: 1},
+			{Key: "actions.destinationPath", Value: 1},
+		},
 	}
 	_, err := col.Indexes().CreateOne(context.Background(), indexModel)
 	if err != nil {
@@ -75,6 +83,9 @@ func (j *JournalImpl) NewEvent() *FileEvent {
 		EventBegin: time.Now(),
 		journal:    j,
 		ServerId:   j.serverId,
+		hasher:     j.hasherFactory(),
+
+		LoggedChan: make(chan struct{}),
 	}
 }
 
@@ -107,11 +118,14 @@ func (j *JournalImpl) LogEvent(fe *FileEvent) {
 
 	if len(fe.Actions) != 0 {
 		j.eventStream <- fe
+	} else {
+		log.Warning.Printf("File Event [%s] has no actions, skipping logging", fe.EventId)
+		close(fe.LoggedChan)
 	}
 }
 
 func (j *JournalImpl) GetActionsByPath(path WeblensFilepath) ([]*FileAction, error) {
-	return getActionsByPath(path, j.col)
+	return j.getActionsByPath(path, false)
 }
 
 func (j *JournalImpl) GetLatestAction() (*FileAction, error) {
@@ -135,10 +149,52 @@ func (j *JournalImpl) GetLatestAction() (*FileAction, error) {
 
 }
 
+func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, error) {
+	// actions, err := j.getActionsByPath(path, true)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	lt := j.Get(id)
+	if lt == nil {
+		return nil, werror.WithStack(werror.ErrNoFileAction)
+	}
+
+	actions := lt.Actions
+
+	slices.SortFunc(
+		actions, func(a, b *FileAction) int {
+			return a.GetTimestamp().Compare(b.GetTimestamp())
+		},
+	)
+
+	relevantAction := actions[len(actions)-1]
+	counter := 1
+	for relevantAction.GetTimestamp().After(time) || relevantAction.GetTimestamp().Equal(time) {
+		counter++
+		if len(actions)-counter < 0 {
+			break
+		}
+		if actions[len(actions)-counter].ActionType == FileSizeChange {
+			continue
+		}
+		relevantAction = actions[len(actions)-counter]
+	}
+
+	path := ParsePortable(relevantAction.DestinationPath)
+
+	f := NewWeblensFile(relevantAction.LifeId, path.Filename(), nil, path.IsDir())
+	f.parentId = relevantAction.ParentId
+	f.portablePath = path
+	f.pastFile = true
+	f.SetContentId(lt.ContentId)
+	return f, nil
+}
+
 func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) (
 	[]*WeblensFileImpl, error,
 ) {
-	actions, err := getActionsByPath(folder.GetPortablePath(), j.col)
+	actions, err := j.getActionsByPath(folder.GetPortablePath(), false)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
@@ -251,13 +307,31 @@ func (j *JournalImpl) EventWorker() {
 			log.Error.Println("Got nil event in event stream...")
 			continue
 		}
+		log.Trace.Println("Journal event worker got event starting with", e.GetActions()[0].GetActionType())
 		if err := j.handleFileEvent(e); err != nil {
 			log.ErrTrace(err)
 		}
+		close(e.LoggedChan)
 	}
 }
 
 func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
+	j.lifetimeMapLock.Lock()
+	defer j.lifetimeMapLock.Unlock()
+	log.Trace.Printf("Handling event with %d actions", len(event.GetActions()))
+
+	defer func() {
+		e := recover()
+		if e != nil {
+			err, ok := e.(error)
+			if !ok {
+				log.Error.Println(e)
+			} else {
+				log.ErrTrace(err)
+			}
+		}
+	}()
+
 	if len(event.GetActions()) == 0 {
 		return nil
 	}
@@ -269,6 +343,11 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 		},
 	)
 
+	// Ensrue all async tasks spawned by the hasher have finished before continuing
+	if waitHasher, ok := event.hasher.(HashWaiter); ok {
+		waitHasher.Wait()
+	}
+
 	var updated []*Lifetime
 
 	for _, action := range actions {
@@ -277,8 +356,14 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			action.SetSize(size)
 		}
 
-		switch action.GetActionType() {
-		case FileCreate:
+		log.Trace.Printf("Handling %s for %s", action.GetActionType(), action.LifeId)
+
+		actionType := action.GetActionType()
+		if actionType == FileCreate || actionType == FileRestore {
+			if action.Size == -1 {
+				action.file.LoadStat()
+				action.Size = action.file.Size()
+			}
 			newL, err := NewLifetime(action)
 			if err != nil {
 				return err
@@ -292,39 +377,19 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 				return werror.Errorf("trying to add create action to already existing lifetime")
 			}
 
-			j.lifetimeMapLock.Lock()
 			j.lifetimes[newL.ID()] = newL
-			j.lifetimeMapLock.Unlock()
 			updated = append(updated, newL)
-		case FileMove:
-			j.lifetimeMapLock.RLock()
+		} else if actionType == FileDelete || actionType == FileMove || actionType == FileSizeChange {
 			existing := j.lifetimes[action.LifeId]
 			existing.Add(action)
-			j.lifetimeMapLock.RUnlock()
 
 			updated = append(updated, existing)
-		case FileDelete:
-			j.lifetimeMapLock.RLock()
-			existing := j.lifetimes[action.LifeId]
-			existing.Add(action)
-			j.lifetimeMapLock.RUnlock()
-
-			updated = append(updated, existing)
+		} else {
+			return werror.Errorf("unknown file action type %s", actionType)
 		}
 	}
 
-	log.Trace.Printf("Updating %d lifetimes", len(updated))
-
 	for _, lt := range updated {
-		// f := j.fileTree.Get(lt.ID())
-		// if f != nil {
-		// 	sz := f.Size()
-		// 	if lt.GetContentId() == "" && !f.IsDir() && sz != 0 {
-		// 		return werror.Errorf("No content ID in lifetime update")
-		// 	}
-		// } else if lt.GetLatestAction().GetActionType() != FileDelete {
-		// 	return werror.Errorf("Could not find file for non-delete lifetime update")
-		// }
 		filter := bson.M{"_id": lt.ID()}
 		update := bson.M{"$set": lt}
 		o := options.Update().SetUpsert(true)
@@ -361,7 +426,20 @@ func upsertLifetime(lt *Lifetime, col *mongo.Collection) error {
 	return err
 }
 
-func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileAction, error) {
+func (j *JournalImpl) getActionsByPath(path WeblensFilepath, noChildren bool) ([]*FileAction, error) {
+	var pathMatch bson.A
+	if noChildren {
+		pathMatch = bson.A{
+			bson.D{{"actions.originPath", path.ToPortable()}},
+			bson.D{{"actions.destinationPath", path.ToPortable()}},
+		}
+	} else {
+		pathMatch = bson.A{
+			bson.D{{"actions.originPath", bson.D{{"$regex", path.ToPortable() + "[^/]*/?$"}}}},
+			bson.D{{"actions.destinationPath", bson.D{{"$regex", path.ToPortable() + "[^/]*/?$"}}}},
+		}
+	}
+
 	pipe := bson.A{
 		bson.D{{"$unwind", bson.D{{"path", "$actions"}}}},
 		bson.D{
@@ -370,10 +448,7 @@ func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileActio
 				bson.D{
 					{
 						"$or",
-						bson.A{
-							bson.D{{"actions.originPath", bson.D{{"$regex", path.ToPortable() + "[^/]*/?$"}}}},
-							bson.D{{"actions.destinationPath", bson.D{{"$regex", path.ToPortable() + "[^/]*/?$"}}}},
-						},
+						pathMatch,
 					},
 				},
 			},
@@ -382,7 +457,7 @@ func getActionsByPath(path WeblensFilepath, col *mongo.Collection) ([]*FileActio
 		bson.D{{"$sort", bson.D{{"timestamp", -1}}}},
 	}
 
-	ret, err := col.Aggregate(context.Background(), pipe)
+	ret, err := j.col.Aggregate(context.Background(), pipe)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
@@ -400,11 +475,11 @@ func getLifetimesSince(date time.Time, col *mongo.Collection) ([]*Lifetime, erro
 	pipe := bson.A{
 		bson.D{
 			{
-				"$match",
-				bson.D{{"actions.timestamp", bson.D{{"$gt", date}}}},
+				Key:   "$match",
+				Value: bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$gt", Value: date}}}},
 			},
 		},
-		bson.D{{"$sort", bson.D{{"actions.timestamp", 1}}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "actions.timestamp", Value: 1}}}},
 	}
 	ret, err := col.Aggregate(context.Background(), pipe)
 	if err != nil {
@@ -431,6 +506,7 @@ type Journal interface {
 
 	LogEvent(fe *FileEvent)
 
+	GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, error)
 	GetActionsByPath(WeblensFilepath) ([]*FileAction, error)
 	GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) ([]*WeblensFileImpl, error)
 	GetLatestAction() (*FileAction, error)

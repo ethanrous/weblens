@@ -10,6 +10,7 @@ import {
     IconPencil,
     IconPhotoShare,
     IconPlus,
+    IconRestore,
     IconScan,
     IconTrash,
     IconUser,
@@ -47,7 +48,7 @@ import {
     SelectedState,
     WeblensFile,
 } from '@weblens/types/files/File'
-import { getFoldersMedia } from '@weblens/types/files/FilesQuery'
+import { getFoldersMedia, restoreFiles } from '@weblens/types/files/FilesQuery'
 import WeblensMedia from '@weblens/types/media/Media'
 import { getMedias } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
@@ -61,7 +62,7 @@ import {
 } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
 import { WebsocketContext } from 'Context'
-import {
+import React, {
     ReactElement,
     useCallback,
     useContext,
@@ -72,6 +73,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { AlbumData, UserInfoT } from 'types/Types'
 import { clamp } from '@weblens/util'
+import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 
 type footerNote = {
     hint: string
@@ -137,13 +139,6 @@ const MenuTitle = () => {
         }
     }, [targetItem, selected])
 
-    const Icon = useMemo(() => {
-        if (menuMode === FbMenuModeT.NameFolder) {
-            return IconFolderPlus
-        }
-        return targetItem?.GetFileIcon()
-    }, [targetItem, menuMode])
-
     return (
         <div className="file-menu-title">
             {menuMode === FbMenuModeT.NameFolder && (
@@ -159,12 +154,8 @@ const MenuTitle = () => {
             )}
 
             <div className="flex flex-row items-center justify-center w-full h-8 gap-1">
-                <div className="flex shrink-0 justify-center items-center h-8 w-7">
-                    {Icon && <Icon />}
-                </div>
-                <p className="font-semibold w-max select-none text-nowrap truncate text-sm">
-                    {targetItem?.GetFilename()}
-                </p>
+                <FileFmt pathName={targetItem?.portablePath} />
+
                 {extrasText && (
                     <p className="flex w-max items-center justify-end text-xs select-none h-3">
                         {extrasText}
@@ -207,7 +198,7 @@ export function FileContextMenu() {
     const menuPos = useFileBrowserStore((state) => state.menuPos)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
+    const viewingPast = useFileBrowserStore((state) => state.pastTime)
     const activeItems = useFileBrowserStore((state) =>
         activeItemsFromState(state.filesMap, state.selected, state.menuTargetId)
     )
@@ -270,7 +261,12 @@ export function FileContextMenu() {
         )
     } else if (menuMode === FbMenuModeT.Default) {
         if (viewingPast) {
-            // menuBody = <HistoryFileMenu setFooterNote={setFooterNote} />
+            menuBody = (
+                <PastFileMenu
+                    setFooterNote={setFooterNote}
+                    activeItems={activeItems.items}
+                />
+            )
         } else if (menuTarget === '') {
             menuBody = <BackdropDefaultItems setFooterNote={setFooterNote} />
         } else {
@@ -505,13 +501,54 @@ function StandardFileMenu({
     )
 }
 
-// function HistoryFileMenu({
-//     setFooterNote,
-// }: {
-//     setFooterNote: (n: footerNote) => void
-// }) {
-//     return null
-// }
+function PastFileMenu({
+    setFooterNote,
+    activeItems,
+}: {
+    setFooterNote: (n: footerNote) => void
+    activeItems: WeblensFile[]
+}) {
+    const nav = useNavigate()
+    const menuMode = useFileBrowserStore((state) => state.menuMode)
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const folderId = useFileBrowserStore((state) => state.folderInfo.Id())
+    const restoreTime = useFileBrowserStore((state) => state.pastTime)
+
+    return (
+        <div
+            className={'default-grid no-scrollbar'}
+            data-visible={menuMode === FbMenuModeT.Default}
+        >
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconRestore}
+                    subtle
+                    squareSize={100}
+                    centerContent
+                    onMouseOver={() =>
+                        setFooterNote({ hint: 'Restore', danger: false })
+                    }
+                    onMouseLeave={() =>
+                        setFooterNote({ hint: '', danger: false })
+                    }
+                    onClick={async (e) => {
+                        e.stopPropagation()
+                        restoreFiles(
+                            activeItems.map((f) => f.Id()),
+                            folderId,
+                            restoreTime
+                        ).then((res) => {
+                            setFooterNote({ hint: '', danger: false })
+                            setMenu({ menuState: FbMenuModeT.Closed })
+                            console.log('going to', res.newParentId)
+                            nav(`/files/${res.newParentId}`)
+                        })
+                    }}
+                />
+            </div>
+        </div>
+    )
+}
 
 function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     const [isPublic, setIsPublic] = useState(false)
@@ -1018,6 +1055,7 @@ function InTrashMenu({
                 Left={IconTrash}
                 centerContent
                 danger
+                disabled={menuTarget === '' && filesList.length === 0}
                 onMouseOver={() =>
                     setFooterNote({
                         hint:

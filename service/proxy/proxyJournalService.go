@@ -1,8 +1,8 @@
 package proxy
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -14,6 +14,11 @@ var _ fileTree.Journal = (*ProxyJournalService)(nil)
 
 type ProxyJournalService struct {
 	Core *models.Instance
+}
+
+func (pjs *ProxyJournalService) GetPastFile(id fileTree.FileId, time time.Time) (*fileTree.WeblensFileImpl, error) {
+	// TODO implement me
+	panic("implement me")
 }
 
 func (pjs *ProxyJournalService) Get(id fileTree.FileId) *fileTree.Lifetime {
@@ -75,9 +80,8 @@ func (pjs *ProxyJournalService) GetLifetimesSince(date time.Time) ([]*fileTree.L
 		return nil, werror.Errorf("Trying to get lifetimes with millis less than 0")
 	}
 
-	endpoint := fmt.Sprintf("/history/since/%d", millis)
-	lts, err := CallHomeStruct[[]*fileTree.Lifetime](pjs.Core, http.MethodGet, endpoint, nil)
-	return lts, err
+	r := NewRequest(pjs.Core, http.MethodGet, "/history/since").WithQuery("timestamp", strconv.FormatInt(millis, 10))
+	return CallHomeStruct[[]*fileTree.Lifetime](r)
 }
 
 func (pjs *ProxyJournalService) EventWorker() {

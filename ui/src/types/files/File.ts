@@ -7,7 +7,10 @@ import {
 } from '@tabler/icons-react'
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { fetchJson } from '@weblens/api/ApiFetch'
-import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { MediaDataT } from '@weblens/types/media/Media'
 import { WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
@@ -307,6 +310,12 @@ export class WeblensFile {
         shareId: string,
         setPresentation: (presentationId: string) => void
     ) {
+        let timestampQuery = ''
+        const pastTime = useFileBrowserStore.getState().pastTime
+        if (pastTime) {
+            timestampQuery = `?at=${pastTime.getTime().toString()}`
+        }
+
         if (this.isDir) {
             if (mode === FbModeT.share && shareId === '') {
                 return `/files/share/${this.shareId}/${this.id}`
@@ -315,7 +324,7 @@ export class WeblensFile {
             } else if (mode === FbModeT.external) {
                 return `/files/external/${this.id}`
             } else if (mode === FbModeT.default) {
-                return `/files/${this.id}`
+                return `/files/${this.id}${timestampQuery}`
             }
         } else if (this.displayable || !this.displayable) {
             setPresentation(this.id)

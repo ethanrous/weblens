@@ -48,9 +48,13 @@ const (
 
 var logLevel = 0
 
+func GetLogLevel() int {
+	return logLevel
+}
+
 func SetLogLevel(level int) {
-	if logLevel == 0 {
-		logLevel = level
+	if logLevel != 0 {
+		Warning.Println("Overwriting Log level")
 	}
 	switch logLevel {
 	// Disable all loggers except for error

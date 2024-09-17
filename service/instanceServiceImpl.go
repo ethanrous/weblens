@@ -198,7 +198,8 @@ func (is *InstanceServiceImpl) InitBackup(
 	}
 	body := newServerBody{Id: local.ServerId(), Role: models.BackupServer, Name: local.GetName(), UsingKey: key}
 
-	newCore, err := proxy.CallHomeStruct[*models.Instance](core, http.MethodPost, "/remote", body)
+	r := proxy.NewRequest(core, http.MethodPost, "/remote").WithBody(body)
+	newCore, err := proxy.CallHomeStruct[*models.Instance](r)
 	if err != nil {
 		return err
 	}

@@ -26,6 +26,7 @@ func TestStartupCore(t *testing.T) {
 
 	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-CORE"), env.GetMongoDBName("TEST-CORE"))
 	require.NoError(t, err)
+
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
 
@@ -45,10 +46,13 @@ StartupWaitLoop:
 		select {
 		case _, ok := <-services.StartupChan:
 			if ok {
+				// If we accidentally catch a real signal, pass it on
 				services.StartupChan <- true
 			} else {
+				// Otherwise, break the loop
 				break StartupWaitLoop
 			}
+		// Allow 10 seconds for the server to start, although it should be much faster
 		case <-time.After(time.Second * 10):
 			t.Fatal("Core server setup timeout")
 		}
@@ -151,3 +155,4 @@ StartupWaitLoop:
 
 	services.Server.Stop()
 }
+

@@ -89,7 +89,7 @@ func DoBackup(t *task.Task) {
 		}
 	}
 
-	latest, err := meta.FileService.GetMediaJournal().GetLatestAction()
+	latest, err := meta.FileService.GetUsersJournal().GetLatestAction()
 	if err != nil {
 		t.ErrorAndExit(err)
 	}
@@ -120,7 +120,7 @@ func DoBackup(t *task.Task) {
 	var newFileIds []fileTree.FileId
 	if len(updatedLifetimes) > 0 {
 		for _, lt := range updatedLifetimes {
-			existLt := meta.FileService.GetMediaJournal().Get(lt.ID())
+			existLt := meta.FileService.GetUsersJournal().Get(lt.ID())
 			existFile, err := meta.FileService.GetUserFile(lt.ID())
 			if err != nil && !errors.Is(err, werror.ErrNoFile) {
 				t.ErrorAndExit(err)
@@ -136,7 +136,7 @@ func DoBackup(t *task.Task) {
 				// log.Debug.Println("Uhh... should this even happen?")
 			}
 
-			err = meta.FileService.GetMediaJournal().Add(lt)
+			err = meta.FileService.GetUsersJournal().Add(lt)
 			if err != nil {
 				t.ErrorAndExit(err)
 			}
@@ -145,7 +145,7 @@ func DoBackup(t *task.Task) {
 
 	slices.Sort(newFileIds)
 
-	activeLts := meta.FileService.GetMediaJournal().GetActiveLifetimes()
+	activeLts := meta.FileService.GetUsersJournal().GetActiveLifetimes()
 	for _, lt := range activeLts {
 		_, err = meta.FileService.GetUserFile(lt.ID())
 		if errors.Is(err, werror.ErrNoFile) {
@@ -173,7 +173,7 @@ func DoBackup(t *task.Task) {
 
 	slices.SortFunc(
 		newFiles, func(a, b *fileTree.WeblensFileImpl) int {
-			return len(a.GetAbsPath()) - len(b.GetAbsPath())
+			return len(a.AbsPath()) - len(b.AbsPath())
 		},
 	)
 
@@ -243,7 +243,7 @@ func CopyFileFromCore(t *task.Task) {
 
 	_, err = io.Copy(writeFile, fileReader)
 	if err != nil {
-		rmErr := os.Remove(meta.File.GetAbsPath())
+		rmErr := os.Remove(meta.File.AbsPath())
 		if rmErr != nil {
 			t.ErrorAndExit(
 				werror.Errorf(

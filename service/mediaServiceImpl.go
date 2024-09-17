@@ -485,7 +485,7 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 }
 
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
-	fileMetas := exif.ExtractMetadata(file.GetAbsPath())
+	fileMetas := exif.ExtractMetadata(file.AbsPath())
 
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
@@ -526,7 +526,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		m.MimeType = mimeType
 
 		if ms.typeService.ParseMime(m.MimeType).IsVideo() {
-			probeJson, err := ffmpeg.Probe(file.GetAbsPath())
+			probeJson, err := ffmpeg.Probe(file.AbsPath())
 			if err != nil {
 				return err
 			}
@@ -569,7 +569,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	mType := ms.GetMediaType(m)
 
 	if mType.IsRaw() {
-		binMeta := binExif.ExtractMetadata(file.GetAbsPath())
+		binMeta := binExif.ExtractMetadata(file.AbsPath())
 		if binMeta[0].Err != nil {
 			return werror.WithStack(binMeta[0].Err)
 		}
@@ -601,7 +601,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		bufbuf := bytes.NewBuffer(buf)
 		bufbuf.Reset()
 
-		err = ffmpeg.Input(file.GetAbsPath()).Filter(
+		err = ffmpeg.Input(file.AbsPath()).Filter(
 			"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
 		).Output(
 			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},

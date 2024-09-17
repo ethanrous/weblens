@@ -27,6 +27,8 @@ import {
 import { clamp } from '@weblens/util'
 
 import { memo, useEffect, useMemo, useState } from 'react'
+import { set } from 'immutable'
+import { useNavigate } from 'react-router-dom'
 
 const SIDEBAR_BREAKPOINT = 650
 
@@ -34,7 +36,7 @@ export const FileInfoPane = () => {
     const windowSize = useWindowSize()
     const [resizing, setResizing] = useState(false)
     const [resizeOffset, setResizeOffset] = useState(
-        windowSize?.width > SIDEBAR_BREAKPOINT ? 450 : 75
+        windowSize?.width > SIDEBAR_BREAKPOINT ? 550 : 75
     )
     const [open, setOpen] = useState<boolean>(false)
     const [tab, setTab] = useState('info')
@@ -166,9 +168,7 @@ const portableToFileName = (path: string) => {
     if (path.endsWith('/')) {
         filePath = filePath.substring(0, path.length - 1)
     }
-    filePath = filePath.slice(
-        filePath.indexOf(':') + 1
-    )
+    filePath = filePath.slice(filePath.indexOf(':') + 1)
     filePath = filePath.slice(filePath.lastIndexOf('/') + 1)
     return filePath
 }
@@ -184,20 +184,23 @@ function ActionRow({
     const toFolder = portableToFolderName(action.destinationPath)
 
     let fromNode
-    if (action.actionType == "fileMove") {
+    if (action.actionType == 'fileMove') {
         if (folderName === fromFolder) {
             fromNode = <FileFmt pathName={action.originPath} />
         } else {
             fromNode = <PathFmt pathName={action.originPath} />
         }
-    } else if (action.actionType == "fileCreate" || action.actionType == "fileRestore" ) {
+    } else if (
+        action.actionType == 'fileCreate' ||
+        action.actionType == 'fileRestore'
+    ) {
         fromNode = <FileFmt pathName={action.destinationPath} />
-    }  else if (action.actionType == "fileDelete") {
+    } else if (action.actionType == 'fileDelete') {
         fromNode = <FileFmt pathName={action.originPath} />
     }
 
     let toNode
-    if (action.actionType == "fileMove") {
+    if (action.actionType == 'fileMove') {
         if (folderName !== toFolder) {
             toNode = <PathFmt pathName={toFolder} />
         } else {
@@ -240,9 +243,9 @@ const HistoryEventRow = memo(
         return (
             <div className="flex flex-col w-full h-max justify-center p-2 rounded-lg">
                 {event.length == 1 && (
-                    <div className="flex flex-row items-center outline-gray-700 outline p-2 rounded w-full justify-between">
+                    <div className="flex flex-row items-center outline-gray-700 outline p-2 rounded w-full justify-between gap-2">
                         <ActionRow action={event[0]} folderName={folderName} />
-                        <p className="text-nowrap select-none">
+                        <p className="flex text-nowrap select-none shrink-0">
                             File {event[0].actionType.slice(4)}d
                         </p>
                     </div>
@@ -305,19 +308,40 @@ const HistoryEventRow = memo(
 function RollbackBar({
     events,
     openEvents,
+    historyScroll,
 }: {
     events: FileAction[][]
     openEvents: boolean[]
+    historyScroll: number
 }) {
-    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+    const nav = useNavigate()
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
+    const contentId = useFileBrowserStore((state) => state.contentId)
+    // const setPastTime = useFileBrowserStore((state) => state.setPastTime)
 
     const [steps, setSteps] = useState(0)
+
+    useEffect(() => {
+        if (pastTime) {
+            let counter = 0
+            for (const e of events) {
+                if (e[0].timestamp < pastTime.getTime()) {
+                    break
+                }
+                counter++
+            }
+            setSteps(counter)
+        } else {
+            setSteps(0)
+        }
+    }, [pastTime])
+
     const [dragging, setDragging] = useState(false)
     useResizeDrag(
         dragging,
         setDragging,
         (v) => {
-            v = v - 205
+            v = v - 205 + historyScroll
             if (v < 0) {
                 v = 0
             }
@@ -328,7 +352,7 @@ function RollbackBar({
                 if (counter >= openEvents.length) {
                     break
                 }
-                let nextOffset
+                let nextOffset: number
                 if (!openEvents[counter]) {
                     nextOffset = 64
                 } else {
@@ -351,21 +375,20 @@ function RollbackBar({
         true
     )
 
+    const [dragging2, setDragging2] = useState(false)
     useEffect(() => {
-        if (!dragging) {
+        if (dragging2 && !dragging) {
+            let at: string
             if (steps === 0) {
-                setPastTime(null)
-                return
+                at = ''
             }
             const event = events[steps - 1]
             if (event) {
-                setPastTime(
-                    new Date(
-                        Math.min(...events[steps - 1].map((a) => a.timestamp))
-                    )
-                )
+                at = `?at=${Math.min(...events[steps - 1].map((a) => a.timestamp))}`
             }
+            nav(`/files/${contentId}/${at}`)
         }
+        setDragging2(dragging)
     }, [dragging])
 
     const currentTime = useMemo(() => {
@@ -426,10 +449,13 @@ export type FileAction = {
 
 function FileHistory() {
     const user = useSessionStore((state) => state.user)
-    
+
     const filesMap = useFileBrowserStore((state) => state.filesMap)
     const contentId = useFileBrowserStore((state) => state.contentId)
     const mode = useFileBrowserStore((state) => state.fbMode)
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
+
+    const [historyScroll, setHistoryScroll] = useState(0)
 
     const { data: fileHistory, refetch } = useQuery<FileAction[]>({
         queryKey: ['fileHistory', contentId],
@@ -437,7 +463,7 @@ function FileHistory() {
             if (mode === FbModeT.share) {
                 return null
             }
-            return getFileHistory(contentId)
+            return getFileHistory(contentId, pastTime)
         },
     })
 
@@ -458,7 +484,10 @@ function FileHistory() {
                 epoch = a
                 return
             }
-            if (a.lifeId === user.trashId) {
+            if (
+                a.lifeId === user.trashId ||
+                a.actionType === 'fileSizeChange'
+            ) {
                 return
             }
 
@@ -493,8 +522,15 @@ function FileHistory() {
     const createTimeString = historyDate(epoch.timestamp)
 
     return (
-        <div className="flex flex-col items-center p-2 overflow-scroll h-[200px] grow relative pt-3">
-            <RollbackBar events={events} openEvents={openEvents} />
+        <div
+            className="flex flex-col items-center p-2 overflow-scroll h-[200px] grow relative pt-3"
+            onScroll={(e) => setHistoryScroll(e.currentTarget.scrollTop)}
+        >
+            <RollbackBar
+                events={events}
+                openEvents={openEvents}
+                historyScroll={historyScroll}
+            />
             {events.map((e, i) => {
                 return (
                     <HistoryEventRow

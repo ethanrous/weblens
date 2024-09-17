@@ -2,6 +2,7 @@ package mock
 
 import (
 	"io"
+	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
 	"github.com/ethrousseau/weblens/models"
@@ -38,7 +39,7 @@ func (mfs *MockFileService) PathToFile(searchPath string) (*fileTree.WeblensFile
 	panic("implement me")
 }
 
-func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string) (
+func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (
 	*fileTree.WeblensFileImpl, error,
 ) {
 
@@ -100,8 +101,15 @@ func (mfs *MockFileService) ReturnFilesFromTrash(files []*fileTree.WeblensFileIm
 	return nil
 }
 
-func (mfs *MockFileService) PermanentlyDeleteFiles(files []*fileTree.WeblensFileImpl, caster models.FileCaster) error {
+func (mfs *MockFileService) DeleteFiles(files []*fileTree.WeblensFileImpl, caster models.FileCaster) error {
 	return nil
+}
+
+func (mfs *MockFileService) RestoreFiles(
+	ids []fileTree.FileId, newParent *fileTree.WeblensFileImpl, restoreTime time.Time, caster models.FileCaster,
+) error {
+
+	panic("implement me")
 }
 
 func (mfs *MockFileService) ReadFile(file *fileTree.WeblensFileImpl) (io.ReadCloser, error) {
@@ -120,7 +128,7 @@ func (mfs *MockFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 	return nil
 }
 
-func (mfs *MockFileService) GetMediaJournal() fileTree.Journal {
+func (mfs *MockFileService) GetUsersJournal() fileTree.Journal {
 	return nil
 }
 

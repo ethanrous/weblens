@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/ethrousseau/weblens/fileTree"
@@ -159,7 +158,6 @@ func formatFileSafe(
 		tmpF = tmpF.GetParent()
 	}
 	slices.Reverse(pathBits)
-	pathString := strings.Join(pathBits, "/")
 
 	fShare, _ := pack.ShareService.GetFileShare(f)
 	var shareId models.ShareId
@@ -180,8 +178,8 @@ func formatFileSafe(
 		Filename:     f.Filename(),
 		ParentId:     parentId,
 		Owner:        owner.GetUsername(),
-		PathFromHome: pathString,
-		MediaData: pack.MediaService.Get(f.GetContentId()),
+		PortablePath: f.GetPortablePath().ToPortable(),
+		MediaData:    pack.MediaService.Get(f.GetContentId()),
 		ShareId:      shareId,
 		Children: internal.Map(
 			f.GetChildren(), func(wf *fileTree.WeblensFileImpl) fileTree.FileId { return wf.ID() },

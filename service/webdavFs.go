@@ -30,7 +30,8 @@ func (w WebdavFs) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 		return err
 	}
 
-	_, err = w.WeblensFs.CreateFile(parent, filepath.Base(unescapeName))
+	// TODO: add event
+	_, err = w.WeblensFs.CreateFile(parent, filepath.Base(unescapeName), nil)
 	if err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func (w WebdavFs) OpenFile(ctx context.Context, name string, flag int, perm os.F
 }
 
 func (w WebdavFs) RemoveAll(ctx context.Context, name string) error {
-	
+
 	panic("implement me")
 }
 

@@ -176,7 +176,7 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, med
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  updatedFile.GetParentId(),
-		Content:       WsC{"fileInfo": updatedFile},
+		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 

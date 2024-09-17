@@ -22,4 +22,4 @@ if [[ -z "$CONFIG_NAME" ]]; then
   export CONFIG_NAME=DEBUG-CORE
 fi
 
-CONFIG_PATH=$(pwd)/config DETACH_UI=true ./build/bin/weblens
+APP_ROOT=$(pwd) ./build/bin/weblens

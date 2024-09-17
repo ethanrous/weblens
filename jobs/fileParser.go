@@ -51,7 +51,7 @@ func ScanDirectory(t *task.Task) {
 	meta.TaskSubber.FolderSubToPool(meta.File.GetParentId(), pool.GetRootPool().ID())
 	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
-	log.Debug.Printf("Beginning directory scan for %s\n", meta.File.GetAbsPath())
+	log.Debug.Printf("Beginning directory scan for %s (%s)\n", meta.File.GetPortablePath(), meta.File.ID())
 
 	err = meta.File.LeafMap(
 		func(wf *fileTree.WeblensFileImpl) error {
@@ -67,6 +67,7 @@ func ScanDirectory(t *task.Task) {
 
 			m := meta.MediaService.Get(wf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
+				meta.Caster.PushFileUpdate(wf, m)
 				return nil
 			}
 
@@ -148,7 +149,7 @@ func ScanFile_(meta models.ScanMeta) error {
 
 	contentId := meta.File.GetContentId()
 	if contentId == "" {
-		return werror.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath())
+		return werror.Errorf("trying to scan file with no content id: %s", meta.File.AbsPath())
 	}
 
 	media := models.NewMedia(contentId)
