@@ -3,14 +3,18 @@ package models
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/task"
 	"github.com/gorilla/websocket"
 )
 
 type ClientManager interface {
 	ClientConnect(conn *websocket.Conn, user *User) *WsClient
+	ClientDisconnect(c *WsClient)
 	RemoteConnect(conn *websocket.Conn, remote *Instance) *WsClient
+
+	Send(msg WsResponseInfo)
+
 	GetSubscribers(st WsAction, key SubId) (clients []*WsClient)
 	GetClientByUsername(username Username) *WsClient
 	GetClientByServerId(id InstanceId) *WsClient
@@ -24,8 +28,4 @@ type ClientManager interface {
 		complete bool, results map[string]any, err error,
 	)
 	Unsubscribe(c *WsClient, key SubId, unSubTime time.Time) error
-
-	Send(msg WsResponseInfo)
-
-	ClientDisconnect(c *WsClient)
 }

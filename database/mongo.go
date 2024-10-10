@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

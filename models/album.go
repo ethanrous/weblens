@@ -5,8 +5,8 @@ import (
 	"iter"
 	"slices"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
 )
 
 type AlbumId string

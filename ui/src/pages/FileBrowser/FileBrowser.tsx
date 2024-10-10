@@ -1,4 +1,4 @@
-import { Divider, FileButton, Text } from '@mantine/core'
+import { Divider, FileButton } from '@mantine/core'
 
 // Icons
 import {
@@ -37,7 +37,7 @@ import Crumbs from '@weblens/lib/Crumbs'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
-import { DraggingStateT, TaskProgContext } from '@weblens/types/files/FBTypes'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileContextMenu } from '@weblens/types/files/FileMenu'
@@ -49,20 +49,8 @@ import WeblensMedia, {
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { getFileShare } from '@weblens/types/share/shareQuery'
 import { humanFileSize } from '@weblens/util'
-import {
-    memo,
-    ReactElement,
-    useCallback,
-    useEffect,
-    useReducer,
-    useState,
-} from 'react'
-import {
-    useLocation,
-    useNavigate,
-    useParams,
-    useSearchParams,
-} from 'react-router-dom'
+import { memo, ReactElement, useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 
 // Weblens
@@ -94,11 +82,7 @@ import FileSortBox from './FileSortBox'
 import { StatTree } from './FileStatTree'
 import SearchDialogue from './SearchDialogue'
 import {
-    taskProgressReducer,
-    TaskProgressState,
     TasksDisplay,
-    TasksProgressAction,
-    TasksProgressDispatch,
 } from './TaskProgress'
 import UploadStatus from './UploadStatus'
 import './style/fileBrowserStyle.scss'
@@ -291,11 +275,12 @@ function GlobalActions() {
                     <WeblensButton
                         label="Home"
                         fillWidth
-                        squareSize={48}
+                        squareSize={40}
                         toggleOn={
                             folderInfo?.Id() === user?.homeId &&
                             mode === FbModeT.default
                         }
+                        float={draggingState === 1}
                         disabled={!user.isLoggedIn}
                         allowRepeat={false}
                         Left={IconHome}
@@ -307,7 +292,7 @@ function GlobalActions() {
                     <WeblensButton
                         label="Shared"
                         fillWidth
-                        squareSize={48}
+                        squareSize={40}
                         toggleOn={mode === FbModeT.share && shareId === ''}
                         disabled={
                             draggingState !== DraggingStateT.NoDrag ||
@@ -319,16 +304,25 @@ function GlobalActions() {
                     />
 
                     {trashSize !== 0 && (
-                        <div className="relative w-full translate-y-1 z-20">
+                        <div
+                            className="relative w-full translate-y-[2px] z-20"
+                            data-selected={
+                                folderInfo?.Id() === user?.trashId &&
+                                mode === FbModeT.default
+                                    ? 1
+                                    : 0
+                            }
+                        >
                             <div className="file-size-box">
-                                <p>{`${trashSizeValue}${trashSizeUnit}`}</p>
+                                <p className="file-size-text">{`${trashSizeValue}${trashSizeUnit}`}</p>
                             </div>
                         </div>
                     )}
                     <WeblensButton
                         label="Trash"
                         fillWidth
-                        squareSize={48}
+                        squareSize={40}
+                        float={draggingState === 1}
                         toggleOn={
                             folderInfo?.Id() === user?.trashId &&
                             mode === FbModeT.default
@@ -352,7 +346,7 @@ function GlobalActions() {
                         <WeblensButton
                             label="External"
                             fillWidth
-                            squareSize={48}
+                            squareSize={40}
                             toggleOn={mode === FbModeT.external}
                             allowRepeat={false}
                             Left={IconServer}
@@ -367,7 +361,7 @@ function GlobalActions() {
                         <WeblensButton
                             label="New Folder"
                             fillWidth
-                            squareSize={48}
+                            squareSize={40}
                             Left={IconFolderPlus}
                             showSuccess={false}
                             disabled={
@@ -379,10 +373,11 @@ function GlobalActions() {
                     )}
                     {namingFolder && (
                         <WeblensInput
-                            squareSize={48}
+                            squareSize={40}
                             placeholder={'New Folder'}
                             buttonIcon={IconPlus}
                             closeInput={() => setNamingFolder(false)}
+                            autoFocus
                             onComplete={(newName) =>
                                 CreateFolder(
                                     folderInfo.Id(),
@@ -411,7 +406,7 @@ function GlobalActions() {
                             return (
                                 <WeblensButton
                                     label="Upload"
-                                    squareSize={48}
+                                    squareSize={40}
                                     fillWidth
                                     showSuccess={false}
                                     disabled={
@@ -426,7 +421,7 @@ function GlobalActions() {
                     </FileButton>
                 </div>
 
-                <Divider w={'100%'} my="lg" size={1.5} />
+                <Divider w={'100%'} my="md" size={1.5} />
 
                 <UsageInfo />
 
@@ -491,18 +486,10 @@ const UsageInfo = () => {
 
     const miniMode = size.width !== -1 && size.width < 100
 
-    let startIcon = doGlobalSize ? (
-        <IconFolder size={20} />
-    ) : (
-        <IconFiles size={20} />
-    )
-    let endIcon = doGlobalSize ? (
-        <IconHome size={20} />
-    ) : (
-        <IconFolder size={20} />
-    )
+    let StartIcon = doGlobalSize ? IconFolder : IconFiles
+    let EndIcon = doGlobalSize ? IconHome : IconFolder
     if (miniMode) {
-        ;[startIcon, endIcon] = [endIcon, startIcon]
+        ;[StartIcon, EndIcon] = [EndIcon, StartIcon]
     }
 
     return (
@@ -515,16 +502,12 @@ const UsageInfo = () => {
         >
             {!miniMode && (
                 <div className="flex flex-row h-max w-full gap-2 items-center justify-between">
-                    <div className="flex flex-row items-center h-full select-none font-semibold text-lg">
-                        <p>Usage</p>
-                        <div className="p-1" />
-                        <p className=" text-ellipsis">
-                            {usagePercent ? usagePercent.toFixed(2) : 0}%
-                        </p>
-                    </div>
+                    <h1 className="font-bold text-lg">
+                        Usage {usagePercent ? usagePercent.toFixed(2) : 0}%
+                    </h1>
                 </div>
             )}
-            {miniMode && startIcon}
+            {miniMode && <StartIcon className="background-icon" />}
             <div
                 className="relative h-max w-max"
                 style={{
@@ -546,35 +529,31 @@ const UsageInfo = () => {
             >
                 {folderInfo?.Id() !== 'shared' && !miniMode && (
                     <div className="flex flex-row items-center">
-                        {startIcon}
-                        <Text
+                        {<StartIcon className="background-icon" />}
+                        <p
+                            className="select-none p-1"
                             style={{
-                                userSelect: 'none',
                                 display: miniMode ? 'none' : 'block',
                             }}
-                            size="14px"
-                            pl={3}
                         >
                             {doGlobalSize
                                 ? humanFileSize(displaySize)
                                 : humanFileSize(selectedSize)}
-                        </Text>
+                        </p>
                     </div>
                 )}
                 <div className="flex flex-row justify-end w-max items-center">
-                    <Text
+                    <p
+                        className="select-none p-1"
                         style={{
-                            userSelect: 'none',
                             display: miniMode ? 'none' : 'block',
                         }}
-                        size="14px"
-                        pr={3}
                     >
                         {doGlobalSize
                             ? humanFileSize(homeSize)
                             : humanFileSize(displaySize)}
-                    </Text>
-                    {endIcon}
+                    </p>
+                    {<EndIcon className="background-icon" />}
                 </div>
             </div>
         </div>
@@ -657,7 +636,7 @@ function DirViewHeader({ moveSelected, searchQuery }) {
 
     return (
         <div className="flex flex-col h-max">
-            <div className="flex flex-row h-[70px] justify-between items-center p-2">
+            <div className="flex flex-row h-[60px] justify-between items-center pl-2 pt-0">
                 {mode === FbModeT.search && (
                     <div className="flex h-14 w-full items-center">
                         <WeblensButton
@@ -909,14 +888,6 @@ const FileBrowser = () => {
         }))
     )
 
-    const [taskProg, taskProgDispatch] = useReducer<
-        (
-            state: TaskProgressState,
-            action: TasksProgressAction
-        ) => TaskProgressState,
-        TasksProgressDispatch
-    >(taskProgressReducer, null, () => new TaskProgressState())
-
     useEffect(() => {
         localStorage.setItem('fbViewOpts', JSON.stringify(viewOpts))
     }, [viewOpts])
@@ -990,8 +961,7 @@ const FileBrowser = () => {
     const { wsSend, readyState } = useSubscribe(
         fbLocationContext.contentId,
         fbLocationContext.shareId,
-        user,
-        taskProgDispatch
+        user
     )
 
     useKeyDownFileBrowser()
@@ -1001,7 +971,6 @@ const FileBrowser = () => {
 
     // Reset most of the state when we change folders
     const syncState = useCallback(async () => {
-        console.log('Starting syncState', fbLocationContext.contentId)
         clearFiles()
         setNotFound(false)
 
@@ -1019,8 +988,7 @@ const FileBrowser = () => {
             return
         }
 
-        console.log('Continuing syncState', fbLocationContext.contentId)
-
+        addLoading('files')
         const fileData = await GetFolderData(
             fbLocationContext.contentId,
             fbLocationContext.mode,
@@ -1033,6 +1001,7 @@ const FileBrowser = () => {
                 console.error(r)
             }
         })
+        addLoading('files')
 
         if (fileData) {
             setFilesData(
@@ -1063,36 +1032,32 @@ const FileBrowser = () => {
 
     return (
         <WebsocketContext.Provider value={wsSend}>
-            <TaskProgContext.Provider
-                value={{ progState: taskProg, progDispatch: taskProgDispatch }}
-            >
-                <div className="h-screen flex flex-col">
-                    <HeaderBar
-                        setBlockFocus={setBlockFocus}
-                        page={'files'}
-                        loading={loading}
-                    />
-                    <DraggingCounter />
-                    <PresentationFile file={filesMap.get(presentingId)} />
-                    {pasteImgBytes && <PasteImageDialogue />}
-                    {isSearching && <SearchDialogue />}
-                    <FileContextMenu />
-                    <div className="absolute bottom-1 left-1">
-                        <WebsocketStatus ready={readyState} />
-                    </div>
-                    <div className="flex flex-row grow h-[90vh] items-start">
-                        <GlobalActions />
-                        <DirViewWrapper>
-                            <DirView
-                                notFound={notFound}
-                                setNotFound={setNotFound}
-                                searchQuery={''}
-                                searchFilter={''}
-                            />
-                        </DirViewWrapper>
-                    </div>
+            <div className="h-screen flex flex-col">
+                <HeaderBar
+                    setBlockFocus={setBlockFocus}
+                    page={'files'}
+                    loading={loading}
+                />
+                <DraggingCounter />
+                <PresentationFile file={filesMap.get(presentingId)} />
+                {pasteImgBytes && <PasteImageDialogue />}
+                {isSearching && <SearchDialogue />}
+                <FileContextMenu />
+                <div className="absolute bottom-1 left-1">
+                    <WebsocketStatus ready={readyState} />
                 </div>
-            </TaskProgContext.Provider>
+                <div className="flex flex-row grow h-[90vh] items-start">
+                    <GlobalActions />
+                    <DirViewWrapper>
+                        <DirView
+                            notFound={notFound}
+                            setNotFound={setNotFound}
+                            searchQuery={''}
+                            searchFilter={''}
+                        />
+                    </DirViewWrapper>
+                </div>
+            </div>
         </WebsocketContext.Provider>
     )
 }

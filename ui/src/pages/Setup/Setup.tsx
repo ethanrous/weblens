@@ -1,6 +1,7 @@
 import { Divider, Input, Text } from '@mantine/core'
 import {
     IconArrowLeft,
+    IconDatabase,
     IconDatabaseImport,
     IconExclamationCircle,
     IconPackage,
@@ -12,11 +13,18 @@ import { GetUserInfo } from '@weblens/api/UserApi'
 import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import '@weblens/components/setup.css'
+import '@weblens/components/setup.scss'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { UserInfoT } from '@weblens/types/Types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Logo from '@weblens/components/Logo'
+import { ThemeToggleButton } from '@weblens/components/HeaderBar'
+import {
+    HandleWebsocketMessage,
+    useWeblensSocket,
+} from '@weblens/api/Websocket'
+import { setupWebsocketHandler } from './SetupLogic'
 
 const UserSelect = ({
     users,
@@ -26,10 +34,10 @@ const UserSelect = ({
     owner,
 }: {
     users: UserInfoT[]
-    username
-    setUsername
-    setPassword
-    owner
+    username: string
+    setUsername: (username: string) => void
+    setPassword: (password: string) => void
+    owner: UserInfoT
 }) => {
     if (users.length === 0) {
         return null
@@ -48,11 +56,7 @@ const UserSelect = ({
                     </Text>
                     <IconExclamationCircle color="white" />
                 </div>
-                <Text
-                    className="body-text"
-                    style={{ fontSize: '12px' }}
-                    c="white"
-                >
+                <Text className="" style={{ fontSize: '12px' }} c="white">
                     Log in as {owner.username} to continue
                 </Text>
                 <Input
@@ -79,7 +83,7 @@ const UserSelect = ({
                 </Text>
                 <IconExclamationCircle color="white" />
             </div>
-            <Text className="body-text" c="#ffffff" style={{ padding: 0 }}>
+            <Text className="" c="#ffffff" style={{ padding: 0 }}>
                 Select a user to make owner
             </Text>
             <div className="w-full h-max max-h-[100px] shrink-0 overflow-scroll">
@@ -99,7 +103,7 @@ const UserSelect = ({
             </div>
             {username && (
                 <div className="w-full">
-                    <Text className="body-text" c="#ffffff">
+                    <Text className="" c="#ffffff">
                         Log in as {username} to continue
                     </Text>
                     <Input
@@ -136,7 +140,7 @@ const Core = ({
     const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
     const serverInfo = useSessionStore((state) => state.server)
     const setUserInfo = useSessionStore((state) => state.setUserInfo)
-    useKeyDown("Enter", () => buttonRef.click())
+    useKeyDown('Enter', () => buttonRef.click())
 
     const { data: users } = useQuery({
         queryKey: ['setupUsers'],
@@ -157,7 +161,7 @@ const Core = ({
         return owner
     }, [users])
 
-    let onDeck
+    let onDeck: string
     if (page === 'core') {
         onDeck = 'active'
     } else if (page === 'landing') {
@@ -170,17 +174,16 @@ const Core = ({
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
-                    subtle
                     onClick={() => setPage('landing')}
                 />
             </div>
             <div className="flex items-center gap-[20]">
-                <IconPackage color="white" size={'60px'} />
-                <p className="header-text pl-4">Core</p>
+                <IconPackage className="text-theme-text" size={'60px'} />
+                <h1 className="pl-4">Core</h1>
             </div>
             {users.length === 0 && (
                 <div className="flex flex-col w-full">
-                    <p className="body-text m-2">Create an Owner Account</p>
+                    <p className=" m-2">Create an Owner Account</p>
                     <div className="flex flex-col p-4 outline-gray-700 outline rounded">
                         <WeblensInput
                             placeholder={'Username'}
@@ -234,7 +237,7 @@ const Core = ({
             )}
             {!existingName && (
                 <div className="flex flex-col w-full">
-                    <p className="body-text m-2">Name This Weblens Server</p>
+                    <p className="m-2">Name This Weblens Server</p>
                     <WeblensInput
                         // disabled={Boolean(existingName)}
                         value={serverName}
@@ -271,15 +274,23 @@ const Core = ({
                         return false
                     }
 
-                    GetUserInfo()
+                    await new Promise((r) => setTimeout(r, 200))
+
+                    const gotInfo = await GetUserInfo()
                         .then((info) => {
                             console.log(info)
                             setUserInfo({ ...info, isLoggedIn: true })
+                            return true
                         })
                         .catch((r) => {
                             console.error(r)
                             setUserInfo({ isLoggedIn: false } as UserInfoT)
+                            return false
                         })
+
+                    if (!gotInfo) {
+                        return false
+                    }
 
                     fetchServerInfo()
 
@@ -305,7 +316,7 @@ const Backup = ({
 
     const nav = useNavigate()
 
-    let onDeck
+    let onDeck: string
     if (page === 'backup') {
         onDeck = 'active'
     } else if (page === 'landing' || page === 'core') {
@@ -317,17 +328,16 @@ const Backup = ({
                 <WeblensButton
                     Left={IconArrowLeft}
                     squareSize={35}
-                    subtle
                     onClick={() => setPage('landing')}
                 />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <IconDatabaseImport color="white" size={'60px'} />
-                <p className="header-text">Backup</p>
+                <IconDatabaseImport className="text-theme-text" size={'60px'} />
+                <h1>Backup</h1>
             </div>
 
             <div className="w-full h-14">
-                <p className="body-text m-2">Name This Server</p>
+                <p className="m-2">Name This Server</p>
                 <WeblensInput
                     placeholder={'My Rad Backup Server'}
                     valueCallback={setServerName}
@@ -335,16 +345,21 @@ const Backup = ({
             </div>
 
             <div className="w-full h-14">
-                <p className="body-text m-2">Remote (Core) Weblens Address</p>
+                <p className="m-2">Remote (Core) Weblens Address</p>
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
-                    failed={coreAddress && coreAddress.match("^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$") === null}
+                    failed={
+                        coreAddress &&
+                        coreAddress.match(
+                            '^http(s)?:\\/\\/[^:]+(:\\d{2,5})?/?$'
+                        ) === null
+                    }
                 />
             </div>
 
             <div className="w-full h-14">
-                <p className="body-text m-2">API Key</p>
+                <p className="m-2">API Key</p>
                 <WeblensInput
                     placeholder={'RUH8gHMH4EgQvw_n2...'}
                     valueCallback={setApiKey}
@@ -352,7 +367,7 @@ const Backup = ({
                 />
             </div>
 
-            <div/>
+            <div />
 
             <WeblensButton
                 label="Attach to Core"
@@ -378,12 +393,59 @@ const Backup = ({
 
                     await new Promise((r) => setTimeout(r, 200))
 
-                    fetchServerInfo()
-                    nav('/files/home')
+                    await fetchServerInfo()
+                    nav('/backup')
 
                     return true
                 }}
             />
+        </div>
+    )
+}
+
+const Restore = ({
+    page,
+    setPage,
+}: {
+    page: string
+    setPage: (page: string) => void
+}) => {
+    let onDeck: string
+    if (page === 'restore') {
+        onDeck = 'active'
+    } else if (page === 'landing' || page === 'core') {
+        onDeck = 'next'
+    }
+
+    const nav = useNavigate()
+    const [restoreInProgress, setRestoreInProgress] = useState(false)
+
+    const { lastMessage } = useWeblensSocket()
+    useEffect(() => {
+        HandleWebsocketMessage(lastMessage, setupWebsocketHandler(setRestoreInProgress, nav))
+    }, [lastMessage])
+
+
+    return (
+        <div className="setup-content-box" data-on-deck={onDeck}>
+            <div className="w-[90%] absolute">
+                <WeblensButton
+                    Left={IconArrowLeft}
+                    squareSize={35}
+                    subtle
+                    onClick={() => setPage('landing')}
+                />
+            </div>
+            {restoreInProgress && (
+                <h1 className="flex h-[80%] items-center">
+                    Restore In Progress
+                </h1>
+            )}
+            {!restoreInProgress && (
+                <h1 className="flex h-[80%] items-center">
+                    Waiting for Restore
+                </h1>
+            )}
         </div>
     )
 }
@@ -395,7 +457,7 @@ const Landing = ({
     page: string
     setPage: (page: string) => void
 }) => {
-    let onDeck
+    let onDeck: string
     if (page === 'landing') {
         onDeck = 'active'
     } else if (page === 'core' || page === 'backup') {
@@ -404,8 +466,9 @@ const Landing = ({
 
     return (
         <div className="setup-content-box" data-on-deck={onDeck}>
-            <Text className="title-text">WEBLENS</Text>
-            {/* <Text className="content-title-text">Set Up Weblens</Text> */}
+            <div className="p-6">
+                <Logo size={140} />
+            </div>
             <WeblensButton
                 label="Set Up Weblens Core"
                 Left={IconPackage}
@@ -413,16 +476,27 @@ const Landing = ({
                 centerContent
                 onClick={() => setPage('core')}
             />
-            <Text>Or...</Text>
-            <WeblensButton
-                label="Set Up As Backup"
-                squareSize={40}
-                Left={IconDatabaseImport}
-                style={{ width: '200px' }}
-                centerContent
-                subtle
-                onClick={() => setPage('backup')}
-            />
+            <div className="w-[90%] h-[1px] bg-[--wl-outline-subtle]" />
+            <div className="flex flex-row gap-2">
+                <WeblensButton
+                    label="Set Up As Backup"
+                    squareSize={40}
+                    Left={IconDatabase}
+                    style={{ width: '200px' }}
+                    centerContent
+                    subtle
+                    onClick={() => setPage('backup')}
+                />
+                <WeblensButton
+                    label="Restore From Backup"
+                    squareSize={40}
+                    Left={IconDatabaseImport}
+                    style={{ width: '200px' }}
+                    centerContent
+                    subtle
+                    onClick={() => setPage('restore')}
+                />
+            </div>
         </div>
     )
 }
@@ -446,6 +520,9 @@ const Setup = () => {
 
     return (
         <div className="setup-container">
+            <div className="absolute bottom-4 right-4">
+                <ThemeToggleButton />
+            </div>
             <div className="setup-content-pane" data-active={true}>
                 <Landing page={page} setPage={setPage} />
                 <Core
@@ -454,8 +531,8 @@ const Setup = () => {
                     existingName={server.info.name}
                 />
                 <Backup page={page} setPage={setPage} />
+                <Restore page={page} setPage={setPage} />
             </div>
-            {/* <ScatteredPhotos /> */}
         </div>
     )
 }

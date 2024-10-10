@@ -5,22 +5,17 @@ import viteTsconfigPaths from 'vite-tsconfig-paths'
 
 export default ({ mode }) => {
     process.env = { ...process.env, ...loadEnv(mode, process.cwd()) }
-    // console.log(
-    //     'VITE_PORT:',
-    //     process.env.VITE_PORT,
-    //     'VITE_PROXY_PORT:',
-    //     process.env.VITE_PROXY_PORT,
-    //     'VITE_PROXY_HOST',
-    //     process.env.VITE_PROXY_HOST
-    // )
-    if (
-        (!process.env.VITE_PROXY_HOST || !process.env.VITE_PROXY_PORT) &&
-        process.env.VITE_BUILD !== 'true'
-    ) {
-        process.env.VITE_PROXY_HOST = '127.0.0.1'
+
+    if (!process.env.VITE_PROXY_PORT && process.env.VITE_BUILD !== 'true') {
         process.env.VITE_PROXY_PORT = '8080'
         console.warn(
-            `VITE_PROXY_HOST or VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}:${process.env.VITE_PROXY_PORT}`
+            `VITE_PROXY_PORT not set\nDefaulting proxy to ${process.env.VITE_PROXY_PORT}`
+        )
+    }
+    if (!process.env.VITE_PROXY_HOST && process.env.VITE_BUILD !== 'true') {
+        process.env.VITE_PROXY_HOST = '127.0.0.1'
+        console.warn(
+            `VITE_PROXY_HOST not set\nDefaulting proxy to ${process.env.VITE_PROXY_HOST}`
         )
     }
 

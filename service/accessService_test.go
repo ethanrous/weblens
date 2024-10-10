@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/models"
-	. "github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/models"
+	. "github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -99,12 +99,14 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 		t.FailNow()
 	}
 
-	_, err = acc.GenerateApiKey(billUser)
+	local := models.NewInstance("", "test-instance", "", models.CoreServer, true, "", "")
+
+	_, err = acc.GenerateApiKey(billUser, local)
 	assert.Error(t, err)
 
 	billUser.Admin = true
 
-	key, err := acc.GenerateApiKey(billUser)
+	key, err := acc.GenerateApiKey(billUser, local)
 	require.NoError(t, err)
 	assert.Equal(t, billUser.Username, key.Owner)
 
@@ -151,10 +153,12 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 		t.FailNow()
 	}
 
-	key, err := acc.GenerateApiKey(billUser)
+	local := models.NewInstance("", "test-instance", "", models.CoreServer, true, "", "")
+
+	key, err := acc.GenerateApiKey(billUser, local)
 	require.NoError(t, err)
 
-	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServer, false, "")
+	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServer, false, "", t.Name())
 
 	err = acc.SetKeyUsedBy(key.Key, backupServer)
 	require.NoError(t, err)

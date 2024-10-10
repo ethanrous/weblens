@@ -4,20 +4,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/log"
 )
 
 func Errorf(format string, args ...any) StackError {
 	return &withStack{
 		err:   fmt.Errorf(format, args...),
-		stack: callers(),
+		stack: callers(3),
 	}
 }
 
 var NotImplemented = func(note string) error {
 	return &withStack{
 		err:   fmt.Errorf("not implemented: %s", note),
-		stack: callers(),
+		stack: callers(3),
 	}
 }
 
@@ -48,7 +48,9 @@ func TrySafeErr(err error) (error, int) {
 
 	var safeErr = &clientSafeErr{}
 	if errors.As(err, &safeErr) {
-		log.ShowErr(err)
+		if safeErr.statusCode >= 400 {
+			log.ShowErr(err)
+		}
 		return safeErr.Safe(), safeErr.statusCode
 	}
 

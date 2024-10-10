@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 )
 
-type FileEventId string
+type FileEventId = string
 
 type FileEvent struct {
 	EventId    FileEventId   `bson:"_id"`
@@ -73,9 +73,14 @@ func (fe *FileEvent) GetEventId() FileEventId {
 }
 
 func (fe *FileEvent) Wait() {
-	log.Trace.Printf("Waiting for event [%s] to be logged", fe.EventId)
+	if fe == nil || fe.LoggedChan == nil {
+		log.ErrTrace(werror.Errorf("Cannot wait on nil event"))
+		return
+	}
+
+	log.TraceCaller(1, "Waiting for event [%s] to be logged", fe.EventId)
 	<-fe.LoggedChan
-	log.Trace.Printf("Event [%s] logged", fe.EventId)
+	log.TraceCaller(1, "Event [%s] logged", fe.EventId)
 }
 
 func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAction {

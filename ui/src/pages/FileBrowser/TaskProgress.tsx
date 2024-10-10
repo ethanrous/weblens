@@ -7,6 +7,7 @@ import { TaskProgContext } from '@weblens/types/files/FBTypes'
 import { nsToHumanTime } from '@weblens/util'
 import { Dispatch, useContext, useMemo, useState } from 'react'
 import { WebsocketContext } from '../../Context'
+import { create, StateCreator } from 'zustand'
 
 export class TaskProgressState {
     private tasks: Map<string, TaskProgress>
@@ -281,19 +282,22 @@ export class TaskProgress {
 }
 
 export const TasksDisplay = () => {
-    const { progState, progDispatch } = useContext(TaskProgContext)
+    const tasks = useTaskState((state) => state.tasks)
+    const clearTasks = useTaskState((state) => state.clearTasks)
+
     const cards = useMemo(() => {
-        return progState.getTasks().map((sp) => {
+        return Array.from(tasks.values()).map((sp) => {
             if (sp.taskType === 'do_backup') {
                 return null
             }
             return <TaskProgCard key={sp.taskId} prog={sp} />
         })
-    }, [progState])
+    }, [tasks])
 
-    if (progState.tasksCount() == 0) {
+    if (tasks.size === 0) {
         return null
     }
+
     return (
         <div className="flex flex-col relative h-max w-full pt-4">
             <WeblensButton
@@ -303,9 +307,8 @@ export const TasksDisplay = () => {
                 fillWidth
                 squareSize={32}
                 onClick={() => {
-                    progDispatch({ type: 'clear_tasks' })
+                    clearTasks()
                 }}
-                disabled={progState.tasksCount() === 0}
             />
             <div className="flex shrink w-full overflow-y-scroll h-full pb-4 no-scrollbar">
                 <div className="flex flex-col h-max w-full">{cards}</div>
@@ -315,12 +318,12 @@ export const TasksDisplay = () => {
 }
 
 const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
-    const { progDispatch } = useContext(TaskProgContext)
+    const removeTask = useTaskState((state) => state.removeTask)
     const wsSend = useContext(WebsocketContext)
 
     const [cancelWarning, setCancelWarning] = useState(false)
 
-    let totalNum
+    let totalNum: number
     if (typeof prog.tasksTotal === 'string') {
         totalNum = parseInt(prog.tasksTotal)
     } else {
@@ -351,10 +354,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                                     prog.stage === TaskStage.Cancelled ||
                                     prog.stage === TaskStage.Failure
                                 ) {
-                                    progDispatch({
-                                        type: 'remove_task_progress',
-                                        taskId: prog.taskId,
-                                    })
+                                    removeTask(prog.taskId)
                                     return
                                 }
                                 if (cancelWarning) {
@@ -378,10 +378,6 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                     value={prog.getProgress()}
                     secondaryValue={prog.getErrorProgress()}
                     loading={prog.stage === TaskStage.Queued}
-                    // failure={
-                    //     prog.stage === TaskStage.Failure ||
-                    //     prog.stage === TaskStage.Cancelled
-                    // }
                     secondaryColor={'red'}
                 />
             </div>
@@ -446,7 +442,7 @@ export type TasksProgressAction = {
     tasksTotal?: number | string
 }
 
-export type TasksProgressDispatch = Dispatch<TasksProgressAction>
+// export type TasksProgressDispatch = Dispatch<TasksProgressAction>
 
 export function taskProgressReducer(
     state: TaskProgressState,
@@ -573,3 +569,49 @@ export function taskProgressReducer(
 
     return new TaskProgressState(state)
 }
+
+export type NewTaskOptions = {
+    target?: string
+    progress?: number
+}
+
+type TaskStateT = {
+    tasks: Map<string, TaskProgress>
+
+    addTask: (taskId: string, taskType: string, opts?: NewTaskOptions) => void
+    removeTask: (taskId: string) => void
+    clearTasks: () => void
+}
+
+const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
+    tasks: new Map<string, TaskProgress>(),
+
+    addTask: (taskId: string, taskType: string, opts?: NewTaskOptions) => {
+        set((state) => {
+            const newProg = new TaskProgress(taskId, taskType)
+
+            if (opts?.target) {
+                newProg.setTarget(opts?.target)
+            }
+            if (opts?.progress) {
+                newProg.progressPercent = opts?.progress
+            }
+
+            state.tasks.set(taskId, newProg)
+            return { tasks: new Map<string, TaskProgress>(state.tasks) }
+        })
+    },
+
+    removeTask: (taskId: string) => {
+        set((state) => {
+            state.tasks.delete(taskId)
+            return { tasks: new Map<string, TaskProgress>(state.tasks) }
+        })
+    },
+
+    clearTasks: () => {
+        set({ tasks: new Map<string, TaskProgress>() })
+    },
+})
+
+export const useTaskState = create<TaskStateT>()(TaskStateControl)

@@ -3,7 +3,7 @@ package mock
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
+	"github.com/ethanrous/weblens/fileTree"
 )
 
 type HollowJournalService struct{}
@@ -17,7 +17,7 @@ func (h *HollowJournalService) Get(id fileTree.FileId) *fileTree.Lifetime {
 	return nil
 }
 
-func (h *HollowJournalService) Add(lifetime *fileTree.Lifetime) error {
+func (h *HollowJournalService) Add(lifetime ...*fileTree.Lifetime) error {
 	return nil
 }
 
@@ -26,6 +26,10 @@ func (h *HollowJournalService) Del(id fileTree.FileId) error {
 }
 
 func (h *HollowJournalService) SetFileTree(ft *fileTree.FileTreeImpl) {}
+
+func (h *HollowJournalService) IgnoreLocal() bool { return true }
+
+func (h *HollowJournalService) SetIgnoreLocal(bool) {}
 
 func (h *HollowJournalService) NewEvent() *fileTree.FileEvent {
 	return &fileTree.FileEvent{LoggedChan: make(chan struct{})}
@@ -77,4 +81,12 @@ func (h *HollowJournalService) GetLatestAction() (*fileTree.FileAction, error) {
 
 func NewHollowJournalService() fileTree.Journal {
 	return &HollowJournalService{}
+}
+
+func (h *HollowJournalService) Clear() error {
+	return nil
+}
+
+func (h *HollowJournalService) UpdateLifetime(lifetime *fileTree.Lifetime) error {
+	return nil
 }

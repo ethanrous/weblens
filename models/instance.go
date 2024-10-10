@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -13,13 +13,23 @@ type InstanceId = string
 type ServerRole = string
 
 const (
-	InitServer   ServerRole = "init"
-	CoreServer   ServerRole = "core"
-	BackupServer ServerRole = "backup"
+	InitServer    ServerRole = "init"
+	CoreServer    ServerRole = "core"
+	BackupServer  ServerRole = "backup"
+	RestoreServer ServerRole = "restore"
 )
 
+// An "Instance" is a single Weblens server.
+// For clarity: Core vs Backup are absolute server roles, and each server
+// will fit into one of these categories once initialized. Local vs Remote
+// are RELATIVE terms, meaning one core servers "remote" is the backup
+// servers "local".
 type Instance struct {
-	Id   InstanceId `json:"id" bson:"_id"`
+	// The ID of the server in the local database
+	DbId primitive.ObjectID `json:"-" bson:"_id"`
+
+	// The ID of the server that is shared between all servers
+	Id   InstanceId `json:"id" bson:"instanceId"`
 	Name string     `json:"name" bson:"name"`
 
 	// Only applies to "core" server entries. This is the apiKey that remote server is using to connect to local,
@@ -36,16 +46,24 @@ type Instance struct {
 	// Not set for any remotes/backups on core server, as it IS the core
 	Address string `json:"coreAddress" bson:"coreAddress"`
 
-	service InstanceService
+	// The ID of the server in which this remote instance is in reference from
+	CreatedBy InstanceId `json:"createdBy" bson:"createdBy"`
+
+	// The time of the latest backup, in milliseconds since epoch
+	LastBackup int64 `json:"lastBackup" bson:"lastBackup"`
+
+	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
+	reportedRole ServerRole
+
 	updateMu sync.RWMutex
 }
 
 func NewInstance(
 	id InstanceId, name string, key WeblensApiKey, role ServerRole, isThisServer bool,
-	address string,
+	address string, createdBy InstanceId,
 ) *Instance {
 	if id == "" {
-		id = InstanceId(primitive.NewObjectID().Hex())
+		id = primitive.NewObjectID().Hex()
 	}
 	return &Instance{
 		Id:           id,
@@ -54,6 +72,7 @@ func NewInstance(
 		Role:         role,
 		IsThisServer: isThisServer,
 		Address:      address,
+		CreatedBy:    createdBy,
 	}
 }
 
@@ -91,10 +110,22 @@ func (wi *Instance) GetRole() ServerRole {
 	return wi.Role
 }
 
+func (wi *Instance) GetReportedRole() ServerRole {
+	wi.updateMu.RLock()
+	defer wi.updateMu.RUnlock()
+	return wi.reportedRole
+}
+
 func (wi *Instance) SetRole(role ServerRole) {
 	wi.updateMu.Lock()
 	defer wi.updateMu.Unlock()
 	wi.Role = role
+}
+
+func (wi *Instance) SetReportedRole(role ServerRole) {
+	wi.updateMu.Lock()
+	defer wi.updateMu.Unlock()
+	wi.reportedRole = role
 }
 
 func (wi *Instance) GetAddress() (string, error) {
@@ -134,42 +165,57 @@ type ServerInfo struct {
 	// Not set for any remotes/backups on core server, as it IS the core
 	Address string `json:"coreAddress"`
 
+	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
+	ReportedRole ServerRole `json:"reportedRole"`
+
 	Online bool `json:"online"`
+
+	LastBackup int64 `json:"lastBackup"`
+
+	BackupSize int64 `json:"backupSize"`
 }
 
 type InstanceService interface {
 	Size() int
 
-	Get(id InstanceId) *Instance
+	Get(dbId string) *Instance
+	GetAllByOriginServer(serverId InstanceId) []*Instance
+	GetByInstanceId(serverId InstanceId) *Instance
 	Add(instance *Instance) error
-	Del(id InstanceId) error
+	Del(dbId primitive.ObjectID) error
 	GetLocal() *Instance
-	GetCore() *Instance
+	GetCores() []*Instance
 	GetRemotes() []*Instance
 	InitCore(serverName string) error
 	InitBackup(name, coreAddr string, key WeblensApiKey) error
+	SetLastBackup(id InstanceId, time time.Time) error
+	AttachRemoteCore(coreAddr string, key string) (*Instance, error)
 	ResetAll() error
 }
 
 type WeblensApiKey = string
+
 type ApiKeyInfo struct {
 	Id          primitive.ObjectID `bson:"_id" json:"id"`
 	Key         WeblensApiKey      `bson:"key" json:"key"`
 	Owner       Username           `bson:"owner" json:"owner"`
 	CreatedTime time.Time          `bson:"createdTime" json:"createdTime"`
 	RemoteUsing InstanceId         `bson:"remoteUsing" json:"remoteUsing"`
+	CreatedBy   InstanceId         `bson:"createdBy" json:"createdBy"`
 }
 
 type AccessService interface {
 	GenerateJwtToken(user *User) (string, error)
 	GetApiKey(key WeblensApiKey) (ApiKeyInfo, error)
+	AddApiKey(key ApiKeyInfo) error
 	GetUserFromToken(token string) (*User, error)
 	DeleteApiKey(key WeblensApiKey) error
-	GenerateApiKey(creator *User) (ApiKeyInfo, error)
+	GenerateApiKey(creator *User, local *Instance) (ApiKeyInfo, error)
 	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
 
 	GetAllKeys(accessor *User) ([]ApiKeyInfo, error)
+	GetAllKeysByServer(accessor *User, serverId InstanceId) ([]ApiKeyInfo, error)
 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
 }

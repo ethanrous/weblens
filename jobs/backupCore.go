@@ -2,19 +2,16 @@ package jobs
 
 import (
 	"errors"
-	"fmt"
 	"io"
-	"os"
 	"slices"
-	"sort"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service/proxy"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service/proxy"
+	"github.com/ethanrous/weblens/task"
 )
 
 func BackupD(interval time.Duration, pack *models.ServicePack) {
@@ -23,6 +20,11 @@ func BackupD(interval time.Duration, pack *models.ServicePack) {
 		return
 	}
 	for {
+		now := time.Now()
+		sleepFor := now.Truncate(interval).Add(interval).Sub(now)
+		log.Debug.Println("BackupD going to sleep for", sleepFor)
+		time.Sleep(sleepFor)
+
 		for _, remote := range pack.InstanceService.GetRemotes() {
 			if remote.IsLocal() {
 				continue
@@ -33,65 +35,143 @@ func BackupD(interval time.Duration, pack *models.ServicePack) {
 				log.ErrTrace(err)
 			}
 		}
-
-		now := time.Now()
-		sleepFor := now.Truncate(interval).Add(interval).Sub(now)
-		log.Debug.Println("BackupD going to sleep for", sleepFor)
-		time.Sleep(sleepFor)
 	}
 }
 
-func BackupOne(remote *models.Instance, pack *models.ServicePack) (*task.Task, error) {
+func BackupOne(core *models.Instance, pack *models.ServicePack) (*task.Task, error) {
 	meta := models.BackupMeta{
-		RemoteId:            remote.ServerId(),
+		Core:                core,
 		FileService:         pack.FileService,
 		UserService:         pack.UserService,
 		WebsocketService:    pack.ClientService,
 		InstanceService:     pack.InstanceService,
 		TaskService:         pack.TaskService,
 		Caster:              pack.Caster,
-		ProxyFileService:    &proxy.ProxyFileService{Core: remote},
-		ProxyJournalService: &proxy.ProxyJournalService{Core: remote},
-		ProxyUserService:    proxy.NewProxyUserService(remote),
-		ProxyMediaService:   &proxy.ProxyMediaService{Core: remote},
+		AccessService:       pack.AccessService,
+		ProxyFileService:    &proxy.ProxyFileService{Core: core},
+		ProxyJournalService: &proxy.ProxyJournalService{Core: core},
+		ProxyUserService:    proxy.NewProxyUserService(core),
+		ProxyMediaService:   &proxy.ProxyMediaService{Core: core},
 	}
 	return pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+}
+
+type serverInfoResponse struct {
+	Info models.ServerInfo `json:"info"`
 }
 
 func DoBackup(t *task.Task) {
 	meta := t.GetMeta().(models.BackupMeta)
 
+	t.OnResult(
+		func(r task.TaskResult) {
+			r["coreId"] = meta.Core.ServerId()
+			meta.Caster.PushTaskUpdate(t, "backup_progress", r)
+		},
+	)
+
+	t.SetErrorCleanup(
+		func(errTsk *task.Task) {
+			meta.Caster.PushTaskUpdate(
+				errTsk, "backup_failed",
+				task.TaskResult{"coreId": meta.Core.ServerId(), "error": errTsk.ReadError().Error()},
+			)
+		},
+	)
+
 	localRole := meta.InstanceService.GetLocal().GetRole()
 	if localRole == models.InitServer {
-		t.ErrorAndExit(werror.ErrServerNotInitialized)
+		t.ReqNoErr(werror.ErrServerNotInitialized)
 	} else if localRole != models.BackupServer {
-		t.ErrorAndExit(werror.ErrServerIsBackup)
+		t.ReqNoErr(werror.ErrServerIsBackup)
 	}
 
-	coreClient := meta.WebsocketService.GetClientByServerId(meta.RemoteId)
+	coreClient := meta.WebsocketService.GetClientByServerId(meta.Core.ServerId())
 	if coreClient == nil {
-		t.ErrorAndExit(werror.Errorf("Core websocket not connected"))
-
+		t.ReqNoErr(werror.Errorf("Core websocket not connected"))
 		// Dead code
 		return
 	}
 
 	log.Debug.Printf("Starting backup of [%s]", coreClient.GetRemote().GetName())
 
+	t.SetResult(task.TaskResult{"stage": "Connecting to remote"})
+
+	// Read core server info and check if it is really a core server
+	req := proxy.NewCoreRequest(meta.Core, "GET", "").OverwriteEndpoint("/api/info")
+	infoRes, err := proxy.CallHomeStruct[serverInfoResponse](req)
+	if err != nil {
+		t.ReqNoErr(err)
+	}
+
+	meta.Core.SetReportedRole(infoRes.Info.Role)
+	if infoRes.Info.Role != models.CoreServer {
+		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Info.Role))
+	}
+
+	t.SetResult(task.TaskResult{"stage": "Copying Users"})
+	// Backup users
 	users, err := meta.ProxyUserService.GetAll()
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
+
+	t.SetResult(task.TaskResult{"stage": "Writing Users"})
 	for user := range users {
 		err = meta.UserService.Add(user)
 		if err != nil {
-			t.ErrorAndExit(err)
+			t.ReqNoErr(err)
 		}
 	}
 
-	latest, err := meta.FileService.GetUsersJournal().GetLatestAction()
+	t.SetResult(task.TaskResult{"stage": "Copying Api Keys"})
+
+	// Fetch keys from core
+	keysRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup/keys")
+	keys, err := proxy.CallHomeStruct[[]models.ApiKeyInfo](keysRq)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
+	}
+
+	t.SetResult(task.TaskResult{"stage": "Writing Api Keys"})
+	// Add keys to access service
+	for _, key := range keys {
+		if _, err := meta.AccessService.GetApiKey(key.Key); err == nil {
+			continue
+		}
+
+		err = meta.AccessService.AddApiKey(key)
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+	}
+
+	t.SetResult(task.TaskResult{"stage": "Copying Instances"})
+	// Fetch instances from core
+	instancesRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup/instances")
+	instances, err := proxy.CallHomeStruct[[]*models.Instance](instancesRq)
+	if err != nil {
+		t.ReqNoErr(err)
+	}
+
+	t.SetResult(task.TaskResult{"stage": "Writing Instances"})
+	// Add instances to access service
+	for _, r := range instances {
+		if err := meta.InstanceService.Get(r.ServerId()); err == nil {
+			continue
+		}
+
+		err = meta.InstanceService.Add(r)
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+	}
+
+	t.SetResult(task.TaskResult{"stage": "Calculating New File History"})
+	// Find most recent action timestamp
+	latest, err := meta.FileService.GetJournalByTree(meta.Core.Id).GetLatestAction()
+	if err != nil {
+		t.ReqNoErr(err)
 	}
 
 	var latestTime = time.UnixMilli(0)
@@ -101,164 +181,361 @@ func DoBackup(t *task.Task) {
 
 	log.Trace.Printf("Backup latest action is %s", latestTime.String())
 
+	t.SetResult(task.TaskResult{"stage": "Fetching New File History"})
 	// Get new history updates
 	updatedLifetimes, err := meta.ProxyJournalService.GetLifetimesSince(latestTime)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
+	t.ReqNoErr(err)
 
-	log.Trace.Printf("Backup got %d updated lifetimes", len(updatedLifetimes))
+	log.Trace.Printf("Backup got %d updated lifetimes from core", len(updatedLifetimes))
 
-	slices.SortFunc(
-		updatedLifetimes, func(a, b *fileTree.Lifetime) int {
-			aActions := a.GetActions()
-			bActions := b.GetActions()
-			return len(aActions[len(aActions)-1].GetDestinationPath()) - len(bActions[len(bActions)-1].GetDestinationPath())
-		},
-	)
+	t.SetResult(task.TaskResult{"stage": "Importing New File History"})
 
-	var newFileIds []fileTree.FileId
+	// Sort lifetimes so that files created or moved most recently are updated last.
+	slices.SortFunc(updatedLifetimes, fileTree.LifetimeSorter)
+
+	journal := meta.FileService.GetJournalByTree(meta.Core.Id)
 	if len(updatedLifetimes) > 0 {
 		for _, lt := range updatedLifetimes {
-			existLt := meta.FileService.GetUsersJournal().Get(lt.ID())
-			existFile, err := meta.FileService.GetUserFile(lt.ID())
-			if err != nil && !errors.Is(err, werror.ErrNoFile) {
-				t.ErrorAndExit(err)
-			}
-
-			if existLt == nil && existFile == nil {
-				newFileIds = append(newFileIds, lt.ID())
-				// _, err = proxyService.GetUserFile(lt.GetLatestFileId())
-				// if err != nil {
-				// 	t.ErrorAndExit(err)
-				// }
-			} else {
-				// log.Debug.Println("Uhh... should this even happen?")
-			}
-
-			err = meta.FileService.GetUsersJournal().Add(lt)
-			if err != nil {
-				t.ErrorAndExit(err)
-			}
+			// Add the lifetime to the journal, or update it if it already exists
+			err = journal.Add(lt)
+			t.ReqNoErr(err)
 		}
 	}
 
-	slices.Sort(newFileIds)
+	t.SetResult(task.TaskResult{"stage": "Loading Active File Lifetimes"})
 
-	activeLts := meta.FileService.GetUsersJournal().GetActiveLifetimes()
-	for _, lt := range activeLts {
-		_, err = meta.FileService.GetUserFile(lt.ID())
-		if errors.Is(err, werror.ErrNoFile) {
-			i := sort.SearchStrings(newFileIds, lt.ID())
-			if len(newFileIds) > i && newFileIds[i] == lt.ID() {
-				continue
-			}
-			newFileIds = append(newFileIds, "")
-			copy(newFileIds[i+1:], newFileIds[i:])
-			newFileIds[i] = lt.ID()
-		}
-	}
+	// Get all lifetimes we currently know about and find which files are new
+	// and therefore need to be created or copied from the core
+	// updatedLts := map[string]*fileTree.Lifetime{}
 
-	log.Trace.Printf("Backup got %d new fileIds", len(newFileIds))
+	activeLts := meta.FileService.GetJournalByTree(meta.Core.Id).GetActiveLifetimes()
+	// for _, lt := range activeLts {
+	// 	if lt.GetIsDir() {
+	// 		latestPath := lt.GetLatestPath().ToPortable()
+	// 		if latestPath == "" {
+	// 			continue
+	// 		}
+	//
+	// 		if _, err = meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId()); err == nil {
+	// 			continue
+	// 		} else if !errors.Is(err, werror.ErrNoFile) {
+	// 			t.Fail(err)
+	// 		}
+	//
+	// 		updatedLts[lt.ID()] = lt
+	// 		continue
+	// 	}
+	//
+	// 	cId := lt.GetContentId()
+	// 	if cId == "" {
+	// 		continue
+	// 	}
+	//
+	// 	_, err = meta.FileService.GetFileByContentId(cId)
+	// 	if errors.Is(err, werror.ErrNoFile) {
+	// 		updatedLts[lt.ID()] = lt
+	// 	}
+	// }
 
-	if len(newFileIds) == 0 {
-		t.Success()
-		return
-	}
-
-	newFiles, err := meta.ProxyFileService.GetFiles(newFileIds)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-
-	slices.SortFunc(
-		newFiles, func(a, b *fileTree.WeblensFileImpl) int {
-			return len(a.AbsPath()) - len(b.AbsPath())
-		},
-	)
+	// log.Trace.Printf("Got %d total unknown fileIds", len(updatedLts))
+	//
+	// if len(updatedLts) == 0 {
+	// 	err = meta.InstanceService.SetLastBackup(meta.Core.DbId.Hex(), time.Now())
+	// 	t.ReqNoErr(err)
+	//
+	// 	meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, task.TaskResult{"coreId": meta.Core.ServerId()})
+	// 	t.Success()
+	// 	return
+	// }
 
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 	t.SetChildTaskPool(pool)
 	meta.WebsocketService.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
-	for _, f := range newFiles {
-		_, err = meta.FileService.GetUserFile(f.ID())
+	// Sort lifetimes so that files created or moved most recently are updated last.
+	// This is to make sure parent directories are created before their children
+	slices.SortFunc(activeLts, fileTree.LifetimeSorter)
+
+	t.SetResult(task.TaskResult{"stage": "Syncing Backup State"})
+	for _, lt := range activeLts {
+		latestMove := lt.GetLatestMove()
+
+		existingFile, err := meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId())
 		if err == nil {
-			log.Debug.Println("Already have file??")
-			continue
-		}
+			if latestMove.ActionType == fileTree.FileDelete {
+				err = meta.FileService.DeleteFiles(
+					[]*fileTree.WeblensFileImpl{existingFile}, meta.Core.ServerId(), meta.Caster,
+				)
+				t.ReqNoErr(err)
+			} else if latestMove.DestinationPath != existingFile.GetPortablePath().OverwriteRoot("USERS").ToPortable() {
+				newParent, err := meta.FileService.GetFileByTree(latestMove.ParentId, meta.Core.ServerId())
+				if err != nil {
+					t.ReqNoErr(err)
+				}
 
-		err = meta.FileService.ImportFile(f)
-		if err != nil {
-			t.ErrorAndExit(err)
-		}
-
-		if f.IsDir() {
-			err = f.CreateSelf()
-			if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
-				t.ErrorAndExit(err)
+				err = meta.FileService.MoveFiles(
+					[]*fileTree.WeblensFileImpl{existingFile}, newParent, meta.Core.ServerId(), meta.Caster,
+				)
+				t.ReqNoErr(err)
 			}
+			continue
+		} else if !errors.Is(err, werror.ErrNoFile) {
+			t.Fail(err)
+		}
+
+		if lt.GetLatestAction().ActionType == fileTree.FileDelete {
+			if lt.GetIsDir() {
+				continue
+			}
+
+			_, err := meta.FileService.GetFileByContentId(lt.ContentId)
+			if err == nil {
+				continue
+			} else if !errors.Is(err, werror.ErrNoFile) {
+				t.Fail(err)
+			}
+		}
+
+		filename := lt.GetLatestPath().Filename()
+
+		restoreFile, err := meta.FileService.NewBackupFile(lt)
+		t.ReqNoErr(err)
+
+		if restoreFile == nil {
 			continue
 		}
 
 		if !coreClient.IsOpen() {
-			coreClient = meta.WebsocketService.GetClientByServerId(meta.RemoteId)
+			coreClient = meta.WebsocketService.GetClientByServerId(meta.Core.ServerId())
 		}
 
 		copyFileMeta := models.BackupCoreFileMeta{
 			ProxyFileService: meta.ProxyFileService,
-			File:             f,
+			FileService:      meta.FileService,
+			File:             restoreFile,
 			Caster:           meta.Caster,
+			Core:             meta.Core,
+			Filename:         filename,
 		}
+
 		_, err = meta.TaskService.DispatchJob(models.CopyFileFromCoreTask, copyFileMeta, pool)
-		if err != nil {
-			t.ErrorAndExit(err)
-		}
+		t.ReqNoErr(err)
 	}
 
 	pool.SignalAllQueued()
 	pool.Wait(true)
 
 	if len(pool.Errors()) != 0 {
-		t.ErrorAndExit(errors.New(fmt.Sprintf("%d backup file copies have failed", len(pool.Errors()))))
+		t.ReqNoErr(werror.Errorf("%d backup file copies have failed", len(pool.Errors())))
 	}
 
+	root, err := meta.FileService.GetFileByTree("ROOT", meta.Core.ServerId())
+	t.ReqNoErr(err)
+
+	err = meta.FileService.ResizeDown(root, meta.Caster)
+	t.ReqNoErr(err)
+
+	err = meta.InstanceService.SetLastBackup(meta.Core.DbId.Hex(), time.Now())
+	t.ReqNoErr(err)
+
+	log.Debug.Println("Backup complete")
+	meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, task.TaskResult{"coreId": meta.Core.ServerId()})
 	t.Success()
 }
 
 func CopyFileFromCore(t *task.Task) {
 	meta := t.GetMeta().(models.BackupCoreFileMeta)
+	t.SetErrorCleanup(func(t *task.Task) {
+		meta.Caster.PushTaskUpdate(t, "copy_file_failed", task.TaskResult{"filename": meta.Filename, "coreId": meta.Core.ServerId()})
+	})
+
+	filename := meta.Filename
+	if filename == "" {
+		filename = meta.File.Filename()
+	}
+
+	meta.Caster.PushPoolUpdate(
+		t.GetTaskPool(), "copy_file_started", task.TaskResult{
+			"filename": filename, "coreId": meta.Core.ServerId(), "timestamp": time.Now().UnixMilli(),
+		},
+	)
+	log.Trace.Printf("Copying file from core [%s]", meta.File.Filename())
+
+	if meta.File.GetContentId() == "" {
+		t.ReqNoErr(werror.WithStack(werror.ErrNoContentId))
+	}
 
 	writeFile, err := meta.File.Writeable()
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	defer writeFile.Close()
 
 	fileReader, err := meta.ProxyFileService.ReadFile(meta.File)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	defer fileReader.Close()
 
 	_, err = io.Copy(writeFile, fileReader)
 	if err != nil {
-		rmErr := os.Remove(meta.File.AbsPath())
+		rmErr := meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{meta.File}, meta.Core.ServerId(), meta.Caster)
 		if rmErr != nil {
-			t.ErrorAndExit(
+			t.ReqNoErr(
 				werror.Errorf(
 					"Failed to write to file: %s\nThis Occoured while cleaning up from another error: %s",
 					rmErr, err,
 				),
 			)
-			t.ErrorAndExit(rmErr)
+			t.ReqNoErr(rmErr)
 		}
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	poolProgress := getScanResult(t)
-	poolProgress["filename"] = meta.File.Filename()
+	poolProgress["filename"] = filename
+	poolProgress["coreId"] = meta.Core.ServerId()
 	meta.Caster.PushPoolUpdate(t.GetTaskPool(), models.SubTaskCompleteEvent, poolProgress)
+
+	t.Success()
+}
+
+func RestoreCore(t *task.Task) {
+	meta := t.GetMeta().(models.RestoreCoreMeta)
+
+	type restoreInitParams struct {
+		Name     string            `json:"name"`
+		Role     models.ServerRole `json:"role"`
+		Key      models.ApiKeyInfo `json:"usingKeyInfo"`
+		RemoteId string            `json:"remoteId"`
+		LocalId  string            `json:"localId"`
+	}
+
+	// Notify client of restore failure, if any
+	t.SetErrorCleanup(
+		func(errTsk *task.Task) {
+			meta.Pack.Caster.PushTaskUpdate(
+				errTsk, "restore_failed", task.TaskResult{"error": errTsk.ReadError().Error()},
+			)
+		},
+	)
+
+	// Prime server to be restored. This will fail if the server is already initialized
+	meta.Pack.Caster.PushTaskUpdate(
+		t, "restore_progress", task.TaskResult{"stage": "Connecting to remote", "timestamp": time.Now().UnixMilli()},
+	)
+
+	key, err := meta.Pack.AccessService.GetApiKey(meta.Core.UsingKey)
+	t.ReqNoErr(err)
+
+	initParams := restoreInitParams{
+		Name: meta.Core.Name, Role: models.RestoreServer, Key: key, RemoteId: meta.Local.Id,
+		LocalId: meta.Core.Id,
+	}
+
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "").OverwriteEndpoint("/api/init").WithBody(initParams).Call()
+	if err != nil {
+		t.ReqNoErr(err)
+	}
+
+	// Restore journal
+	meta.Pack.Caster.PushTaskUpdate(
+		t, "restore_progress", task.TaskResult{"stage": "Restoring file history", "timestamp": time.Now().UnixMilli()},
+	)
+	lts := meta.Pack.FileService.GetJournalByTree(meta.Core.Id).GetAllLifetimes()
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/history").WithBody(lts).Call()
+	t.ReqNoErr(err)
+
+	// Restore users
+	meta.Pack.Caster.PushTaskUpdate(
+		t, "restore_progress", task.TaskResult{"stage": "Restoring users", "timestamp": time.Now().UnixMilli()},
+	)
+
+	usersIter, err := meta.Pack.UserService.GetAll()
+	t.ReqNoErr(err)
+
+	var users []map[string]any
+	for u := range usersIter {
+		formatted, err := u.FormatArchive()
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+		users = append(users, formatted)
+	}
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/users").WithBody(users).Call()
+	t.ReqNoErr(err)
+
+	// Restore keys
+	meta.Pack.Caster.PushTaskUpdate(
+		t, "restore_progress", task.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()},
+	)
+	rootUser := meta.Pack.UserService.GetRootUser()
+	keys, err := meta.Pack.AccessService.GetAllKeysByServer(rootUser, meta.Core.ServerId())
+	t.ReqNoErr(err)
+
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/keys").WithBody(keys).Call()
+	t.ReqNoErr(err)
+
+	// Restore instances
+	meta.Pack.Caster.PushTaskUpdate(
+		t, "restore_progress", task.TaskResult{"stage": "Restoring api keys", "timestamp": time.Now().UnixMilli()},
+	)
+
+	instances := meta.Pack.InstanceService.GetAllByOriginServer(meta.Core.ServerId())
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/instances").WithBody(instances).Call()
+	t.ReqNoErr(err)
+
+	// Restore files
+	meta.Pack.Caster.PushTaskUpdate(
+		t, "restore_progress", task.TaskResult{"stage": "Restoring files", "timestamp": time.Now().UnixMilli()},
+	)
+	for i, lt := range lts {
+		latest := lt.GetLatestAction()
+		if latest.GetActionType() == fileTree.FileDelete {
+			continue
+		}
+		portable := fileTree.ParsePortable(latest.GetDestinationPath())
+		if portable.IsDir() {
+			continue
+		}
+
+		f, err := meta.Pack.FileService.GetFileByContentId(lt.GetContentId())
+		if err != nil {
+			log.ErrTrace(err)
+			continue
+		}
+		if f == nil {
+			log.Error.Printf("File not found for contentId [%s]", lt.GetContentId())
+			continue
+		}
+
+		bs, err := f.ReadAll()
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+		_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/file").WithBodyBytes(bs).WithQuery(
+			"fileId", lt.ID(),
+		).Call()
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+
+		meta.Pack.Caster.PushTaskUpdate(
+			t, "restore_progress", task.TaskResult{"files_total": len(lts), "files_restored": i},
+		)
+	}
+
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/complete").Call()
+	if err != nil {
+		t.ReqNoErr(err)
+	}
+
+	meta.Core.SetReportedRole(models.CoreServer)
+	meta.Pack.Caster.PushTaskUpdate(t, "restore_complete", nil)
+
+	// Disconnect the core client to force a reconnection
+	coreClient := meta.Pack.ClientService.GetClientByServerId(meta.Core.ServerId())
+	meta.Pack.ClientService.ClientDisconnect(coreClient)
 
 	t.Success()
 }

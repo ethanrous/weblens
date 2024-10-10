@@ -3,6 +3,7 @@ package fileTree
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -15,9 +16,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 )
 
 /*
@@ -336,10 +337,11 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 		return nil, werror.WithStack(err)
 	}
 	fileSize := f.Size()
+
+	data, err := internal.OracleReader(osFile, fileSize)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
-	data, err := internal.OracleReader(osFile, fileSize)
 	if len(data) != int(fileSize) {
 		return nil, werror.WithStack(werror.ErrBadReadCount)
 	}
@@ -482,7 +484,7 @@ func (f *WeblensFileImpl) CreateSelf() error {
 		_, err = os.Create(f.AbsPath())
 	}
 	if err != nil {
-		if os.IsExist(err) {
+		if errors.Is(err, fs.ErrExist) {
 			return werror.WithStack(werror.ErrFileAlreadyExists)
 		}
 		return werror.WithStack(err)
@@ -516,6 +518,7 @@ func (f *WeblensFileImpl) UnmarshalJSON(bs []byte) error {
 	f.size.Store(int64(data["size"].(float64)))
 	f.isDir = boolPointer(data["isDir"].(bool))
 	f.modifyDate = time.UnixMilli(int64(data["modifyTimestamp"].(float64)))
+	f.contentId = data["contentId"].(string)
 	if f.modifyDate.Unix() <= 0 {
 		log.Error.Println("AHHHH")
 	}
@@ -536,6 +539,9 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 	var parentId FileId
 	if f.parent != nil {
 		parentId = f.parent.ID()
+	}
+	if !f.IsDir() && f.Size() != 0 && f.GetContentId() == "" {
+		log.Warning.Printf("File [%s] has no content Id", f.GetPortablePath())
 	}
 
 	data := map[string]any{
@@ -582,7 +588,6 @@ func (f *WeblensFileImpl) RecursiveMap(fn func(*WeblensFileImpl) error) error {
 
 /*
 LeafMap recursively perform fn on leaves, first, and work back up the tree.
-This will not call fn on the root file.
 This takes an inverted "Depth first" approach. Note this
 behaves very differently than RecursiveMap. See below.
 

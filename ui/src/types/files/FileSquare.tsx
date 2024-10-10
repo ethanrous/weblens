@@ -10,7 +10,7 @@ import {
     mouseMove,
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
-import React, { MouseEvent, useState } from 'react'
+import { MouseEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const FileGridVisual = ({ file }) => {
@@ -24,13 +24,7 @@ const FileGridVisual = ({ file }) => {
 }
 
 export const FileTextBox = ({ itemTitle }) => {
-    return (
-        <div className="file-text-container">
-            <p className="p-2 truncate relative content-center text-[40cqh]">
-                {itemTitle}
-            </p>
-        </div>
-    )
+    return <p className="file-text">{itemTitle}</p>
 }
 
 export const FileSquare = ({ file }: { file: WeblensFile }) => {
@@ -93,6 +87,9 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
             }
             onClick={(e) => {
                 e.stopPropagation()
+                if (draggingState) {
+                    return
+                }
                 setSelected([file.Id()])
             }}
             onDoubleClick={(e) =>
@@ -109,8 +106,9 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
             onContextMenu={(e) =>
                 fileHandleContextMenu(e, menuMode, setMenu, file)
             }
-            onMouseUp={() =>
-                handleMouseUp(
+            onMouseUp={(e) => {
+                e.stopPropagation()
+                return handleMouseUp(
                     file,
                     draggingState,
                     Array.from(selected.keys()),
@@ -120,7 +118,7 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                     setDragging,
                     setMouseDown
                 )
-            }
+            }}
             onMouseLeave={() =>
                 handleMouseLeave(
                     file,
@@ -137,9 +135,9 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                 className="file-size-box"
                 data-moved={(selState & SelectedState.Moved) >> 5}
             >
-                <p>{file.FormatSize()}</p>
+                <p className="file-size-text">{file.FormatSize()}</p>
             </div>
-            <div className="flex relative items-center h-[16%] w-full">
+            <div className="file-text-container" style={{ height: '16%' }}>
                 <FileTextBox itemTitle={file.GetFilename()} />
             </div>
         </div>

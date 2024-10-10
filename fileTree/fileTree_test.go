@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/service/mock"
+	. "github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +27,7 @@ func NewTestFileTree() (FileTree, error) {
 
 	log.Trace.Printf("Creating tmp root for FileTree test [%s]", rootPath)
 
-	tree, err := NewFileTree(rootPath, "USERS", journal)
+	tree, err := NewFileTree(rootPath, "USERS", journal, false)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func TestFileTree(t *testing.T) {
 	assert.False(t, newFile.IsDir())
 
 	// Given path is not allowed to be created on filesystem, so this call fails
-	_, err = NewFileTree("/this/file/cant/be/created", "ALIASNAME", nil)
+	_, err = NewFileTree("/this/file/cant/be/created", "ALIASNAME", nil, true)
 	assert.Error(t, err)
 
 	// We know the root of the other tree already exists, so we can create a new tree as a child,
@@ -69,7 +69,7 @@ func TestFileTree(t *testing.T) {
 	_, err = os.Stat(newRootPath)
 	assert.Error(t, err)
 
-	_, err = NewFileTree(newRootPath, "ALIASNAME", &mock.HollowJournalService{})
+	_, err = NewFileTree(newRootPath, "ALIASNAME", &mock.HollowJournalService{}, true)
 	assert.NoError(t, err)
 
 	_, err = os.Stat(newRootPath)

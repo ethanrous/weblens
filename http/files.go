@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 	"github.com/gin-gonic/gin"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 )
@@ -63,7 +63,7 @@ func createFolder(ctx *gin.Context) {
 		return
 	}
 
-	err = pack.FileService.MoveFiles(children, newDir, pack.Caster)
+	err = pack.FileService.MoveFiles(children, newDir, "USERS", pack.Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, gin.H{"error": safe.Error()})
@@ -76,7 +76,7 @@ func createFolder(ctx *gin.Context) {
 func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, ctx *gin.Context) {
 	pack := getServices(ctx)
 
-	pastFile, err := pack.FileService.GetUsersJournal().GetPastFile(folderId, pastTime)
+	pastFile, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(folderId, pastTime)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, gin.H{"error": safe})
@@ -90,7 +90,7 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, c
 		return
 	}
 	for parentId != "ROOT" {
-		pastParent, err := pack.FileService.GetUsersJournal().GetPastFile(parentId, pastTime)
+		pastParent, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(parentId, pastTime)
 		if err != nil {
 			safe, code := werror.TrySafeErr(err)
 			ctx.JSON(code, gin.H{"error": safe})
@@ -101,7 +101,7 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, c
 		parentId = pastParent.GetParentId()
 	}
 
-	children, err := pack.FileService.GetUsersJournal().GetPastFolderChildren(pastFile, pastTime)
+	children, err := pack.FileService.GetJournalByTree("USERS").GetPastFolderChildren(pastFile, pastTime)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, gin.H{"error": safe})
@@ -328,14 +328,14 @@ func getFolderHistory(ctx *gin.Context) {
 		pastTime = time.UnixMilli(millis)
 	}
 
-	f, err := pack.FileService.GetUsersJournal().GetPastFile(fileId, pastTime)
+	f, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(fileId, pastTime)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
 		return
 	}
 
-	actions, err := pack.FileService.GetUsersJournal().GetActionsByPath(f.GetPortablePath())
+	actions, err := pack.FileService.GetJournalByTree("USERS").GetActionsByPath(f.GetPortablePath())
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -362,7 +362,7 @@ func restorePastFiles(ctx *gin.Context) {
 	//
 	// ctx.Status(comm.StatusOK)
 	panic(werror.NotImplemented("restorePastFiles"))
-	ctx.Status(http.StatusNotImplemented)
+	// ctx.Status(http.StatusNotImplemented)
 }
 
 func moveFiles(ctx *gin.Context) {
@@ -397,7 +397,7 @@ func moveFiles(ctx *gin.Context) {
 		files = append(files, f)
 	}
 
-	err = pack.FileService.MoveFiles(files, newParent, pack.Caster)
+	err = pack.FileService.MoveFiles(files, newParent, "USERS", pack.Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -740,7 +740,7 @@ func deleteFiles(ctx *gin.Context) {
 		files = append(files, file)
 	}
 
-	err = pack.FileService.DeleteFiles(files, pack.Caster)
+	err = pack.FileService.DeleteFiles(files, "USERS", pack.Caster)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -810,7 +810,7 @@ func restoreFiles(ctx *gin.Context) {
 	}
 	restoreTime := time.UnixMilli(body.Timestamp)
 
-	lt := pack.FileService.GetUsersJournal().Get(body.NewParentId)
+	lt := pack.FileService.GetJournalByTree("USERS").Get(body.NewParentId)
 	if lt == nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find new parent"})
 		return

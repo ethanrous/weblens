@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/gin-gonic/gin"
 )
 
 func getLifetimesSince(ctx *gin.Context) {
 	pack := getServices(ctx)
-	log.Debug.Println(ctx.Params)
+
 	millisString := ctx.Query("timestamp")
 	if millisString == "" {
 		log.Error.Println("No timestamp given trying to get lifetimes since date")
@@ -29,7 +29,7 @@ func getLifetimesSince(ctx *gin.Context) {
 
 	date := time.UnixMilli(millis)
 
-	lifetimes, err := pack.FileService.GetUsersJournal().GetLifetimesSince(date)
+	lifetimes, err := pack.FileService.GetJournalByTree("USERS").GetLifetimesSince(date)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)
@@ -41,6 +41,6 @@ func getLifetimesSince(ctx *gin.Context) {
 
 func getHistory(ctx *gin.Context) {
 	pack := getServices(ctx)
-	lts := pack.FileService.GetUsersJournal().GetAllLifetimes()
+	lts := pack.FileService.GetJournalByTree("USERS").GetAllLifetimes()
 	ctx.JSON(http.StatusOK, lts)
 }

@@ -1,9 +1,9 @@
 package service_test
 
 import (
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/models"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 

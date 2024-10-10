@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ethrousseau/weblens/internal/werror"
-	. "github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/internal/werror"
+	. "github.com/ethanrous/weblens/task"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -110,7 +110,7 @@ func (f fakeJobMeta) Verify() error {
 func testJob(t *Task) {
 	meta := t.GetMeta().(fakeJobMeta)
 	if meta.shouldFail {
-		t.ErrorAndExit(werror.Errorf("oh no"))
+		t.ReqNoErr(werror.Errorf("oh no"))
 	}
 
 	t.SetResult(TaskResult{"test": "passed", "taskNum": meta.taskNum})
@@ -127,7 +127,7 @@ func testSubpoolJob(t *Task) {
 		newMeta := fakeJobMeta{taskNum: i}
 		_, err := pool.GetWorkerPool().DispatchJob(jobName, newMeta, pool)
 		if err != nil {
-			t.ErrorAndExit(err)
+			t.ReqNoErr(err)
 		}
 	}
 

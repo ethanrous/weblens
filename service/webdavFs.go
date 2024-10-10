@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
 	"golang.org/x/net/webdav"
 )
 
@@ -86,7 +86,7 @@ func (w WebdavFs) Rename(ctx context.Context, oldName, newName string) error {
 		return err
 	}
 
-	err = w.WeblensFs.MoveFiles([]*fileTree.WeblensFileImpl{oldFile}, newParent, w.Caster)
+	err = w.WeblensFs.MoveFiles([]*fileTree.WeblensFileImpl{oldFile}, newParent, "USERS", w.Caster)
 	if err != nil {
 		return err
 	}

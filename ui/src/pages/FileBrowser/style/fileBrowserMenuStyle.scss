@@ -42,7 +42,7 @@ $menu-base-square-size: 250px;
     overflow: hidden;
 
     outline: 2px solid $main-accent;
-    background-color: #111114;
+    background-color: $background;
     border: none;
     border-radius: 8px;
 
@@ -164,7 +164,7 @@ $menu-base-square-size: 250px;
     transition: background-color 150ms ease-in-out;
 
     &:hover {
-        background-color: $dark-paper;
+        background-color: var(--dark-paper);
         //box-shadow: $hard-shadow;
     }
 
@@ -214,11 +214,11 @@ $menu-base-square-size: 250px;
     color: white;
     transition: background-color 150ms ease-in-out;
 
-    background-color: $dark-paper;
+    background-color: var(--dark-paper);
     outline: 1px solid $main-accent;
 
     &[data-danger='true'] {
-        background-color: $danger-subtle;
-        outline: 1px solid $danger;
+        background-color: var(--wl-danger-subtle);
+        outline: 1px solid var(--wl-danger);
     }
 }

@@ -27,7 +27,6 @@ import {
 import { clamp } from '@weblens/util'
 
 import { memo, useEffect, useMemo, useState } from 'react'
-import { set } from 'immutable'
 import { useNavigate } from 'react-router-dom'
 
 const SIDEBAR_BREAKPOINT = 650
@@ -212,7 +211,7 @@ function ActionRow({
         <div className="history-detail-action-row">
             {fromNode}
             {action.actionType === 'fileMove' && (
-                <IconArrowRight className="icon-noshrink" />
+                <IconArrowRight className="theme-text icon-noshrink" />
             )}
             {toNode}
         </div>
@@ -245,7 +244,7 @@ const HistoryEventRow = memo(
                 {event.length == 1 && (
                     <div className="flex flex-row items-center outline-gray-700 outline p-2 rounded w-full justify-between gap-2">
                         <ActionRow action={event[0]} folderName={folderName} />
-                        <p className="flex text-nowrap select-none shrink-0">
+                        <p className="theme-text flex text-nowrap select-none shrink-0">
                             File {event[0].actionType.slice(4)}d
                         </p>
                     </div>
@@ -261,7 +260,7 @@ const HistoryEventRow = memo(
                             onClick={() => setOpen(!open)}
                         >
                             <div className="event-caret">{caretIcon}</div>
-                            <p className="text-white font-semibold truncate text-xl w-max text-nowrap p-2 select-none">
+                            <p className="theme-text font-semibold truncate text-xl w-max text-nowrap p-2 select-none">
                                 {event.length} File
                                 {event.length !== 1 ? 's' : ''}{' '}
                                 {event[0].actionType.slice(4)}d ...

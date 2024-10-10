@@ -3,7 +3,7 @@ package mock
 import (
 	"iter"
 
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/models"
 )
 
 var _ models.AlbumService = (*MockAlbumService)(nil)

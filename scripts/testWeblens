@@ -26,5 +26,5 @@ if [[ -z "$target" ]]; then
   target="./..."
 fi
 
-APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v $target | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS"
+(set -o pipefail; APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v $target | grep -v CONT | grep -v PAUSE | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS")
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/werror"
 )
 
 type FileActionType = string

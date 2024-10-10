@@ -56,13 +56,19 @@ export function nsToHumanTime(ns: number) {
 
     const seconds = Math.floor(ns / NS_IN_SECOND)
     if (seconds >= 1) {
-        timeStr += seconds + ' Seconds '
+        timeStr += seconds + ' Second'
+        if (seconds >= 2) {
+            timeStr += 's'
+        }
+        timeStr += ' '
         ns = ns % NS_IN_SECOND
     }
 
-    const milliseconds = Math.floor(ns / NS_IN_MILLISECOND)
-    if (milliseconds >= 1) {
-        timeStr += milliseconds + 'ms '
+    if (seconds === 0) {
+        const milliseconds = Math.floor(ns / NS_IN_MILLISECOND)
+        if (milliseconds >= 1) {
+            timeStr += milliseconds + 'ms '
+        }
     }
 
     if (timeStr.length === 0) {

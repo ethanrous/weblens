@@ -1,10 +1,12 @@
 import {
     IconAlbum,
-    IconExclamationCircle,
     IconFolder,
     IconLibraryPhoto,
     IconLogout,
+    IconMoon,
+    IconServer,
     IconServerCog,
+    IconSun,
     IconUser,
     IconX,
 } from '@tabler/icons-react'
@@ -13,13 +15,14 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import Admin from '@weblens/pages/Admin Settings/Admin'
 import '@weblens/components/style.scss'
+import '@weblens/components/theme.scss'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import {
     LOGIN_TOKEN_COOKIE_KEY,
     UserInfoT,
     USERNAME_COOKIE_KEY,
 } from '@weblens/types/Types'
-import React, { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { useCookies } from 'react-cookie'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useKeyDown } from './hooks'
@@ -30,6 +33,23 @@ type HeaderBarProps = {
     setBlockFocus: (block: boolean) => void
     page: string
     loading: string[]
+}
+
+export const ThemeToggleButton = () => {
+    const [isDarkTheme, setIsDarkTheme] = useState(
+        document.documentElement.classList.contains('dark')
+    )
+    return (
+        <WeblensButton
+            label="Theme"
+            Left={isDarkTheme ? IconMoon : IconSun}
+            onClick={() => {
+                localStorage.setItem('theme', isDarkTheme ? 'light' : 'dark')
+                document.documentElement.classList.toggle('dark')
+                setIsDarkTheme(!isDarkTheme)
+            }}
+        />
+    )
 }
 
 const SettingsMenu = ({
@@ -94,10 +114,11 @@ const SettingsMenu = ({
             onClick={() => setClosed()}
         >
             <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-row absolute right-0 top-0 p-2 m-3 bg-dark-paper rounded gap-1">
-                    <IconUser />
-                    <p>{user.username}</p>
+                <div className="theme-dark-paper flex flex-row absolute right-0 top-0 p-2 m-3 rounded gap-1">
+                    <IconUser className="theme-text-dark-bg" />
+                    <p className="theme-text-dark-bg">{user.username}</p>
                 </div>
+                <ThemeToggleButton />
                 <div className="flex flex-col w-max justify-center items-center gap-2 p-24">
                     <p className="text-lg font-semibold p-2 w-max text-nowrap">
                         Change Password
@@ -190,24 +211,21 @@ const HeaderBar = memo(
                     />
                 )}
 
-                {admin && (
-                    <Admin
-                        open={admin}
-                        closeAdminMenu={() => setAdmin(false)}
-                    />
+                {(admin || server.info.ole === 'backup') && (
+                    <Admin closeAdminMenu={() => setAdmin(false)} />
                 )}
 
                 <div className=" absolute float-right right-10 bottom-8 z-20">
                     <WeblensLoader loading={loading} />
                 </div>
-                <div className="flex flex-row items-center h-14 pt-2 pb-2 border-b-2 border-neutral-700">
+                <div className="header-bar">
                     <div className="flex flex-row items-center w-96 shrink">
                         <div className="p-1" />
                         {user !== null && (
-                            <div className="flex flex-row items-center w-full">
+                            <div className="flex flex-row items-center w-[140px] grow">
                                 <WeblensButton
                                     label="Timeline"
-                                    squareSize={40}
+                                    squareSize={36}
                                     textMin={70}
                                     centerContent
                                     toggleOn={loc.pathname === '/timeline'}
@@ -218,10 +236,9 @@ const HeaderBar = memo(
                                         !user.isLoggedIn
                                     }
                                 />
-                                <div className="p-1" />
                                 <WeblensButton
                                     label="Albums"
-                                    squareSize={40}
+                                    squareSize={36}
                                     textMin={60}
                                     centerContent
                                     toggleOn={loc.pathname.startsWith(
@@ -234,10 +251,9 @@ const HeaderBar = memo(
                                         !user.isLoggedIn
                                     }
                                 />
-                                <div className="p-1" />
                                 <WeblensButton
                                     label="Files"
-                                    squareSize={40}
+                                    squareSize={36}
                                     textMin={50}
                                     centerContent
                                     toggleOn={loc.pathname.startsWith('/files')}
@@ -250,30 +266,43 @@ const HeaderBar = memo(
                     <div className="flex grow" />
 
                     {server && (
-                        <div className="flex flex-col items-center h-max w-max pr-3">
-                            <p className="text-xs select-none font-bold">
+                        <div
+                            className="flex bg-dark-paper items-center justify-center h-max w-max p-2 rounded gap-1 cursor-pointer"
+                            onClick={() => {
+                                window.open(
+                                    `https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${
+                                        import.meta.env.VITE_APP_BUILD_TAG
+                                            ? import.meta.env.VITE_APP_BUILD_TAG
+                                            : 'local'
+                                    }`,
+                                    '_blank'
+                                )
+                            }}
+                        >
+                            <IconServer
+                                size={20}
+                                className="theme-text-dark-bg"
+                            />
+                            <p className="theme-text-dark-bg text-xs select-none font-bold">
                                 {server.info.name}
                             </p>
-                            <p className="text-xs select-none">
-                                ({server.info.role})
+                            <p className="theme-text-dark-bg text-xs select-none">
+                                {server.info.role}
                             </p>
+                            <div
+                                className="button-tooltip"
+                                style={{
+                                    transform: `translateY(35px)`,
+                                }}
+                            >
+                                <p className="text-white">
+                                    {import.meta.env.VITE_APP_BUILD_TAG
+                                        ? import.meta.env.VITE_APP_BUILD_TAG
+                                        : 'local'}
+                                </p>
+                            </div>
                         </div>
                     )}
-                    <WeblensButton
-                        labelOnHover
-                        label={'Report Issue'}
-                        Left={IconExclamationCircle}
-                        onClick={() => {
-                            window.open(
-                                `https://github.com/ethanrous/weblens/issues/new?title=Issue%20with%20${
-                                    import.meta.env.VITE_APP_BUILD_TAG
-                                        ? import.meta.env.VITE_APP_BUILD_TAG
-                                        : 'local'
-                                }`,
-                                '_blank'
-                            )
-                        }}
-                    />
                     {user?.admin && loc.pathname.startsWith('/files') && (
                         <WeblensButton
                             label={'Admin Settings'}

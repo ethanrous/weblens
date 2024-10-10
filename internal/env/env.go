@@ -9,13 +9,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 )
-
-func init() {
-	//log.SetLogLevel(GetLogLevel("TEST"))
-}
 
 var configData map[string]map[string]any
 var envLock sync.RWMutex
@@ -43,6 +39,10 @@ func ReadConfig(configName string) (map[string]any, error) {
 	}
 
 	configData = config
+	envLock.Unlock()
+	log.SetLogLevel(GetLogLevel(configName))
+	envLock.Lock()
+
 	return configData[configName], nil
 }
 

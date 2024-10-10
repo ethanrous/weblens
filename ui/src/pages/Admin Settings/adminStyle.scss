@@ -1,0 +1,14 @@
+@import "../../components/theme";
+
+.admin-user-row {
+  display: flex;
+  width: 100%;
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 6px;
+  background-color: $item-grey;
+  height: 56px;
+  padding: 8px;
+}

@@ -6,8 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/task"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type ServicePack struct {
@@ -22,9 +24,11 @@ type ServicePack struct {
 	ClientService   ClientManager
 	Caster          Broadcaster
 
-	Server Server
-	Loaded atomic.Bool
+	Server      Server
+	Loaded      atomic.Bool
 	StartupChan chan bool
+
+	Db *mongo.Database
 
 	startupTasks  []StartupTask
 	waitingOnLock sync.RWMutex
@@ -44,6 +48,7 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 	pack.waitingOnLock.Unlock()
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
+	log.Trace.Printf("Added startup task: %s", taskName)
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
@@ -52,7 +57,7 @@ func (pack *ServicePack) GetStartupTasks() []StartupTask {
 	return pack.startupTasks
 }
 
-func (pack *ServicePack) RemoveStartupTask(taskName string) error {
+func (pack *ServicePack) RemoveStartupTask(taskName string) {
 	pack.waitingOnLock.Lock()
 	i := slices.IndexFunc(
 		pack.startupTasks, func(t StartupTask) bool {
@@ -62,7 +67,7 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) error {
 
 	if i == -1 {
 		pack.waitingOnLock.Unlock()
-		return werror.Errorf("startup task not found")
+		panic(werror.Errorf("startup task not found"))
 	}
 
 	pack.startupTasks = append(pack.startupTasks[:i], pack.startupTasks[i+1:]...)
@@ -70,13 +75,14 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) error {
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
 
-	return nil
+	log.Trace.Printf("Removed startup task: %s", taskName)
 }
 
 type Server interface {
 	Start()
 	UseInit()
-	UseCore()
+	UseInterserverRoutes()
+	UseRestore()
 	UseApi()
 	Restart()
 	Stop()

@@ -1,9 +1,9 @@
 package models
 
 import (
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/task"
 )
 
 type Hasher struct {

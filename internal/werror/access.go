@@ -22,6 +22,12 @@ var ErrUserNotAuthorized = &clientSafeErr{
 	statusCode: 404,
 }
 
-var ErrKeyInUse = errors.New("api key already in use")
+var ErrKeyInUse = &clientSafeErr{
+	realError:  errors.New("api key already in use"),
+	statusCode: 400,
+}
+
 var ErrKeyNotFound = errors.New("api was not found")
 var ErrInvalidToken = errors.New("session token is expired or invalid")
+var ErrKeyAlreadyExists = errors.New("api key already exists")
+var ErrKeyNoServer = errors.New("api key is not associated with a server")

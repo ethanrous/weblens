@@ -12,9 +12,9 @@
     cursor: text;
 
     border-radius: 4px;
-    background-color: $dark-paper;
+    background-color: var(--wl-background);
     box-shadow: $hard-shadow-off;
-    outline: 1px solid $light-paper-transparent;
+    outline: 1px solid $theme-outline;
     height: 100%;
     width: max-content;
     max-width: 100%;
@@ -24,13 +24,13 @@
     -moz-user-select: none;
 
     transition:
-            background-color 200ms ease-in-out,
-            transform 200ms ease-in-out,
-            outline 200ms ease-in-out,
-            box-shadow 200ms ease-in-out;
+        background-color 200ms ease-in-out,
+        transform 200ms ease-in-out,
+        outline 200ms ease-in-out,
+        box-shadow 200ms ease-in-out;
 
     &:focus-within {
-        outline: 1px solid $light-paper;
+        outline: 1px solid $theme-outline;
     }
 
     &[data-subtle='true']:not(:focus-within) {
@@ -44,7 +44,7 @@
 
         &:hover {
             box-shadow: $hard-shadow;
-            background-color: $dark-paper;
+            background-color: var(--dark-paper);
             outline: 1px solid #4444ff;
             transform: translateY(-1px);
         }
@@ -55,8 +55,8 @@
     }
 
     &[data-failed='true'] {
-        background-color: $danger-subtle;
-        outline: 1px solid $danger;
+        background-color: var(--wl-danger-subtle);
+        outline: 1px solid var(--wl-danger);
     }
 }
 

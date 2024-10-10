@@ -172,7 +172,7 @@ const Block = ({
                 width={textWidth * 11}
                 height={50}
                 rx={4}
-                fill={tooSmall && !hovering ? '#00000000' : '$dark-paper'}
+                fill={tooSmall && !hovering ? '#00000000' : 'var(--dark-paper)'}
             />
             <text
                 className="leaf-text"

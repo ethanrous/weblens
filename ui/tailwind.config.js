@@ -4,12 +4,19 @@ export default {
     theme: {
         extend: {
             colors: {
-                'dark-paper': '#1c1049',
-                'main-accent': '#3636ca',
+                'dark-paper': 'var(--dark-paper)',
+                'theme-text': 'var(--wl-text-color)',
+                'wl-barely-visible': 'var(--wl-barely-visible)',
+                'wl-background': 'var(--wl-background)',
+                'wl-outline-subtle': 'var(--wl-outline-subtle)',
+                'main-accent': 'var(--wl-theme-color)',
                 'bottom-grey': '#121212',
                 'raised-grey': '#212124',
                 'light-paper': '#381eaa',
                 background: '#111418',
+            },
+            'wl-outline-subtle': {
+                outline: '1px solid var(--wl-outline-subtle)',
             },
             boxShadow: {
                 soft: '2px 2px 12px #000000aa',
@@ -26,5 +33,19 @@ export default {
             }),
         },
     },
-    plugins: [],
+    plugins: [
+        ({ addUtilities }) => {
+            const newUtilities = {
+                '.wl-outline': {
+                    borderRadius: 'var(--wl-border-radius)',
+                    outline: '1px solid var(--wl-outline)',
+                },
+                '.wl-outline-subtle': {
+                    borderRadius: 'var(--wl-border-radius)',
+                    outline: '1px solid var(--wl-outline-subtle)',
+                },
+            }
+            addUtilities(newUtilities, ['responsive', 'hover'])
+        },
+    ],
 }

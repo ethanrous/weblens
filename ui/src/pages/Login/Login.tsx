@@ -1,6 +1,7 @@
 import { Divider, Space } from '@mantine/core'
 import { login } from '@weblens/api/ApiFetch'
 import { useKeyDown } from '@weblens/components/hooks'
+import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
@@ -41,26 +42,18 @@ const Login = () => {
     }, [])
 
     return (
-        <div
-            className="flex flex-col h-screen w-screen items-center justify-center"
-            style={{
-                background:
-                    'linear-gradient(45deg, rgba(2,0,36,1) 0%, rgba(94,43,173,1) 50%, rgba(0,212,255,1) 100%)',
-            }}
-        >
-            <h1 className="text-5xl font-bold pb-12 select-none">
-                Sign in to Weblens
-            </h1>
-            {/* <ScatteredPhotos /> */}
-            <div className="flex flex-col justify-center items-center shadow-soft bg-bottom-grey outline outline-light-paper rounded-xl p-6 w-[400px] max-w-[600px] max-h-[400px]">
-                <p className="w-full">Username</p>
+        <div className="flex flex-col h-screen w-screen items-center bg-wl-background pt-20">
+            <WeblensLogo size={100} />
+            <div className="bg-wl-barely-visible flex flex-col justify-center items-center wl-outline p-6 w-[400px] max-w-[600px] max-h-max mt-48">
+                <h1 className="font-bold  m-6">Sign In</h1>
+                <p className="w-full font-semibold">Username</p>
                 <WeblensInput
                     value={userInput}
                     autoFocus
                     valueCallback={setUserInput}
                     squareSize={40}
                 />
-                <p className="w-full">Password</p>
+                <p className="w-full font-semibold">Password</p>
                 <WeblensInput
                     value={passInput}
                     valueCallback={setPassInput}
@@ -78,11 +71,10 @@ const Login = () => {
                     setButtonRef={setButtonRef}
                 />
 
-                <Divider label={'or'} orientation={'horizontal'} />
-
-                <p>New Here?</p>
-
-                <WeblensButton label="Sign up" subtle />
+            </div>
+            <div className='flex flex-row items-center m-2 p-2 wl-outline-subtle'>
+                <h3>New Here?</h3>
+                <WeblensButton label="Sign up" />
             </div>
         </div>
     )

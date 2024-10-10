@@ -113,7 +113,7 @@
 
     &[data-open='true'] {
         outline-offset: 0;
-        outline: 3px solid $dark-paper;
+        outline: 3px solid var(--dark-paper);
         background-color: #00000044;
         pointer-events: all;
         backdrop-filter: blur(6px);

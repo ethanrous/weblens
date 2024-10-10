@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -36,7 +36,7 @@ func boolPointer(b bool) *bool {
 	return &b
 }
 
-func NewFileTree(rootPath, rootAlias string, journal Journal) (FileTree, error) {
+func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bool) (FileTree, error) {
 	if _, err := os.Stat(rootPath); errors.Is(err, os.ErrNotExist) {
 		err = os.MkdirAll(rootPath, os.ModePerm)
 		if err != nil {
@@ -82,7 +82,7 @@ func NewFileTree(rootPath, rootAlias string, journal Journal) (FileTree, error) 
 	if event.journal == nil {
 		event = nil
 	}
-	err := tree.loadFromRoot(event)
+	err := tree.loadFromRoot(event, doFileDiscovery)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (ft *FileTreeImpl) addInternal(id FileId, f *WeblensFileImpl) {
 	ft.fsTreeLock.Lock()
 	defer ft.fsTreeLock.Unlock()
 
-	log.Trace.Printf("Adding %s (%s) to file tree", f.filename, f.id)
+	// log.Trace.Printf("Adding %s (%s) to file tree", f.filename, f.id)
 
 	// Do not use .ID() inside critical section, as it may need to use the locks
 	ft.fMap[id] = f
@@ -375,16 +375,16 @@ func (ft *FileTreeImpl) Size() int {
 func (ft *FileTreeImpl) Touch(parentFolder *WeblensFileImpl, newFileName string, event *FileEvent) (
 	*WeblensFileImpl, error,
 ) {
-	absPath := filepath.Join(parentFolder.AbsPath(), newFileName)
-	portable, err := ft.AbsToPortable(absPath)
+	childPath := parentFolder.GetPortablePath().Child(newFileName, false)
+	absPath, err := ft.PortableToAbs(childPath)
 	if err != nil {
-		return nil, err
+		return nil, werror.WithStack(err)
 	}
 
 	f := &WeblensFileImpl{
 		id:           ft.GenerateFileId(),
 		absolutePath: absPath,
-		portablePath: portable,
+		portablePath: childPath,
 		filename:     newFileName,
 		isDir:        boolPointer(false),
 		modifyDate:   time.Now(),
@@ -417,7 +417,7 @@ func (ft *FileTreeImpl) MkDir(
 	parentFolder *WeblensFileImpl, newDirName string, event *FileEvent,
 ) (*WeblensFileImpl, error) {
 	if existingFile, _ := parentFolder.GetChild(newDirName); existingFile != nil {
-		return existingFile, werror.ErrDirAlreadyExists
+		return existingFile, werror.WithStack(werror.ErrDirAlreadyExists)
 	}
 
 	absPath := filepath.Join(parentFolder.AbsPath(), newDirName) + "/"
@@ -446,7 +446,7 @@ func (ft *FileTreeImpl) MkDir(
 			existingFile = d
 		}
 
-		return existingFile, werror.ErrDirAlreadyExists
+		return existingFile, werror.WithStack(werror.ErrDirAlreadyExists)
 	}
 
 	d.size.Store(0)
@@ -473,11 +473,12 @@ func (ft *FileTreeImpl) MkDir(
 }
 
 func (ft *FileTreeImpl) SetRootAlias(alias string) error {
-	if ft.Size() != 0 {
+	if ft.Size() != 1 {
 		return werror.Errorf("Cannot set root alias on non-empty file tree")
 	}
 
 	ft.rootAlias = alias
+	ft.root.portablePath.rootAlias = alias
 
 	return nil
 }
@@ -533,12 +534,12 @@ func (ft *FileTreeImpl) GenerateFileId() FileId {
 func (ft *FileTreeImpl) PortableToAbs(portable WeblensFilepath) (string, error) {
 	if portable.RootName() != ft.rootAlias {
 		return "", werror.Errorf(
-			"fileTree.PortableToAbs: portable path rootAlias [%s] does not match tree rootAlias [%s]",
-			portable.RootName(), ft.GetRoot().Filename(),
+			"fileTree.PortableToAbs: portable root alias [%s] does not match tree [%s] for [%s]",
+			portable.RootName(),
+			ft.rootAlias, portable.relPath,
 		)
 	}
-
-	return ft.GetRoot().AbsPath() + portable.RelativePath(), nil
+	return filepath.Join(ft.GetRoot().AbsPath(), portable.RelativePath()), nil
 }
 
 func (ft *FileTreeImpl) AbsToPortable(absPath string) (WeblensFilepath, error) {
@@ -556,10 +557,23 @@ var IgnoreFilenames = []string{
 	".DS_Store",
 }
 
-func (ft *FileTreeImpl) loadFromRoot(event *FileEvent) error {
+func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) error {
 	lifetimesByPath := map[string]*Lifetime{}
 	for _, lt := range ft.journal.GetActiveLifetimes() {
-		lifetimesByPath[lt.GetLatestFilePath()] = lt
+		// If we are discovering new files, and therefore are not mimicking another
+		// tree, we just put the path into the map as-is.
+		if doFileDiscovery {
+			lifetimesByPath[lt.GetLatestAction().DestinationPath] = lt
+			continue
+		}
+
+		// In the case we are handling files from another tree,
+		// overwrite the root name so that the new files discovery matches
+		path := ParsePortable(lt.GetLatestAction().DestinationPath)
+		if path.RootName() != ft.rootAlias {
+			path = path.OverwriteRoot(ft.rootAlias)
+		}
+		lifetimesByPath[path.ToPortable()] = lt
 	}
 
 	toLoad, err := ft.ReadDir(ft.root)
@@ -577,28 +591,27 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent) error {
 			continue
 		}
 
-		log.Trace.Printf("[loadFromRoot] Loading file [%s], %d others remain", fileToLoad.filename, len(toLoad))
-
 		if event != nil {
-			if activeLt, ok := lifetimesByPath[fileToLoad.GetPortablePath().ToPortable()]; ok {
+			portablePath := fileToLoad.GetPortablePath().ToPortable()
+			if activeLt, ok := lifetimesByPath[portablePath]; ok {
 				log.Trace.Printf("[loadFromRoot] Got existing lifetime: %s", activeLt.Id)
+
+				if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
+					activeLt.IsDir = fileToLoad.IsDir()
+					event.journal.UpdateLifetime(activeLt)
+				}
+
 				fileToLoad.setIdInternal(activeLt.ID())
 				if !fileToLoad.IsDir() {
 					fileToLoad.SetContentId(activeLt.ContentId)
 				}
-			} else {
+			} else if doFileDiscovery {
 				fileToLoad.setIdInternal(ft.GenerateFileId())
-				// fileSize := fileToLoad.Size()
-
+				log.Trace.Printf("[loadFromRoot] Discovering new file %s", fileToLoad.getIdInternal())
 				event.NewCreateAction(fileToLoad)
-				// if !fileToLoad.IsDir() && fileSize != 0 {
-				// 	log.Trace.Printf("[loadFromRoot] Hashing file %s", fileToLoad.id)
-				// 	err = hasher.Hash(fileToLoad, event)
-				// 	if err != nil {
-				// 		return err
-				// 	}
-				// } else {
-				// }
+			} else {
+				log.Trace.Printf("[loadFromRoot] Skipping new file and children %s", portablePath)
+				continue
 			}
 		} else {
 			fileToLoad.setIdInternal(ft.GenerateFileId())
@@ -614,12 +627,10 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent) error {
 		}
 
 		if fileToLoad.IsDir() {
-			log.Trace.Printf("[loadFromRoot] Loading directory [%s]", fileToLoad.filename)
 			children, err := ft.ReadDir(fileToLoad)
 			if err != nil {
 				return err
 			}
-			log.Trace.Printf("[loadFromRoot] Adding %d more children", len(children))
 			toLoad = append(toLoad, children...)
 		}
 	}

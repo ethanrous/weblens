@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 )
 
 type InMemoryFS struct {

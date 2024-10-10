@@ -4,22 +4,20 @@ import (
 	"archive/zip"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
-	"io"
 	"maps"
-	"math"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/task"
 	"github.com/saracen/fastzip"
 )
 
@@ -27,7 +25,7 @@ func CreateZip(t *task.Task) {
 	zipMeta := t.GetMeta().(models.ZipMeta)
 
 	if len(zipMeta.Files) == 0 {
-		t.ErrorAndExit(werror.ErrEmptyZip)
+		t.ReqNoErr(werror.ErrEmptyZip)
 	}
 
 	filesInfoMap := map[string]os.FileInfo{}
@@ -39,7 +37,7 @@ func CreateZip(t *task.Task) {
 				func(f *fileTree.WeblensFileImpl) error {
 					stat, err := os.Stat(f.AbsPath())
 					if err != nil {
-						t.ErrorAndExit(err)
+						t.ReqNoErr(err)
 					}
 					filesInfoMap[f.AbsPath()] = stat
 					return nil
@@ -69,7 +67,7 @@ func CreateZip(t *task.Task) {
 		err = nil
 		zipExists = true
 	} else if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	if zipExists {
@@ -84,7 +82,7 @@ func CreateZip(t *task.Task) {
 
 	fp, err := os.Create(zipFile.AbsPath())
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	defer func(fp *os.File) {
 		err := fp.Close()
@@ -101,7 +99,7 @@ func CreateZip(t *task.Task) {
 	)
 
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	defer func(a *fastzip.Archiver) {
@@ -162,7 +160,7 @@ func CreateZip(t *task.Task) {
 		time.Sleep(time.Duration(updateInterval))
 	}
 	if archiveErr != nil {
-		t.ErrorAndExit(*archiveErr)
+		t.ReqNoErr(*archiveErr)
 	}
 
 	t.SetResult(task.TaskResult{"takeoutId": zipFile.ID(), "filename": zipFile.Filename()})
@@ -206,7 +204,7 @@ func HandleFileUploads(t *task.Task) {
 
 	rootFile, err := meta.FileService.GetFileSafe(meta.RootFolderId, meta.User, meta.Share)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	var bottom, top, total int64
@@ -223,22 +221,11 @@ func HandleFileUploads(t *task.Task) {
 	// Release all the files once we are finished here, if they haven't been already.
 	// This should only be required in error cases, as if all files are successfully
 	// written, they are then unlocked in the main body.
-	// defer func() {
-	// 	for _, fId := range usingFiles {
-	// 		f := t.taskPool.workerPool.fileTree.Get(fId)
-	// 		if f != nil {
-	// 			err = f.RemoveTask(t.TaskId())
-	// 			if err != nil {
-	// 				wlog.ShowErr(err)
-	// 			}
-	// 		}
-	// 	}
-	// }()
 
-	fileEvent := meta.FileService.GetUsersJournal().NewEvent()
+	fileEvent := meta.FileService.GetJournalByTree("USERS").NewEvent()
 	defer func() {
 		if !t.CheckExit() {
-			meta.FileService.GetUsersJournal().LogEvent(fileEvent)
+			meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
 		}
 	}()
 
@@ -255,7 +242,7 @@ WriterLoop:
 
 			bottom, top, total, err = parseRangeHeader(chunk.ContentRange)
 			if err != nil {
-				t.ErrorAndExit(err)
+				t.ReqNoErr(err)
 			}
 
 			if chunk.NewFile != nil {
@@ -297,22 +284,22 @@ WriterLoop:
 			// Write the bytes to the real file
 			err = chnk.File.WriteAt(chunk.Chunk, bottom)
 			if err != nil {
-				t.ErrorAndExit(err)
+				t.ReqNoErr(err)
 			}
 
 			// Add the bytes for this chunk to the Hash
 			_, err = chnk.Hash.Write(chunk.Chunk)
 			if err != nil {
-				t.ErrorAndExit(err)
+				t.ReqNoErr(err)
 			}
 
 			// When file is finished writing
 			if chnk.BytesWritten >= chnk.FileSizeTotal {
+
 				// Hash file content to get content ID. Must do this before attaching the file,
-				// or the journal worker will beat us to it, which could break if scanning
-				// the file shortly after uploading.
-				contentId := models.ContentId(base64.URLEncoding.EncodeToString(chnk.Hash.Sum(nil)[:20]))
-				chnk.File.SetContentId(contentId)
+				// or the journal worker will beat us to it, which could break if importing
+				// the file media shortly after uploading here.
+				chnk.File.SetContentId(service.ContentIdFromHash(chnk.Hash))
 
 				if !chnk.File.IsDir() {
 					meta.Caster.PushFileCreate(chnk.File)
@@ -352,11 +339,11 @@ WriterLoop:
 		if tl.IsDir() {
 			err = meta.FileService.ResizeDown(tl, meta.Caster)
 			if err != nil {
-				t.ErrorAndExit(err)
+				t.ReqNoErr(err)
 			}
 
 			if err != nil {
-				t.ErrorAndExit(err)
+				t.ReqNoErr(err)
 			}
 
 			scanMeta := models.ScanMeta{
@@ -397,7 +384,7 @@ WriterLoop:
 
 	err = meta.FileService.ResizeUp(rootFile, meta.Caster)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	if newTp.Status().Total != 0 {
@@ -446,7 +433,7 @@ func GatherFilesystemStats(t *task.Task) {
 
 	err := meta.RootDir.RecursiveMap(sizeFunc)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	ret := internal.MapToSliceMutate(
@@ -463,54 +450,19 @@ func GatherFilesystemStats(t *task.Task) {
 func HashFile(t *task.Task) {
 	meta := t.GetMeta().(models.HashFileMeta)
 
-	if meta.File.IsDir() {
-		t.ErrorAndExit(werror.Errorf("cannot hash directory"))
-	}
+	contentId, err := service.GenerateContentId(meta.File)
+	t.ReqNoErr(err)
 
-	if meta.File.GetContentId() != "" {
-		t.Success("Skipping file which already has content ID", meta.File.AbsPath())
-	}
-
-	fileSize := meta.File.Size()
-
-	if fileSize == 0 {
-		t.Success("Skipping file with no content: ", meta.File.AbsPath())
-		return
-	}
-
-	var contentId models.ContentId
-	fp, err := meta.File.Readable()
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-
-	if closer, ok := fp.(io.Closer); ok {
-		defer func(fp io.Closer) {
-			err := fp.Close()
-			if err != nil {
-				log.ShowErr(err)
-			}
-		}(closer)
-	}
-
-	// Read up to 1MB at a time
-	bufSize := math.Min(float64(fileSize), 1000*1000)
-
-	buf := make([]byte, int64(bufSize))
-
-	newHash := sha256.New()
-	_, err = io.CopyBuffer(newHash, fp, buf)
-	if err != nil {
-		t.ErrorAndExit(err)
-	}
-	contentId = base64.URLEncoding.EncodeToString(newHash.Sum(nil))[:20]
-	t.SetResult(task.TaskResult{"contentId": contentId})
+	log.Trace.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId)
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)
 	// if err != nil {
 	// 	t.ErrorAndExit(err)
 	// }
+
+	t.SetResult(task.TaskResult{"contentId": contentId})
+
 	poolStatus := t.GetTaskPool().Status()
 	meta.Caster.PushTaskUpdate(
 		t, models.TaskCompleteEvent, task.TaskResult{

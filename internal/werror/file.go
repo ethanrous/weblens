@@ -64,3 +64,6 @@ var ErrBadReadCount = errors.New("did not read expected number of bytes from fil
 var ErrAlreadyWatching = errors.New("trying to watch directory that is already being watched")
 var ErrFileAlreadyHasTask = errors.New("file already has a task")
 var ErrFileNoTask = errors.New("file does not have task")
+var ErrNoContentId = errors.New("file does not have a content id")
+var ErrNoFileTree = errors.New("trying to get a filetree that does not exist")
+var ErrJournalServerMismatch = errors.New("journal serverId does not match the lifetime serverId")

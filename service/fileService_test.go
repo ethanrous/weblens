@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +34,7 @@ func NewTestFileTree() (fileTree.FileTree, error) {
 
 	log.Trace.Printf("Creating tmp root for FileTree test [%s]", rootPath)
 
-	tree, err := fileTree.NewFileTree(rootPath, "USERS", journal)
+	tree, err := fileTree.NewFileTree(rootPath, "USERS", journal, false)
 	if err != nil {
 		return nil, err
 	}
@@ -47,20 +47,29 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
 	require.NoError(t, err)
 	usersCol := mondb.Collection(t.Name() + "users")
-	usersCol.Drop(context.Background())
+	err = usersCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer usersCol.Drop(context.Background())
 
 	accessCol := mondb.Collection(t.Name() + "access")
-	accessCol.Drop(context.Background())
+	err = accessCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer accessCol.Drop(context.Background())
 
 	trashCol := mondb.Collection(t.Name() + "trash")
-	trashCol.Drop(context.Background())
+	err = trashCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer trashCol.Drop(context.Background())
 
 	journalCol := mondb.Collection(t.Name() + "journal")
-	journalCol.Drop(context.Background())
+	err = journalCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer journalCol.Drop(context.Background())
+
+	serversCol := mondb.Collection(t.Name() + "servers")
+	err = serversCol.Drop(context.Background())
+	require.NoError(t, err)
+	defer serversCol.Drop(context.Background())
 
 	// Create the users tree
 	usersTree, err := NewTestFileTree()
@@ -80,11 +89,15 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	// Create the cache and restore trees, and set their root aliases respectively
 	cacheTree, err := NewTestFileTree()
 	require.NoError(t, err)
-	usersTree.SetRootAlias("CACHES")
 
-	retoreTree, err := NewTestFileTree()
+	err = cacheTree.SetRootAlias("CACHES")
 	require.NoError(t, err)
-	usersTree.SetRootAlias("RESTORE")
+
+	restoreTree, err := NewTestFileTree()
+	require.NoError(t, err)
+
+	err = restoreTree.SetRootAlias("RESTORE")
+	require.NoError(t, err)
 
 	// Create user service
 	userService, err := service.NewUserService(usersCol)
@@ -94,10 +107,14 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	accessService, err := service.NewAccessService(userService, accessCol)
 	require.NoError(t, err)
 
+	// Create instance service
+	instanceService, err := service.NewInstanceService(serversCol)
+	require.NoError(t, err)
+
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		usersTree, cacheTree, retoreTree, userService, accessService, mediaService, trashCol,
+		instanceService, userService, accessService, mediaService, trashCol, usersTree, cacheTree, restoreTree,
 	)
 	require.NoError(t, err)
 
@@ -107,11 +124,9 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	userName := "test-user"
 	testUser, err := models.NewUser(userName, "test-pass", false, true)
 	require.NoError(t, err)
-	err = userService.Add(testUser)
-	require.NoError(t, err)
 
 	// Create user home folder
-	userHome, err := fileService.CreateFolder(fileService.GetMediaRoot(), userName, caster)
+	userHome, err := fileService.CreateFolder(fileService.GetUsersRoot(), userName, caster)
 	require.NoError(t, err)
 
 	// Create user trash folder
@@ -121,7 +136,10 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	testUser.SetHomeFolder(userHome)
 	testUser.SetTrashFolder(userTrash)
 
-	event := fileService.GetUsersJournal().NewEvent()
+	err = userService.Add(testUser)
+	require.NoError(t, err)
+
+	event := fileService.GetJournalByTree("USERS").NewEvent()
 
 	// Create a file
 	testFileName := "test-file"
@@ -134,7 +152,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Commit the event
-	fileService.GetUsersJournal().LogEvent(event)
+	fileService.GetJournalByTree("USERS").LogEvent(event)
 
 	event.Wait()
 
@@ -144,7 +162,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	err = fileService.MoveFilesToTrash([]*fileTree.WeblensFileImpl{testF}, testUser, nil, caster)
 	require.NoError(t, err)
 
-	err = fileService.DeleteFiles([]*fileTree.WeblensFileImpl{testF}, caster)
+	err = fileService.DeleteFiles([]*fileTree.WeblensFileImpl{testF}, "USERS", caster)
 	require.NoError(t, err)
 
 	// Restore the file
@@ -169,24 +187,34 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
 	require.NoError(t, err)
 	usersCol := mondb.Collection(t.Name() + "users")
-	usersCol.Drop(context.Background())
+	err = usersCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer usersCol.Drop(context.Background())
 
 	accessCol := mondb.Collection(t.Name() + "access")
-	accessCol.Drop(context.Background())
+	err = accessCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer accessCol.Drop(context.Background())
 
 	trashCol := mondb.Collection(t.Name() + "trash")
-	trashCol.Drop(context.Background())
+	err = trashCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer trashCol.Drop(context.Background())
 
 	journalCol := mondb.Collection(t.Name() + "journal")
-	journalCol.Drop(context.Background())
+	err = journalCol.Drop(context.Background())
+	require.NoError(t, err)
 	defer journalCol.Drop(context.Background())
+
+	serversCol := mondb.Collection(t.Name() + "servers")
+	err = serversCol.Drop(context.Background())
+	require.NoError(t, err)
+	defer serversCol.Drop(context.Background())
 
 	usersTree, err := NewTestFileTree()
 	require.NoError(t, err)
-	usersTree.SetRootAlias("USERS")
+	err = usersTree.SetRootAlias("USERS")
+	require.NoError(t, err)
 
 	hasherFactory := func() fileTree.Hasher {
 		hasher := mock.NewMockHasher()
@@ -209,10 +237,14 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	accessService, err := service.NewAccessService(userService, accessCol)
 	require.NoError(t, err)
 
+	// Create instance service
+	instanceService, err := service.NewInstanceService(serversCol)
+	require.NoError(t, err)
+
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		usersTree, cacheTree, restoreTree, userService, accessService, mediaService, trashCol,
+		instanceService, userService, accessService, mediaService, trashCol, usersTree, cacheTree, restoreTree,
 	)
 	require.NoError(t, err)
 
@@ -222,21 +254,17 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	userName := "test-user"
 	testUser, err := models.NewUser(userName, "test-pass", false, true)
 	require.NoError(t, err)
+
+	err = fileService.CreateUserHome(testUser)
+	require.NoError(t, err)
+
 	err = userService.Add(testUser)
 	require.NoError(t, err)
 
-	// Create user home folder
-	userHome, err := fileService.CreateFolder(fileService.GetMediaRoot(), userName, caster)
+	userHome, err := fileService.GetFileByTree(testUser.HomeId, "USERS")
 	require.NoError(t, err)
 
-	// Create user trash folder
-	userTrash, err := fileService.CreateFolder(userHome, ".user_trash", caster)
-	require.NoError(t, err)
-
-	testUser.SetHomeFolder(userHome)
-	testUser.SetTrashFolder(userTrash)
-
-	event := fileService.GetUsersJournal().NewEvent()
+	event := fileService.GetJournalByTree("USERS").NewEvent()
 
 	// Create a directory
 	testDirName := "test-dir"
@@ -261,7 +289,7 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	require.Equal(t, fileCount, len(dir.GetChildren()))
 
 	// Commit the event
-	fileService.GetUsersJournal().LogEvent(event)
+	fileService.GetJournalByTree("USERS").LogEvent(event)
 
 	event.Wait()
 
@@ -271,7 +299,7 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	err = fileService.MoveFilesToTrash([]*fileTree.WeblensFileImpl{dir}, testUser, nil, caster)
 	require.NoError(t, err)
 
-	err = fileService.DeleteFiles([]*fileTree.WeblensFileImpl{dir}, caster)
+	err = fileService.DeleteFiles([]*fileTree.WeblensFileImpl{dir}, "USERS", caster)
 	require.NoError(t, err)
 
 	// Add one here to account for the ROOT directory

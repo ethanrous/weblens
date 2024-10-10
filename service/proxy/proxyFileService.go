@@ -5,9 +5,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 )
 
 var _ models.FileService = (*ProxyFileService)(nil)
@@ -16,12 +16,19 @@ type ProxyFileService struct {
 	Core *models.Instance
 }
 
-func (pfs *ProxyFileService) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
-
+func (pfs *ProxyFileService) Size(treeName string) int64 {
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
+func (pfs *ProxyFileService) AddTree(tree fileTree.FileTree) {
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) GetUsersRoot() *fileTree.WeblensFileImpl {
 
 	panic("implement me")
 }
@@ -54,18 +61,39 @@ func (pfs *ProxyFileService) CreateFolder(
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) GetUserFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+func (pfs *ProxyFileService) CreateUserHome(user *models.User) error {
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) CreateRestoreFile(lifetime *fileTree.Lifetime) (
+	restoreFile *fileTree.WeblensFileImpl, err error,
+) {
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) GetFileByTree(id fileTree.FileId, treeAlias string) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error) {
+func (pfs *ProxyFileService) GetFileByContentId(contentId models.ContentId) (*fileTree.WeblensFileImpl, error) {
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, []fileTree.FileId, error) {
 	if len(ids) == 0 {
-		return []*fileTree.WeblensFileImpl{}, nil
+		return []*fileTree.WeblensFileImpl{}, []fileTree.FileId{}, nil
 	}
 
-	r := NewRequest(pfs.Core, "POST", "/files").WithBody(ids)
-	return CallHomeStruct[[]*fileTree.WeblensFileImpl](r)
+	r := NewCoreRequest(pfs.Core, "POST", "/files").WithBody(ids)
+
+	type getFilesResponse struct {
+		Files     []*fileTree.WeblensFileImpl `json:"files"`
+		LostFiles []fileTree.FileId           `json:"lostFiles"`
+	}
+
+	res, err := CallHomeStruct[getFilesResponse](r)
+	return res.Files, res.LostFiles, err
 }
 
 func (pfs *ProxyFileService) GetFileSafe(
@@ -97,7 +125,7 @@ func (pfs *ProxyFileService) RenameFile(
 }
 
 func (pfs *ProxyFileService) MoveFiles(
-	files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, caster models.FileCaster,
+	files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, treeName string, caster models.FileCaster,
 ) error {
 
 	panic("implement me")
@@ -115,7 +143,7 @@ func (pfs *ProxyFileService) ReturnFilesFromTrash(files []*fileTree.WeblensFileI
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) DeleteFiles(files []*fileTree.WeblensFileImpl, caster models.FileCaster) error {
+func (pfs *ProxyFileService) DeleteFiles(files []*fileTree.WeblensFileImpl, treeName string, caster models.FileCaster) error {
 
 	panic("implement me")
 }
@@ -127,8 +155,13 @@ func (pfs *ProxyFileService) RestoreFiles(
 	panic("implement me")
 }
 
+func (pfs *ProxyFileService) RestoreHistory(lifetimes []*fileTree.Lifetime) error {
+
+	panic("implement me")
+}
+
 func (pfs *ProxyFileService) ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser, error) {
-	resp, err := NewRequest(pfs.Core, "GET", fmt.Sprintf("/file/%s/content", f.ID())).Call()
+	resp, err := NewCoreRequest(pfs.Core, "GET", fmt.Sprintf("/file/content/%s", f.GetContentId())).Call()
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +199,7 @@ func (pfs *ProxyFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task 
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) GetUsersJournal() fileTree.Journal {
+func (pfs *ProxyFileService) GetJournalByTree(treeName string) fileTree.Journal {
 
 	panic("implement me")
 }
@@ -183,5 +216,9 @@ func (pfs *ProxyFileService) ResizeUp(file *fileTree.WeblensFileImpl, caster mod
 
 func (pfs *ProxyFileService) NewZip(zipName string, owner *models.User) (*fileTree.WeblensFileImpl, error) {
 
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.WeblensFileImpl, error) {
 	panic("implement me")
 }

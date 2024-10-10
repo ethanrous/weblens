@@ -6,11 +6,11 @@ import (
 	"hash"
 	"slices"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/task"
 )
 
 const (
@@ -23,6 +23,7 @@ const (
 	BackupTask           = "do_backup"
 	HashFileTask         = "hash_file"
 	CopyFileFromCoreTask = "copy_file_from_core"
+	RestoreCoreTask      = "restore_core"
 )
 
 type TaskSubscriber interface {
@@ -273,7 +274,7 @@ type FileUploadProgress struct {
 }
 
 type BackupMeta struct {
-	RemoteId            InstanceId
+	Core                *Instance
 	FileService         FileService
 	ProxyFileService    FileService
 	ProxyJournalService fileTree.Journal
@@ -283,13 +284,14 @@ type BackupMeta struct {
 	WebsocketService    ClientManager
 	InstanceService     InstanceService
 	TaskService         task.TaskService
+	AccessService       AccessService
 	Caster              Broadcaster
 }
 
 func (m BackupMeta) MetaString() string {
 	data := map[string]any{
 		"JobName":  BackupTask,
-		"remoteId": m.RemoteId,
+		"remoteId": m.Core,
 	}
 	bs, err := json.Marshal(data)
 	log.ErrTrace(err)
@@ -306,7 +308,7 @@ func (m BackupMeta) JobName() string {
 }
 
 func (m BackupMeta) Verify() error {
-	if m.RemoteId == "" {
+	if m.Core == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "RemoteId")
 	} else if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
@@ -328,6 +330,8 @@ func (m BackupMeta) Verify() error {
 		return werror.ErrBadJobMetadata(m.JobName(), "TaskService")
 	} else if m.Caster == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "Caster")
+	} else if m.AccessService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "AccessService")
 	}
 
 	return nil
@@ -363,9 +367,11 @@ func (m HashFileMeta) Verify() error {
 
 type BackupCoreFileMeta struct {
 	ProxyFileService FileService
+	FileService      FileService
 	File             *fileTree.WeblensFileImpl
 	Caster           Broadcaster
-	// Client comm.Client
+	Core             *Instance
+	Filename         string
 }
 
 func (m BackupCoreFileMeta) MetaString() string {
@@ -389,5 +395,57 @@ func (m BackupCoreFileMeta) JobName() string {
 }
 
 func (m BackupCoreFileMeta) Verify() error {
+	if m.Core == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Core")
+	}
+	if m.File == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "File")
+	}
+	if m.ProxyFileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ProxyFileService")
+	}
+	if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
+	}
+
+	return nil
+}
+
+type RestoreCoreMeta struct {
+	Core  *Instance
+	Local *Instance
+	Pack  *ServicePack
+}
+
+func (m RestoreCoreMeta) MetaString() string {
+	data := map[string]any{
+		"JobName": RestoreCoreTask,
+	}
+
+	bs, err := json.Marshal(data)
+	log.ErrTrace(err)
+
+	return string(bs)
+}
+
+func (m RestoreCoreMeta) FormatToResult() task.TaskResult {
+	return task.TaskResult{}
+}
+
+func (m RestoreCoreMeta) JobName() string {
+	return RestoreCoreTask
+}
+
+func (m RestoreCoreMeta) Verify() error {
+	if m.Core == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Core")
+	}
+	if m.Local == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Local")
+	}
+	if m.Pack == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ServicePack")
+	}
+
 	return nil
 }

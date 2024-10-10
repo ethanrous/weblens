@@ -6,12 +6,12 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/metrics"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/metrics"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 )
 
 func ScanDirectory(t *task.Task) {
@@ -43,7 +43,7 @@ func ScanDirectory(t *task.Task) {
 
 	err := meta.FileService.AddTask(meta.File, t)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	defer func() { err = meta.FileService.RemoveTask(meta.File, t); log.ErrTrace(err) }()
 
@@ -89,7 +89,7 @@ func ScanDirectory(t *task.Task) {
 	)
 
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	pool.SignalAllQueued()
@@ -114,7 +114,7 @@ func ScanDirectory(t *task.Task) {
 				"failed_count": len(errs),
 			},
 		)
-		t.ErrorAndExit(werror.WithStack(werror.ErrChildTaskFailed))
+		t.ReqNoErr(werror.WithStack(werror.ErrChildTaskFailed))
 	}
 
 	// Let any client subscribers know we are done
@@ -133,7 +133,7 @@ func ScanFile(t *task.Task) {
 	err := ScanFile_(meta)
 	stop := time.Now()
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
 

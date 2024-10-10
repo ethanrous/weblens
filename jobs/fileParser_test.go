@@ -5,15 +5,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	. "github.com/ethrousseau/weblens/jobs"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	. "github.com/ethanrous/weblens/jobs"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
+	"github.com/ethanrous/weblens/task"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -49,9 +49,7 @@ func TestScanFile(t *testing.T) {
 	}
 	defer col.Drop(context.Background())
 
-	testMediaTree, err := fileTree.NewFileTree(
-		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(),
-	)
+	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false)
 	if err != nil {
 		panic(err)
 	}
@@ -103,7 +101,7 @@ func TestScanDirectory(t *testing.T) {
 
 	testMediaTree, err := fileTree.NewFileTree(
 		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(),
-	)
+	false)
 	if err != nil {
 		panic(err)
 	}

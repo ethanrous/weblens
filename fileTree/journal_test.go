@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethrousseau/weblens/database"
-	. "github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/database"
+	. "github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

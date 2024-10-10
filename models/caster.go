@@ -5,10 +5,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/task"
 )
 
 var _ Broadcaster = (*SimpleCaster)(nil)
@@ -176,7 +176,7 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, med
 	msg = WsResponseInfo{
 		EventTag:      "file_updated",
 		SubscribeKey:  updatedFile.GetParentId(),
-		Content: WsC{"fileInfo": updatedFile, "mediaData": media},
+		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
 	}
 
@@ -634,4 +634,5 @@ const (
 	ZipProgressEvent     = "create_zip_progress"
 	ZipCompleteEvent     = "zip_complete"
 	ServerGoingDownEvent = "going_down"
+	RestoreStartedEvent  = "restore_started"
 )

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/ethrousseau/weblens/fileTree"
+	"github.com/ethanrous/weblens/fileTree"
 )
 
 type MockHasher struct {

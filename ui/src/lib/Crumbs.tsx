@@ -23,8 +23,8 @@ type Crumb = {
 type breadcrumbProps = {
     crumbInfo: Crumb
     moveSelectedTo
+    isCurrent: boolean
     compact?: boolean
-    isCurrent?: boolean
 }
 
 const CrumbText = ({ crumb }: { crumb: Crumb }) => {
@@ -78,7 +78,7 @@ export const StyledBreadcrumb = ({
             data-dragging={dragging === 1}
             data-current={isCurrent}
             onMouseOver={() => {
-                if (dragging && setMoveDest) {
+                if (dragging && !isCurrent && setMoveDest) {
                     setMoveDest(crumbInfo.name)
                 }
             }}
@@ -173,6 +173,7 @@ export const StyledLoaf = ({
                     <StyledBreadcrumb
                         crumbInfo={c}
                         moveSelectedTo={moveSelectedTo}
+                        isCurrent={i === crumbs.length - 1}
                     />
                     {i !== crumbs.length - 1 && (
                         <IconChevronRight

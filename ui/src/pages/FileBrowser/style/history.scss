@@ -162,8 +162,9 @@
     height: 20px;
     border-radius: 4px;
     transition: background-color 150ms ease-in-out;
+    color: $main-text;
 
     :hover>& {
-        background-color: #393f4e;
+        background-color: $item-grey;
     }
 }

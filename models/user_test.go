@@ -3,7 +3,7 @@ package models_test
 import (
 	"testing"
 
-	. "github.com/ethrousseau/weblens/models"
+	. "github.com/ethanrous/weblens/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

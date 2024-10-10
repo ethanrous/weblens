@@ -1,0 +1,40 @@
+@import "./theme.scss";
+
+.remote-box {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: max-content;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.remote-box-container {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    border-radius: 6px;
+    background-color: var(--dark-paper);
+    width: 100%;
+    height: max-content;
+    transition: height 200ms ease-in-out;
+    overflow: hidden;
+
+    &[data-restoring='true'] {
+        height: 400px;
+    }
+
+    //  &[data-backup='true'] {
+    //      height: max-content;
+    //  }
+}
+
+.restore-diologue {
+    display: flex;
+    flex-grow: 1;
+    margin-top: 1rem;
+    background-color: $bottom-grey;
+    border-radius: 6px;
+    outline: 2px solid $warning;
+    padding: 1rem;
+}

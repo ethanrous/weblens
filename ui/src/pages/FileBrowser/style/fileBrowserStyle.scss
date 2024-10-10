@@ -62,6 +62,7 @@
 .transfer-info-box {
     display: flex;
     flex-direction: row;
+    align-items: center;
     width: max-content;
     border-radius: 4px;
     padding: 8px;
@@ -228,15 +229,17 @@
 .file-sort-box {
     display: flex;
     flex-shrink: 0;
+    flex-grow: 1;
     flex-direction: row;
     align-items: center;
     border-radius: 4px;
-    //background-color: $;
+    background-color: var(--wl-barely-visible);
 
     box-shadow: $soft-shadow;
     margin-right: 10px;
     width: max-content;
-    //height: 48px;
+    max-width: max-content;
+    height: 50px;
     color: white;
     //overflow: hidden;
     padding: 2px;
@@ -456,7 +459,7 @@
     justify-content: center;
     position: absolute;
     bottom: 16px;
-    background-color: $dark-paper;
+    background-color: var(--dark-paper);
     border-radius: 6px;
     z-index: 1;
     padding: 8px;

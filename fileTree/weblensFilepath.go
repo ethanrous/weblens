@@ -47,12 +47,20 @@ func (wf WeblensFilepath) RootName() string {
 	return wf.rootAlias
 }
 
+func (wf WeblensFilepath) OverwriteRoot(newRoot string) WeblensFilepath {
+	wf.rootAlias = newRoot
+	return wf
+}
+
 func (wf WeblensFilepath) RelativePath() string {
 	return wf.relPath
 }
 
 func (wf WeblensFilepath) ToPortable() string {
-	return string(wf.rootAlias) + ":" + wf.relPath
+	if wf.rootAlias == "" {
+		return ""
+	}
+	return wf.rootAlias + ":" + wf.relPath
 }
 
 func (wf WeblensFilepath) Filename() string {

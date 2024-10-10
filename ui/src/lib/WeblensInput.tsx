@@ -66,7 +66,7 @@ const WeblensInput = memo(
         return (
             <div
                 className="weblens-input-wrapper"
-                style={{ minHeight: squareSize, minWidth: squareSize }}
+                style={{ maxHeight: squareSize, minWidth: squareSize }}
                 data-value={internalValue}
                 data-minimize={minimize}
                 data-subtle={subtle}

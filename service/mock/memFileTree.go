@@ -1,8 +1,8 @@
 package mock
 
 import (
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

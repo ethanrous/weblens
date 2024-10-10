@@ -1,8 +1,8 @@
 package http
 
 import (
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
 )
 
 // FileInfo is a structure for safely sending file information to the client

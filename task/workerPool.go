@@ -3,15 +3,14 @@ package task
 import (
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/metrics"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/metrics"
+	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/google/uuid"
 )
 
@@ -43,7 +42,7 @@ type WorkerPool struct {
 
 	taskStream   workChannel
 	taskBufferMu sync.Mutex
-	retryBuffer []*Task
+	retryBuffer  []*Task
 	hitStream    hitChannel
 
 	exitFlag   atomic.Int64
@@ -60,8 +59,8 @@ func NewWorkerPool(initWorkers int, logLevel int) *WorkerPool {
 
 	newWp := &WorkerPool{
 		registeredJobs: map[string]TaskHandler{},
-		taskMap: map[Id]*Task{},
-		poolMap: map[Id]*TaskPool{},
+		taskMap:        map[Id]*Task{},
+		poolMap:        map[Id]*TaskPool{},
 
 		busyCount: &atomic.Int64{},
 
@@ -261,7 +260,10 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 			recovered = errors.New(fmt.Sprint(recovered))
 		}
 		if wp.logLevel != -1 {
-			log.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, recovered, debug.Stack())
+			log.ErrorCatcher.Printf(
+				"Worker %d recovered the following panic\n%s\n%s\n", workerId, recovered,
+				werror.GetStack(2).String(),
+			)
 		}
 		task.error(recovered.(error))
 	}
@@ -560,8 +562,8 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	}
 
 	newQueue := &TaskPool{
-		id:    tpId.String(),
-		tasks: map[Id]*Task{},
+		id:           tpId.String(),
+		tasks:        map[Id]*Task{},
 		workerPool:   wp,
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),

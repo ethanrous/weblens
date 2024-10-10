@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 	"github.com/gorilla/websocket"
 )
 
@@ -221,9 +221,9 @@ func (cm *ClientManager) Subscribe(
 			c.PushFileUpdate(folder, nil)
 
 			for _, t := range cm.pack.FileService.GetTasks(folder) {
-				c.SubUnlock()
+				// c.SubUnlock()
 				_, _, err = cm.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
-				c.SubLock()
+				// c.SubLock()
 				if err != nil {
 					return
 				}
@@ -368,7 +368,7 @@ func (cm *ClientManager) TaskSubToPool(taskId task.Id, poolId task.Id) {
 	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
 
 	for _, s := range subs {
-		log.Trace.Printf("Subscribing user %s on folder sub %s to pool %s", s.GetUser().GetUsername(), taskId, poolId)
+		log.Trace.Printf("Subscribing U[%s] to P[%s] due to F[%s] ", s.GetUser().GetUsername(), taskId, poolId)
 		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
@@ -418,20 +418,20 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 
 	var clients []*models.WsClient
 
-	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil {
+	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)
 		clients = internal.OnlyUnique(clients)
-	}
 
-	if msg.BroadcastType == models.TaskSubscribe {
-		clients = append(
-			clients, cm.GetSubscribers(
-				models.TaskTypeSubscribe,
-				msg.TaskType,
-			)...,
-		)
+		if msg.BroadcastType == models.TaskSubscribe {
+			clients = append(
+				clients, cm.GetSubscribers(
+					models.TaskTypeSubscribe,
+					msg.TaskType,
+				)...,
+			)
+		}
 	}
 
 	if len(clients) != 0 {

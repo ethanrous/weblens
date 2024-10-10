@@ -6,10 +6,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service/proxy"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/jobs"
+	"github.com/ethanrous/weblens/models"
 	"github.com/gorilla/websocket"
 )
 
@@ -27,7 +27,7 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	}
 
 	if coreUrl.Host == "" {
-		return werror.Errorf("Failed to parse core address: %s", addrStr)
+		return werror.Errorf("Failed to parse core address: [%s]", addrStr)
 	}
 
 	if coreUrl.Scheme == "https" {
@@ -54,10 +54,25 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 				time.Sleep(RetryInterval)
 				continue
 			}
+
+			pack.Caster.PushWeblensEvent(
+				"core_connection_changed", models.WsC{
+					"coreId": core.ServerId(),
+					"online": true,
+				},
+			)
+
 			coreWsHandler(conn, pack)
-			log.Warning.Printf("Connection to core websocket closed, reconnecting...")
+			pack.Caster.PushWeblensEvent(
+				"core_connection_changed", models.WsC{
+					"coreId": core.ServerId(),
+					"online": false,
+				},
+			)
+			log.Warning.Printf("Websocket connection to core [%s] closed, reconnecting...", core.GetName())
 		}
 	}()
+
 	return nil
 }
 
@@ -67,18 +82,13 @@ func dial(
 ) (
 	*models.WsClient, error,
 ) {
-	log.Debug.Println("Dialing", host.String())
+	log.Trace.Println("Dialing", host.String())
 	conn, _, err := dialer.Dial(host.String(), authHeader)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
 
 	client := clientService.RemoteConnect(conn, core)
-
-	// err = client.Raw(WsAuthorize{Auth: authHeader.Get("Authorization")})
-	// if err != nil {
-	// 	return nil, werror.WithStack(err)
-	// }
 
 	log.Debug.Printf("Connection to core [%s] at [%s] successfully established", core.GetName(), host.String())
 	return client, nil
@@ -110,24 +120,42 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 
 	switch msg.EventTag {
 	case "do_backup":
-		core := pack.InstanceService.GetCore()
-		meta := models.BackupMeta{
-			RemoteId:            core.ServerId(),
-			FileService:         pack.FileService,
-			UserService:         pack.UserService,
-			WebsocketService:    pack.ClientService,
-			InstanceService:     pack.InstanceService,
-			TaskService:         pack.TaskService,
-			Caster:              pack.Caster,
-			ProxyFileService:    &proxy.ProxyFileService{Core: core},
-			ProxyJournalService: &proxy.ProxyJournalService{Core: core},
-			ProxyUserService:    proxy.NewProxyUserService(core),
-			ProxyMediaService:   &proxy.ProxyMediaService{Core: core},
+		coreIdI, ok := msg.Content["coreId"]
+		if !ok {
+			c.Error(werror.Errorf("Missing coreId in do_backup message"))
+			return
 		}
-		_, err = pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
+		coreId, ok := coreIdI.(string)
+		if !ok {
+			c.Error(werror.Errorf("Invalid coreId in do_backup message: %v", coreIdI))
+			return
+		}
+		core := pack.InstanceService.GetByInstanceId(coreId)
+		if core == nil {
+			c.Error(werror.Errorf("Core server not found: %s", msg.Content["coreId"]))
+			return
+		}
+		_, err = jobs.BackupOne(core, pack)
 		if err != nil {
 			c.Error(err)
 		}
+	case "weblens_loaded":
+		roleI, ok := msg.Content["role"]
+		if !ok {
+			c.Error(werror.Errorf("Missing role in weblens_loaded message"))
+			return
+		}
+
+		c.GetRemote().SetReportedRole(roleI.(string))
+		
+		// Launch backup task whenever we reconnect to the core server
+		_, err = jobs.BackupOne(c.GetRemote(), pack)
+		if err != nil {
+			log.ErrTrace(err)
+		}
+	case "startup_progress", "core_connection_changed":
+	case "error":
+		log.Trace.Println(msg)
 	default:
 		log.Error.Printf("Unknown ws event from %s: %s", c.GetRemote().GetName(), msg.EventTag)
 	}

@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 )
 
 type Request struct {
@@ -17,11 +17,12 @@ type Request struct {
 	remote  *models.Instance
 	req     *http.Request
 	url     string
-	body    any
+	body []byte
 	queries [][]string
+	err  error
 }
 
-func NewRequest(remote *models.Instance, method, endpoint string) Request {
+func NewCoreRequest(remote *models.Instance, method, endpoint string) Request {
 	reqUrl, err := url.JoinPath(remote.Address, "/api/core", endpoint)
 	if err != nil {
 		log.ErrTrace(err)
@@ -36,12 +37,36 @@ func (r Request) WithQuery(key, val string) Request {
 	return r
 }
 
+func (r Request) OverwriteEndpoint(newEndpoint string) Request {
+	reqUrl, err := url.JoinPath(r.remote.Address, newEndpoint)
+	if err != nil {
+		log.ErrTrace(err)
+		return Request{}
+	}
+	r.url = reqUrl
+	return r
+}
+
 func (r Request) WithBody(body any) Request {
-	r.body = body
+	bs, err := json.Marshal(body)
+	if err != nil {
+		r.err = werror.WithStack(err)
+		return r
+	}
+	r.body = bs
+	return r
+}
+
+func (r Request) WithBodyBytes(bodyBytes []byte) Request {
+	r.body = bodyBytes
 	return r
 }
 
 func (r Request) Call() (*http.Response, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+
 	if r.remote.UsingKey == "" {
 		return nil, werror.Errorf("Trying to dial core without api key")
 	}
@@ -49,15 +74,7 @@ func (r Request) Call() (*http.Response, error) {
 		return nil, werror.Errorf("Trying to dial core without endpoint")
 	}
 
-	buf := &bytes.Buffer{}
-	if r.body != nil {
-		bs, err := json.Marshal(r.body)
-		if err != nil {
-			return nil, err
-		}
-		buf = bytes.NewBuffer(bs)
-	}
-
+	buf := bytes.NewBuffer(r.body)
 	req, err := http.NewRequest(r.method, r.url, buf)
 	if err != nil {
 		return nil, err

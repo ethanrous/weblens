@@ -23,6 +23,7 @@ $button-padding: 8px;
 
     &[data-text-on-hover='true'] {
         transition: max-width 250ms ease-in-out;
+
         &:hover {
             max-width: max-content;
         }
@@ -43,34 +44,35 @@ $button-padding: 8px;
     padding: $button-padding;
     cursor: pointer;
     color: white;
-    font-weight: 500;
-    background-color: #3600cc;
-    outline-color: #4444ff00;
+    background-color: var(--wl-theme-color);
+    outline: 2px solid rgb(var(--wl-theme-rgb), 0);
     box-shadow: $hard-shadow-off;
     overflow: hidden;
     flex-grow: 0;
     opacity: 100%;
     transition:
-            background-color 200ms ease-in-out,
-            transform 200ms ease-in-out,
-            outline 200ms ease-in-out,
-            box-shadow 200ms ease-in-out;
+        background-color 200ms ease-in-out,
+        transform 200ms ease-in-out,
+        outline 200ms ease-in-out,
+        box-shadow 200ms ease-in-out;
 
+    --wl-button-text-color: white;
 
     &:hover {
         box-shadow: $hard-shadow;
-        background-color: $dark-paper;
-        outline: 1px solid #4444ff;
+        background-color: var(--wl-barely-visible);
+        outline: 2px solid rgb(var(--wl-theme-rgb), 1);
         transform: translateY(-1px);
+        --wl-button-text-color: var(--wl-text-color);
     }
 
     &[data-subtle='true'] {
-        background-color: $dark-paper;
+        --wl-button-text-color: white;
+        background-color: var(--dark-paper);
     }
 
     &[data-toggled='true'] {
-        background-color: $dark-paper;
-        //font-weight: 600;
+        background-color: var(--dark-paper);
         background-color: #3600cc;
         outline: 1px solid #3600cc00;
         color: white;
@@ -86,11 +88,13 @@ $button-padding: 8px;
     }
 
     &[data-toggled='false'] {
-        background-color: $dark-paper;
-        outline: 1px solid #3600cc;
+        --wl-button-text-color: var(--wl-text-color);
+        background-color: var(--wl-background);
+        outline: 1px solid $theme-outline;
+
         &:hover {
-            color: white;
-            outline: 1px solid #4444ff;
+            background-color: var(--wl-barely-visible);
+            outline: 1px solid $theme-outline;
         }
     }
 
@@ -124,16 +128,17 @@ $button-padding: 8px;
     }
 
     &[data-danger='true'] {
-        background-color: $danger;
+        background-color: var(--wl-danger);
         outline: 1px solid #ff444400;
 
         &[data-subtle='true'] {
-            background-color: $danger-subtle;
+            background-color: var(--wl-danger-subtle);
         }
 
         &:hover {
-            background-color: $danger-subtle;
-            outline: 1px solid $danger;
+            background-color: var(--wl-barely-visible);
+            --wl-button-text-color: var(--wl-danger);
+            outline: 2px solid var(--wl-danger);
         }
 
         &[data-disabled='true'] {
@@ -148,18 +153,16 @@ $button-padding: 8px;
 
     &[data-super='true']:hover {
         animation: rainbow 15s ease-in-out infinite;
-        background: linear-gradient(
-            90deg,
-            #ff2400,
-            #e81d1d,
-            #e8b71d,
-            #e3e81d,
-            #1de840,
-            #1ddde8,
-            #2b1de8,
-            #dd00f3,
-            #dd00f3
-        );
+        background: linear-gradient(90deg,
+                #ff2400,
+                #e81d1d,
+                #e8b71d,
+                #e3e81d,
+                #1de840,
+                #1ddde8,
+                #2b1de8,
+                #dd00f3,
+                #dd00f3);
         background-size: 2000% 100%;
         outline: 1px solid #00000000;
         box-shadow: $hard-shadow;
@@ -168,18 +171,26 @@ $button-padding: 8px;
     [data-text-loaded='true'] & {
         opacity: 100%;
     }
+
+    &[data-float='true'] {
+        animation: float 2s infinite;
+        //outline: 1px solid var(--wl-theme-color)
+    }
 }
 
 @keyframes rainbow {
     0% {
         background-position: 75% 100%;
     }
+
     12.5% {
         background-position: 100% 100%;
     }
+
     62.5% {
         background-position: 0 100%;
     }
+
     100% {
         background-position: 75% 100%;
     }
@@ -246,6 +257,9 @@ $button-padding: 8px;
     overflow: hidden;
     opacity: 0;
     pointer-events: none;
+    color: var(--wl-button-text-color);
+    font-weight: 500;
+    transition: color 200ms ease-in-out;
 
     &[data-show-text='true'] {
         opacity: 100%;
@@ -253,9 +267,13 @@ $button-padding: 8px;
         display: block;
     }
 
-    &:hover {
+    .weblens-button:hover & {
         width: max-content;
         max-width: 4000px;
+    }
+
+    [data-disabled='true'] & {
+        color: $disabled-grey-text;
     }
 }
 
@@ -286,9 +304,29 @@ $button-padding: 8px;
 .button-icon {
     height: 100%;
     width: 100%;
-    color: white;
+    color: var(--wl-button-text-color);
+    transition: color 200ms ease-in-out;
 
     [data-disabled='true'] & {
         color: $disabled-grey-text;
+    }
+}
+
+.button-tooltip {
+    position: absolute;
+    z-index: 100;
+    background-color: var(--dark-paper);
+    color: white;
+    border-radius: 4px;
+    padding: 4px;
+    font-size: 16px;
+    box-shadow: $hard-shadow;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 200ms ease-in-out;
+
+    :hover>& {
+        display: block;
+        opacity: 100%;
     }
 }

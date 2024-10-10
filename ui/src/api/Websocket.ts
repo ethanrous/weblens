@@ -1,9 +1,5 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import {
-    TasksProgressAction,
-    TasksProgressDispatch,
-} from '@weblens/pages/FileBrowser/TaskProgress'
 import { WeblensFileParams } from '@weblens/types/files/File'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
@@ -18,6 +14,7 @@ import {
     SubToFolder,
     UnsubFromFolder,
 } from './FileBrowserApi'
+import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -63,12 +60,7 @@ export function useWeblensSocket() {
 
 export type WsSendT = (action: string, content: object) => void
 
-export const useSubscribe = (
-    cId: string,
-    sId: string,
-    usr: UserInfoT,
-    tasksDispatch: Dispatch<TasksProgressAction>
-) => {
+export const useSubscribe = (cId: string, sId: string, usr: UserInfoT) => {
     const { wsSend, lastMessage } = useWeblensSocket()
     const readyState = useWebsocketStore((state) => state.readyState)
 
@@ -117,7 +109,7 @@ export const useSubscribe = (
     useEffect(() => {
         HandleWebsocketMessage(
             lastMessage,
-            filebrowserWebsocketHandler(sId, fbDispatch, tasksDispatch)
+            filebrowserWebsocketHandler(sId, fbDispatch)
         )
     }, [lastMessage, usr])
 
@@ -188,8 +180,7 @@ export interface FBSubscribeDispatchT {
 
 function filebrowserWebsocketHandler(
     shareId: string,
-    dispatch: FBSubscribeDispatchT,
-    tasksDispatch: TasksProgressDispatch
+    dispatch: FBSubscribeDispatchT
 ) {
     return (msgData) => {
         switch (msgData.eventTag) {
@@ -230,12 +221,11 @@ function filebrowserWebsocketHandler(
 
             case 'task_created': {
                 if (msgData.taskType === 'scan_directory') {
-                    tasksDispatch({
-                        type: 'new_task',
-                        taskId: msgData.subscribeKey,
-                        taskType: msgData.taskType,
-                        target: msgData.content.filename,
-                    })
+                    useTaskState
+                        .getState()
+                        .addTask(msgData.subscribeKey, msgData.taskType, {
+                            target: msgData.content.filename,
+                        })
                 } else if (msgData.taskType === 'create_zip') {
                     if (!msgData.content.filenames) {
                         return
@@ -244,13 +234,12 @@ function filebrowserWebsocketHandler(
                     if (msgData.content.filenames.length > 1) {
                         target = `${target} +${msgData.content.filenames.length - 1}`
                     }
-                    tasksDispatch({
-                        type: 'new_task',
-                        taskId: msgData.subscribeKey,
-                        taskType: msgData.taskType,
-                        progress: 0 / msgData.content.totalFiles,
-                        target: target,
-                    })
+                    useTaskState
+                        .getState()
+                        .addTask(msgData.subscribeKey, msgData.taskType, {
+                            target: target,
+                            progress: 0 / msgData.content.totalFiles,
+                        })
                 }
                 return
             }
@@ -399,6 +388,11 @@ function filebrowserWebsocketHandler(
 
             case 'error': {
                 console.error(msgData.error)
+                return
+            }
+
+            case 'core_connection_changed': {
+                // NoOp
                 return
             }
 

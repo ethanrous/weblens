@@ -55,17 +55,27 @@
     "DEBUG-CORE": {
         "mongodbName": "weblens-core",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "trace",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
         "dataRoot": "./build/fs/core/data",
         "cachesRoot": "./build/fs/core/caches"
     },
+    "DEBUG-CORE-RESTORE": {
+        "mongodbName": "weblens-core-restore",
+        "mongodbUri": "mongodb://localhost:27017",
+        "logLevel": "trace",
+        "detachUi": true,
+        "routerHost": "127.0.0.1",
+        "routerPort": "8080",
+        "dataRoot": "./build/fs/core-restore/data",
+        "cachesRoot": "./build/fs/core-restore/caches"
+    },
     "DEBUG-BACKUP": {
         "mongodbName": "weblens-backup",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "trace",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8081",

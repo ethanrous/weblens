@@ -183,7 +183,9 @@ const MenuFooter = ({
                 className="footer-wrapper animate-fade"
                 data-danger={footerNote.danger}
             >
-                <p className="text-nowrap">{footerNote.hint}</p>
+                <p className="theme-text-dark-bg text-nowrap">
+                    {footerNote.hint}
+                </p>
             </div>
         </div>
     )
@@ -345,7 +347,6 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconPencil}
-                    subtle
                     disabled={activeItems.items.length > 1}
                     squareSize={100}
                     centerContent
@@ -365,12 +366,11 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconUsersPlus}
-                    subtle
                     disabled={activeItems.items.length > 1}
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
-                        setFooterNote({ hint: 'share', danger: false })
+                        setFooterNote({ hint: 'Share', danger: false })
                     }
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
@@ -385,7 +385,6 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconPhotoShare}
-                    subtle
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
@@ -404,7 +403,6 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconFolderPlus}
-                    subtle
                     squareSize={100}
                     centerContent
                     disabled={!folderInfo.IsModifiable()}
@@ -426,7 +424,6 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconDownload}
-                    subtle
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
@@ -452,7 +449,6 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconScan}
-                    subtle
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
@@ -472,7 +468,6 @@ function StandardFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconTrash}
-                    subtle
                     danger
                     squareSize={100}
                     centerContent
@@ -522,7 +517,6 @@ function PastFileMenu({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconRestore}
-                    subtle
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
@@ -1114,7 +1108,6 @@ function BackdropDefaultItems({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconFolderPlus}
-                    subtle
                     squareSize={100}
                     centerContent
                     disabled={!folderInfo.IsModifiable()}
@@ -1134,7 +1127,6 @@ function BackdropDefaultItems({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconFileAnalytics}
-                    subtle
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
@@ -1158,7 +1150,6 @@ function BackdropDefaultItems({
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconUsersPlus}
-                    subtle
                     squareSize={100}
                     disabled={
                         folderInfo.Id() === user.homeId ||
@@ -1166,7 +1157,7 @@ function BackdropDefaultItems({
                     }
                     centerContent
                     onMouseOver={() =>
-                        setFooterNote({ hint: 'share', danger: false })
+                        setFooterNote({ hint: 'Share', danger: false })
                     }
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })

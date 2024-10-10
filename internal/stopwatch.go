@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/log"
 )
 
 type lap struct {

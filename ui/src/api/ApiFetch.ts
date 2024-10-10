@@ -6,7 +6,9 @@ import API_ENDPOINT from './ApiEndpoint'
 export async function wrapRequest<T>(rq: Promise<T>): Promise<T> {
     return await rq.catch((e) => {
         if (e === 401) {
-            useSessionStore.getState().setUserInfo({isLoggedIn: false} as UserInfoT)
+            useSessionStore
+                .getState()
+                .setUserInfo({ isLoggedIn: false } as UserInfoT)
             useSessionStore.getState().nav('/login')
         }
         return Promise.reject(e)
@@ -138,17 +140,21 @@ export async function initServer(
     return await fetch(url, { body: JSON.stringify(body), method: 'POST' })
 }
 
+export async function attachNewCore(coreAddress: string, usingKey: string) {
+    const url = new URL(`${API_ENDPOINT}/core/attach`)
+    const body = {
+        coreAddress: coreAddress,
+        usingKey: usingKey,
+    }
+    return wrapRequest(fetch(url, { method: 'POST', body: JSON.stringify(body) }))
+}
+
 export async function getServerInfo() {
-    const url = new URL(`${API_ENDPOINT}/info`)
-    return await fetch(url).then((r) => {
-        if (r.status === 200) {
-            return r.json()
-        } else if (r.status === 307) {
-            return 307
-        } else {
-            return Promise.reject(r.statusText)
-        }
-    })
+    return fetchJson<{
+        info: ServerInfoT
+        userCount: number
+        started: boolean
+    }>(`${API_ENDPOINT}/info`)
 }
 
 export async function getUsers(): Promise<UserInfoT[]> {
@@ -170,7 +176,7 @@ export async function AutocompleteUsers(
 export async function doBackup(serverId: string) {
     const url = new URL(`${API_ENDPOINT}/backup`)
     url.searchParams.append('serverId', serverId)
-    return wrapRequest(fetch(url, {method: 'POST'}))
+    return wrapRequest(fetch(url, { method: 'POST' }))
 }
 
 export async function getRemotes(): Promise<ServerInfoT[]> {
@@ -211,5 +217,5 @@ export async function searchFilenames(
 }
 
 export async function resetServer() {
-    return wrapRequest(fetch(`${API_ENDPOINT}/reset`, {method: 'POST'}))
+    return wrapRequest(fetch(`${API_ENDPOINT}/reset`, { method: 'POST' }))
 }

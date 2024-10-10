@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/metrics"
+	"github.com/ethanrous/weblens/internal/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -45,9 +45,15 @@ func ShowErr(err error, extras ...string) {
 			return
 		}
 
-		msg := strings.Join(extras, " ")
+		msg := ""
+		if len(extras) > 0 {
+			msg = " " + strings.Join(extras, " ")
+		}
+
 		_, file, line, _ := runtime.Caller(1)
-		ErrorCatcher.Printf("%s:%d %s: %s", file, line, msg, err)
+		file = file[strings.LastIndex(file, "/")+1:]
+
+		ErrorCatcher.Printf("%s:%d%s: %s", file, line, msg, err)
 	}
 }
 

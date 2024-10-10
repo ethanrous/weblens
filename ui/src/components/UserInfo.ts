@@ -25,12 +25,13 @@ const useR = () => {
         if (!server) {
             return
         }
+
         if (server.info.role === 'init') {
             setUserInfo({ isLoggedIn: false } as UserInfoT)
             return
         }
 
-        if (!user) {
+        if (!user || user.homeId === '') {
             GetUserInfo()
                 .then((info) => setUserInfo({ ...info, isLoggedIn: true }))
                 .catch((r) => {
@@ -48,7 +49,7 @@ export interface WeblensSessionT {
 
     setUserInfo: (user: UserInfoT) => void
 
-    fetchServerInfo: () => void
+    fetchServerInfo: () => Promise<void> 
     logout: (removeCookie: (cookieKey: string) => void) => void
 
     setNav: (navFunc: (loc: string) => void) => void
@@ -68,8 +69,8 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
         })
     },
 
-    fetchServerInfo: () => {
-        getServerInfo().then((r) => {
+    fetchServerInfo: async () => {
+        return getServerInfo().then((r) => {
             set({
                 server: r,
             })

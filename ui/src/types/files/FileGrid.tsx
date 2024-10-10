@@ -35,30 +35,11 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     // const numCols = useFileBrowserStore((state) => state.numCols)
     const scrollTo = useFileBrowserStore((state) => state.scrollTo)
 
-    const setNumCols = useFileBrowserStore((state) => state.setNumCols)
-
-    const [gridRef, setGridRef] = useState<List>()
+    const [, setGridRef] = useState<List>()
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const size = useResize(containerRef)
 
     const numCols = Math.max(Math.floor(size.width / 250), 2)
-
-    useEffect(() => {
-        // if (gridRef && numCols && scrollTo) {
-        //     const scrollIndex = files.findIndex((f) => f.Id() === scrollTo)
-        //     gridRef.scrollToIndex(scrollIndex)
-        // }
-    }, [gridRef, numCols, scrollTo])
-
-    // useEffect(() => {
-    //     setNumCols()
-    //     if (dispatch) {
-    //         dispatch({ type: 'set_col_count', numCols: globalContext.numCols })
-    //     }
-    // }, [dispatch, globalContext.numCols])
-    useEffect(() => {
-        setNumCols(4)
-    }, [])
 
     const squareSize = (size.width / numCols) * 1.15
     const margin = 8

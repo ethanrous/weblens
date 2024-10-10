@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ethrousseau/weblens/models"
-	. "github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/models"
+	. "github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -26,50 +26,44 @@ func TestUserService(t *testing.T) {
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	defer col.Drop(context.Background())
 
 	userService, err := NewUserService(col)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
+	fs := &mock.MockFileService{}
 
 	// test user 1, do not auto activate
 	testUser1, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	err = fs.CreateUserHome(testUser1)
+	require.NoError(t, err)
 
 	err = userService.Add(testUser1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	serviceUser1 := userService.Get(testUser1Name)
 	assert.NotNil(t, serviceUser1)
 
 	assert.False(t, serviceUser1.IsActive())
 	err = userService.ActivateUser(testUser1)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.True(t, serviceUser1.IsActive())
 	assert.Equal(t, 1, userService.Size())
 
 	// test user 2, do auto activate
 	testUser2, err := models.NewUser(testUser2Name, testUser1Pass, false, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	err = fs.CreateUserHome(testUser2)
+	require.NoError(t, err)
 
 	err = userService.Add(testUser2)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	serviceUser2 := userService.Get(testUser2Name)
 	assert.NotNil(t, serviceUser2)
@@ -78,21 +72,15 @@ func TestUserService(t *testing.T) {
 	assert.Equal(t, 2, userService.Size())
 
 	err = userService.Del(testUser1Name)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = userService.Del(testUser2Name)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, 0, userService.Size())
 
 	err = col.Drop(context.Background())
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	// Test mongo failures
 	failingMongo := &mock.MockFailMongoCol{
@@ -116,27 +104,6 @@ type fields struct {
 	publicUser *models.User
 	rootUser   *models.User
 	col        *mongo.Collection
-}
-
-func TestUserServiceImpl_ActivateUser(t *testing.T) {
-	type args struct {
-		u *models.User
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(
-			tt.name, func(t *testing.T) {
-
-			},
-		)
-	}
 }
 
 func TestUserServiceImpl_Add(t *testing.T) {
@@ -181,7 +148,12 @@ func TestUserServiceImpl_Del(t *testing.T) {
 		panic(err)
 	}
 
+	fs := &mock.MockFileService{}
+
 	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	require.NoError(t, err)
+
+	err = fs.CreateUserHome(newUser)
 	require.NoError(t, err)
 
 	err = userService.Add(newUser)
@@ -209,13 +181,23 @@ func TestUserServiceImpl_SearchByUsername(t *testing.T) {
 		panic(err)
 	}
 
+	fs := &mock.MockFileService{}
+
 	stanUser, err := models.NewUser("stan", testUser1Pass, false, true)
 	require.NoError(t, err)
+
+	err = fs.CreateUserHome(stanUser)
+	require.NoError(t, err)
+
 	err = userService.Add(stanUser)
 	require.NoError(t, err)
 
 	blanUser, err := models.NewUser("blan", testUser1Pass, false, true)
 	require.NoError(t, err)
+
+	err = fs.CreateUserHome(blanUser)
+	require.NoError(t, err)
+
 	err = userService.Add(blanUser)
 	require.NoError(t, err)
 
@@ -249,7 +231,12 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 		panic(err)
 	}
 
+	fs := &mock.MockFileService{}
+
 	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, false)
+	require.NoError(t, err)
+
+	err = fs.CreateUserHome(newUser)
 	require.NoError(t, err)
 
 	err = userService.Add(newUser)
@@ -281,6 +268,9 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, newUser2.IsActive())
 
+	err = fs.CreateUserHome(newUser2)
+	require.NoError(t, err)
+
 	err = failUserService.Add(newUser2)
 	assert.NoError(t, err)
 	assert.NotNil(t, failUserService.Get(testUser1Name))
@@ -305,7 +295,12 @@ func TestUserServiceImpl_UpdateUserPassword(t *testing.T) {
 		panic(err)
 	}
 
+	fs := &mock.MockFileService{}
+
 	newUser, err := models.NewUser(testUser1Name, testUser1Pass, false, true)
+	require.NoError(t, err)
+
+	err = fs.CreateUserHome(newUser)
 	require.NoError(t, err)
 
 	err = userService.Add(newUser)

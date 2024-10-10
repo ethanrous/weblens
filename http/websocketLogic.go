@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 	"github.com/gin-gonic/gin"
 	gorilla "github.com/gorilla/websocket"
 )
@@ -68,9 +68,14 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 		switchboard = wsWebClientSwitchboard
 		if !pack.Loaded.Load() {
 			c.PushWeblensEvent(models.StartupProgressEvent, models.WsC{"waitingOn": pack.GetStartupTasks()})
+		} else {
+			c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 		}
 	} else {
 		switchboard = wsServerClientSwitchboard
+		if pack.Loaded.Load() {
+			c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+		}
 	}
 
 	for {
@@ -85,10 +90,15 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
 	defer wsRecover(c)
 
+	if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
+		c.Error(werror.ErrServerNotInitialized)
+		return
+	}
+
 	var msg models.WsRequestInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
-		c.Error(err)
+		c.Error(werror.WithStack(err))
 		return
 	}
 
