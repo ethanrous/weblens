@@ -121,6 +121,35 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, c
 	ctx.JSON(http.StatusOK, packagedInfo)
 }
 
+func getChildMedias(pack *models.ServicePack, children []*fileTree.WeblensFileImpl) ([]*models.Media, error) {
+	var medias []*models.Media
+	for _, child := range children {
+		var m *models.Media
+		contentId := child.GetContentId()
+		if child.IsDir() && contentId == "" {
+			coverId, err := pack.FileService.GetFolderCover(child)
+			if err != nil {
+				return nil, err
+			}
+
+			log.Trace.Printf("Cover id: %s", coverId)
+
+			if coverId != "" {
+				child.SetContentId(coverId)
+				contentId = coverId
+			}
+		}
+
+		m = pack.MediaService.Get(contentId)
+
+		if m != nil {
+			medias = append(medias, m)
+		}
+	}
+
+	return medias, nil
+}
+
 // Format and write back directory information. Authorization checks should be done before this function
 func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 	pack := getServices(ctx)
@@ -155,32 +184,11 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 	}
 
 	children := dir.GetChildren()
-
-	var medias []*models.Media
-	for _, child := range children {
-		var m *models.Media
-		contentId := child.GetContentId()
-		if child.IsDir() && contentId == "" {
-			coverId, err := pack.FileService.GetFolderCover(child)
-			if err != nil {
-				safeErr, code := werror.TrySafeErr(err)
-				ctx.JSON(code, safeErr)
-				return
-			}
-
-			log.Trace.Printf("Cover id: %s", coverId)
-
-			if coverId != "" {
-				child.SetContentId(coverId)
-				contentId = coverId
-			}
-		}
-
-		m = pack.MediaService.Get(contentId)
-
-		if m != nil {
-			medias = append(medias, m)
-		}
+	medias, err := getChildMedias(pack, children)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
 	}
 
 	packagedInfo := gin.H{"self": selfData, "children": children, "parents": parentsInfo, "medias": medias}
@@ -442,7 +450,7 @@ func getSharedFiles(ctx *gin.Context) {
 		return
 	}
 
-	var filesInfos = make([]FileInfo, 0)
+	var children = make([]*fileTree.WeblensFileImpl, 0)
 	for _, share := range shares {
 		f, err := pack.FileService.GetFileSafe(share.FileId, u, share)
 		if err != nil {
@@ -454,16 +462,17 @@ func getSharedFiles(ctx *gin.Context) {
 			ctx.JSON(code, safeErr)
 			return
 		}
-		fInfo, err := formatFileSafe(f, u, share, pack)
-		if err != nil {
-			safeErr, code := werror.TrySafeErr(err)
-			ctx.JSON(code, safeErr)
-			return
-		}
-		filesInfos = append(filesInfos, fInfo)
+		children = append(children, f)
 	}
 
-	ctx.JSON(http.StatusOK, filesInfos)
+	medias, err := getChildMedias(pack, children)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"children": children, "medias": medias, "shares": shares})
 }
 
 func getFileShare(ctx *gin.Context) {

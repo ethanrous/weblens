@@ -29,7 +29,7 @@ import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { UserInfoT } from '@weblens/types/Types'
 import { friendlyFolderName, humanFileSize } from '@weblens/util'
 import { DragEventHandler, FC, memo, useMemo, useState } from 'react'
-import { useFileBrowserStore } from './FBStateControl'
+import { FbModeT, useFileBrowserStore } from './FBStateControl'
 import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
 import '@weblens/components/theme.scss'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
@@ -434,11 +434,20 @@ const EmptyIcon = ({ folderId, usr }) => {
 export const GetStartedCard = () => {
     const user = useSessionStore((state) => state.user)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const mode = useFileBrowserStore((state) => state.fbMode)
     const viewingPast = useFileBrowserStore((state) => state.pastTime)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
-    if (!folderInfo) {
+    if (!folderInfo && mode === FbModeT.share) {
+        return (
+            <div className="flex justify-center items-center h-3/4">
+                <div className="h-max w-max p-4 wl-outline">
+                    <h4>You have no files shared with you</h4>
+                </div>
+            </div>
+        )
+    } else if (!folderInfo) {
         return null
     }
 

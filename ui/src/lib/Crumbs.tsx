@@ -9,7 +9,10 @@ import { useClick, useResize } from '@weblens/components/hooks'
 
 import '@weblens/lib/crumbs.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { memo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -231,6 +234,15 @@ const Crumbs = memo(
         )
 
         const crumbs: Crumb[] = []
+
+        if (mode == FbModeT.share) {
+            crumbs.push({
+                name: 'Shared',
+                id: 'shared',
+                visitRoute: '/files/shared',
+                navigable: folderInfo !== null,
+            } as Crumb)
+        }
 
         if (!user || !folderInfo?.Id()) {
             return (

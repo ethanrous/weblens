@@ -92,6 +92,7 @@ export type FolderInfo = {
     children?: WeblensFileParams[]
     parents?: WeblensFileParams[]
     medias?: MediaDataT[]
+    shares?: any[]
     error?: string
 }
 
@@ -597,6 +598,7 @@ const SingleFile = memo(
                     resourceType="Share"
                     link="/files/home"
                     setNotFound={() => {}}
+                    error={404}
                 />
             )
         }
@@ -614,11 +616,9 @@ const SingleFile = memo(
     }
 )
 
-function DirViewHeader({ moveSelected, searchQuery }) {
-    const nav = useNavigate()
+function DirViewHeader({ moveSelected }) {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const filesCount = useFileBrowserStore((state) => state.filesList.length)
     const viewingPast = useFileBrowserStore((state) => state.pastTime)
     const setPastTime = useFileBrowserStore((state) => state.setPastTime)
 
@@ -636,31 +636,31 @@ function DirViewHeader({ moveSelected, searchQuery }) {
     return (
         <div className="flex flex-col h-max">
             <div className="flex flex-row h-[60px] justify-between items-center pl-2 pt-0">
-                {mode === FbModeT.search && (
-                    <div className="flex h-14 w-full items-center">
-                        <WeblensButton
-                            Left={IconArrowLeft}
-                            onClick={() => nav(-1)}
-                        />
-                        <div className="w-4" />
-                        <div
-                            className="flex items-center p-1 pr-2 rounded bg-dark-paper
-                                    outline outline-main-accent gap-2 m-2"
-                        >
-                            <IconSearch />
-                            <p className="crumb-text">{searchQuery}</p>
-                        </div>
-                        <p className="crumb-text m-2">in</p>
-                        <IconFolder size={36} />
-                        <p className="crumb-text">
-                            {folderInfo?.GetFilename()}
-                        </p>
-                        <div className="w-2" />
-                        <p className="text-gray-400 select-none">
-                            {filesCount} results
-                        </p>
-                    </div>
-                )}
+                {/* {mode === FbModeT.search && ( */}
+                {/*     <div className="flex h-14 w-full items-center"> */}
+                {/*         <WeblensButton */}
+                {/*             Left={IconArrowLeft} */}
+                {/*             onClick={() => nav(-1)} */}
+                {/*         /> */}
+                {/*         <div className="w-4" /> */}
+                {/*         <div */}
+                {/*             className="flex items-center p-1 pr-2 rounded bg-dark-paper */}
+                {/*                     outline outline-main-accent gap-2 m-2" */}
+                {/*         > */}
+                {/*             <IconSearch /> */}
+                {/*             <p className="crumb-text">{searchQuery}</p> */}
+                {/*         </div> */}
+                {/*         <p className="crumb-text m-2">in</p> */}
+                {/*         <IconFolder size={36} /> */}
+                {/*         <p className="crumb-text"> */}
+                {/*             {folderInfo?.GetFilename()} */}
+                {/*         </p> */}
+                {/*         <div className="w-2" /> */}
+                {/*         <p className="text-gray-400 select-none"> */}
+                {/*             {filesCount} results */}
+                {/*         </p> */}
+                {/*     </div> */}
+                {/* )} */}
                 {(mode === FbModeT.default || mode === FbModeT.share) && (
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelected} />
                 )}
@@ -706,11 +706,9 @@ function DirViewHeader({ moveSelected, searchQuery }) {
 function DirView({
     filesError,
     setFilesError,
-    searchQuery,
 }: {
     filesError: number
     setFilesError: (err: number) => void
-    searchQuery: string
     searchFilter: string
 }) {
     const [contentViewRef, setContentViewRef] = useState(null)
@@ -796,10 +794,7 @@ function DirView({
 
     return (
         <div className="flex flex-col h-full" ref={setFullViewRef}>
-            <DirViewHeader
-                searchQuery={searchQuery}
-                moveSelected={moveSelectedTo}
-            />
+            <DirViewHeader moveSelected={moveSelectedTo} />
             <TransferCard
                 action="Move"
                 destination={moveDest}
@@ -987,11 +982,8 @@ const FileBrowser = () => {
             fbLocationContext.shareId,
             fbLocationContext.pastTime
         ).catch((r) => {
-            if (r >= 400) {
-                setFilesFetchErr(r)
-            }
+            setFilesFetchErr(r)
         })
-        addLoading('files')
 
         if (fileData) {
             setFilesData(
@@ -1017,7 +1009,12 @@ const FileBrowser = () => {
     ])
 
     useEffect(() => {
-        syncState().then(() => removeLoading('files'))
+        syncState()
+            .catch((e) => {
+                console.error(e)
+                setFilesFetchErr(e)
+            })
+            .finally(() => removeLoading('files'))
     }, [syncState])
 
     return (
@@ -1064,7 +1061,6 @@ const FileBrowser = () => {
                         <DirView
                             filesError={filesFetchErr}
                             setFilesError={setFilesFetchErr}
-                            searchQuery={''}
                             searchFilter={''}
                         />
                     </DirViewWrapper>

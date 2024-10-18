@@ -258,6 +258,8 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		}
 	}
 
+	ctx.Header("Cache-Control", "max-age=3600")
+
 	ctx.Status(http.StatusOK)
 	_, err = ctx.Writer.Write(bs)
 

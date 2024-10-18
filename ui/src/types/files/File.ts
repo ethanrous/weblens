@@ -91,7 +91,7 @@ export class WeblensFile {
     private share: WeblensShare
 
     constructor(init: WeblensFileParams) {
-        if (!init.id) {
+        if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
         Object.assign(this, init)

@@ -9,6 +9,7 @@ import axios from 'axios'
 import API_ENDPOINT from './ApiEndpoint'
 import { useWebsocketStore, WsSendT } from './Websocket'
 import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
+import { MediaDataT } from '@weblens/types/media/Media'
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
@@ -79,35 +80,24 @@ export function SetFolderImage(folderId: string, contentId: string) {
 
 async function getSharedWithMe(): Promise<FolderInfo> {
     const url = new URL(`${API_ENDPOINT}/files/shared`)
-    return fetchJson<FolderInfo>(url.toString())
-    // return fetch(url.toString())
-    //     .then((res) => res.json())
-    //     .then((sharedFiles) => {
-    //         const sharedFolder = new WeblensFile({
-    //             id: 'shared',
-    //             isDir: true,
-    //             filename: 'Shared',
-    //         })
-    //         return { children: sharedFiles, self: sharedFolder }
-    //     })
+    const res = await fetchJson<FolderInfo>(url.toString())
+
+    const sharesMap = new Map<string, string>()
+    for (const share of res.shares) {
+        sharesMap.set(share.fileId, share.shareId)
+    }
+
+    for (const file of res.children) {
+        file.shareId = sharesMap.get(file.id)
+    }
+
+    return res
 }
 
 async function getExternalFiles(contentId: string) {
+    return null
     const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
     return fetchJson(url.toString())
-    // .then((data) => {
-    //     const ret = {
-    //         self: data.self,
-    //         parents: data.parents,
-    //         children: [],
-    //     }
-    //     if (data.children) {
-    //         ret.children = data.children
-    //     } else if (data.files) {
-    //         ret.children = data.files
-    //     }
-    //     return ret
-    // })
 }
 
 export async function GetFileInfo(
@@ -128,7 +118,7 @@ export async function GetFolderData(
     viewingTime?: Date
 ): Promise<FolderInfo> {
     if (fbMode === FbModeT.share && !shareId) {
-        return getSharedWithMe()
+        return await getSharedWithMe()
     }
     if (fbMode === FbModeT.external) {
         return getExternalFiles(contentId)

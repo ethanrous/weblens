@@ -44,6 +44,7 @@ export function visitFile(
 
     e.stopPropagation()
     const jump = file.GetVisitRoute(mode, shareId, setPresentation)
+    console.log('JUMP', jump)
     if (jump) {
         nav(jump)
     }

@@ -112,7 +112,7 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                     fbMode,
                     shareId,
                     file,
-                    folderInfo.IsTrash(),
+                    folderInfo?.IsTrash(),
                     nav,
                     setPresentationTarget
                 )

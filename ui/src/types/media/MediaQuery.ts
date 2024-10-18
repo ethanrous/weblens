@@ -26,15 +26,16 @@ export async function FetchData(galleryState: GalleryStateT) {
                 )
             )
         }
-        const data = await wrapRequest<{ Media: MediaDataT[] }>(
-            fetch(url.toString()).then((res) => {
-                if (res.status !== 200) {
-                    return Promise.reject('Failed to get media')
-                } else {
-                    return res.json()
-                }
-            })
-        )
+        const data = await fetchJson<{ Media }>(url.toString(), 'GET')
+        // const data = await wrapRequest<{ Media: MediaDataT[] }>(
+        //     fetch(url.toString()).then((res) => {
+        //         if (res.status !== 200) {
+        //             return Promise.reject('Failed to get media')
+        //         } else {
+        //             return res.json()
+        //         }
+        //     })
+        // )
         if (data.Media) {
             const medias = data.Media.map((m) => {
                 return new WeblensMedia(m)
