@@ -59,12 +59,14 @@ func launchBackup(ctx *gin.Context) {
 		return
 	}
 
+	local := pack.InstanceService.GetLocal()
+
 	// If the local is core, we send the backup request to the specied backup server
-	if pack.InstanceService.GetLocal().IsCore() {
+	if local.IsCore() {
 		client := pack.ClientService.GetClientByServerId(serverId)
 		msg := models.WsResponseInfo{
 			EventTag: "do_backup",
-			Content:  models.WsC{"coreId": serverId},
+			Content:  models.WsC{"coreId": local.ServerId()},
 		}
 		err := client.Send(msg)
 		if err != nil {

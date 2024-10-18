@@ -3,6 +3,7 @@ import {
     IconDownload,
     IconFileAnalytics,
     IconFileExport,
+    IconFolderMinus,
     IconFolderPlus,
     IconLibraryPlus,
     IconLink,
@@ -26,6 +27,8 @@ import {
     CreateFolder,
     DeleteFiles,
     RenameFile,
+    searchFolder,
+    SetFolderImage,
     TrashFiles,
     UnTrashFiles,
 } from '@weblens/api/FileBrowserApi'
@@ -49,7 +52,7 @@ import {
     WeblensFile,
 } from '@weblens/types/files/File'
 import { getFoldersMedia, restoreFiles } from '@weblens/types/files/FilesQuery'
-import WeblensMedia from '@weblens/types/media/Media'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { getMedias } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { WeblensShare } from '@weblens/types/share/share'
@@ -74,6 +77,9 @@ import { useNavigate } from 'react-router-dom'
 import { AlbumData, UserInfoT } from 'types/Types'
 import { clamp } from '@weblens/util'
 import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import IconImageFolder from '@weblens/components/IconImageFolder'
+import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
+import { MediaImage } from '../media/PhotoContainer'
 
 type footerNote = {
     hint: string
@@ -100,7 +106,7 @@ const activeItemsFromState = (
         if (!item) {
             return null
         }
-        if (item.GetMediaId() || item.IsFolder()) {
+        if (item.GetContentId() || item.IsFolder()) {
             mediaCount++
         }
         return item
@@ -194,6 +200,7 @@ const MenuFooter = ({
 export function FileContextMenu() {
     const user = useSessionStore((state) => state.user)
     const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
+    const [searchRef, setSearchRef] = useState<HTMLDivElement>(null)
     const [footerNote, setFooterNote] = useState<footerNote>({} as footerNote)
 
     const menuMode = useFileBrowserStore((state) => state.menuMode)
@@ -204,6 +211,7 @@ export function FileContextMenu() {
     const activeItems = useFileBrowserStore((state) =>
         activeItemsFromState(state.filesMap, state.selected, state.menuTargetId)
     )
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
@@ -253,6 +261,11 @@ export function FileContextMenu() {
         return null
     }
 
+    const targetFile = filesMap.get(menuTarget)
+    const targetMedia = useMediaStore
+        .getState()
+        .mediaMap.get(targetFile?.GetContentId())
+
     let menuBody: ReactElement
     if (user?.trashId === folderInfo.Id()) {
         menuBody = (
@@ -287,6 +300,33 @@ export function FileContextMenu() {
         menuBody = <AddToAlbum activeItems={activeItems.items} />
     } else if (menuMode === FbMenuModeT.RenameFile) {
         menuBody = <FileRenameInput />
+    } else if (menuMode === FbMenuModeT.SearchForFile) {
+        const text =
+            '~' +
+            targetFile.portablePath.slice(
+                targetFile.portablePath.indexOf('/'),
+                targetFile.portablePath.lastIndexOf('/')
+            )
+        menuBody = (
+            <div className="flex w-[50vw] h-[40vh] p-2 gap-2 menu-body-below-header items-center">
+                <div className="flex grow rounded-md h-[39vh]">
+                    <MediaImage
+                        media={targetMedia}
+                        quality={PhotoQuality.LowRes}
+                    />
+                </div>
+                <div className="flex w-[50%] h-[39vh]">
+                    <SearchDialogue
+                        text={text}
+                        visitFunc={(folderId: string) => {
+                            SetFolderImage(folderId, targetMedia.Id()).then(
+                                () => setMenu({ menuState: FbMenuModeT.Closed })
+                            )
+                        }}
+                    />
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -305,7 +345,7 @@ export function FileContextMenu() {
                 }}
             >
                 <MenuTitle />
-                {viewingPast !== null && <div />}
+                {/* {viewingPast !== null && <div />} */}
                 {menuBody}
             </div>
             <MenuFooter footerNote={footerNote} menuMode={menuMode} />
@@ -330,6 +370,9 @@ function StandardFileMenu({
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+
+    const targetFile = filesMap.get(menuTarget)
 
     if (user.trashId === folderInfo.Id()) {
         return <></>
@@ -400,6 +443,65 @@ function StandardFileMenu({
                     }}
                 />
             </div>
+            {targetFile &&
+                (!targetFile.IsFolder() || targetFile.GetContentId()) && (
+                    <div className="default-menu-icon">
+                        {targetFile.IsFolder() &&
+                            targetFile.GetContentId() !== '' && (
+                                <WeblensButton
+                                    Left={IconFolderMinus}
+                                    squareSize={100}
+                                    centerContent
+                                    onMouseOver={() =>
+                                        setFooterNote({
+                                            hint: 'Remove Folder Image',
+                                            danger: false,
+                                        })
+                                    }
+                                    onMouseLeave={() =>
+                                        setFooterNote({
+                                            hint: '',
+                                            danger: false,
+                                        })
+                                    }
+                                    onClick={async (e) => {
+                                        e.stopPropagation()
+                                        SetFolderImage(
+                                            targetFile.Id(),
+                                            ''
+                                        ).then(() => {
+                                            setMenu({
+                                                menuState: FbMenuModeT.Closed,
+                                            })
+                                            return true
+                                        })
+                                    }}
+                                />
+                            )}
+                        {!targetFile.IsFolder() && (
+                            <WeblensButton
+                                Left={IconImageFolder}
+                                squareSize={100}
+                                centerContent
+                                onMouseOver={() =>
+                                    setFooterNote({
+                                        hint: 'Set Folder Image',
+                                        danger: false,
+                                    })
+                                }
+                                onMouseLeave={() =>
+                                    setFooterNote({ hint: '', danger: false })
+                                }
+                                onClick={async (e) => {
+                                    e.stopPropagation()
+                                    setMenu({
+                                        menuState: FbMenuModeT.SearchForFile,
+                                    })
+                                }}
+                            />
+                        )}
+                    </div>
+                )}
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconFolderPlus}
@@ -782,9 +884,18 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const shareId = useFileBrowserStore((state) => state.shareId)
+    const [newName, setNewName] = useState('')
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const setMoved = useFileBrowserStore((state) => state.setSelectedMoved)
+
+    const badName = useMemo(() => {
+        if (newName.includes('/')) {
+            return true
+        }
+
+        return false
+    }, [newName])
 
     if (menuMode !== FbMenuModeT.NameFolder) {
         return <></>
@@ -798,10 +909,12 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                 fillWidth
                 squareSize={50}
                 buttonIcon={IconPlus}
+                failed={badName}
+                valueCallback={setNewName}
                 onComplete={async (newName) => {
                     const itemIds = items.map((f) => f.Id())
                     setMoved(itemIds)
-                    await CreateFolder(
+                    return await CreateFolder(
                         folderInfo.Id(),
                         newName,
                         itemIds,

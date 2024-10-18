@@ -1,3 +1,5 @@
+import { TaskStageT } from '../FileBrowser/TaskProgress'
+
 export type RestoreProgress = {
     stage: string
     error: string
@@ -11,19 +13,20 @@ type FileBackupProgress = {
     start: Date
 }
 
-export type BackupProgress = {
-    stage: string
+export type BackupProgressT = {
+    stages: TaskStageT[]
     error: string
     timestamp: Date
     progress_total: number
     progress_current: number
     files: Map<string, FileBackupProgress>
+    totalTime: number
 }
 
 export function backupPageWebsocketHandler(
     setRestoreStage: React.Dispatch<React.SetStateAction<RestoreProgress>>,
     setBackupProgress: React.Dispatch<
-        React.SetStateAction<Map<string, BackupProgress>>
+        React.SetStateAction<Map<string, BackupProgressT>>
     >,
     refetchRemotes: () => void
 ) {
@@ -68,21 +71,29 @@ export function backupPageWebsocketHandler(
             }
 
             case 'backup_progress': {
+                const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
-                        prog = { files: new Map() } as BackupProgress
+                        prog = { files: new Map() } as BackupProgressT
                     }
-                    prog.stage = msgData.content.stage
+                    prog.stages = [...stages]
                     p.set(msgData.content.coreId, prog)
                     return new Map(p)
                 })
                 break
             }
 
-            case 'task_complete': {
+            case 'backup_complete': {
+                const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
-                    p.delete(msgData.content.coreId)
+                    let prog = p.get(msgData.content.coreId)
+                    if (!prog) {
+                        prog = { files: new Map() } as BackupProgressT
+                    }
+                    prog.stages = [...stages]
+                    prog.totalTime = msgData.content.totalTime
+                    p.set(msgData.content.coreId, prog)
                     return new Map(p)
                 })
                 refetchRemotes()
@@ -93,7 +104,7 @@ export function backupPageWebsocketHandler(
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
-                        prog = { files: new Map() } as BackupProgress
+                        prog = { files: new Map() } as BackupProgressT
                     }
                     prog.files.set(msgData.content.filename, {
                         name: msgData.content.filename,
@@ -109,7 +120,7 @@ export function backupPageWebsocketHandler(
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
-                        prog = { files: new Map() } as BackupProgress
+                        prog = { files: new Map() } as BackupProgressT
                     }
                     prog.error = msgData.content.error
                     p.set(msgData.content.coreId, prog)
@@ -122,7 +133,7 @@ export function backupPageWebsocketHandler(
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
-                        prog = { files: new Map() } as BackupProgress
+                        prog = { files: new Map() } as BackupProgressT
                     }
                     prog.progress_current = msgData.content.tasks_complete
                     prog.progress_total = msgData.content.tasks_total
@@ -137,7 +148,7 @@ export function backupPageWebsocketHandler(
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
-                        prog = { files: new Map() } as BackupProgress
+                        prog = { files: new Map() } as BackupProgressT
                     }
                     // prog.error = msgData.content.error
                     prog.files.delete(msgData.content.filename)
@@ -151,7 +162,7 @@ export function backupPageWebsocketHandler(
                 if (msgData.content.taskType === 'do_backup') {
                     // Reset backup progress when a new backup task is created
                     setBackupProgress((p) => {
-                        const prog = { files: new Map() } as BackupProgress
+                        const prog = { files: new Map() } as BackupProgressT
                         p.set(msgData.content.coreId, prog)
                         return new Map(p)
                     })

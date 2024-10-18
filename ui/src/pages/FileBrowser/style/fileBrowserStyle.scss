@@ -294,20 +294,15 @@
 .task-progress-box {
     margin-top: 25px;
     height: max-content;
-    width: 100%;
+    width: 99%;
+    margin: 0.5%;
     align-items: center;
     display: flex;
     flex-direction: column;
     padding: 10px;
-    background-color: $item-grey;
-    border-radius: 4px;
-    opacity: 100%;
-
-    transition: opacity 1s ease-in-out;
-
-    &[data-hidden='true'] {
-        opacity: 0;
-    }
+    background-color: var(--wl-barely-visible);
+    border-radius: 6px;
+    outline: 1px solid var(--wl-outline);
 }
 
 .file-info-pane {

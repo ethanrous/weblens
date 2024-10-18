@@ -164,6 +164,9 @@ func (wsc *WsClient) SubUnlock() {
 
 func (wsc *WsClient) Send(msg WsResponseInfo) error {
 	if wsc != nil && wsc.Active.Load() {
+
+		log.Trace.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName())
+
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
@@ -220,7 +223,6 @@ func (wsc *WsClient) getClientType() string {
 		return "web"
 	}
 }
-
 
 type Client interface {
 	BasicCaster

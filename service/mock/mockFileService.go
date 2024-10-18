@@ -197,3 +197,15 @@ func (mfs *MockFileService) NewCacheFile(
 func (mfs *MockFileService) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.WeblensFileImpl, error) {
 	return nil, nil
 }
+
+func (mfs *MockFileService) GetFolderCover(folder *fileTree.WeblensFileImpl) (models.ContentId, error) {
+	return "", nil
+}
+
+func (mfs *MockFileService) SetFolderCover(folderId fileTree.FileId, coverId models.ContentId) error {
+	return nil
+}
+
+func (mfs *MockFileService) UserPathToFile(searchPath string, user *models.User) (*fileTree.WeblensFileImpl, error) {
+	return nil, nil
+}

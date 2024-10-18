@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react'
 import {
     CreateFolder,
+    GetFileInfo,
     GetFolderData,
     moveFiles,
 } from '@weblens/api/FileBrowserApi'
@@ -27,7 +28,7 @@ import {
     useResizeDrag,
     useWindowSize,
 } from '@weblens/components/hooks'
-import NotFound from '@weblens/components/NotFound'
+import FilesErrorDisplay from '@weblens/components/NotFound'
 import {
     PresentationContainer,
     PresentationFile,
@@ -81,9 +82,7 @@ import { FileInfoPane } from './FileInfoPane'
 import FileSortBox from './FileSortBox'
 import { StatTree } from './FileStatTree'
 import SearchDialogue from './SearchDialogue'
-import {
-    TasksDisplay,
-} from './TaskProgress'
+import { TasksDisplay } from './TaskProgress'
 import UploadStatus from './UploadStatus'
 import './style/fileBrowserStyle.scss'
 import '@weblens/components/style.scss'
@@ -594,7 +593,7 @@ const SingleFile = memo(
     ({ file }: { file: WeblensFile }) => {
         if (!file.Id()) {
             return (
-                <NotFound
+                <FilesErrorDisplay
                     resourceType="Share"
                     link="/files/home"
                     setNotFound={() => {}}
@@ -705,12 +704,12 @@ function DirViewHeader({ moveSelected, searchQuery }) {
 }
 
 function DirView({
-    notFound,
-    setNotFound,
+    filesError,
+    setFilesError,
     searchQuery,
 }: {
-    notFound: boolean
-    setNotFound: (notFound: boolean) => void
+    filesError: number
+    setFilesError: (err: number) => void
     searchQuery: string
     searchFilter: string
 }) {
@@ -744,12 +743,13 @@ function DirView({
     )
 
     let fileDisplay: ReactElement
-    if (notFound) {
+    if (filesError) {
         fileDisplay = (
-            <NotFound
+            <FilesErrorDisplay
+                error={filesError}
                 resourceType="Folder"
                 link="/files/home"
-                setNotFound={setNotFound}
+                setNotFound={setFilesError}
             />
         )
     } else if (
@@ -776,10 +776,11 @@ function DirView({
         mode === FbModeT.share
     ) {
         fileDisplay = (
-            <NotFound
+            <FilesErrorDisplay
+                error={404}
                 resourceType="any files shared with you"
                 link="/files/home"
-                setNotFound={setNotFound}
+                setNotFound={setFilesError}
             />
         )
     } else if (mode === FbModeT.stats) {
@@ -859,7 +860,7 @@ const FileBrowser = () => {
     const user = useSessionStore((state) => state.user)
     const nav = useNavigate()
 
-    const [notFound, setNotFound] = useState(false)
+    const [filesFetchErr, setFilesFetchErr] = useState(0)
 
     const {
         viewOpts,
@@ -891,15 +892,6 @@ const FileBrowser = () => {
     useEffect(() => {
         localStorage.setItem('fbViewOpts', JSON.stringify(viewOpts))
     }, [viewOpts])
-
-    // useEffect(() => {
-    //     if (viewingPast) {
-    //         const timestamp = viewingPast.getTime()
-    //         setSearchParams(`at=${timestamp.toString()}`)
-    //     } else {
-    //         setSearchParams()
-    //     }
-    // }, [viewingPast?.getTime()])
 
     useEffect(() => {
         if (!user) {
@@ -972,7 +964,7 @@ const FileBrowser = () => {
     // Reset most of the state when we change folders
     const syncState = useCallback(async () => {
         clearFiles()
-        setNotFound(false)
+        setFilesFetchErr(0)
 
         if (!urlPath) {
             nav('/files/home', { replace: true })
@@ -995,10 +987,8 @@ const FileBrowser = () => {
             fbLocationContext.shareId,
             fbLocationContext.pastTime
         ).catch((r) => {
-            if (r === 400 || r === 404) {
-                setNotFound(true)
-            } else {
-                console.error(r)
+            if (r >= 400) {
+                setFilesFetchErr(r)
             }
         })
         addLoading('files')
@@ -1041,7 +1031,29 @@ const FileBrowser = () => {
                 <DraggingCounter />
                 <PresentationFile file={filesMap.get(presentingId)} />
                 {pasteImgBytes && <PasteImageDialogue />}
-                {isSearching && <SearchDialogue />}
+                {isSearching && (
+                    <div className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088] px-[30%] py-[10%]">
+                        <SearchDialogue
+                            text={''}
+                            visitFunc={(loc) => {
+                                GetFileInfo(loc, '').then((f) => {
+                                    if (!f) {
+                                        console.error(
+                                            'Could not find file to nav to'
+                                        )
+                                        return
+                                    }
+
+                                    if (!f.isDir) {
+                                        nav(f.parentId)
+                                    } else {
+                                        nav(loc)
+                                    }
+                                })
+                            }}
+                        />
+                    </div>
+                )}
                 <FileContextMenu />
                 <div className="absolute bottom-1 left-1">
                     <WebsocketStatus ready={readyState} />
@@ -1050,8 +1062,8 @@ const FileBrowser = () => {
                     <GlobalActions />
                     <DirViewWrapper>
                         <DirView
-                            notFound={notFound}
-                            setNotFound={setNotFound}
+                            filesError={filesFetchErr}
+                            setFilesError={setFilesFetchErr}
                             searchQuery={''}
                             searchFilter={''}
                         />

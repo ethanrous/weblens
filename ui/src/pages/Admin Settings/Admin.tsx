@@ -44,6 +44,12 @@ import {
 } from '../FileBrowser/TaskProgress'
 import RemoteStatus from '@weblens/components/RemoteStatus'
 import './adminStyle.scss'
+import {
+    HandleWebsocketMessage,
+    useWebsocketStore,
+} from '@weblens/api/Websocket'
+import { AdminWebsocketHandler } from './adminLogic'
+import { BackupProgressT } from '../Backup/BackupLogic'
 
 function PathAutocomplete() {
     const [pathSearch, setPathSearch] = useState('')
@@ -122,7 +128,7 @@ function PathAutocomplete() {
     }, [names, pathSearch])
 
     return (
-        <div className="w-[50%] h-10">
+        <div className="w-[50%] h-10 m-2">
             <WeblensInput
                 value={pathSearch}
                 valueCallback={setPathSearch}
@@ -176,7 +182,7 @@ function PathAutocomplete() {
     )
 }
 
-function CreateUserBox({ setAllUsersInfo }: { setAllUsersInfo }) {
+function CreateUserBox({ refetchUsers }: { refetchUsers: () => void }) {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
     const [makeAdmin, setMakeAdmin] = useState(false)
@@ -189,6 +195,7 @@ function CreateUserBox({ setAllUsersInfo }: { setAllUsersInfo }) {
                 <div className="flex gap-1">
                     <WeblensInput
                         placeholder="Username"
+                        value={userInput}
                         squareSize={50}
                         onComplete={null}
                         fillWidth
@@ -196,6 +203,7 @@ function CreateUserBox({ setAllUsersInfo }: { setAllUsersInfo }) {
                     />
                     <WeblensInput
                         placeholder="Password"
+                        value={passInput}
                         squareSize={50}
                         onComplete={null}
                         fillWidth
@@ -215,18 +223,18 @@ function CreateUserBox({ setAllUsersInfo }: { setAllUsersInfo }) {
                             label="Create User"
                             squareSize={50}
                             disabled={userInput === '' || passInput === ''}
-                            onClick={async () => {
-                                await adminCreateUser(
+                            onClick={() =>
+                                adminCreateUser(
                                     userInput,
                                     passInput,
                                     makeAdmin
                                 ).then(() => {
-                                    GetUsersInfo(setAllUsersInfo)
+                                    console.log('HERE?')
+                                    refetchUsers()
                                     setUserInput('')
                                     setPassInput('')
                                 })
-                                return true
-                            }}
+                            }
                         />
                     </div>
                 </div>
@@ -238,11 +246,11 @@ function CreateUserBox({ setAllUsersInfo }: { setAllUsersInfo }) {
 const UserRow = ({
     rowUser,
     accessor,
-    setAllUsersInfo,
+    refetchUsers,
 }: {
     rowUser: UserInfoT
     accessor: UserInfoT
-    setAllUsersInfo
+    refetchUsers: () => void
 }) => {
     const [changingPass, setChangingPass] = useState(false)
     return (
@@ -255,12 +263,24 @@ const UserRow = ({
                 {rowUser.owner && <p className="theme-text">Owner</p>}
             </div>
             <div className="flex">
+                {rowUser.activated === false && (
+                    <WeblensButton
+                        label="Activate"
+                        squareSize={35}
+                        onClick={() => {
+                            ActivateUser(rowUser.username).then(() =>
+                                refetchUsers()
+                            )
+                        }}
+                    />
+                )}
                 {!changingPass && accessor.owner && (
                     <WeblensButton
-                        label="Change Password"
+                        tooltip="Change Password"
                         labelOnHover={true}
                         Left={IconLockOpen}
                         squareSize={35}
+                        disabled={!rowUser.activated}
                         onClick={() => {
                             setChangingPass(true)
                         }}
@@ -283,36 +303,25 @@ const UserRow = ({
                 )}
                 {!rowUser.admin && accessor.owner && (
                     <WeblensButton
-                        label="Promote to Admin"
+                        tooltip="Make Admin"
                         Left={IconUserUp}
                         labelOnHover={true}
                         allowShrink={false}
                         squareSize={35}
                         onClick={() => {
                             SetUserAdmin(rowUser.username, true).then(() =>
-                                GetUsersInfo(setAllUsersInfo)
+                                refetchUsers()
                             )
                         }}
                     />
                 )}
                 {!rowUser.owner && rowUser.admin && accessor.owner && (
                     <WeblensButton
-                        label="Remove Admin"
+                        tooltip="Remove Admin"
                         squareSize={35}
                         onClick={() => {
                             SetUserAdmin(rowUser.username, false).then(() =>
-                                GetUsersInfo(setAllUsersInfo)
-                            )
-                        }}
-                    />
-                )}
-                {rowUser.activated === false && (
-                    <WeblensButton
-                        label="Activate"
-                        squareSize={35}
-                        onClick={() => {
-                            ActivateUser(rowUser.username).then(() =>
-                                GetUsersInfo(setAllUsersInfo)
+                                refetchUsers()
                             )
                         }}
                     />
@@ -320,15 +329,14 @@ const UserRow = ({
 
                 <WeblensButton
                     squareSize={35}
+                    tooltip="Delete"
                     Left={IconTrash}
                     danger
                     centerContent
                     disabled={rowUser.admin && !accessor.owner}
-                    onClick={() => {
-                        DeleteUser(rowUser.username).then(() =>
-                            GetUsersInfo(setAllUsersInfo)
-                        )
-                    }}
+                    onClick={() =>
+                        DeleteUser(rowUser.username).then(() => refetchUsers())
+                    }
                 />
             </div>
         </div>
@@ -338,11 +346,11 @@ const UserRow = ({
 function UsersBox({
     thisUserInfo,
     allUsersInfo,
-    setAllUsersInfo,
+    refetchUsers,
 }: {
     thisUserInfo: UserInfoT
     allUsersInfo: UserInfoT[]
-    setAllUsersInfo
+    refetchUsers: () => void
 }) {
     const usersList = useMemo(() => {
         if (!allUsersInfo) {
@@ -357,18 +365,20 @@ function UsersBox({
                 key={val.username}
                 rowUser={val}
                 accessor={thisUserInfo}
-                setAllUsersInfo={setAllUsersInfo}
+                refetchUsers={refetchUsers}
             />
         ))
-    }, [allUsersInfo, setAllUsersInfo])
+    }, [allUsersInfo])
 
     return (
-        <div className="theme-outline flex flex-col p-2 shrink w-full h-max min-h-96 overflow-x-hidden rounded gap-2 no-scrollbar">
+        <div className="theme-outline flex flex-col p-2 shrink w-full h-max min-h-96 rounded gap-2 no-scrollbar">
             <p className="w-full h-max font-semibold text-xl select-none p-2">
                 Users
             </p>
-            <div className="flex flex-col grow relative">{usersList}</div>
-            <CreateUserBox setAllUsersInfo={setAllUsersInfo} />
+            <div className="flex flex-col grow relative gap-1 overflow-y-scroll overflow-x-visible max-h-[50vh]">
+                {usersList}
+            </div>
+            <CreateUserBox refetchUsers={refetchUsers} />
         </div>
     )
 }
@@ -441,6 +451,19 @@ function Servers() {
         retry: false,
     })
 
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
+
+    const [backupProgress, setBackupProgress] = useState<
+        Map<string, BackupProgressT>
+    >(new Map())
+
+    useEffect(() => {
+        HandleWebsocketMessage(
+            lastMessage,
+            AdminWebsocketHandler(setBackupProgress, refetchRemotes)
+        )
+    }, [lastMessage])
+
     useEffect(() => {
         refetchKeys()
     }, [remotes?.length])
@@ -484,7 +507,7 @@ function Servers() {
                 />
             </div>
 
-            <div className="flex flex-col items-center p-2 rounded w-full gap-2">
+            <div className="flex flex-col items-center p-2 rounded w-full gap-2 overflow-scroll">
                 {remotes.map((r) => {
                     if (r.id === server.info.id) {
                         return null
@@ -495,7 +518,14 @@ function Servers() {
                             remoteInfo={r}
                             refetchRemotes={refetchRemotes}
                             restoreProgress={null}
-                            backupProgress={null}
+                            backupProgress={backupProgress.get(r.id)}
+                            setBackupProgress={(progress) => {
+                                setBackupProgress((old) => {
+                                    const newMap = new Map(old)
+                                    newMap.set(r.id, progress)
+                                    return newMap
+                                })
+                            }}
                         />
                     )
                 })}
@@ -550,16 +580,17 @@ function BackupProgress() {
 
 export function Admin({ closeAdminMenu }) {
     const user = useSessionStore((state) => state.user)
-    const [allUsersInfo, setAllUsersInfo] = useState(null)
     const wsSend = useContext(WebsocketContext)
 
     useKeyDown('Escape', closeAdminMenu)
 
-    useEffect(() => {
-        if (!allUsersInfo) {
-            GetUsersInfo(setAllUsersInfo)
+    const { data: allUsersInfo, refetch: refetchUsers } = useQuery<UserInfoT[]>(
+        {
+            queryKey: ['users'],
+            initialData: [],
+            queryFn: () => GetUsersInfo(),
         }
-    }, [])
+    )
 
     useEffect(() => {
         wsSend('task_subscribe', { taskType: 'do_backup' })
@@ -574,10 +605,7 @@ export function Admin({ closeAdminMenu }) {
 
     return (
         <div className="settings-menu-container" data-open={true}>
-            <div
-                className="settings-menu no-scrollbar"
-                onClick={(e) => e.stopPropagation()}
-            >
+            <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-col gap-2 select-none">
                     <h1 className="text-3xl pt-4 font-bold">Admin Settings</h1>
                     <div className="flex flex-row justify-between">
@@ -596,40 +624,38 @@ export function Admin({ closeAdminMenu }) {
                         disabled={server.info.role !== 'core'}
                     />
                 </div>
-                <div className="flex flex-col w-full h-full items-center p-4">
+                <div className="flex flex-col w-full h-full items-center p-4 no-scrollbar">
                     <div className="flex flex-row w-full h-full gap-2">
                         <div className="flex flex-col w-1/2 gap-2">
                             <UsersBox
                                 thisUserInfo={user}
                                 allUsersInfo={allUsersInfo}
-                                setAllUsersInfo={setAllUsersInfo}
+                                refetchUsers={refetchUsers}
                             />
                         </div>
                         <div className="flex flex-col w-1/2 gap-2 items-center">
                             <Servers />
-                            <div className="flex flex-row w-full justify-around">
-                                <WeblensButton
-                                    label="Clear Cache"
-                                    squareSize={40}
-                                    danger
-                                    onClick={() => {
-                                        clearCache().then(() =>
-                                            closeAdminMenu()
-                                        )
-                                    }}
-                                />
-                            </div>
                             <BackupProgress />
                         </div>
                     </div>
                     <PathAutocomplete />
+                    <div className="flex flex-row w-full justify-center gap-2 m-2">
+                        <WeblensButton
+                            label="Clear Cache"
+                            squareSize={40}
+                            danger
+                            onClick={() => {
+                                clearCache().then(() => closeAdminMenu())
+                            }}
+                        />
+                        <WeblensButton
+                            label={'Reset Server'}
+                            danger
+                            onClick={() => resetServer()}
+                        />
+                    </div>
                 </div>
 
-                <WeblensButton
-                    label={'Reset Server'}
-                    danger
-                    onClick={() => resetServer()}
-                />
                 <div className="h-10" />
             </div>
         </div>

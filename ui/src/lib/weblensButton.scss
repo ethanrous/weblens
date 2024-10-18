@@ -18,7 +18,7 @@ $button-padding: 8px;
     &[data-fill-width='true'] {
         flex-grow: 1;
         width: 100%;
-        max-width: 100%;
+        max-width: calc(100% - $button-margin * 2);
     }
 
     &[data-text-on-hover='true'] {
@@ -75,7 +75,7 @@ $button-padding: 8px;
         background-color: var(--dark-paper);
         background-color: #3600cc;
         outline: 1px solid #3600cc00;
-        color: white;
+        --wl-button-text-color: white;
 
         &[data-repeat='true']:hover {
             background-color: #3600cccc;
@@ -103,14 +103,6 @@ $button-padding: 8px;
         width: 100%;
     }
 
-    &[data-success='true'] {
-        background-color: #00b123;
-        outline: none;
-        cursor: default;
-        pointer-events: none;
-        box-shadow: $hard-shadow;
-    }
-
     &[data-disabled='true'] {
         box-shadow: $hard-shadow-off;
         background-color: $disabled-grey;
@@ -118,6 +110,14 @@ $button-padding: 8px;
         cursor: default;
         color: $disabled-grey-text;
         outline: 1px solid #3600cc00;
+    }
+
+    &[data-success='true'] {
+        background-color: #00b123;
+        outline: none;
+        cursor: default;
+        pointer-events: none;
+        box-shadow: $hard-shadow;
     }
 
     &[data-fail='true'] {

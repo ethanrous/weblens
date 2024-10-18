@@ -40,10 +40,14 @@ type FileServiceImpl struct {
 	mediaService    models.MediaService
 	instanceService models.InstanceService
 
+	folderMedia     map[fileTree.FileId]models.ContentId
+	folderMediaLock sync.RWMutex
+
 	fileTaskLink map[fileTree.FileId][]*task.Task
 	fileTaskLock sync.RWMutex
 
-	trashCol *mongo.Collection
+	trashCol       *mongo.Collection
+	folderCoverCol *mongo.Collection
 }
 
 type TrashEntry struct {
@@ -52,25 +56,30 @@ type TrashEntry struct {
 	FileId       fileTree.FileId `bson:"fileId"`
 }
 
+type FolderCoverPair struct {
+	FolderId  fileTree.FileId  `bson:"folderId"`
+	ContentId models.ContentId `bson:"coverId"`
+}
+
 func NewFileService(
 	instanceService models.InstanceService,
 	userService models.UserService,
 	accessService models.AccessService,
 	mediaService models.MediaService,
 	trashCol *mongo.Collection,
+	folderCoverCol *mongo.Collection,
 	trees ...fileTree.FileTree,
 ) (*FileServiceImpl, error) {
 	fs := &FileServiceImpl{
-		trees: map[string]fileTree.FileTree{},
-		// usersTree:       mediaTree,
-		// restoreTree:     restoreFileTree,
-		userService: userService,
-		// cachesTree:      cacheTree,
+		trees:           map[string]fileTree.FileTree{},
+		userService:     userService,
 		instanceService: instanceService,
 		accessService:   accessService,
 		mediaService:    mediaService,
 		trashCol:        trashCol,
+		folderCoverCol:  folderCoverCol,
 		fileTaskLink:    make(map[fileTree.FileId][]*task.Task),
+		folderMedia:     make(map[fileTree.FileId]models.ContentId),
 	}
 
 	for _, tree := range trees {
@@ -79,16 +88,6 @@ func NewFileService(
 
 	sw := internal.NewStopwatch("File Service Init")
 
-	// if , ok := fs.trees["USERS"]; !ok {
-	// 	return nil, werror.Errorf("File service must have a USERS tree")
-	// }
-
-	// _, err := cacheTree.MkDir(cacheTree.GetRoot(), "thumbs", nil)
-	// if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
-	// 	return nil, werror.WithStack(err)
-	// }
-	// sw.Lap("Make thumbs dir")
-
 	if usersTree, ok := fs.trees["USERS"]; ok {
 		err := fs.ResizeDown(usersTree.GetRoot(), nil)
 		if err != nil {
@@ -96,6 +95,23 @@ func NewFileService(
 		}
 		sw.Lap("Resize tree")
 	}
+
+	ret, err := fs.folderCoverCol.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	var folderCovers []FolderCoverPair
+	err = ret.All(context.Background(), &folderCovers)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, folderCover := range folderCovers {
+		fs.folderMedia[folderCover.FolderId] = folderCover.ContentId
+	}
+
+	log.Trace.Println("Found folder covers", folderCovers)
 
 	sw.Stop()
 	sw.PrintResults(false)
@@ -460,6 +476,15 @@ func (fs *FileServiceImpl) DeleteFiles(
 	files []*fileTree.WeblensFileImpl, treeName string, caster models.FileCaster,
 ) error {
 	tree := fs.trees[treeName]
+	if tree == nil {
+		return werror.WithStack(werror.ErrNoFileTree)
+	}
+
+	restoreTree := fs.trees["RESTORE"]
+	if restoreTree == nil {
+		return werror.WithStack(werror.ErrNoFileTree)
+	}
+
 	deleteEvent := tree.GetJournal().NewEvent()
 
 	if fs.instanceService.GetLocal().Role == models.BackupServer {
@@ -495,7 +520,7 @@ func (fs *FileServiceImpl) DeleteFiles(
 
 				// Check if the file is already in the index, if it does, and the file exists as well,
 				// we can just delete it from the users tree
-				child, err := fs.trees["RESTORE"].GetRoot().GetChild(f.ID())
+				child, err := restoreTree.GetRoot().GetChild(f.ID())
 				if err == nil && child.Exists() {
 					err = tree.Delete(f.ID(), deleteEvent)
 					if err != nil {
@@ -515,7 +540,7 @@ func (fs *FileServiceImpl) DeleteFiles(
 					if contentId == "" {
 						return werror.Errorf("trying to move file to restore tree without content id")
 					}
-					_, err = fs.trees["RESTORE"].GetRoot().GetChild(contentId)
+					_, err = restoreTree.GetRoot().GetChild(contentId)
 
 					if err != nil {
 						// A non-nil error here means the file does not exist, so we must move it to the restore tree
@@ -527,7 +552,7 @@ func (fs *FileServiceImpl) DeleteFiles(
 						// Move file from users tree to the restore tree. Files later can be hard-linked back
 						// from the restore tree to the users tree, but will not be moved back.
 						err = fileTree.MoveFileBetweenTrees(
-							f, fs.trees["RESTORE"].GetRoot(), f.GetContentId(), tree, fs.trees["RESTORE"],
+							f, restoreTree.GetRoot(), f.GetContentId(), tree, restoreTree,
 							&fileTree.FileEvent{},
 						)
 						if err != nil {
@@ -774,13 +799,19 @@ func (fs *FileServiceImpl) ReadFile(f *fileTree.WeblensFileImpl) (io.ReadCloser,
 }
 
 func (fs *FileServiceImpl) NewZip(zipName string, owner *models.User) (*fileTree.WeblensFileImpl, error) {
-	cacheRoot := fs.trees["CACHES"].GetRoot()
+	cacheTree := fs.trees["CACHES"]
+	if cacheTree == nil {
+		return nil, werror.ErrNoFileTree
+	}
+
+	cacheRoot := cacheTree.GetRoot()
+
 	takeoutDir, err := cacheRoot.GetChild("takeout")
 	if err != nil {
 		return nil, err
 	}
 
-	zipFile, err := fs.trees["CACHES"].Touch(takeoutDir, zipName, nil)
+	zipFile, err := cacheTree.Touch(takeoutDir, zipName, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -951,14 +982,74 @@ func (fs *FileServiceImpl) GetJournalByTree(treeName string) fileTree.Journal {
 	return tree.GetJournal()
 }
 
+func (fs *FileServiceImpl) SetFolderCover(folderId fileTree.FileId, coverId models.ContentId) error {
+	tree := fs.trees["USERS"]
+	if tree == nil {
+		return werror.ErrNoFileTree
+	}
+
+	folder := tree.Get(folderId)
+	if folder == nil {
+		return werror.ErrNoFile
+	}
+
+	if coverId == "" {
+		_, err := fs.folderCoverCol.DeleteOne(context.Background(), bson.M{"folderId": folderId})
+		if err != nil {
+			return werror.WithStack(err)
+		}
+
+		delete(fs.folderMedia, folderId)
+		folder.SetContentId("")
+		return nil
+
+	} else if fs.folderMedia[folderId] != "" {
+		_, err := fs.folderCoverCol.UpdateOne(
+			context.Background(), bson.M{"folderId": folderId}, bson.M{"$set": bson.M{"coverId": coverId}},
+		)
+		if err != nil {
+			return werror.WithStack(err)
+		}
+	} else {
+		_, err := fs.folderCoverCol.InsertOne(context.Background(), bson.M{"folderId": folderId, "coverId": coverId})
+		if err != nil {
+			return werror.WithStack(err)
+		}
+	}
+
+	fs.folderMedia[folderId] = coverId
+	folder.SetContentId(coverId)
+
+	return nil
+}
+
+func (fs *FileServiceImpl) GetFolderCover(folder *fileTree.WeblensFileImpl) (models.ContentId, error) {
+	if !folder.IsDir() {
+		return "", werror.ErrDirectoryRequired
+	}
+
+	coverId := fs.folderMedia[folder.ID()]
+
+	return coverId, nil
+}
+
+func (fs *FileServiceImpl) UserPathToFile(searchPath string, user *models.User) (*fileTree.WeblensFileImpl, error) {
+
+	if strings.HasPrefix(searchPath, "~/") {
+		searchPath = string(user.GetUsername()) + "/" + searchPath[2:]
+	} else if searchPath[:1] == "/" && user.IsAdmin() {
+		searchPath = searchPath[1:]
+	}
+
+	return fs.PathToFile(searchPath)
+}
+
 func (fs *FileServiceImpl) PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error) {
 	// path, err := fs.trees["USERS"].AbsToPortable(searchPath)
 	// if err != nil {
 	// 	return nil, err
 	// }
-	if strings.HasPrefix(searchPath, "USERS:") {
-		searchPath = searchPath[6:]
-	}
+	searchPath = strings.TrimPrefix(searchPath, "USERS:")
 
 	pathParts := strings.Split(searchPath, "/")
 	workingFile := fs.trees["USERS"].GetRoot()

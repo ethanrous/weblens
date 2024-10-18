@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
@@ -157,7 +158,26 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 
 	var medias []*models.Media
 	for _, child := range children {
-		m := pack.MediaService.Get(child.GetContentId())
+		var m *models.Media
+		contentId := child.GetContentId()
+		if child.IsDir() && contentId == "" {
+			coverId, err := pack.FileService.GetFolderCover(child)
+			if err != nil {
+				safeErr, code := werror.TrySafeErr(err)
+				ctx.JSON(code, safeErr)
+				return
+			}
+
+			log.Trace.Printf("Cover id: %s", coverId)
+
+			if coverId != "" {
+				child.SetContentId(coverId)
+				contentId = coverId
+			}
+		}
+
+		m = pack.MediaService.Get(contentId)
+
 		if m != nil {
 			medias = append(medias, m)
 		}
@@ -280,7 +300,7 @@ func scanDir(ctx *gin.Context) {
 		return
 	}
 
-	caster := models.NewBufferedCaster(pack.ClientService)
+	caster := models.NewSimpleCaster(pack.ClientService)
 	meta := models.ScanMeta{
 		File:         dir,
 		FileService:  pack.FileService,
@@ -509,22 +529,65 @@ func getDirectoryContent(ctx *gin.Context) {
 }
 
 func autocompletePath(ctx *gin.Context) {
+	pack := getServices(ctx)
+	searchPath := ctx.Query("searchPath")
+	if len(searchPath) == 0 {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
 
-	// pack := getServices(ctx)
-	// searchPath := ctx.Query("searchPath")
-	// if len(searchPath) == 0 {
-	// 	ctx.Status(http.StatusBadRequest)
-	// 	return
-	// }
-	// u := getUserFromCtx(ctx)
-	// folder, children, err := pack.FileService.PathToFile(searchPath, u, nil)
-	// if err != nil {
-	// 	log.ShowErr(err)
-	// 	ctx.Status(http.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// ctx.JSON(http.StatusOK, gin.H{"children": children, "folder": folder})
+	u := getUserFromCtx(ctx)
+
+	lastSlashI := strings.LastIndex(searchPath, "/")
+	childName := searchPath[lastSlashI+1:]
+	searchPath = searchPath[:lastSlashI] + "/"
+
+	folder, err := pack.FileService.UserPathToFile(searchPath, u)
+	if err != nil {
+		log.ShowErr(err)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	children := folder.GetChildren()
+	if folder.GetParentId() == "ROOT" {
+		trashIndex := slices.IndexFunc(children, func(f *fileTree.WeblensFileImpl) bool {
+			return f.ID() == u.TrashId
+		})
+		children = internal.Banish(children, trashIndex)
+	}
+
+	var filenames []string
+	for _, child := range children {
+		filenames = append(filenames, child.Filename())
+	}
+
+	matches := fuzzy.RankFindFold(childName, filenames)
+	slices.SortFunc(
+		matches, func(a, b fuzzy.Rank) int {
+			diff := a.Distance - b.Distance
+			if diff == 0 {
+				return strings.Compare(a.Target, b.Target)
+			} else {
+				return diff
+			}
+		},
+	)
+
+	files := internal.FilterMap(
+		matches, func(match fuzzy.Rank) (*fileTree.WeblensFileImpl, bool) {
+			// f, err := pack.FileService.GetFileSafe(children[match.OriginalIndex], u, nil)
+			// if err != nil {
+			// 	return nil, false
+			// }
+			// if f.ID() == u.HomeId || f.ID() == u.TrashId {
+			// 	return nil, false
+			// }
+			return children[match.OriginalIndex], true
+		},
+	)
+
+	ctx.JSON(http.StatusOK, gin.H{"children": files, "folder": folder})
 }
 
 func getFileDataFromPath(ctx *gin.Context) {
@@ -641,6 +704,14 @@ func getFileText(ctx *gin.Context) {
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
+
+	filename := file.Filename()
+
+	dotIndex := strings.LastIndex(filename, ".")
+	if filename[dotIndex:] != ".txt" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "File is not a text file"})
 		return
 	}
 
@@ -772,7 +843,7 @@ func unTrashFiles(ctx *gin.Context) {
 		return
 	}
 
-	caster := models.NewBufferedCaster(pack.ClientService)
+	caster := models.NewSimpleCaster(pack.ClientService)
 	defer caster.Close()
 
 	var files []*fileTree.WeblensFileImpl
@@ -843,4 +914,61 @@ func restoreFiles(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"newParentId": newParent.ID()})
+}
+
+func setFolderCover(ctx *gin.Context) {
+	pack := getServices(ctx)
+	u := getUserFromCtx(ctx)
+
+	folderId := ctx.Param("folderId")
+	mediaId := ctx.Query("mediaId")
+
+	if folderId == "" {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	folder, err := pack.FileService.GetFileSafe(folderId, u, nil)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	coverId, err := pack.FileService.GetFolderCover(folder)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	log.Trace.Printf("Cover id: [%s] [%s]", coverId, mediaId)
+
+	if coverId == "" && mediaId == "" {
+		ctx.Status(http.StatusBadRequest)
+		return
+	} else if coverId == mediaId {
+		ctx.Status(http.StatusOK)
+		return
+	}
+
+	var m *models.Media
+	if mediaId != "" {
+		m = pack.MediaService.Get(mediaId)
+		if m == nil {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+	}
+
+	err = pack.FileService.SetFolderCover(folderId, mediaId)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, safe)
+		return
+	}
+
+	pack.Caster.PushFileUpdate(folder, m)
+
+	ctx.Status(http.StatusOK)
 }

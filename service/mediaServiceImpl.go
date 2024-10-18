@@ -89,7 +89,7 @@ func NewMediaService(
 		fileService:  fileService,
 		collection:   col,
 		AlbumService: albumService,
-		filesBuffer: sync.Pool{New: func() any { return make([]byte, 0, 0) }},
+		filesBuffer:  sync.Pool{New: func() any { return make([]byte, 0, 0) }},
 	}
 
 	indexModel := mongo.IndexModel{
@@ -412,11 +412,14 @@ func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, 
 
 	filter := bson.M{"contentId": mediaId}
 	var update bson.M
-	if liked {
+	if liked && len(m.LikedBy) == 0 {
+		update = bson.M{"$set": bson.M{"likedBy": []models.Username{username}}}
+	} else if liked && len(m.LikedBy) == 0 {
 		update = bson.M{"$addToSet": bson.M{"likedBy": username}}
 	} else {
 		update = bson.M{"$pull": bson.M{"likedBy": username}}
 	}
+
 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err

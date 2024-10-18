@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -198,7 +199,7 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	pack.StartupChan = nil
 
 	log.Trace.Println("Service setup complete")
-	pack.Caster.PushWeblensEvent("weblens_loaded")
+	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent)
 }
 
 func mainRecovery(msg string) {
@@ -305,6 +306,10 @@ func setupFileService(pack *models.ServicePack) {
 		if err != nil {
 			panic(err)
 		}
+		_, err = cachesTree.MkDir(cachesTree.GetRoot(), "takeout", &fileTree.FileEvent{})
+		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
+			panic(err)
+		}
 
 		trees = []fileTree.FileTree{usersFileTree, cachesTree, restoreFileTree}
 	} else if localRole == models.BackupServer {
@@ -334,6 +339,7 @@ func setupFileService(pack *models.ServicePack) {
 		pack.AccessService,
 		nil,
 		pack.Db.Collection("trash"),
+		pack.Db.Collection("folderMedia"),
 		trees...,
 	)
 	if err != nil {

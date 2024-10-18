@@ -83,10 +83,11 @@ export function GalleryFilters() {
     useKeyDown('Escape', closeOptions)
 
     return (
-        <div className="flex items-center h-full w-[40px]">
+        <div className="flex flex-col items-center h-full w-[40px]">
             <WeblensButton
                 Left={IconFilter}
                 allowRepeat
+                tooltip="Gallery Filters"
                 onClick={() => setOptionsOpen((p) => !p)}
                 disabled={galleryState.selecting}
                 toggleOn={disabledAlbums.length !== 0 || showRaw}
@@ -120,6 +121,12 @@ export function GalleryFilters() {
                     <div className="grid grid-cols-2 gap-2 max-h-[500px] overflow-y-scroll no-scrollbar">
                         {albumsOptions}
                     </div>
+                </div>
+                <div className='flex justify-end w-full'>
+                    <WeblensButton
+                        label="Save"
+                        onClick={(e) => closeOptions(e)}
+                    />
                 </div>
             </div>
         </div>

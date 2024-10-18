@@ -62,15 +62,12 @@ func wsConnect(ctx *gin.Context) {
 
 func wsMain(c *models.WsClient, pack *models.ServicePack) {
 	defer pack.ClientService.ClientDisconnect(c)
+	defer wsRecover(c)
 	var switchboard func([]byte, *models.WsClient, *models.ServicePack)
 
 	if c.GetUser() != nil {
 		switchboard = wsWebClientSwitchboard
-		if !pack.Loaded.Load() {
-			c.PushWeblensEvent(models.StartupProgressEvent, models.WsC{"waitingOn": pack.GetStartupTasks()})
-		} else {
-			c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
-		}
+		onWebConnect(c, pack)
 	} else {
 		switchboard = wsServerClientSwitchboard
 		if pack.Loaded.Load() {
@@ -278,12 +275,59 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 		return
 	}
 
-	if msg.EventTag == models.ServerGoingDownEvent {
-		c.Disconnect()
+	if msg.SentTime == 0 {
+		err := werror.Errorf("invalid sent time on relay message")
+		c.Error(err)
 		return
 	}
+	sentTime := time.UnixMilli(msg.SentTime)
+	relaySourceId := c.GetRemote().ServerId()
 
+	switch msg.EventTag {
+	case models.ServerGoingDownEvent:
+		c.Disconnect()
+		return
+	case models.BackupCompleteEvent:
+		// Log the backup time, but don't return so the
+		// message can be relayed to the web client
+		err := pack.InstanceService.SetLastBackup(relaySourceId, sentTime)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+
+		if pack.InstanceService.GetLocal().IsCore() {
+			// Also update the local core server's last backup time
+			err = pack.InstanceService.SetLastBackup(pack.InstanceService.GetLocal().ServerId(), sentTime)
+			if err != nil {
+				c.Error(err)
+				return
+			}
+		}
+	}
+
+	msg.RelaySource = relaySourceId
 	pack.Caster.Relay(msg)
+}
+
+func onWebConnect(c models.Client, pack *models.ServicePack) {
+	if !pack.Loaded.Load() {
+		c.PushWeblensEvent(models.StartupProgressEvent, models.WsC{"waitingOn": pack.GetStartupTasks()})
+		return
+	} else {
+		c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+	}
+
+	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+		for _, backupTask := range pack.TaskService.GetTasksByJobName(models.BackupTask) {
+			r := backupTask.GetResults()
+			if len(r) == 0 {
+				continue
+			}
+
+			c.PushTaskUpdate(backupTask, "backup_progress", r)
+		}
+	}
 }
 
 func wsRecover(c models.Client) {

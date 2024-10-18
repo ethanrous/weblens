@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -221,6 +222,10 @@ func (t *Task) GetResult(resultKey string) any {
 		return nil
 	}
 
+	if resultKey == "" {
+		return t.result
+	}
+
 	return t.result[resultKey]
 }
 
@@ -230,7 +235,7 @@ func (t *Task) GetResults() TaskResult {
 	if t.result == nil {
 		t.result = TaskResult{}
 	}
-	return t.result
+	return maps.Clone(t.result)
 }
 
 func (t *Task) GetMeta() TaskMetadata {
@@ -373,11 +378,17 @@ func (t *Task) OnResult(callback func(TaskResult)) {
 
 func (t *Task) SetResult(results TaskResult) {
 	t.updateMu.Lock()
-	t.result = results
-	t.updateMu.Unlock()
+	defer t.updateMu.Unlock()
+	if t.result == nil {
+		t.result = results
+	} else {
+		for k, v := range results {
+			t.result[k] = v
+		}
+	}
 
 	if t.resultsCallback != nil {
-		t.resultsCallback(results)
+		t.resultsCallback(t.result)
 	}
 }
 

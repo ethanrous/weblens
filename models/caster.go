@@ -7,16 +7,17 @@ import (
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/log"
-	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
 )
 
 var _ Broadcaster = (*SimpleCaster)(nil)
-var _ Broadcaster = (*BufferedCaster)(nil)
+
+// var _ Broadcaster = (*BufferedCaster)(nil)
 
 type SimpleCaster struct {
-	enabled bool
+	enabled atomic.Bool
 	cm      ClientManager
+	msgChan chan WsResponseInfo
 }
 
 func (c *SimpleCaster) DisableAutoFlush() {
@@ -32,7 +33,8 @@ func (c *SimpleCaster) Flush() {
 }
 
 func (c *SimpleCaster) Close() {
-	// c.enabled = false
+	c.enabled.Store(false)
+	c.msgChan <- WsResponseInfo{}
 }
 
 type BufferedCaster struct {
@@ -48,18 +50,23 @@ type BufferedCaster struct {
 
 func NewSimpleCaster(cm ClientManager) *SimpleCaster {
 	newCaster := &SimpleCaster{
-		enabled: true,
 		cm:      cm,
+		msgChan: make(chan WsResponseInfo, 100),
 	}
+
+	newCaster.enabled.Store(true)
+
+	go newCaster.msgWorker(cm)
+
 	return newCaster
 }
 
 func (c *SimpleCaster) Enable() {
-	c.enabled = true
+	c.enabled.Store(true)
 }
 
 func (c *SimpleCaster) Disable() {
-	c.enabled = false
+	c.enabled.Store(false)
 }
 
 func (c *SimpleCaster) IsBuffered() bool {
@@ -67,25 +74,44 @@ func (c *SimpleCaster) IsBuffered() bool {
 }
 
 func (c *SimpleCaster) IsEnabled() bool {
-	return c.enabled
+	return c.enabled.Load()
+}
+
+func (c *SimpleCaster) msgWorker(cm ClientManager) {
+	for msg := range c.msgChan {
+		if !c.enabled.Load() && msg.EventTag == "" {
+			break
+		}
+
+		cm.Send(msg)
+	}
+
+	log.Trace.Println("Caster message worker exiting")
+
+	close(c.msgChan)
 }
 
 func (c *SimpleCaster) PushWeblensEvent(eventTag string, content ...WsC) {
+	if !c.enabled.Load() {
+		return
+	}
+
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
+		SentTime:      time.Now().Unix(),
 	}
 
 	if len(content) != 0 {
 		msg.Content = content[0]
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
@@ -95,15 +121,16 @@ func (c *SimpleCaster) PushTaskUpdate(task *task.Task, event string, result task
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushPoolUpdate(
 	pool task.Pool, event string, result task.TaskResult,
 ) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
@@ -112,20 +139,23 @@ func (c *SimpleCaster) PushPoolUpdate(
 		return
 	}
 
+	parentTask := pool.CreatedInTask()
+
 	msg := WsResponseInfo{
 		EventTag:      event,
-		SubscribeKey:  pool.ID(),
+		SubscribeKey:  parentTask.TaskId(),
 		Content:       WsC(result),
-		TaskType:      pool.CreatedInTask().JobName(),
+		TaskType:      parentTask.JobName(),
 		BroadcastType: TaskSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
 	// c.c.cm.Send(string(event), types.SubId(taskId), []types.WsC{types.WsC(result)})
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushShareUpdate(username Username, newShareInfo Share) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
@@ -134,96 +164,104 @@ func (c *SimpleCaster) PushShareUpdate(username Username, newShareInfo Share) {
 		SubscribeKey:  username,
 		Content:       WsC{"newShareInfo": newShareInfo},
 		BroadcastType: UserSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
 	msg := WsResponseInfo{
-		EventTag:     "file_created",
+		EventTag:     FileCreatedEvent,
 		SubscribeKey: newFile.GetParentId(),
 		Content:      WsC{"fileInfo": newFile},
 
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      "file_updated",
+		EventTag:      FileUpdatedEvent,
 		SubscribeKey:  updatedFile.ID(),
 		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 
 	if updatedFile.GetParent() == nil || updatedFile.GetParent().ID() == "ROOT" {
 		return
 	}
 
 	msg = WsResponseInfo{
-		EventTag:      "file_updated",
+		EventTag:      FileUpdatedEvent,
 		SubscribeKey:  updatedFile.GetParentId(),
 		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      "file_moved",
+		EventTag:      FileMovedEvent,
 		SubscribeKey:  preMoveFile.GetParentId(),
 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
-	c.cm.Send(msg)
+
+	c.msgChan <- msg
 
 	msg = WsResponseInfo{
-		EventTag:      "file_moved",
+		EventTag:      FileMovedEvent,
 		SubscribeKey:  postMoveFile.GetParentId(),
 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      "file_deleted",
+		EventTag:      FileDeletedEvent,
 		SubscribeKey:  deletedFile.GetParent().ID(),
 		Content:       WsC{"fileId": deletedFile.ID()},
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
@@ -237,303 +275,298 @@ func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
 	}
 }
 
-// func (c *SimpleCaster) UnsubTask(task *task.Task) {
-// 	if !c.enabled {
-// 		return
-// 	}
-//
-// 	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(task.TaskId()))
-// 	for _, s := range subs {
-// 		s.unsubscribe(SubId(task.TaskId()))
-// 	}
-// }
-
 func (c *SimpleCaster) Relay(msg WsResponseInfo) {
-	if !c.enabled {
+	if !c.enabled.Load() {
 		return
 	}
 
-	c.cm.Send(msg)
+	c.msgChan <- msg
 }
 
 // NewBufferedCaster Gets a new buffered caster with the auto-flusher pre-enabled.
 // c.Close() must be called when this caster is no longer in use to
 // release the flusher
-func NewBufferedCaster(cm ClientManager) *BufferedCaster {
-	// local := InstanceService.GetLocal()
-	// if local == nil || local.ServerRole() != weblens.CoreServer {
-	// 	return &bufferedCaster{enabled: atomic.Bool{}, autoFlushInterval: time.Hour}
-	// }
-	newCaster := &BufferedCaster{
-		bufLimit:          100,
-		buffer:            []WsResponseInfo{},
-		autoFlushInterval: time.Second,
-		cm:                cm,
-	}
-
-	newCaster.enabled.Store(true)
-	newCaster.enableAutoFlush()
-
-	return newCaster
-}
-
-func (c *BufferedCaster) AutoFlushEnable() {
-	c.enabled.Store(true)
-	c.enableAutoFlush()
-}
-
-func (c *BufferedCaster) Enable() {
-	c.enabled.Store(true)
-}
-
-func (c *BufferedCaster) Disable() {
-	c.enabled.Store(false)
-}
-
-func (c *BufferedCaster) Close() {
-	if !c.enabled.Load() {
-		log.ErrTrace(werror.ErrCasterDoubleClose)
-		return
-	}
-
-	c.Flush()
-	c.autoFlush.Store(false)
-	c.enabled.Store(false)
-}
-
-func (c *BufferedCaster) IsBuffered() bool {
-	return true
-}
-
-func (c *BufferedCaster) IsEnabled() bool {
-	return c.enabled.Load()
-}
-
-func (c *BufferedCaster) PushWeblensEvent(eventTag string, content ...WsC) {
-	msg := WsResponseInfo{
-		EventTag:      eventTag,
-		SubscribeKey:  "WEBLENS",
-		BroadcastType: ServerEvent,
-	}
-
-	if len(content) != 0 {
-		msg.Content = content[0]
-	}
-
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:     "file_created",
-		SubscribeKey: newFile.GetParentId(),
-		Content:      WsC{"fileInfo": newFile},
-
-		BroadcastType: FolderSubscribe,
-	}
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      "file_updated",
-		SubscribeKey:  updatedFile.ID(),
-		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
-		BroadcastType: FolderSubscribe,
-	}
-
-	c.bufferAndFlush(msg)
-
-	if updatedFile.GetParent() == nil || updatedFile.GetParent().ID() == "ROOT" {
-		return
-	}
-
-	msg = WsResponseInfo{
-		EventTag:      "file_updated",
-		SubscribeKey:  updatedFile.GetParentId(),
-		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
-		BroadcastType: FolderSubscribe,
-	}
-
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      "file_moved",
-		SubscribeKey:  preMoveFile.GetParentId(),
-		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
-		Error:         "",
-		BroadcastType: FolderSubscribe,
-	}
-	c.bufferAndFlush(msg)
-
-	msg = WsResponseInfo{
-		EventTag:      "file_moved",
-		SubscribeKey:  postMoveFile.GetParentId(),
-		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
-		Error:         "",
-		BroadcastType: FolderSubscribe,
-	}
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      "file_deleted",
-		SubscribeKey:  deletedFile.GetParent().ID(),
-		Content:       WsC{"fileId": deletedFile.ID()},
-		BroadcastType: FolderSubscribe,
-	}
-
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      event,
-		SubscribeKey:  task.TaskId(),
-		Content:       WsC(result),
-		TaskType:      task.JobName(),
-		BroadcastType: TaskSubscribe,
-	}
-
-	c.bufferAndFlush(msg)
-
-	msg = WsResponseInfo{
-		EventTag:      event,
-		SubscribeKey:  task.GetTaskPool().GetRootPool().ID(),
-		Content:       result,
-		TaskType:      task.JobName(),
-		BroadcastType: TaskSubscribe,
-	}
-
-	c.bufferAndFlush(msg)
-
-}
-
-func (c *BufferedCaster) PushPoolUpdate(
-	pool task.Pool, event string, result task.TaskResult,
-) {
-	if pool.IsGlobal() {
-		log.Warning.Println("Not pushing update on global pool")
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      event,
-		SubscribeKey:  pool.ID(),
-		Content:       WsC(result),
-		TaskType:      pool.CreatedInTask().JobName(),
-		BroadcastType: TaskSubscribe,
-	}
-
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) PushShareUpdate(username Username, newShareInfo Share) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	msg := WsResponseInfo{
-		EventTag:      "share_updated",
-		SubscribeKey:  username,
-		Content:       WsC{"newShareInfo": newShareInfo},
-		BroadcastType: "user",
-	}
-
-	c.bufferAndFlush(msg)
-}
-
-func (c *BufferedCaster) Flush() {
-	c.bufLock.Lock()
-	defer c.bufLock.Unlock()
-	if !c.enabled.Load() || len(c.buffer) == 0 {
-		return
-	}
-
-	for _, r := range c.buffer {
-		c.cm.Send(r)
-	}
-
-	c.buffer = []WsResponseInfo{}
-}
-
-func (c *BufferedCaster) DisableAutoFlush() {
-	c.autoFlush.Store(false)
-}
-
-// FolderSubToTask Subscribes any subscribers of a folder to a task (presumably one that pertains to that folder)
-func (c *BufferedCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
-	subs := c.cm.GetSubscribers(FolderSubscribe, folder)
-
-	for _, s := range subs {
-		_, _, err := c.cm.Subscribe(s, taskId, TaskSubscribe, time.Now(), nil)
-		if err != nil {
-			log.ShowErr(err)
-		}
-	}
-}
-
-// func (c *BufferedCaster) UnsubTask(task *task.Task) {
-// 	subs := c.cm.GetSubscribers(FolderSubscribe, SubId(task.TaskId()))
+// func NewBufferedCaster(cm ClientManager) *BufferedCaster {
+// 	// local := InstanceService.GetLocal()
+// 	// if local == nil || local.ServerRole() != weblens.CoreServer {
+// 	// 	return &bufferedCaster{enabled: atomic.Bool{}, autoFlushInterval: time.Hour}
+// 	// }
+// 	newCaster := &BufferedCaster{
+// 		bufLimit:          100,
+// 		buffer:            []WsResponseInfo{},
+// 		autoFlushInterval: time.Second,
+// 		cm:                cm,
+// 	}
+//
+// 	newCaster.enabled.Store(true)
+// 	newCaster.enableAutoFlush()
+//
+// 	return newCaster
+// }
+//
+// func (c *BufferedCaster) AutoFlushEnable() {
+// 	c.enabled.Store(true)
+// 	c.enableAutoFlush()
+// }
+//
+// func (c *BufferedCaster) Enable() {
+// 	c.enabled.Store(true)
+// }
+//
+// func (c *BufferedCaster) Disable() {
+// 	c.enabled.Store(false)
+// }
+//
+// func (c *BufferedCaster) Close() {
+// 	if !c.enabled.Load() {
+// 		log.ErrTrace(werror.ErrCasterDoubleClose)
+// 		return
+// 	}
+//
+// 	c.Flush()
+// 	c.autoFlush.Store(false)
+// 	c.enabled.Store(false)
+// }
+//
+// func (c *BufferedCaster) IsBuffered() bool {
+// 	return true
+// }
+//
+// func (c *BufferedCaster) IsEnabled() bool {
+// 	return c.enabled.Load()
+// }
+//
+// func (c *BufferedCaster) PushWeblensEvent(eventTag string, content ...WsC) {
+// 	msg := WsResponseInfo{
+// 		EventTag:      eventTag,
+// 		SubscribeKey:  "WEBLENS",
+// 		BroadcastType: ServerEvent,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	if len(content) != 0 {
+// 		msg.Content = content[0]
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:     FileCreatedEvent,
+// 		SubscribeKey: newFile.GetParentId(),
+// 		Content:      WsC{"fileInfo": newFile},
+//
+// 		BroadcastType: FolderSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:      FileUpdatedEvent,
+// 		SubscribeKey:  updatedFile.ID(),
+// 		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
+// 		BroadcastType: FolderSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+//
+// 	if updatedFile.GetParent() == nil || updatedFile.GetParent().ID() == "ROOT" {
+// 		return
+// 	}
+//
+// 	msg = WsResponseInfo{
+// 		EventTag:      FileUpdatedEvent,
+// 		SubscribeKey:  updatedFile.GetParentId(),
+// 		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
+// 		BroadcastType: FolderSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:      FileMovedEvent,
+// 		SubscribeKey:  preMoveFile.GetParentId(),
+// 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
+// 		Error:         "",
+// 		BroadcastType: FolderSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+// 	c.bufferAndFlush(msg)
+//
+// 	msg = WsResponseInfo{
+// 		EventTag:      "file_moved",
+// 		SubscribeKey:  postMoveFile.GetParentId(),
+// 		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
+// 		Error:         "",
+// 		BroadcastType: FolderSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:      "file_deleted",
+// 		SubscribeKey:  deletedFile.GetParent().ID(),
+// 		Content:       WsC{"fileId": deletedFile.ID()},
+// 		BroadcastType: FolderSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:      event,
+// 		SubscribeKey:  task.TaskId(),
+// 		Content:       WsC(result),
+// 		TaskType:      task.JobName(),
+// 		BroadcastType: TaskSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+//
+// 	msg = WsResponseInfo{
+// 		EventTag:      event,
+// 		SubscribeKey:  task.GetTaskPool().GetRootPool().ID(),
+// 		Content:       result,
+// 		TaskType:      task.JobName(),
+// 		BroadcastType: TaskSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+//
+// }
+//
+// func (c *BufferedCaster) PushPoolUpdate(
+// 	pool task.Pool, event string, result task.TaskResult,
+// ) {
+// 	if pool.IsGlobal() {
+// 		log.Warning.Println("Not pushing update on global pool")
+// 		return
+// 	}
+//
+// 	parentTask := pool.CreatedInTask()
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:      event,
+// 		SubscribeKey:  parentTask.TaskId(),
+// 		Content:       WsC(result),
+// 		TaskType:      parentTask.JobName(),
+// 		BroadcastType: TaskSubscribe,
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) PushShareUpdate(username Username, newShareInfo Share) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	msg := WsResponseInfo{
+// 		EventTag:      "share_updated",
+// 		SubscribeKey:  username,
+// 		Content:       WsC{"newShareInfo": newShareInfo},
+// 		BroadcastType: "user",
+// 		SentTime:      time.Now().Unix(),
+// 	}
+//
+// 	c.bufferAndFlush(msg)
+// }
+//
+// func (c *BufferedCaster) Flush() {
+// 	c.bufLock.Lock()
+// 	defer c.bufLock.Unlock()
+// 	if !c.enabled.Load() || len(c.buffer) == 0 {
+// 		return
+// 	}
+//
+// 	for _, r := range c.buffer {
+// 		c.cm.Send(r)
+// 	}
+//
+// 	c.buffer = []WsResponseInfo{}
+// }
+//
+// func (c *BufferedCaster) DisableAutoFlush() {
+// 	c.autoFlush.Store(false)
+// }
+//
+// // FolderSubToTask Subscribes any subscribers of a folder to a task (presumably one that pertains to that folder)
+// func (c *BufferedCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
+// 	subs := c.cm.GetSubscribers(FolderSubscribe, folder)
+//
 // 	for _, s := range subs {
-// 		s.unsubscribe(SubId(task.TaskId()))
+// 		_, _, err := c.cm.Subscribe(s, taskId, TaskSubscribe, time.Now(), nil)
+// 		if err != nil {
+// 			log.ShowErr(err)
+// 		}
 // 	}
 // }
-
-func (c *BufferedCaster) Relay(msg WsResponseInfo) {
-	if !c.enabled.Load() {
-		return
-	}
-
-	c.cm.Send(msg)
-}
-
-func (c *BufferedCaster) enableAutoFlush() {
-	c.autoFlush.Store(true)
-	go c.flusher()
-}
-
-func (c *BufferedCaster) flusher() {
-	for c.autoFlush.Load() {
-		time.Sleep(c.autoFlushInterval)
-		c.Flush()
-	}
-}
-
-func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
-	c.bufLock.Lock()
-	c.buffer = append(c.buffer, msg)
-
-	if c.autoFlush.Load() && len(c.buffer) >= c.bufLimit {
-		c.bufLock.Unlock()
-		c.Flush()
-		return
-	}
-	c.bufLock.Unlock()
-}
+//
+// func (c *BufferedCaster) Relay(msg WsResponseInfo) {
+// 	if !c.enabled.Load() {
+// 		return
+// 	}
+//
+// 	c.cm.Send(msg)
+// }
+//
+// func (c *BufferedCaster) enableAutoFlush() {
+// 	c.autoFlush.Store(true)
+// 	go c.flusher()
+// }
+//
+// func (c *BufferedCaster) flusher() {
+// 	for c.autoFlush.Load() {
+// 		time.Sleep(c.autoFlushInterval)
+// 		c.Flush()
+// 	}
+// }
+//
+// func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
+// 	c.bufLock.Lock()
+// 	c.buffer = append(c.buffer, msg)
+//
+// 	if c.autoFlush.Load() && len(c.buffer) >= c.bufLimit {
+// 		c.bufLock.Unlock()
+// 		c.Flush()
+// 		return
+// 	}
+// 	c.bufLock.Unlock()
+// }
 
 type BasicCaster interface {
 	PushWeblensEvent(eventTag string, content ...WsC)
@@ -577,10 +610,10 @@ const (
 	// connection made, and only sends updates to that specific user when needed
 	UserSubscribe WsAction = "user_subscribe"
 
-	FolderSubscribe   WsAction = "folder_subscribe"
-	ServerEvent       WsAction = "server_event"
-	TaskSubscribe     WsAction = "task_subscribe"
-	PoolSubscribe     WsAction = "pool_subscribe"
+	FolderSubscribe WsAction = "folder_subscribe"
+	ServerEvent     WsAction = "server_event"
+	TaskSubscribe   WsAction = "task_subscribe"
+	// PoolSubscribe     WsAction = "pool_subscribe"
 	TaskTypeSubscribe WsAction = "task_type_subscribe"
 	Unsubscribe       WsAction = "unsubscribe"
 	ScanDirectory     WsAction = "scan_directory"
@@ -600,12 +633,14 @@ type Subscription struct {
 }
 
 type WsResponseInfo struct {
-	EventTag      string   `json:"eventTag"`
-	SubscribeKey  SubId    `json:"subscribeKey"`
-	TaskType      string   `json:"taskType,omitempty"`
-	Content       WsC      `json:"content"`
-	Error         string   `json:"error,omitempty"`
-	BroadcastType WsAction `json:"broadcastType,omitempty"`
+	EventTag      string     `json:"eventTag"`
+	SubscribeKey  SubId      `json:"subscribeKey"`
+	TaskType      string     `json:"taskType,omitempty"`
+	Content       WsC        `json:"content"`
+	Error         string     `json:"error,omitempty"`
+	BroadcastType WsAction   `json:"broadcastType,omitempty"`
+	RelaySource   InstanceId `json:"relaySource,omitempty"`
+	SentTime      int64      `json:"sentTime,omitempty"`
 }
 
 type WsRequestInfo struct {
@@ -621,18 +656,29 @@ type WsR interface {
 }
 
 const (
-	StartupProgressEvent = "startup_progress"
-	TaskCreatedEvent     = "task_created"
-	TaskCompleteEvent    = "task_complete"
-	SubTaskCompleteEvent = "sub_task_complete"
-	TaskFailedEvent      = "task_failure"
-	TaskCanceledEvent    = "task_canceled"
-	PoolCreatedEvent     = "pool_created"
-	PoolCompleteEvent    = "pool_complete"
-	PoolCancelledEvent   = "pool_cancelled"
-	ScanCompleteEvent    = "scan_complete"
-	ZipProgressEvent     = "create_zip_progress"
-	ZipCompleteEvent     = "zip_complete"
-	ServerGoingDownEvent = "going_down"
-	RestoreStartedEvent  = "restore_started"
+	StartupProgressEvent       = "startup_progress"
+	TaskCreatedEvent           = "task_created"
+	TaskCompleteEvent          = "task_complete"
+	BackupCompleteEvent        = "backup_complete"
+	TaskFailedEvent            = "task_failure"
+	TaskCanceledEvent          = "task_canceled"
+	PoolCreatedEvent           = "pool_created"
+	PoolCompleteEvent          = "pool_complete"
+	PoolCancelledEvent         = "pool_cancelled"
+	FolderScanCompleteEvent    = "folder_scan_complete"
+	FileScanCompleteEvent      = "file_scan_complete"
+	ScanDirectoryProgressEvent = "scan_directory_progress"
+	FileCreatedEvent           = "file_created"
+	FileUpdatedEvent           = "file_updated"
+	FileMovedEvent             = "file_moved"
+	FileDeletedEvent           = "file_deleted"
+	ZipProgressEvent           = "create_zip_progress"
+	ZipCompleteEvent           = "zip_complete"
+	ServerGoingDownEvent       = "going_down"
+	RestoreStartedEvent        = "restore_started"
+	WeblensLoadedEvent         = "weblens_loaded"
+	ErrorEvent                 = "error"
+	CoreConnectionChangedEvent = "core_connection_changed"
+	BackupProgressEvent        = "backup_progress"
+	CopyFileCompleteEvent      = "copy_file_complete"
 )

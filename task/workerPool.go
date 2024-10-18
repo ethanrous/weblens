@@ -34,7 +34,7 @@ type WorkerPool struct {
 	jobsMu         sync.RWMutex
 	registeredJobs map[string]TaskHandler
 
-	taskMu  sync.Mutex
+	taskMu  sync.RWMutex
 	taskMap map[Id]*Task
 
 	poolMu  sync.Mutex
@@ -119,6 +119,19 @@ func (wp *WorkerPool) GetTaskPool(tpId Id) *TaskPool {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
 	return wp.poolMap[tpId]
+}
+
+func (wp *WorkerPool) GetTasksByJobName(jobName string) []*Task {
+	wp.taskMu.RLock()
+	defer wp.taskMu.RUnlock()
+
+	var ret []*Task
+	for _, t := range wp.taskMap {
+		if t.JobName() == jobName {
+			return append(ret, t)
+		}
+	}
+	return ret
 }
 
 func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
@@ -636,6 +649,8 @@ func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
 type TaskService interface {
 	RegisterJob(jobName string, fn TaskHandler)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
+	GetTaskPoolByJobName(jobName string) *TaskPool
+	GetTasksByJobName(jobName string) []*Task
 
 	GetTask(taskId Id) *Task
 	GetTaskPool(Id) *TaskPool

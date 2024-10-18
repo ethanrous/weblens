@@ -8,9 +8,11 @@ import {
 } from '@weblens/types/Types'
 import { useEffect } from 'react'
 import { useCookies } from 'react-cookie'
+import { useNavigate } from 'react-router-dom'
 import { create, StateCreator } from 'zustand'
 
 const useR = () => {
+    const nav = useNavigate()
     const [cookies] = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
 
     const { server, user, setUserInfo } = useSessionStore()
@@ -35,8 +37,11 @@ const useR = () => {
             GetUserInfo()
                 .then((info) => setUserInfo({ ...info, isLoggedIn: true }))
                 .catch((r) => {
-                    console.error(r)
                     setUserInfo({ isLoggedIn: false } as UserInfoT)
+                    if (r === 401) {
+                        nav('/login')
+                    }
+                    console.error(r)
                 })
         }
     }, [server])
@@ -49,7 +54,7 @@ export interface WeblensSessionT {
 
     setUserInfo: (user: UserInfoT) => void
 
-    fetchServerInfo: () => Promise<void> 
+    fetchServerInfo: () => Promise<void>
     logout: (removeCookie: (cookieKey: string) => void) => void
 
     setNav: (navFunc: (loc: string) => void) => void

@@ -20,6 +20,7 @@ type FileService interface {
 
 	GetUsersRoot() *fileTree.WeblensFileImpl
 	PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error)
+	UserPathToFile(searchPath string, user *User) (*fileTree.WeblensFileImpl, error)
 
 	CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (*fileTree.WeblensFileImpl, error)
 	CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, caster FileCaster) (*fileTree.WeblensFileImpl, error)
@@ -47,6 +48,9 @@ type FileService interface {
 	GetMediaCacheByFilename(filename string) (*fileTree.WeblensFileImpl, error)
 	NewCacheFile(media *Media, quality MediaQuality, pageNum int) (*fileTree.WeblensFileImpl, error)
 	DeleteCacheFile(file fileTree.WeblensFile) error
+
+	GetFolderCover(folder *fileTree.WeblensFileImpl) (ContentId, error)
+	SetFolderCover(folderId fileTree.FileId, coverId ContentId) error
 
 	AddTask(f *fileTree.WeblensFileImpl, t *task.Task) error
 	RemoveTask(f *fileTree.WeblensFileImpl, t *task.Task) error

@@ -62,10 +62,10 @@ const NoMediaDisplay = () => {
     return (
         <div className="flex flex-col items-center w-full">
             <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
-                <p className="text-white font-bold text-3xl select-none">
+                <h2 className="font-bold text-3xl select-none">
                     No media to display
-                </p>
-                <p className="text-white select-none">
+                </h2>
+                <p className="select-none">
                     Upload files or adjust the filters
                 </p>
                 <div className="h-max w-full gap-2">

@@ -101,7 +101,7 @@ func TestScanDirectory(t *testing.T) {
 
 	testMediaTree, err := fileTree.NewFileTree(
 		env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(),
-	false)
+		false)
 	if err != nil {
 		panic(err)
 	}
@@ -133,6 +133,7 @@ func TestScanDirectory(t *testing.T) {
 
 	_, exitStatus := tsk.Status()
 	if !assert.Equal(t, task.TaskSuccess, exitStatus) {
+		log.ErrTrace(tsk.ReadError())
 		t.FailNow()
 	}
 

@@ -46,6 +46,10 @@ $hard-shadow-off: 0 0 0px #000000aa;
 
 $warning: #fad30b;
 
+* {
+    box-sizing: border-box;
+}
+
 // Components //
 :root {
     /* Default color scheme */
@@ -55,6 +59,7 @@ $warning: #fad30b;
     // --wl-theme-color: #3636ca;
     --dark-paper: light-dark(#7274d6, #1c1049);
     --wl-text-color: light-dark(#000000, #ffffff);
+    --wl-text-color-inverted: light-dark(#ffffff, #000000);
     --wl-barely-visible: light-dark(#dadae3, #16181d);
     --wl-danger: #ff4444;
     --wl-danger-subtle: light-dark(#ffa6ac, #521f22);
@@ -103,8 +108,13 @@ h3 {
 }
 
 h4 {
-    font-size: 1em;
+    font-size: 1.5em;
     font-weight: 500;
+}
+
+p {
+    font-size: 1em;
+    font-weight: 400;
 }
 
 input,

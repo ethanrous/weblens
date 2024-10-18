@@ -222,3 +222,15 @@ func (pfs *ProxyFileService) NewZip(zipName string, owner *models.User) (*fileTr
 func (pfs *ProxyFileService) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.WeblensFileImpl, error) {
 	panic("implement me")
 }
+
+func (pfs *ProxyFileService) GetFolderCover(folder *fileTree.WeblensFileImpl) (models.ContentId, error) {
+	return "", nil
+}
+
+func (pfs *ProxyFileService) SetFolderCover(folderId fileTree.FileId, coverId models.ContentId) error {
+	return nil
+}
+
+func (pfs *ProxyFileService) UserPathToFile(searchPath string, user *models.User) (*fileTree.WeblensFileImpl, error) {
+	return nil, nil
+}

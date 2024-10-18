@@ -20,7 +20,7 @@ func ScanDirectory(t *task.Task) {
 	if meta.FileService.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
 		meta.Caster.PushTaskUpdate(
-			t, models.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
+			t, models.FolderScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
 		)
 		t.Success("No media to scan")
 		return
@@ -47,9 +47,8 @@ func ScanDirectory(t *task.Task) {
 	}
 	defer func() { err = meta.FileService.RemoveTask(meta.File, t); log.ErrTrace(err) }()
 
-	meta.TaskSubber.FolderSubToPool(meta.File.ID(), pool.GetRootPool().ID())
-	meta.TaskSubber.FolderSubToPool(meta.File.GetParentId(), pool.GetRootPool().ID())
-	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
+	meta.TaskSubber.FolderSubToTask(meta.File.ID(), t.TaskId())
+	meta.TaskSubber.FolderSubToTask(meta.File.GetParentId(), t.TaskId())
 
 	log.Debug.Printf("Beginning directory scan for %s (%s)\n", meta.File.GetPortablePath(), meta.File.ID())
 
@@ -67,7 +66,7 @@ func ScanDirectory(t *task.Task) {
 
 			m := meta.MediaService.Get(wf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
-				meta.Caster.PushFileUpdate(wf, m)
+				// meta.Caster.PushFileUpdate(wf, m)
 				return nil
 			}
 
@@ -118,12 +117,9 @@ func ScanDirectory(t *task.Task) {
 	}
 
 	// Let any client subscribers know we are done
-	meta.Caster.PushPoolUpdate(
-		pool.GetRootPool(), models.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
-	)
-
 	result := getScanResult(t)
-	meta.Caster.PushTaskUpdate(t, models.SubTaskCompleteEvent, result)
+	meta.Caster.PushPoolUpdate(pool.GetRootPool(), models.FolderScanCompleteEvent, result)
+
 	t.Success()
 }
 
@@ -193,7 +189,7 @@ func reportSubscanStatus(t *task.Task) {
 	if t.GetTaskPool().IsGlobal() {
 		meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, getScanResult(t))
 	} else {
-		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.SubTaskCompleteEvent, getScanResult(t))
+		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.FileScanCompleteEvent, getScanResult(t))
 	}
 }
 
@@ -223,7 +219,7 @@ func getScanResult(t *task.Task) task.TaskResult {
 		result["tasks_complete"] = status.Complete
 		result["tasks_failed"] = status.Failed
 		result["tasks_total"] = status.Total
-		result["runtime"] = status.Runtime
+		result["runtime"] = t.ExeTime()
 		if tp.CreatedInTask() != nil {
 			result["task_job_name"] = tp.CreatedInTask().JobName()
 		}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"hash"
 	"slices"
+	"sync"
+	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
@@ -27,8 +29,8 @@ const (
 )
 
 type TaskSubscriber interface {
-	FolderSubToPool(folderId fileTree.FileId, poolId task.Id)
-	TaskSubToPool(taskId task.Id, poolId task.Id)
+	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
+	// TaskSubToPool(taskId task.Id, poolId task.Id)
 }
 
 type TaskDispatcher interface {
@@ -448,4 +450,66 @@ func (m RestoreCoreMeta) Verify() error {
 	}
 
 	return nil
+}
+
+type TaskStage struct {
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Started  int64  `json:"started"`
+	Finished int64  `json:"finished"`
+
+	index int
+}
+
+type TaskStages struct {
+	data map[string]TaskStage
+	mu   sync.Mutex
+}
+
+func (ts *TaskStages) StartStage(key string) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+
+	stage := ts.data[key]
+	stage.Started = time.Now().UnixMilli()
+	ts.data[key] = stage
+}
+
+func (ts *TaskStages) FinishStage(key string) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	stage := ts.data[key]
+
+	stage.Finished = time.Now().UnixMilli()
+	ts.data[key] = stage
+}
+
+func (ts *TaskStages) MarshalJSON() ([]byte, error) {
+	ts.mu.Lock()
+
+	var data []TaskStage
+	for _, stage := range ts.data {
+		data = append(data, stage)
+	}
+
+	ts.mu.Unlock()
+
+	slices.SortFunc(data, func(i, j TaskStage) int { return i.index - j.index })
+	return json.Marshal(data)
+}
+
+func NewBackupTaskStages() *TaskStages {
+	return &TaskStages{
+		data: map[string]TaskStage{
+			"connecting":         {Key: "connecting", Name: "Connecting to Remote", index: 0},
+			"fetching_users":     {Key: "fetching_users", Name: "Fetching Users", index: 1},
+			"writing_users":      {Key: "writing_users", Name: "Writing Users", index: 2},
+			"fetching_keys":      {Key: "fetching_keys", Name: "Fetching Api Keys", index: 3},
+			"writing_keys":       {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
+			"fetching_instances": {Key: "fetching_instances", Name: "Fetching Instances", index: 5},
+			"writing_instances":  {Key: "writing_instances", Name: "Writing Instances", index: 6},
+			"sync_journal":       {Key: "sync_journal", Name: "Calculating New File History", index: 7},
+			"sync_fs":            {Key: "sync_fs", Name: "Sync Filesystem", index: 8},
+		},
+	}
 }

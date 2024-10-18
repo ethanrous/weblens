@@ -373,6 +373,12 @@ func loginUser(ctx *gin.Context) {
 		return
 	}
 
+	if !u.Activated {
+		log.Warning.Printf("[%s] attempted login but is not activated", u.Username)
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
 	if u.CheckLogin(userCredentials.Password) {
 		log.Debug.Printf("Valid login for [%s]\n", userCredentials.Username)
 
@@ -758,7 +764,7 @@ func getApiKeys(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"keys": keys})
+	ctx.JSON(http.StatusOK, keys)
 }
 
 func deleteApiKey(ctx *gin.Context) {

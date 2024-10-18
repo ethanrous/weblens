@@ -270,7 +270,7 @@ const WeblensButton = memo(
 
         const maxWidth = useMemo(() => {
             if (fillWidth) {
-                return '100%'
+                return ''
             }
             if (!label) {
                 return squareSize
@@ -306,7 +306,7 @@ const WeblensButton = memo(
                             transform: `translateY(${squareSize / 2 + 25}px)`,
                         }}
                     >
-                        <p className="text-white">{tooltip}</p>
+                        <p className="text-white text-nowrap">{tooltip}</p>
                     </div>
                 )}
                 <div

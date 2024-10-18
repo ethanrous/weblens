@@ -61,6 +61,11 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	require.NoError(t, err)
 	defer trashCol.Drop(context.Background())
 
+	folderMediaCol := mondb.Collection(t.Name() + "folderMedia")
+	err = folderMediaCol.Drop(context.Background())
+	require.NoError(t, err)
+	defer folderMediaCol.Drop(context.Background())
+
 	journalCol := mondb.Collection(t.Name() + "journal")
 	err = journalCol.Drop(context.Background())
 	require.NoError(t, err)
@@ -114,7 +119,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		instanceService, userService, accessService, mediaService, trashCol, usersTree, cacheTree, restoreTree,
+		instanceService, userService, accessService, mediaService, trashCol, folderMediaCol, usersTree, cacheTree, restoreTree,
 	)
 	require.NoError(t, err)
 
@@ -201,6 +206,11 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	require.NoError(t, err)
 	defer trashCol.Drop(context.Background())
 
+	folderMediaCol := mondb.Collection(t.Name() + "folderMedia")
+	err = folderMediaCol.Drop(context.Background())
+	require.NoError(t, err)
+	defer folderMediaCol.Drop(context.Background())
+
 	journalCol := mondb.Collection(t.Name() + "journal")
 	err = journalCol.Drop(context.Background())
 	require.NoError(t, err)
@@ -220,15 +230,20 @@ func TestFileService_Restore_Directory(t *testing.T) {
 		hasher := mock.NewMockHasher()
 		hasher.SetShouldCount(true)
 		return hasher
-
 	}
+
 	journal, err := fileTree.NewJournal(journalCol, "TEST-SERVER", false, hasherFactory)
 	require.NoError(t, err)
 	usersTree.SetJournal(journal)
 
-	cacheTree, err := NewTestFileTree()
-	require.NoError(t, err)
+	// cacheTree, err := NewTestFileTree()
+	// require.NoError(t, err)
+	// err = cacheTree.SetRootAlias("CACHES")
+	// require.NoError(t, err)
+
 	restoreTree, err := NewTestFileTree()
+	require.NoError(t, err)
+	err = restoreTree.SetRootAlias("RESTORE")
 	require.NoError(t, err)
 
 	userService, err := service.NewUserService(usersCol)
@@ -244,7 +259,7 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		instanceService, userService, accessService, mediaService, trashCol, usersTree, cacheTree, restoreTree,
+		instanceService, userService, accessService, mediaService, trashCol, folderMediaCol, usersTree, restoreTree,
 	)
 	require.NoError(t, err)
 

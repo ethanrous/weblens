@@ -2,11 +2,11 @@ import { IconFile, IconFolder } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { autocompletePath, searchFilenames } from '@weblens/api/ApiFetch'
 import { useResize } from '@weblens/components/hooks'
+import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { WeblensFileInfo } from '@weblens/types/files/File'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FixedSizeList as WindowList, List } from 'react-window'
 
 enum SearchModeT {
@@ -16,10 +16,11 @@ enum SearchModeT {
 }
 
 function SearchResult({ data, index, style }) {
-    const alreadyHere =
-        data.files[index].isDir && data.files[index].id === data.folderInfo.id
+    // const alreadyHere =
+    //     data.files[index].isDir && data.files[index].id === data.folderInfo.id
+    const alreadyHere = false
 
-    let preText
+    let preText: string
     if (data.searchType === SearchModeT.path) {
         preText =
             '~/' +
@@ -39,7 +40,9 @@ function SearchResult({ data, index, style }) {
             key={data.files[index].id}
             className="flex rounded p-2 gap-1 items-center justify-between cursor-pointer h-10 max-w-full"
             onMouseOver={() => data.setHighlightIndex(index)}
-            onClick={() => {
+            onClick={(e) => {
+                console.log('clicked')
+                e.stopPropagation()
                 const f = data.files[index]
                 data.visitHighlighted(f)
             }}
@@ -81,19 +84,25 @@ function SearchResult({ data, index, style }) {
     )
 }
 
-export default function SearchDialogue() {
+export default function SearchDialogue({
+    text = '',
+    visitFunc,
+}: {
+    text: string
+    visitFunc: (l: string) => void
+}) {
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const setIsSearching = useFileBrowserStore((state) => state.setIsSearching)
-    const nav = useNavigate()
+    const user = useSessionStore((state) => state.user)
 
-    const [search, setSearch] = useState<string>('')
+    const [search, setSearch] = useState<string>(text)
     const [highlightIndex, setHighlightIndex] = useState(-1)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const containerSize = useResize(containerRef)
     const resultsRef = useRef<List>()
 
     const [files, setFiles] = useState<WeblensFileInfo[]>([])
-    const searchResult = useQuery({
+    const { data: searchResult } = useQuery({
         queryKey: ['albums', search],
         queryFn: async () => {
             if (search.startsWith('~/')) {
@@ -113,13 +122,15 @@ export default function SearchDialogue() {
     const visitHighlighted = useCallback(
         (f: WeblensFileInfo) => {
             if (search === '~') {
-                nav('/files/home')
-            } else if (!f || f.id === folderInfo.id) {
+                visitFunc(user.homeId)
+            } else if (search === '..') {
+                if (folderInfo.parentId) {
+                    visitFunc(folderInfo.parentId)
+                }
+            } else if (!f) {
                 return
-            } else if (f.isDir) {
-                nav(`/files/${f.id}`)
             } else {
-                nav(`/files/${f.parentId}?jumpTo=${f.id}`)
+                visitFunc(f.id)
             }
             setIsSearching(false)
         },
@@ -129,14 +140,14 @@ export default function SearchDialogue() {
     const selectNext = useCallback(
         (i) => {
             let newI = Math.min(i + 1, files.length - 1)
-            let newF = files[newI]
-            while (newF.isDir && newF.id === folderInfo.id) {
-                if (newI === files.length - 1) {
-                    return i
-                }
-                newI++
-                newF = files[newI]
-            }
+            // let newF = files[newI]
+            // while (newF.isDir && newF.id === folderInfo.id) {
+            //     if (newI === files.length - 1) {
+            //         return i
+            //     }
+            //     newI++
+            //     newF = files[newI]
+            // }
             return newI
         },
         [files]
@@ -151,10 +162,10 @@ export default function SearchDialogue() {
     }, [selectNext])
 
     useEffect(() => {
-        if (searchResult.data) {
-            setFiles(searchResult.data)
+        if (searchResult) {
+            setFiles(searchResult)
         }
-    }, [searchResult.data])
+    }, [searchResult])
 
     let searchType = SearchModeT.global
     if (search.startsWith('~/')) {
@@ -163,11 +174,22 @@ export default function SearchDialogue() {
         searchType = SearchModeT.local
     }
 
+    const resultsData = {
+        files,
+        highlightIndex,
+        setHighlightIndex,
+        folderInfo,
+        visitHighlighted,
+        searchType,
+    }
+
     return (
         <div
-            className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088]"
+            ref={setContainerRef}
+            className="flex w-full h-full"
             onKeyDown={(e) => {
-                if (e.key === 'ArrowUp') {
+                console.log(e.ctrlKey)
+                if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
                     e.preventDefault()
                     e.stopPropagation()
 
@@ -183,103 +205,85 @@ export default function SearchDialogue() {
 
                     resultsRef.current.scrollToItem(newI, 'smart')
                     setHighlightIndex(newI)
-                }
-                if (e.key === 'ArrowDown') {
+                } else if (
+                    e.key === 'ArrowDown' ||
+                    (e.ctrlKey && e.key === 'j')
+                ) {
                     e.preventDefault()
                     e.stopPropagation()
                     const newI = selectNext(highlightIndex)
                     resultsRef.current.scrollToItem(newI, 'smart')
                     setHighlightIndex(newI)
-                }
-                if (e.key === 'Enter') {
+                } else if (e.key === 'Enter') {
                     e.stopPropagation()
-                    const f = searchResult.data[highlightIndex]
+                    const f = searchResult[highlightIndex]
                     visitHighlighted(f)
-                }
-                if (e.key === 'Tab') {
+                } else if (e.key === 'Tab') {
                     e.preventDefault()
                     e.stopPropagation()
-                    const portable =
-                        searchResult.data[highlightIndex].portablePath
+                    const portable = searchResult[highlightIndex].portablePath
 
                     setSearch('~/' + portable.slice(portable.indexOf('/') + 1))
                 }
             }}
         >
-            <div
-                ref={setContainerRef}
-                className="flex h-[50%] max-h-[50%] w-[500px]"
-            >
-                <div className="flex flex-col items-center w-max h-max max-h-full p-2 bg-[#1F1D2A] rounded-lg relative">
-                    <div className="flex shrink-0 h-16 m-3 w-full">
-                        <WeblensInput
-                            value={search}
-                            placeholder={'Where To?'}
-                            valueCallback={setSearch}
-                            autoFocus
-                            fillWidth
-                            closeInput={() => setIsSearching(false)}
-                            ignoreKeys={[
-                                'ArrowDown',
-                                'ArrowUp',
-                                'Enter',
-                                'Tab',
-                            ]}
-                        />
-                    </div>
-                    <div className="flex flex-col max-h-full h-full gap-1 w-full relative">
-                        <WindowList
-                            ref={resultsRef}
-                            className="no-scrollbar"
-                            height={Math.min(
-                                files.length * 44,
-                                containerSize.height - 104
-                            )}
-                            width={containerSize.width - 16}
-                            itemSize={44}
-                            itemCount={files.length}
-                            itemData={{
-                                files,
-                                highlightIndex,
-                                setHighlightIndex,
-                                folderInfo,
-                                visitHighlighted,
-                                searchType,
-                            }}
-                        >
-                            {SearchResult}
-                        </WindowList>
-                    </div>
-
-                    {search == '~' && (
-                        <div className="flex items-center gap-1 text-sm">
-                            <div className="p-1 rounded bg-background h-max ">
-                                <p>Enter</p>
-                            </div>
-                            <p>to go home</p>
-                        </div>
-                    )}
-                    {search.length === 0 && (
-                        <div className="flex flex-row items-center gap-1 select-none text-sm">
-                            <div className="p-1 rounded bg-background h-max">
-                                <p>Tab</p>
-                            </div>
-                            <p className="mr-1">to fill</p>
-                            <div className="p-1 rounded bg-background h-max">
-                                <p>Enter</p>
-                            </div>
-                            <p className="mr-1">to navigate</p>
-                            <div className="p-1 rounded bg-background h-max">
-                                <p>~/</p>
-                            </div>
-                            <p className="mr-1">or</p>
-                            <div className="p-1 rounded bg-background h-max">
-                                <p>./</p>
-                            </div>
-                            <p>to find by path</p>
-                        </div>
-                    )}
+            <div className="flex flex-col items-center h-max max-h-full p-2 bg-wl-barely-visible rounded-lg relative">
+                <div className="flex shrink-0 h-16 m-3 w-full">
+                    <WeblensInput
+                        value={search}
+                        placeholder={'Where To?'}
+                        valueCallback={setSearch}
+                        autoFocus
+                        fillWidth
+                        closeInput={() => setIsSearching(false)}
+                        ignoreKeys={['ArrowDown', 'ArrowUp', 'Enter', 'Tab']}
+                    />
                 </div>
+                <div className="flex flex-col max-h-full h-full gap-1 w-full relative">
+                    <WindowList
+                        ref={resultsRef}
+                        className="no-scrollbar"
+                        height={Math.min(
+                            files.length * 44,
+                            containerSize.height - 104
+                        )}
+                        width={containerSize.width - 16}
+                        itemSize={44}
+                        itemCount={files.length}
+                        itemData={resultsData}
+                    >
+                        {SearchResult}
+                    </WindowList>
+                </div>
+
+                {search == '~' && (
+                    <div className="flex items-center gap-1 text-sm">
+                        <p className="p-1 rounded bg-background h-max text-white">
+                            Enter
+                        </p>
+                        <p>to go home</p>
+                    </div>
+                )}
+                {search.length === 0 && (
+                    <div className="flex flex-row items-center gap-1 select-none text-sm text-nowrap">
+                        <p className="p-1 rounded bg-background h-max text-white">
+                            Tab
+                        </p>
+                        <p className="mr-1">to fill</p>
+                        <p className="p-1 rounded bg-background h-max text-white">
+                            Enter
+                        </p>
+                        <p className="mr-1">to navigate</p>
+                        <p className="p-1 rounded bg-background h-max text-white">
+                            ~/
+                        </p>
+                        <p className="mr-1">or</p>
+                        <p className="p-1 rounded bg-background h-max text-white">
+                            ./
+                        </p>
+                        <p>to find by path</p>
+                    </div>
+                )}
             </div>
         </div>
     )

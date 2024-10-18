@@ -64,39 +64,43 @@ export const FileInfoPane = () => {
                     }}
                 />
             </div>
-            <div
-                draggable={false}
-                className="resize-bar-wrapper"
-                onMouseDown={(e) => {
-                    e.preventDefault()
-                    setResizing(true)
-                }}
-            >
-                <div className="resize-bar" />
-            </div>
-            <div className="flex flex-col w-[75px] grow h-full">
-                <div className="flex flex-row h-max w-full gap-1 justify-between p-1 pl-0">
-                    <WeblensButton
-                        fillWidth
-                        centerContent
-                        label="File Info"
-                        squareSize={50}
-                        toggleOn={tab === 'info'}
-                        onClick={() => setTab('info')}
-                    />
+            {open && (
+                <div className="flex h-full w-full">
+                    <div
+                        draggable={false}
+                        className="resize-bar-wrapper"
+                        onMouseDown={(e) => {
+                            e.preventDefault()
+                            setResizing(true)
+                        }}
+                    >
+                        <div className="resize-bar" />
+                    </div>
+                    <div className="flex flex-col w-[75px] grow h-full">
+                        <div className="flex flex-row h-max w-full gap-1 justify-between p-1 pl-0">
+                            <WeblensButton
+                                fillWidth
+                                centerContent
+                                label="File Info"
+                                squareSize={50}
+                                toggleOn={tab === 'info'}
+                                onClick={() => setTab('info')}
+                            />
 
-                    <WeblensButton
-                        fillWidth
-                        centerContent
-                        label="History"
-                        squareSize={50}
-                        toggleOn={tab === 'history'}
-                        onClick={() => setTab('history')}
-                    />
+                            <WeblensButton
+                                fillWidth
+                                centerContent
+                                label="History"
+                                squareSize={50}
+                                toggleOn={tab === 'history'}
+                                onClick={() => setTab('history')}
+                            />
+                        </div>
+                        {tab === 'info' && open && <FileInfo />}
+                        {tab === 'history' && open && <FileHistory />}
+                    </div>
                 </div>
-                {tab === 'info' && open && <FileInfo />}
-                {tab === 'history' && open && <FileHistory />}
-            </div>
+            )}
         </div>
     )
 }

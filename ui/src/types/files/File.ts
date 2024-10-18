@@ -66,7 +66,7 @@ export class WeblensFile {
     owner?: string
     filename?: string
     portablePath?: string
-    parentFolderId?: string
+    parentId?: string
 
     modifyDate?: Date
 
@@ -82,11 +82,11 @@ export class WeblensFile {
 
     // Non-api props
     parents?: WeblensFile[]
-    visible?: boolean
-    private selected: SelectedState
     hovering?: boolean
     index?: number
+    visible?: boolean
 
+    private selected: SelectedState
     private contentId: string
     private share: WeblensShare
 
@@ -126,7 +126,7 @@ export class WeblensFile {
     }
 
     ParentId(): string {
-        return this.parentFolderId
+        return this.parentId
     }
 
     SetParents(parents: WeblensFile[]) {
@@ -197,7 +197,7 @@ export class WeblensFile {
         return this.isDir
     }
 
-    GetMediaId(): string {
+    GetContentId(): string {
         return this.contentId
     }
 
@@ -358,4 +358,5 @@ export enum FbMenuModeT {
     NameFolder,
     AddToAlbum,
     RenameFile,
+    SearchForFile,
 }

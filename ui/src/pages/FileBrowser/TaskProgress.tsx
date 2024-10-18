@@ -1,13 +1,18 @@
-import { Text } from '@mantine/core'
 import { IconX } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 
 import WeblensProgress from '@weblens/lib/WeblensProgress'
-import { TaskProgContext } from '@weblens/types/files/FBTypes'
 import { nsToHumanTime } from '@weblens/util'
-import { Dispatch, useContext, useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { WebsocketContext } from '../../Context'
 import { create, StateCreator } from 'zustand'
+
+export type TaskStageT = {
+    key: string
+    name: string
+    started: number
+    finished: number
+}
 
 export class TaskProgressState {
     private tasks: Map<string, TaskProgress>
@@ -180,6 +185,7 @@ export class TaskProgress {
     target: string
     workingOn: string
     note: string
+    error: string
 
     timeNs: number
     progressPercent: number
@@ -190,6 +196,8 @@ export class TaskProgress {
     stage: TaskStage
 
     hidden: boolean
+
+    progMeta
 
     constructor(serverId: string, taskType: string) {
         if (!serverId || !taskType) {
@@ -310,8 +318,8 @@ export const TasksDisplay = () => {
                     clearTasks()
                 }}
             />
-            <div className="flex shrink w-full overflow-y-scroll h-full pb-4 no-scrollbar">
-                <div className="flex flex-col h-max w-full">{cards}</div>
+            <div className="flex shrink w-full overflow-y-scroll h-full pb-4 pt-2 no-scrollbar">
+                <div className="flex flex-col h-max w-full gap-2">{cards}</div>
             </div>
         </div>
     )
@@ -394,33 +402,26 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                 </div>
             )}
 
-            <div className="flex flex-row w-full justify-between h-max gap-3 mt-2">
-                {prog.stage === TaskStage.Complete && (
-                    <Text
-                        size="10px"
-                        style={{ width: 'max-content', userSelect: 'none' }}
-                    >
-                        Finished{' '}
-                        {prog.timeNs !== 0 ? `in ${prog.getTime()}` : ''}
-                    </Text>
-                )}
-                {prog.stage === TaskStage.Queued && (
-                    <Text
-                        size="10px"
-                        style={{ width: 'max-content', userSelect: 'none' }}
-                    >
-                        Queued...
-                    </Text>
-                )}
-                {prog.stage === TaskStage.Failure && (
-                    <Text
-                        size="10px"
-                        style={{ width: 'max-content', userSelect: 'none' }}
-                    >
-                        {prog.note}
-                    </Text>
-                )}
-            </div>
+            {prog.stage !== TaskStage.InProgress && (
+                <div className="flex flex-row w-full justify-between h-max gap-3 mt-2">
+                    {prog.stage === TaskStage.Complete && (
+                        <p className="text-sm w-max select-none truncate">
+                            Finished{' '}
+                            {prog.timeNs !== 0 ? `in ${prog.getTime()}` : ''}
+                        </p>
+                    )}
+                    {prog.stage === TaskStage.Queued && (
+                        <p className="text-sm w-max select-none truncate">
+                            Queued...
+                        </p>
+                    )}
+                    {prog.stage === TaskStage.Failure && (
+                        <p className="text-sm w-max select-none truncate">
+                            {prog.note}
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
@@ -442,137 +443,15 @@ export type TasksProgressAction = {
     tasksTotal?: number | string
 }
 
-// export type TasksProgressDispatch = Dispatch<TasksProgressAction>
-
-export function taskProgressReducer(
-    state: TaskProgressState,
-    action: TasksProgressAction
-): TaskProgressState {
-    // Ensure any taskIds coming in as poolIds are translated to their parent tasks
-    if (action.taskId) {
-        const task = state.getTask(action.taskId)
-        if (task) {
-            action.taskId = task.taskId
-        }
-    }
-
-    try {
-        switch (action.type) {
-            case 'new_task': {
-                const prog = new TaskProgress(action.taskId, action.taskType)
-                prog.setTarget(action.target)
-                state.addTask(prog)
-
-                break
-            }
-            case 'task_complete': {
-                state.setTaskStage(action.taskId, TaskStage.Complete)
-
-                if (action.time) {
-                    state.setTaskTime(action.taskId, action.time)
-                }
-                if (action.note) {
-                    state.setTaskNote(action.taskId, action.note)
-                }
-
-                break
-            }
-
-            case 'task_failure': {
-                state.setTaskStage(action.taskId, TaskStage.Failure)
-                if (action.note) {
-                    state.setTaskNote(action.taskId, action.note)
-                }
-
-                break
-            }
-
-            case 'task_cancelled': {
-                state.setTaskStage(action.taskId, TaskStage.Cancelled)
-                break
-            }
-
-            case 'update_scan_progress': {
-                if (!state.has(action.taskId)) {
-                    state.addTask(
-                        new TaskProgress(action.taskId, action.taskType)
-                    )
-                    break
-                    // task = new TaskProgress(action.taskId, action.taskType);
-                    // state.addTask(task);
-                }
-
-                state.setTaskStage(action.taskId, TaskStage.InProgress)
-
-                state.updateTaskProgress(
-                    action.taskId,
-                    action.progress,
-                    action.tasksComplete,
-                    action.tasksFailed,
-                    action.tasksTotal
-                )
-
-                state.setWorkingOn(action.taskId, action.workingOn)
-                state.setTaskTarget(action.taskId, action.target)
-                state.setTaskNote(action.taskId, action.note)
-
-                break
-            }
-
-            case 'add_pool_to_progress': {
-                if (!state.has(action.taskId)) {
-                    const newTask = new TaskProgress(
-                        action.taskId,
-                        action.taskType
-                    )
-                    state.addTask(newTask)
-                }
-                state.linkPoolToTask(action.taskId, action.poolId)
-                break
-            }
-
-            case 'remove_task_progress': {
-                state.removeTask(action.taskId)
-                break
-            }
-
-            case 'clear_tasks': {
-                for (const task of state.getTasks()) {
-                    if (task.getTaskStage() === TaskStage.Complete) {
-                        state.removeTask(task.GetTaskId())
-                    }
-                }
-                break
-            }
-
-            case 'refresh': {
-                break
-            }
-
-            default: {
-                console.error(
-                    'Unknown action type in task progress reducer ',
-                    action.type
-                )
-                return state
-            }
-        }
-    } catch (e) {
-        console.error(
-            'Exception in task progress reducer:',
-            e,
-            'action:',
-            action
-        )
-        return state
-    }
-
-    return new TaskProgressState(state)
-}
-
 export type NewTaskOptions = {
     target?: string
     progress?: number
+}
+
+enum TaskType {
+    ScanDirectory = 'scan_directory',
+    CreateZip = 'create_zip',
+    DownloadFile = 'download_file',
 }
 
 type TaskStateT = {
@@ -581,6 +460,10 @@ type TaskStateT = {
     addTask: (taskId: string, taskType: string, opts?: NewTaskOptions) => void
     removeTask: (taskId: string) => void
     clearTasks: () => void
+    updateTaskProgress: (taskId: string, opts) => void
+    handleTaskCompete: (taskId: string, time: number, note: string) => void
+    handleTaskFailure: (taskId: string, error: string) => void
+    handleTaskCancel: (taskId: string) => void
 }
 
 const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
@@ -611,6 +494,67 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
 
     clearTasks: () => {
         set({ tasks: new Map<string, TaskProgress>() })
+    },
+
+    handleTaskCompete: (taskId: string, time: number, note: string) => {
+        set((state) => {
+            const task = state.tasks.get(taskId)
+            if (!task) {
+                return state
+            }
+
+            task.timeNs = time
+            task.note = note
+            task.stage = TaskStage.Complete
+
+            state.tasks.set(taskId, task)
+            return { tasks: new Map<string, TaskProgress>(state.tasks) }
+        })
+    },
+
+    handleTaskFailure: (taskId: string, error: string) => {
+        set((state) => {
+            const task = state.tasks.get(taskId)
+            if (!task) {
+                console.error('Could not find task to set failure', taskId)
+                return state
+            }
+
+            task.stage = TaskStage.Failure
+            task.error = error
+
+            state.tasks.set(taskId, task)
+            return { tasks: new Map<string, TaskProgress>(state.tasks) }
+        })
+    },
+
+    handleTaskCancel: (taskId: string) => {
+        console.error('handleTaskCancel not impl')
+    },
+
+    updateTaskProgress: (taskId: string, opts) => {
+        set((state) => {
+            const task = state.tasks.get(taskId)
+            if (!task) {
+                console.error('Could not find task to update progress', taskId)
+                return state
+            }
+
+            task.progressPercent = opts.progress
+            task.stage = TaskStage.InProgress
+            switch (task.taskType) {
+                case TaskType.ScanDirectory:
+                case TaskType.CreateZip:
+                    task.workingOn = opts.workingOn
+                    task.tasksComplete = opts.tasksComplete
+                    task.tasksTotal = opts.tasksTotal
+            }
+
+            task.progMeta = { ...task.progMeta, ...opts }
+
+            state.tasks.set(taskId, task)
+            return { tasks: new Map<string, TaskProgress>(state.tasks) }
+        })
     },
 })
 

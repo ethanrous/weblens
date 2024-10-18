@@ -1,3 +1,4 @@
+import { IconFolder } from '@tabler/icons-react'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { IconDisplay } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 
@@ -23,8 +24,21 @@ const FileGridVisual = ({ file }) => {
     )
 }
 
-export const FileTextBox = ({ itemTitle }) => {
-    return <p className="file-text">{itemTitle}</p>
+export const FileTextBox = ({
+    itemTitle,
+    doFolderIcon,
+}: {
+    itemTitle: string
+    doFolderIcon: boolean
+}) => {
+    return (
+        <div className="flex items-center justify-between w-[95%]">
+            <p className="file-text">{itemTitle}</p>
+            {doFolderIcon && (
+                <IconFolder className="text-theme-text" stroke={3} />
+            )}
+        </div>
+    )
 }
 
 export const FileSquare = ({ file }: { file: WeblensFile }) => {
@@ -138,7 +152,10 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                 <p className="file-size-text">{file.FormatSize()}</p>
             </div>
             <div className="file-text-container" style={{ height: '16%' }}>
-                <FileTextBox itemTitle={file.GetFilename()} />
+                <FileTextBox
+                    itemTitle={file.GetFilename()}
+                    doFolderIcon={file.IsFolder() && file.GetContentId() !== ''}
+                />
             </div>
         </div>
     )

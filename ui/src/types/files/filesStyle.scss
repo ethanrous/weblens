@@ -120,6 +120,7 @@
 .file-size-box {
     user-select: none;
     position: absolute;
+    z-index: 20;
     font-size: max(min(1vw, 12px), 12px);
     top: 12px;
     right: 12px;

@@ -307,24 +307,31 @@ export function useOnScreen(ref: RefObject<HTMLElement>) {
     return isIntersecting
 }
 
-export const useTimer = (startTime: Date) => {
+export const useTimer = (startTime: Date, startPaused?: boolean) => {
     const [elapsedTime, setElapsedTime] = useState(
         startTime ? Date.now() - startTime.getTime() : 0
     )
     const [isRunning, setIsRunning] = useState(false)
     const countRef = useRef(null)
 
-    useEffect(() => {
-        clearInterval(countRef.current)
-        if (!startTime) {
+    const handleStart = () => {
+        if (isRunning) {
             return
         }
         setIsRunning(true)
         setElapsedTime(0)
-        const startNum = startTime.getTime()
+        const startNum = startTime ? startTime.getTime() : 0
         countRef.current = setInterval(() => {
             setElapsedTime(Date.now() - startNum)
-        }, 100)
+        }, 27)
+    }
+
+    useEffect(() => {
+        clearInterval(countRef.current)
+        if (!startTime || startPaused == false) {
+            return
+        }
+        handleStart()
     }, [startTime])
 
     const handlePause = () => {
@@ -338,5 +345,5 @@ export const useTimer = (startTime: Date) => {
         setElapsedTime(0)
     }
 
-    return { elapsedTime, isRunning, handlePause, handleReset }
+    return { elapsedTime, isRunning, handleStart, handlePause, handleReset }
 }

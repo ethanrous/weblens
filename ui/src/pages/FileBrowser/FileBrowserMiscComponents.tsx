@@ -314,7 +314,7 @@ export const IconDisplay = ({
     const [containerRef, setContainerRef] = useState(null)
     const containerSize = useResize(containerRef)
     const mediaData = useMediaStore((state) =>
-        state.mediaMap.get(file.GetMediaId())
+        state.mediaMap.get(file.GetContentId())
     )
 
     if (!file) {
@@ -322,12 +322,32 @@ export const IconDisplay = ({
     }
 
     if (file.IsFolder()) {
-        return (
-            <IconFolder
-                stroke={1}
-                className="w-3/4 h-3/4 shrink-0 text-[--wl-text-color]"
-            />
-        )
+        if (file.GetContentId() !== '') {
+            return (
+                <div className="relative flex w-full h-full justify-center items-center">
+                    {/* <IconFolder */}
+                    {/*     stroke={0} */}
+                    {/*     fill={'white'} */}
+                    {/*     className="absolute h-1/4 w-1/4 z-10 shrink-0 text-[--wl-text-color] bottom-[12%] right-[3%]" */}
+                    {/* /> */}
+                    <div className="relative w-[90%] h-[90%] -translate-x-1 -translate-y-1 z-10">
+                        <MediaImage
+                            media={mediaData}
+                            quality={PhotoQuality.LowRes}
+                        />
+                    </div>
+                    <div className="absolute w-[88%] h-[88%] translate-x-[2px] translate-y-[2px] outline outline-2 outline-theme-text opacity-75 rounded" />
+                    <div className="absolute w-[88%] h-[88%] translate-x-[8px] translate-y-[8px] outline outline-2 outline-theme-text opacity-50 rounded" />
+                </div>
+            )
+        } else {
+            return (
+                <IconFolder
+                    stroke={1}
+                    className="h-3/4 w-3/4 z-10 shrink-0 text-[--wl-text-color]"
+                />
+            )
+        }
     }
 
     if (mediaData && (!mediaData.IsImported() || !allowMedia)) {

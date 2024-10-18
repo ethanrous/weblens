@@ -21,8 +21,9 @@ type ClientManager interface {
 	GetAllClients() []*WsClient
 	GetConnectedAdmins() []*WsClient
 
-	FolderSubToPool(folderId fileTree.FileId, poolId task.Id)
-	TaskSubToPool(taskId task.Id, poolId task.Id)
+	// FolderSubToPool(folderId fileTree.FileId, poolId task.Id)
+	// TaskSubToPool(taskId task.Id, poolId task.Id)
+	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
 
 	Subscribe(c *WsClient, key SubId, action WsAction, subTime time.Time, share Share) (
 		complete bool, results map[string]any, err error,

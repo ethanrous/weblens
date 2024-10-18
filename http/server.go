@@ -144,6 +144,7 @@ func (s *Server) UseApi() {
 	api.GET("/folder/:folderId", getFolder)
 	api.GET("/folder/:folderId/search", searchFolder)
 	api.POST("/folder", createFolder)
+	api.PATCH("/folder/:folderId/cover", setFolderCover)
 
 	// Folders
 	api.GET("/folders/media", getFoldersMedia)

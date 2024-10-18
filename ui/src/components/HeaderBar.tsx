@@ -211,7 +211,7 @@ const HeaderBar = memo(
                     />
                 )}
 
-                {(admin || server.info.ole === 'backup') && (
+                {(admin || server.info.role === 'backup') && (
                     <Admin closeAdminMenu={() => setAdmin(false)} />
                 )}
 
@@ -223,6 +223,15 @@ const HeaderBar = memo(
                         <div className="p-1" />
                         {user !== null && (
                             <div className="flex flex-row items-center w-[140px] grow">
+                                <WeblensButton
+                                    label="Files"
+                                    squareSize={36}
+                                    textMin={50}
+                                    centerContent
+                                    toggleOn={loc.pathname.startsWith('/files')}
+                                    Left={IconFolder}
+                                    onClick={navToFiles}
+                                />
                                 <WeblensButton
                                     label="Timeline"
                                     squareSize={36}
@@ -250,15 +259,6 @@ const HeaderBar = memo(
                                         server.info.role === 'backup' ||
                                         !user.isLoggedIn
                                     }
-                                />
-                                <WeblensButton
-                                    label="Files"
-                                    squareSize={36}
-                                    textMin={50}
-                                    centerContent
-                                    toggleOn={loc.pathname.startsWith('/files')}
-                                    Left={IconFolder}
-                                    onClick={navToFiles}
                                 />
                             </div>
                         )}

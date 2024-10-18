@@ -62,7 +62,11 @@ const WeblensRoutes = () => {
         if (!server) {
             return
         }
-        if (loc.pathname !== '/setup' && server.info.role === 'init') {
+        // if (loc.pathname !== '/login' && user?.isLoggedIn === false) {
+        //     console.debug('Nav login')
+        //     nav('/login')
+        // }
+        else if (loc.pathname !== '/setup' && server.info.role === 'init') {
             console.debug('Nav setup')
             nav('/setup')
         } else if (loc.pathname === '/setup' && server.info.role === 'core') {

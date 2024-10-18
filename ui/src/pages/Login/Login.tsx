@@ -1,4 +1,4 @@
-import { Divider, Space } from '@mantine/core'
+import { Space } from '@mantine/core'
 import { login } from '@weblens/api/ApiFetch'
 import { useKeyDown } from '@weblens/components/hooks'
 import WeblensLogo from '@weblens/components/Logo'
@@ -42,10 +42,10 @@ const Login = () => {
     }, [])
 
     return (
-        <div className="flex flex-col h-screen w-screen items-center bg-wl-background pt-20">
+        <div className="flex flex-col h-screen max-h-screen w-screen items-center bg-wl-background pt-[8vh]">
             <WeblensLogo size={100} />
-            <div className="bg-wl-barely-visible flex flex-col justify-center items-center wl-outline p-6 w-[400px] max-w-[600px] max-h-max mt-48">
-                <h1 className="font-bold  m-6">Sign In</h1>
+            <div className="bg-wl-barely-visible flex flex-col justify-center items-center wl-outline p-6 w-[400px] max-w-[600px] max-h-[50vh] mt-[8vh]">
+                <h1 className="font-bold  m-[2vh]">Sign In</h1>
                 <p className="w-full font-semibold">Username</p>
                 <WeblensInput
                     value={userInput}
@@ -72,7 +72,7 @@ const Login = () => {
                 />
 
             </div>
-            <div className='flex flex-row items-center m-2 p-2 wl-outline-subtle'>
+            <div className='flex flex-row items-center m-8 p-4 wl-outline-subtle gap-2'>
                 <h3>New Here?</h3>
                 <WeblensButton label="Sign up" />
             </div>

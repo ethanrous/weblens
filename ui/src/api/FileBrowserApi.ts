@@ -1,16 +1,14 @@
 import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
+import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
 import { FolderInfo } from '@weblens/pages/FileBrowser/FileBrowser'
 import { FileAction } from '@weblens/pages/FileBrowser/FileInfoPane'
 import { WeblensFileParams } from '@weblens/types/files/File'
-import { AlbumData, TPDispatchT } from '@weblens/types/Types'
+import { AlbumData } from '@weblens/types/Types'
 import { humanFileSize } from '@weblens/util'
 import axios from 'axios'
 import API_ENDPOINT from './ApiEndpoint'
 import { useWebsocketStore, WsSendT } from './Websocket'
+import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
@@ -68,6 +66,14 @@ export function UnTrashFiles(fileIds: string[]) {
     return fetch(url.toString(), {
         method: 'PATCH',
         body: JSON.stringify(fileIds),
+    })
+}
+
+export function SetFolderImage(folderId: string, contentId: string) {
+    const url = new URL(`${API_ENDPOINT}/folder/${folderId}/cover`)
+    url.searchParams.append('mediaId', contentId)
+    return fetch(url.toString(), {
+        method: 'PATCH',
     })
 }
 
@@ -213,9 +219,8 @@ function downloadBlob(blob, filename) {
     return
 }
 
-export function downloadSingleFile(
+export async function downloadSingleFile(
     fileId: string,
-    progDispatch: TPDispatchT,
     filename: string,
     isZip: boolean,
     shareId: string
@@ -225,7 +230,7 @@ export function downloadSingleFile(
         return
     }
 
-    let url
+    let url: URL
     if (isZip) {
         url = new URL(`${API_ENDPOINT}/takeout/${fileId}`)
     } else {
@@ -236,12 +241,9 @@ export function downloadSingleFile(
     }
 
     const taskId = `DOWNLOAD_${fileId}`
-    progDispatch({
-        type: 'new_task',
-        taskId: taskId,
-        taskType: 'download_file',
-        target: filename,
-    })
+    useTaskState
+        .getState()
+        .addTask(taskId, 'download_file', { target: filename })
 
     return axios
         .get(url.toString(), {
@@ -251,23 +253,17 @@ export function downloadSingleFile(
                 const [rateSize, rateUnits] = humanFileSize(p.rate)
                 const [bytesSize, bytesUnits] = humanFileSize(p.loaded)
                 const [totalSize, totalUnits] = humanFileSize(p.total)
-                progDispatch({
-                    type: 'update_scan_progress',
+                useTaskState.getState().updateTaskProgress(taskId, {
                     progress: p.progress * 100,
-                    taskId: taskId,
                     workingOn: `${rateSize}${rateUnits}/s`,
                     tasksComplete: `${bytesSize}${bytesUnits}`,
                     tasksTotal: `${totalSize}${totalUnits}`,
-                    note: 'No note',
                 })
             },
         })
         .then((res) => {
             if (res.status === 200) {
-                progDispatch({
-                    type: 'task_complete',
-                    taskId: taskId,
-                })
+                useTaskState.getState().handleTaskCompete(taskId, 0, '')
                 return new Blob([res.data])
             } else {
                 return Promise.reject(res.statusText)

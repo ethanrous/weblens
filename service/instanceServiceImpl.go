@@ -158,6 +158,10 @@ func (is *InstanceServiceImpl) GetByInstanceId(serverId models.InstanceId) *mode
 	is.instanceMapLock.RLock()
 	defer is.instanceMapLock.RUnlock()
 
+	if serverId == is.local.ServerId() {
+		return is.local
+	}
+
 	for _, instance := range is.instanceMap {
 		if instance.Id == serverId && instance.CreatedBy == is.local.ServerId() {
 			return instance
@@ -322,7 +326,7 @@ func (is *InstanceServiceImpl) ResetAll() error {
 }
 
 func (is *InstanceServiceImpl) SetLastBackup(id models.InstanceId, lastBackup time.Time) error {
-	instance := is.Get(id)
+	instance := is.GetByInstanceId(id)
 	if instance == nil {
 		return werror.WithStack(werror.ErrNoInstance)
 	}

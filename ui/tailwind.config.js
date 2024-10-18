@@ -6,6 +6,7 @@ export default {
             colors: {
                 'dark-paper': 'var(--dark-paper)',
                 'theme-text': 'var(--wl-text-color)',
+                'theme-text-inverted': 'var(--wl-text-color-inverted)',
                 'wl-barely-visible': 'var(--wl-barely-visible)',
                 'wl-background': 'var(--wl-background)',
                 'wl-outline-subtle': 'var(--wl-outline-subtle)',

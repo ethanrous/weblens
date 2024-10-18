@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -255,26 +254,26 @@ func (cm *ClientManager) Subscribe(
 
 			c.PushTaskUpdate(t, models.TaskCreatedEvent, t.GetMeta().FormatToResult())
 		}
-	case models.PoolSubscribe:
-		{
-			pool := cm.pack.TaskService.GetTaskPool(key)
-			if pool == nil {
-				c.Error(errors.New(fmt.Sprintf("Could not find pool with id %s", key)))
-				return
-			} else if pool.IsGlobal() {
-				c.Error(errors.New("Trying to subscribe to global pool"))
-				return
-			}
-
-			sub = models.Subscription{Type: models.TaskSubscribe, Key: key, When: subTime}
-
-			c.PushPoolUpdate(
-				pool, models.PoolCreatedEvent, task.TaskResult{
-					"createdBy": pool.CreatedInTask().
-						TaskId(),
-				},
-			)
-		}
+	// case models.PoolSubscribe:
+	// 	{
+	// 		pool := cm.pack.TaskService.GetTaskPool(key)
+	// 		if pool == nil {
+	// 			c.Error(errors.New(fmt.Sprintf("Could not find pool with id %s", key)))
+	// 			return
+	// 		} else if pool.IsGlobal() {
+	// 			c.Error(errors.New("Trying to subscribe to global pool"))
+	// 			return
+	// 		}
+	//
+	// 		sub = models.Subscription{Type: models.TaskSubscribe, Key: key, When: subTime}
+	//
+	// 		c.PushPoolUpdate(
+	// 			pool, models.PoolCreatedEvent, task.TaskResult{
+	// 				"createdBy": pool.CreatedInTask().
+	// 					TaskId(),
+	// 			},
+	// 		)
+	// 	}
 	case models.TaskTypeSubscribe:
 		{
 			sub = models.Subscription{Type: models.TaskTypeSubscribe, Key: key, When: subTime}
@@ -349,32 +348,33 @@ func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *mo
 	}
 }
 
-func (cm *ClientManager) FolderSubToPool(folderId fileTree.FileId, poolId task.Id) {
+func (cm *ClientManager) FolderSubToTask(folderId fileTree.FileId, taskId task.Id) {
 	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
 
 	for _, s := range subs {
 		log.Trace.Printf(
-			"Subscribing U[%s] to P[%s] due to F[%s]", s.GetUser().GetUsername(),
-			poolId, folderId,
+			"Subscribing U[%s] to T[%s] due to F[%s]", s.GetUser().GetUsername(),
+			taskId, folderId,
 		)
-		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
+		_, _, err := cm.Subscribe(s, taskId, models.TaskSubscribe, time.Now(), nil)
 		if err != nil {
 			log.ShowErr(err)
 		}
 	}
 }
 
-func (cm *ClientManager) TaskSubToPool(taskId task.Id, poolId task.Id) {
-	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
-
-	for _, s := range subs {
-		log.Trace.Printf("Subscribing U[%s] to P[%s] due to F[%s] ", s.GetUser().GetUsername(), taskId, poolId)
-		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
-		if err != nil {
-			log.ShowErr(err)
-		}
-	}
-}
+//
+// func (cm *ClientManager) TaskSubToTask(taskId task.Id, poolId task.Id) {
+// 	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
+//
+// 	for _, s := range subs {
+// 		log.Trace.Printf("Subscribing U[%s] to P[%s] due to F[%s] ", s.GetUser().GetUsername(), taskId, poolId)
+// 		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
+// 		if err != nil {
+// 			log.ShowErr(err)
+// 		}
+// 	}
+// }
 
 func (cm *ClientManager) removeSubscription(
 	subInfo models.Subscription, client *models.WsClient, removeAll bool,
@@ -442,7 +442,8 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 			}
 		}
 	} else {
-		log.Trace.Println("No subscribers to", msg.SubscribeKey)
+		// log.TraceCaller(2, "No subscribers to [%s]", msg.SubscribeKey)
+		log.Trace.Printf("No subscribers to [%s]. Trying to send [%s]", msg.SubscribeKey, msg.EventTag)
 		return
 	}
 }

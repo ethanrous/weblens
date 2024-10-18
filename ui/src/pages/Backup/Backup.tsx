@@ -9,7 +9,7 @@ import {
 } from '@weblens/api/Websocket'
 import {
     backupPageWebsocketHandler,
-    BackupProgress,
+    BackupProgressT,
     RestoreProgress,
 } from './BackupLogic'
 import WeblensButton from '@weblens/lib/WeblensButton'
@@ -93,7 +93,7 @@ export default function Backup() {
     )
 
     const [backupProgress, setBackupProgress] = useState<
-        Map<string, BackupProgress>
+        Map<string, BackupProgressT>
     >(new Map())
 
     useEffect(() => {
@@ -110,7 +110,7 @@ export default function Backup() {
     const server = useSessionStore((state) => state.server)
     const nav = useNavigate()
     useEffect(() => {
-        if (server.info.role !== "" && server.info.role !== 'backup') {
+        if (server.info.role !== '' && server.info.role !== 'backup') {
             nav('/')
         }
     }, [])
@@ -142,6 +142,13 @@ export default function Backup() {
                             refetchRemotes={refetch}
                             restoreProgress={restoreStage}
                             backupProgress={backupProgress.get(remote.id)}
+                            setBackupProgress={(progress) => {
+                                setBackupProgress((old) => {
+                                    const newMap = new Map(old)
+                                    newMap.set(remote.id, progress)
+                                    return newMap
+                                })
+                            }}
                         />
                     )
                 })}

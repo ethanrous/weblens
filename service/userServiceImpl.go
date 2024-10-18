@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var _ models.UserService = (*UserServiceImpl)(nil)
+
 type UserServiceImpl struct {
 	userMap    map[models.Username]*models.User
 	userLock   sync.RWMutex
@@ -49,7 +51,7 @@ func NewUserService(col database.MongoCollection) (*UserServiceImpl, error) {
 	}
 	us.rootUser = &models.User{
 		Username:   "WEBLENS",
-		Admin: true,
+		Admin:      true,
 		SystemUser: true,
 	}
 

@@ -27,6 +27,10 @@ $menu-base-square-size: 250px;
     pointer-events: none;
 }
 
+.menu-body-below-header {
+    margin-top: $menu-title-height;
+}
+
 .backdrop-menu {
     display: flex;
     flex-direction: column;
@@ -80,6 +84,13 @@ $menu-base-square-size: 250px;
         width: 300px;
         max-width: 300px;
         height: 75px + $menu-title-height;
+    }
+
+    &[data-mode='6'] {
+        scale: 1;
+        width: max-content;
+        height: calc(40vh + $menu-title-height);
+
     }
 }
 

@@ -4,17 +4,18 @@ import {
     IconReload,
     IconRestore,
     IconTrash,
+    IconX,
 } from '@tabler/icons-react'
 import { deleteRemote, doBackup } from '@weblens/api/ApiFetch'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { ServerInfoT } from '@weblens/types/Types'
 import './remoteStatus.scss'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { launchRestore } from '@weblens/api/SystemApi'
 import {
-    BackupProgress,
+    BackupProgressT,
     RestoreProgress,
 } from '@weblens/pages/Backup/BackupLogic'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -23,17 +24,21 @@ import { humanFileSize, nsToHumanTime } from '@weblens/util'
 import './theme.scss'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
+import { Loader } from '@mantine/core'
+import { TaskStageT } from '@weblens/pages/FileBrowser/TaskProgress'
 
 export default function RemoteStatus({
     remoteInfo,
     refetchRemotes,
     restoreProgress,
     backupProgress,
+    setBackupProgress,
 }: {
     remoteInfo: ServerInfoT
     refetchRemotes: () => void
     restoreProgress: RestoreProgress
-    backupProgress: BackupProgress
+    backupProgress: BackupProgressT
+    setBackupProgress: (p: BackupProgressT) => void
 }) {
     const [restoring, setRestoring] = useState(false)
     const [restoreUrl, setRestoreUrl] = useState(remoteInfo.coreAddress)
@@ -43,7 +48,44 @@ export default function RemoteStatus({
         remoteInfo.role === 'core' &&
         (remoteInfo.reportedRole === '' ||
             remoteInfo.reportedRole !== remoteInfo.role)
-    const canSync = remoteInfo.online && !roleMismatch && (!backupProgress || backupProgress.error !== null)
+    const canSync =
+        remoteInfo.online &&
+        !roleMismatch &&
+        (!backupProgress || backupProgress.error !== null)
+
+    const backupHeaderText = useMemo(() => {
+        if (backupProgress) {
+            if (backupProgress.error) {
+                return (
+                    <div>
+                        <h4 className="text-red-500">Backup Failed</h4>
+                        <p className="text-red-500">{backupProgress.error}</p>
+                    </div>
+                )
+            } else if (backupProgress.totalTime) {
+                return (
+                    <div className="flex items-end gap-2">
+                        <h4>Backup Complete</h4>
+                        <p>{nsToHumanTime(backupProgress.totalTime)}</p>
+                        <div className="flex grow" />
+                        <WeblensButton
+                            Left={IconX}
+                            tooltip="Close"
+                            onClick={() => setBackupProgress(null)}
+                        />
+                    </div>
+                )
+            } else {
+                return (
+                    <div className="flex items-center gap-2">
+                        <h4>Backup In Progress</h4>
+                        <Loader size={16} color="white" />
+                    </div>
+                )
+            }
+        }
+        return ''
+    }, [backupProgress?.error, backupProgress?.totalTime])
 
     return (
         <div
@@ -54,18 +96,18 @@ export default function RemoteStatus({
         >
             <div className="remote-box">
                 <div className="flex flex-col gap-1">
-                    <div className="flex flex-row items-center gap-1">
+                    <div className="flex items-center gap-1">
                         <WeblensTooltip
                             label={`Remote Id (Click to Copy): ${remoteInfo.id}`}
                         >
-                            <p
+                            <h3
                                 className="theme-text-dark-bg font-semibold select-none cursor-pointer truncate"
                                 onClick={() =>
                                     navigator.clipboard.writeText(remoteInfo.id)
                                 }
                             >
-                                {remoteInfo.name} ({remoteInfo.role})
-                            </p>
+                                {remoteInfo.name}
+                            </h3>
                         </WeblensTooltip>
                         <WebsocketStatus ready={remoteInfo.online ? 1 : -1} />
                     </div>
@@ -76,8 +118,12 @@ export default function RemoteStatus({
                                 ? historyDate(remoteInfo.lastBackup)
                                 : 'Never'}
                         </p>
-                        <div className='w-[1px] bg-[--wl-outline-subtle] h-min-1 m-1'/>
-                        <p>{humanFileSize(remoteInfo.backupSize) }</p>
+                        {remoteInfo.backupSize != -1 && (
+                            <div className="flex">
+                                <div className="w-[1px] bg-[--wl-outline-subtle] h-min-1 m-1" />
+                                <p>{humanFileSize(remoteInfo.backupSize)}</p>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {roleMismatch && (
@@ -171,19 +217,18 @@ export default function RemoteStatus({
                     )}
                 </div>
             )}
-            {backupProgress && backupProgress.error && (
-                <div className="pt-4">
-                    <h4 className="text-lg font-semibold text-red-500">
-                        Backup Failed
-                    </h4>
-                    <p className="p-2 theme-text-dark-bg outline outline-red-500 rounded">
-                        {backupProgress.error}
-                    </p>
-                </div>
-            )}
-            {backupProgress && !backupProgress.error && (
-                <div className="pt-4">
-                    <p>{backupProgress.stage}</p>
+            {backupProgress && (
+                <div className="flex flex-col mt-4 pl-4 gap-2 border-l-2 border-wl-outline-subtle">
+                    <div className="flex flex-col gap-1 mb-2">
+                        {backupHeaderText}
+                    </div>
+                    {backupProgress.stages.map((s) => (
+                        <StageDisplay
+                            key={s.name}
+                            stage={s}
+                            error={backupProgress.error}
+                        />
+                    ))}
                     {backupProgress.progress_total && (
                         <WeblensProgress
                             value={
@@ -198,7 +243,7 @@ export default function RemoteStatus({
                             {Array.from(backupProgress.files).map(
                                 ([name, { start }]) => (
                                     <BackupFile
-                                        key={name}
+                                        key={`backup-file-${name}`}
                                         name={name}
                                         start={start}
                                     />
@@ -207,6 +252,50 @@ export default function RemoteStatus({
                         </div>
                     )}
                 </div>
+            )}
+        </div>
+    )
+}
+
+function StageDisplay({ stage, error }: { stage: TaskStageT; error?: string }) {
+    const [startTime, setStartTime] = useState<Date>()
+    const { elapsedTime, handlePause, isRunning, handleStart } = useTimer(
+        startTime,
+        true
+    )
+
+    useEffect(() => {
+        if (stage.started && !startTime?.getTime()) {
+            setStartTime(new Date(stage.started))
+        }
+    }, [stage.started])
+
+    useEffect(() => {
+        if (
+            isRunning &&
+            (!stage.started || (stage.started && stage.finished))
+        ) {
+            handlePause()
+        } else if (!isRunning && startTime && !stage.finished) {
+            handleStart()
+        }
+    }, [startTime, stage.finished, isRunning])
+
+    return (
+        <div className="flex flex-row justify-between gap-2 wl-outline-subtle max-w-full p-2 bg-wl-barely-visible overflow-hidden grow">
+            <p className="truncate">{stage.name}</p>
+            {Boolean(stage.started) && !stage.finished && !error && (
+                <p className="text-nowrap">
+                    {nsToHumanTime(elapsedTime * 1000000)}
+                </p>
+            )}
+            {Boolean(stage.started) && !stage.finished && error && (
+                <p className="text-nowrap text-red-500">Failed</p>
+            )}
+            {Boolean(stage.finished) && (
+                <p className="text-green-500">
+                    {nsToHumanTime((stage.finished - stage.started) * 1000000)}
+                </p>
             )}
         </div>
     )
