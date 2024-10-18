@@ -46,22 +46,26 @@ printf "Done\n"
 CONFIG_NAME=MOCK-CORE ./build/bin/weblens &> ./build/logs/core-test-target.log &
 printf "Launched core process\n"
 
-printf "Waiting up to 10s for Weblens startup... "
-counter=0
-while [ "$(curl -s --location 'http://localhost:8089/api/info' 2> /dev/null | jq '.started')" != "true" ]
-do
-  sleep 1
-  ((counter++))
-  if [ "$counter" -ge "10" ]; then
-    printf "\n"
-    echo "###########################################################################################"
-    cat ./build/logs/core-test-target.log
-    echo "###################################### ^ Core Logs ^ ######################################"
-    echo "ERR Failed to connect to weblens core after 10 seconds, exiting..."
-    return 1
-  fi
-done
-printf "Connected\n"
+function wait_for_startup () {
+  printf "Waiting up to 10s for Weblens startup... "
+  counter=0
+  while [ "$(curl -s --location 'http://localhost:8089/api/info' 2> /dev/null | jq '.started')" != "true" ]
+  do
+    sleep 1
+    ((counter++))
+    if [ "$counter" -ge "10" ]; then
+      printf "\n"
+      echo "###########################################################################################"
+      cat ./build/logs/core-test-target.log
+      echo "###################################### ^ Core Logs ^ ######################################"
+      echo "ERR Failed to connect to weblens core after 10 seconds, exiting..."
+      return 1
+    fi
+  done
+  printf "Connected\n"
+}
+
+wait_for_startup
 
 printf "Initializing core server... "
 serverId=$(curl --location 'http://localhost:8089/api/init' \
@@ -74,6 +78,8 @@ serverId=$(curl --location 'http://localhost:8089/api/init' \
 }' 2> /dev/null | jq -r '.id')
 printf "Done\n"
 
+wait_for_startup
+
 printf "Logging in new user... "
 token=$(curl --location 'http://localhost:8089/api/login' \
         --header 'Content-Type: application/json' \
@@ -81,13 +87,20 @@ token=$(curl --location 'http://localhost:8089/api/login' \
             "username": "ethan",
             "password": "password"
         }' 2> /dev/null | jq -r '.token')
+
+if [[ "$token" == "" ]]; then
+  printf "FAILED\n"
+  echo "ERR Failed to login user, exiting..."
+  return 1
+fi
+
 printf "Done\n"
 
 printf "Generating API Key... "
 apiKey=$(curl --location --request POST 'http://localhost:8089/api/key' --cookie "weblens-session-token=$token" 2> /dev/null | jq -r '.key."key"')
 
 if [[ "$apiKey" == "" ]]; then
-  print "FAILED\n"
+  printf "FAILED\n"
   echo "ERR Did not get API key from core server, exiting..."
   return 1
 fi

@@ -10,9 +10,9 @@ import (
 	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
-	"github.com/ethanrous/weblens/service/proxy"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -72,6 +72,21 @@ StartupWaitLoop:
 	services.Server.Stop()
 }
 
+func waitForStartup(startupChan chan bool) error {
+	for {
+		select {
+		case _, ok := <-startupChan:
+			if ok {
+				startupChan <- true
+			} else {
+				return nil
+			}
+		case <-time.After(time.Second * 10):
+			return werror.Errorf("Startup timeout")
+		}
+	}
+}
+
 func TestStartupBackup(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping %s in short mode", t.Name())
@@ -105,30 +120,29 @@ func TestStartupBackup(t *testing.T) {
 	services.StartupChan = make(chan bool)
 	go server.Start()
 
-	log.Warning.Println("Waiting for backup startup...")
+	log.Debug.Println("Waiting for backup startup...")
 
-StartupWaitLoop:
-	for {
-		select {
-		case _, ok := <-services.StartupChan:
-			if ok {
-				services.StartupChan <- true
-			} else {
-				break StartupWaitLoop
-			}
-		case <-time.After(time.Second * 10):
-			t.Fatal("Backup server setup timeout")
-		}
-	}
+	// Wait for initial startup
+	err = waitForStartup(services.StartupChan)
+	require.NoError(t, err)
 
-	log.Warning.Println("Backup startup complete")
+	log.Debug.Println("Backup startup complete")
 
 	log.Trace.Println("Startup took", time.Since(start))
 	require.True(t, services.Loaded.Load())
 
+	// Initialize the server as a backup server
 	err = services.InstanceService.InitBackup("TEST-BACKUP", coreAddress, coreApiKey)
 	log.ErrTrace(err)
 	require.NoError(t, err)
+
+	server.Restart()
+
+	// Wait for backup server startup
+	err = waitForStartup(services.StartupChan)
+	require.NoError(t, err)
+
+	require.Equal(t, models.BackupServer, services.InstanceService.GetLocal().Role)
 
 	cores := services.InstanceService.GetCores()
 	require.Len(t, cores, 1)
@@ -137,8 +151,6 @@ StartupWaitLoop:
 
 	err = http.WebsocketToCore(core, services)
 	log.ErrTrace(err)
-
-	services.UserService = proxy.NewProxyUserService(core)
 
 	coreClient := services.ClientService.GetClientByServerId(core.ServerId())
 	retries := 0

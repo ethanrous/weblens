@@ -734,7 +734,8 @@ func setSharePublic(ctx *gin.Context) {
 func newApiKey(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	if !u.IsAdmin() {
+
+	if u == nil || !u.IsAdmin() {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
