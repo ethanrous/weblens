@@ -110,6 +110,7 @@
 }
 
 .history-detail-action-row {
+    display: flex;
     position: relative;
     height: 32px;
     max-height: 32px;
@@ -117,11 +118,10 @@
     width: max-content;
     max-width: 100%;
 
-    display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
-    flex-grow: 0;
+    flex-grow: 1;
     gap: 8px;
 }
 
@@ -135,9 +135,10 @@
     transition: background-color 150ms ease-in-out;
     z-index: 4;
 
-    :hover > & {
+    :hover>& {
         background-color: $main-accent;
     }
+
     &[data-moving='true'] {
         background-color: $main-accent;
     }
@@ -153,14 +154,17 @@
     cursor: pointer;
     transition: top 100ms;
     z-index: 4;
+    flex-shrink: 0;
 }
 
-.event-caret{
+.event-caret {
     width: 20px;
     height: 20px;
     border-radius: 4px;
     transition: background-color 150ms ease-in-out;
-    :hover > & {
-        background-color: #393f4e;
+    color: $main-text;
+
+    :hover>& {
+        background-color: $item-grey;
     }
 }

@@ -26,15 +26,16 @@ export async function FetchData(galleryState: GalleryStateT) {
                 )
             )
         }
-        const data = await wrapRequest<{ Media: MediaDataT[] }>(
-            fetch(url.toString()).then((res) => {
-                if (res.status !== 200) {
-                    return Promise.reject('Failed to get media')
-                } else {
-                    return res.json()
-                }
-            })
-        )
+        const data = await fetchJson<{ Media }>(url.toString(), 'GET')
+        // const data = await wrapRequest<{ Media: MediaDataT[] }>(
+        //     fetch(url.toString()).then((res) => {
+        //         if (res.status !== 200) {
+        //             return Promise.reject('Failed to get media')
+        //         } else {
+        //             return res.json()
+        //         }
+        //     })
+        // )
         if (data.Media) {
             const medias = data.Media.map((m) => {
                 return new WeblensMedia(m)
@@ -50,9 +51,11 @@ export async function FetchData(galleryState: GalleryStateT) {
 export async function getMedias(mediaIds: string[]): Promise<MediaDataT[]> {
     const url = new URL(`${API_ENDPOINT}/medias`)
     const body = {
-        mediaIds: mediaIds
+        mediaIds: mediaIds,
     }
-    const medias = (await fetchJson<{ medias: MediaDataT[] }>(url.toString(), "POST", body)).medias
+    const medias = (
+        await fetchJson<{ medias: MediaDataT[] }>(url.toString(), 'POST', body)
+    ).medias
     return medias ? medias : []
 }
 
@@ -70,7 +73,7 @@ export async function fetchMediaTypes() {
 }
 
 export async function hideMedia(mediaIds: string[], hidden: boolean) {
-    const url = new URL(`${API_ENDPOINT}/media/hide`)
+    const url = new URL(`${API_ENDPOINT}/media/visibility`)
     url.searchParams.append('hidden', hidden.toString())
 
     return wrapRequest(

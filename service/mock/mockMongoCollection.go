@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/ethrousseau/weblens/database"
+	"github.com/ethanrous/weblens/database"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

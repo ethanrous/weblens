@@ -19,12 +19,12 @@ import (
 	"github.com/barasher/go-exiftool"
 	"github.com/creativecreature/sturdyc"
 	"github.com/ethanrous/bimg"
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -89,7 +89,7 @@ func NewMediaService(
 		fileService:  fileService,
 		collection:   col,
 		AlbumService: albumService,
-		filesBuffer: sync.Pool{New: func() any { return make([]byte, 0, 0) }},
+		filesBuffer:  sync.Pool{New: func() any { return make([]byte, 0, 0) }},
 	}
 
 	indexModel := mongo.IndexModel{
@@ -412,11 +412,14 @@ func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, 
 
 	filter := bson.M{"contentId": mediaId}
 	var update bson.M
-	if liked {
+	if liked && len(m.LikedBy) == 0 {
+		update = bson.M{"$set": bson.M{"likedBy": []models.Username{username}}}
+	} else if liked && len(m.LikedBy) == 0 {
 		update = bson.M{"$addToSet": bson.M{"likedBy": username}}
 	} else {
 		update = bson.M{"$pull": bson.M{"likedBy": username}}
 	}
+
 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
@@ -485,7 +488,7 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 }
 
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
-	fileMetas := exif.ExtractMetadata(file.GetAbsPath())
+	fileMetas := exif.ExtractMetadata(file.AbsPath())
 
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
@@ -526,7 +529,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		m.MimeType = mimeType
 
 		if ms.typeService.ParseMime(m.MimeType).IsVideo() {
-			probeJson, err := ffmpeg.Probe(file.GetAbsPath())
+			probeJson, err := ffmpeg.Probe(file.AbsPath())
 			if err != nil {
 				return err
 			}
@@ -569,7 +572,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	mType := ms.GetMediaType(m)
 
 	if mType.IsRaw() {
-		binMeta := binExif.ExtractMetadata(file.GetAbsPath())
+		binMeta := binExif.ExtractMetadata(file.AbsPath())
 		if binMeta[0].Err != nil {
 			return werror.WithStack(binMeta[0].Err)
 		}
@@ -601,7 +604,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		bufbuf := bytes.NewBuffer(buf)
 		bufbuf.Reset()
 
-		err = ffmpeg.Input(file.GetAbsPath()).Filter(
+		err = ffmpeg.Input(file.AbsPath()).Filter(
 			"select", ffmpeg.Args{fmt.Sprintf("gte(n,%d)", frameNum)},
 		).Output(
 			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},

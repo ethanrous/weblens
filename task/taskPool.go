@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 )
 
 type TaskPool struct {
@@ -333,6 +333,10 @@ func (tp *TaskPool) CreatedInTask() *Task {
 func (tp *TaskPool) SignalAllQueued() {
 	if tp.treatAsGlobal {
 		log.Error.Println("Attempt to signal all queued for global queue")
+	}
+	if tp.allQueuedFlag.Load() {
+		log.Warning.Println("Trying to signal all queued on already all-queued task pool")
+		return
 	}
 
 	tp.exitLock.Lock()

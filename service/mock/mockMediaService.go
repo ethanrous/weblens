@@ -3,8 +3,8 @@ package mock
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
 )
 
 var _ models.MediaService = (*MockMediaService)(nil)

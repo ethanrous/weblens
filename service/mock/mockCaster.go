@@ -1,9 +1,9 @@
 package mock
 
 import (
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 )
 
 var _ models.Broadcaster = (*MockCaster)(nil)

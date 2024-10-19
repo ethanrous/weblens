@@ -16,6 +16,7 @@ import StartUp from './pages/Startup/StartupPage'
 import { fetchMediaTypes } from './types/media/MediaQuery'
 import { useMediaStore } from './types/media/MediaStateControl'
 import '@mantine/core/styles.css'
+import Backup from './pages/Backup/Backup'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -61,19 +62,23 @@ const WeblensRoutes = () => {
         if (!server) {
             return
         }
-        if (loc.pathname !== '/setup' && server.info.role === 'init') {
+        // if (loc.pathname !== '/login' && user?.isLoggedIn === false) {
+        //     console.debug('Nav login')
+        //     nav('/login')
+        // }
+        else if (loc.pathname !== '/setup' && server.info.role === 'init') {
             console.debug('Nav setup')
             nav('/setup')
-        } else if (loc.pathname === '/setup' && server.info.role !== 'init') {
+        } else if (loc.pathname === '/setup' && server.info.role === 'core') {
             console.debug('Nav files home')
             nav('/files/home')
         } else if (
             server.info.role === 'backup' &&
-            !loc.pathname.startsWith('/files') &&
+            loc.pathname !== '/backup' &&
             user?.isLoggedIn
         ) {
-            console.debug('Nav files home')
-            nav('/files/home')
+            console.debug('Nav backup page')
+            nav('/backup')
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
             if (loc.state?.returnTo) {
                 console.debug('Nav return to')
@@ -89,7 +94,7 @@ const WeblensRoutes = () => {
         ) {
             console.debug('Nav files home')
             nav('/files/home')
-        } else if (loc.pathname === '/') {
+        } else if (loc.pathname === '/' && server.info.role === 'core') {
             console.debug('Nav timeline')
             nav('/timeline')
         }
@@ -121,6 +126,13 @@ const WeblensRoutes = () => {
             saveMediaTypeMap(setTypeMap)
         }
     }, [server])
+
+    useEffect(() => {
+        const theme = localStorage.getItem('theme')
+        if (theme === 'dark') {
+            document.documentElement.classList.toggle('dark')
+        }
+    }, [])
 
     if (!server || !user) {
         return null
@@ -177,6 +189,12 @@ const PageSwitcher = () => {
         </Suspense>
     )
 
+    const backupPage = (
+        <Suspense fallback={<PageLoader />}>
+            <Backup />
+        </Suspense>
+    )
+
     const Gal = useRoutes([
         { path: '/', element: galleryPage },
         { path: '/timeline', element: galleryPage },
@@ -185,6 +203,7 @@ const PageSwitcher = () => {
         { path: '/wormhole', element: wormholePage },
         { path: '/login', element: loginPage },
         { path: '/setup', element: setupPage },
+        { path: '/backup', element: backupPage },
     ])
 
     return Gal

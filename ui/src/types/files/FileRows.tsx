@@ -133,19 +133,22 @@ function FileRow({
                     <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
                         <IconDisplay file={file} allowMedia={true} />
                     </div>
-                    <FileTextBox itemTitle={file.GetFilename()} />
-                </div>
-                <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full">
+                        <div className="file-text-container">
+                            <h1 className="file-text">{file.GetFilename()}</h1>
+                        </div>
+                        <p className="selectable-text w-max text-xs pl-1">
+                            {historyDate(file.GetModified().getTime())}
+                        </p>
+                    </div>
                     <div
                         className="file-size-box"
                         data-moved={(selState & SelectedState.Moved) >> 5}
                     >
-                        <p>{file.FormatSize()}</p>
+                        <p className="file-size-text">{file.FormatSize()}</p>
                     </div>
-                    <p className="absolute bottom-3 right-3 w-max text-sm">
-                        {historyDate(file.GetModified().getTime())}
-                    </p>
                 </div>
+                <div className="flex flex-col h-full"></div>
             </div>
         </div>
     )
@@ -159,7 +162,7 @@ export function FileRows({ files }: { files: WeblensFile[] }) {
             <WindowList
                 height={size.height}
                 width={size.width - 4}
-                itemSize={88}
+                itemSize={70}
                 itemCount={files.length}
                 itemData={files}
                 overscan={100}

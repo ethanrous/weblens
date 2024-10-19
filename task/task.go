@@ -4,13 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 )
 
 type Id = string
@@ -39,7 +40,11 @@ type Task struct {
 
 	exitStatus TaskExitStatus // "success", "error" or "cancelled"
 
+	// Function to be run to clean up when the task completes, only if the task is successful
 	postAction func(result TaskResult)
+
+	// Function to run whenever the task results update
+	resultsCallback func(result TaskResult)
 
 	// Function to be run to clean up when the task completes, no matter the exit status
 	cleanup TaskHandler
@@ -217,6 +222,10 @@ func (t *Task) GetResult(resultKey string) any {
 		return nil
 	}
 
+	if resultKey == "" {
+		return t.result
+	}
+
 	return t.result[resultKey]
 }
 
@@ -226,7 +235,7 @@ func (t *Task) GetResults() TaskResult {
 	if t.result == nil {
 		t.result = TaskResult{}
 	}
-	return t.result
+	return maps.Clone(t.result)
 }
 
 func (t *Task) GetMeta() TaskMetadata {
@@ -248,7 +257,12 @@ func (t *Task) Manipulate(fn func(meta TaskMetadata) error) error {
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
 	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
+
+	if t.queueState != Exited {
+		t.err = err
+		t.queueState = Exited
+		t.exitStatus = TaskError
+	}
 
 	// Run the cleanup routine for errors, if any
 	if t.errorCleanup != nil {
@@ -263,23 +277,27 @@ func (t *Task) error(err error) {
 	// and move it in the filesystem. The task goes to find the file, it can't (because it was moved)
 	// and throws this error. Now we are here and we realize the task was canceled, so that error is not valid
 	if t.queueState == Exited {
+		t.updateMu.Unlock()
 		return
 	}
 
-	t.err = err
-	t.queueState = Exited
-	t.exitStatus = TaskError
-
+	t.updateMu.Unlock()
 	t.sw.Lap("Task exited due to error")
 	t.sw.Stop()
-
 }
 
-func (t *Task) ErrorAndExit(err error) {
+// ReqNoErr is a wrapper around t.Fail, but only fails if the error is not nil
+func (t *Task) ReqNoErr(err error) {
 	if err == nil {
 		return
 	}
 
+	t.Fail(err)
+}
+
+// Fail will set the error on the tsak, and then panic with ErrTaskError, which informs the worker recovery
+// function to exit the task with the error that is set, and not treat it as a real panic.
+func (t *Task) Fail(err error) {
 	t.error(err)
 	panic(werror.ErrTaskError)
 }
@@ -314,8 +332,15 @@ func (t *Task) SetCleanup(cleanup TaskHandler) {
 	t.cleanup = cleanup
 }
 
-func (t *Task) ReadError() any {
-	return t.err
+func (t *Task) ReadError() error {
+	switch t.err.(type) {
+	case nil:
+		return nil
+	case error:
+		return t.err
+	default:
+		return werror.Errorf("%s", t.err)
+	}
 }
 
 func (t *Task) Success(msg ...any) {
@@ -344,17 +369,27 @@ func (t *Task) ClearTimeout() {
 	t.timeout = time.Unix(0, 0)
 }
 
+// OnResult takes a function to be run when the task result changes
+func (t *Task) OnResult(callback func(TaskResult)) {
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.resultsCallback = callback
+}
+
 func (t *Task) SetResult(results TaskResult) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.result = results
-	// if t.result == nil {
-	// 	t.result = make(map[string]string)
-	// }
+	if t.result == nil {
+		t.result = results
+	} else {
+		for k, v := range results {
+			t.result[k] = v
+		}
+	}
 
-	// for _, pair := range fields {
-	// 	t.result[pair.Key] = pair.Val
-	// }
+	if t.resultsCallback != nil {
+		t.resultsCallback(t.result)
+	}
 }
 
 // Add a lap in the tasks stopwatch

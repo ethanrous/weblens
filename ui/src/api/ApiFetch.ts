@@ -3,14 +3,23 @@ import { WeblensFileInfo } from '@weblens/types/files/File'
 import { ApiKeyInfo, ServerInfoT, UserInfoT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
 
-export async function wrapRequest<T>(rq: Promise<T>): Promise<T> {
-    return await rq.catch((e) => {
-        if (e === 401) {
-            useSessionStore.getState().setUserInfo({isLoggedIn: false} as UserInfoT)
-            useSessionStore.getState().nav('/login')
-        }
-        return Promise.reject(e)
-    })
+export async function wrapRequest(rq: Promise<Response>): Promise<Response> {
+    return await rq
+        .then((r: Response) => {
+            if (r.status >= 400) {
+                return Promise.reject(r.status)
+            }
+            return r
+        })
+        .catch((e) => {
+            if (e === 401) {
+                useSessionStore
+                    .getState()
+                    .setUserInfo({ isLoggedIn: false } as UserInfoT)
+                useSessionStore.getState().nav('/login')
+            }
+            return Promise.reject(e)
+        })
 }
 
 export async function fetchJson<T>(
@@ -29,18 +38,12 @@ export async function fetchJson<T>(
         init.body = JSON.stringify(body)
     }
 
-    return wrapRequest(
-        fetch(url, init).then((r) => {
-            if (r && r.status < 400) {
-                return r.json()
-            } else {
-                return Promise.reject(r.status)
-            }
-        })
-    )
+    return await wrapRequest(fetch(url, init)).then((r) => {
+        return r.json()
+    })
 }
 
-export function login(
+export async function login(
     user: string,
     pass: string
 ): Promise<{ token: string; user: UserInfoT }> {
@@ -56,7 +59,7 @@ export function login(
     }).then((r) => r.json())
 }
 
-export function createUser(username: string, password: string) {
+export async function createUser(username: string, password: string) {
     const url = new URL(`${API_ENDPOINT}/user`)
     return fetch(url, {
         method: 'POST',
@@ -111,11 +114,7 @@ export async function deleteApiKey(key: string) {
 
 export async function getApiKeys(): Promise<ApiKeyInfo[]> {
     const url = new URL(`${API_ENDPOINT}/keys`)
-    return (
-        await wrapRequest<{ keys: ApiKeyInfo[] }>(
-            fetch(url).then((r) => r.json())
-        )
-    ).keys
+    return fetchJson<ApiKeyInfo[]>(url.toString())
 }
 
 export async function initServer(
@@ -138,17 +137,23 @@ export async function initServer(
     return await fetch(url, { body: JSON.stringify(body), method: 'POST' })
 }
 
+export async function attachNewCore(coreAddress: string, usingKey: string) {
+    const url = new URL(`${API_ENDPOINT}/core/attach`)
+    const body = {
+        coreAddress: coreAddress,
+        usingKey: usingKey,
+    }
+    return wrapRequest(
+        fetch(url, { method: 'POST', body: JSON.stringify(body) })
+    )
+}
+
 export async function getServerInfo() {
-    const url = new URL(`${API_ENDPOINT}/info`)
-    return await fetch(url).then((r) => {
-        if (r.status === 200) {
-            return r.json()
-        } else if (r.status === 307) {
-            return 307
-        } else {
-            return Promise.reject(r.statusText)
-        }
-    })
+    return fetchJson<{
+        info: ServerInfoT
+        userCount: number
+        started: boolean
+    }>(`${API_ENDPOINT}/info`)
 }
 
 export async function getUsers(): Promise<UserInfoT[]> {
@@ -170,7 +175,7 @@ export async function AutocompleteUsers(
 export async function doBackup(serverId: string) {
     const url = new URL(`${API_ENDPOINT}/backup`)
     url.searchParams.append('serverId', serverId)
-    return wrapRequest(fetch(url, {method: 'POST'}))
+    return wrapRequest(fetch(url, { method: 'POST' }))
 }
 
 export async function getRemotes(): Promise<ServerInfoT[]> {
@@ -211,5 +216,5 @@ export async function searchFilenames(
 }
 
 export async function resetServer() {
-    return wrapRequest(fetch(`${API_ENDPOINT}/reset`, {method: 'POST'}))
+    return wrapRequest(fetch(`${API_ENDPOINT}/reset`, { method: 'POST' }))
 }

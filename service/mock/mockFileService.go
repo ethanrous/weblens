@@ -2,10 +2,11 @@ package mock
 
 import (
 	"io"
+	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 )
 
 var _ models.FileService = (*MockFileService)(nil)
@@ -28,7 +29,15 @@ var usernames = []string{
 	"Pam Silva",
 }
 
-func (mfs *MockFileService) GetMediaRoot() *fileTree.WeblensFileImpl {
+func (mfs *MockFileService) Size(treeName string) int64 {
+	panic("implement me")
+}
+
+func (mfs *MockFileService) AddTree(tree fileTree.FileTree) {
+	panic("implement me")
+}
+
+func (mfs *MockFileService) GetUsersRoot() *fileTree.WeblensFileImpl {
 
 	panic("implement me")
 }
@@ -38,7 +47,7 @@ func (mfs *MockFileService) PathToFile(searchPath string) (*fileTree.WeblensFile
 	panic("implement me")
 }
 
-func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string) (
+func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (
 	*fileTree.WeblensFileImpl, error,
 ) {
 
@@ -52,12 +61,31 @@ func (mfs *MockFileService) CreateFolder(
 	panic("implement me")
 }
 
-func (mfs *MockFileService) GetUserFile(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
+func (mfs *MockFileService) CreateUserHome(user *models.User) error {
+	home := fileTree.NewWeblensFile(user.Username, user.Username, nil, true)
+	user.SetHomeFolder(home)
+	trash := fileTree.NewWeblensFile(user.Username+"trash", ".user_trash", home, true)
+	user.SetTrashFolder(trash)
+
+	return nil
+}
+
+func (mfs *MockFileService) CreateRestoreFile(lifetime *fileTree.Lifetime) (
+	restoreFile *fileTree.WeblensFileImpl, err error,
+) {
+	panic("implement me")
+}
+
+func (mfs *MockFileService) GetFileByTree(id fileTree.FileId, treeAlias string) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")
 }
 
-func (mfs *MockFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, error) {
+func (mfs *MockFileService) GetFileByContentId(contentId models.ContentId) (*fileTree.WeblensFileImpl, error) {
+	panic("implement me")
+}
+
+func (mfs *MockFileService) GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, []fileTree.FileId, error) {
 
 	panic("implement me")
 }
@@ -81,7 +109,7 @@ func (mfs *MockFileService) ImportFile(f *fileTree.WeblensFileImpl) error {
 }
 
 func (mfs *MockFileService) MoveFiles(
-	files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, caster models.FileCaster,
+	files []*fileTree.WeblensFileImpl, destFolder *fileTree.WeblensFileImpl, treeName string, caster models.FileCaster,
 ) error {
 	return nil
 }
@@ -100,8 +128,20 @@ func (mfs *MockFileService) ReturnFilesFromTrash(files []*fileTree.WeblensFileIm
 	return nil
 }
 
-func (mfs *MockFileService) PermanentlyDeleteFiles(files []*fileTree.WeblensFileImpl, caster models.FileCaster) error {
+func (mfs *MockFileService) DeleteFiles(files []*fileTree.WeblensFileImpl, treeName string, caster models.FileCaster) error {
 	return nil
+}
+
+func (mfs *MockFileService) RestoreFiles(
+	ids []fileTree.FileId, newParent *fileTree.WeblensFileImpl, restoreTime time.Time, caster models.FileCaster,
+) error {
+
+	panic("implement me")
+}
+
+func (mfs *MockFileService) RestoreHistory(lifetimes []*fileTree.Lifetime) error {
+
+	panic("implement me")
 }
 
 func (mfs *MockFileService) ReadFile(file *fileTree.WeblensFileImpl) (io.ReadCloser, error) {
@@ -120,7 +160,7 @@ func (mfs *MockFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 	return nil
 }
 
-func (mfs *MockFileService) GetMediaJournal() fileTree.Journal {
+func (mfs *MockFileService) GetJournalByTree(treeName string) fileTree.Journal {
 	return nil
 }
 
@@ -152,4 +192,20 @@ func (mfs *MockFileService) NewCacheFile(
 	cache := fileTree.NewWeblensFile("TODO", filename, nil, false)
 	cache.SetMemOnly(true)
 	return cache, nil
+}
+
+func (mfs *MockFileService) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.WeblensFileImpl, error) {
+	return nil, nil
+}
+
+func (mfs *MockFileService) GetFolderCover(folder *fileTree.WeblensFileImpl) (models.ContentId, error) {
+	return "", nil
+}
+
+func (mfs *MockFileService) SetFolderCover(folderId fileTree.FileId, coverId models.ContentId) error {
+	return nil
+}
+
+func (mfs *MockFileService) UserPathToFile(searchPath string, user *models.User) (*fileTree.WeblensFileImpl, error) {
+	return nil, nil
 }

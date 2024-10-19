@@ -5,20 +5,42 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/service/mock"
+	. "github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Creates a new FileTree with a temporary root directory
+func NewTestFileTree() (FileTree, error) {
+	journal := mock.NewHollowJournalService()
+
+	rootPath, err := os.MkdirTemp("", "weblens-test-*")
+	if err != nil {
+		return nil, err
+	}
+
+	// MkdirTemp does not add a trailing slash to directories, which the fileTree expects
+	rootPath += "/"
+
+	log.Trace.Printf("Creating tmp root for FileTree test [%s]", rootPath)
+
+	tree, err := NewFileTree(rootPath, "USERS", journal, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return tree, nil
+}
+
 func TestFileTree(t *testing.T) {
-	tree, err := newTestFileTree()
+	tree, err := NewTestFileTree()
 	require.NoError(t, err)
 
 	root := tree.GetRoot()
-	rootStat, err := os.Stat(root.GetAbsPath())
+	rootStat, err := os.Stat(root.AbsPath())
 	require.NoError(t, err)
 
 	assert.True(t, rootStat.IsDir())
@@ -26,28 +48,28 @@ func TestFileTree(t *testing.T) {
 	newDir, err := tree.MkDir(root, "my folder", nil)
 	require.NoError(t, err)
 
-	_, err = os.Stat(newDir.GetAbsPath())
+	_, err = os.Stat(newDir.AbsPath())
 	require.NoError(t, err)
 	assert.True(t, newDir.IsDir())
 
 	newFile, err := tree.Touch(root, "my file", nil)
 	require.NoError(t, err)
 
-	_, err = os.Stat(newFile.GetAbsPath())
+	_, err = os.Stat(newFile.AbsPath())
 	require.NoError(t, err)
 	assert.False(t, newFile.IsDir())
 
 	// Given path is not allowed to be created on filesystem, so this call fails
-	_, err = NewFileTree("/this/file/cant/be/created", "ALIASNAME", nil, nil)
+	_, err = NewFileTree("/this/file/cant/be/created", "ALIASNAME", nil, true)
 	assert.Error(t, err)
 
 	// We know the root of the other tree already exists, so we can create a new tree as a child,
 	// even if the directory does not exist, the tree will create it.
-	newRootPath := filepath.Join(tree.GetRoot().GetAbsPath(), "this_can_be_created_parent", "this_can_be_created")
+	newRootPath := filepath.Join(tree.GetRoot().AbsPath(), "this_can_be_created_parent", "this_can_be_created")
 	_, err = os.Stat(newRootPath)
 	assert.Error(t, err)
 
-	_, err = NewFileTree(newRootPath, "ALIASNAME", nil, &mock.HollowJournalService{})
+	_, err = NewFileTree(newRootPath, "ALIASNAME", &mock.HollowJournalService{}, true)
 	assert.NoError(t, err)
 
 	_, err = os.Stat(newRootPath)
@@ -55,7 +77,7 @@ func TestFileTree(t *testing.T) {
 }
 
 func TestFileTreeImpl_Move(t *testing.T) {
-	tree, err := newTestFileTree()
+	tree, err := NewTestFileTree()
 	require.NoError(t, err)
 
 	root := tree.GetRoot()
@@ -74,13 +96,13 @@ func TestFileTreeImpl_Move(t *testing.T) {
 	_, err = newDir2.GetChild(newFile.Filename())
 	assert.Error(t, err)
 
-	oldPath := newFile.GetAbsPath()
+	oldPath := newFile.AbsPath()
 
 	// Move file from under newDir1 to under newDir2
 	moved, err := tree.Move(newFile, newDir2, newFile.Filename(), false, nil)
 	require.NoError(t, err)
 
-	assert.NotEqual(t, oldPath, newFile.GetAbsPath())
+	assert.NotEqual(t, oldPath, newFile.AbsPath())
 
 	assert.Equal(t, 1, len(moved))
 
@@ -90,7 +112,7 @@ func TestFileTreeImpl_Move(t *testing.T) {
 	_, err = newDir2.GetChild(newFile.Filename())
 	assert.NoError(t, err)
 
-	_, err = os.Stat(newFile.GetAbsPath())
+	_, err = os.Stat(newFile.AbsPath())
 	assert.NoError(t, err)
 
 	// Move newDir2, with newFile inside, all under newDir1
@@ -120,59 +142,39 @@ func TestFileTreeImpl_Move(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFileTreeImpl_Del(t *testing.T) {
-	tree, err := newTestFileTree()
+func TestFileTreeImpl_Delete(t *testing.T) {
+	tree, err := NewTestFileTree()
 	require.NoError(t, err)
 
 	root := tree.GetRoot()
 
-	_, err = tree.Del(root.ID(), nil)
+	err = tree.Delete(root.ID(), &FileEvent{})
 	assert.Error(t, err)
 
 	newDir, err := tree.MkDir(root, "newDir", nil)
 	require.NoError(t, err)
 
-	_, err = os.Stat(newDir.GetAbsPath())
+	_, err = os.Stat(newDir.AbsPath())
 	require.NoError(t, err)
 
-	deleted, err := tree.Del(newDir.ID(), nil)
+	err = tree.Delete(newDir.ID(), &FileEvent{})
 	assert.NoError(t, err)
 
-	assert.Equal(t, 1, len(deleted))
-
-	_, err = os.Stat(newDir.GetAbsPath())
+	_, err = os.Stat(newDir.AbsPath())
 	assert.Error(t, err)
 
 	newDir2, err := tree.MkDir(root, "newDir2", nil)
 	require.NoError(t, err)
 
-	_, err = tree.MkDir(newDir2, "newDir3", nil)
+	newDir3, err := tree.MkDir(newDir2, "newDir3", nil)
 	require.NoError(t, err)
 
-	deleted2, err := tree.Del(newDir2.ID(), nil)
-	require.NoError(t, err)
+	err = tree.Delete(newDir2.ID(), &FileEvent{})
+	assert.Error(t, err)
 
-	assert.Equal(t, 2, len(deleted2))
-}
+	err = tree.Delete(newDir3.ID(), &FileEvent{})
+	assert.NoError(t, err)
 
-func newTestFileTree() (FileTree, error) {
-	hasher := mock.NewMockHasher()
-	journal := mock.NewHollowJournalService()
-
-	rootPath, err := os.MkdirTemp("", "weblens-test-*")
-	if err != nil {
-		return nil, err
-	}
-
-	// MkdirTemp does not add a trailing slash to directories, which the fileTree expects
-	rootPath += "/"
-
-	log.Trace.Printf("Creating tmp root for FileTree test [%s]", rootPath)
-
-	tree, err := NewFileTree(rootPath, "MEDIA", hasher, journal)
-	if err != nil {
-		return nil, err
-	}
-
-	return tree, nil
+	err = tree.Delete(newDir2.ID(), &FileEvent{})
+	assert.NoError(t, err)
 }

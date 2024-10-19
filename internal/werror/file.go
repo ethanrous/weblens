@@ -18,12 +18,24 @@ var ErrNoFileId = func(id string) error {
 	return &err
 }
 
-var ErrNoFileName = func(name string) error {
-	return errors.New(
-		fmt.Sprintf(
-			"cannot find file with name [%s]", name,
-		),
-	)
+type ErrNoFileName struct {
+	Name string
+	Err  error
+}
+
+func (e *ErrNoFileName) Error() string {
+	return fmt.Sprintf("cannot find file with name [%s]", e.Name)
+}
+
+func (e *ErrNoFileName) Unwrap() error {
+	return e.Err
+}
+
+var NewErrNoFileName = func(name string) error {
+	return &ErrNoFileName{
+		Name: name,
+		Err:  ErrNoFile,
+	}
 }
 
 var ErrDirectoryRequired = errors.New(
@@ -41,7 +53,7 @@ var ErrFileAlreadyExists = &clientSafeErr{
 	statusCode: http.StatusConflict,
 }
 
-var ErrFileRequired = errors.New("file is required but is nil")
+var ErrNilFile = errors.New("file is required but is nil")
 var ErrFilenameRequired = errors.New("filename is required but is empty")
 
 var ErrEmptyMove = errors.New("refusing to perform move with same filename and same parent")
@@ -52,3 +64,6 @@ var ErrBadReadCount = errors.New("did not read expected number of bytes from fil
 var ErrAlreadyWatching = errors.New("trying to watch directory that is already being watched")
 var ErrFileAlreadyHasTask = errors.New("file already has a task")
 var ErrFileNoTask = errors.New("file does not have task")
+var ErrNoContentId = errors.New("file does not have a content id")
+var ErrNoFileTree = errors.New("trying to get a filetree that does not exist")
+var ErrJournalServerMismatch = errors.New("journal serverId does not match the lifetime serverId")

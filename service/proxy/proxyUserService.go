@@ -6,8 +6,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/models"
 )
 
 var _ models.UserService = (*ProxyUserService)(nil)
@@ -71,13 +71,17 @@ func (pus *ProxyUserService) Add(user *models.User) error {
 	return nil
 }
 
-func (pus *ProxyUserService) Del(id models.Username) error {
+func (pus *ProxyUserService) CreateOwner(username, password string) (*models.User, error) {
+	panic("implement me")
+}
 
+func (pus *ProxyUserService) Del(id models.Username) error {
 	panic("implement me")
 }
 
 func (pus *ProxyUserService) GetAll() (iter.Seq[*models.User], error) {
-	users, err := CallHomeStruct[[]*models.User](pus.Core, http.MethodGet, "/users", nil)
+	r := NewCoreRequest(pus.Core, http.MethodGet, "/backup/users")
+	users, err := CallHomeStruct[[]*models.User](r)
 
 	if err != nil {
 		return nil, err
@@ -118,5 +122,10 @@ func (pus *ProxyUserService) UpdateUserPassword(
 	username models.Username, oldPassword, newPassword string, allowEmptyOld bool,
 ) error {
 
+	panic("implement me")
+}
+
+func (pus *ProxyUserService) UpdateUserHome(u *models.User) error {
+	// TODO implement me
 	panic("implement me")
 }

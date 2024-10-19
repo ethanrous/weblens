@@ -26,7 +26,7 @@ import {
 import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import NotFound from 'components/NotFound'
+import FilesErrorDisplay from 'components/NotFound'
 import React, {
     useCallback,
     useContext,
@@ -137,7 +137,7 @@ function AlbumContent({ albumId }: { albumId: string }) {
     if (notFound || albumContentRes.error) {
         console.error(albumContentRes.error)
         return (
-            <NotFound
+            <FilesErrorDisplay
                 resourceType="Album"
                 link="/albums"
                 setNotFound={setNotFound}

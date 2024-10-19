@@ -5,14 +5,16 @@ import (
 	"iter"
 	"sync"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var _ models.UserService = (*UserServiceImpl)(nil)
 
 type UserServiceImpl struct {
 	userMap    map[models.Username]*models.User
@@ -49,6 +51,7 @@ func NewUserService(col database.MongoCollection) (*UserServiceImpl, error) {
 	}
 	us.rootUser = &models.User{
 		Username:   "WEBLENS",
+		Admin:      true,
 		SystemUser: true,
 	}
 
@@ -84,6 +87,11 @@ func (us *UserServiceImpl) Add(user *models.User) error {
 	if user.Id == [12]uint8{0} {
 		user.Id = primitive.NewObjectID()
 	}
+
+	if user.HomeId == "" || user.TrashId == "" {
+		return werror.Errorf("Cannot add user with no home or trash folder")
+	}
+
 	_, err := us.col.InsertOne(context.Background(), user)
 	if err != nil {
 		return err
@@ -94,6 +102,22 @@ func (us *UserServiceImpl) Add(user *models.User) error {
 	us.userMap[user.GetUsername()] = user
 
 	return nil
+}
+
+func (us *UserServiceImpl) CreateOwner(username, password string) (*models.User, error) {
+	owner, err := models.NewUser(username, password, true, true)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = us.col.InsertOne(context.Background(), owner)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	us.userMap[username] = owner
+
+	return owner, nil
 }
 
 func (us *UserServiceImpl) Del(un models.Username) error {
@@ -222,6 +246,18 @@ func (us *UserServiceImpl) UpdateUserPassword(
 	}
 
 	usr.Password = passHashStr
+
+	return nil
+}
+
+func (us *UserServiceImpl) UpdateUserHome(u *models.User) error {
+	_, err := us.col.UpdateOne(
+		context.Background(), bson.M{"username": u.GetUsername()},
+		bson.M{"$set": bson.M{"homeId": u.HomeId, "trashId": u.TrashId}},
+	)
+	if err != nil {
+		return werror.WithStack(err)
+	}
 
 	return nil
 }

@@ -50,11 +50,9 @@ class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
 function ErrorDisplay({ clearError }) {
     const nav = useNavigate()
     return (
-        <div className="flex flex-col h-screen w-screen items-center justify-center bg-bottom-grey">
-            <Text size={'20px'} fw={600}>
-                Something went wrong
-            </Text>
-            <Text style={{ margin: 10 }}>The error has been recorded</Text>
+        <div className="flex flex-col h-screen w-screen items-center justify-center theme-background">
+            <p className="text-xl font-semibold">Something went wrong</p>
+            <p style={{ margin: 10 }}>The error has been recorded</p>
             <div className="flex flex-row w-max">
                 <WeblensButton
                     label="Go Home"

@@ -3,8 +3,8 @@ package database_test
 import (
 	"testing"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/internal/env"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/internal/env"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/ethanrous/bimg"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -257,6 +257,8 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 			return
 		}
 	}
+
+	ctx.Header("Cache-Control", "max-age=3600")
 
 	ctx.Status(http.StatusOK)
 	_, err = ctx.Writer.Write(bs)

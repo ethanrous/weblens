@@ -4,7 +4,11 @@ export type StartupTask = {
     StartedAt: string
 }
 
-export function startupWebsocketHandler(setSetupProgress, setSetupMostRecent: (waitingOn: StartupTask[]) => void) {
+export function startupWebsocketHandler(
+    setSetupProgress,
+    setSetupMostRecent: (waitingOn: StartupTask[]) => void,
+    setLastTask: (lastTask: string) => void
+) {
     return (msgData) => {
         switch (msgData.eventTag) {
             case 'startup_progress': {
@@ -21,6 +25,7 @@ export function startupWebsocketHandler(setSetupProgress, setSetupMostRecent: (w
                         msgData.content.tasksTotal) *
                         100
                 )
+                setLastTask(msgData.content.fileName)
                 // setSetupMostRecent(
                 //     `${msgData.taskType}: ${msgData.content.fileName}`
                 // )

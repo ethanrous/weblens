@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"maps"
 	"slices"
 	"strconv"
@@ -10,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -31,6 +30,11 @@ type AccessServiceImpl struct {
 
 	userService models.UserService
 	collection  *mongo.Collection
+}
+
+type WlClaims struct {
+	Username string `json:"username"`
+	jwt.RegisteredClaims
 }
 
 func NewAccessService(userService models.UserService, col *mongo.Collection) (*AccessServiceImpl, error) {
@@ -118,13 +122,8 @@ func (accSrv *AccessServiceImpl) GetApiKey(key models.WeblensApiKey) (models.Api
 	}
 }
 
-type MyCustomClaims struct {
-	Username string `json:"username"`
-	jwt.RegisteredClaims
-}
-
 func (accSrv *AccessServiceImpl) GenerateJwtToken(user *models.User) (string, error) {
-	claims := MyCustomClaims{
+	claims := WlClaims{
 		user.GetUsername(),
 		jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 7)),
@@ -137,21 +136,6 @@ func (accSrv *AccessServiceImpl) GenerateJwtToken(user *models.User) (string, er
 		return "", err
 	}
 
-	// dbToken := models.Token{
-	// 	Token:    tokenString,
-	// 	Username: user.GetUsername(),
-	// }
-	//
-	// _, err = accSrv.collection.InsertOne(context.Background(), dbToken)
-	// if err != nil {
-	// 	return "", err
-	// }
-	//
-	// accSrv.tokenMapMu.RLock()
-	// accSrv.tokenMap[tokenString] = user
-	// accSrv.tokenMapMu.RUnlock()
-	// user.AddToken(tokenString)
-
 	return tokenString, nil
 }
 
@@ -161,7 +145,7 @@ func (accSrv *AccessServiceImpl) GetUserFromToken(tokenStr string) (*models.User
 	}
 
 	jwtToken, err := jwt.ParseWithClaims(
-		tokenStr, &MyCustomClaims{},
+		tokenStr, &WlClaims{},
 		func(token *jwt.Token) (interface{}, error) {
 			return []byte("key"), nil
 		},
@@ -170,44 +154,12 @@ func (accSrv *AccessServiceImpl) GetUserFromToken(tokenStr string) (*models.User
 		return nil, werror.WithStack(err)
 	}
 
-	usr := accSrv.userService.Get(jwtToken.Claims.(*MyCustomClaims).Username)
+	usr := accSrv.userService.Get(jwtToken.Claims.(*WlClaims).Username)
 	if usr == nil {
 		return nil, werror.ErrInvalidToken
 	}
 
 	return usr, nil
-
-	// log.Debug.Println(jwtToken)
-	//
-	// accSrv.tokenMapMu.RLock()
-	// usr, ok := accSrv.tokenMap[tokenStr]
-	// accSrv.tokenMapMu.RUnlock()
-	// if !ok {
-	// 	var target models.Token
-	// 	err := accSrv.collection.FindOne(context.Background(), bson.M{"token": tokenStr}).Decode(&target)
-	// 	if err != nil {
-	// 		return nil, werror.WithStack(err)
-	// 	}
-	//
-	// 	usr = accSrv.userService.Get(target.Username)
-	//
-	// 	// This is ok even if the user is nil, because then the next lookup
-	// 	// won't need to go to mongo to find no user, the map will remember
-	// 	accSrv.tokenMapMu.Lock()
-	// 	accSrv.tokenMap[tokenStr] = usr
-	// 	accSrv.tokenMapMu.Unlock()
-	// }
-	//
-	// if usr == nil {
-	// 	return nil, werror.Errorf("Could not find token")
-	// }
-	//
-	// return usr, nil
-	// if keyInfo, ok := accSrv.apiKeyMap[key]; !ok {
-	// 	return models.ApiKeyInfo{}, errors.New("Could not find api key")
-	// } else {
-	// 	return keyInfo, nil
-	// }
 }
 
 func (accSrv *AccessServiceImpl) DeleteApiKey(key models.WeblensApiKey) error {
@@ -215,7 +167,7 @@ func (accSrv *AccessServiceImpl) DeleteApiKey(key models.WeblensApiKey) error {
 	_, ok := accSrv.apiKeyMap[key]
 	accSrv.keyMapMu.RUnlock()
 	if !ok {
-		return errors.New("could not find api key to delete")
+		return werror.Errorf("could not find api key to delete")
 	}
 
 	_, err := accSrv.collection.DeleteOne(context.Background(), bson.M{"key": key})
@@ -236,7 +188,9 @@ func (accSrv *AccessServiceImpl) Size() int {
 	return len(accSrv.apiKeyMap)
 }
 
-func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User) (models.ApiKeyInfo, error) {
+func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User, local *models.Instance) (
+	models.ApiKeyInfo, error,
+) {
 	if !creator.IsAdmin() {
 		return models.ApiKeyInfo{}, werror.ErrUserNotAuthorized
 	}
@@ -249,6 +203,7 @@ func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User) (models.Ap
 		Key:         hash,
 		Owner:       creator.GetUsername(),
 		CreatedTime: createTime,
+		CreatedBy: local.ServerId(),
 	}
 
 	_, err := accSrv.collection.InsertOne(context.Background(), newKey)
@@ -263,26 +218,32 @@ func (accSrv *AccessServiceImpl) GenerateApiKey(creator *models.User) (models.Ap
 	return newKey, nil
 }
 
-func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, server *models.Instance) error {
+func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, remote *models.Instance) error {
 	accSrv.keyMapMu.RLock()
 	keyInfo, ok := accSrv.apiKeyMap[key]
 	accSrv.keyMapMu.RUnlock()
+
 	if !ok {
-		return werror.ErrKeyNotFound
+		return werror.WithStack(werror.ErrKeyNotFound)
 	}
 
-	if keyInfo.RemoteUsing != "" {
-		return werror.ErrKeyInUse
+	if keyInfo.RemoteUsing != "" && remote != nil {
+		return werror.WithStack(werror.ErrKeyInUse)
+	}
+
+	newUsingId := ""
+	if remote != nil {
+		newUsingId = remote.ServerId()
 	}
 
 	filter := bson.M{"key": key}
-	update := bson.M{"$set": bson.M{"remoteUsing": server.ServerId()}}
+	update := bson.M{"$set": bson.M{"remoteUsing": newUsingId}}
 	_, err := accSrv.collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return werror.WithStack(err)
 	}
 
-	keyInfo.RemoteUsing = server.ServerId()
+	keyInfo.RemoteUsing = newUsingId
 	accSrv.keyMapMu.Lock()
 	accSrv.apiKeyMap[key] = keyInfo
 	accSrv.keyMapMu.Unlock()
@@ -292,7 +253,7 @@ func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, server *
 
 func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.ApiKeyInfo, error) {
 	if !accessor.IsAdmin() {
-		return nil, errors.New("non-admin attempting to get api keys")
+		return nil, werror.Errorf("non-admin attempting to get api keys")
 	}
 
 	accSrv.keyMapMu.RLock()
@@ -301,9 +262,50 @@ func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.Api
 	return slices.Collect(maps.Values(accSrv.apiKeyMap)), nil
 }
 
+func (accSrv *AccessServiceImpl) GetAllKeysByServer(
+	accessor *models.User, serverId models.InstanceId,
+) ([]models.ApiKeyInfo, error) {
+	if !accessor.IsAdmin() {
+		return nil, werror.Errorf("non-admin attempting to get api keys")
+	}
+
+	accSrv.keyMapMu.RLock()
+	defer accSrv.keyMapMu.RUnlock()
+
+	// Filter by serverId
+	ret := []models.ApiKeyInfo{}
+	for _, key := range accSrv.apiKeyMap {
+		if key.CreatedBy == serverId {
+			ret = append(ret, key)
+		}
+	}
+
+	return ret, nil
+}
+
+func (accSrv *AccessServiceImpl) AddApiKey(key models.ApiKeyInfo) error {
+	accSrv.keyMapMu.RLock()
+	defer accSrv.keyMapMu.RUnlock()
+	if _, ok := accSrv.apiKeyMap[key.Key]; ok {
+		return werror.WithStack(werror.ErrKeyAlreadyExists)
+	}
+
+	if key.CreatedBy == "" {
+		return werror.WithStack(werror.ErrKeyNoServer)
+	}
+
+	_, err := accSrv.collection.InsertOne(context.Background(), key)
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	accSrv.apiKeyMap[key.Key] = key
+	return nil
+}
+
 func getFileOwnerName(file *fileTree.WeblensFileImpl) models.Username {
 	portable := file.GetPortablePath()
-	if portable.RootName() != "MEDIA" {
+	if portable.RootName() != "USERS" {
 		return "WEBLENS"
 	}
 	slashIndex := strings.Index(portable.RelativePath(), "/")

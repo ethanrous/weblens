@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
 	"golang.org/x/net/webdav"
 )
 
@@ -30,7 +30,8 @@ func (w WebdavFs) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 		return err
 	}
 
-	_, err = w.WeblensFs.CreateFile(parent, filepath.Base(unescapeName))
+	// TODO: add event
+	_, err = w.WeblensFs.CreateFile(parent, filepath.Base(unescapeName), nil)
 	if err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func (w WebdavFs) OpenFile(ctx context.Context, name string, flag int, perm os.F
 }
 
 func (w WebdavFs) RemoveAll(ctx context.Context, name string) error {
-	
+
 	panic("implement me")
 }
 
@@ -85,7 +86,7 @@ func (w WebdavFs) Rename(ctx context.Context, oldName, newName string) error {
 		return err
 	}
 
-	err = w.WeblensFs.MoveFiles([]*fileTree.WeblensFileImpl{oldFile}, newParent, w.Caster)
+	err = w.WeblensFs.MoveFiles([]*fileTree.WeblensFileImpl{oldFile}, newParent, "USERS", w.Caster)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,9 @@
 package models
 
 import (
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/task"
 )
 
 type Hasher struct {
@@ -16,7 +16,7 @@ func NewHasher(service task.TaskService, caster Broadcaster) *Hasher {
 	return &Hasher{taskService: service, caster: caster}
 }
 
-func (h *Hasher) Hash(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent) error {
+func (h *Hasher) Hash(file *fileTree.WeblensFileImpl) error {
 	if h.taskService == nil {
 		return nil
 	}
@@ -35,7 +35,6 @@ func (h *Hasher) Hash(file *fileTree.WeblensFileImpl, event *fileTree.FileEvent)
 		func(result task.TaskResult) {
 			if result["contentId"] != nil {
 				file.SetContentId(result["contentId"].(ContentId))
-				event.NewCreateAction(file)
 			} else {
 				log.Error.Println("Failed to generate contentId for", file.Filename())
 			}

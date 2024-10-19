@@ -6,11 +6,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/task"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -82,9 +82,6 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
-	if err != nil {
-		log.ErrTrace(err)
-	}
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
@@ -167,11 +164,14 @@ func (wsc *WsClient) SubUnlock() {
 
 func (wsc *WsClient) Send(msg WsResponseInfo) error {
 	if wsc != nil && wsc.Active.Load() {
+
+		log.Trace.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName())
+
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
-			log.ErrTrace(err)
+			return werror.WithStack(err)
 		}
 	} else {
 		return werror.Errorf("trying to send to closed client")
@@ -223,7 +223,6 @@ func (wsc *WsClient) getClientType() string {
 		return "web"
 	}
 }
-
 
 type Client interface {
 	BasicCaster

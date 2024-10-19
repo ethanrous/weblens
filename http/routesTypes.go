@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 )
 
 type folderSubscribeMeta struct {
@@ -87,23 +87,23 @@ func newActionBody(msg models.WsRequestInfo) (models.WsR, error) {
 	case models.FolderSubscribe:
 		target := &folderSubscribeMeta{}
 		err := json.Unmarshal([]byte(msg.Content), target)
-		return target, err
+		return target, werror.WithStack(err)
 	case models.TaskSubscribe:
 		target := &taskSubscribeMeta{}
 		err := json.Unmarshal([]byte(msg.Content), target)
-		return target, err
+		return target, werror.WithStack(err)
 	case models.Unsubscribe:
 		target := &unsubscribeMeta{}
 		err := json.Unmarshal([]byte(msg.Content), target)
-		return target, err
+		return target, werror.WithStack(err)
 	case models.ScanDirectory:
 		target := &scanDirectoryMeta{}
 		err := json.Unmarshal([]byte(msg.Content), target)
-		return target, err
+		return target, werror.WithStack(err)
 	case models.CancelTask:
 		target := &cancelTaskMeta{}
 		err := json.Unmarshal([]byte(msg.Content), target)
-		return target, err
+		return target, werror.WithStack(err)
 	default:
 		return nil, werror.Errorf("did not recognize websocket action type [%s]", msg.Action)
 	}

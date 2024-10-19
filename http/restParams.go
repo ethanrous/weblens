@@ -3,8 +3,8 @@ package http
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/models"
 )
 
 type loginBody struct {
@@ -75,6 +75,11 @@ type initServerBody struct {
 	Password    string               `json:"password"`
 	CoreAddress string               `json:"coreAddress"`
 	CoreKey     models.WeblensApiKey `json:"coreKey"`
+	RemoteId    models.InstanceId    `json:"remoteId"`
+
+	// For restoring a server, remoind the core of its serverId and api key the remote last used
+	LocalId      models.InstanceId `json:"localId"`
+	UsingKeyInfo models.ApiKeyInfo `json:"usingKeyInfo"`
 }
 
 type newServerBody struct {
@@ -82,6 +87,11 @@ type newServerBody struct {
 	Role     models.ServerRole    `json:"role"`
 	Name     string               `json:"name"`
 	UsingKey models.WeblensApiKey `json:"usingKey"`
+}
+
+type newCoreBody struct {
+	CoreAddress string               `json:"coreAddress"`
+	UsingKey    models.WeblensApiKey `json:"usingKey"`
 }
 
 type deleteKeyBody struct {
@@ -95,6 +105,10 @@ type deleteRemoteBody struct {
 type restoreBody struct {
 	FileIds   []fileTree.FileId `json:"fileIds"`
 	Timestamp int64             `json:"timestamp"`
+}
+
+type uploadRestoreFileBody struct {
+	FileId fileTree.FileId `json:"fileId"`
 }
 
 type createFolderBody struct {
@@ -129,4 +143,15 @@ type sharePublicityBody struct {
 type scanBody struct {
 	FolderId fileTree.FileId `json:"folderId"`
 	Filename string          `json:"filename"`
+}
+
+type restoreFilesBody struct {
+	FileIds     []fileTree.FileId `json:"fileIds"`
+	NewParentId fileTree.FileId   `json:"newParentId"`
+	Timestamp   int64             `json:"timestamp"`
+}
+
+type restoreCoreBody struct {
+	HostUrl  string `json:"restoreUrl"`
+	ServerId string `json:"restoreId"`
 }

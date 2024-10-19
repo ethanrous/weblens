@@ -14,6 +14,7 @@
 .options-dropdown {
     display: flex;
     flex-direction: column;
+    align-items: center;
 
     padding: 10px;
     background-color: $bottom-grey;
@@ -27,7 +28,7 @@
     box-shadow: $soft-shadow;
     outline: 1px solid $main-accent;
     transition: all 150ms ease-in-out;
-    translate: -45px 162px;
+ //   translate: -45px 162px;
     pointer-events: none;
 
     &[data-open='true'] {
@@ -113,7 +114,7 @@
 
     &[data-open='true'] {
         outline-offset: 0;
-        outline: 3px solid $dark-paper;
+        outline: 3px solid var(--dark-paper);
         background-color: #00000044;
         pointer-events: all;
         backdrop-filter: blur(6px);

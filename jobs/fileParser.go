@@ -6,12 +6,12 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/metrics"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/metrics"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 )
 
 func ScanDirectory(t *task.Task) {
@@ -20,7 +20,7 @@ func ScanDirectory(t *task.Task) {
 	if meta.FileService.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
 		meta.Caster.PushTaskUpdate(
-			t, models.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
+			t, models.FolderScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
 		)
 		t.Success("No media to scan")
 		return
@@ -43,15 +43,14 @@ func ScanDirectory(t *task.Task) {
 
 	err := meta.FileService.AddTask(meta.File, t)
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	defer func() { err = meta.FileService.RemoveTask(meta.File, t); log.ErrTrace(err) }()
 
-	meta.TaskSubber.FolderSubToPool(meta.File.ID(), pool.GetRootPool().ID())
-	meta.TaskSubber.FolderSubToPool(meta.File.GetParentId(), pool.GetRootPool().ID())
-	meta.TaskSubber.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
+	meta.TaskSubber.FolderSubToTask(meta.File.ID(), t.TaskId())
+	meta.TaskSubber.FolderSubToTask(meta.File.GetParentId(), t.TaskId())
 
-	log.Debug.Printf("Beginning directory scan for %s\n", meta.File.GetAbsPath())
+	log.Debug.Printf("Beginning directory scan for %s (%s)\n", meta.File.GetPortablePath(), meta.File.ID())
 
 	err = meta.File.LeafMap(
 		func(wf *fileTree.WeblensFileImpl) error {
@@ -67,6 +66,7 @@ func ScanDirectory(t *task.Task) {
 
 			m := meta.MediaService.Get(wf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
+				// meta.Caster.PushFileUpdate(wf, m)
 				return nil
 			}
 
@@ -88,7 +88,7 @@ func ScanDirectory(t *task.Task) {
 	)
 
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 
 	pool.SignalAllQueued()
@@ -113,16 +113,13 @@ func ScanDirectory(t *task.Task) {
 				"failed_count": len(errs),
 			},
 		)
-		t.ErrorAndExit(werror.WithStack(werror.ErrChildTaskFailed))
+		t.ReqNoErr(werror.WithStack(werror.ErrChildTaskFailed))
 	}
 
 	// Let any client subscribers know we are done
-	meta.Caster.PushPoolUpdate(
-		pool.GetRootPool(), models.ScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
-	)
-
 	result := getScanResult(t)
-	meta.Caster.PushTaskUpdate(t, models.SubTaskCompleteEvent, result)
+	meta.Caster.PushPoolUpdate(pool.GetRootPool(), models.FolderScanCompleteEvent, result)
+
 	t.Success()
 }
 
@@ -132,7 +129,7 @@ func ScanFile(t *task.Task) {
 	err := ScanFile_(meta)
 	stop := time.Now()
 	if err != nil {
-		t.ErrorAndExit(err)
+		t.ReqNoErr(err)
 	}
 	metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
 
@@ -148,7 +145,7 @@ func ScanFile_(meta models.ScanMeta) error {
 
 	contentId := meta.File.GetContentId()
 	if contentId == "" {
-		return werror.Errorf("trying to scan file with no content id: %s", meta.File.GetAbsPath())
+		return werror.Errorf("trying to scan file with no content id: %s", meta.File.AbsPath())
 	}
 
 	media := models.NewMedia(contentId)
@@ -192,7 +189,7 @@ func reportSubscanStatus(t *task.Task) {
 	if t.GetTaskPool().IsGlobal() {
 		meta.Caster.PushTaskUpdate(t, models.TaskCompleteEvent, getScanResult(t))
 	} else {
-		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.SubTaskCompleteEvent, getScanResult(t))
+		meta.Caster.PushPoolUpdate(t.GetTaskPool().GetRootPool(), models.FileScanCompleteEvent, getScanResult(t))
 	}
 }
 
@@ -222,7 +219,7 @@ func getScanResult(t *task.Task) task.TaskResult {
 		result["tasks_complete"] = status.Complete
 		result["tasks_failed"] = status.Failed
 		result["tasks_total"] = status.Total
-		result["runtime"] = status.Runtime
+		result["runtime"] = t.ExeTime()
 		if tp.CreatedInTask() != nil {
 			result["task_job_name"] = tp.CreatedInTask().JobName()
 		}

@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/webdav"
@@ -24,7 +24,7 @@ type Server struct {
 	StartupFunc func()
 
 	router     *gin.Engine
-	stdServer *http.Server
+	stdServer  *http.Server
 	routerLock sync.Mutex
 	services   *models.ServicePack
 	hostStr    string
@@ -37,11 +37,6 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 		hostStr:  host + ":" + port,
 	}
 
-	srv.router.Use(withServices(services))
-	srv.router.Use(gin.Recovery())
-	srv.router.Use(log.ApiLogger(env.GetLogLevel()))
-	// srv.router.Use(CORSMiddleware())
-
 	services.Server = srv
 
 	return srv
@@ -52,6 +47,10 @@ func (s *Server) Start() {
 		if s.services.StartupChan == nil {
 			return
 		}
+
+		s.router.Use(withServices(s.services))
+		s.router.Use(gin.Recovery())
+		s.router.Use(log.ApiLogger(log.GetLogLevel()))
 
 		s.router.GET("/ping", ping)
 		s.router.GET("/api/info", getServerInfo)
@@ -80,6 +79,8 @@ func (s *Server) Start() {
 		s.routerLock.Lock()
 		s.Running = false
 		s.stdServer = nil
+
+		s.router = gin.New()
 		s.routerLock.Unlock()
 	}
 }
@@ -100,10 +101,6 @@ func (s *Server) UseApi() {
 	api := s.router.Group("/api")
 	api.Use(WeblensAuth(false, false, s.services))
 
-	api.GET("/file/:fileId/history", getFolderHistory)
-	api.GET("/file/rewind/:folderId/:rewindTime", getPastFolderInfo)
-	api.POST("/history/restore", restorePastFiles)
-
 	// Media
 	api.GET("/media", getMediaBatch)
 	api.GET("/media/types", getMediaTypes)
@@ -117,11 +114,12 @@ func (s *Server) UseApi() {
 	api.GET("/media/:mediaId/:chunkName", streamVideo)
 	api.POST("/media/:mediaId/liked", likeMedia)
 	api.POST("/medias", getMediaByIds)
-	api.PATCH("/media/hide", hideMedia)
+	api.PATCH("/media/visibility", hideMedia)
 	api.PATCH("/media/date", adjustMediaDate)
 
 	// File
 	api.GET("/file/:fileId", getFile)
+	api.GET("/file/:fileId/history", getFolderHistory)
 	api.GET("/file/:fileId/text", getFileText)
 	api.GET("/file/share/:shareId", getFileShare)
 	api.GET("/file/:fileId/download", downloadFile)
@@ -131,6 +129,7 @@ func (s *Server) UseApi() {
 	api.GET("/files/:folderId/stats", getFolderStats)
 	api.GET("/files/shared", getSharedFiles)
 	api.GET("/files/search", searchByFilename)
+	api.POST("/files/restore", restoreFiles)
 	api.PATCH("/files", moveFiles)
 	api.PATCH("/files/trash", trashFiles)
 	api.PATCH("/files/untrash", unTrashFiles)
@@ -145,6 +144,7 @@ func (s *Server) UseApi() {
 	api.GET("/folder/:folderId", getFolder)
 	api.GET("/folder/:folderId/search", searchFolder)
 	api.POST("/folder", createFolder)
+	api.PATCH("/folder/:folderId/cover", setFolderCover)
 
 	// Folders
 	api.GET("/folders/media", getFoldersMedia)
@@ -192,7 +192,7 @@ func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCas
 
 	handler := &webdav.Handler{
 		FileSystem: fs,
-		// FileSystem: webdav.Dir(env.GetMediaRoot()),
+		// FileSystem: webdav.Dir(env.GetDataRoot()),
 		LockSystem: webdav.NewMemLS(),
 		Logger: func(r *http.Request, err error) {
 			if err != nil {
@@ -206,30 +206,55 @@ func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCas
 	go http.ListenAndServe(":8081", handler)
 }
 
-func (s *Server) UseCore() {
-	log.Trace.Println("Using core routes")
+func (s *Server) UseInterserverRoutes() {
+	log.Trace.Println("Using interserver routes")
 
 	core := s.router.Group("/api/core")
 	core.Use(KeyOnlyAuth(s.services))
 
-	core.POST("/remote", attachRemote)
+	// core.POST("/remote", attachRemote)
 
-	// Get all users
-	core.GET("/users", getUsersArchive)
-
-	// Get all media
-	core.GET("/media", getMediaArchive)
 	core.GET("/media/:mediaId/content", fetchMediaBytes)
 
 	core.POST("/files", getFilesMeta)
 	core.GET("/file/:fileId", getFileMeta)
 	core.GET("/file/:fileId/stat", getFileStat)
 	core.GET("/file/:fileId/directory", getDirectoryContent)
-	core.GET("/file/:fileId/content", getFileBytes)
+	core.GET("/file/content/:contentId", getFileBytes)
 
-	core.GET("/history/since/:timestamp", getLifetimesSince)
-	core.GET("/history", getHistory)
+	core.GET("/history/since", getLifetimesSince)
 	core.GET("/history/folder", getFolderHistory)
+
+	backup := core.Group("/backup")
+
+	backup.GET("/history", getHistory)
+
+	// Get all users
+	backup.GET("/users", getUsersArchive)
+
+	// Get all media
+	backup.GET("/media", getMediaArchive)
+
+	// Get all API keys
+	backup.GET("/keys", getApiKeysArchive)
+
+	// Get all instances
+	backup.GET("/instances", getInstancesArchive)
+
+}
+
+func (s *Server) UseRestore() {
+	log.Trace.Println("Using restore routes")
+
+	restore := s.router.Group("/api/core/restore")
+	restore.Use(WeblensAuth(false, false, s.services))
+
+	restore.POST("/history", restoreHistory)
+	restore.POST("/users", restoreUsers)
+	restore.POST("/file", uploadRestoreFile)
+	restore.POST("/keys", restoreApiKeys)
+	restore.POST("/instances", restoreInstances)
+	restore.POST("/complete", finalizeRestore)
 }
 
 func (s *Server) UseAdmin() {
@@ -254,9 +279,16 @@ func (s *Server) UseAdmin() {
 	admin.POST("/cache", clearCache)
 	admin.POST("/key", newApiKey)
 	admin.DELETE("/key/:keyId", deleteApiKey)
+
+	admin.POST("/remote", attachRemote)
 	admin.DELETE("/remote", removeRemote)
 
 	admin.POST("/backup", launchBackup)
+	admin.POST("/restore", restoreToCore)
+
+	if s.services.InstanceService.GetLocal().Role == models.BackupServer {
+		admin.POST("/core/attach", attachNewCoreRemote)
+	}
 
 	/* DANGER */
 	admin.POST("/reset", resetServer)
@@ -309,4 +341,8 @@ func (s *Server) Stop() {
 	err := s.stdServer.Shutdown(ctx)
 	log.ErrTrace(err)
 	log.ErrTrace(ctx.Err())
+
+	for _, c := range s.services.ClientService.GetAllClients() {
+		s.services.ClientService.ClientDisconnect(c)
+	}
 }

@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/http"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/jobs"
-	"github.com/ethrousseau/weblens/service/proxy"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/http"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/jobs"
+	"github.com/ethanrous/weblens/models"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,10 +23,14 @@ func TestStartupCore(t *testing.T) {
 		t.Skipf("skipping %s in short mode", t.Name())
 	}
 
+	var server *http.Server
+	var services = &models.ServicePack{}
+
 	gin.SetMode(gin.ReleaseMode)
 
 	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-CORE"), env.GetMongoDBName("TEST-CORE"))
 	require.NoError(t, err)
+
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
 
@@ -45,10 +50,13 @@ StartupWaitLoop:
 		select {
 		case _, ok := <-services.StartupChan:
 			if ok {
+				// If we accidentally catch a real signal, pass it on
 				services.StartupChan <- true
 			} else {
+				// Otherwise, break the loop
 				break StartupWaitLoop
 			}
+		// Allow 10 seconds for the server to start, although it should be much faster
 		case <-time.After(time.Second * 10):
 			t.Fatal("Core server setup timeout")
 		}
@@ -64,6 +72,21 @@ StartupWaitLoop:
 	services.Server.Stop()
 }
 
+func waitForStartup(startupChan chan bool) error {
+	for {
+		select {
+		case _, ok := <-startupChan:
+			if ok {
+				startupChan <- true
+			} else {
+				return nil
+			}
+		case <-time.After(time.Second * 10):
+			return werror.Errorf("Startup timeout")
+		}
+	}
+}
+
 func TestStartupBackup(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping %s in short mode", t.Name())
@@ -72,6 +95,9 @@ func TestStartupBackup(t *testing.T) {
 	if os.Getenv("REMOTE_TESTS") != "true" {
 		t.Skipf("skipping %s without REMOTE_TESTS set", t.Name())
 	}
+
+	var server *http.Server
+	var services = &models.ServicePack{}
 
 	gin.SetMode(gin.ReleaseMode)
 
@@ -94,36 +120,37 @@ func TestStartupBackup(t *testing.T) {
 	services.StartupChan = make(chan bool)
 	go server.Start()
 
-	log.Warning.Println("Waiting for backup startup...")
+	log.Debug.Println("Waiting for backup startup...")
 
-StartupWaitLoop:
-	for {
-		select {
-		case _, ok := <-services.StartupChan:
-			if ok {
-				services.StartupChan <- true
-			} else {
-				break StartupWaitLoop
-			}
-		case <-time.After(time.Second * 10):
-			t.Fatal("Backup server setup timeout")
-		}
-	}
+	// Wait for initial startup
+	err = waitForStartup(services.StartupChan)
+	require.NoError(t, err)
 
-	log.Warning.Println("Backup startup complete")
+	log.Debug.Println("Backup startup complete")
 
 	log.Trace.Println("Startup took", time.Since(start))
 	require.True(t, services.Loaded.Load())
 
+	// Initialize the server as a backup server
 	err = services.InstanceService.InitBackup("TEST-BACKUP", coreAddress, coreApiKey)
 	log.ErrTrace(err)
 	require.NoError(t, err)
 
-	err = http.WebsocketToCore(services.InstanceService.GetCore(), services)
-	log.ErrTrace(err)
+	server.Restart()
 
-	core := services.InstanceService.GetCore()
-	services.UserService = proxy.NewProxyUserService(core)
+	// Wait for backup server startup
+	err = waitForStartup(services.StartupChan)
+	require.NoError(t, err)
+
+	require.Equal(t, models.BackupServer, services.InstanceService.GetLocal().Role)
+
+	cores := services.InstanceService.GetCores()
+	require.Len(t, cores, 1)
+
+	core := cores[0]
+
+	err = http.WebsocketToCore(core, services)
+	log.ErrTrace(err)
 
 	coreClient := services.ClientService.GetClientByServerId(core.ServerId())
 	retries := 0
@@ -143,8 +170,8 @@ StartupWaitLoop:
 	complete, _ := tsk.Status()
 	require.True(t, complete)
 
-	tskErr := tsk.ReadError()
-	if err, ok := tskErr.(error); err != nil || (!ok && tskErr != nil) {
+	err = tsk.ReadError()
+	if err != nil {
 		log.ErrTrace(err)
 		t.FailNow()
 	}

@@ -4,22 +4,24 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service/proxy"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service/proxy"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var _ models.InstanceService = (*InstanceServiceImpl)(nil)
 
 type InstanceServiceImpl struct {
-	instanceMap     map[models.InstanceId]*models.Instance
+	instanceMap map[string]*models.Instance
 	instanceMapLock sync.RWMutex
 	local           *models.Instance
-	core            *models.Instance
 
 	col database.MongoCollection
 }
@@ -41,44 +43,64 @@ func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, err
 		return nil, werror.WithStack(err)
 	}
 
-	is.instanceMapLock.Lock()
-	defer is.instanceMapLock.Unlock()
+	// Must know local server before starting
 	for _, server := range servers {
-		if server.IsLocal() {
-			is.local = server
+		if !server.IsLocal() {
 			continue
 		}
-		if server.IsCore() {
-			if is.core != nil {
-				return nil, werror.WithStack(werror.ErrDuplicateCoreServer)
-			}
-			is.core = server
-		}
-		is.instanceMap[server.ServerId()] = server
+		is.local = server
+		break
 	}
 
+	is.instanceMapLock.Lock()
+	defer is.instanceMapLock.Unlock()
 	if is.local == nil {
-		is.local = models.NewInstance("", "", "", models.InitServer, true, "")
+		is.local = models.NewInstance("", "", "", models.InitServer, true, "", "")
+		is.local.CreatedBy = is.local.Id
+	} else {
+		for _, server := range servers {
+			if server.IsLocal() {
+				continue
+			}
+			_, ok := is.instanceMap[server.DbId.Hex()]
+			if ok && server.CreatedBy != is.local.Id {
+				continue
+			}
+
+			log.Trace.Printf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)
+			is.instanceMap[server.DbId.Hex()] = server
+		}
 	}
 
 	return is, nil
 }
 
 func (is *InstanceServiceImpl) Add(i *models.Instance) error {
+	// Check if the instance was created on this server or not. Should only
+	// be false on backup servers looking to back up the database on the core
+	createdHere := i.CreatedBy == is.local.ServerId()
+
 	// Validate
 	if i.ServerId() == "" {
 		return werror.WithStack(werror.ErrNoServerId)
-	} else if !i.IsLocal() && i.GetUsingKey() == "" {
-		// The key and the address are ALWAYS on the remote
+	} else if i.CreatedBy == "" {
+		return werror.WithStack(werror.ErrNoCreator)
+	} else if !i.IsLocal() && i.GetUsingKey() == "" && createdHere {
+		// The key and the address are ALWAYS on the remote... if it was createdHere
 		return werror.WithStack(werror.ErrNoServerKey)
 	} else if i.GetName() == "" {
 		return werror.WithStack(werror.ErrNoServerName)
-	} else if i.IsLocal() {
-		return werror.WithStack(werror.ErrDuplicateLocalServer)
-	} else if i.IsCore() && i.Address == "" {
-		// The key and the address are ALWAYS on the remote
+	} else if i.IsCore() && i.Address == "" && createdHere {
+		// The key and the address are ALWAYS on the remote... if it was createdHere
 		return werror.WithStack(werror.ErrNoCoreAddress)
+	} else if !i.DbId.IsZero() {
+		return werror.Errorf("instance already has a local id")
+	} else if i.IsLocal() && is.local != nil && !is.local.DbId.IsZero() {
+		return werror.WithStack(werror.ErrDuplicateLocalServer)
 	}
+
+	// Give this server a locally unique id
+	i.DbId = primitive.NewObjectID()
 
 	_, err := is.col.InsertOne(context.Background(), i)
 	if err != nil {
@@ -92,14 +114,10 @@ func (is *InstanceServiceImpl) Add(i *models.Instance) error {
 
 	is.instanceMapLock.Lock()
 	defer is.instanceMapLock.Unlock()
-	is.instanceMap[i.ServerId()] = i
+	is.instanceMap[i.DbId.Hex()] = i
 
 	if i.IsLocal() {
 		is.local = i
-	}
-
-	if i.IsCore() {
-		is.core = i
 	}
 
 	return nil
@@ -117,29 +135,74 @@ func (is *InstanceServiceImpl) Add(i *models.Instance) error {
 // 	instance.UsingKey = key
 // }
 
-func (is *InstanceServiceImpl) Get(iId models.InstanceId) *models.Instance {
+func (is *InstanceServiceImpl) Get(dbId string) *models.Instance {
 	is.instanceMapLock.RLock()
 	defer is.instanceMapLock.RUnlock()
-	return is.instanceMap[iId]
+	return is.instanceMap[dbId]
+}
+
+func (is *InstanceServiceImpl) GetAllByOriginServer(originId models.InstanceId) []*models.Instance {
+	is.instanceMapLock.RLock()
+	defer is.instanceMapLock.RUnlock()
+	ret := []*models.Instance{}
+	for _, instance := range is.instanceMap {
+		if instance.CreatedBy == originId {
+			ret = append(ret, instance)
+		}
+	}
+
+	return ret
+}
+
+func (is *InstanceServiceImpl) GetByInstanceId(serverId models.InstanceId) *models.Instance {
+	is.instanceMapLock.RLock()
+	defer is.instanceMapLock.RUnlock()
+
+	if serverId == is.local.ServerId() {
+		return is.local
+	}
+
+	for _, instance := range is.instanceMap {
+		if instance.Id == serverId && instance.CreatedBy == is.local.ServerId() {
+			return instance
+		}
+	}
+
+	return nil
 }
 
 func (is *InstanceServiceImpl) GetLocal() *models.Instance {
 	return is.local
 }
 
-func (is *InstanceServiceImpl) GetCore() *models.Instance {
-	return is.core
+func (is *InstanceServiceImpl) GetCores() []*models.Instance {
+	if is.local == nil || is.local.IsCore() {
+		return nil
+	}
+
+	var cores []*models.Instance
+	is.instanceMapLock.RLock()
+	defer is.instanceMapLock.RUnlock()
+
+	for _, i := range is.instanceMap {
+		log.Debug.Printf("Checking instance [%s] created by [%s]", i.ServerId(), i.CreatedBy)
+		if i.IsCore() && i.CreatedBy == is.local.ServerId() {
+			cores = append(cores, i)
+		}
+	}
+
+	return cores
 }
 
-func (is *InstanceServiceImpl) Del(iId models.InstanceId) error {
-	_, err := is.col.DeleteOne(context.Background(), bson.M{"_id": iId})
+func (is *InstanceServiceImpl) Del(dbId primitive.ObjectID) error {
+	_, err := is.col.DeleteOne(context.Background(), bson.M{"_id": dbId})
 	if err != nil {
 		return err
 	}
 
 	is.instanceMapLock.Lock()
 	defer is.instanceMapLock.Unlock()
-	delete(is.instanceMap, iId)
+	delete(is.instanceMap, dbId.Hex())
 
 	return nil
 }
@@ -148,6 +211,7 @@ func (is *InstanceServiceImpl) Size() int {
 	return len(is.instanceMap)
 }
 
+// GetRemotes returns all instances that are not the local server
 func (is *InstanceServiceImpl) GetRemotes() []*models.Instance {
 	return internal.MapToValues(is.instanceMap)
 }
@@ -159,7 +223,8 @@ func (is *InstanceServiceImpl) InitCore(serverName string) error {
 	}
 
 	local.Name = serverName
-	local.Role = models.CoreServer
+	local.SetRole(models.CoreServer)
+	local.DbId = primitive.NewObjectID()
 
 	_, err := is.col.InsertOne(context.Background(), local)
 	if err != nil {
@@ -168,8 +233,6 @@ func (is *InstanceServiceImpl) InitCore(serverName string) error {
 		local.Role = models.InitServer
 		return werror.WithStack(err)
 	}
-
-	is.core = local
 
 	return nil
 }
@@ -185,7 +248,22 @@ func (is *InstanceServiceImpl) InitBackup(
 	local.Name = name
 	local.SetRole(models.BackupServer)
 
-	core := models.NewInstance("", "", key, models.CoreServer, false, coreAddr)
+	_, err := is.AttachRemoteCore(coreAddr, key)
+	if err != nil {
+		// Revert name and role if db write fails
+		local.Name = ""
+		local.Role = models.InitServer
+		return err
+	}
+
+	err = is.Add(local)
+
+	return err
+}
+
+func (is *InstanceServiceImpl) AttachRemoteCore(coreAddr string, key string) (*models.Instance, error) {
+	local := is.GetLocal()
+	core := models.NewInstance("", "", key, models.CoreServer, false, coreAddr, local.ServerId())
 	// NewInstance will generate an Id if one is not given. We want to fill the id from what the core
 	// server reports it is, not make a new one
 	core.Id = ""
@@ -196,30 +274,25 @@ func (is *InstanceServiceImpl) InitBackup(
 		Name     string               `json:"name"`
 		UsingKey models.WeblensApiKey `json:"usingKey"`
 	}
-	body := newServerBody{Id: local.ServerId(), Role: models.BackupServer, Name: local.GetName(), UsingKey: key}
 
-	newCore, err := proxy.CallHomeStruct[*models.Instance](core, http.MethodPost, "/remote", body)
+	body := newServerBody{Id: local.ServerId(), Role: models.BackupServer, Name: local.GetName(), UsingKey: key}
+	r := proxy.NewCoreRequest(core, http.MethodPost, "").OverwriteEndpoint("/api/remote").WithBody(body)
+	newCore, err := proxy.CallHomeStruct[*models.Instance](r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	newCore.UsingKey = key
 	newCore.Address = coreAddr
-
-	_, err = is.col.InsertOne(context.Background(), local)
-	if err != nil {
-		// Revert name and role if db write fails
-		local.Name = ""
-		local.Role = models.InitServer
-		return werror.WithStack(err)
-	}
+	newCore.CreatedBy = local.ServerId()
+	// newCore.DbId = primitive.NewObjectID()
 
 	err = is.Add(newCore)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return newCore, nil
 }
 
 // ResetAll will clear all known servers, including the local one,
@@ -238,17 +311,36 @@ func (is *InstanceServiceImpl) ResetAll() error {
 	is.instanceMap = make(map[models.InstanceId]*models.Instance)
 	is.instanceMapLock.Unlock()
 
-	newLocal := models.NewInstance(localId, "", "", models.InitServer, true, "")
+	newLocal := models.NewInstance(localId, "", "", models.InitServer, true, "", localId)
 
 	_, err = is.col.InsertOne(context.Background(), newLocal)
 	if err != nil {
 		return err
 	}
 
-	is.core = nil
 	is.local = newLocal
 
 	is.instanceMap[localId] = newLocal
+
+	return nil
+}
+
+func (is *InstanceServiceImpl) SetLastBackup(id models.InstanceId, lastBackup time.Time) error {
+	instance := is.GetByInstanceId(id)
+	if instance == nil {
+		return werror.WithStack(werror.ErrNoInstance)
+	}
+
+	lastBackupMillis := lastBackup.UnixMilli()
+
+	_, err := is.col.UpdateOne(
+		context.Background(), bson.M{"_id": instance.DbId}, bson.M{"$set": bson.M{"lastBackup": lastBackupMillis}},
+	)
+	if err != nil {
+		return werror.WithStack(err)
+	}
+
+	instance.LastBackup = lastBackupMillis
 
 	return nil
 }

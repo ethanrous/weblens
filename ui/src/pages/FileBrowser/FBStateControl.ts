@@ -83,7 +83,7 @@ export interface FileBrowserStateT {
 
     shareId: string
     contentId: string
-    viewingPast: Date
+    pastTime: Date
     pasteImgBytes: ArrayBuffer
 
     addToFilesMap: (file: WeblensFileParams) => void
@@ -97,7 +97,8 @@ export interface FileBrowserStateT {
     setLocationState: (
         contentId: string,
         mode: FbModeT,
-        shareId: string
+        shareId: string,
+        pastTime: Date
     ) => void
     clearFiles: () => void
     setSearch: (searchContent: string) => void
@@ -275,7 +276,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
     blockFocus: false,
     isSearching: false,
     holdingShift: false,
-    viewingPast: null,
+    pastTime: null,
     menuMode: 0,
     homeDirSize: 0,
     trashDirSize: 0,
@@ -436,16 +437,23 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             }
         }),
 
-    setLocationState: (contentId: string, mode: FbModeT, shareId: string) =>
+    setLocationState: (
+        contentId: string,
+        mode: FbModeT,
+        shareId: string,
+        pastTime: Date
+    ) =>
         set({
             contentId: contentId,
             fbMode: mode,
             shareId: shareId,
             lastSelectedId: '',
+            pastTime: pastTime,
         }),
 
     clearFiles: () =>
         set({
+            folderInfo: null,
             filesMap: new Map<string, WeblensFile>(),
             selected: new Map<string, boolean>(),
             filesList: [],
@@ -470,19 +478,21 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             useMediaStore.getState().addMedias(medias)
         }
 
-        const self = new WeblensFile(selfInfo)
-        if (parents) {
-            self.SetParents(parents)
-        }
+        if (selfInfo) {
+            const self = new WeblensFile(selfInfo)
+            if (parents) {
+                self.SetParents(parents)
+            }
 
-        set({
-            folderInfo: self,
-        })
+            set({
+                folderInfo: self,
+            })
 
-        if (!self.IsFolder() && selfInfo.mediaData) {
-            useMediaStore
-                .getState()
-                .addMedias([new WeblensMedia(selfInfo.mediaData)])
+            if (!self.IsFolder() && selfInfo.mediaData) {
+                useMediaStore
+                    .getState()
+                    .addMedias([new WeblensMedia(selfInfo.mediaData)])
+            }
         }
 
         set((state) => {
@@ -616,7 +626,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
     },
 
     setPastTime: (pastTime: Date) => {
-        set({ viewingPast: pastTime })
+        set({ pastTime: pastTime })
     },
 
     setMoveDest: (dest: string) => {

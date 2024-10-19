@@ -3,15 +3,14 @@ package task
 import (
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/metrics"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/metrics"
+	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/google/uuid"
 )
 
@@ -35,7 +34,7 @@ type WorkerPool struct {
 	jobsMu         sync.RWMutex
 	registeredJobs map[string]TaskHandler
 
-	taskMu  sync.Mutex
+	taskMu  sync.RWMutex
 	taskMap map[Id]*Task
 
 	poolMu  sync.Mutex
@@ -43,7 +42,7 @@ type WorkerPool struct {
 
 	taskStream   workChannel
 	taskBufferMu sync.Mutex
-	retryBuffer []*Task
+	retryBuffer  []*Task
 	hitStream    hitChannel
 
 	exitFlag   atomic.Int64
@@ -60,8 +59,8 @@ func NewWorkerPool(initWorkers int, logLevel int) *WorkerPool {
 
 	newWp := &WorkerPool{
 		registeredJobs: map[string]TaskHandler{},
-		taskMap: map[Id]*Task{},
-		poolMap: map[Id]*TaskPool{},
+		taskMap:        map[Id]*Task{},
+		poolMap:        map[Id]*TaskPool{},
 
 		busyCount: &atomic.Int64{},
 
@@ -120,6 +119,19 @@ func (wp *WorkerPool) GetTaskPool(tpId Id) *TaskPool {
 	wp.poolMu.Lock()
 	defer wp.poolMu.Unlock()
 	return wp.poolMap[tpId]
+}
+
+func (wp *WorkerPool) GetTasksByJobName(jobName string) []*Task {
+	wp.taskMu.RLock()
+	defer wp.taskMu.RUnlock()
+
+	var ret []*Task
+	for _, t := range wp.taskMap {
+		if t.JobName() == jobName {
+			return append(ret, t)
+		}
+	}
+	return ret
 }
 
 func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
@@ -261,7 +273,10 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 			recovered = errors.New(fmt.Sprint(recovered))
 		}
 		if wp.logLevel != -1 {
-			log.ErrorCatcher.Printf("Worker %d recovered error: %s\n%s\n", workerId, recovered, debug.Stack())
+			log.ErrorCatcher.Printf(
+				"Worker %d recovered the following panic\n%s\n%s\n", workerId, recovered,
+				werror.GetStack(2).String(),
+			)
 		}
 		task.error(recovered.(error))
 	}
@@ -560,8 +575,8 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 	}
 
 	newQueue := &TaskPool{
-		id:    tpId.String(),
-		tasks: map[Id]*Task{},
+		id:           tpId.String(),
+		tasks:        map[Id]*Task{},
 		workerPool:   wp,
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),
@@ -634,6 +649,8 @@ func (wp *WorkerPool) addToRetryBuffer(tasks ...*Task) {
 type TaskService interface {
 	RegisterJob(jobName string, fn TaskHandler)
 	NewTaskPool(replace bool, createdBy *Task) *TaskPool
+	GetTaskPoolByJobName(jobName string) *TaskPool
+	GetTasksByJobName(jobName string) []*Task
 
 	GetTask(taskId Id) *Task
 	GetTaskPool(Id) *TaskPool

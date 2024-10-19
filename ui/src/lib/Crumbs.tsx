@@ -9,7 +9,10 @@ import { useClick, useResize } from '@weblens/components/hooks'
 
 import '@weblens/lib/crumbs.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { memo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -23,8 +26,8 @@ type Crumb = {
 type breadcrumbProps = {
     crumbInfo: Crumb
     moveSelectedTo
+    isCurrent: boolean
     compact?: boolean
-    isCurrent?: boolean
 }
 
 const CrumbText = ({ crumb }: { crumb: Crumb }) => {
@@ -78,7 +81,7 @@ export const StyledBreadcrumb = ({
             data-dragging={dragging === 1}
             data-current={isCurrent}
             onMouseOver={() => {
-                if (dragging && setMoveDest) {
+                if (dragging && !isCurrent && setMoveDest) {
                     setMoveDest(crumbInfo.name)
                 }
             }}
@@ -173,6 +176,7 @@ export const StyledLoaf = ({
                     <StyledBreadcrumb
                         crumbInfo={c}
                         moveSelectedTo={moveSelectedTo}
+                        isCurrent={i === crumbs.length - 1}
                     />
                     {i !== crumbs.length - 1 && (
                         <IconChevronRight
@@ -230,6 +234,15 @@ const Crumbs = memo(
         )
 
         const crumbs: Crumb[] = []
+
+        if (mode == FbModeT.share) {
+            crumbs.push({
+                name: 'Shared',
+                id: 'shared',
+                visitRoute: '/files/shared',
+                navigable: folderInfo !== null,
+            } as Crumb)
+        }
 
         if (!user || !folderInfo?.Id()) {
             return (

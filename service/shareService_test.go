@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
@@ -33,7 +33,7 @@ func TestShareServiceImpl_Add(t *testing.T) {
 	dipperUser, err := models.NewUser("dipperpines", "ivegotabook", false, true)
 	require.NoError(t, err)
 
-	ft := mock.NewMemFileTree("MEDIA")
+	ft := mock.NewMemFileTree("USERS")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
 
 	sh := models.NewFileShare(newDir, billUser, []*models.User{dipperUser}, false, false)
@@ -67,7 +67,7 @@ func TestShareServiceImpl_Del(t *testing.T) {
 	billUser, err := models.NewUser("billcypher", "shakemyhand", false, true)
 	require.NoError(t, err)
 
-	ft := mock.NewMemFileTree("MEDIA")
+	ft := mock.NewMemFileTree("USERS")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
 
 	sh := models.NewFileShare(newDir, billUser, nil, true, false)
@@ -114,7 +114,7 @@ func TestShareServiceImpl_UpdateUsers(t *testing.T) {
 	dipperUser, err := models.NewUser("dipperpines", "journalboy123", false, true)
 	require.NoError(t, err)
 
-	ft := mock.NewMemFileTree("MEDIA")
+	ft := mock.NewMemFileTree("USERS")
 	newDir, err := ft.MkDir(ft.GetRoot(), "billcypher", nil)
 
 	sh := models.NewFileShare(newDir, billUser, nil, true, false)

@@ -66,7 +66,7 @@ const WeblensInput = memo(
         return (
             <div
                 className="weblens-input-wrapper"
-                style={{ minHeight: squareSize, minWidth: squareSize }}
+                style={{ maxHeight: squareSize, minWidth: squareSize }}
                 data-value={internalValue}
                 data-minimize={minimize}
                 data-subtle={subtle}
@@ -108,6 +108,9 @@ const WeblensInput = memo(
                     placeholder={placeholder}
                     type={password ? 'password' : ''}
                     onKeyDown={(e) => {
+                        if (e.ctrlKey) {
+                            return
+                        }
                         if (e.key === 'Escape') {
                             e.stopPropagation()
                             e.preventDefault()
@@ -115,11 +118,13 @@ const WeblensInput = memo(
                                 searchRef.blur()
                                 setSearchRef(null)
                             }
-
                             return
                         } else if (e.key === 'Enter') {
                             if (onComplete && isFocused === true) {
                                 e.stopPropagation()
+                                if (failed || error || internalValue === '') {
+                                    return
+                                }
                                 onComplete(internalValue)
                                     .then(() => {
                                         if (closeInput) {
@@ -165,6 +170,7 @@ const WeblensInput = memo(
                             centerContent
                             squareSize={squareSize ? squareSize * 0.75 : 40}
                             Left={buttonIcon}
+                            disabled={failed || error || internalValue === ''}
                             onClick={(e) => {
                                 e.stopPropagation()
                                 if (onComplete) {

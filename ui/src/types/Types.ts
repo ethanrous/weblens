@@ -22,6 +22,9 @@ export type ServerInfoT = {
     role: string
     coreAddress: string
     online: boolean
+    reportedRole: string
+    lastBackup: number 
+    backupSize: number
 }
 
 export type mediaType = {

@@ -27,6 +27,10 @@ $menu-base-square-size: 250px;
     pointer-events: none;
 }
 
+.menu-body-below-header {
+    margin-top: $menu-title-height;
+}
+
 .backdrop-menu {
     display: flex;
     flex-direction: column;
@@ -42,7 +46,7 @@ $menu-base-square-size: 250px;
     overflow: hidden;
 
     outline: 2px solid $main-accent;
-    background-color: #111114;
+    background-color: $background;
     border: none;
     border-radius: 8px;
 
@@ -64,7 +68,7 @@ $menu-base-square-size: 250px;
         scale: 1;
         width: 300px;
         max-width: 300px;
-        height: 75px + $menu-title-height;
+        height: 80px + $menu-title-height;
     }
 
     &[data-mode='4'] {
@@ -80,6 +84,13 @@ $menu-base-square-size: 250px;
         width: 300px;
         max-width: 300px;
         height: 75px + $menu-title-height;
+    }
+
+    &[data-mode='6'] {
+        scale: 1;
+        width: max-content;
+        height: calc(40vh + $menu-title-height);
+
     }
 }
 
@@ -164,7 +175,7 @@ $menu-base-square-size: 250px;
     transition: background-color 150ms ease-in-out;
 
     &:hover {
-        background-color: $dark-paper;
+        background-color: var(--dark-paper);
         //box-shadow: $hard-shadow;
     }
 
@@ -214,11 +225,11 @@ $menu-base-square-size: 250px;
     color: white;
     transition: background-color 150ms ease-in-out;
 
-    background-color: $dark-paper;
+    background-color: var(--dark-paper);
     outline: 1px solid $main-accent;
 
     &[data-danger='true'] {
-        background-color: $danger-subtle;
-        outline: 1px solid $danger;
+        background-color: var(--wl-danger-subtle);
+        outline: 1px solid var(--wl-danger);
     }
 }

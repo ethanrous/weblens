@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
+	"strings"
 )
 
 var Info *log.Logger
@@ -15,8 +17,8 @@ var ErrorCatcher *log.Logger
 func init() {
 	Info = log.New(os.Stdout, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
 
-	// Warning writes logs in the color yellow with "WARNING: " as prefix
-	Warning = log.New(os.Stdout, "\u001b[33m[WARNING] \u001B[0m", log.LstdFlags|log.Lshortfile)
+	// Warning writes logs in the color yellow with "WARN: " as prefix
+	Warning = log.New(os.Stdout, "\u001b[33m[WARN] \u001B[0m", log.LstdFlags|log.Lshortfile)
 
 	// Error writes logs in the color red with "ERROR: " as prefix
 	Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
@@ -48,10 +50,19 @@ const (
 
 var logLevel = 0
 
-func SetLogLevel(level int) {
-	if logLevel == 0 {
-		logLevel = level
+func GetLogLevel() int {
+	return logLevel
+}
+
+func SetLogLevel(newLevel int) {
+	if logLevel == newLevel {
+		return
 	}
+	if logLevel != 0 {
+		Warning.Println("Overwriting Log level")
+	}
+	logLevel = newLevel
+
 	switch logLevel {
 	// Disable all loggers except for error
 	case QUIET:
@@ -62,6 +73,7 @@ func SetLogLevel(level int) {
 	// enable trace and debug
 	case TRACE:
 		Trace = log.New(os.Stdout, "[TRACE] ", log.LstdFlags|log.Lshortfile)
+		Trace.Println("Trace logger enabled")
 		fallthrough
 	// enable debug
 	case DEBUG:
@@ -69,4 +81,17 @@ func SetLogLevel(level int) {
 		Debug = log.New(os.Stdout, prefix, log.LstdFlags|log.Lshortfile)
 
 	}
+
+	Debug.Printf("Using log level [%d]", newLevel)
+}
+
+func TraceCaller(skip int, format string, v ...any) {
+	if logLevel >= TRACE {
+		_, file, line, _ := runtime.Caller(2)
+
+		file = file[strings.LastIndex(file, "/")+1:]
+
+		fmt.Printf("[TRACE] %s:%d: %s\n", file, line, fmt.Sprintf(format, v...))
+	}
+
 }

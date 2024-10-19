@@ -6,9 +6,9 @@ export function GetUserInfo() {
     return fetchJson<UserInfoT>(`${API_ENDPOINT}/user`)
 }
 
-export function GetUsersInfo(setAllUsersInfo) {
+export function GetUsersInfo() {
     const url = `${API_ENDPOINT}/users`
-    fetchJson<UserInfoT[]>(url).then((data) => setAllUsersInfo(data))
+    return fetchJson<UserInfoT[]>(url)
 }
 
 export function ActivateUser(username: string) {
@@ -18,7 +18,7 @@ export function ActivateUser(username: string) {
 
 export function DeleteUser(username: string) {
     const url = `${API_ENDPOINT}/user/${username}`
-    return fetchJson(url, 'DELETE')
+    return wrapRequest(fetch(url, { method: 'DELETE' }))
 }
 
 export function UpdatePassword(

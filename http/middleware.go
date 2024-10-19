@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/metrics"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/metrics"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,13 +40,13 @@ func ParseApiKeyLogin(authHeader string, pack *models.ServicePack) (
 		return nil, nil, werror.ErrBadAuthScheme
 	}
 
-	key, err := pack.AccessService.GetApiKey(models.WeblensApiKey(authParts[1]))
+	key, err := pack.AccessService.GetApiKey(authParts[1])
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if key.RemoteUsing != "" {
-		i := pack.InstanceService.Get(key.RemoteUsing)
+		i := pack.InstanceService.GetByInstanceId(key.RemoteUsing)
 		return nil, i, nil
 	}
 
@@ -91,6 +91,8 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}
+
+			log.Trace.Println("User", usr.GetUsername(), "authenticated")
 
 			c.Set("user", usr)
 			c.Next()
@@ -138,6 +140,11 @@ func KeyOnlyAuth(pack *models.ServicePack) gin.HandlerFunc {
 			_, server, err := ParseApiKeyLogin(authHeader[0], pack)
 			if err != nil {
 				log.ShowErr(err)
+				c.AbortWithStatus(http.StatusUnauthorized)
+				return
+			}
+			if server == nil {
+				log.Warning.Println(werror.Errorf("Got nil server in KeyOnlyAuth"))
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}

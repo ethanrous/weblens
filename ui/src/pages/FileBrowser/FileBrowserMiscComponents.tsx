@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react'
 import { useResize } from '@weblens/components/hooks'
 
+import '@weblens/components/theme.scss'
 import './style/fileBrowserStyle.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
@@ -27,9 +28,11 @@ import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { UserInfoT } from '@weblens/types/Types'
 import { friendlyFolderName, humanFileSize } from '@weblens/util'
-import React, { DragEventHandler, memo, useMemo, useState } from 'react'
-import { useFileBrowserStore } from './FBStateControl'
+import { DragEventHandler, FC, memo, useMemo, useState } from 'react'
+import { FbModeT, useFileBrowserStore } from './FBStateControl'
 import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
+import '@weblens/components/theme.scss'
+import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 
 export const TransferCard = ({
     action,
@@ -50,15 +53,6 @@ export const TransferCard = ({
         return null
     }
 
-    let DestinationIcon
-    if (destination === 'Home') {
-        DestinationIcon = IconHome
-    } else if (destination === 'Trash') {
-        DestinationIcon = IconTrash
-    } else {
-        DestinationIcon = IconFolder
-    }
-
     return (
         <div
             className="transfer-info-wrapper"
@@ -69,8 +63,7 @@ export const TransferCard = ({
         >
             <div className="transfer-info-box">
                 <p className="select-none">{action} to</p>
-                <DestinationIcon />
-                <p className="font-bold select-none">{destination}</p>
+                <FileFmt pathName={destination} />
             </div>
         </div>
     )
@@ -184,7 +177,7 @@ export function DraggingCounter() {
 
     return (
         <div
-            className="fixed z-10"
+            className="fixed z-10 bg-wl-barely-visible wl-outline p-2"
             style={{
                 top: position.y + 8,
                 left: position.x + 8,
@@ -194,14 +187,14 @@ export function DraggingCounter() {
             }}
         >
             {Boolean(files) && (
-                <div className="flex flex-row h-max">
+                <div className="flex flex-row h-max text-[--wl-text-color]">
                     <IconFile size={30} />
                     <Space w={10} />
                     <p>{files}</p>
                 </div>
             )}
             {Boolean(folders) && (
-                <div className="flex flex-row h-max">
+                <div className="flex flex-row h-max text-[--wl-text-color]">
                     <IconFolder size={30} />
                     <Space w={10} />
                     <p>{folders}</p>
@@ -234,14 +227,16 @@ export const DirViewWrapper = memo(
                 onMouseUp={() => {
                     if (draggingState) {
                         setTimeout(() => setDragging(DraggingStateT.NoDrag), 10)
+                    } else {
+                        clearSelected()
                     }
                 }}
-                onClick={() => {
-                    if (draggingState) {
-                        return
-                    }
-                    clearSelected()
-                }}
+                // onClick={() => {
+                //     if (draggingState) {
+                //         return
+                //     }
+                //     clearSelected()
+                // }}
                 onContextMenu={(e) => {
                     e.preventDefault()
                     setMenu({
@@ -285,19 +280,9 @@ export const FileIcon = ({
     return (
         <div className="flex items-center">
             <Icon className="icon-noshrink" />
-            <Text
-                fw={550}
-                c="white"
-                truncate="end"
-                style={{
-                    fontFamily: 'monospace',
-                    textWrap: 'nowrap',
-                    padding: 6,
-                    flexShrink: 1,
-                }}
-            >
+            <p className="font-medium text-white truncate text-nowrap p-2 shrink">
                 {friendlyFolderName(fileName, id, usr)}
-            </Text>
+            </p>
             {as && (
                 <div className="flex flex-row items-center">
                     <Text size="12px">as</Text>
@@ -329,7 +314,7 @@ export const IconDisplay = ({
     const [containerRef, setContainerRef] = useState(null)
     const containerSize = useResize(containerRef)
     const mediaData = useMediaStore((state) =>
-        state.mediaMap.get(file.GetMediaId())
+        state.mediaMap.get(file.GetContentId())
     )
 
     if (!file) {
@@ -337,7 +322,32 @@ export const IconDisplay = ({
     }
 
     if (file.IsFolder()) {
-        return <IconFolder stroke={1} className="w-3/4 h-3/4 shrink-0" />
+        if (file.GetContentId() !== '') {
+            return (
+                <div className="relative flex w-full h-full justify-center items-center">
+                    {/* <IconFolder */}
+                    {/*     stroke={0} */}
+                    {/*     fill={'white'} */}
+                    {/*     className="absolute h-1/4 w-1/4 z-10 shrink-0 text-[--wl-text-color] bottom-[12%] right-[3%]" */}
+                    {/* /> */}
+                    <div className="relative w-[90%] h-[90%] -translate-x-1 -translate-y-1 z-10">
+                        <MediaImage
+                            media={mediaData}
+                            quality={PhotoQuality.LowRes}
+                        />
+                    </div>
+                    <div className="absolute w-[88%] h-[88%] translate-x-[2px] translate-y-[2px] outline outline-2 outline-theme-text opacity-75 rounded" />
+                    <div className="absolute w-[88%] h-[88%] translate-x-[8px] translate-y-[8px] outline outline-2 outline-theme-text opacity-50 rounded" />
+                </div>
+            )
+        } else {
+            return (
+                <IconFolder
+                    stroke={1}
+                    className="h-3/4 w-3/4 z-10 shrink-0 text-[--wl-text-color]"
+                />
+            )
+        }
     }
 
     if (mediaData && (!mediaData.IsImported() || !allowMedia)) {
@@ -407,28 +417,37 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
 
 const EmptyIcon = ({ folderId, usr }) => {
     if (folderId === usr.homeId) {
-        return <IconHome size={500} color="#16181d" />
+        return <IconHome size={500} className="text-wl-barely-visible" />
     }
     if (folderId === usr.trashId) {
-        return <IconTrash size={500} color="#16181d" />
+        return <IconTrash size={500} className="text-wl-barely-visible" />
     }
     if (folderId === 'shared') {
-        return <IconUsers size={500} color="#16181d" />
+        return <IconUsers size={500} className="text-wl-barely-visible" />
     }
     if (folderId === 'EXTERNAL') {
-        return <IconServer size={500} color="#16181d" />
+        return <IconServer size={500} className="text-wl-barely-visible" />
     }
-    return null
+    return <IconFolder size={500} className="text-wl-barely-visible" />
 }
 
 export const GetStartedCard = () => {
     const user = useSessionStore((state) => state.user)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
+    const mode = useFileBrowserStore((state) => state.fbMode)
+    const viewingPast = useFileBrowserStore((state) => state.pastTime)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
-    if (!folderInfo) {
+    if (!folderInfo && mode === FbModeT.share) {
+        return (
+            <div className="flex justify-center items-center h-3/4">
+                <div className="h-max w-max p-4 wl-outline">
+                    <h4>You have no files shared with you</h4>
+                </div>
+            </div>
+        )
+    } else if (!folderInfo) {
         return null
     }
 
@@ -451,7 +470,7 @@ export const GetStartedCard = () => {
                                     files,
                                     folderInfo.Id(),
                                     false,
-                                    '',
+                                    ''
                                 )
                             }}
                             accept="file"
@@ -463,6 +482,7 @@ export const GetStartedCard = () => {
                                         subtle
                                         Left={IconUpload}
                                         squareSize={128}
+                                        tooltip="Upload"
                                         onClick={props.onClick}
                                     />
                                 )
@@ -474,6 +494,7 @@ export const GetStartedCard = () => {
                             Left={IconFolderPlus}
                             squareSize={128}
                             subtle
+                            tooltip="New Folder"
                             onClick={(e) => {
                                 setMenu({
                                     menuPos: { x: e.clientX, y: e.clientY },
@@ -509,11 +530,11 @@ export const WebsocketStatus = memo(
         }
 
         return (
-            <Tooltip openDelay={400} label={status} color="#222222">
+            <WeblensTooltip label={status}>
                 <svg width="24" height="24" fill={color}>
                     <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
                 </svg>
-            </Tooltip>
+            </WeblensTooltip>
         )
     },
     (prev, next) => {
@@ -529,17 +550,21 @@ export function PathFmt({ pathName }: { pathName: string }) {
         parts.pop()
     }
 
-    let StartIcon
+    let StartIcon: FC<{ className: string }>
     if (parts[0] === '.user_trash') {
         parts.shift()
         StartIcon = IconTrash
     } else {
+        parts.shift()
         StartIcon = IconHome
     }
 
     return (
-        <div className="flex items-center min-w-0">
-            <StartIcon className="text-white shrink-0" />
+        <div
+            className="flex items-center min-w-0"
+            style={{ flexShrink: parts.length ? 1 : 0 }}
+        >
+            <StartIcon className="shrink-0 text-[--wl-text-color]" />
             {parts.map((part) => {
                 return (
                     <div
@@ -547,10 +572,10 @@ export function PathFmt({ pathName }: { pathName: string }) {
                         className="flex w-max items-center shrink min-w-0"
                     >
                         <IconChevronRight
-                            className="text-white shrink-0"
+                            className="text-[--wl-text-color] shrink-0"
                             size={18}
                         />
-                        <p className="select-none text-white font-semibold text-xl text-nowrap truncate">
+                        <p className="text-[--wl-text-color] select-none font-semibold text-xl text-nowrap truncate">
                             {part}
                         </p>
                     </div>
@@ -561,13 +586,17 @@ export function PathFmt({ pathName }: { pathName: string }) {
 }
 
 export function FileFmt({ pathName }: { pathName: string }) {
+    if (!pathName) {
+        return null
+    }
+
     pathName = pathName.slice(pathName.indexOf(':') + 1)
     const parts = pathName.split('/')
     parts.shift()
 
-    let StartIcon
-    let nameText
-    if (parts.length === 1 && parts[0] === '') {
+    let StartIcon: FC<{ className: string }>
+    let nameText: string
+    if (parts.length == 0 || (parts.length === 1 && parts[0] === '')) {
         StartIcon = IconHome
         nameText = 'Home'
     } else if (
@@ -588,9 +617,12 @@ export function FileFmt({ pathName }: { pathName: string }) {
     }
 
     return (
-        <div className="flex items-center w-max min-w-0">
-            <StartIcon className="text-white m-1 shrink-0" />
-            <p className="select-none text-white font-semibold text-lg text-nowrap truncate">
+        <div
+            className="flex items-center w-max min-w-0"
+            style={{ flexShrink: parts.length ? 1 : 0 }}
+        >
+            <StartIcon className="theme-text m-1 shrink-0 text-[--wl-text-color]" />
+            <p className="theme-text select-none font-semibold text-lg text-nowrap truncate">
                 {nameText}
             </p>
         </div>

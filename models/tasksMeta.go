@@ -3,13 +3,16 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"hash"
 	"slices"
+	"sync"
+	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/task"
 )
 
 const (
@@ -22,11 +25,12 @@ const (
 	BackupTask           = "do_backup"
 	HashFileTask         = "hash_file"
 	CopyFileFromCoreTask = "copy_file_from_core"
+	RestoreCoreTask      = "restore_core"
 )
 
 type TaskSubscriber interface {
-	FolderSubToPool(folderId fileTree.FileId, poolId task.Id)
-	TaskSubToPool(taskId task.Id, poolId task.Id)
+	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
+	// TaskSubToPool(taskId task.Id, poolId task.Id)
 }
 
 type TaskDispatcher interface {
@@ -188,6 +192,8 @@ type UploadFilesMeta struct {
 	ChunkSize    int64
 	TotalSize    int64
 
+	UploadEvent *fileTree.FileEvent
+
 	FileService  FileService
 	MediaService MediaService
 	TaskService  task.TaskService
@@ -266,10 +272,11 @@ type FileUploadProgress struct {
 	File          *fileTree.WeblensFileImpl
 	BytesWritten  int64
 	FileSizeTotal int64
+	Hash          hash.Hash
 }
 
 type BackupMeta struct {
-	RemoteId            InstanceId
+	Core                *Instance
 	FileService         FileService
 	ProxyFileService    FileService
 	ProxyJournalService fileTree.Journal
@@ -279,13 +286,14 @@ type BackupMeta struct {
 	WebsocketService    ClientManager
 	InstanceService     InstanceService
 	TaskService         task.TaskService
+	AccessService       AccessService
 	Caster              Broadcaster
 }
 
 func (m BackupMeta) MetaString() string {
 	data := map[string]any{
 		"JobName":  BackupTask,
-		"remoteId": m.RemoteId,
+		"remoteId": m.Core,
 	}
 	bs, err := json.Marshal(data)
 	log.ErrTrace(err)
@@ -302,7 +310,7 @@ func (m BackupMeta) JobName() string {
 }
 
 func (m BackupMeta) Verify() error {
-	if m.RemoteId == "" {
+	if m.Core == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "RemoteId")
 	} else if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
@@ -324,6 +332,8 @@ func (m BackupMeta) Verify() error {
 		return werror.ErrBadJobMetadata(m.JobName(), "TaskService")
 	} else if m.Caster == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "Caster")
+	} else if m.AccessService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "AccessService")
 	}
 
 	return nil
@@ -359,9 +369,11 @@ func (m HashFileMeta) Verify() error {
 
 type BackupCoreFileMeta struct {
 	ProxyFileService FileService
+	FileService      FileService
 	File             *fileTree.WeblensFileImpl
 	Caster           Broadcaster
-	// Client comm.Client
+	Core             *Instance
+	Filename         string
 }
 
 func (m BackupCoreFileMeta) MetaString() string {
@@ -385,5 +397,119 @@ func (m BackupCoreFileMeta) JobName() string {
 }
 
 func (m BackupCoreFileMeta) Verify() error {
+	if m.Core == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Core")
+	}
+	if m.File == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "File")
+	}
+	if m.ProxyFileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ProxyFileService")
+	}
+	if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
+	}
+
 	return nil
+}
+
+type RestoreCoreMeta struct {
+	Core  *Instance
+	Local *Instance
+	Pack  *ServicePack
+}
+
+func (m RestoreCoreMeta) MetaString() string {
+	data := map[string]any{
+		"JobName": RestoreCoreTask,
+	}
+
+	bs, err := json.Marshal(data)
+	log.ErrTrace(err)
+
+	return string(bs)
+}
+
+func (m RestoreCoreMeta) FormatToResult() task.TaskResult {
+	return task.TaskResult{}
+}
+
+func (m RestoreCoreMeta) JobName() string {
+	return RestoreCoreTask
+}
+
+func (m RestoreCoreMeta) Verify() error {
+	if m.Core == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Core")
+	}
+	if m.Local == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "Local")
+	}
+	if m.Pack == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "ServicePack")
+	}
+
+	return nil
+}
+
+type TaskStage struct {
+	Key      string `json:"key"`
+	Name     string `json:"name"`
+	Started  int64  `json:"started"`
+	Finished int64  `json:"finished"`
+
+	index int
+}
+
+type TaskStages struct {
+	data map[string]TaskStage
+	mu   sync.Mutex
+}
+
+func (ts *TaskStages) StartStage(key string) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+
+	stage := ts.data[key]
+	stage.Started = time.Now().UnixMilli()
+	ts.data[key] = stage
+}
+
+func (ts *TaskStages) FinishStage(key string) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	stage := ts.data[key]
+
+	stage.Finished = time.Now().UnixMilli()
+	ts.data[key] = stage
+}
+
+func (ts *TaskStages) MarshalJSON() ([]byte, error) {
+	ts.mu.Lock()
+
+	var data []TaskStage
+	for _, stage := range ts.data {
+		data = append(data, stage)
+	}
+
+	ts.mu.Unlock()
+
+	slices.SortFunc(data, func(i, j TaskStage) int { return i.index - j.index })
+	return json.Marshal(data)
+}
+
+func NewBackupTaskStages() *TaskStages {
+	return &TaskStages{
+		data: map[string]TaskStage{
+			"connecting":         {Key: "connecting", Name: "Connecting to Remote", index: 0},
+			"fetching_users":     {Key: "fetching_users", Name: "Fetching Users", index: 1},
+			"writing_users":      {Key: "writing_users", Name: "Writing Users", index: 2},
+			"fetching_keys":      {Key: "fetching_keys", Name: "Fetching Api Keys", index: 3},
+			"writing_keys":       {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
+			"fetching_instances": {Key: "fetching_instances", Name: "Fetching Instances", index: 5},
+			"writing_instances":  {Key: "writing_instances", Name: "Writing Instances", index: 6},
+			"sync_journal":       {Key: "sync_journal", Name: "Calculating New File History", index: 7},
+			"sync_fs":            {Key: "sync_fs", Name: "Sync Filesystem", index: 8},
+		},
+	}
 }

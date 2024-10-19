@@ -18,6 +18,7 @@ type ButtonActionHandler = (
 
 type buttonProps = {
     label?: string
+    tooltip?: string
     showSuccess?: boolean
     toggleOn?: boolean
     subtle?: boolean
@@ -29,6 +30,7 @@ type buttonProps = {
     labelOnHover?: boolean
     fillWidth?: boolean
     allowShrink?: boolean
+    float?: boolean
     Left?: (p: any) => ReactNode
     Right?: (p: any) => ReactNode
 
@@ -209,6 +211,7 @@ const handleButtonEvent = async (
 const WeblensButton = memo(
     ({
         label,
+        tooltip = '',
         showSuccess = true,
         toggleOn = undefined,
         subtle = false,
@@ -224,6 +227,7 @@ const WeblensButton = memo(
         allowShrink = true,
         onClick,
         squareSize = 40,
+        float = false,
 
         onMouseUp,
         onMouseOver,
@@ -266,7 +270,7 @@ const WeblensButton = memo(
 
         const maxWidth = useMemo(() => {
             if (fillWidth) {
-                return '100%'
+                return ''
             }
             if (!label) {
                 return squareSize
@@ -295,6 +299,16 @@ const WeblensButton = memo(
                     flexShrink: Number(allowShrink),
                 }}
             >
+                {tooltip && (
+                    <div
+                        className="button-tooltip"
+                        style={{
+                            transform: `translateY(${squareSize / 2 + 25}px)`,
+                        }}
+                    >
+                        <p className="text-white text-nowrap">{tooltip}</p>
+                    </div>
+                )}
                 <div
                     className="weblens-button"
                     ref={setButtonRef}
@@ -308,6 +322,7 @@ const WeblensButton = memo(
                     data-subtle={subtle}
                     data-super={doSuper}
                     data-danger={danger}
+                    data-float={float}
                     style={{ ...style, width: targetWidth }}
                     onClick={(e) =>
                         handleButtonEvent(

@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -453,7 +453,7 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 
 	autioRate := 128000
 	outErr := bytes.NewBuffer(nil)
-	err = ffmpeg.Input(f.GetAbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
+	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
 		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
 			"c:v":                "libx264",
 			"b:v":                400000 * 2,
@@ -498,7 +498,7 @@ func (vs *VideoStreamer) IsTranscoding() bool {
 }
 
 func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (int, error) {
-	probeJson, err := ffmpeg.Probe(f.GetAbsPath())
+	probeJson, err := ffmpeg.Probe(f.AbsPath())
 	if err != nil {
 		return 0, err
 	}

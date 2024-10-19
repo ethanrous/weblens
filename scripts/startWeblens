@@ -9,17 +9,44 @@ if [[ ! -e ./build/bin ]]; then
   mkdir -p ./build/bin
 fi
 
-rm -f ./build/bin/weblens
+restart=false
 
-go build -race -o ./build/bin/weblens ./cmd/weblens/main.go
+while getopts "r" opt; do
+  case $opt in
+    r) restart=true
+    ;;
+    \?) echo "Invalid option -$OPTARG" >&2
+    exit 1
+    ;;
+  esac
 
-if [[ ! -e ./build/bin/weblens ]]; then
-  echo "Failed to build Weblens, exiting..."
-  exit 1
-fi
+  case $OPTARG in
+    -*) echo "Option $opt needs a valid argument"
+    exit 1
+    ;;
+  esac
+done
 
-if [[ -z "$CONFIG_NAME" ]]; then
-  export CONFIG_NAME=DEBUG-CORE
-fi
+while true; do
+  rm -f ./build/bin/weblens
 
-CONFIG_PATH=$(pwd)/config DETACH_UI=true ./build/bin/weblens
+  go build -gcflags="-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go
+
+  if [[ ! -e ./build/bin/weblens ]]; then
+    echo "Failed to build Weblens, exiting..."
+    exit 1
+  fi
+
+  if [[ -z "$CONFIG_NAME" ]]; then
+    export CONFIG_NAME=DEBUG-CORE
+  fi
+
+  APP_ROOT=$(pwd) ./build/bin/weblens
+
+  if [[ $restart == false ]]; then
+    break
+  fi
+  clear
+
+done
+

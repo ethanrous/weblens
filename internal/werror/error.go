@@ -4,20 +4,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/log"
 )
 
 func Errorf(format string, args ...any) StackError {
 	return &withStack{
 		err:   fmt.Errorf(format, args...),
-		stack: callers(),
+		stack: callers(3),
 	}
 }
 
 var NotImplemented = func(note string) error {
 	return &withStack{
 		err:   fmt.Errorf("not implemented: %s", note),
-		stack: callers(),
+		stack: callers(3),
 	}
 }
 
@@ -41,15 +41,17 @@ func (cse *clientSafeErr) Safe() error {
 	return cse.safeErr
 }
 
-func TrySafeErr(err error) (safeErr error, statusCode int) {
+func TrySafeErr(err error) (error, int) {
 	if err == nil {
 		return nil, 200
 	}
 
-	safe, ok := err.(*clientSafeErr)
-	if ok {
-		log.ShowErr(err)
-		return safe.Safe(), safe.statusCode
+	var safeErr = &clientSafeErr{}
+	if errors.As(err, &safeErr) {
+		if safeErr.statusCode >= 400 {
+			log.ShowErr(err)
+		}
+		return safeErr.Safe(), safeErr.statusCode
 	}
 
 	log.ErrTrace(err)

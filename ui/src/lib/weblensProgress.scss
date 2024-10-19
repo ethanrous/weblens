@@ -93,7 +93,7 @@
         transition: width 100ms ease-in-out;
         position: absolute;
         z-index: 1;
-        background-color: $dark-paper;
+        background-color: var(--dark-paper);
     }
 
     &[data-complete='true'] {

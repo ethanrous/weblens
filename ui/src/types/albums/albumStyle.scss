@@ -233,7 +233,7 @@ $cover-size: 450px;
     min-width: 128px;
     transition: all 200ms ease-in-out;
     cursor: pointer;
-    outline: 1px solid $dark-paper;
+    outline: 1px solid var(--dark-paper);
     border-radius: 4px;
     overflow: hidden;
     transform: translateY(0);
@@ -247,7 +247,7 @@ $cover-size: 450px;
 
     &[data-included='true'] {
         font-weight: 700;
-        background-color: $dark-paper;
+        background-color: var(--dark-paper);
     }
 
     &[data-disabled='true'] {

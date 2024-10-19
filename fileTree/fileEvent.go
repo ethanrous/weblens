@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
 )
 
-type FileEventId string
+type FileEventId = string
 
 type FileEvent struct {
 	EventId    FileEventId   `bson:"_id"`
@@ -17,34 +17,25 @@ type FileEvent struct {
 	ServerId   string        `bson:"serverId"`
 
 	journal     Journal      `bson:"-"`
-	ActionsLock sync.RWMutex `bson:"-"`
-}
+	hasher      Hasher       `bson:"-"`
+	actionsLock sync.RWMutex `bson:"-"`
 
-// NewFileEvent returns a FileEvent, a container for multiple FileActions that occur due to the
-// same event (move, delete, etc.)
-// func NewFileEvent(journal Journal) *FileEvent {
-// 	return &FileEvent{
-// 		EventId: FileEventId(primitive.NewObjectID().Hex()),
-// 		EventBegin:  time.Now(),
-// 		Actions:     []*FileAction{},
-// 		journal: journal,
-// 	}
-// }
-
-func (fe *FileEvent) GetEventId() FileEventId {
-	return fe.EventId
+	// LoggedChan is used to signal that the event has been logged to the journal.
+	// This is used to prevent actions on the same lifetime to be logged out of order.
+	// LoggedChan does not get written to, it is only closed.
+	LoggedChan chan struct{} `bson:"-"`
 }
 
 func (fe *FileEvent) addAction(a *FileAction) {
-	fe.ActionsLock.Lock()
-	defer fe.ActionsLock.Unlock()
+	fe.actionsLock.Lock()
+	defer fe.actionsLock.Unlock()
 
 	fe.Actions = append(fe.Actions, a)
 }
 
 func (fe *FileEvent) GetActions() []*FileAction {
-	fe.ActionsLock.RLock()
-	defer fe.ActionsLock.RUnlock()
+	fe.actionsLock.RLock()
+	defer fe.actionsLock.RUnlock()
 
 	return fe.Actions
 }
@@ -54,7 +45,11 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
-	log.Trace.Printf("Building create action for %s", file.Filename())
+	log.Trace.Printf("Building create action for [%s]", file.Filename())
+
+	if !file.IsDir() && file.GetContentId() == "" {
+		fe.hasher.Hash(file)
+	}
 
 	newAction := &FileAction{
 		LifeId:          file.ID(),
@@ -73,6 +68,21 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 	return newAction
 }
 
+func (fe *FileEvent) GetEventId() FileEventId {
+	return fe.EventId
+}
+
+func (fe *FileEvent) Wait() {
+	if fe == nil || fe.LoggedChan == nil {
+		log.ErrTrace(werror.Errorf("Cannot wait on nil event"))
+		return
+	}
+
+	log.TraceCaller(1, "Waiting for event [%s] to be logged", fe.EventId)
+	<-fe.LoggedChan
+	log.TraceCaller(1, "Event [%s] logged", fe.EventId)
+}
+
 func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAction {
 	if fe.journal == nil {
 		return nil
@@ -80,7 +90,8 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAc
 
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		log.Error.Println("Cannot not find existing lifetime for lifeId", lifeId)
+		err := werror.Errorf("Cannot not find existing lifetime for %s", lifeId)
+		log.ErrTrace(err)
 		return nil
 	}
 	latest := lt.GetLatestAction()
@@ -110,9 +121,17 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		log.ShowErr(werror.Errorf("Cannot not find existing lifetime for lifeId [%s]", lifeId))
+		err := werror.Errorf("Cannot not find existing lifetime for %s", lifeId)
+		log.ErrTrace(err)
 		return nil
 	}
+
+	for _, action := range fe.GetActions() {
+		if action.LifeId == lifeId {
+			panic("Got duplicate lifeId in file event")
+		}
+	}
+
 	latest := lt.GetLatestAction()
 
 	// if latest.GetDestinationId() != lifeId {
@@ -126,6 +145,62 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 		OriginPath: latest.GetDestinationPath(),
 		EventId:    fe.EventId,
 		ServerId:   fe.ServerId,
+	}
+
+	fe.addAction(newAction)
+
+	return newAction
+}
+
+func (fe *FileEvent) NewRestoreAction(file *WeblensFileImpl) *FileAction {
+	if fe.journal == nil {
+		return nil
+	}
+
+	log.Trace.Printf("Building restore action for [%s]", file.Filename())
+
+	newAction := &FileAction{
+		LifeId:          file.ID(),
+		Timestamp:       time.Now(),
+		ActionType:      FileRestore,
+		DestinationPath: file.GetPortablePath().ToPortable(),
+		EventId:         fe.EventId,
+		ParentId:        file.GetParentId(),
+		ServerId:        fe.ServerId,
+
+		file: file,
+	}
+
+	fe.addAction(newAction)
+
+	return newAction
+}
+
+func (fe *FileEvent) NewSizeChangeAction(file *WeblensFileImpl) *FileAction {
+	if fe.journal == nil {
+		log.Trace.Println("Journal not set on size change action")
+		return nil
+	}
+
+	log.Trace.Printf("Building size change action for [%s]", file.Filename())
+	lt := fe.journal.Get(file.ID())
+	if lt == nil {
+		err := werror.Errorf("Cannot not find existing lifetime for %s", file.ID())
+		log.ErrTrace(err)
+		return nil
+	}
+
+	newAction := &FileAction{
+		LifeId:          file.ID(),
+		Timestamp:       time.Now(),
+		ActionType:      FileSizeChange,
+		DestinationPath: file.GetPortablePath().ToPortable(),
+		EventId:         fe.EventId,
+		ParentId:        file.GetParentId(),
+		ServerId:        fe.ServerId,
+		Size:            file.Size(),
+
+		file: file,
 	}
 
 	fe.addAction(newAction)

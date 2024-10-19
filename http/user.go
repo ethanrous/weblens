@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -50,18 +50,17 @@ func createUser(ctx *gin.Context) {
 		return
 	}
 
-	// homeDir, err := u.CreateHomeFolder()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// newUser.homeFolder = homeDir
-	// newUser.trashFolder = homeDir.GetChildren()[0]
+	err = pack.FileService.CreateUserHome(u)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
+		return
+	}
 
 	err = pack.UserService.Add(u)
 	if err != nil {
-		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
 		return
 	}
 

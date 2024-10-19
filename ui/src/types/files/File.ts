@@ -7,7 +7,10 @@ import {
 } from '@tabler/icons-react'
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { fetchJson } from '@weblens/api/ApiFetch'
-import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { MediaDataT } from '@weblens/types/media/Media'
 import { WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
@@ -63,7 +66,7 @@ export class WeblensFile {
     owner?: string
     filename?: string
     portablePath?: string
-    parentFolderId?: string
+    parentId?: string
 
     modifyDate?: Date
 
@@ -79,16 +82,16 @@ export class WeblensFile {
 
     // Non-api props
     parents?: WeblensFile[]
-    visible?: boolean
-    private selected: SelectedState
     hovering?: boolean
     index?: number
+    visible?: boolean
 
+    private selected: SelectedState
     private contentId: string
     private share: WeblensShare
 
     constructor(init: WeblensFileParams) {
-        if (!init.id) {
+        if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
         Object.assign(this, init)
@@ -123,7 +126,7 @@ export class WeblensFile {
     }
 
     ParentId(): string {
-        return this.parentFolderId
+        return this.parentId
     }
 
     SetParents(parents: WeblensFile[]) {
@@ -194,7 +197,7 @@ export class WeblensFile {
         return this.isDir
     }
 
-    GetMediaId(): string {
+    GetContentId(): string {
         return this.contentId
     }
 
@@ -307,6 +310,12 @@ export class WeblensFile {
         shareId: string,
         setPresentation: (presentationId: string) => void
     ) {
+        let timestampQuery = ''
+        const pastTime = useFileBrowserStore.getState().pastTime
+        if (pastTime) {
+            timestampQuery = `?at=${pastTime.getTime().toString()}`
+        }
+
         if (this.isDir) {
             if (mode === FbModeT.share && shareId === '') {
                 return `/files/share/${this.shareId}/${this.id}`
@@ -315,7 +324,7 @@ export class WeblensFile {
             } else if (mode === FbModeT.external) {
                 return `/files/external/${this.id}`
             } else if (mode === FbModeT.default) {
-                return `/files/${this.id}`
+                return `/files/${this.id}${timestampQuery}`
             }
         } else if (this.displayable || !this.displayable) {
             setPresentation(this.id)
@@ -349,4 +358,5 @@ export enum FbMenuModeT {
     NameFolder,
     AddToAlbum,
     RenameFile,
+    SearchForFile,
 }

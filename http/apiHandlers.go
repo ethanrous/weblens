@@ -4,20 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
-	"time"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/log"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/jobs"
-	"github.com/ethrousseau/weblens/models"
-	"github.com/ethrousseau/weblens/service/proxy"
-	"github.com/ethrousseau/weblens/task"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/task"
 	"github.com/gin-gonic/gin"
 )
 
@@ -86,39 +84,37 @@ func handleNewFile(uploadTaskId task.Id, newFInfo newFileBody, ctx *gin.Context)
 	child, _ := parent.GetChild(newFInfo.NewFileName)
 	if child != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": "File with the same name already exists in folder"})
-	}
-
-	newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
 		return
 	}
 
+	var newFId fileTree.FileId
 	err = uTask.Manipulate(
 		func(meta task.TaskMetadata) error {
-			meta.(models.UploadFilesMeta).ChunkStream <- models.FileChunk{
-				NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
+			uploadMeta := meta.(models.UploadFilesMeta)
+
+			newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName, uploadMeta.UploadEvent)
+			if err != nil {
+				return err
 			}
 
-			// TODO
-			// We don't queue the upload task right away, we wait for the first file,
-			// then we add the task to the queue here
-			// if t.queueState == task.PreQueued {
-			// 	t.Q(t.taskPool)
-			// }
+			newFId = newF.ID()
+
+			uploadMeta.ChunkStream <- models.FileChunk{
+				NewFile: newF, ContentRange: "0-0/" + strconv.FormatInt(newFInfo.FileSize, 10),
+			}
 
 			return nil
 		},
 	)
 
 	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		safe, code := werror.TrySafeErr(err)
+
+		ctx.JSON(code, gin.H{"error": safe})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"fileId": newF.ID()})
+	ctx.JSON(http.StatusCreated, gin.H{"fileId": newFId})
 }
 
 // Add chunks of file to previously created task
@@ -202,8 +198,9 @@ func searchFolder(ctx *gin.Context) {
 	filterStr := ctx.Query("filter")
 
 	dir, err := pack.FileService.GetFileSafe(folderId, u, nil)
-	if dir == nil {
-		ctx.Status(http.StatusNotFound)
+	if err != nil {
+		safe, code := werror.TrySafeErr(err)
+		ctx.JSON(code, gin.H{"error": safe})
 		return
 	} else if !dir.IsDir() {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Search must performed on a folder, not a regular file"})
@@ -336,7 +333,7 @@ func downloadFile(ctx *gin.Context) {
 		return
 	}
 
-	ctx.File(file.GetAbsPath())
+	ctx.File(file.AbsPath())
 }
 
 func downloadTakeout(ctx *gin.Context) {
@@ -360,7 +357,7 @@ func downloadTakeout(ctx *gin.Context) {
 		return
 	}
 
-	ctx.File(file.GetAbsPath())
+	ctx.File(file.AbsPath())
 }
 
 func loginUser(ctx *gin.Context) {
@@ -373,6 +370,12 @@ func loginUser(ctx *gin.Context) {
 	u := pack.UserService.Get(userCredentials.Username)
 	if u == nil {
 		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	if !u.Activated {
+		log.Warning.Printf("[%s] attempted login but is not activated", u.Username)
+		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
@@ -731,12 +734,13 @@ func setSharePublic(ctx *gin.Context) {
 func newApiKey(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	if !u.IsAdmin() {
+
+	if u == nil || !u.IsAdmin() {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
 
-	newKey, err := pack.AccessService.GenerateApiKey(u)
+	newKey, err := pack.AccessService.GenerateApiKey(u, pack.InstanceService.GetLocal())
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -761,7 +765,7 @@ func getApiKeys(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"keys": keys})
+	ctx.JSON(http.StatusOK, keys)
 }
 
 func deleteApiKey(ctx *gin.Context) {
@@ -828,51 +832,51 @@ func getRandomMedias(ctx *gin.Context) {
 func initializeServer(ctx *gin.Context) {
 	pack := getServices(ctx)
 	// Can't init server if already initialized
-	if pack.InstanceService.GetLocal().GetRole() != models.InitServer {
+	role := pack.InstanceService.GetLocal().GetRole()
+	if role != models.InitServer {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
 
-	si, err := readCtxBody[initServerBody](ctx)
+	initBody, err := readCtxBody[initServerBody](ctx)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
-	if (si.Role != models.CoreServer && si.Role != models.BackupServer) || si.Name == "" {
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-
-	if si.Role == models.CoreServer {
-		if si.Username == "" || si.Password == "" {
+	if initBody.Role == models.CoreServer {
+		if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
 			ctx.Status(http.StatusBadRequest)
 			return
 		}
 
-		owner, err := models.NewUser(si.Username, si.Password, true, true)
-		if err != nil {
-			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
-			return
-		}
-
-		err = pack.UserService.Add(owner)
-		if err != nil {
-			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
-			return
-		}
-
-		err = pack.InstanceService.InitCore(si.Name)
+		err = pack.InstanceService.InitCore(initBody.Name)
 		if err != nil {
 			log.ShowErr(err)
 			ctx.Status(http.StatusBadRequest)
 			return
 		}
 
-		pack.Server.UseCore()
+		users, err := pack.UserService.GetAll()
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, gin.H{"error": safe})
+		}
+
+		for u := range users {
+			err = pack.UserService.Del(u.GetUsername())
+			if err != nil {
+				log.ShowErr(err)
+			}
+		}
+
+		owner, err := pack.UserService.CreateOwner(initBody.Username, initBody.Password)
+		if err != nil {
+			log.ShowErr(err)
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
 
 		token, err := pack.AccessService.GenerateJwtToken(owner)
 		if err != nil {
@@ -882,12 +886,17 @@ func initializeServer(ctx *gin.Context) {
 		}
 
 		ctx.Header("Set-Cookie", "weblens-session-token="+token)
-
-	} else if si.Role == models.BackupServer {
-		if si.CoreAddress[len(si.CoreAddress)-1:] != "/" {
-			si.CoreAddress += "/"
+	} else if initBody.Role == models.BackupServer {
+		if initBody.Name == "" {
+			ctx.Status(http.StatusBadRequest)
+			return
 		}
-		err = pack.InstanceService.InitBackup(si.Name, si.CoreAddress, si.CoreKey)
+		if initBody.CoreAddress[len(initBody.CoreAddress)-1:] != "/" {
+			initBody.CoreAddress += "/"
+		}
+
+		// Initialize the server as backup
+		err = pack.InstanceService.InitBackup(initBody.Name, initBody.CoreAddress, initBody.CoreKey)
 		if err != nil {
 			pack.InstanceService.GetLocal().SetRole(models.InitServer)
 			log.ShowErr(err)
@@ -895,33 +904,56 @@ func initializeServer(ctx *gin.Context) {
 			return
 		}
 
-		pack.Loaded.Store(false)
+		ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
 
-		err = WebsocketToCore(pack.InstanceService.GetCore(), pack)
-		if err != nil {
-			log.ErrTrace(err)
+		go pack.Server.Restart()
+		return
+	} else if initBody.Role == models.RestoreServer {
+		local := pack.InstanceService.GetLocal()
+		if local.Role == models.RestoreServer {
+			ctx.Status(http.StatusOK)
+			return
 		}
 
-		core := pack.InstanceService.GetCore()
-		pack.UserService = proxy.NewProxyUserService(core)
-
-		var t *task.Task
-		t, err = jobs.BackupOne(core, pack)
-		if err != nil {
-			log.ErrTrace(err)
+		err = pack.AccessService.AddApiKey(initBody.UsingKeyInfo)
+		if err != nil && !errors.Is(err, werror.ErrKeyAlreadyExists) {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, gin.H{"error": safe})
+			return
 		}
-		t.SetPostAction(
-			func(result task.TaskResult) {
-				pack.Loaded.Store(true)
-				pack.Caster.PushWeblensEvent("weblens_loaded")
-				go jobs.BackupD(time.Hour, pack)
-			},
-		)
+
+		local.SetRole(models.RestoreServer)
+		pack.Caster.PushWeblensEvent(models.RestoreStartedEvent)
+
+		hasherFactory := func() fileTree.Hasher {
+			return models.NewHasher(pack.TaskService, pack.Caster)
+		}
+		journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), initBody.LocalId, false, hasherFactory)
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, gin.H{"error": safe})
+			return
+		}
+		usersTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), "users"), "USERS", journal, false)
+		if err != nil {
+			safe, code := werror.TrySafeErr(err)
+			ctx.JSON(code, gin.H{"error": safe})
+			return
+		}
+		pack.FileService.AddTree(usersTree)
+
+		pack.Server.UseRestore()
+		pack.Server.UseApi()
+
+		ctx.Status(http.StatusOK)
+		return
+	} else {
+		ctx.Status(http.StatusBadRequest)
+		return
 	}
 
-	pack.Server.UseApi()
-
 	ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
+	go pack.Server.Restart()
 }
 
 func getServerInfo(ctx *gin.Context) {

@@ -48,12 +48,16 @@ func (s *stack) String() (stack string) {
 	return
 }
 
-func callers() *stack {
+func callers(ignore int) *stack {
 	const depth = 32
 	var pcs [depth]uintptr
-	n := runtime.Callers(3, pcs[:])
+	n := runtime.Callers(ignore, pcs[:])
 	var st stack = pcs[0:n]
 	return &st
+}
+
+func GetStack(ignoreDepth int) *stack {
+	return callers(ignoreDepth + 3)
 }
 
 type StackError interface {
@@ -77,12 +81,9 @@ func WithStack(err error) error {
 		return err
 	}
 
-	if err == nil {
-		return nil
-	}
 	return &withStack{
 		err:   err,
-		stack: callers(),
+		stack: callers(3),
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/log"
 )
 
 type WeblensHash struct {

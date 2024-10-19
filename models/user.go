@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"iter"
 
-	"github.com/ethrousseau/weblens/fileTree"
-	"github.com/ethrousseau/weblens/internal/werror"
+	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,6 +19,9 @@ type User struct {
 	IsServerOwner bool               `bson:"owner" json:"owner"`
 	HomeId        fileTree.FileId    `bson:"homeId" json:"homeId"`
 	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
+
+	// The id of the server instance that created this user
+	CreatedBy InstanceId `bson:"createdBy" json:"createdBy"`
 
 	// non-database types
 	homeFolder  *fileTree.WeblensFileImpl
@@ -59,11 +62,25 @@ func (u *User) GetUsername() Username {
 }
 
 func (u *User) SetHomeFolder(f *fileTree.WeblensFileImpl) {
+	if !f.IsDir() {
+		panic("home folder is not a directory")
+	}
+	if f.Filename() != u.Username {
+		panic("home folder filename does not match user")
+	}
+
 	u.homeFolder = f
 	u.HomeId = f.ID()
 }
 
 func (u *User) SetTrashFolder(f *fileTree.WeblensFileImpl) {
+	if !f.IsDir() {
+		panic("trash folder is not a directory")
+	}
+	if f.Filename() != ".user_trash" {
+		panic("trash folder filename is not correct")
+	}
+
 	u.trashFolder = f
 	u.TrashId = f.ID()
 }
@@ -108,13 +125,8 @@ func (u *User) FormatArchive() (map[string]any, error) {
 		"activated":    u.Activated,
 		"owner":        u.IsServerOwner,
 		"isSystemUser": u.SystemUser,
-		"homeId":       "",
-		"trashId":      "",
-	}
-
-	if u.homeFolder != nil && u.trashFolder != nil {
-		data["homeId"] = u.homeFolder.ID()
-		data["trashId"] = u.trashFolder.ID()
+		"homeId":       u.HomeId,
+		"trashId":      u.TrashId,
 	}
 
 	return data, nil
@@ -147,11 +159,13 @@ type UserService interface {
 	Add(user *User) error
 	Del(id Username) error
 	GetAll() (iter.Seq[*User], error)
+	CreateOwner(username, password string) (*User, error)
 	GetPublicUser() *User
 	SearchByUsername(searchString string) (iter.Seq[*User], error)
 	SetUserAdmin(*User, bool) error
 	ActivateUser(*User) error
 	GetRootUser() *User
+	UpdateUserHome(u *User) error
 
 	UpdateUserPassword(username Username, oldPassword, newPassword string, allowEmptyOld bool) error
 }

@@ -3,7 +3,7 @@ package fileTree
 import (
 	"time"
 
-	"github.com/ethrousseau/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/fsnotify/fsnotify"
 )
 

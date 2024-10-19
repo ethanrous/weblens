@@ -34,6 +34,9 @@ function FileSortBox() {
                         ? IconSortDescending2
                         : IconSortAscending2
                 }
+                tooltip={
+                    viewOpts.sortDirection === 1 ? 'Descending' : 'Ascending'
+                }
                 onClick={() =>
                     setViewOpts({ sortDirection: viewOpts.sortDirection * -1 })
                 }
@@ -46,9 +49,10 @@ function FileSortBox() {
                     return (
                         <WeblensButton
                             key={v.Name}
-                            squareSize={42}
+                            squareSize={40}
                             Left={v.Icon}
                             toggleOn={v.Name === viewOpts.sortFunc}
+                            tooltip={v.Name}
                             onClick={(e) => {
                                 e.stopPropagation()
                                 setViewOpts({ sortKey: v.Name })
@@ -65,9 +69,10 @@ function FileSortBox() {
                     return (
                         <WeblensButton
                             key={v.Name}
-                            squareSize={42}
+                            squareSize={40}
                             Left={v.Icon}
                             toggleOn={v.Name === viewOpts.dirViewMode}
+                            tooltip={v.Name}
                             onClick={(e) => {
                                 e.stopPropagation()
                                 setViewOpts({ dirViewMode: v.Name })

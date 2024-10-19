@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ethrousseau/weblens/models"
-	. "github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/models"
+	. "github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,12 +1,15 @@
 import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
+import { FolderInfo } from '@weblens/pages/FileBrowser/FileBrowser'
 import { FileAction } from '@weblens/pages/FileBrowser/FileInfoPane'
-import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
-import { AlbumData, TPDispatchT } from '@weblens/types/Types'
+import { WeblensFileParams } from '@weblens/types/files/File'
+import { AlbumData } from '@weblens/types/Types'
 import { humanFileSize } from '@weblens/util'
 import axios from 'axios'
 import API_ENDPOINT from './ApiEndpoint'
 import { useWebsocketStore, WsSendT } from './Websocket'
+import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
+import { MediaDataT } from '@weblens/types/media/Media'
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
@@ -67,36 +70,34 @@ export function UnTrashFiles(fileIds: string[]) {
     })
 }
 
-async function getSharedWithMe() {
+export function SetFolderImage(folderId: string, contentId: string) {
+    const url = new URL(`${API_ENDPOINT}/folder/${folderId}/cover`)
+    url.searchParams.append('mediaId', contentId)
+    return fetch(url.toString(), {
+        method: 'PATCH',
+    })
+}
+
+async function getSharedWithMe(): Promise<FolderInfo> {
     const url = new URL(`${API_ENDPOINT}/files/shared`)
-    return fetch(url.toString())
-        .then((res) => res.json())
-        .then((sharedFiles) => {
-            const sharedFolder = new WeblensFile({
-                id: 'shared',
-                isDir: true,
-                filename: 'Shared',
-            })
-            return { children: sharedFiles, self: sharedFolder }
-        })
+    const res = await fetchJson<FolderInfo>(url.toString())
+
+    const sharesMap = new Map<string, string>()
+    for (const share of res.shares) {
+        sharesMap.set(share.fileId, share.shareId)
+    }
+
+    for (const file of res.children) {
+        file.shareId = sharesMap.get(file.id)
+    }
+
+    return res
 }
 
 async function getExternalFiles(contentId: string) {
+    return null
     const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
     return fetchJson(url.toString())
-    // .then((data) => {
-    //     const ret = {
-    //         self: data.self,
-    //         parents: data.parents,
-    //         children: [],
-    //     }
-    //     if (data.children) {
-    //         ret.children = data.children
-    //     } else if (data.files) {
-    //         ret.children = data.files
-    //     }
-    //     return ret
-    // })
 }
 
 export async function GetFileInfo(
@@ -113,10 +114,11 @@ export async function GetFileInfo(
 export async function GetFolderData(
     contentId: string,
     fbMode: FbModeT,
-    shareId: string
-) {
+    shareId: string,
+    viewingTime?: Date
+): Promise<FolderInfo> {
     if (fbMode === FbModeT.share && !shareId) {
-        return getSharedWithMe()
+        return await getSharedWithMe()
     }
     if (fbMode === FbModeT.external) {
         return getExternalFiles(contentId)
@@ -128,6 +130,10 @@ export async function GetFolderData(
     }
 
     const url = new URL(`${API_ENDPOINT}/folder/${contentId}`)
+    if (viewingTime !== undefined && viewingTime !== null) {
+        url.searchParams.append('timestamp', viewingTime.getTime().toString())
+    }
+
     if (fbMode === FbModeT.share) {
         url.searchParams.append('shareId', shareId)
     }
@@ -203,9 +209,8 @@ function downloadBlob(blob, filename) {
     return
 }
 
-export function downloadSingleFile(
+export async function downloadSingleFile(
     fileId: string,
-    progDispatch: TPDispatchT,
     filename: string,
     isZip: boolean,
     shareId: string
@@ -215,7 +220,7 @@ export function downloadSingleFile(
         return
     }
 
-    let url
+    let url: URL
     if (isZip) {
         url = new URL(`${API_ENDPOINT}/takeout/${fileId}`)
     } else {
@@ -226,12 +231,9 @@ export function downloadSingleFile(
     }
 
     const taskId = `DOWNLOAD_${fileId}`
-    progDispatch({
-        type: 'new_task',
-        taskId: taskId,
-        taskType: 'download_file',
-        target: filename,
-    })
+    useTaskState
+        .getState()
+        .addTask(taskId, 'download_file', { target: filename })
 
     return axios
         .get(url.toString(), {
@@ -241,23 +243,17 @@ export function downloadSingleFile(
                 const [rateSize, rateUnits] = humanFileSize(p.rate)
                 const [bytesSize, bytesUnits] = humanFileSize(p.loaded)
                 const [totalSize, totalUnits] = humanFileSize(p.total)
-                progDispatch({
-                    type: 'update_scan_progress',
+                useTaskState.getState().updateTaskProgress(taskId, {
                     progress: p.progress * 100,
-                    taskId: taskId,
                     workingOn: `${rateSize}${rateUnits}/s`,
                     tasksComplete: `${bytesSize}${bytesUnits}`,
                     tasksTotal: `${totalSize}${totalUnits}`,
-                    note: 'No note',
                 })
             },
         })
         .then((res) => {
             if (res.status === 200) {
-                progDispatch({
-                    type: 'task_complete',
-                    taskId: taskId,
-                })
+                useTaskState.getState().handleTaskCompete(taskId, 0, '')
                 return new Blob([res.data])
             } else {
                 return Promise.reject(res.statusText)
@@ -338,16 +334,25 @@ export async function searchFolder(
     return files.files
 }
 
-export async function getFilesystemStats(folderId: string): Promise<{sizesByExtension: {name: string, size: number}[]}> {
+export async function getFilesystemStats(folderId: string): Promise<{
+    sizesByExtension: { name: string; size: number }[]
+}> {
     return fetchJson(`${API_ENDPOINT}/files/${folderId}/stats`)
 }
 
-export async function getFileHistory(fileId: string): Promise<FileAction[]> {
+export async function getFileHistory(
+    fileId: string,
+    timestamp: Date
+): Promise<FileAction[]> {
     if (!fileId) {
         console.error('No fileId trying to get file history')
         return null
     }
-    return fetchJson(`${API_ENDPOINT}/file/${fileId}/history`)
+    const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`)
+    if (timestamp) {
+        url.searchParams.append('timestamp', timestamp.getTime().toString())
+    }
+    return fetchJson(url.toString())
 }
 
 export async function getPastFolderInfo(folderId: string, timestamp: Date) {
@@ -357,22 +362,22 @@ export async function getPastFolderInfo(folderId: string, timestamp: Date) {
     return fetchJson(url.toString())
 }
 
-export async function restoreFiles(fileIds: string[], timestamp: Date) {
-    const url = new URL(`${API_ENDPOINT}/history/restore`)
-    return await fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({
-            fileIds: fileIds,
-            timestamp: timestamp.getTime(),
-        }),
-    }).then((r) => {
-        if (r.status !== 200) {
-            return Promise.reject(r.statusText)
-        } else {
-            return
-        }
-    })
-}
+// export async function restoreFiles(fileIds: string[], timestamp: Date) {
+//     const url = new URL(`${API_ENDPOINT}/history/restore`)
+//     return await fetch(url, {
+//         method: 'POST',
+//         body: JSON.stringify({
+//             fileIds: fileIds,
+//             timestamp: timestamp.getTime(),
+//         }),
+//     }).then((r) => {
+//         if (r.status !== 200) {
+//             return Promise.reject(r.statusText)
+//         } else {
+//             return
+//         }
+//     })
+// }
 
 export async function GetFileText(fileId: string) {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)

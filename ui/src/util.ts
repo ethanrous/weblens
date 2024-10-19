@@ -44,25 +44,27 @@ export function nsToHumanTime(ns: number) {
 
     const hours = Math.floor(ns / NS_IN_HOUR)
     if (hours >= 1) {
-        timeStr += hours + ' Hours '
+        timeStr += hours + 'h '
         ns = ns % NS_IN_HOUR
     }
 
     const minutes = Math.floor(ns / NS_IN_MINUTE)
     if (minutes >= 1) {
-        timeStr += minutes + ' Minutes '
+        timeStr += minutes + 'm '
         ns = ns % NS_IN_MINUTE
     }
 
     const seconds = Math.floor(ns / NS_IN_SECOND)
     if (seconds >= 1) {
-        timeStr += seconds + ' Seconds '
+        timeStr += seconds + 's '
         ns = ns % NS_IN_SECOND
     }
 
-    const milliseconds = Math.floor(ns / NS_IN_MILLISECOND)
-    if (milliseconds >= 1) {
-        timeStr += milliseconds + 'ms '
+    if (seconds === 0 && minutes === 0 && hours === 0) {
+        const milliseconds = Math.floor(ns / NS_IN_MILLISECOND)
+        if (milliseconds >= 1) {
+            timeStr += milliseconds + 'ms '
+        }
     }
 
     if (timeStr.length === 0) {

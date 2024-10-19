@@ -29,7 +29,7 @@ import React, {
 } from 'react'
 import { WebsocketContext } from '../Context'
 import { humanFileSize } from '../util'
-import { useResize, useResizeDrag } from './hooks'
+import { useKeyDown, useResize, useResizeDrag } from './hooks'
 import { useSessionStore } from './UserInfo'
 
 export const PresentationContainer = ({
@@ -186,7 +186,7 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const { progDispatch } = useContext(TaskProgContext)
     const mediaData = useMediaStore((state) =>
-        state.mediaMap.get(file.GetMediaId())
+        state.mediaMap.get(file.GetContentId())
     )
 
     const wsSend = useContext(WebsocketContext)
@@ -202,11 +202,11 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
             onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-col justify-center h-max max-w-full gap-2">
-                <p className="font-semibold text-3xl truncate">
+                <p className="text-white font-semibold text-3xl truncate">
                     {file.GetFilename()}
                 </p>
-                <div className="flex flex-row items-center gap-3">
-                    <p className="text-2xl">
+                <div className="flex flex-row text-white items-center gap-3">
+                    <p className="text-2xl text-white">
                         {size}
                         {units}
                     </p>
@@ -215,7 +215,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                     )}
                 </div>
                 <div className="flex gap-1">
-                    <p className="text-xl">
+                    <p className="text-xl text-white">
                         {file.GetModified().toLocaleDateString('en-us', {
                             year: 'numeric',
                             month: 'short',
@@ -237,10 +237,10 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                 />
                 {mediaData && (
                     <div>
-                        <Divider />
-                        <div className="flex gap-1">
+                        <Divider className="p-1" />
+                        <div className="flex gap-1 items-center">
                             <IconPhoto />
-                            <p className="text-xl">
+                            <p className="text-xl text-white">
                                 {mediaData
                                     .GetCreateDate()
                                     .toLocaleDateString('en-us', {
@@ -360,7 +360,7 @@ function useKeyDownPresentation(
     }, [keyDownHandler])
 }
 
-function handleTimeout(to, setTo, setGuiShown) {
+function handleTimeout(to, setTo, setGuiShown: (b: boolean) => void) {
     if (to) {
         clearTimeout(to)
     }
@@ -368,21 +368,20 @@ function handleTimeout(to, setTo, setGuiShown) {
 }
 
 interface PresentationDispatchT {
-    setPresentationTarget(targetId: string)
+    setPresentationTarget(targetId: string): void
 }
 
 export function PresentationFile({ file }: { file: WeblensFile }) {
-    // useKeyDownPresentation(mediaId, dispatch)
-
     const [to, setTo] = useState(null)
     const [guiShown, setGuiShown] = useState(false)
     const [likedHover, setLikedHover] = useState(false)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const { user } = useSessionStore()
 
-    const mediaData = useMediaStore((state) =>
-        state.mediaMap.get(file?.GetMediaId())
-    )
+    const contentId = file?.GetContentId()
+    const mediaMap = useMediaStore((state) => state.mediaMap)
+    const mediaData = mediaMap.get(contentId)
+
     const { isLiked, otherLikes } = useMemo(() => {
         if (!mediaData) {
             return { isLiked: false, otherLikes: null }
@@ -395,12 +394,18 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
             (isLiked && mediaData.GetLikedBy()?.length > 1)
 
         return { isLiked, otherLikes }
-    }, [mediaData])
+    }, [mediaData?.GetLikedBy().length])
 
     const setMediaLiked = useMediaStore((state) => state.setLiked)
     const setPresTarget = useFileBrowserStore(
         (state) => state.setPresentationTarget
     )
+
+    useKeyDown('Escape', () => {
+        if (file) {
+            setPresTarget('')
+        }
+    })
 
     if (!file) {
         return null

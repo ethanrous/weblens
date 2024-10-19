@@ -21,4 +21,16 @@ if [[ "$REMOTE_TESTS" == "true" ]]; then
   fi
 fi
 
-APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v ./...
+target=$1
+if [[ -z "$target" ]]; then
+  target="./..."
+fi
+
+# if [[ "$REMOTE_TESTS" == "true" ]]; then
+#   APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v $target
+# else
+# fi
+(set -o pipefail; APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v $target | grep -v -e CONT -e PAUSE | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS")
+
+
+

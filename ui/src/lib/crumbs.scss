@@ -2,7 +2,7 @@
 
 .crumb-text {
     /* line-clamp: 1; */
-    color: white;
+    color: $main-text;
     line-height: 1.2;
     user-select: none;
     font-size: 25px;
@@ -51,6 +51,7 @@
     flex-grow: 1;
     flex-shrink: 1;
     padding-right: 16px;
+    color: $main-text;
 }
 
 .crumb-box {
@@ -77,18 +78,12 @@
         flex-shrink: 1;
     }
 
-    &[data-dragging='true'] {
-        background-color: $main-accent;
+    &[data-dragging='true'][data-current='false'] {
+        outline: 2px solid $main-accent;
+        animation: float 2s ease infinite;
 
         &:hover {
-            outline: 2px solid $main-accent;
-            background-color: $main-accent-transparent;
+            background-color: var(--wl-barely-visible);
         }
-    }
-
-    &[data-current='true'] {
-        cursor: default;
-        outline: 2px solid $main-accent-transparent;
-        background-color: $main-accent-transparent;
     }
 }

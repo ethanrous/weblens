@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ethrousseau/weblens/database"
-	"github.com/ethrousseau/weblens/internal/env"
-	"github.com/ethrousseau/weblens/internal/werror"
-	"github.com/ethrousseau/weblens/models"
-	. "github.com/ethrousseau/weblens/service"
-	"github.com/ethrousseau/weblens/service/mock"
+	"github.com/ethanrous/weblens/database"
+	"github.com/ethanrous/weblens/internal/env"
+	"github.com/ethanrous/weblens/internal/werror"
+	"github.com/ethanrous/weblens/models"
+	. "github.com/ethanrous/weblens/service"
+	"github.com/ethanrous/weblens/service/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -44,19 +44,17 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	}
 	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
 
-	localInstance := models.NewInstance("", "My server", "", models.CoreServer, true, "")
+	localInstance := models.NewInstance("", "My server", "", models.CoreServer, true, "", t.Name())
 	assert.NotEmpty(t, localInstance.ServerId())
 
 	err = is.Add(localInstance)
-	assert.ErrorIs(t, err, werror.ErrDuplicateLocalServer)
-
-	assert.Nil(t, is.GetCore())
-	// assert.Equal(t, localInstance.ServerId(), is.GetLocal().ServerId())
+	assert.NoError(t, err)
+	// assert.ErrorIs(t, err, werror.ErrDuplicateLocalServer)
 
 	remoteId := models.InstanceId(primitive.NewObjectID().Hex())
 	remoteBackup := models.NewInstance(
 		remoteId, "My remote server", "deadbeefdeadbeef", models.BackupServer, false,
-		"http://notrighthere.com",
+		"http://notrighthere.com", t.Name(),
 	)
 
 	assert.Equal(t, remoteId, remoteBackup.ServerId())
@@ -64,28 +62,33 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	err = is.Add(remoteBackup)
 	require.NoError(t, err)
 
-	remoteFetch := is.Get(remoteId)
+	assert.False(t, remoteBackup.DbId.IsZero())
+
+	remoteFetch := is.Get(remoteBackup.DbId.Hex())
+	require.NotNil(t, remoteFetch)
 	assert.Equal(t, remoteId, remoteFetch.ServerId())
 
-	noName := models.NewInstance("", "", "deadbeefdeadbeef", models.BackupServer, false, "")
-	err = is.Add(noName)
+	badServer := models.NewInstance(
+		"", "", "deadbeefdeadbeef", models.BackupServer, false, "", is.GetLocal().ServerId(),
+	)
+	err = is.Add(badServer)
 	assert.ErrorIs(t, err, werror.ErrNoServerName)
 
-	noName.UsingKey = ""
-	err = is.Add(noName)
+	badServer.UsingKey = ""
+	badServer.Name = "test server name"
+	err = is.Add(badServer)
 	assert.ErrorIs(t, err, werror.ErrNoServerKey)
 
-	noName.Id = ""
-	err = is.Add(noName)
+	badServer.UsingKey = "deadbeefdeadbeef"
+	badServer.Id = ""
+	err = is.Add(badServer)
 	assert.ErrorIs(t, err, werror.ErrNoServerId)
 
-	anotherCore := models.NewInstance("", "Another Core", "deadbeefdeadbeef", models.CoreServer, false, "")
+	anotherCore := models.NewInstance(
+		"", "Another Core", "deadbeefdeadbeef", models.CoreServer, false, "", is.GetLocal().ServerId(),
+	)
 	err = is.Add(anotherCore)
 	assert.ErrorIs(t, err, werror.ErrNoCoreAddress)
-}
-
-func TestInstanceServiceImpl_Del(t *testing.T) {
-
 }
 
 func TestInstanceServiceImpl_InitCore(t *testing.T) {
@@ -105,13 +108,11 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 		t.FailNow()
 	}
 	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
-	assert.Nil(t, is.GetCore())
 
 	err = is.InitCore("My Core Server")
 	require.NoError(t, err)
 
 	assert.Equal(t, models.CoreServer, is.GetLocal().GetRole())
-	assert.NotNil(t, is.GetCore())
 
 	if err = col.Drop(context.Background()); err != nil {
 		t.Fatalf(err.Error())
@@ -132,7 +133,6 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	assert.Error(t, err)
 
 	assert.Equal(t, models.InitServer, badIs.GetLocal().GetRole())
-	assert.Nil(t, badIs.GetCore())
 }
 
 func TestInstanceServiceImpl_InitBackup(t *testing.T) {

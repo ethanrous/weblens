@@ -42,6 +42,9 @@ export const useMediaStore = create<MediaStateT>()(
         addMedias: (medias) => {
             set((state) => {
                 for (const media of medias) {
+                    if (state.mediaMap.has(media.Id())) {
+                        continue
+                    }
                     state.mediaMap.set(media.Id(), media)
                 }
 

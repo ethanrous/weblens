@@ -1,4 +1,4 @@
-import { Divider, FileButton, Text } from '@mantine/core'
+import { Divider, FileButton } from '@mantine/core'
 
 // Icons
 import {
@@ -19,9 +19,7 @@ import {
     CreateFolder,
     GetFileInfo,
     GetFolderData,
-    getPastFolderInfo,
     moveFiles,
-    searchFolder,
 } from '@weblens/api/FileBrowserApi'
 import { useSubscribe } from '@weblens/api/Websocket'
 import HeaderBar from '@weblens/components/HeaderBar'
@@ -30,7 +28,7 @@ import {
     useResizeDrag,
     useWindowSize,
 } from '@weblens/components/hooks'
-import NotFound from '@weblens/components/NotFound'
+import FilesErrorDisplay from '@weblens/components/NotFound'
 import {
     PresentationContainer,
     PresentationFile,
@@ -40,7 +38,7 @@ import Crumbs from '@weblens/lib/Crumbs'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
-import { DraggingStateT, TaskProgContext } from '@weblens/types/files/FBTypes'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileContextMenu } from '@weblens/types/files/FileMenu'
@@ -52,14 +50,7 @@ import WeblensMedia, {
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { getFileShare } from '@weblens/types/share/shareQuery'
 import { humanFileSize } from '@weblens/util'
-import React, {
-    memo,
-    ReactElement,
-    useCallback,
-    useEffect,
-    useReducer,
-    useState,
-} from 'react'
+import { memo, ReactElement, useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -91,16 +82,19 @@ import { FileInfoPane } from './FileInfoPane'
 import FileSortBox from './FileSortBox'
 import { StatTree } from './FileStatTree'
 import SearchDialogue from './SearchDialogue'
-import {
-    taskProgressReducer,
-    TaskProgressState,
-    TasksDisplay,
-    TasksProgressAction,
-    TasksProgressDispatch,
-} from './TaskProgress'
+import { TasksDisplay } from './TaskProgress'
 import UploadStatus from './UploadStatus'
 import './style/fileBrowserStyle.scss'
 import '@weblens/components/style.scss'
+
+export type FolderInfo = {
+    self?: WeblensFileParams
+    children?: WeblensFileParams[]
+    parents?: WeblensFileParams[]
+    medias?: MediaDataT[]
+    shares?: any[]
+    error?: string
+}
 
 function PasteImageDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -187,7 +181,6 @@ function GlobalActions() {
 
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
 
     useEffect(() => {
         if (windowSize.width < SIDEBAR_BREAKPOINT && resizeOffset >= 300) {
@@ -222,7 +215,6 @@ function GlobalActions() {
                 moveFiles(selectedIds, user.homeId)
                 setDragging(DraggingStateT.NoDrag)
             } else {
-                setPastTime(null)
                 nav('/files/home')
             }
         },
@@ -283,11 +275,12 @@ function GlobalActions() {
                     <WeblensButton
                         label="Home"
                         fillWidth
-                        squareSize={48}
+                        squareSize={40}
                         toggleOn={
                             folderInfo?.Id() === user?.homeId &&
                             mode === FbModeT.default
                         }
+                        float={draggingState === 1}
                         disabled={!user.isLoggedIn}
                         allowRepeat={false}
                         Left={IconHome}
@@ -299,7 +292,7 @@ function GlobalActions() {
                     <WeblensButton
                         label="Shared"
                         fillWidth
-                        squareSize={48}
+                        squareSize={40}
                         toggleOn={mode === FbModeT.share && shareId === ''}
                         disabled={
                             draggingState !== DraggingStateT.NoDrag ||
@@ -311,16 +304,25 @@ function GlobalActions() {
                     />
 
                     {trashSize !== 0 && (
-                        <div className="relative w-full translate-y-1 z-20">
+                        <div
+                            className="relative w-full translate-y-[2px] z-20"
+                            data-selected={
+                                folderInfo?.Id() === user?.trashId &&
+                                mode === FbModeT.default
+                                    ? 1
+                                    : 0
+                            }
+                        >
                             <div className="file-size-box">
-                                <p>{`${trashSizeValue}${trashSizeUnit}`}</p>
+                                <p className="file-size-text">{`${trashSizeValue}${trashSizeUnit}`}</p>
                             </div>
                         </div>
                     )}
                     <WeblensButton
                         label="Trash"
                         fillWidth
-                        squareSize={48}
+                        squareSize={40}
+                        float={draggingState === 1}
                         toggleOn={
                             folderInfo?.Id() === user?.trashId &&
                             mode === FbModeT.default
@@ -344,7 +346,7 @@ function GlobalActions() {
                         <WeblensButton
                             label="External"
                             fillWidth
-                            squareSize={48}
+                            squareSize={40}
                             toggleOn={mode === FbModeT.external}
                             allowRepeat={false}
                             Left={IconServer}
@@ -359,7 +361,7 @@ function GlobalActions() {
                         <WeblensButton
                             label="New Folder"
                             fillWidth
-                            squareSize={48}
+                            squareSize={40}
                             Left={IconFolderPlus}
                             showSuccess={false}
                             disabled={
@@ -371,10 +373,11 @@ function GlobalActions() {
                     )}
                     {namingFolder && (
                         <WeblensInput
-                            squareSize={48}
+                            squareSize={40}
                             placeholder={'New Folder'}
                             buttonIcon={IconPlus}
                             closeInput={() => setNamingFolder(false)}
+                            autoFocus
                             onComplete={(newName) =>
                                 CreateFolder(
                                     folderInfo.Id(),
@@ -403,7 +406,7 @@ function GlobalActions() {
                             return (
                                 <WeblensButton
                                     label="Upload"
-                                    squareSize={48}
+                                    squareSize={40}
                                     fillWidth
                                     showSuccess={false}
                                     disabled={
@@ -418,7 +421,7 @@ function GlobalActions() {
                     </FileButton>
                 </div>
 
-                <Divider w={'100%'} my="lg" size={1.5} />
+                <Divider w={'100%'} my="md" size={1.5} />
 
                 <UsageInfo />
 
@@ -483,18 +486,10 @@ const UsageInfo = () => {
 
     const miniMode = size.width !== -1 && size.width < 100
 
-    let startIcon = doGlobalSize ? (
-        <IconFolder size={20} />
-    ) : (
-        <IconFiles size={20} />
-    )
-    let endIcon = doGlobalSize ? (
-        <IconHome size={20} />
-    ) : (
-        <IconFolder size={20} />
-    )
+    let StartIcon = doGlobalSize ? IconFolder : IconFiles
+    let EndIcon = doGlobalSize ? IconHome : IconFolder
     if (miniMode) {
-        ;[startIcon, endIcon] = [endIcon, startIcon]
+        ;[StartIcon, EndIcon] = [EndIcon, StartIcon]
     }
 
     return (
@@ -507,16 +502,12 @@ const UsageInfo = () => {
         >
             {!miniMode && (
                 <div className="flex flex-row h-max w-full gap-2 items-center justify-between">
-                    <div className="flex flex-row items-center h-full select-none font-semibold text-lg">
-                        <p>Usage</p>
-                        <div className="p-1" />
-                        <p className=" text-ellipsis">
-                            {usagePercent ? usagePercent.toFixed(2) : 0}%
-                        </p>
-                    </div>
+                    <h1 className="font-bold text-lg">
+                        Usage {usagePercent ? usagePercent.toFixed(2) : 0}%
+                    </h1>
                 </div>
             )}
-            {miniMode && startIcon}
+            {miniMode && <StartIcon className="background-icon" />}
             <div
                 className="relative h-max w-max"
                 style={{
@@ -538,35 +529,31 @@ const UsageInfo = () => {
             >
                 {folderInfo?.Id() !== 'shared' && !miniMode && (
                     <div className="flex flex-row items-center">
-                        {startIcon}
-                        <Text
+                        {<StartIcon className="background-icon" />}
+                        <p
+                            className="select-none p-1"
                             style={{
-                                userSelect: 'none',
                                 display: miniMode ? 'none' : 'block',
                             }}
-                            size="14px"
-                            pl={3}
                         >
                             {doGlobalSize
                                 ? humanFileSize(displaySize)
                                 : humanFileSize(selectedSize)}
-                        </Text>
+                        </p>
                     </div>
                 )}
                 <div className="flex flex-row justify-end w-max items-center">
-                    <Text
+                    <p
+                        className="select-none p-1"
                         style={{
-                            userSelect: 'none',
                             display: miniMode ? 'none' : 'block',
                         }}
-                        size="14px"
-                        pr={3}
                     >
                         {doGlobalSize
                             ? humanFileSize(homeSize)
                             : humanFileSize(displaySize)}
-                    </Text>
-                    {endIcon}
+                    </p>
+                    {<EndIcon className="background-icon" />}
                 </div>
             </div>
         </div>
@@ -607,10 +594,11 @@ const SingleFile = memo(
     ({ file }: { file: WeblensFile }) => {
         if (!file.Id()) {
             return (
-                <NotFound
+                <FilesErrorDisplay
                     resourceType="Share"
                     link="/files/home"
                     setNotFound={() => {}}
+                    error={404}
                 />
             )
         }
@@ -628,13 +616,14 @@ const SingleFile = memo(
     }
 )
 
-function DirViewHeader({ moveSelected, searchQuery }) {
-    const nav = useNavigate()
+function DirViewHeader({ moveSelected }) {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const filesCount = useFileBrowserStore((state) => state.filesList.length)
-    const viewingPast = useFileBrowserStore((state) => state.viewingPast)
+    const viewingPast = useFileBrowserStore((state) => state.pastTime)
+    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+
     const [viewingFolder, setViewingFolder] = useState<boolean>(false)
+    const [hoverTime, setHoverTime] = useState<boolean>(false)
 
     useEffect(() => {
         if (!folderInfo) {
@@ -646,41 +635,66 @@ function DirViewHeader({ moveSelected, searchQuery }) {
 
     return (
         <div className="flex flex-col h-max">
-            <div className="flex flex-row h-[70px] justify-between items-center p-2">
-                {mode === FbModeT.search && (
-                    <div className="flex h-14 w-full items-center">
-                        <WeblensButton
-                            Left={IconArrowLeft}
-                            onClick={() => nav(-1)}
-                        />
-                        <div className="w-4" />
-                        <div
-                            className="flex items-center p-1 pr-2 rounded bg-dark-paper
-                                    outline outline-main-accent gap-2 m-2"
-                        >
-                            <IconSearch />
-                            <p className="crumb-text">{searchQuery}</p>
-                        </div>
-                        <p className="crumb-text m-2">in</p>
-                        <IconFolder size={36} />
-                        <p className="crumb-text">
-                            {folderInfo?.GetFilename()}
-                        </p>
-                        <div className="w-2" />
-                        <p className="text-gray-400 select-none">
-                            {filesCount} results
-                        </p>
-                    </div>
-                )}
+            <div className="flex flex-row h-[60px] justify-between items-center pl-2 pt-0">
+                {/* {mode === FbModeT.search && ( */}
+                {/*     <div className="flex h-14 w-full items-center"> */}
+                {/*         <WeblensButton */}
+                {/*             Left={IconArrowLeft} */}
+                {/*             onClick={() => nav(-1)} */}
+                {/*         /> */}
+                {/*         <div className="w-4" /> */}
+                {/*         <div */}
+                {/*             className="flex items-center p-1 pr-2 rounded bg-dark-paper */}
+                {/*                     outline outline-main-accent gap-2 m-2" */}
+                {/*         > */}
+                {/*             <IconSearch /> */}
+                {/*             <p className="crumb-text">{searchQuery}</p> */}
+                {/*         </div> */}
+                {/*         <p className="crumb-text m-2">in</p> */}
+                {/*         <IconFolder size={36} /> */}
+                {/*         <p className="crumb-text"> */}
+                {/*             {folderInfo?.GetFilename()} */}
+                {/*         </p> */}
+                {/*         <div className="w-2" /> */}
+                {/*         <p className="text-gray-400 select-none"> */}
+                {/*             {filesCount} results */}
+                {/*         </p> */}
+                {/*     </div> */}
+                {/* )} */}
                 {(mode === FbModeT.default || mode === FbModeT.share) && (
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelected} />
                 )}
                 {viewingFolder && <FileSortBox />}
             </div>
             {viewingPast && (
-                <div className="past-time-box">
-                    <IconClock />
-                    <p className="crumb-text ml-2 text-[#c4c4c4] text-xl">
+                <div
+                    className="past-time-box"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setHoverTime(false)
+                        setPastTime(null)
+                    }}
+                    onMouseOver={(e) => {
+                        e.stopPropagation()
+                        setHoverTime(true)
+                    }}
+                    onMouseLeave={(e) => {
+                        e.stopPropagation()
+                        setHoverTime(false)
+                    }}
+                >
+                    <p
+                        className="crumb-text absolute pointer-events-none ml-2 text-[#c4c4c4] text-xl"
+                        style={{ opacity: hoverTime ? 1 : 0 }}
+                    >
+                        Back to present?
+                    </p>
+                    {hoverTime && <IconArrowLeft />}
+                    {!hoverTime && <IconClock />}
+                    <p
+                        className="crumb-text ml-2 text-[#c4c4c4] text-xl"
+                        style={{ opacity: hoverTime ? 0 : 1 }}
+                    >
                         {historyDate(viewingPast.getTime())}
                     </p>
                 </div>
@@ -690,13 +704,11 @@ function DirViewHeader({ moveSelected, searchQuery }) {
 }
 
 function DirView({
-    notFound,
-    setNotFound,
-    searchQuery,
+    filesError,
+    setFilesError,
 }: {
-    notFound: boolean
-    setNotFound: (boolean) => void
-    searchQuery: string
+    filesError: number
+    setFilesError: (err: number) => void
     searchFilter: string
 }) {
     const [contentViewRef, setContentViewRef] = useState(null)
@@ -729,12 +741,13 @@ function DirView({
     )
 
     let fileDisplay: ReactElement
-    if (notFound) {
+    if (filesError) {
         fileDisplay = (
-            <NotFound
+            <FilesErrorDisplay
+                error={filesError}
                 resourceType="Folder"
                 link="/files/home"
-                setNotFound={setNotFound}
+                setNotFound={setFilesError}
             />
         )
     } else if (
@@ -761,10 +774,11 @@ function DirView({
         mode === FbModeT.share
     ) {
         fileDisplay = (
-            <NotFound
+            <FilesErrorDisplay
+                error={404}
                 resourceType="any files shared with you"
                 link="/files/home"
-                setNotFound={setNotFound}
+                setNotFound={setFilesError}
             />
         )
     } else if (mode === FbModeT.stats) {
@@ -780,10 +794,7 @@ function DirView({
 
     return (
         <div className="flex flex-col h-full" ref={setFullViewRef}>
-            <DirViewHeader
-                searchQuery={searchQuery}
-                moveSelected={moveSelectedTo}
-            />
+            <DirViewHeader moveSelected={moveSelectedTo} />
             <TransferCard
                 action="Move"
                 destination={moveDest}
@@ -841,18 +852,14 @@ function useSearch() {
 const FileBrowser = () => {
     const urlPath = useParams()['*']
     const query = useSearch()
-    const searchQuery = query('query')
-    const searchFilter = query('filter')
     const user = useSessionStore((state) => state.user)
-
     const nav = useNavigate()
 
-    const [notFound, setNotFound] = useState(false)
+    const [filesFetchErr, setFilesFetchErr] = useState(0)
 
     const {
         viewOpts,
         blockFocus,
-        viewingPast,
         loading,
         filesMap,
         presentingId,
@@ -862,27 +869,20 @@ const FileBrowser = () => {
         removeLoading,
         setLocationState,
         clearFiles,
-        setSearch,
         setScrollTarget,
         setSelected,
         setFilesData,
         setBlockFocus,
     } = useFileBrowserStore()
+
     const fbLocationContext = useFileBrowserStore(
         useShallow((state) => ({
             mode: state.fbMode,
             contentId: state.contentId,
             shareId: state.shareId,
+            pastTime: state.pastTime,
         }))
     )
-
-    const [taskProg, taskProgDispatch] = useReducer<
-        (
-            state: TaskProgressState,
-            action: TasksProgressAction
-        ) => TaskProgressState,
-        TasksProgressDispatch
-    >(taskProgressReducer, null, () => new TaskProgressState())
 
     useEffect(() => {
         localStorage.setItem('fbViewOpts', JSON.stringify(viewOpts))
@@ -927,23 +927,28 @@ const FileBrowser = () => {
             contentId = splitPath[0]
         }
 
+        const timestamp = query('at')
+        let pastTime: Date
+        if (timestamp) {
+            pastTime = new Date(Number(timestamp))
+        }
+
         if (mode === FbModeT.share && shareId && !contentId) {
             getFileShare(shareId).then((s) => {
                 nav(`/files/share/${shareId}/${s.fileId}`)
             })
         } else {
             getRealId(contentId, mode, user).then((contentId) => {
-                setLocationState(contentId, mode, shareId)
+                setLocationState(contentId, mode, shareId, pastTime)
                 removeLoading('files')
             })
         }
-    }, [urlPath, user])
+    }, [urlPath, user, query('at')])
 
     const { wsSend, readyState } = useSubscribe(
         fbLocationContext.contentId,
         fbLocationContext.shareId,
-        user,
-        taskProgDispatch
+        user
     )
 
     useKeyDownFileBrowser()
@@ -953,16 +958,15 @@ const FileBrowser = () => {
 
     // Reset most of the state when we change folders
     const syncState = useCallback(async () => {
+        clearFiles()
+        setFilesFetchErr(0)
+
         if (!urlPath) {
             nav('/files/home', { replace: true })
         }
 
         if (urlPath === user?.homeId) {
-            let redirect = '/files/home'
-            const jumpItem = query('jumpTo')
-            if (jumpItem) {
-                redirect += `?jumpTo=${jumpItem}`
-            }
+            const redirect = '/files/home' + window.location.search
             nav(redirect, { replace: true })
         }
 
@@ -971,59 +975,15 @@ const FileBrowser = () => {
             return
         }
 
-        setNotFound(false)
-        clearFiles()
-
-        if (fbLocationContext.mode === FbModeT.search) {
-            const folderData = await GetFileInfo(
-                fbLocationContext.contentId,
-                fbLocationContext.shareId
-            )
-
-            if (!folderData) {
-                console.error('No folder data')
-                return
-            }
-
-            const searchResults = await searchFolder(
-                fbLocationContext.contentId,
-                searchQuery,
-                searchFilter
-            )
-
-            setSearch(searchQuery)
-            setFilesData(folderData, searchResults, [], [], user)
-            removeLoading('files')
-            return
-        }
-
-        setSearch('')
-
-        let fileData: {
-            self?: WeblensFileParams
-            children?: WeblensFileParams[]
-            parents?: WeblensFileParams[]
-            medias?: MediaDataT[]
-            error?: string
-        }
-        if (viewingPast !== null) {
-            fileData = await getPastFolderInfo(
-                fbLocationContext.contentId,
-                viewingPast
-            )
-        } else {
-            fileData = await GetFolderData(
-                fbLocationContext.contentId,
-                fbLocationContext.mode,
-                fbLocationContext.shareId
-            ).catch((r) => {
-                if (r === 400 || r === 404) {
-                    setNotFound(true)
-                } else {
-                    console.error(r)
-                }
-            })
-        }
+        addLoading('files')
+        const fileData = await GetFolderData(
+            fbLocationContext.contentId,
+            fbLocationContext.mode,
+            fbLocationContext.shareId,
+            fbLocationContext.pastTime
+        ).catch((r) => {
+            setFilesFetchErr(r)
+        })
 
         if (fileData) {
             setFilesData(
@@ -1045,46 +1005,67 @@ const FileBrowser = () => {
         fbLocationContext.contentId,
         fbLocationContext.shareId,
         fbLocationContext.mode,
-        searchQuery,
-        viewingPast,
+        fbLocationContext.pastTime,
     ])
 
     useEffect(() => {
-        syncState().then(() => removeLoading('files'))
+        syncState()
+            .catch((e) => {
+                console.error(e)
+                setFilesFetchErr(e)
+            })
+            .finally(() => removeLoading('files'))
     }, [syncState])
 
     return (
         <WebsocketContext.Provider value={wsSend}>
-            <TaskProgContext.Provider
-                value={{ progState: taskProg, progDispatch: taskProgDispatch }}
-            >
-                <div className="h-screen flex flex-col">
-                    <HeaderBar
-                        setBlockFocus={setBlockFocus}
-                        page={'files'}
-                        loading={loading}
-                    />
-                    <DraggingCounter />
-                    <PresentationFile file={filesMap.get(presentingId)} />
-                    {pasteImgBytes && <PasteImageDialogue />}
-                    {isSearching && <SearchDialogue />}
-                    <FileContextMenu />
-                    <div className="absolute bottom-1 left-1">
-                        <WebsocketStatus ready={readyState} />
+            <div className="h-screen flex flex-col">
+                <HeaderBar
+                    setBlockFocus={setBlockFocus}
+                    page={'files'}
+                    loading={loading}
+                />
+                <DraggingCounter />
+                <PresentationFile file={filesMap.get(presentingId)} />
+                {pasteImgBytes && <PasteImageDialogue />}
+                {isSearching && (
+                    <div className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088] px-[30%] py-[10%]">
+                        <SearchDialogue
+                            text={''}
+                            visitFunc={(loc) => {
+                                GetFileInfo(loc, '').then((f) => {
+                                    if (!f) {
+                                        console.error(
+                                            'Could not find file to nav to'
+                                        )
+                                        return
+                                    }
+
+                                    if (!f.isDir) {
+                                        nav(f.parentId)
+                                    } else {
+                                        nav(loc)
+                                    }
+                                })
+                            }}
+                        />
                     </div>
-                    <div className="flex flex-row grow h-[90vh] items-start">
-                        <GlobalActions />
-                        <DirViewWrapper>
-                            <DirView
-                                notFound={notFound}
-                                setNotFound={setNotFound}
-                                searchQuery={searchQuery}
-                                searchFilter={searchFilter}
-                            />
-                        </DirViewWrapper>
-                    </div>
+                )}
+                <FileContextMenu />
+                <div className="absolute bottom-1 left-1">
+                    <WebsocketStatus ready={readyState} />
                 </div>
-            </TaskProgContext.Provider>
+                <div className="flex flex-row grow h-[90vh] items-start">
+                    <GlobalActions />
+                    <DirViewWrapper>
+                        <DirView
+                            filesError={filesFetchErr}
+                            setFilesError={setFilesFetchErr}
+                            searchFilter={''}
+                        />
+                    </DirViewWrapper>
+                </div>
+            </div>
         </WebsocketContext.Provider>
     )
 }

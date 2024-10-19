@@ -258,7 +258,6 @@ export async function downloadSelected(
     if (files.length === 1 && !files[0].IsFolder()) {
         return downloadSingleFile(
             files[0].Id(),
-            taskProgDispatch,
             files[0].GetFilename(),
             false,
             shareId
@@ -270,13 +269,7 @@ export async function downloadSelected(
         shareId
     ).then(({ json, status }) => {
         if (status === 200) {
-            downloadSingleFile(
-                json.takeoutId,
-                taskProgDispatch,
-                json.filename,
-                true,
-                shareId
-            )
+            downloadSingleFile(json.takeoutId, json.filename, true, shareId)
         } else if (status === 202) {
             SubToTask(json.taskId, ['takeoutId'], wsSend)
         } else if (status !== 0) {
