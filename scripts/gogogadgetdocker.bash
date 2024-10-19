@@ -83,12 +83,17 @@ if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch
     sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
 fi
 
+mkdir -p ./build/logs
+mkdir -p ./build/bin
+
 cd ./ui
 printf "Building UI..."
-npm install &> /dev/null
+npm install 
+# npm install &> /dev/null
 export VITE_APP_BUILD_TAG=$docker_tag-$arch
 export VITE_BUILD=true
-npm run build &> ../build/logs/ui-build.log
+npm run build 
+# npm run build &> ../build/logs/ui-build.log
 
 if [ $? != 0 ]; then
   printf " FAILED\n"
@@ -99,11 +104,6 @@ else
 fi
 
 cd ..
-
-if [ ! -d ./build/bin ]; then
-  echo "Creating new build directory ./build/bin"
-  mkdir -p ./build/bin
-fi
 
 printf "Building Weblens binary..."
 if [ $local == true ]; then
