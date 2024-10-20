@@ -124,7 +124,9 @@ export default function RemoteStatus({
                         {remoteInfo.backupSize != -1 && (
                             <div className="flex">
                                 <div className="w-[1px] bg-[--wl-outline-subtle] h-min-1 m-1" />
-                                <p>{humanFileSize(remoteInfo.backupSize)}</p>
+                                <p className="text-white">
+                                    {humanFileSize(remoteInfo.backupSize)}
+                                </p>
                             </div>
                         )}
                     </div>
@@ -287,7 +289,12 @@ function StageDisplay({ stage, error }: { stage: TaskStageT; error?: string }) {
 
     return (
         <div className="flex flex-row justify-between gap-2 wl-outline-subtle max-w-full p-2 bg-wl-barely-visible overflow-hidden grow">
-            <p className="truncate">{stage.name}</p>
+            <p
+                className="truncate backup-text"
+                data-complete={Boolean(stage.finished)}
+            >
+                {stage.name}
+            </p>
             {Boolean(stage.started) && !stage.finished && !error && (
                 <p className="text-nowrap">
                     {nsToHumanTime(elapsedTime * 1000000)}
@@ -297,7 +304,10 @@ function StageDisplay({ stage, error }: { stage: TaskStageT; error?: string }) {
                 <p className="text-nowrap text-red-500">Failed</p>
             )}
             {Boolean(stage.finished) && (
-                <p className="text-green-500">
+                <p
+                    className="truncate backup-text"
+                    data-complete={Boolean(stage.finished)}
+                >
                     {nsToHumanTime((stage.finished - stage.started) * 1000000)}
                 </p>
             )}
@@ -310,8 +320,10 @@ function BackupFile({ name, start }) {
     return (
         <div className="flex flex-row gap-2">
             <IconFile />
-            <p className="min-w-48">{nsToHumanTime(elapsedTime * 1000000)}</p>
-            <p>{name}</p>
+            <p className="min-w-48 text-white">
+                {nsToHumanTime(elapsedTime * 1000000)}
+            </p>
+            <p className="text-white">{name}</p>
         </div>
     )
 }

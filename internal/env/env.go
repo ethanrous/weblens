@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"sync"
 
 	"github.com/ethanrous/weblens/internal/log"
@@ -57,11 +56,11 @@ func GetConfigName() string {
 func GetWorkerCount() int {
 	config, err := ReadConfig(GetConfigName())
 	if err == nil {
-		countStr := config["poolWorkerCount"]
-		if countStr != nil {
-			count, err := strconv.ParseInt(countStr.(string), 10, 64)
-			if err == nil {
-				return int(count)
+		countFloatI := config["poolWorkerCount"]
+		if countFloatI != nil {
+			countFloat, ok := countFloatI.(float64)
+			if ok {
+				return int(countFloat)
 			}
 		}
 	}

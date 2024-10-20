@@ -172,8 +172,7 @@ func (s *Server) UseApi() {
 	// Albums
 	api.GET("/albums", getAlbums)
 
-	login := s.router.Group("/api").Use(WeblensAuth(false, true, s.services))
-	login.POST("/login", loginUser)
+	s.router.POST("/api/login", loginUser)
 
 	api.POST("/takeout", createTakeout)
 	api.GET("/takeout/:fileId", downloadTakeout)

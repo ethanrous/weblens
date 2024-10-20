@@ -29,6 +29,9 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [coreAddress, setCoreAddress] = useState('')
     const [apiKey, setApiKey] = useState('')
 
+    const user = useSessionStore((state) => state.user)
+    console.log(user)
+
     return (
         <div className="absolute backdrop-blur h-screen w-screen p-20 z-10">
             <div className="flex flex-col bg-wl-background p-10 wl-outline h-max">

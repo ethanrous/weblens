@@ -117,19 +117,13 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 			return
 		}
 
-		// apiKey := c.Request.Header["X-Api-Key"][0]
-		// if len(apiKey) != 0 {
-		// 	usr, _, err := ParseApiKeyLogin(apiKey, pack)
-		// 	if err != nil {
-		// 		log.ShowErr(err)
-		// 		c.AbortWithStatus(http.StatusUnauthorized)
-		// 		return
-		// 	}
-		//
-		// 	c.Set("user", usr)
-		// 	c.Next()
-		// 	return
-		// }
+		if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		c.Set("user", pack.UserService.GetPublicUser())
+		c.Next()
 	}
 }
 

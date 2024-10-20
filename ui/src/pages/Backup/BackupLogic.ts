@@ -130,7 +130,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'sub_task_complete': {
+            case 'copy_file_complete': {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {

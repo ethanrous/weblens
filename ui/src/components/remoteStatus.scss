@@ -38,3 +38,9 @@
     outline: 2px solid $warning;
     padding: 1rem;
 }
+
+.backup-text {
+    &[data-complete='true'] {
+        color: #00ff00 
+    }
+}

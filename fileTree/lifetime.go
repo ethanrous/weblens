@@ -97,8 +97,7 @@ func (l *Lifetime) GetLatestMove() *FileAction {
 
 	i := len(l.Actions) - 1
 	for i >= 0 {
-		if l.Actions[i].ActionType == FileMove || l.Actions[i].ActionType == FileCreate || l.Actions[i].
-			ActionType == FileDelete {
+		if l.Actions[i].ActionType != FileSizeChange {
 			return l.Actions[i]
 		}
 		i--
@@ -141,12 +140,14 @@ func LifetimeSorter(a, b *Lifetime) int {
 	aLatestMove := a.GetLatestMove()
 	if aLatestMove == nil {
 		log.Error.Printf("LifetimeSorter: a is nil for %s", a.Id)
+		log.Debug.Println(a.GetActions()[0].ActionType)
 		return 1
 	}
 
 	bLatestMove := b.GetLatestMove()
 	if bLatestMove == nil {
 		log.Error.Printf("LifetimeSorter: b is nil for %s", b.Id)
+		log.Debug.Println(b.GetActions()[0].ActionType)
 		return -1
 	}
 

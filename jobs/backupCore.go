@@ -71,9 +71,15 @@ func DoBackup(t *task.Task) {
 
 	t.SetErrorCleanup(
 		func(errTsk *task.Task) {
+			err := errTsk.ReadError()
+			if err == nil {
+				log.Error.Println("Trying to show error in backup task, but error is nil")
+				return
+			}
+
 			meta.Caster.PushTaskUpdate(
 				errTsk, "backup_failed",
-				task.TaskResult{"coreId": meta.Core.ServerId(), "error": errTsk.ReadError().Error()},
+				task.TaskResult{"coreId": meta.Core.ServerId(), "error": err.Error()},
 			)
 		},
 	)
@@ -226,7 +232,7 @@ func DoBackup(t *task.Task) {
 		latestMove := lt.GetLatestMove()
 
 		existingFile, err := meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId())
-		if err == nil {
+		if err == nil && existingFile.Size() == lt.Actions[0].Size {
 			if latestMove.ActionType == fileTree.FileDelete {
 				err = meta.FileService.DeleteFiles(
 					[]*fileTree.WeblensFileImpl{existingFile}, meta.Core.ServerId(), meta.Caster,
@@ -244,8 +250,12 @@ func DoBackup(t *task.Task) {
 				t.ReqNoErr(err)
 			}
 			continue
-		} else if !errors.Is(err, werror.ErrNoFile) {
+
+		} else if err != nil && !errors.Is(err, werror.ErrNoFile) {
 			t.Fail(err)
+		} else if !existingFile.IsDir() && existingFile.Size() != lt.Actions[0].Size {
+			err = meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{existingFile}, meta.Core.ServerId(), meta.Caster)
+			t.ReqNoErr(err)
 		}
 
 		if lt.GetLatestAction().ActionType == fileTree.FileDelete {
@@ -253,8 +263,8 @@ func DoBackup(t *task.Task) {
 				continue
 			}
 
-			_, err := meta.FileService.GetFileByContentId(lt.ContentId)
-			if err == nil {
+			f, err := meta.FileService.GetFileByContentId(lt.ContentId)
+			if err == nil && f.Size() == lt.Actions[0].Size {
 				continue
 			} else if !errors.Is(err, werror.ErrNoFile) {
 				t.Fail(err)

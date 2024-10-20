@@ -261,6 +261,7 @@ func (t *Task) error(err error) {
 	t.updateMu.Lock()
 
 	if t.queueState != Exited {
+		log.Trace.Println("Setting task Error")
 		t.err = err
 		t.queueState = Exited
 		t.exitStatus = TaskError
@@ -297,9 +298,13 @@ func (t *Task) ReqNoErr(err error) {
 	t.Fail(err)
 }
 
-// Fail will set the error on the tsak, and then panic with ErrTaskError, which informs the worker recovery
+// Fail will set the error on the task, and then panic with ErrTaskError, which informs the worker recovery
 // function to exit the task with the error that is set, and not treat it as a real panic.
 func (t *Task) Fail(err error) {
+	if err == nil {
+		panic(werror.Errorf("Trying to fail task with nil error"))
+	}
+
 	t.error(err)
 	panic(werror.ErrTaskError)
 }

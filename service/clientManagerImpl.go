@@ -188,10 +188,9 @@ func (cm *ClientManager) Subscribe(
 ) (complete bool, results map[string]any, err error) {
 	var sub models.Subscription
 
-	// *HACK* Ensure that subscribe requests are processed after unsubscribe requests
-	// that are sent at the same time from the client. A lower sleep value may be able
-	// to achieve the same effect, but this works for now...
-	// time.Sleep(time.Millisecond * 100)
+	if c == nil {
+		return false, nil, werror.Errorf("Trying to subscribe nil client")
+	}
 
 	switch action {
 	case models.FolderSubscribe:
