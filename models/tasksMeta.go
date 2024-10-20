@@ -462,17 +462,24 @@ type TaskStage struct {
 }
 
 type TaskStages struct {
-	data map[string]TaskStage
-	mu   sync.Mutex
+	data       map[string]TaskStage
+	inProgress string
+	mu         sync.Mutex
 }
 
 func (ts *TaskStages) StartStage(key string) {
+	if ts.inProgress != "" {
+		ts.FinishStage(ts.inProgress)
+	}
+
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
 	stage := ts.data[key]
 	stage.Started = time.Now().UnixMilli()
 	ts.data[key] = stage
+
+	ts.inProgress = key
 }
 
 func (ts *TaskStages) FinishStage(key string) {

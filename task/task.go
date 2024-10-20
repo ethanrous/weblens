@@ -218,12 +218,14 @@ func (t *Task) ClearAndRecompute() {
 }
 
 func (t *Task) GetResult(resultKey string) any {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
 	if t.result == nil {
 		return nil
 	}
 
 	if resultKey == "" {
-		return t.result
+		return maps.Clone(t.result)
 	}
 
 	return t.result[resultKey]
@@ -388,7 +390,7 @@ func (t *Task) SetResult(results TaskResult) {
 	}
 
 	if t.resultsCallback != nil {
-		t.resultsCallback(t.result)
+		t.resultsCallback(maps.Clone(t.result))
 	}
 }
 

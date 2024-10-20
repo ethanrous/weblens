@@ -64,13 +64,16 @@ export default function RemoteStatus({
                 )
             } else if (backupProgress.totalTime) {
                 return (
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-center gap-2">
                         <h4>Backup Complete</h4>
-                        <p>{nsToHumanTime(backupProgress.totalTime)}</p>
+                        <p className="text-green-500">
+                            {nsToHumanTime(backupProgress.totalTime)}
+                        </p>
                         <div className="flex grow" />
                         <WeblensButton
                             Left={IconX}
                             tooltip="Close"
+                            squareSize={30}
                             onClick={() => setBackupProgress(null)}
                         />
                     </div>
@@ -133,10 +136,9 @@ export default function RemoteStatus({
                 )}
                 <div className="flex flex-row max-w-full">
                     <WeblensButton
-                        label="Sync now"
                         squareSize={40}
                         labelOnHover
-                        tooltip={!canSync ? 'Sync unavailable' : ''}
+                        tooltip={canSync ? 'Sync now' : 'Sync unavailable'}
                         Left={IconReload}
                         disabled={!canSync}
                         onClick={async () => {
@@ -146,11 +148,12 @@ export default function RemoteStatus({
                     />
                     {remoteInfo.role === 'core' && (
                         <WeblensButton
-                            label="Restore"
                             tooltip={
-                                canSync ? 'Server is already initialized' : ''
+                                canSync
+                                    ? 'Restore'
+                                    : 'Server is already initialized'
                             }
-                            labelOnHover
+                            requireConfirm
                             Left={IconRestore}
                             squareSize={40}
                             disabled={canSync}
@@ -160,6 +163,7 @@ export default function RemoteStatus({
                     <WeblensButton
                         Left={IconTrash}
                         danger
+                        requireConfirm
                         onClick={async () => {
                             deleteRemote(remoteInfo.id).then(() =>
                                 refetchRemotes()

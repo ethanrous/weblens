@@ -1,5 +1,5 @@
 import { Loader } from '@mantine/core'
-import { IconCheck, IconX } from '@tabler/icons-react'
+import { IconCheck, IconQuestionMark, IconX } from '@tabler/icons-react'
 import { useResize } from '@weblens/components/hooks'
 import React, {
     CSSProperties,
@@ -31,6 +31,7 @@ type buttonProps = {
     fillWidth?: boolean
     allowShrink?: boolean
     float?: boolean
+    requireConfirm?: boolean
     Left?: (p: any) => ReactNode
     Right?: (p: any) => ReactNode
 
@@ -228,6 +229,7 @@ const WeblensButton = memo(
         onClick,
         squareSize = 40,
         float = false,
+        requireConfirm = false,
 
         onMouseUp,
         onMouseOver,
@@ -240,6 +242,7 @@ const WeblensButton = memo(
         const [loading, setLoading] = useState(false)
         const [textWidth, setTextWidth] = useState(null)
         const [hovering, setHovering] = useState(false)
+        const [confirming, setConfirming] = useState(false)
 
         const [sizeRef, setSizeRef] = useState<HTMLDivElement>(null)
         const buttonSize = useResize(sizeRef)
@@ -299,14 +302,16 @@ const WeblensButton = memo(
                     flexShrink: Number(allowShrink),
                 }}
             >
-                {tooltip && (
+                {(tooltip || confirming) && (
                     <div
                         className="button-tooltip"
                         style={{
                             transform: `translateY(${squareSize / 2 + 25}px)`,
                         }}
                     >
-                        <p className="text-white text-nowrap">{tooltip}</p>
+                        <p className="text-white text-nowrap">
+                            {confirming ? 'Really?' : tooltip}
+                        </p>
                     </div>
                 )}
                 <div
@@ -324,16 +329,22 @@ const WeblensButton = memo(
                     data-danger={danger}
                     data-float={float}
                     style={{ ...style, width: targetWidth }}
-                    onClick={(e) =>
-                        handleButtonEvent(
-                            e,
-                            onClick,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        )
-                    }
+                    onClick={(e) => {
+                        if (!requireConfirm || confirming) {
+                            handleButtonEvent(
+                                e,
+                                onClick,
+                                showSuccess,
+                                setLoading,
+                                setSuccess,
+                                setFail
+                            )
+                            setConfirming(false)
+                        } else if (requireConfirm) {
+                            setConfirming(true)
+                            setTimeout(() => setConfirming(false), 2000)
+                        }
+                    }}
                     onMouseUp={(e) =>
                         handleButtonEvent(
                             e,
@@ -394,7 +405,7 @@ const WeblensButton = memo(
                     {!loading && !success && !fail && (
                         <ButtonContent
                             label={label}
-                            Left={Left}
+                            Left={confirming ? IconQuestionMark : Left}
                             Right={Right}
                             setTextWidth={setTextWidth}
                             buttonWidth={

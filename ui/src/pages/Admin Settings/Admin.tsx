@@ -5,6 +5,7 @@ import {
     IconPlus,
     IconRefresh,
     IconTrash,
+    IconUserMinus,
     IconUserShield,
     IconUserUp,
     IconX,
@@ -34,8 +35,7 @@ import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { WeblensFileInfo } from '@weblens/types/files/File'
 import { ApiKeyInfo, ServerInfoT, UserInfoT } from '@weblens/types/Types'
-import { useContext, useEffect, useMemo, useState } from 'react'
-import { WebsocketContext } from '../../Context'
+import { useEffect, useMemo, useState } from 'react'
 import { useFileBrowserStore } from '../FileBrowser/FBStateControl'
 import {
     TaskProgress,
@@ -318,6 +318,7 @@ const UserRow = ({
                 {!rowUser.owner && rowUser.admin && accessor.owner && (
                     <WeblensButton
                         tooltip="Remove Admin"
+                        Left={IconUserMinus}
                         squareSize={35}
                         onClick={() => {
                             SetUserAdmin(rowUser.username, false).then(() =>
@@ -332,6 +333,7 @@ const UserRow = ({
                     tooltip="Delete"
                     Left={IconTrash}
                     danger
+                    requireConfirm
                     centerContent
                     disabled={rowUser.admin && !accessor.owner}
                     onClick={() =>
@@ -372,9 +374,7 @@ function UsersBox({
 
     return (
         <div className="theme-outline flex flex-col p-2 shrink w-full h-max min-h-96 rounded gap-2 no-scrollbar">
-            <p className="w-full h-max font-semibold text-xl select-none p-2">
-                Users
-            </p>
+            <h4 className="pl-1">Users</h4>
             <div className="flex flex-col grow relative gap-1 overflow-y-scroll overflow-x-visible max-h-[50vh]">
                 {usersList}
             </div>
@@ -425,6 +425,7 @@ function ApiKeyRow({
             <WeblensButton
                 Left={IconTrash}
                 danger
+                requireConfirm
                 tooltip="Delete Key"
                 onClick={() => {
                     deleteApiKey(keyInfo.key).then(() => refetch())
@@ -470,9 +471,7 @@ function Servers() {
 
     return (
         <div className="theme-outline flex flex-col rounded items-center p-1 w-full">
-            <p className="w-full h-max font-semibold text-xl select-none p-2">
-                API Keys
-            </p>
+            <h4 className="pl-2 w-full">API Keys</h4>
 
             {Boolean(keys?.length) && (
                 <div className="flex flex-col items-center p-1 rounded w-full">
@@ -495,16 +494,7 @@ function Servers() {
                 }}
             />
             <div className="flex flex-row w-full items-center pr-4">
-                <p className="w-full h-max font-semibold text-xl select-none p-2">
-                    Remotes
-                </p>
-                <WeblensButton
-                    squareSize={40}
-                    onClick={async () => {
-                        refetchRemotes()
-                    }}
-                    Left={IconRefresh}
-                />
+                <h4 className="pl-2">Remotes</h4>
             </div>
 
             <div className="flex flex-col items-center p-2 rounded w-full gap-2 overflow-scroll">
@@ -580,7 +570,7 @@ function BackupProgress() {
 
 export function Admin({ closeAdminMenu }) {
     const user = useSessionStore((state) => state.user)
-    const wsSend = useContext(WebsocketContext)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     useKeyDown('Escape', closeAdminMenu)
 
@@ -644,6 +634,7 @@ export function Admin({ closeAdminMenu }) {
                             label="Clear Cache"
                             squareSize={40}
                             danger
+                            requireConfirm
                             onClick={() => {
                                 clearCache().then(() => closeAdminMenu())
                             }}
@@ -651,6 +642,7 @@ export function Admin({ closeAdminMenu }) {
                         <WeblensButton
                             label={'Reset Server'}
                             danger
+                            requireConfirm
                             onClick={() => resetServer()}
                         />
                     </div>

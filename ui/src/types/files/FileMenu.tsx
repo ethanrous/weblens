@@ -27,7 +27,6 @@ import {
     CreateFolder,
     DeleteFiles,
     RenameFile,
-    searchFolder,
     SetFolderImage,
     TrashFiles,
     UnTrashFiles,
@@ -64,7 +63,6 @@ import {
     useWindowSize,
 } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
-import { WebsocketContext } from 'Context'
 import React, {
     ReactElement,
     useCallback,
@@ -80,6 +78,7 @@ import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import IconImageFolder from '@weblens/components/IconImageFolder'
 import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
 import { MediaImage } from '../media/PhotoContainer'
+import { useWebsocketStore } from '@weblens/api/Websocket'
 
 type footerNote = {
     hint: string
@@ -362,7 +361,7 @@ function StandardFileMenu({
 }) {
     const user = useSessionStore((state) => state.user)
     const { progDispatch } = useContext(TaskProgContext)
-    const wsSend = useContext(WebsocketContext)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const menuMode = useFileBrowserStore((state) => state.menuMode)

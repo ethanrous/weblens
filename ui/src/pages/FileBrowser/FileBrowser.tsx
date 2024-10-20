@@ -55,7 +55,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 
 // Weblens
-import { WebsocketContext } from '../../Context'
 import { FbModeT, useFileBrowserStore } from './FBStateControl'
 
 import {
@@ -1018,55 +1017,53 @@ const FileBrowser = () => {
     }, [syncState])
 
     return (
-        <WebsocketContext.Provider value={wsSend}>
-            <div className="h-screen flex flex-col">
-                <HeaderBar
-                    setBlockFocus={setBlockFocus}
-                    page={'files'}
-                    loading={loading}
-                />
-                <DraggingCounter />
-                <PresentationFile file={filesMap.get(presentingId)} />
-                {pasteImgBytes && <PasteImageDialogue />}
-                {isSearching && (
-                    <div className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088] px-[30%] py-[10%]">
-                        <SearchDialogue
-                            text={''}
-                            visitFunc={(loc) => {
-                                GetFileInfo(loc, '').then((f) => {
-                                    if (!f) {
-                                        console.error(
-                                            'Could not find file to nav to'
-                                        )
-                                        return
-                                    }
+        <div className="h-screen flex flex-col">
+            <HeaderBar
+                setBlockFocus={setBlockFocus}
+                page={'files'}
+                loading={loading}
+            />
+            <DraggingCounter />
+            <PresentationFile file={filesMap.get(presentingId)} />
+            {pasteImgBytes && <PasteImageDialogue />}
+            {isSearching && (
+                <div className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088] px-[30%] py-[10%]">
+                    <SearchDialogue
+                        text={''}
+                        visitFunc={(loc) => {
+                            GetFileInfo(loc, '').then((f) => {
+                                if (!f) {
+                                    console.error(
+                                        'Could not find file to nav to'
+                                    )
+                                    return
+                                }
 
-                                    if (!f.isDir) {
-                                        nav(f.parentId)
-                                    } else {
-                                        nav(loc)
-                                    }
-                                })
-                            }}
-                        />
-                    </div>
-                )}
-                <FileContextMenu />
-                <div className="absolute bottom-1 left-1">
-                    <WebsocketStatus ready={readyState} />
+                                if (!f.isDir) {
+                                    nav(f.parentId)
+                                } else {
+                                    nav(loc)
+                                }
+                            })
+                        }}
+                    />
                 </div>
-                <div className="flex flex-row grow h-[90vh] items-start">
-                    <GlobalActions />
-                    <DirViewWrapper>
-                        <DirView
-                            filesError={filesFetchErr}
-                            setFilesError={setFilesFetchErr}
-                            searchFilter={''}
-                        />
-                    </DirViewWrapper>
-                </div>
+            )}
+            <FileContextMenu />
+            <div className="absolute bottom-1 left-1">
+                <WebsocketStatus ready={readyState} />
             </div>
-        </WebsocketContext.Provider>
+            <div className="flex flex-row grow h-[90vh] items-start">
+                <GlobalActions />
+                <DirViewWrapper>
+                    <DirView
+                        filesError={filesFetchErr}
+                        setFilesError={setFilesFetchErr}
+                        searchFilter={''}
+                    />
+                </DirViewWrapper>
+            </div>
+        </div>
     )
 }
 

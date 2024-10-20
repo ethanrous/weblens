@@ -1,3 +1,4 @@
+import { WsMsgEvent } from '../../api/Websocket'
 import { TaskStageT } from '../FileBrowser/TaskProgress'
 
 export type RestoreProgress = {
@@ -158,7 +159,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'task_created': {
+            case WsMsgEvent.TaskCreatedEvent: {
                 if (msgData.content.taskType === 'do_backup') {
                     // Reset backup progress when a new backup task is created
                     setBackupProgress((p) => {
@@ -170,13 +171,13 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'core_connection_changed': {
+            case WsMsgEvent.CoreConnectionChangedEvent: {
                 refetchRemotes()
                 break
             }
 
-            case 'pool_created':
-            case 'weblens_loaded': {
+            case WsMsgEvent.PoolCreatedEvent:
+            case WsMsgEvent.WeblensLoadedEvent: {
                 break
             }
 

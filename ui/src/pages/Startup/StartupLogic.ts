@@ -1,3 +1,5 @@
+import { WsMsgEvent } from '../../api/Websocket'
+
 export type StartupTask = {
     Name: string
     Description: string
@@ -15,7 +17,7 @@ export function startupWebsocketHandler(
                 setSetupMostRecent(msgData.content.waitingOn)
                 break
             }
-            case 'weblens_loaded': {
+            case WsMsgEvent.WeblensLoadedEvent: {
                 setTimeout(() => location.reload(), 500)
                 break
             }

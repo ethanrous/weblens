@@ -56,17 +56,17 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 			}
 
 			pack.Caster.PushWeblensEvent(
-				"core_connection_changed", models.WsC{
-					"coreId": core.ServerId(),
-					"online": true,
+				models.RemoteConnectionChangedEvent, models.WsC{
+					"serverId": core.ServerId(),
+					"online":   true,
 				},
 			)
 
 			coreWsHandler(conn, pack)
 			pack.Caster.PushWeblensEvent(
-				"core_connection_changed", models.WsC{
-					"coreId": core.ServerId(),
-					"online": false,
+				models.RemoteConnectionChangedEvent, models.WsC{
+					"serverId": core.ServerId(),
+					"online":   false,
 				},
 			)
 			log.Warning.Printf("Websocket connection to core [%s] closed, reconnecting...", core.GetName())
@@ -118,6 +118,8 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		return
 	}
 
+	log.Trace.Printf("Got wsmsg from R[%s]: %v", c.GetRemote().GetName(), msg)
+
 	switch msg.EventTag {
 	case "do_backup":
 		coreIdI, ok := msg.Content["coreId"]
@@ -135,11 +137,14 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			c.Error(werror.Errorf("Core server not found: %s", msg.Content["coreId"]))
 			return
 		}
+
+		log.Trace.Printf("Backup requested by %s", core.GetName())
 		_, err = jobs.BackupOne(core, pack)
 		if err != nil {
 			c.Error(err)
 		}
-	case "weblens_loaded":
+
+	case models.WeblensLoadedEvent:
 		roleI, ok := msg.Content["role"]
 		if !ok {
 			c.Error(werror.Errorf("Missing role in weblens_loaded message"))
@@ -147,13 +152,13 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		}
 
 		c.GetRemote().SetReportedRole(roleI.(string))
-		
+
 		// Launch backup task whenever we reconnect to the core server
 		_, err = jobs.BackupOne(c.GetRemote(), pack)
 		if err != nil {
 			log.ErrTrace(err)
 		}
-	case "startup_progress", "core_connection_changed":
+	case models.StartupProgressEvent, models.RemoteConnectionChangedEvent: // Do nothing
 	case "error":
 		log.Trace.Println(msg)
 	default:

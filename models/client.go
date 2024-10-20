@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
@@ -82,6 +83,7 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	log.ErrTrace(err)
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
@@ -89,6 +91,7 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
 		BroadcastType: ServerEvent,
+		SentTime:      time.Now().UnixMilli(),
 	}
 
 	if len(content) != 0 {
@@ -104,6 +107,7 @@ func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media
 		SubscribeKey:  updatedFile.ID(),
 		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().UnixMilli(),
 	}
 
 	log.ErrTrace(wsc.Send(msg))
@@ -116,6 +120,7 @@ func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.T
 		Content:       WsC(result),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
+		SentTime:      time.Now().UnixMilli(),
 	}
 
 	log.ErrTrace(wsc.Send(msg))

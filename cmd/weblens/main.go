@@ -199,7 +199,7 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	pack.StartupChan = nil
 
 	log.Trace.Println("Service setup complete")
-	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent)
+	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 }
 
 func mainRecovery(msg string) {

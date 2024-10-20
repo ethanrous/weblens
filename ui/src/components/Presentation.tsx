@@ -27,10 +27,10 @@ import React, {
     useMemo,
     useState,
 } from 'react'
-import { WebsocketContext } from '../Context'
 import { humanFileSize } from '../util'
 import { useKeyDown, useResize, useResizeDrag } from './hooks'
 import { useSessionStore } from './UserInfo'
+import { useWebsocketStore } from '@weblens/api/Websocket'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -188,8 +188,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
     )
-
-    const wsSend = useContext(WebsocketContext)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
 
     if (!file) {

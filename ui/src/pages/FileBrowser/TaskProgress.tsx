@@ -1,10 +1,10 @@
 import { IconX } from '@tabler/icons-react'
+import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
 
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { nsToHumanTime } from '@weblens/util'
 import { useContext, useMemo, useState } from 'react'
-import { WebsocketContext } from '../../Context'
 import { create, StateCreator } from 'zustand'
 
 export type TaskStageT = {
@@ -327,7 +327,7 @@ export const TasksDisplay = () => {
 
 const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
     const removeTask = useTaskState((state) => state.removeTask)
-    const wsSend = useContext(WebsocketContext)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const [cancelWarning, setCancelWarning] = useState(false)
 

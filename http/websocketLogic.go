@@ -47,10 +47,10 @@ func wsConnect(ctx *gin.Context) {
 	server := getInstanceFromCtx(ctx)
 
 	var client *models.WsClient
-	if usr != nil {
-		client = pack.ClientService.ClientConnect(conn, usr)
-	} else if server != nil {
+	if server != nil {
 		client = pack.ClientService.RemoteConnect(conn, server)
+	} else if usr != nil {
+		client = pack.ClientService.ClientConnect(conn, usr)
 	} else {
 		// this should not happen
 		log.Error.Println("Did not get valid websocket client")
@@ -71,7 +71,7 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 	} else {
 		switchboard = wsServerClientSwitchboard
 		if pack.Loaded.Load() {
-			c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+			c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 		}
 	}
 
@@ -95,6 +95,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	var msg models.WsRequestInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
+		log.Debug.Println(string(msgBuf))
 		c.Error(werror.WithStack(err))
 		return
 	}
@@ -276,10 +277,11 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	}
 
 	if msg.SentTime == 0 {
-		err := werror.Errorf("invalid sent time on relay message")
+		err := werror.Errorf("invalid sent time on relay message %s", msg.EventTag)
 		c.Error(err)
 		return
 	}
+
 	sentTime := time.UnixMilli(msg.SentTime)
 	relaySourceId := c.GetRemote().ServerId()
 
@@ -304,6 +306,8 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 				return
 			}
 		}
+	case models.RemoteConnectionChangedEvent:
+		return
 	}
 
 	msg.RelaySource = relaySourceId
@@ -315,7 +319,7 @@ func onWebConnect(c models.Client, pack *models.ServicePack) {
 		c.PushWeblensEvent(models.StartupProgressEvent, models.WsC{"waitingOn": pack.GetStartupTasks()})
 		return
 	} else {
-		c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+		c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 	}
 
 	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
@@ -325,7 +329,7 @@ func onWebConnect(c models.Client, pack *models.ServicePack) {
 				continue
 			}
 
-			c.PushTaskUpdate(backupTask, "backup_progress", r)
+			c.PushTaskUpdate(backupTask, models.BackupProgressEvent, r)
 		}
 	}
 }

@@ -1,3 +1,4 @@
+import { WsMsgEvent } from '@weblens/api/Websocket'
 import { BackupProgressT } from '../Backup/BackupLogic'
 import { TaskStageT } from '../FileBrowser/TaskProgress'
 
@@ -44,6 +45,12 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                     p.set(msgData.relaySource, prog)
                     return new Map(p)
                 })
+                refetchRemotes()
+                break
+            }
+
+            case WsMsgEvent.RemoteConnectionChangedEvent: {
+                refetchRemotes()
                 break
             }
         }

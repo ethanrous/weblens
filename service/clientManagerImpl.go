@@ -84,6 +84,7 @@ func (cm *ClientManager) RemoteConnect(conn *websocket.Conn, remote *models.Inst
 	}
 
 	log.Trace.Printf("Server [%s] connected", remote.Name)
+	cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": true})
 	return newClient
 }
 
@@ -102,8 +103,9 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 	defer cm.clientMu.Unlock()
 	if c.GetUser() != nil {
 		delete(cm.webClientMap, c.GetUser().GetUsername())
-	} else if c.GetRemote() != nil {
+	} else if remote := c.GetRemote(); remote != nil {
 		delete(cm.remoteClientMap, c.GetRemote().ServerId())
+		cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": false})
 	}
 
 	c.Disconnect()

@@ -65,7 +65,7 @@ func DoBackup(t *task.Task) {
 
 	t.OnResult(
 		func(r task.TaskResult) {
-			meta.Caster.PushTaskUpdate(t, "backup_progress", r)
+			meta.Caster.PushTaskUpdate(t, models.BackupProgressEvent, r)
 		},
 	)
 
@@ -111,7 +111,6 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Info.Role))
 	}
 
-	stages.FinishStage("connecting")
 	stages.StartStage("fetching_users")
 	t.SetResult(task.TaskResult{"stages": stages})
 	// Backup users
@@ -120,7 +119,6 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
-	stages.FinishStage("fetching_users")
 	stages.StartStage("writing_users")
 	t.SetResult(task.TaskResult{"stages": stages})
 	for user := range users {
@@ -130,7 +128,6 @@ func DoBackup(t *task.Task) {
 		}
 	}
 
-	stages.FinishStage("writing_users")
 	stages.StartStage("fetching_keys")
 	t.SetResult(task.TaskResult{"stages": stages})
 	// Fetch keys from core
@@ -140,7 +137,6 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
-	stages.FinishStage("fetching_keys")
 	stages.StartStage("writing_keys")
 	t.SetResult(task.TaskResult{"stages": stages})
 	// Add keys to access service
@@ -155,7 +151,6 @@ func DoBackup(t *task.Task) {
 		}
 	}
 
-	stages.FinishStage("writing_keys")
 	stages.StartStage("fetching_instances")
 	t.SetResult(task.TaskResult{"stages": stages})
 	// Fetch instances from core
@@ -165,7 +160,6 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
-	stages.FinishStage("fetching_instances")
 	stages.StartStage("writing_instances")
 	t.SetResult(task.TaskResult{"stages": stages})
 	// Add instances to access service
@@ -180,7 +174,6 @@ func DoBackup(t *task.Task) {
 		}
 	}
 
-	stages.FinishStage("writing_instances")
 	stages.StartStage("sync_journal")
 	t.SetResult(task.TaskResult{"stages": stages})
 	// Find most recent action timestamp
@@ -202,7 +195,6 @@ func DoBackup(t *task.Task) {
 
 	log.Trace.Printf("Backup got %d updated lifetimes from core", len(updatedLifetimes))
 
-	stages.FinishStage("sync_journal")
 	stages.StartStage("sync_fs")
 	t.SetResult(task.TaskResult{"stages": stages})
 
