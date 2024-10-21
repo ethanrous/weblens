@@ -42,7 +42,12 @@ func ReadConfig(configName string) (map[string]any, error) {
 	log.SetLogLevel(GetLogLevel(configName))
 	envLock.Lock()
 
-	return configData[configName], nil
+	cnf, ok := configData[configName]
+	if !ok {
+		panic(werror.Errorf("Config %s not found", configName))
+	}
+
+	return cnf, nil
 }
 
 func GetConfigName() string {
