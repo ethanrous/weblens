@@ -232,7 +232,15 @@ func DoBackup(t *task.Task) {
 		latestMove := lt.GetLatestMove()
 
 		existingFile, err := meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId())
-		if err == nil && existingFile.Size() == lt.Actions[0].Size {
+
+		// If the file already exists, but is the wrong size, an earlier copy most likely failed. Delete it and copy it again.
+		if existingFile != nil && !existingFile.IsDir() && existingFile.Size() != lt.Actions[0].Size {
+			err = meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{existingFile}, meta.Core.ServerId(), meta.Caster)
+			t.ReqNoErr(err)
+			existingFile = nil
+		}
+
+		if err == nil && existingFile != nil {
 			if latestMove.ActionType == fileTree.FileDelete {
 				err = meta.FileService.DeleteFiles(
 					[]*fileTree.WeblensFileImpl{existingFile}, meta.Core.ServerId(), meta.Caster,
@@ -253,9 +261,6 @@ func DoBackup(t *task.Task) {
 
 		} else if err != nil && !errors.Is(err, werror.ErrNoFile) {
 			t.Fail(err)
-		} else if !existingFile.IsDir() && existingFile.Size() != lt.Actions[0].Size {
-			err = meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{existingFile}, meta.Core.ServerId(), meta.Caster)
-			t.ReqNoErr(err)
 		}
 
 		if lt.GetLatestAction().ActionType == fileTree.FileDelete {

@@ -3,7 +3,6 @@ import {
     IconClipboard,
     IconLockOpen,
     IconPlus,
-    IconRefresh,
     IconTrash,
     IconUserMinus,
     IconUserShield,
@@ -469,6 +468,8 @@ function Servers() {
         refetchKeys()
     }, [remotes?.length])
 
+    console.log("BACKUP", backupProgress)
+
     return (
         <div className="theme-outline flex flex-col rounded items-center p-1 w-full">
             <h4 className="pl-2 w-full">API Keys</h4>
@@ -502,6 +503,7 @@ function Servers() {
                     if (r.id === server.info.id) {
                         return null
                     }
+
                     return (
                         <RemoteStatus
                             key={r.id}

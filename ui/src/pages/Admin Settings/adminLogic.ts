@@ -49,6 +49,37 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                 break
             }
 
+            case WsMsgEvent.CopyFileStartedEvent: {
+                setBackupProgress((p) => {
+                    let prog = p.get(msgData.relaySource)
+                    if (!prog) {
+                        prog = { files: new Map() } as BackupProgressT
+                    }
+                    prog.files.set(msgData.content.filename, {
+                        name: msgData.content.filename,
+                        start: new Date(msgData.content.timestamp),
+                    })
+                    p.set(msgData.relaySource, prog)
+                    return new Map(p)
+                })
+                break
+            }
+
+            case WsMsgEvent.CopyFileCompleteEvent: {
+                setBackupProgress((p) => {
+                    let prog = p.get(msgData.relaySource)
+                    if (!prog) {
+                        prog = { files: new Map() } as BackupProgressT
+                    }
+                    prog.progress_current = msgData.content.tasks_complete
+                    prog.progress_total = msgData.content.tasks_total
+                    prog.files.delete(msgData.content.filename)
+                    p.set(msgData.relaySource, prog)
+                    return new Map(p)
+                })
+                break
+            }
+
             case WsMsgEvent.RemoteConnectionChangedEvent: {
                 refetchRemotes()
                 break

@@ -236,6 +236,9 @@ export enum WsMsgEvent {
     ErrorEvent = 'error',
     RemoteConnectionChangedEvent = 'remote_connection_changed',
     BackupProgressEvent = 'backup_progress',
+
+    CopyFileStartedEvent = 'copy_file_started',
+    CopyFileCompleteEvent = 'copy_file_complete',
 }
 
 export type WsMsg = {
@@ -459,6 +462,8 @@ function filebrowserWebsocketHandler(
             case WsMsgEvent.BackupCompleteEvent:
             case WsMsgEvent.PoolCreatedEvent:
             case WsMsgEvent.RestoreStartedEvent:
+            case WsMsgEvent.CopyFileStartedEvent:
+            case WsMsgEvent.CopyFileCompleteEvent:
             case WsMsgEvent.RemoteConnectionChangedEvent: {
                 // NoOp
                 return

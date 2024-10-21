@@ -75,7 +75,7 @@ export function backupPageWebsocketHandler(
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
-                    if (!prog) {
+                    if (!prog || !stages[0].finished) {
                         prog = { files: new Map() } as BackupProgressT
                     }
                     prog.stages = [...stages]

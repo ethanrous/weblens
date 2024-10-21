@@ -81,7 +81,7 @@ export default function RemoteStatus({
             } else {
                 return (
                     <div className="flex items-center gap-2">
-                        <h4>Backup In Progress</h4>
+                        <h4 className="text-white">Backup In Progress</h4>
                         <Loader size={16} color="white" />
                     </div>
                 )
@@ -228,7 +228,7 @@ export default function RemoteStatus({
                     <div className="flex flex-col gap-1 mb-2">
                         {backupHeaderText}
                     </div>
-                    {backupProgress.stages.map((s) => (
+                    {backupProgress.stages?.map((s) => (
                         <StageDisplay
                             key={s.name}
                             stage={s}
@@ -236,13 +236,19 @@ export default function RemoteStatus({
                         />
                     ))}
                     {backupProgress.progress_total && (
-                        <WeblensProgress
-                            value={
-                                (backupProgress.progress_current /
-                                    backupProgress.progress_total) *
-                                100
-                            }
-                        />
+                        <div className="flex w-full m-1 items-center gap-2">
+                            <WeblensProgress
+                                value={
+                                    (backupProgress.progress_current /
+                                        backupProgress.progress_total) *
+                                    100
+                                }
+                            />
+                            <p className="text-nowrap text-white p-1">
+                                {backupProgress.progress_current} /{' '}
+                                {backupProgress.progress_total} files
+                            </p>
+                        </div>
                     )}
                     {backupProgress.files.size > 0 && (
                         <div className="flex flex-col gap-1 my-2">
@@ -288,26 +294,22 @@ function StageDisplay({ stage, error }: { stage: TaskStageT; error?: string }) {
     }, [startTime, stage.finished, isRunning])
 
     return (
-        <div className="flex flex-row justify-between gap-2 wl-outline-subtle max-w-full p-2 bg-wl-barely-visible overflow-hidden grow">
-            <p
-                className="truncate backup-text"
-                data-complete={Boolean(stage.finished)}
-            >
-                {stage.name}
-            </p>
+        <div
+            className="backup-stage-box"
+            data-complete={Boolean(stage.finished)}
+            data-failed={Boolean(stage.started && !stage.finished && error)}
+        >
+            <p className="truncate">{stage.name}</p>
             {Boolean(stage.started) && !stage.finished && !error && (
                 <p className="text-nowrap">
                     {nsToHumanTime(elapsedTime * 1000000)}
                 </p>
             )}
             {Boolean(stage.started) && !stage.finished && error && (
-                <p className="text-nowrap text-red-500">Failed</p>
+                <p className="text-nowrap">Failed</p>
             )}
             {Boolean(stage.finished) && (
-                <p
-                    className="truncate backup-text"
-                    data-complete={Boolean(stage.finished)}
-                >
+                <p className="truncate">
                     {nsToHumanTime((stage.finished - stage.started) * 1000000)}
                 </p>
             )}
