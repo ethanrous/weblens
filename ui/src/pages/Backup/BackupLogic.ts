@@ -1,5 +1,5 @@
-import { WsMsgEvent } from '../../api/Websocket'
-import { TaskStageT } from '../FileBrowser/TaskProgress'
+import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
+import { TaskStageT } from '../FileBrowser/TaskStateControl'
 
 export type RestoreProgress = {
     stage: string
@@ -31,7 +31,7 @@ export function backupPageWebsocketHandler(
     >,
     refetchRemotes: () => void
 ) {
-    return (msgData) => {
+    return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
             case 'restore_progress': {
                 setRestoreStage((p) => {
@@ -52,8 +52,7 @@ export function backupPageWebsocketHandler(
             }
 
             case 'restore_complete': {
-                setRestoreStage((p) => {
-                    p.stage = 'Restore Complete'
+                setRestoreStage((p: RestoreProgress) => {
                     p.progress_current = 1
                     p.progress_total = 1
                     p.timestamp = null
@@ -94,6 +93,8 @@ export function backupPageWebsocketHandler(
                     }
                     prog.stages = [...stages]
                     prog.totalTime = msgData.content.totalTime
+                    prog.files.clear()
+                    prog.progress_current = prog.progress_total
                     p.set(msgData.content.coreId, prog)
                     return new Map(p)
                 })
@@ -171,7 +172,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case WsMsgEvent.CoreConnectionChangedEvent: {
+            case WsMsgEvent.RemoteConnectionChangedEvent: {
                 refetchRemotes()
                 break
             }

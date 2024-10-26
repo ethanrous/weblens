@@ -14,7 +14,7 @@ import {
     SubToFolder,
     UnsubFromFolder,
 } from './FileBrowserApi'
-import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
+import { TaskStageT, useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -123,7 +123,7 @@ export const useSubscribe = (cId: string, sId: string, usr: UserInfoT) => {
     return { wsSend, readyState }
 }
 
-interface wsMsgInfo {
+export interface wsMsgInfo {
     eventTag: string
     subscribeKey: string
     content: wsMsgContent
@@ -145,6 +145,15 @@ interface wsMsgContent {
     createdBy?: string
     task_job_name?: string
     task_job_target?: string
+    stage?: string
+    files_total?: number
+    files_restored?: number
+    timestamp?: string
+    error?: string
+    stages?: TaskStageT[]
+    coreId?: string
+    totalTime?: number
+    taskType?: string
 
     totalFiles?: number
     bytesSoFar?: number

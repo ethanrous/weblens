@@ -25,7 +25,7 @@ import './theme.scss'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { Loader } from '@mantine/core'
-import { TaskStageT } from '@weblens/pages/FileBrowser/TaskProgress'
+import { TaskStageT } from '@weblens/pages/FileBrowser/TaskStateControl'
 
 export default function RemoteStatus({
     remoteInfo,
