@@ -106,7 +106,6 @@ const WormholeWrapper = ({
                         )
                     }
                     dropSpotTitle={wormholeName}
-                    dragging={dragging}
                     stopDragging={() => setDragging(DraggingStateT.NoDrag)}
                     dropAllowed={validWormhole}
                     handleDrag={handleDrag}

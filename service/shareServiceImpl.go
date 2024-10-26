@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -19,13 +18,18 @@ import (
 type ShareServiceImpl struct {
 	repo   map[models.ShareId]models.Share
 	repoMu sync.RWMutex
-	col    *mongo.Collection
+
+	fileIdMap map[fileTree.FileId]models.ShareId
+	fileIdMu  sync.RWMutex
+
+	col *mongo.Collection
 }
 
 func NewShareService(collection *mongo.Collection) (models.ShareService, error) {
 	ss := &ShareServiceImpl{
-		repo: make(map[models.ShareId]models.Share),
-		col:  collection,
+		repo:      make(map[models.ShareId]models.Share),
+		fileIdMap: make(map[fileTree.FileId]models.ShareId),
+		col:       collection,
 	}
 
 	ret, err := ss.col.Find(context.Background(), bson.M{})
@@ -58,6 +62,10 @@ func NewShareService(collection *mongo.Collection) (models.ShareService, error) 
 			}
 		}
 		ss.repo[sh.ID()] = sh
+
+		if sh.GetShareType() == models.SharedFile {
+			ss.fileIdMap[sh.FileId] = sh.ID()
+		}
 	}
 
 	return ss, nil
@@ -76,6 +84,16 @@ func (ss *ShareServiceImpl) Add(sh models.Share) error {
 	ss.repoMu.Lock()
 	defer ss.repoMu.Unlock()
 	ss.repo[sh.ID()] = sh
+
+	if sh.GetShareType() == models.SharedFile {
+		fileSh, ok := sh.(*models.FileShare)
+		if !ok {
+			return werror.ErrBadShareType
+		}
+		ss.fileIdMu.Lock()
+		defer ss.fileIdMu.Unlock()
+		ss.fileIdMap[fileSh.FileId] = sh.ID()
+	}
 
 	return nil
 }
@@ -225,26 +243,24 @@ func (ss *ShareServiceImpl) SetSharePublic(share models.Share, public bool) erro
 }
 
 func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFileImpl) (*models.FileShare, error) {
-	ret := ss.col.FindOne(context.Background(), bson.M{"fileId": f.ID()})
-	if ret.Err() != nil {
-		if errors.Is(ret.Err(), mongo.ErrNoDocuments) {
-			return nil, werror.WithStack(werror.ErrNoShare)
-		}
-		return nil, werror.WithStack(ret.Err())
-	}
-
-	var dbShare models.FileShare
-	err := ret.Decode(&dbShare)
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
-
-	sh := ss.Get(dbShare.ShareId)
-	if sh == nil {
+	ss.fileIdMu.RLock()
+	shareId, ok := ss.fileIdMap[f.ID()]
+	ss.fileIdMu.RUnlock()
+	if !ok {
 		return nil, werror.WithStack(werror.ErrNoShare)
 	}
 
-	return sh.(*models.FileShare), nil
+	sh := ss.Get(shareId)
+	if sh == nil {
+		return nil, werror.WithStack(werror.ErrExpectedShareMissing)
+	}
+
+	fileSh, ok := sh.(*models.FileShare)
+	if !ok {
+		return nil, werror.WithStack(werror.ErrBadShareType)
+	}
+
+	return fileSh, nil
 }
 
 func (ss *ShareServiceImpl) writeUpdateTime(sh models.Share) error {

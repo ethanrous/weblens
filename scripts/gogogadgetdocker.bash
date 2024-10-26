@@ -5,6 +5,9 @@ if [[ ! -e ./scripts ]]; then
   exit 1
 fi
 
+mkdir -p ./build/bin
+mkdir -p ./build/logs
+
 # Build go binary locally, on host OS, rather than in a container
 local=false
 
@@ -83,17 +86,13 @@ if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch
     sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
 fi
 
-mkdir -p ./build/logs
-mkdir -p ./build/bin
 
 cd ./ui
 printf "Building UI..."
-npm install 
-# npm install &> /dev/null
+npm install &> /dev/null
 export VITE_APP_BUILD_TAG=$docker_tag-$arch
 export VITE_BUILD=true
-npm run build 
-# npm run build &> ../build/logs/ui-build.log
+npm run build &> ../build/logs/ui-build.log
 
 if [ $? != 0 ]; then
   printf " FAILED\n"

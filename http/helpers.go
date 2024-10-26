@@ -110,7 +110,7 @@ func getShareFromCtx[T models.Share](ctx *gin.Context) (T, error) {
 		return tsh, nil
 	}
 
-	err := errors.New("Could not find valid share")
+	err := werror.ErrNoShare
 	ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	return empty, err
 }
@@ -122,7 +122,7 @@ func formatFileSafe(
 	err error,
 ) {
 	if f == nil {
-		return formattedInfo, werror.WithStack(errors.New("cannot get file info of nil wf"))
+		return formattedInfo, werror.Errorf("cannot get file info of nil wf")
 	}
 
 	if !pack.AccessService.CanUserAccessFile(accessor, f, share) {
@@ -166,9 +166,9 @@ func formatFileSafe(
 	}
 
 	formattedInfo = FileInfo{
-		Id:          f.ID(),
-		Displayable: pack.MediaService.IsFileDisplayable(f),
-		IsDir:       f.IsDir(),
+		Id: f.ID(),
+		// Displayable: pack.MediaService.IsFileDisplayable(f),
+		IsDir: f.IsDir(),
 		Modifiable: !pack.FileService.IsFileInTrash(f) &&
 			owner == accessor &&
 			pack.FileService.GetFileOwner(f) != pack.UserService.GetRootUser() &&
@@ -179,8 +179,8 @@ func formatFileSafe(
 		ParentId:     parentId,
 		Owner:        owner.GetUsername(),
 		PortablePath: f.GetPortablePath().ToPortable(),
-		MediaData:    pack.MediaService.Get(f.GetContentId()),
-		ShareId:      shareId,
+		// MediaData:    pack.MediaService.Get(f.GetContentId()),
+		ShareId: shareId,
 		Children: internal.Map(
 			f.GetChildren(), func(wf *fileTree.WeblensFileImpl) fileTree.FileId { return wf.ID() },
 		),

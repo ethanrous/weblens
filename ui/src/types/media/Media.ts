@@ -252,7 +252,7 @@ class WeblensMedia {
         }
         if (thumb) {
             await thumb.then((updated: boolean) => {
-                if (updated) {
+                if (updated && thumbFinished) {
                     thumbFinished()
                 }
             })
@@ -260,7 +260,7 @@ class WeblensMedia {
 
         if (fullres) {
             await fullres.then((updated: boolean) => {
-                if (updated) {
+                if (updated && fullresFinished) {
                     fullresFinished()
                 }
             })

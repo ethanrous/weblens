@@ -161,19 +161,12 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 		return
 	}
 
-	selfData, err := formatFileSafe(dir, u, share, pack)
-	if err != nil {
-		safeErr, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safeErr)
-		return
-	}
-
 	var parentsInfo []FileInfo
 	parent := dir.GetParent()
 	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(
 		u, parent, share,
 	) && !pack.FileService.GetFileOwner(parent).IsSystemUser() {
-		parentInfo, err := formatFileSafe(parent, u, share, pack)
+		parentInfo, err := WeblensFileToFileInfo(parent, pack, false)
 		if err != nil {
 			safeErr, code := werror.TrySafeErr(err)
 			ctx.JSON(code, safeErr)
@@ -191,7 +184,21 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 		return
 	}
 
-	packagedInfo := gin.H{"self": selfData, "children": children, "parents": parentsInfo, "medias": medias}
+	childInfos := make([]FileInfo, 0, len(children))
+	for _, child := range children {
+		info, err := WeblensFileToFileInfo(child, pack, false)
+		if werror.SafeErrorAndExit(err, ctx) {
+			return
+		}
+		childInfos = append(childInfos, info)
+	}
+
+	selfInfo, err := WeblensFileToFileInfo(dir, pack, true)
+	if werror.SafeErrorAndExit(err, ctx) {
+		return
+	}
+
+	packagedInfo := gin.H{"self": selfInfo, "children": childInfos, "parents": parentsInfo, "medias": medias}
 	ctx.JSON(http.StatusOK, packagedInfo)
 }
 
@@ -200,8 +207,6 @@ func getFolder(ctx *gin.Context) {
 	u := getUserFromCtx(ctx)
 	sh, err := getShareFromCtx[*models.FileShare](ctx)
 	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
 		return
 	}
 
@@ -260,7 +265,6 @@ func getExternalFolderInfo(ctx *gin.Context) {
 	// dir :=  pack.FileService.Get(folderId)
 	// if dir == nil {
 	// 	wlog.Debug.Println("Actually not found")
-	// 	time.Sleep(time.Millisecond*150 - time.Since(start))
 	// 	ctx.JSON(comm.StatusNotFound, gin.H{"error": fmt.Sprintf("failed to find folder with id \"%s\"", folderId)})
 	// 	return
 	// }
@@ -438,7 +442,8 @@ func moveFiles(ctx *gin.Context) {
 func getSharedFiles(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	if u == nil {
+	log.Trace.Printf("Getting shared files for user %s", u.GetUsername())
+	if u.IsPublicUser() {
 		ctx.Status(http.StatusUnauthorized)
 		return
 	}
@@ -465,6 +470,17 @@ func getSharedFiles(ctx *gin.Context) {
 		children = append(children, f)
 	}
 
+	childInfos := make([]FileInfo, 0, len(children))
+	for _, child := range children {
+		fInfo, err := WeblensFileToFileInfo(child, pack, false)
+		if err != nil {
+			safeErr, code := werror.TrySafeErr(err)
+			ctx.JSON(code, safeErr)
+			return
+		}
+		childInfos = append(childInfos, fInfo)
+	}
+
 	medias, err := getChildMedias(pack, children)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
@@ -472,7 +488,7 @@ func getSharedFiles(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"children": children, "medias": medias, "shares": shares})
+	ctx.JSON(http.StatusOK, gin.H{"children": childInfos, "medias": medias})
 }
 
 func getFileShare(ctx *gin.Context) {

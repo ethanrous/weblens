@@ -518,14 +518,13 @@ func (fs *FileServiceImpl) DeleteFiles(
 				// Freeze the file before it is deleted
 				preDeleteFile := f.Freeze()
 
-				// Check if the file is already in the index, if it does, and the file exists as well,
-				// we can just delete it from the users tree
 				child, err := restoreTree.GetRoot().GetChild(f.ID())
 				if err == nil && child.Exists() {
 					err = tree.Delete(f.ID(), deleteEvent)
 					if err != nil {
 						return err
 					}
+					log.Debug.Println("PUSHING DELETE")
 					caster.PushFileDelete(preDeleteFile)
 
 					return nil
@@ -576,6 +575,7 @@ func (fs *FileServiceImpl) DeleteFiles(
 						)
 					}
 				}
+				log.Debug.Println("PUSHING DELETE")
 				caster.PushFileDelete(preDeleteFile)
 
 				return nil
@@ -1028,7 +1028,12 @@ func (fs *FileServiceImpl) GetFolderCover(folder *fileTree.WeblensFileImpl) (mod
 		return "", werror.ErrDirectoryRequired
 	}
 
+	if cId := folder.GetContentId(); cId != "" {
+		return cId, nil
+	}
+
 	coverId := fs.folderMedia[folder.ID()]
+	folder.SetContentId(coverId)
 
 	return coverId, nil
 }

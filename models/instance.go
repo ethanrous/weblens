@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -126,6 +127,7 @@ func (wi *Instance) SetReportedRole(role ServerRole) {
 	wi.updateMu.Lock()
 	defer wi.updateMu.Unlock()
 	wi.reportedRole = role
+	log.TraceCaller(1, "SetReportedRole %s", role)
 }
 
 func (wi *Instance) GetAddress() (string, error) {

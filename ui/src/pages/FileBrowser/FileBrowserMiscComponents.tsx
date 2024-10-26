@@ -72,7 +72,6 @@ export const TransferCard = ({
 export const DropSpot = ({
     onDrop,
     dropSpotTitle,
-    dragging,
     dropAllowed,
     handleDrag,
     wrapperRef,
@@ -80,12 +79,12 @@ export const DropSpot = ({
 }: {
     onDrop
     dropSpotTitle: string
-    dragging: DraggingStateT
-    dropAllowed
+    dropAllowed: boolean
     handleDrag: DragEventHandler<HTMLDivElement>
     wrapperRef?
     stopDragging: () => void
 }) => {
+    const dragging = useFileBrowserStore((state) => state.draggingState)
     const wrapperSize = useResize(wrapperRef)
     return (
         <div
@@ -231,12 +230,6 @@ export const DirViewWrapper = memo(
                         clearSelected()
                     }
                 }}
-                // onClick={() => {
-                //     if (draggingState) {
-                //         return
-                //     }
-                //     clearSelected()
-                // }}
                 onContextMenu={(e) => {
                     e.preventDefault()
                     setMenu({

@@ -99,6 +99,7 @@ export const StyledBreadcrumb = ({
                 if (dragging !== 0) {
                     moveSelectedTo(crumbInfo.id)
                 } else {
+                    console.log('NAVIGATING TO', crumbInfo.visitRoute)
                     nav(crumbInfo.visitRoute)
                 }
                 setMoveDest('')
@@ -215,74 +216,71 @@ export const StyledLoaf = ({
     )
 }
 
-const Crumbs = memo(
-    ({
-        moveSelectedTo,
-        navOnLast,
-    }: {
-        navOnLast: boolean
-        moveSelectedTo?: (folderId: string) => void
-    }) => {
-        const user = useSessionStore((state) => state.user)
+const Crumbs = ({
+    moveSelectedTo,
+    navOnLast,
+}: {
+    navOnLast: boolean
+    moveSelectedTo?: (folderId: string) => void
+}) => {
+    const user = useSessionStore((state) => state.user)
 
-        const mode = useFileBrowserStore((state) => state.fbMode)
-        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-        const shareId = useFileBrowserStore((state) => state.shareId)
+    const mode = useFileBrowserStore((state) => state.fbMode)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const shareId = useFileBrowserStore((state) => state.shareId)
 
-        const setPresentationTarget = useFileBrowserStore(
-            (state) => state.setPresentationTarget
-        )
+    const setPresentationTarget = useFileBrowserStore(
+        (state) => state.setPresentationTarget
+    )
 
-        const crumbs: Crumb[] = []
+    const crumbs: Crumb[] = []
 
-        if (mode == FbModeT.share) {
-            crumbs.push({
-                name: 'Shared',
-                id: 'shared',
-                visitRoute: '/files/shared',
-                navigable: folderInfo !== null,
-            } as Crumb)
-        }
-
-        if (!user || !folderInfo?.Id()) {
-            return (
-                <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
-            )
-        }
-
-        if (!folderInfo.IsTrash()) {
-            crumbs.push(
-                ...folderInfo.FormatParents().map((parent) => {
-                    return {
-                        name: parent.filename,
-                        id: parent.id,
-                        visitRoute: parent.GetVisitRoute(
-                            mode,
-                            shareId,
-                            setPresentationTarget
-                        ),
-                        navigable: true,
-                    } as Crumb
-                })
-            )
-        }
-
+    // Add the share crumb before checking if we have folder info
+    // because the base share page does not have a folderInfo, and
+    // so we won't render anything past the check after this
+    if (mode == FbModeT.share) {
         crumbs.push({
-            name: folderInfo.GetFilename(),
-            id: folderInfo.Id(),
-            visitRoute: folderInfo.GetVisitRoute(
-                mode,
-                shareId,
-                setPresentationTarget
-            ),
-            navigable: navOnLast,
+            name: 'Shared',
+            id: 'shared',
+            visitRoute: '/files/shared',
+            navigable: folderInfo !== null,
         } as Crumb)
-
-        return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
-    },
-    (prev, next) => {
-        return prev.navOnLast === next.navOnLast
     }
-)
+
+    if (!user || !folderInfo?.Id()) {
+        return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
+    }
+
+    if (!folderInfo.IsTrash()) {
+        crumbs.push(
+            ...folderInfo.FormatParents().map((parent) => {
+                return {
+                    name: parent.GetFilename(),
+                    id: parent.id,
+                    visitRoute: parent.GetVisitRoute(
+                        mode,
+                        shareId,
+                        setPresentationTarget
+                    ),
+                    navigable: true,
+                } as Crumb
+            })
+        )
+    }
+
+    // Add the current folder, which is not always navigable
+    crumbs.push({
+        name: folderInfo.GetFilename(),
+        id: folderInfo.Id(),
+        visitRoute: folderInfo.GetVisitRoute(
+            mode,
+            shareId,
+            setPresentationTarget
+        ),
+        navigable: navOnLast,
+    } as Crumb)
+
+    return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
+}
 
 export default Crumbs

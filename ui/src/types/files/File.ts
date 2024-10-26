@@ -12,7 +12,7 @@ import {
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { MediaDataT } from '@weblens/types/media/Media'
-import { WeblensShare } from '@weblens/types/share/share'
+import { ShareInfo, WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
 
 function getIcon(folderName: string): (p) => JSX.Element {
@@ -64,7 +64,7 @@ export interface WeblensFileParams {
 export class WeblensFile {
     id?: string
     owner?: string
-    filename?: string
+    private filename?: string
     portablePath?: string
     parentId?: string
 
@@ -97,7 +97,6 @@ export class WeblensFile {
         Object.assign(this, init)
         this.hovering = false
         this.modifyDate = new Date(init.modifyTimestamp)
-        this.shareId = init.shareId
         this.selected = SelectedState.NotSelected
     }
 
@@ -144,6 +143,9 @@ export class WeblensFile {
         if (!this.parents) {
             return []
         }
+        if (this.filename === '.user_trash') {
+            return []
+        }
         return this.parents
     }
 
@@ -164,6 +166,18 @@ export class WeblensFile {
     }
 
     GetFilename(): string {
+        if (!this.filename) {
+            const parts = this.portablePath.split('/')
+            let name = parts.pop()
+
+            // If the path is a directory, the portable path will end with a slash, so we need to pop again
+            if (this.isDir) {
+                name = parts.pop()
+            }
+
+            this.filename = name
+        }
+
         if (this.portablePath === 'HOME') {
             return 'Home'
         }
@@ -202,7 +216,7 @@ export class WeblensFile {
     }
 
     IsTrash(): boolean {
-        return this.filename === '.user_trash'
+        return this.GetFilename() === '.user_trash'
     }
 
     GetOwner(): string {
@@ -214,7 +228,6 @@ export class WeblensFile {
     }
 
     UnsetSelected(selected: SelectedState): void {
-        // console.trace('Unset selected', selected)
         let mask = SelectedState.ALL - 1
         while (selected !== 0) {
             selected = selected >> 1
@@ -302,7 +315,9 @@ export class WeblensFile {
         }
 
         const url = `${API_ENDPOINT}/file/share/${this.shareId}`
-        return fetchJson(url)
+        const shareInfo = await fetchJson<ShareInfo>(url)
+        this.share = new WeblensShare(shareInfo)
+        return this.share
     }
 
     GetVisitRoute(
@@ -318,6 +333,10 @@ export class WeblensFile {
 
         if (this.isDir) {
             if (mode === FbModeT.share && shareId === '') {
+                if (!this.shareId) {
+                    console.log(this)
+                    throw new Error("Trying to navigate to shared file that has no shareId") 
+                }
                 return `/files/share/${this.shareId}/${this.id}`
             } else if (mode === FbModeT.share) {
                 return `/files/share/${shareId}/${this.id}`

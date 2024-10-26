@@ -4,5 +4,5 @@ import "errors"
 
 var ErrUserNotActive = errors.New("user is not active")
 var ErrBadPassword = errors.New("password provided does not authenticate user")
-var ErrUserAlreadyExists = errors.New("cannot create two users with the same username")
+var ErrUserAlreadyExists = &clientSafeErr{realError: errors.New("user already exists"), statusCode: 409}
 var ErrUserNotFound = errors.New("could not find user")

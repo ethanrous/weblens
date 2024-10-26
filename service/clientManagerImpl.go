@@ -65,7 +65,7 @@ func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *models.User) 
 	newClient := models.NewClient(conn, user)
 
 	cm.clientMu.Lock()
-	cm.webClientMap[user.GetUsername()] = newClient
+	cm.webClientMap[newClient.GetClientId()] = newClient
 	cm.clientMu.Unlock()
 
 	log.Trace.Printf("Web client [%s] connected", user.GetUsername())
@@ -114,7 +114,14 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 func (cm *ClientManager) GetClientByUsername(username models.Username) *models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
-	return cm.webClientMap[username]
+
+	for _, c := range cm.webClientMap {
+		if c.GetUser().GetUsername() == username {
+			return c
+		}
+	}
+
+	return nil
 }
 
 func (cm *ClientManager) GetClientByServerId(instanceId models.InstanceId) *models.WsClient {

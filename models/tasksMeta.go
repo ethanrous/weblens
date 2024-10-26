@@ -508,15 +508,13 @@ func (ts *TaskStages) MarshalJSON() ([]byte, error) {
 func NewBackupTaskStages() *TaskStages {
 	return &TaskStages{
 		data: map[string]TaskStage{
-			"connecting":         {Key: "connecting", Name: "Connecting to Remote", index: 0},
-			"fetching_users":     {Key: "fetching_users", Name: "Fetching Users", index: 1},
-			"writing_users":      {Key: "writing_users", Name: "Writing Users", index: 2},
-			"fetching_keys":      {Key: "fetching_keys", Name: "Fetching Api Keys", index: 3},
-			"writing_keys":       {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
-			"fetching_instances": {Key: "fetching_instances", Name: "Fetching Instances", index: 5},
-			"writing_instances":  {Key: "writing_instances", Name: "Writing Instances", index: 6},
-			"sync_journal":       {Key: "sync_journal", Name: "Calculating New File History", index: 7},
-			"sync_fs":            {Key: "sync_fs", Name: "Sync Filesystem", index: 8},
+			"connecting":           {Key: "connecting", Name: "Connecting to Remote", index: 0},
+			"fetching_backup_data": {Key: "fetching_backup_data", Name: "Fetching Backup Data", index: 1},
+			"writing_users":        {Key: "writing_users", Name: "Writing Users", index: 2},
+			"writing_keys":         {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
+			"writing_instances":    {Key: "writing_instances", Name: "Writing Instances", index: 6},
+			"sync_journal":         {Key: "sync_journal", Name: "Calculating New File History", index: 7},
+			"sync_fs":              {Key: "sync_fs", Name: "Sync Filesystem", index: 8},
 		},
 	}
 }

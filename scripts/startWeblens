@@ -10,10 +10,16 @@ if [[ ! -e ./build/bin ]]; then
 fi
 
 restart=false
+trace=false
+config_name=$CONFIG_NAME
 
-while getopts "r" opt; do
+while getopts "trc:" opt; do
   case $opt in
+    t) trace=true
+    ;;
     r) restart=true
+    ;;
+    c) config_name="$OPTARG"
     ;;
     \?) echo "Invalid option -$OPTARG" >&2
     exit 1
@@ -27,6 +33,17 @@ while getopts "r" opt; do
   esac
 done
 
+if [[ -z "$config_name" ]]; then
+  export config_name="DEBUG-CORE"
+fi
+
+printf "Using config: $config_name"
+if [[ $trace == true ]]; then
+  do_trace="trace"
+  printf " +trace"
+fi
+printf "\n"
+
 while true; do
   rm -f ./build/bin/weblens
 
@@ -37,13 +54,10 @@ while true; do
     exit 1
   fi
 
-  if [[ -z "$CONFIG_NAME" ]]; then
-    export CONFIG_NAME=DEBUG-CORE
-  fi
+  APP_ROOT=$(pwd) CONFIG_NAME=$config_name LOG_LEVEL=$do_trace ./build/bin/weblens
+  exit=$?
 
-  APP_ROOT=$(pwd) ./build/bin/weblens
-
-  if [[ $restart == false ]]; then
+  if [[ $restart == false ]] || [[ $exit == 11 ]]; then
     break
   fi
   clear

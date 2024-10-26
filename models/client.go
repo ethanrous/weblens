@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type ClientId string
+type ClientId = string
 
 var _ Client = (*WsClient)(nil)
 
@@ -169,11 +169,11 @@ func (wsc *WsClient) SubUnlock() {
 
 func (wsc *WsClient) Send(msg WsResponseInfo) error {
 	if wsc != nil && wsc.Active.Load() {
+		wsc.updateMu.Lock()
+		defer wsc.updateMu.Unlock()
 
 		log.Trace.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName())
 
-		wsc.updateMu.Lock()
-		defer wsc.updateMu.Unlock()
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
 			return werror.WithStack(err)

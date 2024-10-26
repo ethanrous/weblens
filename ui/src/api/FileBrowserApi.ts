@@ -1,15 +1,24 @@
 import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
-import { FolderInfo } from '@weblens/pages/FileBrowser/FileBrowser'
-import { FileAction } from '@weblens/pages/FileBrowser/FileInfoPane'
 import { WeblensFileParams } from '@weblens/types/files/File'
 import { AlbumData } from '@weblens/types/Types'
 import { humanFileSize } from '@weblens/util'
 import axios from 'axios'
 import API_ENDPOINT from './ApiEndpoint'
 import { useWebsocketStore, WsSendT } from './Websocket'
-import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
 import { MediaDataT } from '@weblens/types/media/Media'
+import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
+import { ShareInfo } from '@weblens/types/share/share'
+import { FileAction } from '@weblens/pages/FileBrowser/FileBrowserTypes'
+
+export type FolderInfo = {
+    self?: WeblensFileParams
+    children?: WeblensFileParams[]
+    parents?: WeblensFileParams[]
+    medias?: MediaDataT[]
+    shares?: ShareInfo[]
+    error?: string
+}
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
@@ -21,14 +30,18 @@ export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     })
 }
 
-export function SubToTask(taskId: string, lookingFor: string[], wsSend) {
+export function SubToTask(
+    taskId: string,
+    lookingFor: string[],
+    wsSend: WsSendT
+) {
     wsSend('task_subscribe', {
         subscribeKey: taskId,
         lookingFor: lookingFor,
     })
 }
 
-export function UnsubFromFolder(subId: string, wsSend) {
+export function UnsubFromFolder(subId: string, wsSend: WsSendT) {
     if (!subId || useWebsocketStore.getState().readyState < 1) {
         return
     }
@@ -49,7 +62,7 @@ export function TrashFiles(fileIds: string[], shareId: string) {
     )
 }
 
-export function DeleteFiles(fileIds: string[]) {
+export async function DeleteFiles(fileIds: string[]) {
     const url = new URL(`${API_ENDPOINT}/files`)
 
     return fetch(url.toString(), {
@@ -80,24 +93,14 @@ export function SetFolderImage(folderId: string, contentId: string) {
 
 async function getSharedWithMe(): Promise<FolderInfo> {
     const url = new URL(`${API_ENDPOINT}/files/shared`)
-    const res = await fetchJson<FolderInfo>(url.toString())
-
-    const sharesMap = new Map<string, string>()
-    for (const share of res.shares) {
-        sharesMap.set(share.fileId, share.shareId)
-    }
-
-    for (const file of res.children) {
-        file.shareId = sharesMap.get(file.id)
-    }
-
-    return res
+    return await fetchJson<FolderInfo>(url.toString())
 }
 
-async function getExternalFiles(contentId: string) {
+async function getExternalFiles() {
+    console.error('External files not implemented')
     return null
-    const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
-    return fetchJson(url.toString())
+    // const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
+    // return fetchJson(url.toString())
 }
 
 export async function GetFileInfo(
@@ -121,7 +124,7 @@ export async function GetFolderData(
         return await getSharedWithMe()
     }
     if (fbMode === FbModeT.external) {
-        return getExternalFiles(contentId)
+        return getExternalFiles()
     }
 
     if (!contentId) {
@@ -134,7 +137,7 @@ export async function GetFolderData(
         url.searchParams.append('timestamp', viewingTime.getTime().toString())
     }
 
-    if (fbMode === FbModeT.share) {
+    if (fbMode === FbModeT.share && shareId) {
         url.searchParams.append('shareId', shareId)
     }
 
@@ -152,7 +155,7 @@ export async function CreateFolder(
         throw new Error('Attempting to do public upload with no shareId')
     }
 
-    let url
+    let url: URL
     if (isPublic) {
         url = new URL(`${API_ENDPOINT}/public/folder`)
         url.searchParams.append('shareId', shareId)
@@ -198,7 +201,7 @@ export async function RenameFile(fileId: string, newName: string) {
     })
 }
 
-function downloadBlob(blob, filename) {
+function downloadBlob(blob: Blob, filename: string) {
     const aElement = document.createElement('a')
     aElement.setAttribute('download', filename)
     const href = URL.createObjectURL(blob)
@@ -279,7 +282,9 @@ export async function requestZipCreate(fileIds: string[], shareId: string) {
     })
 }
 
-export async function AutocompleteAlbums(searchValue): Promise<AlbumData[]> {
+export async function AutocompleteAlbums(
+    searchValue: string
+): Promise<AlbumData[]> {
     if (searchValue.length < 2) {
         return []
     }
@@ -361,23 +366,6 @@ export async function getPastFolderInfo(folderId: string, timestamp: Date) {
 
     return fetchJson(url.toString())
 }
-
-// export async function restoreFiles(fileIds: string[], timestamp: Date) {
-//     const url = new URL(`${API_ENDPOINT}/history/restore`)
-//     return await fetch(url, {
-//         method: 'POST',
-//         body: JSON.stringify({
-//             fileIds: fileIds,
-//             timestamp: timestamp.getTime(),
-//         }),
-//     }).then((r) => {
-//         if (r.status !== 200) {
-//             return Promise.reject(r.statusText)
-//         } else {
-//             return
-//         }
-//     })
-// }
 
 export async function GetFileText(fileId: string) {
     const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)

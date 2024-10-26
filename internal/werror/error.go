@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ethanrous/weblens/internal/log"
+	"github.com/gin-gonic/gin"
 )
 
 func Errorf(format string, args ...any) StackError {
@@ -56,4 +57,14 @@ func TrySafeErr(err error) (error, int) {
 
 	log.ErrTrace(err)
 	return errors.New("Unknown Server Error"), 500
+}
+
+func SafeErrorAndExit(err error, ctx *gin.Context) (shouldExit bool) {
+	if err == nil {
+		return false
+	}
+	safe, code := TrySafeErr(err)
+	ctx.JSON(code, safe)
+
+	return true
 }

@@ -549,12 +549,6 @@ func (c *SimpleCaster) Relay(msg WsResponseInfo) {
 // 	go c.flusher()
 // }
 //
-// func (c *BufferedCaster) flusher() {
-// 	for c.autoFlush.Load() {
-// 		time.Sleep(c.autoFlushInterval)
-// 		c.Flush()
-// 	}
-// }
 //
 // func (c *BufferedCaster) bufferAndFlush(msg WsResponseInfo) {
 // 	c.bufLock.Lock()

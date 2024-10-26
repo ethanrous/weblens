@@ -89,6 +89,7 @@ func launchBackup(ctx *gin.Context) {
 		}
 
 		user := getUserFromCtx(ctx)
+		log.Debug.Printf("User: %s", user.GetUsername())
 		wsClient := pack.ClientService.GetClientByUsername(user.GetUsername())
 
 		_, _, err = pack.ClientService.Subscribe(
@@ -102,18 +103,6 @@ func launchBackup(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusOK)
-}
-
-func getSnapshots(ctx *gin.Context) {
-	// jes, err := dataStore.GetSnapshots()
-	// if err != nil {
-	// 	util.ShowErr(err)
-	// 	ctx.Status(comm.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// ctx.JSON(comm.StatusOK, gin.H{"snapshots": jes})
-	ctx.Status(http.StatusNotImplemented)
 }
 
 func restoreToCore(ctx *gin.Context) {

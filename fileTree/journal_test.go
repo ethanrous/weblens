@@ -52,7 +52,7 @@ func TestJournalImplSimple(t *testing.T) {
 	newDirLifetime := journal.Get(newDir.ID())
 	var retries int
 	for newDirLifetime == nil && retries < 5 {
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 20)
 		newDirLifetime = journal.Get(newDir.ID())
 		retries++
 	}

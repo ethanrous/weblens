@@ -178,7 +178,7 @@ const HeaderBar = memo(
 
         const navToTimeline = useCallback(() => {
             clearMedia()
-            nav('/')
+            nav('/timeline')
         }, [nav])
         const navToAlbums = useCallback(() => {
             clearMedia()
@@ -316,10 +316,14 @@ const HeaderBar = memo(
                         labelOnHover
                         Left={IconUser}
                         onClick={() => {
-                            if (user !== null) {
+                            if (user.isLoggedIn) {
                                 setSettings(true)
                             } else {
-                                nav('/login')
+                                nav('/login', {
+                                    state: {
+                                        returnTo: window.location.pathname,
+                                    },
+                                })
                             }
                         }}
                     />

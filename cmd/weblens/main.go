@@ -90,7 +90,7 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init access service")
 
 	/* Share Service */
-	pack.AddStartupTask("share_service", "Shares Service")
+	pack.AddStartupTask("share_service", "Setting up Shares Service")
 	shareService, err := service.NewShareService(db.Collection("shares"))
 	if err != nil {
 		panic(err)
@@ -210,7 +210,7 @@ func mainRecovery(msg string) {
 		}
 		log.ErrTrace(err.(error))
 		log.ErrorCatcher.Println(msg)
-		os.Exit(1)
+		os.Exit(11)
 	}
 }
 
@@ -260,7 +260,7 @@ func setupTaskService(pack *models.ServicePack) {
 }
 
 func setupFileService(pack *models.ServicePack) {
-	pack.AddStartupTask("file_services", "File Services")
+	pack.AddStartupTask("file_services", "Setting up File Services")
 
 	/* Hasher */
 	hasherFactory := func() fileTree.Hasher {
@@ -346,8 +346,6 @@ func setupFileService(pack *models.ServicePack) {
 		panic(err)
 	}
 
-	pack.RemoveStartupTask("file_services")
-
 	pack.FileService = fileService
 
 	for _, tree := range trees {
@@ -356,10 +354,12 @@ func setupFileService(pack *models.ServicePack) {
 			panic(err)
 		}
 	}
+
+	pack.RemoveStartupTask("file_services")
 }
 
 func setupMediaService(pack *models.ServicePack, db *mongo.Database) {
-	/* Media type Service */
+	pack.AddStartupTask("media_service", "Setting up Media Service")
 	// Only from config file, for now
 	marshMap := map[string]models.MediaType{}
 	err := env.ReadTypesConfig(&marshMap)
@@ -368,7 +368,6 @@ func setupMediaService(pack *models.ServicePack, db *mongo.Database) {
 	}
 
 	mediaTypeServ := models.NewTypeService(marshMap)
-	/* Media Service */
 	mediaService, err := service.NewMediaService(
 		pack.FileService, mediaTypeServ, &mock.MockAlbumService{},
 		db.Collection("media"),
@@ -376,25 +375,30 @@ func setupMediaService(pack *models.ServicePack, db *mongo.Database) {
 	if err != nil {
 		panic(err)
 	}
-	pack.MediaService = mediaService
 
+	pack.MediaService = mediaService
 	pack.FileService.(*service.FileServiceImpl).SetMediaService(mediaService)
+
+	pack.RemoveStartupTask("media_service")
 }
 
 func setupAlbumService(pack *models.ServicePack, db *mongo.Database) {
-	/* Album Service */
+	pack.AddStartupTask("album_service", "Setting up Album Service")
+
 	albumService := service.NewAlbumService(db.Collection("albums"), pack.MediaService, pack.ShareService)
 	err := albumService.Init()
 	if err != nil {
 		panic(err)
 	}
 	pack.AlbumService = albumService
-
 	pack.MediaService.(*service.MediaServiceImpl).AlbumService = albumService
+
+	pack.RemoveStartupTask("album_service")
 }
 
 func setupAccessService(pack *models.ServicePack, db *mongo.Database) {
-	/* Access Service */
+	pack.AddStartupTask("access_service", "Setting up Access Service")
+
 	accessService, err := service.NewAccessService(pack.UserService, db.Collection("apiKeys"))
 	if err != nil {
 		panic(err)
@@ -419,4 +423,5 @@ func setupAccessService(pack *models.ServicePack, db *mongo.Database) {
 			}
 		}
 	}
+	pack.RemoveStartupTask("access_service")
 }

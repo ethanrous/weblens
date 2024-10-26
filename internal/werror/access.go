@@ -9,6 +9,8 @@ var ErrNoFileAccess = &clientSafeErr{
 }
 
 var ErrNoShare = errors.New("share not found")
+var ErrExpectedShareMissing = errors.New("Share that was expected to exist was not found")
+var ErrBadShareType = errors.New("Share has a different type than was expected")
 
 var ErrNoShareAccess = &clientSafeErr{
 	realError:  errors.New("user does not have access to share"),

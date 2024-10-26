@@ -1,7 +1,7 @@
 import { fetchJson } from '@weblens/api/ApiFetch'
-import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStatus'
 import axios from 'axios'
 import API_ENDPOINT from './ApiEndpoint'
+import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStateControl'
 
 export type fileUploadMetadata = {
     file: File

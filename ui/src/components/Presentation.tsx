@@ -11,7 +11,6 @@ import { GetFileText } from '@weblens/api/FileBrowserApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { TaskProgContext } from '@weblens/types/files/FBTypes'
 import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { likeMedia } from '@weblens/types/media/MediaQuery'
@@ -20,9 +19,9 @@ import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import React, {
     memo,
+    MouseEventHandler,
     ReactNode,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useState,
@@ -37,9 +36,9 @@ export const PresentationContainer = ({
     onClick,
     children,
 }: {
-    onMouseMove?
-    onClick?
-    children
+    onMouseMove?: MouseEventHandler<HTMLDivElement>
+    onClick?: MouseEventHandler<HTMLDivElement>
+    children?
 }) => {
     return (
         <div
@@ -184,7 +183,6 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 }
 
 export const FileInfo = ({ file }: { file: WeblensFile }) => {
-    const { progDispatch } = useContext(TaskProgContext)
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
     )
@@ -201,17 +199,15 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
             onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-col justify-center h-max max-w-full gap-2">
-                <p className="text-white font-semibold text-3xl truncate">
+                <p className="flex flex-row items-center gap-2 text-white font-semibold text-3xl truncate">
                     {file.GetFilename()}
+                    {file.IsFolder() && <IconFolder size={'1em'} />}
                 </p>
                 <div className="flex flex-row text-white items-center gap-3">
                     <p className="text-2xl text-white">
                         {size}
                         {units}
                     </p>
-                    {file.IsFolder() && (
-                        <p>{file.GetChildren().length} Item(s)</p>
-                    )}
                 </div>
                 <div className="flex gap-1">
                     <p className="text-xl text-white">
@@ -226,12 +222,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                     label={'Download'}
                     Left={IconDownload}
                     onClick={() => {
-                        downloadSelected(
-                            [file],
-                            removeLoading,
-                            progDispatch,
-                            wsSend
-                        )
+                        downloadSelected([file], removeLoading, wsSend)
                     }}
                 />
                 {mediaData && (

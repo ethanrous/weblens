@@ -3,13 +3,14 @@ import {
     IconDownload,
     IconFileAnalytics,
     IconFileExport,
-    IconFolderMinus,
     IconFolderPlus,
     IconLibraryPlus,
     IconLink,
     IconMinus,
     IconPencil,
+    IconPhotoMinus,
     IconPhotoShare,
+    IconPhotoUp,
     IconPlus,
     IconRestore,
     IconScan,
@@ -44,7 +45,6 @@ import {
     createAlbum,
     getAlbums,
 } from '@weblens/types/albums/AlbumQuery'
-import { TaskProgContext } from '@weblens/types/files/FBTypes'
 import {
     FbMenuModeT,
     SelectedState,
@@ -66,7 +66,6 @@ import { useSessionStore } from 'components/UserInfo'
 import React, {
     ReactElement,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useState,
@@ -75,7 +74,6 @@ import { useNavigate } from 'react-router-dom'
 import { AlbumData, UserInfoT } from 'types/Types'
 import { clamp } from '@weblens/util'
 import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import IconImageFolder from '@weblens/components/IconImageFolder'
 import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
 import { MediaImage } from '../media/PhotoContainer'
 import { useWebsocketStore } from '@weblens/api/Websocket'
@@ -199,7 +197,6 @@ const MenuFooter = ({
 export function FileContextMenu() {
     const user = useSessionStore((state) => state.user)
     const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
-    const [searchRef, setSearchRef] = useState<HTMLDivElement>(null)
     const [footerNote, setFooterNote] = useState<footerNote>({} as footerNote)
 
     const menuMode = useFileBrowserStore((state) => state.menuMode)
@@ -294,7 +291,7 @@ export function FileContextMenu() {
     } else if (menuMode === FbMenuModeT.NameFolder) {
         menuBody = <NewFolderName items={activeItems.items} />
     } else if (menuMode === FbMenuModeT.Sharing) {
-        menuBody = <FileShareMenu activeItems={activeItems.items} />
+        menuBody = <FileShareMenu targetFile={targetFile} />
     } else if (menuMode === FbMenuModeT.AddToAlbum) {
         menuBody = <AddToAlbum activeItems={activeItems.items} />
     } else if (menuMode === FbMenuModeT.RenameFile) {
@@ -360,7 +357,6 @@ function StandardFileMenu({
     activeItems: { items: WeblensFile[] }
 }) {
     const user = useSessionStore((state) => state.user)
-    const { progDispatch } = useContext(TaskProgContext)
     const wsSend = useWebsocketStore((state) => state.wsSend)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
@@ -426,11 +422,38 @@ function StandardFileMenu({
             </div>
             <div className="default-menu-icon">
                 <WeblensButton
+                    Left={IconDownload}
+                    squareSize={100}
+                    centerContent
+                    onMouseOver={() =>
+                        setFooterNote({ hint: 'Download', danger: false })
+                    }
+                    onMouseLeave={() =>
+                        setFooterNote({ hint: '', danger: false })
+                    }
+                    onClick={async (e) => {
+                        e.stopPropagation()
+                        return await downloadSelected(
+                            activeItems.items,
+                            removeLoading,
+                            wsSend,
+                            shareId
+                        )
+                            .then(() => true)
+                            .catch(() => false)
+                    }}
+                />
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
                     Left={IconPhotoShare}
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
-                        setFooterNote({ hint: 'Add to Album', danger: false })
+                        setFooterNote({
+                            hint: 'Add Medias to Album',
+                            danger: false,
+                        })
                     }
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
@@ -442,13 +465,35 @@ function StandardFileMenu({
                     }}
                 />
             </div>
+            {folderInfo.IsModifiable() && (
+                <div className="default-menu-icon">
+                    <WeblensButton
+                        Left={IconFolderPlus}
+                        squareSize={100}
+                        centerContent
+                        onMouseOver={() =>
+                            setFooterNote({
+                                hint: `New Folder From Selection (${activeItems.items.length})`,
+                                danger: false,
+                            })
+                        }
+                        onMouseLeave={() =>
+                            setFooterNote({ hint: '', danger: false })
+                        }
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setMenu({ menuState: FbMenuModeT.NameFolder })
+                        }}
+                    />
+                </div>
+            )}
             {targetFile &&
                 (!targetFile.IsFolder() || targetFile.GetContentId()) && (
                     <div className="default-menu-icon">
                         {targetFile.IsFolder() &&
                             targetFile.GetContentId() !== '' && (
                                 <WeblensButton
-                                    Left={IconFolderMinus}
+                                    Left={IconPhotoMinus}
                                     squareSize={100}
                                     centerContent
                                     onMouseOver={() =>
@@ -479,7 +524,7 @@ function StandardFileMenu({
                             )}
                         {!targetFile.IsFolder() && (
                             <WeblensButton
-                                Left={IconImageFolder}
+                                Left={IconPhotoUp}
                                 squareSize={100}
                                 centerContent
                                 onMouseOver={() =>
@@ -501,52 +546,6 @@ function StandardFileMenu({
                         )}
                     </div>
                 )}
-            <div className="default-menu-icon">
-                <WeblensButton
-                    Left={IconFolderPlus}
-                    squareSize={100}
-                    centerContent
-                    disabled={!folderInfo.IsModifiable()}
-                    onMouseOver={() =>
-                        setFooterNote({
-                            hint: 'New Folder With Selected',
-                            danger: false,
-                        })
-                    }
-                    onMouseLeave={() =>
-                        setFooterNote({ hint: '', danger: false })
-                    }
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setMenu({ menuState: FbMenuModeT.NameFolder })
-                    }}
-                />
-            </div>
-            <div className="default-menu-icon">
-                <WeblensButton
-                    Left={IconDownload}
-                    squareSize={100}
-                    centerContent
-                    onMouseOver={() =>
-                        setFooterNote({ hint: 'Download', danger: false })
-                    }
-                    onMouseLeave={() =>
-                        setFooterNote({ hint: '', danger: false })
-                    }
-                    onClick={async (e) => {
-                        e.stopPropagation()
-                        return await downloadSelected(
-                            activeItems.items,
-                            removeLoading,
-                            progDispatch,
-                            wsSend,
-                            shareId
-                        )
-                            .then(() => true)
-                            .catch(() => false)
-                    }}
-                />
-            </div>
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconScan}
@@ -645,31 +644,22 @@ function PastFileMenu({
     )
 }
 
-function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
-    const [isPublic, setIsPublic] = useState(false)
-
-    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
-    const item: WeblensFile = useMemo(() => {
-        if (activeItems.length > 1) {
-            return null
-        } else if (activeItems.length === 1) {
-            return activeItems[0]
-        } else {
-            return folderInfo
-        }
-    }, [activeItems, folderInfo])
-
     const [accessors, setAccessors] = useState<string[]>([])
+    const [isPublic, setIsPublic] = useState(false)
+    const [share, setShare] = useState<WeblensShare>(null)
+
     useEffect(() => {
-        if (!item) {
+        if (!targetFile) {
             return
         }
         const setShareData = async () => {
-            const share = await item.GetShare()
+            const share = await targetFile.GetShare()
             if (share) {
+                setShare(share)
                 if (share.IsPublic() !== undefined) {
                     setIsPublic(share.IsPublic())
                 }
@@ -679,7 +669,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
             }
         }
         setShareData()
-    }, [item])
+    }, [targetFile])
 
     const [userSearch, setUserSearch] = useState('')
     const [userSearchResults, setUserSearchResults] = useState<UserInfoT[]>([])
@@ -700,7 +690,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     const updateShare = useCallback(
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
-            const share = await item.GetShare()
+            const share = await targetFile.GetShare()
             if (share) {
                 return await share
                     .UpdateShare(isPublic, accessors)
@@ -708,18 +698,18 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                     .catch(() => false)
             } else {
                 return await shareFile(
-                    item,
+                    targetFile,
                     isPublic,
                     accessors.map((u) => u)
                 )
                     .then((si) => {
-                        item.SetShare(new WeblensShare(si))
+                        targetFile.SetShare(new WeblensShare(si))
                         return true
                     })
                     .catch(() => false)
             }
         },
-        [item, isPublic, accessors]
+        [targetFile, isPublic, accessors]
     )
 
     if (menuMode === FbMenuModeT.Closed) {
@@ -759,7 +749,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                             e.stopPropagation()
                             return await updateShare(e)
                                 .then(async () => {
-                                    const share = await item.GetShare()
+                                    const share = await targetFile.GetShare()
                                     if (!share) {
                                         console.error('No Shares!')
                                         return false
@@ -871,6 +861,11 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                         centerContent
                         fillWidth
                         label="Save"
+                        disabled={
+                            share &&
+                            share.IsPublic() === isPublic &&
+                            accessors === share.GetAccessors()
+                        }
                         onClick={updateShare}
                     />
                 </div>

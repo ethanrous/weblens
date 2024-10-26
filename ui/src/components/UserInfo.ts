@@ -8,7 +8,7 @@ import {
 } from '@weblens/types/Types'
 import { useEffect } from 'react'
 import { useCookies } from 'react-cookie'
-import { useNavigate } from 'react-router-dom'
+import { NavigateFunction, useNavigate } from 'react-router-dom'
 import { create, StateCreator } from 'zustand'
 
 const useR = () => {
@@ -28,7 +28,7 @@ const useR = () => {
             return
         }
 
-        if (server.info.role === 'init') {
+        if (server.info.role === 'init' || !server.started) {
             setUserInfo({ isLoggedIn: false } as UserInfoT)
             return
         }
@@ -50,8 +50,7 @@ const useR = () => {
 export interface WeblensSessionT {
     user: UserInfoT
     server: { info: ServerInfoT; userCount: number; started: boolean }
-    nav: (loc: string) => void
-
+    nav: NavigateFunction
     setUserInfo: (user: UserInfoT) => void
 
     fetchServerInfo: () => Promise<void>

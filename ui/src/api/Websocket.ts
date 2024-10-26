@@ -4,7 +4,7 @@ import { WeblensFileParams } from '@weblens/types/files/File'
 import WeblensMedia, { MediaDataT } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { UserInfoT } from '@weblens/types/Types'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { create, StateCreator } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
@@ -14,7 +14,7 @@ import {
     SubToFolder,
     UnsubFromFolder,
 } from './FileBrowserApi'
-import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
+import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -45,7 +45,7 @@ export function useWeblensSocket() {
                 sentAt: Date.now(),
                 content: JSON.stringify(content),
             }
-            console.log('WSSend', msg)
+            console.debug('WSSend', msg)
             sendMessage(JSON.stringify(msg))
         }
 
@@ -156,15 +156,18 @@ interface wsMsgContent {
     completedFiles?: number
     execution_time?: number
     percent_progress?: number
+    mediaData?: MediaDataT
+    runtime?: number
+    takeoutId?: string
 }
 
 export function HandleWebsocketMessage(
     lastMessage: { data: string },
-    handler: (msgData) => void
+    handler: (msgData: wsMsgInfo) => void
 ) {
     if (lastMessage) {
         const msgData: wsMsgInfo = JSON.parse(lastMessage.data)
-        console.log('WSRecv', msgData)
+        console.debug('WSRecv', msgData)
         if (msgData.error) {
             console.error(msgData.error)
             return
@@ -183,32 +186,6 @@ export interface FBSubscribeDispatchT {
     updateFile: (info: WeblensFileParams) => void
     replaceFile: (oldId: string, newInfo: WeblensFileParams) => void
     deleteFile: (fileId: string) => void
-}
-
-type WsMsgContent = {
-    newFile?: WeblensFileParams
-    fileInfo?: WeblensFileParams
-    mediaData?: MediaDataT
-    note?: string
-    oldId?: string
-    fileId?: string
-    task_id?: string
-    filename?: string
-    filenames?: string[]
-    createdBy?: string
-    task_job_name?: string
-    task_job_target?: string
-    totalFiles?: number
-    bytesSoFar?: number
-    bytesTotal?: number
-    speedBytes?: number
-    tasks_total?: number
-    tasks_complete?: number
-    tasks_failed?: number
-    completedFiles?: number
-    runtime?: number
-    percent_progress?: number
-    takeoutId?: string
 }
 
 export enum WsMsgEvent {
@@ -241,19 +218,11 @@ export enum WsMsgEvent {
     CopyFileCompleteEvent = 'copy_file_complete',
 }
 
-export type WsMsg = {
-    eventTag: WsMsgEvent
-    subscribeKey: string
-    content: WsMsgContent
-    taskType?: string
-    error: string
-}
-
 function filebrowserWebsocketHandler(
     shareId: string,
     dispatch: FBSubscribeDispatchT
 ) {
-    return (msgData: WsMsg) => {
+    return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
             case WsMsgEvent.FileCreatedEvent: {
                 dispatch.addFile(msgData.content.fileInfo)
@@ -309,10 +278,10 @@ function filebrowserWebsocketHandler(
             }
 
             case WsMsgEvent.TaskCreatedEvent: {
-                if (msgData.content.totalFiles === undefined) {
-                    console.error('TaskCreatedEvent missing totalFiles')
-                    break
-                }
+                // if (msgData.content.totalFiles === undefined) {
+                //     console.error('TaskCreatedEvent missing totalFiles')
+                //     break
+                // }
 
                 if (msgData.taskType === 'scan_directory') {
                     useTaskState

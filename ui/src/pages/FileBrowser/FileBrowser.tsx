@@ -39,14 +39,11 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
-import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
+import { WeblensFile } from '@weblens/types/files/File'
 import FileGrid from '@weblens/types/files/FileGrid'
 import { FileContextMenu } from '@weblens/types/files/FileMenu'
 import { FileRows } from '@weblens/types/files/FileRows'
-import WeblensMedia, {
-    MediaDataT,
-    PhotoQuality,
-} from '@weblens/types/media/Media'
+import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { getFileShare } from '@weblens/types/share/shareQuery'
 import { humanFileSize } from '@weblens/util'
@@ -85,15 +82,6 @@ import { TasksDisplay } from './TaskProgress'
 import UploadStatus from './UploadStatus'
 import './style/fileBrowserStyle.scss'
 import '@weblens/components/style.scss'
-
-export type FolderInfo = {
-    self?: WeblensFileParams
-    children?: WeblensFileParams[]
-    parents?: WeblensFileParams[]
-    medias?: MediaDataT[]
-    shares?: any[]
-    error?: string
-}
 
 function PasteImageDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -635,31 +623,6 @@ function DirViewHeader({ moveSelected }) {
     return (
         <div className="flex flex-col h-max">
             <div className="flex flex-row h-[60px] justify-between items-center pl-2 pt-0">
-                {/* {mode === FbModeT.search && ( */}
-                {/*     <div className="flex h-14 w-full items-center"> */}
-                {/*         <WeblensButton */}
-                {/*             Left={IconArrowLeft} */}
-                {/*             onClick={() => nav(-1)} */}
-                {/*         /> */}
-                {/*         <div className="w-4" /> */}
-                {/*         <div */}
-                {/*             className="flex items-center p-1 pr-2 rounded bg-dark-paper */}
-                {/*                     outline outline-main-accent gap-2 m-2" */}
-                {/*         > */}
-                {/*             <IconSearch /> */}
-                {/*             <p className="crumb-text">{searchQuery}</p> */}
-                {/*         </div> */}
-                {/*         <p className="crumb-text m-2">in</p> */}
-                {/*         <IconFolder size={36} /> */}
-                {/*         <p className="crumb-text"> */}
-                {/*             {folderInfo?.GetFilename()} */}
-                {/*         </p> */}
-                {/*         <div className="w-2" /> */}
-                {/*         <p className="text-gray-400 select-none"> */}
-                {/*             {filesCount} results */}
-                {/*         </p> */}
-                {/*     </div> */}
-                {/* )} */}
                 {(mode === FbModeT.default || mode === FbModeT.share) && (
                     <Crumbs navOnLast={false} moveSelectedTo={moveSelected} />
                 )}
@@ -815,7 +778,6 @@ function DirView({
                     }}
                     stopDragging={() => setDragging(DraggingStateT.NoDrag)}
                     dropSpotTitle={folderInfo?.GetFilename()}
-                    dragging={draggingState}
                     dropAllowed={folderInfo?.IsModifiable()}
                     handleDrag={(event) =>
                         handleDragOver(event, setDragging, draggingState)
@@ -939,12 +901,13 @@ const FileBrowser = () => {
         } else {
             getRealId(contentId, mode, user).then((contentId) => {
                 setLocationState(contentId, mode, shareId, pastTime)
+                clearFiles()
                 removeLoading('files')
             })
         }
     }, [urlPath, user, query('at')])
 
-    const { wsSend, readyState } = useSubscribe(
+    const { readyState } = useSubscribe(
         fbLocationContext.contentId,
         fbLocationContext.shareId,
         user
@@ -957,7 +920,7 @@ const FileBrowser = () => {
 
     // Reset most of the state when we change folders
     const syncState = useCallback(async () => {
-        clearFiles()
+        // clearFiles()
         setFilesFetchErr(0)
 
         if (!urlPath) {
@@ -974,6 +937,10 @@ const FileBrowser = () => {
             return
         }
 
+        if (!user.isLoggedIn && fbLocationContext.mode !== FbModeT.share) {
+            nav('/login', { state: { returnTo: window.location.pathname } })
+        }
+
         addLoading('files')
         const fileData = await GetFolderData(
             fbLocationContext.contentId,
@@ -985,6 +952,13 @@ const FileBrowser = () => {
         })
 
         if (fileData) {
+            if (
+                fbLocationContext.mode === FbModeT.share &&
+                fileData.self?.owner == user.username
+            ) {
+                nav(`/files/${fileData.self.id}`, { replace: true })
+                return
+            }
             setFilesData(
                 fileData.self,
                 fileData.children,
@@ -1056,11 +1030,13 @@ const FileBrowser = () => {
             <div className="flex flex-row grow h-[90vh] items-start">
                 <GlobalActions />
                 <DirViewWrapper>
-                    <DirView
-                        filesError={filesFetchErr}
-                        setFilesError={setFilesFetchErr}
-                        searchFilter={''}
-                    />
+                    {!loading.includes('files') && (
+                        <DirView
+                            filesError={filesFetchErr}
+                            setFilesError={setFilesFetchErr}
+                            searchFilter={''}
+                        />
+                    )}
                 </DirViewWrapper>
             </div>
         </div>

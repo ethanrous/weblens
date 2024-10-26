@@ -36,6 +36,9 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 	if password == "" {
 		return nil, werror.Errorf("password is empty")
 	}
+	if username == "PUBLIC" || username == "WEBLENS" {
+		return nil, werror.Errorf("username not allowed")
+	}
 
 	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 11)
 	if err != nil {
@@ -91,6 +94,10 @@ func (u *User) IsAdmin() bool {
 
 func (u *User) IsOwner() bool {
 	return u.IsServerOwner
+}
+
+func (u *User) IsPublicUser() bool {
+	return u == nil || u.Username == "PUBLIC"
 }
 
 func (u *User) IsActive() bool {

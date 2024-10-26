@@ -163,14 +163,23 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 			m := pack.MediaService.Get(models.ContentId(f.GetContentId()))
 			if f != nil {
 				if f.IsDir() {
-					imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetHostURL())
-					hasImage = true
-					fields = append(
-						fields, indexField{
-							tag:     "image",
-							content: imgUrl,
-						},
-					)
+					cover, err := pack.FileService.GetFolderCover(f)
+					if err != nil {
+						log.ErrTrace(err)
+						return fields
+					}
+					if cover != "" {
+						m = pack.MediaService.Get(cover)
+					} else {
+						imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetHostURL())
+						hasImage = true
+						fields = append(
+							fields, indexField{
+								tag:     "image",
+								content: imgUrl,
+							},
+						)
+					}
 				}
 
 				fields = append(

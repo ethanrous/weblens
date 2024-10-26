@@ -187,7 +187,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	assert.Equal(t, int(sz), len(testData))
 }
 
-// TestFileService_Restore_SingleFile tests the RestoreFiles method of the FileService on a directory with sub-files
+// TestFileService_Restore_Directory tests the RestoreFiles method of the FileService on a directory with sub-files
 func TestFileService_Restore_Directory(t *testing.T) {
 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
 	require.NoError(t, err)
@@ -287,8 +287,8 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	require.NoError(t, err)
 
 	testFileName := "test-file"
-	fileCount := rand.Intn(20)
-	// Create up to 20 files in the directory
+	fileCount := rand.Intn(20) + 1
+	// Create 1-20 files in the directory
 	for i := range fileCount {
 		// Create a file
 		testF, err := fileService.CreateFile(dir, testFileName+strconv.Itoa(i), event)
@@ -334,6 +334,7 @@ func TestFileService_Restore_Directory(t *testing.T) {
 		t.FailNow()
 	}
 
+	// TODO: This fails when the random file count is 1
 	assert.Equal(t, fileCount, len(restoredFile.GetChildren()))
 
 }

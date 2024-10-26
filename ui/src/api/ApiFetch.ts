@@ -16,7 +16,11 @@ export async function wrapRequest(rq: Promise<Response>): Promise<Response> {
                 useSessionStore
                     .getState()
                     .setUserInfo({ isLoggedIn: false } as UserInfoT)
-                useSessionStore.getState().nav('/login')
+                useSessionStore
+                    .getState()
+                    .nav('/login', {
+                        state: { returnTo: window.location.pathname },
+                    })
             }
             return Promise.reject(e)
         })

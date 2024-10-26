@@ -10,13 +10,15 @@ import {
 import Upload, { fileUploadMetadata } from '@weblens/api/Upload'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
-import { TPDispatchT, UserInfoT } from '@weblens/types/Types'
+import { UserInfoT } from '@weblens/types/Types'
 import { DragEvent, useCallback, useEffect } from 'react'
 
 import {
     FbModeT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { PhotoQuality } from '@weblens/types/media/Media'
 
 export const getRealId = async (
     contentId: string,
@@ -251,7 +253,6 @@ export function HandleUploadButton(
 export async function downloadSelected(
     files: WeblensFile[],
     removeLoading: (loading: string) => void,
-    taskProgDispatch: TPDispatchT,
     wsSend: (action: string, content) => void,
     shareId?: string
 ) {
@@ -282,11 +283,19 @@ export async function downloadSelected(
 export const useKeyDownFileBrowser = () => {
     const blockFocus = useFileBrowserStore((state) => state.blockFocus)
     const presentingId = useFileBrowserStore((state) => state.presentingId)
+    const setPresentationTarget = useFileBrowserStore(
+        (state) => state.setPresentationTarget
+    )
     const lastSelected = useFileBrowserStore((state) => state.lastSelectedId)
     const searchContent = useFileBrowserStore((state) => state.searchContent)
     const isSearching = useFileBrowserStore((state) => state.isSearching)
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+    const filesList = useFileBrowserStore((state) => state.filesList)
+    const mediaMap = useMediaStore((state) => state.mediaMap)
+
+    const presentingTarget = filesMap.get(presentingId)
 
     const selectAll = useFileBrowserStore((state) => state.selectAll)
     const setIsSearching = useFileBrowserStore((state) => state.setIsSearching)
@@ -311,17 +320,30 @@ export const useKeyDownFileBrowser = () => {
                     selectAll()
                 } else if (
                     !event.metaKey &&
-                    (event.key === 'ArrowUp' ||
-                        event.key === 'ArrowDown' ||
-                        event.key === 'ArrowLeft' ||
-                        event.key === 'ArrowRight')
+                    (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
                 ) {
                     event.preventDefault()
-                    console.error('move selected not impl')
-                    // dispatch({
-                    //     type: 'move_selection',
-                    //     direction: event.key,
-                    // });
+                    let direction = 0
+                    if (event.key === 'ArrowLeft') {
+                        direction = -1
+                    } else if (event.key === 'ArrowRight') {
+                        direction = 1
+                    }
+                    const newTarget =
+                        filesList[presentingTarget.GetIndex() + direction]
+                    if (!newTarget) {
+                        return
+                    }
+                    setPresentationTarget(newTarget.Id())
+
+                    const onDeck =
+                        filesList[presentingTarget.GetIndex() + direction * 2]
+                    if (onDeck) {
+                        const m = mediaMap.get(onDeck.GetContentId())
+                        if (m && !m.HasQualityLoaded(PhotoQuality.HighRes)) {
+                            m.LoadBytes(PhotoQuality.HighRes)
+                        }
+                    }
                 } else if (
                     event.key === 'Escape' &&
                     menuMode === FbMenuModeT.Closed &&

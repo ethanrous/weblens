@@ -26,8 +26,9 @@ import {
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { clamp } from '@weblens/util'
 
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, ReactElement, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FileAction } from './FileBrowserTypes'
 
 const SIDEBAR_BREAKPOINT = 650
 
@@ -116,7 +117,7 @@ function FileInfo() {
         if (selectedFiles.length === 0) {
             return 'No files selected'
         } else if (selectedFiles.length === 1) {
-            return selectedFiles[0].filename
+            return selectedFiles[0].GetFilename()
         } else {
             return `${selectedFiles.length} files selected`
         }
@@ -186,7 +187,7 @@ function ActionRow({
     const fromFolder = portableToFolderName(action.originPath)
     const toFolder = portableToFolderName(action.destinationPath)
 
-    let fromNode
+    let fromNode: ReactElement
     if (action.actionType == 'fileMove') {
         if (folderName === fromFolder) {
             fromNode = <FileFmt pathName={action.originPath} />
@@ -202,7 +203,7 @@ function ActionRow({
         fromNode = <FileFmt pathName={action.originPath} />
     }
 
-    let toNode
+    let toNode: ReactElement
     if (action.actionType == 'fileMove') {
         if (folderName !== toFolder) {
             toNode = <PathFmt pathName={toFolder} />
@@ -236,7 +237,7 @@ const HistoryEventRow = memo(
     }) => {
         const folderName = portableToFileName(folderPath)
 
-        let caretIcon
+        let caretIcon: ReactElement
         if (open) {
             caretIcon = <IconCaretDown size={20} style={{ flexShrink: 0 }} />
         } else {
@@ -437,17 +438,6 @@ function RollbackBar({
             )}
         </div>
     )
-}
-
-export type FileAction = {
-    actionType: string
-    destinationId: string
-    destinationPath: string
-    eventId: string
-    lifeId: string
-    originId: string
-    originPath: string
-    timestamp: number
 }
 
 function FileHistory() {

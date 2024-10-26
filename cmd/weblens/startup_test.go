@@ -154,9 +154,9 @@ func TestStartupBackup(t *testing.T) {
 
 	coreClient := services.ClientService.GetClientByServerId(core.ServerId())
 	retries := 0
-	for coreClient == nil && retries < 5 {
+	for coreClient == nil && retries < 10 {
 		retries++
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * 100)
 
 		coreClient = services.ClientService.GetClientByServerId(core.ServerId())
 	}

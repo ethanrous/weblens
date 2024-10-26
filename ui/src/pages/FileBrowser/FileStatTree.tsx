@@ -8,19 +8,19 @@ import { humanFileSize } from '@weblens/util'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-export type TreeNode = {
-    type: 'node'
-    value: number
-    name: string
-    children: Tree[]
-}
-export type TreeLeaf = {
-    type: 'leaf'
-    name: string
-    value: number
-}
+// export type TreeNode = {
+//     type: 'node'
+//     value: number
+//     name: string
+//     children: Tree[]
+// }
+// export type TreeLeaf = {
+//     type: 'leaf'
+//     name: string
+//     value: number
+// }
 
-type Tree = TreeNode | TreeLeaf
+// type Tree = TreeNode | TreeLeaf
 type extSize = {
     name: string
     value: number

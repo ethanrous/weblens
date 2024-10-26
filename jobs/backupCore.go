@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"slices"
+	"strconv"
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
@@ -91,11 +92,10 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(werror.ErrServerIsBackup)
 	}
 
+	// Get the active websocket client for the core
 	coreClient := meta.WebsocketService.GetClientByServerId(meta.Core.ServerId())
 	if coreClient == nil {
-		t.ReqNoErr(werror.Errorf("Core websocket not connected"))
-		// Dead code
-		return
+		t.Fail(werror.Errorf("Core websocket not connected"))
 	}
 
 	log.Debug.Printf("Starting backup of [%s]", coreClient.GetRemote().GetName())
@@ -117,71 +117,6 @@ func DoBackup(t *task.Task) {
 		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Info.Role))
 	}
 
-	stages.StartStage("fetching_users")
-	t.SetResult(task.TaskResult{"stages": stages})
-	// Backup users
-	users, err := meta.ProxyUserService.GetAll()
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-
-	stages.StartStage("writing_users")
-	t.SetResult(task.TaskResult{"stages": stages})
-	for user := range users {
-		err = meta.UserService.Add(user)
-		if err != nil {
-			t.ReqNoErr(err)
-		}
-	}
-
-	stages.StartStage("fetching_keys")
-	t.SetResult(task.TaskResult{"stages": stages})
-	// Fetch keys from core
-	keysRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup/keys")
-	keys, err := proxy.CallHomeStruct[[]models.ApiKeyInfo](keysRq)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-
-	stages.StartStage("writing_keys")
-	t.SetResult(task.TaskResult{"stages": stages})
-	// Add keys to access service
-	for _, key := range keys {
-		if _, err := meta.AccessService.GetApiKey(key.Key); err == nil {
-			continue
-		}
-
-		err = meta.AccessService.AddApiKey(key)
-		if err != nil {
-			t.ReqNoErr(err)
-		}
-	}
-
-	stages.StartStage("fetching_instances")
-	t.SetResult(task.TaskResult{"stages": stages})
-	// Fetch instances from core
-	instancesRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup/instances")
-	instances, err := proxy.CallHomeStruct[[]*models.Instance](instancesRq)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-
-	stages.StartStage("writing_instances")
-	t.SetResult(task.TaskResult{"stages": stages})
-	// Add instances to access service
-	for _, r := range instances {
-		if err := meta.InstanceService.Get(r.ServerId()); err == nil {
-			continue
-		}
-
-		err = meta.InstanceService.Add(r)
-		if err != nil {
-			t.ReqNoErr(err)
-		}
-	}
-
-	stages.StartStage("sync_journal")
-	t.SetResult(task.TaskResult{"stages": stages})
 	// Find most recent action timestamp
 	latest, err := meta.FileService.GetJournalByTree(meta.Core.Id).GetLatestAction()
 	if err != nil {
@@ -195,24 +130,82 @@ func DoBackup(t *task.Task) {
 
 	log.Trace.Printf("Backup latest action is %s", latestTime.String())
 
-	// Get new history updates
-	updatedLifetimes, err := meta.ProxyJournalService.GetLifetimesSince(latestTime)
+	stages.StartStage("fetching_backup_data")
+	t.SetResult(task.TaskResult{"stages": stages})
+
+	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10))
+	backupResponse, err := proxy.CallHomeStruct[models.BackupBody](backupRq)
 	t.ReqNoErr(err)
 
-	log.Trace.Printf("Backup got %d updated lifetimes from core", len(updatedLifetimes))
+	stages.StartStage("writing_users")
+	t.SetResult(task.TaskResult{"stages": stages})
+
+	// Write the users to the users service
+	for _, user := range backupResponse.Users {
+		err = meta.UserService.Add(user)
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+	}
+
+	stages.StartStage("writing_keys")
+	t.SetResult(task.TaskResult{"stages": stages})
+
+	// Write keys to access service
+	for _, key := range backupResponse.ApikKeys {
+		if _, err := meta.AccessService.GetApiKey(key.Key); err == nil {
+			continue
+		}
+
+		err = meta.AccessService.AddApiKey(key)
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+	}
+
+	stages.StartStage("writing_instances")
+	t.SetResult(task.TaskResult{"stages": stages})
+
+	// Write instances to access service
+	for _, r := range backupResponse.Instances {
+		if err := meta.InstanceService.Get(r.ServerId()); err == nil {
+			continue
+		}
+
+		err = meta.InstanceService.Add(r)
+		if err != nil {
+			t.ReqNoErr(err)
+		}
+	}
+
+	stages.StartStage("sync_journal")
+	t.SetResult(task.TaskResult{"stages": stages})
+
+	log.Trace.Printf("Backup got %d updated lifetimes from core", len(backupResponse.FileHistory))
 
 	stages.StartStage("sync_fs")
 	t.SetResult(task.TaskResult{"stages": stages})
 
 	// Sort lifetimes so that files created or moved most recently are updated last.
-	slices.SortFunc(updatedLifetimes, fileTree.LifetimeSorter)
+	slices.SortFunc(backupResponse.FileHistory, fileTree.LifetimeSorter)
 
 	journal := meta.FileService.GetJournalByTree(meta.Core.Id)
-	if len(updatedLifetimes) > 0 {
-		for _, lt := range updatedLifetimes {
+	if len(backupResponse.FileHistory) > 0 {
+		for _, lt := range backupResponse.FileHistory {
 			// Add the lifetime to the journal, or update it if it already exists
 			err = journal.Add(lt)
 			t.ReqNoErr(err)
+		}
+	}
+
+	if len(journal.GetAllLifetimes()) < backupResponse.LifetimesCount {
+		allLts, err := meta.ProxyJournalService.GetLifetimesSince(time.UnixMilli(0))
+		t.ReqNoErr(err)
+		for _, lt := range allLts {
+			if journal.Get(lt.ID()) == nil {
+				err = journal.Add(lt)
+				t.ReqNoErr(err)
+			}
 		}
 	}
 
@@ -222,12 +215,12 @@ func DoBackup(t *task.Task) {
 
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 	t.SetChildTaskPool(pool)
-	// meta.WebsocketService.TaskSubToPool(t.TaskId(), pool.GetRootPool().ID())
 
 	// Sort lifetimes so that files created or moved most recently are updated last.
 	// This is to make sure parent directories are created before their children
 	slices.SortFunc(activeLts, fileTree.LifetimeSorter)
 
+	// Check if the file already exists on the server and copy it if it doesn't
 	for _, lt := range activeLts {
 		latestMove := lt.GetLatestMove()
 

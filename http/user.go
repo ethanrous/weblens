@@ -1,7 +1,6 @@
 package http
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/ethanrous/weblens/internal/log"
@@ -40,27 +39,17 @@ func createUser(ctx *gin.Context) {
 	}
 
 	u, err := models.NewUser(userInfo.Username, userInfo.Password, userInfo.Admin, userInfo.AutoActivate)
-	if err != nil {
-		if errors.Is(err, werror.ErrUserAlreadyExists) {
-			ctx.Status(http.StatusConflict)
-			return
-		}
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
 	err = pack.FileService.CreateUserHome(u)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, gin.H{"error": safe})
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
 	err = pack.UserService.Add(u)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, gin.H{"error": safe})
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 

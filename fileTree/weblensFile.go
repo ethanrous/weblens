@@ -50,9 +50,6 @@ type WeblensFileImpl struct {
 	// systems with trees using the same root alias
 	portablePath WeblensFilepath
 
-	// Path of the content file on a backup server
-	backupPath string
-
 	// Base of the filepath, the actual name of the file.
 	filename string
 
@@ -97,10 +94,6 @@ type WeblensFileImpl struct {
 	// this file represents a file possibly not on the filesystem
 	// anymore, but was at some point in the past
 	pastFile bool
-
-	// If the file is in the trash, or a past file, this current fileId
-	// is the location of the content right now, not in the past.
-	currentId FileId
 
 	// memOnly if the file is meant to only be stored in memory,
 	// writing to it will only write to the buffer
@@ -384,7 +377,7 @@ func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
 	defer func(realFile *os.File) {
 		err := realFile.Close()
 		if err != nil {
-
+			log.ErrTrace(err)
 		}
 	}(realFile)
 
@@ -722,12 +715,6 @@ func (f *WeblensFileImpl) setPortable(portable WeblensFilepath) {
 	f.portablePath = portable
 }
 
-func (f *WeblensFileImpl) setBackupPath(backupPath string) {
-	f.updateLock.Lock()
-	defer f.updateLock.Unlock()
-	f.backupPath = backupPath
-}
-
 func (f *WeblensFileImpl) getAbsPathInternal() string {
 	f.updateLock.RLock()
 	defer f.updateLock.RUnlock()
@@ -739,20 +726,6 @@ func (f *WeblensFileImpl) setParentInternal(parent *WeblensFileImpl) {
 	defer f.updateLock.Unlock()
 	f.parentId = parent.ID()
 	f.parent = parent
-}
-
-func (f *WeblensFileImpl) getBackupPathInternal() string {
-	f.updateLock.RLock()
-	defer f.updateLock.RUnlock()
-	return f.backupPath
-}
-
-func (f *WeblensFileImpl) hasChildren() bool {
-	if !f.IsDir() {
-		return false
-	} else {
-		return len(f.childrenMap) != 0
-	}
 }
 
 func (f *WeblensFileImpl) removeChild(child *WeblensFileImpl) error {

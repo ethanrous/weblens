@@ -224,22 +224,7 @@ func (s *Server) UseInterserverRoutes() {
 	core.GET("/history/since", getLifetimesSince)
 	core.GET("/history/folder", getFolderHistory)
 
-	backup := core.Group("/backup")
-
-	backup.GET("/history", getHistory)
-
-	// Get all users
-	backup.GET("/users", getUsersArchive)
-
-	// Get all media
-	backup.GET("/media", getMediaArchive)
-
-	// Get all API keys
-	backup.GET("/keys", getApiKeysArchive)
-
-	// Get all instances
-	backup.GET("/instances", getInstancesArchive)
-
+	core.GET("/backup", doFullBackup)
 }
 
 func (s *Server) UseRestore() {

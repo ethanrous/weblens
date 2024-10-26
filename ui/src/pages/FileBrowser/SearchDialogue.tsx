@@ -41,7 +41,6 @@ function SearchResult({ data, index, style }) {
             className="flex rounded p-2 gap-1 items-center justify-between cursor-pointer h-10 max-w-full"
             onMouseOver={() => data.setHighlightIndex(index)}
             onClick={(e) => {
-                console.log('clicked')
                 e.stopPropagation()
                 const f = data.files[index]
                 data.visitHighlighted(f)
@@ -188,7 +187,6 @@ export default function SearchDialogue({
             ref={setContainerRef}
             className="flex w-full h-full"
             onKeyDown={(e) => {
-                console.log(e.ctrlKey)
                 if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
                     e.preventDefault()
                     e.stopPropagation()

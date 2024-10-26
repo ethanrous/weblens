@@ -61,17 +61,15 @@ const WeblensRoutes = () => {
     useEffect(() => {
         if (!server) {
             return
-        }
-        // if (loc.pathname !== '/login' && user?.isLoggedIn === false) {
-        //     console.debug('Nav login')
-        //     nav('/login')
-        // }
-        else if (loc.pathname !== '/setup' && server.info.role === 'init') {
+        } else if (loc.pathname !== '/setup' && server.info.role === 'init') {
             console.debug('Nav setup')
             nav('/setup')
         } else if (loc.pathname === '/setup' && server.info.role === 'core') {
-            console.debug('Nav files home')
+            console.debug('Nav files home from setup')
             nav('/files/home')
+        } else if (!loc.pathname.startsWith('/files') && loc.pathname !== "/login" && !user?.isLoggedIn) {
+            console.debug('Nav login from non-files path')
+            nav('/login', { state: { returnTo: loc.pathname } })
         } else if (
             server.info.role === 'backup' &&
             loc.pathname !== '/backup' &&
@@ -81,22 +79,15 @@ const WeblensRoutes = () => {
             nav('/backup')
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
             if (loc.state?.returnTo) {
-                console.debug('Nav return to')
+                console.debug('Nav return to', loc.state.returnTo)
                 nav(loc.state.returnTo)
             } else {
-                console.debug('Nav files home')
+                console.debug('Nav files home from login')
                 nav('/files/home')
             }
-        } else if (
-            (loc.pathname === '/timeline' ||
-                loc.pathname.startsWith('/album')) &&
-            server.info.role === 'backup'
-        ) {
-            console.debug('Nav files home')
-            nav('/files/home')
         } else if (loc.pathname === '/' && server.info.role === 'core') {
-            console.debug('Nav timeline')
-            nav('/timeline')
+            console.debug('Nav files home (root path)')
+            nav('/files/home')
         }
     }, [loc, server, user])
 
