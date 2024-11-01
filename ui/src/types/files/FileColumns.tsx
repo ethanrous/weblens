@@ -43,10 +43,9 @@ import { humanFileSize } from '@weblens/util'
 function ColumnRow(p: { data; index: number; style: CSSProperties }) {
     const file = p.data.files[p.index]
     const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(null)
-    let selState = useFileBrowserStore
-        .getState()
-        .filesMap.get(file?.Id())
-        ?.GetSelectedState()
+    let selState = useFileBrowserStore((state) => {
+        return state.filesMap.get(file?.Id())?.GetSelectedState()
+    })
     if (p.data.selectedChildId && file.Id() === p.data.selectedChildId) {
         selState = SelectedState.Selected
     }
@@ -90,7 +89,7 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
                 data-in-range={(selState & SelectedState.InRange) >> 1}
                 data-selected={(selState & SelectedState.Selected) >> 2}
                 data-last-selected={
-                    (selState & SelectedState.LastSelected) >> 3
+                    (selState & SelectedState.LastSelected) >> 3 && selected.size < 2
                 }
                 data-current-view={file.Id() === lastSelectedId}
                 data-droppable={(selState & SelectedState.Droppable) >> 4}
@@ -547,19 +546,7 @@ function FileColumns() {
                 console.error('No nextItem in column keydown')
                 return
             }
-            goToFile(nextItem, false, () => {
-                return
-                if (
-                    containerRef?.scrollLeft + containerRef?.clientWidth <
-                    containerRef?.scrollWidth
-                ) {
-                    endRef.scrollIntoView({
-                        behavior: 'instant',
-                        block: 'nearest',
-                        inline: 'start',
-                    })
-                }
-            })
+            goToFile(nextItem, false)
         }
     )
 

@@ -24,7 +24,7 @@ const Wormhole = React.lazy(() => import('./pages/FileBrowser/Wormhole'))
 const Login = React.lazy(() => import('./pages/Login/Login'))
 const Setup = React.lazy(() => import('./pages/Setup/Setup'))
 
-const saveMediaTypeMap = (setState) => {
+const saveMediaTypeMap = (setState: (typeMap) => void) => {
     fetchMediaTypes().then((r) => {
         setState(r)
         localStorage.setItem(
@@ -67,7 +67,12 @@ const WeblensRoutes = () => {
         } else if (loc.pathname === '/setup' && server.info.role === 'core') {
             console.debug('Nav files home from setup')
             nav('/files/home')
-        } else if (!loc.pathname.startsWith('/files') && loc.pathname !== "/login" && !user?.isLoggedIn) {
+        } else if (
+            server.info.role !== 'init' &&
+            !loc.pathname.startsWith('/files') &&
+            loc.pathname !== '/login' &&
+            !user?.isLoggedIn
+        ) {
             console.debug('Nav login from non-files path')
             nav('/login', { state: { returnTo: loc.pathname } })
         } else if (

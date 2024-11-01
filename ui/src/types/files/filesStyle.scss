@@ -88,11 +88,11 @@
         background-color: $theme-color;
         box-shadow: $hard-shadow;
         --wl-text-color: white;
-
         &[data-current-view='false'] {
             background-color: $item-focus;
         }
     }
+
 
     &[data-last-selected='1'] {
         outline: 2px solid $theme-bright

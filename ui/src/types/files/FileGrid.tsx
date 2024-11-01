@@ -3,10 +3,10 @@ import 'components/style.scss'
 import '@weblens/types/files/filesStyle.scss'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import { useResize } from 'components/hooks'
-import { createRef, useEffect, useMemo, useRef, useState } from 'react'
-import { FixedSizeGrid as Grid, List } from 'react-window'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { FixedSizeGrid as Grid } from 'react-window'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { j } from 'vite/dist/node/types.d-aGj9QkWt'
+import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 
 function SquareWrapper({ data, rowIndex, columnIndex, style }) {
     if (!data || rowIndex === undefined) {
@@ -31,9 +31,6 @@ function SquareWrapper({ data, rowIndex, columnIndex, style }) {
 }
 
 function FileGrid({ files }: { files: WeblensFile[] }) {
-    // TODO - scroll to index
-
-    // const numCols = useFileBrowserStore((state) => state.numCols)
     const jumpTo = useFileBrowserStore((state) => state.jumpTo)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
@@ -79,6 +76,10 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             )
         }
     }, [size.width])
+
+    if (files.length === 0) {
+        return <GetStartedCard />
+    }
 
     return (
         <div ref={setContainerRef} className="h-full w-full outline-0">

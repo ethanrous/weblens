@@ -5,9 +5,8 @@ if [[ ! -e ./cmd ]]; then
   exit 1
 fi
 
-if [[ ! -e ./build/bin ]]; then
-  mkdir -p ./build/bin
-fi
+mkdir -p ./build/bin
+mkdir -p ./build/logs
 
 restart=false
 trace=false

@@ -254,6 +254,25 @@ function getSortedFilesLists(
     return lists
 }
 
+function selectInRange(
+    startFile: WeblensFile,
+    endFile: WeblensFile,
+    selectMode: SelectedState,
+    files: WeblensFile[]
+) {
+    let startIndex = startFile.GetIndex()
+    let endIndex = endFile.GetIndex()
+
+    if (endIndex < startIndex) {
+        // Swap the 2 if end index is before the start
+        [startIndex, endIndex] = [endIndex, startIndex]
+    }
+
+    for (let index = startIndex; index <= endIndex; index++) {
+        files[index].SetSelected(selectMode, true)
+    }
+}
+
 function calculateMultiSelectHint(
     state: FileBrowserStateT,
     hoveringId: string,
@@ -262,6 +281,7 @@ function calculateMultiSelectHint(
     if (!state.lastSelectedId) {
         return state
     }
+    console.log('HERE?')
 
     const lastSelected = state.filesMap.get(state.lastSelectedId)
 
@@ -269,6 +289,8 @@ function calculateMultiSelectHint(
     if (!activeList) {
         activeList = state.filesLists.get(state.contentId)
     }
+
+    const lastHovering = state.filesMap.get(state.hoveringId)
 
     const hovering = state.filesMap.get(hoveringId)
 
@@ -280,36 +302,11 @@ function calculateMultiSelectHint(
         return state
     }
 
-    let lastSelectedIndex = lastSelected?.GetIndex()
     if (hoveringId && state.holdingShift) {
-        let hoveringIndex = hovering.GetIndex()
-        if (hoveringIndex < lastSelectedIndex) {
-            const swap = hoveringIndex
-            hoveringIndex = lastSelectedIndex
-            lastSelectedIndex = swap
-        }
-
-        for (let index = lastSelectedIndex; index <= hoveringIndex; index++) {
-            if (select) {
-                state.selected.set(activeList[index].Id(), true)
-                activeList[index].UnsetSelected(SelectedState.InRange)
-                activeList[index].SetSelected(SelectedState.Selected)
-            } else {
-                activeList[index].SetSelected(SelectedState.InRange)
-            }
-        }
+        const selectMode = select ? SelectedState.Selected : SelectedState.InRange
+        selectInRange(hovering, lastSelected, selectMode, activeList)
     } else if (hovering) {
-        let hoveringIndex = hovering.GetIndex()
-
-        if (hoveringIndex < lastSelectedIndex) {
-            const swap = hoveringIndex
-            hoveringIndex = lastSelectedIndex
-            lastSelectedIndex = swap
-        }
-
-        for (let index = lastSelectedIndex; index <= hoveringIndex; index++) {
-            activeList[index].UnsetSelected(SelectedState.InRange)
-        }
+        selectInRange(hovering, lastSelected, SelectedState.InRange, activeList)
     }
 
     return state
@@ -528,9 +525,15 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                     shouldBe === '/files' ||
                     shouldBe.startsWith(`/files/${homeId}`)
                 ) {
-                    shouldBe = shouldBe.replace(`/files/${homeId}`, '/files/home')
+                    shouldBe = shouldBe.replace(
+                        `/files/${homeId}`,
+                        '/files/home'
+                    )
                 } else if (shouldBe.startsWith(`/files/${trashId}`)) {
-                    shouldBe = shouldBe.replace(`/files/${trashId}`, '/files/trash')
+                    shouldBe = shouldBe.replace(
+                        `/files/${trashId}`,
+                        '/files/trash'
+                    )
                 }
 
                 if (path !== shouldBe) {
@@ -800,6 +803,7 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 return {
                     hoveringId: hoveringId,
                     filesLists: new Map(state.filesLists),
+                    selected: new Map(state.selected),
                 }
             }
 

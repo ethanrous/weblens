@@ -310,6 +310,10 @@ func setupFileService(pack *models.ServicePack) {
 		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 			panic(err)
 		}
+		_, err = cachesTree.MkDir(cachesTree.GetRoot(), "thumbs", &fileTree.FileEvent{})
+		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
+			panic(err)
+		}
 
 		trees = []fileTree.FileTree{usersFileTree, cachesTree, restoreFileTree}
 	} else if localRole == models.BackupServer {

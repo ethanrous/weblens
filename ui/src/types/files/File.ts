@@ -227,7 +227,11 @@ export class WeblensFile {
         return this.owner
     }
 
-    SetSelected(selected: SelectedState): void {
+    SetSelected(selected: SelectedState, override = false): void {
+        if (override) {
+            this.selected = selected
+            return
+        }
         this.selected = this.selected | selected
     }
 

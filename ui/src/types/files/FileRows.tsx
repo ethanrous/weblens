@@ -1,6 +1,9 @@
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { IconDisplay } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import {
+    GetStartedCard,
+    IconDisplay,
+} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import {
     fileHandleContextMenu,
@@ -11,8 +14,7 @@ import {
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
 import { useResize } from 'components/hooks'
-import React, { MouseEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { CSSProperties, MouseEvent, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 import '@weblens/types/files/filesStyle.scss'
 
@@ -23,19 +25,15 @@ function FileRow({
 }: {
     data: WeblensFile[]
     index: number
-    style
+    style: CSSProperties
 }) {
     const file = data[index]
-    const nav = useNavigate()
 
     const [mouseDown, setMouseDown] = useState(null)
 
     const {
         draggingState,
-        fbMode,
         viewOpts,
-        shareId,
-        menuMode,
         folderInfo,
         selected,
         setMoveDest,
@@ -95,16 +93,13 @@ function FileRow({
                 onDoubleClick={(e) =>
                     visitFile(
                         e,
-                        fbMode,
-                        shareId,
                         file,
                         folderInfo.IsTrash(),
-                        nav,
                         setPresentationTarget
                     )
                 }
                 onContextMenu={(e) =>
-                    fileHandleContextMenu(e, menuMode, setMenu, file)
+                    fileHandleContextMenu(e, setMenu, file)
                 }
                 onMouseUp={() => {
                     return handleMouseUp(
@@ -158,6 +153,11 @@ function FileRow({
 export function FileRows({ files }: { files: WeblensFile[] }) {
     const [boxRef, setBoxRef] = useState<HTMLDivElement>()
     const size = useResize(boxRef)
+
+    if (files.length === 0) {
+        return <GetStartedCard />
+    }
+
     return (
         <div ref={setBoxRef} className="file-rows no-scrollbar">
             <WindowList
