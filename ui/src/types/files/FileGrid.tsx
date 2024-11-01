@@ -1,11 +1,12 @@
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { WeblensFile } from '@weblens/types/files/File'
 import 'components/style.scss'
 import '@weblens/types/files/filesStyle.scss'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import { useResize } from 'components/hooks'
-import { useEffect, useState } from 'react'
+import { createRef, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid, List } from 'react-window'
+import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import { j } from 'vite/dist/node/types.d-aGj9QkWt'
 
 function SquareWrapper({ data, rowIndex, columnIndex, style }) {
     if (!data || rowIndex === undefined) {
@@ -33,30 +34,110 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     // TODO - scroll to index
 
     // const numCols = useFileBrowserStore((state) => state.numCols)
-    const scrollTo = useFileBrowserStore((state) => state.scrollTo)
+    const jumpTo = useFileBrowserStore((state) => state.jumpTo)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
-    const [, setGridRef] = useState<List>()
+    const gridRef = useRef<Grid>()
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
+    const [didScroll, setDidScroll] = useState<boolean>()
+    const [lastSeen, setLastSeen] = useState<{
+        file: WeblensFile
+        width: number
+    }>()
+    const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout>()
     const size = useResize(containerRef)
 
     const numCols = Math.max(Math.floor(size.width / 250), 2)
 
     const squareSize = (size.width / numCols) * 1.15
     const margin = 8
+    const rowHeight = squareSize + margin
+    const filteredFiles = useMemo(() => {
+        const filteredFiles = files.filter(
+            (file) => file.parentId === folderInfo.Id()
+        )
+        if (filteredFiles.length === 0) {
+            return []
+        }
+        return filteredFiles
+    }, [files])
+
+    useEffect(() => {
+        if (lastSeen?.file) {
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
+            setTimeoutId(
+                setTimeout(() => {
+                    gridRef.current.scrollToItem({
+                        align: 'smart',
+                        rowIndex: Math.floor(
+                            lastSeen.file.GetIndex() / numCols
+                        ),
+                    })
+                }, 100)
+            )
+        }
+    }, [size.width])
 
     return (
         <div ref={setContainerRef} className="h-full w-full outline-0">
             {size.width !== -1 && (
                 <Grid
                     className="no-scrollbar outline-0"
-                    ref={setGridRef}
+                    ref={gridRef}
                     columnCount={numCols}
-                    itemData={{ files, numCols }}
+                    itemData={{ files: filteredFiles, numCols }}
                     height={size.height}
                     width={size.width}
-                    rowCount={Math.ceil(files.length / numCols)}
+                    rowCount={Math.ceil(filteredFiles.length / numCols)}
                     columnWidth={size.width / numCols}
-                    rowHeight={squareSize + margin}
+                    rowHeight={rowHeight}
+                    onScroll={({ scrollTop }) => {
+                        if (
+                            lastSeen &&
+                            lastSeen.width !== size.width &&
+                            lastSeen.width !== 0
+                        ) {
+                            setLastSeen({
+                                file: lastSeen.file,
+                                width: size.width,
+                            })
+                            return
+                        }
+                        const ls =
+                            files[Math.floor((scrollTop / rowHeight) * numCols)]
+                        setLastSeen({ file: ls, width: size.width })
+                    }}
+                    onItemsRendered={() => {
+                        if (didScroll) {
+                            return
+                        }
+                        // Grid ref is not ready yet even when this callback is called,
+                        // but putting it in a timeout will push it off to the next tick,
+                        // and the ref will be ready.
+                        setTimeout(() => {
+                            if (gridRef.current && jumpTo) {
+                                const child = useFileBrowserStore
+                                    .getState()
+                                    .filesMap.get(jumpTo)
+                                if (child) {
+                                    gridRef.current.scrollToItem({
+                                        align: 'smart',
+                                        rowIndex: Math.floor(
+                                            child.GetIndex() / numCols
+                                        ),
+                                    })
+                                    setDidScroll(true)
+                                } else {
+                                    console.error(
+                                        'Could not find child to scroll to',
+                                        jumpTo
+                                    )
+                                }
+                            }
+                        }, 1)
+                    }}
                 >
                     {SquareWrapper}
                 </Grid>

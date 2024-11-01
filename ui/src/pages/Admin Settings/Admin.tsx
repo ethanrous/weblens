@@ -471,7 +471,7 @@ function Servers() {
             <h4 className="pl-2 w-full">API Keys</h4>
 
             {Boolean(keys?.length) && (
-                <div className="flex flex-col items-center p-1 rounded w-full">
+                <div className="flex flex-col items-center p-1 rounded w-full gap-1">
                     {keys.map((k) => (
                         <ApiKeyRow
                             key={k.id}

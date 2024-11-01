@@ -176,7 +176,8 @@ export const useResizeDrag = (
     flip?: boolean,
     vertical?: boolean
 ) => {
-    const unDrag = useCallback(() => {
+    const unDrag = useCallback((e) => {
+        e.stopPropagation()
         setResizing(false)
     }, [setResizing])
 

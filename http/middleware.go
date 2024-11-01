@@ -92,7 +92,7 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 				return
 			}
 
-			log.Trace.Println("User", usr.GetUsername(), "authenticated")
+			log.Trace.Printf("User [%s] authenticated", usr.GetUsername())
 
 			c.Set("user", usr)
 			c.Next()

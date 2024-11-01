@@ -1,4 +1,4 @@
-import { Divider, FileButton, Space, Text, Tooltip } from '@mantine/core'
+import { Divider, FileButton, Space, Text, } from '@mantine/core'
 import { useMouse } from '@mantine/hooks'
 
 import {
@@ -28,11 +28,12 @@ import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { UserInfoT } from '@weblens/types/Types'
 import { friendlyFolderName, humanFileSize } from '@weblens/util'
-import { DragEventHandler, FC, memo, useMemo, useState } from 'react'
+import { DragEventHandler, FC, memo, ReactElement, useMemo, useState } from 'react'
 import { FbModeT, useFileBrowserStore } from './FBStateControl'
 import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
 import '@weblens/components/theme.scss'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
+import { ButtonIcon } from '@weblens/lib/buttonTypes'
 
 export const TransferCard = ({
     action,
@@ -41,7 +42,7 @@ export const TransferCard = ({
 }: {
     action: string
     destination: string
-    boundRef?
+    boundRef?: HTMLDivElement
 }) => {
     let width: number
     let left: number
@@ -77,33 +78,40 @@ export const DropSpot = ({
     wrapperRef,
     stopDragging,
 }: {
-    onDrop
+    onDrop: DragEventHandler
     dropSpotTitle: string
     dropAllowed: boolean
     handleDrag: DragEventHandler<HTMLDivElement>
-    wrapperRef?
+    wrapperRef?: HTMLDivElement
     stopDragging: () => void
 }) => {
-    const dragging = useFileBrowserStore((state) => state.draggingState)
+    const draggingState = useFileBrowserStore((state) => state.draggingState)
     const wrapperSize = useResize(wrapperRef)
     return (
         <div
             draggable={false}
             className="dropspot-wrapper"
             onDragOver={(e) => {
-                if (dragging === 0) {
+                if (draggingState === DraggingStateT.NoDrag) {
                     handleDrag(e)
                 }
             }}
             style={{
-                pointerEvents: dragging === 2 ? 'all' : 'none',
-                cursor: !dropAllowed && dragging === 2 ? 'no-drop' : 'auto',
+                pointerEvents:
+                    draggingState === DraggingStateT.ExternalDrag
+                        ? 'all'
+                        : 'none',
+                cursor:
+                    !dropAllowed &&
+                    draggingState === DraggingStateT.ExternalDrag
+                        ? 'no-drop'
+                        : 'auto',
                 height: wrapperSize ? wrapperSize.height - 2 : '100%',
                 width: wrapperSize ? wrapperSize.width - 2 : '100%',
             }}
             onDragLeave={handleDrag}
         >
-            {dragging === 2 && (
+            {draggingState === DraggingStateT.ExternalDrag && (
                 <div
                     className="dropbox"
                     onMouseLeave={() => {
@@ -123,8 +131,7 @@ export const DropSpot = ({
                     onDragOver={(e) => e.preventDefault()}
                     style={{
                         outlineColor: `${dropAllowed ? '#ffffff' : '#dd2222'}`,
-                        cursor:
-                            !dropAllowed && dragging === 2 ? 'no-drop' : 'auto',
+                        cursor: !dropAllowed ? 'no-drop' : 'auto',
                     }}
                 >
                     {!dropAllowed && (
@@ -204,7 +211,7 @@ export function DraggingCounter() {
 }
 
 export const DirViewWrapper = memo(
-    ({ children }: { children }) => {
+    ({ children }: { children: ReactElement }) => {
         const draggingState = useFileBrowserStore(
             (state) => state.draggingState
         )
@@ -223,10 +230,15 @@ export const DirViewWrapper = memo(
                     e.preventDefault()
                     e.stopPropagation()
                 }}
-                onMouseUp={() => {
+                onMouseUp={(e) => {
+                    e.stopPropagation()
                     if (draggingState) {
                         setTimeout(() => setDragging(DraggingStateT.NoDrag), 10)
-                    } else {
+                    }
+                }}
+                onClick={(e) => {
+                    e.stopPropagation()
+                    if (!draggingState) {
                         clearSelected()
                     }
                 }}
@@ -266,7 +278,7 @@ export const FileIcon = ({
 }: {
     fileName: string
     id: string
-    Icon
+    Icon: ButtonIcon
     usr: UserInfoT
     as?: string
 }) => {
@@ -316,21 +328,17 @@ export const IconDisplay = ({
 
     if (file.IsFolder()) {
         if (file.GetContentId() !== '') {
+            const containerQuanta = Math.ceil(containerSize.height/100)
             return (
-                <div className="relative flex w-full h-full justify-center items-center">
-                    {/* <IconFolder */}
-                    {/*     stroke={0} */}
-                    {/*     fill={'white'} */}
-                    {/*     className="absolute h-1/4 w-1/4 z-10 shrink-0 text-[--wl-text-color] bottom-[12%] right-[3%]" */}
-                    {/* /> */}
-                    <div className="relative w-[90%] h-[90%] -translate-x-1 -translate-y-1 z-10">
+                <div ref={setContainerRef} className="relative flex w-full h-full justify-center items-center ">
+                    <div className="relative w-[90%] h-[90%] z-20" style={{translate: `${containerQuanta * -3}px ${containerQuanta * -3}px`}}>
                         <MediaImage
                             media={mediaData}
                             quality={PhotoQuality.LowRes}
                         />
                     </div>
-                    <div className="absolute w-[88%] h-[88%] translate-x-[2px] translate-y-[2px] outline outline-2 outline-theme-text opacity-75 rounded" />
-                    <div className="absolute w-[88%] h-[88%] translate-x-[8px] translate-y-[8px] outline outline-2 outline-theme-text opacity-50 rounded" />
+                    <div className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-75 rounded z-10" />
+                    <div className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-50 rounded" style={{translate: `${containerQuanta * 3}px ${containerQuanta * 3}px`}} />
                 </div>
             )
         } else {
@@ -504,8 +512,8 @@ export const GetStartedCard = () => {
 
 export const WebsocketStatus = memo(
     ({ ready }: { ready: number }) => {
-        let color
-        let status
+        let color: string
+        let status: string
 
         switch (ready) {
             case 1:

@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const RetryInterval = time.Second * 10
+const retryInterval = time.Second * 10
 
 func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	addrStr, err := core.GetAddress()
@@ -37,6 +37,10 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	}
 
 	coreUrl.Path = "/api/ws"
+	q := coreUrl.Query()
+	q.Add("server", "true")
+	coreUrl.RawQuery = q.Encode()
+	
 
 	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
 
@@ -49,9 +53,9 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 			if err != nil {
 				log.Error.Printf(
 					"Failed to connect to core server at %s: %s Trying again in %s",
-					coreUrl.String(), err, RetryInterval,
+					coreUrl.String(), err, retryInterval,
 				)
-				time.Sleep(RetryInterval)
+				time.Sleep(retryInterval)
 				continue
 			}
 

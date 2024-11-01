@@ -102,7 +102,7 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 	cm.clientMu.Lock()
 	defer cm.clientMu.Unlock()
 	if c.GetUser() != nil {
-		delete(cm.webClientMap, c.GetUser().GetUsername())
+		delete(cm.webClientMap, c.GetClientId())
 	} else if remote := c.GetRemote(); remote != nil {
 		delete(cm.remoteClientMap, c.GetRemote().ServerId())
 		cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": false})

@@ -188,6 +188,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     )
     const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
+    const shareId = useFileBrowserStore((state) => state.shareId)
 
     if (!file) {
         return null
@@ -222,7 +223,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                     label={'Download'}
                     Left={IconDownload}
                     onClick={() => {
-                        downloadSelected([file], removeLoading, wsSend)
+                        downloadSelected([file], removeLoading, wsSend, shareId)
                     }}
                 />
                 {mediaData && (

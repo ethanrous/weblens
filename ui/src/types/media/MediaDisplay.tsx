@@ -46,7 +46,7 @@ const goToFolder = async (
 
         const newFile = new WeblensFile(fileInfo)
 
-        const newUrl = `/files/${newFile.ParentId()}?jumpTo=${fileIds[0]}`
+        const newUrl = `/files/${newFile.ParentId()}#${fileIds[0]}`
 
         window.open(newUrl, '_blank')
         return

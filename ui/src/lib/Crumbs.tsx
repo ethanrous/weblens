@@ -13,19 +13,22 @@ import {
     FbModeT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
-import { memo, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { WeblensFile } from '@weblens/types/files/File'
+import { goToFile } from '@weblens/types/files/FileDragLogic'
 
 type Crumb = {
     name: string
     id: string
-    visitRoute: string
+    file?: WeblensFile
+    visitRoute?: string
     navigable: boolean
 }
 
 type breadcrumbProps = {
     crumbInfo: Crumb
-    moveSelectedTo
+    moveSelectedTo: (folderId: string) => void
     isCurrent: boolean
     compact?: boolean
 }
@@ -99,8 +102,13 @@ export const StyledBreadcrumb = ({
                 if (dragging !== 0) {
                     moveSelectedTo(crumbInfo.id)
                 } else {
-                    console.log('NAVIGATING TO', crumbInfo.visitRoute)
-                    nav(crumbInfo.visitRoute)
+                    if (crumbInfo.file) {
+                        goToFile(crumbInfo.file)
+                    } else if (crumbInfo.visitRoute) {
+                        nav(crumbInfo.visitRoute)
+                    } else {
+                        console.error('NO FILE OR VISIT ROUTE IN CRUMB')
+                    }
                 }
                 setMoveDest('')
             }}
@@ -110,11 +118,21 @@ export const StyledBreadcrumb = ({
     )
 }
 
-function LoafOverflowMenu({ open, reff, setOpen, crumbs }) {
+function LoafOverflowMenu({
+    open,
+    reff,
+    setOpen,
+    crumbs,
+}: {
+    open: boolean
+    reff: HTMLDivElement
+    setOpen: (b: boolean) => void
+    crumbs: Crumb[]
+}) {
     useClick(() => setOpen(false), reff, !open)
     return (
         <div className="overflow-menu" data-open={open}>
-            {crumbs.map((item, i) => {
+            {crumbs.map((item, i: number) => {
                 return (
                     <div
                         key={`crumb-overflow-${i}`}
@@ -124,7 +142,11 @@ function LoafOverflowMenu({ open, reff, setOpen, crumbs }) {
                         }}
                     >
                         {i !== 0 && <IconCornerDownRight />}
-                        {item}
+                        <StyledBreadcrumb
+                            crumbInfo={item}
+                            moveSelectedTo={() => {}}
+                            isCurrent={i === crumbs.length - 1}
+                        />
                     </div>
                 )
             })}
@@ -137,7 +159,7 @@ export const StyledLoaf = ({
     moveSelectedTo,
 }: {
     crumbs: Crumb[]
-    moveSelectedTo
+    moveSelectedTo: (folderId: string) => void
 }) => {
     const [widths, setWidths] = useState(new Array(crumbs.length))
     // const [squished, setSquished] = useState(0)
@@ -169,9 +191,6 @@ export const StyledLoaf = ({
 
     return (
         <div ref={setCrumbRef} className="loaf">
-            {/*<div className="flex items-center w-max">*/}
-            {/*    <StyledBreadcrumb crumbInfo={crumbs[0]} />*/}
-            {/*</div>*/}
             {crumbs.map((c, i) => (
                 <div key={c.name} className="flex flex-row items-center">
                     <StyledBreadcrumb
@@ -216,22 +235,17 @@ export const StyledLoaf = ({
     )
 }
 
-const Crumbs = ({
+function Crumbs({
     moveSelectedTo,
     navOnLast,
 }: {
     navOnLast: boolean
     moveSelectedTo?: (folderId: string) => void
-}) => {
+}) {
     const user = useSessionStore((state) => state.user)
 
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const shareId = useFileBrowserStore((state) => state.shareId)
-
-    const setPresentationTarget = useFileBrowserStore(
-        (state) => state.setPresentationTarget
-    )
 
     const crumbs: Crumb[] = []
 
@@ -244,7 +258,7 @@ const Crumbs = ({
             id: 'shared',
             visitRoute: '/files/shared',
             navigable: folderInfo !== null,
-        } as Crumb)
+        })
     }
 
     if (!user || !folderInfo?.Id()) {
@@ -257,13 +271,9 @@ const Crumbs = ({
                 return {
                     name: parent.GetFilename(),
                     id: parent.id,
-                    visitRoute: parent.GetVisitRoute(
-                        mode,
-                        shareId,
-                        setPresentationTarget
-                    ),
+                    file: parent,
                     navigable: true,
-                } as Crumb
+                }
             })
         )
     }
@@ -272,13 +282,9 @@ const Crumbs = ({
     crumbs.push({
         name: folderInfo.GetFilename(),
         id: folderInfo.Id(),
-        visitRoute: folderInfo.GetVisitRoute(
-            mode,
-            shareId,
-            setPresentationTarget
-        ),
+        file: folderInfo,
         navigable: navOnLast,
-    } as Crumb)
+    })
 
     return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
 }

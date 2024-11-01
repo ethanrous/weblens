@@ -1116,7 +1116,7 @@ function InTrashMenu({
 
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
-    const filesList = useFileBrowserStore((state) => state.filesList)
+    const filesList = useFileBrowserStore((state) => state.filesLists)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const setSelectedMoved = useFileBrowserStore(

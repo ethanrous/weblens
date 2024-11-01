@@ -12,7 +12,6 @@ import {
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
 import { MouseEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 const FileGridVisual = ({ file }) => {
     return (
@@ -24,19 +23,27 @@ const FileGridVisual = ({ file }) => {
     )
 }
 
-export const FileTextBox = ({
-    itemTitle,
+const FileTextBox = ({
+    file,
+    selState,
     doFolderIcon,
 }: {
-    itemTitle: string
+    file: WeblensFile
+    selState: SelectedState
     doFolderIcon: boolean
 }) => {
     return (
         <div className="flex items-center justify-between w-[95%]">
-            <p className="file-text">{itemTitle}</p>
-            {doFolderIcon && (
-                <IconFolder className="text-theme-text" stroke={3} />
-            )}
+            <p className="file-text">{file.GetFilename()}</p>
+            <div
+                className="file-size-box"
+                data-moved={(selState & SelectedState.Moved) >> 5}
+            >
+                <h4 className="file-size-text">{file.FormatSize()}</h4>
+                {doFolderIcon && (
+                    <IconFolder className="text-theme-text" stroke={2} />
+                )}
+            </div>
         </div>
     )
 }
@@ -44,13 +51,9 @@ export const FileTextBox = ({
 export const FileSquare = ({ file }: { file: WeblensFile }) => {
     const [mouseDown, setMouseDown] = useState(null)
 
-    const nav = useNavigate()
-
     const {
         draggingState,
-        fbMode,
-        shareId,
-        menuMode,
+        viewOpts,
         folderInfo,
         selected,
         setMoveDest,
@@ -107,19 +110,9 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                 setSelected([file.Id()])
             }}
             onDoubleClick={(e) =>
-                visitFile(
-                    e,
-                    fbMode,
-                    shareId,
-                    file,
-                    folderInfo?.IsTrash(),
-                    nav,
-                    setPresentationTarget
-                )
+                visitFile(e, file, folderInfo?.IsTrash(), setPresentationTarget)
             }
-            onContextMenu={(e) =>
-                fileHandleContextMenu(e, menuMode, setMenu, file)
-            }
+            onContextMenu={(e) => fileHandleContextMenu(e, setMenu, file)}
             onMouseUp={(e) => {
                 e.stopPropagation()
                 return handleMouseUp(
@@ -130,7 +123,8 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                     clearSelected,
                     setMoveDest,
                     setDragging,
-                    setMouseDown
+                    setMouseDown,
+                    viewOpts.dirViewMode
                 )
             }}
             onMouseLeave={() =>
@@ -145,15 +139,10 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
             }
         >
             <FileGridVisual file={file} />
-            <div
-                className="file-size-box"
-                data-moved={(selState & SelectedState.Moved) >> 5}
-            >
-                <p className="file-size-text">{file.FormatSize()}</p>
-            </div>
             <div className="file-text-container" style={{ height: '16%' }}>
                 <FileTextBox
-                    itemTitle={file.GetFilename()}
+                    file={file}
+                    selState={selState}
                     doFolderIcon={file.IsFolder() && file.GetContentId() !== ''}
                 />
             </div>

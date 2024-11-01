@@ -31,11 +31,9 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 	// so we conditionally ignore them.
 	var owner models.Username
 	var children []fileTree.FileId
-	if isParent {
-		owner = pack.FileService.GetFileOwner(f).GetUsername()
-		for _, c := range f.GetChildren() {
-			children = append(children, c.ID())
-		}
+	owner = pack.FileService.GetFileOwner(f).GetUsername()
+	for _, c := range f.GetChildren() {
+		children = append(children, c.ID())
 	}
 
 	share, err := pack.ShareService.GetFileShare(f)

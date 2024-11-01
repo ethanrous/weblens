@@ -1,52 +1,14 @@
 import { Loader } from '@mantine/core'
 import { IconCheck, IconQuestionMark, IconX } from '@tabler/icons-react'
 import { useResize } from '@weblens/components/hooks'
-import React, {
-    CSSProperties,
-    memo,
-    ReactNode,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
+import React, { memo, useEffect, useMemo, useState } from 'react'
 
 import '@weblens/lib/weblensButton.scss'
-
-type ButtonActionHandler = (
-    e: React.MouseEvent<HTMLElement, MouseEvent>
-) => void | boolean | Promise<void | boolean | Response>
-
-type buttonProps = {
-    label?: string
-    tooltip?: string
-    showSuccess?: boolean
-    toggleOn?: boolean
-    subtle?: boolean
-    allowRepeat?: boolean
-    centerContent?: boolean
-    danger?: boolean
-    disabled?: boolean
-    doSuper?: boolean
-    labelOnHover?: boolean
-    fillWidth?: boolean
-    allowShrink?: boolean
-    float?: boolean
-    requireConfirm?: boolean
-    Left?: (p: any) => ReactNode
-    Right?: (p: any) => ReactNode
-
-    // Style
-    squareSize?: number
-    fontSize?: string
-    textMin?: number
-
-    onClick?: ButtonActionHandler
-    onMouseUp?: ButtonActionHandler
-    onMouseOver?: ButtonActionHandler
-    onMouseLeave?: ButtonActionHandler
-    style?: CSSProperties
-    setButtonRef?: (ref: HTMLDivElement) => void
-}
+import {
+    ButtonActionHandler,
+    ButtonContentProps,
+    buttonProps as ButtonProps,
+} from './buttonTypes'
 
 const ButtonContent = memo(
     ({
@@ -59,17 +21,7 @@ const ButtonContent = memo(
         centerContent,
         hidden,
         labelOnHover,
-    }: {
-        label: string
-        Left: (p: any) => ReactNode
-        Right: (p: any) => ReactNode
-        setTextWidth: (w: number) => void
-        buttonWidth: number
-        iconSize: number
-        centerContent: boolean
-        hidden: boolean
-        labelOnHover: boolean
-    }) => {
+    }: ButtonContentProps) => {
         const [textRef, setTextRef] = useState<HTMLParagraphElement>()
         const { width: textWidth } = useResize(textRef)
 
@@ -95,11 +47,6 @@ const ButtonContent = memo(
                 buttonWidth === 0 ||
                 buttonWidth > textWidth
             )
-
-            // return !(
-            //     (!Boolean(label) ||
-            //         ((Boolean(Left) || Boolean(Right)) && buttonWidth < iconSize + textWidth && buttonWidth !== 0))
-            // && !(buttonWidth > textWidth) );
         }, [buttonWidth, textWidth])
 
         if (!iconSize) {
@@ -174,9 +121,9 @@ const handleButtonEvent = async (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     handler: ButtonActionHandler,
     showSuccess: boolean,
-    setLoading,
-    setSuccess,
-    setFail
+    setLoading: (loading: boolean) => void,
+    setSuccess: (success: boolean) => void,
+    setFail: (fail: boolean) => void
 ) => {
     if (!handler) {
         return
@@ -236,7 +183,7 @@ const WeblensButton = memo(
         onMouseLeave,
         style,
         setButtonRef = () => {},
-    }: buttonProps) => {
+    }: ButtonProps) => {
         const [success, setSuccess] = useState(false)
         const [fail, setFail] = useState(false)
         const [loading, setLoading] = useState(false)

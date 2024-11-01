@@ -1,5 +1,9 @@
-import { FbModeT, SetMenuT } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    SetMenuT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { MoveSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import {
     FbMenuModeT,
@@ -9,7 +13,7 @@ import {
 import { Dispatch, MouseEvent } from 'react'
 
 export function mouseMove(
-    e,
+    e: MouseEvent,
     file: WeblensFile,
     draggingState: DraggingStateT,
     mouseDown: { x: number; y: number },
@@ -30,28 +34,24 @@ export function mouseMove(
 }
 
 export function visitFile(
-    e,
-    mode: FbModeT,
-    shareId: string,
+    e: MouseEvent,
     file: WeblensFile,
     inTrash: boolean,
-    nav,
     setPresentation: (presentingId: string) => void
 ) {
     if (inTrash && file.IsFolder()) {
         return
     }
-
     e.stopPropagation()
-    const jump = file.GetVisitRoute(mode, shareId, setPresentation)
-    if (jump) {
-        nav(jump)
+    if (file.IsFolder()) {
+        goToFile(file)
+    } else if (file.displayable) {
+        setPresentation(file.Id())
     }
 }
 
 export function fileHandleContextMenu(
-    e,
-    menuMode: FbMenuModeT,
+    e: MouseEvent,
     setMenu: SetMenuT,
     file: WeblensFile
 ) {
@@ -73,7 +73,8 @@ export function handleMouseUp(
     clearSelected: () => void,
     setMoveDest: (dest: string) => void,
     setDragging: (dragging: DraggingStateT) => void,
-    setMouseDown: Dispatch<any>
+    setMouseDown: Dispatch<{ x: number; y: number }>,
+    viewMode: DirViewModeT
 ) {
     if (draggingState !== DraggingStateT.NoDrag) {
         if (
@@ -86,6 +87,10 @@ export function handleMouseUp(
         setMoveDest('')
         setDragging(DraggingStateT.NoDrag)
     }
+
+    if (viewMode === DirViewModeT.Columns) {
+        goToFile(file, true)
+    }
     setMouseDown(null)
 }
 
@@ -95,7 +100,7 @@ export function handleMouseLeave(
     setMoveDest: (dest: string) => void,
     setHovering: (hovering: string) => void,
     mouseDown: boolean,
-    setMouseDown
+    setMouseDown: Dispatch<{ x: number; y: number }>
 ) {
     file.UnsetSelected(SelectedState.Hovering)
     file.UnsetSelected(SelectedState.Droppable)
@@ -122,11 +127,105 @@ export function handleMouseOver(
     }
 
     if (
-        draggingState &&
-        !(file.GetSelectedState() & SelectedState.Selected) &&
-        file.IsFolder()
+        draggingState === DraggingStateT.InternalDrag ||
+        (draggingState === DraggingStateT.ExternalDrag &&
+            !(file.GetSelectedState() & SelectedState.Selected) &&
+            file.IsFolder())
     ) {
         file.SetSelected(SelectedState.Droppable)
         setMoveDest(file.GetFilename())
     }
+}
+
+export function goToFile(
+    next: WeblensFile,
+    allowBlindHop: boolean = false,
+    scrollToEnd: () => void = () => {}
+) {
+    if (!next) {
+        console.error('goToFile called with no next file')
+        return
+    }
+
+    const state = useFileBrowserStore.getState()
+
+    if (!state.folderInfo && allowBlindHop) {
+        state.clearFiles()
+        state.nav('/files/' + next.Id())
+        return
+    }
+
+    // If the next file is a folder, we WILL be navigating to it.
+    // We can do that with state change and a url update, and not
+    // a full page reload.
+    const parents = state.folderInfo ? [...state.folderInfo.parents] : []
+    if (next.IsFolder()) {
+        state.setPresentationTarget('')
+        if (next.parentId === state.folderInfo?.Id()) {
+            // If the next files parent is the currentFolder, we can set the parents
+            // based on what we already have, and add the currentFolder to the list.
+            parents.push(state.folderInfo)
+            next.parents = parents
+        } else if (parents.map((p) => p.Id()).includes(next.Id())) {
+            // If the next file is the current folders parent of any distance (i.e. we are going up a level)
+            while (
+                parents.length &&
+                parents[parents.length - 1].Id() !== next.parentId
+            ) {
+                parents.pop()
+            }
+            next.parents = parents
+        } else if (next.Id() === state.folderInfo?.Id()) {
+            // If we are in a folder and have selected a non-folder child, going up to the parent
+            // is trivial, just just select the parent and nothing else
+            next = state.folderInfo
+        } else if (next.parentId === state.folderInfo?.parentId) {
+            // if (state.presentingId) {
+            //     state.setPresentationTarget(next.Id())
+            // }
+            next.parents = [...state.folderInfo.parents]
+        } else if (allowBlindHop) {
+            // If we can't find a way to quickly navigate to the next file, we can just reload the page
+            // at the new location. We need to clear the current files
+            state.clearFiles()
+            state.nav('/files/' + next.Id())
+            return
+        } else {
+            console.error(
+                'BAD! goToFile did not find a valid state update rule'
+            )
+            return
+        }
+
+        state.setFilesData({ selfInfo: next })
+        state.setLocationState({ contentId: next.Id() })
+    } else {
+        // If the next is not a folder, we can set the location to the parent of the next file,
+        // with the child as the "jumpTo" parameter. If the parent is the same as the current folder,
+        // this is just a simple state change, and we don't need to fetch any new data
+
+        if (next.parentId !== state.folderInfo?.Id()) {
+            const p = useFileBrowserStore.getState().filesMap.get(next.parentId)
+            if (p) {
+                parents.pop()
+
+                p.parents = parents
+                state.setFilesData({ selfInfo: p })
+            } else if (allowBlindHop) {
+                state.clearFiles()
+                state.nav('/files/' + next.parentId + '#' + next.Id())
+            } else {
+                console.error(
+                    'BAD! goToFile did not find a valid state update rule'
+                )
+                return
+            }
+        } else if (state.presentingId) {
+            state.setPresentationTarget(next.Id())
+        }
+
+        state.setLocationState({ contentId: next.parentId, jumpTo: next.Id() })
+    }
+    state.setSelected([next.Id()], true)
+    scrollToEnd()
 }

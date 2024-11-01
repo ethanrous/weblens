@@ -44,20 +44,53 @@ if [[ $trace == true ]]; then
 fi
 printf "\n"
 
-while true; do
-  rm -f ./build/bin/weblens
 
-  go build -gcflags="-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go
+while true; do
+
+  if [[ -z "$detach_ui" ]]; then
+    detach_ui=$DETACH_UI
+  fi
+
+  if [[ -z "$detach_ui" ]]; then
+    detach_ui=$(cat ./config/config.json | jq ".[\"$config_name\"].detachUi")
+  fi
+
+  if [[ "$detach_ui" != "true" ]]; then
+    cd ./ui
+    printf "Building UI..."
+    npm install &> /dev/null
+    export VITE_APP_BUILD_TAG="DEV-BUILD"
+    export VITE_BUILD=true
+    npm run build &> ../build/logs/ui-build.log
+
+    if [ $? != 0 ]; then
+      printf " FAILED\n"
+      echo "Aborting Weblens startup. Ensure npm run build completes successfully before starting Weblens."
+      echo "Check ../build/logs/ui-build.log for more information."
+      exit 1
+    else
+      printf " DONE\n"
+    fi
+
+    cd ..
+  fi
+
+
+  printf "Building Weblens binary..."
+  rm -f ./build/bin/weblens
+  go build -gcflags="-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &> ./build/logs/weblens-build.log
 
   if [[ ! -e ./build/bin/weblens ]]; then
+    print " FAILED\n"
     echo "Failed to build Weblens, exiting..."
     exit 1
   fi
+  printf " DONE\n"
 
   APP_ROOT=$(pwd) CONFIG_NAME=$config_name LOG_LEVEL=$do_trace ./build/bin/weblens
   exit=$?
 
-  if [[ $restart == false ]] || [[ $exit == 11 ]]; then
+  if [[ $restart == false ]] || [[ $exit != 0 ]]; then
     break
   fi
   clear

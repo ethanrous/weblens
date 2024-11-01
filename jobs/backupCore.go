@@ -225,6 +225,7 @@ func DoBackup(t *task.Task) {
 		latestMove := lt.GetLatestMove()
 
 		existingFile, err := meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId())
+		log.Debug.Printf("File %s exists: %v", lt.GetLatestPath(), existingFile != nil)
 
 		// If the file already exists, but is the wrong size, an earlier copy most likely failed. Delete it and copy it again.
 		if existingFile != nil && !existingFile.IsDir() && existingFile.Size() != lt.Actions[0].Size {

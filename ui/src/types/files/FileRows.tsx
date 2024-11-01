@@ -10,7 +10,6 @@ import {
     mouseMove,
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
-import { FileTextBox } from '@weblens/types/files/FileSquare'
 import { useResize } from 'components/hooks'
 import React, { MouseEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -34,6 +33,7 @@ function FileRow({
     const {
         draggingState,
         fbMode,
+        viewOpts,
         shareId,
         menuMode,
         folderInfo,
@@ -106,8 +106,8 @@ function FileRow({
                 onContextMenu={(e) =>
                     fileHandleContextMenu(e, menuMode, setMenu, file)
                 }
-                onMouseUp={() =>
-                    handleMouseUp(
+                onMouseUp={() => {
+                    return handleMouseUp(
                         file,
                         draggingState,
                         Array.from(selected.keys()),
@@ -115,9 +115,10 @@ function FileRow({
                         clearSelected,
                         setMoveDest,
                         setDragging,
-                        setMouseDown
+                        setMouseDown,
+                        viewOpts.dirViewMode
                     )
-                }
+                }}
                 onMouseLeave={() =>
                     handleMouseLeave(
                         file,

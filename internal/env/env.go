@@ -179,6 +179,12 @@ func GetLogLevel(configName string) int {
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
 // must proxy any /api/* requests back to this server
 func DetachUi() bool {
+
+	detachUi := os.Getenv("DETACH_UI")
+	if detachUi != "" {
+		return detachUi == "true"
+	}
+
 	config, err := ReadConfig(GetConfigName())
 	if err != nil {
 		panic(err)

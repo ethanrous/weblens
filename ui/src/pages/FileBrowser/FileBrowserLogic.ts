@@ -19,6 +19,7 @@ import {
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { PhotoQuality } from '@weblens/types/media/Media'
+import { DirViewModeT } from './FileBrowserTypes'
 
 export const getRealId = async (
     contentId: string,
@@ -290,9 +291,10 @@ export const useKeyDownFileBrowser = () => {
     const searchContent = useFileBrowserStore((state) => state.searchContent)
     const isSearching = useFileBrowserStore((state) => state.isSearching)
     const menuMode = useFileBrowserStore((state) => state.menuMode)
+    const viewMode = useFileBrowserStore((state) => state.viewOpts.dirViewMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const filesMap = useFileBrowserStore((state) => state.filesMap)
-    const filesList = useFileBrowserStore((state) => state.filesList)
+    const filesList = useFileBrowserStore((state) => state.filesLists)
     const mediaMap = useMediaStore((state) => state.mediaMap)
 
     const presentingTarget = filesMap.get(presentingId)
@@ -323,6 +325,9 @@ export const useKeyDownFileBrowser = () => {
                     (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
                 ) {
                     event.preventDefault()
+                    if (viewMode === DirViewModeT.Columns || !presentingTarget) {
+                        return
+                    }
                     let direction = 0
                     if (event.key === 'ArrowLeft') {
                         direction = -1

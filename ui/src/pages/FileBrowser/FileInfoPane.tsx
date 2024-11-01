@@ -29,20 +29,42 @@ import { clamp } from '@weblens/util'
 import { memo, ReactElement, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileAction } from './FileBrowserTypes'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { MediaImage } from '@weblens/types/media/PhotoContainer'
+import { PhotoQuality } from '@weblens/types/media/Media'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
 
 const SIDEBAR_BREAKPOINT = 650
 
-export const FileInfoPane = () => {
+export default function FileInfoPane() {
     const windowSize = useWindowSize()
-    const [resizing, setResizing] = useState(false)
+
+    const dragging = useFileBrowserStore((state) => state.draggingState === DraggingStateT.InterfaceDrag)
+    const [localDragging, setLocalDragging] = useState(false)
+    const setDraggingGlobal = useFileBrowserStore((state) => state.setDragging)
+    const setDragging = (d: DraggingStateT) => {setDraggingGlobal(d); setLocalDragging(d === DraggingStateT.InterfaceDrag)}
+
     const [resizeOffset, setResizeOffset] = useState(
         windowSize?.width > SIDEBAR_BREAKPOINT ? 550 : 75
     )
     const [open, setOpen] = useState<boolean>(false)
     const [tab, setTab] = useState('info')
+
+    useEffect(() => {
+        if (!dragging && localDragging) {
+            setDragging(DraggingStateT.NoDrag)
+        }
+    }, [dragging])
+
     useResizeDrag(
-        resizing,
-        setResizing,
+        localDragging,
+        (dragging: boolean) => {
+            if (dragging) {
+                setDragging(DraggingStateT.InterfaceDrag)
+            } else {
+                setDragging(DraggingStateT.NoDrag)
+            }
+        },
         (v) => {
             setResizeOffset(clamp(v, 300, 800))
         },
@@ -52,7 +74,7 @@ export const FileInfoPane = () => {
     return (
         <div
             className="file-info-pane"
-            data-resizing={resizing}
+            data-resizing={dragging}
             data-open={open}
             style={{ width: open ? resizeOffset : 20 }}
         >
@@ -60,7 +82,8 @@ export const FileInfoPane = () => {
                 <WeblensButton
                     squareSize={20}
                     Left={open ? IconChevronRight : IconChevronLeft}
-                    onClick={() => {
+                    onClick={(e) => {
+                        e.stopPropagation()
                         setOpen(!open)
                     }}
                 />
@@ -72,7 +95,14 @@ export const FileInfoPane = () => {
                         className="resize-bar-wrapper"
                         onMouseDown={(e) => {
                             e.preventDefault()
-                            setResizing(true)
+                            setDragging(DraggingStateT.InterfaceDrag)
+                        }}
+                        onMouseUp={(e) => {
+                            e.stopPropagation()
+                            setDragging(DraggingStateT.NoDrag)
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation()
                         }}
                     >
                         <div className="resize-bar" />
@@ -107,6 +137,7 @@ export const FileInfoPane = () => {
 }
 
 function FileInfo() {
+    const mediaMap = useMediaStore((state) => state.mediaMap)
     const selectedFiles = useFileBrowserStore((state) =>
         Array.from(state.selected.keys())
             .map((fId) => state.filesMap.get(fId))
@@ -126,13 +157,24 @@ function FileInfo() {
     const singleItem = selectedFiles.length === 1
     const itemIsFolder = selectedFiles[0]?.isDir
 
+    const singleFileMedia =
+        singleItem && mediaMap.get(selectedFiles[0].GetContentId())
+
     return (
-        <div className="file-info-content">
+        <div className="file-info-content no-scrollbar">
             <div className="flex flex-row h-[58px] w-full items-center justify-between">
                 <p className="text-2xl font-semibold text-nowrap pr-8">
                     {titleText}
                 </p>
             </div>
+            {singleFileMedia && (
+                <div className="px-[10%]">
+                    <MediaImage
+                        media={singleFileMedia}
+                        quality={PhotoQuality.LowRes}
+                    />
+                </div>
+            )}
             {selectedFiles.length > 0 && (
                 <div className="h-max">
                     <div className="flex flex-row h-full w-full items-center">

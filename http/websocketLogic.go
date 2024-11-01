@@ -46,6 +46,13 @@ func wsConnect(ctx *gin.Context) {
 	usr := getUserFromCtx(ctx)
 	server := getInstanceFromCtx(ctx)
 
+	if ctx.Query("server") == "true" && server == nil {
+		log.Error.Println("Got server websocket query but no server in context")
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+	log.Debug.Println("Got websocket connection", server == nil, usr == nil)
+
 	var client *models.WsClient
 	if server != nil {
 		client = pack.ClientService.RemoteConnect(conn, server)

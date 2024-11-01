@@ -1,14 +1,17 @@
 import {
     IconCalendar,
+    IconColumns,
     IconFileAnalytics,
     IconLayoutGrid,
     IconLayoutList,
     IconSortAscending2,
     IconSortAZ,
     IconSortDescending2,
+    TablerIconsProps,
 } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useFileBrowserStore } from './FBStateControl'
+import { DirViewModeT } from './FileBrowserTypes'
 
 const fileSortTypes = [
     { Name: 'Name', Icon: IconSortAZ },
@@ -16,10 +19,13 @@ const fileSortTypes = [
     { Name: 'Size', Icon: IconFileAnalytics },
 ]
 
-const dirViewModes = [
-    { Name: 'Grid', Icon: IconLayoutGrid },
-    { Name: 'List', Icon: IconLayoutList },
-    // { Name: 'Size', Icon: IconFileAnalytics },
+const dirViewModes: {
+    Mode: DirViewModeT
+    Icon: (props: TablerIconsProps) => JSX.Element
+}[] = [
+    { Mode: DirViewModeT.Grid, Icon: IconLayoutGrid },
+    { Mode: DirViewModeT.List, Icon: IconLayoutList },
+    { Mode: DirViewModeT.Columns, Icon: IconColumns },
 ]
 
 function FileSortBox() {
@@ -68,14 +74,14 @@ function FileSortBox() {
                 {dirViewModes.map((v) => {
                     return (
                         <WeblensButton
-                            key={v.Name}
+                            key={v.Mode}
                             squareSize={40}
                             Left={v.Icon}
-                            toggleOn={v.Name === viewOpts.dirViewMode}
-                            tooltip={v.Name}
+                            toggleOn={v.Mode === viewOpts.dirViewMode}
+                            tooltip={String(DirViewModeT[v.Mode])}
                             onClick={(e) => {
                                 e.stopPropagation()
-                                setViewOpts({ dirViewMode: v.Name })
+                                setViewOpts({ dirViewMode: v.Mode })
                             }}
                         />
                     )

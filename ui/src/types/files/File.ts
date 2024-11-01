@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react'
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { fetchJson } from '@weblens/api/ApiFetch'
+import { useSessionStore } from '@weblens/components/UserInfo'
 import {
     FbModeT,
     useFileBrowserStore,
@@ -70,7 +71,7 @@ export class WeblensFile {
 
     modifyDate?: Date
 
-    children?: string[]
+    childrenIds?: string[]
 
     isDir?: boolean
     pastFile?: boolean
@@ -98,6 +99,9 @@ export class WeblensFile {
         this.hovering = false
         this.modifyDate = new Date(init.modifyTimestamp)
         this.selected = SelectedState.NotSelected
+        if (!this.parents) {
+            this.parents = []
+        }
     }
 
     Id(): string {
@@ -246,7 +250,13 @@ export class WeblensFile {
     }
 
     GetChildren(): string[] {
-        return this.children
+        if (!this.childrenIds) {
+            return []
+        }
+        const trashId = useSessionStore.getState()?.user?.trashId
+        return this.childrenIds.filter((child) => {
+            return child !== trashId
+        })
     }
 
     IsHovering(): boolean {
@@ -318,38 +328,6 @@ export class WeblensFile {
         const shareInfo = await fetchJson<ShareInfo>(url)
         this.share = new WeblensShare(shareInfo)
         return this.share
-    }
-
-    GetVisitRoute(
-        mode: FbModeT,
-        shareId: string,
-        setPresentation: (presentationId: string) => void
-    ) {
-        let timestampQuery = ''
-        const pastTime = useFileBrowserStore.getState().pastTime
-        if (pastTime) {
-            timestampQuery = `?at=${pastTime.getTime().toString()}`
-        }
-
-        if (this.isDir) {
-            if (mode === FbModeT.share && shareId === '') {
-                if (!this.shareId) {
-                    console.log(this)
-                    throw new Error("Trying to navigate to shared file that has no shareId") 
-                }
-                return `/files/share/${this.shareId}/${this.id}`
-            } else if (mode === FbModeT.share) {
-                return `/files/share/${shareId}/${this.id}`
-            } else if (mode === FbModeT.external) {
-                return `/files/external/${this.id}`
-            } else if (mode === FbModeT.default) {
-                return `/files/${this.id}${timestampQuery}`
-            }
-        } else if (this.displayable || !this.displayable) {
-            setPresentation(this.id)
-            return
-        }
-        console.error('Did not find location to visit for', this.filename)
     }
 }
 

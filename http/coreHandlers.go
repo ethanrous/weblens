@@ -165,11 +165,8 @@ func getRemotes(ctx *gin.Context) {
 	serverInfos := internal.Map(
 		remotes, func(srv *models.Instance) models.ServerInfo {
 			addr, _ := srv.GetAddress()
-			var online bool
 			client := pack.ClientService.GetClientByServerId(srv.ServerId())
-			if client != nil && client.Active.Load() {
-				online = true
-			}
+			online := client != nil && client.Active.Load()
 
 			var backupSize int64 = -1
 			if localRole == models.BackupServer {

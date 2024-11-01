@@ -27,3 +27,9 @@ export type FileAction = {
     timestamp: number
 }
 
+export enum DirViewModeT {
+    Grid,
+    List,
+    Columns,
+}
+

@@ -1,11 +1,11 @@
 import { Loader } from '@mantine/core'
 
 export default function WeblensLoader({
-    loading = [],
+    loading,
 }: {
     loading?: string[]
 }) {
-    if (loading.length === 0) {
+    if (loading && loading.length === 0) {
         return null
     }
     return (

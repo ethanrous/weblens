@@ -1,3 +1,4 @@
+import { DirViewModeT } from '@weblens/pages/FileBrowser/FileSortBox'
 import { TasksProgressAction } from '@weblens/pages/FileBrowser/TaskProgress'
 import { GalleryAction } from '@weblens/pages/Gallery/GalleryLogic'
 import WeblensMedia from '@weblens/types/media/Media'
@@ -115,7 +116,7 @@ export type TPDispatchT = Dispatch<TasksProgressAction>
 export type GalleryDispatchT = (action: GalleryAction) => void
 
 export interface FbViewOptsT {
-    dirViewMode: string
+    dirViewMode: DirViewModeT
     sortDirection: number // 1 or -1
     sortFunc: string
 }
