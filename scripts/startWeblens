@@ -43,6 +43,9 @@ if [[ $trace == true ]]; then
 fi
 printf "\n"
 
+# Allow for easy restarts while debugging. If you send a SIGQUIT (Ctrl+\), 
+# it will re[build/start] the server when $restart is true (cmd line option -r).
+trap "" SIGQUIT
 
 while true; do
 
@@ -90,6 +93,7 @@ while true; do
   exit=$?
 
   if [[ $restart == false ]] || [[ $exit != 0 ]]; then
+    echo "Got exist status $exit, exiting..."
     break
   fi
   clear

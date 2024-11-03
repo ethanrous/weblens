@@ -128,6 +128,7 @@ export async function GetFolderData(
     }
 
     if (!contentId) {
+        throw new Error('Tried to get folder with no id')
         console.error('Tried to get folder with no id')
         return
     }

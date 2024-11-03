@@ -24,7 +24,7 @@ export type ServerInfoT = {
     coreAddress: string
     online: boolean
     reportedRole: string
-    lastBackup: number 
+    lastBackup: number
     backupSize: number
 }
 

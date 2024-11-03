@@ -44,12 +44,13 @@
     border-radius: 6px;
     background-color: $item-grey;
     color: $main-text;
-    transition: box-shadow 150ms ease-in-out, outline 150ms ease-in-out, color 150ms ease-in-out;
+    transition: box-shadow 150ms ease-in-out, outline 100ms ease-out, color 150ms ease-in-out;
     box-shadow: $hard-shadow-off;
     outline: 2px solid $dark-paper-transparent;
     user-select: none;
 
-    &[data-row], &[data-column-row] {
+    &[data-row],
+    &[data-column-row] {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
@@ -82,20 +83,21 @@
     &[data-in-range='1'] {
         background-color: var(--dark-paper);
         --wl-text-color: white;
+
+        &[data-last-selected='1'] {
+            outline: 1px solid #999999;
+        }
     }
+
 
     &[data-selected='1'] {
         background-color: $theme-color;
         box-shadow: $hard-shadow;
         --wl-text-color: white;
+
         &[data-current-view='false'] {
             background-color: $item-focus;
         }
-    }
-
-
-    &[data-last-selected='1'] {
-        outline: 2px solid $theme-bright
     }
 
     &[data-droppable='1'] {

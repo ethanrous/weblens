@@ -51,7 +51,7 @@ function FileRow({
     )
 
     return (
-        <div style={style}>
+        <div style={{...style, padding: 4}}>
             <div
                 className="weblens-file animate-fade-short"
                 data-row={true}

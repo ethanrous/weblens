@@ -9,7 +9,6 @@ import {
     IconFolderPlus,
     IconHome,
     IconPlus,
-    IconSearch,
     IconServer,
     IconTrash,
     IconUpload,
@@ -68,7 +67,6 @@ import {
     DirViewWrapper,
     DraggingCounter,
     DropSpot,
-    GetStartedCard,
     TransferCard,
     WebsocketStatus,
 } from './FileBrowserMiscComponents'
@@ -204,7 +202,13 @@ function GlobalActions() {
                 moveFiles(selectedIds, user.homeId)
                 setDragging(DraggingStateT.NoDrag)
             } else {
-                goToFile(new WeblensFile({ id: 'home', isDir: true }), true)
+                goToFile(
+                    new WeblensFile({
+                        id: user.homeId,
+                        isDir: true,
+                    }),
+                    true
+                )
             }
         },
         [selectedIds, draggingState]
@@ -224,7 +228,15 @@ function GlobalActions() {
                 moveFiles(selectedIds, user.trashId)
                 setDragging(DraggingStateT.NoDrag)
             } else {
-                goToFile(new WeblensFile({ id: 'trash', isDir: true }), true)
+                goToFile(
+                    new WeblensFile({
+                        id: user.trashId,
+                        filename: '.user_trash',
+                        isDir: true,
+                        modifiable: false,
+                    }),
+                    true
+                )
             }
         },
         [selectedIds, draggingState]
@@ -233,7 +245,10 @@ function GlobalActions() {
     const [namingFolder, setNamingFolder] = useState(false)
 
     const navToShared = useCallback(() => {
-        goToFile(new WeblensFile({ id: 'shared', isDir: true }), true)
+        goToFile(
+            new WeblensFile({ id: 'shared', filename: 'SHARED', isDir: true }),
+            true
+        )
     }, [])
 
     const navToExternal: ButtonActionHandler = useCallback((e) => {
@@ -299,7 +314,7 @@ function GlobalActions() {
                                     : 0
                             }
                         >
-                            <div className="file-size-box">
+                            <div className="absolute file-size-box">
                                 <p className="file-size-text">{`${trashSizeValue}${trashSizeUnit}`}</p>
                             </div>
                         </div>
@@ -546,36 +561,6 @@ const UsageInfo = () => {
     )
 }
 
-function EmptySearch() {
-    const nav = useNavigate()
-
-    const filename = useFileBrowserStore((state) =>
-        state.folderInfo.GetFilename()
-    )
-    const contentId = useFileBrowserStore((state) => state.contentId)
-    const searchContent = useFileBrowserStore((state) => state.searchContent)
-
-    return (
-        <div className="flex flex-col items-center justify-end h-1/5">
-            <div className="flex flex-row h-max w-max">
-                <p className="text-lg">No items match your search in</p>
-                <IconFolder style={{ marginLeft: 4 }} />
-                <p className="text-lg">{filename}</p>
-            </div>
-            <div className="h-10" />
-            <WeblensButton
-                squareSize={40}
-                centerContent
-                Left={IconSearch}
-                label={'Search all files'}
-                onClick={() => {
-                    nav(`/files/search/${contentId}?query=${searchContent}`)
-                }}
-            />
-        </div>
-    )
-}
-
 const SingleFile = memo(
     ({ file }: { file: WeblensFile }) => {
         if (!file.Id()) {
@@ -679,9 +664,6 @@ function DirView({
     const contentId = useFileBrowserStore((state) => state.contentId)
     const selected = useFileBrowserStore((state) => state.selected)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const filesMap = useFileBrowserStore((state) => state.filesMap)
-    const loading = useFileBrowserStore((state) => state.loading)
-    const searchContent = useFileBrowserStore((state) => state.searchContent)
     const filesList = useFileBrowserStore((state) => state.filesLists)
     const viewOpts = useFileBrowserStore((state) => state.viewOpts)
     const moveDest = useFileBrowserStore((state) => state.moveDest)
@@ -720,19 +702,12 @@ function DirView({
         !folderInfo.IsFolder()
     ) {
         fileDisplay = <SingleFile file={folderInfo} />
-    } else if (
-        loading.length === 0 &&
-        searchContent === '' &&
-        filesMap.size === 0 &&
-        false
-    ) {
-        fileDisplay = <GetStartedCard />
-    } else if (
-        activeList.length === 0 &&
-        loading.length === 0 &&
-        searchContent !== ''
-    ) {
-        fileDisplay = <EmptySearch />
+        // } else if (
+        //     activeList.length === 0 &&
+        //     loading.length === 0 &&
+        //     searchContent !== ''
+        // ) {
+        //     fileDisplay = <EmptySearch />
     } else if (mode === FbModeT.stats) {
         fileDisplay = <StatTree folderInfo={folderInfo} />
     } else if (viewOpts.dirViewMode === DirViewModeT.List) {
@@ -825,7 +800,6 @@ function FileBrowser() {
         blockFocus,
         loading,
         filesMap,
-        filesLists,
         folderInfo,
         presentingId,
         isSearching,
@@ -837,7 +811,6 @@ function FileBrowser() {
         addLoading,
         removeLoading,
         setLocationState,
-        setScrollTarget,
         setSelected,
         setFilesData,
         setBlockFocus,
@@ -851,7 +824,6 @@ function FileBrowser() {
         if (!user) {
             return
         }
-        addLoading('files')
 
         let mode: FbModeT = 0
         let contentId: string = ''
@@ -900,13 +872,6 @@ function FileBrowser() {
             getRealId(contentId, mode, user).then((contentId) => {
                 setLocationState({ contentId, mode, shareId, pastTime, jumpTo })
                 removeLoading('files')
-
-                if (mode !== FbModeT.share || contentId) {
-                    if (jumpTo) {
-                        setScrollTarget(jumpTo)
-                    }
-                    setSelected([jumpTo ? jumpTo : contentId], true)
-                }
             })
         }
     }, [urlPath, user, query('at'), jumpTo])
@@ -919,85 +884,98 @@ function FileBrowser() {
     usePaste(contentId, user, blockFocus)
 
     // Reset most of the state when we change folders
-    const syncState = useCallback(async () => {
-        setFilesFetchErr(0)
-
-        if (!urlPath) {
-            nav('/files/home', { replace: true })
-        }
-
-        if (urlPath === user?.homeId) {
-            const redirect = '/files/home' + window.location.search
-            nav(redirect, { replace: true })
-        }
-
-        // If we're not ready, leave
-        if (fbMode == FbModeT.unset || !user) {
-            console.debug(
-                'Not ready to sync state. Mode: ',
-                fbMode,
-                'User:',
-                user
-            )
+    useEffect(() => {
+        if (contentId === null) {
             return
         }
 
-        if (!user.isLoggedIn && fbMode !== FbModeT.share) {
-            nav('/login', { state: { returnTo: window.location.pathname } })
-        }
+        const syncState = async () => {
+            setFilesFetchErr(0)
 
-        const folder = filesMap.get(contentId)
-        if (
-            folder?.modifiable !== undefined &&
-            folder?.childrenIds &&
-            folder.childrenIds.length === filesLists.get(folder.id)?.length
-        ) {
-            if (folder.Id() !== folderInfo.Id()) {
-                setFilesData({
-                    selfInfo: folder,
-                })
+            if (!urlPath) {
+                nav('/files/home', { replace: true })
             }
-            return
-        }
 
-        addLoading('files')
+            if (urlPath === user?.homeId) {
+                const redirect = '/files/home' + window.location.search
+                nav(redirect, { replace: true })
+            }
 
-        const fileData = await GetFolderData(
-            contentId,
-            fbMode,
-            shareId,
-            pastTime
-        ).catch((r) => {
-            setFilesFetchErr(r)
-        })
-
-        if (fileData) {
-            if (
-                fbMode === FbModeT.share &&
-                fileData.self?.owner == user.username
-            ) {
-                nav(`/files/${fileData.self.id}`, { replace: true })
+            // If we're not ready, leave
+            if (fbMode == FbModeT.unset || !user) {
+                console.debug(
+                    'Not ready to sync state. Mode: ',
+                    fbMode,
+                    'User:',
+                    user
+                )
                 return
             }
 
-            setFilesData({
-                selfInfo: fileData.self,
-                childrenInfo: fileData.children,
-                parentsInfo: fileData.parents,
-                mediaData: fileData.medias,
-                user: user,
-            })
-        }
-    }, [user, contentId, shareId, fbMode, pastTime, jumpTo])
+            if (!user.isLoggedIn && fbMode !== FbModeT.share) {
+                console.debug('Going to login')
+                nav('/login', { state: { returnTo: window.location.pathname } })
+            }
 
-    useEffect(() => {
+            const folder = filesMap.get(contentId)
+            if (folder && folder.modifiable !== undefined) {
+                if (folder.Id() !== folderInfo.Id()) {
+                    setFilesData({
+                        selfInfo: folder,
+                    })
+                }
+                return
+            }
+
+            const fileData = await GetFolderData(
+                contentId,
+                fbMode,
+                shareId,
+                pastTime
+            ).catch((r) => {
+                setFilesFetchErr(r)
+            })
+
+            // If request comes back after we have already navigated away, do nothing
+            if (useFileBrowserStore.getState().contentId !== contentId) {
+                console.error("Content ID don't match")
+                return
+            }
+
+            if (fileData) {
+                if (
+                    fbMode === FbModeT.share &&
+                    fileData.self?.owner == user.username
+                ) {
+                    nav(`/files/${fileData.self.id}`, { replace: true })
+                    return
+                }
+
+                setFilesData({
+                    selfInfo: fileData.self,
+                    childrenInfo: fileData.children,
+                    parentsInfo: fileData.parents,
+                    mediaData: fileData.medias,
+                    user: user,
+                })
+            }
+
+            if (
+                (fbMode !== FbModeT.share || contentId) &&
+                useFileBrowserStore.getState().selected.size === 0
+            ) {
+                setSelected([jumpTo ? jumpTo : contentId], true)
+            }
+        }
+
+        addLoading('files')
         syncState()
             .catch((e) => {
                 console.error(e)
                 setFilesFetchErr(e)
             })
             .finally(() => removeLoading('files'))
-    }, [syncState])
+    }, [user, contentId, shareId, fbMode, pastTime, jumpTo])
 
     return (
         <div className="h-screen flex flex-col">

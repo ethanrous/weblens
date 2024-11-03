@@ -265,17 +265,19 @@ function Crumbs({
         return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
     }
 
-    if (!folderInfo.IsTrash()) {
-        crumbs.push(
-            ...folderInfo.FormatParents().map((parent) => {
-                return {
-                    name: parent.GetFilename(),
-                    id: parent.id,
-                    file: parent,
-                    navigable: true,
-                }
-            })
-        )
+    crumbs.push(
+        ...folderInfo.FormatParents().map((parent) => {
+            return {
+                name: parent.GetFilename(),
+                id: parent.id,
+                file: parent,
+                navigable: true,
+            }
+        })
+    )
+
+    if (folderInfo.IsInTrash()) {
+        crumbs.shift()
     }
 
     // Add the current folder, which is not always navigable

@@ -220,14 +220,20 @@ export class WeblensFile {
     }
 
     IsTrash(): boolean {
-        return this.GetFilename() === '.user_trash'
+        return this.id && this.id === useSessionStore.getState()?.user?.trashId
+    }
+
+    IsInTrash(): boolean {
+        return this.parents
+            .map((parent) => parent.Id())
+            .includes(useSessionStore.getState()?.user?.trashId)
     }
 
     GetOwner(): string {
         return this.owner
     }
 
-    SetSelected(selected: SelectedState, override = false): void {
+    SetSelected(selected: SelectedState, override: boolean = false): void {
         if (override) {
             this.selected = selected
             return

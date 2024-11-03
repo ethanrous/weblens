@@ -177,7 +177,9 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 	}
 
 	children := dir.GetChildren()
-	medias, err := getChildMedias(pack, children)
+
+	mediaFiles := append(children, dir)
+	medias, err := getChildMedias(pack, mediaFiles)
 	if err != nil {
 		safe, code := werror.TrySafeErr(err)
 		ctx.JSON(code, safe)

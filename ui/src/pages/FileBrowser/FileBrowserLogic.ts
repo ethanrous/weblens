@@ -325,7 +325,10 @@ export const useKeyDownFileBrowser = () => {
                     (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
                 ) {
                     event.preventDefault()
-                    if (viewMode === DirViewModeT.Columns || !presentingTarget) {
+                    if (
+                        viewMode === DirViewModeT.Columns ||
+                        !presentingTarget
+                    ) {
                         return
                     }
                     let direction = 0

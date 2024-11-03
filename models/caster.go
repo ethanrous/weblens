@@ -217,18 +217,17 @@ func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postM
 	msg := WsResponseInfo{
 		EventTag:      FileMovedEvent,
 		SubscribeKey:  preMoveFile.GetParentId(),
-		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
+		Content:       WsC{"fileInfo": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
 		SentTime:      time.Now().Unix(),
 	}
-
 	c.msgChan <- msg
 
 	msg = WsResponseInfo{
 		EventTag:      FileMovedEvent,
 		SubscribeKey:  postMoveFile.GetParentId(),
-		Content:       WsC{"oldId": preMoveFile.ID(), "newFile": postMoveFile},
+		Content:       WsC{"fileInfo": postMoveFile},
 		Error:         "",
 		BroadcastType: FolderSubscribe,
 		SentTime:      time.Now().Unix(),

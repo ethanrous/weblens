@@ -4,7 +4,9 @@ import (
 	"errors"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/ethanrous/weblens/database"
@@ -200,6 +202,15 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 
 	log.Trace.Println("Service setup complete")
 	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+
+	// If we're in debug mode, wait for a SIGQUIT to exit,
+	// this is to allow for easy restarting of the server
+	if log.GetLogLevel() >= log.DEBUG {
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGQUIT)
+		<-sigs
+		os.Exit(0)
+	}
 }
 
 func mainRecovery(msg string) {

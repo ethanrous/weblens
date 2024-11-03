@@ -46,9 +46,15 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
     let selState = useFileBrowserStore((state) => {
         return state.filesMap.get(file?.Id())?.GetSelectedState()
     })
-    if (p.data.selectedChildId && file.Id() === p.data.selectedChildId) {
+
+    if (
+        file.IsFolder() &&
+        p.data.selectedChildId &&
+        file.Id() === p.data.selectedChildId
+    ) {
         selState = SelectedState.Selected
     }
+
     const [fileRef, setFileRef] = useState<HTMLDivElement>()
 
     const {
@@ -67,19 +73,17 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
     } = useFileBrowserStore()
 
     useEffect(() => {
-        if (file.Id() === lastSelectedId) {
-            if (fileRef) {
-                fileRef.scrollIntoView({
-                    behavior: 'instant',
-                    block: 'nearest',
-                    inline: 'nearest',
-                })
-            }
+        if (file.IsFolder() && file.Id() === lastSelectedId && fileRef) {
+            fileRef.scrollIntoView({
+                behavior: 'instant',
+                block: 'nearest',
+                inline: 'nearest',
+            })
         }
     }, [lastSelectedId])
 
     return (
-        <div ref={setFileRef} style={p.style}>
+        <div ref={setFileRef} style={{ ...p.style, padding: 4 }}>
             <div
                 key={file.Id()}
                 className="weblens-file animate-fade-short"
@@ -89,9 +93,12 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
                 data-in-range={(selState & SelectedState.InRange) >> 1}
                 data-selected={(selState & SelectedState.Selected) >> 2}
                 data-last-selected={
-                    (selState & SelectedState.LastSelected) >> 3 && selected.size < 2
+                    (selState & SelectedState.LastSelected) >> 3
                 }
-                data-current-view={file.Id() === lastSelectedId}
+                data-current-view={
+                    file.Id() === lastSelectedId ||
+                    file.parentId === folderInfo.Id()
+                }
                 data-droppable={(selState & SelectedState.Droppable) >> 4}
                 data-moved={(selState & SelectedState.Moved) >> 5}
                 onMouseOver={(e: MouseEvent<HTMLDivElement>) =>
@@ -123,6 +130,7 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
                 onContextMenu={(e) => fileHandleContextMenu(e, setMenu, file)}
                 onClick={(e) => {
                     e.stopPropagation()
+                    return
                     if (draggingState) {
                         return
                     }
@@ -185,30 +193,42 @@ function Preview({ file }: { file: WeblensFile }) {
     const media = useMediaStore((state) =>
         state.mediaMap.get(file?.GetContentId())
     )
+    const [previewRef, setPreviewRef] = useState<HTMLDivElement>()
 
-    if (!file || file.IsFolder()) {
-        return null
-    }
+    useEffect(() => {
+        if (!file?.IsFolder()) {
+            previewRef?.scrollIntoView({
+                behavior: 'instant',
+                block: 'nearest',
+                inline: 'start',
+            })
+        }
+    }, [file, previewRef])
 
     return (
         <div
             className="flex flex-col w-full p-4"
+            ref={setPreviewRef}
             onClick={(e) => e.stopPropagation()}
         >
-            <div className="flex justify-center items-center w-full p-4 h-[75%]">
-                {media && (
-                    <MediaImage
-                        media={media}
-                        quality={PhotoQuality.LowRes}
-                        fitLogic="contain"
-                    />
-                )}
-                {!media && <IconFile />}
-            </div>
-            <div>
-                <p>{file.GetFilename()}</p>
-                <p>{humanFileSize(file.size)}</p>
-            </div>
+            {file && !file.IsFolder() && (
+                <div className="h-full">
+                    <div className="flex justify-center items-center w-full p-4 h-[75%]">
+                        {media && (
+                            <MediaImage
+                                media={media}
+                                quality={PhotoQuality.LowRes}
+                                fitLogic="contain"
+                            />
+                        )}
+                        {!media && <IconFile size={200} />}
+                    </div>
+                    <div>
+                        <p>{file.GetFilename()}</p>
+                        <p>{humanFileSize(file.size)}</p>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -217,11 +237,13 @@ function Column({
     files,
     parentId,
     selectedChildId,
+    scrollOffset,
     setColSize,
 }: {
     files: WeblensFile[]
     parentId: string
     selectedChildId: string
+    scrollOffset: number
     setColSize: (size: number) => void
 }) {
     const { fbMode, shareId, folderInfo, filesMap, setFilesData } =
@@ -249,6 +271,7 @@ function Column({
             setLoading(false)
             return
         }
+
         setLoading(true)
 
         const fetch = async () => {
@@ -279,7 +302,7 @@ function Column({
                 user,
             })
         }
-        fetch()
+        fetch().then(() => setLoading(false))
     }, [folderInfo, files.length])
 
     const [boxRef, setBoxRef] = useState<HTMLDivElement>()
@@ -306,6 +329,16 @@ function Column({
             listRef.current.scrollToItem(child ? child.GetIndex() : 0)
         }
     }, [selectedChildId])
+
+    useEffect(() => {
+        if (boxRef && !selectedChildId) {
+            boxRef.scrollIntoView({
+                behavior: 'instant',
+                block: 'nearest',
+                inline: 'nearest',
+            })
+        }
+    }, [boxRef])
 
     return (
         <div
@@ -365,7 +398,10 @@ function Column({
                     {ColumnRow}
                 </WindowList>
             )}
-            <ColumnResizer setColSize={setColSize} left={boxRef?.offsetLeft} />
+            <ColumnResizer
+                setColSize={setColSize}
+                left={boxRef?.offsetLeft - scrollOffset}
+            />
         </div>
     )
 }
@@ -439,10 +475,18 @@ function FileColumns() {
     const filesLists = useFileBrowserStore((state) => state.filesLists)
     const filesMap = useFileBrowserStore((state) => state.filesMap)
     const lastSelectedId = useFileBrowserStore((state) => state.lastSelectedId)
+    const hoveringId = useFileBrowserStore((state) => state.hoveringId)
+    const selected = useFileBrowserStore((state) => state.selected)
     const mode = useFileBrowserStore((state) => state.fbMode)
+    const setSelected = useFileBrowserStore((state) => state.setSelected)
+    const setHovering = useFileBrowserStore((state) => state.setHovering)
+    const setLastSelected = useFileBrowserStore(
+        (state) => state.setLastSelected
+    )
+    const user = useSessionStore((state) => state.user)
+
     const clearFiles = useFileBrowserStore((state) => state.clearFiles)
 
-    const [endRef, setEndRef] = useState<HTMLDivElement>()
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const [colWidths, setColWidths] = useState([])
 
@@ -460,21 +504,21 @@ function FileColumns() {
     useKeyDown(
         (e: KeyboardEvent) =>
             [
-                'ArrowLeft',
-                'ArrowRight',
-                'ArrowDown',
-                'ArrowUp',
+                'arrowleft',
+                'arrowright',
+                'arrowdown',
+                'arrowup',
                 'h',
                 'j',
                 'k',
                 'l',
-            ].includes(e.key),
+            ].includes(e.key.toLowerCase()),
         (e) => {
             e.stopPropagation()
             e.preventDefault()
 
             // Allow for vim keybindings
-            let key = e.key
+            let key = e.key.toLowerCase()
             if (key === 'h') {
                 key = 'ArrowLeft'
             } else if (key === 'j') {
@@ -499,13 +543,19 @@ function FileColumns() {
 
             let nextItem: WeblensFile
 
-            if (!lastSelectedId || !lastSelected) {
-                console.error('No lastSelected in column keydown')
-                return
-            }
-
             if (key === 'ArrowLeft') {
-                nextItem = filesMap.get(lastSelected.parentId)
+                if (lastSelected) {
+                    nextItem = filesMap.get(lastSelected.parentId)
+                } else {
+                    nextItem = filesMap.get(folderInfo.Id())
+                }
+            } else if (!lastSelectedId || !lastSelected) {
+                if (selected.size === 0) {
+                    nextItem = filesLists.get(folderInfo.Id())[0]
+                } else {
+                    console.error('No lastSelected in column keydown')
+                    return
+                }
             } else if (key === 'ArrowRight') {
                 if (!lastSelected.isDir) {
                     return
@@ -519,17 +569,41 @@ function FileColumns() {
             } else if (key === 'ArrowDown' || key === 'ArrowUp') {
                 if (
                     key === 'ArrowDown' &&
-                    folderInfo.Id() ===
-                        useSessionStore.getState().user.homeId &&
-                    lastSelectedId === folderInfo.Id()
+                    lastSelectedId === folderInfo.Id() &&
+                    folderInfo.Id() === user.homeId
                 ) {
-                    clearFiles()
-                    useFileBrowserStore.getState().nav('/files/shared')
+                    goToFile(
+                        new WeblensFile({
+                            id: 'share',
+                            filename: 'Shared',
+                            isDir: true,
+                        }),
+                        true
+                    )
+                    return
+                } else if (
+                    key === 'ArrowUp' &&
+                    lastSelectedId === folderInfo.Id() &&
+                    folderInfo.Id() === user.trashId
+                ) {
+                    goToFile(
+                        new WeblensFile({
+                            id: 'shared',
+                            filename: 'SHARED',
+                            isDir: true,
+                        }),
+                        true
+                    )
                     return
                 }
 
+                let target = lastSelected
+                if (selected.size > 1 && hoveringId) {
+                    target = filesMap.get(hoveringId)
+                }
+
                 const nextIndex =
-                    lastSelected.GetIndex() + (key === 'ArrowDown' ? 1 : -1)
+                    target.GetIndex() + (key === 'ArrowDown' ? 1 : -1)
                 if (nextIndex < 0) {
                     // We are already at the top, so we can't go up
                     return
@@ -541,6 +615,17 @@ function FileColumns() {
                 }
 
                 nextItem = currentCol[nextIndex]
+
+                if (e.shiftKey) {
+                    setHovering(nextItem.Id())
+                    setSelected([nextItem.Id()])
+                    return
+                }
+                if (selected.size > 1) {
+                    setLastSelected(nextItem.Id())
+                    setHovering(nextItem.Id())
+                    return
+                }
             }
             if (!nextItem) {
                 console.error('No nextItem in column keydown')
@@ -558,6 +643,14 @@ function FileColumns() {
         const lists: { parentId: string; files: WeblensFile[] }[] = []
         const parents = [...folderInfo.parents]
         parents.push(folderInfo)
+        if (
+            parents.length > 1 &&
+            parents[1].Id() === user.trashId &&
+            parents[0].Id() === user.homeId
+        ) {
+            parents.shift()
+        }
+
         for (const p of parents) {
             const files = filesLists.get(p.Id())
             if (!files) {
@@ -584,17 +677,17 @@ function FileColumns() {
         })
     }, [lists])
 
-    const size = useResize(containerRef)
-    useEffect(() => {
-        return
-        if (endRef) {
-            endRef.scrollIntoView({
-                behavior: 'instant',
-                block: 'nearest',
-                inline: 'start',
-            })
-        }
-    }, [size.width, lists.length])
+    // const size = useResize(containerRef)
+    // useEffect(() => {
+    //     return
+    //     if (endRef) {
+    //         endRef.scrollIntoView({
+    //             behavior: 'instant',
+    //             block: 'nearest',
+    //             inline: 'start',
+    //         })
+    //     }
+    // }, [size.width, lists.length])
 
     if (lists && lists.length < 2 && !lists[0]?.files?.length) {
         return <GetStartedCard />
@@ -622,6 +715,7 @@ function FileColumns() {
                             files={col.files}
                             parentId={col.parentId}
                             selectedChildId={selectedChildId}
+                            scrollOffset={containerRef?.scrollLeft}
                             setColSize={(size: number) =>
                                 setColWidths((w) => {
                                     w[i] = size
@@ -638,7 +732,6 @@ function FileColumns() {
             >
                 <Preview file={lastSelected} />
             </div>
-            <div ref={setEndRef} />
         </div>
     )
 }

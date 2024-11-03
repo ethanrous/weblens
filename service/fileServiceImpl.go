@@ -355,6 +355,10 @@ func (fs *FileServiceImpl) MoveFilesToTrash(
 
 	trashId := fs.GetFileOwner(files[0]).TrashId
 	trash, err := fs.getFileByIdAndRoot(trashId, "USERS")
+	if err != nil {
+		return err
+	}
+
 	event := fs.trees["USERS"].GetJournal().NewEvent()
 
 	oldParent := files[0].GetParent()

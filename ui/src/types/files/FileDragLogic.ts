@@ -88,9 +88,13 @@ export function handleMouseUp(
         setDragging(DraggingStateT.NoDrag)
     }
 
-    if (viewMode === DirViewModeT.Columns) {
+    const state = useFileBrowserStore.getState()
+    if (!state.holdingShift && viewMode === DirViewModeT.Columns) {
         goToFile(file, true)
+    } else if (state.holdingShift) {
+        state.setSelected([file.Id()], false)
     }
+
     setMouseDown(null)
 }
 
@@ -137,17 +141,17 @@ export function handleMouseOver(
     }
 }
 
-export function goToFile(
-    next: WeblensFile,
-    allowBlindHop: boolean = false,
-    scrollToEnd: () => void = () => {}
-) {
+export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
     if (!next) {
         console.error('goToFile called with no next file')
         return
     }
 
     const state = useFileBrowserStore.getState()
+
+    if (state.holdingShift) {
+        return
+    }
 
     if (!state.folderInfo && allowBlindHop) {
         state.clearFiles()
@@ -161,12 +165,12 @@ export function goToFile(
     const parents = state.folderInfo ? [...state.folderInfo.parents] : []
     if (next.IsFolder()) {
         state.setPresentationTarget('')
-        if (next.parentId === state.folderInfo?.Id()) {
+        if (next.parentId && next.parentId === state.folderInfo?.Id()) {
             // If the next files parent is the currentFolder, we can set the parents
             // based on what we already have, and add the currentFolder to the list.
             parents.push(state.folderInfo)
             next.parents = parents
-        } else if (parents.map((p) => p.Id()).includes(next.Id())) {
+        } else if (next.parentId && parents.map((p) => p.Id()).includes(next.Id())) {
             // If the next file is the current folders parent of any distance (i.e. we are going up a level)
             while (
                 parents.length &&
@@ -180,15 +184,12 @@ export function goToFile(
             // is trivial, just just select the parent and nothing else
             next = state.folderInfo
         } else if (next.parentId === state.folderInfo?.parentId) {
-            // if (state.presentingId) {
-            //     state.setPresentationTarget(next.Id())
-            // }
             next.parents = [...state.folderInfo.parents]
         } else if (allowBlindHop) {
             // If we can't find a way to quickly navigate to the next file, we can just reload the page
             // at the new location. We need to clear the current files
-            state.clearFiles()
             state.nav('/files/' + next.Id())
+            state.clearFiles()
             return
         } else {
             console.error(
@@ -196,24 +197,36 @@ export function goToFile(
             )
             return
         }
+        next.modifiable = true
+        next.parents = next.parents.map((p) => (state.filesMap.get(p.Id())))
 
-        state.setFilesData({ selfInfo: next })
-        state.setLocationState({ contentId: next.Id() })
+        state.setFilesData({ selfInfo: next, overwriteContentId: true })
     } else {
         // If the next is not a folder, we can set the location to the parent of the next file,
         // with the child as the "jumpTo" parameter. If the parent is the same as the current folder,
         // this is just a simple state change, and we don't need to fetch any new data
 
+        let newParent = state.folderInfo
+
         if (next.parentId !== state.folderInfo?.Id()) {
-            const p = useFileBrowserStore.getState().filesMap.get(next.parentId)
-            if (p) {
+            newParent = useFileBrowserStore
+                .getState()
+                .filesMap.get(next.parentId)
+            if (newParent) {
+                while (
+                    parents.length &&
+                    parents[parents.length - 1].Id() !== newParent.Id()
+                ) {
+                    parents.pop()
+                }
                 parents.pop()
 
-                p.parents = parents
-                state.setFilesData({ selfInfo: p })
+                newParent.parents = parents
             } else if (allowBlindHop) {
+                console.debug('Doing blind hop to', next.GetFilename())
                 state.clearFiles()
                 state.nav('/files/' + next.parentId + '#' + next.Id())
+                return
             } else {
                 console.error(
                     'BAD! goToFile did not find a valid state update rule'
@@ -224,8 +237,9 @@ export function goToFile(
             state.setPresentationTarget(next.Id())
         }
 
-        state.setLocationState({ contentId: next.parentId, jumpTo: next.Id() })
+        next.parents = next.parents.map((p) => (state.filesMap.get(p.Id())))
+        state.setFilesData({ selfInfo: newParent, overwriteContentId: true })
+        state.setLocationState({ contentId: newParent.Id(), jumpTo: next.Id() })
     }
     state.setSelected([next.Id()], true)
-    scrollToEnd()
 }

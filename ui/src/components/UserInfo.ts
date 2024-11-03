@@ -39,6 +39,7 @@ const useR = () => {
                 .catch((r) => {
                     setUserInfo({ isLoggedIn: false } as UserInfoT)
                     if (r === 401) {
+                        console.debug('Going to login')
                         nav('/login')
                     }
                     console.error(r)

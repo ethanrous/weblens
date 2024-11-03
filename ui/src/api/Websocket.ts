@@ -14,7 +14,10 @@ import {
     SubToFolder,
     UnsubFromFolder,
 } from './FileBrowserApi'
-import { TaskStageT, useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
+import {
+    TaskStageT,
+    useTaskState,
+} from '@weblens/pages/FileBrowser/TaskStateControl'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -75,7 +78,6 @@ export const useSubscribe = (cId: string, sId: string, usr: UserInfoT) => {
         useShallow((state) => ({
             addFile: state.addToFilesMap,
             updateFile: (f) => state.updateFile(f, usr),
-            replaceFile: state.replaceFile,
             deleteFile: state.deleteFile,
         }))
     )
@@ -193,7 +195,6 @@ export function HandleWebsocketMessage(
 export interface FBSubscribeDispatchT {
     addFile: (info: WeblensFileParams) => void
     updateFile: (info: WeblensFileParams) => void
-    replaceFile: (oldId: string, newInfo: WeblensFileParams) => void
     deleteFile: (fileId: string) => void
 }
 
@@ -238,6 +239,7 @@ function filebrowserWebsocketHandler(
                 break
             }
 
+            case WsMsgEvent.FileMovedEvent:
             case WsMsgEvent.FileUpdatedEvent: {
                 if (msgData.content.mediaData) {
                     const newM = new WeblensMedia(msgData.content.mediaData)
@@ -256,23 +258,6 @@ function filebrowserWebsocketHandler(
                         msgData.content.fileInfo,
                         useSessionStore.getState().user
                     )
-                break
-            }
-
-            // moved is different from updated because the Id of the file will change
-            case WsMsgEvent.FileMovedEvent: {
-                if (
-                    msgData.content.oldId === undefined ||
-                    msgData.content.newFile === undefined
-                ) {
-                    console.error('FileMovedEvent missing oldId or newFile')
-                    break
-                }
-
-                dispatch.replaceFile(
-                    msgData.content.oldId,
-                    msgData.content.newFile
-                )
                 break
             }
 

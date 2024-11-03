@@ -52,11 +52,6 @@ export const MediaImage = memo(
         const { playtime, isPlaying, isWaiting } = useVideo(videoRef)
 
         useEffect(() => {
-            console.log("HERE!")
-            // if (media && media.Id() && src.id !== media.Id()) {
-            //     setUrl({ url: '', id: media.Id() })
-            // }
-
             if (
                 media.GetMediaType() &&
                 doFetch &&

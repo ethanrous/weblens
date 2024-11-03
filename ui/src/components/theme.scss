@@ -15,15 +15,11 @@ $theme-color-transparent: #3600cc00;
 $theme-dull: #1c1049;
 $theme-bright: #2549ff;
 
-//$theme-outline: 2px solid light-dark(#4444ff, #4444ff);
 $theme-outline: light-dark($main-accent, #4444ff);
 $theme-outline-transparent: light-dark($main-accent-transparent, #4444ff00);
 
 $background: light-dark(#fafafa, #111418);
 $background-transparent: light-dark(#eeeeee00, #11141800);
-//var(--dark-paper): light-dark(#1c1049, #1c1049);
-//var(--dark-paper): light-dark(#7274d6, #1c1049);
-//var(--dark-paper): light-dark(#1c1049, #1c1049);
 $dark-paper-transparent: light-dark(#4b2fb900, #1c104900);
 $light-paper: light-dark(#240f77, #381eaa);
 $light-paper-transparent: light-dark(#240f7700, #381eaa00);

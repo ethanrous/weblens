@@ -12,6 +12,7 @@ import { create, StateCreator } from 'zustand'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { NavigateFunction, NavigateOptions, To } from 'react-router-dom'
 import { DirViewModeT } from './FileBrowserTypes'
+import { devtools } from 'zustand/middleware'
 
 export enum FbModeT {
     unset,
@@ -41,6 +42,23 @@ export type SetViewOptionsT = ({
     sortDirection?: number
     dirViewMode?: DirViewModeT
 }) => void
+
+type setFilesDataOptsT = {
+    selfInfo?: WeblensFileParams | WeblensFile
+    childrenInfo?: WeblensFileParams[]
+    parentsInfo?: WeblensFileParams[]
+    mediaData?: MediaDataT[]
+    user?: UserInfoT
+    overwriteContentId?: boolean
+}
+
+type setLocationStateOptsT = {
+    contentId: string
+    mode?: FbModeT
+    shareId?: string
+    pastTime?: Date
+    jumpTo?: string
+}
 
 export interface FileBrowserStateT {
     filesMap: Map<string, WeblensFile>
@@ -89,9 +107,7 @@ export interface FileBrowserStateT {
 
     addToFilesMap: (file: WeblensFileParams) => void
     updateFile: (fileParams: WeblensFileParams, user: UserInfoT) => void
-    replaceFile: (oldId: string, newParams: WeblensFileParams) => void
     deleteFile: (fileId: string) => void
-
     addLoading: (loading: string) => void
     removeLoading: (loading: string) => void
     setHoldingShift: (holdingShift: boolean) => void
@@ -101,13 +117,7 @@ export interface FileBrowserStateT {
         shareId,
         pastTime,
         jumpTo,
-    }: {
-        contentId: string
-        mode?: FbModeT
-        shareId?: string
-        pastTime?: Date
-        jumpTo?: string
-    }) => void
+    }: setLocationStateOptsT) => void
     clearFiles: () => void
     setSearch: (searchContent: string) => void
     setFilesData: ({
@@ -116,14 +126,8 @@ export interface FileBrowserStateT {
         parentsInfo,
         mediaData,
         user,
-    }: {
-        selfInfo?: WeblensFileParams | WeblensFile
-        childrenInfo?: WeblensFileParams[]
-        parentsInfo?: WeblensFileParams[]
-        mediaData?: MediaDataT[]
-        user?: UserInfoT
-    }) => void
-    setScrollTarget: (scrollTarget: string) => void
+        overwriteContentId,
+    }: setFilesDataOptsT) => void
     setSelected: (selected: string[], exclusive?: boolean) => void
     selectAll: () => void
     clearSelected: () => void
@@ -133,6 +137,7 @@ export interface FileBrowserStateT {
     setPastTime: (pastTime: Date) => void
     setMoveDest: (dest: string) => void
     setHovering: (hovering: string) => void
+    setLastSelected: (lastSelectedId: string) => void
     setSelectedMoved: (movedIds?: string[]) => void
     setIsSearching: (isSearching: boolean) => void
     setNumCols: (cols: number) => void
@@ -258,18 +263,28 @@ function selectInRange(
     startFile: WeblensFile,
     endFile: WeblensFile,
     selectMode: SelectedState,
-    files: WeblensFile[]
+    files: WeblensFile[],
+    selectedMap: Map<string, boolean>,
+    remove: boolean = false
 ) {
     let startIndex = startFile.GetIndex()
     let endIndex = endFile.GetIndex()
 
     if (endIndex < startIndex) {
         // Swap the 2 if end index is before the start
-        [startIndex, endIndex] = [endIndex, startIndex]
+        ;[startIndex, endIndex] = [endIndex, startIndex]
     }
 
     for (let index = startIndex; index <= endIndex; index++) {
-        files[index].SetSelected(selectMode, true)
+        if (selectMode === SelectedState.Selected && !remove) {
+            selectedMap.set(files[index].Id(), true)
+        }
+
+        if (remove) {
+            files[index].UnsetSelected(selectMode)
+        } else {
+            files[index].SetSelected(selectMode)
+        }
     }
 }
 
@@ -281,38 +296,178 @@ function calculateMultiSelectHint(
     if (!state.lastSelectedId) {
         return state
     }
-    console.log('HERE?')
 
     const lastSelected = state.filesMap.get(state.lastSelectedId)
-
-    let activeList = state.filesLists.get(lastSelected.ParentId())
-    if (!activeList) {
-        activeList = state.filesLists.get(state.contentId)
-    }
-
     const lastHovering = state.filesMap.get(state.hoveringId)
 
-    const hovering = state.filesMap.get(hoveringId)
+    let hovering: WeblensFile
+    if (hoveringId) {
+        hovering = state.filesMap.get(hoveringId)
+    }
+
+    let activeList = state.filesLists.get(
+        hovering ? hovering.ParentId() : lastHovering?.ParentId()
+    )
+    if (!activeList) {
+        activeList = state.filesLists.get(state.folderInfo.Id())
+    }
 
     if (
         hovering &&
-        lastSelected &&
-        hovering.ParentId() !== lastSelected.ParentId()
+        !select &&
+        hovering?.ParentId() !== lastSelected?.ParentId()
     ) {
         return state
     }
 
+    if (
+        lastHovering &&
+        lastSelected &&
+        lastHovering.ParentId() === lastSelected.ParentId()
+    ) {
+        selectInRange(
+            lastHovering,
+            lastSelected,
+            SelectedState.InRange,
+            activeList,
+            state.selected,
+            true
+        )
+    }
+
+    if (hovering) {
+        hovering.SetSelected(SelectedState.Hovering)
+    }
+
     if (hoveringId && state.holdingShift) {
-        const selectMode = select ? SelectedState.Selected : SelectedState.InRange
-        selectInRange(hovering, lastSelected, selectMode, activeList)
+        const selectMode = select
+            ? SelectedState.Selected
+            : SelectedState.InRange
+
+        selectInRange(
+            hovering,
+            lastSelected,
+            selectMode,
+            activeList,
+            state.selected
+        )
     } else if (hovering) {
-        selectInRange(hovering, lastSelected, SelectedState.InRange, activeList)
+        // selectInRange(hovering, lastSelected, SelectedState.InRange, activeList)
     }
 
     return state
 }
 
-const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
+function setLocation(
+    { contentId, shareId, mode, pastTime, jumpTo }: setLocationStateOptsT,
+    state: FileBrowserStateT
+): Partial<FileBrowserStateT> {
+    const homeId: string = useSessionStore.getState().user.homeId
+    const trashId: string = useSessionStore.getState().user.trashId
+
+    state.fbMode = mode ? mode : state.fbMode
+    state.shareId = shareId ? shareId : state.shareId
+
+    // Doing a lot of navigation (like if the user is standing on the "next" key)
+    // can cause the browser to lag or hang, so we debounce the navigation ~400ms
+    if (state.navTimer) {
+        clearTimeout(state.navTimer)
+    }
+    state.navTimer = setTimeout(() => {
+        const path = window.location.pathname + (window.location.hash ?? '')
+
+        let shouldBe = `/files/${contentId}`
+        if (state.fbMode === FbModeT.share) {
+            shouldBe = '/files/share'
+            if (shareId) {
+                shouldBe += shareId + '/' + contentId
+            }
+        }
+
+        if (jumpTo) {
+            shouldBe += `#${jumpTo}`
+        }
+
+        if (shouldBe === '/files' || shouldBe.startsWith(`/files/${homeId}`)) {
+            shouldBe = shouldBe.replace(`/files/${homeId}`, '/files/home')
+        } else if (shouldBe.startsWith(`/files/${trashId}`)) {
+            shouldBe = shouldBe.replace(`/files/${trashId}`, '/files/trash')
+        }
+
+        if (path !== shouldBe) {
+            state.nav(shouldBe)
+        }
+    }, 200)
+
+    // If we are moving out of a folder, and no longer need the children,
+    // clear the list for that folder
+    if (
+        contentId !== state.contentId &&
+        state.filesMap.get(state.contentId)?.parentId !== contentId &&
+        state.filesMap.get(contentId)?.parentId !== state.contentId
+    ) {
+        state.filesLists.delete(state.contentId)
+    }
+
+    return {
+        contentId: contentId,
+        fbMode: state.fbMode,
+        shareId: state.shareId,
+        lastSelectedId: jumpTo ? jumpTo : contentId,
+        pastTime: pastTime ? pastTime : state.pastTime,
+        jumpTo: jumpTo ? jumpTo : state.jumpTo,
+        filesLists: new Map<string, WeblensFile[]>(state.filesLists),
+        navTimer: state.navTimer,
+    }
+}
+
+function deleteFile(
+    fileId: string,
+    state: FileBrowserStateT
+): FileBrowserStateT {
+    const existing = state.filesMap.get(fileId)
+
+    state.filesMap.delete(fileId)
+    state.selected.delete(fileId)
+
+    if (state.lastSelectedId === fileId) {
+        state.lastSelectedId = ''
+    }
+    if (state.jumpTo === fileId) {
+        state.jumpTo = ''
+    }
+
+
+    const parent = state.filesMap.get(existing.parentId)
+    if (parent) {
+        const childrenIds = parent.childrenIds
+        const index = childrenIds.indexOf(existing.Id())
+        if (index > -1) {
+            childrenIds.splice(index, 1)
+        } else {
+            console.error(
+                'Did not find expected child to remove: ',
+                existing.Id()
+            )
+        }
+        parent.childrenIds = childrenIds
+        state.filesMap.set(parent.Id(), parent)
+    }
+
+    state.filesLists = getSortedFilesLists(
+        state.filesMap,
+        state.viewOpts.sortFunc,
+        state.viewOpts.sortDirection
+    )
+
+    return state
+}
+
+const FBStateControl: StateCreator<
+    FileBrowserStateT,
+    [],
+    [['zustand/devtools', never]]
+> = devtools((set) => ({
     filesMap: new Map<string, WeblensFile>(),
     selected: new Map<string, boolean>(),
     folderInfo: null,
@@ -388,73 +543,29 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 return { trashDirSize: fileParams.size }
             }
 
+            const existing = state.filesMap.get(fileParams.id)
+
             const file = new WeblensFile(fileParams)
-            state.filesMap.set(file.Id(), file)
-
-            return {
-                filesLists: getSortedFilesLists(
-                    state.filesMap,
-                    state.viewOpts.sortFunc,
-                    state.viewOpts.sortDirection
-                ),
-                filesMap: new Map<string, WeblensFile>(state.filesMap),
-            }
-        })
-    },
-
-    replaceFile: (oldId: string, newInfo: WeblensFileParams) => {
-        set((state) => {
-            state.filesMap.delete(oldId)
-            state.selected.delete(oldId)
-
-            const newF = new WeblensFile(newInfo)
-
-            if (state.folderInfo.Id() === newInfo.parentId) {
-                if (state.lastSelectedId === oldId) {
-                    state.lastSelectedId = newF.Id()
-                }
-                state.filesMap.set(newInfo.id, newF)
-            } else if (state.lastSelectedId === oldId) {
-                state.lastSelectedId = ''
-                return {
-                    filesMap: new Map<string, WeblensFile>(state.filesMap),
-                    selected: new Map<string, boolean>(state.selected),
-                    lastSelectedId: '',
-                }
+            if (existing && existing.parentId !== file.parentId) {
+                state = deleteFile(existing.Id(), state)
+            } else if (existing) {
+                file.modifiable = existing.modifiable
+                file.index = existing.index
+                file.SetSelected(existing.GetSelectedState(), true)
+                state.filesMap.set(file.Id(), file)
             }
 
             return {
+                ...state,
+                filesLists: new Map<string, WeblensFile[]>(state.filesLists),
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
                 selected: new Map<string, boolean>(state.selected),
-                lastSelectedId: state.lastSelectedId,
-                filesLists: getSortedFilesLists(
-                    state.filesMap,
-                    state.viewOpts.sortFunc,
-                    state.viewOpts.sortDirection
-                ),
             }
         })
     },
 
     deleteFile: (fileId: string) => {
-        set((state) => {
-            state.filesMap.delete(fileId)
-            state.selected.delete(fileId)
-
-            if (state.lastSelectedId === fileId) {
-                state.lastSelectedId = ''
-            }
-
-            return {
-                filesMap: new Map<string, WeblensFile>(state.filesMap),
-                selected: new Map<string, boolean>(state.selected),
-                filesLists: getSortedFilesLists(
-                    state.filesMap,
-                    state.viewOpts.sortFunc,
-                    state.viewOpts.sortDirection
-                ),
-            }
-        })
+        set((state) => ({ ...deleteFile(fileId, state) }))
     },
 
     removeLoading: (loading: string) =>
@@ -480,97 +591,21 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             }
         }),
 
-    setLocationState: ({
-        contentId,
-        mode,
-        shareId,
-        pastTime,
-        jumpTo,
-    }: {
-        contentId: string
-        mode?: FbModeT
-        shareId?: string
-        pastTime?: Date
-        jumpTo?: string
-    }) => {
-        set((state) => {
-            const homeId: string = useSessionStore.getState().user.homeId
-            const trashId: string = useSessionStore.getState().user.trashId
-
-            state.fbMode = mode ? mode : state.fbMode
-            state.shareId = shareId ? shareId : state.shareId
-
-            // Doing a lot of navigation (like if the user is standing on the "next" key)
-            // can cause the browser to lag or hang, so we debounce the navigation ~400ms
-            if (state.navTimer) {
-                clearTimeout(state.navTimer)
-            }
-            state.navTimer = setTimeout(() => {
-                const path =
-                    window.location.pathname + (window.location.hash ?? '')
-
-                let shouldBe = `/files/${contentId}`
-                if (state.fbMode === FbModeT.share) {
-                    shouldBe = '/files/share'
-                    if (shareId) {
-                        shouldBe += shareId + '/' + contentId
-                    }
-                }
-
-                if (jumpTo) {
-                    shouldBe += `#${jumpTo}`
-                }
-
-                if (
-                    shouldBe === '/files' ||
-                    shouldBe.startsWith(`/files/${homeId}`)
-                ) {
-                    shouldBe = shouldBe.replace(
-                        `/files/${homeId}`,
-                        '/files/home'
-                    )
-                } else if (shouldBe.startsWith(`/files/${trashId}`)) {
-                    shouldBe = shouldBe.replace(
-                        `/files/${trashId}`,
-                        '/files/trash'
-                    )
-                }
-
-                if (path !== shouldBe) {
-                    state.nav(shouldBe)
-                }
-            }, 200)
-
-            // If we are moving out of a folder, and no longer need the children,
-            // clear the list for that folder
-            if (
-                contentId !== state.contentId &&
-                state.filesMap.get(state.contentId)?.parentId !== contentId &&
-                state.filesMap.get(contentId)?.parentId !== state.contentId
-            ) {
-                state.filesLists.delete(state.contentId)
-            }
-
-            return {
-                contentId: contentId,
-                fbMode: state.fbMode,
-                shareId: state.shareId,
-                lastSelectedId: jumpTo ? jumpTo : contentId,
-                pastTime: pastTime ? pastTime : state.pastTime,
-                jumpTo: jumpTo ? jumpTo : state.jumpTo,
-                filesLists: new Map<string, WeblensFile[]>(state.filesLists),
-                navTimer: state.navTimer,
-            }
-        })
+    setLocationState: (opts: setLocationStateOptsT) => {
+        set((state) => setLocation(opts, state))
     },
 
-    clearFiles: () =>
+    clearFiles: () => {
         set({
+            contentId: null,
+            lastSelectedId: '',
             folderInfo: null,
             filesMap: new Map<string, WeblensFile>(),
             selected: new Map<string, boolean>(),
             filesLists: new Map<string, WeblensFile[]>(),
-        }),
+            holdingShift: false,
+        })
+    },
 
     setSearch: (search) => set({ searchContent: search }),
 
@@ -580,13 +615,8 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         parentsInfo,
         mediaData,
         user,
-    }: {
-        selfInfo: WeblensFileParams | WeblensFile
-        childrenInfo: WeblensFileParams[]
-        parentsInfo: WeblensFileParams[]
-        mediaData: MediaDataT[]
-        user: UserInfoT
-    }) => {
+        overwriteContentId,
+    }: setFilesDataOptsT) => {
         const parents = parentsInfo?.map((f) => new WeblensFile(f))
         if (parents?.length > 1) {
             parents.reverse()
@@ -629,7 +659,29 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
         }
 
         set((state) => {
+            const prevParentId = state.folderInfo?.Id()
             if (selfFile) {
+                if (overwriteContentId) {
+                    state = {
+                        ...state,
+                        ...setLocation(
+                            {
+                                contentId: selfFile.Id(),
+                                jumpTo: selfFile.IsFolder()
+                                    ? ''
+                                    : selfFile.Id(),
+                            },
+                            state
+                        ),
+                    }
+                }
+
+                if (selfFile.Id() !== state.contentId) {
+                    console.error(
+                        `Content Id doesn't match new selfInfo, not updating state. Previous: ${state.folderInfo?.GetFilename()} (${state.contentId}) -- New: ${selfFile.GetFilename()} (${selfFile.Id()})`
+                    )
+                    return state
+                }
                 state.filesMap.set(selfFile.Id(), selfFile)
             }
 
@@ -664,29 +716,56 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 state.filesMap.set(file.Id(), file)
             }
 
-            state.filesLists = getSortedFilesLists(
-                state.filesMap,
-                state.viewOpts.sortFunc,
-                state.viewOpts.sortDirection
-            )
+            selfFile = selfFile ?? state.folderInfo
+
+            if (!selfFile) {
+                return state
+            }
+
+            let filesCount = 0
+            state.filesLists.forEach((list) => {
+                filesCount += list.length
+            })
+
+
+            if (
+                prevParentId !== selfFile.Id() ||
+                state.filesMap.size !== filesCount
+            ) {
+                const listsIds = selfFile.parents.map((p) => p.Id())
+                listsIds.push(selfFile.Id())
+                listsIds.push('ROOT')
+                for (const [listId, list] of state.filesLists.entries()) {
+                    if (!listsIds.includes(listId)) {
+                        for (const file of list) {
+                            state.filesMap.delete(file.Id())
+                        }
+                        state.filesLists.delete(listId)
+                    }
+                }
+
+                state.filesLists = getSortedFilesLists(
+                    state.filesMap,
+                    state.viewOpts.sortFunc,
+                    state.viewOpts.sortDirection
+                )
+            }
+
             return {
                 folderInfo: selfFile ?? state.folderInfo,
-                loading: state.loading.filter((l) => l !== 'files'),
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
                 filesLists: new Map<string, WeblensFile[]>(state.filesLists),
+
+                contentId: state.contentId,
+                jumpTo: state.jumpTo,
             }
         })
     },
 
-    setScrollTarget: (scrollTarget: string) => {
-        set({
-            jumpTo: scrollTarget,
-        })
-    },
-
-    setSelected: (selected: string[], exclusive?: boolean) => {
+    setSelected: (selected: string[], exclusive: boolean = false) => {
         set((state) => {
             if (selected.length === 0 || state.filesMap.size === 0) {
+                console.log("No files to select")
                 return state
             }
             if (selected[0] === '') {
@@ -695,14 +774,27 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             }
 
             if (!state.holdingShift) {
+                if (state.lastSelectedId) {
+                    state.filesMap
+                        .get(state.lastSelectedId)
+                        .UnsetSelected(SelectedState.LastSelected)
+                }
+
                 if (exclusive) {
-                    for (const file of Array.from(state.selected.keys())) {
+                    for (const fileId of Array.from(state.selected.keys())) {
                         state.filesMap
-                            .get(file)
-                            .UnsetSelected(SelectedState.Selected)
+                            .get(fileId)
+                            ?.SetSelected(SelectedState.NotSelected, true)
                     }
                     state.selected = new Map<string, boolean>()
                     state.lastSelectedId = ''
+
+                    if (state.hoveringId) {
+                        state.filesMap
+                            .get(state.hoveringId)
+                            ?.SetSelected(SelectedState.NotSelected, true)
+                        state.hoveringId = ''
+                    }
                 }
 
                 for (const fId of selected) {
@@ -729,14 +821,25 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                     }
                 }
             } else {
+                if (state.lastSelectedId) {
+                    state.filesMap
+                        .get(state.lastSelectedId)
+                        .UnsetSelected(SelectedState.LastSelected)
+                }
                 state = calculateMultiSelectHint(state, state.hoveringId, true)
             }
+
+            const lastSelectedId = selected[selected.length - 1]
+
+            state.filesMap
+                .get(lastSelectedId)
+                .SetSelected(SelectedState.LastSelected)
 
             return {
                 selected: new Map(state.selected),
                 filesMap: new Map(state.filesMap),
                 filesLists: new Map(state.filesLists),
-                lastSelectedId: selected[selected.length - 1],
+                lastSelectedId: lastSelectedId,
             }
         })
     },
@@ -762,6 +865,12 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 state.filesMap.get(file).UnsetSelected(SelectedState.Selected)
             }
 
+            if (state.lastSelectedId) {
+                state.filesMap
+                    .get(state.lastSelectedId)
+                    .UnsetSelected(SelectedState.LastSelected)
+            }
+
             if (state.viewOpts.dirViewMode === DirViewModeT.Columns) {
                 const init: [string, boolean][] = state.folderInfo
                     ? [[state.folderInfo.Id(), true]]
@@ -772,7 +881,10 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 }
             }
 
-            return { selected: new Map<string, boolean>(), lastSelectedId: '' }
+            return {
+                selected: new Map<string, boolean>(),
+                lastSelectedId: '',
+            }
         })
     },
 
@@ -798,6 +910,15 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
 
     setHovering: (hoveringId: string) => {
         set((state) => {
+            if (state.hoveringId === hoveringId) {
+                return state
+            }
+
+            if (state.hoveringId) {
+                state.filesMap
+                    .get(state.hoveringId)
+                    ?.UnsetSelected(SelectedState.Hovering)
+            }
             if (state.lastSelectedId) {
                 state = calculateMultiSelectHint(state, hoveringId, false)
                 return {
@@ -808,6 +929,25 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             }
 
             return { hoveringId: hoveringId }
+        })
+    },
+
+    setLastSelected: (lastSelectedId: string) => {
+        set((state) => {
+            if (state.lastSelectedId) {
+                state.filesMap
+                    .get(state.lastSelectedId)
+                    .UnsetSelected(SelectedState.LastSelected)
+            }
+
+            state.filesMap
+                .get(lastSelectedId)
+                .SetSelected(SelectedState.LastSelected)
+            return {
+                filesMap: new Map(state.filesMap),
+                selected: new Map(state.selected),
+                lastSelectedId: lastSelectedId,
+            }
         })
     },
 
@@ -840,7 +980,9 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
                 )
             }
 
-            return { filesMap: new Map<string, WeblensFile>(state.filesMap) }
+            return {
+                filesMap: new Map<string, WeblensFile>(state.filesMap),
+            }
         })
     },
 
@@ -883,6 +1025,6 @@ const FBStateControl: StateCreator<FileBrowserStateT, [], []> = (set) => ({
             pasteImgBytes: bytes,
         })
     },
-})
+}))
 
 export const useFileBrowserStore = create<FileBrowserStateT>()(FBStateControl)

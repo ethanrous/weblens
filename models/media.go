@@ -44,9 +44,6 @@ type Media struct {
 	// Total time, in milliseconds, of a video
 	Duration int `json:"duration" bson:"duration"`
 
-	// Unused
-	// BlurHash string `json:"blurHash,omitempty" bson:"blurHash,omitempty"`
-
 	// Mime-type key of the media
 	MimeType string `json:"mimeType" bson:"mimeType"`
 
@@ -61,7 +58,7 @@ type Media struct {
 	// but the media stays behind because it can be re-used if needed.
 	Enabled bool `json:"enabled" bson:"enabled"`
 
-	LikedBy []Username `json:"likedBy" bson:"likedBy"`
+	LikedBy []Username `json:"likedBy,omitempty" bson:"likedBy"`
 
 	/* NON-DATABASE FIELDS */
 

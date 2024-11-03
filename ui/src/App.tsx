@@ -10,13 +10,13 @@ import {
 } from 'react-router-dom'
 import ErrorBoundary from './components/Error'
 
-import WeblensLoader from './components/Loading'
 import useR, { useSessionStore } from './components/UserInfo'
 import StartUp from './pages/Startup/StartupPage'
 import { fetchMediaTypes } from './types/media/MediaQuery'
 import { useMediaStore } from './types/media/MediaStateControl'
 import '@mantine/core/styles.css'
 import Backup from './pages/Backup/Backup'
+import Logo from './components/Logo'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -68,10 +68,11 @@ const WeblensRoutes = () => {
             console.debug('Nav files home from setup')
             nav('/files/home')
         } else if (
+            user &&
             server.info.role !== 'init' &&
-            !loc.pathname.startsWith('/files') &&
+            !loc.pathname.startsWith('/files/share') &&
             loc.pathname !== '/login' &&
-            !user?.isLoggedIn
+            !user.isLoggedIn
         ) {
             console.debug('Nav login from non-files path')
             nav('/login', { state: { returnTo: loc.pathname } })
@@ -139,7 +140,7 @@ const WeblensRoutes = () => {
     return (
         <QueryClientProvider client={queryClient}>
             <ErrorBoundary>
-                {server.started && user && <PageSwitcher />}
+                {server.started && <PageSwitcher />}
                 {!server.started && <StartUp />}
             </ErrorBoundary>
         </QueryClientProvider>
@@ -148,20 +149,31 @@ const WeblensRoutes = () => {
 
 function PageLoader() {
     return (
-        <div style={{ position: 'absolute', right: 15, bottom: 10 }}>
-            <WeblensLoader loading={['page']} />
+        <div
+            style={{
+                position: 'absolute',
+                right: 15,
+                bottom: 10,
+                opacity: 0.5,
+            }}
+        >
+            <Logo />
         </div>
     )
 }
 
 const PageSwitcher = () => {
+    const user = useSessionStore((state) => state.user)
+    const loc = useLocation()
+
     const galleryPage = (
         <Suspense fallback={<PageLoader />}>
             <Gallery />
         </Suspense>
     )
 
-    const filesPage = (
+    const filesPage = (user.isLoggedIn ||
+        loc.pathname.startsWith('/files/share')) && (
         <Suspense fallback={<PageLoader />}>
             <FileBrowser />
         </Suspense>
