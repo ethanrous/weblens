@@ -437,7 +437,6 @@ function deleteFile(
         state.jumpTo = ''
     }
 
-
     const parent = state.filesMap.get(existing.parentId)
     if (parent) {
         const childrenIds = parent.childrenIds
@@ -727,7 +726,6 @@ const FBStateControl: StateCreator<
                 filesCount += list.length
             })
 
-
             if (
                 prevParentId !== selfFile.Id() ||
                 state.filesMap.size !== filesCount
@@ -765,7 +763,7 @@ const FBStateControl: StateCreator<
     setSelected: (selected: string[], exclusive: boolean = false) => {
         set((state) => {
             if (selected.length === 0 || state.filesMap.size === 0) {
-                console.log("No files to select")
+                console.log('No files to select')
                 return state
             }
             if (selected[0] === '') {
@@ -893,6 +891,7 @@ const FBStateControl: StateCreator<
     },
 
     setDragging: (drag: DraggingStateT) => {
+        console.log('Setting dragging state:', drag)
         set({ draggingState: drag })
     },
 

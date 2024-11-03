@@ -751,9 +751,11 @@ function DirView({
                     stopDragging={() => setDragging(DraggingStateT.NoDrag)}
                     dropSpotTitle={folderInfo?.GetFilename()}
                     dropAllowed={folderInfo?.IsModifiable()}
-                    handleDrag={(event) =>
+                    handleDrag={(event) => {
+                        console.log('ITS ME??')
+                        return
                         handleDragOver(event, setDragging, draggingState)
-                    }
+                    }}
                     wrapperRef={contentViewRef}
                 />
                 <div className="flex flex-col w-full h-full pl-3">
@@ -976,6 +978,8 @@ function FileBrowser() {
             })
             .finally(() => removeLoading('files'))
     }, [user, contentId, shareId, fbMode, pastTime, jumpTo])
+
+    console.log('HER?')
 
     return (
         <div className="h-screen flex flex-col">

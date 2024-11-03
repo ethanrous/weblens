@@ -1156,7 +1156,7 @@ function InTrashMenu({
                 Left={IconTrash}
                 centerContent
                 danger
-                disabled={menuTarget === '' && filesList.length === 0}
+                disabled={menuTarget === '' && filesList.size === 0}
                 onMouseOver={() =>
                     setFooterNote({
                         hint:
@@ -1171,7 +1171,9 @@ function InTrashMenu({
                     e.stopPropagation()
                     let toDeleteIds: string[]
                     if (menuTarget === '') {
-                        toDeleteIds = filesList.map((f) => f.Id())
+                        toDeleteIds = filesList
+                            .get(user.trashId)
+                            .map((f) => f.Id())
                     } else {
                         toDeleteIds = activeItems.map((f) => f.Id())
                     }
