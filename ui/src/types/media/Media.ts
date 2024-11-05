@@ -290,6 +290,7 @@ class WeblensMedia {
     CancelLoad() {
         if (this.data.abort) {
             this.data.abort.abort('Cancelled')
+            this.data.abort = null
         }
     }
 

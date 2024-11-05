@@ -17,7 +17,7 @@ type FileInfo struct {
 	IsDir        bool              `json:"isDir"`
 	ModTime      int64             `json:"modifyTimestamp"`
 	ParentId     fileTree.FileId   `json:"parentId"`
-	Children     []fileTree.FileId `json:"childrenIds,omitempty"`
+	Children     []fileTree.FileId `json:"childrenIds"`
 	ContentId    models.ContentId  `json:"contentId"`
 	// PastFile     bool              `json:"pastFile"`
 	Owner      models.Username `json:"owner"`

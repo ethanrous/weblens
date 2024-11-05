@@ -23,6 +23,7 @@ import {
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import {
+    DropSpot,
     GetStartedCard,
     IconDisplay,
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
@@ -43,9 +44,8 @@ import { humanFileSize } from '@weblens/util'
 function ColumnRow(p: { data; index: number; style: CSSProperties }) {
     const file = p.data.files[p.index]
     const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(null)
-    let selState = useFileBrowserStore((state) => {
-        return state.filesMap.get(file?.Id())?.GetSelectedState()
-    })
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+    let selState = filesMap.get(file?.Id())?.GetSelectedState()
 
     if (
         file.IsFolder() &&
@@ -267,9 +267,22 @@ function Column({
         }
 
         const p = filesMap.get(parentId)
-        if (p.GetChildren().length === files.length) {
-            setLoading(false)
-            return
+        if (p) {
+            if (p.GetFetching()) {
+                return
+            }
+
+            let childrenLength = p.GetChildren().length
+            if (p.GetChildren().indexOf(user.trashId) !== -1) {
+                childrenLength--
+            }
+
+            if (childrenLength === files.length) {
+                setLoading(false)
+                return
+            }
+
+            p.SetFetching(true)
         }
 
         setLoading(true)
@@ -279,6 +292,12 @@ function Column({
                 .getState()
                 .folderInfo?.parents.map((p) => p.Id())
             preId.push(useFileBrowserStore.getState().folderInfo?.Id())
+
+            console.debug(
+                'Could not prove all files present in column, fetching folder data for',
+                parentId,
+                files.length
+            )
 
             const fileData = await GetFolderData(
                 parentId,
@@ -301,6 +320,8 @@ function Column({
                 mediaData: fileData.medias,
                 user,
             })
+
+            p.SetFetching(false)
         }
         fetch().then(() => setLoading(false))
     }, [folderInfo, files.length])
@@ -340,16 +361,17 @@ function Column({
         }
     }, [boxRef])
 
+    const parent = filesMap.get(parentId)
+
     return (
         <div
             ref={setBoxRef}
-            className="flex shrink-0 justify-center h-full no-scrollbar gap-1 w-full"
+            className="flex relative shrink-0 justify-between items-center h-full no-scrollbar gap-1 w-full"
             onClick={(e) => {
                 e.stopPropagation()
                 if (draggingState !== DraggingStateT.NoDrag) {
                     return
                 }
-                const parent = filesMap.get(parentId)
                 goToFile(parent)
             }}
         >
@@ -359,44 +381,56 @@ function Column({
                 </div>
             )}
             {!loading && (
-                <WindowList
-                    ref={listRef}
-                    height={size.height}
-                    width={size.width}
-                    itemSize={56}
-                    itemCount={files.length}
-                    itemData={{ files, selectedChildId }}
-                    overscan={100}
-                    onItemsRendered={() => {
-                        if (didScroll) {
-                            return
-                        }
-                        // Grid ref is not ready yet even when this callback is called,
-                        // but putting it in a timeout will push it off to the next tick,
-                        // and the ref will be ready.
-                        setTimeout(() => {
-                            if (listRef.current && selectedChildId) {
-                                const child = useFileBrowserStore
-                                    .getState()
-                                    .filesMap.get(selectedChildId)
-                                if (child) {
-                                    listRef.current.scrollToItem(
-                                        child.GetIndex(),
-                                        'smart'
-                                    )
-                                    setDidScroll(true)
-                                } else {
-                                    console.error(
-                                        'Could not find child to scroll to',
-                                        selectedChildId
-                                    )
-                                }
+                <div className="flex relative w-full h-full justify-center items-center">
+                    <div
+                        className="flex absolute h-full justify-center items-center"
+                        style={{
+                            width: size.width - 12,
+                            height: size.height - 4,
+                        }}
+                    >
+                        <DropSpot parent={parent} />
+                    </div>
+
+                    <WindowList
+                        ref={listRef}
+                        height={size.height}
+                        width={size.width - 12}
+                        itemSize={56}
+                        itemCount={files.length}
+                        itemData={{ files, selectedChildId }}
+                        overscan={100}
+                        onItemsRendered={() => {
+                            if (didScroll) {
+                                return
                             }
-                        }, 1)
-                    }}
-                >
-                    {ColumnRow}
-                </WindowList>
+                            // Grid ref is not ready yet even when this callback is called,
+                            // but putting it in a timeout will push it off to the next tick,
+                            // and the ref will be ready.
+                            setTimeout(() => {
+                                if (listRef.current && selectedChildId) {
+                                    const child = useFileBrowserStore
+                                        .getState()
+                                        .filesMap.get(selectedChildId)
+                                    if (child) {
+                                        listRef.current.scrollToItem(
+                                            child.GetIndex(),
+                                            'smart'
+                                        )
+                                        setDidScroll(true)
+                                    } else {
+                                        console.error(
+                                            'Could not find child to scroll to',
+                                            selectedChildId
+                                        )
+                                    }
+                                }
+                            }, 1)
+                        }}
+                    >
+                        {ColumnRow}
+                    </WindowList>
+                </div>
             )}
             <ColumnResizer
                 setColSize={setColSize}
@@ -480,6 +514,7 @@ function FileColumns() {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const setSelected = useFileBrowserStore((state) => state.setSelected)
     const setHovering = useFileBrowserStore((state) => state.setHovering)
+    const sortLists = useFileBrowserStore((state) => state.sortLists)
     const setLastSelected = useFileBrowserStore(
         (state) => state.setLastSelected
     )
@@ -492,6 +527,9 @@ function FileColumns() {
 
     const { lastSelected, currentCol } = useMemo(() => {
         const lastSelected = filesMap.get(lastSelectedId)
+        if (lastSelected && lastSelected.GetIndex() === undefined) {
+            sortLists()
+        }
 
         let currentCol: WeblensFile[] = []
         if (lastSelected) {
@@ -604,13 +642,10 @@ function FileColumns() {
 
                 const nextIndex =
                     target.GetIndex() + (key === 'ArrowDown' ? 1 : -1)
-                if (nextIndex < 0) {
-                    // We are already at the top, so we can't go up
-                    return
-                }
 
-                if (nextIndex >= currentCol.length) {
-                    // We are already at the bottom, so we can't go down
+                if (nextIndex >= currentCol.length || nextIndex < 0) {
+                    // We are already at the top, so we can't go up or
+                    // we are already at the bottom, so we can't go down
                     return
                 }
 
@@ -696,7 +731,7 @@ function FileColumns() {
     return (
         <div
             ref={setContainerRef}
-            className="flex flex-row h-full w-full outline-0 overflow-x-scroll"
+            className="flex flex-row h-full w-full outline-0 overflow-x-scroll gap-2"
         >
             {lists.map((col, i) => {
                 const selectedChildId =

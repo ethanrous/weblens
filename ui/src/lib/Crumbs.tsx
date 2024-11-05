@@ -74,6 +74,7 @@ export const StyledBreadcrumb = ({
 
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
     const dragging = useFileBrowserStore((state) => state.draggingState)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
     const nav = useNavigate()
 
     return (
@@ -103,6 +104,7 @@ export const StyledBreadcrumb = ({
                     moveSelectedTo(crumbInfo.id)
                 } else {
                     if (crumbInfo.file) {
+                        clearSelected()
                         goToFile(crumbInfo.file)
                     } else if (crumbInfo.visitRoute) {
                         nav(crumbInfo.visitRoute)

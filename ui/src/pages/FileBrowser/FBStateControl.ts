@@ -108,6 +108,7 @@ export interface FileBrowserStateT {
     addToFilesMap: (file: WeblensFileParams) => void
     updateFile: (fileParams: WeblensFileParams, user: UserInfoT) => void
     deleteFile: (fileId: string) => void
+    sortLists: () => void
     addLoading: (loading: string) => void
     removeLoading: (loading: string) => void
     setHoldingShift: (holdingShift: boolean) => void
@@ -234,29 +235,47 @@ function getSortFunc(sortType: string, sortDirection: number) {
 }
 
 function getSortedFilesLists(
-    filesMap: Map<string, WeblensFile>,
-    sortKey: string,
-    sortDirection: number
-): Map<string, WeblensFile[]> {
+    state: FileBrowserStateT,
+    hint: string[] = []
+): FileBrowserStateT {
+    const sortFunc = getSortFunc(
+        state.viewOpts.sortFunc,
+        state.viewOpts.sortDirection
+    )
+
+    if (hint?.length > 0) {
+        for (const hintId of hint) {
+            let list = state.filesLists.get(hintId)
+            list = list.filter(
+                (f1, i, a) => a.findIndex((f2) => f2.Id() === f1.Id()) === i
+            )
+            list.sort(sortFunc)
+            state.filesLists.set(hintId, list)
+        }
+        return state
+    }
+
     const lists: Map<string, WeblensFile[]> = new Map()
 
-    for (const file of filesMap.values()) {
+    for (const file of state.filesMap.values()) {
         const fs = lists.get(file.ParentId()) ?? []
         fs.push(file)
         lists.set(file.ParentId(), fs)
     }
 
-    const sortFunc = getSortFunc(sortKey, sortDirection)
     for (const pId of lists.keys()) {
         const files = lists.get(pId)
         files.sort(sortFunc)
         for (let i = 0; i < files.length; i++) {
             files[i].SetIndex(i)
+            state.filesMap.set(files[i].Id(), files[i])
         }
         lists.set(pId, files)
     }
 
-    return lists
+    state.filesLists = lists
+
+    return state
 }
 
 function selectInRange(
@@ -358,6 +377,45 @@ function calculateMultiSelectHint(
     return state
 }
 
+function debug_sanity_check(state: FileBrowserStateT): FileBrowserStateT {
+    return state
+    let hasError = false
+    for (const f of state.filesMap.values()) {
+        const list = state.filesLists.get(f.parentId)
+        if (!list) {
+            console.trace('Sanity check failed')
+            console.error(
+                'Sanity check failed, could not find parent list of',
+                f
+            )
+            continue
+        }
+        const thing = list[f.GetIndex()]
+        if (
+            list.length !==
+            list.map((f) => f.Id()).filter((fId, i, a) => a.indexOf(fId) === i)
+                .length
+        ) {
+            console.trace('Sanity check failed')
+            console.error('Found duplicate in list', list)
+
+            continue
+        }
+        if (thing !== f) {
+            hasError = true
+            console.trace('Sanity check failed')
+            console.error('BAD INDEX', thing, 'SECOND', f)
+        }
+    }
+    if (!hasError) {
+        console.trace('Sanity check passed')
+    } else {
+        state = getSortedFilesLists(state)
+    }
+
+    return state
+}
+
 function setLocation(
     { contentId, shareId, mode, pastTime, jumpTo }: setLocationStateOptsT,
     state: FileBrowserStateT
@@ -379,8 +437,8 @@ function setLocation(
         let shouldBe = `/files/${contentId}`
         if (state.fbMode === FbModeT.share) {
             shouldBe = '/files/share'
-            if (shareId) {
-                shouldBe += shareId + '/' + contentId
+            if (state.shareId) {
+                shouldBe += '/' + state.shareId + '/' + contentId
             }
         }
 
@@ -395,6 +453,7 @@ function setLocation(
         }
 
         if (path !== shouldBe) {
+            console.debug('Navigating to:', shouldBe)
             state.nav(shouldBe)
         }
     }, 200)
@@ -406,8 +465,16 @@ function setLocation(
         state.filesMap.get(state.contentId)?.parentId !== contentId &&
         state.filesMap.get(contentId)?.parentId !== state.contentId
     ) {
-        state.filesLists.delete(state.contentId)
+        const list = state.filesLists.get(state.contentId)
+        if (list) {
+            for (const f of list) {
+                state.filesMap.delete(f.Id())
+            }
+            state.filesLists.delete(state.contentId)
+        }
     }
+
+    state = debug_sanity_check(state)
 
     return {
         contentId: contentId,
@@ -416,9 +483,39 @@ function setLocation(
         lastSelectedId: jumpTo ? jumpTo : contentId,
         pastTime: pastTime ? pastTime : state.pastTime,
         jumpTo: jumpTo ? jumpTo : state.jumpTo,
+        filesMap: new Map<string, WeblensFile>(state.filesMap),
         filesLists: new Map<string, WeblensFile[]>(state.filesLists),
         navTimer: state.navTimer,
     }
+}
+
+function updateFileQuick(
+    state: FileBrowserStateT,
+    newF: WeblensFile
+): FileBrowserStateT {
+    const existing = state.filesMap.get(newF.Id())
+    if (existing && existing.parentId !== newF.parentId) {
+        state = deleteFile(existing.Id(), state)
+    } else if (existing) {
+        newF.modifiable = existing.modifiable
+        newF.SetSelected(existing.GetSelectedState(), true)
+        newF.parents = existing.parents
+        newF.index = existing.index
+        state.filesMap.set(newF.Id(), newF)
+    }
+
+    const list = state.filesLists.get(newF.parentId) ?? []
+    const index = list.findIndex((f) => f.Id() === newF.Id())
+    if (index > -1) {
+        list[index] = newF
+    } else {
+        list.push(newF)
+    }
+    state.filesLists.set(newF.parentId, list)
+
+    state = getSortedFilesLists(state, [newF.parentId])
+
+    return state
 }
 
 function deleteFile(
@@ -453,11 +550,7 @@ function deleteFile(
         state.filesMap.set(parent.Id(), parent)
     }
 
-    state.filesLists = getSortedFilesLists(
-        state.filesMap,
-        state.viewOpts.sortFunc,
-        state.viewOpts.sortDirection
-    )
+    state = getSortedFilesLists(state)
 
     return state
 }
@@ -514,13 +607,11 @@ const FBStateControl: StateCreator<
         set((state: FileBrowserStateT) => {
             const newF = new WeblensFile(fileParams)
             state.filesMap.set(newF.Id(), newF)
+            state = getSortedFilesLists(state)
+
             return {
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
-                filesLists: getSortedFilesLists(
-                    state.filesMap,
-                    state.viewOpts.sortFunc,
-                    state.viewOpts.sortDirection
-                ),
+                filesLists: new Map<string, WeblensFile[]>(state.filesLists),
             }
         }),
 
@@ -542,17 +633,8 @@ const FBStateControl: StateCreator<
                 return { trashDirSize: fileParams.size }
             }
 
-            const existing = state.filesMap.get(fileParams.id)
-
-            const file = new WeblensFile(fileParams)
-            if (existing && existing.parentId !== file.parentId) {
-                state = deleteFile(existing.Id(), state)
-            } else if (existing) {
-                file.modifiable = existing.modifiable
-                file.index = existing.index
-                file.SetSelected(existing.GetSelectedState(), true)
-                state.filesMap.set(file.Id(), file)
-            }
+            state = updateFileQuick(state, new WeblensFile(fileParams))
+            state = debug_sanity_check(state)
 
             return {
                 ...state,
@@ -642,11 +724,12 @@ const FBStateControl: StateCreator<
             if (parents) {
                 selfFile.SetParents(parents)
             }
-
             if (
                 selfFile.parents.length !==
-                selfFile.portablePath.split('/').length - 2
+                    selfFile.portablePath.split('/').length - 2 &&
+                false
             ) {
+                console.error("Parent count doesn't match path length")
                 set({
                     folderInfo: null,
                     filesMap: new Map<string, WeblensFile>(),
@@ -658,6 +741,7 @@ const FBStateControl: StateCreator<
         }
 
         set((state) => {
+            let changedFiles = false
             const prevParentId = state.folderInfo?.Id()
             if (selfFile) {
                 if (overwriteContentId) {
@@ -681,15 +765,8 @@ const FBStateControl: StateCreator<
                     )
                     return state
                 }
+                // changedFiles = true
                 state.filesMap.set(selfFile.Id(), selfFile)
-            }
-
-            if (parents) {
-                for (const p of parents) {
-                    if (!state.filesMap.has(p.Id())) {
-                        state.filesMap.set(p.Id(), p)
-                    }
-                }
             }
 
             for (const newFileInfo of childrenInfo ?? []) {
@@ -712,45 +789,60 @@ const FBStateControl: StateCreator<
                 }
 
                 const file = new WeblensFile(newFileInfo)
+                changedFiles = true
                 state.filesMap.set(file.Id(), file)
             }
 
-            selfFile = selfFile ?? state.folderInfo
+            state.folderInfo = selfFile ?? state.folderInfo
 
-            if (!selfFile) {
+            if (!state.folderInfo) {
                 return state
             }
 
-            let filesCount = 0
-            state.filesLists.forEach((list) => {
-                filesCount += list.length
-            })
-
-            if (
-                prevParentId !== selfFile.Id() ||
-                state.filesMap.size !== filesCount
-            ) {
-                const listsIds = selfFile.parents.map((p) => p.Id())
-                listsIds.push(selfFile.Id())
-                listsIds.push('ROOT')
-                for (const [listId, list] of state.filesLists.entries()) {
-                    if (!listsIds.includes(listId)) {
-                        for (const file of list) {
-                            state.filesMap.delete(file.Id())
-                        }
-                        state.filesLists.delete(listId)
+            if (parents) {
+                for (const p of parents) {
+                    if (!state.filesMap.has(p.Id())) {
+                        changedFiles = true
+                        state.filesMap.set(p.Id(), p)
                     }
                 }
 
-                state.filesLists = getSortedFilesLists(
-                    state.filesMap,
-                    state.viewOpts.sortFunc,
-                    state.viewOpts.sortDirection
-                )
+                state.folderInfo.parents.map((p) => state.filesMap.get(p.Id()))
+            }
+
+            let filesCount = 0
+
+            // Only count files if we are not already updating the list
+            if (!changedFiles) {
+                state.filesLists.forEach((list) => {
+                    filesCount += list.length
+                })
+            }
+
+            if (
+                changedFiles ||
+                prevParentId !== state.folderInfo.Id() ||
+                state.filesMap.size !== filesCount
+            ) {
+                // const listsIds = selfFile.parents.map((p) => {
+                //     return p.Id()
+                // })
+                // listsIds.push(selfFile.Id())
+                // listsIds.push('ROOT')
+                // for (const [listId, list] of state.filesLists.entries()) {
+                //     if (!listsIds.includes(listId)) {
+                //         for (const file of list) {
+                //             state.filesMap.delete(file.Id())
+                //         }
+                //         state.filesLists.delete(listId)
+                //     }
+                // }
+
+                state = getSortedFilesLists(state)
             }
 
             return {
-                folderInfo: selfFile ?? state.folderInfo,
+                folderInfo: state.folderInfo,
                 filesMap: new Map<string, WeblensFile>(state.filesMap),
                 filesLists: new Map<string, WeblensFile[]>(state.filesLists),
 
@@ -760,10 +852,13 @@ const FBStateControl: StateCreator<
         })
     },
 
+    sortLists: () => {
+        set((state) => getSortedFilesLists(state))
+    },
+
     setSelected: (selected: string[], exclusive: boolean = false) => {
         set((state) => {
             if (selected.length === 0 || state.filesMap.size === 0) {
-                console.log('No files to select')
                 return state
             }
             if (selected[0] === '') {
@@ -833,6 +928,8 @@ const FBStateControl: StateCreator<
                 .get(lastSelectedId)
                 .SetSelected(SelectedState.LastSelected)
 
+            state = debug_sanity_check(state)
+
             return {
                 selected: new Map(state.selected),
                 filesMap: new Map(state.filesMap),
@@ -858,6 +955,7 @@ const FBStateControl: StateCreator<
     },
 
     clearSelected: () => {
+        console.debug('Clearing selected')
         set((state) => {
             for (const file of Array.from(state.selected.keys())) {
                 state.filesMap.get(file).UnsetSelected(SelectedState.Selected)
@@ -866,7 +964,7 @@ const FBStateControl: StateCreator<
             if (state.lastSelectedId) {
                 state.filesMap
                     .get(state.lastSelectedId)
-                    .UnsetSelected(SelectedState.LastSelected)
+                    ?.UnsetSelected(SelectedState.LastSelected)
             }
 
             if (state.viewOpts.dirViewMode === DirViewModeT.Columns) {
@@ -874,12 +972,14 @@ const FBStateControl: StateCreator<
                     ? [[state.folderInfo.Id(), true]]
                     : []
                 return {
+                    filesMap: new Map<string, WeblensFile>(state.filesMap),
                     selected: new Map<string, boolean>(init),
                     lastSelectedId: state.folderInfo?.Id() ?? '',
                 }
             }
 
             return {
+                filesMap: new Map<string, WeblensFile>(state.filesMap),
                 selected: new Map<string, boolean>(),
                 lastSelectedId: '',
             }
@@ -891,7 +991,6 @@ const FBStateControl: StateCreator<
     },
 
     setDragging: (drag: DraggingStateT) => {
-        console.log('Setting dragging state:', drag)
         set({ draggingState: drag })
     },
 
@@ -998,25 +1097,32 @@ const FBStateControl: StateCreator<
         sortDirection: number
         dirViewMode: DirViewModeT
     }) => {
-        set((state) => ({
-            viewOpts: {
-                sortFunc:
-                    sortKey !== undefined ? sortKey : state.viewOpts.sortFunc,
-                sortDirection:
-                    sortDirection !== undefined
-                        ? sortDirection
-                        : state.viewOpts.sortDirection,
-                dirViewMode:
-                    dirViewMode !== undefined
-                        ? dirViewMode
-                        : state.viewOpts.dirViewMode,
-            },
-            filesLists: getSortedFilesLists(
-                state.filesMap,
-                sortKey ? sortKey : state.viewOpts.sortFunc,
-                sortDirection ? sortDirection : state.viewOpts.sortDirection
-            ),
-        }))
+        set((state) => {
+            state.viewOpts.sortFunc = sortKey ?? state.viewOpts.sortFunc
+            state.viewOpts.sortDirection =
+                sortDirection ?? state.viewOpts.sortDirection
+
+            state = getSortedFilesLists(state)
+
+            return {
+                viewOpts: {
+                    sortFunc:
+                        sortKey !== undefined
+                            ? sortKey
+                            : state.viewOpts.sortFunc,
+                    sortDirection:
+                        sortDirection !== undefined
+                            ? sortDirection
+                            : state.viewOpts.sortDirection,
+                    dirViewMode:
+                        dirViewMode !== undefined
+                            ? dirViewMode
+                            : state.viewOpts.dirViewMode,
+                },
+                filesMap: new Map<string, WeblensFile>(state.filesMap),
+                filesLists: new Map<string, WeblensFile[]>(state.filesLists),
+            }
+        })
     },
     setIsSearching: (isSearching: boolean) => set({ isSearching }),
     setPasteImgBytes: (bytes: ArrayBuffer) => {

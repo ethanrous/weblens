@@ -45,7 +45,7 @@ export function visitFile(
     e.stopPropagation()
     if (file.IsFolder()) {
         goToFile(file)
-    } else if (file.displayable) {
+    } else {
         setPresentation(file.Id())
     }
 }
@@ -121,16 +121,14 @@ export function handleMouseOver(
     e: MouseEvent<HTMLDivElement>,
     file: WeblensFile,
     draggingState: DraggingStateT,
-    setHovering: (hovering: string) => void,
+    setHovering: (hoveringId: string) => void,
     setMoveDest: (dest: string) => void
 ) {
     e.stopPropagation()
     if (draggingState === DraggingStateT.NoDrag || file.IsFolder()) {
         file.SetSelected(SelectedState.Hovering)
         setHovering(file.Id())
-    }
-
-    if (
+    } else if (
         draggingState === DraggingStateT.InternalDrag ||
         (draggingState === DraggingStateT.ExternalDrag &&
             !(file.GetSelectedState() & SelectedState.Selected) &&
@@ -170,7 +168,10 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             // based on what we already have, and add the currentFolder to the list.
             parents.push(state.folderInfo)
             next.parents = parents
-        } else if (next.parentId && parents.map((p) => p.Id()).includes(next.Id())) {
+        } else if (
+            next.parentId &&
+            parents.map((p) => p.Id()).includes(next.Id())
+        ) {
             // If the next file is the current folders parent of any distance (i.e. we are going up a level)
             while (
                 parents.length &&
@@ -190,6 +191,8 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             // at the new location. We need to clear the current files
             state.nav('/files/' + next.Id())
             state.clearFiles()
+
+            console.debug('GO TO FILE (blind):', next)
             return
         } else {
             console.error(
@@ -198,8 +201,9 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             return
         }
         next.modifiable = true
-        next.parents = next.parents.map((p) => (state.filesMap.get(p.Id())))
+        next.parents = next.parents.map((p) => state.filesMap.get(p.Id()))
 
+        console.debug('GO TO FILE:', next)
         state.setFilesData({ selfInfo: next, overwriteContentId: true })
     } else {
         // If the next is not a folder, we can set the location to the parent of the next file,
@@ -237,7 +241,7 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             state.setPresentationTarget(next.Id())
         }
 
-        next.parents = next.parents.map((p) => (state.filesMap.get(p.Id())))
+        next.parents = next.parents.map((p) => state.filesMap.get(p.Id()))
         state.setFilesData({ selfInfo: newParent, overwriteContentId: true })
         state.setLocationState({ contentId: newParent.Id(), jumpTo: next.Id() })
     }

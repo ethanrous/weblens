@@ -80,6 +80,8 @@ while true; do
 
   printf "Building Weblens binary..."
   rm -f ./build/bin/weblens
+
+  GORACE="halt_on_error=1"
   go build -gcflags="-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &> ./build/logs/weblens-build.log
 
   if [[ ! -e ./build/bin/weblens ]]; then

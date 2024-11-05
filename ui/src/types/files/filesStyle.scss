@@ -76,7 +76,8 @@
         cursor: pointer;
     }
 
-    &[data-hovering='1'] {
+    &[data-hovering='1'],
+    &:hover {
         background-color: $item-focus
     }
 

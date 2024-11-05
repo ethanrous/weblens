@@ -244,11 +244,6 @@ function filebrowserWebsocketHandler(
                 if (msgData.content.mediaData) {
                     const newM = new WeblensMedia(msgData.content.mediaData)
                     useMediaStore.getState().addMedias([newM])
-                    console.log(
-                        'Media added',
-                        newM,
-                        msgData.content.fileInfo.contentId
-                    )
                     msgData.content.fileInfo.contentId = newM.Id()
                 }
 

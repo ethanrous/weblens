@@ -220,6 +220,7 @@ const PageSwitcher = () => {
 function App() {
     document.documentElement.style.overflow = 'hidden'
     document.body.className = 'body'
+
     return (
         <MantineProvider defaultColorScheme="dark">
             <CookiesProvider defaultSetOptions={{ path: '/' }}>

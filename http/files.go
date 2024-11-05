@@ -163,9 +163,7 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 
 	var parentsInfo []FileInfo
 	parent := dir.GetParent()
-	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(
-		u, parent, share,
-	) && !pack.FileService.GetFileOwner(parent).IsSystemUser() {
+	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(u, parent, share) && !pack.FileService.GetFileOwner(parent).IsSystemUser() {
 		parentInfo, err := WeblensFileToFileInfo(parent, pack, false)
 		if err != nil {
 			safeErr, code := werror.TrySafeErr(err)
@@ -420,11 +418,18 @@ func moveFiles(ctx *gin.Context) {
 	}
 
 	var files []*fileTree.WeblensFileImpl
+	parentId := ""
 	for _, fileId := range filesData.Files {
 		f, err := pack.FileService.GetFileSafe(fileId, u, sh)
 		if err != nil {
 			safe, code := werror.TrySafeErr(err)
 			ctx.JSON(code, safe)
+			return
+		}
+		if parentId == "" {
+			parentId = f.GetParentId()
+		} else if parentId != f.GetParentId() {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "All files must have the same parent"})
 			return
 		}
 

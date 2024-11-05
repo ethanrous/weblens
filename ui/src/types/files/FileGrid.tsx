@@ -6,9 +6,14 @@ import { useResize } from 'components/hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid } from 'react-window'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import {
+    DropSpot,
+    GetStartedCard,
+} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 
 function SquareWrapper({ data, rowIndex, columnIndex, style }) {
+    useFileBrowserStore((state) => state.folderInfo)
+
     if (!data || rowIndex === undefined) {
         return null
     }
@@ -77,71 +82,85 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
         }
     }, [size.width])
 
-    if (files.length === 0) {
-        return <GetStartedCard />
-    }
-
     return (
-        <div ref={setContainerRef} className="h-full w-full outline-0">
+        <div ref={setContainerRef} className="h-full w-full relative outline-0">
             {size.width !== -1 && (
-                <Grid
-                    className="no-scrollbar outline-0"
-                    ref={gridRef}
-                    columnCount={numCols}
-                    itemData={{ files: filteredFiles, numCols }}
-                    height={size.height}
-                    width={size.width}
-                    rowCount={Math.ceil(filteredFiles.length / numCols)}
-                    columnWidth={size.width / numCols}
-                    rowHeight={rowHeight}
-                    onScroll={({ scrollTop }) => {
-                        if (
-                            lastSeen &&
-                            lastSeen.width !== size.width &&
-                            lastSeen.width !== 0
-                        ) {
-                            setLastSeen({
-                                file: lastSeen.file,
-                                width: size.width,
-                            })
-                            return
-                        }
-                        const ls =
-                            files[Math.floor((scrollTop / rowHeight) * numCols)]
-                        setLastSeen({ file: ls, width: size.width })
-                    }}
-                    onItemsRendered={() => {
-                        if (didScroll) {
-                            return
-                        }
-                        // Grid ref is not ready yet even when this callback is called,
-                        // but putting it in a timeout will push it off to the next tick,
-                        // and the ref will be ready.
-                        setTimeout(() => {
-                            if (gridRef.current && jumpTo) {
-                                const child = useFileBrowserStore
-                                    .getState()
-                                    .filesMap.get(jumpTo)
-                                if (child) {
-                                    gridRef.current.scrollToItem({
-                                        align: 'smart',
-                                        rowIndex: Math.floor(
-                                            child.GetIndex() / numCols
-                                        ),
+                <div className="flex relative w-full h-full justify-center items-center">
+                    <div
+                        className="flex absolute h-full justify-center items-center"
+                        style={{
+                            width: size.width - 12,
+                            height: size.height - 4,
+                        }}
+                    >
+                        <DropSpot parent={folderInfo} />
+                    </div>
+                    {files.length === 0 && <GetStartedCard />}
+                    {files.length !== 0 && (
+                        <Grid
+                            className="no-scrollbar outline-0"
+                            ref={gridRef}
+                            columnCount={numCols}
+                            itemData={{ files: filteredFiles, numCols }}
+                            height={size.height}
+                            width={size.width}
+                            rowCount={Math.ceil(filteredFiles.length / numCols)}
+                            columnWidth={size.width / numCols}
+                            rowHeight={rowHeight}
+                            onScroll={({ scrollTop }) => {
+                                if (
+                                    lastSeen &&
+                                    lastSeen.width !== size.width &&
+                                    lastSeen.width !== 0
+                                ) {
+                                    setLastSeen({
+                                        file: lastSeen.file,
+                                        width: size.width,
                                     })
-                                    setDidScroll(true)
-                                } else {
-                                    console.error(
-                                        'Could not find child to scroll to',
-                                        jumpTo
-                                    )
+                                    return
                                 }
-                            }
-                        }, 1)
-                    }}
-                >
-                    {SquareWrapper}
-                </Grid>
+                                const ls =
+                                    files[
+                                        Math.floor(
+                                            (scrollTop / rowHeight) * numCols
+                                        )
+                                    ]
+                                setLastSeen({ file: ls, width: size.width })
+                            }}
+                            onItemsRendered={() => {
+                                if (didScroll) {
+                                    return
+                                }
+                                // Grid ref is not ready yet even when this callback is called,
+                                // but putting it in a timeout will push it off to the next tick,
+                                // and the ref will be ready.
+                                setTimeout(() => {
+                                    if (gridRef.current && jumpTo) {
+                                        const child = useFileBrowserStore
+                                            .getState()
+                                            .filesMap.get(jumpTo)
+                                        if (child) {
+                                            gridRef.current.scrollToItem({
+                                                align: 'smart',
+                                                rowIndex: Math.floor(
+                                                    child.GetIndex() / numCols
+                                                ),
+                                            })
+                                            setDidScroll(true)
+                                        } else {
+                                            console.error(
+                                                'Could not find child to scroll to',
+                                                jumpTo
+                                            )
+                                        }
+                                    }
+                                }, 1)
+                            }}
+                        >
+                            {SquareWrapper}
+                        </Grid>
+                    )}
+                </div>
             )}
         </div>
     )

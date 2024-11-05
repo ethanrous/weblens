@@ -12,7 +12,7 @@ import { useKeyDown, useResize, useVideo } from 'components/hooks'
 import Hls from 'hls.js'
 
 import 'components/style.scss'
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, MouseEvent, useCallback, useEffect, useState } from 'react'
 
 export const MediaImage = memo(
     ({
@@ -91,10 +91,13 @@ export const MediaImage = memo(
                     id: media.Id(),
                 })
             }
+            return () => {
+                media.CancelLoad()
+            }
         }, [media, quality, doFetch, media.GetMediaType()])
 
         const containerClick = useCallback(
-            (e) => {
+            (e: MouseEvent) => {
                 if (preventClick) {
                     e.stopPropagation()
                 }
@@ -198,9 +201,9 @@ function VideoWrapper({
     shouldShowVideo: boolean
     fitLogic: string
     media: WeblensMedia
-    imgStyle
+    imgStyle: CSSProperties
     videoRef: HTMLVideoElement
-    setVideoRef: (r) => void
+    setVideoRef: (r: HTMLVideoElement) => void
     isPlaying: boolean
     playtime: number
 }) {

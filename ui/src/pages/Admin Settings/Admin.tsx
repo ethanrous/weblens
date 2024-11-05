@@ -224,7 +224,6 @@ function CreateUserBox({ refetchUsers }: { refetchUsers: () => void }) {
                                     passInput,
                                     makeAdmin
                                 ).then(() => {
-                                    console.log('HERE?')
                                     refetchUsers()
                                     setUserInput('')
                                     setPassInput('')
@@ -463,8 +462,6 @@ function Servers() {
     useEffect(() => {
         refetchKeys()
     }, [remotes?.length])
-
-    console.log("BACKUP", backupProgress)
 
     return (
         <div className="theme-outline flex flex-col rounded items-center p-1 w-full">

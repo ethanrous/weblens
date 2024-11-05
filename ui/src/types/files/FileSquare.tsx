@@ -107,7 +107,10 @@ export const FileSquare = ({ file }: { file: WeblensFile }) => {
                 if (draggingState) {
                     return
                 }
-                setSelected([file.Id()])
+
+                const exclusive =
+                    selected.size === 1 && selected.has(file.parentId)
+                setSelected([file.Id()], exclusive)
             }}
             onDoubleClick={(e) =>
                 visitFile(e, file, folderInfo?.IsTrash(), setPresentationTarget)

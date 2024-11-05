@@ -61,7 +61,7 @@ export class TaskProgress {
     FormatTaskName(): string {
         switch (this.taskType) {
             case 'scan_directory':
-                return `Import ${this.target ? this.target : 'folder'}`
+                return `Scan ${this.target ? this.target : 'folder'}`
             case 'create_zip':
                 return `Zip ${this.target ? this.target : ''}`
             case 'download_file':
@@ -229,7 +229,7 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
     },
 
     handleTaskCancel: (taskId: string) => {
-        console.erro('handleTaskCancel not impl')
+        console.error('handleTaskCancel not impl')
     },
 
     updateTaskProgress: (taskId: string, opts) => {
@@ -240,7 +240,10 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
                 return state
             }
 
-            if (task.stage === TaskStage.Complete || task.stage === TaskStage.Cancelled) {
+            if (
+                task.stage === TaskStage.Complete ||
+                task.stage === TaskStage.Cancelled
+            ) {
                 return state
             }
 

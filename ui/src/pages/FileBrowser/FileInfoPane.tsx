@@ -39,10 +39,15 @@ const SIDEBAR_BREAKPOINT = 650
 export default function FileInfoPane() {
     const windowSize = useWindowSize()
 
-    const dragging = useFileBrowserStore((state) => state.draggingState === DraggingStateT.InterfaceDrag)
+    const dragging = useFileBrowserStore(
+        (state) => state.draggingState === DraggingStateT.InterfaceDrag
+    )
     const [localDragging, setLocalDragging] = useState(false)
     const setDraggingGlobal = useFileBrowserStore((state) => state.setDragging)
-    const setDragging = (d: DraggingStateT) => {setDraggingGlobal(d); setLocalDragging(d === DraggingStateT.InterfaceDrag)}
+    const setDragging = (d: DraggingStateT) => {
+        setDraggingGlobal(d)
+        setLocalDragging(d === DraggingStateT.InterfaceDrag)
+    }
 
     const [resizeOffset, setResizeOffset] = useState(
         windowSize?.width > SIDEBAR_BREAKPOINT ? 550 : 75
@@ -77,7 +82,6 @@ export default function FileInfoPane() {
             className="file-info-pane"
             data-resizing={dragging}
             data-open={open}
-            style={{ width: open ? resizeOffset : 20 }}
         >
             <div className="open-arrow-container">
                 <WeblensButton
@@ -90,7 +94,10 @@ export default function FileInfoPane() {
                 />
             </div>
             {open && (
-                <div className="flex h-full w-full">
+                <div
+                    className="flex h-full max-w-full"
+                    style={{ width: open ? resizeOffset : 20 }}
+                >
                     <div
                         draggable={false}
                         className="resize-bar-wrapper"

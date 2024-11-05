@@ -12,10 +12,9 @@ import (
 
 var _ Broadcaster = (*SimpleCaster)(nil)
 
-// var _ Broadcaster = (*BufferedCaster)(nil)
-
 type SimpleCaster struct {
 	enabled atomic.Bool
+	global  atomic.Bool
 	cm      ClientManager
 	msgChan chan WsResponseInfo
 }
@@ -32,9 +31,15 @@ func (c *SimpleCaster) Flush() {
 	// no-op
 }
 
+func (c *SimpleCaster) Global() {
+	c.global.Store(true)
+}
+
 func (c *SimpleCaster) Close() {
 	if !c.enabled.Load() {
 		panic(werror.Errorf("Caster double close"))
+	} else if c.global.Load() {
+		return
 	}
 	c.enabled.Store(false)
 	c.msgChan <- WsResponseInfo{}

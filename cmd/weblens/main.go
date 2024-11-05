@@ -86,7 +86,9 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init client service")
 
 	/* Basic global pack.Caster */
-	pack.Caster = models.NewSimpleCaster(pack.ClientService)
+	caster := models.NewSimpleCaster(pack.ClientService)
+	caster.Global()
+	pack.Caster = caster
 
 	setupAccessService(pack, db)
 	sw.Lap("Init access service")

@@ -87,14 +87,22 @@ export class WeblensFile {
     index?: number
     visible?: boolean
 
+    private fetching: boolean
+
     private selected: SelectedState
     private contentId: string
     private share: WeblensShare
+
+    private debug_create_date: Date
 
     constructor(init: WeblensFileParams) {
         if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
+        if (init.isDir) {
+            console.debug('Creating folder', init)
+        }
+
         Object.assign(this, init)
         this.hovering = false
         this.modifyDate = new Date(init.modifyTimestamp)
@@ -102,6 +110,8 @@ export class WeblensFile {
         if (!this.parents) {
             this.parents = []
         }
+
+        this.debug_create_date = new Date()
     }
 
     Id(): string {
@@ -150,7 +160,7 @@ export class WeblensFile {
         if (this.filename === '.user_trash') {
             return []
         }
-        return this.parents
+        return this.parents.filter((parent) => Boolean(parent))
     }
 
     GetPathParts(replaceIcons?: boolean): (string | ((p) => JSX.Element))[] {
@@ -257,6 +267,14 @@ export class WeblensFile {
 
     IsPastFile(): boolean {
         return this.pastFile
+    }
+
+    SetFetching(fetching: boolean): void {
+        this.fetching = fetching
+    }
+
+    GetFetching(): boolean {
+        return this.fetching
     }
 
     GetChildren(): string[] {

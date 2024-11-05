@@ -570,6 +570,9 @@ func (f *WeblensFileImpl) RecursiveMap(fn func(*WeblensFileImpl) error) error {
 	children := f.GetChildren()
 
 	for _, c := range children {
+		if f == c {
+			panic("RecursiveMap called on self")
+		}
 		err := c.RecursiveMap(fn)
 		if err != nil {
 			return err

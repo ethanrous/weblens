@@ -634,7 +634,6 @@ function PastFileMenu({
                         ).then((res) => {
                             setFooterNote({ hint: '', danger: false })
                             setMenu({ menuState: FbMenuModeT.Closed })
-                            console.log('going to', res.newParentId)
                             nav(`/files/${res.newParentId}`)
                         })
                     }}

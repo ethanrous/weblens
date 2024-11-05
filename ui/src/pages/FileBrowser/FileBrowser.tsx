@@ -54,8 +54,6 @@ import { FbModeT, useFileBrowserStore } from './FBStateControl'
 
 import {
     getRealId,
-    handleDragOver,
-    HandleDrop,
     HandleUploadButton,
     historyDate,
     MoveSelected,
@@ -66,7 +64,6 @@ import {
 import {
     DirViewWrapper,
     DraggingCounter,
-    DropSpot,
     TransferCard,
     WebsocketStatus,
 } from './FileBrowserMiscComponents'
@@ -657,7 +654,6 @@ function DirView({
     setFilesError: (err: number) => void
     searchFilter: string
 }) {
-    const [contentViewRef, setContentViewRef] = useState(null)
     const [fullViewRef, setFullViewRef] = useState(null)
 
     const mode = useFileBrowserStore((state) => state.fbMode)
@@ -667,13 +663,11 @@ function DirView({
     const filesList = useFileBrowserStore((state) => state.filesLists)
     const viewOpts = useFileBrowserStore((state) => state.viewOpts)
     const moveDest = useFileBrowserStore((state) => state.moveDest)
-    const draggingState = useFileBrowserStore((state) => state.draggingState)
     const setViewOptions = useFileBrowserStore((state) => state.setViewOptions)
 
     const user = useSessionStore((state) => state.user)
 
     const clearSelected = useFileBrowserStore((state) => state.clearSelected)
-    const setDragging = useFileBrowserStore((state) => state.setDragging)
 
     const activeList = filesList.get(folderInfo?.Id()) || []
 
@@ -734,31 +728,8 @@ function DirView({
                 destination={moveDest}
                 boundRef={fullViewRef}
             />
-            <div className="flex h-0 w-full grow" ref={setContentViewRef}>
-                <DropSpot
-                    onDrop={(e) => {
-                        HandleDrop(
-                            e.dataTransfer.items,
-                            contentId,
-                            activeList.map((value: WeblensFile) =>
-                                value.GetFilename()
-                            ),
-                            false,
-                            ''
-                        )
-                        setDragging(DraggingStateT.NoDrag)
-                    }}
-                    stopDragging={() => setDragging(DraggingStateT.NoDrag)}
-                    dropSpotTitle={folderInfo?.GetFilename()}
-                    dropAllowed={folderInfo?.IsModifiable()}
-                    handleDrag={(event) => {
-                        console.log('ITS ME??')
-                        return
-                        handleDragOver(event, setDragging, draggingState)
-                    }}
-                    wrapperRef={contentViewRef}
-                />
-                <div className="flex flex-col w-full h-full pl-3">
+            <div className="flex h-0 w-full grow">
+                <div className="flex flex-col w-full h-full pl-3 min-w-[20vw]">
                     <div className="flex flex-row h-[200px] grow max-w-full">
                         <div className="grow shrink w-0">{fileDisplay}</div>
                     </div>
@@ -802,6 +773,7 @@ function FileBrowser() {
         blockFocus,
         loading,
         filesMap,
+        filesLists,
         folderInfo,
         presentingId,
         isSearching,
@@ -814,6 +786,7 @@ function FileBrowser() {
         removeLoading,
         setLocationState,
         setSelected,
+        clearSelected,
         setFilesData,
         setBlockFocus,
     } = useFileBrowserStore()
@@ -919,8 +892,20 @@ function FileBrowser() {
                 nav('/login', { state: { returnTo: window.location.pathname } })
             }
 
+            if (viewOpts.dirViewMode !== DirViewModeT.Columns) {
+                clearSelected()
+            }
+
             const folder = filesMap.get(contentId)
-            if (folder && folder.modifiable !== undefined) {
+            if (
+                folder &&
+                (folder.GetFetching() ||
+                    (folder.modifiable !== undefined &&
+                        folder.childrenIds &&
+                        folder.childrenIds.filter((f) => f !== user.trashId)
+                            .length === filesLists.get(folder.Id())?.length))
+            ) {
+                console.debug('Exiting sync state early')
                 if (folder.Id() !== folderInfo.Id()) {
                     setFilesData({
                         selfInfo: folder,
@@ -928,6 +913,8 @@ function FileBrowser() {
                 }
                 return
             }
+
+            folder?.SetFetching(true)
 
             const fileData = await GetFolderData(
                 contentId,
@@ -953,6 +940,7 @@ function FileBrowser() {
                     return
                 }
 
+                console.debug('Setting main files data', fileData)
                 setFilesData({
                     selfInfo: fileData.self,
                     childrenInfo: fileData.children,
@@ -960,9 +948,12 @@ function FileBrowser() {
                     mediaData: fileData.medias,
                     user: user,
                 })
+
+                folder?.SetFetching(false)
             }
 
             if (
+                (jumpTo || viewOpts.dirViewMode === DirViewModeT.Columns) &&
                 (fbMode !== FbModeT.share || contentId) &&
                 useFileBrowserStore.getState().selected.size === 0
             ) {
@@ -979,7 +970,24 @@ function FileBrowser() {
             .finally(() => removeLoading('files'))
     }, [user, contentId, shareId, fbMode, pastTime, jumpTo])
 
-    console.log('HER?')
+    useEffect(() => {
+        const selectedSize = useFileBrowserStore.getState().selected.size
+
+        if (
+            viewOpts.dirViewMode !== DirViewModeT.Columns &&
+            selectedSize === 1
+        ) {
+            clearSelected()
+        }
+
+        if (
+            (jumpTo || viewOpts.dirViewMode === DirViewModeT.Columns) &&
+            (fbMode !== FbModeT.share || contentId) &&
+            selectedSize === 0
+        ) {
+            setSelected([jumpTo ? jumpTo : contentId], true)
+        }
+    }, [viewOpts.dirViewMode])
 
     return (
         <div className="h-screen flex flex-col">

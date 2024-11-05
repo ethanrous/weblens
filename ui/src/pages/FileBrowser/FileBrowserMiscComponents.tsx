@@ -1,4 +1,4 @@
-import { Divider, FileButton, Space, Text, } from '@mantine/core'
+import { Divider, FileButton, Space, Text } from '@mantine/core'
 import { useMouse } from '@mantine/hooks'
 
 import {
@@ -28,9 +28,20 @@ import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { UserInfoT } from '@weblens/types/Types'
 import { friendlyFolderName, humanFileSize } from '@weblens/util'
-import { DragEventHandler, FC, memo, ReactElement, useMemo, useState } from 'react'
+import {
+    DragEventHandler,
+    FC,
+    memo,
+    ReactElement,
+    useMemo,
+    useState,
+} from 'react'
 import { FbModeT, useFileBrowserStore } from './FBStateControl'
-import { handleDragOver, HandleUploadButton } from './FileBrowserLogic'
+import {
+    handleDragOver,
+    HandleDrop,
+    HandleUploadButton,
+} from './FileBrowserLogic'
 import '@weblens/components/theme.scss'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { ButtonIcon } from '@weblens/lib/buttonTypes'
@@ -70,30 +81,37 @@ export const TransferCard = ({
     )
 }
 
-export const DropSpot = ({
-    onDrop,
-    dropSpotTitle,
-    dropAllowed,
-    handleDrag,
-    wrapperRef,
-    stopDragging,
-}: {
-    onDrop: DragEventHandler
-    dropSpotTitle: string
-    dropAllowed: boolean
-    handleDrag: DragEventHandler<HTMLDivElement>
-    wrapperRef?: HTMLDivElement
-    stopDragging: () => void
-}) => {
+// export const DropSpot = ({
+//     onDrop,
+//     dropSpotTitle,
+//     dropAllowed,
+//     handleDrag,
+//     stopDragging,
+// }: {
+//     onDrop: DragEventHandler
+//     dropSpotTitle: string
+//     dropAllowed: boolean
+//     handleDrag: DragEventHandler<HTMLDivElement>
+//     stopDragging: () => void
+// }) => {
+export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
     const draggingState = useFileBrowserStore((state) => state.draggingState)
-    const wrapperSize = useResize(wrapperRef)
+    const shareId = useFileBrowserStore((state) => state.shareId)
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const [dropRef, setDropRef] = useState<HTMLDivElement>()
+
+    if (!parent) {
+        return null
+    }
+
     return (
         <div
             draggable={false}
             className="dropspot-wrapper"
+            ref={setDropRef}
             onDragOver={(e) => {
                 if (draggingState === DraggingStateT.NoDrag) {
-                    handleDrag(e)
+                    // handleDrag(e)
                 }
             }}
             style={{
@@ -102,39 +120,64 @@ export const DropSpot = ({
                         ? 'all'
                         : 'none',
                 cursor:
-                    !dropAllowed &&
+                    !parent.modifiable &&
                     draggingState === DraggingStateT.ExternalDrag
                         ? 'no-drop'
                         : 'auto',
-                height: wrapperSize ? wrapperSize.height - 2 : '100%',
-                width: wrapperSize ? wrapperSize.width - 2 : '100%',
+                // height: wrapperSize ? wrapperSize.height - 2 : '100%',
+                // width: wrapperSize ? wrapperSize.width - 2 : '100%',
             }}
-            onDragLeave={handleDrag}
+            onDragLeave={(e) => {
+                if (dropRef.contains(e.target as Node)) {
+                    console.log(e.target)
+                    return
+                }
+                setTimeout(() => setDragging(DraggingStateT.NoDrag), 100)
+            }}
         >
             {draggingState === DraggingStateT.ExternalDrag && (
                 <div
                     className="dropbox"
                     onMouseLeave={() => {
-                        stopDragging()
+                        console.log('leaving')
+                        if (draggingState === DraggingStateT.ExternalDrag) {
+                            setDragging(DraggingStateT.NoDrag)
+                        }
+                    }}
+                    onDragLeave={() => {
+                        setTimeout(
+                            () => setDragging(DraggingStateT.NoDrag),
+                            100
+                        )
                     }}
                     onDrop={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        if (dropAllowed) {
-                            onDrop(e)
+                        if (parent.modifiable) {
+                            HandleDrop(
+                                e.dataTransfer.items,
+                                parent.Id(),
+                                [],
+                                false,
+                                shareId
+                            )
+
+                            setDragging(DraggingStateT.NoDrag)
                         } else {
-                            stopDragging()
+                            if (draggingState === DraggingStateT.ExternalDrag) {
+                                setDragging(DraggingStateT.NoDrag)
+                            }
                         }
                     }}
                     // required for onDrop to work
                     // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
                     onDragOver={(e) => e.preventDefault()}
                     style={{
-                        outlineColor: `${dropAllowed ? '#ffffff' : '#dd2222'}`,
-                        cursor: !dropAllowed ? 'no-drop' : 'auto',
+                        outlineColor: `${parent.modifiable ? '#ffffff' : '#dd2222'}`,
+                        cursor: !parent.modifiable ? 'no-drop' : 'auto',
                     }}
                 >
-                    {!dropAllowed && (
+                    {!parent.modifiable && (
                         <div className="flex justify-center items-center relative cursor-no-drop w-max pointer-events-none">
                             <IconFolderCancel
                                 className="pointer-events-none"
@@ -143,10 +186,10 @@ export const DropSpot = ({
                             />
                         </div>
                     )}
-                    {dropAllowed && (
+                    {parent.modifiable && (
                         <TransferCard
                             action="Upload"
-                            destination={dropSpotTitle}
+                            destination={parent.portablePath}
                         />
                     )}
                 </div>
@@ -221,11 +264,12 @@ export const DirViewWrapper = memo(
             (state) => state.clearSelected
         )
         const setMenu = useFileBrowserStore((state) => state.setMenu)
+        const [dropRef, setDropRef] = useState<HTMLDivElement>()
 
         return (
             <div
                 draggable={false}
-                className="h-full shrink-0 min-w-[400px] grow w-0"
+                className="h-full shrink-0 grow w-0"
                 onDrag={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -253,9 +297,22 @@ export const DirViewWrapper = memo(
             >
                 <div
                     className="w-full h-full p-2"
-                    onDragOver={(event) => {
+                    ref={setDropRef}
+                    onDragOver={(e) => {
                         if (!draggingState) {
-                            handleDragOver(event, setDragging, draggingState)
+                            handleDragOver(e, setDragging, draggingState)
+                        }
+                    }}
+                    onDragLeave={(e) => {
+                        return
+                        if (dropRef.contains(e.target as Node)) {
+                            console.log(e.target)
+                            return
+                        }
+
+                        console.log(e.target)
+                        if (draggingState) {
+                            setDragging(DraggingStateT.NoDrag)
                         }
                     }}
                 >
@@ -328,17 +385,30 @@ export const IconDisplay = ({
 
     if (file.IsFolder()) {
         if (file.GetContentId() !== '') {
-            const containerQuanta = Math.ceil(containerSize.height/100)
+            const containerQuanta = Math.ceil(containerSize.height / 100)
             return (
-                <div ref={setContainerRef} className="relative flex w-full h-full justify-center items-center ">
-                    <div className="relative w-[90%] h-[90%] z-20" style={{translate: `${containerQuanta * -3}px ${containerQuanta * -3}px`}}>
+                <div
+                    ref={setContainerRef}
+                    className="relative flex w-full h-full justify-center items-center "
+                >
+                    <div
+                        className="relative w-[90%] h-[90%] z-20"
+                        style={{
+                            translate: `${containerQuanta * -3}px ${containerQuanta * -3}px`,
+                        }}
+                    >
                         <MediaImage
                             media={mediaData}
                             quality={PhotoQuality.LowRes}
                         />
                     </div>
                     <div className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-75 rounded z-10" />
-                    <div className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-50 rounded" style={{translate: `${containerQuanta * 3}px ${containerQuanta * 3}px`}} />
+                    <div
+                        className="absolute w-[88%] h-[88%] bg-wl-outline-subtle outline outline-2 outline-theme-text opacity-50 rounded"
+                        style={{
+                            translate: `${containerQuanta * 3}px ${containerQuanta * 3}px`,
+                        }}
+                    />
                 </div>
             )
         } else {
@@ -453,7 +523,7 @@ export const GetStartedCard = () => {
     }
 
     return (
-        <div className="flex w-full justify-center items-center animate-fade h-3/4">
+        <div className="flex absolute w-full justify-center items-center animate-fade h-full">
             <div className="flex flex-col w-max h-fit justify-center items-center">
                 <div className="flex items-center p-30 absolute -z-1 pointer-events-none h-max">
                     <EmptyIcon folderId={folderInfo.Id()} usr={user} />
@@ -619,7 +689,7 @@ export function FileFmt({ pathName }: { pathName: string }) {
 
     return (
         <div
-            className="flex items-center w-max min-w-0"
+            className="flex items-center w-max min-w-0 max-w-full"
             style={{ flexShrink: parts.length ? 1 : 0 }}
         >
             <StartIcon className="theme-text m-1 shrink-0 text-[--wl-text-color]" />
