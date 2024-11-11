@@ -1,63 +1,59 @@
-import { getServerInfo } from '@weblens/api/ApiFetch'
-import { GetUserInfo } from '@weblens/api/UserApi'
-import {
-    LOGIN_TOKEN_COOKIE_KEY,
-    ServerInfoT,
-    UserInfoT,
-    USERNAME_COOKIE_KEY,
-} from '@weblens/types/Types'
+import ServerApi from '@weblens/api/ServerApi'
+import { ServerInfo } from '@weblens/api/swag'
+import UsersApi from '@weblens/api/UserApi'
+import User from '@weblens/types/user/User'
 import { useEffect } from 'react'
-import { useCookies } from 'react-cookie'
 import { NavigateFunction, useNavigate } from 'react-router-dom'
 import { create, StateCreator } from 'zustand'
 
 const useR = () => {
     const nav = useNavigate()
-    const [cookies] = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
-
-    const { server, user, setUserInfo } = useSessionStore()
-
-    useEffect(() => {
-        if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
-            setUserInfo({ isLoggedIn: false } as UserInfoT)
-        }
-    }, [cookies])
+    const { server, user, setUser } = useSessionStore()
 
     useEffect(() => {
         if (!server) {
             return
         }
 
-        if (server.info.role === 'init' || !server.started) {
-            setUserInfo({ isLoggedIn: false } as UserInfoT)
+        if (server.role === 'init' || !server.started) {
+            const user = new User({})
+            user.isLoggedIn = false
+            setUser(user)
             return
         }
 
         if (!user || user.homeId === '') {
-            GetUserInfo()
-                .then((info) => setUserInfo({ ...info, isLoggedIn: true }))
-                .catch((r) => {
-                    setUserInfo({ isLoggedIn: false } as UserInfoT)
-                    if (r === 401) {
+            UsersApi.getUser()
+                .then((res) => {
+                    setUser(new User(res.data, true))
+                })
+                .catch((e) => {
+                    console.error(e.response.statusText)
+
+                    setUser(new User({}, false))
+                    if (
+                        e.response.status === 401 &&
+                        !window.location.pathname.includes('share')
+                    ) {
                         console.debug('Going to login')
-                        nav('/login')
+                        nav('/login', {
+                            state: { returnTo: window.location.pathname },
+                        })
                     }
-                    console.error(r)
                 })
         }
     }, [server])
 }
 
 export interface WeblensSessionT {
-    user: UserInfoT
-    server: { info: ServerInfoT; userCount: number; started: boolean }
+    user: User
+    server: ServerInfo
     nav: NavigateFunction
-    setUserInfo: (user: UserInfoT) => void
+    setUser: (user: User) => void
 
     fetchServerInfo: () => Promise<void>
-    logout: (removeCookie: (cookieKey: string) => void) => void
 
-    setNav: (navFunc: (loc: string) => void) => void
+    setNav: (navFunc: NavigateFunction) => void
 }
 
 const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
@@ -65,32 +61,25 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     server: null,
     nav: null,
 
-    setUserInfo: (user) => {
+    setUser: (user: User) => {
         if (user.isLoggedIn === undefined) {
-            user.isLoggedIn = user.username !== ''
+            throw new Error('User must have isLoggedIn set')
         }
+
         set({
             user: user,
         })
     },
 
     fetchServerInfo: async () => {
-        return getServerInfo().then((r) => {
+        return ServerApi.getServerInfo().then((res) => {
             set({
-                server: r,
+                server: res.data,
             })
         })
     },
 
-    logout: (removeCoookie) => {
-        set({
-            user: null,
-        })
-        removeCoookie(USERNAME_COOKIE_KEY)
-        removeCoookie(LOGIN_TOKEN_COOKIE_KEY)
-    },
-
-    setNav: (navFunc: (loc: string) => void) => {
+    setNav: (navFunc: NavigateFunction) => {
         set({
             nav: navFunc,
         })

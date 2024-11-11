@@ -59,6 +59,7 @@
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
+        "proxyAddress": "http://local.weblens.io:8080",
         "dataRoot": "./build/fs/core/data",
         "cachesRoot": "./build/fs/core/caches"
     },

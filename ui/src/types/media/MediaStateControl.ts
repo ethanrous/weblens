@@ -1,5 +1,5 @@
 import WeblensMedia from '@weblens/types/media/Media'
-import Media, { MediaDataT } from '@weblens/types/media/Media'
+import Media, { MediaInfo } from '@weblens/types/media/Media'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 

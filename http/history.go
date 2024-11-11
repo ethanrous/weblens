@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
-	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,9 +32,7 @@ func getLifetimesSince(ctx *gin.Context) {
 	date := time.UnixMilli(millis)
 
 	lifetimes, err := pack.FileService.GetJournalByTree("USERS").GetLifetimesSince(date)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -53,24 +51,21 @@ func doFullBackup(ctx *gin.Context) {
 	}
 
 	millis, err := strconv.ParseInt(millisString, 10, 64)
-	if err != nil || millis < 0 {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
+		return
+	} else if millis == 0 {
+		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
 	since := time.UnixMilli(millis)
 	usersJournal := pack.FileService.GetJournalByTree("USERS")
 	lts, err := usersJournal.GetLifetimesSince(since)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 	usersItter, err := pack.UserService.GetAll()
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 	users := slices.Collect(usersItter)
@@ -79,27 +74,23 @@ func doFullBackup(ctx *gin.Context) {
 	instances = append(instances, pack.InstanceService.GetLocal())
 
 	usingKey, err := pack.AccessService.GetApiKey(instance.GetUsingKey())
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
 	owner := pack.UserService.Get(usingKey.Owner)
 
 	keys, err := pack.AccessService.GetAllKeys(owner)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
-	res := models.BackupBody{
+	res := rest.BackupBody{
 		FileHistory:    lts,
 		LifetimesCount: len(usersJournal.GetAllLifetimes()),
 		Users:          users,
 		Instances:      instances,
-		ApikKeys:       keys,
+		ApiKeys:        keys,
 	}
 	ctx.JSON(http.StatusOK, res)
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,9 +25,7 @@ func getAlbum(ctx *gin.Context) {
 
 	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
 
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -66,9 +65,7 @@ func getAlbums(ctx *gin.Context) {
 	}
 
 	albums, err := pack.AlbumService.GetAllByUser(user)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -112,7 +109,7 @@ func createAlbum(ctx *gin.Context) {
 		ctx.Status(http.StatusNotFound)
 		return
 	}
-	albumData, err := readCtxBody[albumCreateBody](ctx)
+	albumData, err := readCtxBody[rest.AlbumCreateBody](ctx)
 	if err != nil {
 		return
 	}
@@ -131,9 +128,7 @@ func updateAlbum(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -149,13 +144,13 @@ func updateAlbum(ctx *gin.Context) {
 		return
 	}
 
-	update, err := readCtxBody[updateAlbumBody](ctx)
+	update, err := readCtxBody[rest.UpdateAlbumBody](ctx)
 	if err != nil {
 		return
 	}
 
 	var ms []*models.Media
-	if update.AddMedia != nil && len(update.AddMedia) != 0 {
+	if len(update.AddMedia) != 0 {
 		ms = internal.FilterMap(
 			update.AddMedia, func(mId models.ContentId) (*models.Media, bool) {
 				m := pack.MediaService.Get(mId)
@@ -173,7 +168,7 @@ func updateAlbum(ctx *gin.Context) {
 		}
 	}
 
-	if update.AddFolders != nil && len(update.AddFolders) != 0 {
+	if len(update.AddFolders) != 0 {
 		folders := internal.Map(
 			update.AddFolders, func(fId fileTree.FileId) *fileTree.WeblensFileImpl {
 				f, err := pack.FileService.GetFileSafe(fId, u, nil)
@@ -185,15 +180,7 @@ func updateAlbum(ctx *gin.Context) {
 			},
 		)
 
-		ms = append(
-			ms, internal.Map(
-				pack.MediaService.RecursiveGetMedia(folders...),
-				func(mId models.ContentId) *models.Media {
-					m := pack.MediaService.Get(mId)
-					return m
-				},
-			)...,
-		)
+		ms = append(ms, pack.MediaService.RecursiveGetMedia(folders...)...)
 	}
 
 	addedCount := 0
@@ -284,9 +271,7 @@ func deleteAlbum(ctx *gin.Context) {
 	pack := getServices(ctx)
 	user := getUserFromCtx(ctx)
 	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -330,9 +315,7 @@ func unshareMeAlbum(ctx *gin.Context) {
 	pack := getServices(ctx)
 	user := getUserFromCtx(ctx)
 	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 

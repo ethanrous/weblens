@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [[ ! -e ./scripts ]]; then
+  echo "ERR Could not find ./scripts directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+  exit 1
+fi
+
+swag init --pd -g server.go -d ./http -q
+if [[ $? -ne 0 ]]; then
+  echo "ERR swag init failed"
+  exit 1
+fi
+
+openapi-generator generate -i docs/swagger.json -g typescript-axios -o ./ui/src/api/swag 
+if [[ $? -ne 0 ]]; then
+  echo "openapi-generator (typescript) failed"
+  exit 1
+fi
+
+# openapi-generator generate -i docs/swagger.json -g go -o ./http/swag
+# if [[ $? -ne 0 ]]; then
+#   echo "openapi-generator (go) failed"
+#   exit 1
+# fi
+

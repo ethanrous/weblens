@@ -9,7 +9,6 @@ import {
     IconUserMinus,
     IconUsersPlus,
 } from '@tabler/icons-react'
-import { AutocompleteUsers } from '@weblens/api/ApiFetch'
 
 import '@weblens/types/albums/albumStyle.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
@@ -26,7 +25,9 @@ import { useSessionStore } from 'components/UserInfo'
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FixedSizeList } from 'react-window'
-import { AlbumData, UserInfoT } from 'types/Types'
+import { AlbumData } from 'types/Types'
+import UsersApi from '@weblens/api/UserApi'
+import { UserInfo } from '@weblens/api/swag'
 
 function AlbumShareMenu({
     album,
@@ -35,22 +36,17 @@ function AlbumShareMenu({
     album: AlbumData
     closeShareMenu: () => void
 }) {
-    const { user } = useSessionStore()
     const [users, setUsers] = useState([])
     const [userSearch, setUserSearch] = useState('')
-    const [userSearchResults, setUserSearchResults] = useState([])
+    const [userSearchResults, setUserSearchResults] = useState<UserInfo[]>([])
 
     useEffect(() => {
         if (userSearch === '') {
             setUserSearchResults([])
             return
         }
-        AutocompleteUsers(userSearch).then((r) => {
-            r = r.filter(
-                (u: UserInfoT) =>
-                    u.username !== user.username && !users.includes(u.username)
-            )
-            setUserSearchResults(r)
+        UsersApi.searchUsers(userSearch).then((r) => {
+            setUserSearchResults(r.data)
         })
     }, [userSearch, users])
 
@@ -85,7 +81,7 @@ function AlbumShareMenu({
                                 No Search Results
                             </p>
                         )}
-                        {userSearchResults.map((u: UserInfoT) => {
+                        {userSearchResults.map((u: UserInfo) => {
                             return (
                                 <WeblensButton
                                     squareSize={40}
@@ -336,7 +332,7 @@ function AlbumWrapper({
 }: {
     data: { albums: AlbumData[]; colCount: number }
     index: number
-    style
+    style: React.CSSProperties
 }) {
     const thisData = useMemo(() => {
         const thisData = data.albums.slice(
@@ -390,7 +386,6 @@ export function AlbumScroller({ albums }: { albums: AlbumData[] }) {
                     albums: albums,
                     colCount: colCount,
                 }}
-                overscanRowCount={5}
             >
                 {AlbumWrapper}
             </FixedSizeList>

@@ -22,6 +22,8 @@ var NotImplemented = func(note string) error {
 	}
 }
 
+// clientSafeErr packages an error that is safe to send to the client, and the real error that should be logged on the server.
+// See TrySafeErr for more information
 type clientSafeErr struct {
 	realError  error
 	safeErr    error
@@ -42,6 +44,12 @@ func (cse *clientSafeErr) Safe() error {
 	return cse.safeErr
 }
 
+// SafeErr unpackages an error, if possible, to find the error inside that is safe to send to the client.
+// If the error is not a clientSafeErr, it will trace the original error in the server logs, and return a generic error
+// and a 500 to the client
+// The reasoning behind this is, for example, if a user tries to access a file that they aren't allowed to, WE want to know (and log)
+// they were not allowed to. Then, we want to tell the client (lie) that the file doesn't exist. This way, we don't give the forbidden
+// user any information about the file.
 func TrySafeErr(err error) (error, int) {
 	if err == nil {
 		return nil, 200
@@ -64,7 +72,7 @@ func SafeErrorAndExit(err error, ctx *gin.Context) (shouldExit bool) {
 		return false
 	}
 	safe, code := TrySafeErr(err)
-	ctx.JSON(code, safe)
+	ctx.JSON(code, gin.H{"error": safe.Error()})
 
 	return true
 }

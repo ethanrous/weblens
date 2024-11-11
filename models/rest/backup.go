@@ -1,35 +1,32 @@
-package models
+package rest
 
 import (
 	"encoding/json"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/models"
 )
 
 type BackupBody struct {
 	FileHistory    []*fileTree.Lifetime
 	LifetimesCount int
-	Users          []*User
-	Instances      []*Instance
-	ApikKeys       []ApiKeyInfo
+	Users          []*models.User
+	Instances      []*models.Instance
+	ApiKeys        []models.ApiKey
 }
 
 func (b BackupBody) MarshalJSON() ([]byte, error) {
 	data := map[string]any{}
-	users := []map[string]any{}
+
+	var users []UserInfo
 	for _, u := range b.Users {
-		archive, err := u.FormatArchive()
-		if err != nil {
-			log.ErrTrace(err)
-		}
-		users = append(users, archive)
+		users = append(users, UserToUserInfo(u))
 	}
 
 	data["users"] = users
 	data["fileHistory"] = b.FileHistory
 	data["instances"] = b.Instances
-	data["apiKeys"] = b.ApikKeys
+	data["apiKeys"] = b.ApiKeys
 	data["lifetimesCount"] = b.LifetimesCount
 
 	return json.Marshal(data)

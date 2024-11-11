@@ -27,7 +27,7 @@ type FileShare struct {
 	Expires   time.Time       `bson:"expires" json:"expires"`
 	Updated   time.Time       `bson:"updated" json:"updated"`
 	ShareType ShareType       `bson:"shareType" json:"shareType"`
-}
+} // @name FileShare
 
 type AlbumShare struct {
 	ShareId   ShareId    `bson:"_id" json:"shareId"`
@@ -39,7 +39,7 @@ type AlbumShare struct {
 	Expires   time.Time  `bson:"expires"`
 	Updated   time.Time  `bson:"updated"`
 	ShareType ShareType  `bson:"shareType"`
-}
+} // @name AlbumShare
 
 func NewFileShare(
 	f *fileTree.WeblensFileImpl, u *User, accessors []*User, public bool, wormhole bool,

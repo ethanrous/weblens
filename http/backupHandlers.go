@@ -11,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/gin-gonic/gin"
 )
@@ -18,15 +19,13 @@ import (
 func attachNewCoreRemote(ctx *gin.Context) {
 	pack := getServices(ctx)
 
-	body, err := readCtxBody[newCoreBody](ctx)
+	body, err := readCtxBody[rest.NewCoreBody](ctx)
 	if err != nil {
 		return
 	}
 
 	newCore, err := pack.InstanceService.AttachRemoteCore(body.CoreAddress, body.UsingKey)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -41,9 +40,7 @@ func attachNewCoreRemote(ctx *gin.Context) {
 	pack.FileService.AddTree(newTree)
 
 	err = WebsocketToCore(newCore, pack)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -106,7 +103,7 @@ func launchBackup(ctx *gin.Context) {
 }
 
 func restoreToCore(ctx *gin.Context) {
-	restoreInfo, err := readCtxBody[restoreCoreBody](ctx)
+	restoreInfo, err := readCtxBody[rest.RestoreCoreBody](ctx)
 
 	if err != nil {
 		return
@@ -121,9 +118,7 @@ func restoreToCore(ctx *gin.Context) {
 	}
 
 	err = core.SetAddress(restoreInfo.HostUrl)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -134,9 +129,7 @@ func restoreToCore(ctx *gin.Context) {
 	}
 
 	_, err = pack.TaskService.DispatchJob(models.RestoreCoreTask, meta, nil)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 

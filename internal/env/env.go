@@ -288,14 +288,23 @@ func GetMongoDBName(configName ...string) string {
 	return "weblens"
 }
 
-func GetHostURL() string {
+func GetProxyAddress() string {
+	proxyAddress := os.Getenv("PROXY_ADDRESS")
+	if proxyAddress != "" {
+		return proxyAddress
+	}
+
 	config, err := ReadConfig(GetConfigName())
 	if err != nil {
 		panic(err)
 	}
 
-	hostUrl, _ := config["hostUrl"].(string)
-	return hostUrl
+	proxyAddress, _ = config["proxyAddress"].(string)
+
+	if proxyAddress == "" {
+		proxyAddress = "http://" + GetRouterHost() + ":" + GetRouterPort()
+	}
+	return proxyAddress
 }
 
 func GetTestMediaPath() string {

@@ -149,34 +149,6 @@ func (wi *Instance) SocketType() string {
 	return "serverClient"
 }
 
-type ServerInfo struct {
-	Id   InstanceId `json:"id"`
-	Name string     `json:"name"`
-
-	// Only applies to "core" server entries. This is the apiKey that remote server is using to connect to local,
-	// if local is core. If local is backup, then this is the key being used to connect to remote core
-	UsingKey WeblensApiKey `json:"-"`
-
-	// Core or Backup
-	Role ServerRole `json:"role"`
-
-	// If this server info represents this local server
-	IsThisServer bool `json:"-"`
-
-	// Address of the remote server, only if the instance is a core.
-	// Not set for any remotes/backups on core server, as it IS the core
-	Address string `json:"coreAddress"`
-
-	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
-	ReportedRole ServerRole `json:"reportedRole"`
-
-	Online bool `json:"online"`
-
-	LastBackup int64 `json:"lastBackup"`
-
-	BackupSize int64 `json:"backupSize"`
-}
-
 type InstanceService interface {
 	Size() int
 
@@ -197,27 +169,27 @@ type InstanceService interface {
 
 type WeblensApiKey = string
 
-type ApiKeyInfo struct {
-	Id          primitive.ObjectID `bson:"_id" json:"id"`
-	Key         WeblensApiKey      `bson:"key" json:"key"`
-	Owner       Username           `bson:"owner" json:"owner"`
-	CreatedTime time.Time          `bson:"createdTime" json:"createdTime"`
-	RemoteUsing InstanceId         `bson:"remoteUsing" json:"remoteUsing"`
-	CreatedBy   InstanceId         `bson:"createdBy" json:"createdBy"`
+type ApiKey struct {
+	Id          primitive.ObjectID `bson:"_id"`
+	Key         WeblensApiKey      `bson:"key"`
+	Owner       Username           `bson:"owner"`
+	CreatedTime time.Time          `bson:"createdTime"`
+	RemoteUsing InstanceId         `bson:"remoteUsing"`
+	CreatedBy   InstanceId         `bson:"createdBy"`
 }
 
 type AccessService interface {
-	GenerateJwtToken(user *User) (string, error)
-	GetApiKey(key WeblensApiKey) (ApiKeyInfo, error)
-	AddApiKey(key ApiKeyInfo) error
+	GenerateJwtToken(user *User) (token string, expires time.Time, err error)
+	GetApiKey(key WeblensApiKey) (ApiKey, error)
+	AddApiKey(key ApiKey) error
 	GetUserFromToken(token string) (*User, error)
 	DeleteApiKey(key WeblensApiKey) error
-	GenerateApiKey(creator *User, local *Instance) (ApiKeyInfo, error)
+	GenerateApiKey(creator *User, local *Instance) (ApiKey, error)
 	CanUserAccessFile(user *User, file *fileTree.WeblensFileImpl, share *FileShare) bool
 	CanUserModifyShare(user *User, share Share) bool
 	CanUserAccessAlbum(user *User, album *Album, share *AlbumShare) bool
 
-	GetAllKeys(accessor *User) ([]ApiKeyInfo, error)
-	GetAllKeysByServer(accessor *User, serverId InstanceId) ([]ApiKeyInfo, error)
+	GetAllKeys(accessor *User) ([]ApiKey, error)
+	GetAllKeysByServer(accessor *User, serverId InstanceId) ([]ApiKey, error)
 	SetKeyUsedBy(key WeblensApiKey, server *Instance) error
 }

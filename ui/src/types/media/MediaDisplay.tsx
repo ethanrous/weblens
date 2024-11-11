@@ -4,13 +4,13 @@ import {
     IconPhoto,
     IconPhotoScan,
     IconTheater,
+    TablerIconsProps,
 } from '@tabler/icons-react'
-import { GetFileInfo } from '@weblens/api/FileBrowserApi'
 
 import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
 import { AlbumNoContent } from '@weblens/types/albums/Albums'
-import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
+import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
@@ -18,6 +18,7 @@ import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { useResize } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
 import React, {
+    MouseEvent,
     ReactElement,
     useCallback,
     useContext,
@@ -31,18 +32,21 @@ import { VariableSizeList as WindowList } from 'react-window'
 import '@weblens/pages/Gallery/galleryStyle.scss'
 
 import { AlbumData, MediaWrapperProps, PresentType } from 'types/Types'
+import { FileApi } from '@weblens/api/FileBrowserApi'
+import { FileInfo } from '@weblens/api/swag'
 
 const goToFolder = async (
-    e,
+    e: MouseEvent,
     fileIds: string[],
-    filesInfo,
-    setLoading,
-    setMenuOpen,
-    setFileInfo
+    filesInfo: FileInfo[],
+    setLoading: (o: boolean) => void,
+    setMenuOpen: (o: boolean) => void,
+    setFileInfo: (info: FileInfo[]) => void
 ) => {
     e.stopPropagation()
     if (fileIds.length === 1) {
-        const fileInfo: WeblensFileParams = await GetFileInfo(fileIds[0], '')
+        const res = await FileApi.getFile(fileIds[0], undefined)
+        const fileInfo = res.data
 
         const newFile = new WeblensFile(fileInfo)
 
@@ -56,7 +60,10 @@ const goToFolder = async (
     if (filesInfo.length === 0) {
         setLoading(true)
         const fileInfos = await Promise.all(
-            fileIds.map(async (v) => await GetFileInfo(v, ''))
+            fileIds.map(
+                async (v) =>
+                    await FileApi.getFile(v, undefined).then((r) => r.data)
+            )
         )
         setFileInfo(fileInfos)
         setLoading(false)
@@ -64,7 +71,7 @@ const goToFolder = async (
 }
 
 const TypeIcon = (mediaData: WeblensMedia) => {
-    let icon
+    let icon: (p: TablerIconsProps) => ReactElement
 
     if (mediaData.GetMediaType()?.IsRaw) {
         icon = IconPhotoScan
@@ -73,15 +80,15 @@ const TypeIcon = (mediaData: WeblensMedia) => {
     } else {
         icon = IconPhoto
     }
-    return [icon, mediaData.GetMediaType()?.FriendlyName]
+    return { icon, name: mediaData.GetMediaType()?.FriendlyName }
 }
 
 type mediaTypeProps = {
-    Icon: (p) => ReactElement
+    Icon: (p: TablerIconsProps) => ReactElement
     label: string
     visible: boolean
 
-    onClick?: React.MouseEventHandler<HTMLDivElement>
+    onClick?: React.MouseEventHandler<Element>
 }
 
 function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
@@ -96,7 +103,7 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
         }
     }, [hover, visible])
 
-    const stopProp = useCallback((e) => {
+    const stopProp = useCallback((e: MouseEvent) => {
         e.stopPropagation()
         if (onClick) {
             onClick(e)
@@ -133,7 +140,7 @@ const MediaInfoDisplay = ({
 }) => {
     const { user } = useSessionStore()
     const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
-    const [icon, name] = useMemo(() => {
+    const { icon, name } = useMemo(() => {
         return TypeIcon(mediaData)
     }, [])
 
@@ -142,7 +149,7 @@ const MediaInfoDisplay = ({
         state.mediaMap.get(mediaData.Id())?.GetLikedBy()
     )
 
-    const [menuOpen, setMenuOpen] = useState(false)
+    const [, setMenuOpen] = useState(false)
     const [filesInfo, setFilesInfo] = useState([])
 
     const visible = Boolean(icon) && !mediaMenuOpen && !tooSmall
@@ -153,7 +160,7 @@ const MediaInfoDisplay = ({
     })
 
     const othersLiked = likedArray.length - Number(liked) > 0
-    let heartFill
+    let heartFill: string
     if (liked) {
         heartFill = 'red'
     } else if (othersLiked) {
@@ -163,7 +170,7 @@ const MediaInfoDisplay = ({
     }
 
     const goto = useCallback(
-        (e) =>
+        (e: MouseEvent) =>
             goToFolder(
                 e,
                 mediaData.GetFileIds(),
@@ -214,13 +221,12 @@ const MediaInfoDisplay = ({
 
 const MARGIN_SIZE = 4
 
-const MediaWrapper = ({
+function MediaWrapper({
     mediaData,
     scale,
     width,
     showMedia,
-    fetchAlbum,
-}: MediaWrapperProps) => {
+}: MediaWrapperProps) {
     const ref = useRef()
 
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
@@ -292,7 +298,7 @@ const MediaWrapper = ({
     }, [galleryState.selecting])
 
     const contextMenu = useCallback(
-        (e) => {
+        (e: MouseEvent) => {
             e.stopPropagation()
             e.preventDefault()
             if (
@@ -367,31 +373,33 @@ const MediaWrapper = ({
                     media={mediaData}
                     open={galleryState.menuTargetId === mediaData.Id()}
                     setOpen={menuSwitch}
-                    updateAlbum={fetchAlbum}
                 />
             )}
         </div>
     )
 }
-export const BucketCards = ({
-    medias,
-    widths,
-    index,
-    scale,
-    showMedia,
-}: {
+
+type bucketCardsProps = {
     medias: WeblensMedia[]
     widths: number[]
     index: number
     scale: number
     showMedia: boolean
-}) => {
+}
+
+export function BucketCards({
+    medias,
+    widths,
+    index,
+    scale,
+    showMedia,
+}: bucketCardsProps) {
     if (!medias) {
         medias = []
     }
 
     const placeholders = useMemo(() => {
-        return medias.map((m, i) => {
+        return medias.map((_, i) => {
             return (
                 <div
                     key={`media-placeholder-${index}-${i}`}
@@ -629,7 +637,6 @@ export function PhotoGallery({
                     itemSize={(i) => rows[i].rowScale + MARGIN_SIZE}
                     itemCount={rows.length}
                     itemData={rows}
-                    overscan={20}
                 >
                     {GalleryRow}
                 </WindowList>

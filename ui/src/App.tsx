@@ -12,11 +12,13 @@ import ErrorBoundary from './components/Error'
 
 import useR, { useSessionStore } from './components/UserInfo'
 import StartUp from './pages/Startup/StartupPage'
-import { fetchMediaTypes } from './types/media/MediaQuery'
 import { useMediaStore } from './types/media/MediaStateControl'
 import '@mantine/core/styles.css'
 import Backup from './pages/Backup/Backup'
 import Logo from './components/Logo'
+import axios from 'axios'
+import MediaApi from './api/MediaApi'
+import { MediaTypeInfo } from './api/swag'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -24,12 +26,14 @@ const Wormhole = React.lazy(() => import('./pages/FileBrowser/Wormhole'))
 const Login = React.lazy(() => import('./pages/Login/Login'))
 const Setup = React.lazy(() => import('./pages/Setup/Setup'))
 
-const saveMediaTypeMap = (setState: (typeMap) => void) => {
-    fetchMediaTypes().then((r) => {
-        setState(r)
+axios.defaults.withCredentials = true
+
+const saveMediaTypeMap = (setState: (typeMap: MediaTypeInfo) => void) => {
+    MediaApi.getMediaTypes().then((r) => {
+        setState(r.data)
         localStorage.setItem(
             'mediaTypeMap',
-            JSON.stringify({ typeMap: r, time: Date.now() })
+            JSON.stringify({ typeMap: r.data, time: Date.now() })
         )
     })
 }
@@ -61,23 +65,23 @@ const WeblensRoutes = () => {
     useEffect(() => {
         if (!server) {
             return
-        } else if (loc.pathname !== '/setup' && server.info.role === 'init') {
+        } else if (loc.pathname !== '/setup' && server.role === 'init') {
             console.debug('Nav setup')
             nav('/setup')
-        } else if (loc.pathname === '/setup' && server.info.role === 'core') {
+        } else if (loc.pathname === '/setup' && server.role === 'core') {
             console.debug('Nav files home from setup')
             nav('/files/home')
+            // } else if (
+            //     user &&
+            //     server.role !== 'init' &&
+            //     !loc.pathname.startsWith('/files/share') &&
+            //     loc.pathname !== '/login' &&
+            //     !user.isLoggedIn
+            // ) {
+            //     console.debug('Nav login from non-file share path. User:', user)
+            //     nav('/login', { state: { returnTo: loc.pathname } })
         } else if (
-            user &&
-            server.info.role !== 'init' &&
-            !loc.pathname.startsWith('/files/share') &&
-            loc.pathname !== '/login' &&
-            !user.isLoggedIn
-        ) {
-            console.debug('Nav login from non-files path')
-            nav('/login', { state: { returnTo: loc.pathname } })
-        } else if (
-            server.info.role === 'backup' &&
+            server.role === 'backup' &&
             loc.pathname !== '/backup' &&
             user?.isLoggedIn
         ) {
@@ -91,14 +95,14 @@ const WeblensRoutes = () => {
                 console.debug('Nav files home from login')
                 nav('/files/home')
             }
-        } else if (loc.pathname === '/' && server.info.role === 'core') {
+        } else if (loc.pathname === '/' && server.role === 'core') {
             console.debug('Nav files home (root path)')
             nav('/files/home')
         }
     }, [loc, server, user])
 
     useEffect(() => {
-        if (!server || !server.started || server.info.role === 'init') {
+        if (!server || !server.started || server.role === 'init') {
             return
         }
 

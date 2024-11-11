@@ -1,13 +1,12 @@
 package http
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
-	"regexp"
-	"slices"
 	"strconv"
+	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/task"
 	"github.com/gin-gonic/gin"
 )
@@ -23,7 +23,7 @@ import (
 func newUploadTask(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	upInfo, err := readCtxBody[newUploadBody](ctx)
+	upInfo, err := readCtxBody[rest.NewUploadBody](ctx)
 	if err != nil {
 		return
 	}
@@ -52,15 +52,11 @@ func newUploadTask(ctx *gin.Context) {
 
 func newFileUpload(ctx *gin.Context) {
 	uploadTaskId := ctx.Param("uploadId")
-	newFInfo, err := readCtxBody[newFileBody](ctx)
+	newFInfo, err := readCtxBody[rest.NewFileBody](ctx)
 	if err != nil {
 		return
 	}
 
-	handleNewFile(uploadTaskId, newFInfo, ctx)
-}
-
-func handleNewFile(uploadTaskId task.Id, newFInfo newFileBody, ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
 	uTask := pack.TaskService.GetTask(uploadTaskId)
@@ -107,10 +103,7 @@ func handleNewFile(uploadTaskId task.Id, newFInfo newFileBody, ctx *gin.Context)
 		},
 	)
 
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-
-		ctx.JSON(code, gin.H{"error": safe})
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 
@@ -164,384 +157,6 @@ func handleUploadChunk(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func getFoldersMedia(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	folderIdsStr := ctx.Query("folderIds")
-	var folderIds []fileTree.FileId
-	err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-
-	var folders []*fileTree.WeblensFileImpl
-	for _, folderId := range folderIds {
-		f, err := pack.FileService.GetFileSafe(folderId, u, nil)
-		if err != nil {
-			log.ShowErr(err)
-			ctx.Status(http.StatusNotFound)
-			return
-		}
-		folders = append(folders, f)
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"medias": pack.MediaService.RecursiveGetMedia(folders...)})
-}
-
-func searchFolder(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	folderId := ctx.Param("folderId")
-	searchStr := ctx.Query("search")
-	filterStr := ctx.Query("filter")
-
-	dir, err := pack.FileService.GetFileSafe(folderId, u, nil)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, gin.H{"error": safe})
-		return
-	} else if !dir.IsDir() {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Search must performed on a folder, not a regular file"})
-		return
-	}
-
-	regexStr := "(?i)" + searchStr
-	if filterStr != "" {
-		regexStr += ".*\\." + filterStr
-	}
-	r, err := regexp.Compile(regexStr)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid regex string"})
-		return
-	}
-
-	var files []*fileTree.WeblensFileImpl
-	err = dir.RecursiveMap(
-		func(w *fileTree.WeblensFileImpl) error {
-			if r.MatchString(w.Filename()) {
-				if w.Filename() == ".user_trash" {
-					return nil
-				}
-				files = append(files, w)
-			}
-			return nil
-		},
-	)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	var filesData []FileInfo
-	for _, f := range files {
-		info, err := formatFileSafe(f, u, nil, pack)
-		if err != nil {
-			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
-			return
-		}
-		filesData = append(filesData, info)
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"files": filesData})
-}
-
-func createTakeout(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		u = pack.UserService.GetPublicUser()
-	}
-
-	takeoutRequest, err := readCtxBody[takeoutFiles](ctx)
-	if err != nil {
-		return
-	}
-	if len(takeoutRequest.FileIds) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot takeout 0 files"})
-		return
-	}
-
-	share, err := getShareFromCtx[*models.FileShare](ctx)
-	if err != nil {
-		return
-	}
-
-	var files []*fileTree.WeblensFileImpl
-	for _, fileId := range takeoutRequest.FileIds {
-		file, err := pack.FileService.GetFileSafe(fileId, u, share)
-		if err != nil {
-			safe, code := werror.TrySafeErr(err)
-			ctx.JSON(code, gin.H{"error": safe})
-			return
-		}
-
-		files = append(files, file)
-	}
-
-	// If we only have 1 file, and it is not a directory, we should have requested to just
-	// simply download that file on it's own, not zip it.
-	if len(files) == 1 && !files[0].IsDir() {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Single non-directory file should not be zipped"})
-		return
-	}
-
-	caster := models.NewSimpleCaster(pack.ClientService)
-	meta := models.ZipMeta{
-		Files:       files,
-		Requester:   u,
-		Share:       share,
-		Caster:      caster,
-		FileService: pack.FileService,
-	}
-	t, err := pack.TaskService.DispatchJob(models.CreateZipTask, meta, nil)
-
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	completed, status := t.Status()
-	if completed && status == task.TaskSuccess {
-		ctx.JSON(http.StatusOK, gin.H{"takeoutId": t.GetResult("takeoutId"), "single": false})
-	} else {
-		ctx.JSON(http.StatusAccepted, gin.H{"taskId": t.TaskId()})
-	}
-}
-
-func downloadFile(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		u = pack.UserService.GetPublicUser()
-	}
-
-	fileId := ctx.Param("fileId")
-
-	share, err := getShareFromCtx[*models.FileShare](ctx)
-	if err != nil {
-		return
-	}
-
-	file, err := pack.FileService.GetFileSafe(fileId, u, share)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, err)
-		return
-	}
-
-	ctx.File(file.AbsPath())
-}
-
-func downloadTakeout(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		u = pack.UserService.GetPublicUser()
-	}
-
-	fileId := ctx.Param("fileId")
-
-	// TODO - only user who created zip file should be able to download it
-	// share, err := getShareFromCtx[*models.FileShare](ctx)
-	// if err != nil {
-	// 	return
-	// }
-
-	file, err := pack.FileService.GetZip(fileId)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, err)
-		return
-	}
-
-	ctx.File(file.AbsPath())
-}
-
-func loginUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	userCredentials, err := readCtxBody[loginBody](ctx)
-	if err != nil {
-		return
-	}
-
-	u := pack.UserService.Get(userCredentials.Username)
-	if u == nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	if !u.Activated {
-		log.Warning.Printf("[%s] attempted login but is not activated", u.Username)
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-
-	if u.CheckLogin(userCredentials.Password) {
-		log.Debug.Printf("Valid login for [%s]\n", userCredentials.Username)
-
-		var token string
-		token, err = pack.AccessService.GenerateJwtToken(u)
-		if err != nil || token == "" {
-			log.ErrTrace(werror.Errorf("Could not get login token"))
-			ctx.Status(http.StatusInternalServerError)
-		}
-
-		ctx.Header("Set-Cookie", "weblens-session-token="+token)
-		ctx.JSON(http.StatusOK, gin.H{"token": token, "user": u})
-	} else {
-		log.Error.Printf("Invalid login for [%s]", userCredentials.Username)
-		ctx.Status(http.StatusNotFound)
-	}
-
-}
-
-func getUserInfo(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
-			ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
-			return
-		}
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-	ctx.JSON(http.StatusOK, u)
-}
-
-func getUsers(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil || !u.IsAdmin() {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	usersIter, err := pack.UserService.GetAll()
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, slices.Collect(usersIter))
-}
-
-func updateUserPassword(ctx *gin.Context) {
-	pack := getServices(ctx)
-	reqUser := getUserFromCtx(ctx)
-	if reqUser == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-
-	updateUsername := ctx.Param("username")
-	updateUser := pack.UserService.Get(updateUsername)
-
-	if updateUser == nil {
-		ctx.Status(http.StatusNotFound)
-	}
-
-	passUpd, err := readCtxBody[passwordUpdateBody](ctx)
-	if err != nil {
-		return
-	}
-
-	if updateUser.GetUsername() != reqUser.GetUsername() && !reqUser.IsOwner() {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	if (passUpd.OldPass == "" && !reqUser.IsOwner()) || passUpd.NewPass == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Both oldPassword and newPassword fields are required"})
-		return
-	}
-
-	err = pack.UserService.UpdateUserPassword(
-		updateUser.GetUsername(), passUpd.OldPass, passUpd.NewPass, reqUser.IsOwner(),
-	)
-
-	if err != nil {
-		log.ShowErr(err)
-		switch {
-		case errors.Is(err.(error), werror.ErrBadPassword):
-			ctx.Status(http.StatusUnauthorized)
-		default:
-			ctx.Status(http.StatusInternalServerError)
-		}
-		return
-	}
-
-	ctx.Status(http.StatusOK)
-}
-
-func setUserAdmin(ctx *gin.Context) {
-	pack := getServices(ctx)
-	owner := getUserFromCtx(ctx)
-	if !owner.IsOwner() {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-	update, err := readCtxBody[newUserBody](ctx)
-	if err != nil {
-		return
-	}
-
-	username := ctx.Param("username")
-	u := pack.UserService.Get(username)
-
-	err = pack.UserService.SetUserAdmin(u, update.Admin)
-	if err != nil {
-		if errors.Is(err, werror.ErrUserNotFound) {
-			ctx.Status(http.StatusNotFound)
-			return
-		}
-		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.Status(http.StatusOK)
-}
-
-func activateUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	username := ctx.Param("username")
-	u := pack.UserService.Get(username)
-	err := pack.UserService.ActivateUser(u)
-	if err != nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	ctx.Status(http.StatusOK)
-}
-
-func deleteUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	username := ctx.Param("username")
-	// User to delete username
-	// *cannot* use getUserFromCtx() here because that
-	// will grab the user making the request, not the
-	// username from the Param  \/
-	u := pack.UserService.Get(username)
-	if u == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "user with given username does not exist"})
-		return
-	}
-	err := pack.UserService.Del(u.GetUsername())
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.Status(http.StatusOK)
-}
-
 func clearCache(ctx *gin.Context) {
 	pack := getServices(ctx)
 	err := pack.MediaService.NukeCache()
@@ -555,33 +170,11 @@ func clearCache(ctx *gin.Context) {
 
 }
 
-func searchUsers(ctx *gin.Context) {
-	pack := getServices(ctx)
-	filter := ctx.Query("filter")
-	if len(filter) < 2 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Username autocomplete must contain at least 2 characters"})
-		return
-	}
-
-	users, err := pack.UserService.SearchByUsername(filter)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"users": slices.Collect(users)})
-}
-
 func createFileShare(ctx *gin.Context) {
 	pack := getServices(ctx)
 	u := getUserFromCtx(ctx)
-	if u == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
 
-	shareInfo, err := readCtxBody[newShareBody](ctx)
+	shareInfo, err := readCtxBody[rest.NewShareBody](ctx)
 	if err != nil {
 		return
 	}
@@ -652,7 +245,7 @@ func patchShareAccessors(ctx *gin.Context) {
 		return
 	}
 
-	ub, err := readCtxBody[userListBody](ctx)
+	ub, err := readCtxBody[rest.UserListBody](ctx)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -714,7 +307,7 @@ func setSharePublic(ctx *gin.Context) {
 		return
 	}
 
-	pub, err := readCtxBody[sharePublicityBody](ctx)
+	pub, err := readCtxBody[rest.SharePublicityBody](ctx)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusInternalServerError)
@@ -731,89 +324,7 @@ func setSharePublic(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func newApiKey(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
 
-	if u == nil || !u.IsAdmin() {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-
-	newKey, err := pack.AccessService.GenerateApiKey(u, pack.InstanceService.GetLocal())
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"key": newKey})
-}
-
-func getApiKeys(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-
-	keys, err := pack.AccessService.GetAllKeys(u)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, keys)
-}
-
-func deleteApiKey(ctx *gin.Context) {
-	pack := getServices(ctx)
-	key := models.WeblensApiKey(ctx.Param("keyId"))
-	keyInfo, err := pack.AccessService.GetApiKey(key)
-	if err != nil || keyInfo.Key == "" {
-		log.ShowErr(err)
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	err = pack.AccessService.DeleteApiKey(key)
-	if err != nil {
-		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	ctx.Status(http.StatusOK)
-}
-
-func getFolderStats(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	if u == nil {
-		u = pack.UserService.GetPublicUser()
-	}
-
-	fileId := ctx.Param("folderId")
-
-	rootFolder, err := pack.FileService.GetFileSafe(fileId, u, nil)
-	if err != nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	} else if !rootFolder.IsDir() {
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-
-	ctx.Status(http.StatusNotImplemented)
-
-	// t := types.SERV.TaskDispatcher.GatherFsStats(rootFolder, Caster)
-	// t.Wait()
-	// res := t.GetResult("sizesByExtension")
-	//
-	// ctx.JSON(comm.StatusOK, res)
-}
 
 func getRandomMedias(ctx *gin.Context) {
 	ctx.Status(http.StatusNotImplemented)
@@ -838,7 +349,7 @@ func initializeServer(ctx *gin.Context) {
 		return
 	}
 
-	initBody, err := readCtxBody[initServerBody](ctx)
+	initBody, err := readCtxBody[rest.InitServerBody](ctx)
 	if err != nil {
 		log.ShowErr(err)
 		ctx.Status(http.StatusBadRequest)
@@ -859,9 +370,8 @@ func initializeServer(ctx *gin.Context) {
 		}
 
 		users, err := pack.UserService.GetAll()
-		if err != nil {
-			safe, code := werror.TrySafeErr(err)
-			ctx.JSON(code, gin.H{"error": safe})
+		if werror.SafeErrorAndExit(err, ctx) {
+			return
 		}
 
 		for u := range users {
@@ -878,14 +388,15 @@ func initializeServer(ctx *gin.Context) {
 			return
 		}
 
-		token, err := pack.AccessService.GenerateJwtToken(owner)
+		token, expires, err := pack.AccessService.GenerateJwtToken(owner)
 		if err != nil {
 			log.ShowErr(err)
 			ctx.Status(http.StatusInternalServerError)
 			return
 		}
 
-		ctx.Header("Set-Cookie", "weblens-session-token="+token)
+		cookie := fmt.Sprintf("%s=%s; expires=%s;", SessionTokenCookie, token, expires.Format(time.RFC1123))
+		ctx.Header("Set-Cookie", cookie)
 	} else if initBody.Role == models.BackupServer {
 		if initBody.Name == "" {
 			ctx.Status(http.StatusBadRequest)
@@ -918,7 +429,7 @@ func initializeServer(ctx *gin.Context) {
 		err = pack.AccessService.AddApiKey(initBody.UsingKeyInfo)
 		if err != nil && !errors.Is(err, werror.ErrKeyAlreadyExists) {
 			safe, code := werror.TrySafeErr(err)
-			ctx.JSON(code, gin.H{"error": safe})
+			ctx.JSON(code, safe)
 			return
 		}
 
@@ -929,15 +440,11 @@ func initializeServer(ctx *gin.Context) {
 			return models.NewHasher(pack.TaskService, pack.Caster)
 		}
 		journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), initBody.LocalId, false, hasherFactory)
-		if err != nil {
-			safe, code := werror.TrySafeErr(err)
-			ctx.JSON(code, gin.H{"error": safe})
+		if werror.SafeErrorAndExit(err, ctx) {
 			return
 		}
 		usersTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), "users"), "USERS", journal, false)
-		if err != nil {
-			safe, code := werror.TrySafeErr(err)
-			ctx.JSON(code, gin.H{"error": safe})
+		if werror.SafeErrorAndExit(err, ctx) {
 			return
 		}
 		pack.FileService.AddTree(usersTree)
@@ -956,6 +463,15 @@ func initializeServer(ctx *gin.Context) {
 	go pack.Server.Restart()
 }
 
+// GetServerInfo godoc
+//
+//	@ID			GetServerInfo
+//
+//	@Summary	Get server info
+//	@Tags		Servers
+//	@Produce	json
+//	@Success	200 {object}	rest.ServerInfo	"Server info"
+//	@Router		/info [get]
 func getServerInfo(ctx *gin.Context) {
 	pack := getServices(ctx)
 	// if  pack.InstanceService.GetLocal().ServerRole() == types.Initialization {
@@ -967,22 +483,20 @@ func getServerInfo(ctx *gin.Context) {
 		userCount = pack.UserService.Size()
 	}
 
+	serverInfo := rest.InstanceToServerInfo(pack.InstanceService.GetLocal())
+	serverInfo.Started = pack.Loaded.Load()
+	serverInfo.UserCount = userCount
+
 	ctx.JSON(
 		http.StatusOK,
-		gin.H{
-			"info":      pack.InstanceService.GetLocal(),
-			"started":   pack.Loaded.Load(),
-			"userCount": userCount,
-		},
+		serverInfo,
 	)
 }
 
 func resetServer(ctx *gin.Context) {
 	pack := getServices(ctx)
 	err := pack.InstanceService.ResetAll()
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, gin.H{"error": safe})
+	if werror.SafeErrorAndExit(err, ctx) {
 		return
 	}
 

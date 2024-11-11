@@ -1,7 +1,6 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { WeblensFileInfo } from '@weblens/types/files/File'
-import { ApiKeyInfo, ServerInfoT, UserInfoT } from '@weblens/types/Types'
 import API_ENDPOINT from './ApiEndpoint'
+import User from '@weblens/types/user/User'
 
 export async function wrapRequest(rq: Promise<Response>): Promise<Response> {
     return await rq
@@ -13,14 +12,18 @@ export async function wrapRequest(rq: Promise<Response>): Promise<Response> {
         })
         .catch((e) => {
             if (e === 401) {
-                useSessionStore
-                    .getState()
-                    .setUserInfo({ isLoggedIn: false } as UserInfoT)
-                useSessionStore
-                    .getState()
-                    .nav('/login', {
-                        state: { returnTo: window.location.pathname },
-                    })
+                const user = new User()
+                useSessionStore.getState().setUser(user)
+
+                if (window.location.pathname.startsWith('/files/share')) {
+                    console.log('Got 401 on share page')
+                    return
+                }
+
+                console.debug('Got 401, going to login')
+                useSessionStore.getState().nav('/login', {
+                    state: { returnTo: window.location.pathname },
+                })
             }
             return Promise.reject(e)
         })
@@ -47,78 +50,12 @@ export async function fetchJson<T>(
     })
 }
 
-export async function login(
-    user: string,
-    pass: string
-): Promise<{ token: string; user: UserInfoT }> {
-    const url = new URL(`${API_ENDPOINT}/login`)
-    const data = {
-        username: user,
-        password: pass,
-    }
-
-    return fetch(url.toString(), {
-        method: 'POST',
-        body: JSON.stringify(data),
-    }).then((r) => r.json())
-}
-
-export async function createUser(username: string, password: string) {
-    const url = new URL(`${API_ENDPOINT}/user`)
-    return fetch(url, {
-        method: 'POST',
-        body: JSON.stringify({ username: username, password: password }),
-    }).then((res) => {
-        if (res.status !== 201) {
-            return Promise.reject(`${res.statusText}`)
-        }
-    })
-}
-
-export function adminCreateUser(
-    username: string,
-    password: string,
-    admin: boolean
-) {
-    const url = new URL(`${API_ENDPOINT}/user`)
-    return wrapRequest(
-        fetch(url, {
-            method: 'POST',
-            body: JSON.stringify({
-                username: username,
-                password: password,
-                admin: admin,
-                autoActivate: true,
-            }),
-        })
-    )
-}
-
 export function clearCache() {
     return wrapRequest(
         fetch(`${API_ENDPOINT}/cache`, {
             method: 'POST',
         })
     )
-}
-
-export async function newApiKey() {
-    const url = `${API_ENDPOINT}/key`
-    return fetchJson(url, 'POST')
-}
-
-export async function deleteApiKey(key: string) {
-    const url = new URL(`${API_ENDPOINT}/key/${key}`)
-    return wrapRequest(
-        fetch(url, {
-            method: 'DELETE',
-        })
-    )
-}
-
-export async function getApiKeys(): Promise<ApiKeyInfo[]> {
-    const url = new URL(`${API_ENDPOINT}/keys`)
-    return fetchJson<ApiKeyInfo[]>(url.toString())
 }
 
 export async function initServer(
@@ -152,71 +89,10 @@ export async function attachNewCore(coreAddress: string, usingKey: string) {
     )
 }
 
-export async function getServerInfo() {
-    return fetchJson<{
-        info: ServerInfoT
-        userCount: number
-        started: boolean
-    }>(`${API_ENDPOINT}/info`)
-}
-
-export async function getUsers(): Promise<UserInfoT[]> {
-    const url = `${API_ENDPOINT}/users`
-    return fetchJson(url)
-}
-
-export async function AutocompleteUsers(
-    searchValue: string
-): Promise<UserInfoT[]> {
-    if (searchValue.length < 2) {
-        return []
-    }
-    const url = new URL(`${API_ENDPOINT}/users/search`)
-    url.searchParams.append('filter', searchValue)
-    return (await fetchJson<{ users: UserInfoT[] }>(url.toString())).users
-}
-
 export async function doBackup(serverId: string) {
     const url = new URL(`${API_ENDPOINT}/backup`)
     url.searchParams.append('serverId', serverId)
     return wrapRequest(fetch(url, { method: 'POST' }))
-}
-
-export async function getRemotes(): Promise<ServerInfoT[]> {
-    return fetchJson<ServerInfoT[]>(`${API_ENDPOINT}/remotes`)
-}
-
-export async function deleteRemote(remoteId: string) {
-    const url = new URL(`${API_ENDPOINT}/remote`)
-    return await wrapRequest(
-        fetch(url, {
-            method: 'DELETE',
-            body: JSON.stringify({ remoteId: remoteId }),
-        })
-    )
-}
-
-export async function autocompletePath(pathQuery: string): Promise<{
-    folder: WeblensFileInfo
-    children: WeblensFileInfo[]
-}> {
-    if (!pathQuery) {
-        return
-    }
-    const url = new URL(`${API_ENDPOINT}/files/autocomplete`)
-    url.searchParams.append('searchPath', pathQuery)
-    return fetchJson(url.toString())
-}
-
-export async function searchFilenames(
-    searchString: string
-): Promise<WeblensFileInfo[]> {
-    if (searchString.length < 1) {
-        return []
-    }
-    const url = new URL(`${API_ENDPOINT}/files/search`)
-    url.searchParams.append('search', searchString)
-    return fetchJson(url.toString())
 }
 
 export async function resetServer() {

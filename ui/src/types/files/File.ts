@@ -7,12 +7,8 @@ import {
 } from '@tabler/icons-react'
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { fetchJson } from '@weblens/api/ApiFetch'
+import { FileInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
-import { MediaDataT } from '@weblens/types/media/Media'
 import { ShareInfo, WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
 
@@ -28,39 +24,39 @@ function getIcon(folderName: string): (p) => JSX.Element {
     }
 }
 
-export interface WeblensFileInfo {
-    filename: string
-    id: string
-    isDir: boolean
-    modifyTimestamp: number
-    ownerName: string
-    parentId: string
-    portablePath: string
-    shareId: string
-    size: number
-}
+// export interface WeblensFileInfo {
+//     filename: string
+//     id: string
+//     isDir: boolean
+//     modifyTimestamp: number
+//     ownerName: string
+//     parentId: string
+//     portablePath: string
+//     shareId: string
+//     size: number
+// }
 
-export interface WeblensFileParams {
-    id?: string
-    owner?: string
-    modifyTimestamp?: string
-    filename?: string
-    portablePath?: string
-    parentId?: string
-    contentId?: string
-
-    children?: string[]
-
-    isDir?: boolean
-    pastFile?: boolean
-    imported?: boolean
-    modifiable?: boolean
-    displayable?: boolean
-
-    size?: number
-    mediaData?: MediaDataT
-    shareId?: string
-}
+// export interface WeblensFileParams {
+//     id?: string
+//     owner?: string
+//     modifyTimestamp?: string
+//     filename?: string
+//     portablePath?: string
+//     parentId?: string
+//     contentId?: string
+//
+//     children?: string[]
+//
+//     isDir?: boolean
+//     pastFile?: boolean
+//     imported?: boolean
+//     modifiable?: boolean
+//     displayable?: boolean
+//
+//     size?: number
+//     mediaData?: MediaInfo
+//     shareId?: string
+// }
 
 export class WeblensFile {
     id?: string
@@ -95,7 +91,7 @@ export class WeblensFile {
 
     private debug_create_date: Date
 
-    constructor(init: WeblensFileParams) {
+    constructor(init: FileInfo) {
         if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
@@ -126,16 +122,16 @@ export class WeblensFile {
         return this.index
     }
 
-    Update(newInfo: WeblensFileParams) {
+    Update(newInfo: FileInfo) {
         Object.assign(this, newInfo)
         // this.share = undefined;
 
-        if (
-            newInfo.mediaData &&
-            newInfo.mediaData.contentId !== this.contentId
-        ) {
-            this.contentId = newInfo.mediaData.contentId
-        }
+        // if (
+        //     newInfo.mediaData &&
+        //     newInfo.mediaData.contentId !== this.contentId
+        // ) {
+        //     this.contentId = newInfo.mediaData.contentId
+        // }
     }
 
     ParentId(): string {
@@ -352,7 +348,7 @@ export class WeblensFile {
             return null
         }
 
-        const url = `${API_ENDPOINT}/file/share/${this.shareId}`
+        const url = `${API_ENDPOINT}/share/${this.shareId}`
         const shareInfo = await fetchJson<ShareInfo>(url)
         this.share = new WeblensShare(shareInfo)
         return this.share

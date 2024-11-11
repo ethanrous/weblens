@@ -546,7 +546,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 		"modifyTimestamp": f.ModTime().UnixMilli(),
 		"parentId":        parentId,
 		"childrenIds":     internal.Map(f.GetChildren(), func(c *WeblensFileImpl) FileId { return c.ID() }),
-		"contentId":       f.contentId,
+		"contentId":       f.GetContentId(),
 		"pastFile":        f.pastFile,
 	}
 

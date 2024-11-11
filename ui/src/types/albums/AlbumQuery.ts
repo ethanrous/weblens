@@ -1,6 +1,6 @@
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { fetchJson } from '@weblens/api/ApiFetch'
-import { MediaDataT } from '@weblens/types/media/Media'
+import { MediaInfo } from '@weblens/types/media/Media'
 import { AlbumData } from 'types/Types'
 
 export async function getAlbums(includeShared: boolean): Promise<AlbumData[]> {
@@ -31,7 +31,7 @@ export async function createAlbum(albumName: string) {
 export async function getAlbumMedia(
     albumId: string,
     includeRaw: boolean
-): Promise<{ albumMeta: AlbumData; mediaInfos: MediaDataT[] }> {
+): Promise<{ albumMeta: AlbumData; mediaInfos: MediaInfo[] }> {
     const url = new URL(`${API_ENDPOINT}/album/${albumId}`)
     url.searchParams.append('raw', includeRaw.toString())
     const res = await fetch(url.toString())

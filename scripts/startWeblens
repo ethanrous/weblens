@@ -10,33 +10,37 @@ mkdir -p ./build/logs
 
 restart=false
 trace=false
+docs=false
+build_ui=false
 config_name=$CONFIG_NAME
 
-while getopts "trc:" opt; do
-  case $opt in
-    t) trace=true
-    ;;
-    r) restart=true
-    ;;
-    c) config_name="$OPTARG"
-    ;;
-    \?) echo "Invalid option -$OPTARG" >&2
-    exit 1
-    ;;
-  esac
-
-  case $OPTARG in
-    -*) echo "Option $opt needs a valid argument"
-    exit 1
-    ;;
-  esac
-done
+while [ "${1:-}" != "" ]; do
+    case "$1" in
+      "--config")
+        shift
+        config_name=$1
+        ;;
+      "-t" | "--trace")
+        trace=true
+        ;;
+      "--ui")
+        build_ui=true
+        ;;
+      "-r" | "--restart")
+        restart=true
+        ;;
+      "-d" | "--docs")
+      docs=true
+        ;;
+    esac
+    shift
+  done
 
 if [[ -z "$config_name" ]]; then
   export config_name="DEBUG-CORE"
 fi
 
-printf "Using config: $config_name"
+printf "Using config: %s" "$config_name"
 if [[ $trace == true ]]; then
   do_trace="trace"
   printf " +trace"
@@ -49,26 +53,38 @@ trap "" SIGQUIT
 
 while true; do
 
-  if [[ -z "$detach_ui" ]]; then
-    detach_ui=$DETACH_UI
+  # if [[ -z "$detach_ui" ]]; then
+  #   detach_ui=$DETACH_UI
+  # fi
+  #
+  # if [[ -z "$detach_ui" ]]; then
+  #   detach_ui=$(jq ".[\"$config_name\"].detachUi" < ./config/config.json)
+  # fi
+
+  if [[ $docs == true ]]; then
+    printf "Building Docs..."
+    if ! ./scripts/swaggo &> ./build/logs/docs-build.log; then
+      printf " FAILED\n"
+      cat ./build/logs/docs-build.log
+      echo "Aborting Weblens startup. Failed to build docs"
+      exit 1
+    else
+      printf " DONE\n"
+    fi
+
   fi
 
-  if [[ -z "$detach_ui" ]]; then
-    detach_ui=$(cat ./config/config.json | jq ".[\"$config_name\"].detachUi")
-  fi
-
-  if [[ "$detach_ui" != "true" ]]; then
-    cd ./ui
+  if [[ $build_ui == true ]]; then
+    cd ./ui || exit
     printf "Building UI..."
     npm install &> /dev/null
     export VITE_APP_BUILD_TAG="DEV-BUILD"
     export VITE_BUILD=true
-    npm run build &> ../build/logs/ui-build.log
 
-    if [ $? != 0 ]; then
+    if ! npm run build &> ../build/logs/ui-build.log; then
       printf " FAILED\n"
+      cat ../build/logs/ui-build.log
       echo "Aborting Weblens startup. Ensure npm run build completes successfully before starting Weblens."
-      echo "Check ../build/logs/ui-build.log for more information."
       exit 1
     else
       printf " DONE\n"
@@ -77,15 +93,15 @@ while true; do
     cd ..
   fi
 
-
   printf "Building Weblens binary..."
   rm -f ./build/bin/weblens
 
-  GORACE="halt_on_error=1"
-  go build -gcflags="-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &> ./build/logs/weblens-build.log
+  export GORACE="halt_on_error=1"
+  go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &> ./build/logs/weblens-build.log
 
   if [[ ! -e ./build/bin/weblens ]]; then
-    print " FAILED\n"
+    printf " FAILED\n"
+    cat ./build/logs/weblens-build.log
     echo "Failed to build Weblens, exiting..."
     exit 1
   fi
@@ -94,7 +110,7 @@ while true; do
   APP_ROOT=$(pwd) CONFIG_NAME=$config_name LOG_LEVEL=$do_trace ./build/bin/weblens
   exit=$?
 
-  if [[ $restart == false ]] || [[ $exit != 0 ]]; then
+  if [[ $restart == false ]] || { [[ $exit != 0 ]] && [[ $exit != 137 ]]; }; then
     echo "Got exist status $exit, exiting..."
     break
   fi

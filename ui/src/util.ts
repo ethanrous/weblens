@@ -1,4 +1,4 @@
-import { UserInfoT } from './types/Types'
+import User from './types/user/user'
 
 export function humanFileSize(
     bytes: number,
@@ -84,7 +84,7 @@ export function getRandomInt(min: number, max: number): number {
 export function friendlyFolderName(
     folderName: string,
     folderId: string,
-    usr: UserInfoT
+    usr: User
 ): string {
     if (folderId === usr.homeId) {
         return 'Home'

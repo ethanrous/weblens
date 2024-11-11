@@ -14,12 +14,7 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react'
-import {
-    CreateFolder,
-    GetFileInfo,
-    GetFolderData,
-    moveFiles,
-} from '@weblens/api/FileBrowserApi'
+import { FileApi, FolderApi, GetFolderData } from '@weblens/api/FileBrowserApi'
 import { useSubscribe } from '@weblens/api/Websocket'
 import HeaderBar from '@weblens/components/HeaderBar'
 import {
@@ -56,7 +51,6 @@ import {
     getRealId,
     HandleUploadButton,
     historyDate,
-    MoveSelected,
     uploadViaUrl,
     useKeyDownFileBrowser,
     usePaste,
@@ -192,12 +186,16 @@ function GlobalActions() {
     }, [draggingState])
 
     const homeMouseUp: ButtonActionHandler = useCallback(
-        (e) => {
+        async (e) => {
             e.stopPropagation()
             setMoveDest('')
             if (draggingState !== DraggingStateT.NoDrag) {
-                moveFiles(selectedIds, user.homeId)
-                setDragging(DraggingStateT.NoDrag)
+                return FileApi.moveFiles({
+                    fileIds: selectedIds,
+                    newParentId: user.homeId,
+                }).then(() => {
+                    setDragging(DraggingStateT.NoDrag)
+                })
             } else {
                 goToFile(
                     new WeblensFile({
@@ -218,12 +216,16 @@ function GlobalActions() {
     }, [draggingState])
 
     const trashMouseUp: ButtonActionHandler = useCallback(
-        (e) => {
+        async (e) => {
             e.stopPropagation()
             setMoveDest('')
             if (draggingState !== DraggingStateT.NoDrag) {
-                moveFiles(selectedIds, user.trashId)
-                setDragging(DraggingStateT.NoDrag)
+                return FileApi.moveFiles({
+                    fileIds: selectedIds,
+                    newParentId: user.trashId,
+                }).then(() => {
+                    setDragging(DraggingStateT.NoDrag)
+                })
             } else {
                 goToFile(
                     new WeblensFile({
@@ -377,11 +379,11 @@ function GlobalActions() {
                             closeInput={() => setNamingFolder(false)}
                             autoFocus
                             onComplete={(newName) =>
-                                CreateFolder(
-                                    folderInfo.Id(),
-                                    newName,
-                                    [],
-                                    false,
+                                FolderApi.createFolder(
+                                    {
+                                        parentFolderId: folderInfo.Id(),
+                                        newFolderName: newName,
+                                    },
                                     shareId
                                 ).then(() => setNamingFolder(false))
                             }
@@ -663,6 +665,9 @@ function DirView({
     const filesList = useFileBrowserStore((state) => state.filesLists)
     const viewOpts = useFileBrowserStore((state) => state.viewOpts)
     const moveDest = useFileBrowserStore((state) => state.moveDest)
+    const setSelectedMoved = useFileBrowserStore(
+        (state) => state.setSelectedMoved
+    )
     const setViewOptions = useFileBrowserStore((state) => state.setViewOptions)
 
     const user = useSessionStore((state) => state.user)
@@ -673,7 +678,12 @@ function DirView({
 
     const moveSelectedTo = useCallback(
         (folderId: string) => {
-            MoveSelected(Array.from(selected.keys()), folderId).then(() => {
+            setSelectedMoved()
+
+            FileApi.moveFiles({
+                fileIds: Array.from(selected.keys()),
+                newParentId: folderId,
+            }).then(() => {
                 clearSelected()
             })
         },
@@ -989,6 +999,17 @@ function FileBrowser() {
         }
     }, [viewOpts.dirViewMode])
 
+    const searchVisitFunc = (loc: string) => {
+        FileApi.getFile(loc).then((f) => {
+            if (!f.data) {
+                console.error('Could not find file to nav to')
+                return
+            }
+
+            goToFile(new WeblensFile(f.data), true)
+        })
+    }
+
     return (
         <div className="h-screen flex flex-col">
             <HeaderBar
@@ -1001,21 +1022,7 @@ function FileBrowser() {
             {pasteImgBytes && <PasteImageDialogue />}
             {isSearching && (
                 <div className="flex items-center justify-center w-screen h-screen absolute z-50 backdrop-blur-sm bg-[#00000088] px-[30%] py-[10%]">
-                    <SearchDialogue
-                        text={''}
-                        visitFunc={(loc) => {
-                            GetFileInfo(loc, '').then((f) => {
-                                if (!f) {
-                                    console.error(
-                                        'Could not find file to nav to'
-                                    )
-                                    return
-                                }
-
-                                goToFile(new WeblensFile(f), true)
-                            })
-                        }}
-                    />
+                    <SearchDialogue text={''} visitFunc={searchVisitFunc} />
                 </div>
             )}
             <FileContextMenu />

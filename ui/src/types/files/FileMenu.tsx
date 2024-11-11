@@ -20,18 +20,10 @@ import {
     IconUsersPlus,
 } from '@tabler/icons-react'
 import { useQuery, UseQueryResult } from '@tanstack/react-query'
-import { AutocompleteUsers } from '@weblens/api/ApiFetch'
 
 import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
 
-import {
-    CreateFolder,
-    DeleteFiles,
-    RenameFile,
-    SetFolderImage,
-    TrashFiles,
-    UnTrashFiles,
-} from '@weblens/api/FileBrowserApi'
+import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import {
@@ -71,12 +63,15 @@ import React, {
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlbumData, UserInfoT } from 'types/Types'
+import { AlbumData } from 'types/Types'
 import { clamp } from '@weblens/util'
 import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
 import { MediaImage } from '../media/PhotoContainer'
 import { useWebsocketStore } from '@weblens/api/Websocket'
+import UsersApi from '@weblens/api/UserApi'
+import { UserInfo } from '@weblens/api/swag'
+import MediaApi from '@weblens/api/MediaApi'
 
 type footerNote = {
     hint: string
@@ -315,8 +310,11 @@ export function FileContextMenu() {
                     <SearchDialogue
                         text={text}
                         visitFunc={(folderId: string) => {
-                            SetFolderImage(folderId, targetMedia.Id()).then(
-                                () => setMenu({ menuState: FbMenuModeT.Closed })
+                            FolderApi.setFolderCover(
+                                folderId,
+                                targetMedia.Id()
+                            ).then(() =>
+                                setMenu({ menuState: FbMenuModeT.Closed })
                             )
                         }}
                     />
@@ -510,7 +508,7 @@ function StandardFileMenu({
                                     }
                                     onClick={async (e) => {
                                         e.stopPropagation()
-                                        SetFolderImage(
+                                        return FolderApi.setFolderCover(
                                             targetFile.Id(),
                                             ''
                                         ).then(() => {
@@ -583,10 +581,9 @@ function StandardFileMenu({
                         activeItems.items.forEach((f) =>
                             f.SetSelected(SelectedState.Moved)
                         )
-                        return TrashFiles(
-                            activeItems.items.map((f) => f.Id()),
-                            shareId
-                        ).then(() => {
+                        FileApi.trashFiles({
+                            fileIds: activeItems.items.map((f) => f.Id()),
+                        }).then(() => {
                             setMenu({ menuState: FbMenuModeT.Closed })
                         })
                     }}
@@ -671,11 +668,14 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
     }, [targetFile])
 
     const [userSearch, setUserSearch] = useState('')
-    const [userSearchResults, setUserSearchResults] = useState<UserInfoT[]>([])
+    const [userSearchResults, setUserSearchResults] = useState<UserInfo[]>([])
     useEffect(() => {
-        AutocompleteUsers(userSearch).then((us) => {
-            us = us.filter((u) => !accessors.includes(u.username))
-            setUserSearchResults(us)
+        if (userSearch.length < 2) {
+            setUserSearchResults([])
+            return
+        }
+        UsersApi.searchUsers(userSearch).then((res) => {
+            setUserSearchResults(res.data)
         })
     }, [userSearch])
 
@@ -907,15 +907,15 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                 onComplete={async (newName) => {
                     const itemIds = items.map((f) => f.Id())
                     setMoved(itemIds)
-                    return await CreateFolder(
-                        folderInfo.Id(),
-                        newName,
-                        itemIds,
-                        false,
+                    await FolderApi.createFolder(
+                        {
+                            parentFolderId: folderInfo.Id(),
+                            newFolderName: newName,
+                            children: itemIds,
+                        },
                         shareId
                     )
-                        .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
-                        .catch((r) => console.error(r))
+                    setMenu({ menuState: FbMenuModeT.Closed })
                 }}
             />
             <div className="w-[220px]"></div>
@@ -940,7 +940,7 @@ function FileRenameInput() {
                 squareSize={50}
                 buttonIcon={IconPlus}
                 onComplete={async (newName) => {
-                    await RenameFile(menuTarget.Id(), newName)
+                    FileApi.updateFile(menuTarget.Id(), { newName: newName })
                         .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
                         .catch((r) => console.error(r))
                 }}
@@ -1012,12 +1012,14 @@ function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
             }
         }
         if (newMediaIds) {
-            getMedias(newMediaIds).then((mediaParams) => {
-                const medias = mediaParams.map(
-                    (mediaParam) => new WeblensMedia(mediaParam)
-                )
-                addMedias(medias)
-            })
+            MediaApi.getMedia(undefined, JSON.stringify(newMediaIds)).then(
+                (res) => {
+                    const medias = res.data.Media.map(
+                        (mediaParam) => new WeblensMedia(mediaParam)
+                    )
+                    addMedias(medias)
+                }
+            )
         }
     }, [albums?.data.length])
 
@@ -1139,11 +1141,11 @@ function InTrashMenu({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={async (e) => {
                     e.stopPropagation()
-                    const res = await UnTrashFiles(
-                        activeItems.map((f) => f.Id())
-                    )
+                    const res = await FileApi.unTrashFiles({
+                        fileIds: activeItems.map((f) => f.Id()),
+                    })
 
-                    if (!res.ok) {
+                    if (res.status !== 200) {
                         return false
                     }
 
@@ -1177,9 +1179,11 @@ function InTrashMenu({
                         toDeleteIds = activeItems.map((f) => f.Id())
                     }
                     setSelectedMoved(toDeleteIds)
-                    const res = await DeleteFiles(toDeleteIds)
+                    const res = await FileApi.trashFiles({
+                        fileIds: toDeleteIds,
+                    })
 
-                    if (!res.ok) {
+                    if (res.status !== 200) {
                         return false
                     }
                     setMenu({ menuState: FbMenuModeT.Closed })

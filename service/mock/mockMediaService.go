@@ -105,7 +105,7 @@ func (ms *MockMediaService) GetFilteredMedia(
 	panic("implement me")
 }
 
-func (ms *MockMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
+func (ms *MockMediaService) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*models.Media {
 	
 	panic("implement me")
 }

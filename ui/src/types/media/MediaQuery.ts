@@ -1,6 +1,6 @@
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
-import WeblensMedia, { MediaDataT } from '@weblens/types/media/Media'
+import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { GalleryStateT } from 'types/Types'
 
@@ -27,7 +27,7 @@ export async function FetchData(galleryState: GalleryStateT) {
             )
         }
         const data = await fetchJson<{ Media }>(url.toString(), 'GET')
-        // const data = await wrapRequest<{ Media: MediaDataT[] }>(
+        // const data = await wrapRequest<{ Media: MediaInfo[] }>(
         //     fetch(url.toString()).then((res) => {
         //         if (res.status !== 200) {
         //             return Promise.reject('Failed to get media')
@@ -46,42 +46,6 @@ export async function FetchData(galleryState: GalleryStateT) {
     } catch (error) {
         console.error(error)
     }
-}
-
-export async function getMedias(mediaIds: string[]): Promise<MediaDataT[]> {
-    const url = new URL(`${API_ENDPOINT}/medias`)
-    const body = {
-        mediaIds: mediaIds,
-    }
-    const medias = (
-        await fetchJson<{ medias: MediaDataT[] }>(url.toString(), 'POST', body)
-    ).medias
-    return medias ? medias : []
-}
-
-export async function fetchMediaTypes() {
-    const url = new URL(`${API_ENDPOINT}/media/types`)
-    return await wrapRequest(
-        fetch(url).then((r) => {
-            if (r.status === 200) {
-                return r.json()
-            } else {
-                return Promise.reject(r.status)
-            }
-        })
-    )
-}
-
-export async function hideMedia(mediaIds: string[], hidden: boolean) {
-    const url = new URL(`${API_ENDPOINT}/media/visibility`)
-    url.searchParams.append('hidden', hidden.toString())
-
-    return wrapRequest(
-        fetch(url, {
-            body: JSON.stringify({ mediaIds: mediaIds }),
-            method: 'PATCH',
-        })
-    )
 }
 
 export async function adjustMediaTime(

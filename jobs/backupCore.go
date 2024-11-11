@@ -11,6 +11,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/service/proxy"
 	"github.com/ethanrous/weblens/task"
 )
@@ -58,7 +59,7 @@ func BackupOne(core *models.Instance, pack *models.ServicePack) (*task.Task, err
 }
 
 type serverInfoResponse struct {
-	Info models.ServerInfo `json:"info"`
+	Info rest.ServerInfo `json:"info"`
 }
 
 func DoBackup(t *task.Task) {
@@ -134,7 +135,7 @@ func DoBackup(t *task.Task) {
 	t.SetResult(task.TaskResult{"stages": stages})
 
 	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10))
-	backupResponse, err := proxy.CallHomeStruct[models.BackupBody](backupRq)
+	backupResponse, err := proxy.CallHomeStruct[rest.BackupBody](backupRq)
 	t.ReqNoErr(err)
 
 	stages.StartStage("writing_users")
@@ -152,7 +153,7 @@ func DoBackup(t *task.Task) {
 	t.SetResult(task.TaskResult{"stages": stages})
 
 	// Write keys to access service
-	for _, key := range backupResponse.ApikKeys {
+	for _, key := range backupResponse.ApiKeys {
 		if _, err := meta.AccessService.GetApiKey(key.Key); err == nil {
 			continue
 		}
@@ -386,7 +387,7 @@ func RestoreCore(t *task.Task) {
 	type restoreInitParams struct {
 		Name     string            `json:"name"`
 		Role     models.ServerRole `json:"role"`
-		Key      models.ApiKeyInfo `json:"usingKeyInfo"`
+		Key      models.ApiKey     `json:"usingKeyInfo"`
 		RemoteId string            `json:"remoteId"`
 		LocalId  string            `json:"localId"`
 	}
@@ -434,13 +435,9 @@ func RestoreCore(t *task.Task) {
 	usersIter, err := meta.Pack.UserService.GetAll()
 	t.ReqNoErr(err)
 
-	var users []map[string]any
+	var users []rest.UserInfo
 	for u := range usersIter {
-		formatted, err := u.FormatArchive()
-		if err != nil {
-			t.ReqNoErr(err)
-		}
-		users = append(users, formatted)
+		users = append(users, rest.UserToUserInfo(u))
 	}
 	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/restore/users").WithBody(users).Call()
 	t.ReqNoErr(err)

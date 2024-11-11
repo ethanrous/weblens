@@ -14,7 +14,7 @@ type MediaType struct {
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
 	RawThumbExifKey string   `json:"RawThumbExifKey"`
-}
+} // @name MediaType
 
 type typeService struct {
 	mimeMap map[string]MediaType
@@ -113,38 +113,6 @@ func (mt MediaType) GetThumbExifKey() string {
 func (mt MediaType) SupportsImgRecog() bool {
 	return mt.ImgRecog
 }
-
-// func (m *mediaType) toMarshalable() dataStore.marshalableMediaType {
-// 	return dataStore.marshalableMediaType{
-// 		MimeType:         m.mimeType,
-// 		FriendlyName:     m.friendlyName,
-// 		Extensions:    m.fileExtension,
-// 		IsDisplayable:    m.isDisplayable,
-// 		IsRaw:            m.isRaw,
-// 		IsVideo:          m.isVideo,
-// 		SupportsImgRecog: m.supportsImgRecog,
-// 		MultiPage:        m.multiPage,
-// 		RawThumbExifKey:  m.rawThumbExifKey,
-// 	}
-// }
-//
-// func (m mediaType) MarshalJSON() ([]byte, error) {
-// 	return json.Marshal(m.toMarshalable())
-// }
-//
-// func marshalableToMediaType(m dataStore.marshalableMediaType) mediaType {
-// 	return mediaType{
-// 		mimeType:         m.MimeType,
-// 		friendlyName:     m.FriendlyName,
-// 		fileExtension:    m.Extensions,
-// 		isDisplayable:    m.IsDisplayable,
-// 		isRaw:            m.IsRaw,
-// 		isVideo:          m.IsVideo,
-// 		supportsImgRecog: m.SupportsImgRecog,
-// 		multiPage:        m.MultiPage,
-// 		rawThumbExifKey:  m.RawThumbExifKey,
-// 	}
-// }
 
 type MediaTypeService interface {
 	ParseExtension(ext string) MediaType

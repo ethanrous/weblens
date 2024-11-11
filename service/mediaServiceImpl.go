@@ -93,7 +93,7 @@ func NewMediaService(
 	}
 
 	indexModel := mongo.IndexModel{
-		Keys:    bson.D{{"contentId", 1}},
+		Keys:    bson.D{{Key: "contentId", Value: 1}},
 		Options: (&options.IndexOptions{}).SetUnique(true),
 	}
 	_, err := col.Indexes().CreateOne(context.Background(), indexModel)
@@ -647,8 +647,8 @@ func (ms *MediaServiceImpl) GetMediaTypes() models.MediaTypeService {
 	return ms.typeService
 }
 
-func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
-	var medias []models.ContentId
+func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*models.Media {
+	var medias []*models.Media
 
 	for _, f := range folders {
 		if f == nil {
@@ -659,7 +659,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 			if ms.IsFileDisplayable(f) {
 				m := ms.Get(f.GetContentId())
 				if m != nil {
-					medias = append(medias, m.ID())
+					medias = append(medias, m)
 				}
 			}
 			continue
@@ -669,7 +669,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 				if !f.IsDir() && ms.IsFileDisplayable(f) {
 					m := ms.Get(f.GetContentId())
 					if m != nil {
-						medias = append(medias, m.ID())
+						medias = append(medias, m)
 					}
 				}
 				return nil

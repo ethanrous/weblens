@@ -1,32 +1,8 @@
-import { DirViewModeT } from '@weblens/pages/FileBrowser/FileSortBox'
-import { TasksProgressAction } from '@weblens/pages/FileBrowser/TaskProgress'
+import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
+import { TasksProgressAction } from '@weblens/pages/FileBrowser/TaskStateControl'
 import { GalleryAction } from '@weblens/pages/Gallery/GalleryLogic'
 import WeblensMedia from '@weblens/types/media/Media'
 import { Dispatch } from 'react'
-
-export const LOGIN_TOKEN_COOKIE_KEY = 'weblens-session-token'
-export const USERNAME_COOKIE_KEY = 'weblens-username'
-
-export type UserInfoT = {
-    homeId: string
-    trashId: string
-    username: string
-    admin: boolean
-    owner: boolean
-    activated: boolean
-    isLoggedIn: boolean
-}
-
-export type ServerInfoT = {
-    id: string
-    name: string
-    role: string
-    coreAddress: string
-    online: boolean
-    reportedRole: string
-    lastBackup: number
-    backupSize: number
-}
 
 export type mediaType = {
     FileExtension: []
@@ -121,8 +97,8 @@ export interface FbViewOptsT {
     sortFunc: string
 }
 
-export type ApiKeyInfo = {
-    id: string
-    key: string
-    remoteUsing: string
-}
+// export type ApiKeyInfo = {
+//     id: string
+//     key: string
+//     remoteUsing: string
+// }

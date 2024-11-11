@@ -10,24 +10,19 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react'
-import { UpdatePassword } from '@weblens/api/UserApi'
+import UsersApi from '@weblens/api/UserApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import Admin from '@weblens/pages/Admin Settings/Admin'
 import '@weblens/components/style.scss'
 import '@weblens/components/theme.scss'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import {
-    LOGIN_TOKEN_COOKIE_KEY,
-    UserInfoT,
-    USERNAME_COOKIE_KEY,
-} from '@weblens/types/Types'
 import { memo, useCallback, useEffect, useState } from 'react'
-import { useCookies } from 'react-cookie'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useKeyDown } from './hooks'
 import WeblensLoader from './Loading'
 import { useSessionStore } from './UserInfo'
+import User from '@weblens/types/user/user'
 
 type HeaderBarProps = {
     setBlockFocus: (block: boolean) => void
@@ -59,17 +54,13 @@ const SettingsMenu = ({
 }: {
     open: boolean
     setClosed: () => void
-    user: UserInfoT
+    user: User
 }) => {
     const [oldP, setOldP] = useState('')
     const [newP, setNewP] = useState('')
     const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
+    const setUser = useSessionStore((state) => state.setUser)
     const nav = useNavigate()
-    const logout = useSessionStore((state) => state.logout)
-    const [, , deleteCookie] = useCookies([
-        USERNAME_COOKIE_KEY,
-        LOGIN_TOKEN_COOKIE_KEY,
-    ])
 
     useKeyDown('Escape', () => {
         if (open) {
@@ -85,15 +76,12 @@ const SettingsMenu = ({
                 'Old and new password cannot be empty or match'
             )
         }
-        return UpdatePassword(user.username, oldP, newP).then((r) => {
-            if (r.status !== 200) {
-                return Promise.reject(r.statusText)
-            }
-            setTimeout(() => {
-                setNewP('')
-                setOldP('')
-            }, 2000)
-            return true
+        return UsersApi.updateUserPassword(user.username, {
+            oldPassword: oldP,
+            newPassword: newP,
+        }).then(() => {
+            setNewP('')
+            setOldP('')
         })
     }, [user.username, String(oldP), String(newP)])
 
@@ -153,9 +141,12 @@ const SettingsMenu = ({
                     Left={IconLogout}
                     danger
                     centerContent
-                    onClick={() => {
+                    onClick={async () => {
                         useMediaStore.getState().clear()
-                        logout(deleteCookie)
+                        await UsersApi.logoutUser()
+                        const loggedOut = new User()
+                        loggedOut.isLoggedIn = false
+                        setUser(loggedOut)
                         nav('/login')
                     }}
                 />
@@ -211,7 +202,7 @@ const HeaderBar = memo(
                     />
                 )}
 
-                {(admin || server.info.role === 'backup') && (
+                {(admin || server.role === 'backup') && (
                     <Admin closeAdminMenu={() => setAdmin(false)} />
                 )}
 
@@ -241,7 +232,7 @@ const HeaderBar = memo(
                                     Left={IconLibraryPhoto}
                                     onClick={navToTimeline}
                                     disabled={
-                                        server.info.role === 'backup' ||
+                                        server.role === 'backup' ||
                                         !user.isLoggedIn
                                     }
                                 />
@@ -256,7 +247,7 @@ const HeaderBar = memo(
                                     Left={IconAlbum}
                                     onClick={navToAlbums}
                                     disabled={
-                                        server.info.role === 'backup' ||
+                                        server.role === 'backup' ||
                                         !user.isLoggedIn
                                     }
                                 />
@@ -284,10 +275,10 @@ const HeaderBar = memo(
                                 className="theme-text-dark-bg"
                             />
                             <p className="theme-text-dark-bg text-xs select-none font-bold">
-                                {server.info.name}
+                                {server.name}
                             </p>
                             <p className="theme-text-dark-bg text-xs select-none">
-                                {server.info.role}
+                                {server.role}
                             </p>
                             <div
                                 className="button-tooltip"

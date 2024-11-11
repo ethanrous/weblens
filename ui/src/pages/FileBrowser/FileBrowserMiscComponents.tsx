@@ -26,16 +26,8 @@ import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { UserInfoT } from '@weblens/types/Types'
 import { friendlyFolderName, humanFileSize } from '@weblens/util'
-import {
-    DragEventHandler,
-    FC,
-    memo,
-    ReactElement,
-    useMemo,
-    useState,
-} from 'react'
+import { FC, memo, ReactElement, useMemo, useState } from 'react'
 import { FbModeT, useFileBrowserStore } from './FBStateControl'
 import {
     handleDragOver,
@@ -45,6 +37,7 @@ import {
 import '@weblens/components/theme.scss'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { ButtonIcon } from '@weblens/lib/buttonTypes'
+import User from '@weblens/types/user/user'
 
 export const TransferCard = ({
     action,
@@ -109,7 +102,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
             draggable={false}
             className="dropspot-wrapper"
             ref={setDropRef}
-            onDragOver={(e) => {
+            onDragOver={() => {
                 if (draggingState === DraggingStateT.NoDrag) {
                     // handleDrag(e)
                 }
@@ -264,7 +257,6 @@ export const DirViewWrapper = memo(
             (state) => state.clearSelected
         )
         const setMenu = useFileBrowserStore((state) => state.setMenu)
-        const [dropRef, setDropRef] = useState<HTMLDivElement>()
 
         return (
             <div
@@ -297,23 +289,22 @@ export const DirViewWrapper = memo(
             >
                 <div
                     className="w-full h-full p-2"
-                    ref={setDropRef}
                     onDragOver={(e) => {
                         if (!draggingState) {
                             handleDragOver(e, setDragging, draggingState)
                         }
                     }}
-                    onDragLeave={(e) => {
+                    onDragLeave={() => {
                         return
-                        if (dropRef.contains(e.target as Node)) {
-                            console.log(e.target)
-                            return
-                        }
-
-                        console.log(e.target)
-                        if (draggingState) {
-                            setDragging(DraggingStateT.NoDrag)
-                        }
+                        // if (dropRef.contains(e.target as Node)) {
+                        //     console.log(e.target)
+                        //     return
+                        // }
+                        //
+                        // console.log(e.target)
+                        // if (draggingState) {
+                        //     setDragging(DraggingStateT.NoDrag)
+                        // }
                     }}
                 >
                     {children}
@@ -336,7 +327,7 @@ export const FileIcon = ({
     fileName: string
     id: string
     Icon: ButtonIcon
-    usr: UserInfoT
+    usr: User
     as?: string
 }) => {
     return (

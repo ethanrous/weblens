@@ -30,6 +30,12 @@ var ErrKeyInUse = &clientSafeErr{
 }
 
 var ErrKeyNotFound = errors.New("api was not found")
-var ErrInvalidToken = errors.New("session token is expired or invalid")
+var ErrInvalidToken = errors.New("session token is invalid")
+var ErrTokenExpired = errors.New("session token is expired")
 var ErrKeyAlreadyExists = errors.New("api key already exists")
 var ErrKeyNoServer = errors.New("api key is not associated with a server")
+
+var ErrNotAdmin = clientSafeErr{
+	realError:  errors.New("user must be admin to access this resource"),
+	statusCode: 403,
+}

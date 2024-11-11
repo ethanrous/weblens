@@ -1,0 +1,1517 @@
+basePath: /api/
+definitions:
+  ApiKeyInfo:
+    properties:
+      createdBy:
+        type: string
+      createdTime:
+        type: integer
+      id:
+        type: string
+      key:
+        type: string
+      owner:
+        type: string
+      remoteUsing:
+        type: string
+    type: object
+  CreateFolderBody:
+    properties:
+      children:
+        items:
+          type: string
+        type: array
+      newFolderName:
+        type: string
+      parentFolderId:
+        type: string
+    required:
+    - newFolderName
+    - parentFolderId
+    type: object
+  Error:
+    properties:
+      error:
+        type: string
+    type: object
+  FileInfo:
+    properties:
+      childrenIds:
+        items:
+          type: string
+        type: array
+      contentId:
+        type: string
+      filename:
+        type: string
+      id:
+        type: string
+      isDir:
+        type: boolean
+      modifiable:
+        type: boolean
+      modifyTimestamp:
+        type: integer
+      owner:
+        type: string
+      parentId:
+        type: string
+      portablePath:
+        type: string
+      shareId:
+        type: string
+      size:
+        type: integer
+    type: object
+  FileShare:
+    properties:
+      accessors:
+        items:
+          type: string
+        type: array
+      enabled:
+        type: boolean
+      expires:
+        type: string
+      fileId:
+        type: string
+      owner:
+        type: string
+      public:
+        type: boolean
+      shareId:
+        type: string
+      shareName:
+        type: string
+      shareType:
+        $ref: '#/definitions/models.ShareType'
+      updated:
+        type: string
+      wormhole:
+        type: boolean
+    type: object
+  FilesListParams:
+    properties:
+      fileIds:
+        items:
+          type: string
+        type: array
+    type: object
+  FolderInfo:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/FileInfo'
+        type: array
+      medias:
+        items:
+          $ref: '#/definitions/MediaInfo'
+        type: array
+      parents:
+        items:
+          $ref: '#/definitions/FileInfo'
+        type: array
+      self:
+        $ref: '#/definitions/FileInfo'
+    type: object
+  LoginBody:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  MediaBatchInfo:
+    properties:
+      Media:
+        items:
+          $ref: '#/definitions/MediaInfo'
+        type: array
+      mediaCount:
+        type: integer
+    type: object
+  MediaIdsParams:
+    properties:
+      mediaIds:
+        items:
+          type: string
+        type: array
+    type: object
+  MediaInfo:
+    properties:
+      contentId:
+        description: Hash of the file content, to ensure that the same files don't
+          get duplicated
+        type: string
+      createDate:
+        type: string
+      duration:
+        description: Total time, in milliseconds, of a video
+        type: integer
+      enabled:
+        description: |-
+          If the media disabled. This can happen when the backing file(s) are deleted,
+          but the media stays behind because it can be re-used if needed.
+        type: boolean
+      fileIds:
+        description: Slices of files whos content hash to the contentId
+        items:
+          type: string
+        type: array
+      height:
+        type: integer
+      hidden:
+        description: |-
+          If the media is hidden from the timeline
+          TODO - make this per user
+        type: boolean
+      likedBy:
+        items:
+          type: string
+        type: array
+      mimeType:
+        description: Mime-type key of the media
+        type: string
+      owner:
+        description: User who owns the file that resulted in this media being created
+        type: string
+      pageCount:
+        description: Number of pages (typically 1, 0 in not a valid page count)
+        type: integer
+      recognitionTags:
+        description: Tags from the ML image scan so searching for particular objects
+          in the images can be done
+        items:
+          type: string
+        type: array
+      rotate:
+        description: The rotation of the image from its original. Found from the exif
+          data
+        type: string
+      width:
+        description: Full-res image dimensions
+        type: integer
+    type: object
+  MediaType:
+    properties:
+      FileExtension:
+        items:
+          type: string
+        type: array
+      FriendlyName:
+        type: string
+      IsDisplayable:
+        type: boolean
+      IsRaw:
+        type: boolean
+      IsVideo:
+        type: boolean
+      MultiPage:
+        type: boolean
+      RawThumbExifKey:
+        type: string
+      SupportsImgRecog:
+        type: boolean
+      mime:
+        type: string
+    type: object
+  MediaTypeInfo:
+    properties:
+      extMap:
+        additionalProperties:
+          $ref: '#/definitions/MediaType'
+        type: object
+      mimeMap:
+        additionalProperties:
+          $ref: '#/definitions/MediaType'
+        type: object
+    type: object
+  MoveFilesParams:
+    properties:
+      fileIds:
+        items:
+          type: string
+        type: array
+      newParentId:
+        type: string
+    type: object
+  NewServerParams:
+    properties:
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/models.ServerRole'
+      serverId:
+        type: string
+      usingKey:
+        type: string
+    type: object
+  NewUserParams:
+    properties:
+      admin:
+        type: boolean
+      autoActivate:
+        type: boolean
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - admin
+    - autoActivate
+    - password
+    - username
+    type: object
+  PasswordUpdateParams:
+    properties:
+      newPassword:
+        type: string
+      oldPassword:
+        type: string
+    required:
+    - newPassword
+    type: object
+  RestoreFilesBody:
+    properties:
+      fileIds:
+        items:
+          type: string
+        type: array
+      newParentId:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  RestoreFilesInfo:
+    properties:
+      newParentId:
+        type: string
+    type: object
+  ServerInfo:
+    properties:
+      backupSize:
+        type: integer
+      coreAddress:
+        description: |-
+          Address of the remote server, only if the instance is a core.
+          Not set for any remotes/backups on core server, as it IS the core
+        type: string
+      id:
+        type: string
+      lastBackup:
+        type: integer
+      name:
+        type: string
+      online:
+        type: boolean
+      reportedRole:
+        allOf:
+        - $ref: '#/definitions/models.ServerRole'
+        description: Role the server is currently reporting. This is used to determine
+          if the server is online (and functional) or not
+      role:
+        allOf:
+        - $ref: '#/definitions/models.ServerRole'
+        description: Core or Backup
+      started:
+        type: boolean
+      userCount:
+        type: integer
+    type: object
+  TakeoutInfo:
+    properties:
+      filename:
+        type: string
+      single:
+        type: boolean
+      takeoutId:
+        type: string
+      taskId:
+        type: string
+    type: object
+  UpdateFileParams:
+    properties:
+      newName:
+        type: string
+      newParentId:
+        type: string
+    type: object
+  UserInfo:
+    properties:
+      admin:
+        type: boolean
+      homeId:
+        type: string
+      owner:
+        type: boolean
+      trashId:
+        type: string
+      username:
+        type: string
+    type: object
+  UserInfoArchive:
+    properties:
+      activated:
+        type: boolean
+      admin:
+        type: boolean
+      homeId:
+        type: string
+      owner:
+        type: boolean
+      password:
+        type: string
+      trashId:
+        type: string
+      username:
+        type: string
+    type: object
+  fileTree.FileAction:
+    properties:
+      actionType:
+        $ref: '#/definitions/fileTree.FileActionType'
+      destinationPath:
+        description: OriginId        FileId `json:"originId" bson:"originId,omitempty"`
+        type: string
+      eventId:
+        type: string
+      lifeId:
+        type: string
+      originPath:
+        type: string
+      parentId:
+        type: string
+      serverId:
+        type: string
+      size:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+  fileTree.FileActionType:
+    enum:
+    - fileCreate
+    - fileMove
+    - fileSizeChange
+    - backup
+    - fileDelete
+    - fileRestore
+    type: string
+    x-enum-varnames:
+    - FileCreate
+    - FileMove
+    - FileSizeChange
+    - Backup
+    - FileDelete
+    - FileRestore
+  models.ServerRole:
+    enum:
+    - init
+    - core
+    - backup
+    - restore
+    type: string
+    x-enum-varnames:
+    - InitServer
+    - CoreServer
+    - BackupServer
+    - RestoreServer
+  models.ShareType:
+    enum:
+    - file
+    - album
+    type: string
+    x-enum-varnames:
+    - SharedFile
+    - SharedAlbum
+  rest.ScanBody:
+    properties:
+      filename:
+        type: string
+      folderId:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Programmatic access to the Weblens server
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Weblens API
+  version: "1.0"
+paths:
+  /admin/folder/scan:
+    post:
+      operationId: ScanFolder
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      - description: Scan parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.ScanBody'
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Dispatch a folder scan
+      tags:
+      - Folder
+  /files:
+    delete:
+      operationId: DeleteFiles
+      parameters:
+      - description: Delete files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/FilesListParams'
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Delete Files "permanently"
+      tags:
+      - Files
+    patch:
+      operationId: MoveFiles
+      parameters:
+      - description: Move files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/MoveFilesParams'
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Move a list of files to a new parent folder
+      tags:
+      - Files
+  /files/{fileId}:
+    get:
+      operationId: GetFile
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File Info
+          schema:
+            $ref: '#/definitions/FileInfo'
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get information about a file
+      tags:
+      - Files
+    patch:
+      consumes:
+      - application/json
+      operationId: UpdateFile
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: Update file request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/UpdateFileParams'
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Update a File
+      tags:
+      - Files
+  /files/{fileId}/download:
+    get:
+      operationId: DownloadFile
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      - default: false
+        description: Is this a takeout file
+        enum:
+        - true
+        - false
+        in: query
+        name: isTakeout
+        type: boolean
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: File content
+          schema:
+            type: string
+      security:
+      - SessionAuth: []
+      summary: Download a file
+      tags:
+      - Files
+  /files/{fileId}/history:
+    get:
+      operationId: GetFolderHistory
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: Past timestamp to view the folder at, in ms since epoch
+        in: query
+        name: timestamp
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: File actions
+          schema:
+            items:
+              $ref: '#/definitions/fileTree.FileAction'
+            type: array
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get actions of a folder at a given time
+      tags:
+      - Folder
+  /files/{fileId}/stats:
+    get:
+      operationId: GetFileStats
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad Request
+        "501":
+          description: Not Implemented
+      security:
+      - SessionAuth: []
+      summary: Get the statistics of a file
+      tags:
+      - Files
+  /files/{fileId}/text:
+    get:
+      operationId: GetFileText
+      parameters:
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: File text
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+      security:
+      - SessionAuth: []
+      summary: Get the text of a text file
+      tags:
+      - Files
+  /files/autocomplete:
+    get:
+      operationId: AutocompletePath
+      parameters:
+      - description: Search path
+        in: query
+        name: searchPath
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Path info
+          schema:
+            $ref: '#/definitions/FolderInfo'
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get path completion suggestions
+      tags:
+      - Files
+  /files/restore:
+    post:
+      consumes:
+      - application/json
+      operationId: RestoreFiles
+      parameters:
+      - description: Restore files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RestoreFilesBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Restore files info
+          schema:
+            $ref: '#/definitions/RestoreFilesInfo'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Restore files from some time in the past
+      tags:
+      - Files History
+  /files/search:
+    get:
+      operationId: SearchByFilename
+      parameters:
+      - description: Filename to search for
+        in: query
+        name: search
+        required: true
+        type: string
+      - description: The folder to search in, defaults to the user's home folder
+        in: query
+        name: baseFolderId
+        type: string
+      responses:
+        "200":
+          description: File Info
+          schema:
+            items:
+              $ref: '#/definitions/FileInfo'
+            type: array
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Search for files by filename
+      tags:
+      - Files
+  /files/shared:
+    get:
+      operationId: GetSharedFiles
+      responses:
+        "200":
+          description: An object containing all the files shared with the user
+          schema:
+            $ref: '#/definitions/FolderInfo'
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get files shared with the logged in user
+      tags:
+      - Files
+  /files/trash:
+    patch:
+      operationId: TrashFiles
+      parameters:
+      - description: Trash files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/FilesListParams'
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Move a list of files to the trash
+      tags:
+      - Files
+  /files/untrash:
+    patch:
+      operationId: UnTrashFiles
+      parameters:
+      - description: UnTrash files request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/FilesListParams'
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Move a list of files out of the trash, restoring them to where they
+        were before
+      tags:
+      - Files
+  /folder:
+    post:
+      consumes:
+      - application/json
+      operationId: CreateFolder
+      parameters:
+      - description: New folder body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CreateFolderBody'
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File Info
+          schema:
+            $ref: '#/definitions/FileInfo'
+      security:
+      - SessionAuth: []
+      summary: Create a new folder
+      tags:
+      - Folder
+  /folder/{folderId}:
+    get:
+      consumes:
+      - application/json
+      operationId: GetFolder
+      parameters:
+      - description: Folder Id
+        in: path
+        name: folderId
+        required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      - description: Past timestamp to view the folder at, in ms since epoch
+        in: query
+        name: timestamp
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Folder Info
+          schema:
+            $ref: '#/definitions/FolderInfo'
+      security:
+      - SessionAuth: []
+      summary: Get a folder
+      tags:
+      - Folder
+  /folder/{folderId}/cover:
+    patch:
+      operationId: SetFolderCover
+      parameters:
+      - description: Folder Id
+        in: path
+        name: folderId
+        required: true
+        type: string
+      - description: Media Id
+        in: query
+        name: mediaId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Set the cover image of a folder
+      tags:
+      - Folder
+  /info:
+    get:
+      operationId: GetServerInfo
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server info
+          schema:
+            $ref: '#/definitions/ServerInfo'
+      summary: Get server info
+      tags:
+      - Servers
+  /keys:
+    get:
+      operationId: GetApiKeys
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Api keys info
+          schema:
+            items:
+              $ref: '#/definitions/ApiKeyInfo'
+            type: array
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      summary: Get all api keys
+      tags:
+      - ApiKeys
+    post:
+      operationId: CreateApiKey
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: The new api key info
+          schema:
+            $ref: '#/definitions/ApiKeyInfo'
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      summary: Create a new api key
+      tags:
+      - ApiKeys
+  /keys/{keyId}:
+    delete:
+      operationId: DeleteApiKey
+      parameters:
+      - description: Api key id
+        in: path
+        name: keyId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      summary: Delete an api key
+      tags:
+      - ApiKeys
+  /media:
+    get:
+      operationId: GetMedia
+      parameters:
+      - default: false
+        description: Include raw files
+        enum:
+        - true
+        - false
+        in: query
+        name: raw
+        type: boolean
+      - default: false
+        description: Include hidden media
+        enum:
+        - true
+        - false
+        in: query
+        name: hidden
+        type: boolean
+      - default: createDate
+        description: Sort by field
+        enum:
+        - createDate
+        in: query
+        name: sort
+        type: string
+      - description: Search only in given folders
+        in: query
+        name: folderIds
+        type: string
+      - description: Get only media with the provided ids
+        in: query
+        name: mediaIds
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media Batch
+          schema:
+            $ref: '#/definitions/MediaBatchInfo'
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      summary: Get paginated media
+      tags:
+      - Media
+  /media/{mediaId}:
+    get:
+      operationId: GetMediaImage
+      parameters:
+      - description: Media Id
+        in: path
+        name: mediaId
+        required: true
+        type: string
+      - description: Image Quality
+        enum:
+        - thumbnail
+        - fullres
+        in: query
+        name: quality
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      produces:
+      - image/webp
+      - ' image/png'
+      - ' image/jpeg'
+      responses:
+        "200":
+          description: image bytes
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+      summary: Get a media image bytes
+      tags:
+      - Media
+  /media/{mediaId}/info:
+    get:
+      operationId: GetMediaInfo
+      parameters:
+      - description: Media Id
+        in: path
+        name: mediaId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media Info
+          schema:
+            $ref: '#/definitions/MediaInfo'
+      summary: Get media info
+      tags:
+      - Media
+  /media/types:
+    get:
+      operationId: GetMediaTypes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media types
+          schema:
+            $ref: '#/definitions/MediaTypeInfo'
+      summary: Get media type dictionary
+      tags:
+      - Media
+  /media/visibility:
+    patch:
+      operationId: SetMediaVisibility
+      parameters:
+      - description: Set the media visibility
+        enum:
+        - true
+        - false
+        in: query
+        name: hidden
+        required: true
+        type: boolean
+      - description: MediaIds to change visibility of
+        in: body
+        name: mediaIds
+        required: true
+        schema:
+          $ref: '#/definitions/MediaIdsParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      summary: Set media visibility
+      tags:
+      - Media
+  /remotes:
+    delete:
+      operationId: DeleteRemote
+      parameters:
+      - description: Server Id to delete
+        in: query
+        name: remoteId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a remote
+      tags:
+      - Remotes
+    get:
+      operationId: GetRemotes
+      responses:
+        "200":
+          description: Server Info
+          schema:
+            items:
+              $ref: '#/definitions/ServerInfo'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: Get all remotes
+      tags:
+      - Remotes
+    post:
+      operationId: CreateRemote
+      parameters:
+      - description: New Server Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/NewServerParams'
+      responses:
+        "201":
+          description: New Server Info
+          schema:
+            items:
+              $ref: '#/definitions/ServerInfo'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new remote
+      tags:
+      - Remotes
+  /share/{shareId}:
+    get:
+      operationId: GetFileShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File Share
+          schema:
+            $ref: '#/definitions/FileShare'
+        "404":
+          description: Not Found
+      summary: Get a file share
+      tags:
+      - Share
+  /takeout:
+    post:
+      description: Dispatch a task to create a zip file of the given files, or get
+        the id of a previously created zip file if it already exists
+      operationId: CreateTakeout
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      - description: File Ids
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/FilesListParams'
+      responses:
+        "200":
+          description: Zip Takeout Info
+          schema:
+            $ref: '#/definitions/TakeoutInfo'
+        "202":
+          description: Task Dispatch Info
+          schema:
+            $ref: '#/definitions/TakeoutInfo'
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Create a zip file
+      tags:
+      - Files
+  /users:
+    get:
+      operationId: GetUsers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users
+          schema:
+            items:
+              $ref: '#/definitions/UserInfoArchive'
+            type: array
+        "401":
+          description: Unauthorized
+      security:
+      - SessionAuth:
+        - admin
+      summary: Get all users, including (possibly) sensitive information like password
+        hashes
+      tags:
+      - Users
+    post:
+      operationId: CreateUser
+      parameters:
+      - description: New user params
+        in: body
+        name: newUserParams
+        required: true
+        schema:
+          $ref: '#/definitions/NewUserParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+        "401":
+          description: Unauthorized
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new user
+      tags:
+      - Users
+  /users/{username}:
+    delete:
+      operationId: DeleteUser
+      parameters:
+      - description: Username of user to delete
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Delete a user
+      tags:
+      - Users
+  /users/{username}/active:
+    patch:
+      operationId: ActivateUser
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Target admin status
+        in: query
+        name: setActive
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update active status of user
+      tags:
+      - Users
+  /users/{username}/admin:
+    patch:
+      operationId: SetUserAdmin
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Target admin status
+        in: query
+        name: setAdmin
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update admin status of user
+      tags:
+      - Users
+  /users/{username}/password:
+    patch:
+      operationId: UpdateUserPassword
+      parameters:
+      - description: Username of user to update
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Password update params
+        in: body
+        name: passwordUpdateParams
+        required: true
+        schema:
+          $ref: '#/definitions/PasswordUpdateParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Both oldPassword and newPassword fields are required
+          schema:
+            $ref: '#/definitions/Error'
+        "403":
+          description: Forbidden
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Update user password
+      tags:
+      - Users
+  /users/auth:
+    post:
+      operationId: LoginUser
+      parameters:
+      - description: Login params
+        in: body
+        name: loginParams
+        required: true
+        schema:
+          $ref: '#/definitions/LoginBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logged-in users info
+          schema:
+            $ref: '#/definitions/UserInfo'
+        "401":
+          description: Unauthorized
+      summary: Login User
+      tags:
+      - Users
+  /users/logout:
+    post:
+      operationId: LogoutUser
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth: []
+      summary: Logout User
+      tags:
+      - Users
+  /users/me:
+    get:
+      operationId: GetUser
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logged-in users info
+          schema:
+            $ref: '#/definitions/UserInfo'
+        "401":
+          description: Unauthorized
+      security:
+      - SessionAuth: []
+      summary: Gets the user based on the auth token
+      tags:
+      - Users
+  /users/search:
+    get:
+      operationId: SearchUsers
+      parameters:
+      - description: Partial username to search for
+        in: query
+        name: search
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of users
+          schema:
+            items:
+              $ref: '#/definitions/UserInfo'
+            type: array
+        "400":
+          description: Username autocomplete must contain at least 2 characters
+          schema:
+            $ref: '#/definitions/Error'
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Search for users by username
+      tags:
+      - Users
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    scopes:
+      admin: Grants read and write access to privileged data
+    type: apiKey
+  SessionAuth:
+    in: cookie
+    name: weblens-session-token
+    type: apiKey
+swagger: "2.0"

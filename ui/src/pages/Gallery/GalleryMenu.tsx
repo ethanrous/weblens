@@ -9,15 +9,22 @@ import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { SetAlbumCover } from '@weblens/types/albums/AlbumQuery'
 import WeblensMedia from '@weblens/types/media/Media'
-import { hideMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import {
     GalleryDispatchT,
     newTimeOffset,
     TimeOffset,
 } from '@weblens/types/Types'
-import { memo, useCallback, useContext, useMemo, useState } from 'react'
+import {
+    memo,
+    MouseEvent,
+    useCallback,
+    useContext,
+    useMemo,
+    useState,
+} from 'react'
 import { GalleryContext } from './GalleryLogic'
+import MediaApi from '@weblens/api/MediaApi'
 
 function TimeSlice({
     value,
@@ -73,7 +80,7 @@ function TimeDialogue({
     const [date, setDate] = useState<Date>(null)
 
     const monthTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.month += n
             galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
@@ -81,7 +88,7 @@ function TimeDialogue({
     )
 
     const dayTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.day += n
             galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
@@ -89,28 +96,28 @@ function TimeDialogue({
     )
 
     const yearTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.year += n
             galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
     )
     const hourTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.hour += n
             galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
     )
     const minuteTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.minute += n
             galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
         [offset, galleryDispatch]
     )
     const secondTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.second += n
             galleryDispatch({ type: 'set_time_offset', offset: offset })
         },
@@ -239,15 +246,11 @@ export const GalleryMenu = memo(
         media,
         open,
         setOpen,
-        updateAlbum,
     }: {
         media: WeblensMedia
         open: boolean
         setOpen: (o: boolean) => void
-        updateAlbum?: () => void
     }) => {
-        
-
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
         const [menuRef, setMenuRef] = useState(null)
 
@@ -274,7 +277,7 @@ export const GalleryMenu = memo(
         })
 
         const hide = useCallback(
-            async (e, hidden: boolean) => {
+            async (e: MouseEvent, hidden: boolean) => {
                 e.stopPropagation()
 
                 let medias: string[] = []
@@ -282,9 +285,11 @@ export const GalleryMenu = memo(
                     medias = [...useMediaStore.getState().selectedMap.keys()]
                 }
                 medias.push(media.Id())
-                const r = await hideMedia(medias, hidden)
+                const res = await MediaApi.setMediaVisibility(hidden, {
+                    mediaIds: medias,
+                })
 
-                if (r.status !== 200) {
+                if (res.status !== 200) {
                     return false
                 }
 
@@ -305,25 +310,22 @@ export const GalleryMenu = memo(
             [galleryState.selecting]
         )
 
-        const adjustTime = useCallback(
-            async (newDate: Date) => {
-                console.error('adjust time not impl')
-                // const r = await adjustMediaTime(
-                //     media.Id(),
-                //     newDate,
-                //     mediaState.getAllSelectedIds(),
-                //     auth
-                // )
-                // galleryDispatch({
-                //     type: 'set_time_offset',
-                //     offset: null,
-                // })
-                //
-                // return r
-                return false
-            },
-            [media]
-        )
+        const adjustTime = useCallback(async () => {
+            console.error('adjust time not impl')
+            // const r = await adjustMediaTime(
+            //     media.Id(),
+            //     newDate,
+            //     mediaState.getAllSelectedIds(),
+            //     auth
+            // )
+            // galleryDispatch({
+            //     type: 'set_time_offset',
+            //     offset: null,
+            // })
+            //
+            // return r
+            return false
+        }, [media])
 
         const hideStyle = useMemo(() => {
             return { opacity: open ? '100%' : '0%' }

@@ -1,8 +1,8 @@
+import { FileApi } from '@weblens/api/FileBrowserApi'
 import {
     SetMenuT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
-import { MoveSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import {
@@ -82,7 +82,12 @@ export function handleMouseUp(
             file.IsFolder()
         ) {
             setSelectedMoved()
-            MoveSelected(selected, file.Id()).then(() => clearSelected())
+            FileApi.moveFiles({
+                fileIds: selected,
+                newParentId: file.Id(),
+            }).then(() => {
+                clearSelected()
+            })
         }
         setMoveDest('')
         setDragging(DraggingStateT.NoDrag)

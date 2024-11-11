@@ -8,16 +8,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethanrous/weblens/docs"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
-	"github.com/ethanrous/weblens/service"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/net/webdav"
+	swaggerFiles "github.com/swaggo/files"
+	ginswag "github.com/swaggo/gin-swagger" // gin-swagger middleware
 )
-
-// var Server *http.Server
 
 type Server struct {
 	Running     bool
@@ -30,7 +29,32 @@ type Server struct {
 	hostStr    string
 }
 
+// @title						Weblens API
+// @version					1.0
+// @description				Programmatic access to the Weblens server
+// @license.name				MIT
+// @license.url				https://opensource.org/licenses/MIT
+// @host						localhost:8080
+// @BasePath					/api/
+//
+// @securityDefinitions.apikey	SessionAuth
+// @in							cookie
+// @name						weblens-session-token
+//
+// @securityDefinitions.apikey	ApiKeyAuth
+// @in							header
+// @name						Authorization
+//
+// @scope.admin				Grants read and write access to privileged data
 func NewServer(host, port string, services *models.ServicePack) *Server {
+
+	proxyHost := env.GetProxyAddress()
+	if strings.HasPrefix(proxyHost, "http") {
+		i := strings.Index(proxyHost, "://")
+		proxyHost = proxyHost[i+3:]
+	}
+	docs.SwaggerInfo.Host = proxyHost
+
 	srv := &Server{
 		router:   gin.New(),
 		services: services,
@@ -54,7 +78,8 @@ func (s *Server) Start() {
 
 		s.router.GET("/ping", ping)
 		s.router.GET("/api/info", getServerInfo)
-		s.router.GET("/api/ws", WeblensAuth(false, false, s.services), wsConnect)
+		s.router.GET("/api/ws", AllowPublic(), WeblensAuth(s.services), wsConnect)
+		s.router.GET("/docs/*any", ginswag.WrapHandler(swaggerFiles.Handler))
 
 		if !env.DetachUi() {
 			s.UseUi()
@@ -88,78 +113,98 @@ func (s *Server) Start() {
 func (s *Server) UseInit() {
 	log.Debug.Println("Adding initialization routes")
 
-	init := s.router.Group("/api/init")
+	init := s.router.Group("/api")
 
-	init.POST("", initializeServer)
-	init.GET("/users", getUsers)
+	init.POST("/server", initializeServer)
+
 	init.GET("/user", getUserInfo)
+	// init.GET("/users", getUsers)
 }
 
 func (s *Server) UseApi() {
 	log.Trace.Println("Using api routes")
 
+	public := s.router.Group("/api")
+	public.Use(AllowPublic())
+
 	api := s.router.Group("/api")
-	api.Use(WeblensAuth(false, false, s.services))
+	api.Use(CORSMiddleware())
+
+	api.Use(WeblensAuth(s.services))
+	public.Use(WeblensAuth(s.services))
 
 	// Media
-	api.GET("/media", getMediaBatch)
-	api.GET("/media/types", getMediaTypes)
-	api.GET("/media/random", getRandomMedias)
-	api.GET("/media/:mediaId/info", getMediaInfo)
-	api.GET("/media/:mediaId/thumbnail", getMediaThumbnail)
-	api.GET("/media/:mediaId/thumbnail.webp", getMediaThumbnail)
-	api.GET("/media/:mediaId/thumbnail.png", getMediaThumbnailPng)
-	api.GET("/media/:mediaId/fullres", getMediaFullres)
-	api.GET("/media/:mediaId/stream", streamVideo)
-	api.GET("/media/:mediaId/:chunkName", streamVideo)
-	api.POST("/media/:mediaId/liked", likeMedia)
-	api.POST("/medias", getMediaByIds)
-	api.PATCH("/media/visibility", hideMedia)
-	api.PATCH("/media/date", adjustMediaDate)
-
-	// File
-	api.GET("/file/:fileId", getFile)
-	api.GET("/file/:fileId/history", getFolderHistory)
-	api.GET("/file/:fileId/text", getFileText)
-	api.GET("/file/share/:shareId", getFileShare)
-	api.GET("/file/:fileId/download", downloadFile)
-	api.PATCH("/file/:fileId", updateFile)
+	media := api.Group("/media")
+	media.GET("", getMediaBatch)
+	media.GET("/types", getMediaTypes)
+	media.GET("/random", getRandomMedias)
+	media.GET("/:mediaId", getMediaImage)
+	media.GET("/:mediaId/info", getMediaInfo)
+	// media.GET("/:mediaId/thumbnail", getMediaThumbnail)
+	// media.GET("/:mediaId/thumbnail.webp", getMediaThumbnail)
+	// media.GET("/:mediaId/thumbnail.png", getMediaThumbnailPng)
+	// media.GET("/:mediaId/fullres", getMediaFullres)
+	media.GET("/:mediaId/stream", streamVideo)
+	media.GET("/:mediaId/:chunkName", streamVideo)
+	media.POST("/:mediaId/liked", likeMedia)
+	// media.POST("s", getMediaByIds)
+	media.PATCH("/visibility", hideMedia)
+	media.PATCH("/date", adjustMediaDate)
 
 	// Files
-	api.GET("/files/:folderId/stats", getFolderStats)
-	api.GET("/files/shared", getSharedFiles)
-	api.GET("/files/search", searchByFilename)
-	api.POST("/files/restore", restoreFiles)
-	api.PATCH("/files", moveFiles)
-	api.PATCH("/files/trash", trashFiles)
-	api.PATCH("/files/untrash", unTrashFiles)
-	api.DELETE("/files", deleteFiles)
+	files := api.Group("/files")
+	files.GET("/:fileId", getFile)
+	files.GET("/:fileId/text", getFileText)
+	files.GET("/:fileId/stats", getFileStats)
+	files.GET("/:fileId/download", downloadFile)
+	files.GET("/:fileId/history", getFolderHistory)
+	files.GET("/search", searchByFilename)
+	files.GET("/shared", getSharedFiles)
+
+	files.POST("/restore", restoreFiles)
+
+	files.PATCH("/:fileId", updateFile)
+	files.PATCH("", moveFiles)
+	files.PATCH("/trash", trashFiles)
+	files.PATCH("/untrash", unTrashFiles)
+	files.DELETE("", deleteFiles)
+
+	// Folder
+	folder := api.Group("/folder")
+	folder.POST("", createFolder)
+	public.GET("/folder/:folderId", getFolder)
+	folder.PATCH("/:folderId/cover", setFolderCover)
 
 	// Upload
 	api.POST("/upload", newUploadTask)
 	api.POST("/upload/:uploadId", newFileUpload)
 	api.PUT("/upload/:uploadId/file/:fileId", handleUploadChunk)
 
-	// Folder
-	api.GET("/folder/:folderId", getFolder)
-	api.GET("/folder/:folderId/search", searchFolder)
-	api.POST("/folder", createFolder)
-	api.PATCH("/folder/:folderId/cover", setFolderCover)
+	// Takeout
+	api.POST("/takeout", createTakeout)
 
-	// Folders
-	api.GET("/folders/media", getFoldersMedia)
+	// Users
+	users := api.Group("/users")
+	users.GET("", RequireAdmin(), getUsers)
+	users.GET("/me", getUserInfo)
+	users.GET("/search", searchUsers)
+	users.POST("", createUser)
 
-	// Username
-	api.GET("/user", getUserInfo)
-	api.GET("/users/search", searchUsers)
-	api.POST("/user", createUser)
-	api.PATCH("/user/:username/password", updateUserPassword)
+	// Must not use weblens auth here, as the user is not logged in yet
+	public.POST("/users/auth", loginUser)
+
+	users.POST("/logout", logoutUser)
+	users.PATCH("/:username/password", RequireAdmin(), updateUserPassword)
+	users.PATCH("/:username/admin", RequireAdmin(), setUserAdmin)
+	users.DELETE("/:username", RequireAdmin(), deleteUser)
 
 	// Share
-	api.POST("/share/files", createFileShare)
-	api.PATCH("/share/:shareId/accessors", patchShareAccessors)
-	api.PATCH("/share/:shareId/public", setSharePublic)
-	api.DELETE("/share/:shareId", deleteShare)
+	share := api.Group("/share")
+	share.GET("/:shareId", getFileShare)
+	share.POST("/files", createFileShare)
+	share.PATCH("/:shareId/accessors", patchShareAccessors)
+	share.PATCH("/:shareId/public", setSharePublic)
+	share.DELETE("/:shareId", deleteShare)
 
 	// Album
 	api.GET("/album/:albumId", getAlbum)
@@ -172,10 +217,12 @@ func (s *Server) UseApi() {
 	// Albums
 	api.GET("/albums", getAlbums)
 
-	s.router.POST("/api/login", loginUser)
-
-	api.POST("/takeout", createTakeout)
-	api.GET("/takeout/:fileId", downloadTakeout)
+	// ApiKeys
+	keys := api.Group("/keys")
+	keys.Use(RequireAdmin())
+	keys.GET("", getApiKeys)
+	keys.POST("", newApiKey)
+	keys.DELETE("/:keyId", deleteApiKey)
 
 	/* Static content */
 	api.GET("/static/:filename", serveStaticContent)
@@ -184,25 +231,25 @@ func (s *Server) UseApi() {
 }
 
 func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCaster) {
-	fs := service.WebdavFs{
-		WeblensFs: fileService,
-		Caster:    caster,
-	}
+	// fs := service.WebdavFs{
+	// 	WeblensFs: fileService,
+	// 	Caster:    caster,
+	// }
 
-	handler := &webdav.Handler{
-		FileSystem: fs,
-		// FileSystem: webdav.Dir(env.GetDataRoot()),
-		LockSystem: webdav.NewMemLS(),
-		Logger: func(r *http.Request, err error) {
-			if err != nil {
-				log.Error.Printf("WEBDAV [%s]: %s, ERROR: %s\n", r.Method, r.URL, err)
-			} else {
-				log.Info.Printf("WEBDAV [%s]: %s \n", r.Method, r.URL)
-			}
-		},
-	}
+	// handler := &webdav.Handler{
+	// 	FileSystem: fs,
+	// 	// FileSystem: webdav.Dir(env.GetDataRoot()),
+	// 	LockSystem: webdav.NewMemLS(),
+	// 	Logger: func(r *http.Request, err error) {
+	// 		if err != nil {
+	// 			log.Error.Printf("WEBDAV [%s]: %s, ERROR: %s\n", r.Method, r.URL, err)
+	// 		} else {
+	// 			log.Info.Printf("WEBDAV [%s]: %s \n", r.Method, r.URL)
+	// 		}
+	// 	},
+	// }
 
-	go http.ListenAndServe(":8081", handler)
+	// go http.ListenAndServe(":8081", handler)
 }
 
 func (s *Server) UseInterserverRoutes() {
@@ -212,8 +259,6 @@ func (s *Server) UseInterserverRoutes() {
 	core.Use(KeyOnlyAuth(s.services))
 
 	// core.POST("/remote", attachRemote)
-
-	core.GET("/media/:mediaId/content", fetchMediaBytes)
 
 	core.POST("/files", getFilesMeta)
 	core.GET("/file/:fileId", getFileMeta)
@@ -231,7 +276,7 @@ func (s *Server) UseRestore() {
 	log.Trace.Println("Using restore routes")
 
 	restore := s.router.Group("/api/core/restore")
-	restore.Use(WeblensAuth(false, false, s.services))
+	restore.Use(WeblensAuth(s.services))
 
 	restore.POST("/history", restoreHistory)
 	restore.POST("/users", restoreUsers)
@@ -245,27 +290,21 @@ func (s *Server) UseAdmin() {
 	log.Trace.Println("Using admin routes")
 
 	admin := s.router.Group("/api")
-	admin.Use(WeblensAuth(true, false, s.services))
+	admin.Use(WeblensAuth(s.services))
+	admin.Use(RequireAdmin())
 
 	admin.GET("/files/external", getExternalDirs)
 	admin.GET("/files/external/:folderId", getExternalFolderInfo)
 	admin.GET("/files/autocomplete", autocompletePath)
-	admin.GET("/file/path", getFileDataFromPath)
 
-	admin.GET("/users", getUsers)
 	admin.PATCH("/user/:username/activate", activateUser)
-	admin.PATCH("/user/:username/admin", setUserAdmin)
-	admin.DELETE("/user/:username", deleteUser)
 
-	admin.GET("/keys", getApiKeys)
-	admin.GET("/remotes", getRemotes)
 	admin.POST("/scan", scanDir)
 	admin.POST("/cache", clearCache)
-	admin.POST("/key", newApiKey)
-	admin.DELETE("/key/:keyId", deleteApiKey)
 
-	admin.POST("/remote", attachRemote)
-	admin.DELETE("/remote", removeRemote)
+	admin.GET("/remotes", getRemotes)
+	admin.POST("/remotes", attachRemote)
+	admin.DELETE("/remotes", removeRemote)
 
 	admin.POST("/backup", launchBackup)
 	admin.POST("/restore", restoreToCore)

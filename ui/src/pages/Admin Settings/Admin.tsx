@@ -1,4 +1,3 @@
-import { useDebouncedValue } from '@mantine/hooks'
 import {
     IconClipboard,
     IconLockOpen,
@@ -10,32 +9,14 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import {
-    adminCreateUser,
-    autocompletePath,
-    clearCache,
-    deleteApiKey,
-    getApiKeys,
-    getRemotes,
-    newApiKey,
-    resetServer,
-} from '@weblens/api/ApiFetch'
-import {
-    ActivateUser,
-    DeleteUser,
-    GetUsersInfo,
-    SetUserAdmin,
-    UpdatePassword,
-} from '@weblens/api/UserApi'
+import { clearCache, resetServer } from '@weblens/api/ApiFetch'
+import UsersApi from '@weblens/api/UserApi'
 import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
-import { WeblensFileInfo } from '@weblens/types/files/File'
-import { ApiKeyInfo, ServerInfoT, UserInfoT } from '@weblens/types/Types'
 import { useEffect, useMemo, useState } from 'react'
-import { useFileBrowserStore } from '../FileBrowser/FBStateControl'
 import RemoteStatus from '@weblens/components/RemoteStatus'
 import './adminStyle.scss'
 import {
@@ -44,138 +25,144 @@ import {
 } from '@weblens/api/Websocket'
 import { AdminWebsocketHandler } from './adminLogic'
 import { BackupProgressT } from '../Backup/BackupLogic'
-import { TaskProgress, TaskStage, useTaskState } from '../FileBrowser/TaskStateControl'
+import {
+    TaskProgress,
+    TaskStage,
+    useTaskState,
+} from '../FileBrowser/TaskStateControl'
+import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
+import { RemoteApi } from '@weblens/api/RemotesApi'
+import User from '@weblens/types/user/User'
+import AccessApi from '@weblens/api/AccessApi'
 
-function PathAutocomplete() {
-    const [pathSearch, setPathSearch] = useState('')
-    const [hoverOffset, setHoverOffset] = useState(0)
-    const [bouncedSearch] = useDebouncedValue(pathSearch, 100)
-    const { data: names } = useQuery<{
-        folder: WeblensFileInfo
-        children: WeblensFileInfo[]
-    }>({
-        queryKey: ['pathAutocomplete', bouncedSearch],
-        initialData: { children: [], folder: null },
-        queryFn: () =>
-            autocompletePath(bouncedSearch).then((names) => {
-                names.children.sort((f1, f2) =>
-                    f1.filename.localeCompare(f2.filename)
-                )
-                return names
-            }),
-        retry: false,
-    })
-
-    useEffect(() => {
-        setHoverOffset(0)
-    }, [pathSearch])
-
-    const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
-
-    useKeyDown('Tab', (e) => {
-        e.preventDefault()
-        const tabFile = names.children[names.children.length - hoverOffset - 1]
-
-        if (!tabFile) {
-            return
-        }
-
-        setPathSearch((s) => {
-            if (!s.endsWith('/')) {
-                s += '/'
-            }
-            return (
-                s.slice(0, s.lastIndexOf('/')) +
-                '/' +
-                tabFile.filename +
-                (tabFile.isDir ? '/' : '')
-            )
-        })
-    })
-
-    useKeyDown('ArrowUp', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setHoverOffset((offset) => Math.min(offset + 1, names.children.length))
-    })
-
-    useKeyDown('ArrowDown', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setHoverOffset((offset) => Math.max(offset - 1, 0))
-    })
-
-    const result = useMemo(() => {
-        const lastSlash = pathSearch.lastIndexOf('/')
-        if ((lastSlash === -1 || names.children.length === 0) && names.folder) {
-            return names.folder
-        }
-
-        if (pathSearch.slice(lastSlash + 1) === '') {
-            return names.folder
-        }
-
-        if (names.children.length !== 0) {
-            return names.children[0]
-        }
-
-        return null
-    }, [names, pathSearch])
-
-    return (
-        <div className="w-[50%] h-10 m-2">
-            <WeblensInput
-                value={pathSearch}
-                valueCallback={setPathSearch}
-                fillWidth
-                openInput={() => setBlockFocus(true)}
-                closeInput={() => setBlockFocus(false)}
-                failed={names.folder === null && pathSearch !== ''}
-                placeholder={'File Search'}
-            />
-            <div
-                className="flex flex-col gap-1 absolute -translate-y-[100%] pb-12 pointer-events-none"
-                style={{ paddingLeft: pathSearch.length * 9 }}
-            >
-                {names.children.map((cn, i) => {
-                    if (pathSearch.endsWith(cn.filename)) {
-                        return null
-                    }
-                    return (
-                        <div
-                            key={cn.filename}
-                            className="flex justify-center items-center p-2 h-10 bg-[#1c1049] rounded pointer-events-auto cursor-pointer"
-                            style={{
-                                backgroundColor:
-                                    i ===
-                                    names.children.length - hoverOffset - 1
-                                        ? '#2549ff'
-                                        : '#1c1049',
-                            }}
-                            onClick={() => {
-                                setPathSearch(
-                                    (s) =>
-                                        s.slice(0, s.lastIndexOf('/')) +
-                                        '/' +
-                                        cn.filename +
-                                        (cn.isDir ? '/' : '')
-                                )
-                            }}
-                        >
-                            <p>{cn.filename}</p>
-                        </div>
-                    )
-                })}
-            </div>
-            {result && (
-                <div className="flex flex-row gap-2">
-                    <p>{result.filename}</p>
-                    <p>{result.id}</p>
-                </div>
-            )}
-        </div>
-    )
-}
+// function PathAutocomplete() {
+//     const [pathSearch, setPathSearch] = useState('')
+//     const [hoverOffset, setHoverOffset] = useState(0)
+//     const [bouncedSearch] = useDebouncedValue(pathSearch, 100)
+//     const { data: names } = useQuery<FolderInfo>({
+//         queryKey: ['pathAutocomplete', bouncedSearch],
+//         initialData: { children: [], folder: null } as FolderInfo,
+//         queryFn: () =>
+//             FileApi.autocompletePath(bouncedSearch).then((res) => {
+//                 const data = res.data
+//                 data.children.sort((f1, f2) =>
+//                     f1.filename.localeCompare(f2.filename)
+//                 )
+//                 return data
+//             }),
+//         retry: false,
+//     })
+//
+//     useEffect(() => {
+//         setHoverOffset(0)
+//     }, [pathSearch])
+//
+//     const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
+//
+//     useKeyDown('Tab', (e) => {
+//         e.preventDefault()
+//         const tabFile = names.children[names.children.length - hoverOffset - 1]
+//
+//         if (!tabFile) {
+//             return
+//         }
+//
+//         setPathSearch((s) => {
+//             if (!s.endsWith('/')) {
+//                 s += '/'
+//             }
+//             return (
+//                 s.slice(0, s.lastIndexOf('/')) +
+//                 '/' +
+//                 tabFile.filename +
+//                 (tabFile.isDir ? '/' : '')
+//             )
+//         })
+//     })
+//
+//     useKeyDown('ArrowUp', (e) => {
+//         e.preventDefault()
+//         e.stopPropagation()
+//         setHoverOffset((offset) => Math.min(offset + 1, names.children.length))
+//     })
+//
+//     useKeyDown('ArrowDown', (e) => {
+//         e.preventDefault()
+//         e.stopPropagation()
+//         setHoverOffset((offset) => Math.max(offset - 1, 0))
+//     })
+//
+//     const result = useMemo(() => {
+//         const lastSlash = pathSearch.lastIndexOf('/')
+//         if ((lastSlash === -1 || names.children.length === 0) && names.self) {
+//             return names.self
+//         }
+//
+//         if (pathSearch.slice(lastSlash + 1) === '') {
+//             return names.self
+//         }
+//
+//         if (names.children.length !== 0) {
+//             return names.children[0]
+//         }
+//
+//         return null
+//     }, [names, pathSearch])
+//
+//     return (
+//         <div className="w-[50%] h-10 m-2">
+//             <WeblensInput
+//                 value={pathSearch}
+//                 valueCallback={setPathSearch}
+//                 fillWidth
+//                 openInput={() => setBlockFocus(true)}
+//                 closeInput={() => setBlockFocus(false)}
+//                 failed={names.self === null && pathSearch !== ''}
+//                 placeholder={'File Search'}
+//             />
+//             <div
+//                 className="flex flex-col gap-1 absolute -translate-y-[100%] pb-12 pointer-events-none"
+//                 style={{ paddingLeft: pathSearch.length * 9 }}
+//             >
+//                 {names.children.map((cn, i) => {
+//                     if (pathSearch.endsWith(cn.filename)) {
+//                         return null
+//                     }
+//                     return (
+//                         <div
+//                             key={cn.filename}
+//                             className="flex justify-center items-center p-2 h-10 bg-[#1c1049] rounded pointer-events-auto cursor-pointer"
+//                             style={{
+//                                 backgroundColor:
+//                                     i ===
+//                                     names.children.length - hoverOffset - 1
+//                                         ? '#2549ff'
+//                                         : '#1c1049',
+//                             }}
+//                             onClick={() => {
+//                                 setPathSearch(
+//                                     (s) =>
+//                                         s.slice(0, s.lastIndexOf('/')) +
+//                                         '/' +
+//                                         cn.filename +
+//                                         (cn.isDir ? '/' : '')
+//                                 )
+//                             }}
+//                         >
+//                             <p>{cn.filename}</p>
+//                         </div>
+//                     )
+//                 })}
+//             </div>
+//             {result && (
+//                 <div className="flex flex-row gap-2">
+//                     <p>{result.filename}</p>
+//                     <p>{result.id}</p>
+//                 </div>
+//             )}
+//         </div>
+//     )
+// }
 
 function CreateUserBox({ refetchUsers }: { refetchUsers: () => void }) {
     const [userInput, setUserInput] = useState('')
@@ -219,11 +206,12 @@ function CreateUserBox({ refetchUsers }: { refetchUsers: () => void }) {
                             squareSize={50}
                             disabled={userInput === '' || passInput === ''}
                             onClick={() =>
-                                adminCreateUser(
-                                    userInput,
-                                    passInput,
-                                    makeAdmin
-                                ).then(() => {
+                                UsersApi.createUser({
+                                    admin: makeAdmin,
+                                    autoActivate: true,
+                                    username: userInput,
+                                    password: passInput,
+                                }).then(() => {
                                     refetchUsers()
                                     setUserInput('')
                                     setPassInput('')
@@ -242,8 +230,8 @@ const UserRow = ({
     accessor,
     refetchUsers,
 }: {
-    rowUser: UserInfoT
-    accessor: UserInfoT
+    rowUser: User
+    accessor: User
     refetchUsers: () => void
 }) => {
     const [changingPass, setChangingPass] = useState(false)
@@ -262,8 +250,8 @@ const UserRow = ({
                         label="Activate"
                         squareSize={35}
                         onClick={() => {
-                            ActivateUser(rowUser.username).then(() =>
-                                refetchUsers()
+                            UsersApi.activateUser(rowUser.username, true).then(
+                                () => refetchUsers()
                             )
                         }}
                     />
@@ -291,7 +279,10 @@ const UserRow = ({
                                     'Cannot update password to empty string'
                                 )
                             }
-                            return UpdatePassword(rowUser.username, '', newPass)
+                            return UsersApi.updateUserPassword(
+                                rowUser.username,
+                                { newPassword: newPass }
+                            ).then(() => true)
                         }}
                     />
                 )}
@@ -303,8 +294,8 @@ const UserRow = ({
                         allowShrink={false}
                         squareSize={35}
                         onClick={() => {
-                            SetUserAdmin(rowUser.username, true).then(() =>
-                                refetchUsers()
+                            UsersApi.setUserAdmin(rowUser.username, true).then(
+                                () => refetchUsers()
                             )
                         }}
                     />
@@ -315,8 +306,8 @@ const UserRow = ({
                         Left={IconUserMinus}
                         squareSize={35}
                         onClick={() => {
-                            SetUserAdmin(rowUser.username, false).then(() =>
-                                refetchUsers()
+                            UsersApi.setUserAdmin(rowUser.username, false).then(
+                                () => refetchUsers()
                             )
                         }}
                     />
@@ -331,7 +322,9 @@ const UserRow = ({
                     centerContent
                     disabled={rowUser.admin && !accessor.owner}
                     onClick={() =>
-                        DeleteUser(rowUser.username).then(() => refetchUsers())
+                        UsersApi.deleteUser(rowUser.username).then(() =>
+                            refetchUsers()
+                        )
                     }
                 />
             </div>
@@ -344,8 +337,8 @@ function UsersBox({
     allUsersInfo,
     refetchUsers,
 }: {
-    thisUserInfo: UserInfoT
-    allUsersInfo: UserInfoT[]
+    thisUserInfo: User
+    allUsersInfo: User[]
     refetchUsers: () => void
 }) {
     const usersList = useMemo(() => {
@@ -384,7 +377,7 @@ function ApiKeyRow({
 }: {
     keyInfo: ApiKeyInfo
     refetch: () => void
-    remotes: ServerInfoT[]
+    remotes: ServerInfo[]
 }) {
     return (
         <div key={keyInfo.id} className="admin-user-row">
@@ -422,7 +415,7 @@ function ApiKeyRow({
                 requireConfirm
                 tooltip="Delete Key"
                 onClick={() => {
-                    deleteApiKey(keyInfo.key).then(() => refetch())
+                    AccessApi.deleteApiKey(keyInfo.key).then(() => refetch())
                 }}
             />
         </div>
@@ -435,14 +428,15 @@ function Servers() {
     const { data: keys, refetch: refetchKeys } = useQuery<ApiKeyInfo[]>({
         queryKey: ['apiKeys'],
         initialData: [],
-        queryFn: () => getApiKeys(),
+        queryFn: () => AccessApi.getApiKeys().then((res) => res.data),
         retry: false,
     })
 
-    const { data: remotes, refetch: refetchRemotes } = useQuery<ServerInfoT[]>({
+    const { data: remotes, refetch: refetchRemotes } = useQuery<ServerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
-        queryFn: () => getRemotes(),
+        queryFn: async () =>
+            await RemoteApi.getRemotes().then((res) => res.data),
         retry: false,
     })
 
@@ -484,7 +478,7 @@ function Servers() {
                 label="New Api Key"
                 Left={IconPlus}
                 onClick={() => {
-                    newApiKey().then(() => refetchKeys())
+                    AccessApi.createApiKey().then(() => refetchKeys())
                 }}
             />
             <div className="flex flex-row w-full items-center pr-4">
@@ -493,7 +487,7 @@ function Servers() {
 
             <div className="flex flex-col items-center p-2 rounded w-full gap-2 overflow-scroll">
                 {remotes.map((r) => {
-                    if (r.id === server.info.id) {
+                    if (r.id === server.id) {
                         return null
                     }
 
@@ -569,13 +563,14 @@ export function Admin({ closeAdminMenu }) {
 
     useKeyDown('Escape', closeAdminMenu)
 
-    const { data: allUsersInfo, refetch: refetchUsers } = useQuery<UserInfoT[]>(
-        {
-            queryKey: ['users'],
-            initialData: [],
-            queryFn: () => GetUsersInfo(),
-        }
-    )
+    const { data: allUsersInfo, refetch: refetchUsers } = useQuery<User[]>({
+        queryKey: ['users'],
+        initialData: [],
+        queryFn: () =>
+            UsersApi.getUsers().then((res) =>
+                res.data.map((info) => new User(info))
+            ),
+    })
 
     useEffect(() => {
         wsSend('task_subscribe', { taskType: 'do_backup' })
@@ -594,9 +589,9 @@ export function Admin({ closeAdminMenu }) {
                 <div className="flex flex-col gap-2 select-none">
                     <h1 className="text-3xl pt-4 font-bold">Admin Settings</h1>
                     <div className="flex flex-row justify-between">
-                        <p>{server.info.name}</p>
+                        <p>{server.name}</p>
                         <p className="text-main-accent">
-                            {server.info.role.toUpperCase()}
+                            {server.role.toUpperCase()}
                         </p>
                     </div>
                 </div>
@@ -606,7 +601,7 @@ export function Admin({ closeAdminMenu }) {
                         Left={IconX}
                         squareSize={35}
                         onClick={closeAdminMenu}
-                        disabled={server.info.role !== 'core'}
+                        disabled={server.role !== 'core'}
                     />
                 </div>
                 <div className="flex flex-col w-full h-full items-center p-4 no-scrollbar">
@@ -623,7 +618,7 @@ export function Admin({ closeAdminMenu }) {
                             <BackupProgress />
                         </div>
                     </div>
-                    <PathAutocomplete />
+                    {/* <PathAutocomplete /> */}
                     <div className="flex flex-row w-full justify-center gap-2 m-2">
                         <WeblensButton
                             label="Clear Cache"

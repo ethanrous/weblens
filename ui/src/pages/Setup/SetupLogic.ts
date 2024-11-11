@@ -1,16 +1,16 @@
-import { WsMsg, WsMsgEvent } from '../../api/Websocket'
+import User from '@weblens/types/user/user'
+import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
 import { useSessionStore } from '../../components/UserInfo'
-import { UserInfoT } from '../../types/Types'
 
 export function setupWebsocketHandler(
     setRestoreInProgress: (prog: boolean) => void,
     nav: (loc: string) => void
 ) {
-    return (msgData: WsMsg) => {
+    return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
             case WsMsgEvent.WeblensLoadedEvent: {
                 if (msgData.content['role'] === 'core') {
-                    useSessionStore.getState().setUserInfo({} as UserInfoT)
+                    useSessionStore.getState().setUser(new User({}, false))
                     useSessionStore
                         .getState()
                         .fetchServerInfo()

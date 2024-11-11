@@ -1,4 +1,4 @@
-import { fetchMediaTypes } from '@weblens/types/media/MediaQuery'
+import MediaApi from '@weblens/api/MediaApi'
 import { mediaType } from '@weblens/types/Types'
 import {
     RefObject,
@@ -176,10 +176,13 @@ export const useResizeDrag = (
     flip?: boolean,
     vertical?: boolean
 ) => {
-    const unDrag = useCallback((e) => {
-        e.stopPropagation()
-        setResizing(false)
-    }, [setResizing])
+    const unDrag = useCallback(
+        (e) => {
+            e.stopPropagation()
+            setResizing(false)
+        },
+        [setResizing]
+    )
 
     const moved = useCallback(
         (e) => {
@@ -219,10 +222,10 @@ export const useMediaType = (): Map<string, mediaType> => {
 
     useEffect(() => {
         const mediaTypes = new Map<string, mediaType>()
-        fetchMediaTypes().then((mt) => {
-            const mimes: string[] = Array.from(Object.keys(mt))
+        MediaApi.getMediaTypes().then((res) => {
+            const mimes: string[] = Array.from(Object.keys(res.data))
             for (const mime of mimes) {
-                mediaTypes.set(mime, mt[mime])
+                mediaTypes.set(mime, res.data[mime])
             }
             setTypeMap(mediaTypes)
         })

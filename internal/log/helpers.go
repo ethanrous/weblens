@@ -21,6 +21,11 @@ type StackError interface {
 
 func ErrTrace(err error, extras ...string) {
 	if err != nil {
+		if logLevel != TRACE {
+			ShowErr(err, extras...)
+			return
+		}
+
 		fmter, ok := err.(StackError)
 		if ok {
 			ErrorCatcher.Println(fmter.Stack())

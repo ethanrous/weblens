@@ -120,7 +120,7 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[locIndex+len("ui/dist/"):]
 	}
 
-	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetHostURL(), loc), string(index.realFile.data))
+	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetProxyAddress(), loc), string(index.realFile.data))
 
 	fields := getIndexFields(loc, fs.Pack)
 	for _, field := range fields {
@@ -171,7 +171,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 					if cover != "" {
 						m = pack.MediaService.Get(cover)
 					} else {
-						imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetHostURL())
+						imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetProxyAddress())
 						hasImage = true
 						fields = append(
 							fields, indexField{
@@ -198,7 +198,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 				if m != nil {
 					if !pack.MediaService.GetMediaType(m).IsVideo() {
 						imgUrl := fmt.Sprintf(
-							"%s/api/media/%s/thumbnail.png?shareId=%s", env.GetHostURL(),
+							"%s/api/media/%s/thumbnail.png?shareId=%s", env.GetProxyAddress(),
 							f.GetContentId(), share.ID(),
 						)
 						hasImage = true
@@ -243,7 +243,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 		if album != nil {
 			media := pack.MediaService.Get(album.GetCover())
 			if media != nil {
-				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetHostURL(), media.ID())
+				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetProxyAddress(), media.ID())
 				hasImage = true
 				fields = append(
 					fields, indexField{

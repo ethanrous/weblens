@@ -1,13 +1,13 @@
 import { IconFile, IconFolder } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { autocompletePath, searchFilenames } from '@weblens/api/ApiFetch'
+import { FileApi } from '@weblens/api/FileBrowserApi'
+import { FileInfo } from '@weblens/api/swag'
 import { useResize } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { WeblensFileInfo } from '@weblens/types/files/File'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FixedSizeList as WindowList, List } from 'react-window'
+import { FixedSizeList as WindowList } from 'react-window'
 
 enum SearchModeT {
     global,
@@ -98,28 +98,32 @@ export default function SearchDialogue({
     const [highlightIndex, setHighlightIndex] = useState(-1)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const containerSize = useResize(containerRef)
-    const resultsRef = useRef<List>()
+    const resultsRef = useRef<WindowList>()
 
-    const [files, setFiles] = useState<WeblensFileInfo[]>([])
+    const [files, setFiles] = useState<FileInfo[]>([])
     const { data: searchResult } = useQuery({
         queryKey: ['albums', search],
         queryFn: async () => {
             if (search.startsWith('~/')) {
-                return (await autocompletePath(search)).children
+                return FileApi.autocompletePath(search).then(
+                    (res) => res.data.children
+                )
             } else if (search.startsWith('./')) {
                 const path =
                     folderInfo.portablePath.replace('HOME', '~/') +
                     '/' +
                     search.slice(2)
-                return (await autocompletePath(path)).children
+                return FileApi.autocompletePath(path).then(
+                    (res) => res.data.children
+                )
             } else {
-                return await searchFilenames(search)
+                return FileApi.searchByFilename(search).then((res) => res.data)
             }
         },
     })
 
     const visitHighlighted = useCallback(
-        (f: WeblensFileInfo) => {
+        (f: FileInfo) => {
             if (search === '~') {
                 visitFunc(user.homeId)
             } else if (search === '..') {
@@ -137,17 +141,8 @@ export default function SearchDialogue({
     )
 
     const selectNext = useCallback(
-        (i) => {
-            let newI = Math.min(i + 1, files.length - 1)
-            // let newF = files[newI]
-            // while (newF.isDir && newF.id === folderInfo.id) {
-            //     if (newI === files.length - 1) {
-            //         return i
-            //     }
-            //     newI++
-            //     newF = files[newI]
-            // }
-            return newI
+        (i: number) => {
+            return Math.min(i + 1, files.length - 1)
         },
         [files]
     )

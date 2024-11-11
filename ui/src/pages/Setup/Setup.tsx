@@ -8,14 +8,13 @@ import {
     IconRocket,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { getUsers, initServer } from '@weblens/api/ApiFetch'
-import { GetUserInfo } from '@weblens/api/UserApi'
+import { initServer } from '@weblens/api/ApiFetch'
+import UsersApi from '@weblens/api/UserApi'
 import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import '@weblens/components/setup.scss'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { UserInfoT } from '@weblens/types/Types'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '@weblens/components/Logo'
@@ -25,6 +24,7 @@ import {
     useWeblensSocket,
 } from '@weblens/api/Websocket'
 import { setupWebsocketHandler } from './SetupLogic'
+import User from '@weblens/types/user/user'
 
 const UserSelect = ({
     users,
@@ -33,11 +33,11 @@ const UserSelect = ({
     setPassword,
     owner,
 }: {
-    users: UserInfoT[]
+    users: User[]
     username: string
     setUsername: (username: string) => void
     setPassword: (password: string) => void
-    owner: UserInfoT
+    owner: User
 }) => {
     if (users.length === 0) {
         return null
@@ -138,23 +138,23 @@ const Core = ({
     )
 
     const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
-    const serverInfo = useSessionStore((state) => state.server)
-    const setUserInfo = useSessionStore((state) => state.setUserInfo)
+    const setUser = useSessionStore((state) => state.setUser)
     useKeyDown('Enter', () => buttonRef.click())
 
     const { data: users } = useQuery({
         queryKey: ['setupUsers'],
         queryFn: () => {
-            if (serverInfo.info.role !== 'init') {
-                return getUsers()
-            }
+            // if (serverInfo.info.role !== 'init') {
+            //     UsersApi.
+            //     return getUsers()
+            // }
             return []
         },
         initialData: [],
     })
 
     const owner = useMemo(() => {
-        const owner: UserInfoT = users.filter((u) => u.owner)[0]
+        const owner: User = users.filter((u) => u.owner)[0]
         if (owner) {
             setUsername(owner.username)
         }
@@ -276,15 +276,18 @@ const Core = ({
 
                     await new Promise((r) => setTimeout(r, 200))
 
-                    const gotInfo = await GetUserInfo()
-                        .then((info) => {
-                            console.log(info)
-                            setUserInfo({ ...info, isLoggedIn: true })
+                    const gotInfo = await UsersApi.getUser()
+                        .then((res) => {
+                            const user = new User(res.data)
+                            user.isLoggedIn = true
+                            setUser(user)
                             return true
                         })
                         .catch((r) => {
                             console.error(r)
-                            setUserInfo({ isLoggedIn: false } as UserInfoT)
+                            const user = new User()
+                            user.isLoggedIn = false
+                            setUser(user)
                             return false
                         })
 
@@ -422,9 +425,11 @@ const Restore = ({
 
     const { lastMessage } = useWeblensSocket()
     useEffect(() => {
-        HandleWebsocketMessage(lastMessage, setupWebsocketHandler(setRestoreInProgress, nav))
+        HandleWebsocketMessage(
+            lastMessage,
+            setupWebsocketHandler(setRestoreInProgress, nav)
+        )
     }, [lastMessage])
-
 
     return (
         <div className="setup-content-box" data-on-deck={onDeck}>
@@ -509,10 +514,10 @@ const Setup = () => {
         if (!server) {
             return
         }
-        if (server.info.role !== 'init') {
+        if (server.role !== 'init') {
             nav('/')
         }
-    }, [server.info.role])
+    }, [server.role])
 
     if (!server) {
         return null
@@ -528,7 +533,7 @@ const Setup = () => {
                 <Core
                     page={page}
                     setPage={setPage}
-                    existingName={server.info.name}
+                    existingName={server.name}
                 />
                 <Backup page={page} setPage={setPage} />
                 <Restore page={page} setPage={setPage} />

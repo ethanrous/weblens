@@ -5,10 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"slices"
 	"time"
 
-	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
@@ -24,6 +22,10 @@ func getServices(ctx *gin.Context) *models.ServicePack {
 	return srv.(*models.ServicePack)
 }
 
+// readCtxBody reads the body of a gin context and unmarshal it into the given generic type.
+// It returns the unmarshalled object or an error if one occurred. It also sets the response status
+// in the context and logs the error if an error occurred so it is recommended, upon reading an error from this function,
+// return from a http handler immediately.
 func readCtxBody[T any](ctx *gin.Context) (obj T, err error) {
 	if ctx.Request.Method == "GET" {
 		err = errors.New("trying to get body of get request")
@@ -113,80 +115,6 @@ func getShareFromCtx[T models.Share](ctx *gin.Context) (T, error) {
 	err := werror.ErrNoShare
 	ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	return empty, err
-}
-
-func formatFileSafe(
-	f *fileTree.WeblensFileImpl, accessor *models.User, share *models.FileShare, pack *models.ServicePack,
-) (
-	formattedInfo FileInfo,
-	err error,
-) {
-	if f == nil {
-		return formattedInfo, werror.Errorf("cannot get file info of nil wf")
-	}
-
-	if !pack.AccessService.CanUserAccessFile(accessor, f, share) {
-		err = werror.ErrNoFileAccess
-		return
-	}
-
-	var size int64
-	size = f.Size()
-
-	var parentId fileTree.FileId
-	owner := pack.FileService.GetFileOwner(f)
-	if f.GetParentId() != "ROOT" && pack.AccessService.CanUserAccessFile(accessor, f.GetParent(), share) {
-		parentId = f.GetParent().ID()
-	}
-
-	tmpF := f
-	var pathBits []string
-	for tmpF != nil && tmpF.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(
-		accessor, tmpF, share,
-	) {
-		if tmpF.GetParent() == pack.FileService.GetUsersRoot() {
-			pathBits = append(pathBits, "HOME")
-			break
-		} else if share != nil && tmpF.ID() == share.GetItemId() {
-			pathBits = append(pathBits, "SHARE")
-			break
-		} else if pack.FileService.IsFileInTrash(tmpF) {
-			pathBits = append(pathBits, "TRASH")
-			break
-		}
-		pathBits = append(pathBits, tmpF.Filename())
-		tmpF = tmpF.GetParent()
-	}
-	slices.Reverse(pathBits)
-
-	fShare, _ := pack.ShareService.GetFileShare(f)
-	var shareId models.ShareId
-	if fShare != nil {
-		shareId = fShare.ID()
-	}
-
-	formattedInfo = FileInfo{
-		Id: f.ID(),
-		// Displayable: pack.MediaService.IsFileDisplayable(f),
-		IsDir: f.IsDir(),
-		Modifiable: !pack.FileService.IsFileInTrash(f) &&
-			owner == accessor &&
-			pack.FileService.GetFileOwner(f) != pack.UserService.GetRootUser() &&
-			pack.InstanceService.GetLocal().GetRole() != models.BackupServer,
-		Size:         size,
-		ModTime:      f.ModTime().UnixMilli(),
-		Filename:     f.Filename(),
-		ParentId:     parentId,
-		Owner:        owner.GetUsername(),
-		PortablePath: f.GetPortablePath().ToPortable(),
-		// MediaData:    pack.MediaService.Get(f.GetContentId()),
-		ShareId: shareId,
-		Children: internal.Map(
-			f.GetChildren(), func(wf *fileTree.WeblensFileImpl) fileTree.FileId { return wf.ID() },
-		),
-	}
-
-	return formattedInfo, nil
 }
 
 type FileStat struct {

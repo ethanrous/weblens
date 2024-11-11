@@ -1,9 +1,12 @@
 package http
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/metrics"
 	"github.com/ethanrous/weblens/internal/werror"
@@ -15,12 +18,6 @@ func ParseUserLogin(authHeader string, authService models.AccessService) (*model
 	if len(authHeader) == 0 {
 		return nil, werror.ErrNoAuth
 	}
-	// authParts := strings.Split(authHeader, "=")
-
-	// if len(authParts) < 2 || authParts[0] != "Bearer" {
-	// 	// Bad auth header format
-	// 	return nil, werror.ErrBadAuthScheme
-	// }
 
 	return authService.GetUserFromToken(authHeader)
 }
@@ -61,7 +58,40 @@ func withServices(pack *models.ServicePack) gin.HandlerFunc {
 	}
 }
 
-func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.HandlerFunc {
+func AllowPublic() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("allow_public", true)
+		c.Next()
+	}
+}
+
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		userI, ok := c.Get("user")
+		if !ok {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		user, ok := userI.(*models.User)
+		if !ok {
+			log.Error.Println(werror.Errorf("Could not assert user from context in RequireAdmin"))
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		if !user.IsAdmin() {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+const SessionTokenCookie = "weblens-session-token"
+
+func WeblensAuth(pack *models.ServicePack) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		metrics.RequestsCounter.Inc()
 
@@ -69,25 +99,21 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 		// but everyone is the public user
 		if !pack.Loaded.Load() || pack.InstanceService.GetLocal().GetRole() == models.InitServer {
 			c.Set("user", pack.UserService.GetPublicUser())
+			log.Trace.Println("Allowing unauthenticated request")
 			c.Next()
 			return
 		}
 
-		sessionToken, err := c.Cookie("weblens-session-token")
+		sessionToken, err := c.Cookie(SessionTokenCookie)
 
 		if len(sessionToken) != 0 && err == nil {
 			usr, err := ParseUserLogin(sessionToken, pack.AccessService)
 			if err != nil {
-				if allowBadAuth {
-					c.Next()
-					return
-				}
 				log.ShowErr(err)
-				c.AbortWithStatus(http.StatusUnauthorized)
-				return
-			}
-
-			if requireAdmin && (usr == nil || !usr.IsAdmin()) {
+				if errors.Is(err, werror.ErrTokenExpired) {
+					cookie := fmt.Sprintf("%s=;Path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
+					c.Header("Set-Cookie", cookie)
+				}
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}
@@ -118,6 +144,11 @@ func WeblensAuth(requireAdmin, allowBadAuth bool, pack *models.ServicePack) gin.
 		}
 
 		if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		if !c.GetBool("allow_public") {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
@@ -154,12 +185,14 @@ func KeyOnlyAuth(pack *models.ServicePack) gin.HandlerFunc {
 }
 
 func CORSMiddleware() gin.HandlerFunc {
+	host := env.GetProxyAddress()
+	// host = "http://local.weblens.io:8080"
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", host)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set(
 			"Access-Control-Allow-Headers",
-			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range",
+			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
 		)
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 

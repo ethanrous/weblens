@@ -1,4 +1,4 @@
-package http
+package rest
 
 import (
 	"time"
@@ -7,67 +7,67 @@ import (
 	"github.com/ethanrous/weblens/models"
 )
 
-type loginBody struct {
+type LoginBody struct {
 	Username models.Username `json:"username"`
 	Password string          `json:"password"`
-}
+} // @name LoginBody
 
-type fileUpdateBody struct {
+type UpdateFileParams struct {
 	NewName     string          `json:"newName"`
 	NewParentId fileTree.FileId `json:"newParentId"`
-}
+} // @name UpdateFileParams
 
-type updateMany struct {
+type MoveFilesParams struct {
 	Files       []fileTree.FileId `json:"fileIds"`
 	NewParentId fileTree.FileId   `json:"newParentId"`
-}
+} // @name MoveFilesParams
 
-type takeoutFiles struct {
+type FilesListParams struct {
 	FileIds []fileTree.FileId `json:"fileIds"`
-}
+} // @name FilesListParams
 
-type mediaIdsBody struct {
+type MediaIdsParams struct {
 	MediaIds []models.ContentId `json:"mediaIds"`
-}
+} // @name MediaIdsParams
 
-type mediaTimeBody struct {
+type MediaTimeBody struct {
 	AnchorId models.ContentId   `json:"anchorId"`
 	NewTime  time.Time          `json:"newTime"`
 	MediaIds []models.ContentId `json:"mediaIds"`
 }
 
-type newUserBody struct {
-	Username     models.Username `json:"username"`
-	Password     string          `json:"password"`
-	Admin        bool            `json:"admin"`
-	AutoActivate bool            `json:"autoActivate"`
-}
+type NewUserParams struct {
+	Username     models.Username `json:"username" validate:"required"`
+	Password     string          `json:"password" validate:"required"`
+	Admin        bool            `json:"admin" validate:"required"`
+	AutoActivate bool            `json:"autoActivate" validate:"required"`
+} // @name NewUserParams
 
-type newFileBody struct {
+type NewFileBody struct {
 	ParentFolderId fileTree.FileId `json:"parentFolderId"`
 	NewFileName    string          `json:"newFileName"`
 	FileSize       int64           `json:"fileSize"`
 }
 
-type newUploadBody struct {
+type NewUploadBody struct {
 	RootFolderId    fileTree.FileId `json:"rootFolderId"`
 	ChunkSize       int64           `json:"chunkSize"`
 	TotalUploadSize int64           `json:"totalUploadSize"`
 }
 
-type passwordUpdateBody struct {
+type PasswordUpdateParams struct {
 	OldPass string `json:"oldPassword"`
-	NewPass string `json:"newPassword"`
-}
+	NewPass string `json:"newPassword" validate:"required"`
+} // @name PasswordUpdateParams
 
-type newShareBody struct {
+type NewShareBody struct {
 	FileId   fileTree.FileId   `json:"fileId"`
 	Users    []models.Username `json:"users"`
 	Public   bool              `json:"public"`
 	Wormhole bool              `json:"wormhole"`
 }
 
-type initServerBody struct {
+type InitServerBody struct {
 	Name string            `json:"name"`
 	Role models.ServerRole `json:"role"`
 
@@ -79,45 +79,45 @@ type initServerBody struct {
 
 	// For restoring a server, remoind the core of its serverId and api key the remote last used
 	LocalId      models.InstanceId `json:"localId"`
-	UsingKeyInfo models.ApiKeyInfo `json:"usingKeyInfo"`
+	UsingKeyInfo models.ApiKey     `json:"usingKeyInfo"`
 }
 
-type newServerBody struct {
+type NewServerParams struct {
 	Id       models.InstanceId    `json:"serverId"`
 	Role     models.ServerRole    `json:"role"`
 	Name     string               `json:"name"`
 	UsingKey models.WeblensApiKey `json:"usingKey"`
-}
+} // @name NewServerParams
 
-type newCoreBody struct {
+type NewCoreBody struct {
 	CoreAddress string               `json:"coreAddress"`
 	UsingKey    models.WeblensApiKey `json:"usingKey"`
 }
 
-type deleteKeyBody struct {
+type DeleteKeyBody struct {
 	Key models.WeblensApiKey `json:"key"`
 }
 
-type deleteRemoteBody struct {
+type DeleteRemoteBody struct {
 	RemoteId models.InstanceId `json:"remoteId"`
 }
 
-type restoreBody struct {
+type RestoreBody struct {
 	FileIds   []fileTree.FileId `json:"fileIds"`
 	Timestamp int64             `json:"timestamp"`
 }
 
-type uploadRestoreFileBody struct {
+type UploadRestoreFileBody struct {
 	FileId fileTree.FileId `json:"fileId"`
 }
 
-type createFolderBody struct {
-	ParentFolderId fileTree.FileId   `json:"parentFolderId"`
-	NewFolderName  string            `json:"newFolderName"`
-	Children       []fileTree.FileId `json:"children"`
-}
+type CreateFolderBody struct {
+	ParentFolderId fileTree.FileId   `json:"parentFolderId" validate:"required"`
+	NewFolderName  string            `json:"newFolderName" validate:"required"`
+	Children       []fileTree.FileId `json:"children" validate:"optional"`
+} // @name CreateFolderBody
 
-type updateAlbumBody struct {
+type UpdateAlbumBody struct {
 	AddMedia    []models.ContentId `json:"newMedia"`
 	AddFolders  []fileTree.FileId  `json:"newFolders"`
 	RemoveMedia []models.ContentId `json:"removeMedia"`
@@ -127,31 +127,31 @@ type updateAlbumBody struct {
 	RemoveUsers []models.Username  `json:"removeUsers"`
 }
 
-type albumCreateBody struct {
+type AlbumCreateBody struct {
 	Name string `json:"name"`
 }
 
-type userListBody struct {
+type UserListBody struct {
 	AddUsers    []models.Username `json:"addUsers"`
 	RemoveUsers []models.Username `json:"removeUsers"`
 }
 
-type sharePublicityBody struct {
+type SharePublicityBody struct {
 	Public bool `json:"public"`
 }
 
-type scanBody struct {
+type ScanBody struct {
 	FolderId fileTree.FileId `json:"folderId"`
 	Filename string          `json:"filename"`
 }
 
-type restoreFilesBody struct {
+type RestoreFilesBody struct {
 	FileIds     []fileTree.FileId `json:"fileIds"`
 	NewParentId fileTree.FileId   `json:"newParentId"`
 	Timestamp   int64             `json:"timestamp"`
-}
+} // @name RestoreFilesBody
 
-type restoreCoreBody struct {
+type RestoreCoreBody struct {
 	HostUrl  string `json:"restoreUrl"`
 	ServerId string `json:"restoreId"`
 }

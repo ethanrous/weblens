@@ -1,16 +1,13 @@
 import {
-    CreateFolder,
     downloadSingleFile,
-    moveFiles,
-    RenameFile,
-    requestZipCreate,
+    FileApi,
+    FolderApi,
     SubToTask,
 } from '@weblens/api/FileBrowserApi'
 
 import Upload, { fileUploadMetadata } from '@weblens/api/Upload'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
-import { UserInfoT } from '@weblens/types/Types'
 import { DragEvent, useCallback, useEffect } from 'react'
 
 import {
@@ -20,11 +17,12 @@ import {
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { DirViewModeT } from './FileBrowserTypes'
+import User from '@weblens/types/user/user'
 
 export const getRealId = async (
     contentId: string,
     mode: FbModeT,
-    usr: UserInfoT
+    usr: User
 ) => {
     if (mode === FbModeT.stats && contentId === 'external') {
         return 'EXTERNAL'
@@ -65,7 +63,9 @@ export const handleRename = (
     removeLoading: (loading: string) => void
 ) => {
     addLoading('renameFile')
-    RenameFile(itemId, newName).then(() => removeLoading('renameFile'))
+    FileApi.updateFile(itemId, { newName: newName }).then(() =>
+        removeLoading('renameFile')
+    )
 }
 
 async function getFile(file): Promise<File> {
@@ -93,13 +93,14 @@ async function addDir(
             reject
         ): Promise<fileUploadMetadata[]> => {
             if (fsEntry.isDirectory === true) {
-                const folderId = await CreateFolder(
-                    parentFolderId,
-                    fsEntry.name,
-                    [],
-                    isPublic,
+                const res = await FolderApi.createFolder(
+                    {
+                        parentFolderId: parentFolderId,
+                        newFolderName: fsEntry.name,
+                    },
                     shareId
                 )
+                const folderId = res.data.id
                 if (!folderId) {
                     reject()
                 }
@@ -266,16 +267,19 @@ export async function downloadSelected(
         )
     }
 
-    return requestZipCreate(
-        files.map((f) => f.Id()),
+    return FileApi.createTakeout(
+        { fileIds: files.map((f) => f.Id()) },
         shareId
-    ).then(({ json, status }) => {
-        if (status === 200) {
-            downloadSingleFile(json.takeoutId, json.filename, true, shareId)
-        } else if (status === 202) {
-            SubToTask(json.taskId, ['takeoutId'], wsSend)
-        } else if (status !== 0) {
-            console.error(json.error)
+    ).then((res) => {
+        if (res.status === 200) {
+            downloadSingleFile(
+                res.data.takeoutId,
+                res.data.filename,
+                true,
+                shareId
+            )
+        } else if (res.status === 202) {
+            SubToTask(res.data.taskId, ['takeoutId'], wsSend)
         }
         removeLoading('zipCreate')
     })
@@ -410,26 +414,23 @@ export const useKeyDownFileBrowser = () => {
     ])
 }
 
-export const usePaste = (
-    folderId: string,
-    usr: UserInfoT,
-    blockFocus: boolean
-) => {
+export const usePaste = (folderId: string, usr: User, blockFocus: boolean) => {
     const setSearch = useFileBrowserStore((state) => state.setSearch)
     const setPaste = useFileBrowserStore((state) => state.setPasteImgBytes)
 
     const handlePaste = useCallback(
-        async (e) => {
+        async (e: ClipboardEvent) => {
             if (blockFocus) {
                 return
             }
             e.preventDefault()
             e.stopPropagation()
 
-            const clipboardItems =
+            const clipboardItems: ClipboardItem[] =
                 typeof navigator?.clipboard?.read === 'function'
                     ? await navigator.clipboard.read().catch((v) => {
                           console.error(v)
+                          return null
                       })
                     : e.clipboardData?.files
             if (!clipboardItems) {
@@ -471,10 +472,6 @@ export const usePaste = (
             window.removeEventListener('paste', handlePaste)
         }
     }, [handlePaste])
-}
-
-export function MoveSelected(selected: string[], destinationId: string) {
-    return moveFiles(selected, destinationId).catch((r) => console.error(r))
 }
 
 export async function uploadViaUrl(

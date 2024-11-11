@@ -145,7 +145,7 @@ func (j *JournalImpl) LogEvent(fe *FileEvent) {
 	if len(fe.Actions) != 0 {
 		j.eventStream <- fe
 	} else {
-		log.Warning.Printf("File Event [%s] has no actions, skipping logging", fe.EventId)
+		log.Trace.Printf("File Event [%s] has no actions, skipping logging", fe.EventId)
 		log.TraceCaller(1, "Empty event is from here")
 		close(fe.LoggedChan)
 	}
@@ -556,7 +556,7 @@ type Journal interface {
 	GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) ([]*WeblensFileImpl, error)
 	GetLatestAction() (*FileAction, error)
 	GetLifetimesSince(date time.Time) ([]*Lifetime, error)
-	UpdateLifetime(lifetime *Lifetime) error 
+	UpdateLifetime(lifetime *Lifetime) error
 
 	EventWorker()
 	FileWatcher()

@@ -3,16 +3,17 @@ import {
     FbMenuModeT,
     SelectedState,
     WeblensFile,
-    WeblensFileParams,
 } from '@weblens/types/files/File'
-import WeblensMedia, { MediaDataT } from '@weblens/types/media/Media'
+import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { FbViewOptsT, UserInfoT } from '@weblens/types/Types'
+import { FbViewOptsT } from '@weblens/types/Types'
 import { create, StateCreator } from 'zustand'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { NavigateFunction, NavigateOptions, To } from 'react-router-dom'
 import { DirViewModeT } from './FileBrowserTypes'
 import { devtools } from 'zustand/middleware'
+import { FileInfo, MediaInfo } from '@weblens/api/swag'
+import User from '@weblens/types/user/user'
 
 export enum FbModeT {
     unset,
@@ -44,11 +45,11 @@ export type SetViewOptionsT = ({
 }) => void
 
 type setFilesDataOptsT = {
-    selfInfo?: WeblensFileParams | WeblensFile
-    childrenInfo?: WeblensFileParams[]
-    parentsInfo?: WeblensFileParams[]
-    mediaData?: MediaDataT[]
-    user?: UserInfoT
+    selfInfo?: FileInfo | WeblensFile
+    childrenInfo?: FileInfo[]
+    parentsInfo?: FileInfo[]
+    mediaData?: MediaInfo[]
+    user?: User
     overwriteContentId?: boolean
 }
 
@@ -105,8 +106,8 @@ export interface FileBrowserStateT {
     navTimer: NodeJS.Timeout
     setNav: (nav: NavigateFunction) => void
 
-    addToFilesMap: (file: WeblensFileParams) => void
-    updateFile: (fileParams: WeblensFileParams, user: UserInfoT) => void
+    addToFilesMap: (file: FileInfo) => void
+    updateFile: (fileParams: FileInfo, user: User) => void
     deleteFile: (fileId: string) => void
     sortLists: () => void
     addLoading: (loading: string) => void
@@ -379,41 +380,41 @@ function calculateMultiSelectHint(
 
 function debug_sanity_check(state: FileBrowserStateT): FileBrowserStateT {
     return state
-    let hasError = false
-    for (const f of state.filesMap.values()) {
-        const list = state.filesLists.get(f.parentId)
-        if (!list) {
-            console.trace('Sanity check failed')
-            console.error(
-                'Sanity check failed, could not find parent list of',
-                f
-            )
-            continue
-        }
-        const thing = list[f.GetIndex()]
-        if (
-            list.length !==
-            list.map((f) => f.Id()).filter((fId, i, a) => a.indexOf(fId) === i)
-                .length
-        ) {
-            console.trace('Sanity check failed')
-            console.error('Found duplicate in list', list)
-
-            continue
-        }
-        if (thing !== f) {
-            hasError = true
-            console.trace('Sanity check failed')
-            console.error('BAD INDEX', thing, 'SECOND', f)
-        }
-    }
-    if (!hasError) {
-        console.trace('Sanity check passed')
-    } else {
-        state = getSortedFilesLists(state)
-    }
-
-    return state
+    // let hasError = false
+    // for (const f of state.filesMap.values()) {
+    //     const list = state.filesLists.get(f.parentId)
+    //     if (!list) {
+    //         console.trace('Sanity check failed')
+    //         console.error(
+    //             'Sanity check failed, could not find parent list of',
+    //             f
+    //         )
+    //         continue
+    //     }
+    //     const thing = list[f.GetIndex()]
+    //     if (
+    //         list.length !==
+    //         list.map((f) => f.Id()).filter((fId, i, a) => a.indexOf(fId) === i)
+    //             .length
+    //     ) {
+    //         console.trace('Sanity check failed')
+    //         console.error('Found duplicate in list', list)
+    //
+    //         continue
+    //     }
+    //     if (thing !== f) {
+    //         hasError = true
+    //         console.trace('Sanity check failed')
+    //         console.error('BAD INDEX', thing, 'SECOND', f)
+    //     }
+    // }
+    // if (!hasError) {
+    //     console.trace('Sanity check passed')
+    // } else {
+    //     state = getSortedFilesLists(state)
+    // }
+    //
+    // return state
 }
 
 function setLocation(
@@ -565,7 +566,7 @@ const FBStateControl: StateCreator<
     folderInfo: null,
     filesLists: new Map<string, WeblensFile[]>(),
     loading: [],
-    shareId: '',
+    shareId: undefined,
     jumpTo: '',
     contentId: '',
     searchContent: '',
@@ -603,7 +604,7 @@ const FBStateControl: StateCreator<
             return { loading: [...state.loading] }
         }),
 
-    addToFilesMap: (fileParams: WeblensFileParams) =>
+    addToFilesMap: (fileParams: FileInfo) =>
         set((state: FileBrowserStateT) => {
             const newF = new WeblensFile(fileParams)
             state.filesMap.set(newF.Id(), newF)
@@ -615,7 +616,7 @@ const FBStateControl: StateCreator<
             }
         }),
 
-    updateFile: (fileParams: WeblensFileParams, user: UserInfoT) => {
+    updateFile: (fileParams: FileInfo, user: User) => {
         set((state) => {
             if (
                 fileParams.id === state.contentId &&
@@ -711,11 +712,11 @@ const FBStateControl: StateCreator<
         let selfFile: WeblensFile
         if (selfInfo && !(selfInfo instanceof WeblensFile)) {
             selfFile = new WeblensFile(selfInfo)
-            if (!selfFile.IsFolder() && selfInfo.mediaData) {
-                useMediaStore
-                    .getState()
-                    .addMedias([new WeblensMedia(selfInfo.mediaData)])
-            }
+            // if (!selfFile.IsFolder() && selfInfo.mediaData) {
+            //     useMediaStore
+            //         .getState()
+            //         .addMedias([new WeblensMedia(selfInfo.mediaData)])
+            // }
         } else if (selfInfo && selfInfo instanceof WeblensFile) {
             selfFile = selfInfo
         }
@@ -726,17 +727,16 @@ const FBStateControl: StateCreator<
             }
             if (
                 selfFile.parents.length !==
-                    selfFile.portablePath.split('/').length - 2 &&
-                false
+                selfFile.portablePath.split('/').length - 2
             ) {
                 console.error("Parent count doesn't match path length")
-                set({
-                    folderInfo: null,
-                    filesMap: new Map<string, WeblensFile>(),
-                    filesLists: new Map<string, WeblensFile[]>(),
-                    lastSelectedId: '',
-                })
-                return
+                // set({
+                //     folderInfo: null,
+                //     filesMap: new Map<string, WeblensFile>(),
+                //     filesLists: new Map<string, WeblensFile[]>(),
+                //     lastSelectedId: '',
+                // })
+                // return
             }
         }
 
@@ -782,9 +782,9 @@ const FBStateControl: StateCreator<
                     continue
                 }
                 if (newFileInfo.id === user.trashId) {
-                    if (!newFileInfo.pastFile) {
-                        state.trashDirSize = newFileInfo.size
-                    }
+                    // if (!newFileInfo.pastFile) {
+                    //     state.trashDirSize = newFileInfo.size
+                    // }
                     continue
                 }
 

@@ -1,10 +1,11 @@
 import { IconFolder, IconLayersIntersect } from '@tabler/icons-react'
+import MediaApi from '@weblens/api/MediaApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { GalleryFilters } from '@weblens/pages/Gallery/Gallery'
 import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
+import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
-import { FetchData } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { memo, useCallback, useContext, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -88,6 +89,7 @@ export const Timeline = memo(
         const showRaw = useMediaStore((state) => state.showRaw)
         const showHidden = useMediaStore((state) => state.showHidden)
         const medias = useMediaStore((state) => [...state.mediaMap.values()])
+        const addMedias = useMediaStore((state) => state.addMedias)
 
         useEffect(() => {
             if (!galleryState || galleryState.loading.includes('media')) {
@@ -95,7 +97,12 @@ export const Timeline = memo(
             }
 
             galleryDispatch({ type: 'add_loading', loading: 'media' })
-            FetchData(galleryState).then(() => {
+            MediaApi.getMedia(showRaw, showHidden).then((res) => {
+                const medias = res.data.Media.map((info) => {
+                    return new WeblensMedia(info)
+                })
+
+                addMedias(medias)
                 galleryDispatch({
                     type: 'remove_loading',
                     loading: 'media',

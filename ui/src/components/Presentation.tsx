@@ -7,7 +7,7 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import ReactCodeMirror from '@uiw/react-codemirror'
-import { GetFileText } from '@weblens/api/FileBrowserApi'
+import { FileApi } from '@weblens/api/FileBrowserApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
@@ -17,7 +17,8 @@ import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import React, {
+import {
+    Dispatch,
     memo,
     MouseEventHandler,
     ReactNode,
@@ -38,7 +39,7 @@ export const PresentationContainer = ({
 }: {
     onMouseMove?: MouseEventHandler<HTMLDivElement>
     onClick?: MouseEventHandler<HTMLDivElement>
-    children?
+    children?: ReactNode
 }) => {
     return (
         <div
@@ -56,7 +57,7 @@ export const ContainerMedia = ({
     containerRef,
 }: {
     mediaData: WeblensMedia
-    containerRef
+    containerRef: HTMLDivElement
 }) => {
     const [boxSize, setBoxSize] = useState({
         height: 0,
@@ -152,11 +153,9 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 
     useEffect(() => {
         setBlockFocus(true)
-        GetFileText(file.Id())
-            .then((r) => {
-                setContent(r)
-            })
-            .catch((err) => console.error(err))
+        FileApi.getFileText(file.Id()).then((r) => {
+            setContent(r.data)
+        })
 
         return () => setBlockFocus(false)
     }, [])
@@ -255,13 +254,13 @@ export const PresentationVisual = ({
     mediaData: WeblensMedia
     Element: () => ReactNode
 }) => {
-    const [screenRef, setScreenRef] = useState(null)
-    const [containerRef, setContainerRef] = useState(null)
+    const [screenRef, setScreenRef] = useState<HTMLDivElement>(null)
+    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
     const [splitSize, setSplitSize] = useState(-1)
     const [dragging, setDragging] = useState(false)
     const screenSize = useResize(screenRef)
     const splitCalc = useCallback(
-        (o) => {
+        (o: number) => {
             if (screenSize.width === -1) {
                 return
             }
@@ -318,7 +317,7 @@ function useKeyDownPresentation(
     const mediaData = useMediaStore((state) => state.mediaMap.get(contentId))
 
     const keyDownHandler = useCallback(
-        (event) => {
+        (event: KeyboardEvent) => {
             if (!contentId) {
                 return
             } else if (event.key === 'Escape') {
@@ -351,7 +350,11 @@ function useKeyDownPresentation(
     }, [keyDownHandler])
 }
 
-function handleTimeout(to, setTo, setGuiShown: (b: boolean) => void) {
+function handleTimeout(
+    to: NodeJS.Timeout,
+    setTo: Dispatch<NodeJS.Timeout>,
+    setGuiShown: (b: boolean) => void
+) {
     if (to) {
         clearTimeout(to)
     }
@@ -363,7 +366,7 @@ interface PresentationDispatchT {
 }
 
 export function PresentationFile({ file }: { file: WeblensFile }) {
-    const [to, setTo] = useState(null)
+    const [to, setTo] = useState<NodeJS.Timeout>()
     const [guiShown, setGuiShown] = useState(false)
     const [likedHover, setLikedHover] = useState(false)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
@@ -496,7 +499,7 @@ const Presentation = memo(
     }: {
         mediaId: string
         dispatch: PresentationDispatchT
-        element?
+        element?: () => ReactNode
     }) => {
         useKeyDownPresentation(mediaId, dispatch)
 

@@ -211,6 +211,7 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, syscall.SIGQUIT)
 		<-sigs
+		log.Info.Println("\nReceived SIGQUIT, exiting...")
 		os.Exit(0)
 	}
 }

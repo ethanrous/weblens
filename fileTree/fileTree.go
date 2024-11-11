@@ -594,11 +594,12 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 		if event != nil {
 			portablePath := fileToLoad.GetPortablePath().ToPortable()
 			if activeLt, ok := lifetimesByPath[portablePath]; ok {
-				log.Trace.Printf("[loadFromRoot] Got existing lifetime: %s", activeLt.Id)
-
 				if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
 					activeLt.IsDir = fileToLoad.IsDir()
-					event.journal.UpdateLifetime(activeLt)
+					err := event.journal.UpdateLifetime(activeLt)
+					if err != nil {
+						return err
+					}
 				}
 
 				fileToLoad.setIdInternal(activeLt.ID())

@@ -24,7 +24,7 @@ const WeblensInput = memo(
         fillWidth = true,
         failed = false,
     }: {
-        onComplete?: (v: string) => Promise<void | Response>
+        onComplete?: (v: string) => Promise<boolean | void | Response>
         value?: string
         valueCallback?: (v: string) => void
         Icon?: (p) => ReactNode

@@ -1,9 +1,7 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { WeblensFileParams } from '@weblens/types/files/File'
-import WeblensMedia, { MediaDataT } from '@weblens/types/media/Media'
+import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { UserInfoT } from '@weblens/types/Types'
 import { useEffect, useState } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { create, StateCreator } from 'zustand'
@@ -18,6 +16,8 @@ import {
     TaskStageT,
     useTaskState,
 } from '@weblens/pages/FileBrowser/TaskStateControl'
+import User from '@weblens/types/user/user'
+import { FileInfo, MediaInfo } from './swag'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -69,7 +69,7 @@ export function useWeblensSocket() {
 
 export type WsSendT = (action: string, content: object) => void
 
-export const useSubscribe = (cId: string, sId: string, usr: UserInfoT) => {
+export const useSubscribe = (cId: string, sId: string, usr: User) => {
     const { lastMessage } = useWeblensSocket()
     const readyState = useWebsocketStore((state) => state.readyState)
     const wsSend = useWebsocketStore((state) => state.wsSend)
@@ -135,8 +135,8 @@ export interface wsMsgInfo {
 }
 
 interface wsMsgContent {
-    newFile?: WeblensFileParams
-    fileInfo?: WeblensFileParams
+    newFile?: FileInfo
+    fileInfo?: FileInfo
 
     note?: string
     oldId?: string
@@ -167,7 +167,7 @@ interface wsMsgContent {
     completedFiles?: number
     execution_time?: number
     percent_progress?: number
-    mediaData?: MediaDataT
+    mediaData?: MediaInfo
     runtime?: number
     takeoutId?: string
 }
@@ -193,8 +193,8 @@ export function HandleWebsocketMessage(
 }
 
 export interface FBSubscribeDispatchT {
-    addFile: (info: WeblensFileParams) => void
-    updateFile: (info: WeblensFileParams) => void
+    addFile: (info: FileInfo) => void
+    updateFile: (info: FileInfo) => void
     deleteFile: (fileId: string) => void
 }
 
@@ -433,10 +433,10 @@ function filebrowserWebsocketHandler(
             }
 
             default: {
-                const _exhaustiveCheck: never = msgData.eventTag
+                // const _exhaustiveCheck: never = msgData.eventTag
                 console.error(
-                    'Unknown websocket message type: ',
-                    _exhaustiveCheck
+                    'Unknown websocket message type: '
+                    // _exhaustiveCheck
                 )
                 return
             }
@@ -451,7 +451,7 @@ export interface WebsocketControlT {
 
     setSender: (sender: (event: string, content) => void) => void
     setReadyState: (readyState: number) => void
-    setLastMessage: (msg) => void
+    setLastMessage: (msg: MessageEvent<wsMsgInfo>) => void
 }
 
 const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({

@@ -14,6 +14,7 @@ import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { AlbumData, GalleryStateT, PresentType } from '@weblens/types/Types'
 import { clamp } from '@weblens/util'
 import React, {
+    MouseEvent,
     useCallback,
     useContext,
     useEffect,
@@ -34,9 +35,7 @@ import { Timeline } from './Timeline'
 export function GalleryFilters() {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
     const [optionsOpen, setOptionsOpen] = useState(false)
-    const [disabledAlbums, setDisabledAlbums] = useState([
-        ...galleryState.albumsFilter,
-    ])
+    const [disabledAlbums] = useState([...galleryState.albumsFilter])
 
     const showRaw = useMediaStore((state) => state.showRaw)
     const showHidden = useMediaStore((state) => state.showHidden)
@@ -66,7 +65,7 @@ export function GalleryFilters() {
     )
 
     const closeOptions = useCallback(
-        (e) => {
+        (e: MouseEvent | KeyboardEvent) => {
             if (!optionsOpen) {
                 return
             }
@@ -122,7 +121,7 @@ export function GalleryFilters() {
                         {albumsOptions}
                     </div>
                 </div>
-                <div className='flex justify-end w-full'>
+                <div className="flex justify-end w-full">
                     <WeblensButton
                         label="Save"
                         onClick={(e) => closeOptions(e)}
@@ -176,7 +175,7 @@ const Gallery = () => {
         if (!server) {
             return
         }
-        if (server.info.role === 'backup') {
+        if (server.role === 'backup') {
             nav('/files/home')
         }
     }, [server])

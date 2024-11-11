@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { attachNewCore, getRemotes } from '@weblens/api/ApiFetch'
+import { attachNewCore } from '@weblens/api/ApiFetch'
 import RemoteStatus from '@weblens/components/RemoteStatus'
-import { ServerInfoT } from '@weblens/types/Types'
 import { useEffect, useState } from 'react'
 import {
     HandleWebsocketMessage,
@@ -24,6 +23,8 @@ import WeblensInput from '@weblens/lib/WeblensInput'
 import Logo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useNavigate } from 'react-router-dom'
+import { RemoteApi } from '@weblens/api/RemotesApi'
+import { ServerInfo } from '@weblens/api/swag'
 
 function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [coreAddress, setCoreAddress] = useState('')
@@ -83,11 +84,11 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
 }
 
 export default function Backup() {
-    const { data: remotes, refetch } = useQuery<ServerInfoT[]>({
+    const { data: remotes, refetch } = useQuery<ServerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () => {
-            return await getRemotes()
+            return RemoteApi.getRemotes().then((res) => res.data)
         },
     })
     const { lastMessage } = useWeblensSocket()
@@ -113,14 +114,14 @@ export default function Backup() {
     const server = useSessionStore((state) => state.server)
     const nav = useNavigate()
     useEffect(() => {
-        if (server.info.role !== '' && server.info.role !== 'backup') {
+        if (server.role && server.role !== 'backup') {
             nav('/')
         }
     }, [])
 
     const [newCoreMenu, setNewCoreMenu] = useState(false)
     //const local = useSessionStore((state) => state.server)
-    if (server.info.role !== 'backup') {
+    if (server.role !== 'backup') {
         return <></>
     }
 

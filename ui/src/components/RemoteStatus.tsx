@@ -6,7 +6,7 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react'
-import { deleteRemote, doBackup } from '@weblens/api/ApiFetch'
+import { doBackup } from '@weblens/api/ApiFetch'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { ServerInfoT } from '@weblens/types/Types'
@@ -26,6 +26,7 @@ import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { Loader } from '@mantine/core'
 import { TaskStageT } from '@weblens/pages/FileBrowser/TaskStateControl'
+import { RemoteApi } from '@weblens/api/RemotesApi'
 
 export default function RemoteStatus({
     remoteInfo,
@@ -167,7 +168,7 @@ export default function RemoteStatus({
                         danger
                         requireConfirm
                         onClick={async () => {
-                            deleteRemote(remoteInfo.id).then(() =>
+                            RemoteApi.deleteRemote(remoteInfo.id).then(() =>
                                 refetchRemotes()
                             )
                         }}

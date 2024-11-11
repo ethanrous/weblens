@@ -21,7 +21,7 @@ import (
 )
 
 type Media struct {
-	MediaId primitive.ObjectID `json:"-" bson:"_id"`
+	MediaId primitive.ObjectID `json:"-" bson:"_id" example:"5f9b3b3b7b4f3b0001b3b3b7"`
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
 	ContentId ContentId `json:"contentId" bson:"contentId"`
@@ -78,7 +78,7 @@ type Media struct {
 	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
 	// because fullres images could be multi-page, and a cache file is created per page
 	highResCacheFiles []*fileTree.WeblensFileImpl
-}
+} // @name MediaInfo
 
 func NewMedia(contentId ContentId) *Media {
 	return &Media{
@@ -411,7 +411,7 @@ type MediaService interface {
 	GetFilteredMedia(
 		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool,
 	) ([]*Media, error)
-	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []ContentId
+	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*Media
 
 	SetMediaLiked(mediaId ContentId, liked bool, username Username) error
 }

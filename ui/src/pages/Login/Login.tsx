@@ -1,26 +1,18 @@
 import { Space } from '@mantine/core'
-import { login } from '@weblens/api/ApiFetch'
+import UsersApi from '@weblens/api/UserApi'
 import { useKeyDown } from '@weblens/components/hooks'
 import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import {
-    LOGIN_TOKEN_COOKIE_KEY,
-    USERNAME_COOKIE_KEY,
-} from '@weblens/types/Types'
+import User from '@weblens/types/user/user'
 import { useCallback, useState } from 'react'
-import { useCookies } from 'react-cookie'
 
 const Login = () => {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
 
-    const setUser = useSessionStore((state) => state.setUserInfo)
-    const [, setCookie] = useCookies([
-        USERNAME_COOKIE_KEY,
-        LOGIN_TOKEN_COOKIE_KEY,
-    ])
+    const setUser = useSessionStore((state) => state.setUser)
 
     const [buttonRef, setButtonRef] = useState(null)
     useKeyDown('Enter', () => {
@@ -34,10 +26,10 @@ const Login = () => {
         if (username === '' || password === '') {
             return Promise.reject('username and password must not be empty')
         }
-        return login(username, password).then((data) => {
-            setCookie(USERNAME_COOKIE_KEY, data.user.username)
-            setCookie(LOGIN_TOKEN_COOKIE_KEY, data.token)
-            setUser({ ...data.user, isLoggedIn: true })
+        return UsersApi.loginUser({ username, password }).then((res) => {
+            const user = new User(res.data)
+            user.isLoggedIn = true
+            setUser(user)
         })
     }, [])
 
@@ -70,9 +62,8 @@ const Login = () => {
                     onClick={async () => doLogin(userInput, passInput)}
                     setButtonRef={setButtonRef}
                 />
-
             </div>
-            <div className='flex flex-row items-center m-8 p-4 wl-outline-subtle gap-2'>
+            <div className="flex flex-row items-center m-8 p-4 wl-outline-subtle gap-2">
                 <h3>New Here?</h3>
                 <WeblensButton label="Sign up" />
             </div>
