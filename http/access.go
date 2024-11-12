@@ -4,10 +4,9 @@ import (
 	"net/http"
 
 	"github.com/ethanrous/weblens/internal/log"
-	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 // CreateApiKey godoc
@@ -25,24 +24,27 @@ import (
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [post]
-func newApiKey(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func newApiKey(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	if !u.IsAdmin() {
-		ctx.Status(http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
 	newKey, err := pack.AccessService.GenerateApiKey(u, pack.InstanceService.GetLocal())
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	apiKeyInfo := rest.ApiKeyToApiKeyInfo(newKey)
-	ctx.JSON(http.StatusOK, apiKeyInfo)
+	writeJson(w, http.StatusOK, apiKeyInfo)
 }
 
 // GetApiKeys godoc
@@ -60,12 +62,15 @@ func newApiKey(ctx *gin.Context) {
 //	@Failure	403
 //	@Failure	500
 //	@Router		/keys [get]
-func getApiKeys(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getApiKeys(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	keys, err := pack.AccessService.GetAllKeys(u)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -74,7 +79,7 @@ func getApiKeys(ctx *gin.Context) {
 		keysInfo = append(keysInfo, rest.ApiKeyToApiKeyInfo(key))
 	}
 
-	ctx.JSON(http.StatusOK, keysInfo)
+	writeJson(w, http.StatusOK, keysInfo)
 }
 
 // DeleteApiKey godoc
@@ -95,22 +100,22 @@ func getApiKeys(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/keys/{keyId} [delete]
-func deleteApiKey(ctx *gin.Context) {
-	pack := getServices(ctx)
-	key := models.WeblensApiKey(ctx.Param("keyId"))
+func deleteApiKey(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	key := models.WeblensApiKey(chi.URLParam(r, "keyId"))
 	keyInfo, err := pack.AccessService.GetApiKey(key)
 	if err != nil || keyInfo.Key == "" {
 		log.ShowErr(err)
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	err = pack.AccessService.DeleteApiKey(key)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }

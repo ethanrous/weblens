@@ -1043,7 +1043,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}": {
+        "/media/{mediaId}.{extension}": {
             "get": {
                 "produces": [
                     "image/webp",
@@ -1060,6 +1060,13 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Media Id",
                         "name": "mediaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Extension",
+                        "name": "extension",
                         "in": "path",
                         "required": true
                     },
@@ -2209,6 +2216,9 @@ const docTemplate = `{
                 "owner": {
                     "type": "boolean"
                 },
+                "token": {
+                    "type": "string"
+                },
                 "trashId": {
                     "type": "string"
                 },
@@ -2233,6 +2243,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "password": {
+                    "type": "string"
+                },
+                "token": {
                     "type": "string"
                 },
                 "trashId": {
@@ -2304,10 +2317,10 @@ const docTemplate = `{
                 "restore"
             ],
             "x-enum-varnames": [
-                "InitServer",
-                "CoreServer",
-                "BackupServer",
-                "RestoreServer"
+                "InitServerRole",
+                "CoreServerRole",
+                "BackupServerRole",
+                "RestoreServerRole"
             ]
         },
         "models.ShareType": {

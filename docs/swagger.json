@@ -1037,7 +1037,7 @@
                 }
             }
         },
-        "/media/{mediaId}": {
+        "/media/{mediaId}.{extension}": {
             "get": {
                 "produces": [
                     "image/webp",
@@ -1054,6 +1054,13 @@
                         "type": "string",
                         "description": "Media Id",
                         "name": "mediaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Extension",
+                        "name": "extension",
                         "in": "path",
                         "required": true
                     },
@@ -2203,6 +2210,9 @@
                 "owner": {
                     "type": "boolean"
                 },
+                "token": {
+                    "type": "string"
+                },
                 "trashId": {
                     "type": "string"
                 },
@@ -2227,6 +2237,9 @@
                     "type": "boolean"
                 },
                 "password": {
+                    "type": "string"
+                },
+                "token": {
                     "type": "string"
                 },
                 "trashId": {
@@ -2298,10 +2311,10 @@
                 "restore"
             ],
             "x-enum-varnames": [
-                "InitServer",
-                "CoreServer",
-                "BackupServer",
-                "RestoreServer"
+                "InitServerRole",
+                "CoreServerRole",
+                "BackupServerRole",
+                "RestoreServerRole"
             ]
         },
         "models.ShareType": {

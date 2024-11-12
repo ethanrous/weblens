@@ -22,8 +22,8 @@ import (
 //
 //	@Success	200	{array}	rest.ServerInfo	"Server Info"
 //	@Router		/remotes [get]
-func getRemotes(ctx *gin.Context) {
-	pack := getServices(ctx)
+func getRemotes(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 
 	remotes := pack.InstanceService.GetRemotes()
 	localRole := pack.InstanceService.GetLocal().GetRole()
@@ -35,7 +35,7 @@ func getRemotes(ctx *gin.Context) {
 		online := client != nil && client.Active.Load()
 
 		var backupSize int64 = -1
-		if localRole == models.BackupServer {
+		if localRole == models.BackupServerRole {
 			backupSize = pack.FileService.Size(srv.ServerId())
 		}
 		serverInfos = append(serverInfos, rest.ServerInfo{
@@ -52,7 +52,7 @@ func getRemotes(ctx *gin.Context) {
 		})
 	}
 
-	ctx.JSON(http.StatusOK, serverInfos)
+	writeJson(w, http.StatusOK, serverInfos)
 }
 
 // AttachRemote godoc
@@ -67,42 +67,42 @@ func getRemotes(ctx *gin.Context) {
 //	@Param		request	body	rest.NewServerParams	true	"New Server Params"
 //	@Success	201		{array}	rest.ServerInfo			"New Server Info"
 //	@Router		/remotes [post]
-func attachRemote(ctx *gin.Context) {
-	pack := getServices(ctx)
+func attachRemote(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	local := pack.InstanceService.GetLocal()
-	if local.GetRole() == models.BackupServer {
-		ctx.JSON(
+	if local.GetRole() == models.BackupServerRole {
+		writeJson(w,
 			http.StatusBadRequest,
 			gin.H{"error": "this weblens server is running in backup mode. core mode is required to attach a remote"},
 		)
 		return
 	}
 
-	nr, err := readCtxBody[rest.NewServerParams](ctx)
+	nr, err := readCtxBody[rest.NewServerParams](w, r)
 	if err != nil {
 		return
 	}
 
-	newRemote := models.NewInstance(nr.Id, nr.Name, nr.UsingKey, models.BackupServer, false, "", local.ServerId())
+	newRemote := models.NewInstance(nr.Id, nr.Name, nr.UsingKey, models.BackupServerRole, false, "", local.ServerId())
 
 	err = pack.InstanceService.Add(newRemote)
 	if err != nil {
 		if errors.Is(err, werror.ErrKeyInUse) {
-			ctx.Status(http.StatusConflict)
+			w.WriteHeader(http.StatusConflict)
 			return
 		}
 
 		log.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeJson(w, http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	err = pack.AccessService.SetKeyUsedBy(nr.UsingKey, newRemote)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
+	writeJson(w, http.StatusCreated, pack.InstanceService.GetLocal())
 }
 
 // DeleteRemote godoc
@@ -117,11 +117,11 @@ func attachRemote(ctx *gin.Context) {
 //	@Param		remoteId	query	string	true	"Server Id to delete"
 //	@Success	200
 //	@Router		/remotes [delete]
-func removeRemote(ctx *gin.Context) {
-	pack := getServices(ctx)
-	remoteId := ctx.Query("remoteId")
+func removeRemote(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	remoteId := r.URL.Query().Get("remoteId")
 	if remoteId == "" {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -130,15 +130,15 @@ func removeRemote(ctx *gin.Context) {
 	err := pack.InstanceService.Del(remote.DbId)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if key := remote.GetUsingKey(); key != "" {
 		err = pack.AccessService.SetKeyUsedBy(key, nil)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }

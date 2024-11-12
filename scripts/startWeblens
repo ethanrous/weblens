@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [[ ! -e ./cmd ]]; then
-  echo "ERR Could not find ./cmd directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
-  exit 1
+	echo "ERR Could not find ./cmd directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+	exit 1
 fi
 
 mkdir -p ./build/bin
@@ -11,110 +11,125 @@ mkdir -p ./build/logs
 restart=false
 trace=false
 docs=false
+detach=false
 build_ui=false
+log_file=""
 config_name=$CONFIG_NAME
 
 while [ "${1:-}" != "" ]; do
-    case "$1" in
-      "--config")
-        shift
-        config_name=$1
-        ;;
-      "-t" | "--trace")
-        trace=true
-        ;;
-      "--ui")
-        build_ui=true
-        ;;
-      "-r" | "--restart")
-        restart=true
-        ;;
-      "-d" | "--docs")
-      docs=true
-        ;;
-    esac
-    shift
-  done
+	case "$1" in
+	"--config")
+		shift
+		config_name=$1
+		;;
+	"--log")
+		shift
+		log_file=$1
+		;;
+	"-t" | "--trace")
+		trace=true
+		;;
+	"--ui")
+		build_ui=true
+		;;
+	"-r" | "--restart")
+		restart=true
+		;;
+	"--docs")
+		docs=true
+		;;
+	"-d" | "--detach")
+		detach=true
+		;;
+	esac
+	shift
+done
+
+if [[ $detach == true ]] && [[ -z "$log_file" ]]; then
+	echo "ERR --detach requires --log to be set"
+	exit 1
+fi
 
 if [[ -z "$config_name" ]]; then
-  export config_name="DEBUG-CORE"
+	export config_name="DEBUG-CORE"
 fi
 
 printf "Using config: %s" "$config_name"
 if [[ $trace == true ]]; then
-  do_trace="trace"
-  printf " +trace"
+	export LOG_LEVEL="trace"
+	printf " +trace"
 fi
 printf "\n"
 
-# Allow for easy restarts while debugging. If you send a SIGQUIT (Ctrl+\), 
+# Allow for easy restarts while debugging. If you send a SIGQUIT (Ctrl+\),
 # it will re[build/start] the server when $restart is true (cmd line option -r).
 trap "" SIGQUIT
 
 while true; do
+	if [[ $docs == true ]]; then
+		printf "Building Docs..."
+		if ! ./scripts/swaggo &>./build/logs/docs-build.log; then
+			printf " FAILED\n"
+			cat ./build/logs/docs-build.log
+			echo "Aborting Weblens startup. Failed to build docs"
+			exit 1
+		else
+			printf " DONE\n"
+		fi
 
-  # if [[ -z "$detach_ui" ]]; then
-  #   detach_ui=$DETACH_UI
-  # fi
-  #
-  # if [[ -z "$detach_ui" ]]; then
-  #   detach_ui=$(jq ".[\"$config_name\"].detachUi" < ./config/config.json)
-  # fi
+	fi
 
-  if [[ $docs == true ]]; then
-    printf "Building Docs..."
-    if ! ./scripts/swaggo &> ./build/logs/docs-build.log; then
-      printf " FAILED\n"
-      cat ./build/logs/docs-build.log
-      echo "Aborting Weblens startup. Failed to build docs"
-      exit 1
-    else
-      printf " DONE\n"
-    fi
+	if [[ $build_ui == true ]]; then
+		cd ./ui || exit
+		printf "Building UI..."
+		npm install &>/dev/null
+		export VITE_APP_BUILD_TAG="DEV-BUILD"
+		export VITE_BUILD=true
 
-  fi
+		if ! npm run build &>../build/logs/ui-build.log; then
+			printf " FAILED\n"
+			cat ../build/logs/ui-build.log
+			echo "Aborting Weblens startup. Ensure npm run build completes successfully before starting Weblens."
+			exit 1
+		else
+			printf " DONE\n"
+		fi
 
-  if [[ $build_ui == true ]]; then
-    cd ./ui || exit
-    printf "Building UI..."
-    npm install &> /dev/null
-    export VITE_APP_BUILD_TAG="DEV-BUILD"
-    export VITE_BUILD=true
+		cd ..
+	fi
 
-    if ! npm run build &> ../build/logs/ui-build.log; then
-      printf " FAILED\n"
-      cat ../build/logs/ui-build.log
-      echo "Aborting Weblens startup. Ensure npm run build completes successfully before starting Weblens."
-      exit 1
-    else
-      printf " DONE\n"
-    fi
+	printf "Building Weblens binary..."
+	rm -f ./build/bin/weblens
 
-    cd ..
-  fi
+	export GORACE="halt_on_error=1"
+	go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &>./build/logs/weblens-build.log
 
-  printf "Building Weblens binary..."
-  rm -f ./build/bin/weblens
+	if [[ ! -e ./build/bin/weblens ]]; then
+		printf " FAILED\n"
+		cat ./build/logs/weblens-build.log
+		echo "Failed to build Weblens, exiting..."
+		exit 1
+	fi
+	printf " DONE\n"
 
-  export GORACE="halt_on_error=1"
-  go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &> ./build/logs/weblens-build.log
+	if [[ $detach == true ]]; then
+		printf "Starting Weblens and detaching..."
+		APP_ROOT="$(pwd)" CONFIG_NAME="$config_name" nohup ./build/bin/weblens &>"$log_file" &
+		printf " RUNNING\n"
+		exit 0
+	fi
 
-  if [[ ! -e ./build/bin/weblens ]]; then
-    printf " FAILED\n"
-    cat ./build/logs/weblens-build.log
-    echo "Failed to build Weblens, exiting..."
-    exit 1
-  fi
-  printf " DONE\n"
+	if [[ -n "$log_file" ]]; then
+		echo "Logging from now on to $log_file"
+		exec &>"$log_file" # Redirect both stdout and stderr to the log file
+	fi
+	APP_ROOT=$(pwd) CONFIG_NAME=$config_name ./build/bin/weblens
+	exit=$?
 
-  APP_ROOT=$(pwd) CONFIG_NAME=$config_name LOG_LEVEL=$do_trace ./build/bin/weblens
-  exit=$?
-
-  if [[ $restart == false ]] || { [[ $exit != 0 ]] && [[ $exit != 137 ]]; }; then
-    echo "Got exist status $exit, exiting..."
-    break
-  fi
-  clear
+	if [[ $restart == false ]] || { [[ $exit != 0 ]] && [[ $exit != 137 ]]; }; then
+		echo "Got exit status $exit, exiting..."
+		break
+	fi
+	clear
 
 done
-

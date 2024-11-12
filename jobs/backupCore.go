@@ -17,7 +17,7 @@ import (
 )
 
 func BackupD(interval time.Duration, pack *models.ServicePack) {
-	if pack.InstanceService.GetLocal().GetRole() != models.BackupServer {
+	if pack.InstanceService.GetLocal().GetRole() != models.BackupServerRole {
 		log.Error.Println("Backup service cannot be run on non-backup instance")
 		return
 	}
@@ -58,10 +58,6 @@ func BackupOne(core *models.Instance, pack *models.ServicePack) (*task.Task, err
 	return pack.TaskService.DispatchJob(models.BackupTask, meta, nil)
 }
 
-type serverInfoResponse struct {
-	Info rest.ServerInfo `json:"info"`
-}
-
 func DoBackup(t *task.Task) {
 	meta := t.GetMeta().(models.BackupMeta)
 
@@ -87,9 +83,9 @@ func DoBackup(t *task.Task) {
 	)
 
 	localRole := meta.InstanceService.GetLocal().GetRole()
-	if localRole == models.InitServer {
+	if localRole == models.InitServerRole {
 		t.ReqNoErr(werror.ErrServerNotInitialized)
-	} else if localRole != models.BackupServer {
+	} else if localRole != models.BackupServerRole {
 		t.ReqNoErr(werror.ErrServerIsBackup)
 	}
 
@@ -107,15 +103,15 @@ func DoBackup(t *task.Task) {
 	t.SetResult(task.TaskResult{"stages": stages, "coreId": meta.Core.ServerId()})
 
 	// Read core server info and check if it is really a core server
-	req := proxy.NewCoreRequest(meta.Core, "GET", "").OverwriteEndpoint("/api/info")
-	infoRes, err := proxy.CallHomeStruct[serverInfoResponse](req)
+	req := proxy.NewCoreRequest(meta.Core, "GET", "/info")
+	infoRes, err := proxy.CallHomeStruct[rest.ServerInfo](req)
 	if err != nil {
 		t.ReqNoErr(err)
 	}
 
-	meta.Core.SetReportedRole(infoRes.Info.Role)
-	if infoRes.Info.Role != models.CoreServer {
-		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Info.Role))
+	meta.Core.SetReportedRole(infoRes.Role)
+	if infoRes.Role != models.CoreServerRole {
+		t.ReqNoErr(werror.Errorf("Remote role is [%s] expected core", infoRes.Role))
 	}
 
 	// Find most recent action timestamp
@@ -134,15 +130,18 @@ func DoBackup(t *task.Task) {
 	stages.StartStage("fetching_backup_data")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10))
-	backupResponse, err := proxy.CallHomeStruct[rest.BackupBody](backupRq)
+	backupRq := proxy.NewCoreRequest(meta.Core, "GET", "/servers/backup").WithQuery("timestamp", strconv.FormatInt(latestTime.UnixMilli(), 10))
+	backupResponse, err := proxy.CallHomeStruct[rest.BackupInfo](backupRq)
 	t.ReqNoErr(err)
 
 	stages.StartStage("writing_users")
 	t.SetResult(task.TaskResult{"stages": stages})
 
+	log.Debug.Println(backupResponse.Users)
+
 	// Write the users to the users service
-	for _, user := range backupResponse.Users {
+	for _, userInfo := range backupResponse.Users {
+		user := rest.UserInfoArchiveToUser(userInfo)
 		err = meta.UserService.Add(user)
 		if err != nil {
 			t.ReqNoErr(err)
@@ -168,12 +167,13 @@ func DoBackup(t *task.Task) {
 	t.SetResult(task.TaskResult{"stages": stages})
 
 	// Write instances to access service
-	for _, r := range backupResponse.Instances {
-		if err := meta.InstanceService.Get(r.ServerId()); err == nil {
+	for _, serverInfo := range backupResponse.Instances {
+		instance := rest.ServerInfoToInstance(serverInfo)
+		if err := meta.InstanceService.Get(instance.ServerId()); err == nil {
 			continue
 		}
 
-		err = meta.InstanceService.Add(r)
+		err = meta.InstanceService.Add(instance)
 		if err != nil {
 			t.ReqNoErr(err)
 		}
@@ -410,11 +410,11 @@ func RestoreCore(t *task.Task) {
 	t.ReqNoErr(err)
 
 	initParams := restoreInitParams{
-		Name: meta.Core.Name, Role: models.RestoreServer, Key: key, RemoteId: meta.Local.Id,
+		Name: meta.Core.Name, Role: models.RestoreServerRole, Key: key, RemoteId: meta.Local.Id,
 		LocalId: meta.Core.Id,
 	}
 
-	_, err = proxy.NewCoreRequest(meta.Core, "POST", "").OverwriteEndpoint("/api/init").WithBody(initParams).Call()
+	_, err = proxy.NewCoreRequest(meta.Core, "POST", "/servers/init").WithBody(initParams).Call()
 	if err != nil {
 		t.ReqNoErr(err)
 	}
@@ -507,7 +507,7 @@ func RestoreCore(t *task.Task) {
 		t.ReqNoErr(err)
 	}
 
-	meta.Core.SetReportedRole(models.CoreServer)
+	meta.Core.SetReportedRole(models.CoreServerRole)
 	meta.Pack.Caster.PushTaskUpdate(t, "restore_complete", nil)
 
 	// Disconnect the core client to force a reconnection

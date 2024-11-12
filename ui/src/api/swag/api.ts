@@ -612,10 +612,10 @@ export interface ModelError {
  */
 
 export const ModelsServerRole = {
-    InitServer: 'init',
-    CoreServer: 'core',
-    BackupServer: 'backup',
-    RestoreServer: 'restore'
+    InitServerRole: 'init',
+    CoreServerRole: 'core',
+    BackupServerRole: 'backup',
+    RestoreServerRole: 'restore'
 } as const;
 
 export type ModelsServerRole = typeof ModelsServerRole[keyof typeof ModelsServerRole];
@@ -942,6 +942,12 @@ export interface UserInfo {
      * @type {string}
      * @memberof UserInfo
      */
+    'token'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UserInfo
+     */
     'trashId'?: string;
     /**
      * 
@@ -986,6 +992,12 @@ export interface UserInfoArchive {
      * @memberof UserInfoArchive
      */
     'password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UserInfoArchive
+     */
+    'token'?: string;
     /**
      * 
      * @type {string}
@@ -2849,18 +2861,22 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Get a media image bytes
          * @param {string} mediaId Media Id
+         * @param {string} extension Extension
          * @param {GetMediaImageQualityEnum} quality Image Quality
          * @param {number} [page] Page number
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMediaImage: async (mediaId: string, quality: GetMediaImageQualityEnum, page?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getMediaImage: async (mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'mediaId' is not null or undefined
             assertParamExists('getMediaImage', 'mediaId', mediaId)
+            // verify required parameter 'extension' is not null or undefined
+            assertParamExists('getMediaImage', 'extension', extension)
             // verify required parameter 'quality' is not null or undefined
             assertParamExists('getMediaImage', 'quality', quality)
-            const localVarPath = `/media/{mediaId}`
-                .replace(`{${"mediaId"}}`, encodeURIComponent(String(mediaId)));
+            const localVarPath = `/media/{mediaId}.{extension}`
+                .replace(`{${"mediaId"}}`, encodeURIComponent(String(mediaId)))
+                .replace(`{${"extension"}}`, encodeURIComponent(String(extension)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3029,13 +3045,14 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * 
          * @summary Get a media image bytes
          * @param {string} mediaId Media Id
+         * @param {string} extension Extension
          * @param {GetMediaImageQualityEnum} quality Image Quality
          * @param {number} [page] Page number
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getMediaImage(mediaId: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaImage(mediaId, quality, page, options);
+        async getMediaImage(mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getMediaImage(mediaId, extension, quality, page, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.getMediaImage']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3107,13 +3124,14 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Get a media image bytes
          * @param {string} mediaId Media Id
+         * @param {string} extension Extension
          * @param {GetMediaImageQualityEnum} quality Image Quality
          * @param {number} [page] Page number
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMediaImage(mediaId: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): AxiosPromise<string> {
-            return localVarFp.getMediaImage(mediaId, quality, page, options).then((request) => request(axios, basePath));
+        getMediaImage(mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.getMediaImage(mediaId, extension, quality, page, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3175,14 +3193,15 @@ export class MediaApi extends BaseAPI {
      * 
      * @summary Get a media image bytes
      * @param {string} mediaId Media Id
+     * @param {string} extension Extension
      * @param {GetMediaImageQualityEnum} quality Image Quality
      * @param {number} [page] Page number
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof MediaApi
      */
-    public getMediaImage(mediaId: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).getMediaImage(mediaId, quality, page, options).then((request) => request(this.axios, this.basePath));
+    public getMediaImage(mediaId: string, extension: string, quality: GetMediaImageQualityEnum, page?: number, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).getMediaImage(mediaId, extension, quality, page, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

@@ -1,33 +1,34 @@
 package rest
 
 import (
-	"encoding/json"
-
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/models"
 )
 
-type BackupBody struct {
+type BackupInfo struct {
 	FileHistory    []*fileTree.Lifetime
 	LifetimesCount int
-	Users          []*models.User
-	Instances      []*models.Instance
+	Users          []UserInfoArchive
+	Instances      []ServerInfo
 	ApiKeys        []models.ApiKey
 }
 
-func (b BackupBody) MarshalJSON() ([]byte, error) {
-	data := map[string]any{}
-
-	var users []UserInfo
-	for _, u := range b.Users {
-		users = append(users, UserToUserInfo(u))
+func NewBackupInfo(fileHistory []*fileTree.Lifetime, lifetimesCount int, users []*models.User, instances []*models.Instance, apiKeys []models.ApiKey) BackupInfo {
+	var userInfos []UserInfoArchive
+	for _, u := range users {
+		userInfos = append(userInfos, UserToUserInfoArchive(u))
 	}
 
-	data["users"] = users
-	data["fileHistory"] = b.FileHistory
-	data["instances"] = b.Instances
-	data["apiKeys"] = b.ApiKeys
-	data["lifetimesCount"] = b.LifetimesCount
+	var serverInfos []ServerInfo
+	for _, i := range instances {
+		serverInfos = append(serverInfos, InstanceToServerInfo(i))
+	}
 
-	return json.Marshal(data)
+	return BackupInfo{
+		FileHistory:    fileHistory,
+		LifetimesCount: lifetimesCount,
+		Users:          userInfos,
+		Instances:      serverInfos,
+		ApiKeys:        apiKeys,
+	}
 }

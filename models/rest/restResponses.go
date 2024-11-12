@@ -163,12 +163,24 @@ func InstanceToServerInfo(i *models.Instance) ServerInfo {
 	}
 }
 
+func ServerInfoToInstance(si ServerInfo) *models.Instance {
+	return &models.Instance{
+		Id:           si.Id,
+		Name:         si.Name,
+		Role:         si.Role,
+		IsThisServer: si.IsThisServer,
+		Address:      si.Address,
+		LastBackup:   si.LastBackup,
+	}
+}
+
 type UserInfo struct {
 	Username models.Username `json:"username"`
 	Admin    bool            `json:"admin"`
 	Owner    bool            `json:"owner"`
 	HomeId   fileTree.FileId `json:"homeId"`
 	TrashId  fileTree.FileId `json:"trashId"`
+	Token    string          `json:"token" omitEmpty:"true"`
 } // @name UserInfo
 
 type UserInfoArchive struct {
@@ -207,6 +219,20 @@ func UserToUserInfoArchive(u *models.User) UserInfoArchive {
 	info.TrashId = u.TrashId
 
 	return info
+}
+
+func UserInfoArchiveToUser(uInfo UserInfoArchive) *models.User {
+	u := &models.User{
+		Username:      uInfo.Username,
+		Password:      uInfo.Password,
+		Activated:     uInfo.Activated,
+		Admin:         uInfo.Admin,
+		IsServerOwner: uInfo.Owner,
+		HomeId:        uInfo.HomeId,
+		TrashId:       uInfo.TrashId,
+	}
+
+	return u
 }
 
 type ApiKeyInfo struct {

@@ -13,3 +13,15 @@ var ErrNoLifetime = &clientSafeErr{
 	safeErr:    nil,
 	statusCode: 404,
 }
+
+var ErrBadTimestamp = &clientSafeErr{
+	realError:  errors.New("a positive timestamp query param is required"),
+	safeErr:    nil,
+	statusCode: 400,
+}
+
+var ErrNoJournal = &clientSafeErr{
+	realError:  errors.New("could not load journal"),
+	safeErr:    nil,
+	statusCode: 500,
+}

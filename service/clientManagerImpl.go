@@ -426,7 +426,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 
 	var clients []*models.WsClient
 
-	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)

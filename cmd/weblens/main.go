@@ -49,13 +49,13 @@ func main() {
 
 	server = NewServer(config["routerHost"].(string), env.GetRouterPort(configName), services)
 	server.StartupFunc = func() {
-		startup(env.GetConfigName(), services, server)
+		startup(env.GetConfigName(), services)
 	}
 	services.StartupChan = make(chan bool)
 	server.Start()
 }
 
-func startup(configName string, pack *models.ServicePack, srv *Server) {
+func startup(configName string, pack *models.ServicePack) {
 	defer mainRecovery("WEBLENS STARTUP FAILED")
 
 	log.Trace.Println("Beginning service setup")
@@ -107,50 +107,19 @@ func startup(configName string, pack *models.ServicePack, srv *Server) {
 	sw.Lap("Init file service")
 
 	// Add basic routes to the router
-	if localRole == models.InitServer {
+	if localRole == models.InitServerRole {
 		// Uninitialized servers get "Init" routes
-		srv.UseInit()
+		// srv.UseInit()
 	} else {
 		// All initialized servers get the "API" group of routes
-		srv.UseApi()
+		// srv.UseApi()
 
 		// If server is CORE, add core routes and discover user directories
-		if localRole == models.CoreServer {
-			srv.UseInterserverRoutes()
+		if localRole == models.CoreServerRole {
+			// srv.UseInterserverRoutes()
 
-			event := pack.FileService.GetJournalByTree("USERS").NewEvent()
-
-			users, err := pack.UserService.GetAll()
-			if err != nil {
-				panic(err)
-			}
-
-			for u := range users {
-				if u.IsSystemUser() {
-					continue
-				}
-
-				var hadNoHome bool
-				if u.HomeId == "" {
-					hadNoHome = true
-				}
-
-				err = pack.FileService.CreateUserHome(u)
-				if err != nil {
-					panic(err)
-				}
-
-				if hadNoHome {
-					err = pack.UserService.UpdateUserHome(u)
-					if err != nil {
-						panic(err)
-					}
-				}
-			}
-
-			pack.FileService.GetJournalByTree("USERS").LogEvent(event)
 			sw.Lap("Find or create user directories")
-		} else if localRole == models.BackupServer {
+		} else if localRole == models.BackupServerRole {
 			/* If server is backup server, connect to core server and launch backup daemon */
 			pack.AddStartupTask("core_connect", "Waiting for Core connection")
 			cores := pack.InstanceService.GetCores()
@@ -261,11 +230,11 @@ func setupTaskService(pack *models.ServicePack) {
 	workerPool.RegisterJob(models.UploadFilesTask, jobs.HandleFileUploads)
 	workerPool.RegisterJob(models.CreateZipTask, jobs.CreateZip)
 	workerPool.RegisterJob(models.GatherFsStatsTask, jobs.GatherFilesystemStats)
-	if pack.InstanceService.GetLocal().Role == models.BackupServer {
+	if pack.InstanceService.GetLocal().Role == models.BackupServerRole {
 		workerPool.RegisterJob(models.BackupTask, jobs.DoBackup)
 		workerPool.RegisterJob(models.CopyFileFromCoreTask, jobs.CopyFileFromCore)
 		workerPool.RegisterJob(models.RestoreCoreTask, jobs.RestoreCore)
-	} else if pack.InstanceService.GetLocal().Role == models.CoreServer {
+	} else if pack.InstanceService.GetLocal().Role == models.CoreServerRole {
 		workerPool.RegisterJob(models.HashFileTask, jobs.HashFile)
 	}
 
@@ -285,7 +254,7 @@ func setupFileService(pack *models.ServicePack) {
 
 	/* Journal Service */
 	var ignoreLocal bool
-	if localRole == models.BackupServer || localRole == models.InitServer {
+	if localRole == models.BackupServerRole || localRole == models.InitServerRole {
 		ignoreLocal = true
 	}
 	mediaJournal, err := fileTree.NewJournal(
@@ -307,7 +276,7 @@ func setupFileService(pack *models.ServicePack) {
 		panic(err)
 	}
 
-	if localRole == models.CoreServer {
+	if localRole == models.CoreServerRole {
 		/* Users FileTree */
 		usersFileTree, err := fileTree.NewFileTree(
 			filepath.Join(env.GetDataRoot(), "users"), "USERS", mediaJournal, !ignoreLocal,
@@ -330,7 +299,8 @@ func setupFileService(pack *models.ServicePack) {
 		}
 
 		trees = []fileTree.FileTree{usersFileTree, cachesTree, restoreFileTree}
-	} else if localRole == models.BackupServer {
+
+	} else if localRole == models.BackupServerRole {
 		for _, core := range pack.InstanceService.GetCores() {
 			newJournal, err := fileTree.NewJournal(
 				pack.Db.Collection("fileHistory"), core.ServerId(), true, hasherFactory,
@@ -371,6 +341,39 @@ func setupFileService(pack *models.ServicePack) {
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	if localRole == models.CoreServerRole {
+		event := pack.FileService.GetJournalByTree("USERS").NewEvent()
+		users, err := pack.UserService.GetAll()
+		if err != nil {
+			panic(err)
+		}
+
+		for u := range users {
+			if u.IsSystemUser() {
+				continue
+			}
+
+			var hadNoHome bool
+			if u.HomeId == "" {
+				hadNoHome = true
+			}
+
+			err = pack.FileService.CreateUserHome(u)
+			if err != nil {
+				panic(err)
+			}
+
+			if hadNoHome {
+				err = pack.UserService.UpdateUserHome(u)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+
+		pack.FileService.GetJournalByTree("USERS").LogEvent(event)
 	}
 
 	pack.RemoveStartupTask("file_services")

@@ -2,15 +2,14 @@ package log
 
 import (
 	"fmt"
-	"reflect"
+	"net/http"
 	"runtime"
 	"runtime/debug"
 	"strings"
 	"time"
 
-	"github.com/ethanrous/weblens/internal/metrics"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type StackError interface {
@@ -63,14 +62,16 @@ func ShowErr(err error, extras ...string) {
 }
 
 func colorStatus(status int) string {
-	if status < 400 {
+	if status == 0 {
+		return fmt.Sprintf("\u001b[31m%d\u001B[0m", status)
+	} else if status < 400 {
 		return fmt.Sprintf("\u001b[32m%d\u001B[0m", status)
 	} else if status >= 400 && status < 500 {
 		return fmt.Sprintf("\u001b[33m%d\u001B[0m", status)
 	} else if status >= 500 {
 		return fmt.Sprintf("\u001b[31m%d\u001B[0m", status)
 	}
-	return "Not reached"
+	return fmt.Sprintf("\u001b[31m%s\u001B[0m", "BAD STATUS CODE")
 }
 
 func colorTime(dur time.Duration) string {
@@ -93,34 +94,28 @@ func colorTime(dur time.Duration) string {
 	}
 }
 
-func ApiLogger(logLevel int) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.RequestURI
+func ApiLogger(logLevel int) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
 
-		handler := runtime.FuncForPC(reflect.ValueOf(c.Handler()).Pointer()).Name()
-		handler = handler[strings.LastIndex(handler, ".")+1:]
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-		c.Next()
+			next.ServeHTTP(ww, r)
 
-		status := c.Writer.Status()
-		if logLevel == -1 && status < 400 {
-			return
-		}
+			status := ww.Status()
+			if status >= 400 && status < 500 && ww.BytesWritten() == 0 {
+				Error.Println("4xx DID NOT SEND ERROR")
+			}
 
-		remote := c.ClientIP()
-		method := c.Request.Method
-		timeTotal := time.Since(start)
+			remote := r.RemoteAddr
+			method := r.Method
+			timeTotal := time.Since(start)
 
-		metrics.RequestsTimer.With(
-			prometheus.Labels{
-				"handler": handler, "method": c.Request.Method,
-			},
-		).Observe(timeTotal.Seconds())
+			route := chi.RouteContext(r.Context()).RoutePattern()
 
-		Info.Printf(
-			"\u001B[0m[%s][%7s][%s][%s] %s %s\n", remote, colorTime(timeTotal), handler, colorStatus(status), method,
-			path,
-		)
+			Info.Printf("\u001B[0m[%s][%7s][%s %s][%s]\n", remote, colorTime(timeTotal), method, route, colorStatus(status))
+
+		})
 	}
 }

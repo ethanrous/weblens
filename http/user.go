@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 // CreateUser godoc
@@ -25,35 +26,41 @@ import (
 //	@Success	201
 //	@Failure	401
 //	@Router		/users [post]
-func createUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	userParams, err := readCtxBody[rest.NewUserParams](ctx)
+func createUser(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	userParams, err := readCtxBody[rest.NewUserParams](w, r)
 	if err != nil {
 		return
 	}
 
 	if !u.Admin && (userParams.AutoActivate || userParams.Admin) {
-		ctx.Status(http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
 	newUser, err := models.NewUser(userParams.Username, userParams.Password, userParams.Admin, userParams.AutoActivate)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	err = pack.FileService.CreateUserHome(newUser)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	err = pack.UserService.Add(newUser)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
 }
 
 // LoginUser godoc
@@ -67,22 +74,22 @@ func createUser(ctx *gin.Context) {
 //	@Success	200			{object}	rest.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/auth [post]
-func loginUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	userCredentials, err := readCtxBody[rest.LoginBody](ctx)
+func loginUser(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	userCredentials, err := readCtxBody[rest.LoginBody](w, r)
 	if err != nil {
 		return
 	}
 
 	u := pack.UserService.Get(userCredentials.Username)
 	if u == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	if !u.Activated {
 		log.Warning.Printf("[%s] attempted login but is not activated", u.Username)
-		ctx.Status(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -94,7 +101,7 @@ func loginUser(ctx *gin.Context) {
 		token, _, err = pack.AccessService.GenerateJwtToken(u)
 		if err != nil || token == "" {
 			log.ErrTrace(werror.Errorf("Could not get login token"))
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 
 		userInfo := rest.UserToUserInfo(u)
@@ -103,11 +110,13 @@ func loginUser(ctx *gin.Context) {
 		cookie := fmt.Sprintf("%s=%s;Path=/;HttpOnly", SessionTokenCookie, token)
 
 		log.Trace.Println("Setting cookie", cookie)
-		ctx.Header("Set-Cookie", cookie)
-		ctx.JSON(http.StatusOK, userInfo)
+		w.Header().Set("Set-Cookie", cookie)
+
+		userInfo.Token = token
+		writeJson(w, http.StatusOK, userInfo)
 	} else {
 		log.Error.Printf("Invalid login for [%s]", userCredentials.Username)
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 	}
 
 }
@@ -122,16 +131,22 @@ func loginUser(ctx *gin.Context) {
 //	@Tags		Users
 //	@Success	200
 //	@Router		/users/logout [post]
-func logoutUser(ctx *gin.Context) {
-	u := getUserFromCtx(ctx)
+func logoutUser(w http.ResponseWriter, r *http.Request) {
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil || u.IsPublic() {
 		// This should not happen. We must check for user before this point
 		log.Error.Panicln("Could not find user to logout")
 	}
 
 	cookie := fmt.Sprintf("%s=;Path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
-	ctx.Header("Set-Cookie", cookie)
-	ctx.Status(http.StatusOK)
+	w.Header().Set("Set-Cookie", cookie)
+	w.WriteHeader(http.StatusOK)
 
 }
 
@@ -147,16 +162,22 @@ func logoutUser(ctx *gin.Context) {
 //	@Success	200	{array}	rest.UserInfoArchive	"List of users"
 //	@Failure	401
 //	@Router		/users [get]
-func getUsers(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getUsers(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil || !u.IsAdmin() {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	usersIter, err := pack.UserService.GetAll()
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -165,7 +186,7 @@ func getUsers(ctx *gin.Context) {
 		usersInfo = append(usersInfo, rest.UserToUserInfoArchive(user))
 	}
 
-	ctx.JSON(http.StatusOK, usersInfo)
+	writeJson(w, http.StatusOK, usersInfo)
 }
 
 // GetUser godoc
@@ -180,22 +201,28 @@ func getUsers(ctx *gin.Context) {
 //	@Success	200	{object}	rest.UserInfo	"Logged-in users info"
 //	@Failure	401
 //	@Router		/users/me [get]
-func getUserInfo(ctx *gin.Context) {
-	pack := getServices(ctx)
-	if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
-		ctx.JSON(http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
+func getUserInfo(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
+		writeJson(w, http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 		return
 	}
 
-	u := getUserFromCtx(ctx)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil || u.IsPublic() {
 		log.Trace.Println("Could not find user")
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	res := rest.UserToUserInfo(u)
-	ctx.JSON(http.StatusOK, res)
+	writeJson(w, http.StatusOK, res)
 }
 
 // UpdateUserPassword godoc
@@ -216,48 +243,51 @@ func getUserInfo(ctx *gin.Context) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/password [patch]
-func updateUserPassword(ctx *gin.Context) {
-	pack := getServices(ctx)
-	reqUser := getUserFromCtx(ctx)
+func updateUserPassword(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	updateUsername := ctx.Param("username")
+	updateUsername := chi.URLParam(r, "username")
 	updateUser := pack.UserService.Get(updateUsername)
 
 	if updateUser == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 	}
 
-	passUpd, err := readCtxBody[rest.PasswordUpdateParams](ctx)
+	passUpd, err := readCtxBody[rest.PasswordUpdateParams](w, r)
 	if err != nil {
 		return
 	}
 
-	if updateUser.GetUsername() != reqUser.GetUsername() && !reqUser.IsOwner() {
-		ctx.Status(http.StatusNotFound)
+	if updateUser.GetUsername() != u.GetUsername() && !u.IsOwner() {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	if (passUpd.OldPass == "" && !reqUser.IsOwner()) || passUpd.NewPass == "" {
-		ctx.JSON(http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Both oldPassword and newPassword fields are required"})
+	if (passUpd.OldPass == "" && !u.IsOwner()) || passUpd.NewPass == "" {
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Both oldPassword and newPassword fields are required"})
 		return
 	}
 
 	err = pack.UserService.UpdateUserPassword(
-		updateUser.GetUsername(), passUpd.OldPass, passUpd.NewPass, reqUser.IsOwner(),
+		updateUser.GetUsername(), passUpd.OldPass, passUpd.NewPass, u.IsOwner(),
 	)
 
 	if err != nil {
 		log.ShowErr(err)
 		switch {
 		case errors.Is(err, werror.ErrBadPassword):
-			ctx.Status(http.StatusForbidden)
+			w.WriteHeader(http.StatusForbidden)
 		default:
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // SetUserAdmin godoc
@@ -278,34 +308,37 @@ func updateUserPassword(ctx *gin.Context) {
 //	@Failure	403
 //	@Failure	404
 //	@Router		/users/{username}/admin [patch]
-func setUserAdmin(ctx *gin.Context) {
-	pack := getServices(ctx)
-	owner := getUserFromCtx(ctx)
+func setUserAdmin(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	owner, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if !owner.IsOwner() {
-		ctx.Status(http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	username := ctx.Param("username")
+	username := chi.URLParam(r, "username")
 	u := pack.UserService.Get(username)
 	if u == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	setAdminStr := ctx.Query("setAdmin")
+	setAdminStr := r.URL.Query().Get("setAdmin")
 	if setAdminStr == "" || (setAdminStr != "true" && setAdminStr != "false") {
-		ctx.JSON(http.StatusBadRequest, rest.WeblensErrorInfo{Error: "setAdmin query parameter is required and must be 'true' or 'false'"})
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "setAdmin query parameter is required and must be 'true' or 'false'"})
 	}
 
 	setAdmin := setAdminStr == "true"
 
-	err := pack.UserService.SetUserAdmin(u, setAdmin)
-	if werror.SafeErrorAndExit(err, ctx) {
+	err = pack.UserService.SetUserAdmin(u, setAdmin)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // ActivateUser godoc
@@ -326,24 +359,24 @@ func setUserAdmin(ctx *gin.Context) {
 //	@Failure	401
 //	@Failure	404
 //	@Router		/users/{username}/active [patch]
-func activateUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	username := ctx.Param("username")
+func activateUser(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	username := chi.URLParam(r, "username")
 	u := pack.UserService.Get(username)
 
-	setActiveStr := ctx.Query("setActive")
+	setActiveStr := r.URL.Query().Get("setActive")
 	if setActiveStr == "" || (setActiveStr != "true" && setActiveStr != "false") {
-		ctx.JSON(http.StatusBadRequest, rest.WeblensErrorInfo{Error: "setActive query parameter is required and must be 'true' or 'false'"})
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "setActive query parameter is required and must be 'true' or 'false'"})
 	}
 
 	setActive := setActiveStr == "true"
 
 	err := pack.UserService.ActivateUser(u, setActive)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // DeleteUser godoc
@@ -363,27 +396,33 @@ func activateUser(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/{username} [delete]
-func deleteUser(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func deleteUser(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if !u.IsAdmin() {
-		ctx.Status(http.StatusForbidden)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	username := ctx.Param("username")
+	username := chi.URLParam(r, "username")
 
 	deleteUser := pack.UserService.Get(username)
 	if deleteUser == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	err := pack.UserService.Del(deleteUser.GetUsername())
-	if werror.SafeErrorAndExit(err, ctx) {
+	err = pack.UserService.Del(deleteUser.GetUsername())
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // SearchUsers godoc
@@ -403,19 +442,25 @@ func deleteUser(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/users/search [get]
-func searchUsers(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	search := ctx.Query("search")
+func searchUsers(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	search := r.URL.Query().Get("search")
 	if len(search) < 2 {
-		ctx.JSON(http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Username autocomplete must contain at least 2 characters"})
+		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "Username autocomplete must contain at least 2 characters"})
 		return
 	}
 
 	users, err := pack.UserService.SearchByUsername(search)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -427,5 +472,5 @@ func searchUsers(ctx *gin.Context) {
 		usersInfo = append(usersInfo, rest.UserToUserInfo(user))
 	}
 
-	ctx.JSON(http.StatusOK, usersInfo)
+	writeJson(w, http.StatusOK, usersInfo)
 }

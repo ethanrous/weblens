@@ -13,34 +13,38 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
-func getAlbum(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getAlbum(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
+	sh, err := getShareFromCtx[*models.AlbumShare](w, r)
 
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	album := pack.AlbumService.Get(models.AlbumId(ctx.Param("albumId")))
+	album := pack.AlbumService.Get(models.AlbumId(chi.URLParam(r, "albumId")))
 	if album == nil {
-		ctx.JSON(http.StatusNotFound, werror.ErrNoAlbum)
+		writeJson(w, http.StatusNotFound, werror.ErrNoAlbum)
 		return
 	}
 
 	if !pack.AccessService.CanUserAccessAlbum(u, album, sh) {
-		ctx.JSON(http.StatusNotFound, werror.ErrNoAlbum)
+		writeJson(w, http.StatusNotFound, werror.ErrNoAlbum)
 		return
 	}
 
-	raw := ctx.Query("raw") == "true"
+	raw := r.URL.Query().Get("raw") == "true"
 
 	var medias []*models.Media
 	for media := range pack.AlbumService.GetAlbumMedias(album) {
@@ -53,31 +57,34 @@ func getAlbum(ctx *gin.Context) {
 		medias = append(medias, media)
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"albumMeta": album, "medias": medias})
+	writeJson(w, http.StatusOK, gin.H{"albumMeta": album, "medias": medias})
 }
 
-func getAlbums(ctx *gin.Context) {
-	pack := getServices(ctx)
-	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusNotFound)
+func getAlbums(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	if u == nil {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	albums, err := pack.AlbumService.GetAllByUser(user)
-	if werror.SafeErrorAndExit(err, ctx) {
+	albums, err := pack.AlbumService.GetAllByUser(u)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	// includeShared := ctx.Query("includeShared")
+	// includeShared := r.URL.Query().Get("includeShared")
 
-	filterString := ctx.Query("filter")
+	filterString := r.URL.Query().Get("filter")
 	var filter []string
 	if filterString != "" {
 		err := json.Unmarshal([]byte(filterString), &filter)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 	}
@@ -99,52 +106,58 @@ func getAlbums(ctx *gin.Context) {
 	// 	},
 	// )
 
-	ctx.JSON(http.StatusOK, gin.H{"albums": albums})
+	writeJson(w, http.StatusOK, gin.H{"albums": albums})
 }
 
-func createAlbum(ctx *gin.Context) {
-	pack := getServices(ctx)
-	user := getUserFromCtx(ctx)
-	if user == nil {
-		ctx.Status(http.StatusNotFound)
+func createAlbum(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
-	albumData, err := readCtxBody[rest.AlbumCreateBody](ctx)
+	if u == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	albumData, err := readCtxBody[rest.AlbumCreateBody](w, r)
 	if err != nil {
 		return
 	}
 
-	newAlbum := models.NewAlbum(albumData.Name, user)
+	newAlbum := models.NewAlbum(albumData.Name, u)
 	err = pack.AlbumService.Add(newAlbum)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Album creation failed"})
+		writeJson(w, http.StatusInternalServerError, gin.H{"error": "Album creation failed"})
 	}
 
-	ctx.JSON(http.StatusOK, newAlbum)
+	writeJson(w, http.StatusOK, newAlbum)
 }
 
-func updateAlbum(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
-	if werror.SafeErrorAndExit(err, ctx) {
+func updateAlbum(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	sh, err := getShareFromCtx[*models.AlbumShare](w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	albumId := models.AlbumId(ctx.Param("albumId"))
+	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
 	a := pack.AlbumService.Get(albumId)
 	if a == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
 
 	if a.GetOwner() != u.GetUsername() {
-		ctx.Status(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	update, err := readCtxBody[rest.UpdateAlbumBody](ctx)
+	update, err := readCtxBody[rest.UpdateAlbumBody](w, r)
 	if err != nil {
 		return
 	}
@@ -163,7 +176,7 @@ func updateAlbum(ctx *gin.Context) {
 		)
 
 		if len(ms) == 0 {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
+			writeJson(w, http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
 			return
 		}
 	}
@@ -188,7 +201,7 @@ func updateAlbum(ctx *gin.Context) {
 		err = pack.AlbumService.AddMediaToAlbum(a, ms...)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add media to album"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to add media to album"})
 			return
 		}
 
@@ -196,7 +209,7 @@ func updateAlbum(ctx *gin.Context) {
 			err = pack.AlbumService.SetAlbumCover(a.ID(), ms[0])
 			if err != nil {
 				log.ErrTrace(err)
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+				writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
 				return
 			}
 		}
@@ -207,7 +220,7 @@ func updateAlbum(ctx *gin.Context) {
 		err = pack.AlbumService.RemoveMediaFromAlbum(a, update.RemoveMedia...)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
 			return
 		}
 	}
@@ -215,13 +228,13 @@ func updateAlbum(ctx *gin.Context) {
 	if update.Cover != "" {
 		cover := pack.MediaService.Get(update.Cover)
 		if cover == nil {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Cover id not found"})
+			writeJson(w, http.StatusNotFound, gin.H{"error": "Cover id not found"})
 			return
 		}
 		err = pack.AlbumService.SetAlbumCover(a.ID(), cover)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
 			return
 		}
 	}
@@ -230,7 +243,7 @@ func updateAlbum(ctx *gin.Context) {
 		err := pack.AlbumService.RenameAlbum(a, update.NewName)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set album name"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to set album name"})
 			return
 		}
 	}
@@ -245,7 +258,7 @@ func updateAlbum(ctx *gin.Context) {
 
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
 			return
 		}
 	}
@@ -259,95 +272,101 @@ func updateAlbum(ctx *gin.Context) {
 		err = pack.ShareService.AddUsers(sh, users)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to share user(s)"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to share user(s)"})
 			return
 		}
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"errors": []string{}, "addedCount": addedCount})
+	writeJson(w, http.StatusOK, gin.H{"errors": []string{}, "addedCount": addedCount})
 }
 
-func deleteAlbum(ctx *gin.Context) {
-	pack := getServices(ctx)
-	user := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
-	if werror.SafeErrorAndExit(err, ctx) {
+func deleteAlbum(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	sh, err := getShareFromCtx[*models.AlbumShare](w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	if user == nil {
-		ctx.Status(http.StatusUnauthorized)
+	if u == nil {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	albumId := models.AlbumId(ctx.Param("albumId"))
+	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
 
 	a := pack.AlbumService.Get(albumId)
 
 	// err or user does not have access to this album, claim not found
-	if a == nil || !pack.AccessService.CanUserAccessAlbum(user, a, sh) {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+	if a == nil || !pack.AccessService.CanUserAccessAlbum(u, a, sh) {
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
 
 	// If the user is not the owner, then unshare them from the album
-	if a.GetOwner() != user.GetUsername() {
-		err = pack.ShareService.RemoveUsers(sh, []*models.User{user})
+	if a.GetOwner() != u.GetUsername() {
+		err = pack.ShareService.RemoveUsers(sh, []*models.User{u})
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
 			return
 		}
-		ctx.Status(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	err = pack.AlbumService.Del(albumId)
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func unshareMeAlbum(ctx *gin.Context) {
-	pack := getServices(ctx)
-	user := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.AlbumShare](ctx)
-	if werror.SafeErrorAndExit(err, ctx) {
+func unshareMeAlbum(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	sh, err := getShareFromCtx[*models.AlbumShare](w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	albumId := models.AlbumId(ctx.Param("albumId"))
+	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
 	a := pack.AlbumService.Get(albumId)
 	if a == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	if !pack.AccessService.CanUserAccessAlbum(user, a, sh) {
-		ctx.Status(http.StatusNotFound)
+	if !pack.AccessService.CanUserAccessAlbum(u, a, sh) {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	err = pack.ShareService.RemoveUsers(sh, []*models.User{user})
+	err = pack.ShareService.RemoveUsers(sh, []*models.User{u})
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func albumPreviewMedia(ctx *gin.Context) {
-	pack := getServices(ctx)
-	albumId := models.AlbumId(ctx.Param("albumId"))
+func albumPreviewMedia(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
 
 	a := pack.AlbumService.Get(albumId)
 	if a == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -364,5 +383,5 @@ func albumPreviewMedia(ctx *gin.Context) {
 		albumMs = internal.Banish(albumMs, index)
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"mediaIds": randomMs})
+	writeJson(w, http.StatusOK, gin.H{"mediaIds": randomMs})
 }

@@ -3,7 +3,9 @@ package http
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -17,13 +19,17 @@ import (
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/task"
 	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 // Create new file upload task, and wait for data
-func newUploadTask(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	upInfo, err := readCtxBody[rest.NewUploadBody](ctx)
+func newUploadTask(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	upInfo, err := readCtxBody[rest.NewUploadBody](w, r)
 	if err != nil {
 		return
 	}
@@ -44,42 +50,45 @@ func newUploadTask(ctx *gin.Context) {
 	t, err := pack.TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{"uploadId": t.TaskId()})
+	writeJson(w, http.StatusCreated, gin.H{"uploadId": t.TaskId()})
 }
 
-func newFileUpload(ctx *gin.Context) {
-	uploadTaskId := ctx.Param("uploadId")
-	newFInfo, err := readCtxBody[rest.NewFileBody](ctx)
+func newFileUpload(w http.ResponseWriter, r *http.Request) {
+	uploadTaskId := chi.URLParam(r, "uploadId")
+	newFInfo, err := readCtxBody[rest.NewFileBody](w, r)
 	if err != nil {
 		return
 	}
 
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	uTask := pack.TaskService.GetTask(uploadTaskId)
 	if uTask == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	completed, _ := uTask.Status()
 	if completed {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, nil)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	child, _ := parent.GetChild(newFInfo.NewFileName)
 	if child != nil {
-		ctx.JSON(http.StatusConflict, gin.H{"error": "File with the same name already exists in folder"})
+		writeJson(w, http.StatusConflict, gin.H{"error": "File with the same name already exists in folder"})
 		return
 	}
 
@@ -103,45 +112,45 @@ func newFileUpload(ctx *gin.Context) {
 		},
 	)
 
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"fileId": newFId})
+	writeJson(w, http.StatusCreated, gin.H{"fileId": newFId})
 }
 
 // Add chunks of file to previously created task
-func handleUploadChunk(ctx *gin.Context) {
-	pack := getServices(ctx)
-	uploadId := ctx.Param("uploadId")
+func handleUploadChunk(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	uploadId := chi.URLParam(r, "uploadId")
 
 	t := pack.TaskService.GetTask(uploadId)
 	if t == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "No upload exists with given id"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "No upload exists with given id"})
 		return
 	}
 
-	fileId := ctx.Param("fileId")
+	fileId := chi.URLParam(r, "fileId")
 
 	// We are about to read from the clientConn, which could take a while.
 	// Since we actually got this request, we know the clientConn is not abandoning us,
 	// so we can safely clear the timeout, which the task will re-enable if needed.
 	t.ClearTimeout()
 
-	chunk, err := internal.OracleReader(ctx.Request.Body, ctx.Request.ContentLength)
+	chunk, err := internal.OracleReader(r.Body, r.ContentLength)
 	if err != nil {
 		log.ShowErr(err)
 		// err = t.AddChunkToStream(fileId, nil, "0-0/-1")
 		// if err != nil {
 		// 	util.ShowErr(err)
 		// }
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
+		writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
 		return
 	}
 
 	err = t.Manipulate(
 		func(meta task.TaskMetadata) error {
-			chunkData := models.FileChunk{FileId: fileId, Chunk: chunk, ContentRange: ctx.GetHeader("Content-Range")}
+			chunkData := models.FileChunk{FileId: fileId, Chunk: chunk, ContentRange: r.Header["Content-Range"][0]}
 			meta.(models.UploadFilesMeta).ChunkStream <- chunkData
 
 			return nil
@@ -150,48 +159,51 @@ func handleUploadChunk(ctx *gin.Context) {
 
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func clearCache(ctx *gin.Context) {
-	pack := getServices(ctx)
+func clearCache(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	err := pack.MediaService.NukeCache()
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 
 }
 
-func createFileShare(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func createFileShare(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	shareInfo, err := readCtxBody[rest.NewShareBody](ctx)
+	shareInfo, err := readCtxBody[rest.NewShareBody](w, r)
 	if err != nil {
 		return
 	}
 
 	f, err := pack.FileService.GetFileSafe(shareInfo.FileId, u, nil)
 	if err != nil {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	_, err = pack.ShareService.GetFileShare(f)
 	if err == nil {
-		ctx.Status(http.StatusConflict)
+		w.WriteHeader(http.StatusConflict)
 		return
 	} else if !errors.Is(err, werror.ErrNoShare) {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -205,50 +217,53 @@ func createFileShare(ctx *gin.Context) {
 	err = pack.ShareService.Add(newShare)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, newShare)
+	writeJson(w, http.StatusCreated, newShare)
 }
 
-func deleteShare(ctx *gin.Context) {
-	pack := getServices(ctx)
-	shareId := models.ShareId(ctx.Param("shareId"))
+func deleteShare(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	shareId := models.ShareId(chi.URLParam(r, "shareId"))
 
 	s := pack.ShareService.Get(shareId)
 	if s == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	err := pack.ShareService.Del(s.ID())
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func patchShareAccessors(ctx *gin.Context) {
-	pack := getServices(ctx)
-	user := getUserFromCtx(ctx)
+func patchShareAccessors(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	share, err := getShareFromCtx[*models.FileShare](ctx)
+	share, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
 
-	if !pack.AccessService.CanUserModifyShare(user, share) {
-		ctx.Status(http.StatusNotFound)
+	if !pack.AccessService.CanUserModifyShare(u, share) {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	ub, err := readCtxBody[rest.UserListBody](ctx)
+	ub, err := readCtxBody[rest.UserListBody](w, r)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -256,7 +271,7 @@ func patchShareAccessors(ctx *gin.Context) {
 	for _, un := range ub.AddUsers {
 		u := pack.UserService.Get(un)
 		if u == nil {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find user with name " + un})
+			writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find user with name " + un})
 			return
 		}
 		addUsers = append(addUsers, u)
@@ -266,7 +281,7 @@ func patchShareAccessors(ctx *gin.Context) {
 	for _, un := range ub.RemoveUsers {
 		u := pack.UserService.Get(un)
 		if u == nil {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find user with name " + un})
+			writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find user with name " + un})
 			return
 		}
 		removeUsers = append(removeUsers, u)
@@ -276,7 +291,7 @@ func patchShareAccessors(ctx *gin.Context) {
 		err = pack.ShareService.AddUsers(share, addUsers)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
@@ -285,92 +300,93 @@ func patchShareAccessors(ctx *gin.Context) {
 		err = pack.ShareService.RemoveUsers(share, removeUsers)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func setSharePublic(ctx *gin.Context) {
-	pack := getServices(ctx)
-	user := getUserFromCtx(ctx)
+func setSharePublic(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	share, err := getShareFromCtx[*models.FileShare](ctx)
+	share, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
 
-	if !pack.AccessService.CanUserModifyShare(user, share) {
-		ctx.Status(http.StatusNotFound)
+	if !pack.AccessService.CanUserModifyShare(u, share) {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	pub, err := readCtxBody[rest.SharePublicityBody](ctx)
+	pub, err := readCtxBody[rest.SharePublicityBody](w, r)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	err = pack.ShareService.SetSharePublic(share, pub.Public)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-
-
-func getRandomMedias(ctx *gin.Context) {
-	ctx.Status(http.StatusNotImplemented)
+func getRandomMedias(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
 	return
-	// numStr := ctx.Query("count")
+	// numStr := r.URL.Query().Get("count")
 	// numPhotos, err := strconv.Atoi(numStr)
 	// if err != nil {
-	// 	ctx.Status(comm.StatusBadRequest)
+	// 	w.WriteHeader(comm.StatusBadRequest)
 	// 	return
 	// }
 
 	// media := media.GetRandomMedia(numPhotos)
-	// ctx.JSON(comm.StatusOK, gin.H{"medias": media})
+	// writeJson(w, comm.StatusOK, gin.H{"medias": media})
 }
 
-func initializeServer(ctx *gin.Context) {
-	pack := getServices(ctx)
+func initializeServer(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	// Can't init server if already initialized
 	role := pack.InstanceService.GetLocal().GetRole()
-	if role != models.InitServer {
-		ctx.Status(http.StatusNotFound)
+	if role != models.InitServerRole {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	initBody, err := readCtxBody[rest.InitServerBody](ctx)
+	initBody, err := readCtxBody[rest.InitServerBody](w, r)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if initBody.Role == models.CoreServer {
+	if initBody.Role == models.CoreServerRole {
 		if initBody.Name == "" || initBody.Username == "" || initBody.Password == "" {
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		err = pack.InstanceService.InitCore(initBody.Name)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		users, err := pack.UserService.GetAll()
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
@@ -384,22 +400,38 @@ func initializeServer(ctx *gin.Context) {
 		owner, err := pack.UserService.CreateOwner(initBody.Username, initBody.Password)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		token, expires, err := pack.AccessService.GenerateJwtToken(owner)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		cookie := fmt.Sprintf("%s=%s; expires=%s;", SessionTokenCookie, token, expires.Format(time.RFC1123))
-		ctx.Header("Set-Cookie", cookie)
-	} else if initBody.Role == models.BackupServer {
+		w.Header().Set("Set-Cookie", cookie)
+
+		// hasherFactory := func() fileTree.Hasher {
+		// 	return models.NewHasher(pack.TaskService, pack.Caster)
+		// }
+		//
+		// journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), pack.InstanceService.GetLocal().ServerId(), false, hasherFactory)
+		// if SafeErrorAndExit(err, w) {
+		// 	return
+		// }
+		//
+		// usersTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), "users"), "USERS", journal, false)
+		// if SafeErrorAndExit(err, w) {
+		// 	return
+		// }
+		// pack.FileService.AddTree(usersTree)
+		pack.Server.Restart()
+	} else if initBody.Role == models.BackupServerRole {
 		if initBody.Name == "" {
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if initBody.CoreAddress[len(initBody.CoreAddress)-1:] != "/" {
@@ -409,58 +441,58 @@ func initializeServer(ctx *gin.Context) {
 		// Initialize the server as backup
 		err = pack.InstanceService.InitBackup(initBody.Name, initBody.CoreAddress, initBody.CoreKey)
 		if err != nil {
-			pack.InstanceService.GetLocal().SetRole(models.InitServer)
+			pack.InstanceService.GetLocal().SetRole(models.InitServerRole)
 			log.ShowErr(err)
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
+		writeJson(w, http.StatusCreated, pack.InstanceService.GetLocal())
 
-		go pack.Server.Restart()
+		// go pack.Server.Restart()
 		return
-	} else if initBody.Role == models.RestoreServer {
+	} else if initBody.Role == models.RestoreServerRole {
 		local := pack.InstanceService.GetLocal()
-		if local.Role == models.RestoreServer {
-			ctx.Status(http.StatusOK)
+		if local.Role == models.RestoreServerRole {
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
 		err = pack.AccessService.AddApiKey(initBody.UsingKeyInfo)
 		if err != nil && !errors.Is(err, werror.ErrKeyAlreadyExists) {
 			safe, code := werror.TrySafeErr(err)
-			ctx.JSON(code, safe)
+			writeJson(w, code, safe)
 			return
 		}
 
-		local.SetRole(models.RestoreServer)
+		local.SetRole(models.RestoreServerRole)
 		pack.Caster.PushWeblensEvent(models.RestoreStartedEvent)
 
 		hasherFactory := func() fileTree.Hasher {
 			return models.NewHasher(pack.TaskService, pack.Caster)
 		}
 		journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), initBody.LocalId, false, hasherFactory)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		usersTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), "users"), "USERS", journal, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		pack.FileService.AddTree(usersTree)
 
-		pack.Server.UseRestore()
-		pack.Server.UseApi()
+		// pack.Server.UseRestore()
+		// pack.Server.UseApi()
 
-		ctx.Status(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 		return
 	} else {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, pack.InstanceService.GetLocal())
-	go pack.Server.Restart()
+	writeJson(w, http.StatusCreated, pack.InstanceService.GetLocal())
+	// go pack.Server.Restart()
 }
 
 // GetServerInfo godoc
@@ -472,10 +504,10 @@ func initializeServer(ctx *gin.Context) {
 //	@Produce	json
 //	@Success	200 {object}	rest.ServerInfo	"Server info"
 //	@Router		/info [get]
-func getServerInfo(ctx *gin.Context) {
-	pack := getServices(ctx)
+func getServerInfo(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	// if  pack.InstanceService.GetLocal().ServerRole() == types.Initialization {
-	// 	ctx.JSON(comm.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
+	// 	writeJson(w, comm.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
 	// 	return
 	// }
 	var userCount int
@@ -487,26 +519,34 @@ func getServerInfo(ctx *gin.Context) {
 	serverInfo.Started = pack.Loaded.Load()
 	serverInfo.UserCount = userCount
 
-	ctx.JSON(
+	writeJson(w,
 		http.StatusOK,
 		serverInfo,
 	)
 }
 
-func resetServer(ctx *gin.Context) {
-	pack := getServices(ctx)
+func resetServer(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	err := pack.InstanceService.ResetAll()
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 
-	pack.Server.Restart()
+	// pack.Server.Restart()
 }
 
-func serveStaticContent(ctx *gin.Context) {
-	filename := ctx.Param("filename")
+func serveStaticContent(w http.ResponseWriter, r *http.Request) {
+	filename := chi.URLParam(r, "filename")
 	fullPath := env.GetAppRootDir() + "/static/" + filename
-	ctx.File(fullPath)
+	f, err := os.Open(fullPath)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	_, err = io.Copy(w, f)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 }

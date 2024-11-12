@@ -287,10 +287,16 @@ class WeblensMedia {
         signal: AbortSignal,
         pageNumber?: number
     ) {
-        return MediaApi.getMediaImage(this.contentId, quality, pageNumber, {
-            responseType: 'blob',
-            signal: signal,
-        })
+        return MediaApi.getMediaImage(
+            this.contentId,
+            'webp',
+            quality,
+            pageNumber,
+            {
+                responseType: 'blob',
+                signal: signal,
+            }
+        )
             .then((res) => {
                 if (res.status !== 200) {
                     return Promise.reject(res.statusText)

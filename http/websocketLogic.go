@@ -13,7 +13,6 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/task"
-	"github.com/gin-gonic/gin"
 	gorilla "github.com/gorilla/websocket"
 )
 
@@ -29,41 +28,50 @@ var upgrader = gorilla.Upgrader{
 	},
 }
 
-func wsConnect(ctx *gin.Context) {
-	pack := getServices(ctx)
+func wsConnect(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	if pack.ClientService == nil || pack.AccessService == nil {
-		ctx.Status(http.StatusServiceUnavailable)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 
-	ctx.Status(http.StatusSwitchingProtocols)
-	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	if err != nil {
-		log.ErrTrace(err)
+	var u *models.User
+	var err error
+	var server *models.Instance
+	getServer := r.URL.Query().Get("server") == "true"
+	if getServer {
+		server = getInstanceFromCtx(r)
+		if server == nil {
+			log.Error.Println("Got server websocket query but no server in context")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	} else {
+		u, err = getUserFromCtx(w, r)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	usr := getUserFromCtx(ctx)
-	server := getInstanceFromCtx(ctx)
-
-	if ctx.Query("server") == "true" && server == nil {
-		log.Error.Println("Got server websocket query but no server in context")
-		ctx.Status(http.StatusUnauthorized)
-		return
-	}
-	log.Debug.Println("Got websocket connection", server == nil, usr == nil)
+	log.Debug.Println("Got websocket connection", server == nil, u == nil)
 
 	var client *models.WsClient
 	if server != nil {
 		client = pack.ClientService.RemoteConnect(conn, server)
-	} else if usr != nil {
-		client = pack.ClientService.ClientConnect(conn, usr)
+	} else if u != nil {
+		client = pack.ClientService.ClientConnect(conn, u)
 	} else {
 		// this should not happen
 		log.Error.Println("Did not get valid websocket client")
 		return
 	}
 
+	w.WriteHeader(http.StatusSwitchingProtocols)
 	go wsMain(client, pack)
 }
 
@@ -94,7 +102,7 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
 	defer wsRecover(c)
 
-	if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
 		c.Error(werror.ErrServerNotInitialized)
 		return
 	}
@@ -154,9 +162,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			if complete {
 				pack.Caster.PushTaskUpdate(
-					pack.TaskService.GetTask(subInfo.GetKey()), models.TaskCompleteEvent,
-					result,
-				)
+					pack.TaskService.GetTask(subInfo.GetKey()), models.TaskCompleteEvent, result)
 			}
 		}
 	case models.TaskSubscribe:
@@ -208,7 +214,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 	case models.ScanDirectory:
 		{
-			if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+			if pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 				return
 			}
 
@@ -329,7 +335,7 @@ func onWebConnect(c models.Client, pack *models.ServicePack) {
 		c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 	}
 
-	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 		for _, backupTask := range pack.TaskService.GetTasksByJobName(models.BackupTask) {
 			r := backupTask.GetResults()
 			if len(r) == 0 {

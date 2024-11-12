@@ -99,7 +99,7 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 		t.FailNow()
 	}
 
-	local := models.NewInstance("", "test-instance", "", models.CoreServer, true, "", "")
+	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
 	_, err = acc.GenerateApiKey(billUser, local)
 	assert.Error(t, err)
@@ -153,12 +153,12 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 		t.FailNow()
 	}
 
-	local := models.NewInstance("", "test-instance", "", models.CoreServer, true, "", "")
+	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
 	key, err := acc.GenerateApiKey(billUser, local)
 	require.NoError(t, err)
 
-	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServer, false, "", t.Name())
+	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServerRole, false, "", t.Name())
 
 	err = acc.SetKeyUsedBy(key.Key, backupServer)
 	require.NoError(t, err)

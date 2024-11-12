@@ -14,10 +14,10 @@ type InstanceId = string
 type ServerRole = string
 
 const (
-	InitServer    ServerRole = "init"
-	CoreServer    ServerRole = "core"
-	BackupServer  ServerRole = "backup"
-	RestoreServer ServerRole = "restore"
+	InitServerRole    ServerRole = "init"
+	CoreServerRole    ServerRole = "core"
+	BackupServerRole  ServerRole = "backup"
+	RestoreServerRole ServerRole = "restore"
 )
 
 // An "Instance" is a single Weblens server.
@@ -86,7 +86,7 @@ func (wi *Instance) IsLocal() bool {
 }
 
 func (wi *Instance) IsCore() bool {
-	return wi.Role == CoreServer
+	return wi.Role == CoreServerRole
 }
 
 func (wi *Instance) ServerId() InstanceId {
@@ -131,14 +131,14 @@ func (wi *Instance) SetReportedRole(role ServerRole) {
 }
 
 func (wi *Instance) GetAddress() (string, error) {
-	if wi.Role != CoreServer {
+	if wi.Role != CoreServerRole {
 		return "", werror.WithStack(werror.Errorf("Cannot get address of non-core instance"))
 	}
 	return wi.Address, nil
 }
 
 func (wi *Instance) SetAddress(address string) error {
-	if wi.Role != CoreServer {
+	if wi.Role != CoreServerRole {
 		return werror.WithStack(werror.Errorf("Cannot set address of non-core instance"))
 	}
 	wi.Address = address

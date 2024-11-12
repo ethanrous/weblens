@@ -344,6 +344,8 @@ definitions:
         type: string
       owner:
         type: boolean
+      token:
+        type: string
       trashId:
         type: string
       username:
@@ -360,6 +362,8 @@ definitions:
       owner:
         type: boolean
       password:
+        type: string
+      token:
         type: string
       trashId:
         type: string
@@ -412,10 +416,10 @@ definitions:
     - restore
     type: string
     x-enum-varnames:
-    - InitServer
-    - CoreServer
-    - BackupServer
-    - RestoreServer
+    - InitServerRole
+    - CoreServerRole
+    - BackupServerRole
+    - RestoreServerRole
   models.ShareType:
     enum:
     - file
@@ -1046,13 +1050,18 @@ paths:
       summary: Get paginated media
       tags:
       - Media
-  /media/{mediaId}:
+  /media/{mediaId}.{extension}:
     get:
       operationId: GetMediaImage
       parameters:
       - description: Media Id
         in: path
         name: mediaId
+        required: true
+        type: string
+      - description: Extension
+        in: path
+        name: extension
         required: true
         type: string
       - description: Image Quality

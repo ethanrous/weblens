@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
+	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -80,10 +81,9 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 type Server interface {
 	Start()
-	UseInit()
 	UseInterserverRoutes()
 	UseRestore()
-	UseApi()
+	UseApi() *chi.Mux
 	Restart()
 	Stop()
 }

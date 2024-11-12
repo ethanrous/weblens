@@ -17,6 +17,7 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 // GetMedia godoc
@@ -35,27 +36,30 @@ import (
 //	@Success	400
 //	@Success	500
 //	@Router		/media [get]
-func getMediaBatch(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-
-	folderIdsStr := ctx.Query("folderIds")
-	if folderIdsStr != "" {
-		var folderIds []fileTree.FileId
-		err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
-		if werror.SafeErrorAndExit(err, ctx) {
-			return
-		}
-
-		getMediaInFolders(pack, u, folderIds, ctx)
+func getMediaBatch(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	mediaIdsStr := ctx.Query("mediaIds")
+	folderIdsStr := r.URL.Query().Get("folderIds")
+	if folderIdsStr != "" {
+		var folderIds []fileTree.FileId
+		err := json.Unmarshal([]byte(folderIdsStr), &folderIds)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		getMediaInFolders(pack, u, folderIds, w, r)
+		return
+	}
+
+	mediaIdsStr := r.URL.Query().Get("mediaIds")
 	if mediaIdsStr != "" {
 		var mediaIds []fileTree.FileId
 		err := json.Unmarshal([]byte(mediaIdsStr), &mediaIds)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
@@ -64,25 +68,24 @@ func getMediaBatch(ctx *gin.Context) {
 			medias = append(medias, pack.MediaService.Get(mId))
 		}
 
-		getMediaInFolders(pack, u, mediaIds, ctx)
-		ctx.JSON(http.StatusOK, rest.MediaBatchInfo{Media: medias})
+		getMediaInFolders(pack, u, mediaIds, w, r)
+		writeJson(w, http.StatusOK, rest.MediaBatchInfo{Media: medias})
 		return
 	}
 
-	sort := ctx.Query("sort")
+	sort := r.URL.Query().Get("sort")
 	if sort == "" {
 		sort = "createDate"
 	}
 
-	raw := ctx.Query("raw") == "true"
-	hidden := ctx.Query("hidden") == "true"
+	raw := r.URL.Query().Get("raw") == "true"
+	hidden := r.URL.Query().Get("hidden") == "true"
 
 	var page int64
-	var err error
-	pageStr := ctx.Query("page")
+	pageStr := r.URL.Query().Get("page")
 	if pageStr != "" {
 		page, err = strconv.ParseInt(pageStr, 10, 32)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	} else {
@@ -90,10 +93,10 @@ func getMediaBatch(ctx *gin.Context) {
 	}
 
 	var limit int64
-	limitStr := ctx.Query("limit")
+	limitStr := r.URL.Query().Get("limit")
 	if limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 32)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	} else {
@@ -101,10 +104,10 @@ func getMediaBatch(ctx *gin.Context) {
 	}
 
 	var albumFilter []models.AlbumId
-	albumsStr := ctx.Query("albums")
+	albumsStr := r.URL.Query().Get("albums")
 	if albumsStr != "" {
 		err = json.Unmarshal([]byte(albumsStr), &albumFilter)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	}
@@ -116,7 +119,7 @@ func getMediaBatch(ctx *gin.Context) {
 	}
 
 	ms, err := pack.MediaService.GetFilteredMedia(u, sort, 1, mediaFilter, raw, hidden)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -129,7 +132,7 @@ func getMediaBatch(ctx *gin.Context) {
 
 	res := rest.MediaBatchInfo{Media: slicedMs, MediaCount: len(ms)}
 
-	ctx.JSON(http.StatusOK, res)
+	writeJson(w, http.StatusOK, res)
 }
 
 // GetMediaTypes godoc
@@ -141,9 +144,9 @@ func getMediaBatch(ctx *gin.Context) {
 //	@Produce	json
 //	@Success	200	{object}	rest.MediaTypeInfo	"Media types"
 //	@Router		/media/types  [get]
-func getMediaTypes(ctx *gin.Context) {
-	pack := getServices(ctx)
-	ctx.JSON(http.StatusOK, pack.MediaService.GetMediaTypes())
+func getMediaTypes(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	writeJson(w, http.StatusOK, pack.MediaService.GetMediaTypes())
 }
 
 // GetMediaInfo godoc
@@ -156,16 +159,16 @@ func getMediaTypes(ctx *gin.Context) {
 //	@Param		mediaId	path		string			true	"Media Id"
 //	@Success	200		{object}	models.Media	"Media Info"
 //	@Router		/media/{mediaId}/info [get]
-func getMediaInfo(ctx *gin.Context) {
-	pack := getServices(ctx)
-	mediaId := ctx.Param("mediaId")
+func getMediaInfo(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	mediaId := chi.URLParam(r, "mediaId")
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, m)
+	writeJson(w, http.StatusOK, m)
 }
 
 // GetMediaImage godoc
@@ -175,45 +178,51 @@ func getMediaInfo(ctx *gin.Context) {
 //	@Summary	Get a media image bytes
 //	@Tags		Media
 //	@Produce	image/webp, image/png, image/jpeg
-//	@Param		mediaId	path		string	true	"Media Id"
-//	@Param		quality	query		string	true	"Image Quality"	Enums(thumbnail, fullres)
-//	@Param		page	query		int		false	"Page number"
-//	@Success	200		{string}	binary	"image bytes"
+//	@Param		mediaId		path		string	true	"Media Id"
+//	@Param		extension	path		string	true	"Extension"
+//	@Param		quality		query		string	true	"Image Quality"	Enums(thumbnail, fullres)
+//	@Param		page		query		int		false	"Page number"
+//	@Success	200			{string}	binary	"image bytes"
 //	@Success	500
-//	@Router		/media/{mediaId} [get]
-func getMediaImage(ctx *gin.Context) {
-	quality := models.MediaQuality(ctx.Query("quality"))
-	getProcessedMedia(ctx, quality, "")
+//	@Router		/media/{mediaId}.{extension} [get]
+func getMediaImage(w http.ResponseWriter, r *http.Request) {
+	quality := models.MediaQuality(r.URL.Query().Get("quality"))
+	format := chi.URLParam(r, "extension")
+	getProcessedMedia(quality, format, w, r)
 }
 
-func streamVideo(ctx *gin.Context) {
-	pack := getServices(ctx)
-	// u := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.FileShare](ctx)
+func streamVideo(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	// u, err := getUserFromCtx(w, r)
+	// if SafeErrorAndExit(err, w) {
+	// 	return
+	// }
+
+	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	mediaId := ctx.Param("mediaId")
+	mediaId := chi.URLParam(r, "mediaId")
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if !pack.MediaService.GetMediaType(m).IsVideo() {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "media is not of type video"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "media is not of type video"})
 		return
 	}
 
 	streamer, err := pack.MediaService.StreamVideo(m, pack.UserService.GetRootUser(), sh)
 	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	chunkName := ctx.Param("chunkName")
+	chunkName := chi.URLParam(r, "chunkName")
 	if chunkName != "" {
-		ctx.File(streamer.GetEncodeDir() + chunkName)
+		http.ServeFile(w, r, streamer.GetEncodeDir()+chunkName)
 		return
 	}
 
@@ -222,7 +231,7 @@ func streamVideo(ctx *gin.Context) {
 		_, err := os.Stat(playlistFilePath)
 		if streamer.Err() != nil {
 			log.ShowErr(streamer.Err())
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		if err != nil {
@@ -231,7 +240,7 @@ func streamVideo(ctx *gin.Context) {
 			break
 		}
 	}
-	ctx.File(playlistFilePath)
+	http.ServeFile(w, r, playlistFilePath)
 }
 
 // SetMediaVisibility godoc
@@ -247,20 +256,20 @@ func streamVideo(ctx *gin.Context) {
 //	@Success	404
 //	@Success	500
 //	@Router		/media/visibility [patch]
-func hideMedia(ctx *gin.Context) {
-	pack := getServices(ctx)
-	body, err := readCtxBody[rest.MediaIdsParams](ctx)
+func hideMedia(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	body, err := readCtxBody[rest.MediaIdsParams](w, r)
 	if err != nil {
 		return
 	}
 
-	hidden := ctx.Query("hidden") == "true"
+	hidden := r.URL.Query().Get("hidden") == "true"
 
 	medias := make([]*models.Media, len(body.MediaIds))
 	for i, mId := range body.MediaIds {
 		m := pack.MediaService.Get(mId)
 		if m == nil {
-			ctx.Status(http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		medias[i] = m
@@ -270,24 +279,24 @@ func hideMedia(ctx *gin.Context) {
 		err = pack.MediaService.HideMedia(m, hidden)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func adjustMediaDate(ctx *gin.Context) {
-	pack := getServices(ctx)
-	body, err := readCtxBody[rest.MediaTimeBody](ctx)
+func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	body, err := readCtxBody[rest.MediaTimeBody](w, r)
 	if err != nil {
 		return
 	}
 
 	anchor := pack.MediaService.Get(body.AnchorId)
 	if anchor == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	extras := internal.Map(
@@ -297,42 +306,45 @@ func adjustMediaDate(ctx *gin.Context) {
 	err = pack.MediaService.AdjustMediaDates(anchor, body.NewTime, extras)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func likeMedia(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func likeMedia(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
-		ctx.Status(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	mediaId := ctx.Param("mediaId")
-	liked := ctx.Query("liked") == "true"
+	mediaId := chi.URLParam(r, "mediaId")
+	liked := r.URL.Query().Get("liked") == "true"
 
-	err := pack.MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
+	err = pack.MediaService.SetMediaLiked(mediaId, liked, u.GetUsername())
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // Helper function
-func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []string, ctx *gin.Context) {
+func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []string, w http.ResponseWriter, r *http.Request) {
 	var folders []*fileTree.WeblensFileImpl
 	for _, folderId := range folderIds {
 		f, err := pack.FileService.GetFileSafe(folderId, u, nil)
 		if err != nil {
 			log.ShowErr(err)
-			ctx.Status(http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		folders = append(folders, f)
@@ -340,35 +352,37 @@ func getMediaInFolders(pack *models.ServicePack, u *models.User, folderIds []str
 
 	res := rest.MediaBatchInfo{Media: pack.MediaService.RecursiveGetMedia(folders...)}
 
-	ctx.JSON(http.StatusOK, res)
+	writeJson(w, http.StatusOK, res)
 }
 
 // Helper function
-func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	mediaId := ctx.Param("mediaId")
+func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	mediaId := chi.URLParam(r, "mediaId")
 
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Media with given ID not found"})
 		return
 	}
 
 	var pageNum int
-	var err error
 	if q == models.HighRes && m.PageCount > 1 {
-		pageString := ctx.Query("page")
+		pageString := r.URL.Query().Get("page")
 		pageNum, err = strconv.Atoi(pageString)
 		if err != nil {
 			log.Debug.Println("Bad page number trying to get fullres multi-page image")
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "bad page number"})
+			writeJson(w, http.StatusBadRequest, gin.H{"error": "bad page number"})
 			return
 		}
 	}
 
 	if q == models.Video && !pack.MediaService.GetMediaType(m).IsVideo() {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "media type is not video"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "media type is not video"})
 		return
 	}
 
@@ -388,21 +402,21 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 			_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
 			if err != nil {
 				log.ShowErr(err)
-				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to launch process media task"})
+				writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to launch process media task"})
 				return
 			}
-			ctx.Status(http.StatusNoContent)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		} else {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 			return
 		}
 	}
 
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
+		writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to get media content"})
 		return
 	}
 
@@ -411,19 +425,19 @@ func getProcessedMedia(ctx *gin.Context, q models.MediaQuality, format string) {
 		bs, err = image.Convert(bimg.PNG)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to convert image to PNG"})
+			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to convert image to PNG"})
 			return
 		}
 	}
 
-	ctx.Header("Cache-Control", "max-age=3600")
+	w.Header().Set("Cache-Control", "max-age=3600")
 
-	ctx.Status(http.StatusOK)
-	_, err = ctx.Writer.Write(bs)
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(bs)
 
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }

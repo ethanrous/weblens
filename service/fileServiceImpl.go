@@ -491,7 +491,7 @@ func (fs *FileServiceImpl) DeleteFiles(
 
 	deleteEvent := tree.GetJournal().NewEvent()
 
-	if fs.instanceService.GetLocal().Role == models.BackupServer {
+	if fs.instanceService.GetLocal().Role == models.BackupServerRole {
 		for _, file := range files {
 			err := tree.Delete(file.ID(), deleteEvent)
 			if err != nil {
@@ -528,7 +528,6 @@ func (fs *FileServiceImpl) DeleteFiles(
 					if err != nil {
 						return err
 					}
-					log.Debug.Println("PUSHING DELETE")
 					caster.PushFileDelete(preDeleteFile)
 
 					return nil
@@ -579,7 +578,6 @@ func (fs *FileServiceImpl) DeleteFiles(
 						)
 					}
 				}
-				log.Debug.Println("PUSHING DELETE")
 				caster.PushFileDelete(preDeleteFile)
 
 				return nil
@@ -981,6 +979,7 @@ func (fs *FileServiceImpl) GetUsersRoot() *fileTree.WeblensFileImpl {
 func (fs *FileServiceImpl) GetJournalByTree(treeName string) fileTree.Journal {
 	tree := fs.trees[treeName]
 	if tree == nil {
+		log.Error.Printf("No tree with name %s", treeName)
 		return nil
 	}
 	return tree.GetJournal()
@@ -1096,7 +1095,7 @@ func (fs *FileServiceImpl) PathToFile(searchPath string) (*fileTree.WeblensFileI
 	//
 	// folder, err := fs.GetFileSafe(folderId, u, share)
 	// if err != nil {
-	// 	// ctx.JSON(http.StatusOK, gin.H{"children": []string{}, "folder": nil})
+	// 	// writeJson(w, http.StatusOK, gin.H{"children": []string{}, "folder": nil})
 	// 	return nil, nil, err
 	// }
 	//

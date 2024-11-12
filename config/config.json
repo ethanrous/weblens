@@ -56,7 +56,7 @@
         "mongodbName": "weblens-core",
         "mongodbUri": "mongodb://localhost:27017",
         "logLevel": "debug",
-        "detachUi": true,
+        "detachUi": false,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
         "proxyAddress": "http://local.weblens.io:8080",

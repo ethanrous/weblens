@@ -1,17 +1,30 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
-	"github.com/ethanrous/weblens/internal/metrics"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
-	"github.com/gin-gonic/gin"
+)
+
+const SessionTokenCookie = "weblens-session-token"
+
+type ContextKey string
+
+const (
+	UserKey        ContextKey = "user"
+	ServerKey      ContextKey = "server"
+	AllowPublicKey ContextKey = "allow_public"
+	ServicesKey    ContextKey = "services"
+	FuncNameKey    ContextKey = "func_name"
 )
 
 func ParseUserLogin(authHeader string, authService models.AccessService) (*models.User, error) {
@@ -50,157 +63,177 @@ func ParseApiKeyLogin(authHeader string, pack *models.ServicePack) (
 	usr := pack.UserService.Get(key.Owner)
 	return usr, nil, nil
 }
-
-func withServices(pack *models.ServicePack) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Set("services", pack)
-		c.Next()
+func WithServices(pack *models.ServicePack) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = r.WithContext(context.WithValue(r.Context(), ServicesKey, pack))
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 
-func AllowPublic() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Set("allow_public", true)
-		c.Next()
-	}
+func AllowPublic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = r.WithContext(context.WithValue(r.Context(), AllowPublicKey, true))
+		next.ServeHTTP(w, r)
+	})
 }
 
-func RequireAdmin() gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		userI, ok := c.Get("user")
-		if !ok {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		user, ok := userI.(*models.User)
-		if !ok {
-			log.Error.Println(werror.Errorf("Could not assert user from context in RequireAdmin"))
-			c.AbortWithStatus(http.StatusInternalServerError)
+func RequireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := getInstanceFromCtx(r)
+		if server != nil {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		if !user.IsAdmin() {
-			c.AbortWithStatus(http.StatusForbidden)
+		u, err := getUserFromCtx(w, r)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
-		c.Next()
-	}
+		if u != nil && u.IsAdmin() {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		log.Error.Println("Unauthorized request")
+		w.WriteHeader(http.StatusForbidden)
+	})
 }
 
-const SessionTokenCookie = "weblens-session-token"
+func WithFuncName(next http.Handler) http.Handler {
+	if log.GetLogLevel() >= log.DEBUG {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Debug.Println("Setting func name")
+			funcName := runtime.FuncForPC(reflect.ValueOf(next).Pointer()).Name()
+			funcName = funcName[strings.LastIndex(funcName, "/")+1 : strings.LastIndex(funcName, ".")]
+			r = r.WithContext(context.WithValue(r.Context(), FuncNameKey, funcName))
+			next.ServeHTTP(w, r)
+		})
+	}
+	return next
+}
 
-func WeblensAuth(pack *models.ServicePack) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		metrics.RequestsCounter.Inc()
+func WeblensAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pack := getServices(r)
 
 		// If we are still starting, allow all unauthenticated requests,
 		// but everyone is the public user
-		if !pack.Loaded.Load() || pack.InstanceService.GetLocal().GetRole() == models.InitServer {
-			c.Set("user", pack.UserService.GetPublicUser())
+		if !pack.Loaded.Load() || pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
+			r = r.WithContext(context.WithValue(r.Context(), UserKey, pack.UserService.GetPublicUser()))
 			log.Trace.Println("Allowing unauthenticated request")
-			c.Next()
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		sessionToken, err := c.Cookie(SessionTokenCookie)
+		sessionCookie, err := r.Cookie(SessionTokenCookie)
 
-		if len(sessionToken) != 0 && err == nil {
-			usr, err := ParseUserLogin(sessionToken, pack.AccessService)
+		if sessionCookie != nil && len(sessionCookie.Value) != 0 && err == nil {
+			usr, err := ParseUserLogin(sessionCookie.Value, pack.AccessService)
 			if err != nil {
 				log.ShowErr(err)
 				if errors.Is(err, werror.ErrTokenExpired) {
 					cookie := fmt.Sprintf("%s=;Path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
-					c.Header("Set-Cookie", cookie)
+					w.Header().Set("Set-Cookie", cookie)
 				}
-				c.AbortWithStatus(http.StatusUnauthorized)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
 			log.Trace.Printf("User [%s] authenticated", usr.GetUsername())
 
-			c.Set("user", usr)
-			c.Next()
+			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		authHeader := c.GetHeader("Authorization")
+		authHeader := r.Header["Authorization"]
 		if len(authHeader) != 0 {
-			usr, server, err := ParseApiKeyLogin(authHeader, pack)
+			usr, server, err := ParseApiKeyLogin(authHeader[0], pack)
 			if err != nil {
 				log.ShowErr(err)
-				c.AbortWithStatus(http.StatusUnauthorized)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
 			if server != nil {
-				c.Set("server", server)
+				r = r.WithContext(context.WithValue(r.Context(), ServerKey, server))
+
 			} else {
-				c.Set("user", usr)
+				r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			}
-			c.Next()
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
-			c.AbortWithStatus(http.StatusUnauthorized)
+		if pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		if !c.GetBool("allow_public") {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
+		// allowPublic, ok := r.Context().Value("allow_public").(bool)
+		// if !ok || !allowPublic {
+		// 	w.WriteHeader(http.StatusUnauthorized)
+		// 	return
+		// }
 
-		c.Set("user", pack.UserService.GetPublicUser())
-		c.Next()
-	}
+		r = r.WithContext(context.WithValue(r.Context(), UserKey, pack.UserService.GetPublicUser()))
+		next.ServeHTTP(w, r)
+	})
 }
 
-func KeyOnlyAuth(pack *models.ServicePack) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.Request.Header["Authorization"]
+func KeyOnlyAuth(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pack, ok := r.Context().Value(ServicesKey).(*models.ServicePack)
+		if pack == nil || !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Error.Println(werror.Errorf("Could not assert services from context in WeblensAuth"))
+			return
+		}
+
+		authHeader := r.Header["Authorization"]
 		if len(authHeader) != 0 {
 			_, server, err := ParseApiKeyLogin(authHeader[0], pack)
 			if err != nil {
 				log.ShowErr(err)
-				c.AbortWithStatus(http.StatusUnauthorized)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			if server == nil {
 				log.Warning.Println(werror.Errorf("Got nil server in KeyOnlyAuth"))
-				c.AbortWithStatus(http.StatusUnauthorized)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
-			c.Set("server", server)
-			c.Next()
+			r = r.WithContext(context.WithValue(r.Context(), ServerKey, server))
+			next.ServeHTTP(w, r)
 			return
 		} else {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	}
+	})
 }
 
-func CORSMiddleware() gin.HandlerFunc {
+func CORSMiddleware(next http.Handler) http.Handler {
 	host := env.GetProxyAddress()
 	// host = "http://local.weblens.io:8080"
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", host)
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set(
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", host)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set(
 			"Access-Control-Allow-Headers",
 			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
 		)
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 
-		c.Next()
-	}
+		next.ServeHTTP(w, r)
+	})
 }

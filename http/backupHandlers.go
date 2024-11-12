@@ -8,24 +8,22 @@ import (
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
-	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/service/mock"
-	"github.com/gin-gonic/gin"
 )
 
-func attachNewCoreRemote(ctx *gin.Context) {
-	pack := getServices(ctx)
+func attachNewCoreRemote(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 
-	body, err := readCtxBody[rest.NewCoreBody](ctx)
+	body, err := readCtxBody[rest.NewCoreBody](w, r)
 	if err != nil {
 		return
 	}
 
 	newCore, err := pack.InstanceService.AttachRemoteCore(body.CoreAddress, body.UsingKey)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -33,26 +31,26 @@ func attachNewCoreRemote(ctx *gin.Context) {
 	newTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), newCore.ServerId()), newCore.ServerId(), mockJournal, false)
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	pack.FileService.AddTree(newTree)
 
 	err = WebsocketToCore(newCore, pack)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func launchBackup(ctx *gin.Context) {
-	pack := getServices(ctx)
+func launchBackup(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 
-	serverId := ctx.Query("serverId")
+	serverId := r.URL.Query().Get("serverId")
 	if serverId == "" {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -68,57 +66,60 @@ func launchBackup(ctx *gin.Context) {
 		err := client.Send(msg)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
 		core := pack.InstanceService.GetByInstanceId(serverId)
 		if core == nil {
-			ctx.Status(http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		t, err := jobs.BackupOne(core, pack)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		user := getUserFromCtx(ctx)
-		log.Debug.Printf("User: %s", user.GetUsername())
-		wsClient := pack.ClientService.GetClientByUsername(user.GetUsername())
+		u, err := getUserFromCtx(w, r)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+		log.Debug.Printf("User: %s", u.GetUsername())
+		wsClient := pack.ClientService.GetClientByUsername(u.GetUsername())
 
 		_, _, err = pack.ClientService.Subscribe(
 			wsClient, t.TaskId(), models.TaskSubscribe, time.Now(), nil,
 		)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func restoreToCore(ctx *gin.Context) {
-	restoreInfo, err := readCtxBody[rest.RestoreCoreBody](ctx)
+func restoreToCore(w http.ResponseWriter, r *http.Request) {
+	restoreInfo, err := readCtxBody[rest.RestoreCoreBody](w, r)
 
 	if err != nil {
 		return
 	}
 
-	pack := getServices(ctx)
+	pack := getServices(r)
 
 	core := pack.InstanceService.GetByInstanceId(restoreInfo.ServerId)
 	if core == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	err = core.SetAddress(restoreInfo.HostUrl)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -129,9 +130,9 @@ func restoreToCore(ctx *gin.Context) {
 	}
 
 	_, err = pack.TaskService.DispatchJob(models.RestoreCoreTask, meta, nil)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusAccepted)
+	w.WriteHeader(http.StatusAccepted)
 }

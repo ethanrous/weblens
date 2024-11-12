@@ -35,6 +35,8 @@ func (fs *InMemoryFS) loadIndex() string {
 
 // Open Implements FileSystem interface
 func (fs *InMemoryFS) Open(name string) (http.File, error) {
+	log.Trace.Println("MemFs Opening file", name)
+
 	if name == "/index" {
 		return fs.Index("/index"), nil
 	}

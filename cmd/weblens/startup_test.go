@@ -37,7 +37,7 @@ func TestStartupCore(t *testing.T) {
 	start := time.Now()
 	server = http.NewServer(env.GetRouterHost("TEST-CORE"), env.GetRouterPort("TEST-CORE"), services)
 	server.StartupFunc = func() {
-		startup("TEST-CORE", services, server)
+		startup("TEST-CORE", services)
 	}
 
 	services.StartupChan = make(chan bool)
@@ -115,7 +115,7 @@ func TestStartupBackup(t *testing.T) {
 	start := time.Now()
 	server = http.NewServer(env.GetRouterHost("TEST-BACKUP"), env.GetRouterPort("TEST-BACKUP"), services)
 	server.StartupFunc = func() {
-		startup("TEST-BACKUP", services, server)
+		startup("TEST-BACKUP", services)
 	}
 	services.StartupChan = make(chan bool)
 	go server.Start()
@@ -142,7 +142,7 @@ func TestStartupBackup(t *testing.T) {
 	err = waitForStartup(services.StartupChan)
 	require.NoError(t, err)
 
-	require.Equal(t, models.BackupServer, services.InstanceService.GetLocal().Role)
+	require.Equal(t, models.BackupServerRole, services.InstanceService.GetLocal().Role)
 
 	cores := services.InstanceService.GetCores()
 	require.Len(t, cores, 1)

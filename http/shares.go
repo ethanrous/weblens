@@ -5,10 +5,11 @@ import (
 
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 // GetFileShare godoc
+//
 //	@ID			GetFileShare
 //
 //	@Summary	Get a file share
@@ -18,14 +19,17 @@ import (
 //	@Success	200		{object}	models.FileShare	"File Share"
 //	@Failure	404
 //	@Router		/share/{shareId} [get]
-func getFileShare(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	shareId := models.ShareId(ctx.Param("shareId"))
+func getFileShare(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	shareId := models.ShareId(chi.URLParam(r, "shareId"))
 
 	share := pack.ShareService.Get(shareId)
 	if share == nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -34,9 +38,9 @@ func getFileShare(ctx *gin.Context) {
 		log.Warning.Printf(
 			"%s tried to get share [%s] as a fileShare (is %s)", u.GetUsername(), shareId, share.GetShareType(),
 		)
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, fileShare)
+	writeJson(w, http.StatusOK, fileShare)
 }

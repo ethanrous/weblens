@@ -1,6 +1,9 @@
 package werror
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 var ErrNoFileAccess = &clientSafeErr{
 	realError:  errors.New("user does not have access to file"),
@@ -37,5 +40,10 @@ var ErrKeyNoServer = errors.New("api key is not associated with a server")
 
 var ErrNotAdmin = clientSafeErr{
 	realError:  errors.New("user must be admin to access this resource"),
-	statusCode: 403,
+	statusCode: http.StatusForbidden,
+}
+
+var ErrNoPublicUser = &clientSafeErr{
+	realError:  errors.New("user must be logged in to access this resource"),
+	statusCode: http.StatusUnauthorized,
 }

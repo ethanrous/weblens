@@ -18,6 +18,7 @@ import (
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/task"
 	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/lithammer/fuzzysearch/fuzzy"
 )
 
@@ -36,36 +37,39 @@ import (
 //	@Failure	401
 //	@Failure	404
 //	@Router		/files/{fileId} [get]
-func getFile(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getFile(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
 		return
 	}
-	sh, err := getShareFromCtx[*models.FileShare](ctx)
+	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
 
-	fileId := ctx.Param("fileId")
+	fileId := chi.URLParam(r, "fileId")
 	file, err := pack.FileService.GetFileSafe(fileId, u, sh)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find file"})
 		return
 	}
 
 	if file == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find file"})
 		return
 	}
 
 	formattedInfo, err := rest.WeblensFileToFileInfo(file, pack, false)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, formattedInfo)
+	writeJson(w, http.StatusOK, formattedInfo)
 }
 
 // GetFileText godoc
@@ -82,16 +86,19 @@ func getFile(ctx *gin.Context) {
 //	@Success	200		{string}	string	"File text"
 //	@Failure	400
 //	@Router		/files/{fileId}/text [get]
-func getFileText(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getFileText(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
 		return
 	}
 
-	fileId := ctx.Param("fileId")
+	fileId := chi.URLParam(r, "fileId")
 	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -99,11 +106,11 @@ func getFileText(ctx *gin.Context) {
 
 	dotIndex := strings.LastIndex(filename, ".")
 	if filename[dotIndex:] != ".txt" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "File is not a text file"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "File is not a text file"})
 		return
 	}
 
-	ctx.File(file.AbsPath())
+	http.ServeFile(w, r, file.Filename())
 }
 
 // GetFileStats godoc
@@ -120,31 +127,34 @@ func getFileText(ctx *gin.Context) {
 //	@Failure	400
 //	@Failure	501
 //	@Router		/files/{fileId}/stats [get]
-func getFileStats(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getFileStats(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
 		u = pack.UserService.GetPublicUser()
 	}
 
-	fileId := ctx.Param("fileId")
+	fileId := chi.URLParam(r, "fileId")
 
 	rootFolder, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if !rootFolder.IsDir() {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	ctx.Status(http.StatusNotImplemented)
+	w.WriteHeader(http.StatusNotImplemented)
 
 	// t := types.SERV.TaskDispatcher.GatherFsStats(rootFolder, Caster)
 	// t.Wait()
 	// res := t.GetResult("sizesByExtension")
 	//
-	// ctx.JSON(comm.StatusOK, res)
+	// writeJson(w, comm.StatusOK, res)
 }
 
 // DownloadFile godoc
@@ -162,38 +172,41 @@ func getFileStats(ctx *gin.Context) {
 //	@Param		isTakeout	query		bool	false	"Is this a takeout file"	Enums(true, false)	default(false)
 //	@Success	200			{string}	binary	"File content"
 //	@Router		/files/{fileId}/download [get]
-func downloadFile(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func downloadFile(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
 		u = pack.UserService.GetPublicUser()
 	}
 
-	fileId := ctx.Param("fileId")
-	isTakeout := ctx.Query("isTakeout")
+	fileId := chi.URLParam(r, "fileId")
+	isTakeout := r.URL.Query().Get("isTakeout")
 
 	var file *fileTree.WeblensFileImpl
 	if isTakeout == "true" {
 		var err error
 		file, err = pack.FileService.GetZip(fileId)
 		if err != nil {
-			ctx.JSON(http.StatusNotFound, err)
+			writeJson(w, http.StatusNotFound, err)
 			return
 		}
 	} else {
-		share, err := getShareFromCtx[*models.FileShare](ctx)
+		share, err := getShareFromCtx[*models.FileShare](w, r)
 		if err != nil {
 			return
 		}
 
 		file, err = pack.FileService.GetFileSafe(fileId, u, share)
 		if err != nil {
-			ctx.JSON(http.StatusNotFound, err)
+			writeJson(w, http.StatusNotFound, err)
 			return
 		}
 	}
 
-	ctx.File(file.AbsPath())
+	http.ServeFile(w, r, file.Filename())
 }
 
 // GetFolderHistory godoc
@@ -210,39 +223,39 @@ func downloadFile(ctx *gin.Context) {
 //	@Failure	400
 //	@Failure	500
 //	@Router		/files/{fileId}/history [get]
-func getFolderHistory(ctx *gin.Context) {
-	pack := getServices(ctx)
+func getFolderHistory(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 
-	fileId := ctx.Param("fileId")
+	fileId := chi.URLParam(r, "fileId")
 	if fileId == "" {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	pastTime := time.Now()
 
-	milliStr := ctx.Query("timestamp")
+	milliStr := r.URL.Query().Get("timestamp")
 	if milliStr != "" {
 		millis, err := strconv.ParseInt(milliStr, 10, 64)
 		if err != nil {
 			log.ShowErr(werror.WithStack(err))
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		pastTime = time.UnixMilli(millis)
 	}
 
 	f, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(fileId, pastTime)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	actions, err := pack.FileService.GetJournalByTree("USERS").GetActionsByPath(f.GetPortablePath())
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 	log.Trace.Printf("Found %d actions", len(actions))
-	ctx.JSON(http.StatusOK, actions)
+	writeJson(w, http.StatusOK, actions)
 }
 
 // SearchByFilename godoc
@@ -261,28 +274,31 @@ func getFolderHistory(ctx *gin.Context) {
 //	@Failure	401
 //	@Failure	500
 //	@Router		/files/search [get]
-func searchByFilename(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-
-	filenameSearch := ctx.Query("search")
-	if filenameSearch == "" {
-		ctx.Status(http.StatusBadRequest)
+func searchByFilename(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	baseFolderId := ctx.Query("baseFolderId")
+	filenameSearch := r.URL.Query().Get("search")
+	if filenameSearch == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	baseFolderId := r.URL.Query().Get("baseFolderId")
 	if baseFolderId == "" {
 		baseFolderId = u.HomeId
 	}
 
 	baseFolder, err := pack.FileService.GetFileSafe(baseFolderId, u, nil)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	if !baseFolder.IsDir() {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -319,13 +335,13 @@ func searchByFilename(ctx *gin.Context) {
 	var fileInfos []rest.FileInfo
 	for _, file := range files {
 		f, err := rest.WeblensFileToFileInfo(file, pack, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		fileInfos = append(fileInfos, f)
 	}
 
-	ctx.JSON(http.StatusOK, fileInfos)
+	writeJson(w, http.StatusOK, fileInfos)
 }
 
 // CreateFolder godoc
@@ -343,23 +359,26 @@ func searchByFilename(ctx *gin.Context) {
 //	@Param		shareId	query		string					false	"Share Id"
 //	@Success	200		{object}	rest.FileInfo			"File Info"
 //	@Router		/folder [post]
-func createFolder(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func createFolder(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	body, err := readCtxBody[rest.CreateFolderBody](ctx)
+	body, err := readCtxBody[rest.CreateFolderBody](w, r)
 	if err != nil {
 		return
 	}
 
 	if body.NewFolderName == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing body parameter 'newFolderName'"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "Missing body parameter 'newFolderName'"})
 		return
 	}
 
 	parentFolder, err := pack.FileService.GetFileSafe(body.ParentFolderId, u, nil)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Parent folder not found"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Parent folder not found"})
 		return
 	}
 
@@ -369,7 +388,7 @@ func createFolder(ctx *gin.Context) {
 			child, err := pack.FileService.GetFileSafe(fileId, u, nil)
 			if err != nil {
 				log.ShowErr(err)
-				ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				writeJson(w, http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 			children = append(children, child)
@@ -377,21 +396,21 @@ func createFolder(ctx *gin.Context) {
 	}
 
 	newDir, err := pack.FileService.CreateFolder(parentFolder, body.NewFolderName, pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	err = pack.FileService.MoveFiles(children, newDir, "USERS", pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	newDirInfo, err := rest.WeblensFileToFileInfo(newDir, pack, false)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, newDirInfo)
+	writeJson(w, http.StatusCreated, newDirInfo)
 }
 
 // GetFolder godoc
@@ -410,46 +429,49 @@ func createFolder(ctx *gin.Context) {
 //	@Param		timestamp	query		int		false	"Past timestamp to view the folder at, in ms since epoch"
 //	@Success	200			{object}	rest.FolderInfoResponse"Folder Info"
 //	@Router		/folder/{folderId} [get]
-func getFolder(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.FileShare](ctx)
+func getFolder(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
 
-	milliStr := ctx.Query("timestamp")
+	milliStr := r.URL.Query().Get("timestamp")
 	date := time.UnixMilli(0)
 	if milliStr != "" {
 		millis, err := strconv.ParseInt(milliStr, 10, 64)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		} else if millis < 0 {
-			ctx.Status(http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		date = time.UnixMilli(millis)
 	}
 
-	folderId := ctx.Param("folderId")
+	folderId := chi.URLParam(r, "folderId")
 	if folderId == "" {
 		log.Trace.Println("No folder id provided")
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if date.Unix() != 0 {
-		formatRespondPastFolderInfo(folderId, date, ctx)
+		formatRespondPastFolderInfo(folderId, date, w, r)
 		return
 	}
 
 	dir, err := pack.FileService.GetFileSafe(folderId, u, sh)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	formatRespondFolderInfo(dir, ctx)
+	formatRespondFolderInfo(dir, w, r)
 }
 
 // SetFolderCover godoc
@@ -467,33 +489,36 @@ func getFolder(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/folder/{folderId}/cover [patch]
-func setFolderCover(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func setFolderCover(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	folderId := ctx.Param("folderId")
-	mediaId := ctx.Query("mediaId")
+	folderId := chi.URLParam(r, "folderId")
+	mediaId := r.URL.Query().Get("mediaId")
 
 	if folderId == "" {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	folder, err := pack.FileService.GetFileSafe(folderId, u, nil)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	coverId, err := pack.FileService.GetFolderCover(folder)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	if coverId == "" && mediaId == "" {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	} else if coverId == mediaId {
-		ctx.Status(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -501,26 +526,26 @@ func setFolderCover(ctx *gin.Context) {
 	if mediaId != "" {
 		m = pack.MediaService.Get(mediaId)
 		if m == nil {
-			ctx.Status(http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 	}
 
 	err = pack.FileService.SetFolderCover(folderId, mediaId)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	pack.Caster.PushFileUpdate(folder, m)
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
-func getExternalDirs(ctx *gin.Context) {
+func getExternalDirs(w http.ResponseWriter, r *http.Request) {
 	panic(werror.NotImplemented("getExternalDirs"))
 }
 
-func getExternalFolderInfo(ctx *gin.Context) {
+func getExternalFolderInfo(w http.ResponseWriter, r *http.Request) {
 	panic(werror.NotImplemented("getExternalFolderInfo"))
 }
 
@@ -539,30 +564,33 @@ func getExternalFolderInfo(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/admin/folder/scan [post]
-func scanDir(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.FileShare](ctx)
+func scanDir(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
 
-	body, err := io.ReadAll(ctx.Request.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	var scanInfo rest.ScanBody
 	err = json.Unmarshal(body, &scanInfo)
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	dir, err := pack.FileService.GetFileSafe(scanInfo.FolderId, u, sh)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -578,7 +606,7 @@ func scanDir(ctx *gin.Context) {
 	t, err := pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
 	if err != nil {
 		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	t.SetCleanup(
@@ -589,7 +617,7 @@ func scanDir(ctx *gin.Context) {
 		},
 	)
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetSharedFiles godoc
@@ -604,13 +632,16 @@ func scanDir(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/shared [get]
-func getSharedFiles(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func getSharedFiles(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	log.Trace.Printf("Getting shared files for user %s", u.GetUsername())
 
 	shares, err := pack.ShareService.GetFileSharesWithUser(u)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -623,7 +654,7 @@ func getSharedFiles(ctx *gin.Context) {
 				continue
 			}
 			safeErr, code := werror.TrySafeErr(err)
-			ctx.JSON(code, safeErr)
+			writeJson(w, code, safeErr)
 			return
 		}
 		children = append(children, f)
@@ -632,20 +663,20 @@ func getSharedFiles(ctx *gin.Context) {
 	childInfos := make([]rest.FileInfo, 0, len(children))
 	for _, child := range children {
 		fInfo, err := rest.WeblensFileToFileInfo(child, pack, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		childInfos = append(childInfos, fInfo)
 	}
 
 	medias, err := getChildMedias(pack, children)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	res := rest.FolderInfoResponse{Children: childInfos, Medias: medias}
 
-	ctx.JSON(http.StatusOK, res)
+	writeJson(w, http.StatusOK, res)
 }
 
 // CreateTakeout godoc
@@ -666,23 +697,26 @@ func getSharedFiles(ctx *gin.Context) {
 //	@Failure		404
 //	@Failure		500
 //	@Router			/takeout [post]
-func createTakeout(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func createTakeout(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 	if u == nil {
 		u = pack.UserService.GetPublicUser()
 	}
 
-	takeoutRequest, err := readCtxBody[rest.FilesListParams](ctx)
+	takeoutRequest, err := readCtxBody[rest.FilesListParams](w, r)
 	if err != nil {
 		return
 	}
 	if len(takeoutRequest.FileIds) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cannot takeout 0 files"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "Cannot takeout 0 files"})
 		return
 	}
 
-	share, err := getShareFromCtx[*models.FileShare](ctx)
+	share, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
@@ -690,7 +724,7 @@ func createTakeout(ctx *gin.Context) {
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range takeoutRequest.FileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, share)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
@@ -700,7 +734,7 @@ func createTakeout(ctx *gin.Context) {
 	// If we only have 1 file, and it is not a directory, we should have requested to just
 	// simply download that file on it's own, not zip it.
 	if len(files) == 1 && !files[0].IsDir() {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Single non-directory file should not be zipped"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "Single non-directory file should not be zipped"})
 		return
 	}
 
@@ -716,46 +750,52 @@ func createTakeout(ctx *gin.Context) {
 
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	completed, status := t.Status()
 	if completed && status == task.TaskSuccess {
 		res := rest.TakeoutInfo{TakeoutId: t.GetResult("takeoutId").(string), Single: false, Filename: t.GetResult("filename").(string)}
-		ctx.JSON(http.StatusOK, res)
+		writeJson(w, http.StatusOK, res)
 	} else {
 		res := rest.TakeoutInfo{TaskId: t.TaskId()}
-		ctx.JSON(http.StatusAccepted, res)
+		writeJson(w, http.StatusAccepted, res)
 	}
 }
 
-func getFileStat(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	fileId := ctx.Param("fileId")
+func getFileStat(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	fileId := chi.URLParam(r, "fileId")
 
 	f, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	size := f.Size()
 
-	ctx.JSON(
+	writeJson(w,
 		http.StatusOK,
 		FileStat{Name: f.Filename(), Size: size, IsDir: f.IsDir(), ModTime: f.ModTime(), Exists: true},
 	)
 }
 
-func getDirectoryContent(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	fileId := ctx.Param("fileId")
+func getDirectoryContent(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	fileId := chi.URLParam(r, "fileId")
 	f, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -766,7 +806,7 @@ func getDirectoryContent(ctx *gin.Context) {
 		},
 	)
 
-	ctx.JSON(http.StatusOK, children)
+	writeJson(w, http.StatusOK, children)
 }
 
 // AutocompletePath godoc
@@ -781,15 +821,18 @@ func getDirectoryContent(ctx *gin.Context) {
 //	@Success	200			{object}	rest.FolderInfoResponse"Path info"
 //	@Failure	500
 //	@Router		/files/autocomplete [get]
-func autocompletePath(ctx *gin.Context) {
-	pack := getServices(ctx)
-	searchPath := ctx.Query("searchPath")
+func autocompletePath(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	searchPath := r.URL.Query().Get("searchPath")
 	if len(searchPath) == 0 {
-		ctx.Status(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	u := getUserFromCtx(ctx)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	lastSlashI := strings.LastIndex(searchPath, "/")
 	childName := searchPath[lastSlashI+1:]
@@ -798,7 +841,7 @@ func autocompletePath(ctx *gin.Context) {
 	folder, err := pack.FileService.UserPathToFile(searchPath, u)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -832,19 +875,19 @@ func autocompletePath(ctx *gin.Context) {
 		f := children[match.OriginalIndex]
 
 		childInfo, err := rest.WeblensFileToFileInfo(f, pack, true)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		childInfos = append(childInfos, childInfo)
 	}
 
 	selfInfo, err := rest.WeblensFileToFileInfo(folder, pack, true)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	ret := rest.FolderInfoResponse{Children: childInfos, Self: selfInfo}
-	ctx.JSON(http.StatusOK, ret)
+	writeJson(w, http.StatusOK, ret)
 }
 
 // RestoreFiles godoc
@@ -863,24 +906,27 @@ func autocompletePath(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/restore [post]
-func restoreFiles(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func restoreFiles(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	body, err := readCtxBody[rest.RestoreFilesBody](ctx)
+	body, err := readCtxBody[rest.RestoreFilesBody](w, r)
 	if err != nil {
 		return
 	}
 
 	if body.Timestamp == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Missing body parameter 'timestamp'"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "Missing body parameter 'timestamp'"})
 		return
 	}
 	restoreTime := time.UnixMilli(body.Timestamp)
 
 	lt := pack.FileService.GetJournalByTree("USERS").Get(body.NewParentId)
 	if lt == nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find new parent"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find new parent"})
 		return
 	}
 
@@ -889,18 +935,18 @@ func restoreFiles(ctx *gin.Context) {
 		newParent, err = pack.FileService.GetFileSafe(u.HomeId, u, nil)
 
 		// this should never error, but you never know
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	} else {
 		newParent, err = pack.FileService.GetFileSafe(body.NewParentId, u, nil)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	}
 
 	err = pack.FileService.RestoreFiles(body.FileIds, newParent, restoreTime, pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -909,7 +955,7 @@ func restoreFiles(ctx *gin.Context) {
 	} // @name RestoreFilesInfo
 	res := restoreFilesInfo{NewParentId: newParent.ID()}
 
-	ctx.JSON(http.StatusOK, res)
+	writeJson(w, http.StatusOK, res)
 }
 
 // UpdateFile godoc
@@ -929,32 +975,35 @@ func restoreFiles(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/{fileId} [patch]
-func updateFile(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	fileId := ctx.Param("fileId")
-	updateInfo, err := readCtxBody[rest.UpdateFileParams](ctx)
+func updateFile(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	fileId := chi.URLParam(r, "fileId")
+	updateInfo, err := readCtxBody[rest.UpdateFileParams](w, r)
 	if err != nil {
 		return
 	}
 
 	file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 	if err != nil {
-		ctx.Status(http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	if pack.FileService.IsFileInTrash(file) {
-		ctx.JSON(http.StatusForbidden, gin.H{"error": "cannot rename file in trash"})
+		writeJson(w, http.StatusForbidden, gin.H{"error": "cannot rename file in trash"})
 		return
 	}
 
 	err = pack.FileService.RenameFile(file, updateInfo.NewName, pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // MoveFiles godoc
@@ -972,21 +1021,24 @@ func updateFile(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files [patch]
-func moveFiles(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	sh, err := getShareFromCtx[*models.FileShare](ctx)
+func moveFiles(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
 		return
 	}
 
-	filesData, err := readCtxBody[rest.MoveFilesParams](ctx)
+	filesData, err := readCtxBody[rest.MoveFilesParams](w, r)
 	if err != nil {
 		return
 	}
 
 	newParent, err := pack.FileService.GetFileSafe(filesData.NewParentId, u, sh)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -994,13 +1046,13 @@ func moveFiles(ctx *gin.Context) {
 	parentId := ""
 	for _, fileId := range filesData.Files {
 		f, err := pack.FileService.GetFileSafe(fileId, u, sh)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		if parentId == "" {
 			parentId = f.GetParentId()
 		} else if parentId != f.GetParentId() {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "All files must have the same parent"})
+			writeJson(w, http.StatusBadRequest, gin.H{"error": "All files must have the same parent"})
 			return
 		}
 
@@ -1008,11 +1060,11 @@ func moveFiles(ctx *gin.Context) {
 	}
 
 	err = pack.FileService.MoveFiles(files, newParent, "USERS", pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // TrashFiles godoc
@@ -1029,35 +1081,38 @@ func moveFiles(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/trash [patch]
-func trashFiles(ctx *gin.Context) {
-	pack := getServices(ctx)
-	params, err := readCtxBody[rest.FilesListParams](ctx)
+func trashFiles(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	params, err := readCtxBody[rest.FilesListParams](w, r)
 	if err != nil {
 		return
 	}
 	fileIds := params.FileIds
-	u := getUserFromCtx(ctx)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
 		if u != pack.FileService.GetFileOwner(file) {
-			ctx.JSON(http.StatusForbidden, gin.H{"error": "You can't trash this file"})
+			writeJson(w, http.StatusForbidden, gin.H{"error": "You can't trash this file"})
 			return
 		}
 
 		files = append(files, file)
 	}
 	err = pack.FileService.MoveFilesToTrash(files, u, nil, pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // UnTrashFiles godoc
@@ -1074,11 +1129,14 @@ func trashFiles(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files/untrash [patch]
-func unTrashFiles(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
+func unTrashFiles(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
-	params, err := readCtxBody[rest.FilesListParams](ctx)
+	params, err := readCtxBody[rest.FilesListParams](w, r)
 	if err != nil {
 		return
 	}
@@ -1091,7 +1149,7 @@ func unTrashFiles(ctx *gin.Context) {
 	for _, fileId := range fileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
 		if err != nil || u != pack.FileService.GetFileOwner(file) {
-			ctx.Status(http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		files = append(files, file)
@@ -1100,11 +1158,11 @@ func unTrashFiles(ctx *gin.Context) {
 	err = pack.FileService.ReturnFilesFromTrash(files, caster)
 	if err != nil {
 		log.ShowErr(err)
-		ctx.Status(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // DeleteFiles godoc
@@ -1121,41 +1179,44 @@ func unTrashFiles(ctx *gin.Context) {
 //	@Failure	404
 //	@Failure	500
 //	@Router		/files [delete]
-func deleteFiles(ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	params, err := readCtxBody[rest.FilesListParams](ctx)
+func deleteFiles(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	params, err := readCtxBody[rest.FilesListParams](w, r)
 	if err != nil {
 		return
 	}
 	fileIds := params.FileIds
 
 	if len(fileIds) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No file ids provided"})
+		writeJson(w, http.StatusBadRequest, gin.H{"error": "No file ids provided"})
 		return
 	}
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
 		file, err := pack.FileService.GetFileSafe(fileId, u, nil)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		} else if u != pack.FileService.GetFileOwner(file) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
+			writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find file to delete"})
 			return
 		} else if !pack.FileService.IsFileInTrash(file) {
-			ctx.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete file not in trash"})
+			writeJson(w, http.StatusForbidden, gin.H{"error": "Cannot delete file not in trash"})
 			return
 		}
 		files = append(files, file)
 	}
 
 	err = pack.FileService.DeleteFiles(files, "USERS", pack.Caster)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 }
 
 // Helper Function
@@ -1190,11 +1251,14 @@ func getChildMedias(pack *models.ServicePack, children []*fileTree.WeblensFileIm
 
 // Helper Function
 // Format and write back directory information. Authorization checks should be done before this function
-func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
-	pack := getServices(ctx)
-	u := getUserFromCtx(ctx)
-	share, err := getShareFromCtx[*models.FileShare](ctx)
-	if werror.SafeErrorAndExit(err, ctx) {
+func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	u, err := getUserFromCtx(w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
@@ -1202,7 +1266,7 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 	parent := dir.GetParent()
 	for parent.ID() != "ROOT" && pack.AccessService.CanUserAccessFile(u, parent, share) && !pack.FileService.GetFileOwner(parent).IsSystemUser() {
 		parentInfo, err := rest.WeblensFileToFileInfo(parent, pack, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		parentsInfo = append(parentsInfo, parentInfo)
@@ -1213,55 +1277,55 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, ctx *gin.Context) {
 
 	mediaFiles := append(children, dir)
 	medias, err := getChildMedias(pack, mediaFiles)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	childInfos := make([]rest.FileInfo, 0, len(children))
 	for _, child := range children {
 		info, err := rest.WeblensFileToFileInfo(child, pack, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		childInfos = append(childInfos, info)
 	}
 
 	selfInfo, err := rest.WeblensFileToFileInfo(dir, pack, true)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	packagedInfo := rest.FolderInfoResponse{Self: selfInfo, Children: childInfos, Parents: parentsInfo, Medias: medias}
-	ctx.JSON(http.StatusOK, packagedInfo)
+	writeJson(w, http.StatusOK, packagedInfo)
 }
 
 // Helper Function
-func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, ctx *gin.Context) {
-	pack := getServices(ctx)
+func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 
 	pastFile, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(folderId, pastTime)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 	pastFileInfo, err := rest.WeblensFileToFileInfo(pastFile, pack, false)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	var parentsInfo []rest.FileInfo
 	parentId := pastFile.GetParentId()
 	if parentId == "" {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Could not find parent folder"})
+		writeJson(w, http.StatusNotFound, gin.H{"error": "Could not find parent folder"})
 		return
 	}
 	for parentId != "ROOT" {
 		pastParent, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(parentId, pastTime)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
 		parentInfo, err := rest.WeblensFileToFileInfo(pastParent, pack, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 
@@ -1270,14 +1334,14 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, c
 	}
 
 	children, err := pack.FileService.GetJournalByTree("USERS").GetPastFolderChildren(pastFile, pastTime)
-	if werror.SafeErrorAndExit(err, ctx) {
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	var childrenInfos []rest.FileInfo
 	for _, child := range children {
 		childInfo, err := rest.WeblensFileToFileInfo(child, pack, false)
-		if werror.SafeErrorAndExit(err, ctx) {
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		childrenInfos = append(childrenInfos, childInfo)
@@ -1292,5 +1356,5 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, c
 	}
 
 	packagedInfo := rest.FolderInfoResponse{Self: pastFileInfo, Children: childrenInfos, Parents: parentsInfo, Medias: medias}
-	ctx.JSON(http.StatusOK, packagedInfo)
+	writeJson(w, http.StatusOK, packagedInfo)
 }
