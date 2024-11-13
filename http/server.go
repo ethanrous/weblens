@@ -114,7 +114,7 @@ func (s *Server) UseApi() *chi.Mux {
 
 	r.Group(func(r chi.Router) {
 		r.Use(AllowPublic)
-		r.Get("/info", getServerInfo
+		r.Get("/info", getServerInfo)
 		r.Get("/ws", wsConnect)
 	})
 
