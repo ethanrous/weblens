@@ -36,6 +36,7 @@ export function GalleryFilters() {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
     const [optionsOpen, setOptionsOpen] = useState(false)
     const [disabledAlbums] = useState([...galleryState.albumsFilter])
+    const clearMedias = useMediaStore((state) => state.clear)
 
     const showRaw = useMediaStore((state) => state.showRaw)
     const showHidden = useMediaStore((state) => state.showHidden)
@@ -58,6 +59,7 @@ export function GalleryFilters() {
                 type: 'set_albums_filter',
                 albumNames: disabled,
             })
+            clearMedias()
             setShowRaw(raw)
             setShowHidden(hidden)
         },
@@ -124,6 +126,7 @@ export function GalleryFilters() {
                 <div className="flex justify-end w-full">
                     <WeblensButton
                         label="Save"
+                        disabled={rawOn === showRaw && hiddenOn === showHidden}
                         onClick={(e) => closeOptions(e)}
                     />
                 </div>
@@ -234,7 +237,7 @@ const Gallery = () => {
                     ref={viewportRef}
                     className="flex flex-col h-[50%] w-full shrink-0 relative grow"
                 >
-                    {page == 'timeline' && <Timeline page={page} />}
+                    {page == 'timeline' && <Timeline />}
                     {page == 'albums' && <Albums selectedAlbum={albumId} />}
                 </div>
             </div>

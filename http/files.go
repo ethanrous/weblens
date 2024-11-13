@@ -563,7 +563,7 @@ func getExternalFolderInfo(w http.ResponseWriter, r *http.Request) {
 //	@Success	200
 //	@Failure	404
 //	@Failure	500
-//	@Router		/admin/folder/scan [post]
+//	@Router		/folder/scan [post]
 func scanDir(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	u, err := getUserFromCtx(w, r)

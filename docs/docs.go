@@ -19,48 +19,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/admin/folder/scan": {
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "tags": [
-                    "Folder"
-                ],
-                "summary": "Dispatch a folder scan",
-                "operationId": "ScanFolder",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Scan parameters",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/rest.ScanBody"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
         "/files": {
             "delete": {
                 "security": [
@@ -684,6 +642,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/folder/scan": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Folder"
+                ],
+                "summary": "Dispatch a folder scan",
+                "operationId": "ScanFolder",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Scan parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rest.ScanBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/folder/{folderId}": {
             "get": {
                 "security": [
@@ -950,6 +950,18 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "integer",
+                        "description": "Page of medias to get",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of medias to get",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
                         "type": "string",
                         "description": "Search only in given folders",
                         "name": "folderIds",
@@ -1130,15 +1142,22 @@ const docTemplate = `{
                 }
             }
         },
-        "/remotes": {
+        "/servers": {
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
                     }
                 ],
                 "tags": [
-                    "Remotes"
+                    "Servers"
                 ],
                 "summary": "Get all remotes",
                 "operationId": "GetRemotes",
@@ -1157,11 +1176,18 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
                     }
                 ],
                 "tags": [
-                    "Remotes"
+                    "Servers"
                 ],
                 "summary": "Create a new remote",
                 "operationId": "CreateRemote",
@@ -1187,15 +1213,24 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
+            }
+        },
+        "/servers/{serverId}": {
             "delete": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
                     }
                 ],
                 "tags": [
-                    "Remotes"
+                    "Servers"
                 ],
                 "summary": "Delete a remote",
                 "operationId": "DeleteRemote",
@@ -1203,14 +1238,20 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Server Id to delete",
-                        "name": "remoteId",
-                        "in": "query",
+                        "name": "serverId",
+                        "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
                     }
                 }
             }

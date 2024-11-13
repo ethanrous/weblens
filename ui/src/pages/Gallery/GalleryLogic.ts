@@ -169,31 +169,6 @@ export function galleryReducer(
             }
         }
 
-        // case 'presentation_next': {
-        //     let nextM = state.presentingMediaId.Next()
-        //     if (state.presentingMode === PresentType.InLine && nextM) {
-        //         nextM.GetImgRef().current.scrollIntoView({
-        //             behavior: 'smooth',
-        //             block: 'start',
-        //             inline: 'start',
-        //         })
-        //     }
-        //
-        //     return {
-        //         ...state,
-        //         presentingMediaId: nextM ? nextM : state.presentingMediaId,
-        //     }
-        // }
-        //
-        // case 'presentation_previous': {
-        //     return {
-        //         ...state,
-        //         presentingMediaId: state.presentingMediaId.Prev()
-        //             ? state.presentingMediaId.Prev()
-        //             : state.presentingMediaId,
-        //     }
-        // }
-
         case 'stop_presenting': {
             if (state.presentingMediaId === null) {
                 return {

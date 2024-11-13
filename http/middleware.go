@@ -138,7 +138,7 @@ func WeblensAuth(next http.Handler) http.Handler {
 					cookie := fmt.Sprintf("%s=;Path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
 					w.Header().Set("Set-Cookie", cookie)
 				}
-				w.WriteHeader(http.StatusUnauthorized)
+				SafeErrorAndExit(err, w)
 				return
 			}
 

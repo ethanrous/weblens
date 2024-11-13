@@ -9,7 +9,6 @@ import {
 import { doBackup } from '@weblens/api/ApiFetch'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import { ServerInfoT } from '@weblens/types/Types'
 import './remoteStatus.scss'
 import { useEffect, useMemo, useState } from 'react'
 import WeblensInput from '@weblens/lib/WeblensInput'
@@ -26,7 +25,8 @@ import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { Loader } from '@mantine/core'
 import { TaskStageT } from '@weblens/pages/FileBrowser/TaskStateControl'
-import { RemoteApi } from '@weblens/api/RemotesApi'
+import { ServerInfo } from '@weblens/api/swag'
+import { ServersApi } from '@weblens/api/ServersApi'
 
 export default function RemoteStatus({
     remoteInfo,
@@ -35,7 +35,7 @@ export default function RemoteStatus({
     backupProgress,
     setBackupProgress,
 }: {
-    remoteInfo: ServerInfoT
+    remoteInfo: ServerInfo
     refetchRemotes: () => void
     restoreProgress: RestoreProgress
     backupProgress: BackupProgressT
@@ -47,7 +47,7 @@ export default function RemoteStatus({
 
     const roleMismatch =
         remoteInfo.role === 'core' &&
-        (remoteInfo.reportedRole === '' ||
+        (!remoteInfo.reportedRole ||
             remoteInfo.reportedRole !== remoteInfo.role)
     const canSync =
         remoteInfo.online &&
@@ -168,7 +168,7 @@ export default function RemoteStatus({
                         danger
                         requireConfirm
                         onClick={async () => {
-                            RemoteApi.deleteRemote(remoteInfo.id).then(() =>
+                            ServersApi.deleteRemote(remoteInfo.id).then(() =>
                                 refetchRemotes()
                             )
                         }}

@@ -57,7 +57,6 @@ export async function GetFolderData(
     if (fbMode === FbModeT.external) {
         console.error('External files not implemented')
     }
-    console.log(API_ENDPOINT)
 
     const res = await FolderApi.getFolder(
         folderId,

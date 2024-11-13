@@ -9,7 +9,6 @@ import {
 
 import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
-import { AlbumNoContent } from '@weblens/types/albums/Albums'
 import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { likeMedia } from '@weblens/types/media/MediaQuery'
@@ -34,6 +33,8 @@ import '@weblens/pages/Gallery/galleryStyle.scss'
 import { AlbumData, MediaWrapperProps, PresentType } from 'types/Types'
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import { FileInfo } from '@weblens/api/swag'
+import { useNavigate } from 'react-router-dom'
+import WeblensButton from '@weblens/lib/WeblensButton'
 
 const goToFolder = async (
     e: MouseEvent,
@@ -480,6 +481,31 @@ function GalleryRow({ data, index, style }) {
     )
 }
 
+const NoMediaDisplay = () => {
+    const nav = useNavigate()
+    return (
+        <div className="flex flex-col items-center w-full">
+            <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
+                <h2 className="font-bold text-3xl select-none">
+                    No media to display
+                </h2>
+                <p className="select-none">
+                    Upload files or adjust the filters
+                </p>
+                <div className="h-max w-full gap-2">
+                    <WeblensButton
+                        squareSize={48}
+                        fillWidth
+                        label="FileBrowser"
+                        Left={IconFolder}
+                        onClick={() => nav('/files')}
+                    />
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export function PhotoGallery({
     medias,
     album,
@@ -626,9 +652,8 @@ export function PhotoGallery({
     return (
         <div className="gallery-wrapper no-scrollbar" ref={setViewRef}>
             <div className="gallery-scroll-fade" />
-            {rows.length === 0 && (
-                <AlbumNoContent hasContent={medias.length === 0} />
-            )}
+            {rows.length === 0 && <NoMediaDisplay />}
+            {/* <AlbumNoContent hasContent={medias.length === 0} /> */}
             {rows.length !== 0 && viewSize.width !== -1 && (
                 <WindowList
                     ref={setWindowRef}

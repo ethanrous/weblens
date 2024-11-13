@@ -43,6 +43,7 @@ const WeblensRoutes = () => {
 
     const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
     const server = useSessionStore((state) => state.server)
+    const serverFetchError = useSessionStore((state) => state.serverFetchError)
     const user = useSessionStore((state) => state.user)
 
     const setNav = useSessionStore((state) => state.setNav)
@@ -71,15 +72,6 @@ const WeblensRoutes = () => {
         } else if (loc.pathname === '/setup' && server.role === 'core') {
             console.debug('Nav files home from setup')
             nav('/files/home')
-            // } else if (
-            //     user &&
-            //     server.role !== 'init' &&
-            //     !loc.pathname.startsWith('/files/share') &&
-            //     loc.pathname !== '/login' &&
-            //     !user.isLoggedIn
-            // ) {
-            //     console.debug('Nav login from non-file share path. User:', user)
-            //     nav('/login', { state: { returnTo: loc.pathname } })
         } else if (
             server.role === 'backup' &&
             loc.pathname !== '/backup' &&
@@ -135,8 +127,16 @@ const WeblensRoutes = () => {
         }
     }, [])
 
+    if (serverFetchError) {
+        return (
+            <FatalError
+                err={'Failed to get server info. Is the server running?'}
+            />
+        )
+    }
+
     if (!server || !user) {
-        return null
+        return <PageLoader />
     }
 
     const queryClient = new QueryClient()
@@ -161,6 +161,17 @@ function PageLoader() {
                 opacity: 0.5,
             }}
         >
+            <Logo />
+        </div>
+    )
+}
+
+function FatalError({ err }: { err: string }) {
+    return (
+        <div className="flex flex-col items-center justify-center h-screen w-screen gap-6">
+            <h2 className="text-red-500">Fatal Error</h2>
+            <h3>{err}</h3>
+
             <Logo />
         </div>
     )

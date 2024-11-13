@@ -1,4 +1,4 @@
-import { IconFolder, IconLayersIntersect } from '@tabler/icons-react'
+import { IconLayersIntersect } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -7,10 +7,9 @@ import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
 import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { memo, useCallback, useContext, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useContext, useEffect } from 'react'
 
-const TimelineControls = () => {
+function TimelineControls() {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
     const hasMedia = useMediaStore((state) => state.mediaMap.size !== 0)
 
@@ -58,46 +57,21 @@ const TimelineControls = () => {
     )
 }
 
-const NoMediaDisplay = () => {
-    const nav = useNavigate()
-    return (
-        <div className="flex flex-col items-center w-full">
-            <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
-                <h2 className="font-bold text-3xl select-none">
-                    No media to display
-                </h2>
-                <p className="select-none">
-                    Upload files or adjust the filters
-                </p>
-                <div className="h-max w-full gap-2">
-                    <WeblensButton
-                        squareSize={48}
-                        fillWidth
-                        label="FileBrowser"
-                        Left={IconFolder}
-                        onClick={() => nav('/files')}
-                    />
-                </div>
-            </div>
-        </div>
-    )
-}
+export function Timeline() {
+    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const showRaw = useMediaStore((state) => state.showRaw)
+    const showHidden = useMediaStore((state) => state.showHidden)
+    const medias = useMediaStore((state) => [...state.mediaMap.values()])
+    const addMedias = useMediaStore((state) => state.addMedias)
 
-export const Timeline = memo(
-    ({ page }: { page: string }) => {
-        const { galleryState, galleryDispatch } = useContext(GalleryContext)
-        const showRaw = useMediaStore((state) => state.showRaw)
-        const showHidden = useMediaStore((state) => state.showHidden)
-        const medias = useMediaStore((state) => [...state.mediaMap.values()])
-        const addMedias = useMediaStore((state) => state.addMedias)
+    useEffect(() => {
+        if (!galleryState || galleryState.loading.includes('media')) {
+            return
+        }
 
-        useEffect(() => {
-            if (!galleryState || galleryState.loading.includes('media')) {
-                return
-            }
-
-            galleryDispatch({ type: 'add_loading', loading: 'media' })
-            MediaApi.getMedia(showRaw, showHidden).then((res) => {
+        galleryDispatch({ type: 'add_loading', loading: 'media' })
+        MediaApi.getMedia(showRaw, showHidden, undefined, 0, 10000).then(
+            (res) => {
                 const medias = res.data.Media.map((info) => {
                     return new WeblensMedia(info)
                 })
@@ -107,28 +81,23 @@ export const Timeline = memo(
                     type: 'remove_loading',
                     loading: 'media',
                 })
-            })
-        }, [
-            showRaw,
-            showHidden,
-            galleryState?.albumsFilter,
-            galleryState?.albumsMap,
-            page,
-        ])
-
-        if (galleryState.loading.includes('media')) {
-            return null
-        }
-
-        return (
-            <div className="flex flex-col items-center h-1/2 w-full relative grow">
-                <TimelineControls />
-                {medias.length === 0 && <NoMediaDisplay />}
-                {medias.length !== 0 && <PhotoGallery medias={medias} />}
-            </div>
+            }
         )
-    },
-    (prev, next) => {
-        return prev.page === next.page
-    }
-)
+    }, [
+        showRaw,
+        showHidden,
+        galleryState?.albumsFilter,
+        galleryState?.albumsMap,
+    ])
+
+    // if (galleryState.loading.includes('media')) {
+    //     return null
+    // }
+
+    return (
+        <div className="flex flex-col items-center h-1/2 w-full relative grow">
+            <TimelineControls />
+            <PhotoGallery medias={medias} />
+        </div>
+    )
+}

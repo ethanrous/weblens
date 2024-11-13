@@ -445,32 +445,6 @@ info:
   title: Weblens API
   version: "1.0"
 paths:
-  /admin/folder/scan:
-    post:
-      operationId: ScanFolder
-      parameters:
-      - description: Share Id
-        in: query
-        name: shareId
-        type: string
-      - description: Scan parameters
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/rest.ScanBody'
-      responses:
-        "200":
-          description: OK
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security:
-      - SessionAuth: []
-      summary: Dispatch a folder scan
-      tags:
-      - Folder
   /files:
     delete:
       operationId: DeleteFiles
@@ -921,6 +895,32 @@ paths:
       summary: Set the cover image of a folder
       tags:
       - Folder
+  /folder/scan:
+    post:
+      operationId: ScanFolder
+      parameters:
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      - description: Scan parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.ScanBody'
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Dispatch a folder scan
+      tags:
+      - Folder
   /info:
     get:
       operationId: GetServerInfo
@@ -1028,6 +1028,14 @@ paths:
         in: query
         name: sort
         type: string
+      - description: Page of medias to get
+        in: query
+        name: page
+        type: integer
+      - description: Number of medias to get
+        in: query
+        name: limit
+        type: integer
       - description: Search only in given folders
         in: query
         name: folderIds
@@ -1152,23 +1160,7 @@ paths:
       summary: Set media visibility
       tags:
       - Media
-  /remotes:
-    delete:
-      operationId: DeleteRemote
-      parameters:
-      - description: Server Id to delete
-        in: query
-        name: remoteId
-        required: true
-        type: string
-      responses:
-        "200":
-          description: OK
-      security:
-      - ApiKeyAuth: []
-      summary: Delete a remote
-      tags:
-      - Remotes
+  /servers:
     get:
       operationId: GetRemotes
       responses:
@@ -1179,10 +1171,13 @@ paths:
               $ref: '#/definitions/ServerInfo'
             type: array
       security:
-      - ApiKeyAuth: []
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
       summary: Get all remotes
       tags:
-      - Remotes
+      - Servers
     post:
       operationId: CreateRemote
       parameters:
@@ -1200,10 +1195,37 @@ paths:
               $ref: '#/definitions/ServerInfo'
             type: array
       security:
-      - ApiKeyAuth: []
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
       summary: Create a new remote
       tags:
-      - Remotes
+      - Servers
+  /servers/{serverId}:
+    delete:
+      operationId: DeleteRemote
+      parameters:
+      - description: Server Id to delete
+        in: path
+        name: serverId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Delete a remote
+      tags:
+      - Servers
   /share/{shareId}:
     get:
       operationId: GetFileShare

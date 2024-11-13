@@ -27,9 +27,11 @@ import (
 //	@Summary	Get paginated media
 //	@Tags		Media
 //	@Produce	json
-//	@Param		raw			query		bool				false	"Include raw files"						Enums(true, false)	default(false)
-//	@Param		hidden		query		bool				false	"Include hidden media"					Enums(true, false)	default(false)
-//	@Param		sort		query		string				false	"Sort by field"							Enums(createDate)	default(createDate)
+//	@Param		raw			query		bool				false	"Include raw files"		Enums(true, false)	default(false)
+//	@Param		hidden		query		bool				false	"Include hidden media"	Enums(true, false)	default(false)
+//	@Param		sort		query		string				false	"Sort by field"			Enums(createDate)	default(createDate)
+//	@Param		page		query		int					false	"Page of medias to get"
+//	@Param		limit		query		int					false	"Number of medias to get"
 //	@Param		folderIds	query		string				false	"Search only in given folders"			SchemaExample([fId1, fId2])
 //	@Param		mediaIds	query		string				false	"Get only media with the provided ids"	SchemaExample([mId1, id2])
 //	@Success	200			{object}	rest.MediaBatchInfo	"Media Batch"

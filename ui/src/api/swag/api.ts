@@ -2499,7 +2499,7 @@ export const FolderApiAxiosParamCreator = function (configuration?: Configuratio
         scanFolder: async (request: RestScanBody, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('scanFolder', 'request', request)
-            const localVarPath = `/admin/folder/scan`;
+            const localVarPath = `/folder/scan`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -2808,12 +2808,14 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
          * @param {GetMediaSortEnum} [sort] Sort by field
+         * @param {number} [page] Page of medias to get
+         * @param {number} [limit] Number of medias to get
          * @param {string} [folderIds] Search only in given folders
          * @param {string} [mediaIds] Get only media with the provided ids
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMedia: async (raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, folderIds?: string, mediaIds?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getMedia: async (raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/media`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2836,6 +2838,14 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
 
             if (sort !== undefined) {
                 localVarQueryParameter['sort'] = sort;
+            }
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
             }
 
             if (folderIds !== undefined) {
@@ -3030,13 +3040,15 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
          * @param {GetMediaSortEnum} [sort] Sort by field
+         * @param {number} [page] Page of medias to get
+         * @param {number} [limit] Number of medias to get
          * @param {string} [folderIds] Search only in given folders
          * @param {string} [mediaIds] Get only media with the provided ids
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getMedia(raw, hidden, sort, folderIds, mediaIds, options);
+        async getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getMedia(raw, hidden, sort, page, limit, folderIds, mediaIds, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.getMedia']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3112,13 +3124,15 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
          * @param {GetMediaSortEnum} [sort] Sort by field
+         * @param {number} [page] Page of medias to get
+         * @param {number} [limit] Number of medias to get
          * @param {string} [folderIds] Search only in given folders
          * @param {string} [mediaIds] Get only media with the provided ids
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo> {
-            return localVarFp.getMedia(raw, hidden, sort, folderIds, mediaIds, options).then((request) => request(axios, basePath));
+        getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo> {
+            return localVarFp.getMedia(raw, hidden, sort, page, limit, folderIds, mediaIds, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3179,14 +3193,16 @@ export class MediaApi extends BaseAPI {
      * @param {boolean} [raw] Include raw files
      * @param {boolean} [hidden] Include hidden media
      * @param {GetMediaSortEnum} [sort] Sort by field
+     * @param {number} [page] Page of medias to get
+     * @param {number} [limit] Number of medias to get
      * @param {string} [folderIds] Search only in given folders
      * @param {string} [mediaIds] Get only media with the provided ids
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof MediaApi
      */
-    public getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).getMedia(raw, hidden, sort, folderIds, mediaIds, options).then((request) => request(this.axios, this.basePath));
+    public getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).getMedia(raw, hidden, sort, page, limit, folderIds, mediaIds, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3259,10 +3275,10 @@ export type GetMediaImageQualityEnum = typeof GetMediaImageQualityEnum[keyof typ
 
 
 /**
- * RemotesApi - axios parameter creator
+ * ServersApi - axios parameter creator
  * @export
  */
-export const RemotesApiAxiosParamCreator = function (configuration?: Configuration) {
+export const ServersApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
          * 
@@ -3274,7 +3290,7 @@ export const RemotesApiAxiosParamCreator = function (configuration?: Configurati
         createRemote: async (request: NewServerParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('createRemote', 'request', request)
-            const localVarPath = `/remotes`;
+            const localVarPath = `/servers`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3306,14 +3322,15 @@ export const RemotesApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * 
          * @summary Delete a remote
-         * @param {string} remoteId Server Id to delete
+         * @param {string} serverId Server Id to delete
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteRemote: async (remoteId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'remoteId' is not null or undefined
-            assertParamExists('deleteRemote', 'remoteId', remoteId)
-            const localVarPath = `/remotes`;
+        deleteRemote: async (serverId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'serverId' is not null or undefined
+            assertParamExists('deleteRemote', 'serverId', serverId)
+            const localVarPath = `/servers/{serverId}`
+                .replace(`{${"serverId"}}`, encodeURIComponent(String(serverId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3327,10 +3344,6 @@ export const RemotesApiAxiosParamCreator = function (configuration?: Configurati
 
             // authentication ApiKeyAuth required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
-
-            if (remoteId !== undefined) {
-                localVarQueryParameter['remoteId'] = remoteId;
-            }
 
 
     
@@ -3350,7 +3363,7 @@ export const RemotesApiAxiosParamCreator = function (configuration?: Configurati
          * @throws {RequiredError}
          */
         getRemotes: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/remotes`;
+            const localVarPath = `/servers`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -3376,147 +3389,6 @@ export const RemotesApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
-    }
-};
-
-/**
- * RemotesApi - functional programming interface
- * @export
- */
-export const RemotesApiFp = function(configuration?: Configuration) {
-    const localVarAxiosParamCreator = RemotesApiAxiosParamCreator(configuration)
-    return {
-        /**
-         * 
-         * @summary Create a new remote
-         * @param {NewServerParams} request New Server Params
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ServerInfo>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.createRemote(request, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['RemotesApi.createRemote']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Delete a remote
-         * @param {string} remoteId Server Id to delete
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async deleteRemote(remoteId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteRemote(remoteId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['RemotesApi.deleteRemote']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Get all remotes
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getRemotes(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ServerInfo>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getRemotes(options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['RemotesApi.getRemotes']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-    }
-};
-
-/**
- * RemotesApi - factory interface
- * @export
- */
-export const RemotesApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
-    const localVarFp = RemotesApiFp(configuration)
-    return {
-        /**
-         * 
-         * @summary Create a new remote
-         * @param {NewServerParams} request New Server Params
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<ServerInfo>> {
-            return localVarFp.createRemote(request, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Delete a remote
-         * @param {string} remoteId Server Id to delete
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        deleteRemote(remoteId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.deleteRemote(remoteId, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Get all remotes
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getRemotes(options?: RawAxiosRequestConfig): AxiosPromise<Array<ServerInfo>> {
-            return localVarFp.getRemotes(options).then((request) => request(axios, basePath));
-        },
-    };
-};
-
-/**
- * RemotesApi - object-oriented interface
- * @export
- * @class RemotesApi
- * @extends {BaseAPI}
- */
-export class RemotesApi extends BaseAPI {
-    /**
-     * 
-     * @summary Create a new remote
-     * @param {NewServerParams} request New Server Params
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof RemotesApi
-     */
-    public createRemote(request: NewServerParams, options?: RawAxiosRequestConfig) {
-        return RemotesApiFp(this.configuration).createRemote(request, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Delete a remote
-     * @param {string} remoteId Server Id to delete
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof RemotesApi
-     */
-    public deleteRemote(remoteId: string, options?: RawAxiosRequestConfig) {
-        return RemotesApiFp(this.configuration).deleteRemote(remoteId, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Get all remotes
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof RemotesApi
-     */
-    public getRemotes(options?: RawAxiosRequestConfig) {
-        return RemotesApiFp(this.configuration).getRemotes(options).then((request) => request(this.axios, this.basePath));
-    }
-}
-
-
-
-/**
- * ServersApi - axios parameter creator
- * @export
- */
-export const ServersApiAxiosParamCreator = function (configuration?: Configuration) {
-    return {
         /**
          * 
          * @summary Get server info
@@ -3559,6 +3431,44 @@ export const ServersApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @summary Create a new remote
+         * @param {NewServerParams} request New Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ServerInfo>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createRemote(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ServersApi.createRemote']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete a remote
+         * @param {string} serverId Server Id to delete
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteRemote(serverId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteRemote(serverId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ServersApi.deleteRemote']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get all remotes
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getRemotes(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ServerInfo>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getRemotes(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ServersApi.getRemotes']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get server info
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3581,6 +3491,35 @@ export const ServersApiFactory = function (configuration?: Configuration, basePa
     return {
         /**
          * 
+         * @summary Create a new remote
+         * @param {NewServerParams} request New Server Params
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createRemote(request: NewServerParams, options?: RawAxiosRequestConfig): AxiosPromise<Array<ServerInfo>> {
+            return localVarFp.createRemote(request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete a remote
+         * @param {string} serverId Server Id to delete
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteRemote(serverId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteRemote(serverId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get all remotes
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getRemotes(options?: RawAxiosRequestConfig): AxiosPromise<Array<ServerInfo>> {
+            return localVarFp.getRemotes(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get server info
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -3598,6 +3537,41 @@ export const ServersApiFactory = function (configuration?: Configuration, basePa
  * @extends {BaseAPI}
  */
 export class ServersApi extends BaseAPI {
+    /**
+     * 
+     * @summary Create a new remote
+     * @param {NewServerParams} request New Server Params
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ServersApi
+     */
+    public createRemote(request: NewServerParams, options?: RawAxiosRequestConfig) {
+        return ServersApiFp(this.configuration).createRemote(request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete a remote
+     * @param {string} serverId Server Id to delete
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ServersApi
+     */
+    public deleteRemote(serverId: string, options?: RawAxiosRequestConfig) {
+        return ServersApiFp(this.configuration).deleteRemote(serverId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get all remotes
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ServersApi
+     */
+    public getRemotes(options?: RawAxiosRequestConfig) {
+        return ServersApiFp(this.configuration).getRemotes(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Get server info

@@ -23,7 +23,7 @@ import WeblensInput from '@weblens/lib/WeblensInput'
 import Logo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useNavigate } from 'react-router-dom'
-import { RemoteApi } from '@weblens/api/RemotesApi'
+import { ServersApi } from '@weblens/api/ServersApi'
 import { ServerInfo } from '@weblens/api/swag'
 
 function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
@@ -88,7 +88,7 @@ export default function Backup() {
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () => {
-            return RemoteApi.getRemotes().then((res) => res.data)
+            return ServersApi.getRemotes().then((res) => res.data)
         },
     })
     const { lastMessage } = useWeblensSocket()

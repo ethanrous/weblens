@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
 // GetRemotes godoc
@@ -16,12 +17,13 @@ import (
 //	@ID			GetRemotes
 //
 //	@Summary	Get all remotes
-//	@Tags		Remotes
+//	@Tags		Servers
 //
-//	@Security	ApiKeyAuth
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
 //
 //	@Success	200	{array}	rest.ServerInfo	"Server Info"
-//	@Router		/remotes [get]
+//	@Router		/servers [get]
 func getRemotes(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 
@@ -60,13 +62,14 @@ func getRemotes(w http.ResponseWriter, r *http.Request) {
 //	@ID			CreateRemote
 //
 //	@Summary	Create a new remote
-//	@Tags		Remotes
+//	@Tags		Servers
 //
-//	@Security	ApiKeyAuth
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
 //
 //	@Param		request	body	rest.NewServerParams	true	"New Server Params"
 //	@Success	201		{array}	rest.ServerInfo			"New Server Info"
-//	@Router		/remotes [post]
+//	@Router		/servers [post]
 func attachRemote(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	local := pack.InstanceService.GetLocal()
@@ -110,29 +113,35 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 //	@ID			DeleteRemote
 //
 //	@Summary	Delete a remote
-//	@Tags		Remotes
+//	@Tags		Servers
 //
-//	@Security	ApiKeyAuth
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
 //
-//	@Param		remoteId	query	string	true	"Server Id to delete"
+//	@Param		serverId	path	string	true	"Server Id to delete"
 //	@Success	200
-//	@Router		/remotes [delete]
+//	@Success	400
+//	@Success	404
+//	@Router		/servers/{serverId} [delete]
 func removeRemote(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	remoteId := r.URL.Query().Get("remoteId")
+	remoteId := chi.URLParam(r, "serverId")
 	if remoteId == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	remote := pack.InstanceService.GetByInstanceId(remoteId)
-
-	err := pack.InstanceService.Del(remote.DbId)
-	if err != nil {
-		log.ShowErr(err)
-		w.WriteHeader(http.StatusInternalServerError)
+	if remote == nil {
+		SafeErrorAndExit(werror.ErrNoInstance, w)
 		return
 	}
+
+	err := pack.InstanceService.Del(remote.DbId)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
 	if key := remote.GetUsingKey(); key != "" {
 		err = pack.AccessService.SetKeyUsedBy(key, nil)
 		if SafeErrorAndExit(err, w) {

@@ -1,4 +1,4 @@
-import ServerApi from '@weblens/api/ServerApi'
+import { ServersApi } from '@weblens/api/ServersApi'
 import { ServerInfo } from '@weblens/api/swag'
 import UsersApi from '@weblens/api/UserApi'
 import User from '@weblens/types/user/User'
@@ -48,6 +48,7 @@ const useR = () => {
 export interface WeblensSessionT {
     user: User
     server: ServerInfo
+    serverFetchError: boolean
     nav: NavigateFunction
     setUser: (user: User) => void
 
@@ -60,6 +61,7 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     user: null,
     server: null,
     nav: null,
+    serverFetchError: false,
 
     setUser: (user: User) => {
         if (user.isLoggedIn === undefined) {
@@ -72,11 +74,18 @@ const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     },
 
     fetchServerInfo: async () => {
-        return ServerApi.getServerInfo().then((res) => {
-            set({
-                server: res.data,
+        return ServersApi.getServerInfo()
+            .then((res) => {
+                set({
+                    server: res.data,
+                })
             })
-        })
+            .catch((e) => {
+                console.error('Failed to fetch server info', e)
+                set({
+                    serverFetchError: true,
+                })
+            })
     },
 
     setNav: (navFunc: NavigateFunction) => {

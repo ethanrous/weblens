@@ -31,7 +31,7 @@ import {
     useTaskState,
 } from '../FileBrowser/TaskStateControl'
 import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
-import { RemoteApi } from '@weblens/api/RemotesApi'
+import { ServersApi } from '@weblens/api/ServersApi'
 import User from '@weblens/types/user/User'
 import AccessApi from '@weblens/api/AccessApi'
 
@@ -436,7 +436,7 @@ function Servers() {
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () =>
-            await RemoteApi.getRemotes().then((res) => res.data),
+            await ServersApi.getRemotes().then((res) => res.data),
         retry: false,
     })
 

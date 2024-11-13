@@ -34,7 +34,12 @@ var ErrKeyInUse = &clientSafeErr{
 
 var ErrKeyNotFound = errors.New("api was not found")
 var ErrInvalidToken = errors.New("session token is invalid")
-var ErrTokenExpired = errors.New("session token is expired")
+
+var ErrTokenExpired = &clientSafeErr{
+	realError:  errors.New("session token is expired"),
+	statusCode: http.StatusUnauthorized,
+}
+
 var ErrKeyAlreadyExists = errors.New("api key already exists")
 var ErrKeyNoServer = errors.New("api key is not associated with a server")
 
