@@ -19,29 +19,36 @@ skip=false
 
 while getopts ":t:a:lps" opt; do
   case $opt in
-    t) docker_tag="$OPTARG"
+  t)
+    docker_tag="$OPTARG"
     ;;
-    a) arch="$OPTARG"
+  a)
+    arch="$OPTARG"
     ;;
-    l) local=true
+  l)
+    local=true
     ;;
-    p) push=true
+  p)
+    push=true
     ;;
-    s) skip=true
+  s)
+    skip=true
     ;;
-    \?) echo "Invalid option -$OPTARG" >&2
+  \?)
+    echo "Invalid option -$OPTARG" >&2
     exit 1
     ;;
   esac
 
   case $OPTARG in
-    -*) echo "Option $opt needs a valid argument"
+  -*)
+    echo "Option $opt needs a valid argument"
     exit 1
     ;;
   esac
 done
 
-sudo docker ps &> /dev/null
+sudo docker ps &>/dev/null
 docker_status=$?
 
 printf "Checking connection to docker..."
@@ -53,24 +60,20 @@ else
   printf " PASS\n"
 fi
 
-if [ -z "$docker_tag" ]
-then
-    docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
-    echo "WARN No tag specified"
+if [ -z "$docker_tag" ]; then
+  docker_tag=devel_$(git rev-parse --abbrev-ref HEAD)
+  echo "WARN No tag specified"
 fi
 
-if [ -z "$arch" ]
-then
-    arch="amd64"
+if [ -z "$arch" ]; then
+  arch="amd64"
 fi
 
 echo "Using tag: $docker_tag-$arch"
 
 if [ ! $skip == true ]; then
   printf "Running tests..."
-  ./scripts/testWeblens &> ./build/logs/container-build-pretest.log
-
-  if [ $? != 0 ]; then
+  if ! ./scripts/testWeblens --ui --show-logs &>./build/logs/container-build-pretest.log; then
     printf " FAILED\n"
     echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
     echo "See ./build/logs/container-build-pretest.log for test output"
@@ -80,21 +83,17 @@ if [ ! $skip == true ]; then
   fi
 fi
 
-
-if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2> /dev/null)" ]; then
-    echo "No weblens-go-build image found, attempting to build now..."
-    sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
+if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2>/dev/null)" ]; then
+  echo "No weblens-go-build image found, attempting to build now..."
+  sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
 fi
 
-
-cd ./ui
+cd ./ui || exit
 printf "Building UI..."
-npm install &> /dev/null
+npm install &>/dev/null
 export VITE_APP_BUILD_TAG=$docker_tag-$arch
 export VITE_BUILD=true
-npm run build &> ../build/logs/ui-build.log
-
-if [ $? != 0 ]; then
+if ! npm run build &>../build/logs/ui-build.log; then
   printf " FAILED\n"
   echo "Aborting container build. Ensure npm run build completes successfully before building container"
   exit 1
@@ -106,10 +105,10 @@ cd ..
 
 printf "Building Weblens binary..."
 if [ $local == true ]; then
-  GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &> ./build/logs/weblens-build.log
+  GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &>./build/logs/weblens-build.log
 else
   sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
-  "cd /source && GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" &> ./build/logs/weblens-build.log
+    "cd /source && GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" | tee ./build/logs/weblens-build.log >/dev/null
 fi
 printf " DONE\n"
 
@@ -119,4 +118,4 @@ if [ $push == true ]; then
   sudo docker push ethrous/weblens:"${docker_tag}-${arch}"
 fi
 
-printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:$docker_tag-$arch\n"
+printf "\nBUILD COMPLETE. Container tag: ethrous/weblens:%s-%s\n" "$docker_tag" "$arch"

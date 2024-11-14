@@ -5,8 +5,10 @@ if [[ ! -e ./ui ]]; then
   exit 1
 fi
 
+mkdir -p build/logs
+
 remote_tests=false
-show_log=false
+show_logs=false
 ui_tests=false
 
 while [ "${1:-}" != "" ]; do
@@ -14,8 +16,8 @@ while [ "${1:-}" != "" ]; do
   "-r" | "--remoteTests")
     remote_tests=true
     ;;
-  "-l" | "--show-log")
-    show_log=true
+  "-l" | "--show-logs")
+    show_logs=true
     ;;
   "--ui")
     ui_tests=true
@@ -40,7 +42,7 @@ if [[ $ui_tests == true ]]; then
   if ! npx eslint . &>../build/logs/ui-lint.log; then
     echo " FAIL"
     failed=true
-    if [[ $show_log == true ]]; then
+    if [[ $show_logs == true ]]; then
       cat ../build/logs/ui-lint.log
     else
       echo "View eslint logs at \`build/logs/ui-lint.log\` or rerun with --show-log"
@@ -72,7 +74,7 @@ if ! (
 ); then
   echo " FAIL"
   failed=true
-  if [[ $show_log == true ]]; then
+  if [[ $show_logs == true ]]; then
     grep -v -e CONT -e PAUSE <./build/logs/backend-test.log | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS"
   else
     echo "View go test logs at \`build/logs/backend-test.log\` or rerun with --show-log"
