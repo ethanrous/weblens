@@ -33,6 +33,7 @@ import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FileActionInfo } from '@weblens/api/swag'
+import { ErrorHandler } from '@weblens/types/Types'
 
 const SIDEBAR_BREAKPOINT = 650
 
@@ -513,9 +514,7 @@ function FileHistory() {
     })
 
     useEffect(() => {
-        refetch().catch((err) =>
-            console.error('Failed to refetch folder history', err)
-        )
+        refetch().catch(ErrorHandler)
     }, [filesMap.size])
 
     const { events, epoch } = useMemo(() => {

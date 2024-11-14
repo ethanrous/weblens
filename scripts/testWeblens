@@ -30,6 +30,7 @@ if [[ ! -e ./ui/dist/index.html ]]; then
   cd ui || exit
   export VITE_APP_BUILD_TAG=test
   export VITE_BUILD=true
+  npm install
   npm run build
   cd .. || exit
 fi

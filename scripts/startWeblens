@@ -82,7 +82,9 @@ while true; do
 	if [[ $build_ui == true ]]; then
 		cd ./ui || exit
 		printf "Building UI..."
-		# npm install &>/dev/null
+		if [[ ! -d ./node_modules ]]; then
+			npm install &>/dev/null
+		fi
 		export VITE_APP_BUILD_TAG="DEV-BUILD"
 		export VITE_BUILD=true
 

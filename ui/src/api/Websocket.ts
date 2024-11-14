@@ -43,7 +43,7 @@ export function useWeblensSocket() {
         })
 
     useEffect(() => {
-        const send = (action: string, content) => {
+        const send = (action: string, content: object) => {
             const msg = {
                 action: action,
                 sentAt: Date.now(),
@@ -182,13 +182,6 @@ export function HandleWebsocketMessage(
     handler: (msgData: wsMsgInfo) => void
 ) {
     if (lastMessage) {
-        // const msgData: wsMsgInfo = JSON.parse(lastMessage.data) as wsMsgInfo
-        // console.debug('WSRecv', msgData)
-        // if (msgData.error) {
-        //     console.error(msgData.error)
-        //     return
-        // }
-
         try {
             handler(lastMessage)
         } catch (e) {
@@ -455,11 +448,11 @@ function filebrowserWebsocketHandler(
 }
 
 export interface WebsocketControlT {
-    wsSend: (event: string, content) => void
+    wsSend: WsSendT
     readyState: number
     lastMessage: wsMsgInfo
 
-    setSender: (sender: (event: string, content) => void) => void
+    setSender: (sender: WsSendT) => void
     setReadyState: (readyState: number) => void
     setLastMessage: (msg: wsMsgInfo) => void
 }
@@ -471,7 +464,7 @@ const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
     readyState: 0,
     lastMessage: null,
 
-    setSender: (sender: (event: string, content) => void) => {
+    setSender: (sender: WsSendT) => {
         set({
             wsSend: sender,
         })
