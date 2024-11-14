@@ -21,44 +21,44 @@ import (
 )
 
 type Media struct {
-	MediaId primitive.ObjectID `json:"-" bson:"_id" example:"5f9b3b3b7b4f3b0001b3b3b7"`
+	MediaId primitive.ObjectID `bson:"_id" example:"5f9b3b3b7b4f3b0001b3b3b7"`
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentId ContentId `json:"contentId" bson:"contentId"`
+	ContentId ContentId `bson:"contentId"`
 
 	// Slices of files whos content hash to the contentId
-	FileIds []fileTree.FileId `json:"fileIds" bson:"fileIds"`
+	FileIds []fileTree.FileId `bson:"fileIds"`
 
-	CreateDate time.Time `json:"createDate" bson:"createDate"`
+	CreateDate time.Time `bson:"createDate"`
 
 	// User who owns the file that resulted in this media being created
-	Owner Username `json:"owner" bson:"owner"`
+	Owner Username `bson:"owner"`
 
 	// Full-res image dimensions
-	Width  int `json:"width" bson:"width"`
-	Height int `json:"height" bson:"height"`
+	Width  int `bson:"width"`
+	Height int `bson:"height"`
 
 	// Number of pages (typically 1, 0 in not a valid page count)
-	PageCount int `json:"pageCount" bson:"pageCount"`
+	PageCount int `bson:"pageCount"`
 
 	// Total time, in milliseconds, of a video
-	Duration int `json:"duration" bson:"duration"`
+	Duration int `bson:"duration"`
 
 	// Mime-type key of the media
-	MimeType string `json:"mimeType" bson:"mimeType"`
+	MimeType string `bson:"mimeType"`
 
 	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags" bson:"recognitionTags"`
+	RecognitionTags []string `bson:"recognitionTags"`
 
 	// If the media is hidden from the timeline
 	// TODO - make this per user
-	Hidden bool `json:"hidden" bson:"hidden"`
+	Hidden bool `bson:"hidden"`
 
 	// If the media disabled. This can happen when the backing file(s) are deleted,
 	// but the media stays behind because it can be re-used if needed.
-	Enabled bool `json:"enabled" bson:"enabled"`
+	Enabled bool `bson:"enabled"`
 
-	LikedBy []Username `json:"likedBy,omitempty" bson:"likedBy"`
+	LikedBy []Username `bson:"likedBy"`
 
 	/* NON-DATABASE FIELDS */
 
@@ -78,7 +78,7 @@ type Media struct {
 	// Ids for the files that are the cached WEBP of the fullres file. This is a slice
 	// because fullres images could be multi-page, and a cache file is created per page
 	highResCacheFiles []*fileTree.WeblensFileImpl
-} // @name MediaInfo
+}
 
 func NewMedia(contentId ContentId) *Media {
 	return &Media{

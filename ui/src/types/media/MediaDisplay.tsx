@@ -7,16 +7,18 @@ import {
     TablerIconsProps,
 } from '@tabler/icons-react'
 
-import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
+import {
+    GalleryContext,
+    GalleryContextT,
+} from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
-import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
-import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { useResize } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
 import React, {
+    CSSProperties,
     MouseEvent,
     ReactElement,
     useCallback,
@@ -30,45 +32,22 @@ import { VariableSizeList as WindowList } from 'react-window'
 
 import '@weblens/pages/Gallery/galleryStyle.scss'
 
-import { AlbumData, MediaWrapperProps, PresentType } from 'types/Types'
-import { FileApi } from '@weblens/api/FileBrowserApi'
-import { FileInfo } from '@weblens/api/swag'
+import {
+    AlbumData,
+    ErrorHandler,
+    MediaWrapperProps,
+    PresentType,
+} from 'types/Types'
 import { useNavigate } from 'react-router-dom'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import MediaApi from '@weblens/api/MediaApi'
 
-const goToFolder = async (
-    e: MouseEvent,
-    fileIds: string[],
-    filesInfo: FileInfo[],
-    setLoading: (o: boolean) => void,
-    setMenuOpen: (o: boolean) => void,
-    setFileInfo: (info: FileInfo[]) => void
-) => {
-    e.stopPropagation()
-    if (fileIds.length === 1) {
-        const res = await FileApi.getFile(fileIds[0], undefined)
-        const fileInfo = res.data
-
-        const newFile = new WeblensFile(fileInfo)
-
-        const newUrl = `/files/${newFile.ParentId()}#${fileIds[0]}`
-
+const goToMediaFile = async (mediaId: string) => {
+    return MediaApi.getMediaFile(mediaId).then((r) => {
+        const fileInfo = r.data
+        const newUrl = `/files/${fileInfo.parentId}#${fileInfo.id}`
         window.open(newUrl, '_blank')
-        return
-    }
-
-    setMenuOpen(true)
-    if (filesInfo.length === 0) {
-        setLoading(true)
-        const fileInfos = await Promise.all(
-            fileIds.map(
-                async (v) =>
-                    await FileApi.getFile(v, undefined).then((r) => r.data)
-            )
-        )
-        setFileInfo(fileInfos)
-        setLoading(false)
-    }
+    })
 }
 
 const TypeIcon = (mediaData: WeblensMedia) => {
@@ -94,7 +73,7 @@ type mediaTypeProps = {
 
 function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
     const [hover, setHover] = useState(false)
-    const [textRef, setTextRef] = useState(null)
+    const [textRef, setTextRef] = useState<HTMLParagraphElement>(null)
     const textSize = useResize(textRef)
 
     const style = useMemo(() => {
@@ -150,9 +129,6 @@ const MediaInfoDisplay = ({
         state.mediaMap.get(mediaData.Id())?.GetLikedBy()
     )
 
-    const [, setMenuOpen] = useState(false)
-    const [filesInfo, setFilesInfo] = useState([])
-
     const visible = Boolean(icon) && !mediaMenuOpen && !tooSmall
 
     const liked = useMediaStore((state) => {
@@ -170,18 +146,16 @@ const MediaInfoDisplay = ({
         heartFill = 'transparent'
     }
 
-    const goto = useCallback(
-        (e: MouseEvent) =>
-            goToFolder(
-                e,
-                mediaData.GetFileIds(),
-                filesInfo,
-                () => {},
-                setMenuOpen,
-                setFilesInfo
-            ),
-        []
-    )
+    const goto = useCallback((e: MouseEvent) => {
+        e.stopPropagation()
+        goToMediaFile(mediaId)
+            // .then(() => {
+            //
+            // })
+            .catch((e) => {
+                console.error('Failed to go to media file', e)
+            })
+    }, [])
 
     return (
         <div className="media-meta-preview">
@@ -205,9 +179,11 @@ const MediaInfoDisplay = ({
                 data-show-anyway={liked || othersLiked}
                 onClick={(e) => {
                     e.stopPropagation()
-                    likeMedia(mediaId, !liked).then(() => {
-                        setLiked(mediaId, user.username)
-                    })
+                    MediaApi.setMediaLiked(mediaData.Id(), !liked)
+                        .then(() => {
+                            setLiked(mediaData.Id(), user.username)
+                        })
+                        .catch(ErrorHandler)
                 }}
             >
                 <IconHeart
@@ -230,7 +206,8 @@ function MediaWrapper({
 }: MediaWrapperProps) {
     const ref = useRef()
 
-    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const { galleryState, galleryDispatch } =
+        useContext<GalleryContextT>(GalleryContext)
 
     const hover = useMediaStore((state) => state.mediaMap.get(state.hoverId))
     const lastSelected = useMediaStore((state) =>
@@ -452,7 +429,15 @@ type GalleryRow = {
     element?: JSX.Element
 }
 
-function GalleryRow({ data, index, style }) {
+function GalleryRow({
+    data,
+    index,
+    style,
+}: {
+    data: GalleryRow[]
+    index: number
+    style: CSSProperties
+}) {
     const { medias, widths } = useMemo(() => {
         const medias = []
         const widths = []
@@ -513,8 +498,8 @@ export function PhotoGallery({
     medias: WeblensMedia[]
     album?: AlbumData
 }) {
-    const [viewRef, setViewRef] = useState(null)
-    const [windowRef, setWindowRef] = useState(null)
+    const [viewRef, setViewRef] = useState<HTMLDivElement>(null)
+    const [windowRef, setWindowRef] = useState<WindowList>(null)
     const viewSize = useResize(viewRef)
     const { galleryState } = useContext(GalleryContext)
 

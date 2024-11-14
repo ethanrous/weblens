@@ -1,11 +1,21 @@
-import { WsMsgEvent } from '@weblens/api/Websocket'
+import { WsMsgEvent, wsMsgInfo } from '@weblens/api/Websocket'
 import { BackupProgressT } from '../Backup/BackupLogic'
-import { TaskStageT } from '../FileBrowser/TaskProgress'
+import { TaskStageT } from '../FileBrowser/TaskStateControl'
 
-export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
-    return (msgData) => {
+export function AdminWebsocketHandler(
+    setBackupProgress: React.Dispatch<
+        React.SetStateAction<Map<string, BackupProgressT>>
+    >,
+    refetchRemotes: () => void
+) {
+    return (msgData: wsMsgInfo) => {
+        if (!msgData.eventTag) {
+            console.error('Empty websocket message', msgData)
+            return
+        }
+
         switch (msgData.eventTag) {
-            case 'backup_progress': {
+            case WsMsgEvent.BackupProgressEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p: Map<string, BackupProgressT>) => {
                     let prog = p.get(msgData.relaySource)
@@ -19,7 +29,7 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                 break
             }
 
-            case 'backup_failed': {
+            case WsMsgEvent.BackupFailedEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p: Map<string, BackupProgressT>) => {
                     let prog = p.get(msgData.relaySource)
@@ -33,7 +43,7 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                 break
             }
 
-            case 'backup_complete': {
+            case WsMsgEvent.BackupCompleteEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p: Map<string, BackupProgressT>) => {
                     let prog = p.get(msgData.relaySource)

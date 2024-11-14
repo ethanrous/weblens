@@ -86,8 +86,8 @@ type WeblensFileImpl struct {
 	fileLock sync.Mutex
 
 	// Mark file as read-only internally.
-	// This should be checked before any write action is to be taken
-	// this should not be changed during run-time, only set in InitMediaRoot.
+	// This should be checked before any write action is to be performed.
+	// This should not be changed during run-time, only set in InitMediaRoot.
 	// If a directory is `readOnly`, all children are as well
 	readOnly bool
 

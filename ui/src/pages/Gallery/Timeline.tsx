@@ -70,8 +70,8 @@ export function Timeline() {
         }
 
         galleryDispatch({ type: 'add_loading', loading: 'media' })
-        MediaApi.getMedia(showRaw, showHidden, undefined, 0, 10000).then(
-            (res) => {
+        MediaApi.getMedia(showRaw, showHidden, undefined, 0, 10000)
+            .then((res) => {
                 const medias = res.data.Media.map((info) => {
                     return new WeblensMedia(info)
                 })
@@ -81,8 +81,10 @@ export function Timeline() {
                     type: 'remove_loading',
                     loading: 'media',
                 })
-            }
-        )
+            })
+            .catch((err) => {
+                console.error('Failed to get media', err)
+            })
     }, [
         showRaw,
         showHidden,

@@ -33,10 +33,10 @@ const WeblensProgress = memo(
     }: progressProps) => {
         const [dragging, setDragging] = useState(false)
         const [percentage, setPercentage] = useState(clamp(value, 0, 100))
-        const [secondaryPercentage, setSecondaryPercentage] = useState(
-            clamp(secondaryValue, 0, 100)
-        )
-        const [boxRef, setBoxRef] = useState(null)
+        // const [secondaryPercentage, setSecondaryPercentage] = useState(
+        //     clamp(secondaryValue, 0, 100)
+        // )
+        const [boxRef, setBoxRef] = useState<HTMLDivElement>(null)
 
         useEffect(() => {
             if (seekCallback) {
@@ -47,7 +47,7 @@ const WeblensProgress = memo(
         useEffect(() => {
             if (dragging) {
                 const rect = boxRef.getBoundingClientRect()
-                const update = (e) => {
+                const update = (e: MouseEvent) => {
                     setPercentage(
                         clamp(
                             ((e.clientX - rect.left) /
@@ -178,4 +178,3 @@ const WeblensProgress = memo(
 )
 
 export default WeblensProgress
-

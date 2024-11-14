@@ -19,17 +19,18 @@ import Logo from './components/Logo'
 import axios from 'axios'
 import MediaApi from './api/MediaApi'
 import { MediaTypeInfo } from './api/swag'
+import { ErrorHandler } from './types/Types'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
-const Wormhole = React.lazy(() => import('./pages/FileBrowser/Wormhole'))
+// const Wormhole = React.lazy(() => import('./pages/FileBrowser/Wormhole'))
 const Login = React.lazy(() => import('./pages/Login/Login'))
 const Setup = React.lazy(() => import('./pages/Setup/Setup'))
 
 axios.defaults.withCredentials = true
 
-const saveMediaTypeMap = (setState: (typeMap: MediaTypeInfo) => void) => {
-    MediaApi.getMediaTypes().then((r) => {
+async function saveMediaTypeMap(setState: (typeMap: MediaTypeInfo) => void) {
+    return MediaApi.getMediaTypes().then((r) => {
         setState(r.data)
         localStorage.setItem(
             'mediaTypeMap',
@@ -54,7 +55,7 @@ const WeblensRoutes = () => {
     const setTypeMap = useMediaStore((state) => state.setTypeMap)
 
     useEffect(() => {
-        fetchServerInfo()
+        fetchServerInfo().catch(ErrorHandler)
     }, [])
 
     useEffect(() => {
@@ -80,9 +81,12 @@ const WeblensRoutes = () => {
             console.debug('Nav backup page')
             nav('/backup')
         } else if (loc.pathname === '/login' && user?.isLoggedIn) {
-            if (loc.state?.returnTo) {
-                console.debug('Nav return to', loc.state.returnTo)
-                nav(loc.state.returnTo)
+            const state = loc.state as {
+                returnTo: string
+            }
+            if (state.returnTo !== undefined) {
+                console.debug('Nav return to', state.returnTo)
+                nav(state.returnTo)
             } else {
                 console.debug('Nav files home from login')
                 nav('/files/home')
@@ -100,23 +104,23 @@ const WeblensRoutes = () => {
 
         const typeMapStr = localStorage.getItem('mediaTypeMap')
         if (!typeMapStr) {
-            saveMediaTypeMap(setTypeMap)
+            saveMediaTypeMap(setTypeMap).catch(ErrorHandler)
         }
 
         try {
-            const typeMap = JSON.parse(typeMapStr)
+            const typeMap = JSON.parse(typeMapStr) as MediaTypeInfo
 
             // fetch type map every hour, just in case
-            if (
-                !typeMap.typeMap.size ||
-                !typeMap.time ||
-                Date.now() - typeMap.time > 3_600_000
-            ) {
-                saveMediaTypeMap(setTypeMap)
-            }
-            setTypeMap(typeMap.typeMap)
-        } catch {
-            saveMediaTypeMap(setTypeMap)
+            // if (
+            //     !typeMap.typeMap.size ||
+            //     !typeMap.time ||
+            //     Date.now() - typeMap.time > 3_600_000
+            // ) {
+            //     saveMediaTypeMap(setTypeMap)
+            // }
+            setTypeMap(typeMap)
+        } finally {
+            saveMediaTypeMap(setTypeMap).catch(ErrorHandler)
         }
     }, [server])
 
@@ -194,11 +198,11 @@ const PageSwitcher = () => {
         </Suspense>
     )
 
-    const wormholePage = (
-        <Suspense fallback={<PageLoader />}>
-            <Wormhole />
-        </Suspense>
-    )
+    // const wormholePage = (
+    //     <Suspense fallback={<PageLoader />}>
+    //         <Wormhole />
+    //     </Suspense>
+    // )
 
     const loginPage = (
         <Suspense fallback={<PageLoader />}>
@@ -223,7 +227,7 @@ const PageSwitcher = () => {
         { path: '/timeline', element: galleryPage },
         { path: '/albums/*', element: galleryPage },
         { path: '/files/*', element: filesPage },
-        { path: '/wormhole', element: wormholePage },
+        // { path: '/wormhole', element: wormholePage },
         { path: '/login', element: loginPage },
         { path: '/setup', element: setupPage },
         { path: '/backup', element: backupPage },

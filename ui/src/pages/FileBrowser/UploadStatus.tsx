@@ -91,10 +91,8 @@ const UploadStatus = () => {
     const uploadsMap = useUploadStatus((state) => state.uploads)
     const clearUploads = useUploadStatus((state) => state.clearUploads)
 
-    const uploadCards = useMemo(() => {
-        const uploadCards = []
-
-        const parents: SingleUpload[] = []
+    const { uploads, childrenMap } = useMemo(() => {
+        const uploads: SingleUpload[] = []
         const childrenMap = new Map<string, SingleUpload[]>()
         for (const upload of Array.from(uploadsMap.values())) {
             if (upload.parent) {
@@ -104,10 +102,10 @@ const UploadStatus = () => {
                     childrenMap.set(upload.parent, [upload])
                 }
             } else {
-                parents.push(upload)
+                uploads.push(upload)
             }
         }
-        parents.sort((a, b) => {
+        uploads.sort((a, b) => {
             const aVal = a.bytes / a.total
             const bVal = b.bytes / b.total
             if (aVal === bVal) {
@@ -123,19 +121,19 @@ const UploadStatus = () => {
             return 0
         })
 
-        for (const uploadMeta of parents) {
-            uploadCards.push(
-                <UploadCard
-                    key={uploadMeta.key}
-                    uploadMetadata={uploadMeta}
-                    subUploads={childrenMap.get(uploadMeta.key)}
-                />
-            )
-        }
-        return uploadCards
+        // for (const uploadMeta of parents) {
+        //     uploadCards.push(
+        //         <UploadCard
+        //             key={uploadMeta.key}
+        //             uploadMetadata={uploadMeta}
+        //             subUploads={childrenMap.get(uploadMeta.key)}
+        //         />
+        //     )
+        // }
+        return { uploads, childrenMap }
     }, [uploadsMap])
 
-    if (uploadCards.length === 0) {
+    if (uploads.length === 0) {
         return null
     }
 
@@ -147,7 +145,15 @@ const UploadStatus = () => {
         <div className="upload-status-container">
             <div className="flex flex-col h-max max-h-full w-full bg-[#ffffff11] p-2 pb-0 mb-1 rounded overflow-hidden">
                 <div className="flex no-scrollbar h-max min-h-[50px]">
-                    <div className="h-max min-h-max w-full">{uploadCards}</div>
+                    <div className="h-max min-h-max w-full">
+                        {uploads.map((uploadMeta) => (
+                            <UploadCard
+                                key={uploadMeta.key}
+                                uploadMetadata={uploadMeta}
+                                subUploads={childrenMap.get(uploadMeta.key)}
+                            />
+                        ))}
+                    </div>
                 </div>
 
                 <Divider h={2} w={'100%'} />

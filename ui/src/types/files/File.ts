@@ -1,18 +1,18 @@
 import {
+    Icon,
     IconFile,
     IconFolder,
     IconHome,
     IconTrash,
     IconUser,
 } from '@tabler/icons-react'
-import API_ENDPOINT from '@weblens/api/ApiEndpoint'
-import { fetchJson } from '@weblens/api/ApiFetch'
+import SharesApi from '@weblens/api/SharesApi'
 import { FileInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { ShareInfo, WeblensShare } from '@weblens/types/share/share'
+import { WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
 
-function getIcon(folderName: string): (p) => JSX.Element {
+function getIcon(folderName: string): Icon {
     if (folderName === 'HOME') {
         return IconHome
     } else if (folderName === 'TRASH') {
@@ -23,40 +23,6 @@ function getIcon(folderName: string): (p) => JSX.Element {
         return null
     }
 }
-
-// export interface WeblensFileInfo {
-//     filename: string
-//     id: string
-//     isDir: boolean
-//     modifyTimestamp: number
-//     ownerName: string
-//     parentId: string
-//     portablePath: string
-//     shareId: string
-//     size: number
-// }
-
-// export interface WeblensFileParams {
-//     id?: string
-//     owner?: string
-//     modifyTimestamp?: string
-//     filename?: string
-//     portablePath?: string
-//     parentId?: string
-//     contentId?: string
-//
-//     children?: string[]
-//
-//     isDir?: boolean
-//     pastFile?: boolean
-//     imported?: boolean
-//     modifiable?: boolean
-//     displayable?: boolean
-//
-//     size?: number
-//     mediaData?: MediaInfo
-//     shareId?: string
-// }
 
 export class WeblensFile {
     id?: string
@@ -89,8 +55,6 @@ export class WeblensFile {
     private contentId: string
     private share: WeblensShare
 
-    private debug_create_date: Date
-
     constructor(init: FileInfo) {
         if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
@@ -106,8 +70,6 @@ export class WeblensFile {
         if (!this.parents) {
             this.parents = []
         }
-
-        this.debug_create_date = new Date()
     }
 
     Id(): string {
@@ -124,14 +86,6 @@ export class WeblensFile {
 
     Update(newInfo: FileInfo) {
         Object.assign(this, newInfo)
-        // this.share = undefined;
-
-        // if (
-        //     newInfo.mediaData &&
-        //     newInfo.mediaData.contentId !== this.contentId
-        // ) {
-        //     this.contentId = newInfo.mediaData.contentId
-        // }
     }
 
     ParentId(): string {
@@ -159,9 +113,8 @@ export class WeblensFile {
         return this.parents.filter((parent) => Boolean(parent))
     }
 
-    GetPathParts(replaceIcons?: boolean): (string | ((p) => JSX.Element))[] {
-        const parts: (string | ((p) => JSX.Element))[] =
-            this.portablePath.split('/')
+    GetPathParts(replaceIcons?: boolean): (string | Icon)[] {
+        const parts: (string | Icon)[] = this.portablePath.split('/')
         if (replaceIcons) {
             const icon = getIcon(String(parts[0]))
             if (icon !== null) {
@@ -249,7 +202,7 @@ export class WeblensFile {
 
     UnsetSelected(selected: SelectedState): void {
         let mask = SelectedState.ALL - 1
-        while (selected !== 0) {
+        while (selected !== SelectedState.NotSelected) {
             selected = selected >> 1
             mask = (mask << 1) + 1
         }
@@ -287,7 +240,7 @@ export class WeblensFile {
         return (this.selected & SelectedState.Hovering) !== 0
     }
 
-    GetBaseIcon(mustBeRoot?: boolean): (p) => JSX.Element {
+    GetBaseIcon(mustBeRoot?: boolean): Icon {
         if (!this.portablePath) {
             return null
         }
@@ -347,10 +300,12 @@ export class WeblensFile {
         } else if (!this.shareId) {
             return null
         }
+        const res = await SharesApi.getFileShare(this.shareId)
+        if (res.status !== 200) {
+            return Promise.reject(new Error('Failed to get share info'))
+        }
 
-        const url = `${API_ENDPOINT}/share/${this.shareId}`
-        const shareInfo = await fetchJson<ShareInfo>(url)
-        this.share = new WeblensShare(shareInfo)
+        this.share = new WeblensShare(res.data)
         return this.share
     }
 }

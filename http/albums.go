@@ -2,9 +2,7 @@ package http
 
 import (
 	"encoding/json"
-	"math/rand"
 	"net/http"
-	"slices"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
@@ -12,13 +10,26 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
-	"github.com/gin-gonic/gin"
 	"github.com/go-chi/chi/v5"
 )
 
+// GetAlbum godoc
+//
+//	@ID			GetAlbum
+//
+//	@Security	SessionAuth
+//
+//	@Summary	Get album by album Id
+//	@Tags		Album
+//	@Produce	json
+//	@Param		albumId	path		string			true	"Album Id"
+//	@Param		shareId	query		string			false	"Share Id"
+//	@Success	200		{object}	rest.AlbumInfo	"Album Info"
+//	@Failure	404
+//	@Router		/albums/{albumId} [get]
 func getAlbum(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -33,41 +44,52 @@ func getAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	album := pack.AlbumService.Get(models.AlbumId(chi.URLParam(r, "albumId")))
+	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
+	album := pack.AlbumService.Get(albumId)
 	if album == nil {
-		writeJson(w, http.StatusNotFound, werror.ErrNoAlbum)
+		SafeErrorAndExit(werror.ErrNoAlbum, w)
 		return
 	}
 
 	if !pack.AccessService.CanUserAccessAlbum(u, album, sh) {
-		writeJson(w, http.StatusNotFound, werror.ErrNoAlbum)
+		SafeErrorAndExit(werror.ErrNoAlbumAccess, w)
 		return
 	}
 
-	raw := r.URL.Query().Get("raw") == "true"
+	// raw := r.URL.Query().Get("raw") == "true"
+	//
+	// var medias []*models.Media
+	// for media := range pack.AlbumService.GetAlbumMedias(album) {
+	// 	if media == nil {
+	// 		continue
+	// 	}
+	// 	if !raw && pack.MediaService.GetMediaType(media).IsRaw() {
+	// 		continue
+	// 	}
+	// 	medias = append(medias, media)
+	// }
 
-	var medias []*models.Media
-	for media := range pack.AlbumService.GetAlbumMedias(album) {
-		if media == nil {
-			continue
-		}
-		if !raw && pack.MediaService.GetMediaType(media).IsRaw() {
-			continue
-		}
-		medias = append(medias, media)
-	}
-
-	writeJson(w, http.StatusOK, gin.H{"albumMeta": album, "medias": medias})
+	AlbumInfo := rest.AlbumToAlbumInfo(album)
+	writeJson(w, http.StatusOK, AlbumInfo)
 }
 
+// GetAlbums godoc
+//
+//	@ID			GetAlbums
+//
+//	@Security	SessionAuth
+//
+//	@Summary	Get albums for a user
+//	@Tags		Album
+//	@Produce	json
+//	@Param		filter	query	string			false	"Albums filter"
+//	@Success	200		{array}	rest.AlbumInfo	"Album Infos"
+//	@Failure	404
+//	@Router		/albums [get]
 func getAlbums(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
-		return
-	}
-	if u == nil {
-		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -82,44 +104,39 @@ func getAlbums(w http.ResponseWriter, r *http.Request) {
 	var filter []string
 	if filterString != "" {
 		err := json.Unmarshal([]byte(filterString), &filter)
-		if err != nil {
-			log.ShowErr(err)
-			w.WriteHeader(http.StatusBadRequest)
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 	}
-	// var e bool
-	// albums = internal.Filter(
-	// 	albums, func(a *models.Album) bool {
-	// 		if includeShared == "false" && a.GetOwner() != user.GetUsername() {
-	// 			return false
-	// 		}
-	// 		if len(filter) != 0 {
-	// 			filter, _, e = internal.YoinkFunc(
-	// 				filter, func(s string) bool {
-	// 					return s == a.GetName()
-	// 				},
-	// 			)
-	// 			return e
-	// 		}
-	// 		return true
-	// 	},
-	// )
 
-	writeJson(w, http.StatusOK, gin.H{"albums": albums})
+	var albumInfos []rest.AlbumInfo
+	for _, a := range albums {
+		albumInfos = append(albumInfos, rest.AlbumToAlbumInfo(a))
+	}
+
+	writeJson(w, http.StatusOK, albumInfos)
 }
 
+// CreateAlbum godoc
+//
+//	@ID			CreateAlbum
+//
+//	@Security	SessionAuth
+//
+//	@Summary	Create a new album
+//	@Tags		Album
+//	@Produce	json
+//	@Param		NewAlbumParams	query		rest.CreateAlbumParams	true	"Create Album Params"
+//	@Success	200				{object}	rest.AlbumInfo			"Album Info"
+//	@Router		/albums [post]
 func createAlbum(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	if u == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	albumData, err := readCtxBody[rest.AlbumCreateBody](w, r)
+
+	albumData, err := readCtxBody[rest.CreateAlbumParams](w, r)
 	if err != nil {
 		return
 	}
@@ -128,15 +145,28 @@ func createAlbum(w http.ResponseWriter, r *http.Request) {
 	err = pack.AlbumService.Add(newAlbum)
 	if err != nil {
 		log.ShowErr(err)
-		writeJson(w, http.StatusInternalServerError, gin.H{"error": "Album creation failed"})
+		writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Album creation failed"})
 	}
 
 	writeJson(w, http.StatusOK, newAlbum)
 }
 
+// UpdateAlbum godoc
+//
+//	@ID			UpdateAlbum
+//
+//	@Security	SessionAuth
+//
+//	@Summary	Update an Album
+//	@Tags		Album
+//	@Produce	json
+//	@Param		albumId				path		string					true	"Album Id"
+//	@Param		UpdateAlbumParams	query		rest.UpdateAlbumParams	true	"Update Album Params"
+//	@Success	200
+//	@Router		/albums/{albumId} [patch]
 func updateAlbum(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -148,7 +178,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
 	a := pack.AlbumService.Get(albumId)
 	if a == nil {
-		writeJson(w, http.StatusNotFound, gin.H{"error": "Album not found"})
+		writeJson(w, http.StatusNotFound, rest.WeblensErrorInfo{Error: "Album not found"})
 		return
 	}
 
@@ -157,7 +187,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	update, err := readCtxBody[rest.UpdateAlbumBody](w, r)
+	update, err := readCtxBody[rest.UpdateAlbumParams](w, r)
 	if err != nil {
 		return
 	}
@@ -176,7 +206,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 		)
 
 		if len(ms) == 0 {
-			writeJson(w, http.StatusBadRequest, gin.H{"error": "No valid media Ids in request"})
+			writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "No valid media Ids in request"})
 			return
 		}
 	}
@@ -196,12 +226,12 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 		ms = append(ms, pack.MediaService.RecursiveGetMedia(folders...)...)
 	}
 
-	addedCount := 0
+	// addedCount := 0
 	if len(ms) != 0 {
 		err = pack.AlbumService.AddMediaToAlbum(a, ms...)
 		if err != nil {
 			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to add media to album"})
+			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to add media to album"})
 			return
 		}
 
@@ -209,7 +239,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 			err = pack.AlbumService.SetAlbumCover(a.ID(), ms[0])
 			if err != nil {
 				log.ErrTrace(err)
-				writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+				writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to set album cover"})
 				return
 			}
 		}
@@ -220,7 +250,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 		err = pack.AlbumService.RemoveMediaFromAlbum(a, update.RemoveMedia...)
 		if err != nil {
 			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to remove media from album"})
+			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to remove media from album"})
 			return
 		}
 	}
@@ -228,13 +258,13 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 	if update.Cover != "" {
 		cover := pack.MediaService.Get(update.Cover)
 		if cover == nil {
-			writeJson(w, http.StatusNotFound, gin.H{"error": "Cover id not found"})
+			writeJson(w, http.StatusNotFound, rest.WeblensErrorInfo{Error: "Cover id not found"})
 			return
 		}
 		err = pack.AlbumService.SetAlbumCover(a.ID(), cover)
 		if err != nil {
 			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to set album cover"})
+			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to set album cover"})
 			return
 		}
 	}
@@ -243,7 +273,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 		err := pack.AlbumService.RenameAlbum(a, update.NewName)
 		if err != nil {
 			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to set album name"})
+			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to set album name"})
 			return
 		}
 	}
@@ -258,7 +288,7 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
+			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to un-share user(s)"})
 			return
 		}
 	}
@@ -272,17 +302,30 @@ func updateAlbum(w http.ResponseWriter, r *http.Request) {
 		err = pack.ShareService.AddUsers(sh, users)
 		if err != nil {
 			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to share user(s)"})
+			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to share user(s)"})
 			return
 		}
 	}
 
-	writeJson(w, http.StatusOK, gin.H{"errors": []string{}, "addedCount": addedCount})
+	w.WriteHeader(http.StatusOK)
 }
 
+// DeleteOrLeaveAlbum godoc
+//
+//	@ID			DeleteOrLeaveAlbum
+//
+//	@Security	SessionAuth
+//
+//	@Summary	Delete an Album, or unshare it if the user is not the owner
+//	@Tags		Album
+//	@Produce	json
+//	@Param		albumId	path	string	true	"Album Id"
+//	@Param		shareId	query	string	false	"Share Id"
+//	@Success	200
+//	@Router		/albums/{albumId} [delete]
 func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -302,16 +345,14 @@ func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 
 	// err or user does not have access to this album, claim not found
 	if a == nil || !pack.AccessService.CanUserAccessAlbum(u, a, sh) {
-		writeJson(w, http.StatusNotFound, gin.H{"error": "Album not found"})
+		SafeErrorAndExit(werror.ErrNoAlbumAccess, w)
 		return
 	}
 
 	// If the user is not the owner, then unshare them from the album
 	if a.GetOwner() != u.GetUsername() {
 		err = pack.ShareService.RemoveUsers(sh, []*models.User{u})
-		if err != nil {
-			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, gin.H{"error": "Failed to un-share user(s)"})
+		if SafeErrorAndExit(err, w) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -319,17 +360,30 @@ func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = pack.AlbumService.Del(albumId)
-	if err != nil {
-		log.ErrTrace(err)
-		w.WriteHeader(http.StatusInternalServerError)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func unshareMeAlbum(w http.ResponseWriter, r *http.Request) {
+// GetAlbumMedia godoc
+//
+//	@ID		GetAlbumMedia
+//
+//	@Security
+//	@Security	SessionAuth
+//
+//	@Summary	Get media in an album
+//	@Tags		Album
+//	@Produce	json
+//	@Param		albumId	path	string	true	"Album Id"
+//	@Param		shareId	query	string	false	"Share Id"
+//	@Success	200 {array}	rest.MediaInfo	"Media Info"
+//	@Success	404
+//	@Router		/albums/{albumId}/media [get]
+func getAlbumMedia(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -339,49 +393,82 @@ func unshareMeAlbum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
-	a := pack.AlbumService.Get(albumId)
-	if a == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	if !pack.AccessService.CanUserAccessAlbum(u, a, sh) {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	err = pack.ShareService.RemoveUsers(sh, []*models.User{u})
-	if err != nil {
-		log.ShowErr(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func albumPreviewMedia(w http.ResponseWriter, r *http.Request) {
-	pack := getServices(r)
-	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
 
 	a := pack.AlbumService.Get(albumId)
-	if a == nil {
-		w.WriteHeader(http.StatusNotFound)
+
+	// err or user does not have access to this album, claim not found
+	if a == nil || !pack.AccessService.CanUserAccessAlbum(u, a, sh) {
+		SafeErrorAndExit(werror.ErrNoAlbumAccess, w)
 		return
 	}
 
-	albumMs := slices.Collect(pack.AlbumService.GetAlbumMedias(a))
-	randomMs := make([]models.ContentId, 0, 9)
-
-	for len(albumMs) != 0 && len(randomMs) < 9 {
-		index := rand.Intn(len(albumMs))
-		m := pack.MediaService.Get(albumMs[index].ID())
-		if m != nil && pack.MediaService.GetMediaType(m).IsRaw() && m.ID() != a.GetCover() {
-			randomMs = append(randomMs, m.ID())
+	var mediaInfos []rest.MediaInfo
+	for _, mId := range a.Medias {
+		m := pack.MediaService.Get(mId)
+		if m == nil {
+			continue
 		}
-
-		albumMs = internal.Banish(albumMs, index)
+		mediaInfos = append(mediaInfos, rest.MediaToMediaInfo(m))
 	}
 
-	writeJson(w, http.StatusOK, gin.H{"mediaIds": randomMs})
+	writeJson(w, http.StatusOK, mediaInfos)
 }
+
+// func unshareMeAlbum(w http.ResponseWriter, r *http.Request) {
+// 	pack := getServices(r)
+// 	u, err := getUserFromCtx(r)
+// 	if SafeErrorAndExit(err, w) {
+// 		return
+// 	}
+// 	sh, err := getShareFromCtx[*models.AlbumShare](w, r)
+// 	if SafeErrorAndExit(err, w) {
+// 		return
+// 	}
+//
+// 	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
+// 	a := pack.AlbumService.Get(albumId)
+// 	if a == nil {
+// 		w.WriteHeader(http.StatusNotFound)
+// 		return
+// 	}
+//
+// 	if !pack.AccessService.CanUserAccessAlbum(u, a, sh) {
+// 		w.WriteHeader(http.StatusNotFound)
+// 		return
+// 	}
+//
+// 	err = pack.ShareService.RemoveUsers(sh, []*models.User{u})
+// 	if err != nil {
+// 		log.ShowErr(err)
+// 		w.WriteHeader(http.StatusInternalServerError)
+// 		return
+// 	}
+//
+// 	w.WriteHeader(http.StatusOK)
+// }
+
+// func albumPreviewMedia(w http.ResponseWriter, r *http.Request) {
+// 	pack := getServices(r)
+// 	albumId := models.AlbumId(chi.URLParam(r, "albumId"))
+//
+// 	a := pack.AlbumService.Get(albumId)
+// 	if a == nil {
+// 		w.WriteHeader(http.StatusNotFound)
+// 		return
+// 	}
+//
+// 	albumMs := slices.Collect(pack.AlbumService.GetAlbumMedias(a))
+// 	randomMs := make([]models.ContentId, 0, 9)
+//
+// 	for len(albumMs) != 0 && len(randomMs) < 9 {
+// 		index := rand.Intn(len(albumMs))
+// 		m := pack.MediaService.Get(albumMs[index].ID())
+// 		if m != nil && pack.MediaService.GetMediaType(m).IsRaw() && m.ID() != a.GetCover() {
+// 			randomMs = append(randomMs, m.ID())
+// 		}
+//
+// 		albumMs = internal.Banish(albumMs, index)
+// 	}
+//
+// 	writeJson(w, http.StatusOK, gin.H{"mediaIds": randomMs})
+// }

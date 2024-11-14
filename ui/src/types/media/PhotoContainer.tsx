@@ -58,24 +58,28 @@ export const MediaImage = memo(
                 media.Id() &&
                 !media.HasQualityLoaded(quality)
             ) {
-                media.LoadBytes(
-                    quality,
-                    pageNumber,
-                    () => {
-                        setUrl({
-                            url: media.GetObjectUrl(quality),
-                            id: media.Id(),
-                        })
-                        setLoadErr(media.HasLoadError())
-                    },
-                    () => {
-                        setUrl({
-                            url: media.GetObjectUrl(quality),
-                            id: media.Id(),
-                        })
-                        setLoadErr(media.HasLoadError())
-                    }
-                )
+                media
+                    .LoadBytes(
+                        quality,
+                        pageNumber,
+                        () => {
+                            setUrl({
+                                url: media.GetObjectUrl(quality),
+                                id: media.Id(),
+                            })
+                            setLoadErr(media.HasLoadError())
+                        },
+                        () => {
+                            setUrl({
+                                url: media.GetObjectUrl(quality),
+                                id: media.Id(),
+                            })
+                            setLoadErr(media.HasLoadError())
+                        }
+                    )
+                    .catch((e) => {
+                        console.error('Failed to get media bytes', e)
+                    })
             }
 
             if (!doFetch) {
@@ -239,7 +243,9 @@ function VideoWrapper({
         if (isPlaying) {
             videoRef.pause()
         } else {
-            videoRef.play()
+            videoRef.play().catch((e) => {
+                console.error('Failed to play video', e)
+            })
         }
     }, [isPlaying, videoRef])
 
@@ -275,7 +281,15 @@ function VideoWrapper({
                     <IconPlayerPauseFilled onClick={() => videoRef.pause()} />
                 )}
                 {!isPlaying && (
-                    <IconPlayerPlayFilled onClick={() => videoRef.play()} />
+                    <IconPlayerPlayFilled
+                        onClick={() => {
+                            videoRef
+                                .play()
+                                .catch((e) =>
+                                    console.error('Failed to play video', e)
+                                )
+                        }}
+                    />
                 )}
             </div>
             <div

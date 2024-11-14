@@ -15,7 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func writeJson(w http.ResponseWriter, status int, obj interface{}) {
+func writeJson(w http.ResponseWriter, status int, obj any) {
 	bs, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
@@ -43,6 +43,7 @@ func SafeErrorAndExit(err error, w http.ResponseWriter) (shouldExit bool) {
 	if err == nil {
 		return false
 	}
+
 	safe, code := werror.TrySafeErr(err)
 	writeError(w, code, safe)
 	return true
@@ -104,7 +105,7 @@ func readRespBodyRaw(resp *http.Response) (bodyB []byte, err error) {
 	return
 }
 
-func getUserFromCtx(w http.ResponseWriter, r *http.Request) (*models.User, error) {
+func getUserFromCtx(r *http.Request) (*models.User, error) {
 	userI := r.Context().Value(UserKey)
 	if userI == nil {
 		return nil, werror.ErrCtxMissingUser

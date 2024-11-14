@@ -17,13 +17,11 @@ import {
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { DirViewModeT } from './FileBrowserTypes'
-import User from '@weblens/types/user/user'
+import User from '@weblens/types/user/User'
+import { ErrorHandler } from '@weblens/types/Types'
+import { WsSendT } from '@weblens/api/Websocket'
 
-export const getRealId = async (
-    contentId: string,
-    mode: FbModeT,
-    usr: User
-) => {
+export function getRealId(contentId: string, mode: FbModeT, usr: User) {
     if (mode === FbModeT.stats && contentId === 'external') {
         return 'EXTERNAL'
     }
@@ -63,125 +61,112 @@ export const handleRename = (
     removeLoading: (loading: string) => void
 ) => {
     addLoading('renameFile')
-    FileApi.updateFile(itemId, { newName: newName }).then(() =>
-        removeLoading('renameFile')
-    )
-}
-
-async function getFile(file): Promise<File> {
-    try {
-        return await file.getAsFile()
-    } catch {
-        return await new Promise((resolve, reject) =>
-            file.file(resolve, reject)
-        )
-    }
+    FileApi.updateFile(itemId, { newName: newName })
+        .then(() => removeLoading('renameFile'))
+        .catch(ErrorHandler)
 }
 
 async function addDir(
-    fsEntry,
+    fsEntry: FileSystemEntry,
     parentFolderId: string,
     topFolderKey: string,
     rootFolderId: string,
     isPublic: boolean,
     shareId: string
-) {
-    return await new Promise(
-        // eslint-disable-next-line no-async-promise-executor
-        async (
-            resolve: (value: fileUploadMetadata[]) => void,
-            reject
-        ): Promise<fileUploadMetadata[]> => {
-            if (fsEntry.isDirectory === true) {
-                const res = await FolderApi.createFolder(
-                    {
-                        parentFolderId: parentFolderId,
-                        newFolderName: fsEntry.name,
-                    },
-                    shareId
-                )
-                const folderId = res.data.id
-                if (!folderId) {
-                    reject()
-                }
-                let e: fileUploadMetadata = null
-                if (!topFolderKey) {
-                    topFolderKey = folderId
-                    e = {
-                        file: fsEntry,
-                        isDir: true,
-                        folderId: folderId,
-                        parentId: rootFolderId,
-                        isTopLevel: true,
-                        topLevelParentKey: null,
-                    }
-                }
-
-                const dirReader = fsEntry.createReader()
-                // addDir(entry, parentFolderId, topFolderKey, rootFolderId, authHeader)
-                const entriesPromise = new Promise(
-                    (resolve: (value) => void) => {
-                        const allEntries = []
-
-                        const reader = (callback) => (entries) => {
-                            if (entries.length === 0) {
-                                resolve(allEntries)
-                                return
-                            }
-
-                            for (const entry of entries) {
-                                allEntries.push(entry)
-                            }
-
-                            if (entries.length !== 100) {
-                                resolve(allEntries)
-                                return
-                            }
-                            dirReader.readEntries(callback(callback))
-                        }
-
-                        dirReader.readEntries(reader(reader))
-                    }
-                )
-
-                const allResults = []
-                if (e !== null) {
-                    allResults.push(e)
-                }
-                for (const entry of await entriesPromise) {
-                    allResults.push(
-                        ...(await addDir(
-                            entry,
-                            folderId,
-                            topFolderKey,
-                            rootFolderId,
-                            isPublic,
-                            shareId
-                        ))
-                    )
-                }
-                resolve(allResults)
-            } else {
-                if (fsEntry.name === '.DS_Store') {
-                    resolve([])
-                    return
-                }
-                const f = await getFile(fsEntry)
-                const e: fileUploadMetadata = {
-                    file: f,
-                    parentId: parentFolderId,
-                    isDir: false,
-                    isTopLevel: parentFolderId === rootFolderId,
-                    topLevelParentKey: topFolderKey,
-                }
-                resolve([e])
+): Promise<fileUploadMetadata[]> {
+    if (fsEntry instanceof FileSystemDirectoryEntry) {
+        const res = await FolderApi.createFolder(
+            {
+                parentFolderId: parentFolderId,
+                newFolderName: fsEntry.name,
+            },
+            shareId
+        )
+        const folderId = res.data.id
+        if (!folderId) {
+            return Promise.reject(
+                new Error('Failed to create folder: no folderId')
+            )
+        }
+        let e: fileUploadMetadata = null
+        if (!topFolderKey) {
+            topFolderKey = folderId
+            e = {
+                entry: fsEntry,
+                isDir: true,
+                folderId: folderId,
+                parentId: rootFolderId,
+                isTopLevel: true,
+                topLevelParentKey: null,
             }
         }
-    )
+
+        const dirReader = fsEntry.createReader()
+        const allEntries: FileSystemEntry[] = []
+        dirReader.readEntries((entries) => {
+            allEntries.push(...entries)
+        })
+        // const entriesPromise = new Promise((resolve: (value) => void) => {
+        //     const allEntries = []
+        //
+        //     const reader = (callback) => (entries) => {
+        //         if (entries.length === 0) {
+        //             resolve(allEntries)
+        //             return
+        //         }
+        //
+        //         for (const entry of entries) {
+        //             allEntries.push(entry)
+        //         }
+        //
+        //         if (entries.length !== 100) {
+        //             resolve(allEntries)
+        //             return
+        //         }
+        //         const entries = []
+        //         dirReader.readEntries(callback(callback))
+        //     }
+        //
+        //     dirReader.readEntries(reader(reader))
+        // })
+
+        const allResults: fileUploadMetadata[] = []
+        if (e !== null) {
+            allResults.push(e)
+        }
+        for (const entry of allEntries) {
+            allResults.push(
+                ...(await addDir(
+                    entry,
+                    folderId,
+                    topFolderKey,
+                    rootFolderId,
+                    isPublic,
+                    shareId
+                ))
+            )
+        }
+        return allResults
+    } else if (fsEntry instanceof FileSystemFileEntry) {
+        if (fsEntry.name === '.DS_Store') {
+            return []
+        }
+        const e: fileUploadMetadata = {
+            entry: fsEntry,
+            parentId: parentFolderId,
+            isDir: false,
+            isTopLevel: parentFolderId === rootFolderId,
+            topLevelParentKey: topFolderKey,
+        }
+        return [e]
+    } else {
+        console.error('Entry is not a file or directory')
+        return []
+    }
 }
 
 export async function HandleDrop(
-    entries,
+    items: DataTransferItemList,
     rootFolderId: string,
     conflictNames: string[],
     isPublic: boolean,
@@ -189,9 +174,9 @@ export async function HandleDrop(
 ) {
     const files: fileUploadMetadata[] = []
     const topLevels = []
-    if (entries) {
+    if (items) {
         // Handle Directory
-        for (const entry of entries) {
+        for (const entry of items) {
             if (!entry) {
                 console.error('Upload entry does not exist or is not a file')
                 continue
@@ -226,7 +211,7 @@ export async function HandleDrop(
     await Promise.all(topLevels)
 
     if (files.length !== 0) {
-        Upload(files, isPublic, shareId, rootFolderId)
+        Upload(files, isPublic, shareId, rootFolderId).catch(ErrorHandler)
     }
 }
 
@@ -248,14 +233,14 @@ export function HandleUploadButton(
     }
 
     if (uploads.length !== 0) {
-        Upload(uploads, isPublic, shareId, parentFolderId)
+        Upload(uploads, isPublic, shareId, parentFolderId).catch(ErrorHandler)
     }
 }
 
 export async function downloadSelected(
     files: WeblensFile[],
     removeLoading: (loading: string) => void,
-    wsSend: (action: string, content) => void,
+    wsSend: WsSendT,
     shareId?: string
 ) {
     if (files.length === 1 && !files[0].IsFolder()) {
@@ -277,7 +262,7 @@ export async function downloadSelected(
                 res.data.filename,
                 true,
                 shareId
-            )
+            ).catch(ErrorHandler)
         } else if (res.status === 202) {
             SubToTask(res.data.taskId, ['takeoutId'], wsSend)
         }
@@ -298,7 +283,7 @@ export const useKeyDownFileBrowser = () => {
     const viewMode = useFileBrowserStore((state) => state.viewOpts.dirViewMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const filesMap = useFileBrowserStore((state) => state.filesMap)
-    const filesList = useFileBrowserStore((state) => state.filesLists)
+    const filesLists = useFileBrowserStore((state) => state.filesLists)
     const mediaMap = useMediaStore((state) => state.mediaMap)
 
     const presentingTarget = filesMap.get(presentingId)
@@ -314,7 +299,7 @@ export const useKeyDownFileBrowser = () => {
     )
 
     useEffect(() => {
-        const onKeyDown = (event) => {
+        const onKeyDown = (event: KeyboardEvent) => {
             if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
                 event.preventDefault()
                 event.stopPropagation()
@@ -341,19 +326,23 @@ export const useKeyDownFileBrowser = () => {
                     } else if (event.key === 'ArrowRight') {
                         direction = 1
                     }
-                    const newTarget =
-                        filesList[presentingTarget.GetIndex() + direction]
+                    const newTarget = filesLists.get(folderInfo.Id())[
+                        presentingTarget.GetIndex() + direction
+                    ]
                     if (!newTarget) {
                         return
                     }
                     setPresentationTarget(newTarget.Id())
 
-                    const onDeck =
-                        filesList[presentingTarget.GetIndex() + direction * 2]
+                    const onDeck = filesLists.get(folderInfo.Id())[
+                        presentingTarget.GetIndex() + direction * 2
+                    ]
                     if (onDeck) {
                         const m = mediaMap.get(onDeck.GetContentId())
                         if (m && !m.HasQualityLoaded(PhotoQuality.HighRes)) {
-                            m.LoadBytes(PhotoQuality.HighRes)
+                            m.LoadBytes(PhotoQuality.HighRes).catch(
+                                ErrorHandler
+                            )
                         }
                     }
                 } else if (
@@ -390,7 +379,7 @@ export const useKeyDownFileBrowser = () => {
             }
         }
 
-        const onKeyUp = (event) => {
+        const onKeyUp = (event: KeyboardEvent) => {
             if (!blockFocus) {
                 if (event.key === 'Shift') {
                     setHoldingShift(false)
@@ -419,48 +408,50 @@ export const usePaste = (folderId: string, usr: User, blockFocus: boolean) => {
     const setPaste = useFileBrowserStore((state) => state.setPasteImgBytes)
 
     const handlePaste = useCallback(
-        async (e: ClipboardEvent) => {
+        (e: ClipboardEvent) => {
             if (blockFocus) {
                 return
             }
             e.preventDefault()
             e.stopPropagation()
-
-            const clipboardItems: ClipboardItem[] =
-                typeof navigator?.clipboard?.read === 'function'
-                    ? await navigator.clipboard.read().catch((v) => {
-                          console.error(v)
-                          return null
-                      })
-                    : e.clipboardData?.files
-            if (!clipboardItems) {
-                return
-            }
-            for (const item of clipboardItems) {
-                for (const mime of item.types) {
-                    if (mime.startsWith('image/')) {
-                        if (folderId === 'shared' || folderId === usr.trashId) {
-                            console.error(
-                                'This folder does not allow paste-to-upload'
-                            )
-                            return
+            if (typeof navigator?.clipboard?.read === 'function') {
+                navigator.clipboard
+                    .read()
+                    .then(async (items) => {
+                        for (const item of items) {
+                            for (const mime of item.types) {
+                                if (mime.startsWith('image/')) {
+                                    if (
+                                        folderId === 'shared' ||
+                                        folderId === usr.trashId
+                                    ) {
+                                        console.error(
+                                            'This folder does not allow paste-to-upload'
+                                        )
+                                        return
+                                    }
+                                    const img: ArrayBuffer = await (
+                                        await item.getType(mime)
+                                    ).arrayBuffer()
+                                    setPaste(img)
+                                } else if (mime === 'text/plain') {
+                                    const text = await (
+                                        await item.getType('text/plain')
+                                    )?.text()
+                                    if (!text) {
+                                        continue
+                                    }
+                                    setSearch(text)
+                                } else {
+                                    console.error('Unknown mime', mime)
+                                }
+                            }
                         }
-                        const img: ArrayBuffer = await (
-                            await item.getType(mime)
-                        ).arrayBuffer()
-                        setPaste(img)
-                    } else if (mime === 'text/plain') {
-                        const text = await (
-                            await item.getType('text/plain')
-                        )?.text()
-                        if (!text) {
-                            continue
-                        }
-                        setSearch(text)
-                    } else {
-                        console.error('Unknown mime', mime)
-                    }
-                }
+                    })
+                    .catch(ErrorHandler)
+            } else {
+                console.error('Unknown navigator clipboard type')
+                // clipboardItems = e.clipboardData.files
             }
         },
         [folderId, blockFocus]

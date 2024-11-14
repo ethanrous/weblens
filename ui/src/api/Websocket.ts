@@ -14,19 +14,21 @@ import {
 } from './FileBrowserApi'
 import {
     TaskStageT,
+    TaskType,
     useTaskState,
 } from '@weblens/pages/FileBrowser/TaskStateControl'
-import User from '@weblens/types/user/user'
 import { FileInfo, MediaInfo } from './swag'
+import { StartupTask } from '@weblens/pages/Startup/StartupLogic'
+import User from '@weblens/types/user/User'
+import { ErrorHandler } from '@weblens/types/Types'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
     const setLastMessage = useWebsocketStore((state) => state.setLastMessage)
     const setReadyState = useWebsocketStore((state) => state.setReadyState)
     const [givenUp, setGivenUp] = useState(false)
-    const { sendMessage, lastMessage, readyState } = useWebSocket(
-        API_WS_ENDPOINT,
-        {
+    const { sendMessage, lastMessage, lastJsonMessage, readyState } =
+        useWebSocket<wsMsgInfo>(API_WS_ENDPOINT, {
             onOpen: () => {
                 setGivenUp(false)
             },
@@ -38,8 +40,7 @@ export function useWeblensSocket() {
             onReconnectStop: () => {
                 setGivenUp(true)
             },
-        }
-    )
+        })
 
     useEffect(() => {
         const send = (action: string, content) => {
@@ -56,21 +57,22 @@ export function useWeblensSocket() {
     }, [sendMessage])
 
     useEffect(() => {
-        setLastMessage(lastMessage)
+        setLastMessage(lastJsonMessage)
     }, [lastMessage])
 
     useEffect(() => {
         setReadyState(givenUp ? -1 : readyState)
     }, [readyState, givenUp])
+
     return {
-        lastMessage,
+        lastJsonMessage,
     }
 }
 
 export type WsSendT = (action: string, content: object) => void
 
 export const useSubscribe = (cId: string, sId: string, usr: User) => {
-    const { lastMessage } = useWeblensSocket()
+    const { lastJsonMessage } = useWeblensSocket()
     const readyState = useWebsocketStore((state) => state.readyState)
     const wsSend = useWebsocketStore((state) => state.wsSend)
 
@@ -117,18 +119,20 @@ export const useSubscribe = (cId: string, sId: string, usr: User) => {
     // Listen for incoming websocket messages
     useEffect(() => {
         HandleWebsocketMessage(
-            lastMessage,
+            lastJsonMessage,
             filebrowserWebsocketHandler(sId, fbDispatch)
         )
-    }, [lastMessage, usr])
+    }, [lastJsonMessage, usr])
 
     return { wsSend, readyState }
 }
 
 export interface wsMsgInfo {
-    eventTag: string
+    eventTag: WsMsgEvent
     subscribeKey: string
     content: wsMsgContent
+
+    relaySource?: string
 
     taskType?: string
     error?: string
@@ -143,6 +147,7 @@ interface wsMsgContent {
     fileId?: string
     task_id?: string
     filename?: string
+    waitingOn?: StartupTask[]
     filenames?: string[]
     createdBy?: string
     task_job_name?: string
@@ -173,19 +178,19 @@ interface wsMsgContent {
 }
 
 export function HandleWebsocketMessage(
-    lastMessage: { data: string },
+    lastMessage: wsMsgInfo,
     handler: (msgData: wsMsgInfo) => void
 ) {
     if (lastMessage) {
-        const msgData: wsMsgInfo = JSON.parse(lastMessage.data)
-        console.debug('WSRecv', msgData)
-        if (msgData.error) {
-            console.error(msgData.error)
-            return
-        }
+        // const msgData: wsMsgInfo = JSON.parse(lastMessage.data) as wsMsgInfo
+        // console.debug('WSRecv', msgData)
+        // if (msgData.error) {
+        //     console.error(msgData.error)
+        //     return
+        // }
 
         try {
-            handler(msgData)
+            handler(lastMessage)
         } catch (e) {
             console.error('Exception while handling websocket message', e)
         }
@@ -219,13 +224,18 @@ export enum WsMsgEvent {
     ZipCompleteEvent = 'zip_complete',
     ServerGoingDownEvent = 'going_down',
     RestoreStartedEvent = 'restore_started',
+    RestoreCompleteEvent = 'restore_complete',
+    RestoreFailedEvent = 'restore_failed',
     WeblensLoadedEvent = 'weblens_loaded',
     ErrorEvent = 'error',
     RemoteConnectionChangedEvent = 'remote_connection_changed',
+
     BackupProgressEvent = 'backup_progress',
+    BackupFailedEvent = 'backup_failed',
 
     CopyFileStartedEvent = 'copy_file_started',
     CopyFileCompleteEvent = 'copy_file_complete',
+    CopyFileFailedEvent = 'copy_file_failed',
 }
 
 function filebrowserWebsocketHandler(
@@ -336,7 +346,7 @@ function filebrowserWebsocketHandler(
                         tasksComplete: msgData.content.completedFiles,
                         tasksTotal: msgData.content.totalFiles,
                         note: 'No note',
-                        taskType: msgData.taskType,
+                        taskType: msgData.taskType as TaskType,
                     })
                 break
             }
@@ -390,7 +400,7 @@ function filebrowserWebsocketHandler(
                     msgData.content.filename,
                     true,
                     shareId
-                )
+                ).catch(ErrorHandler)
                 break
             }
 
@@ -447,11 +457,11 @@ function filebrowserWebsocketHandler(
 export interface WebsocketControlT {
     wsSend: (event: string, content) => void
     readyState: number
-    lastMessage
+    lastMessage: wsMsgInfo
 
     setSender: (sender: (event: string, content) => void) => void
     setReadyState: (readyState: number) => void
-    setLastMessage: (msg: MessageEvent<wsMsgInfo>) => void
+    setLastMessage: (msg: wsMsgInfo) => void
 }
 
 const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
@@ -471,7 +481,7 @@ const WebsocketControl: StateCreator<WebsocketControlT, [], []> = (set) => ({
         set({ readyState: readyState })
     },
 
-    setLastMessage: (msg) => {
+    setLastMessage: (msg: wsMsgInfo) => {
         set({ lastMessage: msg })
     },
 })

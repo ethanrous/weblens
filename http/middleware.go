@@ -87,7 +87,7 @@ func RequireAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		u, err := getUserFromCtx(w, r)
+		u, err := getUserFromCtx(r)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -97,8 +97,46 @@ func RequireAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		log.Error.Println("Unauthorized request")
-		w.WriteHeader(http.StatusForbidden)
+		SafeErrorAndExit(werror.ErrNotAdmin, w)
+		return
+	})
+}
+
+func RequireOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pack := getServices(r)
+
+		server := getInstanceFromCtx(r)
+		if server != nil {
+
+			key, err := pack.AccessService.GetApiKey(server.GetUsingKey())
+			if err != nil {
+				SafeErrorAndExit(err, w)
+				return
+			}
+
+			owner := pack.UserService.Get(key.Owner)
+			if owner == nil || !owner.IsOwner() {
+				SafeErrorAndExit(werror.ErrNotOwner, w)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		u, err := getUserFromCtx(r)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		if u != nil && u.IsAdmin() {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		SafeErrorAndExit(werror.ErrNotOwner, w)
+		return
 	})
 }
 

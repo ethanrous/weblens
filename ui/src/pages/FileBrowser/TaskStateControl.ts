@@ -19,7 +19,7 @@ export type TaskStageT = {
 export class TaskProgress {
     taskId: string
     poolId: string
-    taskType: string
+    taskType: TaskType
     target: string
     workingOn: string
     note: string
@@ -35,9 +35,9 @@ export class TaskProgress {
 
     hidden: boolean
 
-    progMeta
+    progMeta: TaskUpdateProps
 
-    constructor(serverId: string, taskType: string) {
+    constructor(serverId: string, taskType: TaskType) {
         if (!serverId || !taskType) {
             console.error('TaskId:', serverId, 'Task Type:', taskType)
             throw new Error('Empty prop in TaskProgress constructor')
@@ -60,11 +60,11 @@ export class TaskProgress {
 
     FormatTaskName(): string {
         switch (this.taskType) {
-            case 'scan_directory':
+            case TaskType.ScanDirectory:
                 return `Scan ${this.target ? this.target : 'folder'}`
-            case 'create_zip':
+            case TaskType.CreateZip:
                 return `Zip ${this.target ? this.target : ''}`
-            case 'download_file':
+            case TaskType.DownloadFile:
                 return `Download ${this.target ? this.target : ''}`
         }
     }
@@ -148,10 +148,21 @@ export type NewTaskOptions = {
     progress?: number
 }
 
-enum TaskType {
+export enum TaskType {
     ScanDirectory = 'scan_directory',
     CreateZip = 'create_zip',
     DownloadFile = 'download_file',
+    Backup = 'do_backup',
+}
+
+type TaskUpdateProps = {
+    progress: number
+    tasksTotal?: number | string
+    tasksComplete?: number | string
+    workingOn?: string
+    taskId?: string
+    note?: string
+    taskType?: TaskType
 }
 
 type TaskStateT = {
@@ -160,7 +171,7 @@ type TaskStateT = {
     addTask: (taskId: string, taskType: string, opts?: NewTaskOptions) => void
     removeTask: (taskId: string) => void
     clearTasks: () => void
-    updateTaskProgress: (taskId: string, opts) => void
+    updateTaskProgress: (taskId: string, opts: TaskUpdateProps) => void
     handleTaskCompete: (taskId: string, time: number, note: string) => void
     handleTaskFailure: (taskId: string, error: string) => void
     handleTaskCancel: (taskId: string) => void
@@ -169,7 +180,7 @@ type TaskStateT = {
 const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
     tasks: new Map<string, TaskProgress>(),
 
-    addTask: (taskId: string, taskType: string, opts?: NewTaskOptions) => {
+    addTask: (taskId: string, taskType: TaskType, opts?: NewTaskOptions) => {
         set((state) => {
             const newProg = new TaskProgress(taskId, taskType)
 
@@ -229,7 +240,7 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
     },
 
     handleTaskCancel: (taskId: string) => {
-        console.error('handleTaskCancel not impl')
+        console.error('handleTaskCancel not impl', taskId)
     },
 
     updateTaskProgress: (taskId: string, opts) => {

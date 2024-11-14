@@ -3,7 +3,9 @@ package http
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +39,7 @@ type Server struct {
 // @license.name				MIT
 // @license.url				https://opensource.org/licenses/MIT
 // @host						localhost:8080
+// @schemes					http https
 // @BasePath					/api/
 //
 // @securityDefinitions.apikey	SessionAuth
@@ -121,7 +124,8 @@ func (s *Server) UseApi() *chi.Mux {
 	// Media
 	r.Route("/media", func(r chi.Router) {
 		r.Get("/", getMediaBatch)
-		r.Post("/{mediaId}/liked", likeMedia)
+		r.Post("/{mediaId}/liked", setMediaLiked)
+		r.Post("/{mediaId}/file", getMediaFile)
 		r.Patch("/visibility", hideMedia)
 		r.Patch("/date", adjustMediaDate)
 
@@ -134,11 +138,8 @@ func (s *Server) UseApi() *chi.Mux {
 			r.Get("/{mediaId}/{chunkName}", streamVideo)
 		})
 	})
-	// r.Get("/random", getRandomMedias)
-	// media.POST("s", getMediaByIds)
 
 	// Files
-	// files {= api.Group("}/files")
 	r.Route("/files", func(r chi.Router) {
 		r.Get("/{fileId}", getFile)
 		r.Get("/{fileId}/text", getFileText)
@@ -168,15 +169,16 @@ func (s *Server) UseApi() *chi.Mux {
 		})
 	})
 
+	// Journal
 	r.Route("/journal", func(r chi.Router) {
 		r.Get("/", getLifetimesSince)
 	})
 
 	// Upload
 	r.Route("/upload", func(r chi.Router) {
-		r.Post("/upload", newUploadTask)
-		r.Post("/upload/{uploadId}", newFileUpload)
-		r.Put("/upload/{uploadId}/file/{fileId}", handleUploadChunk)
+		r.Post("/", newUploadTask)
+		r.Post("/{uploadId}", newFileUpload)
+		r.Put("/{uploadId}/file/{fileId}", handleUploadChunk)
 	})
 
 	// Takeout
@@ -204,8 +206,9 @@ func (s *Server) UseApi() *chi.Mux {
 	// Share
 	r.Route("/share", func(r chi.Router) {
 		r.Get("/{shareId}", getFileShare)
-		r.Post("/files", createFileShare)
-		r.Patch("/{shareId}/accessors", patchShareAccessors)
+		r.Post("/file", createFileShare)
+		r.Post("/album", createAlbumShare)
+		r.Patch("/{shareId}/accessors", setShareAccessors)
 		r.Patch("/{shareId}/public", setSharePublic)
 		r.Delete("/{shareId}", deleteShare)
 	})
@@ -214,11 +217,12 @@ func (s *Server) UseApi() *chi.Mux {
 	r.Route("/albums", func(r chi.Router) {
 		r.Get("/", getAlbums)
 		r.Get("/{albumId}", getAlbum)
-		r.Get("/{albumId}/preview", albumPreviewMedia)
+		r.Get("/{albumId}/media", getAlbumMedia)
 		r.Post("/album", createAlbum)
-		r.Post("/{albumId}/leave", unshareMeAlbum)
 		r.Patch("/{albumId}", updateAlbum)
 		r.Delete("/{albumId}", deleteAlbum)
+		// r.Get("/{albumId}/preview", albumPreviewMedia)
+		// r.Post("/{albumId}/leave", unshareMeAlbum)
 	})
 
 	// ApiKeys
@@ -229,6 +233,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Delete("/{keyId}", deleteApiKey)
 	})
 
+	// Servers
 	r.Route("/servers", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(AllowPublic)
@@ -239,16 +244,19 @@ func (s *Server) UseApi() *chi.Mux {
 			r.Use(RequireAdmin)
 			r.Get("/", getRemotes)
 			r.Post("/", attachRemote)
+
+			r.Post("/backup", doFullBackup)
+
+			r.Post("/{serverId}/backup", launchBackup)
+			r.Post("/{serverId}/restore", restoreToCore)
 			r.Delete("/{serverId}", removeRemote)
 
-			r.Get("/backup", doFullBackup)
 		})
 	})
 
 	/* Static content */
 	r.Get("/static/{filename}", serveStaticContent)
 
-	// s.UseAdmin()
 	return r
 }
 
@@ -294,51 +302,6 @@ func (s *Server) UseInterserverRoutes() {
 	// r.Get("/backup", doFullBackup)
 }
 
-func (s *Server) UseRestore() {
-	// log.Trace.Println("Using restore routes")
-	//
-	// restore := s.router.Group("/api/core/restore")
-	// restore.Use(WeblensAuth(s.services))
-	//
-	// restore.POST("/history", restoreHistory)
-	// restore.POST("/users", restoreUsers)
-	// restore.POST("/file", uploadRestoreFile)
-	// restore.POST("/keys", restoreApiKeys)
-	// restore.POST("/instances", restoreInstances)
-	// restore.POST("/complete", finalizeRestore)
-}
-
-func (s *Server) UseAdmin() {
-	// log.Trace.Println("Using admin routes")
-	//
-	// admin := s.router.Group("/api")
-	// admin.Use(WeblensAuth(s.services))
-	// admin.Use(RequireAdmin())
-	//
-	// admin.GET("/files/external", getExternalDirs)
-	// admin.GET("/files/external/:folderId", getExternalFolderInfo)
-	// admin.GET("/files/autocomplete", autocompletePath)
-	//
-	// admin.PATCH("/user/:username/activate", activateUser)
-	//
-	// admin.POST("/scan", scanDir)
-	// admin.POST("/cache", clearCache)
-	//
-	// admin.GET("/remotes", getRemotes)
-	// admin.POST("/remotes", attachRemote)
-	// admin.DELETE("/remotes", removeRemote)
-	//
-	// admin.POST("/backup", launchBackup)
-	// admin.POST("/restore", restoreToCore)
-	//
-	// if s.services.InstanceService.GetLocal().Role == models.BackupServer {
-	// 	admin.POST("/core/attach", attachNewCoreRemote)
-	// }
-	//
-	// /* DANGER */
-	// admin.POST("/reset", resetServer)
-}
-
 func (s *Server) UseUi() *chi.Mux {
 	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
 	memFs.loadIndex()
@@ -370,6 +333,18 @@ func (s *Server) UseUi() *chi.Mux {
 	)
 
 	return r
+}
+
+func serveStaticContent(w http.ResponseWriter, r *http.Request) {
+	filename := chi.URLParam(r, "filename")
+	fullPath := env.GetAppRootDir() + "/static/" + filename
+	f, err := os.Open(fullPath)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	_, err = io.Copy(w, f)
+	SafeErrorAndExit(err, w)
 }
 
 func (s *Server) Restart() {

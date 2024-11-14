@@ -19,6 +19,286 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/albums": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Album"
+                ],
+                "summary": "Get albums for a user",
+                "operationId": "GetAlbums",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Albums filter",
+                        "name": "filter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Album Infos",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/AlbumInfo"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Album"
+                ],
+                "summary": "Create a new album",
+                "operationId": "CreateAlbum",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Album Info",
+                        "schema": {
+                            "$ref": "#/definitions/AlbumInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/albums/{albumId}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Album"
+                ],
+                "summary": "Get album by album Id",
+                "operationId": "GetAlbum",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Album Id",
+                        "name": "albumId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Album Info",
+                        "schema": {
+                            "$ref": "#/definitions/AlbumInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Album"
+                ],
+                "summary": "Delete an Album, or unshare it if the user is not the owner",
+                "operationId": "DeleteOrLeaveAlbum",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Album Id",
+                        "name": "albumId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Album"
+                ],
+                "summary": "Update an Album",
+                "operationId": "UpdateAlbum",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Album Id",
+                        "name": "albumId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "name": "cover",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "newFolders",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "newMedia",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "newName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "removeMedia",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "removeUsers",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "users",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Album Info",
+                        "schema": {
+                            "$ref": "#/definitions/AlbumInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/albums/{albumId}/media": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Album"
+                ],
+                "summary": "Get media in an album",
+                "operationId": "GetAlbumMedia",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Album Id",
+                        "name": "albumId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Media Info",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/MediaInfo"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
         "/files": {
             "delete": {
                 "security": [
@@ -146,7 +426,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Files History"
+                    "Files"
                 ],
                 "summary": "Restore files from some time in the past",
                 "operationId": "RestoreFiles",
@@ -513,7 +793,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/fileTree.FileAction"
+                                "$ref": "#/definitions/FileActionInfo"
                             }
                         }
                     },
@@ -1113,6 +1393,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/media/{mediaId}/file": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Get file of media by id",
+                "operationId": "GetMediaFile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Id of media",
+                        "name": "mediaId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File info of file media was created from",
+                        "schema": {
+                            "$ref": "#/definitions/FileInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/media/{mediaId}/info": {
             "get": {
                 "produces": [
@@ -1138,6 +1461,53 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/MediaInfo"
                         }
+                    }
+                }
+            }
+        },
+        "/media/{mediaId}/like": {
+            "patch": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Like a media",
+                "operationId": "SetMediaLiked",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Id of media",
+                        "name": "mediaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Liked status to set",
+                        "name": "liked",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -1206,11 +1576,49 @@ const docTemplate = `{
                     "201": {
                         "description": "New Server Info",
                         "schema": {
+                            "$ref": "#/definitions/ServerInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    }
+                }
+            }
+        },
+        "/servers/init": {
+            "post": {
+                "security": [],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "Initialize the target server",
+                "operationId": "InitializeServer",
+                "parameters": [
+                    {
+                        "description": "Server initialization body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rest.InitServerParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New server info",
+                        "schema": {
                             "type": "array",
                             "items": {
                                 "$ref": "#/definitions/ServerInfo"
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -1256,6 +1664,162 @@ const docTemplate = `{
                 }
             }
         },
+        "/servers/{serverId}/backup": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "Launch backup on a server",
+                "operationId": "LaunchBackup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server ID",
+                        "name": "serverId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/servers/{serverId}/restore": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Servers"
+                ],
+                "summary": "Restore target core server",
+                "operationId": "RestoreCore",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Server Id",
+                        "name": "serverId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Restore Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RestoreCoreParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/share/album": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Share an album",
+                "operationId": "CreateAlbumShare",
+                "parameters": [
+                    {
+                        "description": "New Album Share Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AlbumShareParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New Album Share",
+                        "schema": {
+                            "$ref": "#/definitions/ShareInfo"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
+        "/share/file": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Share a file",
+                "operationId": "CreateFileShare",
+                "parameters": [
+                    {
+                        "description": "New File Share Params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/FileShareParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New File Share",
+                        "schema": {
+                            "$ref": "#/definitions/ShareInfo"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict"
+                    }
+                }
+            }
+        },
         "/share/{shareId}": {
             "get": {
                 "produces": [
@@ -1279,8 +1843,109 @@ const docTemplate = `{
                     "200": {
                         "description": "File Share",
                         "schema": {
-                            "$ref": "#/definitions/FileShare"
+                            "$ref": "#/definitions/ShareInfo"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Delete a file share",
+                "operationId": "DeleteFileShare",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/share/{shareId}/accessors": {
+            "patch": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Update a share's accessors list",
+                "operationId": "SetShareAccessors",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Share Accessors",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rest.UserListBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    }
+                }
+            }
+        },
+        "/share/{shareId}/public": {
+            "patch": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Share"
+                ],
+                "summary": "Update a share's \"public\" status",
+                "operationId": "SetSharePublic",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Share Public Status",
+                        "name": "public",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     },
                     "404": {
                         "description": "Not Found"
@@ -1333,6 +1998,157 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/upload": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Begin a new upload task",
+                "operationId": "StartUpload",
+                "parameters": [
+                    {
+                        "description": "New upload request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/NewUploadParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Upload Info",
+                        "schema": {
+                            "$ref": "#/definitions/NewUploadInfo"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/upload/{uploadId}": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Add a file to an upload task",
+                "operationId": "AddFileToUpload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Upload Id",
+                        "name": "uploadId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New file params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/NewFileParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Upload Info",
+                        "schema": {
+                            "$ref": "#/definitions/NewFileInfo"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/upload/{uploadId}/file/{fileId}": {
+            "put": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Add a chunk to a file upload",
+                "operationId": "UploadFileChunk",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Upload Id",
+                        "name": "uploadId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "File Id",
+                        "name": "fileId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "File chunk",
+                        "name": "chunk",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content Length for the chunk",
+                        "name": "ContentLength",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     },
                     "404": {
                         "description": "Not Found"
@@ -1528,7 +2344,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Username autocomplete must contain at least 2 characters",
                         "schema": {
-                            "$ref": "#/definitions/Error"
+                            "$ref": "#/definitions/ErrorInfo"
                         }
                     },
                     "401": {
@@ -1627,7 +2443,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/Error"
+                            "$ref": "#/definitions/ErrorInfo"
                         }
                     },
                     "401": {
@@ -1680,7 +2496,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/Error"
+                            "$ref": "#/definitions/ErrorInfo"
                         }
                     },
                     "403": {
@@ -1735,7 +2551,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Both oldPassword and newPassword fields are required",
                         "schema": {
-                            "$ref": "#/definitions/Error"
+                            "$ref": "#/definitions/ErrorInfo"
                         }
                     },
                     "403": {
@@ -1749,6 +2565,55 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "AlbumInfo": {
+            "type": "object",
+            "properties": {
+                "cover": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "medias": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "primaryColor": {
+                    "type": "string"
+                },
+                "secondaryColor": {
+                    "type": "string"
+                },
+                "showOnTimeline": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "AlbumShareParams": {
+            "type": "object",
+            "properties": {
+                "albumId": {
+                    "type": "string"
+                },
+                "public": {
+                    "type": "boolean"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "ApiKeyInfo": {
             "type": "object",
             "properties": {
@@ -1793,11 +2658,43 @@ const docTemplate = `{
                 }
             }
         },
-        "Error": {
+        "ErrorInfo": {
             "type": "object",
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "FileActionInfo": {
+            "type": "object",
+            "properties": {
+                "actionType": {
+                    "type": "string"
+                },
+                "destinationPath": {
+                    "type": "string"
+                },
+                "eventId": {
+                    "type": "string"
+                },
+                "lifeId": {
+                    "type": "string"
+                },
+                "originPath": {
+                    "type": "string"
+                },
+                "parentId": {
+                    "type": "string"
+                },
+                "serverId": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "integer"
                 }
             }
         },
@@ -1845,41 +2742,20 @@ const docTemplate = `{
                 }
             }
         },
-        "FileShare": {
+        "FileShareParams": {
             "type": "object",
             "properties": {
-                "accessors": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "expires": {
-                    "type": "string"
-                },
                 "fileId": {
-                    "type": "string"
-                },
-                "owner": {
                     "type": "string"
                 },
                 "public": {
                     "type": "boolean"
                 },
-                "shareId": {
-                    "type": "string"
-                },
-                "shareName": {
-                    "type": "string"
-                },
-                "shareType": {
-                    "$ref": "#/definitions/models.ShareType"
-                },
-                "updated": {
-                    "type": "string"
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "wormhole": {
                     "type": "boolean"
@@ -1967,7 +2843,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "createDate": {
-                    "type": "string"
+                    "type": "integer"
                 },
                 "duration": {
                     "description": "Total time, in milliseconds, of a video",
@@ -2015,10 +2891,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "rotate": {
-                    "description": "The rotation of the image from its original. Found from the exif data",
-                    "type": "string"
                 },
                 "width": {
                     "description": "Full-res image dimensions",
@@ -2092,9 +2964,34 @@ const docTemplate = `{
                 }
             }
         },
+        "NewFileInfo": {
+            "type": "object",
+            "properties": {
+                "fileId": {
+                    "type": "string"
+                }
+            }
+        },
+        "NewFileParams": {
+            "type": "object",
+            "properties": {
+                "fileSize": {
+                    "type": "integer"
+                },
+                "newFileName": {
+                    "type": "string"
+                },
+                "parentFolderId": {
+                    "type": "string"
+                }
+            }
+        },
         "NewServerParams": {
             "type": "object",
             "properties": {
+                "coreAddress": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -2106,6 +3003,28 @@ const docTemplate = `{
                 },
                 "usingKey": {
                     "type": "string"
+                }
+            }
+        },
+        "NewUploadInfo": {
+            "type": "object",
+            "properties": {
+                "uploadId": {
+                    "type": "string"
+                }
+            }
+        },
+        "NewUploadParams": {
+            "type": "object",
+            "properties": {
+                "chunkSize": {
+                    "type": "integer"
+                },
+                "rootFolderId": {
+                    "type": "string"
+                },
+                "totalUploadSize": {
+                    "type": "integer"
                 }
             }
         },
@@ -2142,6 +3061,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "oldPassword": {
+                    "type": "string"
+                }
+            }
+        },
+        "RestoreCoreParams": {
+            "type": "object",
+            "properties": {
+                "restoreId": {
+                    "type": "string"
+                },
+                "restoreUrl": {
                     "type": "string"
                 }
             }
@@ -2214,6 +3144,47 @@ const docTemplate = `{
                 },
                 "userCount": {
                     "type": "integer"
+                }
+            }
+        },
+        "ShareInfo": {
+            "type": "object",
+            "properties": {
+                "accessors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "expires": {
+                    "type": "integer"
+                },
+                "fileId": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "public": {
+                    "type": "boolean"
+                },
+                "shareId": {
+                    "type": "string"
+                },
+                "shareName": {
+                    "type": "string"
+                },
+                "shareType": {
+                    "type": "string"
+                },
+                "updated": {
+                    "type": "integer"
+                },
+                "wormhole": {
+                    "type": "boolean"
                 }
             }
         },
@@ -2297,57 +3268,28 @@ const docTemplate = `{
                 }
             }
         },
-        "fileTree.FileAction": {
+        "models.ApiKey": {
             "type": "object",
             "properties": {
-                "actionType": {
-                    "$ref": "#/definitions/fileTree.FileActionType"
-                },
-                "destinationPath": {
-                    "description": "OriginId        FileId ` + "`" + `json:\"originId\" bson:\"originId,omitempty\"` + "`" + `",
+                "createdBy": {
                     "type": "string"
                 },
-                "eventId": {
+                "createdTime": {
                     "type": "string"
                 },
-                "lifeId": {
+                "id": {
                     "type": "string"
                 },
-                "originPath": {
+                "key": {
                     "type": "string"
                 },
-                "parentId": {
+                "owner": {
                     "type": "string"
                 },
-                "serverId": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                },
-                "timestamp": {
+                "remoteUsing": {
                     "type": "string"
                 }
             }
-        },
-        "fileTree.FileActionType": {
-            "type": "string",
-            "enum": [
-                "fileCreate",
-                "fileMove",
-                "fileSizeChange",
-                "backup",
-                "fileDelete",
-                "fileRestore"
-            ],
-            "x-enum-varnames": [
-                "FileCreate",
-                "FileMove",
-                "FileSizeChange",
-                "Backup",
-                "FileDelete",
-                "FileRestore"
-            ]
         },
         "models.ServerRole": {
             "type": "string",
@@ -2364,16 +3306,38 @@ const docTemplate = `{
                 "RestoreServerRole"
             ]
         },
-        "models.ShareType": {
-            "type": "string",
-            "enum": [
-                "file",
-                "album"
-            ],
-            "x-enum-varnames": [
-                "SharedFile",
-                "SharedAlbum"
-            ]
+        "rest.InitServerParams": {
+            "type": "object",
+            "properties": {
+                "coreAddress": {
+                    "type": "string"
+                },
+                "coreKey": {
+                    "type": "string"
+                },
+                "localId": {
+                    "description": "For restoring a server, remoind the core of its serverId and api key the remote last used",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "remoteId": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.ServerRole"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "usingKeyInfo": {
+                    "$ref": "#/definitions/models.ApiKey"
+                }
+            }
         },
         "rest.ScanBody": {
             "type": "object",
@@ -2383,6 +3347,23 @@ const docTemplate = `{
                 },
                 "folderId": {
                     "type": "string"
+                }
+            }
+        },
+        "rest.UserListBody": {
+            "type": "object",
+            "properties": {
+                "addUsers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "removeUsers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         }
@@ -2409,7 +3390,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
 	BasePath:         "/api/",
-	Schemes:          []string{},
+	Schemes:          []string{"http", "https"},
 	Title:            "Weblens API",
 	Description:      "Programmatic access to the Weblens server",
 	InfoInstanceName: "swagger",

@@ -3,7 +3,7 @@ import 'components/style.scss'
 import '@weblens/types/files/filesStyle.scss'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import { useResize } from 'components/hooks'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid } from 'react-window'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import {
@@ -11,7 +11,22 @@ import {
     GetStartedCard,
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 
-function SquareWrapper({ data, rowIndex, columnIndex, style }) {
+type GridDataProps = {
+    files: WeblensFile[]
+    numCols: number
+}
+
+function SquareWrapper({
+    data,
+    rowIndex,
+    columnIndex,
+    style,
+}: {
+    data: GridDataProps
+    rowIndex: number
+    columnIndex: number
+    style: CSSProperties
+}) {
     useFileBrowserStore((state) => state.folderInfo)
 
     if (!data || rowIndex === undefined) {
@@ -107,6 +122,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                             rowCount={Math.ceil(filteredFiles.length / numCols)}
                             columnWidth={size.width / numCols}
                             rowHeight={rowHeight}
+                            overscanRowCount={25}
                             onScroll={({ scrollTop }) => {
                                 if (
                                     lastSeen &&

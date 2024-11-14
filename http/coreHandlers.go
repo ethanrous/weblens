@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 	"github.com/gin-gonic/gin"
 	"github.com/go-chi/chi/v5"
 )
@@ -18,7 +19,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	local := pack.InstanceService.GetLocal()
 	if local == nil {
-		writeJson(w, http.StatusServiceUnavailable, gin.H{"error": "weblens not initialized"})
+		writeJson(w, http.StatusServiceUnavailable, rest.WeblensErrorInfo{Error: "weblens not initialized"})
 		return
 	}
 	writeJson(w, http.StatusOK, gin.H{"id": local.ServerId()})
@@ -47,7 +48,7 @@ func getFileBytes(w http.ResponseWriter, r *http.Request) {
 	// readable, err := f.Readable()
 	// if err != nil {
 	// 	safe, code := werror.TrySafeErr(err)
-	// 	writeJson(w, code, gin.H{"error": safe})
+	// 	writeJson(w, code, rest.WeblensErrorInfo{Error: safe})
 	// 	return
 	// }
 	// if closer, ok := readable.(io.Closer); ok {
@@ -69,9 +70,10 @@ func getFileBytes(w http.ResponseWriter, r *http.Request) {
 
 func getFileMeta(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
-if SafeErrorAndExit(err, w) {
-return}
+	u, err := getUserFromCtx(r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	fileId := chi.URLParam(r, "fileId")
 	f, err := pack.FileService.GetFileSafe(fileId, u, nil)

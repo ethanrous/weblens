@@ -8,7 +8,6 @@ import {
     IconRocket,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { initServer } from '@weblens/api/ApiFetch'
 import UsersApi from '@weblens/api/UserApi'
 import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
@@ -21,10 +20,11 @@ import Logo from '@weblens/components/Logo'
 import { ThemeToggleButton } from '@weblens/components/HeaderBar'
 import {
     HandleWebsocketMessage,
-    useWeblensSocket,
+    useWebsocketStore,
 } from '@weblens/api/Websocket'
 import { setupWebsocketHandler } from './SetupLogic'
-import User from '@weblens/types/user/user'
+import User from '@weblens/types/user/User'
+import { ServersApi } from '@weblens/api/ServersApi'
 
 const UserSelect = ({
     users,
@@ -141,7 +141,7 @@ const Core = ({
     const setUser = useSessionStore((state) => state.setUser)
     useKeyDown('Enter', () => buttonRef.click())
 
-    const { data: users } = useQuery({
+    const { data: users } = useQuery<User[]>({
         queryKey: ['setupUsers'],
         queryFn: () => {
             // if (serverInfo.info.role !== 'init') {
@@ -261,16 +261,15 @@ const Core = ({
                 }
                 doSuper
                 onClick={async () => {
-                    const ret = await initServer(
-                        serverName,
-                        'core',
-                        username,
-                        password,
-                        '',
-                        ''
-                    )
-                    if (ret.status !== 201) {
-                        console.error(ret.statusText)
+                    const res = await ServersApi.initializeServer({
+                        name: serverName,
+                        role: 'core',
+                        username: username,
+                        password: password,
+                    })
+
+                    if (res.status !== 201) {
+                        console.error(res.statusText)
                         return false
                     }
 
@@ -295,9 +294,7 @@ const Core = ({
                         return false
                     }
 
-                    fetchServerInfo()
-
-                    return true
+                    return fetchServerInfo()
                 }}
             />
         </div>
@@ -381,16 +378,14 @@ const Backup = ({
                 }
                 doSuper
                 onClick={async () => {
-                    const ret = await initServer(
-                        serverName,
-                        'backup',
-                        '',
-                        '',
-                        coreAddress,
-                        apiKey
-                    )
-                    if (ret.status !== 201) {
-                        console.error(ret.statusText)
+                    const res = await ServersApi.initializeServer({
+                        name: serverName,
+                        role: 'backup',
+                        coreAddress: coreAddress,
+                        coreKey: apiKey,
+                    })
+                    if (res.status !== 201) {
+                        console.error(res.statusText)
                         return false
                     }
 
@@ -422,8 +417,8 @@ const Restore = ({
 
     const nav = useNavigate()
     const [restoreInProgress, setRestoreInProgress] = useState(false)
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
 
-    const { lastMessage } = useWeblensSocket()
     useEffect(() => {
         HandleWebsocketMessage(
             lastMessage,

@@ -4,7 +4,12 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { useMemo, useState } from 'react'
-import { TaskProgress, TaskStage, useTaskState } from './TaskStateControl'
+import {
+    TaskProgress,
+    TaskStage,
+    TaskType,
+    useTaskState,
+} from './TaskStateControl'
 
 export const TasksDisplay = () => {
     const tasks = useTaskState((state) => state.tasks)
@@ -12,7 +17,7 @@ export const TasksDisplay = () => {
 
     const cards = useMemo(() => {
         return Array.from(tasks.values()).map((sp) => {
-            if (sp.taskType === 'do_backup') {
+            if (sp.taskType === TaskType.Backup) {
                 return null
             }
             return <TaskProgCard key={sp.taskId} prog={sp} />

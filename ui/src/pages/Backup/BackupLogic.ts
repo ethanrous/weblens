@@ -33,7 +33,7 @@ export function backupPageWebsocketHandler(
 ) {
     return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
-            case 'restore_progress': {
+            case WsMsgEvent.RestoreStartedEvent: {
                 setRestoreStage((p) => {
                     if (msgData.content.stage) {
                         p.stage = msgData.content.stage
@@ -51,7 +51,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'restore_complete': {
+            case WsMsgEvent.RestoreCompleteEvent: {
                 setRestoreStage((p: RestoreProgress) => {
                     p.progress_current = 1
                     p.progress_total = 1
@@ -62,7 +62,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'restore_failed': {
+            case WsMsgEvent.RestoreFailedEvent: {
                 setRestoreStage((p) => {
                     p.error = msgData.content.error
                     return { ...p }
@@ -70,7 +70,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'backup_progress': {
+            case WsMsgEvent.BackupProgressEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
@@ -84,7 +84,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'backup_complete': {
+            case WsMsgEvent.BackupCompleteEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
@@ -102,7 +102,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'copy_file_started': {
+            case WsMsgEvent.CopyFileStartedEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
@@ -118,7 +118,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'backup_failed': {
+            case WsMsgEvent.BackupFailedEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
@@ -131,7 +131,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'copy_file_complete': {
+            case WsMsgEvent.CopyFileCompleteEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
@@ -146,7 +146,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'copy_file_failed': {
+            case WsMsgEvent.CopyFileFailedEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {

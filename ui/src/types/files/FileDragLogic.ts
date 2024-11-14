@@ -11,12 +11,13 @@ import {
     WeblensFile,
 } from '@weblens/types/files/File'
 import { Dispatch, MouseEvent } from 'react'
+import { Coordinates } from '../Types'
 
 export function mouseMove(
     e: MouseEvent,
     file: WeblensFile,
     draggingState: DraggingStateT,
-    mouseDown: { x: number; y: number },
+    mouseDown: Coordinates,
     setSelected: (fileIds: string[]) => void,
     setDragging: (dragging: DraggingStateT) => void
 ) {
@@ -73,7 +74,7 @@ export function handleMouseUp(
     clearSelected: () => void,
     setMoveDest: (dest: string) => void,
     setDragging: (dragging: DraggingStateT) => void,
-    setMouseDown: Dispatch<{ x: number; y: number }>,
+    setMouseDown: Dispatch<Coordinates>,
     viewMode: DirViewModeT
 ) {
     if (draggingState !== DraggingStateT.NoDrag) {
@@ -85,9 +86,13 @@ export function handleMouseUp(
             FileApi.moveFiles({
                 fileIds: selected,
                 newParentId: file.Id(),
-            }).then(() => {
-                clearSelected()
             })
+                .then(() => {
+                    clearSelected()
+                })
+                .catch((err) => {
+                    console.error('Failed to move files', err)
+                })
         }
         setMoveDest('')
         setDragging(DraggingStateT.NoDrag)
@@ -108,8 +113,8 @@ export function handleMouseLeave(
     draggingState: DraggingStateT,
     setMoveDest: (dest: string) => void,
     setHovering: (hovering: string) => void,
-    mouseDown: boolean,
-    setMouseDown: Dispatch<{ x: number; y: number }>
+    mouseDown: Coordinates,
+    setMouseDown: Dispatch<Coordinates>
 ) {
     file.UnsetSelected(SelectedState.Hovering)
     file.UnsetSelected(SelectedState.Droppable)

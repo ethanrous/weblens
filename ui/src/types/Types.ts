@@ -1,30 +1,7 @@
-import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
-import { TasksProgressAction } from '@weblens/pages/FileBrowser/TaskStateControl'
-import { GalleryAction } from '@weblens/pages/Gallery/GalleryLogic'
+import { AlbumInfo } from '@weblens/api/swag'
 import WeblensMedia from '@weblens/types/media/Media'
-import { Dispatch } from 'react'
-
-export type mediaType = {
-    FileExtension: []
-    FriendlyName: string
-    IsRaw: boolean
-    IsVideo: boolean
-    IsDisplayable: boolean
-}
-
-export type AlbumData = {
-    id: string
-    medias: string[]
-    name: string
-    cover: string
-    primaryColor: string
-    secondaryColor: string
-    owner: string
-    showOnTimeline: boolean
-}
 
 // Gallery Types
-
 export type MediaWrapperProps = {
     mediaData: WeblensMedia
     scale: number
@@ -69,7 +46,7 @@ export const newTimeOffset = (): TimeOffset => {
 }
 
 export type GalleryStateT = {
-    albumsMap: Map<string, AlbumData>
+    albumsMap: Map<string, AlbumInfo>
     albumsFilter: string[]
     loading: string[]
     newAlbumDialogue: boolean
@@ -87,18 +64,16 @@ export type GalleryStateT = {
     albumId: string
 }
 
-// File Browser Types
-export type TPDispatchT = Dispatch<TasksProgressAction>
-export type GalleryDispatchT = (action: GalleryAction) => void
-
-export interface FbViewOptsT {
-    dirViewMode: DirViewModeT
-    sortDirection: number // 1 or -1
-    sortFunc: string
+export type Coordinates = {
+    x: number
+    y: number
 }
 
-// export type ApiKeyInfo = {
-//     id: string
-//     key: string
-//     remoteUsing: string
-// }
+export type Dimensions = {
+    height: number
+    width: number
+}
+
+export function ErrorHandler(err: Error) {
+    console.error(err)
+}

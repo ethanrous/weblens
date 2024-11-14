@@ -6,7 +6,7 @@ import { useResize } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 
 enum SearchModeT {
@@ -15,7 +15,23 @@ enum SearchModeT {
     local,
 }
 
-function SearchResult({ data, index, style }) {
+type searchResultProps = {
+    searchType: SearchModeT
+    files: FileInfo[]
+    highlightIndex: number
+    setHighlightIndex: (idx: number) => void
+    visitHighlighted: (f: FileInfo) => void
+}
+
+function SearchResult({
+    data,
+    index,
+    style,
+}: {
+    data: searchResultProps
+    index: number
+    style: CSSProperties
+}) {
     // const alreadyHere =
     //     data.files[index].isDir && data.files[index].id === data.folderInfo.id
     const alreadyHere = false
@@ -52,7 +68,7 @@ function SearchResult({ data, index, style }) {
                 color: alreadyHere ? '#888888' : 'white',
             }}
         >
-            {data.searchType !== 0 && (
+            {data.searchType !== SearchModeT.global && (
                 <div className="flex flex-row items-center gap-1 select-none">
                     <p className="text-transparent shrink-0 text-nowrap">
                         {preText}

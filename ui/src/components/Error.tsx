@@ -1,11 +1,17 @@
-import { Text } from '@mantine/core'
-import { useWebsocketStore } from '@weblens/api/Websocket'
+import { useWebsocketStore, WsMsgEvent } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { Component } from 'react'
+import { Component, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
-    constructor(props) {
+type ErrorBoundaryProps = {
+    hasError: boolean
+}
+
+class ErrorBoundary extends Component<
+    { children: ReactNode },
+    ErrorBoundaryProps
+> {
+    constructor(props: { hasError: boolean; children: ReactNode }) {
         super(props)
         this.state = { hasError: props.hasError }
     }
@@ -20,10 +26,11 @@ class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
         this.setState({ hasError: false })
     }
 
-    componentDidCatch(error) {
+    componentDidCatch(error: Error) {
         const wsSend = useWebsocketStore.getState().wsSend
-        if (wsSend != null) {
+        if (wsSend != null && error.message != null) {
             wsSend(
+                WsMsgEvent.ErrorEvent,
                 JSON.stringify({
                     action: 'show_web_error',
                     content: error.message,
@@ -47,7 +54,7 @@ class ErrorBoundary extends Component<{ children }, { hasError: boolean }> {
     }
 }
 
-function ErrorDisplay({ clearError }) {
+function ErrorDisplay({ clearError }: { clearError: () => void }) {
     const nav = useNavigate()
     return (
         <div className="flex flex-col h-screen w-screen items-center justify-center theme-background">

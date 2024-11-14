@@ -1,20 +1,12 @@
-import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
 import { humanFileSize } from '@weblens/util'
 import API_ENDPOINT from './ApiEndpoint'
 import { useWebsocketStore, WsSendT } from './Websocket'
 import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
-import { FileAction } from '@weblens/pages/FileBrowser/FileBrowserTypes'
-import {
-    DownloadFileIsTakeoutEnum,
-    FilesApiFactory,
-    FolderApiFactory,
-    FolderInfo,
-} from './swag'
+import { FilesApiFactory, FolderApiFactory, FolderInfo } from './swag'
 
 export const FileApi = FilesApiFactory(null, API_ENDPOINT)
 export const FolderApi = FolderApiFactory(null, API_ENDPOINT)
-// new Configuration({ baseOptions: { withCredentials: true } }),
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
@@ -108,36 +100,10 @@ export async function downloadSingleFile(
                 useTaskState.getState().handleTaskCompete(taskId, 0, '')
                 return new Blob([res.data])
             } else {
-                return Promise.reject(res.statusText)
+                return Promise.reject(new Error(res.statusText))
             }
         })
         .then((blob) => {
             downloadBlob(blob, filename)
         })
-}
-
-export async function GetWormholeInfo(shareId: string) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
-    return wrapRequest(fetch(url.toString()))
-}
-
-export async function getFilesystemStats(folderId: string): Promise<{
-    sizesByExtension: { name: string; size: number }[]
-}> {
-    return fetchJson(`${API_ENDPOINT}/files/${folderId}/stats`)
-}
-
-export async function getFileHistory(
-    fileId: string,
-    timestamp: Date
-): Promise<FileAction[]> {
-    if (!fileId) {
-        console.error('No fileId trying to get file history')
-        return null
-    }
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`)
-    if (timestamp) {
-        url.searchParams.append('timestamp', timestamp.getTime().toString())
-    }
-    return fetchJson(url.toString())
 }

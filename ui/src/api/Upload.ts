@@ -1,10 +1,12 @@
-import { fetchJson } from '@weblens/api/ApiFetch'
 import axios from 'axios'
 import API_ENDPOINT from './ApiEndpoint'
 import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStateControl'
+import { FileApi } from './FileBrowserApi'
+import { ErrorHandler } from '@weblens/types/Types'
 
 export type fileUploadMetadata = {
-    file: File
+    file?: File
+    entry?: FileSystemEntry
     isDir: boolean
     folderId?: string
     parentId: string
@@ -12,48 +14,58 @@ export type fileUploadMetadata = {
     isTopLevel: boolean
 }
 
-function PromiseQueue(tasks: (() => Promise<any>)[] = [], concurrentCount = 1) {
-    this.total = tasks.length
-    this.todo = tasks
-    this.running = []
-    this.results = []
-    this.count = concurrentCount
-}
+type PromiseFunc<T> = () => Promise<T>
 
-PromiseQueue.prototype.runNext = function () {
-    return this.running.length < this.count && this.todo.length
-}
+class PromiseQueue<T> {
+    total: number
+    todo: PromiseFunc<T>[]
+    running: Promise<void>[]
+    results: T[]
+    count: number
 
-PromiseQueue.prototype.workerMain = async function () {
-    while (this.todo.length) {
-        const task = this.todo.shift()
-        this.results.push(await task())
+    constructor(tasks: PromiseFunc<T>[], concurrentCount = 1) {
+        this.total = tasks.length
+        this.todo = tasks
+        this.running = []
+        this.results = []
+        this.count = concurrentCount
+    }
+
+    runNext() {
+        return this.running.length < this.count && this.todo.length
+    }
+
+    async workerMain(): Promise<void> {
+        while (this.todo.length) {
+            const task = this.todo.shift()
+            this.results.push(await task())
+        }
+    }
+
+    queueMore(tasks: PromiseFunc<T>[]) {
+        this.todo.push(...tasks)
+    }
+
+    async run() {
+        for (let workerNum = 0; workerNum < this.count; workerNum++) {
+            this.running.push(this.workerMain())
+        }
+        await Promise.all(this.running)
+        return this.results
     }
 }
 
-PromiseQueue.prototype.queueMore = function (tasks: (() => Promise<any>)[]) {
-    this.todo.push(...tasks)
-}
-
-PromiseQueue.prototype.run = async function () {
-    for (let workerNum = 0; workerNum < this.count; workerNum++) {
-        this.running.push(this.workerMain())
-    }
-    await Promise.all(this.running)
-    return this.results
-}
-
-async function readFile(file) {
-    return new Promise<any>(function (resolve, reject) {
+async function readFile(blob: Blob) {
+    return new Promise<string | ArrayBuffer>(function (resolve, reject) {
         const fr = new FileReader()
         fr.onload = () => {
             resolve(fr.result)
         }
         fr.onerror = () => {
-            reject(fr)
+            reject(new Error('failed to read file for upload'))
         }
-        if (file) {
-            fr.readAsArrayBuffer(file)
+        if (blob) {
+            fr.readAsArrayBuffer(blob)
         }
     })
 }
@@ -70,7 +82,7 @@ async function uploadChunk(
     fileId: string,
     onProgress: (bytesWritten: number, MBpS: number) => void,
     onFinish: (rate: number) => void
-) {
+): Promise<void> {
     const chunk = await readFile(fileData.slice(low, high))
     const url = `${API_ENDPOINT}/upload/${uploadId}/file/${fileId}`
 
@@ -92,38 +104,33 @@ async function uploadChunk(
 
 async function queueChunks(
     uploadMeta: fileUploadMetadata,
-    isPublic: boolean,
+    // isPublic: boolean,
     uploadId: string,
-    shareId: string,
-    taskQueue
+    // shareId: string,
+    taskQueue: PromiseQueue<void>
 ) {
     const file: File = uploadMeta.file
     const key: string = uploadMeta.parentId + uploadMeta.file.name
-
-    const url = new URL(`${API_ENDPOINT}/upload/${uploadId}`)
-    const body = {
-        parentFolderId: uploadMeta.parentId,
-        newFileName: uploadMeta.file.name,
-        fileSize: uploadMeta.file.size,
-    }
 
     if (useUploadStatus.getState().uploads.get(key).error) {
         console.warn(`Skipping upload with error: ${key}`)
         return
     }
 
-    const data = await fetchJson<{ fileId: string }>(
-        url.toString(),
-        'POST',
-        body
-    )
-    if (!data) {
+    const res = await FileApi.addFileToUpload(uploadId, {
+        parentFolderId: uploadMeta.parentId,
+        newFileName: uploadMeta.file.name,
+        fileSize: uploadMeta.file.size,
+    }).catch(ErrorHandler)
+
+    if (!res || res.status !== 200) {
         useUploadStatus.getState().setError(key, `Failed`)
+        return
     }
 
-    const fileId = data.fileId
+    const fileId = res.data.fileId
 
-    const chunkTasks = []
+    const chunkTasks: PromiseFunc<void>[] = []
     let chunkIndex = 0
     const chunkSize = UPLOAD_CHUNK_SIZE
     while (chunkIndex * chunkSize < file.size) {
@@ -168,34 +175,11 @@ async function queueChunks(
     taskQueue.queueMore(chunkTasks)
 }
 
-async function NewUploadTask(
-    rootFolderId: string,
-    totalUploadSize: number,
-    fileCount: number,
-    isPublic: boolean,
-    shareId: string
-): Promise<string> {
-    const url = new URL(`${API_ENDPOINT}/upload`)
-    const body = {
-        rootFolderId: rootFolderId,
-        chunkSize: Math.min(
-            UPLOAD_CHUNK_SIZE,
-            Math.floor(totalUploadSize / fileCount)
-        ),
-        totalUploadSize: totalUploadSize,
-    }
-    if (isPublic) {
-        url.searchParams.append('shareId', shareId)
-    }
-    return (await fetchJson<{ uploadId: string }>(url.toString(), 'POST', body))
-        .uploadId
-}
-
 async function Upload(
     filesMeta: fileUploadMetadata[],
     isPublic: boolean,
     shareId: string,
-    rootFolder
+    rootFolder: string
 ) {
     const newUpload = useUploadStatus.getState().newUpload
 
@@ -206,25 +190,27 @@ async function Upload(
     const topDirs: string[] = []
     let hasTopFile = false
 
-    const taskQueue = new PromiseQueue([], CONCURRENT_UPLOAD_COUNT)
-    let taskQPromise
+    const taskQueue = new PromiseQueue<void>([], CONCURRENT_UPLOAD_COUNT)
+    // let taskQPromise
 
     let totalUploadSize = 0
-    let totalFileCount = 0
     filesMeta.forEach((v) => {
         if (v.file.size) {
             totalUploadSize += v.file.size
-            totalFileCount += 1
         }
     })
 
-    const uploadId = await NewUploadTask(
-        rootFolder,
-        totalUploadSize,
-        totalFileCount,
-        isPublic,
-        shareId
-    )
+    const res = await FileApi.startUpload({
+        rootFolderId: rootFolder,
+        totalUploadSize: totalUploadSize,
+        chunkSize: UPLOAD_CHUNK_SIZE,
+    })
+
+    if (!res || res.status !== 200 || !res.data.uploadId) {
+        console.error('Failed to start upload')
+        return
+    }
+
     for (const meta of filesMeta) {
         if (meta.file.name.startsWith('.')) {
             continue
@@ -255,12 +241,12 @@ async function Upload(
         if (meta.isDir) {
             continue
         }
-        await queueChunks(meta, isPublic, uploadId, shareId, taskQueue)
-        if (!taskQPromise) {
-            taskQPromise = taskQueue.run()
-        }
+        await queueChunks(meta, res.data.uploadId, taskQueue)
+        // if (!taskQPromise) {
+        //     taskQPromise = taskQueue.run()
+        // }
     }
-    await taskQPromise
+    await taskQueue.run()
 }
 
 export default Upload

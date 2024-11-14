@@ -6,13 +6,11 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react'
-import { doBackup } from '@weblens/api/ApiFetch'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import './remoteStatus.scss'
 import { useEffect, useMemo, useState } from 'react'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { launchRestore } from '@weblens/api/SystemApi'
 import {
     BackupProgressT,
     RestoreProgress,
@@ -27,6 +25,7 @@ import { Loader } from '@mantine/core'
 import { TaskStageT } from '@weblens/pages/FileBrowser/TaskStateControl'
 import { ServerInfo } from '@weblens/api/swag'
 import { ServersApi } from '@weblens/api/ServersApi'
+import { ErrorHandler } from '@weblens/types/Types'
 
 export default function RemoteStatus({
     remoteInfo,
@@ -106,9 +105,11 @@ export default function RemoteStatus({
                         >
                             <h3
                                 className="theme-text-dark-bg font-semibold select-none cursor-pointer truncate"
-                                onClick={() =>
-                                    navigator.clipboard.writeText(remoteInfo.id)
-                                }
+                                onClick={() => {
+                                    navigator.clipboard
+                                        .writeText(remoteInfo.id)
+                                        .catch(ErrorHandler)
+                                }}
                             >
                                 {remoteInfo.name}
                             </h3>
@@ -145,8 +146,9 @@ export default function RemoteStatus({
                         Left={IconReload}
                         disabled={!canSync}
                         onClick={async () => {
-                            const res = await doBackup(remoteInfo.id)
-                            return res.status === 200
+                            return ServersApi.launchBackup(remoteInfo.id).catch(
+                                ErrorHandler
+                            )
                         }}
                     />
                     {remoteInfo.role === 'core' && (
@@ -167,10 +169,10 @@ export default function RemoteStatus({
                         Left={IconTrash}
                         danger
                         requireConfirm
-                        onClick={async () => {
-                            ServersApi.deleteRemote(remoteInfo.id).then(() =>
-                                refetchRemotes()
-                            )
+                        onClick={() => {
+                            ServersApi.deleteRemote(remoteInfo.id)
+                                .then(() => refetchRemotes())
+                                .catch(ErrorHandler)
                         }}
                     />
                 </div>
@@ -191,7 +193,10 @@ export default function RemoteStatus({
                             Left={IconRestore}
                             disabled={canSync}
                             onClick={() =>
-                                launchRestore(remoteInfo, restoreUrl)
+                                ServersApi.restoreCore(remoteInfo.id, {
+                                    restoreId: remoteInfo.id,
+                                    restoreUrl: restoreUrl,
+                                })
                             }
                         />
                     </div>
@@ -318,7 +323,7 @@ function StageDisplay({ stage, error }: { stage: TaskStageT; error?: string }) {
     )
 }
 
-function BackupFile({ name, start }) {
+function BackupFile({ name, start }: { name: string; start: Date }) {
     const { elapsedTime } = useTimer(start)
     return (
         <div className="flex flex-row gap-2">

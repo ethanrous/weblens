@@ -26,7 +26,7 @@ import (
 //	@Router		/keys [post]
 func newApiKey(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -64,7 +64,7 @@ func newApiKey(w http.ResponseWriter, r *http.Request) {
 //	@Router		/keys [get]
 func getApiKeys(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}

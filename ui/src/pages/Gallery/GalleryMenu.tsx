@@ -7,14 +7,9 @@ import {
 } from '@tabler/icons-react'
 import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { SetAlbumCover } from '@weblens/types/albums/AlbumQuery'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import {
-    GalleryDispatchT,
-    newTimeOffset,
-    TimeOffset,
-} from '@weblens/types/Types'
+import { newTimeOffset, TimeOffset } from '@weblens/types/Types'
 import {
     memo,
     MouseEvent,
@@ -25,6 +20,8 @@ import {
 } from 'react'
 import { GalleryContext } from './GalleryLogic'
 import MediaApi from '@weblens/api/MediaApi'
+import { GalleryDispatchT } from '../FileBrowser/FileBrowserTypes'
+import AlbumsApi from '@weblens/api/AlbumsApi'
 
 function TimeSlice({
     value,
@@ -252,7 +249,7 @@ export const GalleryMenu = memo(
         setOpen: (o: boolean) => void
     }) => {
         const { galleryState, galleryDispatch } = useContext(GalleryContext)
-        const [menuRef, setMenuRef] = useState(null)
+        const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
 
         useClick(
             () => {
@@ -310,22 +307,22 @@ export const GalleryMenu = memo(
             [galleryState.selecting]
         )
 
-        const adjustTime = useCallback(async () => {
-            console.error('adjust time not impl')
-            // const r = await adjustMediaTime(
-            //     media.Id(),
-            //     newDate,
-            //     mediaState.getAllSelectedIds(),
-            //     auth
-            // )
-            // galleryDispatch({
-            //     type: 'set_time_offset',
-            //     offset: null,
-            // })
-            //
-            // return r
-            return false
-        }, [media])
+        // const adjustTime = useCallback(async () => {
+        //     console.error('adjust time not impl')
+        //     // const r = await adjustMediaTime(
+        //     //     media.Id(),
+        //     //     newDate,
+        //     //     mediaState.getAllSelectedIds(),
+        //     //     auth
+        //     // )
+        //     // galleryDispatch({
+        //     //     type: 'set_time_offset',
+        //     //     offset: null,
+        //     // })
+        //     //
+        //     // return r
+        //     return false
+        // }, [media])
 
         const hideStyle = useMemo(() => {
             return { opacity: open ? '100%' : '0%' }
@@ -361,7 +358,12 @@ export const GalleryMenu = memo(
                                     offset: null,
                                 })
                             }
-                            adjustTime={adjustTime}
+                            adjustTime={(d: Date) =>
+                                new Promise(() => {
+                                    console.log('Adjust time not impl', d)
+                                    return false
+                                })
+                            }
                             offset={galleryState.timeAdjustOffset}
                             galleryDispatch={galleryDispatch}
                         />
@@ -393,11 +395,10 @@ export const GalleryMenu = memo(
                             style={{ opacity: open ? '100%' : '0%' }}
                             onClick={async (e) => {
                                 e.stopPropagation()
-                                const r = await SetAlbumCover(
+                                return AlbumsApi.updateAlbum(
                                     galleryState.albumId,
                                     media.Id()
                                 )
-                                return r.status === 200
                             }}
                         />
                         <WeblensButton
@@ -424,9 +425,6 @@ export const GalleryMenu = memo(
             return false
         }
         if (prev.setOpen !== next.setOpen) {
-            return false
-        }
-        if (prev.updateAlbum !== next.updateAlbum) {
             return false
         }
 

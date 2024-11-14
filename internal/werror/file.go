@@ -6,18 +6,6 @@ import (
 	"net/http"
 )
 
-var ErrNoFile = &clientSafeErr{
-	realError:  errors.New("file does not exist"),
-	safeErr:    errors.New("file does not exist or user does not have access to it"),
-	statusCode: http.StatusNotFound,
-}
-
-var ErrNoFileId = func(id string) error {
-	err := *ErrNoFile
-	err.realError = Errorf("cannot find file with id [%s]", id)
-	return &err
-}
-
 type ErrNoFileName struct {
 	Name string
 	Err  error
@@ -38,6 +26,26 @@ var NewErrNoFileName = func(name string) error {
 	}
 }
 
+var fileNotFound = errors.New("file not found or user does not have access to it")
+
+var ErrNoFile = &clientSafeErr{
+	realError:  errors.New("file does not exist"),
+	safeErr:    fileNotFound,
+	statusCode: http.StatusNotFound,
+}
+
+var ErrNoFileAccess = &clientSafeErr{
+	realError:  errors.New("user does not have access to file"),
+	safeErr:    fileNotFound,
+	statusCode: http.StatusNotFound,
+}
+
+var ErrNoFileId = func(id string) error {
+	err := *ErrNoFile
+	err.realError = Errorf("cannot find file with id [%s]", id)
+	return &err
+}
+
 var ErrDirectoryRequired = errors.New(
 	"attempted to perform an action that requires a directory, " +
 		"but found regular file",
@@ -55,9 +63,7 @@ var ErrFileAlreadyExists = &clientSafeErr{
 
 var ErrNilFile = errors.New("file is required but is nil")
 var ErrFilenameRequired = errors.New("filename is required but is empty")
-
 var ErrEmptyMove = errors.New("refusing to perform move with same filename and same parent")
-
 var ErrNoChildren = errors.New("file does not have any children")
 var ErrDirNotAllowed = errors.New("attempted to perform action using a directory, where the action does not support directories")
 var ErrBadReadCount = errors.New("did not read expected number of bytes from file")

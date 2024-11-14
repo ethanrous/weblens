@@ -7,7 +7,9 @@ import {
     IconPlus,
     IconSearch,
 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import { QueryObserverResult, useQuery } from '@tanstack/react-query'
+import AlbumsApi from '@weblens/api/AlbumsApi'
+import { AlbumInfo, MediaInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -18,23 +20,13 @@ import {
 } from '@weblens/pages/Gallery/GalleryLogic'
 
 import { AlbumScroller } from '@weblens/types/albums/AlbumDisplay'
-import {
-    createAlbum,
-    getAlbumMedia,
-    getAlbums,
-} from '@weblens/types/albums/AlbumQuery'
 import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import FilesErrorDisplay from 'components/NotFound'
-import React, {
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ErrorHandler } from '../Types'
 
 export function AlbumNoContent({ hasContent }: { hasContent: boolean }) {
     const nav = useNavigate()
@@ -88,94 +80,62 @@ const AlbumTitle = ({ startColor, endColor, title }) => {
     )
 }
 
-function AlbumContent({ albumId }: { albumId: string }) {
-    const { galleryState } = useContext(GalleryContext)
+function AlbumContent({ album }: { album: AlbumInfo }) {
     const [notFound, setNotFound] = useState(false)
 
     const showRaw = useMediaStore((state) => state.showRaw)
     const addMedias = useMediaStore((state) => state.addMedias)
 
-    const albumContentRes = useQuery({
-        queryKey: ['albumContent', albumId, showRaw],
+    const { data: medias, error } = useQuery<WeblensMedia[]>({
+        queryKey: ['albumContent', album.id, showRaw],
         queryFn: async () => {
-            const data = await getAlbumMedia(albumId, showRaw).catch((r) => {
-                console.error(r)
-                setNotFound(true)
-            })
-            if (!data) {
-                return
-            }
+            const mediaInfo: MediaInfo[] = await AlbumsApi.getAlbumMedia(
+                album.id
+            ).then((res) => res.data)
 
-            const medias = data.mediaInfos
-                ? data.mediaInfos.map((m) => new WeblensMedia(m))
-                : []
+            const medias: WeblensMedia[] = mediaInfo
+                ? mediaInfo.map((m: MediaInfo) => new WeblensMedia(m))
+                : ([] as WeblensMedia[])
             addMedias(medias)
-            return { albumMeta: data.albumMeta, medias: medias }
+            return medias
         },
     })
 
-    const media = useMemo(() => {
-        if (!albumContentRes.data) {
-            return []
-        }
-        if (albumContentRes.data.medias) {
-            const media = albumContentRes.data.medias
-                ?.filter((v) => {
-                    if (galleryState.searchContent === '') {
-                        return true
-                    }
-                    return v.MatchRecogTag(galleryState.searchContent)
-                })
-                .reverse()
-            media?.unshift()
-            return media
-        }
-
-        return []
-    }, [albumContentRes.data?.medias, galleryState.searchContent])
-
-    if (notFound || albumContentRes.error) {
-        console.error(albumContentRes.error)
+    if (notFound || error) {
         return (
             <FilesErrorDisplay
+                error={404}
                 resourceType="Album"
                 link="/albums"
-                setNotFound={setNotFound}
+                setNotFound={(n) => setNotFound(n !== 0)}
             />
         )
-    }
-
-    if (!albumContentRes.data) {
-        return null
     }
 
     return (
         <div className="flex flex-col items-center h-1/2 w-full relative grow">
             <AlbumTitle
-                title={albumContentRes.data.albumMeta.name}
-                endColor={albumContentRes.data.albumMeta.secondaryColor}
-                startColor={albumContentRes.data.albumMeta.primaryColor}
+                title={album.name}
+                endColor={album.secondaryColor}
+                startColor={album.primaryColor}
             />
-            {media.length === 0 && (
-                <AlbumNoContent
-                    hasContent={
-                        albumContentRes.data.albumMeta.medias?.length !== 0
-                    }
-                />
+            {album.medias.length === 0 && (
+                <AlbumNoContent hasContent={album.medias?.length !== 0} />
             )}
 
-            {media.length !== 0 && (
-                <PhotoGallery
-                    medias={media}
-                    album={albumContentRes.data.albumMeta}
-                />
+            {album.medias.length !== 0 && (
+                <PhotoGallery medias={medias} album={album} />
             )}
         </div>
     )
 }
 
-function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
-    const [newAlbumName, setNewAlbumName] = useState(null)
+function NewAlbum({
+    fetchAlbums,
+}: {
+    fetchAlbums: () => Promise<QueryObserverResult<AlbumInfo[], Error>>
+}) {
+    const [newAlbumName, setNewAlbumName] = useState<string>(null)
 
     return (
         <div className="flex items-center h-14 w-40">
@@ -191,31 +151,33 @@ function NewAlbum({ fetchAlbums }: { fetchAlbums: () => void }) {
                 />
             )}
             {newAlbumName !== null && (
-                // <div className="flex flex-row w-10 items-center justify-center bg-dark-paper rounded p-2">
                 <WeblensInput
                     value={newAlbumName}
                     squareSize={40}
                     autoFocus
                     onComplete={(val) =>
-                        createAlbum(val)
+                        AlbumsApi.createAlbum(val)
                             .then(() => {
                                 setNewAlbumName(null)
-                                fetchAlbums()
+                                return fetchAlbums()
                             })
-                            .catch((r) => {
-                                console.error(r)
-                            })
+                            .catch(ErrorHandler)
                     }
                     closeInput={() => setNewAlbumName(null)}
                     buttonIcon={IconPlus}
                 />
-                // </div>
             )}
         </div>
     )
 }
 
-const AlbumsControls = ({ albumId, fetchAlbums }) => {
+const AlbumsControls = ({
+    albumId,
+    fetchAlbums,
+}: {
+    albumId: string
+    fetchAlbums: () => Promise<QueryObserverResult<AlbumInfo[], Error>>
+}) => {
     const nav = useNavigate()
     const { galleryState, galleryDispatch }: GalleryContextT =
         useContext(GalleryContext)
@@ -276,27 +238,26 @@ const AlbumsControls = ({ albumId, fetchAlbums }) => {
     )
 }
 
-function AlbumsHomeView({ fetchAlbums }: { fetchAlbums: () => void }) {
+function AlbumsHomeView({
+    albums,
+    fetchAlbums,
+}: {
+    albums: AlbumInfo[]
+    fetchAlbums: () => Promise<QueryObserverResult<AlbumInfo[], Error>>
+}) {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
 
-    const albums = useMemo(() => {
-        if (!galleryState) {
-            return []
-        }
-
-        return Array.from(galleryState.albumsMap.values()).filter((a) =>
-            a.name
-                .toLowerCase()
-                .includes(galleryState.searchContent.toLowerCase())
-        )
-        // .map((a) => {
-        // if (!a.CoverMedia) {
-        //     a.CoverMedia = new WeblensMedia({ contentId: a.Cover })
-        // }
-        //
-        // return a
-        // })
-    }, [galleryState?.albumsMap, galleryState.searchContent])
+    // const albums = useMemo(() => {
+    //     if (!galleryState) {
+    //         return []
+    //     }
+    //
+    //     return Array.from(galleryState.albumsMap.values()).filter((a) =>
+    //         a.name
+    //             .toLowerCase()
+    //             .includes(galleryState.searchContent.toLowerCase())
+    //     )
+    // }, [galleryState?.albumsMap, galleryState.searchContent])
 
     if (albums.length === 0 && galleryState.searchContent === '') {
         return (
@@ -343,28 +304,44 @@ function AlbumsHomeView({ fetchAlbums }: { fetchAlbums: () => void }) {
     }
 }
 
-export function Albums({ selectedAlbum }: { selectedAlbum: string }) {
-    const { galleryDispatch } = useContext(GalleryContext)
+export function Albums({ selectedAlbumId }: { selectedAlbumId: string }) {
+    const { data: albums, refetch } = useQuery<AlbumInfo[]>({
+        queryKey: ['albums'],
+        queryFn: () => AlbumsApi.getAlbums().then((r) => r.data),
+    })
 
-    const fetchAlbums = useCallback(() => {
-        galleryDispatch({ type: 'add_loading', loading: 'albums' })
-        getAlbums(true).then((val) => {
-            galleryDispatch({ type: 'set_albums', albums: val })
-            galleryDispatch({ type: 'remove_loading', loading: 'albums' })
-        })
-    }, [galleryDispatch])
+    // const fetchAlbums = useCallback(() => {
+    //     galleryDispatch({ type: 'add_loading', loading: 'albums' })
+    //     getAlbums(true)
+    //         .then((val) => {
+    //             galleryDispatch({ type: 'set_albums', albums: val })
+    //             galleryDispatch({ type: 'remove_loading', loading: 'albums' })
+    //         })
+    //         .catch((err) => {
+    //             console.error(err)
+    //         })
+    // }, [galleryDispatch])
 
-    useEffect(() => {
-        fetchAlbums()
-    }, [])
+    // useEffect(() => {
+    //     fetchAlbums()
+    // }, [])
+    const album: AlbumInfo = useMemo(() => {
+        const selectedAlbumIdx = albums.findIndex(
+            (a) => a.id === selectedAlbumId
+        )
+        if (selectedAlbumIdx !== -1) {
+            return albums[selectedAlbumIdx]
+        }
+        return null
+    }, [albums])
 
     return (
         <>
-            <AlbumsControls albumId={selectedAlbum} fetchAlbums={fetchAlbums} />
-            {selectedAlbum === '' && (
-                <AlbumsHomeView fetchAlbums={fetchAlbums} />
+            <AlbumsControls albumId={selectedAlbumId} fetchAlbums={refetch} />
+            {selectedAlbumId === '' && (
+                <AlbumsHomeView albums={albums} fetchAlbums={refetch} />
             )}
-            {selectedAlbum !== '' && <AlbumContent albumId={selectedAlbum} />}
+            {selectedAlbumId !== '' && <AlbumContent album={album} />}
         </>
     )
 }

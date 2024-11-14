@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { attachNewCore } from '@weblens/api/ApiFetch'
 import RemoteStatus from '@weblens/components/RemoteStatus'
 import { useEffect, useState } from 'react'
 import {
     HandleWebsocketMessage,
-    useWeblensSocket,
+    useWebsocketStore,
 } from '@weblens/api/Websocket'
 import {
     backupPageWebsocketHandler,
@@ -25,6 +24,7 @@ import { useSessionStore } from '@weblens/components/UserInfo'
 import { useNavigate } from 'react-router-dom'
 import { ServersApi } from '@weblens/api/ServersApi'
 import { ServerInfo } from '@weblens/api/swag'
+import { ErrorHandler } from '@weblens/types/Types'
 
 function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [coreAddress, setCoreAddress] = useState('')
@@ -72,10 +72,11 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
                     Left={IconRocket}
                     disabled={coreAddress === '' || apiKey === ''}
                     doSuper
-                    onClick={async () => {
-                        return attachNewCore(coreAddress, apiKey).then(() =>
-                            closeNewCore()
-                        )
+                    onClick={() => {
+                        ServersApi.createRemote({
+                            coreAddress: coreAddress,
+                            usingKey: apiKey,
+                        }).catch(ErrorHandler)
                     }}
                 />
             </div>
@@ -91,7 +92,7 @@ export default function Backup() {
             return ServersApi.getRemotes().then((res) => res.data)
         },
     })
-    const { lastMessage } = useWeblensSocket()
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
     const [restoreStage, setRestoreStage] = useState<RestoreProgress>(
         {} as RestoreProgress
     )
@@ -106,7 +107,9 @@ export default function Backup() {
             backupPageWebsocketHandler(
                 setRestoreStage,
                 setBackupProgress,
-                refetch
+                () => {
+                    refetch().catch(ErrorHandler)
+                }
             )
         )
     }, [lastMessage])
@@ -143,7 +146,9 @@ export default function Backup() {
                         <RemoteStatus
                             key={remote.id}
                             remoteInfo={remote}
-                            refetchRemotes={refetch}
+                            refetchRemotes={() => {
+                                refetch().catch(ErrorHandler)
+                            }}
                             restoreProgress={restoreStage}
                             backupProgress={backupProgress.get(remote.id)}
                             setBackupProgress={(progress) => {

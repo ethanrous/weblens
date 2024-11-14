@@ -5,7 +5,7 @@ import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import User from '@weblens/types/user/user'
+import User from '@weblens/types/user/User'
 import { useCallback, useState } from 'react'
 
 const Login = () => {
@@ -14,7 +14,7 @@ const Login = () => {
 
     const setUser = useSessionStore((state) => state.setUser)
 
-    const [buttonRef, setButtonRef] = useState(null)
+    const [buttonRef, setButtonRef] = useState<HTMLDivElement>(null)
     useKeyDown('Enter', () => {
         if (buttonRef) {
             buttonRef.click()
@@ -24,7 +24,9 @@ const Login = () => {
 
     const doLogin = useCallback(async (username: string, password: string) => {
         if (username === '' || password === '') {
-            return Promise.reject('username and password must not be empty')
+            return Promise.reject(
+                new Error('username and password must not be empty')
+            )
         }
         return UsersApi.loginUser({ username, password }).then((res) => {
             const user = new User(res.data)

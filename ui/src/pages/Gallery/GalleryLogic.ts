@@ -1,19 +1,15 @@
 import WeblensMedia from '@weblens/types/media/Media'
 
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import {
-    AlbumData,
-    GalleryDispatchT,
-    GalleryStateT,
-    PresentType,
-    TimeOffset,
-} from '@weblens/types/Types'
+import { GalleryStateT, PresentType, TimeOffset } from '@weblens/types/Types'
 import { createContext, useCallback, useEffect } from 'react'
+import { GalleryDispatchT } from '../FileBrowser/FileBrowserTypes'
+import { AlbumInfo } from '@weblens/api/swag'
 
 export type GalleryAction = {
     type: string
     medias?: WeblensMedia[]
-    albums?: AlbumData[]
+    albums?: AlbumInfo[]
     albumId?: string
     mediaId?: string
     mediaIds?: string[]
@@ -53,7 +49,7 @@ export function galleryReducer(
                 return state
             }
 
-            const newMap = new Map<string, AlbumData>()
+            const newMap = new Map<string, AlbumInfo>()
             for (const a of action.albums) {
                 newMap.set(a.id, a)
             }
@@ -227,7 +223,7 @@ export const useKeyDownGallery = (
     galleryDispatch: GalleryDispatchT
 ) => {
     const onKeyDown = useCallback(
-        (event) => {
+        (event: KeyboardEvent) => {
             if (event.key === 'Shift') {
                 galleryDispatch({ type: 'set_holding_shift', shift: true })
             } else if (event.key === 'Escape') {
@@ -247,7 +243,7 @@ export const useKeyDownGallery = (
     )
 
     const onKeyUp = useCallback(
-        (event) => {
+        (event: KeyboardEvent) => {
             if (event.key === 'Shift') {
                 galleryDispatch({ type: 'set_holding_shift', shift: false })
             }

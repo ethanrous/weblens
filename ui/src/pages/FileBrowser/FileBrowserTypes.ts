@@ -1,3 +1,16 @@
+import { Dispatch } from 'react'
+import { TasksProgressAction } from './TaskStateControl'
+import { GalleryAction } from '../Gallery/GalleryLogic'
+
+export type TPDispatchT = Dispatch<TasksProgressAction>
+export type GalleryDispatchT = (action: GalleryAction) => void
+
+export interface FbViewOptsT {
+    dirViewMode: DirViewModeT
+    sortDirection: number // 1 or -1
+    sortFunc: string
+}
+
 export type FileEventT = {
     Action: string
     // At: number;
@@ -16,20 +29,19 @@ export type FileEventT = {
     // oldPath: string
 }
 
-export type FileAction = {
-    actionType: string
-    destinationId: string
-    destinationPath: string
-    eventId: string
-    lifeId: string
-    originId: string
-    originPath: string
-    timestamp: number
-}
+// export type FileAction = {
+//     actionType: string
+//     destinationId: string
+//     destinationPath: string
+//     eventId: string
+//     lifeId: string
+//     originId: string
+//     originPath: string
+//     timestamp: number
+// }
 
 export enum DirViewModeT {
     Grid,
     List,
     Columns,
 }
-

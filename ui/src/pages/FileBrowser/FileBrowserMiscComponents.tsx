@@ -37,7 +37,8 @@ import {
 import '@weblens/components/theme.scss'
 import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import { ButtonIcon } from '@weblens/lib/buttonTypes'
-import User from '@weblens/types/user/user'
+import { ErrorHandler } from '@weblens/types/Types'
+import User from '@weblens/types/user/User'
 
 export const TransferCard = ({
     action,
@@ -153,7 +154,7 @@ export const DropSpot = ({ parent }: { parent: WeblensFile }) => {
                                 [],
                                 false,
                                 shareId
-                            )
+                            ).catch(ErrorHandler)
 
                             setDragging(DraggingStateT.NoDrag)
                         } else {
@@ -364,7 +365,7 @@ export const IconDisplay = ({
     file: WeblensFile
     allowMedia?: boolean
 }) => {
-    const [containerRef, setContainerRef] = useState(null)
+    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
     const containerSize = useResize(containerRef)
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
@@ -477,7 +478,7 @@ export const FileInfoDisplay = ({ file }: { file: WeblensFile }) => {
     )
 }
 
-const EmptyIcon = ({ folderId, usr }) => {
+const EmptyIcon = ({ folderId, usr }: { folderId: string; usr: User }) => {
     if (folderId === usr.homeId) {
         return <IconHome size={500} className="text-wl-barely-visible" />
     }

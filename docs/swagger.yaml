@@ -1,5 +1,37 @@
 basePath: /api/
 definitions:
+  AlbumInfo:
+    properties:
+      cover:
+        type: string
+      id:
+        type: string
+      medias:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      owner:
+        type: string
+      primaryColor:
+        type: string
+      secondaryColor:
+        type: string
+      showOnTimeline:
+        type: boolean
+    type: object
+  AlbumShareParams:
+    properties:
+      albumId:
+        type: string
+      public:
+        type: boolean
+      users:
+        items:
+          type: string
+        type: array
+    type: object
   ApiKeyInfo:
     properties:
       createdBy:
@@ -29,10 +61,31 @@ definitions:
     - newFolderName
     - parentFolderId
     type: object
-  Error:
+  ErrorInfo:
     properties:
       error:
         type: string
+    type: object
+  FileActionInfo:
+    properties:
+      actionType:
+        type: string
+      destinationPath:
+        type: string
+      eventId:
+        type: string
+      lifeId:
+        type: string
+      originPath:
+        type: string
+      parentId:
+        type: string
+      serverId:
+        type: string
+      size:
+        type: integer
+      timestamp:
+        type: integer
     type: object
   FileInfo:
     properties:
@@ -63,30 +116,16 @@ definitions:
       size:
         type: integer
     type: object
-  FileShare:
+  FileShareParams:
     properties:
-      accessors:
-        items:
-          type: string
-        type: array
-      enabled:
-        type: boolean
-      expires:
-        type: string
       fileId:
-        type: string
-      owner:
         type: string
       public:
         type: boolean
-      shareId:
-        type: string
-      shareName:
-        type: string
-      shareType:
-        $ref: '#/definitions/models.ShareType'
-      updated:
-        type: string
+      users:
+        items:
+          type: string
+        type: array
       wormhole:
         type: boolean
     type: object
@@ -144,7 +183,7 @@ definitions:
           get duplicated
         type: string
       createDate:
-        type: string
+        type: integer
       duration:
         description: Total time, in milliseconds, of a video
         type: integer
@@ -184,10 +223,6 @@ definitions:
         items:
           type: string
         type: array
-      rotate:
-        description: The rotation of the image from its original. Found from the exif
-          data
-        type: string
       width:
         description: Full-res image dimensions
         type: integer
@@ -235,8 +270,24 @@ definitions:
       newParentId:
         type: string
     type: object
+  NewFileInfo:
+    properties:
+      fileId:
+        type: string
+    type: object
+  NewFileParams:
+    properties:
+      fileSize:
+        type: integer
+      newFileName:
+        type: string
+      parentFolderId:
+        type: string
+    type: object
   NewServerParams:
     properties:
+      coreAddress:
+        type: string
       name:
         type: string
       role:
@@ -245,6 +296,20 @@ definitions:
         type: string
       usingKey:
         type: string
+    type: object
+  NewUploadInfo:
+    properties:
+      uploadId:
+        type: string
+    type: object
+  NewUploadParams:
+    properties:
+      chunkSize:
+        type: integer
+      rootFolderId:
+        type: string
+      totalUploadSize:
+        type: integer
     type: object
   NewUserParams:
     properties:
@@ -270,6 +335,13 @@ definitions:
         type: string
     required:
     - newPassword
+    type: object
+  RestoreCoreParams:
+    properties:
+      restoreId:
+        type: string
+      restoreUrl:
+        type: string
     type: object
   RestoreFilesBody:
     properties:
@@ -317,6 +389,33 @@ definitions:
         type: boolean
       userCount:
         type: integer
+    type: object
+  ShareInfo:
+    properties:
+      accessors:
+        items:
+          type: string
+        type: array
+      enabled:
+        type: boolean
+      expires:
+        type: integer
+      fileId:
+        type: string
+      owner:
+        type: string
+      public:
+        type: boolean
+      shareId:
+        type: string
+      shareName:
+        type: string
+      shareType:
+        type: string
+      updated:
+        type: integer
+      wormhole:
+        type: boolean
     type: object
   TakeoutInfo:
     properties:
@@ -370,44 +469,21 @@ definitions:
       username:
         type: string
     type: object
-  fileTree.FileAction:
+  models.ApiKey:
     properties:
-      actionType:
-        $ref: '#/definitions/fileTree.FileActionType'
-      destinationPath:
-        description: OriginId        FileId `json:"originId" bson:"originId,omitempty"`
+      createdBy:
         type: string
-      eventId:
+      createdTime:
         type: string
-      lifeId:
+      id:
         type: string
-      originPath:
+      key:
         type: string
-      parentId:
+      owner:
         type: string
-      serverId:
-        type: string
-      size:
-        type: integer
-      timestamp:
+      remoteUsing:
         type: string
     type: object
-  fileTree.FileActionType:
-    enum:
-    - fileCreate
-    - fileMove
-    - fileSizeChange
-    - backup
-    - fileDelete
-    - fileRestore
-    type: string
-    x-enum-varnames:
-    - FileCreate
-    - FileMove
-    - FileSizeChange
-    - Backup
-    - FileDelete
-    - FileRestore
   models.ServerRole:
     enum:
     - init
@@ -420,20 +496,46 @@ definitions:
     - CoreServerRole
     - BackupServerRole
     - RestoreServerRole
-  models.ShareType:
-    enum:
-    - file
-    - album
-    type: string
-    x-enum-varnames:
-    - SharedFile
-    - SharedAlbum
+  rest.InitServerParams:
+    properties:
+      coreAddress:
+        type: string
+      coreKey:
+        type: string
+      localId:
+        description: For restoring a server, remoind the core of its serverId and
+          api key the remote last used
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      remoteId:
+        type: string
+      role:
+        $ref: '#/definitions/models.ServerRole'
+      username:
+        type: string
+      usingKeyInfo:
+        $ref: '#/definitions/models.ApiKey'
+    type: object
   rest.ScanBody:
     properties:
       filename:
         type: string
       folderId:
         type: string
+    type: object
+  rest.UserListBody:
+    properties:
+      addUsers:
+        items:
+          type: string
+        type: array
+      removeUsers:
+        items:
+          type: string
+        type: array
     type: object
 host: localhost:8080
 info:
@@ -445,6 +547,182 @@ info:
   title: Weblens API
   version: "1.0"
 paths:
+  /albums:
+    get:
+      operationId: GetAlbums
+      parameters:
+      - description: Albums filter
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Album Infos
+          schema:
+            items:
+              $ref: '#/definitions/AlbumInfo'
+            type: array
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get albums for a user
+      tags:
+      - Album
+    post:
+      operationId: CreateAlbum
+      parameters:
+      - in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Album Info
+          schema:
+            $ref: '#/definitions/AlbumInfo'
+      security:
+      - SessionAuth: []
+      summary: Create a new album
+      tags:
+      - Album
+  /albums/{albumId}:
+    delete:
+      operationId: DeleteOrLeaveAlbum
+      parameters:
+      - description: Album Id
+        in: path
+        name: albumId
+        required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth: []
+      summary: Delete an Album, or unshare it if the user is not the owner
+      tags:
+      - Album
+    get:
+      operationId: GetAlbum
+      parameters:
+      - description: Album Id
+        in: path
+        name: albumId
+        required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Album Info
+          schema:
+            $ref: '#/definitions/AlbumInfo'
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get album by album Id
+      tags:
+      - Album
+    patch:
+      operationId: UpdateAlbum
+      parameters:
+      - description: Album Id
+        in: path
+        name: albumId
+        required: true
+        type: string
+      - in: query
+        name: cover
+        type: string
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: newFolders
+        type: array
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: newMedia
+        type: array
+      - in: query
+        name: newName
+        type: string
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: removeMedia
+        type: array
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: removeUsers
+        type: array
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: users
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Album Info
+          schema:
+            $ref: '#/definitions/AlbumInfo'
+      security:
+      - SessionAuth: []
+      summary: Update an Album
+      tags:
+      - Album
+  /albums/{albumId}/media:
+    get:
+      operationId: GetAlbumMedia
+      parameters:
+      - description: Album Id
+        in: path
+        name: albumId
+        required: true
+        type: string
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media Info
+          schema:
+            items:
+              $ref: '#/definitions/MediaInfo'
+            type: array
+        "404":
+          description: Not Found
+      security:
+      - SessionAuth: []
+      summary: Get media in an album
+      tags:
+      - Album
   /files:
     delete:
       operationId: DeleteFiles
@@ -605,7 +883,7 @@ paths:
           description: File actions
           schema:
             items:
-              $ref: '#/definitions/fileTree.FileAction'
+              $ref: '#/definitions/FileActionInfo'
             type: array
         "400":
           description: Bad Request
@@ -710,7 +988,7 @@ paths:
       - SessionAuth: []
       summary: Restore files from some time in the past
       tags:
-      - Files History
+      - Files
   /files/search:
     get:
       operationId: SearchByFilename
@@ -1098,6 +1376,32 @@ paths:
       summary: Get a media image bytes
       tags:
       - Media
+  /media/{mediaId}/file:
+    get:
+      operationId: GetMediaFile
+      parameters:
+      - description: Id of media
+        in: path
+        name: mediaId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File info of file media was created from
+          schema:
+            $ref: '#/definitions/FileInfo'
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      - ApiKeyAuth: []
+      summary: Get file of media by id
+      tags:
+      - Media
   /media/{mediaId}/info:
     get:
       operationId: GetMediaInfo
@@ -1115,6 +1419,36 @@ paths:
           schema:
             $ref: '#/definitions/MediaInfo'
       summary: Get media info
+      tags:
+      - Media
+  /media/{mediaId}/like:
+    patch:
+      operationId: SetMediaLiked
+      parameters:
+      - description: Id of media
+        in: path
+        name: mediaId
+        required: true
+        type: string
+      - description: Liked status to set
+        in: query
+        name: liked
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Like a media
       tags:
       - Media
   /media/types:
@@ -1191,9 +1525,9 @@ paths:
         "201":
           description: New Server Info
           schema:
-            items:
-              $ref: '#/definitions/ServerInfo'
-            type: array
+            $ref: '#/definitions/ServerInfo'
+        "400":
+          description: Bad Request
       security:
       - SessionAuth:
         - admin
@@ -1226,7 +1560,102 @@ paths:
       summary: Delete a remote
       tags:
       - Servers
+  /servers/{serverId}/backup:
+    post:
+      operationId: LaunchBackup
+      parameters:
+      - description: Server ID
+        in: path
+        name: serverId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Launch backup on a server
+      tags:
+      - Servers
+  /servers/{serverId}/restore:
+    post:
+      operationId: RestoreCore
+      parameters:
+      - description: Server Id
+        in: path
+        name: serverId
+        required: true
+        type: string
+      - description: Restore Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RestoreCoreParams'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Restore target core server
+      tags:
+      - Servers
+  /servers/init:
+    post:
+      operationId: InitializeServer
+      parameters:
+      - description: Server initialization body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.InitServerParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New server info
+          schema:
+            items:
+              $ref: '#/definitions/ServerInfo'
+            type: array
+        "500":
+          description: Internal Server Error
+      security: []
+      summary: Initialize the target server
+      tags:
+      - Servers
   /share/{shareId}:
+    delete:
+      operationId: DeleteFileShare
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+      summary: Delete a file share
+      tags:
+      - Share
     get:
       operationId: GetFileShare
       parameters:
@@ -1241,10 +1670,103 @@ paths:
         "200":
           description: File Share
           schema:
-            $ref: '#/definitions/FileShare'
+            $ref: '#/definitions/ShareInfo'
         "404":
           description: Not Found
       summary: Get a file share
+      tags:
+      - Share
+  /share/{shareId}/accessors:
+    patch:
+      operationId: SetShareAccessors
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      - description: Share Accessors
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.UserListBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+      summary: Update a share's accessors list
+      tags:
+      - Share
+  /share/{shareId}/public:
+    patch:
+      operationId: SetSharePublic
+      parameters:
+      - description: Share Id
+        in: path
+        name: shareId
+        required: true
+        type: string
+      - description: Share Public Status
+        in: query
+        name: public
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+      summary: Update a share's "public" status
+      tags:
+      - Share
+  /share/album:
+    post:
+      operationId: CreateAlbumShare
+      parameters:
+      - description: New Album Share Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/AlbumShareParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New Album Share
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "409":
+          description: Conflict
+      summary: Share an album
+      tags:
+      - Share
+  /share/file:
+    post:
+      operationId: CreateFileShare
+      parameters:
+      - description: New File Share Params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/FileShareParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New File Share
+          schema:
+            $ref: '#/definitions/ShareInfo'
+        "409":
+          description: Conflict
+      summary: Share a file
       tags:
       - Share
   /takeout:
@@ -1281,6 +1803,102 @@ paths:
       security:
       - SessionAuth: []
       summary: Create a zip file
+      tags:
+      - Files
+  /upload:
+    post:
+      operationId: StartUpload
+      parameters:
+      - description: New upload request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/NewUploadParams'
+      responses:
+        "200":
+          description: Upload Info
+          schema:
+            $ref: '#/definitions/NewUploadInfo'
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Begin a new upload task
+      tags:
+      - Files
+  /upload/{uploadId}:
+    post:
+      operationId: AddFileToUpload
+      parameters:
+      - description: Upload Id
+        in: path
+        name: uploadId
+        required: true
+        type: string
+      - description: New file params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/NewFileParams'
+      responses:
+        "200":
+          description: Upload Info
+          schema:
+            $ref: '#/definitions/NewFileInfo'
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Add a file to an upload task
+      tags:
+      - Files
+  /upload/{uploadId}/file/{fileId}:
+    put:
+      operationId: UploadFileChunk
+      parameters:
+      - description: Upload Id
+        in: path
+        name: uploadId
+        required: true
+        type: string
+      - description: File Id
+        in: path
+        name: fileId
+        required: true
+        type: string
+      - description: File chunk
+        in: body
+        name: chunk
+        required: true
+        schema:
+          type: string
+      - description: Content Length for the chunk
+        in: header
+        name: ContentLength
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Add a chunk to a file upload
       tags:
       - Files
   /users:
@@ -1373,7 +1991,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/Error'
+            $ref: '#/definitions/ErrorInfo'
         "401":
           description: Unauthorized
         "404":
@@ -1406,7 +2024,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/Error'
+            $ref: '#/definitions/ErrorInfo'
         "403":
           description: Forbidden
         "404":
@@ -1440,7 +2058,7 @@ paths:
         "400":
           description: Both oldPassword and newPassword fields are required
           schema:
-            $ref: '#/definitions/Error'
+            $ref: '#/definitions/ErrorInfo'
         "403":
           description: Forbidden
         "404":
@@ -1522,7 +2140,7 @@ paths:
         "400":
           description: Username autocomplete must contain at least 2 characters
           schema:
-            $ref: '#/definitions/Error'
+            $ref: '#/definitions/ErrorInfo'
         "401":
           description: Unauthorized
         "404":
@@ -1534,6 +2152,9 @@ paths:
       summary: Search for users by username
       tags:
       - Users
+schemes:
+- http
+- https
 securityDefinitions:
   ApiKeyAuth:
     in: header

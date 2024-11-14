@@ -5,21 +5,24 @@ if [[ ! -e ./scripts ]]; then
   exit 1
 fi
 
-swag init --pd -g server.go -d ./http -q
-if [[ $? -ne 0 ]]; then
-  echo "ERR swag init failed"
+printf "Generating swagger docs..."
+if ! swag init --pd -g server.go -d ./http -q &>./build/logs/swag.log; then
+  echo "FAILED"
+  cat ./build/logs/swag.log
+  echo "########## ^ Swag Init Logs ^ ##########"
   exit 1
 fi
+echo "DONE"
+printf "########## END OF SWAG INIT ##########\n\n" >>./build/logs/swag.log
 
-openapi-generator generate -i docs/swagger.json -g typescript-axios -o ./ui/src/api/swag 
-if [[ $? -ne 0 ]]; then
+printf "Generating typescript api..."
+export TS_POST_PROCESS_FILE="node ./ui/node_modules/prettier/bin/prettier.cjs --write"
+if ! openapi-generator generate --enable-post-process-file -i docs/swagger.json -g typescript-axios -o ./ui/src/api/swag >>./build/logs/swag.log; then
+  echo "FAILED"
+  cat ./build/logs/swag.log
+  echo "########## ^ Openapi Generator Logs ^ ##########"
+
   echo "openapi-generator (typescript) failed"
   exit 1
 fi
-
-# openapi-generator generate -i docs/swagger.json -g go -o ./http/swag
-# if [[ $? -ne 0 ]]; then
-#   echo "openapi-generator (go) failed"
-#   exit 1
-# fi
-
+echo "DONE"

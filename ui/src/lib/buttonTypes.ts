@@ -1,10 +1,11 @@
+import { AxiosResponse } from 'axios'
 import { CSSProperties, FC } from 'react'
 
 export type ButtonIcon = FC<{ className: string }>
 
 export type ButtonActionHandler = (
     e: React.MouseEvent<HTMLElement, MouseEvent>
-) => void | boolean | Promise<void | boolean | Response>
+) => void | boolean | Promise<void | boolean | AxiosResponse>
 
 export type buttonProps = {
     label?: string

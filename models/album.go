@@ -9,17 +9,17 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 )
 
-type AlbumId string
+type AlbumId = string
 
 type Album struct {
-	Id             AlbumId     `bson:"_id" json:"id"`
-	Name           string      `bson:"name" json:"name"`
-	Owner          Username    `bson:"owner" json:"owner"`
-	Medias         []ContentId `bson:"medias" json:"medias"`
-	Cover          ContentId   `bson:"cover" json:"cover"`
-	PrimaryColor   string      `bson:"primaryColor" json:"primaryColor"`
-	SecondaryColor string      `bson:"secondaryColor" json:"secondaryColor"`
-	ShowOnTimeline bool        `bson:"showOnTimeline" json:"showOnTimeline"`
+	Id             AlbumId     `bson:"_id"`
+	Name           string      `bson:"name"`
+	Owner          Username    `bson:"owner"`
+	Medias         []ContentId `bson:"medias"`
+	Cover          ContentId   `bson:"cover"`
+	PrimaryColor   string      `bson:"primaryColor"`
+	SecondaryColor string      `bson:"secondaryColor"`
+	ShowOnTimeline bool        `bson:"showOnTimeline"`
 }
 
 func NewAlbum(albumName string, owner *User) *Album {

@@ -26,9 +26,6 @@ type AccessServiceImpl struct {
 	apiKeyMap map[models.WeblensApiKey]models.ApiKey
 	keyMapMu  sync.RWMutex
 
-	tokenMap   map[string]*models.User
-	tokenMapMu sync.RWMutex
-
 	userService models.UserService
 	collection  *mongo.Collection
 }
@@ -41,7 +38,6 @@ type WlClaims struct {
 func NewAccessService(userService models.UserService, col *mongo.Collection) (*AccessServiceImpl, error) {
 	accSrv := &AccessServiceImpl{
 		apiKeyMap: map[models.WeblensApiKey]models.ApiKey{},
-		tokenMap:  map[string]*models.User{},
 
 		collection: col,
 	}
@@ -117,7 +113,7 @@ func (accSrv *AccessServiceImpl) GetApiKey(key models.WeblensApiKey) (models.Api
 	accSrv.keyMapMu.RLock()
 	defer accSrv.keyMapMu.RUnlock()
 	if keyInfo, ok := accSrv.apiKeyMap[key]; !ok {
-		return models.ApiKey{}, werror.Errorf("Could not find api key")
+		return models.ApiKey{}, werror.ErrKeyNotFound
 	} else {
 		return keyInfo, nil
 	}
@@ -259,7 +255,7 @@ func (accSrv *AccessServiceImpl) SetKeyUsedBy(key models.WeblensApiKey, remote *
 
 func (accSrv *AccessServiceImpl) GetAllKeys(accessor *models.User) ([]models.ApiKey, error) {
 	if !accessor.IsAdmin() {
-		return nil, werror.WithStack(&werror.ErrNotAdmin)
+		return nil, werror.WithStack(werror.ErrNotAdmin)
 	}
 
 	accSrv.keyMapMu.RLock()

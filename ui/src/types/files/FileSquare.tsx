@@ -12,8 +12,9 @@ import {
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
 import { MouseEvent, useState } from 'react'
+import { Coordinates } from '../Types'
 
-const FileGridVisual = ({ file }) => {
+const FileGridVisual = ({ file }: { file: WeblensFile }) => {
     return (
         <div className="w-full p-2 pb-0 aspect-square overflow-hidden">
             <div className="w-full h-full overflow-hidden rounded-md flex justify-center items-center">
@@ -49,7 +50,7 @@ const FileTextBox = ({
 }
 
 export const FileSquare = ({ file }: { file: WeblensFile }) => {
-    const [mouseDown, setMouseDown] = useState(null)
+    const [mouseDown, setMouseDown] = useState<Coordinates>(null)
 
     const {
         draggingState,

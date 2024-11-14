@@ -9,6 +9,7 @@ import {
     ButtonContentProps,
     buttonProps as ButtonProps,
 } from './buttonTypes'
+import { ErrorHandler } from '@weblens/types/Types'
 
 const ButtonContent = memo(
     ({
@@ -187,7 +188,7 @@ const WeblensButton = memo(
         const [success, setSuccess] = useState(false)
         const [fail, setFail] = useState(false)
         const [loading, setLoading] = useState(false)
-        const [textWidth, setTextWidth] = useState(null)
+        const [textWidth, setTextWidth] = useState<number>(null)
         const [hovering, setHovering] = useState(false)
         const [confirming, setConfirming] = useState(false)
 
@@ -285,14 +286,14 @@ const WeblensButton = memo(
                                 setLoading,
                                 setSuccess,
                                 setFail
-                            )
+                            ).catch(ErrorHandler)
                             setConfirming(false)
                         } else if (requireConfirm) {
                             setConfirming(true)
                             setTimeout(() => setConfirming(false), 2000)
                         }
                     }}
-                    onMouseUp={(e) =>
+                    onMouseUp={(e) => {
                         handleButtonEvent(
                             e,
                             onMouseUp,
@@ -300,18 +301,20 @@ const WeblensButton = memo(
                             setLoading,
                             setSuccess,
                             setFail
-                        )
-                    }
+                        ).catch(ErrorHandler)
+                    }}
                     onMouseOver={(e) => {
                         setHovering(true)
-                        handleButtonEvent(
-                            e,
-                            onMouseOver,
-                            showSuccess,
-                            setLoading,
-                            setSuccess,
-                            setFail
-                        )
+                        {
+                            handleButtonEvent(
+                                e,
+                                onMouseOver,
+                                showSuccess,
+                                setLoading,
+                                setSuccess,
+                                setFail
+                            ).catch(ErrorHandler)
+                        }
                     }}
                     onMouseLeave={(e) => {
                         setTimeout(() => setHovering(false), 200)
@@ -322,7 +325,7 @@ const WeblensButton = memo(
                             setLoading,
                             setSuccess,
                             setFail
-                        )
+                        ).catch(ErrorHandler)
                     }}
                 >
                     {success && showSuccess && (

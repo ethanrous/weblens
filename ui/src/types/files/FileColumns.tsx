@@ -41,7 +41,13 @@ import { PhotoQuality } from '../media/Media'
 import { useMediaStore } from '../media/MediaStateControl'
 import { humanFileSize } from '@weblens/util'
 
-function ColumnRow(p: { data; index: number; style: CSSProperties }) {
+type ColumnRowProps = {
+    data: { files: WeblensFile[]; selectedChildId: string }
+    index: number
+    style: CSSProperties
+}
+
+function ColumnRow(p: ColumnRowProps) {
     const file = p.data.files[p.index]
     const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(null)
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -131,10 +137,10 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
                 onClick={(e) => {
                     e.stopPropagation()
                     return
-                    if (draggingState) {
-                        return
-                    }
-                    setSelected([file.Id()])
+                    // if (draggingState) {
+                    //     return
+                    // }
+                    // setSelected([file.Id()])
                 }}
                 onDoubleClick={(e) =>
                     visitFile(
@@ -160,7 +166,7 @@ function ColumnRow(p: { data; index: number; style: CSSProperties }) {
                         draggingState,
                         setMoveDest,
                         setHovering,
-                        Boolean(mouseDown),
+                        mouseDown,
                         setMouseDown
                     )
                 }
@@ -323,7 +329,9 @@ function Column({
 
             p.SetFetching(false)
         }
-        fetch().then(() => setLoading(false))
+        fetch()
+            .then(() => setLoading(false))
+            .catch((err) => console.error('Failed to fetch column info', err))
     }, [folderInfo, files.length])
 
     const [boxRef, setBoxRef] = useState<HTMLDivElement>()
@@ -399,7 +407,7 @@ function Column({
                         itemSize={56}
                         itemCount={files.length}
                         itemData={{ files, selectedChildId }}
-                        overscan={100}
+                        overscanCount={25}
                         onItemsRendered={() => {
                             if (didScroll) {
                                 return
@@ -523,7 +531,7 @@ function FileColumns() {
     const clearFiles = useFileBrowserStore((state) => state.clearFiles)
 
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
-    const [colWidths, setColWidths] = useState([])
+    const [colWidths, setColWidths] = useState<number[]>([])
 
     const { lastSelected, currentCol } = useMemo(() => {
         const lastSelected = filesMap.get(lastSelectedId)

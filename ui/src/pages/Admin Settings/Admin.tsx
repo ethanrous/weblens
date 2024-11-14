@@ -9,7 +9,6 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { clearCache, resetServer } from '@weblens/api/ApiFetch'
 import UsersApi from '@weblens/api/UserApi'
 import { useKeyDown } from '@weblens/components/hooks'
 import { useSessionStore } from '@weblens/components/UserInfo'
@@ -28,12 +27,14 @@ import { BackupProgressT } from '../Backup/BackupLogic'
 import {
     TaskProgress,
     TaskStage,
+    TaskType,
     useTaskState,
 } from '../FileBrowser/TaskStateControl'
 import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
 import { ServersApi } from '@weblens/api/ServersApi'
 import User from '@weblens/types/user/User'
 import AccessApi from '@weblens/api/AccessApi'
+import { ErrorHandler } from '@weblens/types/Types'
 
 // function PathAutocomplete() {
 //     const [pathSearch, setPathSearch] = useState('')
@@ -250,9 +251,9 @@ const UserRow = ({
                         label="Activate"
                         squareSize={35}
                         onClick={() => {
-                            UsersApi.activateUser(rowUser.username, true).then(
-                                () => refetchUsers()
-                            )
+                            UsersApi.activateUser(rowUser.username, true)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
                         }}
                     />
                 )}
@@ -276,7 +277,9 @@ const UserRow = ({
                         onComplete={async (newPass) => {
                             if (newPass === '') {
                                 return Promise.reject(
-                                    'Cannot update password to empty string'
+                                    new Error(
+                                        'Cannot update password to empty string'
+                                    )
                                 )
                             }
                             return UsersApi.updateUserPassword(
@@ -294,9 +297,9 @@ const UserRow = ({
                         allowShrink={false}
                         squareSize={35}
                         onClick={() => {
-                            UsersApi.setUserAdmin(rowUser.username, true).then(
-                                () => refetchUsers()
-                            )
+                            UsersApi.setUserAdmin(rowUser.username, true)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
                         }}
                     />
                 )}
@@ -306,9 +309,9 @@ const UserRow = ({
                         Left={IconUserMinus}
                         squareSize={35}
                         onClick={() => {
-                            UsersApi.setUserAdmin(rowUser.username, false).then(
-                                () => refetchUsers()
-                            )
+                            UsersApi.setUserAdmin(rowUser.username, false)
+                                .then(() => refetchUsers())
+                                .catch(ErrorHandler)
                         }}
                     />
                 )}
@@ -405,7 +408,9 @@ function ApiKeyRow({
                     if (!window.isSecureContext) {
                         return false
                     }
-                    navigator.clipboard.writeText(keyInfo.key)
+                    navigator.clipboard
+                        .writeText(keyInfo.key)
+                        .catch(ErrorHandler)
                     return true
                 }}
             />
@@ -415,7 +420,9 @@ function ApiKeyRow({
                 requireConfirm
                 tooltip="Delete Key"
                 onClick={() => {
-                    AccessApi.deleteApiKey(keyInfo.key).then(() => refetch())
+                    AccessApi.deleteApiKey(keyInfo.key)
+                        .then(() => refetch())
+                        .catch(ErrorHandler)
                 }}
             />
         </div>
@@ -449,12 +456,14 @@ function Servers() {
     useEffect(() => {
         HandleWebsocketMessage(
             lastMessage,
-            AdminWebsocketHandler(setBackupProgress, refetchRemotes)
+            AdminWebsocketHandler(setBackupProgress, () => {
+                refetchRemotes().catch(ErrorHandler)
+            })
         )
     }, [lastMessage])
 
     useEffect(() => {
-        refetchKeys()
+        refetchKeys().catch(ErrorHandler)
     }, [remotes?.length])
 
     return (
@@ -467,7 +476,9 @@ function Servers() {
                         <ApiKeyRow
                             key={k.id}
                             keyInfo={k}
-                            refetch={refetchKeys}
+                            refetch={() => {
+                                refetchKeys().catch(ErrorHandler)
+                            }}
                             remotes={remotes}
                         />
                     ))}
@@ -478,7 +489,9 @@ function Servers() {
                 label="New Api Key"
                 Left={IconPlus}
                 onClick={() => {
-                    AccessApi.createApiKey().then(() => refetchKeys())
+                    AccessApi.createApiKey()
+                        .then(() => refetchKeys())
+                        .catch(ErrorHandler)
                 }}
             />
             <div className="flex flex-row w-full items-center pr-4">
@@ -495,7 +508,9 @@ function Servers() {
                         <RemoteStatus
                             key={r.id}
                             remoteInfo={r}
-                            refetchRemotes={refetchRemotes}
+                            refetchRemotes={() => {
+                                refetchRemotes().catch(ErrorHandler)
+                            }}
                             restoreProgress={null}
                             backupProgress={backupProgress.get(r.id)}
                             setBackupProgress={(progress) => {
@@ -523,7 +538,7 @@ function BackupProgress() {
             setBackupTask(tasks.get(backupTaskId))
         } else {
             const backupTasks = Array.from(tasks.values()).filter(
-                (t) => t.taskType === 'do_backup'
+                (t) => t.taskType === TaskType.Backup
             )
             if (backupTasks.length !== 0) {
                 setBackupTaskId(backupTasks[0].GetTaskId())
@@ -557,7 +572,7 @@ function BackupProgress() {
     )
 }
 
-export function Admin({ closeAdminMenu }) {
+export function Admin({ closeAdminMenu }: { closeAdminMenu: () => void }) {
     const user = useSessionStore((state) => state.user)
     const wsSend = useWebsocketStore((state) => state.wsSend)
 
@@ -610,7 +625,9 @@ export function Admin({ closeAdminMenu }) {
                             <UsersBox
                                 thisUserInfo={user}
                                 allUsersInfo={allUsersInfo}
-                                refetchUsers={refetchUsers}
+                                refetchUsers={() => {
+                                    refetchUsers().catch(ErrorHandler)
+                                }}
                             />
                         </div>
                         <div className="flex flex-col w-1/2 gap-2 items-center">
@@ -626,14 +643,16 @@ export function Admin({ closeAdminMenu }) {
                             danger
                             requireConfirm
                             onClick={() => {
-                                clearCache().then(() => closeAdminMenu())
+                                // clearCache()
+                                //     .then(() => closeAdminMenu())
+                                //     .catch(ErrorHandler)
                             }}
                         />
                         <WeblensButton
                             label={'Reset Server'}
                             danger
                             requireConfirm
-                            onClick={() => resetServer()}
+                            // onClick={() => resetServer()}
                         />
                     </div>
                 </div>

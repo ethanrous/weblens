@@ -5,50 +5,46 @@ import (
 	"net/http"
 )
 
-var ErrNoFileAccess = &clientSafeErr{
-	realError:  errors.New("user does not have access to file"),
-	safeErr:    errors.New("file does not exist or user does not have access to it"),
-	statusCode: 404,
-}
-
-var ErrNoShare = errors.New("share not found")
-var ErrExpectedShareMissing = errors.New("Share that was expected to exist was not found")
-var ErrBadShareType = errors.New("Share has a different type than was expected")
-
-var ErrNoShareAccess = &clientSafeErr{
-	realError:  errors.New("user does not have access to share"),
-	safeErr:    ErrNoShare,
-	statusCode: 404,
-}
+var genericNotFound = errors.New("404 Not Found")
 
 var ErrUserNotAuthorized = &clientSafeErr{
 	realError:  errors.New("user does not have access the requested resource"),
-	safeErr:    errors.New("resource not found"),
-	statusCode: 404,
+	safeErr:    genericNotFound,
+	statusCode: http.StatusNotFound,
 }
 
 var ErrKeyInUse = &clientSafeErr{
-	realError:  errors.New("api key already in use"),
-	statusCode: 400,
+	safeErr:    errors.New("api key already in use"),
+	statusCode: http.StatusConflict,
 }
 
-var ErrKeyNotFound = errors.New("api was not found")
+var ErrKeyNotFound = &clientSafeErr{
+	realError:  errors.New("api was not found"),
+	safeErr:    genericNotFound,
+	statusCode: http.StatusNotFound,
+}
+
 var ErrInvalidToken = errors.New("session token is invalid")
 
 var ErrTokenExpired = &clientSafeErr{
-	realError:  errors.New("session token is expired"),
+	safeErr:    errors.New("session token is expired"),
 	statusCode: http.StatusUnauthorized,
 }
 
 var ErrKeyAlreadyExists = errors.New("api key already exists")
 var ErrKeyNoServer = errors.New("api key is not associated with a server")
 
-var ErrNotAdmin = clientSafeErr{
-	realError:  errors.New("user must be admin to access this resource"),
+var ErrNotAdmin = &clientSafeErr{
+	safeErr:    errors.New("user must be admin to access this resource"),
+	statusCode: http.StatusForbidden,
+}
+
+var ErrNotOwner = &clientSafeErr{
+	safeErr:    errors.New("user must be server owner to access this resource"),
 	statusCode: http.StatusForbidden,
 }
 
 var ErrNoPublicUser = &clientSafeErr{
-	realError:  errors.New("user must be logged in to access this resource"),
+	safeErr:    errors.New("user must be logged in to access this resource"),
 	statusCode: http.StatusUnauthorized,
 }

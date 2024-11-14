@@ -11,10 +11,9 @@ import WeblensButton from '@weblens/lib/WeblensButton'
 import { MiniAlbumCover } from '@weblens/types/albums/AlbumDisplay'
 import { Albums } from '@weblens/types/albums/Albums'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { AlbumData, GalleryStateT, PresentType } from '@weblens/types/Types'
+import { GalleryStateT, PresentType } from '@weblens/types/Types'
 import { clamp } from '@weblens/util'
 import React, {
-    MouseEvent,
     useCallback,
     useContext,
     useEffect,
@@ -31,6 +30,7 @@ import {
     useKeyDownGallery,
 } from './GalleryLogic'
 import { Timeline } from './Timeline'
+import { AlbumInfo } from '@weblens/api/swag'
 
 export function GalleryFilters() {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
@@ -66,22 +66,22 @@ export function GalleryFilters() {
         [galleryDispatch]
     )
 
-    const closeOptions = useCallback(
-        (e: MouseEvent | KeyboardEvent) => {
-            if (!optionsOpen) {
-                return
-            }
+    const [dropdownRef, setDropdownRef] = useState<HTMLDivElement>(null)
+
+    useClick((e) => {
+        if (optionsOpen) {
             e.stopPropagation()
             updateOptions(disabledAlbums, rawOn, hiddenOn)
             setOptionsOpen(false)
-        },
-        [optionsOpen, disabledAlbums, rawOn, hiddenOn]
-    )
-
-    const [dropdownRef, setDropdownRef] = useState(null)
-
-    useClick(closeOptions, dropdownRef)
-    useKeyDown('Escape', closeOptions)
+        }
+    }, dropdownRef)
+    useKeyDown('Escape', (e) => {
+        if (optionsOpen) {
+            e.stopPropagation()
+            updateOptions(disabledAlbums, rawOn, hiddenOn)
+            setOptionsOpen(false)
+        }
+    })
 
     return (
         <div className="flex flex-col items-center h-full w-[40px]">
@@ -127,7 +127,13 @@ export function GalleryFilters() {
                     <WeblensButton
                         label="Save"
                         disabled={rawOn === showRaw && hiddenOn === showHidden}
-                        onClick={(e) => closeOptions(e)}
+                        onClick={(e) => {
+                            if (optionsOpen) {
+                                e.stopPropagation()
+                                updateOptions(disabledAlbums, rawOn, hiddenOn)
+                                setOptionsOpen(false)
+                            }
+                        }}
                     />
                 </div>
             </div>
@@ -139,10 +145,12 @@ const Gallery = () => {
     const [galleryState, galleryDispatch] = useReducer<
         (state: GalleryStateT, action: GalleryAction) => GalleryStateT
     >(galleryReducer, {
-        albumsMap: new Map<string, AlbumData>(),
-        albumsFilter: JSON.parse(localStorage.getItem('albumsFilter')) || [],
+        albumsMap: new Map<string, AlbumInfo>(),
+        albumsFilter:
+            (JSON.parse(localStorage.getItem('albumsFilter')) as string[]) ||
+            [],
         imageSize: clamp(
-            JSON.parse(localStorage.getItem('imageSize')),
+            Number(JSON.parse(localStorage.getItem('imageSize'))),
             150,
             500
         ),
@@ -238,7 +246,7 @@ const Gallery = () => {
                     className="flex flex-col h-[50%] w-full shrink-0 relative grow"
                 >
                     {page == 'timeline' && <Timeline />}
-                    {page == 'albums' && <Albums selectedAlbum={albumId} />}
+                    {page == 'albums' && <Albums selectedAlbumId={albumId} />}
                 </div>
             </div>
         </GalleryContext.Provider>

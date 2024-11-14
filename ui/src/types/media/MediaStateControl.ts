@@ -34,8 +34,9 @@ export const useMediaStore = create<MediaStateT>()(
     devtools((set, get) => ({
         mediaMap: new Map<string, Media>(),
         selectedMap: new Map<string, Media>(),
-        showRaw: JSON.parse(localStorage.getItem('showRaws')) || false,
-        showHidden: JSON.parse(localStorage.getItem('showHidden')) || false,
+        showRaw: Boolean(JSON.parse(localStorage.getItem('showRaws'))) || false,
+        showHidden:
+            Boolean(JSON.parse(localStorage.getItem('showHidden'))) || false,
         hoverId: '',
         lastSelectedId: '',
         mediaTypeMap: null,

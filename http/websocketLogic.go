@@ -47,7 +47,7 @@ func wsConnect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		u, err = getUserFromCtx(w, r)
+		u, err = getUserFromCtx(r)
 		if SafeErrorAndExit(err, w) {
 			return
 		}

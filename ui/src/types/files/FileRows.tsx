@@ -17,6 +17,7 @@ import { useResize } from 'components/hooks'
 import { CSSProperties, MouseEvent, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 import '@weblens/types/files/filesStyle.scss'
+import { Coordinates } from '../Types'
 
 function FileRow({
     data,
@@ -29,7 +30,7 @@ function FileRow({
 }) {
     const file = data[index]
 
-    const [mouseDown, setMouseDown] = useState(null)
+    const [mouseDown, setMouseDown] = useState<Coordinates>(null)
 
     const {
         draggingState,
@@ -51,7 +52,7 @@ function FileRow({
     )
 
     return (
-        <div style={{...style, padding: 4}}>
+        <div style={{ ...style, padding: 4 }}>
             <div
                 className="weblens-file animate-fade-short"
                 data-row={true}
@@ -98,9 +99,7 @@ function FileRow({
                         setPresentationTarget
                     )
                 }
-                onContextMenu={(e) =>
-                    fileHandleContextMenu(e, setMenu, file)
-                }
+                onContextMenu={(e) => fileHandleContextMenu(e, setMenu, file)}
                 onMouseUp={() => {
                     return handleMouseUp(
                         file,
@@ -166,7 +165,7 @@ export function FileRows({ files }: { files: WeblensFile[] }) {
                 itemSize={70}
                 itemCount={files.length}
                 itemData={files}
-                overscan={100}
+                overscanCount={25}
             >
                 {FileRow}
             </WindowList>

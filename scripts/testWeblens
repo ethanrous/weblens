@@ -6,10 +6,19 @@ if [[ ! -e ./ui ]]; then
 fi
 
 remote_tests=false
+show_log=false
+ui_tests=false
+
 while [ "${1:-}" != "" ]; do
   case "$1" in
   "-r" | "--remoteTests")
     remote_tests=true
+    ;;
+  "-l" | "--show-log")
+    show_log=true
+    ;;
+  "--ui")
+    ui_tests=true
     ;;
   esac
   shift
@@ -19,8 +28,26 @@ if [[ ! -e ./ui/dist/index.html ]]; then
   cd ui || exit
   export VITE_APP_BUILD_TAG=test
   export VITE_BUILD=true
-  npm install
   npm run build
+  cd .. || exit
+fi
+
+failed=false
+
+if [[ $ui_tests == true ]]; then
+  printf "Running UI tests ..."
+  cd ui || exit
+  if ! npx eslint . &>../build/logs/ui-lint.log; then
+    echo " FAIL"
+    failed=true
+    if [[ $show_log == true ]]; then
+      cat ../build/logs/ui-lint.log
+    else
+      echo "View eslint logs at \`build/logs/ui-lint.log\` or rerun with --show-log"
+    fi
+  else
+    echo " PASS"
+  fi
   cd .. || exit
 fi
 
@@ -38,8 +65,22 @@ if [[ -z "$target" ]]; then
   target="./..."
 fi
 
-echo "Running tests ..."
-(
+printf "Running backend tests ..."
+if ! (
   set -o pipefail
-  APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v "$target" | grep -v -e CONT -e PAUSE | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS"
-)
+  APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v "$target" &>./build/logs/backend-test.log
+); then
+  echo " FAIL"
+  failed=true
+  if [[ $show_log == true ]]; then
+    grep -v -e CONT -e PAUSE <./build/logs/backend-test.log | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS"
+  else
+    echo "View go test logs at \`build/logs/backend-test.log\` or rerun with --show-log"
+  fi
+else
+  echo " PASS"
+fi
+
+if [[ $failed == true ]]; then
+  exit 1
+fi

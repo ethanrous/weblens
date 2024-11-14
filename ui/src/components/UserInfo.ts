@@ -2,6 +2,7 @@ import { ServersApi } from '@weblens/api/ServersApi'
 import { ServerInfo } from '@weblens/api/swag'
 import UsersApi from '@weblens/api/UserApi'
 import User from '@weblens/types/user/User'
+import { AxiosError } from 'axios'
 import { useEffect } from 'react'
 import { NavigateFunction, useNavigate } from 'react-router-dom'
 import { create, StateCreator } from 'zustand'
@@ -27,12 +28,12 @@ const useR = () => {
                 .then((res) => {
                     setUser(new User(res.data, true))
                 })
-                .catch((e) => {
-                    console.error(e.response.statusText)
+                .catch((err: AxiosError) => {
+                    console.error(err.response.statusText)
 
                     setUser(new User({}, false))
                     if (
-                        e.response.status === 401 &&
+                        err.response.status === 401 &&
                         !window.location.pathname.includes('share')
                     ) {
                         console.debug('Going to login')

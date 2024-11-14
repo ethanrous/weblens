@@ -20,7 +20,10 @@ type ShareServiceImpl struct {
 	repoMu sync.RWMutex
 
 	fileIdMap map[fileTree.FileId]models.ShareId
-	fileIdMu  sync.RWMutex
+	fileMu    sync.RWMutex
+
+	albumIdMap map[models.AlbumId]models.ShareId
+	albumMu    sync.RWMutex
 
 	col *mongo.Collection
 }
@@ -90,8 +93,8 @@ func (ss *ShareServiceImpl) Add(sh models.Share) error {
 		if !ok {
 			return werror.ErrBadShareType
 		}
-		ss.fileIdMu.Lock()
-		defer ss.fileIdMu.Unlock()
+		ss.fileMu.Lock()
+		defer ss.fileMu.Unlock()
 		ss.fileIdMap[fileSh.FileId] = sh.ID()
 	}
 
@@ -242,10 +245,10 @@ func (ss *ShareServiceImpl) SetSharePublic(share models.Share, public bool) erro
 	return nil
 }
 
-func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFileImpl) (*models.FileShare, error) {
-	ss.fileIdMu.RLock()
-	shareId, ok := ss.fileIdMap[f.ID()]
-	ss.fileIdMu.RUnlock()
+func (ss *ShareServiceImpl) GetFileShare(fId fileTree.FileId) (*models.FileShare, error) {
+	ss.fileMu.RLock()
+	shareId, ok := ss.fileIdMap[fId]
+	ss.fileMu.RUnlock()
 	if !ok {
 		return nil, werror.WithStack(werror.ErrNoShare)
 	}
@@ -261,6 +264,27 @@ func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFileImpl) (*models.F
 	}
 
 	return fileSh, nil
+}
+
+func (ss *ShareServiceImpl) GetAlbumShare(aId models.AlbumId) (*models.AlbumShare, error) {
+	ss.albumMu.RLock()
+	shareId, ok := ss.albumIdMap[aId]
+	ss.albumMu.RUnlock()
+	if !ok {
+		return nil, werror.WithStack(werror.ErrNoShare)
+	}
+
+	sh := ss.Get(shareId)
+	if sh == nil {
+		return nil, werror.WithStack(werror.ErrExpectedShareMissing)
+	}
+
+	albumSh, ok := sh.(*models.AlbumShare)
+	if !ok {
+		return nil, werror.WithStack(werror.ErrBadShareType)
+	}
+
+	return albumSh, nil
 }
 
 func (ss *ShareServiceImpl) writeUpdateTime(sh models.Share) error {

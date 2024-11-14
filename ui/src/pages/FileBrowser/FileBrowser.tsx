@@ -39,7 +39,6 @@ import { FileContextMenu } from '@weblens/types/files/FileMenu'
 import { FileRows } from '@weblens/types/files/FileRows'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { getFileShare } from '@weblens/types/share/shareQuery'
 import { humanFileSize } from '@weblens/util'
 import { memo, ReactElement, useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -64,7 +63,6 @@ import {
 import FileInfoPane from './FileInfoPane'
 
 import FileSortBox from './FileSortBox'
-import { StatTree } from './FileStatTree'
 import SearchDialogue from './SearchDialogue'
 import { TasksDisplay } from './TaskProgress'
 import UploadStatus from './UploadStatus'
@@ -74,6 +72,8 @@ import FileColumns from '@weblens/types/files/FileColumns'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
 import { ButtonActionHandler } from '@weblens/lib/buttonTypes'
 import { DirViewModeT } from './FileBrowserTypes'
+import { ErrorHandler } from '@weblens/types/Types'
+import SharesApi from '@weblens/api/SharesApi'
 
 function PasteImageDialogue() {
     const filesMap = useFileBrowserStore((state) => state.filesMap)
@@ -123,9 +123,9 @@ function PasteImageDialogue() {
                         fillWidth
                         onClick={(e) => {
                             e.stopPropagation()
-                            uploadViaUrl(pasteImage, contentId, filesMap).then(
-                                () => setPasteImgBytes(null)
-                            )
+                            uploadViaUrl(pasteImage, contentId, filesMap)
+                                .then(() => setPasteImgBytes(null))
+                                .catch(ErrorHandler)
                         }}
                     />
                 </div>
@@ -280,7 +280,7 @@ function GlobalActions() {
                             folderInfo?.Id() === user?.homeId &&
                             mode === FbModeT.default
                         }
-                        float={draggingState === 1}
+                        float={draggingState === DraggingStateT.InternalDrag}
                         disabled={!user.isLoggedIn}
                         allowRepeat={false}
                         Left={IconHome}
@@ -322,7 +322,7 @@ function GlobalActions() {
                         label="Trash"
                         fillWidth
                         squareSize={40}
-                        float={draggingState === 1}
+                        float={draggingState === DraggingStateT.InternalDrag}
                         toggleOn={
                             folderInfo?.Id() === user?.trashId &&
                             mode === FbModeT.default
@@ -365,7 +365,7 @@ function GlobalActions() {
                             Left={IconFolderPlus}
                             showSuccess={false}
                             disabled={
-                                draggingState !== 0 ||
+                                draggingState !== DraggingStateT.NoDrag ||
                                 !folderInfo?.IsModifiable()
                             }
                             onClick={newFolder}
@@ -410,7 +410,8 @@ function GlobalActions() {
                                     fillWidth
                                     showSuccess={false}
                                     disabled={
-                                        draggingState !== 0 ||
+                                        draggingState !==
+                                            DraggingStateT.NoDrag ||
                                         !folderInfo?.IsModifiable()
                                     }
                                     Left={IconUpload}
@@ -446,7 +447,7 @@ function GlobalActions() {
 }
 
 const UsageInfo = () => {
-    const [box, setBox] = useState(null)
+    const [box, setBox] = useState<HTMLDivElement>(null)
     const size = useResize(box)
 
     const user = useSessionStore((state) => state.user)
@@ -586,7 +587,11 @@ const SingleFile = memo(
     }
 )
 
-function DirViewHeader({ moveSelected }) {
+function DirViewHeader({
+    moveSelected,
+}: {
+    moveSelected: (folderId: string) => void
+}) {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const viewingPast = useFileBrowserStore((state) => state.pastTime)
@@ -656,7 +661,7 @@ function DirView({
     setFilesError: (err: number) => void
     searchFilter: string
 }) {
-    const [fullViewRef, setFullViewRef] = useState(null)
+    const [fullViewRef, setFullViewRef] = useState<HTMLDivElement>(null)
 
     const mode = useFileBrowserStore((state) => state.fbMode)
     const contentId = useFileBrowserStore((state) => state.contentId)
@@ -683,9 +688,11 @@ function DirView({
             FileApi.moveFiles({
                 fileIds: Array.from(selected.keys()),
                 newParentId: folderId,
-            }).then(() => {
-                clearSelected()
             })
+                .then(() => {
+                    clearSelected()
+                })
+                .catch(ErrorHandler)
         },
         [selected.size, contentId]
     )
@@ -706,14 +713,8 @@ function DirView({
         !folderInfo.IsFolder()
     ) {
         fileDisplay = <SingleFile file={folderInfo} />
-        // } else if (
-        //     activeList.length === 0 &&
-        //     loading.length === 0 &&
-        //     searchContent !== ''
-        // ) {
-        //     fileDisplay = <EmptySearch />
-    } else if (mode === FbModeT.stats) {
-        fileDisplay = <StatTree folderInfo={folderInfo} />
+        // } else if (mode === FbModeT.stats) {
+        // fileDisplay = <StatTree folderInfo={folderInfo} />
     } else if (viewOpts.dirViewMode === DirViewModeT.List) {
         fileDisplay = <FileRows files={activeList} />
     } else if (viewOpts.dirViewMode === DirViewModeT.Grid) {
@@ -850,14 +851,15 @@ function FileBrowser() {
         }
 
         if (mode === FbModeT.share && shareId && !contentId) {
-            getFileShare(shareId).then((s) => {
-                nav(`/files/share/${shareId}/${s.fileId}`)
-            })
+            SharesApi.getFileShare(shareId)
+                .then((res) => {
+                    nav(`/files/share/${shareId}/${res.data.fileId}`)
+                })
+                .catch(ErrorHandler)
         } else {
-            getRealId(contentId, mode, user).then((contentId) => {
-                setLocationState({ contentId, mode, shareId, pastTime, jumpTo })
-                removeLoading('files')
-            })
+            contentId = getRealId(contentId, mode, user)
+            setLocationState({ contentId, mode, shareId, pastTime, jumpTo })
+            removeLoading('files')
         }
     }, [urlPath, user, query('at'), jumpTo])
 
@@ -931,7 +933,7 @@ function FileBrowser() {
                 fbMode,
                 shareId,
                 pastTime
-            ).catch((r) => {
+            ).catch((r: number) => {
                 setFilesFetchErr(r)
             })
 
@@ -973,7 +975,7 @@ function FileBrowser() {
 
         addLoading('files')
         syncState()
-            .catch((e) => {
+            .catch((e: number) => {
                 console.error(e)
                 setFilesFetchErr(e)
             })
@@ -1000,14 +1002,16 @@ function FileBrowser() {
     }, [viewOpts.dirViewMode])
 
     const searchVisitFunc = (loc: string) => {
-        FileApi.getFile(loc).then((f) => {
-            if (!f.data) {
-                console.error('Could not find file to nav to')
-                return
-            }
+        FileApi.getFile(loc)
+            .then((f) => {
+                if (!f.data) {
+                    console.error('Could not find file to nav to')
+                    return
+                }
 
-            goToFile(new WeblensFile(f.data), true)
-        })
+                goToFile(new WeblensFile(f.data), true)
+            })
+            .catch(ErrorHandler)
     }
 
     return (

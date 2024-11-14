@@ -1,5 +1,4 @@
-import MediaApi from '@weblens/api/MediaApi'
-import { mediaType } from '@weblens/types/Types'
+import { Dimensions } from '@weblens/types/Types'
 import {
     RefObject,
     useCallback,
@@ -11,7 +10,7 @@ import {
 
 export const useResize = (
     elem: HTMLDivElement,
-    resizeCallback?: (oldSize, newSize) => void
+    resizeCallback?: (oldSize: Dimensions, newSize: Dimensions) => void
 ) => {
     const [size, setSize] = useState({ height: -1, width: -1 })
 
@@ -21,7 +20,7 @@ export const useResize = (
             width: elem.clientWidth,
         }
         // only 1 entry
-        setSize((prev) => {
+        setSize((prev: Dimensions) => {
             if (resizeCallback) {
                 resizeCallback(prev, newSize)
             }
@@ -51,14 +50,14 @@ export const useVideo = (elem: HTMLVideoElement) => {
     }, [setPlaytime, elem])
 
     const updatePlayState = useCallback(
-        (e) => {
+        (e: Event) => {
             setIsPlaying(e.type === 'play')
         },
         [setIsPlaying]
     )
 
     const updateBufferState = useCallback(
-        (e) => {
+        (e: Event) => {
             if (e.type === 'waiting') {
                 setIsWaiting(true)
             } else if (e.type === 'playing') {
@@ -95,7 +94,7 @@ export const useKeyDown = (
     disable?: boolean
 ) => {
     const onKeyDown = useCallback(
-        (event) => {
+        (event: KeyboardEvent) => {
             if (
                 (typeof key === 'string' && event.key === key) ||
                 (typeof key === 'function' && key(event))
@@ -137,38 +136,6 @@ export const useWindowSize = () => {
     return windowSize
 }
 
-export const useWindowSizeAgain = (
-    updateCallback?: (oldSize, newSize) => void
-) => {
-    const [windowSize, setWindowSize] = useState({
-        width: window.innerWidth,
-        height: window.innerHeight,
-    })
-
-    const onResize = useCallback(
-        (e) => {
-            if (updateCallback) {
-                updateCallback(windowSize, {
-                    width: e.target.innerWidth,
-                    height: e.target.innerHeight,
-                })
-            }
-            setWindowSize({
-                width: e.target.innerWidth,
-                height: e.target.innerHeight,
-            })
-        },
-        [setWindowSize, updateCallback]
-    )
-
-    useEffect(() => {
-        window.addEventListener('resize', onResize)
-        return () => window.removeEventListener('resize', onResize)
-    }, [onResize])
-
-    return windowSize
-}
-
 export const useResizeDrag = (
     resizing: boolean,
     setResizing: (r: boolean) => void,
@@ -177,7 +144,7 @@ export const useResizeDrag = (
     vertical?: boolean
 ) => {
     const unDrag = useCallback(
-        (e) => {
+        (e: MouseEvent) => {
             e.stopPropagation()
             setResizing(false)
         },
@@ -185,7 +152,7 @@ export const useResizeDrag = (
     )
 
     const moved = useCallback(
-        (e) => {
+        (e: MouseEvent) => {
             let val: number
             let windowSize: number
             if (vertical) {
@@ -217,30 +184,18 @@ export const useResizeDrag = (
     }, [resizing, moved, unDrag])
 }
 
-export const useMediaType = (): Map<string, mediaType> => {
-    const [typeMap, setTypeMap] = useState(null)
-
-    useEffect(() => {
-        const mediaTypes = new Map<string, mediaType>()
-        MediaApi.getMediaTypes().then((res) => {
-            const mimes: string[] = Array.from(Object.keys(res.data))
-            for (const mime of mimes) {
-                mediaTypes.set(mime, res.data[mime])
-            }
-            setTypeMap(mediaTypes)
-        })
-    }, [])
-    return typeMap
-}
-
-export const useClick = (handler: (e) => void, ignore?, disable?: boolean) => {
+export const useClick = (
+    handler: (e: MouseEvent) => void,
+    ignore?: HTMLDivElement,
+    disable?: boolean
+) => {
     const callback = useCallback(
-        (e) => {
+        (e: MouseEvent) => {
             if (disable) {
                 return
             }
 
-            if (ignore && ignore.contains(e.target)) {
+            if (ignore && ignore.contains(e.target as Node)) {
                 return
             }
 
@@ -316,7 +271,7 @@ export const useTimer = (startTime: Date, startPaused?: boolean) => {
         startTime ? Date.now() - startTime.getTime() : 0
     )
     const [isRunning, setIsRunning] = useState(false)
-    const countRef = useRef(null)
+    const countRef = useRef<NodeJS.Timeout>(null)
 
     const handleStart = () => {
         if (isRunning) {

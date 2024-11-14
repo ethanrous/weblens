@@ -13,7 +13,6 @@ import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
-import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
@@ -31,6 +30,8 @@ import { humanFileSize } from '../util'
 import { useKeyDown, useResize, useResizeDrag } from './hooks'
 import { useSessionStore } from './UserInfo'
 import { useWebsocketStore } from '@weblens/api/Websocket'
+import MediaApi from '@weblens/api/MediaApi'
+import { ErrorHandler } from '@weblens/types/Types'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -153,9 +154,11 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 
     useEffect(() => {
         setBlockFocus(true)
-        FileApi.getFileText(file.Id()).then((r) => {
-            setContent(r.data)
-        })
+        FileApi.getFileText(file.Id())
+            .then((r) => {
+                setContent(r.data)
+            })
+            .catch(ErrorHandler)
 
         return () => setBlockFocus(false)
     }, [])
@@ -222,7 +225,12 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                     label={'Download'}
                     Left={IconDownload}
                     onClick={() => {
-                        downloadSelected([file], removeLoading, wsSend, shareId)
+                        downloadSelected(
+                            [file],
+                            removeLoading,
+                            wsSend,
+                            shareId
+                        ).catch(ErrorHandler)
                     }}
                 />
                 {mediaData && (
@@ -449,9 +457,11 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
                     data-shown={guiShown || isLiked}
                     onClick={(e) => {
                         e.stopPropagation()
-                        likeMedia(mediaData.Id(), !isLiked).then(() => {
-                            setMediaLiked(mediaData.Id(), user.username)
-                        })
+                        MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
+                            .then(() => {
+                                setMediaLiked(mediaData.Id(), user.username)
+                            })
+                            .catch(ErrorHandler)
                     }}
                     onMouseOver={() => {
                         setLikedHover(true)
@@ -503,7 +513,7 @@ const Presentation = memo(
     }) => {
         useKeyDownPresentation(mediaId, dispatch)
 
-        const [to, setTo] = useState(null)
+        const [to, setTo] = useState<NodeJS.Timeout>(null)
         const [guiShown, setGuiShown] = useState(false)
         const [likedHover, setLikedHover] = useState(false)
         const { user } = useSessionStore()
@@ -552,9 +562,11 @@ const Presentation = memo(
                     data-shown={guiShown || isLiked}
                     onClick={(e) => {
                         e.stopPropagation()
-                        likeMedia(mediaId, !isLiked).then(() => {
-                            setMediaLiked(mediaId, user.username)
-                        })
+                        MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
+                            .then(() => {
+                                setMediaLiked(mediaData.Id(), user.username)
+                            })
+                            .catch(ErrorHandler)
                     }}
                     onMouseOver={() => {
                         setLikedHover(true)

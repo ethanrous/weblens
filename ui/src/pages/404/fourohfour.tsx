@@ -1,8 +1,8 @@
 import { Button, Text } from '@mantine/core'
+import { useNavigate } from 'react-router-dom'
 
 const Fourohfour = () => {
-    // const nav = useNavigate()
-    const nav = null
+    const nav = useNavigate()
     return (
         <div style={{ height: '50vh', justifyContent: 'center' }}>
             <Text style={{ padding: 20 }}>Page not found :(</Text>

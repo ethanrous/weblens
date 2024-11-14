@@ -6,14 +6,14 @@ import {
 } from '@weblens/types/files/File'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { FbViewOptsT } from '@weblens/types/Types'
+import { Coordinates } from '@weblens/types/Types'
 import { create, StateCreator } from 'zustand'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { NavigateFunction, NavigateOptions, To } from 'react-router-dom'
-import { DirViewModeT } from './FileBrowserTypes'
+import { DirViewModeT, FbViewOptsT } from './FileBrowserTypes'
 import { devtools } from 'zustand/middleware'
 import { FileInfo, MediaInfo } from '@weblens/api/swag'
-import User from '@weblens/types/user/user'
+import User from '@weblens/types/user/User'
 
 export enum FbModeT {
     unset,
@@ -30,7 +30,7 @@ export type SetMenuT = ({
     menuTarget,
 }: {
     menuState?: FbMenuModeT
-    menuPos?: { x: number; y: number }
+    menuPos?: Coordinates
     menuTarget?: string
 }) => void
 
@@ -153,7 +153,7 @@ function loadViewOptions(): FbViewOptsT {
     try {
         const viewOptsString = localStorage.getItem('fbViewOpts')
         if (viewOptsString) {
-            const opts = JSON.parse(viewOptsString)
+            const opts = JSON.parse(viewOptsString) as FbViewOptsT
             if (!opts) {
                 throw new Error()
             }
@@ -907,9 +907,7 @@ const FBStateControl: StateCreator<
                             f.SetSelected(SelectedState.Selected)
                         }
                     } else {
-                        console.error(
-                            `No file in set selected: [${fId}] ${selected}`
-                        )
+                        console.error(`No file in set selected: [${fId}]`)
                         return state
                     }
                 }

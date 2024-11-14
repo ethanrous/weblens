@@ -1,4 +1,4 @@
-import User from '@weblens/types/user/user'
+import User from '@weblens/types/user/User'
 import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
 import { useSessionStore } from '../../components/UserInfo'
 
@@ -17,16 +17,19 @@ export function setupWebsocketHandler(
                         .then(() => {
                             nav('/files/home')
                         })
+                        .catch((err) => {
+                            console.error('Failed to fetch server info', err)
+                        })
                 } else if (msgData.content['role'] === 'restore') {
                     setRestoreInProgress(true)
                 }
                 break
             }
-            case 'restore_started': {
+            case WsMsgEvent.RestoreStartedEvent: {
                 setRestoreInProgress(true)
                 break
             }
-            case 'going_down': {
+            case WsMsgEvent.ServerGoingDownEvent: {
                 break
             }
             default: {

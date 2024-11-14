@@ -9,7 +9,7 @@ import {
     IconFolder,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { getFileHistory } from '@weblens/api/FileBrowserApi'
+import { FolderApi } from '@weblens/api/FileBrowserApi'
 import { useResizeDrag, useWindowSize } from '@weblens/components/hooks'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
@@ -28,11 +28,11 @@ import { clamp } from '@weblens/util'
 
 import { memo, ReactElement, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileAction } from './FileBrowserTypes'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
+import { FileActionInfo } from '@weblens/api/swag'
 
 const SIDEBAR_BREAKPOINT = 650
 
@@ -53,8 +53,7 @@ export default function FileInfoPane() {
         windowSize?.width > SIDEBAR_BREAKPOINT ? 550 : 75
     )
     const [open, setOpen] = useState<boolean>(false)
-    // const [tab, setTab] = useState('info')
-    const [tab, setTab] = useState('history')
+    const [tab] = useState<string>('history')
 
     useEffect(() => {
         if (!dragging && localDragging) {
@@ -231,7 +230,7 @@ function ActionRow({
     action,
     folderName,
 }: {
-    action: FileAction
+    action: FileActionInfo
     folderName: string
 }) {
     const fromFolder = portableToFolderName(action.originPath)
@@ -280,7 +279,7 @@ const HistoryEventRow = memo(
         open,
         setOpen,
     }: {
-        event: FileAction[]
+        event: FileActionInfo[]
         folderPath: string
         open: boolean
         setOpen: (o: boolean) => void
@@ -364,7 +363,7 @@ function RollbackBar({
     openEvents,
     historyScroll,
 }: {
-    events: FileAction[][]
+    events: FileActionInfo[][]
     openEvents: boolean[]
     historyScroll: number
 }) {
@@ -500,18 +499,23 @@ function FileHistory() {
 
     const [historyScroll, setHistoryScroll] = useState(0)
 
-    const { data: fileHistory, refetch } = useQuery<FileAction[]>({
+    const { data: fileHistory, refetch } = useQuery<FileActionInfo[]>({
         queryKey: ['fileHistory', contentId],
         queryFn: () => {
             if (mode === FbModeT.share) {
-                return null
+                return []
             }
-            return getFileHistory(contentId, pastTime)
+            return FolderApi.getFolderHistory(
+                contentId,
+                pastTime.getTime()
+            ).then((res) => res.data)
         },
     })
 
     useEffect(() => {
-        refetch()
+        refetch().catch((err) =>
+            console.error('Failed to refetch folder history', err)
+        )
     }, [filesMap.size])
 
     const { events, epoch } = useMemo(() => {
@@ -519,10 +523,10 @@ function FileHistory() {
             return { events: [], epoch: null }
         }
 
-        const events: FileAction[][] = []
-        let epoch: FileAction
+        const events: FileActionInfo[][] = []
+        let epoch: FileActionInfo
 
-        fileHistory.forEach((a) => {
+        fileHistory.forEach((a: FileActionInfo) => {
             if (a.lifeId === contentId) {
                 epoch = a
                 return
@@ -545,7 +549,7 @@ function FileHistory() {
         return { events, epoch }
     }, [fileHistory])
 
-    const [openEvents, setOpenEvents] = useState([])
+    const [openEvents, setOpenEvents] = useState<boolean[]>([])
     useEffect(() => {
         const openInit = events.map(() => false)
         setOpenEvents(openInit)

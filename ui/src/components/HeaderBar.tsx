@@ -22,7 +22,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useKeyDown } from './hooks'
 import WeblensLoader from './Loading'
 import { useSessionStore } from './UserInfo'
-import User from '@weblens/types/user/user'
+import User from '@weblens/types/user/User'
 
 type HeaderBarProps = {
     setBlockFocus: (block: boolean) => void
@@ -73,7 +73,7 @@ const SettingsMenu = ({
     const updateFunc = useCallback(async () => {
         if (oldP == '' || newP == '' || oldP === newP) {
             return Promise.reject(
-                'Old and new password cannot be empty or match'
+                new Error('Old and new password cannot be empty or match')
             )
         }
         return UsersApi.updateUserPassword(user.username, {

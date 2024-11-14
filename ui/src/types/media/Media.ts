@@ -1,8 +1,7 @@
 import API_ENDPOINT from '@weblens/api/ApiEndpoint'
 import MediaApi from '@weblens/api/MediaApi'
-import { MediaInfo } from '@weblens/api/swag'
+import { MediaInfo, MediaType } from '@weblens/api/swag'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { mediaType } from 'types/Types'
 
 export enum PhotoQuality {
     LowRes = 'thumbnail',
@@ -37,7 +36,7 @@ class WeblensMedia {
     previous?: WeblensMedia
     next?: WeblensMedia
     selected?: boolean
-    mediaType?: mediaType
+    mediaType?: MediaType
 
     abort?: AbortController
     index?: number
@@ -95,11 +94,11 @@ class WeblensMedia {
         }
     }
 
-    GetMediaType(): mediaType {
+    GetMediaType(): MediaType {
         if (!this.mediaType && this.mimeType) {
             if (useMediaStore.getState().mediaTypeMap) {
                 const mediaType =
-                    useMediaStore.getState().mediaTypeMap[this.mimeType]
+                    useMediaStore.getState().mediaTypeMap.mimeMap[this.mimeType]
                 if (!mediaType) {
                     console.error('Could not get media type', this.mimeType)
                 }
@@ -245,7 +244,8 @@ class WeblensMedia {
                 pageNumber
             )
         }
-        if (thumb) {
+
+        if (thumb !== undefined) {
             await thumb.then((updated: boolean) => {
                 if (updated && onThumbFinished) {
                     onThumbFinished()
@@ -253,7 +253,7 @@ class WeblensMedia {
             })
         }
 
-        if (fullres) {
+        if (fullres !== undefined) {
             await fullres.then((updated: boolean) => {
                 if (updated && onFullresFinished) {
                     onFullresFinished()
@@ -299,7 +299,7 @@ class WeblensMedia {
         )
             .then((res) => {
                 if (res.status !== 200) {
-                    return Promise.reject(res.statusText)
+                    return Promise.reject(new Error(res.statusText))
                 }
 
                 const blob = new Blob([res.data])

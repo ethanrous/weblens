@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
-	"github.com/gin-gonic/gin"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -28,7 +27,7 @@ import (
 //	@Router		/users [post]
 func createUser(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -132,7 +131,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 //	@Success	200
 //	@Router		/users/logout [post]
 func logoutUser(w http.ResponseWriter, r *http.Request) {
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -164,7 +163,7 @@ func logoutUser(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users [get]
 func getUsers(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -204,11 +203,11 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 func getUserInfo(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
-		writeJson(w, http.StatusTemporaryRedirect, gin.H{"error": "weblens not initialized"})
+		writeJson(w, http.StatusTemporaryRedirect, rest.WeblensErrorInfo{Error: "weblens not initialized"})
 		return
 	}
 
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -245,7 +244,7 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/{username}/password [patch]
 func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -310,7 +309,7 @@ func updateUserPassword(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/{username}/admin [patch]
 func setUserAdmin(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	owner, err := getUserFromCtx(w, r)
+	owner, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -398,7 +397,7 @@ func activateUser(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/{username} [delete]
 func deleteUser(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -444,7 +443,7 @@ func deleteUser(w http.ResponseWriter, r *http.Request) {
 //	@Router		/users/search [get]
 func searchUsers(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	u, err := getUserFromCtx(w, r)
+	u, err := getUserFromCtx(r)
 	if SafeErrorAndExit(err, w) {
 		return
 	}

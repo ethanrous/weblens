@@ -82,14 +82,14 @@ while true; do
 	if [[ $build_ui == true ]]; then
 		cd ./ui || exit
 		printf "Building UI..."
-		npm install &>/dev/null
+		# npm install &>/dev/null
 		export VITE_APP_BUILD_TAG="DEV-BUILD"
 		export VITE_BUILD=true
 
 		if ! npm run build &>../build/logs/ui-build.log; then
 			printf " FAILED\n"
 			cat ../build/logs/ui-build.log
-			echo "Aborting Weblens startup. Ensure npm run build completes successfully before starting Weblens."
+			echo "Aborting Weblens startup. Ensure \`npm run build\` completes successfully before starting Weblens."
 			exit 1
 		else
 			printf " DONE\n"

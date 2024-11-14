@@ -17,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WeblensFile } from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
 
 type Crumb = {
     name: string
@@ -82,7 +83,7 @@ export const StyledBreadcrumb = ({
             className={'crumb-box'}
             data-navigable={crumbInfo.navigable}
             data-compact={compact}
-            data-dragging={dragging === 1}
+            data-dragging={dragging === DraggingStateT.InternalDrag}
             data-current={isCurrent}
             onMouseOver={() => {
                 if (dragging && !isCurrent && setMoveDest) {
@@ -100,7 +101,7 @@ export const StyledBreadcrumb = ({
                     return
                 }
 
-                if (dragging !== 0) {
+                if (dragging !== DraggingStateT.NoDrag) {
                     moveSelectedTo(crumbInfo.id)
                 } else {
                     if (crumbInfo.file) {
@@ -163,9 +164,9 @@ export const StyledLoaf = ({
     crumbs: Crumb[]
     moveSelectedTo: (folderId: string) => void
 }) => {
-    const [widths, setWidths] = useState(new Array(crumbs.length))
+    const [widths, setWidths] = useState<number[]>(new Array(crumbs.length))
     // const [squished, setSquished] = useState(0)
-    const [crumbsRef, setCrumbRef] = useState(null)
+    const [crumbsRef, setCrumbRef] = useState<HTMLDivElement>(null)
     const size = useResize(crumbsRef)
     const [overflowMenu, setOverflowMenu] = useState(false)
     const [overflowRef, setOverflowRef] = useState<HTMLDivElement>()

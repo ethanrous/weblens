@@ -81,8 +81,6 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 type Server interface {
 	Start()
-	UseInterserverRoutes()
-	UseRestore()
 	UseApi() *chi.Mux
 	Restart()
 	Stop()

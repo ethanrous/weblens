@@ -2,7 +2,6 @@ import './startup.scss'
 import 'components/theme.scss'
 import {
     HandleWebsocketMessage,
-    useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
@@ -15,8 +14,8 @@ export default function StartUp() {
     const [setupProgress, setSetupProgress] = useState(0)
     const [waitingOn, setWaitingOn] = useState<StartupTask[]>([])
     const [lastTask, setLastTask] = useState<string>('')
-    const { lastMessage } = useWeblensSocket()
-    const { readyState } = useWebsocketStore()
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
+    const readyState = useWebsocketStore((state) => state.readyState)
 
     useEffect(() => {
         HandleWebsocketMessage(
@@ -27,7 +26,7 @@ export default function StartUp() {
 
     return (
         <div className="flex flex-col justify-center items-center w-screen h-screen theme-background">
-            <Logo size={150}/>
+            <Logo size={150} />
             <div className="absolute bottom-1 left-1">
                 <WebsocketStatus ready={readyState} />
             </div>

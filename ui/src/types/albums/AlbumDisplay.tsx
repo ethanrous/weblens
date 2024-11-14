@@ -14,7 +14,6 @@ import '@weblens/types/albums/albumStyle.scss'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
-import { DeleteAlbum, LeaveAlbum } from '@weblens/types/albums/AlbumQuery'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 
@@ -25,30 +24,48 @@ import { useSessionStore } from 'components/UserInfo'
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FixedSizeList } from 'react-window'
-import { AlbumData } from 'types/Types'
+import { ErrorHandler } from 'types/Types'
 import UsersApi from '@weblens/api/UserApi'
-import { UserInfo } from '@weblens/api/swag'
+import { AlbumInfo, UserInfo } from '@weblens/api/swag'
+import AlbumsApi from '@weblens/api/AlbumsApi'
+import { useQuery } from '@tanstack/react-query'
+import SharesApi from '@weblens/api/SharesApi'
 
 function AlbumShareMenu({
     album,
     closeShareMenu,
 }: {
-    album: AlbumData
+    album: AlbumInfo
     closeShareMenu: () => void
 }) {
-    const [users, setUsers] = useState([])
+    const [users, setUsers] = useState<string[]>([])
     const [userSearch, setUserSearch] = useState('')
-    const [userSearchResults, setUserSearchResults] = useState<UserInfo[]>([])
+    const [lastSearch, setLastSearch] = useState('')
 
-    useEffect(() => {
-        if (userSearch === '') {
-            setUserSearchResults([])
-            return
-        }
-        UsersApi.searchUsers(userSearch).then((r) => {
-            setUserSearchResults(r.data)
-        })
-    }, [userSearch, users])
+    const { data: userSearchResults } = useQuery<UserInfo[]>({
+        queryKey: ['albumUsersSearch', userSearch],
+        initialData: [],
+        queryFn: async (ctx) => {
+            if (ctx.queryKey[1] === lastSearch) {
+                const ret: UserInfo[] = userSearchResults.filter(
+                    (u) => !users.includes(u.username)
+                )
+                return ret
+            }
+            if (userSearch.length < 3) {
+                return [] as UserInfo[]
+            }
+
+            const res = await UsersApi.searchUsers(userSearch, {
+                signal: ctx.signal,
+            }).then((r) => {
+                const res = r.data.filter((u) => !users.includes(u.username))
+                setLastSearch(userSearch)
+                return res
+            })
+            return res
+        },
+    })
 
     useKeyDown('Escape', () => closeShareMenu())
 
@@ -92,11 +109,6 @@ function AlbumShareMenu({
                                         setUsers((p) => {
                                             const newP = [...p]
                                             newP.push(u.username)
-                                            return newP
-                                        })
-                                        setUserSearchResults((p) => {
-                                            const newP = [...p]
-                                            newP.splice(newP.indexOf(u), 1)
                                             return newP
                                         })
                                     }}
@@ -158,25 +170,13 @@ function AlbumShareMenu({
                             label={'share'}
                             Left={IconUsersPlus}
                             onClick={async () => {
-                                console.error('share ablum not impl')
-                                // return ShareAlbum(
-                                //     album.id,
-                                //     auth,
-                                //     users,
-                                //     album.sharedWith.filter(
-                                //         (u) => !users.includes(u)
-                                //     )
-                                // )
-                                //     .then((r) => {
-                                //         if (r.status !== 200) {
-                                //             return Promise.reject(
-                                //                 'Failed to share album'
-                                //             )
-                                //         }
-                                //         setTimeout(() => closeShareMenu(), 1000)
-                                //         return true
-                                //     })
-                                //     .catch(() => false)
+                                return SharesApi.createAlbumShare({
+                                    albumId: album.id,
+                                    public: false,
+                                    users: users,
+                                }).then(() => {
+                                    setTimeout(() => closeShareMenu(), 1000)
+                                })
                             }}
                         />
                     </div>
@@ -190,7 +190,7 @@ export function MiniAlbumCover({
     album,
     disabled,
 }: {
-    album: AlbumData
+    album: AlbumInfo
     disabled?: boolean
 }) {
     const mediaData = useMediaStore((state) => state.mediaMap.get(album.cover))
@@ -209,7 +209,7 @@ export function MiniAlbumCover({
     )
 }
 
-export function SingleAlbumCover({ album }: { album: AlbumData }) {
+export function SingleAlbumCover({ album }: { album: AlbumInfo }) {
     const { galleryDispatch } = useContext(GalleryContext)
     const user = useSessionStore((state) => state.user)
     const addMedias = useMediaStore((state) => state.addMedias)
@@ -222,9 +222,11 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
     useEffect(() => {
         if (!mediaData && album.cover) {
             const newM = new WeblensMedia({ contentId: album.cover })
-            newM.LoadInfo().then(() => {
-                addMedias([newM])
-            })
+            newM.LoadInfo()
+                .then(() => {
+                    addMedias([newM])
+                })
+                .catch((err) => console.error('Failed to load media info', err))
         }
     }, [mediaData])
 
@@ -287,24 +289,18 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                                 onClick={(e) => {
                                     e.stopPropagation()
 
-                                    let rq: Promise<Response>
-
-                                    if (album.owner !== user.username) {
-                                        rq = LeaveAlbum(album.id).then()
-                                    } else {
-                                        rq = DeleteAlbum(album.id)
-                                    }
-
-                                    rq.then((r) => {
-                                        if (r.status === 200) {
-                                            galleryDispatch({
-                                                type: 'remove_album',
-                                                albumId: album.id,
-                                            })
-                                        } else {
-                                            return false
-                                        }
-                                    })
+                                    AlbumsApi.deleteOrLeaveAlbum(album.id)
+                                        .then((r) => {
+                                            if (r.status === 200) {
+                                                galleryDispatch({
+                                                    type: 'remove_album',
+                                                    albumId: album.id,
+                                                })
+                                            } else {
+                                                return false
+                                            }
+                                        })
+                                        .catch(ErrorHandler)
                                 }}
                             />
                         </div>
@@ -313,7 +309,6 @@ export function SingleAlbumCover({ album }: { album: AlbumData }) {
                 <MediaImage
                     media={mediaData}
                     quality={PhotoQuality.HighRes}
-                    imgStyle={{ zIndex: -1 }}
                     containerClass="cover-image"
                 />
                 <AlbumShareMenu
@@ -330,7 +325,7 @@ function AlbumWrapper({
     index,
     style,
 }: {
-    data: { albums: AlbumData[]; colCount: number }
+    data: { albums: AlbumInfo[]; colCount: number }
     index: number
     style: React.CSSProperties
 }) {
@@ -341,7 +336,7 @@ function AlbumWrapper({
         )
 
         while (thisData.length < data.colCount) {
-            thisData.push({ id: '', name: '' } as AlbumData)
+            thisData.push({ id: '', name: '' } as AlbumInfo)
         }
 
         return thisData
@@ -364,8 +359,8 @@ function AlbumWrapper({
 
 const ALBUM_WIDTH = 450
 
-export function AlbumScroller({ albums }: { albums: AlbumData[] }) {
-    const [containerRef, setContainerRef] = useState(null)
+export function AlbumScroller({ albums }: { albums: AlbumInfo[] }) {
+    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
     const containerSize = useResize(containerRef)
 
     const colCount = Math.floor(containerSize.width / ALBUM_WIDTH)
