@@ -245,7 +245,7 @@ func (s *Server) UseApi() *chi.Mux {
 			r.Get("/", getRemotes)
 			r.Post("/", attachRemote)
 
-			r.Post("/backup", doFullBackup)
+			r.Get("/backup", doFullBackup)
 
 			r.Post("/{serverId}/backup", launchBackup)
 			r.Post("/{serverId}/restore", restoreToCore)
@@ -324,7 +324,8 @@ func (s *Server) UseUi() *chi.Mux {
 				log.Trace.Printf("Serving index.html for %s", r.RequestURI)
 				// using the real path here makes gin redirect to /, which creates an infinite loop
 				// ctx.Writer.Header().Set("Content-Encoding", "gzip")
-				w.Write(memFs.index.data)
+				_, err := w.Write(memFs.index.data)
+				SafeErrorAndExit(err, w)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -348,6 +349,7 @@ func serveStaticContent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Restart() {
+	s.services.Loaded.Store(false)
 	s.services.StartupChan = make(chan bool)
 	go s.StartupFunc()
 	<-s.services.StartupChan

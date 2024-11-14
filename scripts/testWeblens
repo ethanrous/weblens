@@ -13,7 +13,7 @@ ui_tests=false
 
 while [ "${1:-}" != "" ]; do
   case "$1" in
-  "-r" | "--remoteTests")
+  "-r" | "--remote-tests")
     remote_tests=true
     ;;
   "-l" | "--show-logs")
