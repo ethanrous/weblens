@@ -1,4 +1,4 @@
-import User from './types/user/user'
+import User from './types/user/User'
 
 export function humanFileSize(
     bytes: number,
