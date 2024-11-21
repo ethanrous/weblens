@@ -1,5 +1,5 @@
 import { nsToHumanTime } from '@weblens/util'
-import { create, StateCreator } from 'zustand'
+import { StateCreator, create } from 'zustand'
 
 export enum TaskStage {
     Queued,

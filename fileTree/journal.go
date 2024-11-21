@@ -48,13 +48,30 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 		hasherFactory: hasherFactory,
 	}
 
-	indexModel := mongo.IndexModel{
-		Keys: bson.D{
-			{Key: "actions.timestamp", Value: -1}, {Key: "actions.originPath", Value: 1},
-			{Key: "actions.destinationPath", Value: 1},
+	start := time.Now()
+	indexModel := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "actions.timestamp", Value: -1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "actions.originPath", Value: 1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "actions.destinationPath", Value: 1},
+			},
+		},
+		{
+			Keys: bson.D{
+				{Key: "serverId", Value: 1},
+			},
 		},
 	}
-	_, err := col.Indexes().CreateOne(context.Background(), indexModel)
+	_, err := col.Indexes().CreateMany(context.Background(), indexModel)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +82,7 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 	if err != nil {
 		return nil, err
 	}
+	log.Debug.Printf("GOT LIFETIMES %s", time.Since(start))
 
 	j.lifetimeMapLock.Lock()
 	for _, l := range lifetimes {
@@ -135,17 +153,17 @@ func (j *JournalImpl) LogEvent(fe *FileEvent) {
 		log.Warning.Println("Tried to log nil event")
 		return
 	} else if j.ignoreLocal {
-		log.Trace.Printf("Ignoring local file event [%s]", fe.EventId)
+		log.Trace.Func(func(l log.Logger) { l.Printf("Ignoring local file event [%s]", fe.EventId) })
 		close(fe.LoggedChan)
 		return
 	}
 
-	log.Trace.Printf("Dropping off event with %d actions", len(fe.Actions))
+	log.Debug.Func(func(l log.Logger) { l.Printf("Dropping off event with %d actions", len(fe.Actions)) })
 
 	if len(fe.Actions) != 0 {
 		j.eventStream <- fe
 	} else {
-		log.Trace.Printf("File Event [%s] has no actions, skipping logging", fe.EventId)
+		log.Debug.Func(func(l log.Logger) { l.Printf("File Event [%s] has no actions, skipping logging", fe.EventId) })
 		log.TraceCaller(1, "Empty event is from here")
 		close(fe.LoggedChan)
 	}
@@ -360,7 +378,7 @@ func (j *JournalImpl) EventWorker() {
 func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 	j.lifetimeMapLock.Lock()
 	defer j.lifetimeMapLock.Unlock()
-	log.Trace.Printf("Handling event with %d actions", len(event.GetActions()))
+	log.Trace.Func(func(l log.Logger) { l.Printf("Handling event with %d actions", len(event.GetActions())) })
 
 	defer func() {
 		e := recover()
@@ -398,7 +416,7 @@ func (j *JournalImpl) handleFileEvent(event *FileEvent) error {
 			action.SetSize(size)
 		}
 
-		log.Trace.Printf("Handling %s for %s", action.GetActionType(), action.LifeId)
+		log.Trace.Func(func(l log.Logger) { l.Printf("Handling %s for %s", action.GetActionType(), action.LifeId) })
 
 		actionType := action.GetActionType()
 		if actionType == FileCreate || actionType == FileRestore {

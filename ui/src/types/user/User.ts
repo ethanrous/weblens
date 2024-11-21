@@ -10,6 +10,9 @@ export default class User {
     trashId?: string
     username?: string
 
+    homeSize?: number
+    trashSize?: number
+
     isLoggedIn: boolean
 
     constructor(info?: UserInfo, isLoggedIn?: boolean) {

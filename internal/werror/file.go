@@ -71,5 +71,11 @@ var ErrAlreadyWatching = errors.New("trying to watch directory that is already b
 var ErrFileAlreadyHasTask = errors.New("file already has a task")
 var ErrFileNoTask = errors.New("file does not have task")
 var ErrNoContentId = errors.New("file does not have a content id")
-var ErrNoFileTree = errors.New("trying to get a filetree that does not exist")
+
+var ErrNoFileTree = clientSafeErr{
+	realError:  errors.New("filetree [%s] does not exist"),
+	safeErr:    errors.New("trying to get a filetree that does not exist"),
+	statusCode: http.StatusNotFound,
+}
+
 var ErrJournalServerMismatch = errors.New("journal serverId does not match the lifetime serverId")

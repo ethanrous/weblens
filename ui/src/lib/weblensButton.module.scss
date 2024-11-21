@@ -1,5 +1,5 @@
-@import "@weblens/components/theme";
-@import "@weblens/components/style";
+@import "@weblens/components/theme.module";
+@import "@weblens/components/style.module";
 
 $button-margin: 4px;
 $button-padding: 8px;
@@ -50,6 +50,7 @@ $button-padding: 8px;
     overflow: hidden;
     flex-grow: 0;
     opacity: 100%;
+    position: relative;
     transition:
         background-color 200ms ease-in-out,
         transform 200ms ease-in-out,
@@ -118,13 +119,22 @@ $button-padding: 8px;
         cursor: default;
         pointer-events: none;
         box-shadow: $hard-shadow;
+        padding: 0;
     }
 
     &[data-fail='true'] {
         background-color: #ff3333;
         cursor: default;
         pointer-events: none;
+        padding: 0;
+    }
 
+    &[data-loading='true'] {
+        background-color: $disabled-grey;
+        outline: 1px solid #3600cc00;
+        cursor: default;
+        pointer-events: none;
+        padding: 0;
     }
 
     &[data-danger='true'] {
@@ -201,13 +211,12 @@ $button-padding: 8px;
     position: relative;
     flex-direction: row;
     height: 100%;
-    width: max-content;
     align-items: center;
     flex-grow: 0;
     opacity: 100%;
     overflow: hidden;
     transition: opacity 200ms ease-in-out;
-    width: max-content;
+    width: 100%;
 
     &[data-center='true'] {
         width: 100%;
@@ -215,6 +224,7 @@ $button-padding: 8px;
     }
 
     &[data-hidden='true'] {
+        transition: opacity 0ms;
         pointer-events: none;
         opacity: 0;
     }

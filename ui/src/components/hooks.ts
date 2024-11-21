@@ -143,43 +143,37 @@ export const useResizeDrag = (
     flip?: boolean,
     vertical?: boolean
 ) => {
-    const unDrag = useCallback(
-        (e: MouseEvent) => {
-            e.stopPropagation()
-            setResizing(false)
-        },
-        [setResizing]
-    )
+    const unDrag = (e: MouseEvent) => {
+        e.stopPropagation()
+        setResizing(false)
+    }
 
-    const moved = useCallback(
-        (e: MouseEvent) => {
-            let val: number
-            let windowSize: number
-            if (vertical) {
-                val = e.clientY
-                windowSize = window.innerHeight
-            } else {
-                val = e.clientX
-                windowSize = window.innerWidth
-            }
+    const moved = (e: MouseEvent) => {
+        let val: number
+        let windowSize: number
+        if (vertical) {
+            val = e.clientY
+            windowSize = window.innerHeight
+        } else {
+            val = e.clientX
+            windowSize = window.innerWidth
+        }
 
-            if (flip) {
-                setResizeOffset(windowSize - val)
-            } else {
-                setResizeOffset(val)
-            }
-        },
-        [setResizeOffset]
-    )
+        if (flip) {
+            setResizeOffset(windowSize - val)
+        } else {
+            setResizeOffset(val)
+        }
+    }
 
     useEffect(() => {
         if (resizing) {
-            addEventListener('mousemove', moved)
+            window.addEventListener('mousemove', moved)
             window.addEventListener('mouseup', unDrag)
         }
         return () => {
-            removeEventListener('mousemove', moved)
-            window.removeEventListener('mouseUp', unDrag)
+            window.removeEventListener('mousemove', moved)
+            window.removeEventListener('mouseup', unDrag)
         }
     }, [resizing, moved, unDrag])
 }

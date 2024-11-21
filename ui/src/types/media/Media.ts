@@ -96,13 +96,15 @@ class WeblensMedia {
 
     GetMediaType(): MediaType {
         if (!this.mediaType && this.mimeType) {
-            if (useMediaStore.getState().mediaTypeMap) {
-                const mediaType =
-                    useMediaStore.getState().mediaTypeMap.mimeMap[this.mimeType]
+            const typeMap = useMediaStore.getState().mediaTypeMap
+            if (typeMap?.mimeMap) {
+                const mediaType = typeMap.mimeMap[this.mimeType]
                 if (!mediaType) {
                     console.error('Could not get media type', this.mimeType)
                 }
                 this.mediaType = mediaType
+            } else {
+                console.error('Could not get media type map')
             }
         }
         return this.mediaType

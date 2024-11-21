@@ -186,12 +186,14 @@ func ServerInfoToInstance(si ServerInfo) *models.Instance {
 }
 
 type UserInfo struct {
-	Username models.Username `json:"username"`
-	Admin    bool            `json:"admin"`
-	Owner    bool            `json:"owner"`
-	HomeId   string          `json:"homeId"`
-	TrashId  string          `json:"trashId"`
-	Token    string          `json:"token" omitEmpty:"true"`
+	Username  models.Username `json:"username"`
+	Admin     bool            `json:"admin"`
+	Owner     bool            `json:"owner"`
+	HomeId    string          `json:"homeId"`
+	TrashId   string          `json:"trashId"`
+	HomeSize  int64           `json:"homeSize"`
+	TrashSize int64           `json:"trashSize"`
+	Token     string          `json:"token" omitEmpty:"true"`
 } // @name UserInfo
 
 type UserInfoArchive struct {
@@ -336,6 +338,8 @@ type MediaInfo struct {
 	Enabled bool `json:"enabled"`
 
 	LikedBy []string `json:"likedBy,omitempty"`
+
+	Imported bool `json:"imported"`
 } // @Name MediaInfo
 
 func MediaToMediaInfo(m *models.Media) MediaInfo {
@@ -354,6 +358,7 @@ func MediaToMediaInfo(m *models.Media) MediaInfo {
 		Hidden:          m.Hidden,
 		Enabled:         m.Enabled,
 		LikedBy:         m.LikedBy,
+		Imported:        m.IsImported(),
 	}
 }
 
@@ -394,6 +399,10 @@ type NewUploadInfo struct {
 type NewFileInfo struct {
 	FileId string `json:"fileId"`
 } // @name NewFileInfo
+
+type NewFilesInfo struct {
+	FileIds []string `json:"fileIds"`
+} // @name NewFilesInfo
 
 type AlbumInfo struct {
 	Id             string   `json:"id"`

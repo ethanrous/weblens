@@ -9,8 +9,8 @@ var ErrNoFileAction = &clientSafeErr{
 }
 
 var ErrNoLifetime = &clientSafeErr{
-	realError:  errors.New("could not find lifetime"),
-	safeErr:    nil,
+	realError:  errors.New("could not find lifetime with id [%s]"),
+	safeErr:    errors.New("could not find lifetime"),
 	statusCode: 404,
 }
 

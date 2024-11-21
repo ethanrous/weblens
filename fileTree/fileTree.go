@@ -104,7 +104,7 @@ func (ft *FileTreeImpl) addInternal(id FileId, f *WeblensFileImpl) {
 	ft.fsTreeLock.Lock()
 	defer ft.fsTreeLock.Unlock()
 
-	// log.Trace.Printf("Adding %s (%s) to file tree", f.filename, f.id)
+	// log.Trace.Func(func(l log.Logger) {l.Printf("Adding %s (%s) to file tree", f.filename, f.id)})
 
 	// Do not use .ID() inside critical section, as it may need to use the locks
 	ft.fMap[id] = f
@@ -581,7 +581,7 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 		return err
 	}
 
-	log.Trace.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad))
+	log.Trace.Func(func(l log.Logger) {l.Printf("[loadFromRoot] Starting loadFromRoot with %d children", len(toLoad))})
 	for len(toLoad) != 0 {
 		var fileToLoad *WeblensFileImpl
 
@@ -608,10 +608,10 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 				}
 			} else if doFileDiscovery {
 				fileToLoad.setIdInternal(ft.GenerateFileId())
-				log.Trace.Printf("[loadFromRoot] Discovering new file %s", fileToLoad.getIdInternal())
+				log.Trace.Func(func(l log.Logger) {l.Printf("[loadFromRoot] Discovering new file %s", fileToLoad.getIdInternal())})
 				event.NewCreateAction(fileToLoad)
 			} else {
-				log.Trace.Printf("[loadFromRoot] Skipping new file and children %s", portablePath)
+				log.Trace.Func(func(l log.Logger) {l.Printf("[loadFromRoot] Skipping new file and children %s", portablePath)})
 				continue
 			}
 		} else {
@@ -636,7 +636,7 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 		}
 	}
 
-	log.Trace.Printf("[loadFromRoot] Complete")
+	log.Trace.Func(func(l log.Logger) {l.Printf("[loadFromRoot] Complete")})
 
 	return nil
 }

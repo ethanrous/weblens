@@ -1,179 +1,54 @@
 import {
+    IconArrowLeft,
     IconClipboard,
     IconLockOpen,
     IconPlus,
+    IconServer,
     IconTrash,
     IconUserMinus,
     IconUserShield,
     IconUserUp,
-    IconX,
 } from '@tabler/icons-react'
-import { useQuery } from '@tanstack/react-query'
+import {
+    QueryObserverResult,
+    RefetchOptions,
+    useQuery,
+} from '@tanstack/react-query'
+import AccessApi from '@weblens/api/AccessApi'
+import MediaApi from '@weblens/api/MediaApi'
+import { ServersApi } from '@weblens/api/ServersApi'
 import UsersApi from '@weblens/api/UserApi'
-import { useKeyDown } from '@weblens/components/hooks'
-import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import WeblensInput from '@weblens/lib/WeblensInput'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
-import { useEffect, useMemo, useState } from 'react'
-import RemoteStatus from '@weblens/components/RemoteStatus'
-import './adminStyle.scss'
 import {
     HandleWebsocketMessage,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
-import { AdminWebsocketHandler } from './adminLogic'
-import { BackupProgressT } from '../Backup/BackupLogic'
-import {
-    TaskProgress,
-    TaskStage,
-    TaskType,
-    useTaskState,
-} from '../FileBrowser/TaskStateControl'
 import { ApiKeyInfo, ServerInfo } from '@weblens/api/swag'
-import { ServersApi } from '@weblens/api/ServersApi'
-import User from '@weblens/types/user/User'
-import AccessApi from '@weblens/api/AccessApi'
+import Logo from '@weblens/components/Logo'
+import RemoteStatus from '@weblens/components/RemoteStatus'
+import { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown } from '@weblens/components/hooks'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
 import { ErrorHandler } from '@weblens/types/Types'
+import User from '@weblens/types/user/User'
+import { useEffect, useMemo, useState } from 'react'
 
-// function PathAutocomplete() {
-//     const [pathSearch, setPathSearch] = useState('')
-//     const [hoverOffset, setHoverOffset] = useState(0)
-//     const [bouncedSearch] = useDebouncedValue(pathSearch, 100)
-//     const { data: names } = useQuery<FolderInfo>({
-//         queryKey: ['pathAutocomplete', bouncedSearch],
-//         initialData: { children: [], folder: null } as FolderInfo,
-//         queryFn: () =>
-//             FileApi.autocompletePath(bouncedSearch).then((res) => {
-//                 const data = res.data
-//                 data.children.sort((f1, f2) =>
-//                     f1.filename.localeCompare(f2.filename)
-//                 )
-//                 return data
-//             }),
-//         retry: false,
-//     })
-//
-//     useEffect(() => {
-//         setHoverOffset(0)
-//     }, [pathSearch])
-//
-//     const setBlockFocus = useFileBrowserStore((state) => state.setBlockFocus)
-//
-//     useKeyDown('Tab', (e) => {
-//         e.preventDefault()
-//         const tabFile = names.children[names.children.length - hoverOffset - 1]
-//
-//         if (!tabFile) {
-//             return
-//         }
-//
-//         setPathSearch((s) => {
-//             if (!s.endsWith('/')) {
-//                 s += '/'
-//             }
-//             return (
-//                 s.slice(0, s.lastIndexOf('/')) +
-//                 '/' +
-//                 tabFile.filename +
-//                 (tabFile.isDir ? '/' : '')
-//             )
-//         })
-//     })
-//
-//     useKeyDown('ArrowUp', (e) => {
-//         e.preventDefault()
-//         e.stopPropagation()
-//         setHoverOffset((offset) => Math.min(offset + 1, names.children.length))
-//     })
-//
-//     useKeyDown('ArrowDown', (e) => {
-//         e.preventDefault()
-//         e.stopPropagation()
-//         setHoverOffset((offset) => Math.max(offset - 1, 0))
-//     })
-//
-//     const result = useMemo(() => {
-//         const lastSlash = pathSearch.lastIndexOf('/')
-//         if ((lastSlash === -1 || names.children.length === 0) && names.self) {
-//             return names.self
-//         }
-//
-//         if (pathSearch.slice(lastSlash + 1) === '') {
-//             return names.self
-//         }
-//
-//         if (names.children.length !== 0) {
-//             return names.children[0]
-//         }
-//
-//         return null
-//     }, [names, pathSearch])
-//
-//     return (
-//         <div className="w-[50%] h-10 m-2">
-//             <WeblensInput
-//                 value={pathSearch}
-//                 valueCallback={setPathSearch}
-//                 fillWidth
-//                 openInput={() => setBlockFocus(true)}
-//                 closeInput={() => setBlockFocus(false)}
-//                 failed={names.self === null && pathSearch !== ''}
-//                 placeholder={'File Search'}
-//             />
-//             <div
-//                 className="flex flex-col gap-1 absolute -translate-y-[100%] pb-12 pointer-events-none"
-//                 style={{ paddingLeft: pathSearch.length * 9 }}
-//             >
-//                 {names.children.map((cn, i) => {
-//                     if (pathSearch.endsWith(cn.filename)) {
-//                         return null
-//                     }
-//                     return (
-//                         <div
-//                             key={cn.filename}
-//                             className="flex justify-center items-center p-2 h-10 bg-[#1c1049] rounded pointer-events-auto cursor-pointer"
-//                             style={{
-//                                 backgroundColor:
-//                                     i ===
-//                                     names.children.length - hoverOffset - 1
-//                                         ? '#2549ff'
-//                                         : '#1c1049',
-//                             }}
-//                             onClick={() => {
-//                                 setPathSearch(
-//                                     (s) =>
-//                                         s.slice(0, s.lastIndexOf('/')) +
-//                                         '/' +
-//                                         cn.filename +
-//                                         (cn.isDir ? '/' : '')
-//                                 )
-//                             }}
-//                         >
-//                             <p>{cn.filename}</p>
-//                         </div>
-//                     )
-//                 })}
-//             </div>
-//             {result && (
-//                 <div className="flex flex-row gap-2">
-//                     <p>{result.filename}</p>
-//                     <p>{result.id}</p>
-//                 </div>
-//             )}
-//         </div>
-//     )
-// }
+import { BackupProgressT } from '../Backup/BackupLogic'
+import { AdminWebsocketHandler } from './adminLogic'
+import adminStyle from './adminStyle.module.scss'
 
-function CreateUserBox({ refetchUsers }: { refetchUsers: () => void }) {
+function CreateUserBox({
+    refetchUsers,
+}: {
+    refetchUsers: (
+        opts?: RefetchOptions
+    ) => Promise<QueryObserverResult<User[], Error>>
+}) {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
     const [makeAdmin, setMakeAdmin] = useState(false)
     return (
-        <div className="theme-outline flex flex-col p-2 h-max w-full rounded gap-2">
-            <p className="w-full h-max font-semibold text-xl select-none">
-                Add User
-            </p>
+        <div className="theme-outline flex flex-col p-2 h-max w-full gap-2">
             <div className="flex flex-col gap-2 w-full">
                 <div className="flex gap-1">
                     <WeblensInput
@@ -212,11 +87,12 @@ function CreateUserBox({ refetchUsers }: { refetchUsers: () => void }) {
                                     autoActivate: true,
                                     username: userInput,
                                     password: passInput,
-                                }).then(() => {
-                                    refetchUsers()
-                                    setUserInput('')
-                                    setPassInput('')
                                 })
+                                    .then(() => {
+                                        setUserInput('')
+                                        setPassInput('')
+                                    })
+                                    .then(() => refetchUsers())
                             }
                         />
                     </div>
@@ -233,11 +109,13 @@ const UserRow = ({
 }: {
     rowUser: User
     accessor: User
-    refetchUsers: () => void
+    refetchUsers: (
+        opts?: RefetchOptions
+    ) => Promise<QueryObserverResult<User[], Error>>
 }) => {
     const [changingPass, setChangingPass] = useState(false)
     return (
-        <div key={rowUser.username} className="admin-user-row">
+        <div key={rowUser.username} className={adminStyle['admin-user-row']}>
             <div className="flex flex-col justify-center w-max h-max">
                 <p className="font-bold w-max theme-text">{rowUser.username}</p>
                 {rowUser.admin && !rowUser.owner && (
@@ -285,7 +163,7 @@ const UserRow = ({
                             return UsersApi.updateUserPassword(
                                 rowUser.username,
                                 { newPassword: newPass }
-                            ).then(() => true)
+                            )
                         }}
                     />
                 )}
@@ -335,15 +213,16 @@ const UserRow = ({
     )
 }
 
-function UsersBox({
-    thisUserInfo,
-    allUsersInfo,
-    refetchUsers,
-}: {
-    thisUserInfo: User
-    allUsersInfo: User[]
-    refetchUsers: () => void
-}) {
+function UsersBox() {
+    const user = useSessionStore((state) => state.user)
+    const { data: allUsersInfo, refetch: refetchUsers } = useQuery<User[]>({
+        queryKey: ['users'],
+        initialData: [],
+        queryFn: () =>
+            UsersApi.getUsers().then((res) =>
+                res.data.map((info) => new User(info))
+            ),
+    })
     const usersList = useMemo(() => {
         if (!allUsersInfo) {
             return null
@@ -356,17 +235,19 @@ function UsersBox({
             <UserRow
                 key={val.username}
                 rowUser={val}
-                accessor={thisUserInfo}
+                accessor={user}
                 refetchUsers={refetchUsers}
             />
         ))
     }, [allUsersInfo])
 
     return (
-        <div className="theme-outline flex flex-col p-2 shrink w-full h-max min-h-96 rounded gap-2 no-scrollbar">
-            <h4 className="pl-1">Users</h4>
-            <div className="flex flex-col grow relative gap-1 overflow-y-scroll overflow-x-visible max-h-[50vh]">
-                {usersList}
+        <div className={adminStyle['content-box']}>
+            <div className="flex flex-col p-2 shrink w-full h-full">
+                <h4 className="p-1">Users</h4>
+                <div className="flex flex-col grow relative gap-1 overflow-y-scroll overflow-x-visible max-h-[50vh]">
+                    {usersList}
+                </div>
             </div>
             <CreateUserBox refetchUsers={refetchUsers} />
         </div>
@@ -383,7 +264,7 @@ function ApiKeyRow({
     remotes: ServerInfo[]
 }) {
     return (
-        <div key={keyInfo.id} className="admin-user-row">
+        <div key={keyInfo.id} className={adminStyle['admin-user-row']}>
             <div className="flex flex-col grow w-1/2">
                 <p className="theme-text font-bold text-nowrap w-full truncate select-none">
                     {keyInfo.key}
@@ -406,12 +287,11 @@ function ApiKeyRow({
                 tooltip="Copy Key"
                 onClick={() => {
                     if (!window.isSecureContext) {
-                        return false
+                        return
                     }
                     navigator.clipboard
                         .writeText(keyInfo.key)
                         .catch(ErrorHandler)
-                    return true
                 }}
             />
             <WeblensButton
@@ -430,8 +310,6 @@ function ApiKeyRow({
 }
 
 function Servers() {
-    const server = useSessionStore((state) => state.server)
-
     const { data: keys, refetch: refetchKeys } = useQuery<ApiKeyInfo[]>({
         queryKey: ['apiKeys'],
         initialData: [],
@@ -443,7 +321,7 @@ function Servers() {
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () =>
-            await ServersApi.getRemotes().then((res) => res.data),
+            (await ServersApi.getRemotes().then((res) => res.data)) || [],
         retry: false,
     })
 
@@ -467,125 +345,193 @@ function Servers() {
     }, [remotes?.length])
 
     return (
-        <div className="theme-outline flex flex-col rounded items-center p-1 w-full">
-            <h4 className="pl-2 w-full">API Keys</h4>
-
-            {Boolean(keys?.length) && (
-                <div className="flex flex-col items-center p-1 rounded w-full gap-1">
-                    {keys.map((k) => (
-                        <ApiKeyRow
-                            key={k.id}
-                            keyInfo={k}
-                            refetch={() => {
-                                refetchKeys().catch(ErrorHandler)
-                            }}
-                            remotes={remotes}
-                        />
-                    ))}
+        <div className={adminStyle['content-box']}>
+            <div className="h-1/2">
+                <div className={adminStyle['content-header']}>
+                    <h2>API Keys</h2>
                 </div>
-            )}
-            <WeblensButton
-                squareSize={40}
-                label="New Api Key"
-                Left={IconPlus}
-                onClick={() => {
-                    AccessApi.createApiKey()
-                        .then(() => refetchKeys())
-                        .catch(ErrorHandler)
-                }}
-            />
-            <div className="flex flex-row w-full items-center pr-4">
-                <h4 className="pl-2">Remotes</h4>
+
+                {Boolean(keys?.length) && (
+                    <div className="flex flex-col items-center p-1 rounded w-full gap-1">
+                        {keys.map((k) => (
+                            <ApiKeyRow
+                                key={k.id}
+                                keyInfo={k}
+                                refetch={() => {
+                                    refetchKeys().catch(ErrorHandler)
+                                }}
+                                remotes={remotes}
+                            />
+                        ))}
+                    </div>
+                )}
+                <WeblensButton
+                    squareSize={40}
+                    label="New Api Key"
+                    Left={IconPlus}
+                    onClick={() => {
+                        AccessApi.createApiKey()
+                            .then(() => refetchKeys())
+                            .catch(ErrorHandler)
+                    }}
+                />
             </div>
+            <div>
+                <div className={adminStyle['content-header']}>
+                    <h2>Remotes</h2>
+                </div>
 
-            <div className="flex flex-col items-center p-2 rounded w-full gap-2 overflow-scroll">
-                {remotes.map((r) => {
-                    if (r.id === server.id) {
-                        return null
-                    }
-
-                    return (
-                        <RemoteStatus
-                            key={r.id}
-                            remoteInfo={r}
-                            refetchRemotes={() => {
-                                refetchRemotes().catch(ErrorHandler)
-                            }}
-                            restoreProgress={null}
-                            backupProgress={backupProgress.get(r.id)}
-                            setBackupProgress={(progress) => {
-                                setBackupProgress((old) => {
-                                    const newMap = new Map(old)
-                                    newMap.set(r.id, progress)
-                                    return newMap
-                                })
-                            }}
-                        />
-                    )
-                })}
+                <div className="flex flex-col items-center p-2 rounded w-full gap-2 overflow-scroll">
+                    {remotes.length === 0 && (
+                        <div className="flex flex-col items-center mt-16">
+                            <IconServer />
+                            <h2 className="text-center">No remotes</h2>
+                            <p>
+                                After you set up a {''}
+                                <a
+                                    href="https://github.com/ethanrous/weblens?tab=readme-ov-file#weblens-backup"
+                                    target="_blank"
+                                >
+                                    backup server
+                                </a>
+                                , it will appear here
+                            </p>
+                        </div>
+                    )}
+                    {remotes.map((r) => {
+                        return (
+                            <RemoteStatus
+                                key={r.id}
+                                remoteInfo={r}
+                                refetchRemotes={() => {
+                                    refetchRemotes().catch(ErrorHandler)
+                                }}
+                                restoreProgress={null}
+                                backupProgress={backupProgress.get(r.id)}
+                                setBackupProgress={(progress) => {
+                                    setBackupProgress((old) => {
+                                        const newMap = new Map(old)
+                                        newMap.set(r.id, progress)
+                                        return newMap
+                                    })
+                                }}
+                            />
+                        )
+                    })}
+                </div>
             </div>
         </div>
     )
 }
 
-function BackupProgress() {
-    const tasks = useTaskState((state) => state.tasks)
-    const [backupTask, setBackupTask] = useState<TaskProgress>()
-    const [backupTaskId, setBackupTaskId] = useState<string>()
+// function BackupProgress() {
+//     const tasks = useTaskState((state) => state.tasks)
+//     const [backupTask, setBackupTask] = useState<TaskProgress>()
+//     const [backupTaskId, setBackupTaskId] = useState<string>()
+//
+//     useEffect(() => {
+//         if (backupTaskId) {
+//             setBackupTask(tasks.get(backupTaskId))
+//         } else {
+//             const backupTasks = Array.from(tasks.values()).filter(
+//                 (t) => t.taskType === TaskType.Backup
+//             )
+//             if (backupTasks.length !== 0) {
+//                 setBackupTaskId(backupTasks[0].GetTaskId())
+//                 setBackupTask(backupTasks[0])
+//             }
+//         }
+//     }, [tasks])
+//
+//     if (!backupTask) {
+//         return null
+//     }
+//
+//     const completeTasks = backupTask.getTasksComplete() || 0
+//     const totalTasks = backupTask.getTasksTotal() || 0
+//
+//     return (
+//         <div className="flex flex-col h-max w-[90%] shrink-0 bg-slate-800 rounded p-4 gap-4 m-2">
+//             <p className="w-full h-max font-semibold text-xl select-none">
+//                 {backupTask.getTaskStage() === TaskStage.Complete
+//                     ? 'Backup Complete'
+//                     : 'Backup in progress...'}
+//             </p>
+//             <WeblensProgress value={backupTask.getProgress()} />
+//             {Boolean(completeTasks) &&
+//                 backupTask.getTaskStage() !== TaskStage.Complete && (
+//                     <p className="font-light select-none">
+//                         Downloading files: {completeTasks} / {totalTasks}
+//                     </p>
+//                 )}
+//         </div>
+//     )
+// }
 
-    useEffect(() => {
-        if (backupTaskId) {
-            setBackupTask(tasks.get(backupTaskId))
-        } else {
-            const backupTasks = Array.from(tasks.values()).filter(
-                (t) => t.taskType === TaskType.Backup
-            )
-            if (backupTasks.length !== 0) {
-                setBackupTaskId(backupTasks[0].GetTaskId())
-                setBackupTask(backupTasks[0])
-            }
-        }
-    }, [tasks])
-
-    if (!backupTask) {
-        return null
-    }
-
-    const completeTasks = backupTask.getTasksComplete() || 0
-    const totalTasks = backupTask.getTasksTotal() || 0
-
+function InfoBox({ title, content }: { title: string; content: string }) {
     return (
-        <div className="flex flex-col h-max w-[90%] shrink-0 bg-slate-800 rounded p-4 gap-4 m-2">
-            <p className="w-full h-max font-semibold text-xl select-none">
-                {backupTask.getTaskStage() === TaskStage.Complete
-                    ? 'Backup Complete'
-                    : 'Backup in progress...'}
-            </p>
-            <WeblensProgress value={backupTask.getProgress()} />
-            {Boolean(completeTasks) &&
-                backupTask.getTaskStage() !== TaskStage.Complete && (
-                    <p className="font-light select-none">
-                        Downloading files: {completeTasks} / {totalTasks}
-                    </p>
-                )}
+        <div className="flex flex-col p-2 m-2 bg-[--wl-card-background] w-max rounded-md">
+            <p className="text-sm text-[--wl-text-color-dull]">{title}</p>
+            <h4>{content}</h4>
         </div>
     )
+}
+
+function GeneralInfo() {
+    const server = useSessionStore((state) => state.server)
+    const buildTag: string = import.meta.env.VITE_APP_BUILD_TAG
+        ? String(import.meta.env.VITE_APP_BUILD_TAG)
+        : 'local'
+
+    return (
+        <div className={adminStyle['content-box']}>
+            <div className="flex flex-col h-full">
+                <div className="flex items-center justify-center gap-4">
+                    <Logo />
+                    <h1>{server.name}</h1>
+                </div>
+                <div className="flex">
+                    <InfoBox title="Server Role" content={server.role} />
+                    <InfoBox title="Server ID" content={server.id} />
+                    <InfoBox title="Build" content={buildTag} />
+                </div>
+            </div>
+            <div className="flex flex-col p-2 theme-outline">
+                <p className="m-1">Advanced</p>
+                <WeblensButton
+                    label="Clean Media"
+                    onClick={() => MediaApi.cleanupMedia()}
+                />
+            </div>
+        </div>
+    )
+}
+
+enum Page {
+    General = 'General',
+    Users = 'Users',
+    Servers = 'Servers',
+}
+
+function AdminPageContent({ pageName }: { pageName: Page }) {
+    switch (pageName) {
+        case Page.General:
+            return <GeneralInfo />
+        case Page.Users:
+            return <UsersBox />
+        case Page.Servers:
+            return <Servers />
+        default:
+            return <div className={adminStyle['content-box']} />
+    }
 }
 
 export function Admin({ closeAdminMenu }: { closeAdminMenu: () => void }) {
     const user = useSessionStore((state) => state.user)
     const wsSend = useWebsocketStore((state) => state.wsSend)
+    const [pageName, setpageName] = useState<Page>(Page.General)
 
     useKeyDown('Escape', closeAdminMenu)
-
-    const { data: allUsersInfo, refetch: refetchUsers } = useQuery<User[]>({
-        queryKey: ['users'],
-        initialData: [],
-        queryFn: () =>
-            UsersApi.getUsers().then((res) =>
-                res.data.map((info) => new User(info))
-            ),
-    })
 
     useEffect(() => {
         wsSend('task_subscribe', { taskType: 'do_backup' })
@@ -599,65 +545,94 @@ export function Admin({ closeAdminMenu }: { closeAdminMenu: () => void }) {
     }
 
     return (
-        <div className="settings-menu-container" data-open={true}>
-            <div className="settings-menu" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-col gap-2 select-none">
-                    <h1 className="text-3xl pt-4 font-bold">Admin Settings</h1>
-                    <div className="flex flex-row justify-between">
-                        <p>{server.name}</p>
-                        <p className="text-main-accent">
-                            {server.role.toUpperCase()}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="top-0 left-0 m-1 absolute">
-                    <WeblensButton
-                        Left={IconX}
-                        squareSize={35}
-                        onClick={closeAdminMenu}
-                        disabled={server.role !== 'core'}
-                    />
-                </div>
-                <div className="flex flex-col w-full h-full items-center p-4 no-scrollbar">
-                    <div className="flex flex-row w-full h-full gap-2">
-                        <div className="flex flex-col w-1/2 gap-2">
-                            <UsersBox
-                                thisUserInfo={user}
-                                allUsersInfo={allUsersInfo}
-                                refetchUsers={() => {
-                                    refetchUsers().catch(ErrorHandler)
-                                }}
-                            />
-                        </div>
-                        <div className="flex flex-col w-1/2 gap-2 items-center">
-                            <Servers />
-                            <BackupProgress />
-                        </div>
-                    </div>
-                    {/* <PathAutocomplete /> */}
-                    <div className="flex flex-row w-full justify-center gap-2 m-2">
+        <div className={adminStyle['settings-menu-container']} data-open={true}>
+            <div
+                className={adminStyle['settings-menu']}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex flex-col w-[25vw] h-full">
+                    <div className="flex flex-row items-center gap-2">
                         <WeblensButton
-                            label="Clear Cache"
-                            squareSize={40}
-                            danger
-                            requireConfirm
-                            onClick={() => {
-                                // clearCache()
-                                //     .then(() => closeAdminMenu())
-                                //     .catch(ErrorHandler)
-                            }}
+                            Left={IconArrowLeft}
+                            subtle
+                            squareSize={35}
+                            onClick={closeAdminMenu}
+                            disabled={server.role !== 'core'}
+                        />
+                        <h3 className="font-bold text-nowrap">
+                            Server Settings
+                        </h3>
+                    </div>
+                    <div className="flex flex-col mt-4 pr-4 gap-2">
+                        <WeblensButton
+                            label={Page.General}
+                            fillWidth
+                            onClick={() => setpageName(Page.General)}
+                            toggleOn={pageName === Page.General}
                         />
                         <WeblensButton
-                            label={'Reset Server'}
-                            danger
-                            requireConfirm
-                            // onClick={() => resetServer()}
+                            label={Page.Users}
+                            fillWidth
+                            onClick={() => setpageName(Page.Users)}
+                            toggleOn={pageName === Page.Users}
+                        />
+                        <WeblensButton
+                            label={Page.Servers}
+                            fillWidth
+                            onClick={() => setpageName(Page.Servers)}
+                            toggleOn={pageName === Page.Servers}
                         />
                     </div>
                 </div>
+                <AdminPageContent pageName={pageName} />
+                {/* <div className="flex flex-col gap-2 select-none"> */}
+                {/*     <div className="flex flex-row justify-between"> */}
+                {/*         <p>{server.name}</p> */}
+                {/*         <p className="text-main-accent"> */}
+                {/*             {server.role.toUpperCase()} */}
+                {/*         </p> */}
+                {/*     </div> */}
+                {/* </div> */}
 
-                <div className="h-10" />
+                {/* <div className="flex flex-col w-full h-full items-center p-4 no-scrollbar"> */}
+                {/*     <div className="flex flex-row w-full h-full gap-2"> */}
+                {/*         <div className="flex flex-col w-1/2 gap-2"> */}
+                {/*             <UsersBox */}
+                {/*                 thisUserInfo={user} */}
+                {/*                 allUsersInfo={allUsersInfo} */}
+                {/*                 refetchUsers={() => { */}
+                {/*                     refetchUsers().catch(ErrorHandler) */}
+                {/*                 }} */}
+                {/*             /> */}
+                {/*         </div> */}
+                {/*         <div className="flex flex-col w-1/2 gap-2 items-center"> */}
+                {/*             <Servers /> */}
+                {/*             <BackupProgress /> */}
+                {/*         </div> */}
+                {/*     </div> */}
+                {/* <PathAutocomplete /> */}
+                {/*     <div className="flex flex-row w-full justify-center gap-2 m-2"> */}
+                {/*         <WeblensButton */}
+                {/*             label="Clear Cache" */}
+                {/*             squareSize={40} */}
+                {/*             danger */}
+                {/*             requireConfirm */}
+                {/*             onClick={() => { */}
+                {/*                 // clearCache() */}
+                {/*                 //     .then(() => closeAdminMenu()) */}
+                {/*                 //     .catch(ErrorHandler) */}
+                {/*             }} */}
+                {/*         /> */}
+                {/*         <WeblensButton */}
+                {/*             label={'Reset Server'} */}
+                {/*             danger */}
+                {/*             requireConfirm */}
+                {/*             // onClick={() => resetServer()} */}
+                {/*         /> */}
+                {/*     </div> */}
+                {/* </div> */}
+
+                {/* <div className="h-10" /> */}
             </div>
         </div>
     )

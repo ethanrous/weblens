@@ -1,5 +1,7 @@
 import { MantineProvider } from '@mantine/core'
+import '@mantine/core/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import axios from 'axios'
 import React, { Suspense, useEffect } from 'react'
 import { CookiesProvider } from 'react-cookie'
 import {
@@ -8,18 +10,16 @@ import {
     useNavigate,
     useRoutes,
 } from 'react-router-dom'
-import ErrorBoundary from './components/Error'
 
-import useR, { useSessionStore } from './components/UserInfo'
-import StartUp from './pages/Startup/StartupPage'
-import { useMediaStore } from './types/media/MediaStateControl'
-import '@mantine/core/styles.css'
-import Backup from './pages/Backup/Backup'
-import Logo from './components/Logo'
-import axios from 'axios'
 import MediaApi from './api/MediaApi'
 import { MediaTypeInfo } from './api/swag'
+import ErrorBoundary from './components/Error'
+import Logo from './components/Logo'
+import useR, { useSessionStore } from './components/UserInfo'
+import Backup from './pages/Backup/Backup'
+import StartUp from './pages/Startup/StartupPage'
 import { ErrorHandler } from './types/Types'
+import { useMediaStore } from './types/media/MediaStateControl'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
@@ -32,10 +32,7 @@ axios.defaults.withCredentials = true
 async function saveMediaTypeMap(setState: (typeMap: MediaTypeInfo) => void) {
     return MediaApi.getMediaTypes().then((r) => {
         setState(r.data)
-        localStorage.setItem(
-            'mediaTypeMap',
-            JSON.stringify({ typeMap: r.data, time: Date.now() })
-        )
+        localStorage.setItem('mediaTypeMap', JSON.stringify(r.data))
     })
 }
 
@@ -84,7 +81,7 @@ const WeblensRoutes = () => {
             const state = loc.state as {
                 returnTo: string
             }
-            if (state.returnTo !== undefined) {
+            if (state?.returnTo !== undefined) {
                 console.debug('Nav return to', state.returnTo)
                 nav(state.returnTo)
             } else {
@@ -109,17 +106,13 @@ const WeblensRoutes = () => {
 
         try {
             const typeMap = JSON.parse(typeMapStr) as MediaTypeInfo
+            if (!typeMap.extMap || !typeMap.mimeMap) {
+                throw new Error('Failed to parse type map')
+            }
 
-            // fetch type map every hour, just in case
-            // if (
-            //     !typeMap.typeMap.size ||
-            //     !typeMap.time ||
-            //     Date.now() - typeMap.time > 3_600_000
-            // ) {
-            //     saveMediaTypeMap(setTypeMap)
-            // }
             setTypeMap(typeMap)
-        } finally {
+        } catch {
+            console.debug('Failed to get type map, downloading fresh...')
             saveMediaTypeMap(setTypeMap).catch(ErrorHandler)
         }
     }, [server])

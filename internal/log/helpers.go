@@ -54,7 +54,7 @@ func ShowErr(err error, extras ...string) {
 			msg = " " + strings.Join(extras, " ")
 		}
 
-		_, file, line, _ := runtime.Caller(1)
+		_, file, line, _ := runtime.Caller(2)
 		file = file[strings.LastIndex(file, "/")+1:]
 
 		ErrorCatcher.Printf("%s:%d%s: %s", file, line, msg, err)
@@ -106,6 +106,10 @@ func ApiLogger(logLevel int) func(http.Handler) http.Handler {
 			status := ww.Status()
 			if status >= 400 && status < 500 && ww.BytesWritten() == 0 {
 				Error.Println("4xx DID NOT SEND ERROR")
+			}
+
+			if status == 0 && r.Header.Get("Upgrade") == "websocket" {
+				status = 101
 			}
 
 			remote := r.RemoteAddr

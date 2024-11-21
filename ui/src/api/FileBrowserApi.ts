@@ -1,8 +1,9 @@
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
-import { humanFileSize } from '@weblens/util'
-import API_ENDPOINT from './ApiEndpoint'
-import { useWebsocketStore, WsSendT } from './Websocket'
 import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
+import { humanFileSize } from '@weblens/util'
+
+import API_ENDPOINT from './ApiEndpoint'
+import { WsSendT, useWebsocketStore } from './Websocket'
 import { FilesApiFactory, FolderApiFactory, FolderInfo } from './swag'
 
 export const FileApi = FilesApiFactory(null, API_ENDPOINT)

@@ -66,11 +66,16 @@ type FileService interface {
 
 type FileCaster interface {
 	PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media)
+	PushFilesUpdate(updatedFiles []*fileTree.WeblensFileImpl, medias []*Media)
+
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
 	PushFileCreate(newFile *fileTree.WeblensFileImpl)
+
 	PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl)
+	PushFilesMove(preMoveParentId, postMoveParentId fileTree.FileId, files []*fileTree.WeblensFileImpl)
 
 	PushFileDelete(deletedFile *fileTree.WeblensFileImpl)
+	PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl)
 	Close()
 }

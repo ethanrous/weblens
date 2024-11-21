@@ -107,13 +107,7 @@ func startup(configName string, pack *models.ServicePack) {
 	sw.Lap("Init file service")
 
 	// Add basic routes to the router
-	if localRole == models.InitServerRole {
-		// Uninitialized servers get "Init" routes
-		// srv.UseInit()
-	} else {
-		// All initialized servers get the "API" group of routes
-		// srv.UseApi()
-
+	if localRole != models.InitServerRole {
 		// If server is CORE, add core routes and discover user directories
 		if localRole == models.CoreServerRole {
 			// srv.UseInterserverRoutes()
@@ -129,7 +123,7 @@ func startup(configName string, pack *models.ServicePack) {
 
 			for _, core := range cores {
 				if core != nil {
-					log.Trace.Printf("Connecting to core server [%s]", core.Address)
+					log.Trace.Func(func(l log.Logger) { l.Printf("Connecting to core server [%s]", core.Address) })
 					if err = WebsocketToCore(core, pack); err != nil {
 						panic(err)
 					}
@@ -158,8 +152,8 @@ func startup(configName string, pack *models.ServicePack) {
 		sw.Lap("Init album service")
 
 		log.Info.Printf(
-			"Weblens loaded in %s. %dB in files, %d medias, and %d users\n", sw.GetTotalTime(false),
-			pack.FileService.(*service.FileServiceImpl).Size("USERS"),
+			"Weblens loaded in %s. %s in files, %d medias, and %d users\n", sw.GetTotalTime(false),
+			internal.ByteCountSI(pack.FileService.(*service.FileServiceImpl).Size("USERS")),
 			pack.MediaService.Size(), pack.UserService.Size(),
 		)
 	}
@@ -171,7 +165,7 @@ func startup(configName string, pack *models.ServicePack) {
 	close(pack.StartupChan)
 	pack.StartupChan = nil
 
-	log.Trace.Println("Service setup complete")
+	log.Debug.Println("Service setup complete")
 	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 
 	// If we're in debug mode, wait for a SIGQUIT to exit,
@@ -326,7 +320,6 @@ func setupFileService(pack *models.ServicePack) {
 		pack.UserService,
 		pack.AccessService,
 		nil,
-		pack.Db.Collection("trash"),
 		pack.Db.Collection("folderMedia"),
 		trees...,
 	)

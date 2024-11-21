@@ -1,20 +1,42 @@
-@import "../../components/theme";
+@import "../../components/theme.module.scss";
 
 .files-grid {
-    display: grid;
-    height: max-content;
-    overflow: scroll;
-    padding: 4px;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    outline: 0;
 
-
-    @media (max-width: 9000px) {
-        //grid-template-columns: repeat( 1fr, auto );
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    &[data-droppable='true'] {
+        background-color: var(--dark-paper);
+        outline: 2px solid $theme-color;
+        --wl-file-text-color: white;
     }
 
-    //@media (max-width: 600px) {
-    //    grid-template-columns: repeat( auto-fit, minmax(150px, 0.5fr) );
-    //}
+}
+
+.files-column {
+    display: flex;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    flex-shrink: 1;
+    justify-content: space-between;
+}
+
+.files-column-inner {
+    display: flex;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    padding-top: 4px;
+
+    &[data-droppable='true'] {
+        background-color: var(--dark-paper);
+        outline: 2px solid $theme-color;
+        --wl-file-text-color: white;
+    }
 }
 
 .file-text-container {
@@ -31,7 +53,6 @@
     }
 }
 
-
 .weblens-file {
     position: relative;
     display: flex;
@@ -44,10 +65,14 @@
     border-radius: 6px;
     background-color: $item-grey;
     color: $main-text;
-    transition: box-shadow 150ms ease-in-out, color 150ms ease-in-out;
+    transition: box-shadow 200ms ease-out;
     box-shadow: $hard-shadow-off;
     outline: 2px solid $dark-paper-transparent;
     user-select: none;
+    font-size: 8px;
+
+    --wl-file-text-color: var(--wl-text-color);
+    --wl-file-text-color-inverted: var(--wl-text-color-inverted);
 
     &[data-row],
     &[data-column-row] {
@@ -77,13 +102,13 @@
     }
 
     &[data-hovering='1'],
-    &:hover {
+    &[data-dragging='0'] &:hover {
         background-color: $item-focus
     }
 
     &[data-in-range='1'] {
         background-color: var(--dark-paper);
-        --wl-text-color: white;
+        --wl-file-text-color: white;
 
         &[data-last-selected='1'] {
             outline: 1px solid #999999;
@@ -93,9 +118,10 @@
     &[data-selected='1'] {
         background-color: $theme-color;
         box-shadow: $hard-shadow;
-        --wl-text-color: white;
+        --wl-file-text-color: white;
 
         &[data-current-view='false'] {
+            --wl-file-text-color: var(--wl-text-color);
             background-color: $item-focus;
         }
 
@@ -107,13 +133,16 @@
     &[data-droppable='1'] {
         background-color: var(--dark-paper);
         outline: 2px solid $theme-color;
-        --wl-text-color: white;
+        --wl-file-text-color: white;
     }
 
     &[data-moved='1'] {
         pointer-events: none;
         color: $disabled-grey-text;
+        --wl-file-text-color: #{$disabled-grey-text};
+        --wl-file-text-color-inverted: #{$disabled-grey-text};
     }
+
 }
 
 .item-info-box {
@@ -134,25 +163,20 @@
 }
 
 .file-size-box {
+    max-height: 60%;
+    width: max-content;
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 4px;
     user-select: none;
     z-index: 30;
-    font-size: max(min(1vw, 12px), 12px);
-    top: 12px;
-    right: 12px;
+    font-size: 70%;
     padding: 4px;
     border-radius: 4px;
     background-color: $theme-color;
-    color: white;
     box-shadow: $hard-shadow;
     pointer-events: none;
-
-    &[data-moved='1'] {
-        color: $disabled-grey-text;
-    }
 
     [data-selected='1'] & {
         background-color: $item-grey;
@@ -160,22 +184,35 @@
 }
 
 .file-size-text {
+    font-size: 35cqh;
     color: white;
-    font-size: 14px;
 
     [data-selected='1'] & {
-        color: $main-text;
+        color: var(--wl-text-color);
+    }
+
+    [data-moved='1'] & {
+        color: var(--wl-file-text-color);
     }
 }
 
 .file-rows {
     display: flex;
     flex-direction: column;
-    //gap: 4px;
     padding: 4px;
-    //overflow-y: scroll;
     height: 100%;
     width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-row-box {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    container-type: size;
 }
 
 .file-text {
@@ -184,11 +221,12 @@
     position: relative;
     justify-content: center;
     font-size: 40cqh;
-    transition: color 100ms ease-in-out;
+    // transition: color 100ms ease-in-out;
     text-wrap: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
     max-width: 100%;
+    color: var(--wl-file-text-color);
 
     [data-row] & {
         padding: 10cqh;
@@ -200,9 +238,9 @@
         font-size: 40cqh;
     }
 
-    // [data-selected='1'] & {
-    //     color: white;
-    // }
+    [data-moved='1'] & {
+        color: $disabled-grey-text;
+    }
 
     // [data-in-range='1'] & {
     //     color: white;
@@ -221,5 +259,24 @@
 
     &:hover {
         background-color: $item-focus;
+    }
+}
+
+.trash-size-box {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    height: 100%;
+    z-index: 20;
+    container-type: size;
+    padding-left: 8px;
+
+    .file-size-text {
+        font-size: 60cqh;
+    }
+
+    .file-size-box {
+        max-height: 80%;
+        font-size: 30cqh;
     }
 }

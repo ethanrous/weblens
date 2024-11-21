@@ -45,6 +45,11 @@ func (pms *ProxyMediaService) RemoveFileFromMedia(media *models.Media, fileId fi
 	panic("implement me")
 }
 
+func (pms *ProxyMediaService) Cleanup() error {
+
+	panic("implement me")
+}
+
 func (pms *ProxyMediaService) GetMediaType(m *models.Media) models.MediaType {
 	panic("implement me")
 }
@@ -100,5 +105,9 @@ func (pms *ProxyMediaService) SetMediaLiked(mediaId models.ContentId, liked bool
 func (pms *ProxyMediaService) AdjustMediaDates(
 	anchor *models.Media, newTime time.Time, extraMedias []*models.Media,
 ) error {
+	panic("implement me")
+}
+
+func (pms *ProxyMediaService) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
 	panic("implement me")
 }

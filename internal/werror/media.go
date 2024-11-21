@@ -2,7 +2,10 @@ package werror
 
 import "errors"
 
-var ErrNoMedia = errors.New("no media found")
+var ErrNoMedia = &clientSafeErr{
+	safeErr:    errors.New("no media found"),
+	statusCode: 404,
+}
 var ErrNoExiftool = errors.New("exiftool not initialized")
 var ErrNoCache = errors.New("could not find or generate requested media cache file")
 

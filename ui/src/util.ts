@@ -121,3 +121,21 @@ export function binarySearch<T>(
 
     return -1
 }
+
+export function require_css(...classNames: string[]) {
+    for (const className of classNames) {
+        if (className === undefined) {
+            throw new Error('undefined className')
+        }
+    }
+    return classNames.join(' ')
+}
+
+export function toggleLightTheme() {
+    const isDarkTheme = document.documentElement.classList.contains('dark')
+
+    localStorage.setItem('theme', isDarkTheme ? 'light' : 'dark')
+    document.documentElement.classList.toggle('dark')
+
+    return !isDarkTheme
+}

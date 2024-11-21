@@ -75,5 +75,5 @@ export type Dimensions = {
 }
 
 export function ErrorHandler(err: Error) {
-    console.error(err)
+    console.error('Caught:', typeof err, err)
 }

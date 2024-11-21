@@ -5,23 +5,24 @@ import {
     IconEyeOff,
     IconPolaroid,
 } from '@tabler/icons-react'
+import AlbumsApi from '@weblens/api/AlbumsApi'
+import MediaApi from '@weblens/api/MediaApi'
 import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import { TimeOffset, newTimeOffset } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { newTimeOffset, TimeOffset } from '@weblens/types/Types'
 import {
-    memo,
     MouseEvent,
+    memo,
     useCallback,
     useContext,
     useMemo,
     useState,
 } from 'react'
-import { GalleryContext } from './GalleryLogic'
-import MediaApi from '@weblens/api/MediaApi'
+
 import { GalleryDispatchT } from '../FileBrowser/FileBrowserTypes'
-import AlbumsApi from '@weblens/api/AlbumsApi'
+import { GalleryContext } from './GalleryLogic'
 
 function TimeSlice({
     value,
@@ -360,7 +361,7 @@ export const GalleryMenu = memo(
                             }
                             adjustTime={(d: Date) =>
                                 new Promise(() => {
-                                    console.log('Adjust time not impl', d)
+                                    console.error('Adjust time not impl', d)
                                     return false
                                 })
                             }

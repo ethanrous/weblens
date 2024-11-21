@@ -55,7 +55,7 @@ func NewWorkerPool(initWorkers int, logLevel int) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
-	log.Trace.Printf("Starting new worker pool with %d workers", initWorkers)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Starting new worker pool with %d workers", initWorkers) })
 
 	newWp := &WorkerPool{
 		registeredJobs: map[string]TaskHandler{},
@@ -147,8 +147,8 @@ func (wp *WorkerPool) GetTaskPoolByJobName(jobName string) *TaskPool {
 
 // RegisterJob adds a template for a repeatable job that can be called upon later in the program
 func (wp *WorkerPool) RegisterJob(jobName string, fn TaskHandler) {
-	wp.taskMu.Lock()
-	defer wp.taskMu.Unlock()
+	wp.jobsMu.Lock()
+	defer wp.jobsMu.Unlock()
 	wp.registeredJobs[jobName] = fn
 }
 
@@ -161,9 +161,12 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 		return nil, err
 	}
 
+	wp.jobsMu.RLock()
 	if wp.registeredJobs[jobName] == nil {
+		wp.jobsMu.RUnlock()
 		return nil, werror.Errorf("trying to dispatch non-registered job: %s", jobName)
 	}
+	wp.jobsMu.RUnlock()
 
 	if pool == nil {
 		pool = wp.GetTaskPool("GLOBAL")
@@ -180,6 +183,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	if t != nil {
 		return t, nil
 	} else {
+		wp.jobsMu.RLock()
 		t = &Task{
 			taskId:   taskId,
 			jobName:  jobName,
@@ -193,6 +197,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 			sw: internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId)),
 		}
+		wp.jobsMu.RUnlock()
 	}
 
 	// Lock the waiter gate immediately. The task cleanup routine will clear
@@ -397,7 +402,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
 		// Inc alive workers
 		defer wp.currentWorkers.Add(-1)
-		log.Trace.Printf("Worker %d reporting for duty o7", workerId)
+		log.Trace.Func(func(l log.Logger) { l.Printf("Worker %d reporting for duty o7", workerId) })
 
 		// WorkLoop:
 		for {
@@ -443,11 +448,11 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					wp.busyCount.Add(1)
 					metrics.BusyWorkerGuage.Inc()
 					t.SwLap("Task start")
-					log.Trace.Printf("Starting %s task T[%s]", t.jobName, t.taskId)
+					log.Debug.Func(func(l log.Logger) { l.Printf("Starting %s task T[%s]", t.jobName, t.taskId) })
 					wp.safetyWork(t, workerId)
 					t.SwLap("Task finish")
 					t.sw.Stop()
-					log.Trace.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, t.ExeTime())
+					log.Debug.Func(func(l log.Logger) { l.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, t.ExeTime()) })
 
 					// Dec tasks being processed
 					wp.busyCount.Add(-1)
@@ -490,7 +495,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 						wp.removeTask(t.taskId)
 					}
 
-					var canContinue = true
+					var canContinue bool
 					directParent := t.GetTaskPool()
 
 					directParent.completedTasks.Add(1)
@@ -614,7 +619,7 @@ func (wp *WorkerPool) statusReporter() {
 		if lastCount != remaining {
 			lastCount = remaining
 			waitTime = 1
-			log.Info.Printf(
+			log.Debug.Printf(
 				"Task worker pool status : Queued[%d]/Total[%d], Buffered[%d], Busy[%d], Alive[%d]",
 				remaining, total, retrySize, busy, alive,
 			)

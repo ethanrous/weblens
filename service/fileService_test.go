@@ -32,7 +32,7 @@ func NewTestFileTree() (fileTree.FileTree, error) {
 	// MkdirTemp does not add a trailing slash to directories, which the fileTree expects
 	rootPath += "/"
 
-	log.Trace.Printf("Creating tmp root for FileTree test [%s]", rootPath)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Creating tmp root for FileTree test [%s]", rootPath) })
 
 	tree, err := fileTree.NewFileTree(rootPath, "USERS", journal, false)
 	if err != nil {
@@ -55,11 +55,6 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	err = accessCol.Drop(context.Background())
 	require.NoError(t, err)
 	defer accessCol.Drop(context.Background())
-
-	trashCol := mondb.Collection(t.Name() + "trash")
-	err = trashCol.Drop(context.Background())
-	require.NoError(t, err)
-	defer trashCol.Drop(context.Background())
 
 	folderMediaCol := mondb.Collection(t.Name() + "folderMedia")
 	err = folderMediaCol.Drop(context.Background())
@@ -119,7 +114,7 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		instanceService, userService, accessService, mediaService, trashCol, folderMediaCol, usersTree, cacheTree, restoreTree,
+		instanceService, userService, accessService, mediaService, folderMediaCol, usersTree, cacheTree, restoreTree,
 	)
 	require.NoError(t, err)
 
@@ -201,11 +196,6 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	require.NoError(t, err)
 	defer accessCol.Drop(context.Background())
 
-	trashCol := mondb.Collection(t.Name() + "trash")
-	err = trashCol.Drop(context.Background())
-	require.NoError(t, err)
-	defer trashCol.Drop(context.Background())
-
 	folderMediaCol := mondb.Collection(t.Name() + "folderMedia")
 	err = folderMediaCol.Drop(context.Background())
 	require.NoError(t, err)
@@ -259,7 +249,7 @@ func TestFileService_Restore_Directory(t *testing.T) {
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		instanceService, userService, accessService, mediaService, trashCol, folderMediaCol, usersTree, restoreTree,
+		instanceService, userService, accessService, mediaService, folderMediaCol, usersTree, restoreTree,
 	)
 	require.NoError(t, err)
 

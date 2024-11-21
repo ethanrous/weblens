@@ -204,6 +204,8 @@ definitions:
           If the media is hidden from the timeline
           TODO - make this per user
         type: boolean
+      imported:
+        type: boolean
       likedBy:
         items:
           type: string
@@ -270,11 +272,6 @@ definitions:
       newParentId:
         type: string
     type: object
-  NewFileInfo:
-    properties:
-      fileId:
-        type: string
-    type: object
   NewFileParams:
     properties:
       fileSize:
@@ -283,6 +280,20 @@ definitions:
         type: string
       parentFolderId:
         type: string
+    type: object
+  NewFilesInfo:
+    properties:
+      fileIds:
+        items:
+          type: string
+        type: array
+    type: object
+  NewFilesParams:
+    properties:
+      newFiles:
+        items:
+          $ref: '#/definitions/NewFileParams'
+        type: array
     type: object
   NewServerParams:
     properties:
@@ -441,12 +452,16 @@ definitions:
         type: boolean
       homeId:
         type: string
+      homeSize:
+        type: integer
       owner:
         type: boolean
       token:
         type: string
       trashId:
         type: string
+      trashSize:
+        type: integer
       username:
         type: string
     type: object
@@ -458,6 +473,8 @@ definitions:
         type: boolean
       homeId:
         type: string
+      homeSize:
+        type: integer
       owner:
         type: boolean
       password:
@@ -466,6 +483,8 @@ definitions:
         type: string
       trashId:
         type: string
+      trashSize:
+        type: integer
       username:
         type: string
     type: object
@@ -686,9 +705,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Album Info
-          schema:
-            $ref: '#/definitions/AlbumInfo'
+          description: OK
       security:
       - SessionAuth: []
       summary: Update an Album
@@ -859,6 +876,10 @@ paths:
           description: File content
           schema:
             type: string
+        "404":
+          description: Error Info
+          schema:
+            $ref: '#/definitions/ErrorInfo'
       security:
       - SessionAuth: []
       summary: Download a file
@@ -1025,7 +1046,7 @@ paths:
       operationId: GetSharedFiles
       responses:
         "200":
-          description: An object containing all the files shared with the user
+          description: All the top-level files shared with the user
           schema:
             $ref: '#/definitions/FolderInfo'
         "404":
@@ -1035,30 +1056,6 @@ paths:
       security:
       - SessionAuth: []
       summary: Get files shared with the logged in user
-      tags:
-      - Files
-  /files/trash:
-    patch:
-      operationId: TrashFiles
-      parameters:
-      - description: Trash files request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/FilesListParams'
-      responses:
-        "200":
-          description: OK
-        "403":
-          description: Forbidden
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-      security:
-      - SessionAuth: []
-      summary: Move a list of files to the trash
       tags:
       - Files
   /files/untrash:
@@ -1451,6 +1448,24 @@ paths:
       summary: Like a media
       tags:
       - Media
+  /media/cleanup:
+    post:
+      operationId: CleanupMedia
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth:
+        - admin
+      - ApiKeyAuth:
+        - admin
+      summary: Make sure all media is correctly synced with the file system
+      tags:
+      - Media
   /media/types:
     get:
       operationId: GetMediaTypes
@@ -1833,7 +1848,7 @@ paths:
       - Files
   /upload/{uploadId}:
     post:
-      operationId: AddFileToUpload
+      operationId: AddFilesToUpload
       parameters:
       - description: Upload Id
         in: path
@@ -1845,12 +1860,12 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/NewFileParams'
+          $ref: '#/definitions/NewFilesParams'
       responses:
         "200":
-          description: Upload Info
+          description: FileIds
           schema:
-            $ref: '#/definitions/NewFileInfo'
+            $ref: '#/definitions/NewFilesInfo'
         "401":
           description: Unauthorized
         "404":
@@ -1877,16 +1892,10 @@ paths:
         required: true
         type: string
       - description: File chunk
-        in: body
+        in: formData
         name: chunk
         required: true
-        schema:
-          type: string
-      - description: Content Length for the chunk
-        in: header
-        name: ContentLength
-        required: true
-        type: string
+        type: file
       responses:
         "200":
           description: OK
@@ -2114,6 +2123,10 @@ paths:
             $ref: '#/definitions/UserInfo'
         "401":
           description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
       security:
       - SessionAuth: []
       summary: Gets the user based on the auth token

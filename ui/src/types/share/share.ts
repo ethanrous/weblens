@@ -1,5 +1,6 @@
 import SharesApi from '@weblens/api/SharesApi'
 import { ShareInfo } from '@weblens/api/swag'
+
 import { ErrorHandler } from '../Types'
 
 export class WeblensShare {

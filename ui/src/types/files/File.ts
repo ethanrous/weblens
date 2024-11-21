@@ -130,7 +130,10 @@ export class WeblensFile {
 
     GetFilename(): string {
         if (!this.filename) {
-            const parts = this.portablePath.split('/')
+            const filename = this.portablePath.slice(
+                this.portablePath.indexOf(':') + 1
+            )
+            const parts = filename.split('/')
             let name = parts.pop()
 
             // If the path is a directory, the portable path will end with a slash, so we need to pop again
@@ -138,15 +141,15 @@ export class WeblensFile {
                 name = parts.pop()
             }
 
+            if (this.parentId === 'ROOT') {
+                name = 'Home'
+            } else if (name === '.user_trash') {
+                name = 'Trash'
+            }
+
             this.filename = name
         }
 
-        if (this.portablePath === 'HOME') {
-            return 'Home'
-        }
-        if (this.filename === '.user_trash') {
-            return 'Trash'
-        }
         return this.filename
     }
 
@@ -183,9 +186,11 @@ export class WeblensFile {
     }
 
     IsInTrash(): boolean {
-        return this.parents
-            .map((parent) => parent.Id())
-            .includes(useSessionStore.getState()?.user?.trashId)
+        const trashId = useSessionStore.getState()?.user?.trashId
+        if (this.id === trashId) {
+            return true
+        }
+        return this.parents.map((parent) => parent.Id()).includes(trashId)
     }
 
     GetOwner(): string {

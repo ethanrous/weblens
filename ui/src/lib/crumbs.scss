@@ -1,17 +1,5 @@
-@import '@weblens/components/theme';
+@import '@weblens/components/theme.module';
 
-.crumb-text {
-    /* line-clamp: 1; */
-    color: $main-text;
-    line-height: 1.2;
-    user-select: none;
-    font-size: 25px;
-    flex-grow: 0;
-    flex-shrink: 1;
-    width: max-content;
-    height: max-content;
-    text-wrap: nowrap;
-}
 
 .overflow-menu {
     display: flex;

@@ -169,7 +169,7 @@ func (ss *ShareServiceImpl) RemoveUsers(share models.Share, removeUsers []*model
 	for _, rm := range removeNames {
 		i := slices.Index(accs, rm)
 		if i == -1 {
-			return werror.ErrUserNotFound
+			return werror.ErrNoUser
 		}
 
 		accs = internal.Banish(accs, i)

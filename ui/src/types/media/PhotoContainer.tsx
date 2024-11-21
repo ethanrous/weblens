@@ -10,9 +10,7 @@ import WeblensProgress from '@weblens/lib/WeblensProgress'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useKeyDown, useResize, useVideo } from 'components/hooks'
 import Hls from 'hls.js'
-
-import 'components/style.scss'
-import { memo, MouseEvent, useCallback, useEffect, useState } from 'react'
+import { MouseEvent, memo, useCallback, useEffect, useState } from 'react'
 
 export const MediaImage = memo(
     ({

@@ -55,7 +55,7 @@ jobs:
       - name: Run Tests
         run: |
           echo "Including remote tests: $REMOTE_TESTS"
-          ./scripts/testWeblens --ui --show-logs
+          ./scripts/testWeblens --backend --ui --show-logs
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}
@@ -82,7 +82,7 @@ jobs:
       - name: Run Tests
         run: |
           echo "Including remote tests: $REMOTE_TESTS"
-          ./scripts/testWeblens --ui --show-logs
+          ./scripts/testWeblens --backend --ui --show-logs
           exit $?
         env:
           DEV_MODE: ${{ inputs.debug }}

@@ -160,8 +160,8 @@ func createAlbum(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Update an Album
 //	@Tags		Album
 //	@Produce	json
-//	@Param		albumId				path		string					true	"Album Id"
-//	@Param		UpdateAlbumParams	query		rest.UpdateAlbumParams	true	"Update Album Params"
+//	@Param		albumId				path	string					true	"Album Id"
+//	@Param		UpdateAlbumParams	query	rest.UpdateAlbumParams	true	"Update Album Params"
 //	@Success	200
 //	@Router		/albums/{albumId} [patch]
 func updateAlbum(w http.ResponseWriter, r *http.Request) {
@@ -368,7 +368,7 @@ func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 
 // GetAlbumMedia godoc
 //
-//	@ID		GetAlbumMedia
+//	@ID	GetAlbumMedia
 //
 //	@Security
 //	@Security	SessionAuth
@@ -376,9 +376,9 @@ func deleteAlbum(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Get media in an album
 //	@Tags		Album
 //	@Produce	json
-//	@Param		albumId	path	string	true	"Album Id"
-//	@Param		shareId	query	string	false	"Share Id"
-//	@Success	200 {array}	rest.MediaInfo	"Media Info"
+//	@Param		albumId	path	string			true	"Album Id"
+//	@Param		shareId	query	string			false	"Share Id"
+//	@Success	200		{array}	rest.MediaInfo	"Media Info"
 //	@Success	404
 //	@Router		/albums/{albumId}/media [get]
 func getAlbumMedia(w http.ResponseWriter, r *http.Request) {

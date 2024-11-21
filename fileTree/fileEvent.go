@@ -45,7 +45,7 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
-	log.Trace.Printf("Building create action for [%s]", file.Filename())
+	log.Trace.Func(func(l log.Logger) {l.Printf("Building create action for [%s]", file.Filename())})
 
 	if !file.IsDir() && file.GetContentId() == "" {
 		fe.hasher.Hash(file)
@@ -157,7 +157,7 @@ func (fe *FileEvent) NewRestoreAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
-	log.Trace.Printf("Building restore action for [%s]", file.Filename())
+	log.Trace.Func(func(l log.Logger) {l.Printf("Building restore action for [%s]", file.Filename())})
 
 	newAction := &FileAction{
 		LifeId:          file.ID(),
@@ -182,7 +182,7 @@ func (fe *FileEvent) NewSizeChangeAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
-	log.Trace.Printf("Building size change action for [%s]", file.Filename())
+	log.Trace.Func(func(l log.Logger) {l.Printf("Building size change action for [%s]", file.Filename())})
 	lt := fe.journal.Get(file.ID())
 	if lt == nil {
 		err := werror.Errorf("Cannot not find existing lifetime for %s", file.ID())

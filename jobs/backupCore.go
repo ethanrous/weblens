@@ -125,7 +125,7 @@ func DoBackup(t *task.Task) {
 		latestTime = latest.GetTimestamp()
 	}
 
-	log.Trace.Printf("Backup latest action is %s", latestTime.String())
+	log.Trace.Func(func(l log.Logger) {l.Printf("Backup latest action is %s", latestTime.String())})
 
 	stages.StartStage("fetching_backup_data")
 	t.SetResult(task.TaskResult{"stages": stages})
@@ -182,7 +182,7 @@ func DoBackup(t *task.Task) {
 	stages.StartStage("sync_journal")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	log.Trace.Printf("Backup got %d updated lifetimes from core", len(backupResponse.FileHistory))
+	log.Trace.Func(func(l log.Logger) {l.Printf("Backup got %d updated lifetimes from core", len(backupResponse.FileHistory))})
 
 	stages.StartStage("sync_fs")
 	t.SetResult(task.TaskResult{"stages": stages})
@@ -340,7 +340,7 @@ func CopyFileFromCore(t *task.Task) {
 			"filename": filename, "coreId": meta.Core.ServerId(), "timestamp": time.Now().UnixMilli(),
 		},
 	)
-	log.Trace.Printf("Copying file from core [%s]", meta.File.Filename())
+	log.Trace.Func(func(l log.Logger) {l.Printf("Copying file from core [%s]", meta.File.Filename())})
 
 	if meta.File.GetContentId() == "" {
 		t.ReqNoErr(werror.WithStack(werror.ErrNoContentId))

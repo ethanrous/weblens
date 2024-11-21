@@ -117,6 +117,8 @@ while true; do
 	if [[ $detach == true ]]; then
 		printf "Starting Weblens and detaching..."
 		APP_ROOT="$(pwd)" CONFIG_NAME="$config_name" nohup ./build/bin/weblens &>"$log_file" &
+		weblens_pid=$!
+		echo "$weblens_pid" >./build/logs/weblens.pid
 		printf " RUNNING\n"
 		exit 0
 	fi
@@ -128,9 +130,13 @@ while true; do
 	APP_ROOT=$(pwd) CONFIG_NAME=$config_name ./build/bin/weblens
 	exit=$?
 
-	if [[ $restart == false ]] || { [[ $exit != 0 ]] && [[ $exit != 137 ]]; }; then
-		echo "Got exit status $exit, exiting..."
+	if [[ $restart != true ]]; then
 		break
+	fi
+
+	if [[ $exit != 0 ]] && [[ $exit != 137 ]]; then
+		echo "Got exit status $exit, exiting..."
+		exit 1
 	fi
 	clear
 

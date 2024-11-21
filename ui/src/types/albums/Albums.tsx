@@ -18,7 +18,6 @@ import {
     GalleryContext,
     GalleryContextT,
 } from '@weblens/pages/Gallery/GalleryLogic'
-
 import { AlbumScroller } from '@weblens/types/albums/AlbumDisplay'
 import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
@@ -26,6 +25,7 @@ import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import FilesErrorDisplay from 'components/NotFound'
 import { useContext, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
 import { ErrorHandler } from '../Types'
 
 export function AlbumNoContent({ hasContent }: { hasContent: boolean }) {

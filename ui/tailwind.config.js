@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+
 export default {
     content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
     theme: {
@@ -27,9 +28,14 @@ export default {
                 'fade-short': 'fadeIn 100ms ease-in-out',
             },
             keyframes: () => ({
-                fadeIn: {
-                    '0%': { opacity: 0 },
-                    '100%': { opacity: 100 },
+                // fadeIn: {
+                //     '0%': { opacity: 0 },
+                //     '100%': { opacity: 100 },
+                // },
+                fadeInAndOut: {
+                    '0%': { opacity: 35 },
+                    '50%': { opacity: 100 },
+                    '100%': { opacity: 35 },
                 },
             }),
         },

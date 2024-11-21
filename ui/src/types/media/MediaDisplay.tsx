@@ -6,17 +6,19 @@ import {
     IconTheater,
     TablerIconsProps,
 } from '@tabler/icons-react'
-
+import MediaApi from '@weblens/api/MediaApi'
+import WeblensButton from '@weblens/lib/WeblensButton'
 import {
     GalleryContext,
     GalleryContextT,
 } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
+import '@weblens/pages/Gallery/galleryStyle.scss'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { useResize } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
+import { useResize } from 'components/hooks'
 import React, {
     CSSProperties,
     MouseEvent,
@@ -28,19 +30,14 @@ import React, {
     useRef,
     useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { VariableSizeList as WindowList } from 'react-window'
-
-import '@weblens/pages/Gallery/galleryStyle.scss'
-
 import {
     AlbumData,
     ErrorHandler,
     MediaWrapperProps,
     PresentType,
 } from 'types/Types'
-import { useNavigate } from 'react-router-dom'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import MediaApi from '@weblens/api/MediaApi'
 
 const goToMediaFile = async (mediaId: string) => {
     return MediaApi.getMediaFile(mediaId).then((r) => {

@@ -214,6 +214,26 @@ func (c *SimpleCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, med
 	c.msgChan <- msg
 }
 
+func (c *SimpleCaster) PushFilesUpdate(updatedFiles []*fileTree.WeblensFileImpl, medias []*Media) {
+	if !c.enabled.Load() {
+		return
+	}
+
+	if len(updatedFiles) == 0 {
+		return
+	}
+
+	msg := WsResponseInfo{
+		EventTag:      FilesUpdatedEvent,
+		SubscribeKey:  updatedFiles[0].GetParentId(),
+		Content:       WsC{"filesInfo": updatedFiles, "mediaDatas": medias},
+		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
+	}
+
+	c.msgChan <- msg
+}
+
 func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
@@ -240,6 +260,32 @@ func (c *SimpleCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postM
 	c.msgChan <- msg
 }
 
+func (c *SimpleCaster) PushFilesMove(preMoveParentId, postMoveParentId fileTree.FileId, files []*fileTree.WeblensFileImpl) {
+	if !c.enabled.Load() {
+		return
+	}
+
+	msg := WsResponseInfo{
+		EventTag:      FilesMovedEvent,
+		SubscribeKey:  preMoveParentId,
+		Content:       WsC{"filesInfo": files},
+		Error:         "",
+		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
+	}
+	c.msgChan <- msg
+
+	msg = WsResponseInfo{
+		EventTag:      FilesMovedEvent,
+		SubscribeKey:  postMoveParentId,
+		Content:       WsC{"filesInfo": files},
+		Error:         "",
+		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().Unix(),
+	}
+	c.msgChan <- msg
+}
+
 func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 	if !c.enabled.Load() {
 		return
@@ -254,6 +300,35 @@ func (c *SimpleCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {
 	}
 
 	c.msgChan <- msg
+}
+
+func (c *SimpleCaster) PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl) {
+	if !c.enabled.Load() {
+		return
+	}
+
+	fileIds := make(map[string][]fileTree.FileId)
+	for _, f := range deletedFiles {
+		list := fileIds[f.GetParentId()]
+		if list == nil {
+			fileIds[f.GetParentId()] = []fileTree.FileId{f.ID()}
+		} else {
+			fileIds[f.GetParentId()] = append(list, f.ID())
+		}
+	}
+
+	for parentId, ids := range fileIds {
+		msg := WsResponseInfo{
+			EventTag:      FilesDeletedEvent,
+			SubscribeKey:  parentId,
+			Content:       WsC{"fileIds": ids},
+			BroadcastType: FolderSubscribe,
+			SentTime:      time.Now().Unix(),
+		}
+
+		c.msgChan <- msg
+	}
+
 }
 
 func (c *SimpleCaster) FolderSubToTask(folder fileTree.FileId, taskId task.Id) {
@@ -291,7 +366,10 @@ type Broadcaster interface {
 	BasicCaster
 	PushFileCreate(newFile *fileTree.WeblensFileImpl)
 	PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl)
+	PushFilesMove(preMoveParentId, postMoveParentId fileTree.FileId, files []*fileTree.WeblensFileImpl)
 	PushFileDelete(deletedFile *fileTree.WeblensFileImpl)
+	PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl)
+	PushFilesUpdate(files []*fileTree.WeblensFileImpl, medias []*Media)
 	PushShareUpdate(username Username, newShareInfo Share)
 	Enable()
 	Disable()
@@ -381,8 +459,11 @@ const (
 	ScanDirectoryProgressEvent   = "scan_directory_progress"
 	FileCreatedEvent             = "file_created"
 	FileUpdatedEvent             = "file_updated"
+	FilesUpdatedEvent            = "files_updated"
 	FileMovedEvent               = "file_moved"
+	FilesMovedEvent              = "files_moved"
 	FileDeletedEvent             = "file_deleted"
+	FilesDeletedEvent            = "files_deleted"
 	ZipProgressEvent             = "create_zip_progress"
 	ZipCompleteEvent             = "zip_complete"
 	ServerGoingDownEvent         = "going_down"

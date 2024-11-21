@@ -1,8 +1,9 @@
 import { Space } from '@mantine/core'
+import { IconExclamationCircle } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useNavigate } from 'react-router-dom'
+
 import { useSessionStore } from './UserInfo'
-import { IconExclamationCircle } from '@tabler/icons-react'
 
 function FilesErrorDisplay({
     error,

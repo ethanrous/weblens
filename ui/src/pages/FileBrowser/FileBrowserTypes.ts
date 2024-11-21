@@ -1,6 +1,7 @@
 import { Dispatch } from 'react'
-import { TasksProgressAction } from './TaskStateControl'
+
 import { GalleryAction } from '../Gallery/GalleryLogic'
+import { TasksProgressAction } from './TaskStateControl'
 
 export type TPDispatchT = Dispatch<TasksProgressAction>
 export type GalleryDispatchT = (action: GalleryAction) => void

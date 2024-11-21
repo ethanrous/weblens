@@ -1,6 +1,40 @@
+import { clamp } from '@mantine/hooks'
+import { IconChevronRight, IconFile } from '@tabler/icons-react'
+import { GetFolderData } from '@weblens/api/FileBrowserApi'
+import WeblensLoader from '@weblens/components/Loading'
+import { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
+import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import {
+    GetStartedCard,
+    IconDisplay,
+} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
+import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { SelectedState, WeblensFile } from '@weblens/types/files/File'
-import '@weblens/types/files/filesStyle.scss'
-import '@weblens/components/style.scss'
+import filesStyle from '@weblens/types/files/filesStyle.module.scss'
+import { humanFileSize } from '@weblens/util'
+import {
+    CSSProperties,
+    MouseEvent,
+    createRef,
+    memo,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
+import { FixedSizeList as WindowList } from 'react-window'
+
+import { ErrorHandler } from '../Types'
+import { PhotoQuality } from '../media/Media'
+import { useMediaStore } from '../media/MediaStateControl'
+import { MediaImage } from '../media/PhotoContainer'
+import { DraggingStateT } from './FBTypes'
 import {
     fileHandleContextMenu,
     goToFile,
@@ -10,36 +44,6 @@ import {
     mouseMove,
     visitFile,
 } from './FileDragLogic'
-import {
-    createRef,
-    CSSProperties,
-    MouseEvent,
-    useEffect,
-    useMemo,
-    useState,
-} from 'react'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
-import {
-    DropSpot,
-    GetStartedCard,
-    IconDisplay,
-} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import { GetFolderData } from '@weblens/api/FileBrowserApi'
-import { useSessionStore } from '@weblens/components/UserInfo'
-import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
-import { FixedSizeList as WindowList } from 'react-window'
-import WeblensLoader from '@weblens/components/Loading'
-import { IconChevronRight, IconFile } from '@tabler/icons-react'
-import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
-import { DraggingStateT } from './FBTypes'
-import { clamp } from '@mantine/hooks'
-import { MediaImage } from '../media/PhotoContainer'
-import { PhotoQuality } from '../media/Media'
-import { useMediaStore } from '../media/MediaStateControl'
-import { humanFileSize } from '@weblens/util'
 
 type ColumnRowProps = {
     data: { files: WeblensFile[]; selectedChildId: string }
@@ -47,52 +51,84 @@ type ColumnRowProps = {
     style: CSSProperties
 }
 
-function ColumnRow(p: ColumnRowProps) {
-    const file = p.data.files[p.index]
-    const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(null)
-    const filesMap = useFileBrowserStore((state) => state.filesMap)
-    let selState = filesMap.get(file?.Id())?.GetSelectedState()
+function ColumnRowWrapper({ data, index, style }: ColumnRowProps) {
+    const file = data.files[index]
+    // const filesMap = useFileBrowserStore((state) => state.filesMap)
+    const hoveringId = useFileBrowserStore((state) => state.hoveringId)
+    const selected = useFileBrowserStore((state) => state.selected)
+    const lastSelectedId = useFileBrowserStore((state) => state.lastSelectedId)
+    const holdingShift = useFileBrowserStore((state) => state.holdingShift)
 
-    if (
-        file.IsFolder() &&
-        p.data.selectedChildId &&
-        file.Id() === p.data.selectedChildId
-    ) {
-        selState = SelectedState.Selected
-    }
+    const { isFolder, id } = useMemo(() => {
+        return { isFolder: file.IsFolder(), id: file.Id() }
+    }, [file])
 
-    const [fileRef, setFileRef] = useState<HTMLDivElement>()
+    const selState = useMemo(() => {
+        let selState = file.GetSelectedState()
+        // let selState = filesMap.get(file?.Id())?.GetSelectedState()
 
-    const {
-        draggingState,
-        folderInfo,
-        selected,
-        lastSelectedId,
-        setMoveDest,
-        setHovering,
-        setSelected,
-        setDragging,
-        setPresentationTarget,
-        setMenu,
-        clearSelected,
-        setSelectedMoved,
-    } = useFileBrowserStore()
-
-    useEffect(() => {
-        if (file.IsFolder() && file.Id() === lastSelectedId && fileRef) {
-            fileRef.scrollIntoView({
-                behavior: 'instant',
-                block: 'nearest',
-                inline: 'nearest',
-            })
+        if (isFolder && data.selectedChildId === id) {
+            selState = SelectedState.Selected
         }
-    }, [lastSelectedId])
+
+        return selState
+    }, [hoveringId, selected, lastSelectedId, holdingShift])
 
     return (
-        <div ref={setFileRef} style={{ ...p.style, padding: 4 }}>
+        <div style={{ ...style, padding: 4 }}>
+            <ColumnRow file={file} selState={selState} />
+        </div>
+    )
+}
+
+const ColumnRow = memo(
+    ({ file, selState }: { file: WeblensFile; selState: SelectedState }) => {
+        const [mouseDown, setMouseDown] = useState<{ x: number; y: number }>(
+            null
+        )
+        const fileRef = useRef<HTMLDivElement>()
+
+        const draggingState = useFileBrowserStore(
+            (state) => state.draggingState
+        )
+        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+        const lastSelectedId = useFileBrowserStore(
+            (state) => state.lastSelectedId
+        )
+        const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+        const setHovering = useFileBrowserStore((state) => state.setHovering)
+        const setSelected = useFileBrowserStore((state) => state.setSelected)
+        const setDragging = useFileBrowserStore((state) => state.setDragging)
+        const setPresentationTarget = useFileBrowserStore(
+            (state) => state.setPresentationTarget
+        )
+        const setMenu = useFileBrowserStore((state) => state.setMenu)
+        const clearSelected = useFileBrowserStore(
+            (state) => state.clearSelected
+        )
+        const setSelectedMoved = useFileBrowserStore(
+            (state) => state.setSelectedMoved
+        )
+
+        useEffect(() => {
+            if (
+                file.IsFolder() &&
+                file.Id() === lastSelectedId &&
+                fileRef.current
+            ) {
+                fileRef.current.scrollIntoView({
+                    behavior: 'instant',
+                    block: 'nearest',
+                    inline: 'nearest',
+                })
+            }
+        }, [lastSelectedId])
+
+        return (
             <div
+                ref={fileRef}
                 key={file.Id()}
-                className="weblens-file animate-fade-short"
+                className={filesStyle['weblens-file'] + ' animate-fade'}
                 data-column-row
                 data-clickable={!draggingState || file.IsFolder()}
                 data-hovering={selState & SelectedState.Hovering}
@@ -113,7 +149,8 @@ function ColumnRow(p: ColumnRowProps) {
                         file,
                         draggingState,
                         setHovering,
-                        setMoveDest
+                        setMoveDest,
+                        setDragging
                     )
                 }
                 onMouseDown={(e) => {
@@ -124,7 +161,9 @@ function ColumnRow(p: ColumnRowProps) {
                     return handleMouseUp(
                         file,
                         draggingState,
-                        Array.from(selected.keys()),
+                        Array.from(
+                            useFileBrowserStore.getState().selected.keys()
+                        ),
                         setSelectedMoved,
                         clearSelected,
                         setMoveDest,
@@ -136,11 +175,6 @@ function ColumnRow(p: ColumnRowProps) {
                 onContextMenu={(e) => fileHandleContextMenu(e, setMenu, file)}
                 onClick={(e) => {
                     e.stopPropagation()
-                    return
-                    // if (draggingState) {
-                    //     return
-                    // }
-                    // setSelected([file.Id()])
                 }}
                 onDoubleClick={(e) =>
                     visitFile(
@@ -160,10 +194,12 @@ function ColumnRow(p: ColumnRowProps) {
                         setDragging
                     )
                 }
-                onMouseLeave={() =>
+                onMouseLeave={(e) =>
                     handleMouseLeave(
+                        e,
                         file,
                         draggingState,
+                        fileRef.current,
                         setMoveDest,
                         setHovering,
                         mouseDown,
@@ -175,25 +211,24 @@ function ColumnRow(p: ColumnRowProps) {
                     <div className="flex shrink-0 justify-center items-center w-[40px] h-[40px] max-w-[40px] max-h-full">
                         <IconDisplay file={file} allowMedia={true} />
                     </div>
-                    <div className="file-text-container">
-                        <p className="file-text">{file.GetFilename()}</p>
+                    <div className={filesStyle['file-text-container']}>
+                        <p className={filesStyle['file-text']}>
+                            {file.GetFilename()}
+                        </p>
                     </div>
                 </div>
                 {file.IsFolder() && (
-                    <IconChevronRight
-                        className="text-wl-outline-subtle"
-                        style={{
-                            color:
-                                file.Id() === p.data.selectedChildId
-                                    ? '#ffffff'
-                                    : '',
-                        }}
-                    />
+                    <IconChevronRight className="text-[--wl-file-text-color]" />
                 )}
             </div>
-        </div>
-    )
-}
+        )
+    },
+    (prev, next) => {
+        return (
+            prev.file.Id() === next.file.Id() && prev.selState === next.selState
+        )
+    }
+)
 
 function Preview({ file }: { file: WeblensFile }) {
     const media = useMediaStore((state) =>
@@ -259,6 +294,10 @@ function Column({
     const listRef = createRef<WindowList>()
     const [didScroll, setDidScroll] = useState<boolean>()
     const draggingState = useFileBrowserStore((state) => state.draggingState)
+    const moveDest = useFileBrowserStore((state) => state.moveDest)
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const parent = filesMap.get(parentId)
 
     useEffect(() => {
         if (!folderInfo) {
@@ -272,14 +311,13 @@ function Column({
             return
         }
 
-        const p = filesMap.get(parentId)
-        if (p) {
-            if (p.GetFetching()) {
+        if (parent) {
+            if (parent.GetFetching()) {
                 return
             }
 
-            let childrenLength = p.GetChildren().length
-            if (p.GetChildren().indexOf(user.trashId) !== -1) {
+            let childrenLength = parent.GetChildren().length
+            if (parent.GetChildren().indexOf(user.trashId) !== -1) {
                 childrenLength--
             }
 
@@ -288,7 +326,7 @@ function Column({
                 return
             }
 
-            p.SetFetching(true)
+            parent.SetFetching(true)
         }
 
         setLoading(true)
@@ -324,10 +362,9 @@ function Column({
                 childrenInfo: fileData.children,
                 parentsInfo: fileData.parents,
                 mediaData: fileData.medias,
-                user,
             })
 
-            p.SetFetching(false)
+            parent.SetFetching(false)
         }
         fetch()
             .then(() => setLoading(false))
@@ -369,12 +406,10 @@ function Column({
         }
     }, [boxRef])
 
-    const parent = filesMap.get(parentId)
-
     return (
         <div
             ref={setBoxRef}
-            className="flex relative shrink-0 justify-between items-center h-full no-scrollbar gap-1 w-full"
+            className={filesStyle['files-column']}
             onClick={(e) => {
                 e.stopPropagation()
                 if (draggingState !== DraggingStateT.NoDrag) {
@@ -384,60 +419,78 @@ function Column({
             }}
         >
             {loading && (
-                <div className="flex grow justify-center">
+                <div className="flex grow justify-center items-center">
                     <WeblensLoader />
                 </div>
             )}
             {!loading && (
-                <div className="flex relative w-full h-full justify-center items-center">
+                <div className="flex grow w-1 p-1">
                     <div
-                        className="flex absolute h-full justify-center items-center"
-                        style={{
-                            width: size.width - 12,
-                            height: size.height - 4,
-                        }}
-                    >
-                        <DropSpot parent={parent} />
-                    </div>
+                        className={filesStyle['files-column-inner']}
+                        onDragOver={(e) => {
+                            // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
+                            e.preventDefault()
 
-                    <WindowList
-                        ref={listRef}
-                        height={size.height}
-                        width={size.width - 12}
-                        itemSize={56}
-                        itemCount={files.length}
-                        itemData={{ files, selectedChildId }}
-                        overscanCount={25}
-                        onItemsRendered={() => {
-                            if (didScroll) {
-                                return
+                            if (moveDest !== parentId) {
+                                setMoveDest(parentId)
                             }
-                            // Grid ref is not ready yet even when this callback is called,
-                            // but putting it in a timeout will push it off to the next tick,
-                            // and the ref will be ready.
-                            setTimeout(() => {
-                                if (listRef.current && selectedChildId) {
-                                    const child = useFileBrowserStore
-                                        .getState()
-                                        .filesMap.get(selectedChildId)
-                                    if (child) {
-                                        listRef.current.scrollToItem(
-                                            child.GetIndex(),
-                                            'smart'
-                                        )
-                                        setDidScroll(true)
-                                    } else {
-                                        console.error(
-                                            'Could not find child to scroll to',
-                                            selectedChildId
-                                        )
-                                    }
-                                }
-                            }, 1)
                         }}
+                        onDrop={(e) => {
+                            e.preventDefault()
+                            HandleDrop(
+                                e.dataTransfer.items,
+                                parentId,
+                                [],
+                                false,
+                                shareId
+                            ).catch(ErrorHandler)
+
+                            setDragging(DraggingStateT.NoDrag)
+                        }}
+                        data-droppable={
+                            draggingState === DraggingStateT.ExternalDrag &&
+                            moveDest === parentId
+                        }
                     >
-                        {ColumnRow}
-                    </WindowList>
+                        <WindowList
+                            ref={listRef}
+                            height={size.height}
+                            width={size.width - 12}
+                            itemSize={56}
+                            itemCount={files.length}
+                            itemData={{ files, selectedChildId }}
+                            overscanCount={10}
+                            onItemsRendered={() => {
+                                if (didScroll) {
+                                    return
+                                }
+                                // Grid ref is not ready yet even when this callback is called,
+                                // but putting it in a timeout will push it off to the next tick,
+                                // and the ref will be ready.
+                                setTimeout(() => {
+                                    if (listRef.current && selectedChildId) {
+                                        const child = useFileBrowserStore
+                                            .getState()
+                                            .filesMap.get(selectedChildId)
+                                        if (child) {
+                                            listRef.current.scrollToItem(
+                                                child.GetIndex(),
+                                                'smart'
+                                            )
+                                            setDidScroll(true)
+                                        } else {
+                                            console.error(
+                                                'Could not find child to scroll to',
+                                                selectedChildId
+                                            )
+                                        }
+                                    }
+                                }, 1)
+                            }}
+                        >
+                            {ColumnRowWrapper}
+                        </WindowList>
+                    </div>
                 </div>
             )}
             <ColumnResizer
@@ -455,9 +508,7 @@ function ColumnResizer({
     setColSize: (size: number) => void
     left: number
 }) {
-    const dragging = useFileBrowserStore(
-        (state) => state.draggingState === DraggingStateT.InterfaceDrag
-    )
+    const draggingState = useFileBrowserStore((state) => state.draggingState)
     const [localDragging, setLocalDragging] = useState(false)
     const setDraggingGlobal = useFileBrowserStore((state) => state.setDragging)
     const setDragging = (d: DraggingStateT) => {
@@ -466,13 +517,13 @@ function ColumnResizer({
     }
 
     useEffect(() => {
-        if (!dragging && localDragging) {
+        if (!draggingState && localDragging) {
             setDragging(DraggingStateT.NoDrag)
         }
-    }, [dragging])
+    }, [draggingState])
 
     useResizeDrag(
-        dragging,
+        draggingState === DraggingStateT.InterfaceDrag,
         (dragging: boolean) => {
             if (dragging) {
                 setDragging(DraggingStateT.InterfaceDrag)
@@ -481,7 +532,7 @@ function ColumnResizer({
             }
         },
         (v) => {
-            if (!left || !localDragging) {
+            if ((!left && left !== 0) || !localDragging) {
                 return
             }
             const newSize = v - left + 8
@@ -494,7 +545,7 @@ function ColumnResizer({
     return (
         <div
             draggable={false}
-            className="resize-bar-wrapper"
+            className={fbStyle['resize-bar-wrapper']}
             onMouseDown={(e) => {
                 e.preventDefault()
                 setDragging(DraggingStateT.InterfaceDrag)
@@ -507,7 +558,7 @@ function ColumnResizer({
                 e.stopPropagation()
             }}
         >
-            <div className="resize-bar" />
+            <div className={fbStyle['resize-bar']} />
         </div>
     )
 }
@@ -720,55 +771,46 @@ function FileColumns() {
         })
     }, [lists])
 
-    // const size = useResize(containerRef)
-    // useEffect(() => {
-    //     return
-    //     if (endRef) {
-    //         endRef.scrollIntoView({
-    //             behavior: 'instant',
-    //             block: 'nearest',
-    //             inline: 'start',
-    //         })
-    //     }
-    // }, [size.width, lists.length])
-
-    if (lists && lists.length < 2 && !lists[0]?.files?.length) {
-        return <GetStartedCard />
-    }
+    const emptyFolder = lists && lists.length < 2 && !lists[0]?.files?.length
 
     return (
         <div
             ref={setContainerRef}
-            className="flex flex-row h-full w-full outline-0 overflow-x-scroll gap-2"
+            className="flex relative flex-row h-full w-full outline-0 overflow-x-scroll overflow-y-hidden gap-2"
         >
-            {lists.map((col, i) => {
-                const selectedChildId =
-                    lastSelected?.parentId === col.parentId
-                        ? lastSelectedId
-                        : lists[i + 1]?.parentId
+            {emptyFolder && <GetStartedCard />}
+            {!emptyFolder &&
+                lists.map((col, i) => {
+                    const selectedChildId =
+                        lastSelected?.parentId === col.parentId
+                            ? lastSelectedId
+                            : lists[i + 1]?.parentId
 
-                return (
-                    <div
-                        key={col.parentId}
-                        className="flex shrink-0"
-                        style={{ width: colWidths[i] ?? 300 }}
-                    >
-                        <Column
+                    return (
+                        <div
                             key={col.parentId}
-                            files={col.files}
-                            parentId={col.parentId}
-                            selectedChildId={selectedChildId}
-                            scrollOffset={containerRef?.scrollLeft}
-                            setColSize={(size: number) =>
-                                setColWidths((w) => {
-                                    w[i] = size
-                                    return [...w]
-                                })
-                            }
-                        />
-                    </div>
-                )
-            })}
+                            className="flex shrink-0"
+                            style={{ width: colWidths[i] ?? 300 }}
+                        >
+                            <Column
+                                key={col.parentId}
+                                files={col.files}
+                                parentId={col.parentId}
+                                selectedChildId={selectedChildId}
+                                scrollOffset={
+                                    containerRef?.scrollLeft -
+                                    containerRef?.offsetLeft
+                                }
+                                setColSize={(size: number) =>
+                                    setColWidths((w) => {
+                                        w[i] = size
+                                        return [...w]
+                                    })
+                                }
+                            />
+                        </div>
+                    )
+                })}
             <div
                 className="flex shrink-0 grow w-[40vw]"
                 // style={{ width: colWidths[lists.length + 1] ?? 300 }}

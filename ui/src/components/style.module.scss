@@ -1,4 +1,4 @@
-@import "theme";
+@import "theme.module";
 
 .body {
     background-color: $background;
@@ -81,6 +81,20 @@
     padding-top: 8px;
     padding-bottom: 8px;
     border-bottom: 2px solid $floating-grey;
+}
+
+.nav-box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 384px;
+    flex-shrink: 1;
+}
+
+@media screen and (max-width: 600px) {
+    .nav-box {
+        width: 180px;
+    }
 }
 
 .no-scrollbar {
@@ -168,7 +182,7 @@
     align-items: center;
     height: 100vh;
     width: 100vw;
-    padding: 6vh;
+    padding: 2vh;
     background-color: #00000077;
     backdrop-filter: blur(4px);
 
@@ -331,5 +345,22 @@
 
     100% {
         transform: translate(0, 0px);
+    }
+}
+
+.fade-blink {
+    opacity: 1;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: .3;
+    }
+
+    50% {
+        opacity: 1;
     }
 }

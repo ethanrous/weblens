@@ -7,13 +7,79 @@ fi
 
 mkdir -p build/logs
 
+tail_pid=-1
+tail_file=""
+do_tail() {
+  tail_file="$1"
+  if [[ $show_logs == true ]]; then
+    printf "\n"
+    : >"$1"
+    tail -f "$1" &
+    tail_pid=$!
+  else
+    printf " "
+  fi
+}
+
+stop_tail() {
+  if [[ $tail_pid -ne -1 ]]; then
+    kill $tail_pid &>/dev/null
+    wait $tail_pid 2>/dev/null
+    tail_pid=-1
+    tail_file=""
+  fi
+}
+
+failed=false
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+show_fail() {
+  failed=true
+  printf "%bFAIL%b\n" "${RED}" "${NC}"
+  if [[ $show_logs != true ]]; then
+    cat "$tail_file"
+    printf "%bFAIL%b\n" "${RED}" "${NC}"
+  fi
+  stop_tail
+}
+show_pass() {
+  stop_tail
+  printf "%bPASS%b\n" "${GREEN}" "${NC}"
+}
+
+trap 'kill $tail_pid &>/dev/null' EXIT
+
+usage="
+Usage: $0 [OPTIONS]
+
+This script consolidates and handles various Weblens tests. 
+
+Options:
+  --backend               Enable basic backend tests
+  --remote-tests          Enable remote (integration) tests for the backend (automatically enables --backend)
+  --ui                    Enable UI tests
+  -a, --all               Run both backend (includes remote) and UI tests (same as specifying --remote-tests and --ui)
+  -l, --show-logs         Display logs during the test run (logs are also saved to ./build/logs and are printed on test failure reglardless of this flag)
+"
+
+backend_tests=false
 remote_tests=false
 show_logs=false
 ui_tests=false
 
 while [ "${1:-}" != "" ]; do
   case "$1" in
-  "-r" | "--remote-tests")
+  "-a" | "--all")
+    backend_tests=true
+    remote_tests=true
+    ui_tests=true
+    ;;
+  "--backend")
+    backend_tests=true
+    ;;
+  "--remote-tests")
+    backend_tests=true
     remote_tests=true
     ;;
   "-l" | "--show-logs")
@@ -22,11 +88,31 @@ while [ "${1:-}" != "" ]; do
   "--ui")
     ui_tests=true
     ;;
+  "-h" | "--help")
+    echo "$usage"
+    exit 0
+    ;;
+  *)
+    "Unknown argument: $1"
+    echo "$usage"
+    exit 1
+    ;;
   esac
   shift
 done
 
-if [[ ! -e ./ui/dist/index.html ]]; then
+if [[ $REMOTE_TESTS == true ]]; then
+  remote_tests=true
+  backend_tests=true
+fi
+
+if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
+  echo "No tests selected..."
+  echo "$usage"
+  exit 1
+fi
+
+if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
   cd ui || exit
   export VITE_APP_BUILD_TAG=test
   export VITE_BUILD=true
@@ -35,32 +121,29 @@ if [[ ! -e ./ui/dist/index.html ]]; then
   cd .. || exit
 fi
 
-failed=false
-
 if [[ $ui_tests == true ]]; then
-  printf "Running UI tests ..."
+  printf "Running UI linter ..."
   cd ui || exit
+  do_tail ../build/logs/ui-lint.log
   if ! npx eslint . &>../build/logs/ui-lint.log; then
-    echo " FAIL"
-    failed=true
-    if [[ $show_logs == true ]]; then
-      cat ../build/logs/ui-lint.log
-    else
-      echo "View eslint logs at \`build/logs/ui-lint.log\` or rerun with --show-log"
-    fi
+    show_fail
   else
-    echo " PASS"
+    show_pass
   fi
   cd .. || exit
 fi
 
-if [[ $remote_tests == true ]] || [[ $REMOTE_TESTS == true ]]; then
+if [[ $remote_tests == true ]]; then
   export REMOTE_TESTS=true
-  echo "Setting up remote tests ..."
-  if ! source ./scripts/setupRemoteTests; then
-    echo "ERR Failed to setup remote tests, not running tests"
+  printf "Setting up remote tests ..."
+  do_tail ./build/logs/remote-setup.log
+  if ! source ./scripts/setupRemoteTests &>./build/logs/remote-setup.log; then
+    show_fail
+    printf "%bERR Failed to setup remote target, not running tests%b\n" "${RED}" "${NC}"
     exit 1
   fi
+  stop_tail
+  echo "Done"
 fi
 
 target=$1
@@ -68,20 +151,24 @@ if [[ -z "$target" ]]; then
   target="./..."
 fi
 
-printf "Running backend tests ..."
-if ! (
-  set -o pipefail
-  APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v "$target" &>./build/logs/backend-test.log
-); then
-  echo " FAIL"
-  failed=true
-  if [[ $show_logs == true ]]; then
-    grep -v -e CONT -e PAUSE <./build/logs/backend-test.log | grep --color=always -e "^" -e "FAIL" | GREP_COLOR="1;32" grep --color=always -e "^" -e "PASS"
+if [[ $backend_tests == true ]]; then
+  printf "Running backend tests ..."
+  do_tail ./build/logs/backend-test.log
+  if ! (
+    set -o pipefail
+    APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v "$target" &>./build/logs/backend-test.log
+  ); then
+    show_fail
   else
-    echo "View go test logs at \`build/logs/backend-test.log\` or rerun with --show-log"
+    show_pass
   fi
-else
-  echo " PASS"
+fi
+
+weblens_pid=$(cat ./build/logs/weblens.pid 2>/dev/null)
+
+if [[ $remote_tests == true ]] && [[ -n $weblens_pid ]]; then
+  echo "Killing test weblens instance (PID: $weblens_pid)"
+  kill "$weblens_pid"
 fi
 
 if [[ $failed == true ]]; then

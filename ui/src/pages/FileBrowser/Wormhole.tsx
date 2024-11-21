@@ -1,4 +1,4 @@
-import './style/fileBrowserStyle.scss'
+// import fbStyle from './style/fileBrowserStyle.module.scss'
 
 // const UploadPlaque = ({ wormholeId }: { wormholeId: string }) => {
 //     return (

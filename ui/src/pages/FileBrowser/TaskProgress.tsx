@@ -1,9 +1,10 @@
 import { IconX } from '@tabler/icons-react'
 import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
-
 import WeblensProgress from '@weblens/lib/WeblensProgress'
+import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
 import { useMemo, useState } from 'react'
+
 import {
     TaskProgress,
     TaskStage,
@@ -12,24 +13,39 @@ import {
 } from './TaskStateControl'
 
 export const TasksDisplay = () => {
-    const tasks = useTaskState((state) => state.tasks)
+    const tasksMap = useTaskState((state) => state.tasks)
     const clearTasks = useTaskState((state) => state.clearTasks)
 
     const cards = useMemo(() => {
-        return Array.from(tasks.values()).map((sp) => {
+        const sortedTasks = Array.from(tasksMap.values()).sort((a, b) => {
+            if (
+                a.stage === TaskStage.InProgress &&
+                b.stage !== TaskStage.InProgress
+            ) {
+                return -1
+            } else if (
+                a.stage !== TaskStage.InProgress &&
+                b.stage === TaskStage.InProgress
+            ) {
+                return 1
+            }
+
+            return a.taskId.localeCompare(b.taskId)
+        })
+        return sortedTasks.map((sp) => {
             if (sp.taskType === TaskType.Backup) {
                 return null
             }
             return <TaskProgCard key={sp.taskId} prog={sp} />
         })
-    }, [tasks])
+    }, [tasksMap])
 
-    if (tasks.size === 0) {
+    if (tasksMap.size === 0) {
         return null
     }
 
     return (
-        <div className="flex flex-col relative h-max w-full pt-4">
+        <div className="flex flex-col relative grow h-1 w-full pt-4">
             <WeblensButton
                 label={'Clear Tasks'}
                 subtle
@@ -40,7 +56,7 @@ export const TasksDisplay = () => {
                     clearTasks()
                 }}
             />
-            <div className="flex shrink w-full overflow-y-scroll h-full pb-4 pt-2 no-scrollbar">
+            <div className="flex shrink w-full h-max max-h-full overflow-y-scroll pb-4 pt-2 no-scrollbar">
                 <div className="flex flex-col h-max w-full gap-2">{cards}</div>
             </div>
         </div>
@@ -62,7 +78,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
 
     return (
         <div
-            className="task-progress-box animate-fade"
+            className={fbStyle['task-progress-box'] + ' animate-fade'}
             data-hidden={prog.hidden}
         >
             <div className="flex flex-row w-full max-w-full h-max items-center">

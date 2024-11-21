@@ -1,14 +1,15 @@
-import './startup.scss'
-import 'components/theme.scss'
 import {
     HandleWebsocketMessage,
+    useWeblensSocket,
     useWebsocketStore,
 } from '@weblens/api/Websocket'
+import Logo from '@weblens/components/Logo'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { useEffect, useState } from 'react'
-import { StartupTask, startupWebsocketHandler } from './StartupLogic'
-import Logo from '@weblens/components/Logo'
+
 import { WebsocketStatus } from '../FileBrowser/FileBrowserMiscComponents'
+import { StartupTask, startupWebsocketHandler } from './StartupLogic'
+import './startup.scss'
 
 export default function StartUp() {
     const [setupProgress, setSetupProgress] = useState(0)
@@ -16,6 +17,8 @@ export default function StartUp() {
     const [lastTask, setLastTask] = useState<string>('')
     const lastMessage = useWebsocketStore((state) => state.lastMessage)
     const readyState = useWebsocketStore((state) => state.readyState)
+
+    useWeblensSocket()
 
     useEffect(() => {
         HandleWebsocketMessage(

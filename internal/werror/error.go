@@ -27,20 +27,27 @@ type clientSafeErr struct {
 	realError  error
 	safeErr    error
 	statusCode int
+	arg        any
 }
 
-func (cse *clientSafeErr) Error() string {
+func (cse clientSafeErr) Error() string {
 	if cse.realError == nil {
 		return cse.Safe().Error()
 	}
 	return cse.realError.Error()
 }
 
-func (cse *clientSafeErr) Safe() error {
+func (cse clientSafeErr) Safe() error {
 	if cse.safeErr == nil {
 		return errors.New("Unknown Server Error")
 	}
 	return cse.safeErr
+}
+
+func (cse clientSafeErr) WithArg(arg any) clientSafeErr {
+	newCse := cse
+	newCse.realError = Errorf(cse.realError.Error(), arg)
+	return newCse
 }
 
 // SafeErr unpackages an error, if possible, to find the error inside that is safe to send to the client.
@@ -54,10 +61,14 @@ func TrySafeErr(err error) (error, int) {
 		return nil, 200
 	}
 
-	var safeErr = &clientSafeErr{}
+	var safeErr = clientSafeErr{}
 	if errors.As(err, &safeErr) {
 		if safeErr.statusCode >= 400 {
-			log.ShowErr(err)
+			if log.GetLogLevel() == log.TRACE {
+				log.ErrTrace(err)
+			} else {
+				log.ShowErr(err)
+			}
 		}
 		return safeErr.Safe(), safeErr.statusCode
 	}

@@ -13,10 +13,11 @@ import {
     mouseMove,
     visitFile,
 } from '@weblens/types/files/FileDragLogic'
+import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { useResize } from 'components/hooks'
-import { CSSProperties, MouseEvent, useState } from 'react'
+import { CSSProperties, MouseEvent, useRef, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
-import '@weblens/types/files/filesStyle.scss'
+
 import { Coordinates } from '../Types'
 
 function FileRow({
@@ -29,23 +30,26 @@ function FileRow({
     style: CSSProperties
 }) {
     const file = data[index]
+    const fileRef = useRef<HTMLDivElement>()
 
     const [mouseDown, setMouseDown] = useState<Coordinates>(null)
 
-    const {
-        draggingState,
-        viewOpts,
-        folderInfo,
-        selected,
-        setMoveDest,
-        setHovering,
-        setSelected,
-        setDragging,
-        setPresentationTarget,
-        setMenu,
-        clearSelected,
-        setSelectedMoved,
-    } = useFileBrowserStore()
+    const draggingState = useFileBrowserStore((state) => state.draggingState)
+    const viewOpts = useFileBrowserStore((state) => state.viewOpts)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const selected = useFileBrowserStore((state) => state.selected)
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const setHovering = useFileBrowserStore((state) => state.setHovering)
+    const setSelected = useFileBrowserStore((state) => state.setSelected)
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
+    const setPresentationTarget = useFileBrowserStore(
+        (state) => state.setPresentationTarget
+    )
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
+    const setSelectedMoved = useFileBrowserStore(
+        (state) => state.setSelectedMoved
+    )
 
     const selState = useFileBrowserStore((state) =>
         state.filesMap.get(file.Id()).GetSelectedState()
@@ -54,7 +58,8 @@ function FileRow({
     return (
         <div style={{ ...style, padding: 4 }}>
             <div
-                className="weblens-file animate-fade-short"
+                ref={fileRef}
+                className={filesStyle['weblens-file'] + ' animate-fade-short'}
                 data-row={true}
                 data-clickable={!draggingState || file.IsFolder()}
                 data-hovering={selState & SelectedState.Hovering}
@@ -71,7 +76,8 @@ function FileRow({
                         file,
                         draggingState,
                         setHovering,
-                        setMoveDest
+                        setMoveDest,
+                        setDragging
                     )
                 }
                 onMouseDown={(e) => {
@@ -113,10 +119,12 @@ function FileRow({
                         viewOpts.dirViewMode
                     )
                 }}
-                onMouseLeave={() =>
+                onMouseLeave={(e) =>
                     handleMouseLeave(
+                        e,
                         file,
                         draggingState,
+                        fileRef.current,
                         setMoveDest,
                         setHovering,
                         mouseDown,
@@ -124,23 +132,27 @@ function FileRow({
                     )
                 }
             >
-                <div className="flex h-full w-full items-center">
+                <div className={filesStyle['file-row-box']}>
                     <div className="flex shrink-0 h-full aspect-square rounded overflow-hidden m-1 justify-center items-center">
                         <IconDisplay file={file} allowMedia={true} />
                     </div>
-                    <div className="flex flex-col h-full">
-                        <div className="file-text-container">
-                            <h1 className="file-text">{file.GetFilename()}</h1>
+                    <div className="flex flex-col h-full grow">
+                        <div className={filesStyle['file-text-container']}>
+                            <h1 className={filesStyle['file-text']}>
+                                {file.GetFilename()}
+                            </h1>
                         </div>
                         <p className="selectable-text w-max text-xs pl-1">
                             {historyDate(file.GetModified().getTime())}
                         </p>
                     </div>
                     <div
-                        className="file-size-box"
+                        className={filesStyle['file-size-box']}
                         data-moved={(selState & SelectedState.Moved) >> 5}
                     >
-                        <p className="file-size-text">{file.FormatSize()}</p>
+                        <p className={filesStyle['file-size-text']}>
+                            {file.FormatSize()}
+                        </p>
                     </div>
                 </div>
                 <div className="flex flex-col h-full"></div>
@@ -153,22 +165,21 @@ export function FileRows({ files }: { files: WeblensFile[] }) {
     const [boxRef, setBoxRef] = useState<HTMLDivElement>()
     const size = useResize(boxRef)
 
-    if (files.length === 0) {
-        return <GetStartedCard />
-    }
-
     return (
-        <div ref={setBoxRef} className="file-rows no-scrollbar">
-            <WindowList
-                height={size.height}
-                width={size.width - 4}
-                itemSize={70}
-                itemCount={files.length}
-                itemData={files}
-                overscanCount={25}
-            >
-                {FileRow}
-            </WindowList>
+        <div ref={setBoxRef} className={filesStyle['file-rows']}>
+            {files.length === 0 && <GetStartedCard />}
+            {files.length !== 0 && (
+                <WindowList
+                    height={size.height}
+                    width={size.width - 4}
+                    itemSize={70}
+                    itemCount={files.length}
+                    itemData={files}
+                    overscanCount={10}
+                >
+                    {FileRow}
+                </WindowList>
+            )}
         </div>
     )
 }

@@ -1,0 +1,27 @@
+.login-form {
+  margin: 0 auto;
+  margin-top: 2vh;
+  width: 350px;
+  padding: 6px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+
+  h1 {
+    font-size: 2rem;
+  }
+}
+
+.login-box {
+  background-color: var(--wl-barely-visible);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  outline: 1px solid var(--wl-theme-color);
+  padding: 1rem;
+  border-radius: 6px;
+  gap: 0.5rem;
+  // bg-wl-barely-visible flex flex-col shrink justify-center items-center wl-outline p-6 w-[350px] mt-[8vh]
+}
+
+// h-screen max-h-screen items-center bg-wl-background gap-2 my-0 m-[0 auto]

@@ -209,6 +209,8 @@ func (f *WeblensFileImpl) IsDir() bool {
 }
 
 func (f *WeblensFileImpl) ModTime() (t time.Time) {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
 	if f.modifyDate.Unix() <= 0 {
 		_, err := f.LoadStat()
 		if err != nil {
@@ -420,7 +422,7 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 		return nil, werror.WithStack(werror.NewErrNoFileName(childName))
 	}
 
-	child := f.childrenMap[childName]
+	child := f.childrenMap[strings.ToLower(childName)]
 	if child == nil {
 		return nil, werror.WithStack(werror.NewErrNoFileName(childName))
 	}
@@ -449,7 +451,7 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 	if f.childrenMap == nil {
 		f.childrenMap = make(map[string]*WeblensFileImpl)
 	}
-	f.childrenMap[child.Filename()] = child
+	f.childrenMap[strings.ToLower(child.Filename())] = child
 
 	return nil
 }
@@ -739,11 +741,11 @@ func (f *WeblensFileImpl) removeChild(child *WeblensFileImpl) error {
 	f.childLock.Lock()
 	defer f.childLock.Unlock()
 
-	if _, ok := f.childrenMap[child.Filename()]; !ok {
+	if _, ok := f.childrenMap[strings.ToLower(child.Filename())]; !ok {
 		return werror.WithStack(werror.ErrNoFile)
 	}
 
-	delete(f.childrenMap, child.Filename())
+	delete(f.childrenMap, strings.ToLower(child.Filename()))
 
 	f.modifiedNow()
 

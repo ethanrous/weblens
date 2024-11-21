@@ -73,7 +73,7 @@ echo "Using tag: $docker_tag-$arch"
 
 if [ ! $skip == true ]; then
   printf "Running tests..."
-  if ! ./scripts/testWeblens --ui --show-logs &>./build/logs/container-build-pretest.log; then
+  if ! ./scripts/testWeblens --ui --backend --show-logs &>./build/logs/container-build-pretest.log; then
     printf " FAILED\n"
     echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
     echo "See ./build/logs/container-build-pretest.log for test output"

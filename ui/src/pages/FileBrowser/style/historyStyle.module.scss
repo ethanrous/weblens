@@ -1,4 +1,4 @@
-@import "../../../components/theme";
+@import "../../../components/theme.module";
 
 .file-history-menu {
     position: absolute;
@@ -115,8 +115,10 @@
     height: 32px;
     max-height: 32px;
     padding: 4px;
-    width: max-content;
+    width: 100%;
+    min-width: 0;
     max-width: 100%;
+
 
     flex-direction: row;
     justify-content: space-between;
@@ -167,4 +169,29 @@
     :hover>& {
         background-color: $item-grey;
     }
+}
+
+.path-text {
+    color: var(--wl-text-color);
+    align-items: center;
+    user-select: none;
+    font-weight: 600;
+    font-size: 16px;
+    text-wrap: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-action-text {
+    color: var(--wl-text-color);
+    align-items: center;
+    user-select: none;
+    font-weight: 500;
+    font-size: 12px;
+    text-wrap: nowrap;
+    height: 100%;
+    // overflow: hidden;
+    // text-overflow: ellipsis;
+    white-space: nowrap;
 }

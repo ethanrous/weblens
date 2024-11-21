@@ -1,26 +1,26 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import WeblensMedia from '@weblens/types/media/Media'
-import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { useEffect, useState } from 'react'
-import useWebSocket from 'react-use-websocket'
-import { create, StateCreator } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
-import { API_WS_ENDPOINT } from './ApiEndpoint'
-import {
-    downloadSingleFile,
-    SubToFolder,
-    UnsubFromFolder,
-} from './FileBrowserApi'
+import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import {
     TaskStageT,
     TaskType,
     useTaskState,
 } from '@weblens/pages/FileBrowser/TaskStateControl'
-import { FileInfo, MediaInfo } from './swag'
 import { StartupTask } from '@weblens/pages/Startup/StartupLogic'
-import User from '@weblens/types/user/User'
 import { ErrorHandler } from '@weblens/types/Types'
+import WeblensMedia from '@weblens/types/media/Media'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { useEffect, useState } from 'react'
+import useWebSocket from 'react-use-websocket'
+import { StateCreator, create } from 'zustand'
+
+import { API_WS_ENDPOINT } from './ApiEndpoint'
+import {
+    SubToFolder,
+    UnsubFromFolder,
+    downloadSingleFile,
+} from './FileBrowserApi'
+import { FileInfo, MediaInfo } from './swag'
 
 export function useWeblensSocket() {
     const user = useSessionStore((state) => state.user)
@@ -71,60 +71,90 @@ export function useWeblensSocket() {
 
 export type WsSendT = (action: string, content: object) => void
 
-export const useSubscribe = (cId: string, sId: string, usr: User) => {
+export const useSubscribe = () => {
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const viewMode = useFileBrowserStore((state) => state.viewOpts.dirViewMode)
+    const shareId = useFileBrowserStore((state) => state.shareId)
     const { lastJsonMessage } = useWeblensSocket()
     const readyState = useWebsocketStore((state) => state.readyState)
     const wsSend = useWebsocketStore((state) => state.wsSend)
-
-    const fbDispatch: FBSubscribeDispatchT = useFileBrowserStore(
-        useShallow((state) => ({
-            addFile: state.addToFilesMap,
-            updateFile: (f) => state.updateFile(f, usr),
-            deleteFile: state.deleteFile,
-        }))
-    )
+    const user = useSessionStore((state) => state.user)
 
     useEffect(() => {
-        if (useFileBrowserStore.getState().pastTime) {
+        if (!folderInfo) {
             return
+        }
+        const folders: string[] = []
+        if (user) {
+            folders.push(user.homeId)
+            folders.push(user.trashId)
         }
         if (
-            readyState === 1 &&
-            cId !== null &&
-            cId !== 'shared' &&
-            usr !== null
+            folderInfo.Id() !== user?.homeId &&
+            folderInfo.Id() !== user?.trashId
         ) {
-            if (cId === usr.homeId) {
-                SubToFolder(usr.trashId, sId, wsSend)
-                return () => UnsubFromFolder(usr.trashId, wsSend)
+            folders.push(folderInfo.Id())
+        }
+
+        if (viewMode === DirViewModeT.Columns) {
+            for (const parent of folderInfo.parents) {
+                if (!folders.includes(parent.Id())) {
+                    folders.push(parent.Id())
+                }
             }
-            SubToFolder(cId, sId, wsSend)
-            return () => UnsubFromFolder(cId, wsSend)
-        }
-    }, [readyState, sId, cId, usr, wsSend])
-
-    // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
-    useEffect(() => {
-        if (useFileBrowserStore.getState().pastTime) {
-            return
-        }
-        if (usr === null || readyState !== 1) {
-            return
         }
 
-        SubToFolder(usr.homeId, sId, wsSend)
-        return () => UnsubFromFolder(usr.homeId, wsSend)
-    }, [usr, sId, readyState])
+        for (const folder of folders) {
+            SubToFolder(folder, shareId, wsSend)
+        }
 
+        return () => {
+            for (const folder of folders) {
+                UnsubFromFolder(folder, wsSend)
+            }
+        }
+    }, [folderInfo, shareId, viewMode])
+
+    // useEffect(() => {
+    //     if (useFileBrowserStore.getState().pastTime) {
+    //         return
+    //     }
+    //     if (
+    //         readyState === 1 &&
+    //         cId !== null &&
+    //         cId !== 'shared' &&
+    //         usr !== null
+    //     ) {
+    //         if (cId === usr.homeId) {
+    //             SubToFolder(usr.trashId, sId, wsSend)
+    //             return () => UnsubFromFolder(usr.trashId, wsSend)
+    //         }
+    //         SubToFolder(cId, sId, wsSend)
+    //         return () => UnsubFromFolder(cId, wsSend)
+    //     }
+    // }, [readyState, sId, cId, usr, wsSend])
+    //
+    // // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
+    // useEffect(() => {
+    //     if (useFileBrowserStore.getState().pastTime) {
+    //         return
+    //     }
+    //     if (usr === null || readyState !== 1) {
+    //         return
+    //     }
+    //
+    //     SubToFolder(usr.homeId, sId, wsSend)
+    //     return () => UnsubFromFolder(usr.homeId, wsSend)
+    // }, [usr, sId, readyState])
+    //
     // Listen for incoming websocket messages
     useEffect(() => {
         HandleWebsocketMessage(
             lastJsonMessage,
-            filebrowserWebsocketHandler(sId, fbDispatch)
+            filebrowserWebsocketHandler(shareId, useFileBrowserStore.getState())
         )
-    }, [lastJsonMessage, usr])
-
-    return { wsSend, readyState }
+    }, [lastJsonMessage, user])
+    return { readyState }
 }
 
 export interface wsMsgInfo {
@@ -141,10 +171,12 @@ export interface wsMsgInfo {
 interface wsMsgContent {
     newFile?: FileInfo
     fileInfo?: FileInfo
+    filesInfo?: FileInfo[]
 
     note?: string
     oldId?: string
     fileId?: string
+    fileIds?: string[]
     task_id?: string
     filename?: string
     waitingOn?: StartupTask[]
@@ -173,6 +205,7 @@ interface wsMsgContent {
     execution_time?: number
     percent_progress?: number
     mediaData?: MediaInfo
+    mediaDatas?: MediaInfo[]
     runtime?: number
     takeoutId?: string
 }
@@ -182,6 +215,7 @@ export function HandleWebsocketMessage(
     handler: (msgData: wsMsgInfo) => void
 ) {
     if (lastMessage) {
+        console.debug('WsRecv', lastMessage)
         try {
             handler(lastMessage)
         } catch (e) {
@@ -211,8 +245,11 @@ export enum WsMsgEvent {
     ScanDirectoryProgressEvent = 'scan_directory_progress',
     FileCreatedEvent = 'file_created',
     FileUpdatedEvent = 'file_updated',
+    FilesUpdatedEvent = 'files_updated',
     FileMovedEvent = 'file_moved',
+    FilesMovedEvent = 'files_moved',
     FileDeletedEvent = 'file_deleted',
+    FilesDeletedEvent = 'files_deleted',
     ZipProgressEvent = 'create_zip_progress',
     ZipCompleteEvent = 'zip_complete',
     ServerGoingDownEvent = 'going_down',
@@ -252,10 +289,35 @@ function filebrowserWebsocketHandler(
 
                 useFileBrowserStore
                     .getState()
-                    .updateFile(
-                        msgData.content.fileInfo,
-                        useSessionStore.getState().user
-                    )
+                    .updateFile(msgData.content.fileInfo)
+                break
+            }
+
+            case WsMsgEvent.FilesMovedEvent:
+            case WsMsgEvent.FilesUpdatedEvent: {
+                if (msgData.content.mediaDatas) {
+                    const newMs: WeblensMedia[] = []
+                    for (const mediaData of msgData.content.mediaDatas) {
+                        newMs.push(new WeblensMedia(mediaData))
+                    }
+                    useMediaStore.getState().addMedias(newMs)
+                }
+
+                if (!msgData.content?.filesInfo) {
+                    console.error('FilesMovedEvent missing filesInfo')
+                    break
+                }
+                const state = useFileBrowserStore.getState()
+                const homeId = useSessionStore.getState().user.homeId
+                if (
+                    state.folderInfo.Id() != homeId &&
+                    msgData.subscribeKey === homeId
+                ) {
+                    break
+                }
+                new Promise(() => {
+                    state.updateFiles(msgData.content.filesInfo)
+                }).catch(ErrorHandler)
                 break
             }
 
@@ -266,6 +328,21 @@ function filebrowserWebsocketHandler(
                 }
 
                 dispatch.deleteFile(msgData.content.fileId)
+                break
+            }
+
+            case WsMsgEvent.FilesDeletedEvent: {
+                if (msgData.content.fileIds === undefined) {
+                    console.error(
+                        WsMsgEvent.FilesDeletedEvent + ' missing fileIds'
+                    )
+                    break
+                }
+
+                useFileBrowserStore
+                    .getState()
+                    .deleteFiles(msgData.content.fileIds)
+
                 break
             }
 

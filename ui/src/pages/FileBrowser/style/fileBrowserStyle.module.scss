@@ -1,14 +1,32 @@
-@import "../../../components/theme";
+@import "../../../components/theme.module";
 
 .sidebar-container {
     display: flex;
     height: 100%;
+    max-height: 100%;
     width: 100%;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
     padding: 10px 20px 5px 20px;
+    background-color: var(--wl-background);
+    z-index: 1;
+
+    &[data-mini='true'] {
+        padding: 10px 0px 5px 5px;
+    }
+}
+
+.sidebar-upper-half {
+    display: flex;
+    height: max-content;
+    max-height: 100%;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
 }
 
 .dropbox {
@@ -29,11 +47,12 @@
     position: absolute;
     justify-content: center;
     align-items: center;
-    width: 99%;
+    width: 100%;
     height: 100%;
     display: flex;
     z-index: 100;
     padding: 4px;
+    pointer-events: none;
 }
 
 .wormhole-wrapper {
@@ -155,150 +174,6 @@
     color: #cccccc;
 }
 
-.xBox {
-    border-radius: 2px;
-    padding: 2px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    height: 32px;
-    width: 32px;
-}
-
-.xBox:hover {
-    background-color: #00000055;
-}
-
-.search-box {
-    position: relative;
-    border-radius: 6px;
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    background-color: #222222;
-    box-shadow: 0 0 10px 2px #00000044;
-}
-
-.search-icon {
-    cursor: pointer;
-    z-index: 1;
-    padding: 8px;
-    height: 42px;
-    width: 42px;
-}
-
-.search-input {
-    height: 42px;
-    width: 42px;
-    border: none;
-    outline: none;
-    color: white;
-    border-radius: 8px;
-    background-color: #00000000;
-    transition: 200ms width ease-in-out, 100ms border-radius ease-in 60ms;
-}
-
-.search-input-open {
-    width: 240px;
-    border-radius: 4px;
-    padding: 6px;
-
-    transition: 200ms width ease-in-out, 100ms border-radius ease-in;
-}
-
-.search-input-closed {
-    width: 0;
-    padding: 0;
-}
-
-.search-hint-box {
-    z-index: 1;
-    /* width: 280px; */
-    width: max-content;
-    padding: 4px;
-    color: white;
-    display: flex;
-    margin-top: 10px;
-    border-radius: 4px;
-    position: absolute;
-    height: max-content;
-    flex-direction: column;
-    background-color: #222222;
-    outline: 1px solid #333333;
-}
-
-.search-hint-box:where([data-error="true"]) {
-    outline: 1px solid #880000;
-
-    background-color: #440000;
-}
-
-.file-sort-box {
-    display: flex;
-    flex-shrink: 0;
-    flex-grow: 1;
-    flex-direction: row;
-    align-items: center;
-    border-radius: 4px;
-    background-color: var(--wl-barely-visible);
-
-    box-shadow: $soft-shadow;
-    margin-right: 10px;
-    width: max-content;
-    max-width: max-content;
-    height: 50px;
-    color: white;
-    //overflow: hidden;
-    padding: 2px;
-}
-
-.sort-direction-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    width: 42px;
-    flex-shrink: 0;
-}
-
-.sort-func-selector {
-    position: relative;
-    width: max-content;
-    display: flex;
-
-    /* justify-content: space-between; */
-}
-
-.file-sort-dropdown {
-    color: white;
-    width: 175px !important;
-    margin-left: -18px;
-    background-color: #222222 !important;
-    box-shadow: 0 0 10px 2px #00000044;
-    border: none;
-}
-
-.file-sort-option {
-    user-select: none;
-}
-
-.file-sort-option:hover:not([data-combobox-active="true"]) {
-    background-color: #333333;
-}
-
-.file-sort-option:where([data-combobox-active="true"]) {
-    background-color: #4444ff !important;
-}
-
-.icon-display-wrapper {
-    display: flex;
-    width: 150px;
-    flex-grow: 1;
-    align-items: center;
-    justify-content: center;
-}
-
 .task-progress-box {
     margin-top: 25px;
     height: max-content;
@@ -336,6 +211,14 @@
     }
 }
 
+@media screen and (max-width: 600px) {
+    .file-info-pane {
+        display: none;
+        width: 0;
+        opacity: 0;
+    }
+}
+
 .file-info-content {
     display: flex;
     padding: 8px;
@@ -349,6 +232,7 @@
     justify-content: center;
     width: 8px;
     z-index: 1;
+    background-color: var(--wl-background);
     padding-left: 6px;
     padding-right: 6px;
     height: 100%;
@@ -423,7 +307,6 @@
 }
 
 .leaf-text-back {
-
     filter: drop-shadow(3px 3px 2px #000000bb);
     transition: fill 190ms ease-in-out;
 }

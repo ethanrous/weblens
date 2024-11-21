@@ -26,6 +26,7 @@ func ScanDirectory(t *task.Task) {
 		return
 	}
 
+	// TODO:
 	// Claim task lock on this file before reading. This
 	// prevents lost scans on child files if we were, say,
 	// uploading into this directory as a scan comes through.
@@ -52,21 +53,35 @@ func ScanDirectory(t *task.Task) {
 
 	log.Debug.Printf("Beginning directory scan for %s (%s)\n", meta.File.GetPortablePath(), meta.File.ID())
 
+	var alreadyFiles []*fileTree.WeblensFileImpl
+	var alreadyMedia []*models.Media
+	start := time.Now()
 	err = meta.File.LeafMap(
 		func(wf *fileTree.WeblensFileImpl) error {
 			if wf.IsDir() {
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not regular file", wf.AbsPath()) })
 				return nil
 				// TODO: Lock directory files while scanning to be able to check what task is using each file
 				// wf.AddTask(t)
 			}
 
 			if !meta.MediaService.IsFileDisplayable(wf) {
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not displayable", wf.AbsPath()) })
+
 				return nil
 			}
 
 			m := meta.MediaService.Get(wf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
-				// meta.Caster.PushFileUpdate(wf, m)
+				if !slices.ContainsFunc(m.FileIds, func(fId fileTree.FileId) bool { return fId == wf.ID() }) {
+					err := meta.MediaService.AddFileToMedia(m, wf)
+					if err != nil {
+						return err
+					}
+					alreadyFiles = append(alreadyFiles, wf)
+					alreadyMedia = append(alreadyMedia, m)
+				}
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, already imported", wf.AbsPath()) })
 				return nil
 			}
 
@@ -86,6 +101,12 @@ func ScanDirectory(t *task.Task) {
 			return nil
 		},
 	)
+
+	log.Debug.Func(func(l log.Logger) {
+		l.Printf("Directory scan found files for %s in %s\n", meta.File.GetPortablePath(), time.Since(start))
+	})
+
+	meta.Caster.PushFilesUpdate(alreadyFiles, alreadyMedia)
 
 	if err != nil {
 		t.ReqNoErr(err)

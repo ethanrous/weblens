@@ -1,17 +1,15 @@
 import { useDebouncedValue } from '@mantine/hooks'
 import { IconFilter } from '@tabler/icons-react'
-
+import { AlbumInfo } from '@weblens/api/swag'
 import HeaderBar from '@weblens/components/HeaderBar'
-import { useClick, useKeyDown } from '@weblens/components/hooks'
 import Presentation from '@weblens/components/Presentation'
-
-import './galleryStyle.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import { GalleryStateT, PresentType } from '@weblens/types/Types'
 import { MiniAlbumCover } from '@weblens/types/albums/AlbumDisplay'
 import { Albums } from '@weblens/types/albums/Albums'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { GalleryStateT, PresentType } from '@weblens/types/Types'
 import { clamp } from '@weblens/util'
 import React, {
     useCallback,
@@ -23,6 +21,7 @@ import React, {
     useState,
 } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+
 import {
     GalleryAction,
     GalleryContext,
@@ -30,7 +29,7 @@ import {
     useKeyDownGallery,
 } from './GalleryLogic'
 import { Timeline } from './Timeline'
-import { AlbumInfo } from '@weblens/api/swag'
+import './galleryStyle.scss'
 
 export function GalleryFilters() {
     const { galleryState, galleryDispatch } = useContext(GalleryContext)
@@ -71,14 +70,12 @@ export function GalleryFilters() {
     useClick((e) => {
         if (optionsOpen) {
             e.stopPropagation()
-            updateOptions(disabledAlbums, rawOn, hiddenOn)
             setOptionsOpen(false)
         }
     }, dropdownRef)
     useKeyDown('Escape', (e) => {
         if (optionsOpen) {
             e.stopPropagation()
-            updateOptions(disabledAlbums, rawOn, hiddenOn)
             setOptionsOpen(false)
         }
     })

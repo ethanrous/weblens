@@ -148,7 +148,34 @@ func getMediaBatch(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/types  [get]
 func getMediaTypes(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
-	writeJson(w, http.StatusOK, pack.MediaService.GetMediaTypes())
+	mimeMap, extMap := pack.MediaService.GetMediaTypes().GetMaps()
+	typeInfo := rest.MediaTypeInfo{
+		MimeMap: mimeMap,
+		ExtMap:  extMap,
+	}
+	writeJson(w, http.StatusOK, typeInfo)
+}
+
+// CleanupMedia godoc
+//
+//	@ID			CleanupMedia
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Summary	Make sure all media is correctly synced with the file system
+//	@Tags		Media
+//	@Produce	json
+//	@Success	200
+//	@Success	500
+//	@Router		/media/cleanup  [post]
+func cleanupMedia(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
+	err := pack.MediaService.Cleanup()
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetMediaInfo godoc
@@ -440,7 +467,8 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 	bs, err := pack.MediaService.FetchCacheImg(m, q, pageNum)
 
 	if errors.Is(err, werror.ErrNoCache) {
-		f, err := pack.FileService.GetFileSafe(m.GetFiles()[0], u, nil)
+		files := m.GetFiles()
+		f, err := pack.FileService.GetFileSafe(files[len(files)-1], u, nil)
 		if err == nil {
 			meta := models.ScanMeta{
 				File:         f.GetParent(),
@@ -459,8 +487,7 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 			w.WriteHeader(http.StatusNoContent)
 			return
 		} else {
-			log.ErrTrace(err)
-			writeJson(w, http.StatusInternalServerError, rest.WeblensErrorInfo{Error: "Failed to get media content"})
+			SafeErrorAndExit(err, w)
 			return
 		}
 	}

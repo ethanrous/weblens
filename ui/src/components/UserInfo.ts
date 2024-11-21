@@ -1,11 +1,11 @@
 import { ServersApi } from '@weblens/api/ServersApi'
-import { ServerInfo } from '@weblens/api/swag'
 import UsersApi from '@weblens/api/UserApi'
+import { ServerInfo } from '@weblens/api/swag'
 import User from '@weblens/types/user/User'
 import { AxiosError } from 'axios'
 import { useEffect } from 'react'
 import { NavigateFunction, useNavigate } from 'react-router-dom'
-import { create, StateCreator } from 'zustand'
+import { StateCreator, create } from 'zustand'
 
 const useR = () => {
     const nav = useNavigate()

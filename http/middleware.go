@@ -173,14 +173,14 @@ func WeblensAuth(next http.Handler) http.Handler {
 			if err != nil {
 				log.ShowErr(err)
 				if errors.Is(err, werror.ErrTokenExpired) {
-					cookie := fmt.Sprintf("%s=;Path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
+					cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
 					w.Header().Set("Set-Cookie", cookie)
 				}
 				SafeErrorAndExit(err, w)
 				return
 			}
 
-			log.Trace.Printf("User [%s] authenticated", usr.GetUsername())
+			log.Trace.Func(func(l log.Logger) { l.Printf("User [%s] authenticated", usr.GetUsername()) })
 
 			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			next.ServeHTTP(w, r)

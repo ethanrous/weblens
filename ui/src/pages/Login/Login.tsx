@@ -1,12 +1,15 @@
 import { Space } from '@mantine/core'
+import { IconBrandGithub } from '@tabler/icons-react'
 import UsersApi from '@weblens/api/UserApi'
-import { useKeyDown } from '@weblens/components/hooks'
 import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import User from '@weblens/types/user/User'
 import { useCallback, useState } from 'react'
+
+import loginStyle from './loginStyle.module.scss'
 
 const Login = () => {
     const [userInput, setUserInput] = useState('')
@@ -36,39 +39,53 @@ const Login = () => {
     }, [])
 
     return (
-        <div className="flex flex-col h-screen max-h-screen w-screen items-center bg-wl-background pt-[8vh]">
-            <WeblensLogo size={100} />
-            <div className="bg-wl-barely-visible flex flex-col justify-center items-center wl-outline p-6 w-[400px] max-w-[600px] max-h-[50vh] mt-[8vh]">
-                <h1 className="font-bold  m-[2vh]">Sign In</h1>
-                <p className="w-full font-semibold">Username</p>
-                <WeblensInput
-                    value={userInput}
-                    autoFocus
-                    valueCallback={setUserInput}
-                    squareSize={40}
-                />
-                <p className="w-full font-semibold">Password</p>
-                <WeblensInput
-                    value={passInput}
-                    valueCallback={setPassInput}
-                    squareSize={40}
-                    password
-                />
-                <Space h={'md'} />
-                <WeblensButton
-                    label="Sign in"
-                    fillWidth
-                    squareSize={50}
-                    disabled={userInput === '' || passInput === ''}
-                    centerContent
-                    onClick={async () => doLogin(userInput, passInput)}
-                    setButtonRef={setButtonRef}
-                />
+        <div className="h-screen max-h-screen items-center bg-wl-background gap-2 my-0 m-[0 auto]">
+            <div className="flex justify-center w-full text-center">
+                <WeblensLogo className="mt-10" size={100} />
             </div>
-            <div className="flex flex-row items-center m-8 p-4 wl-outline-subtle gap-2">
-                <h3>New Here?</h3>
-                <WeblensButton label="Sign up" />
+            <div className={loginStyle['login-form']}>
+                <div className="w-full text-center mb-4">
+                    <h1>Sign in to Weblens</h1>
+                </div>
+                <div className={loginStyle['login-box']}>
+                    <p className="w-full font-semibold">Username</p>
+                    <WeblensInput
+                        value={userInput}
+                        autoFocus
+                        valueCallback={setUserInput}
+                        squareSize={40}
+                    />
+                    <p className="w-full font-semibold">Password</p>
+                    <WeblensInput
+                        value={passInput}
+                        valueCallback={setPassInput}
+                        squareSize={40}
+                        password
+                    />
+                    <Space h={'md'} />
+                    <WeblensButton
+                        label="Sign in"
+                        fillWidth
+                        squareSize={50}
+                        disabled={userInput === '' || passInput === ''}
+                        centerContent
+                        onClick={async () => doLogin(userInput, passInput)}
+                        setButtonRef={setButtonRef}
+                    />
+                </div>
+                <div className="flex justify-center items-center p-4 wl-outline-subtle gap-2 mt-3">
+                    <h3>New Here?</h3>
+                    <a href="/signup">Request an Account</a>
+                </div>
             </div>
+            <a
+                href="https://github.com/ethanrous/weblens"
+                className="flex flex-row absolute bottom-0 right-0 m-4 bg-transparent"
+                target="_blank"
+            >
+                <IconBrandGithub />
+                GitHub
+            </a>
         </div>
     )
 }

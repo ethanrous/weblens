@@ -1,10 +1,10 @@
-import WeblensMedia from '@weblens/types/media/Media'
-
-import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { GalleryStateT, PresentType, TimeOffset } from '@weblens/types/Types'
-import { createContext, useCallback, useEffect } from 'react'
-import { GalleryDispatchT } from '../FileBrowser/FileBrowserTypes'
 import { AlbumInfo } from '@weblens/api/swag'
+import { GalleryStateT, PresentType, TimeOffset } from '@weblens/types/Types'
+import WeblensMedia from '@weblens/types/media/Media'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { createContext, useCallback, useEffect } from 'react'
+
+import { GalleryDispatchT } from '../FileBrowser/FileBrowserTypes'
 
 export type GalleryAction = {
     type: string

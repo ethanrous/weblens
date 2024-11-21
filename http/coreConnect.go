@@ -40,7 +40,6 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	q := coreUrl.Query()
 	q.Add("server", "true")
 	coreUrl.RawQuery = q.Encode()
-	
 
 	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
 
@@ -122,7 +121,7 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		return
 	}
 
-	log.Trace.Printf("Got wsmsg from R[%s]: %v", c.GetRemote().GetName(), msg)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from R[%s]: %v", c.GetRemote().GetName(), msg) })
 
 	switch msg.EventTag {
 	case "do_backup":
@@ -142,7 +141,7 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			return
 		}
 
-		log.Trace.Printf("Backup requested by %s", core.GetName())
+		log.Trace.Func(func(l log.Logger) { l.Printf("Backup requested by %s", core.GetName()) })
 		_, err = jobs.BackupOne(core, pack)
 		if err != nil {
 			c.Error(err)

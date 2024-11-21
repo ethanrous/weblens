@@ -1,15 +1,15 @@
+import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { WeblensFile } from '@weblens/types/files/File'
-import 'components/style.scss'
-import '@weblens/types/files/filesStyle.scss'
 import { FileSquare } from '@weblens/types/files/FileSquare'
+import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { useResize } from 'components/hooks'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { FixedSizeGrid as Grid } from 'react-window'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import {
-    DropSpot,
-    GetStartedCard,
-} from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+
+import { ErrorHandler } from '../Types'
+import { DraggingStateT } from './FBTypes'
 
 type GridDataProps = {
     files: WeblensFile[]
@@ -27,8 +27,6 @@ function SquareWrapper({
     columnIndex: number
     style: CSSProperties
 }) {
-    useFileBrowserStore((state) => state.folderInfo)
-
     if (!data || rowIndex === undefined) {
         return null
     }
@@ -41,6 +39,22 @@ function SquareWrapper({
     if (!file) {
         console.error('Cant find grid file at', rowIndex, columnIndex)
         return null
+    }
+    if (
+        file.GetSelectedState() !==
+        useFileBrowserStore
+            .getState()
+            .filesMap.get(file.Id())
+            ?.GetSelectedState()
+    ) {
+        console.error(
+            'Selected state mismatch',
+            file.GetSelectedState(),
+            useFileBrowserStore
+                .getState()
+                .filesMap.get(file.Id())
+                ?.GetSelectedState()
+        )
     }
 
     return (
@@ -63,7 +77,10 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     }>()
     const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout>()
     const size = useResize(containerRef)
-
+    const shareId = useFileBrowserStore((state) => state.shareId)
+    const moveDest = useFileBrowserStore((state) => state.moveDest)
+    const dragState = useFileBrowserStore((state) => state.draggingState)
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
     const numCols = Math.max(Math.floor(size.width / 250), 2)
 
     const squareSize = (size.width / numCols) * 1.15
@@ -86,6 +103,9 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             }
             setTimeoutId(
                 setTimeout(() => {
+                    if (!gridRef.current) {
+                        return
+                    }
                     gridRef.current.scrollToItem({
                         align: 'smart',
                         rowIndex: Math.floor(
@@ -98,18 +118,32 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     }, [size.width])
 
     return (
-        <div ref={setContainerRef} className="h-full w-full relative outline-0">
+        <div
+            ref={setContainerRef}
+            className={filesStyle['files-grid']}
+            data-droppable={Boolean(
+                moveDest === folderInfo?.Id() &&
+                    dragState === DraggingStateT.ExternalDrag
+            )}
+            onDragOver={(e) => {
+                // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
+                e.preventDefault()
+            }}
+            onDrop={(e) => {
+                e.preventDefault()
+                HandleDrop(
+                    e.dataTransfer.items,
+                    folderInfo.Id(),
+                    [],
+                    false,
+                    shareId
+                ).catch(ErrorHandler)
+
+                setDragging(DraggingStateT.NoDrag)
+            }}
+        >
             {size.width !== -1 && (
-                <div className="flex relative w-full h-full justify-center items-center">
-                    <div
-                        className="flex absolute h-full justify-center items-center"
-                        style={{
-                            width: size.width - 12,
-                            height: size.height - 4,
-                        }}
-                    >
-                        <DropSpot parent={folderInfo} />
-                    </div>
+                <div className="flex relative w-full h-full items-center">
                     {files.length === 0 && <GetStartedCard />}
                     {files.length !== 0 && (
                         <Grid
@@ -122,7 +156,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                             rowCount={Math.ceil(filteredFiles.length / numCols)}
                             columnWidth={size.width / numCols}
                             rowHeight={rowHeight}
-                            overscanRowCount={25}
+                            overscanRowCount={8}
                             onScroll={({ scrollTop }) => {
                                 if (
                                     lastSeen &&

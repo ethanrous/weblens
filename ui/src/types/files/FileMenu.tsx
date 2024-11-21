@@ -1,7 +1,6 @@
 import {
     IconArrowLeft,
     IconDownload,
-    IconFileAnalytics,
     IconFileExport,
     IconFolderPlus,
     IconLibraryPlus,
@@ -20,17 +19,20 @@ import {
     IconUsersPlus,
 } from '@tabler/icons-react'
 import { QueryObserverResult, useQuery } from '@tanstack/react-query'
-
-import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
-
+import AlbumsApi from '@weblens/api/AlbumsApi'
 import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
+import MediaApi from '@weblens/api/MediaApi'
+import SharesApi from '@weblens/api/SharesApi'
+import UsersApi from '@weblens/api/UserApi'
+import { useWebsocketStore } from '@weblens/api/Websocket'
+import { AlbumInfo, MediaInfo, UserInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
+import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
+import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
 import { MiniAlbumCover } from '@weblens/types/albums/AlbumDisplay'
 import {
     FbMenuModeT,
@@ -40,13 +42,14 @@ import {
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { WeblensShare } from '@weblens/types/share/share'
+import { clamp } from '@weblens/util'
+import { useSessionStore } from 'components/UserInfo'
 import {
     useClick,
     useKeyDown,
     useResize,
     useWindowSize,
 } from 'components/hooks'
-import { useSessionStore } from 'components/UserInfo'
 import React, {
     ReactElement,
     useCallback,
@@ -56,53 +59,13 @@ import React, {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorHandler } from 'types/Types'
-import { clamp } from '@weblens/util'
-import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
+
 import { MediaImage } from '../media/PhotoContainer'
-import { useWebsocketStore } from '@weblens/api/Websocket'
-import UsersApi from '@weblens/api/UserApi'
-import { AlbumInfo, MediaInfo, UserInfo } from '@weblens/api/swag'
-import MediaApi from '@weblens/api/MediaApi'
-import SharesApi from '@weblens/api/SharesApi'
-import AlbumsApi from '@weblens/api/AlbumsApi'
+import { activeItemsFromState } from './FileDragLogic'
 
 type footerNote = {
     hint: string
     danger: boolean
-}
-
-const activeItemsFromState = (
-    filesMap: Map<string, WeblensFile>,
-    selected: Map<string, boolean>,
-    menuTargetId: string
-): {
-    items: WeblensFile[]
-    anyDisplayable: boolean
-    mediaCount: number
-} => {
-    if (filesMap.size === 0) {
-        return { items: [], anyDisplayable: false, mediaCount: 0 }
-    }
-    const isSelected = Boolean(selected.get(menuTargetId))
-    const itemIds = isSelected ? Array.from(selected.keys()) : [menuTargetId]
-    let mediaCount = 0
-    const items = itemIds.map((i) => {
-        const item = filesMap.get(i)
-        if (!item) {
-            return null
-        }
-        if (item.GetContentId() || item.IsFolder()) {
-            mediaCount++
-        }
-        return item
-    })
-
-    return {
-        items: items.filter((i) => Boolean(i)),
-        anyDisplayable: undefined,
-        mediaCount,
-    }
 }
 
 const MenuTitle = () => {
@@ -576,10 +539,10 @@ function StandardFileMenu({
                         activeItems.items.forEach((f) =>
                             f.SetSelected(SelectedState.Moved)
                         )
-                        return FileApi.trashFiles({
+                        setMenu({ menuState: FbMenuModeT.Closed })
+                        return FileApi.moveFiles({
                             fileIds: activeItems.items.map((f) => f.Id()),
-                        }).then(() => {
-                            setMenu({ menuState: FbMenuModeT.Closed })
+                            newParentId: user.trashId,
                         })
                     }}
                 />
@@ -904,7 +867,7 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                 placeholder="New Folder Name"
                 autoFocus
                 fillWidth
-                squareSize={50}
+                squareSize={60}
                 buttonIcon={IconPlus}
                 failed={badName}
                 valueCallback={setNewName}
@@ -922,7 +885,6 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                     setMenu({ menuState: FbMenuModeT.Closed })
                 }}
             />
-            <div className="w-[220px]"></div>
         </div>
     )
 }
@@ -1166,15 +1128,12 @@ function InTrashMenu({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={async (e) => {
                     e.stopPropagation()
-                    const res = await FileApi.unTrashFiles({
-                        fileIds: activeItems.map((f) => f.Id()),
-                    })
-
-                    if (res.status !== 200) {
-                        return false
-                    }
-
+                    const ids = activeItems.map((f) => f.Id())
+                    setSelectedMoved(ids)
                     setMenu({ menuState: FbMenuModeT.Closed })
+                    return FileApi.unTrashFiles({
+                        fileIds: ids,
+                    })
                 }}
             />
             <WeblensButton
@@ -1204,14 +1163,10 @@ function InTrashMenu({
                         toDeleteIds = activeItems.map((f) => f.Id())
                     }
                     setSelectedMoved(toDeleteIds)
-                    const res = await FileApi.trashFiles({
+                    setMenu({ menuState: FbMenuModeT.Closed })
+                    return FileApi.deleteFiles({
                         fileIds: toDeleteIds,
                     })
-
-                    if (res.status !== 200) {
-                        return false
-                    }
-                    setMenu({ menuState: FbMenuModeT.Closed })
                 }}
             />
         </div>
@@ -1223,13 +1178,12 @@ function BackdropDefaultItems({
 }: {
     setFooterNote: (n: footerNote) => void
 }) {
-    const nav = useNavigate()
     const user = useSessionStore((state) => state.user)
 
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const mode = useFileBrowserStore((state) => state.fbMode)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
@@ -1263,24 +1217,19 @@ function BackdropDefaultItems({
             </div>
             <div className="default-menu-icon">
                 <WeblensButton
-                    Left={IconFileAnalytics}
+                    Left={IconScan}
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
-                        setFooterNote({ hint: 'Folder Stats', danger: false })
+                        setFooterNote({ hint: 'Scan Folder', danger: false })
                     }
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
                     }
-                    onClick={() =>
-                        nav(
-                            `/files/stats/${
-                                mode === FbModeT.external
-                                    ? mode
-                                    : folderInfo.Id()
-                            }`
-                        )
-                    }
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        wsSend('scan_directory', { folderId: folderInfo.Id() })
+                    }}
                 />
             </div>
 

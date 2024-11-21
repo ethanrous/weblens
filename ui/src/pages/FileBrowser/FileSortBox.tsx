@@ -1,15 +1,21 @@
 import {
     IconCalendar,
+    IconChevronDown,
+    IconChevronLeft,
     IconColumns,
     IconFileAnalytics,
     IconLayoutGrid,
     IconLayoutList,
-    IconSortAscending2,
     IconSortAZ,
+    IconSortAscending2,
     IconSortDescending2,
     TablerIconsProps,
 } from '@tabler/icons-react'
+import { useResize } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import dirViewHeaderStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
+import { useEffect, useState } from 'react'
+
 import { useFileBrowserStore } from './FBStateControl'
 import { DirViewModeT } from './FileBrowserTypes'
 
@@ -31,9 +37,39 @@ const dirViewModes: {
 function FileSortBox() {
     const viewOpts = useFileBrowserStore((state) => state.viewOpts)
     const setViewOpts = useFileBrowserStore((state) => state.setViewOptions)
+    const [open, setOpen] = useState(false)
+    const [isVertical, setIsVertical] = useState(false)
+    const [sortRef, setSortRef] = useState<HTMLDivElement>()
+    const size = useResize(sortRef)
+
+    useEffect(() => {
+        if (size.width <= size.height) {
+            if (isVertical) {
+                return
+            }
+            setIsVertical(true)
+            setOpen(false)
+        } else if (isVertical) {
+            setIsVertical(false)
+        }
+    }, [size])
 
     return (
-        <div className="file-sort-box">
+        <div
+            ref={setSortRef}
+            className={dirViewHeaderStyle['file-sort-box']}
+            data-open={open}
+        >
+            {isVertical && (
+                <WeblensButton
+                    subtle
+                    Left={open ? IconChevronDown : IconChevronLeft}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        setOpen(!open)
+                    }}
+                />
+            )}
             <WeblensButton
                 Left={
                     viewOpts.sortDirection === 1
@@ -48,9 +84,9 @@ function FileSortBox() {
                 }
             />
 
-            <div className="h-full w-[1px] pt-1 pb-1 bg-[#333333] m-1" />
+            <div className={dirViewHeaderStyle['file-sort-divider']} />
 
-            <div className="flex flex-row items-center">
+            <div className={dirViewHeaderStyle['file-sort-group']}>
                 {fileSortTypes.map((v) => {
                     return (
                         <WeblensButton
@@ -68,9 +104,9 @@ function FileSortBox() {
                 })}
             </div>
 
-            <div className="h-full w-[1px] pt-1 pb-1 bg-[#333333] m-1" />
+            <div className={dirViewHeaderStyle['file-sort-divider']} />
 
-            <div className="flex flex-row items-center">
+            <div className={dirViewHeaderStyle['file-sort-group']}>
                 {dirViewModes.map((v) => {
                     return (
                         <WeblensButton

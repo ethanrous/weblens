@@ -13,9 +13,9 @@ if [[ ! -e ./scripts ]]; then
     return 1
 fi
 
-printf "Killing other instances of Weblens... "
-pkill weblens &>/dev/null || true
-printf "Done\n"
+# printf "Killing other instances of Weblens... "
+# pkill weblens &>/dev/null || true
+# printf "Done\n"
 
 export APP_ROOT=$PWD
 

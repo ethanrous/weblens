@@ -1,37 +1,35 @@
-import { useQuery } from '@tanstack/react-query'
-import RemoteStatus from '@weblens/components/RemoteStatus'
-import { useEffect, useState } from 'react'
-import {
-    HandleWebsocketMessage,
-    useWebsocketStore,
-} from '@weblens/api/Websocket'
-import {
-    backupPageWebsocketHandler,
-    BackupProgressT,
-    RestoreProgress,
-} from './BackupLogic'
-import WeblensButton from '@weblens/lib/WeblensButton'
 import {
     IconDatabaseImport,
     IconPlus,
     IconRocket,
     IconX,
 } from '@tabler/icons-react'
-import { ThemeToggleButton } from '@weblens/components/HeaderBar'
-import WeblensInput from '@weblens/lib/WeblensInput'
-import Logo from '@weblens/components/Logo'
-import { useSessionStore } from '@weblens/components/UserInfo'
-import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { ServersApi } from '@weblens/api/ServersApi'
+import {
+    HandleWebsocketMessage,
+    useWebsocketStore,
+} from '@weblens/api/Websocket'
 import { ServerInfo } from '@weblens/api/swag'
+import { ThemeToggleButton } from '@weblens/components/HeaderBar'
+import Logo from '@weblens/components/Logo'
+import RemoteStatus from '@weblens/components/RemoteStatus'
+import { useSessionStore } from '@weblens/components/UserInfo'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
 import { ErrorHandler } from '@weblens/types/Types'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import {
+    BackupProgressT,
+    RestoreProgress,
+    backupPageWebsocketHandler,
+} from './BackupLogic'
 
 function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [coreAddress, setCoreAddress] = useState('')
     const [apiKey, setApiKey] = useState('')
-
-    const user = useSessionStore((state) => state.user)
-    console.log(user)
 
     return (
         <div className="absolute backdrop-blur h-screen w-screen p-20 z-10">

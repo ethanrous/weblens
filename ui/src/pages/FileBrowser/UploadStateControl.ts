@@ -1,4 +1,4 @@
-import { create, StateCreator } from 'zustand'
+import { StateCreator, create } from 'zustand'
 
 type chunkT = {
     bytesSoFar: number
@@ -106,6 +106,7 @@ export class SingleUpload {
 
     chunkComplete(chunkIndex: number) {
         this.chunks[chunkIndex].complete = true
+        this.areChunksComplete()
     }
 
     areChunksComplete(): boolean {

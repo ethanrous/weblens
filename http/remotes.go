@@ -65,7 +65,7 @@ func getRemotes(w http.ResponseWriter, r *http.Request) {
 	remotes := pack.InstanceService.GetRemotes()
 	localRole := pack.InstanceService.GetLocal().GetRole()
 
-	var serverInfos []rest.ServerInfo
+	var serverInfos []rest.ServerInfo = []rest.ServerInfo{}
 	for _, srv := range remotes {
 		addr, _ := srv.GetAddress()
 		client := pack.ClientService.GetClientByServerId(srv.ServerId())

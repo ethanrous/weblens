@@ -58,8 +58,6 @@ func wsConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debug.Println("Got websocket connection", server == nil, u == nil)
-
 	var client *models.WsClient
 	if server != nil {
 		client = pack.ClientService.RemoteConnect(conn, server)
@@ -71,7 +69,6 @@ func wsConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusSwitchingProtocols)
 	go wsMain(client, pack)
 }
 
@@ -115,7 +112,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		return
 	}
 
-	log.Trace.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)

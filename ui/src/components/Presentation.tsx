@@ -8,30 +8,30 @@ import {
 } from '@tabler/icons-react'
 import ReactCodeMirror from '@uiw/react-codemirror'
 import { FileApi } from '@weblens/api/FileBrowserApi'
+import MediaApi from '@weblens/api/MediaApi'
+import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { ErrorHandler } from '@weblens/types/Types'
 import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
 import {
     Dispatch,
-    memo,
     MouseEventHandler,
     ReactNode,
+    memo,
     useCallback,
     useEffect,
     useMemo,
     useState,
 } from 'react'
+
 import { humanFileSize } from '../util'
-import { useKeyDown, useResize, useResizeDrag } from './hooks'
 import { useSessionStore } from './UserInfo'
-import { useWebsocketStore } from '@weblens/api/Websocket'
-import MediaApi from '@weblens/api/MediaApi'
-import { ErrorHandler } from '@weblens/types/Types'
+import { useKeyDown, useResize, useResizeDrag } from './hooks'
 
 export const PresentationContainer = ({
     onMouseMove,

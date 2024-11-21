@@ -1,4 +1,6 @@
+import { Loader } from '@mantine/core'
 import {
+    IconClipboard,
     IconClockHour4,
     IconFile,
     IconReload,
@@ -6,26 +8,25 @@ import {
     IconTrash,
     IconX,
 } from '@tabler/icons-react'
+import { ServersApi } from '@weblens/api/ServersApi'
+import { ServerInfo } from '@weblens/api/swag'
+import { useTimer } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import './remoteStatus.scss'
-import { useEffect, useMemo, useState } from 'react'
 import WeblensInput from '@weblens/lib/WeblensInput'
+import WeblensProgress from '@weblens/lib/WeblensProgress'
+import WeblensTooltip from '@weblens/lib/WeblensTooltip'
 import {
     BackupProgressT,
     RestoreProgress,
 } from '@weblens/pages/Backup/BackupLogic'
-import WeblensProgress from '@weblens/lib/WeblensProgress'
-import { useTimer } from '@weblens/components/hooks'
-import { humanFileSize, nsToHumanTime } from '@weblens/util'
-import './theme.scss'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import WeblensTooltip from '@weblens/lib/WeblensTooltip'
-import { Loader } from '@mantine/core'
+import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { TaskStageT } from '@weblens/pages/FileBrowser/TaskStateControl'
-import { ServerInfo } from '@weblens/api/swag'
-import { ServersApi } from '@weblens/api/ServersApi'
 import { ErrorHandler } from '@weblens/types/Types'
+import { humanFileSize, nsToHumanTime } from '@weblens/util'
+import { useEffect, useMemo, useState } from 'react'
+
+import './remoteStatus.scss'
 
 export default function RemoteStatus({
     remoteInfo,
@@ -101,7 +102,12 @@ export default function RemoteStatus({
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1">
                         <WeblensTooltip
-                            label={`Remote Id (Click to Copy): ${remoteInfo.id}`}
+                            label={
+                                <div className="flex flex-row">
+                                    <IconClipboard />
+                                    <p>{remoteInfo.id}</p>
+                                </div>
+                            }
                         >
                             <h3
                                 className="theme-text-dark-bg font-semibold select-none cursor-pointer truncate"

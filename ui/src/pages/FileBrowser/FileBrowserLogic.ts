@@ -1,25 +1,27 @@
+import { IconFile, IconFolder, IconHome, IconTrash } from '@tabler/icons-react'
 import {
-    downloadSingleFile,
     FileApi,
     FolderApi,
     SubToTask,
+    downloadSingleFile,
 } from '@weblens/api/FileBrowserApi'
-
 import Upload, { fileUploadMetadata } from '@weblens/api/Upload'
-import { DraggingStateT } from '@weblens/types/files/FBTypes'
-import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
-import { DragEvent, useCallback, useEffect } from 'react'
-
+import { WsSendT } from '@weblens/api/Websocket'
+import { useSessionStore } from '@weblens/components/UserInfo'
 import {
     FbModeT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
-import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import { PhotoQuality } from '@weblens/types/media/Media'
-import { DirViewModeT } from './FileBrowserTypes'
-import User from '@weblens/types/user/User'
 import { ErrorHandler } from '@weblens/types/Types'
-import { WsSendT } from '@weblens/api/Websocket'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
+import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
+import { PhotoQuality } from '@weblens/types/media/Media'
+import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import User from '@weblens/types/user/User'
+import { toggleLightTheme } from '@weblens/util'
+import { DragEvent, FC, useCallback, useEffect } from 'react'
+
+import { DirViewModeT } from './FileBrowserTypes'
 
 export function getRealId(contentId: string, mode: FbModeT, usr: User) {
     if (mode === FbModeT.stats && contentId === 'external') {
@@ -42,6 +44,7 @@ export const handleDragOver = (
     setDragging: (dragging: DraggingStateT) => void,
     dragging: number
 ) => {
+    return
     event.preventDefault()
     event.stopPropagation()
 
@@ -66,6 +69,29 @@ export const handleRename = (
         .catch(ErrorHandler)
 }
 
+function readAllFiles(
+    reader: FileSystemDirectoryReader
+): Promise<FileSystemEntry[]> {
+    return new Promise((resolve) => {
+        const allEntries = []
+
+        function readEntriesRecursively() {
+            reader.readEntries((entries) => {
+                if (entries.length === 0) {
+                    // No more entries, resolve the promise with all entries
+                    resolve(allEntries)
+                } else {
+                    // Add entries to the array and call readEntriesRecursively again
+                    allEntries.push(...entries)
+                    readEntriesRecursively()
+                }
+            })
+        }
+
+        readEntriesRecursively()
+    })
+}
+
 async function addDir(
     fsEntry: FileSystemEntry,
     parentFolderId: string,
@@ -74,7 +100,7 @@ async function addDir(
     isPublic: boolean,
     shareId: string
 ): Promise<fileUploadMetadata[]> {
-    if (fsEntry instanceof FileSystemDirectoryEntry) {
+    if (fsEntry.isDirectory) {
         const res = await FolderApi.createFolder(
             {
                 parentFolderId: parentFolderId,
@@ -101,34 +127,9 @@ async function addDir(
             }
         }
 
-        const dirReader = fsEntry.createReader()
-        const allEntries: FileSystemEntry[] = []
-        dirReader.readEntries((entries) => {
-            allEntries.push(...entries)
-        })
-        // const entriesPromise = new Promise((resolve: (value) => void) => {
-        //     const allEntries = []
-        //
-        //     const reader = (callback) => (entries) => {
-        //         if (entries.length === 0) {
-        //             resolve(allEntries)
-        //             return
-        //         }
-        //
-        //         for (const entry of entries) {
-        //             allEntries.push(entry)
-        //         }
-        //
-        //         if (entries.length !== 100) {
-        //             resolve(allEntries)
-        //             return
-        //         }
-        //         const entries = []
-        //         dirReader.readEntries(callback(callback))
-        //     }
-        //
-        //     dirReader.readEntries(reader(reader))
-        // })
+        const allEntries = await readAllFiles(
+            (fsEntry as FileSystemDirectoryEntry).createReader()
+        )
 
         const allResults: fileUploadMetadata[] = []
         if (e !== null) {
@@ -147,7 +148,7 @@ async function addDir(
             )
         }
         return allResults
-    } else if (fsEntry instanceof FileSystemFileEntry) {
+    } else {
         if (fsEntry.name === '.DS_Store') {
             return []
         }
@@ -159,9 +160,6 @@ async function addDir(
             topLevelParentKey: topFolderKey,
         }
         return [e]
-    } else {
-        console.error('Entry is not a file or directory')
-        return []
     }
 }
 
@@ -211,7 +209,7 @@ export async function HandleDrop(
     await Promise.all(topLevels)
 
     if (files.length !== 0) {
-        Upload(files, isPublic, shareId, rootFolderId).catch(ErrorHandler)
+        return Upload(files, isPublic, shareId, rootFolderId)
     }
 }
 
@@ -375,6 +373,8 @@ export const useKeyDownFileBrowser = () => {
                     } else if (presentingId) {
                         setPresentation('')
                     }
+                } else if (event.key === 't') {
+                    toggleLightTheme()
                 }
             }
         }
@@ -503,4 +503,39 @@ export const historyDate = (timestamp: number) => {
         options.year = 'numeric'
     }
     return dateObj.toLocaleDateString('en-US', options)
+}
+
+export function filenameFromPath(pathName: string): {
+    nameText: string
+    StartIcon: FC<{ className: string }>
+} {
+    if (!pathName) {
+        return { nameText: null, StartIcon: null }
+    }
+
+    pathName = pathName.slice(pathName.indexOf(':') + 1)
+    const parts = pathName.split('/')
+
+    let nameText: string = parts.pop()
+    while (nameText === '' && parts.length) {
+        nameText = parts.pop()
+    }
+
+    let StartIcon: FC<{ className: string }>
+    if (
+        nameText === useSessionStore.getState().user.username &&
+        !parts.length
+    ) {
+        StartIcon = IconHome
+        nameText = 'Home'
+    } else if (nameText === '.user_trash') {
+        StartIcon = IconTrash
+        nameText = 'Trash'
+    } else if (pathName.endsWith('/')) {
+        StartIcon = IconFolder
+    } else {
+        StartIcon = IconFile
+    }
+
+    return { nameText, StartIcon }
 }

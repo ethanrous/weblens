@@ -49,6 +49,10 @@ type NewFileParams struct {
 	FileSize       int64           `json:"fileSize"`
 } // @name NewFileParams
 
+type NewFilesParams struct {
+	NewFiles []NewFileParams `json:"newFiles"`
+} // @name NewFilesParams
+
 type NewUploadParams struct {
 	RootFolderId    fileTree.FileId `json:"rootFolderId"`
 	ChunkSize       int64           `json:"chunkSize"`

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
@@ -96,8 +97,8 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		log.Debug.Printf("Valid login for [%s]\n", userCredentials.Username)
 
 		var token string
-		// var expires time.Time
-		token, _, err = pack.AccessService.GenerateJwtToken(u)
+		var expires time.Time
+		token, expires, err = pack.AccessService.GenerateJwtToken(u)
 		if err != nil || token == "" {
 			log.ErrTrace(werror.Errorf("Could not get login token"))
 			w.WriteHeader(http.StatusInternalServerError)
@@ -105,8 +106,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 
 		userInfo := rest.UserToUserInfo(u)
 
-		// cookie := fmt.Sprintf("%s=%s; expires=%s;", SessionTokenCookie, token, expires.Format(time.RFC1123))
-		cookie := fmt.Sprintf("%s=%s;Path=/;HttpOnly", SessionTokenCookie, token)
+		cookie := fmt.Sprintf("%s=%s;Path=/;Expires=%s;HttpOnly", SessionTokenCookie, token, expires.Format(time.RFC1123))
 
 		log.Trace.Println("Setting cookie", cookie)
 		w.Header().Set("Set-Cookie", cookie)
@@ -143,7 +143,7 @@ func logoutUser(w http.ResponseWriter, r *http.Request) {
 		log.Error.Panicln("Could not find user to logout")
 	}
 
-	cookie := fmt.Sprintf("%s=;Path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
+	cookie := fmt.Sprintf("%s=;Path=/;Expires=Thu, 01 Jan 1970 00:00:00 GMT;HttpOnly", SessionTokenCookie)
 	w.Header().Set("Set-Cookie", cookie)
 	w.WriteHeader(http.StatusOK)
 
@@ -199,6 +199,8 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 //	@Produce	json
 //	@Success	200	{object}	rest.UserInfo	"Logged-in users info"
 //	@Failure	401
+//	@Failure	404
+//	@Failure	500
 //	@Router		/users/me [get]
 func getUserInfo(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
@@ -211,16 +213,22 @@ func getUserInfo(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	if SafeErrorAndExit(err, w) {
-		return
-	}
+
 	if u == nil || u.IsPublic() {
-		log.Trace.Println("Could not find user")
-		w.WriteHeader(http.StatusNotFound)
+		SafeErrorAndExit(werror.ErrNoUser, w)
 		return
 	}
 
 	res := rest.UserToUserInfo(u)
+
+	trash, err := pack.FileService.GetFileSafe(u.TrashId, u, nil)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	res.TrashSize = trash.Size()
+	res.HomeSize = trash.GetParent().Size()
+
 	writeJson(w, http.StatusOK, res)
 }
 

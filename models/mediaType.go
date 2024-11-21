@@ -1,9 +1,5 @@
 package models
 
-import (
-	"encoding/json"
-)
-
 type MediaType struct {
 	Mime            string   `json:"mime"`
 	Name            string   `json:"FriendlyName"`
@@ -62,16 +58,16 @@ func (ts *typeService) ParseMime(mime string) MediaType {
 	return ts.mimeMap[mime]
 }
 
+func (ts *typeService) GetMaps() (map[string]MediaType, map[string]MediaType) {
+	return ts.mimeMap, ts.extMap
+}
+
 func (ts *typeService) Generic() MediaType {
 	return ts.mimeMap["generic"]
 }
 
 func (ts *typeService) Size() int {
 	return len(ts.mimeMap)
-}
-
-func (ts *typeService) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ts.mimeMap)
 }
 
 func (mt MediaType) IsRaw() bool {
@@ -115,6 +111,7 @@ func (mt MediaType) SupportsImgRecog() bool {
 }
 
 type MediaTypeService interface {
+	GetMaps() (map[string]MediaType, map[string]MediaType)
 	ParseExtension(ext string) MediaType
 	ParseMime(mime string) MediaType
 	Generic() MediaType

@@ -1,6 +1,6 @@
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import {
-    SetMenuT,
+    MenuOptionsT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
@@ -11,6 +11,7 @@ import {
     WeblensFile,
 } from '@weblens/types/files/File'
 import { Dispatch, MouseEvent } from 'react'
+
 import { Coordinates } from '../Types'
 
 export function mouseMove(
@@ -53,7 +54,7 @@ export function visitFile(
 
 export function fileHandleContextMenu(
     e: MouseEvent,
-    setMenu: SetMenuT,
+    setMenu: (opts: MenuOptionsT) => void,
     file: WeblensFile
 ) {
     e.stopPropagation()
@@ -87,21 +88,28 @@ export function handleMouseUp(
                 fileIds: selected,
                 newParentId: file.Id(),
             })
-                .then(() => {
-                    clearSelected()
-                })
+                .then(() => {})
                 .catch((err) => {
                     console.error('Failed to move files', err)
                 })
         }
         setMoveDest('')
         setDragging(DraggingStateT.NoDrag)
+        file.SetSelected(SelectedState.Hovering, true)
     }
 
     const state = useFileBrowserStore.getState()
     if (!state.holdingShift && viewMode === DirViewModeT.Columns) {
         goToFile(file, true)
     } else if (state.holdingShift) {
+        const state = useFileBrowserStore.getState()
+        if (
+            viewMode === DirViewModeT.Columns &&
+            file.parentId !== state.folderInfo?.Id()
+        ) {
+            const parent = state.filesMap.get(file.parentId)
+            goToFile(parent)
+        }
         state.setSelected([file.Id()], false)
     }
 
@@ -109,17 +117,30 @@ export function handleMouseUp(
 }
 
 export function handleMouseLeave(
+    e: MouseEvent<HTMLDivElement>,
     file: WeblensFile,
     draggingState: DraggingStateT,
+    fileRef: HTMLDivElement,
     setMoveDest: (dest: string) => void,
     setHovering: (hovering: string) => void,
     mouseDown: Coordinates,
     setMouseDown: Dispatch<Coordinates>
 ) {
+    if (draggingState === DraggingStateT.ExternalDrag) {
+        if (
+            e.relatedTarget &&
+            e.relatedTarget instanceof Node &&
+            !fileRef.contains(e.relatedTarget)
+        ) {
+            setHovering('')
+            file.UnsetSelected(SelectedState.Droppable)
+        }
+        return
+    }
+    setHovering('')
     file.UnsetSelected(SelectedState.Hovering)
     file.UnsetSelected(SelectedState.Droppable)
-    setHovering('')
-    if (draggingState && file.IsFolder()) {
+    if (draggingState === DraggingStateT.InternalDrag && file.IsFolder()) {
         setMoveDest('')
     }
     if (mouseDown) {
@@ -132,20 +153,35 @@ export function handleMouseOver(
     file: WeblensFile,
     draggingState: DraggingStateT,
     setHovering: (hoveringId: string) => void,
-    setMoveDest: (dest: string) => void
+    setMoveDest: (dest: string) => void,
+    setDragging: (dragging: DraggingStateT) => void
 ) {
     e.stopPropagation()
-    if (draggingState === DraggingStateT.NoDrag || file.IsFolder()) {
+    e.preventDefault()
+    if (draggingState === DraggingStateT.NoDrag && e.type === 'dragenter') {
+        setDragging(DraggingStateT.ExternalDrag)
+        draggingState = DraggingStateT.ExternalDrag
+    }
+
+    if (
+        draggingState === DraggingStateT.InternalDrag &&
+        file.IsFolder() &&
+        !(file.GetSelectedState() & SelectedState.Selected)
+    ) {
+        file.SetSelected(SelectedState.Droppable)
+        setMoveDest(file.Id())
+        setHovering(file.Id())
+    } else if (draggingState === DraggingStateT.NoDrag) {
         file.SetSelected(SelectedState.Hovering)
         setHovering(file.Id())
     } else if (
-        draggingState === DraggingStateT.InternalDrag ||
-        (draggingState === DraggingStateT.ExternalDrag &&
-            !(file.GetSelectedState() & SelectedState.Selected) &&
-            file.IsFolder())
+        draggingState === DraggingStateT.ExternalDrag &&
+        !(file.GetSelectedState() & SelectedState.Selected) &&
+        file.IsFolder()
     ) {
+        setMoveDest(file.Id())
+        setHovering(file.Id())
         file.SetSelected(SelectedState.Droppable)
-        setMoveDest(file.GetFilename())
     }
 }
 
@@ -157,12 +193,13 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
 
     const state = useFileBrowserStore.getState()
 
-    if (state.holdingShift) {
-        return
-    }
+    // if (state.holdingShift) {
+    //     return
+    // }
 
     if (!state.folderInfo && allowBlindHop) {
         state.clearFiles()
+        console.debug('GO TO FILE (blind):', next.Id())
         state.nav('/files/' + next.Id())
         return
     }
@@ -256,4 +293,37 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
         state.setLocationState({ contentId: newParent.Id(), jumpTo: next.Id() })
     }
     state.setSelected([next.Id()], true)
+}
+
+export const activeItemsFromState = (
+    filesMap: Map<string, WeblensFile>,
+    selected: Map<string, boolean>,
+    menuTargetId: string
+): {
+    items: WeblensFile[]
+    anyDisplayable: boolean
+    mediaCount: number
+} => {
+    if (filesMap.size === 0) {
+        return { items: [], anyDisplayable: false, mediaCount: 0 }
+    }
+    const isSelected = Boolean(selected.get(menuTargetId))
+    const itemIds = isSelected ? Array.from(selected.keys()) : [menuTargetId]
+    let mediaCount = 0
+    const items = itemIds.map((i) => {
+        const item = filesMap.get(i)
+        if (!item) {
+            return null
+        }
+        if (item.GetContentId() || item.IsFolder()) {
+            mediaCount++
+        }
+        return item
+    })
+
+    return {
+        items: items.filter((i) => Boolean(i)),
+        anyDisplayable: undefined,
+        mediaCount,
+    }
 }

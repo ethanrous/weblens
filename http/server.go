@@ -126,6 +126,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Get("/", getMediaBatch)
 		r.Post("/{mediaId}/liked", setMediaLiked)
 		r.Post("/{mediaId}/file", getMediaFile)
+		r.Post("/cleanup", cleanupMedia)
 		r.Patch("/visibility", hideMedia)
 		r.Patch("/date", adjustMediaDate)
 
@@ -153,7 +154,7 @@ func (s *Server) UseApi() *chi.Mux {
 
 		r.Patch("/{fileId}", updateFile)
 		r.Patch("/", moveFiles)
-		r.Patch("/trash", trashFiles)
+		// r.Patch("/trash", trashFiles)
 		r.Patch("/untrash", unTrashFiles)
 		r.Delete("/", deleteFiles)
 	})
@@ -321,7 +322,7 @@ func (s *Server) UseUi() *chi.Mux {
 	r.NotFound(
 		func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(r.RequestURI, "/api") {
-				log.Trace.Printf("Serving index.html for %s", r.RequestURI)
+				log.Trace.Func(func(l log.Logger) { l.Printf("Serving index.html for %s", r.RequestURI) })
 				// using the real path here makes gin redirect to /, which creates an infinite loop
 				// ctx.Writer.Header().Set("Content-Encoding", "gzip")
 				_, err := w.Write(memFs.index.data)

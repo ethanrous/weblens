@@ -5,22 +5,25 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react'
-import { useClick, useResize } from '@weblens/components/hooks'
-
-import '@weblens/lib/crumbs.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { useClick, useResize } from '@weblens/components/hooks'
+import '@weblens/lib/crumbs.scss'
 import {
     FbModeT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import headerStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { WeblensFile } from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
-import { DraggingStateT } from '@weblens/types/files/FBTypes'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import WeblensButton from './WeblensButton'
 
 type Crumb = {
-    name: string
+    path: string
     id: string
     file?: WeblensFile
     visitRoute?: string
@@ -39,27 +42,33 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
 
     if (crumb.id === usr.homeId) {
         return (
-            <div className="h-[30px] w-[30px]">
+            <div className={headerStyle['crumb-icon']}>
                 <IconHome className="w-full h-full" />
             </div>
         )
     }
-    if (crumb.name === 'Shared') {
+    if (crumb.path === 'Shared') {
         return (
-            <div className="h-[30px] w-[30px]">
+            <div className={headerStyle['crumb-icon']}>
                 <IconUsers className="w-full h-full" />
             </div>
         )
     }
     if (crumb.id === usr.trashId) {
         return (
-            <div className="h-[30px] w-[30px]">
+            <div className={headerStyle['crumb-icon']}>
                 <IconTrash className="w-full h-full" />
             </div>
         )
     }
 
-    return <p className="crumb-text w-max max-w-full">{crumb.name}</p>
+    const { nameText } = filenameFromPath(crumb.path)
+
+    return (
+        <p className={`${headerStyle['crumb-text']} w-max max-w-full`}>
+            {nameText}
+        </p>
+    )
 }
 
 export const StyledBreadcrumb = ({
@@ -68,15 +77,20 @@ export const StyledBreadcrumb = ({
     moveSelectedTo,
     isCurrent,
 }: breadcrumbProps) => {
+    const dragging = useFileBrowserStore((state) => state.draggingState)
+
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
+    const nav = useNavigate()
+
+    const [copyOpen, setCopyOpen] = useState(false)
+    const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
+    useClick(() => setCopyOpen(false), buttonRef, !copyOpen)
+
     if (!crumbInfo) {
         console.error('NO CRUMB')
         return null
     }
-
-    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const dragging = useFileBrowserStore((state) => state.draggingState)
-    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
-    const nav = useNavigate()
 
     return (
         <div
@@ -85,14 +99,32 @@ export const StyledBreadcrumb = ({
             data-compact={compact}
             data-dragging={dragging === DraggingStateT.InternalDrag}
             data-current={isCurrent}
+            onContextMenu={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                setCopyOpen((c) => !c)
+            }}
             onMouseOver={() => {
                 if (dragging && !isCurrent && setMoveDest) {
-                    setMoveDest(crumbInfo.name)
+                    setMoveDest(crumbInfo.path)
                 }
             }}
             onMouseLeave={() => {
                 if (dragging && setMoveDest) {
                     setMoveDest('')
+                }
+            }}
+            onClick={(e) => {
+                e.stopPropagation()
+                if (dragging === DraggingStateT.NoDrag) {
+                    if (crumbInfo.file) {
+                        clearSelected()
+                        goToFile(crumbInfo.file)
+                    } else if (crumbInfo.visitRoute) {
+                        nav(crumbInfo.visitRoute)
+                    } else {
+                        console.error('No file or visit route in crumb')
+                    }
                 }
             }}
             onMouseUp={(e) => {
@@ -103,20 +135,21 @@ export const StyledBreadcrumb = ({
 
                 if (dragging !== DraggingStateT.NoDrag) {
                     moveSelectedTo(crumbInfo.id)
-                } else {
-                    if (crumbInfo.file) {
-                        clearSelected()
-                        goToFile(crumbInfo.file)
-                    } else if (crumbInfo.visitRoute) {
-                        nav(crumbInfo.visitRoute)
-                    } else {
-                        console.error('NO FILE OR VISIT ROUTE IN CRUMB')
-                    }
                 }
                 setMoveDest('')
             }}
         >
             <CrumbText crumb={crumbInfo} />
+            {copyOpen && (
+                <div ref={setButtonRef} className="absolute z-20">
+                    <WeblensButton
+                        label="Copy"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                        }}
+                    />
+                </div>
+            )}
         </div>
     )
 }
@@ -195,7 +228,7 @@ export const StyledLoaf = ({
     return (
         <div ref={setCrumbRef} className="loaf">
             {crumbs.map((c, i) => (
-                <div key={c.name} className="flex flex-row items-center">
+                <div key={c.path} className="flex flex-row items-center">
                     <StyledBreadcrumb
                         crumbInfo={c}
                         moveSelectedTo={moveSelectedTo}
@@ -224,7 +257,7 @@ export const StyledLoaf = ({
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <p className="crumb-text">...</p>
+                        <p className={headerStyle['crumb-text']}>...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}
@@ -257,7 +290,7 @@ function Crumbs({
     // so we won't render anything past the check after this
     if (mode == FbModeT.share) {
         crumbs.push({
-            name: 'Shared',
+            path: 'Shared',
             id: 'shared',
             visitRoute: '/files/shared',
             navigable: folderInfo !== null,
@@ -271,7 +304,7 @@ function Crumbs({
     crumbs.push(
         ...folderInfo.FormatParents().map((parent) => {
             return {
-                name: parent.GetFilename(),
+                path: parent.portablePath,
                 id: parent.id,
                 file: parent,
                 navigable: true,
@@ -285,7 +318,7 @@ function Crumbs({
 
     // Add the current folder, which is not always navigable
     crumbs.push({
-        name: folderInfo.GetFilename(),
+        path: folderInfo.GetFilename(),
         id: folderInfo.Id(),
         file: folderInfo,
         navigable: navOnLast,

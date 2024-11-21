@@ -397,6 +397,7 @@ WriterLoop:
 		meta.Caster.Close()
 	}
 
+	log.Debug.Printf("Finished writing upload files for %s", rootFile.GetPortablePath())
 	t.Success()
 }
 
@@ -453,7 +454,7 @@ func HashFile(t *task.Task) {
 	contentId, err := service.GenerateContentId(meta.File)
 	t.ReqNoErr(err)
 
-	log.Trace.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId)
+	log.Trace.Func(func(l log.Logger) {l.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId)})
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)

@@ -137,7 +137,7 @@ func (m *Media) GetFiles() []fileTree.FileId {
 	return m.FileIds
 }
 
-func (m *Media) addFile(f *fileTree.WeblensFileImpl) {
+func (m *Media) AddFile(f *fileTree.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.FileIds = internal.AddToSet(m.FileIds, f.ID())
@@ -396,6 +396,8 @@ type MediaService interface {
 
 	LoadMediaFromFile(m *Media, file *fileTree.WeblensFileImpl) error
 	RemoveFileFromMedia(media *Media, fileId fileTree.FileId) error
+	Cleanup() error
+	AddFileToMedia(media *Media, file *fileTree.WeblensFileImpl) error
 
 	GetMediaType(m *Media) MediaType
 	GetMediaTypes() MediaTypeService

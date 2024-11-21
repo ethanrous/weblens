@@ -1,5 +1,4 @@
 import { Divider } from '@mantine/core'
-
 import {
     IconArrowLeft,
     IconMinus,
@@ -9,27 +8,24 @@ import {
     IconUserMinus,
     IconUsersPlus,
 } from '@tabler/icons-react'
-
-import '@weblens/types/albums/albumStyle.scss'
+import { useQuery } from '@tanstack/react-query'
+import AlbumsApi from '@weblens/api/AlbumsApi'
+import SharesApi from '@weblens/api/SharesApi'
+import UsersApi from '@weblens/api/UserApi'
+import { AlbumInfo, UserInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
+import '@weblens/types/albums/albumStyle.scss'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { useKeyDown, useResize } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
-
+import { useKeyDown, useResize } from 'components/hooks'
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FixedSizeList } from 'react-window'
 import { ErrorHandler } from 'types/Types'
-import UsersApi from '@weblens/api/UserApi'
-import { AlbumInfo, UserInfo } from '@weblens/api/swag'
-import AlbumsApi from '@weblens/api/AlbumsApi'
-import { useQuery } from '@tanstack/react-query'
-import SharesApi from '@weblens/api/SharesApi'
 
 function AlbumShareMenu({
     album,

@@ -120,7 +120,7 @@ func (accSrv *AccessServiceImpl) GetApiKey(key models.WeblensApiKey) (models.Api
 }
 
 func (accSrv *AccessServiceImpl) GenerateJwtToken(user *models.User) (string, time.Time, error) {
-	expires := time.Now().Add(time.Hour * 24 * 7)
+	expires := time.Now().Add(time.Hour * 24 * 7).In(time.UTC)
 	claims := WlClaims{
 		user.GetUsername(),
 		jwt.RegisteredClaims{
@@ -158,7 +158,7 @@ func (accSrv *AccessServiceImpl) GetUserFromToken(tokenStr string) (*models.User
 
 	usr := accSrv.userService.Get(jwtToken.Claims.(*WlClaims).Username)
 	if usr == nil {
-		return nil, werror.ErrUserNotFound
+		return nil, werror.ErrNoUser
 	}
 
 	return usr, nil

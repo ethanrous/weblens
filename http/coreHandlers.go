@@ -53,7 +53,7 @@ func getFileBytes(w http.ResponseWriter, r *http.Request) {
 	// }
 	// if closer, ok := readable.(io.Closer); ok {
 	// 	defer func() {
-	// 		log.Trace.Printf("Closing file %s after reading content", f.Filename())
+	// 		log.Trace.Func(func(l log.Logger) {l.Printf("Closing file %s after reading content", f.Filename())})
 	// 		log.ErrTrace(closer.Close())
 	// 	}()
 	// }
@@ -191,7 +191,7 @@ func uploadRestoreFile(w http.ResponseWriter, r *http.Request) {
 
 	fileId := r.URL.Query().Get("fileId")
 	if fileId == "" {
-		log.Trace.Printf("No fileId given")
+		log.Trace.Func(func(l log.Logger) {l.Printf("No fileId given")})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -199,14 +199,14 @@ func uploadRestoreFile(w http.ResponseWriter, r *http.Request) {
 	journal := pack.FileService.GetJournalByTree("USERS")
 	lt := journal.Get(fileId)
 	if lt == nil {
-		log.Trace.Printf("Could not find lifetime with id %s", fileId)
+		log.Trace.Func(func(l log.Logger) {l.Printf("Could not find lifetime with id %s", fileId)})
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	parentId := lt.GetLatestAction().GetParentId()
 	if parentId == "" {
-		log.Trace.Printf("Did not find parentId on latest action")
+		log.Trace.Func(func(l log.Logger) {l.Printf("Did not find parentId on latest action")})
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

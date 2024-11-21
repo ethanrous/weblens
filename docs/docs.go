@@ -245,10 +245,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Album Info",
-                        "schema": {
-                            "$ref": "#/definitions/AlbumInfo"
-                        }
+                        "description": "OK"
                     }
                 }
             }
@@ -523,49 +520,10 @@ const docTemplate = `{
                 "operationId": "GetSharedFiles",
                 "responses": {
                     "200": {
-                        "description": "An object containing all the files shared with the user",
+                        "description": "All the top-level files shared with the user",
                         "schema": {
                             "$ref": "#/definitions/FolderInfo"
                         }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
-        "/files/trash": {
-            "patch": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "tags": [
-                    "Files"
-                ],
-                "summary": "Move a list of files to the trash",
-                "operationId": "TrashFiles",
-                "parameters": [
-                    {
-                        "description": "Trash files request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/FilesListParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "403": {
-                        "description": "Forbidden"
                     },
                     "404": {
                         "description": "Not Found"
@@ -754,6 +712,12 @@ const docTemplate = `{
                         "description": "File content",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Error Info",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorInfo"
                         }
                     }
                 }
@@ -1263,6 +1227,38 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/media/cleanup": {
+            "post": {
+                "security": [
+                    {
+                        "SessionAuth": [
+                            "admin"
+                        ]
+                    },
+                    {
+                        "ApiKeyAuth": [
+                            "admin"
+                        ]
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Make sure all media is correctly synced with the file system",
+                "operationId": "CleanupMedia",
+                "responses": {
+                    "200": {
+                        "description": "OK"
                     },
                     "500": {
                         "description": "Internal Server Error"
@@ -2061,7 +2057,7 @@ const docTemplate = `{
                     "Files"
                 ],
                 "summary": "Add a file to an upload task",
-                "operationId": "AddFileToUpload",
+                "operationId": "AddFilesToUpload",
                 "parameters": [
                     {
                         "type": "string",
@@ -2076,15 +2072,15 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/NewFileParams"
+                            "$ref": "#/definitions/NewFilesParams"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Upload Info",
+                        "description": "FileIds",
                         "schema": {
-                            "$ref": "#/definitions/NewFileInfo"
+                            "$ref": "#/definitions/NewFilesInfo"
                         }
                     },
                     "401": {
@@ -2127,19 +2123,10 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "type": "file",
                         "description": "File chunk",
                         "name": "chunk",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Content Length for the chunk",
-                        "name": "ContentLength",
-                        "in": "header",
+                        "in": "formData",
                         "required": true
                     }
                 ],
@@ -2303,6 +2290,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
                     }
                 }
             }
@@ -2867,6 +2860,9 @@ const docTemplate = `{
                     "description": "If the media is hidden from the timeline\nTODO - make this per user",
                     "type": "boolean"
                 },
+                "imported": {
+                    "type": "boolean"
+                },
                 "likedBy": {
                     "type": "array",
                     "items": {
@@ -2964,14 +2960,6 @@ const docTemplate = `{
                 }
             }
         },
-        "NewFileInfo": {
-            "type": "object",
-            "properties": {
-                "fileId": {
-                    "type": "string"
-                }
-            }
-        },
         "NewFileParams": {
             "type": "object",
             "properties": {
@@ -2983,6 +2971,28 @@ const docTemplate = `{
                 },
                 "parentFolderId": {
                     "type": "string"
+                }
+            }
+        },
+        "NewFilesInfo": {
+            "type": "object",
+            "properties": {
+                "fileIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "NewFilesParams": {
+            "type": "object",
+            "properties": {
+                "newFiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/NewFileParams"
+                    }
                 }
             }
         },
@@ -3225,6 +3235,9 @@ const docTemplate = `{
                 "homeId": {
                     "type": "string"
                 },
+                "homeSize": {
+                    "type": "integer"
+                },
                 "owner": {
                     "type": "boolean"
                 },
@@ -3233,6 +3246,9 @@ const docTemplate = `{
                 },
                 "trashId": {
                     "type": "string"
+                },
+                "trashSize": {
+                    "type": "integer"
                 },
                 "username": {
                     "type": "string"
@@ -3251,6 +3267,9 @@ const docTemplate = `{
                 "homeId": {
                     "type": "string"
                 },
+                "homeSize": {
+                    "type": "integer"
+                },
                 "owner": {
                     "type": "boolean"
                 },
@@ -3262,6 +3281,9 @@ const docTemplate = `{
                 },
                 "trashId": {
                     "type": "string"
+                },
+                "trashSize": {
+                    "type": "integer"
                 },
                 "username": {
                     "type": "string"

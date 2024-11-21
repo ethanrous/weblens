@@ -1,11 +1,16 @@
+import { QueryObserverResult } from '@tanstack/react-query'
 import { AxiosResponse } from 'axios'
 import { CSSProperties, FC } from 'react'
 
 export type ButtonIcon = FC<{ className: string }>
 
+export type ButtonActionPromiseReturn = Promise<
+    void | boolean | AxiosResponse | QueryObserverResult
+>
+
 export type ButtonActionHandler = (
     e: React.MouseEvent<HTMLElement, MouseEvent>
-) => void | boolean | Promise<void | boolean | AxiosResponse>
+) => void | ButtonActionPromiseReturn
 
 export type buttonProps = {
     label?: string
@@ -43,6 +48,7 @@ export type ButtonContentProps = {
     label: string
     Left: ButtonIcon
     Right: ButtonIcon
+    staticTextWidth: number
     setTextWidth: (w: number) => void
     buttonWidth: number
     iconSize: number

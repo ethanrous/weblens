@@ -49,13 +49,13 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 	pack.waitingOnLock.Unlock()
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
-	log.Trace.Printf("Added startup task: %s", taskName)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Added startup task: %s", taskName) })
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
 	pack.waitingOnLock.RLock()
 	defer pack.waitingOnLock.RUnlock()
-	return pack.startupTasks
+	return pack.startupTasks[:]
 }
 
 func (pack *ServicePack) RemoveStartupTask(taskName string) {
@@ -76,7 +76,7 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
 
-	log.Trace.Printf("Removed startup task: %s", taskName)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Removed startup task: %s", taskName) })
 }
 
 type Server interface {

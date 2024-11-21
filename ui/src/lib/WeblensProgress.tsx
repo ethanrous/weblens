@@ -1,7 +1,7 @@
 import { CSSProperties } from '@mantine/core'
+import '@weblens/lib/weblensProgress.scss'
 import { clamp } from '@weblens/util'
 import { memo, useEffect, useState } from 'react'
-import '@weblens/lib/weblensProgress.scss'
 
 type progressProps = {
     value: number
@@ -74,7 +74,7 @@ const WeblensProgress = memo(
                 data-scrubbing={dragging}
                 data-seekable={seekCallback !== undefined}
                 style={{
-                    height: height,
+                    height: orientation === 'vertical' ? '100%' : height,
                     cursor: seekCallback ? 'pointer' : 'default',
                 }}
             >

@@ -172,7 +172,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 
-		log.Trace.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName())
+		log.Trace.Func(func(l log.Logger) {l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName())})
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
@@ -196,7 +196,7 @@ func (wsc *WsClient) Disconnect() {
 	}
 	wsc.updateMu.Unlock()
 
-	log.Trace.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName())
+	log.Trace.Func(func(l log.Logger) {l.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName())})
 }
 
 func (wsc *WsClient) unsubscribe(key SubId) {
@@ -210,7 +210,7 @@ func (wsc *WsClient) unsubscribe(key SubId) {
 	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
 	wsc.updateMu.Unlock()
 
-	log.Trace.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
+	log.Trace.Func(func(l log.Logger) {l.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)})
 }
 
 func (wsc *WsClient) getClientName() string {
