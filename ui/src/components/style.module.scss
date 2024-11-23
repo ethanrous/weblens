@@ -5,6 +5,7 @@
     overflow: hidden;
     height: 100%;
     margin: 0;
+    transition: background-color 200ms ease-in-out;
 }
 
 @keyframes fadeIn {

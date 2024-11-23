@@ -1,6 +1,5 @@
 @import '@weblens/components/theme.module';
 
-
 .overflow-menu {
     display: flex;
     flex-direction: column;
@@ -39,7 +38,23 @@
     flex-grow: 1;
     flex-shrink: 1;
     padding-right: 16px;
-    color: $main-text;
+    color: var(--wl-text-color);
+}
+
+.crumb-text {
+    color: var(--wl-text-color);
+    line-height: 1.2;
+    user-select: none;
+    font-size: 1.3rem;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.crumb-icon {
+    height: 30px;
+    width: 30px;
 }
 
 .crumb-box {
@@ -48,11 +63,13 @@
     padding: 6px;
     outline: 2px solid $main-accent-transparent;
     background-color: $main-accent-transparent;
+    min-width: 32px;
 
     transition: all 150ms ease-in-out;
 
     &[data-navigable='true'] {
         cursor: pointer;
+
         &:hover {
             outline: 2px solid $main-accent;
         }

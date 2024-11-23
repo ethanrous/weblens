@@ -83,7 +83,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 
 	u := pack.UserService.Get(userCredentials.Username)
 	if u == nil {
-		w.WriteHeader(http.StatusNotFound)
+		SafeErrorAndExit(werror.ErrNoUserLogin, w)
 		return
 	}
 
@@ -114,8 +114,8 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		userInfo.Token = token
 		writeJson(w, http.StatusOK, userInfo)
 	} else {
-		log.Error.Printf("Invalid login for [%s]", userCredentials.Username)
-		w.WriteHeader(http.StatusNotFound)
+		SafeErrorAndExit(werror.ErrBadPassword, w)
+		return
 	}
 
 }

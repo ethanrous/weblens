@@ -215,7 +215,7 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 
 	f := tree.Get(id)
 	if f == nil {
-		return nil, werror.WithStack(werror.ErrNoFile)
+		return nil, werror.WithStack(werror.ErrNoFile.WithArg(id))
 	}
 
 	if !fs.accessService.CanUserAccessFile(user, f, share) {
@@ -227,6 +227,10 @@ func (fs *FileServiceImpl) GetFileSafe(id fileTree.FileId, user *models.User, sh
 	}
 
 	return f, nil
+}
+
+func (fs *FileServiceImpl) GetFileTreeByName(treeName string) fileTree.FileTree {
+	return fs.trees[treeName]
 }
 
 func (fs *FileServiceImpl) GetMediaCacheByFilename(thumbFileName string) (*fileTree.WeblensFileImpl, error) {
@@ -262,10 +266,10 @@ func (fs *FileServiceImpl) DeleteCacheFile(f fileTree.WeblensFile) error {
 	return nil
 }
 
-func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFileImpl, fileName string, event *fileTree.FileEvent) (
+func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster) (
 	*fileTree.WeblensFileImpl, error,
 ) {
-	newF, err := fs.trees["USERS"].Touch(parent, fileName, event)
+	newF, err := fs.trees["USERS"].Touch(parent, filename, event)
 	if err != nil {
 		return nil, err
 	}
@@ -273,12 +277,12 @@ func (fs *FileServiceImpl) CreateFile(parent *fileTree.WeblensFileImpl, fileName
 	return newF, nil
 }
 
-func (fs *FileServiceImpl) CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, caster models.FileCaster) (
+func (fs *FileServiceImpl) CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, event *fileTree.FileEvent, caster models.FileCaster) (
 	*fileTree.WeblensFileImpl,
 	error,
 ) {
 
-	newF, err := fs.trees["USERS"].MkDir(parent, folderName, nil)
+	newF, err := fs.trees["USERS"].MkDir(parent, folderName, event)
 	if err != nil {
 		return newF, err
 	}
@@ -989,10 +993,6 @@ func (fs *FileServiceImpl) NewBackupFile(lt *fileTree.Lifetime) (*fileTree.Weble
 	}
 
 	return restoreFile, nil
-}
-
-func (fs *FileServiceImpl) GetUsersRoot() *fileTree.WeblensFileImpl {
-	return fs.trees["USERS"].GetRoot()
 }
 
 func (fs *FileServiceImpl) GetJournalByTree(treeName string) fileTree.Journal {

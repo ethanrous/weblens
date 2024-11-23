@@ -2724,6 +2724,9 @@ const docTemplate = `{
                 "parentId": {
                     "type": "string"
                 },
+                "pastFile": {
+                    "type": "boolean"
+                },
                 "portablePath": {
                     "type": "string"
                 },

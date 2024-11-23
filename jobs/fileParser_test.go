@@ -23,8 +23,6 @@ var mondb *mongo.Database
 var typeService models.MediaTypeService
 
 func init() {
-	log.SetLogLevel(log.DEBUG)
-
 	var err error
 	mondb, err = database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
 	if err != nil {

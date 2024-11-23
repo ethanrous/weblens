@@ -109,6 +109,8 @@ definitions:
         type: string
       parentId:
         type: string
+      pastFile:
+        type: boolean
       portablePath:
         type: string
       shareId:

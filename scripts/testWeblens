@@ -56,17 +56,32 @@ Usage: $0 [OPTIONS]
 This script consolidates and handles various Weblens tests. 
 
 Options:
-  --backend               Enable basic backend tests
-  --remote-tests          Enable remote (integration) tests for the backend (automatically enables --backend)
-  --ui                    Enable UI tests
-  -a, --all               Run both backend (includes remote) and UI tests (same as specifying --remote-tests and --ui)
-  -l, --show-logs         Display logs during the test run (logs are also saved to ./build/logs and are printed on test failure reglardless of this flag)
+  --backend               
+      Enable basic backend tests
+
+  -r, --remote-tests      
+      Enable remote (end-to-end) tests for the backend 
+      (sets --backend)
+
+  --ui                    
+      Enable UI tests
+
+  --coverage              
+      Generate and display go test coverage report
+
+  -a, --all               
+      Run both backend (includes remote) and UI tests 
+      (sets --remote-tests and --ui)
+
+  -l, --show-logs         
+      Display logs during the test run (logs are also saved to ./build/logs and are printed on test failure reglardless of this flag)
 "
 
 backend_tests=false
 remote_tests=false
 show_logs=false
 ui_tests=false
+coverage=false
 
 while [ "${1:-}" != "" ]; do
   case "$1" in
@@ -78,12 +93,19 @@ while [ "${1:-}" != "" ]; do
   "--backend")
     backend_tests=true
     ;;
-  "--remote-tests")
+  "-r" | "--remote-tests")
     backend_tests=true
     remote_tests=true
     ;;
+  "--target")
+    shift
+    target=$1
+    ;;
   "-l" | "--show-logs")
     show_logs=true
+    ;;
+  "--coverage")
+    coverage=true
     ;;
   "--ui")
     ui_tests=true
@@ -146,20 +168,24 @@ if [[ $remote_tests == true ]]; then
   echo "Done"
 fi
 
-target=$1
-if [[ -z "$target" ]]; then
-  target="./..."
-fi
-
 if [[ $backend_tests == true ]]; then
+  if [[ -z "$target" ]]; then
+    target="./..."
+  else
+    echo "Using target: $target"
+  fi
   printf "Running backend tests ..."
   do_tail ./build/logs/backend-test.log
   if ! (
     set -o pipefail
-    APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -v "$target" &>./build/logs/backend-test.log
+    APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
   ); then
     show_fail
   else
+    if [[ $coverage == true ]]; then
+      grep -v -e internal -e models -e http -e mock ./build/logs/cover_raw.out >./build/logs/cover.out
+      rm ./build/logs/cover_raw.out
+    fi
     show_pass
   fi
 fi
@@ -173,4 +199,8 @@ fi
 
 if [[ $failed == true ]]; then
   exit 1
+fi
+
+if [[ $coverage == true ]]; then
+  go tool cover -html=./build/logs/cover.out
 fi

@@ -191,6 +191,8 @@
 .file-info-pane {
     display: flex;
     flex-direction: row;
+    background-color: var(--wl-background);
+    z-index: 4;
 
     flex-direction: row;
     flex-shrink: 0;
@@ -353,4 +355,5 @@
     margin-left: 12px;
     outline: 1px solid $main-accent;
     cursor: pointer;
+    color: white;
 }

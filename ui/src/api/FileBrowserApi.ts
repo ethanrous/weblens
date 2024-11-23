@@ -13,7 +13,7 @@ export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
         return
     }
-    wsSend('folder_subscribe', {
+    wsSend('folderSubscribe', {
         subscribeKey: subId,
         shareId: shareId,
     })
@@ -24,7 +24,7 @@ export function SubToTask(
     lookingFor: string[],
     wsSend: WsSendT
 ) {
-    wsSend('task_subscribe', {
+    wsSend('taskSubscribe', {
         subscribeKey: taskId,
         lookingFor: lookingFor,
     })

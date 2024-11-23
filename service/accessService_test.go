@@ -68,6 +68,17 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	// Check public share grants access, even if user is not in share
 	dipperHomeShare := models.NewFileShare(dipperHome, dipperUser, []*models.User{}, true, false)
 	assert.True(t, acc.CanUserAccessFile(billUser, dipperHome, dipperHomeShare))
+
+	// Make sure public user can't access private share
+	public := userService.GetPublicUser()
+	assert.False(t, acc.CanUserAccessFile(public, billHome, billHomeShare))
+
+	// Make sure public user can access public share
+	assert.True(t, acc.CanUserAccessFile(public, dipperHome, dipperHomeShare))
+
+	// Make sure root user can access file
+	weblensRootUser := userService.GetRootUser()
+	assert.True(t, acc.CanUserAccessFile(weblensRootUser, billHome, nil))
 }
 
 func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {

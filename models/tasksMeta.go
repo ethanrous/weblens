@@ -276,18 +276,14 @@ type FileUploadProgress struct {
 }
 
 type BackupMeta struct {
-	Core                *Instance
-	FileService         FileService
-	ProxyFileService    FileService
-	ProxyJournalService fileTree.Journal
-	UserService         UserService
-	ProxyUserService    UserService
-	ProxyMediaService   MediaService
-	WebsocketService    ClientManager
-	InstanceService     InstanceService
-	TaskService         task.TaskService
-	AccessService       AccessService
-	Caster              Broadcaster
+	Core             *Instance
+	FileService      FileService
+	UserService      UserService
+	WebsocketService ClientManager
+	InstanceService  InstanceService
+	TaskService      task.TaskService
+	AccessService    AccessService
+	Caster           Broadcaster
 }
 
 func (m BackupMeta) MetaString() string {
@@ -314,16 +310,8 @@ func (m BackupMeta) Verify() error {
 		return werror.ErrBadJobMetadata(m.JobName(), "RemoteId")
 	} else if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
-	} else if m.ProxyFileService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyFileService")
-	} else if m.ProxyJournalService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyJournalService")
 	} else if m.UserService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "UserService")
-	} else if m.ProxyUserService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyUserService")
-	} else if m.ProxyMediaService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyMediaService")
 	} else if m.WebsocketService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "WebsocketService")
 	} else if m.InstanceService == nil {

@@ -2,7 +2,7 @@ package werror
 
 import "errors"
 
-var ErrNoMedia = &clientSafeErr{
+var ErrNoMedia = clientSafeErr{
 	safeErr:    errors.New("no media found"),
 	statusCode: 404,
 }

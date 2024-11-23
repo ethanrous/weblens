@@ -5,8 +5,8 @@ export type RestoreProgress = {
     stage: string
     error: string
     timestamp: Date
-    progress_total: number
-    progress_current: number
+    progressTotal: number
+    progressCurrent: number
 }
 
 type FileBackupProgress = {
@@ -18,8 +18,8 @@ export type BackupProgressT = {
     stages: TaskStageT[]
     error: string
     timestamp: Date
-    progress_total: number
-    progress_current: number
+    progressTotal: number
+    progressCurrent: number
     files: Map<string, FileBackupProgress>
     totalTime: number
 }
@@ -38,9 +38,9 @@ export function backupPageWebsocketHandler(
                     if (msgData.content.stage) {
                         p.stage = msgData.content.stage
                     }
-                    if (msgData.content.files_total) {
-                        p.progress_total = msgData.content.files_total
-                        p.progress_current = msgData.content.files_restored
+                    if (msgData.content.filesTotal) {
+                        p.progressTotal = msgData.content.filesTotal
+                        p.progressCurrent = msgData.content.filesRestored
                     }
                     if (msgData.content.timestamp) {
                         p.timestamp = new Date(msgData.content.timestamp)
@@ -53,8 +53,8 @@ export function backupPageWebsocketHandler(
 
             case WsMsgEvent.RestoreCompleteEvent: {
                 setRestoreStage((p: RestoreProgress) => {
-                    p.progress_current = 1
-                    p.progress_total = 1
+                    p.progressCurrent = 1
+                    p.progressTotal = 1
                     p.timestamp = null
                     return { ...p }
                 })
@@ -94,7 +94,7 @@ export function backupPageWebsocketHandler(
                     prog.stages = [...stages]
                     prog.totalTime = msgData.content.totalTime
                     prog.files.clear()
-                    prog.progress_current = prog.progress_total
+                    prog.progressCurrent = prog.progressTotal
                     p.set(msgData.content.coreId, prog)
                     return new Map(p)
                 })
@@ -137,8 +137,8 @@ export function backupPageWebsocketHandler(
                     if (!prog) {
                         prog = { files: new Map() } as BackupProgressT
                     }
-                    prog.progress_current = msgData.content.tasks_complete
-                    prog.progress_total = msgData.content.tasks_total
+                    prog.progressCurrent = msgData.content.tasksComplete
+                    prog.progressTotal = msgData.content.tasksTotal
                     prog.files.delete(msgData.content.filename)
                     p.set(msgData.content.coreId, prog)
                     return new Map(p)

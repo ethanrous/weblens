@@ -7,18 +7,18 @@ import (
 
 var genericNotFound = errors.New("404 Not Found")
 
-var ErrUserNotAuthorized = &clientSafeErr{
+var ErrUserNotAuthorized = clientSafeErr{
 	realError:  errors.New("user does not have access the requested resource"),
 	safeErr:    genericNotFound,
 	statusCode: http.StatusNotFound,
 }
 
-var ErrKeyInUse = &clientSafeErr{
+var ErrKeyInUse = clientSafeErr{
 	safeErr:    errors.New("api key already in use"),
 	statusCode: http.StatusConflict,
 }
 
-var ErrKeyNotFound = &clientSafeErr{
+var ErrKeyNotFound = clientSafeErr{
 	realError:  errors.New("api was not found"),
 	safeErr:    genericNotFound,
 	statusCode: http.StatusNotFound,
@@ -26,7 +26,7 @@ var ErrKeyNotFound = &clientSafeErr{
 
 var ErrInvalidToken = errors.New("session token is invalid")
 
-var ErrTokenExpired = &clientSafeErr{
+var ErrTokenExpired = clientSafeErr{
 	safeErr:    errors.New("session token is expired"),
 	statusCode: http.StatusUnauthorized,
 }
@@ -34,17 +34,17 @@ var ErrTokenExpired = &clientSafeErr{
 var ErrKeyAlreadyExists = errors.New("api key already exists")
 var ErrKeyNoServer = errors.New("api key is not associated with a server")
 
-var ErrNotAdmin = &clientSafeErr{
+var ErrNotAdmin = clientSafeErr{
 	safeErr:    errors.New("user must be admin to access this resource"),
 	statusCode: http.StatusForbidden,
 }
 
-var ErrNotOwner = &clientSafeErr{
+var ErrNotOwner = clientSafeErr{
 	safeErr:    errors.New("user must be server owner to access this resource"),
 	statusCode: http.StatusForbidden,
 }
 
-var ErrNoPublicUser = &clientSafeErr{
+var ErrNoPublicUser = clientSafeErr{
 	safeErr:    errors.New("user must be logged in to access this resource"),
 	statusCode: http.StatusUnauthorized,
 }

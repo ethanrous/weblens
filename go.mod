@@ -25,6 +25,7 @@ require (
 	golang.org/x/crypto v0.25.0
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d
 	golang.org/x/net v0.27.0
+	gopkg.in/gographics/imagick.v3 v3.7.1
 )
 
 require (

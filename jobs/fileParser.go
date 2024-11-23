@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/metrics"
 	"github.com/ethanrous/weblens/internal/werror"
@@ -20,7 +21,7 @@ func ScanDirectory(t *task.Task) {
 	if meta.FileService.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
 		meta.Caster.PushTaskUpdate(
-			t, models.FolderScanCompleteEvent, task.TaskResult{"execution_time": t.ExeTime()},
+			t, models.FolderScanCompleteEvent, task.TaskResult{"executionTime": t.ExeTime()},
 		)
 		t.Success("No media to scan")
 		return
@@ -126,12 +127,12 @@ func ScanDirectory(t *task.Task) {
 		// Let any client subscribers know we failed
 		meta.Caster.PushTaskUpdate(
 			t, models.TaskFailedEvent, task.TaskResult{
-				"failed_count": len(errs),
+				"failedCount": len(errs),
 			},
 		)
 		meta.Caster.PushPoolUpdate(
 			pool, models.TaskFailedEvent, task.TaskResult{
-				"failed_count": len(errs),
+				"failedCount": len(errs),
 			},
 		)
 		t.ReqNoErr(werror.WithStack(werror.ErrChildTaskFailed))
@@ -158,16 +159,19 @@ func ScanFile(t *task.Task) {
 }
 
 func ScanFile_(meta models.ScanMeta) error {
+	sw := internal.NewStopwatch("Scan " + meta.File.Filename())
 	ext := filepath.Ext(meta.File.Filename())
 	if !meta.MediaService.GetMediaTypes().ParseExtension(ext).Displayable {
 		log.Error.Printf("Trying to process file with [%s] ext", ext)
 		return werror.ErrNonDisplayable
 	}
+	sw.Lap("Check ext")
 
 	contentId := meta.File.GetContentId()
 	if contentId == "" {
 		return werror.Errorf("trying to scan file with no content id: %s", meta.File.AbsPath())
 	}
+	sw.Lap("Check contentId")
 
 	media := models.NewMedia(contentId)
 	if slices.ContainsFunc(
@@ -177,6 +181,7 @@ func ScanFile_(meta models.ScanMeta) error {
 	) {
 		return nil
 	}
+	sw.Lap("New media")
 
 	if meta.PartialMedia == nil {
 		meta.PartialMedia = &models.Media{}
@@ -186,21 +191,29 @@ func ScanFile_(meta models.ScanMeta) error {
 	meta.PartialMedia.FileIds = []fileTree.FileId{meta.File.ID()}
 	meta.PartialMedia.Owner = meta.FileService.GetFileOwner(meta.File).GetUsername()
 
+	sw.Lap("Checked metadata")
 	err := meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
 	if err != nil {
 		return err
 	}
+	sw.Lap("Loaded media from file")
 
 	existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
 	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
 		Width != meta.PartialMedia.Width || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
 		err = meta.MediaService.Add(meta.PartialMedia)
-		if err != nil && errors.Is(err, werror.ErrMediaAlreadyExists) {
+		if err != nil && !errors.Is(err, werror.ErrMediaAlreadyExists) {
 			return err
 		}
+		sw.Lap("Added media to service")
+	} else {
+		log.Debug.Printf("Media already exists for %s\n", meta.File.Filename())
 	}
 
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)
+	sw.Lap("Pushed updated file")
+	sw.Stop()
+	sw.PrintResults(false)
 
 	return nil
 }
@@ -228,24 +241,24 @@ func getScanResult(t *task.Task) task.TaskResult {
 			"filename": meta.File.Filename(),
 		}
 		if tp != nil && tp.CreatedInTask() != nil {
-			result["task_job_target"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()
+			result["taskJobTarget"] = tp.CreatedInTask().GetMeta().(models.ScanMeta).File.Filename()
 		} else if tp == nil {
-			result["task_job_target"] = meta.File.Filename()
+			result["taskJobTarget"] = meta.File.Filename()
 		}
 	}
 
 	if tp != nil {
 		status := tp.Status()
-		result["percent_progress"] = status.Progress
-		result["tasks_complete"] = status.Complete
-		result["tasks_failed"] = status.Failed
-		result["tasks_total"] = status.Total
+		result["percentProgress"] = status.Progress
+		result["tasksComplete"] = status.Complete
+		result["tasksFailed"] = status.Failed
+		result["tasksTotal"] = status.Total
 		result["runtime"] = t.ExeTime()
 		if tp.CreatedInTask() != nil {
-			result["task_job_name"] = tp.CreatedInTask().JobName()
+			result["taskJobName"] = tp.CreatedInTask().JobName()
 		}
 	} else {
-		result["task_job_name"] = t.JobName()
+		result["taskJobName"] = t.JobName()
 	}
 
 	return result

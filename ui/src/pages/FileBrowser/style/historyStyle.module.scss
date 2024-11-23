@@ -137,13 +137,11 @@
     transition: background-color 150ms ease-in-out;
     z-index: 4;
 
+    &[data-moving='true'],
     :hover>& {
-        background-color: $main-accent;
+        background-color: var(--wl-main-accent);
     }
 
-    &[data-moving='true'] {
-        background-color: $main-accent;
-    }
 }
 
 .rollback-bar-wrapper {

@@ -222,11 +222,11 @@ export default function RemoteStatus({
                                         {nsToHumanTime(elapsedTime * 1000000)}
                                     </p>
                                 )}
-                            {restoreProgress.progress_total && (
+                            {restoreProgress.progressTotal && (
                                 <WeblensProgress
                                     value={
-                                        (restoreProgress.progress_current /
-                                            restoreProgress.progress_total) *
+                                        (restoreProgress.progressCurrent /
+                                            restoreProgress.progressTotal) *
                                         100
                                     }
                                 />
@@ -247,18 +247,18 @@ export default function RemoteStatus({
                             error={backupProgress.error}
                         />
                     ))}
-                    {backupProgress.progress_total && (
+                    {backupProgress.progressTotal && (
                         <div className="flex w-full m-1 items-center gap-2">
                             <WeblensProgress
                                 value={
-                                    (backupProgress.progress_current /
-                                        backupProgress.progress_total) *
+                                    (backupProgress.progressCurrent /
+                                        backupProgress.progressTotal) *
                                     100
                                 }
                             />
                             <p className="text-nowrap text-white p-1">
-                                {backupProgress.progress_current} /{' '}
-                                {backupProgress.progress_total} files
+                                {backupProgress.progressCurrent} /{' '}
+                                {backupProgress.progressTotal} files
                             </p>
                         </div>
                     )}

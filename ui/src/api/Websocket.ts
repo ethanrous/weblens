@@ -177,16 +177,16 @@ interface wsMsgContent {
     oldId?: string
     fileId?: string
     fileIds?: string[]
-    task_id?: string
+    taskId?: string
     filename?: string
     waitingOn?: StartupTask[]
     filenames?: string[]
     createdBy?: string
-    task_job_name?: string
-    task_job_target?: string
+    taskJobName?: string
+    taskJobTarget?: string
     stage?: string
-    files_total?: number
-    files_restored?: number
+    filesTotal?: number
+    filesRestored?: number
     timestamp?: string
     error?: string
     stages?: TaskStageT[]
@@ -198,12 +198,12 @@ interface wsMsgContent {
     bytesSoFar?: number
     bytesTotal?: number
     speedBytes?: number
-    tasks_total?: number
-    tasks_complete?: number
-    tasks_failed?: number
+    tasksTotal?: number
+    tasksComplete?: number
+    tasksFailed?: number
     completedFiles?: number
-    execution_time?: number
-    percent_progress?: number
+    executionTime?: number
+    percentProgress?: number
     mediaData?: MediaInfo
     mediaDatas?: MediaInfo[]
     runtime?: number
@@ -231,41 +231,41 @@ export interface FBSubscribeDispatchT {
 }
 
 export enum WsMsgEvent {
-    StartupProgressEvent = 'startup_progress',
-    TaskCreatedEvent = 'task_created',
-    TaskCompleteEvent = 'task_complete',
-    BackupCompleteEvent = 'backup_complete',
-    TaskFailedEvent = 'task_failure',
-    TaskCanceledEvent = 'task_canceled',
-    PoolCreatedEvent = 'pool_created',
-    PoolCompleteEvent = 'pool_complete',
-    PoolCancelledEvent = 'pool_cancelled',
-    FolderScanCompleteEvent = 'folder_scan_complete',
-    FileScanCompleteEvent = 'file_scan_complete',
-    ScanDirectoryProgressEvent = 'scan_directory_progress',
-    FileCreatedEvent = 'file_created',
-    FileUpdatedEvent = 'file_updated',
-    FilesUpdatedEvent = 'files_updated',
-    FileMovedEvent = 'file_moved',
-    FilesMovedEvent = 'files_moved',
-    FileDeletedEvent = 'file_deleted',
-    FilesDeletedEvent = 'files_deleted',
-    ZipProgressEvent = 'create_zip_progress',
-    ZipCompleteEvent = 'zip_complete',
-    ServerGoingDownEvent = 'going_down',
-    RestoreStartedEvent = 'restore_started',
-    RestoreCompleteEvent = 'restore_complete',
-    RestoreFailedEvent = 'restore_failed',
-    WeblensLoadedEvent = 'weblens_loaded',
+    BackupCompleteEvent = 'backupComplete',
+    BackupFailedEvent = 'backupFailed',
+    BackupProgressEvent = 'backupProgress',
+    CopyFileCompleteEvent = 'copyFileComplete',
+    CopyFileFailedEvent = 'copyFileFailed',
+    CopyFileStartedEvent = 'copyFileStarted',
     ErrorEvent = 'error',
-    RemoteConnectionChangedEvent = 'remote_connection_changed',
-
-    BackupProgressEvent = 'backup_progress',
-    BackupFailedEvent = 'backup_failed',
-
-    CopyFileStartedEvent = 'copy_file_started',
-    CopyFileCompleteEvent = 'copy_file_complete',
-    CopyFileFailedEvent = 'copy_file_failed',
+    FileCreatedEvent = 'fileCreated',
+    FileDeletedEvent = 'fileDeleted',
+    FileMovedEvent = 'fileMoved',
+    FileScanCompleteEvent = 'fileScanComplete',
+    FileUpdatedEvent = 'fileUpdated',
+    FilesDeletedEvent = 'filesDeleted',
+    FilesMovedEvent = 'filesMoved',
+    FilesUpdatedEvent = 'filesUpdated',
+    FolderScanCompleteEvent = 'folderScanComplete',
+    PoolCancelledEvent = 'poolCancelled',
+    PoolCompleteEvent = 'poolComplete',
+    PoolCreatedEvent = 'poolCreated',
+    RemoteConnectionChangedEvent = 'remoteConnectionChanged',
+    RestoreCompleteEvent = 'restoreComplete',
+    RestoreFailedEvent = 'restoreFailed',
+    RestoreProgressEvent = 'restoreProgress',
+    RestoreStartedEvent = 'restoreStarted',
+    ScanDirectoryProgressEvent = 'scanDirectoryProgress',
+    ServerGoingDownEvent = 'goingDown',
+    ShareUpdatedEvent = 'shareUpdated',
+    StartupProgressEvent = 'startupProgress',
+    TaskCanceledEvent = 'taskCanceled',
+    TaskCompleteEvent = 'taskComplete',
+    TaskCreatedEvent = 'taskCreated',
+    TaskFailedEvent = 'taskFailure',
+    WeblensLoadedEvent = 'weblensLoaded',
+    ZipCompleteEvent = 'zipComplete',
+    ZipProgressEvent = 'createZipProgress',
 }
 
 function filebrowserWebsocketHandler(
@@ -425,9 +425,9 @@ function filebrowserWebsocketHandler(
                 useTaskState
                     .getState()
                     .updateTaskProgress(msgData.subscribeKey, {
-                        progress: msgData.content.percent_progress,
-                        tasksComplete: msgData.content.tasks_complete,
-                        tasksTotal: msgData.content.tasks_total,
+                        progress: msgData.content.percentProgress,
+                        tasksComplete: msgData.content.tasksComplete,
+                        tasksTotal: msgData.content.tasksTotal,
                         workingOn: msgData.content.filename,
                     })
                 break

@@ -67,7 +67,9 @@ func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, err
 				continue
 			}
 
-			log.Trace.Func(func(l log.Logger) {l.Printf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)})
+			log.Trace.Func(func(l log.Logger) {
+				l.Printf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)
+			})
 			is.instanceMap[server.DbId.Hex()] = server
 		}
 	}

@@ -24,7 +24,7 @@
     "TEST": {
         "mongodbName": "weblens-test",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8090",
@@ -35,7 +35,7 @@
     "TEST-CORE": {
         "mongodbName": "weblens-core-test",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8091",
@@ -45,7 +45,7 @@
     "TEST-BACKUP": {
         "mongodbName": "weblens-backup-test",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8092",

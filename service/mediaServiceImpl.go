@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +32,7 @@ import (
 	"github.com/modern-go/reflect2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 var _ models.MediaService = (*MediaServiceImpl)(nil)
@@ -84,6 +84,8 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	imagick.Initialize()
 }
 
 func NewMediaService(
@@ -149,6 +151,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	}
 
 	if m.Width == 0 || m.Height == 0 {
+		log.Debug.Printf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width)
 		return werror.ErrMediaNoDimensions
 	}
 
@@ -538,13 +541,16 @@ func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
 }
 
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
+	sw := internal.NewStopwatch("LoadMediaFromFile: " + file.Filename())
 	fileMetas := exif.ExtractMetadata(file.AbsPath())
+	sw.Lap("ExtractMetadata")
 
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
 			return fileMeta.Err
 		}
 	}
+	sw.Lap("Read errors")
 
 	var err error
 	if m.CreateDate.Unix() <= 0 {
@@ -570,6 +576,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			m.CreateDate = file.ModTime()
 		}
 	}
+	sw.Lap("Read time")
 
 	if m.MimeType == "" {
 		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
@@ -600,12 +607,14 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			m.Duration = int(duration * 1000)
 		}
 	}
+	sw.Lap("Read mime and duration")
 
 	if ms.typeService.ParseMime(m.MimeType).IsMultiPage() {
 		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
 	} else {
 		m.PageCount = 1
 	}
+	sw.Lap("Count pages")
 
 	if m.Rotate == "" {
 		rotate := fileMetas[0].Fields["Orientation"]
@@ -613,6 +622,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			m.Rotate = rotate.(string)
 		}
 	}
+	sw.Lap("Rotate")
 
 	buf := *ms.filesBuffer.Get().(*[]byte)
 	log.Trace.Func(func(l log.Logger) {
@@ -620,34 +630,60 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			l.Printf("Re-using buffer of %d bytes", len(buf))
 		}
 	})
+	sw.Lap("Get Buffer")
 
 	mType := ms.GetMediaType(m)
+	sw.Lap("Get MediaType")
 
 	if mType.IsRaw() {
-		binMeta := binExif.ExtractMetadata(file.AbsPath())
-		if binMeta[0].Err != nil {
-			return werror.WithStack(binMeta[0].Err)
-		}
-		raw64 := []byte(binMeta[0].Fields[mType.GetThumbExifKey()].(string))
+		log.Debug.Println("ITS RAW!!!!!")
+		mw := imagick.NewMagickWand()
+		defer mw.Destroy()
+		sw.Lap("New MagickWand")
 
-		// remove "base64:" from beginning of data
-		raw64 = raw64[7:]
+		mw.ReadImage(file.AbsPath())
+		sw.Lap("Read image")
+		mw.AutoOrientImage()
+		sw.Lap("Image orientation")
 
-		padCount := 4 - len(raw64)%4
-		if padCount != 4 {
-			raw64 = raw64[:len(raw64)+padCount]
-			for i := range padCount {
-				raw64[len(raw64)-(i+1)] = '='
-			}
-		}
+		width := mw.GetImageWidth()
+		height := mw.GetImageHeight()
 
-		buf = slices.Grow(buf, base64.StdEncoding.DecodedLen(len(raw64)))
-		buf = buf[:base64.StdEncoding.DecodedLen(len(raw64))]
-		_, err = base64.StdEncoding.Decode(buf, raw64)
-		if err != nil {
+		m.Height = int(height)
+		m.Width = int(width)
+		sw.Lap("Image size")
+
+		log.Debug.Printf("Image size: %dx%d", height, width)
+		mw.SetImageFormat("webp")
+		sw.Lap("Image convert to webp")
+
+		fullres, err := ms.fileService.NewCacheFile(m, models.HighRes, 0)
+		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
 			return err
+		} else if err == nil {
+			mw.WriteImage(fullres.AbsPath())
+			m.SetHighresCacheFiles(fullres, 0)
 		}
+		sw.Lap("Write fullres cache file")
 
+		mw.ResizeImage(width/4, height/4, imagick.FILTER_LANCZOS_SHARP)
+		sw.Lap("Image resize for thumb")
+
+		thumb, err := ms.fileService.NewCacheFile(m, models.LowRes, 0)
+		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
+			return err
+		} else if err != nil {
+
+		} else {
+			mw.WriteImage(thumb.AbsPath())
+			m.SetLowresCacheFile(thumb)
+		}
+		sw.Lap("Write thumb cache file")
+
+		sw.Lap("Read raw image")
+		sw.Stop()
+		sw.PrintResults(false)
+		return nil
 	} else if mType.IsVideo() {
 		errOut := bytes.NewBuffer(nil)
 
@@ -667,6 +703,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		}
 		buf = bufbuf.Bytes()
 
+		sw.Lap("Read video")
 	} else {
 		fileReader, err := file.Readable()
 		if err != nil {
@@ -679,14 +716,20 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			return err
 		}
 		buf = bufbuf.Bytes()
+		sw.Lap("Read regular image")
 	}
 
 	err = ms.generateCacheFiles(m, buf)
 	if err != nil {
 		return err
 	}
+	sw.Lap("Generate Cache Files")
 
 	ms.filesBuffer.Put(&buf)
+
+	sw.Lap("Put Buffer")
+	sw.Stop()
+	sw.PrintResults(false)
 
 	return nil
 }

@@ -192,7 +192,7 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 // Subscriptions to types that represent ongoing events like FolderSubscribe never return a truthy completed
 func (cm *ClientManager) Subscribe(
 	c *models.WsClient, key models.SubId, action models.WsAction, subTime time.Time, share models.Share,
-) (complete bool, results map[string]any, err error) {
+) (complete bool, results map[task.TaskResultKey]any, err error) {
 	var sub models.Subscription
 
 	if c == nil {

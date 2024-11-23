@@ -196,6 +196,19 @@
     }
 }
 
+.file-size-icon {
+    font-size: 35cqh;
+    color: white;
+
+    [data-selected='1'] & {
+        color: var(--wl-text-color);
+    }
+
+    [data-moved='1'] & {
+        color: var(--wl-file-text-color);
+    }
+}
+
 .file-rows {
     display: flex;
     flex-direction: column;
@@ -216,7 +229,7 @@
 }
 
 .file-text {
-    padding: 8px;
+    padding: 8cqh;
     font-weight: 500;
     position: relative;
     justify-content: center;
@@ -230,7 +243,7 @@
 
     [data-row] & {
         padding: 10cqh;
-        font-size: 80cqh;
+        font-size: 60cqh;
     }
 
     [data-column-row] & {

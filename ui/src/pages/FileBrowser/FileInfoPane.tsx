@@ -46,7 +46,6 @@ import {
     useMemo,
     useState,
 } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { VariableSizeList, VariableSizeList as WindowList } from 'react-window'
 
 const SIDEBAR_BREAKPOINT = 650
@@ -467,15 +466,15 @@ function RollbackBar({
     openEvents: boolean[]
     historyScroll: number
 }) {
-    const nav = useNavigate()
+    // const nav = useNavigate()
     const pastTime = useFileBrowserStore((state) => state.pastTime)
     const contentId = useFileBrowserStore((state) => state.contentId)
-    // const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+    const setLocation = useFileBrowserStore((state) => state.setLocationState)
 
     const [steps, setSteps] = useState(0)
 
     useEffect(() => {
-        if (pastTime) {
+        if (pastTime && pastTime.getTime() !== 0) {
             let counter = 0
             for (const e of events) {
                 if (e[0].timestamp < pastTime.getTime()) {
@@ -487,7 +486,7 @@ function RollbackBar({
         } else {
             setSteps(0)
         }
-    }, [pastTime])
+    }, [pastTime, contentId])
 
     const [dragging, setDragging] = useState(false)
 
@@ -497,7 +496,7 @@ function RollbackBar({
             setDragging(b)
         },
         (v) => {
-            v = v - 205 + historyScroll
+            v = v - 140 + historyScroll
             if (v < 0) {
                 v = 0
             }
@@ -512,7 +511,7 @@ function RollbackBar({
                 if (!openEvents[counter]) {
                     nextOffset = 64
                 } else {
-                    nextOffset = Math.min(500, 88 + events[counter].length * 32)
+                    nextOffset = Math.min(512, 88 + events[counter].length * 32)
                 }
 
                 if (offset + nextOffset / 2 > v) {
@@ -534,15 +533,16 @@ function RollbackBar({
     const [dragging2, setDragging2] = useState(false)
     useEffect(() => {
         if (dragging2 && !dragging) {
-            let at: string
-            if (steps === 0) {
-                at = ''
+            let newDate: Date = new Date(0)
+            if (steps !== 0) {
+                const timestamp = Math.min(
+                    ...events[steps - 1].map((a) => a.timestamp)
+                )
+                newDate = new Date(timestamp)
             }
-            const event = events[steps - 1]
-            if (event) {
-                at = `?at=${Math.min(...events[steps - 1].map((a) => a.timestamp))}`
+            if (newDate !== pastTime) {
+                setLocation({ contentId: contentId, pastTime: newDate })
             }
-            nav(`/files/${contentId}/${at}`)
         }
         setDragging2(dragging)
     }, [dragging])
@@ -567,7 +567,7 @@ function RollbackBar({
             if (!openEvents[i]) {
                 offset += 64
             } else {
-                offset += Math.min(500, 88 + events[i].length * 32)
+                offset += Math.min(516, 88 + events[i].length * 32)
             }
         }
         return offset

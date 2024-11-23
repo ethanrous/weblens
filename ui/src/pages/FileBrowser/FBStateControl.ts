@@ -391,6 +391,7 @@ function calculateMultiSelectHint(
     return state
 }
 
+// Really slow, but can help make sure nothing is out of order
 function _debug_sanity_check(state: FileBrowserStateT): FileBrowserStateT {
     return state
     // let hasError = false
@@ -433,20 +434,32 @@ function _debug_sanity_check(state: FileBrowserStateT): FileBrowserStateT {
 function setLocation(
     { contentId, shareId, mode, pastTime, jumpTo }: setLocationStateOptsT,
     state: FileBrowserStateT
-): Partial<FileBrowserStateT> {
+): FileBrowserStateT {
     const homeId: string = useSessionStore.getState().user.homeId
     const trashId: string = useSessionStore.getState().user.trashId
 
-    state.fbMode = mode ? mode : state.fbMode
-    state.shareId = shareId ? shareId : state.shareId
+    state.fbMode = mode ?? state.fbMode
+    state.shareId = shareId ?? state.shareId
+
+    // A "0" timestamp for the pastTime means the present, so we want to write it on the state.
+    // If it is undefined, we do not make an update. If it is the same as the current pastTime,
+    // we do not want to make an update.
+    let updatePastTime = false
+    if (pastTime && state.pastTime?.getTime() !== pastTime.getTime()) {
+        updatePastTime = true
+        state.pastTime = pastTime
+    }
 
     // Doing a lot of navigation (like if the user is standing on the "next" key)
-    // can cause the browser to lag or hang, so we debounce the navigation ~400ms
+    // can cause the browser to lag or hang, so we debounce the navigation ~200ms
     if (state.navTimer) {
         clearTimeout(state.navTimer)
     }
     state.navTimer = setTimeout(() => {
-        const path = window.location.pathname + (window.location.hash ?? '')
+        const path =
+            window.location.pathname +
+            (window.location.hash ?? '') +
+            (window.location.search ?? '')
 
         let shouldBe = `/files/${contentId}`
         if (state.fbMode === FbModeT.share) {
@@ -468,15 +481,25 @@ function setLocation(
             shouldBe = shouldBe.replace(`/files/${trashId}`, '/files/trash')
         }
 
-        if (path !== shouldBe) {
-            console.debug('Navigating to:', shouldBe)
+        if (state.pastTime && state.pastTime.getTime() !== 0) {
+            shouldBe += `?past=${state.pastTime.toISOString()}`
+        }
+
+        console.log('Should be:', shouldBe, 'Current:', path)
+        if (path !== shouldBe && path !== '/login') {
+            console.log('Navigating to:', shouldBe)
             state.nav(shouldBe)
         }
     }, 200)
 
-    // If we are moving out of a folder, and no longer need the children,
-    // clear the list for that folder
-    if (
+    if (updatePastTime) {
+        // If we are updating the pastTime, do a hard reset, force
+        // the filebrowser to re-build the list from the past files
+        console.log('Updating past time, clearing files')
+        state = clearFiles(state)
+    } else if (
+        // If we are moving out of a folder, and no longer need the children,
+        // clear the list for that folder
         contentId !== state.contentId &&
         state.filesMap.get(state.contentId)?.parentId !== contentId &&
         state.filesMap.get(contentId)?.parentId !== state.contentId
@@ -493,11 +516,11 @@ function setLocation(
     state = _debug_sanity_check(state)
 
     return {
+        ...state,
         contentId: contentId,
         fbMode: state.fbMode,
         shareId: state.shareId,
         // lastSelectedId: jumpTo ? jumpTo : contentId,
-        pastTime: pastTime ? pastTime : state.pastTime,
         jumpTo: jumpTo ? jumpTo : state.jumpTo,
         filesMap: new Map<string, WeblensFile>(state.filesMap),
         filesLists: new Map<string, WeblensFile[]>(state.filesLists),
@@ -584,6 +607,20 @@ function deleteFile(
     return state
 }
 
+function clearFiles(state: FileBrowserStateT): FileBrowserStateT {
+    console.log('Clearing files')
+    return {
+        ...state,
+        contentId: null,
+        lastSelectedId: '',
+        folderInfo: null,
+        filesMap: new Map<string, WeblensFile>(),
+        selected: new Map<string, boolean>(),
+        filesLists: new Map<string, WeblensFile[]>(),
+        holdingShift: false,
+    }
+}
+
 const FBStateControl: StateCreator<
     FileBrowserStateT,
     [],
@@ -628,8 +665,22 @@ const FBStateControl: StateCreator<
 
     addLoading: (loading: string) =>
         set((state: FileBrowserStateT) => {
+            console.debug('Adding loading:', loading)
             state.loading.push(loading)
             return { loading: [...state.loading] }
+        }),
+
+    removeLoading: (loading: string) =>
+        set((state: FileBrowserStateT) => {
+            console.debug('Remove loading:', loading)
+            const index = state.loading.indexOf(loading)
+            if (index != -1) {
+                state.loading.splice(index, 1)
+            }
+
+            return {
+                loading: [...state.loading],
+            }
         }),
 
     addFile: (fileParams: FileInfo) =>
@@ -711,18 +762,6 @@ const FBStateControl: StateCreator<
         })
     },
 
-    removeLoading: (loading: string) =>
-        set((state: FileBrowserStateT) => {
-            const index = state.loading.indexOf(loading)
-            if (index != -1) {
-                state.loading.splice(index, 1)
-            }
-
-            return {
-                loading: [...state.loading],
-            }
-        }),
-
     setHoldingShift: (holdingShift: boolean) =>
         set((state) => {
             state.holdingShift = holdingShift
@@ -739,15 +778,7 @@ const FBStateControl: StateCreator<
     },
 
     clearFiles: () => {
-        set({
-            contentId: null,
-            lastSelectedId: '',
-            folderInfo: null,
-            filesMap: new Map<string, WeblensFile>(),
-            selected: new Map<string, boolean>(),
-            filesLists: new Map<string, WeblensFile[]>(),
-            holdingShift: false,
-        })
+        set((state) => clearFiles(state))
     },
 
     setSearch: (search) => set({ searchContent: search }),
@@ -1062,7 +1093,16 @@ const FBStateControl: StateCreator<
     },
 
     setPastTime: (pastTime: Date) => {
-        set({ pastTime: pastTime })
+        set((state) => {
+            const folderId = state.folderInfo?.Id()
+            state = clearFiles(state)
+
+            return {
+                ...state,
+                contentId: folderId,
+                pastTime: pastTime,
+            }
+        })
     },
 
     setMoveDest: (dest: string) => {

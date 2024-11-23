@@ -82,8 +82,8 @@ export function AdminWebsocketHandler(
                     if (!prog) {
                         prog = { files: new Map() } as BackupProgressT
                     }
-                    prog.progress_current = msgData.content.tasks_complete
-                    prog.progress_total = msgData.content.tasks_total
+                    prog.progressCurrent = msgData.content.tasksComplete
+                    prog.progressTotal = msgData.content.tasksTotal
                     prog.files.delete(msgData.content.filename)
                     p.set(msgData.relaySource, prog)
                     return new Map(p)

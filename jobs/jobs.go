@@ -454,7 +454,7 @@ func HashFile(t *task.Task) {
 	contentId, err := service.GenerateContentId(meta.File)
 	t.ReqNoErr(err)
 
-	log.Trace.Func(func(l log.Logger) {l.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId)})
+	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId) })
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)
@@ -467,7 +467,7 @@ func HashFile(t *task.Task) {
 	poolStatus := t.GetTaskPool().Status()
 	meta.Caster.PushTaskUpdate(
 		t, models.TaskCompleteEvent, task.TaskResult{
-			"fileName":      meta.File.Filename(),
+			"filename":      meta.File.Filename(),
 			"tasksTotal":    poolStatus.Total,
 			"tasksComplete": poolStatus.Complete,
 		},

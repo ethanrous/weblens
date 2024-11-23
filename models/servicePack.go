@@ -53,9 +53,11 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
+	newTasks := make([]StartupTask, len(pack.startupTasks))
 	pack.waitingOnLock.RLock()
 	defer pack.waitingOnLock.RUnlock()
-	return pack.startupTasks[:]
+	copy(newTasks, pack.startupTasks)
+	return newTasks
 }
 
 func (pack *ServicePack) RemoveStartupTask(taskName string) {
@@ -82,6 +84,6 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 type Server interface {
 	Start()
 	UseApi() *chi.Mux
-	Restart()
+	Restart(wait bool)
 	Stop()
 }

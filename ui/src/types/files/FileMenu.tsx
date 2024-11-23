@@ -335,7 +335,7 @@ function StandardFileMenu({
 
     return (
         <div
-            className={'default-grid no-scrollbar'}
+            className={'default-grid'}
             data-visible={menuMode === FbMenuModeT.Default && menuTarget !== ''}
         >
             <div className="default-menu-icon">
@@ -516,7 +516,7 @@ function StandardFileMenu({
                     onClick={(e) => {
                         e.stopPropagation()
                         activeItems.items.forEach((i) =>
-                            wsSend('scan_directory', { folderId: i.Id() })
+                            wsSend('scanDirectory', { folderId: i.Id() })
                         )
                     }}
                 />
@@ -1193,7 +1193,7 @@ function BackdropDefaultItems({
 
     return (
         <div
-            className="default-grid no-scrollbar"
+            className="default-grid"
             data-visible={menuMode === FbMenuModeT.Default && menuTarget === ''}
         >
             <div className="default-menu-icon">
@@ -1228,7 +1228,7 @@ function BackdropDefaultItems({
                     }
                     onClick={(e) => {
                         e.stopPropagation()
-                        wsSend('scan_directory', { folderId: folderInfo.Id() })
+                        wsSend('scanDirectory', { folderId: folderInfo.Id() })
                     }}
                 />
             </div>

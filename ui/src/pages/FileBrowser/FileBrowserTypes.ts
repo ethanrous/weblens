@@ -26,7 +26,7 @@ export type FileEventT = {
     millis: number
 
     // Non-api fields
-    fileName: string
+    filename: string
     // oldPath: string
 }
 

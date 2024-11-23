@@ -1,3 +1,4 @@
+import WeblensLoader from '@weblens/components/Loading'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
@@ -80,6 +81,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
     const shareId = useFileBrowserStore((state) => state.shareId)
     const moveDest = useFileBrowserStore((state) => state.moveDest)
     const dragState = useFileBrowserStore((state) => state.draggingState)
+    const loading = useFileBrowserStore((state) => state.loading)
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const numCols = Math.max(Math.floor(size.width / 250), 2)
 
@@ -117,6 +119,8 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
         }
     }, [size.width])
 
+    const isLoading = loading.includes('files')
+
     return (
         <div
             ref={setContainerRef}
@@ -144,8 +148,13 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
         >
             {size.width !== -1 && (
                 <div className="flex relative w-full h-full items-center">
-                    {files.length === 0 && <GetStartedCard />}
-                    {files.length !== 0 && (
+                    {isLoading && (
+                        <div className='m-auto p-2'>
+                            <WeblensLoader />
+                        </div>
+                    )}
+                    {!isLoading && files.length === 0 && <GetStartedCard />}
+                    {!isLoading && files.length !== 0 && (
                         <Grid
                             className="no-scrollbar outline-0"
                             ref={gridRef}

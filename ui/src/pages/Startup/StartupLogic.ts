@@ -23,13 +23,13 @@ export function startupWebsocketHandler(
             }
             case WsMsgEvent.TaskCompleteEvent: {
                 setSetupProgress(
-                    (msgData.content.tasks_complete /
-                        msgData.content.tasks_total) *
+                    (msgData.content.tasksComplete /
+                        msgData.content.tasksTotal) *
                         100
                 )
                 setLastTask(msgData.content.filename)
                 // setSetupMostRecent(
-                //     `${msgData.taskType}: ${msgData.content.fileName}`
+                //     `${msgData.taskType}: ${msgData.content.filename}`
                 // )
                 break
             }

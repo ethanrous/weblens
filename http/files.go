@@ -398,7 +398,7 @@ func createFolder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	newDir, err := pack.FileService.CreateFolder(parentFolder, body.NewFolderName, pack.Caster)
+	newDir, err := pack.FileService.CreateFolder(parentFolder, body.NewFolderName, nil, pack.Caster)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -864,14 +864,14 @@ func autocompletePath(w http.ResponseWriter, r *http.Request) {
 	for _, match := range matches {
 		f := children[match.OriginalIndex]
 
-		childInfo, err := rest.WeblensFileToFileInfo(f, pack, true)
+		childInfo, err := rest.WeblensFileToFileInfo(f, pack, false)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
 		childInfos = append(childInfos, childInfo)
 	}
 
-	selfInfo, err := rest.WeblensFileToFileInfo(folder, pack, true)
+	selfInfo, err := rest.WeblensFileToFileInfo(folder, pack, false)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1335,7 +1335,7 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 			func(meta task.TaskMetadata) error {
 				uploadMeta := meta.(models.UploadFilesMeta)
 
-				newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName, uploadMeta.UploadEvent)
+				newF, err := pack.FileService.CreateFile(parent, newFInfo.NewFileName, uploadMeta.UploadEvent, pack.Caster)
 				if err != nil {
 					return err
 				}
@@ -1510,7 +1510,7 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, w http.ResponseWrite
 		childInfos = append(childInfos, info)
 	}
 
-	selfInfo, err := rest.WeblensFileToFileInfo(dir, pack, true)
+	selfInfo, err := rest.WeblensFileToFileInfo(dir, pack, false)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1526,13 +1526,17 @@ func formatRespondFolderInfo(dir *fileTree.WeblensFileImpl, w http.ResponseWrite
 
 // Helper Function
 func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w http.ResponseWriter, r *http.Request) {
+	log.Trace.Func(func(l log.Logger) {
+		l.Printf("Getting past folder [%s] at time [%s]", folderId, pastTime)
+	})
+
 	pack := getServices(r)
 
 	pastFile, err := pack.FileService.GetJournalByTree("USERS").GetPastFile(folderId, pastTime)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
-	pastFileInfo, err := rest.WeblensFileToFileInfo(pastFile, pack, false)
+	pastFileInfo, err := rest.WeblensFileToFileInfo(pastFile, pack, true)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -1549,7 +1553,7 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w
 			return
 		}
 
-		parentInfo, err := rest.WeblensFileToFileInfo(pastParent, pack, false)
+		parentInfo, err := rest.WeblensFileToFileInfo(pastParent, pack, true)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -1563,9 +1567,9 @@ func formatRespondPastFolderInfo(folderId fileTree.FileId, pastTime time.Time, w
 		return
 	}
 
-	var childrenInfos []rest.FileInfo
+	childrenInfos := make([]rest.FileInfo, 0, len(children))
 	for _, child := range children {
-		childInfo, err := rest.WeblensFileToFileInfo(child, pack, false)
+		childInfo, err := rest.WeblensFileToFileInfo(child, pack, true)
 		if SafeErrorAndExit(err, w) {
 			return
 		}

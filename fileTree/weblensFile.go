@@ -331,15 +331,15 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
-	fileSize := f.Size()
+	// fileSize := f.Size()
 
-	data, err := internal.OracleReader(osFile, fileSize)
+	data, err := io.ReadAll(osFile)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
-	if len(data) != int(fileSize) {
-		return nil, werror.WithStack(werror.ErrBadReadCount)
-	}
+	// if len(data) != int(fileSize) {
+	// 	return nil, werror.WithStack(werror.ErrBadReadCount)
+	// }
 
 	return data, nil
 }
@@ -694,6 +694,12 @@ func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 		return newSize, nil
 	}
 	return -1, nil
+}
+
+func (f *WeblensFileImpl) ReplaceRoot(newRoot string) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.portablePath = f.portablePath.OverwriteRoot(newRoot)
 }
 
 func (f *WeblensFileImpl) getIdInternal() FileId {

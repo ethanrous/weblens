@@ -5,28 +5,26 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/task"
 )
 
 var _ models.FileService = (*MockFileService)(nil)
 
-type MockFileService struct{}
+type MockFileService struct {
+	trees map[string]fileTree.FileTree
+}
+
+func NewMockFileService() *MockFileService {
+	return &MockFileService{
+		trees: make(map[string]fileTree.FileTree),
+	}
+}
 
 func (mfs *MockFileService) GetZip(id fileTree.FileId) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")
-}
-
-var usernames = []string{
-	"Rosalie Haas",
-	"Morris Coleman",
-	"Cathy Shelton",
-	"Gustavo Gould",
-	"Israel Lee",
-	"Bob Mayo",
-	"Lora Massey",
-	"Pam Silva",
 }
 
 func (mfs *MockFileService) Size(treeName string) int64 {
@@ -34,7 +32,8 @@ func (mfs *MockFileService) Size(treeName string) int64 {
 }
 
 func (mfs *MockFileService) AddTree(tree fileTree.FileTree) {
-	panic("implement me")
+	log.Trace.Func(func(l log.Logger) { l.Printf("AddTree %s", tree.GetRoot().GetPortablePath().RootName()) })
+	mfs.trees[tree.GetRoot().GetPortablePath().RootName()] = tree
 }
 
 func (mfs *MockFileService) GetUsersRoot() *fileTree.WeblensFileImpl {
@@ -47,7 +46,7 @@ func (mfs *MockFileService) PathToFile(searchPath string) (*fileTree.WeblensFile
 	panic("implement me")
 }
 
-func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (
+func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster) (
 	*fileTree.WeblensFileImpl, error,
 ) {
 
@@ -55,7 +54,7 @@ func (mfs *MockFileService) CreateFile(parent *fileTree.WeblensFileImpl, filenam
 }
 
 func (mfs *MockFileService) CreateFolder(
-	parent *fileTree.WeblensFileImpl, foldername string, caster models.FileCaster,
+	parent *fileTree.WeblensFileImpl, foldername string, event *fileTree.FileEvent, caster models.FileCaster,
 ) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")
@@ -77,8 +76,7 @@ func (mfs *MockFileService) CreateRestoreFile(lifetime *fileTree.Lifetime) (
 }
 
 func (mfs *MockFileService) GetFileByTree(id fileTree.FileId, treeAlias string) (*fileTree.WeblensFileImpl, error) {
-
-	panic("implement me")
+	return mfs.trees[treeAlias].Get(id), nil
 }
 
 func (mfs *MockFileService) GetFileByContentId(contentId models.ContentId) (*fileTree.WeblensFileImpl, error) {
@@ -94,6 +92,10 @@ func (mfs *MockFileService) GetFileSafe(
 	id fileTree.FileId, accessor *models.User, share *models.FileShare,
 ) (*fileTree.WeblensFileImpl, error) {
 	return nil, nil
+}
+
+func (mfs *MockFileService) GetFileTreeByName(treeName string) fileTree.FileTree {
+	return nil
 }
 
 func (mfs *MockFileService) GetFileOwner(file *fileTree.WeblensFileImpl) *models.User {
@@ -161,7 +163,8 @@ func (mfs *MockFileService) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 }
 
 func (mfs *MockFileService) GetJournalByTree(treeName string) fileTree.Journal {
-	return nil
+	log.Trace.Printf("GetJournalByTree %s", treeName)
+	return mfs.trees[treeName].GetJournal()
 }
 
 func (mfs *MockFileService) ResizeDown(file *fileTree.WeblensFileImpl, caster models.FileCaster) error {

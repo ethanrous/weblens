@@ -45,24 +45,6 @@
     margin: 4px;
 }
 
-.crumb-text {
-    /* line-clamp: 1; */
-    color: $main-text;
-    line-height: 1.2;
-    user-select: none;
-    font-size: 25px;
-    flex-grow: 0;
-    flex-shrink: 1;
-    width: max-content;
-    height: max-content;
-    text-wrap: nowrap;
-}
-
-.crumb-icon {
-    height: 30px;
-    width: 30px;
-}
-
 @media screen and (max-width: 800px) {
     .file-sort-box {
         flex-direction: column;

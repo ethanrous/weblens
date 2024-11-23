@@ -50,9 +50,10 @@ type FileInfo struct {
 	Owner        models.Username  `json:"owner"`
 	ShareId      models.ShareId   `json:"shareId,omitempty"`
 	Modifiable   bool             `json:"modifiable"`
+	PastFile     bool             `json:"pastFile"`
 } // @name FileInfo
 
-func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack, isParent bool) (FileInfo, error) {
+func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack, isPastFile bool) (FileInfo, error) {
 	// Some fields are only needed if the file is the parent file of the request,
 	// when the file is a child, these fields are not needed, and can be expensive to fetch,
 	// so we conditionally ignore them.
@@ -79,7 +80,7 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 		}
 	}
 
-	modifiable := !pack.FileService.IsFileInTrash(f)
+	modifiable := !isPastFile && !pack.FileService.IsFileInTrash(f)
 
 	return FileInfo{
 		Id:           f.ID(),
@@ -91,6 +92,7 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 		ContentId:    f.GetContentId(),
 		ShareId:      shareId,
 		Modifiable:   modifiable,
+		PastFile:     isPastFile,
 
 		Owner:    owner,
 		Children: children,
@@ -297,7 +299,7 @@ func FileActionToFileActionInfo(fa *fileTree.FileAction) FileActionInfo {
 		ParentId:        fa.ParentId,
 		ServerId:        fa.ServerId,
 	}
-} // @name FileActionInfo
+}
 
 type MediaInfo struct {
 	MediaId string `json:"-" example:"5f9b3b3b7b4f3b0001b3b3b7"`

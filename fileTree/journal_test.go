@@ -34,9 +34,11 @@ func TestJournalImplSimple(t *testing.T) {
 		false,
 		hasherFactory,
 	)
+	require.NoError(t, err)
 	defer journal.Close()
+	err = col.Drop(context.Background())
+	require.NoError(t, err)
 	defer col.Drop(context.Background())
-	col.Drop(context.Background())
 
 	tree, err := NewTestFileTree()
 	require.NoError(t, err)
@@ -79,9 +81,12 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 		false,
 		hasherFactory,
 	)
+	require.NoError(t, err)
+
 	defer journal.Close()
+	err = col.Drop(context.Background())
+	require.NoError(t, err)
 	defer col.Drop(context.Background())
-	col.Drop(context.Background())
 
 	tree, err := NewTestFileTree()
 	require.NoError(t, err)
@@ -97,13 +102,38 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	testFile, err := tree.Touch(newDir, "test_file", event)
 	require.NoError(t, err)
 
-	log.Trace.Println("Logging event")
 	journal.LogEvent(event)
 	event.Wait()
 
+	secondDirEvent := journal.NewEvent()
+	newDir2, err := tree.MkDir(tree.GetRoot(), "newDir2", secondDirEvent)
+	require.NoError(t, err)
+
+	journal.LogEvent(secondDirEvent)
+	secondDirEvent.Wait()
+
+	pastRootChildren, err := journal.GetPastFolderChildren(
+		tree.GetRoot(), secondDirEvent.EventBegin.Add(-time.Microsecond),
+	)
+	require.NoError(t, err)
+
+	if !assert.Equal(t, 1, len(pastRootChildren)) {
+		childNames := internal.Map(
+			pastRootChildren, func(f *WeblensFileImpl) string {
+				return f.Name()
+			},
+		)
+		log.Error.Println("Wrong children:", childNames)
+		t.FailNow()
+	}
+
 	deleteEvent := journal.NewEvent()
-	tree.Delete(testFile.ID(), deleteEvent)
-	tree.Delete(newDir.ID(), deleteEvent)
+	err = tree.Delete(testFile.ID(), deleteEvent)
+	require.NoError(t, err)
+	err = tree.Delete(newDir.ID(), deleteEvent)
+	require.NoError(t, err)
+	err = tree.Delete(newDir2.ID(), deleteEvent)
+	require.NoError(t, err)
 
 	journal.LogEvent(deleteEvent)
 
@@ -114,21 +144,22 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, tree.GetRoot().ID(), pastRoot.ID())
 
-	pastRootChildren, err := journal.GetPastFolderChildren(
+	pastRootChildren, err = journal.GetPastFolderChildren(
 		tree.GetRoot(), deleteEvent.EventBegin.Add(-time.Microsecond),
 	)
 	require.NoError(t, err)
 
-	if !assert.Equal(t, 1, len(pastRootChildren)) {
+	if !assert.Equal(t, 2, len(pastRootChildren)) {
 		childNames := internal.Map(
 			pastRootChildren, func(f *WeblensFileImpl) string {
 				return f.Name()
 			},
 		)
-		log.Debug.Println("Wrong children:", childNames)
+		log.Error.Println("Wrong children:", childNames)
 		t.FailNow()
 	}
-	assert.Equal(t, newDir.ID(), pastRootChildren[0].ID())
+	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[0].ID())
+	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[1].ID())
 
 	// Get the old folder just before the delete event
 	pastDir, err := journal.GetPastFile(newDir.ID(), deleteEvent.EventBegin.Add(-time.Microsecond))

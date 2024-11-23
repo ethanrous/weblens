@@ -356,10 +356,6 @@ func ReadTypesConfig(target any) error {
 	return nil
 }
 
-func GetCoreApiKey() string {
-	return os.Getenv("CORE_API_KEY")
-}
-
 func GetDataRoot(configName ...string) string {
 	dataRoot := os.Getenv("DATA_ROOT")
 	if dataRoot != "" {

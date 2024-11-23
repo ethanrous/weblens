@@ -28,22 +28,16 @@ var NewErrNoFileName = func(name string) error {
 
 var fileNotFound = errors.New("file not found or user does not have access to it")
 
-var ErrNoFile = &clientSafeErr{
+var ErrNoFile = clientSafeErr{
 	realError:  errors.New("file does not exist"),
 	safeErr:    fileNotFound,
 	statusCode: http.StatusNotFound,
 }
 
-var ErrNoFileAccess = &clientSafeErr{
+var ErrNoFileAccess = clientSafeErr{
 	realError:  errors.New("user does not have access to file"),
 	safeErr:    fileNotFound,
 	statusCode: http.StatusNotFound,
-}
-
-var ErrNoFileId = func(id string) error {
-	err := *ErrNoFile
-	err.realError = Errorf("cannot find file with id [%s]", id)
-	return &err
 }
 
 var ErrDirectoryRequired = errors.New(
@@ -51,12 +45,12 @@ var ErrDirectoryRequired = errors.New(
 		"but found regular file",
 )
 
-var ErrDirAlreadyExists = &clientSafeErr{
+var ErrDirAlreadyExists = clientSafeErr{
 	safeErr:    errors.New("directory already exists in destination location"),
 	statusCode: http.StatusConflict,
 }
 
-var ErrFileAlreadyExists = &clientSafeErr{
+var ErrFileAlreadyExists = clientSafeErr{
 	safeErr:    errors.New("file already exists in destination location"),
 	statusCode: http.StatusConflict,
 }
@@ -73,7 +67,7 @@ var ErrFileNoTask = errors.New("file does not have task")
 var ErrNoContentId = errors.New("file does not have a content id")
 
 var ErrNoFileTree = clientSafeErr{
-	realError:  errors.New("filetree [%s] does not exist"),
+	realError:  errors.New("filetree does not exist"),
 	safeErr:    errors.New("trying to get a filetree that does not exist"),
 	statusCode: http.StatusNotFound,
 }

@@ -26,7 +26,7 @@ type ClientManager interface {
 	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
 
 	Subscribe(c *WsClient, key SubId, action WsAction, subTime time.Time, share Share) (
-		complete bool, results map[string]any, err error,
+		complete bool, results map[task.TaskResultKey]any, err error,
 	)
 	Unsubscribe(c *WsClient, key SubId, unSubTime time.Time) error
 }

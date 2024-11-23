@@ -37,9 +37,6 @@ $soft-shadow-off: 2px 2px 12px #00000000;
 $hard-shadow: 0.25em 0.25em 1px #000000aa;
 $hard-shadow-off: 0 0 0px #000000aa;
 
-
-// var(--wl-danger-subtle): light-dark(#d96c74, #521f22);
-
 $warning: #fad30b;
 
 // Components //
@@ -48,10 +45,9 @@ $warning: #fad30b;
     /* Default color scheme */
     color-scheme: light;
     --wl-theme-color: #3600cc;
-    // --wl-theme-color-bright: #408ae0;
+    --wl-main-accent: #3636ca;
     --wl-theme-color-bright: #7c4dff;
     --wl-theme-rgb: 54, 0, 204;
-    // --wl-theme-color: #3636ca;
     --dark-paper: light-dark(#7274d6, #1c1049);
     --wl-text-color: light-dark(#000000, #ffffff);
     --wl-text-color-dull: light-dark(#333333, #cccccc);

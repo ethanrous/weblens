@@ -48,7 +48,6 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 		hasherFactory: hasherFactory,
 	}
 
-	start := time.Now()
 	indexModel := []mongo.IndexModel{
 		{
 			Keys: bson.D{
@@ -82,7 +81,6 @@ func NewJournal(col *mongo.Collection, serverId string, ignoreLocal bool, hasher
 	if err != nil {
 		return nil, err
 	}
-	log.Debug.Printf("GOT LIFETIMES %s", time.Since(start))
 
 	j.lifetimeMapLock.Lock()
 	for _, l := range lifetimes {
@@ -233,6 +231,7 @@ func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, 
 	f.portablePath = path
 	f.pastFile = true
 	f.SetContentId(lt.ContentId)
+	f.setModTime(relevantAction.GetTimestamp())
 	return f, nil
 }
 
@@ -250,29 +249,43 @@ func (j *JournalImpl) UpdateLifetime(lifetime *Lifetime) error {
 func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.Time) (
 	[]*WeblensFileImpl, error,
 ) {
-	actions, err := j.getActionsByPath(folder.GetPortablePath(), false)
+	actions, err := j.getChildrenAtTime(folder.ID(), time)
 	if err != nil {
-		return nil, werror.WithStack(err)
+		return nil, err
 	}
 
-	actionsMap := map[string]*FileAction{}
+	log.Trace.Printf("Got %d actions", len(actions))
+	// actions, err := j.getActionsByPath(folder.GetPortablePath(), false)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// actionsMap := map[string]*FileAction{}
+	// for _, action := range actions {
+	// 	if action.GetTimestamp().After(time) || action.GetLifetimeId() == folder.ID() {
+	// 		continue
+	// 	}
+	//
+	// 	log.Trace.Func(func(l log.Logger) {
+	// 		l.Printf("Action %s %s (%s == %s)", action.LifeId, action.DestinationPath, action.ActionType, action.ParentId, folder.ID())
+	// 	})
+	//
+	// 	if _, ok := actionsMap[action.LifeId]; !ok {
+	// 		if action.ParentId == folder.ID() {
+	// 			actionsMap[action.LifeId] = action
+	// 		} else {
+	// 			actionsMap[action.LifeId] = nil
+	// 		}
+	// 	}
+	// }
+
+	lifeIdMap := map[FileId]any{}
+	children := make([]*WeblensFileImpl, 0, len(actions))
 	for _, action := range actions {
-		if action.GetTimestamp().UnixMilli() >= time.UnixMilli() || action.GetLifetimeId() == folder.ID() {
+		if action == nil {
 			continue
 		}
-
-		if _, ok := actionsMap[action.LifeId]; !ok {
-			if action.ParentId == folder.ID() {
-				actionsMap[action.LifeId] = action
-			} else {
-				actionsMap[action.LifeId] = nil
-			}
-		}
-	}
-
-	children := make([]*WeblensFileImpl, 0, len(actionsMap))
-	for _, action := range actionsMap {
-		if action == nil {
+		if _, ok := lifeIdMap[action.LifeId]; ok {
 			continue
 		}
 
@@ -288,6 +301,8 @@ func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.T
 		children = append(
 			children, newChild,
 		)
+
+		lifeIdMap[action.LifeId] = nil
 	}
 
 	return children, nil
@@ -494,6 +509,29 @@ func upsertLifetimes(lts []*Lifetime, col *mongo.Collection) error {
 	}
 
 	return nil
+}
+
+func (j *JournalImpl) getChildrenAtTime(parentId FileId, time time.Time) ([]*FileAction, error) {
+	pipe := bson.A{
+		bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
+		bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "$and", Value: bson.A{bson.D{{Key: "actions.parentId", Value: parentId}}, bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$lt", Value: time}}}}}}}}},
+		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+	}
+
+	ret, err := j.col.Aggregate(context.Background(), pipe)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	var target []*FileAction
+	err = ret.All(context.Background(), &target)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	return target, nil
 }
 
 func (j *JournalImpl) getActionsByPath(path WeblensFilepath, noChildren bool) ([]*FileAction, error) {

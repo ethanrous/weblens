@@ -54,7 +54,7 @@ const FileTextBox = ({
                 </h4>
                 {doFolderIcon && (
                     <IconFolder
-                        className={filesStyle['text-theme-text']}
+                        className={filesStyle['file-size-text'] + " max-h-full"}
                         stroke={2}
                     />
                 )}

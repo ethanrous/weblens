@@ -40,14 +40,7 @@ func (pfs *ProxyFileService) PathToFile(
 	panic("implement me")
 }
 
-func (pfs *ProxyFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (
-	*fileTree.WeblensFileImpl, error,
-) {
-
-	panic("implement me")
-}
-
-func (pfs *ProxyFileService) CreateTmpFile(parent *fileTree.WeblensFileImpl, filename string) (
+func (pfs *ProxyFileService) CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster models.FileCaster) (
 	*fileTree.WeblensFileImpl, error,
 ) {
 
@@ -55,8 +48,15 @@ func (pfs *ProxyFileService) CreateTmpFile(parent *fileTree.WeblensFileImpl, fil
 }
 
 func (pfs *ProxyFileService) CreateFolder(
-	parent *fileTree.WeblensFileImpl, foldername string, caster models.FileCaster,
+	parent *fileTree.WeblensFileImpl, foldername string, event *fileTree.FileEvent, caster models.FileCaster,
 ) (*fileTree.WeblensFileImpl, error) {
+
+	panic("implement me")
+}
+
+func (pfs *ProxyFileService) CreateTmpFile(parent *fileTree.WeblensFileImpl, filename string) (
+	*fileTree.WeblensFileImpl, error,
+) {
 
 	panic("implement me")
 }
@@ -101,6 +101,10 @@ func (pfs *ProxyFileService) GetFileSafe(
 ) (*fileTree.WeblensFileImpl, error) {
 
 	panic("implement me")
+}
+
+func (pfs *ProxyFileService) GetFileTreeByName(treeName string) fileTree.FileTree {
+	return nil
 }
 
 func (pfs *ProxyFileService) GetFileOwner(file *fileTree.WeblensFileImpl) *models.User {

@@ -115,7 +115,7 @@ func (c *SimpleCaster) PushTaskUpdate(task *task.Task, event string, result task
 	msg := WsResponseInfo{
 		EventTag:      event,
 		SubscribeKey:  task.TaskId(),
-		Content:       WsC(result),
+		Content:       result.ToMap(),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
 		SentTime:      time.Now().Unix(),
@@ -141,7 +141,7 @@ func (c *SimpleCaster) PushPoolUpdate(
 	msg := WsResponseInfo{
 		EventTag:      event,
 		SubscribeKey:  parentTask.TaskId(),
-		Content:       WsC(result),
+		Content:       result.ToMap(),
 		TaskType:      parentTask.JobName(),
 		BroadcastType: TaskSubscribe,
 		SentTime:      time.Now().Unix(),
@@ -157,7 +157,7 @@ func (c *SimpleCaster) PushShareUpdate(username Username, newShareInfo Share) {
 	}
 
 	msg := WsResponseInfo{
-		EventTag:      "share_updated",
+		EventTag:      ShareUpdatedEvent,
 		SubscribeKey:  username,
 		Content:       WsC{"newShareInfo": newShareInfo},
 		BroadcastType: UserSubscribe,
@@ -397,17 +397,17 @@ type ClientType string
 const (
 	// UserSubscribe does not actually get "subscribed" to, it is automatically tracked for every websocket
 	// connection made, and only sends updates to that specific user when needed
-	UserSubscribe WsAction = "user_subscribe"
+	UserSubscribe WsAction = "userSubscribe"
 
-	FolderSubscribe WsAction = "folder_subscribe"
-	ServerEvent     WsAction = "server_event"
-	TaskSubscribe   WsAction = "task_subscribe"
-	// PoolSubscribe     WsAction = "pool_subscribe"
-	TaskTypeSubscribe WsAction = "task_type_subscribe"
+	FolderSubscribe WsAction = "folderSubscribe"
+	ServerEvent     WsAction = "serverEvent"
+	TaskSubscribe   WsAction = "taskSubscribe"
+	// PoolSubscribe     WsAction = "poolSubscribe"
+	TaskTypeSubscribe WsAction = "taskTypeSubscribe"
 	Unsubscribe       WsAction = "unsubscribe"
-	ScanDirectory     WsAction = "scan_directory"
-	CancelTask        WsAction = "cancel_task"
-	ReportError       WsAction = "show_web_error"
+	ScanDirectory     WsAction = "scanDirectory"
+	CancelTask        WsAction = "cancelTask"
+	ReportError       WsAction = "showWebError"
 )
 
 const (
@@ -445,32 +445,39 @@ type WsR interface {
 }
 
 const (
-	StartupProgressEvent         = "startup_progress"
-	TaskCreatedEvent             = "task_created"
-	TaskCompleteEvent            = "task_complete"
-	BackupCompleteEvent          = "backup_complete"
-	TaskFailedEvent              = "task_failure"
-	TaskCanceledEvent            = "task_canceled"
-	PoolCreatedEvent             = "pool_created"
-	PoolCompleteEvent            = "pool_complete"
-	PoolCancelledEvent           = "pool_cancelled"
-	FolderScanCompleteEvent      = "folder_scan_complete"
-	FileScanCompleteEvent        = "file_scan_complete"
-	ScanDirectoryProgressEvent   = "scan_directory_progress"
-	FileCreatedEvent             = "file_created"
-	FileUpdatedEvent             = "file_updated"
-	FilesUpdatedEvent            = "files_updated"
-	FileMovedEvent               = "file_moved"
-	FilesMovedEvent              = "files_moved"
-	FileDeletedEvent             = "file_deleted"
-	FilesDeletedEvent            = "files_deleted"
-	ZipProgressEvent             = "create_zip_progress"
-	ZipCompleteEvent             = "zip_complete"
-	ServerGoingDownEvent         = "going_down"
-	RestoreStartedEvent          = "restore_started"
-	WeblensLoadedEvent           = "weblens_loaded"
+	BackupCompleteEvent          = "backupComplete"
+	BackupFailedEvent            = "backupFailed"
+	BackupProgressEvent          = "backupProgress"
+	CopyFileCompleteEvent        = "copyFileComplete"
+	CopyFileFailedEvent          = "copyFileFailed"
+	CopyFileStartedEvent         = "copyFileStarted"
 	ErrorEvent                   = "error"
-	RemoteConnectionChangedEvent = "remote_connection_changed"
-	BackupProgressEvent          = "backup_progress"
-	CopyFileCompleteEvent        = "copy_file_complete"
+	FileCreatedEvent             = "fileCreated"
+	FileDeletedEvent             = "fileDeleted"
+	FileMovedEvent               = "fileMoved"
+	FileScanCompleteEvent        = "fileScanComplete"
+	FileUpdatedEvent             = "fileUpdated"
+	FilesDeletedEvent            = "filesDeleted"
+	FilesMovedEvent              = "filesMoved"
+	FilesUpdatedEvent            = "filesUpdated"
+	FolderScanCompleteEvent      = "folderScanComplete"
+	PoolCancelledEvent           = "poolCancelled"
+	PoolCompleteEvent            = "poolComplete"
+	PoolCreatedEvent             = "poolCreated"
+	RemoteConnectionChangedEvent = "remoteConnectionChanged"
+	RestoreCompleteEvent         = "restoreComplete"
+	RestoreFailedEvent           = "restoreFailed"
+	RestoreProgressEvent         = "restoreProgress"
+	RestoreStartedEvent          = "restoreStarted"
+	ScanDirectoryProgressEvent   = "scanDirectoryProgress"
+	ServerGoingDownEvent         = "goingDown"
+	ShareUpdatedEvent            = "shareUpdated"
+	StartupProgressEvent         = "startupProgress"
+	TaskCanceledEvent            = "taskCanceled"
+	TaskCompleteEvent            = "taskComplete"
+	TaskCreatedEvent             = "taskCreated"
+	TaskFailedEvent              = "taskFailure"
+	WeblensLoadedEvent           = "weblensLoaded"
+	ZipCompleteEvent             = "zipComplete"
+	ZipProgressEvent             = "createZipProgress"
 )

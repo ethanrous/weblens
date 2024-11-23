@@ -108,13 +108,13 @@ export const DirViewWrapper = memo(
 )
 
 export const FileIcon = ({
-    fileName,
+    filename,
     id,
     Icon,
     usr,
     as,
 }: {
-    fileName: string
+    filename: string
     id: string
     Icon: ButtonIcon
     usr: User
@@ -124,7 +124,7 @@ export const FileIcon = ({
         <div className="flex items-center">
             <Icon className={fbStyle['icon-noshrink']} />
             <p className="font-medium text-white truncate text-nowrap p-2 shrink">
-                {friendlyFolderName(fileName, id, usr)}
+                {friendlyFolderName(filename, id, usr)}
             </p>
             {as && (
                 <div className="flex flex-row items-center">
@@ -287,7 +287,6 @@ export function GetStartedCard() {
     const user = useSessionStore((state) => state.user)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const mode = useFileBrowserStore((state) => state.fbMode)
-    const viewingPast = useFileBrowserStore((state) => state.pastTime)
     const draggingState = useFileBrowserStore((state) => state.draggingState)
     const loading = useFileBrowserStore((state) => state.loading)
     const [viewRef, setViewRef] = useState<HTMLDivElement>()
@@ -295,7 +294,7 @@ export function GetStartedCard() {
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
-    if (draggingState) {
+    if (draggingState === DraggingStateT.ExternalDrag) {
         return null
     }
 
@@ -305,7 +304,7 @@ export function GetStartedCard() {
 
     if (!folderInfo && mode === FbModeT.share) {
         return (
-            <div className="flex justify-center items-center h-3/4">
+            <div className="flex justify-center items-center m-auto p-2">
                 <div className="h-max w-max p-4 wl-outline">
                     <h4>You have no files shared with you</h4>
                 </div>
@@ -325,7 +324,7 @@ export function GetStartedCard() {
     return (
         <div
             ref={setViewRef}
-            className="flex w-[50vw] min-w-[250px] justify-center items-center animate-fade h-max m-auto p-4"
+            className="flex w-[50vw] min-w-[250px] justify-center items-center animate-fade h-max m-auto p-4 z-[3]"
         >
             <div className="flex flex-col w-max max-w-full h-fit justify-center items-center">
                 <div className="flex items-center p-30 absolute -z-1 pointer-events-none h-max max-w-full min-w-[200px]">
@@ -336,7 +335,7 @@ export function GetStartedCard() {
                     {`This folder ${folderInfo.IsPastFile() ? 'was' : 'is'} empty`}
                 </p>
 
-                {folderInfo.IsModifiable() && !viewingPast && (
+                {folderInfo.IsModifiable() && (
                     <div
                         className="flex p-5 w-350 max-w-full z-10 items-center"
                         style={{ flexDirection: doVertical ? 'column' : 'row' }}

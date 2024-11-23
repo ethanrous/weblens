@@ -31,7 +31,7 @@ func (w WebdavFs) Mkdir(ctx context.Context, name string, perm os.FileMode) erro
 	}
 
 	// TODO: add event
-	_, err = w.WeblensFs.CreateFile(parent, filepath.Base(unescapeName), nil)
+	_, err = w.WeblensFs.CreateFile(parent, filepath.Base(unescapeName), nil, w.Caster)
 	if err != nil {
 		return err
 	}
@@ -45,10 +45,10 @@ func (w WebdavFs) OpenFile(ctx context.Context, name string, flag int, perm os.F
 		return nil, err
 	}
 
-	// fileName := filepath.Base(unescapeName)
-	// if strings.HasPrefix(fileName, "._") {
-	// 	fileName = fileName[2:]
-	// 	unescapeName = filepath.Dir(unescapeName) + "/" + fileName
+	// filename := filepath.Base(unescapeName)
+	// if strings.HasPrefix(filename, "._") {
+	// 	filename = filename[2:]
+	// 	unescapeName = filepath.Dir(unescapeName) + "/" + filename
 	// }
 	// if unescapeName == "." {
 	// 	unescapeName = "/"
@@ -100,10 +100,10 @@ func (w WebdavFs) Stat(ctx context.Context, name string) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	fileName := filepath.Base(unescapeName)
-	if strings.HasPrefix(fileName, "._") {
-		fileName = fileName[2:]
-		unescapeName = filepath.Dir(unescapeName) + "/" + fileName
+	filename := filepath.Base(unescapeName)
+	if strings.HasPrefix(filename, "._") {
+		filename = filename[2:]
+		unescapeName = filepath.Dir(unescapeName) + "/" + filename
 	}
 
 	f, err := w.WeblensFs.PathToFile(unescapeName)

@@ -114,7 +114,7 @@ func getUserFromCtx(r *http.Request) (*models.User, error) {
 	u, _ := userI.(*models.User)
 
 	if u.IsPublic() && r.Context().Value(AllowPublicKey) == nil && r.Context().Value(ServerKey) == nil {
-		return nil, werror.ErrNoPublicUser
+		return nil, werror.WithStack(werror.ErrNoPublicUser)
 	}
 	return u, nil
 }

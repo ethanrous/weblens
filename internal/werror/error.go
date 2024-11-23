@@ -33,6 +33,8 @@ type clientSafeErr struct {
 func (cse clientSafeErr) Error() string {
 	if cse.realError == nil {
 		return cse.Safe().Error()
+	} else if cse.arg != nil {
+		return fmt.Sprintf("%s: %v", cse.realError.Error(), cse.arg)
 	}
 	return cse.realError.Error()
 }
@@ -44,9 +46,17 @@ func (cse clientSafeErr) Safe() error {
 	return cse.safeErr
 }
 
+func (cse clientSafeErr) Unwrap() error {
+	if cse.realError == nil {
+		return cse.Safe()
+	}
+	return cse.realError
+}
+
 func (cse clientSafeErr) WithArg(arg any) clientSafeErr {
 	newCse := cse
-	newCse.realError = Errorf(cse.realError.Error(), arg)
+	newCse.realError = cse
+	newCse.arg = arg
 	return newCse
 }
 

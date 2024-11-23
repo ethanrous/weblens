@@ -7,13 +7,11 @@ import {
 } from '@tabler/icons-react'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useClick, useResize } from '@weblens/components/hooks'
-import '@weblens/lib/crumbs.scss'
 import {
     FbModeT,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import headerStyle from '@weblens/pages/FileBrowser/style/dirViewHeader.module.scss'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { WeblensFile } from '@weblens/types/files/File'
 import { goToFile } from '@weblens/types/files/FileDragLogic'
@@ -21,6 +19,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import WeblensButton from './WeblensButton'
+import crumbStyle from './crumbStyle.module.scss'
 
 type Crumb = {
     path: string
@@ -42,21 +41,21 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
 
     if (crumb.id === usr.homeId) {
         return (
-            <div className={headerStyle['crumb-icon']}>
+            <div className={crumbStyle['crumb-icon']}>
                 <IconHome className="w-full h-full" />
             </div>
         )
     }
     if (crumb.path === 'Shared') {
         return (
-            <div className={headerStyle['crumb-icon']}>
+            <div className={crumbStyle['crumb-icon']}>
                 <IconUsers className="w-full h-full" />
             </div>
         )
     }
     if (crumb.id === usr.trashId) {
         return (
-            <div className={headerStyle['crumb-icon']}>
+            <div className={crumbStyle['crumb-icon']}>
                 <IconTrash className="w-full h-full" />
             </div>
         )
@@ -65,7 +64,7 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
     const { nameText } = filenameFromPath(crumb.path)
 
     return (
-        <p className={`${headerStyle['crumb-text']} w-max max-w-full`}>
+        <p className={`${crumbStyle['crumb-text']} w-max max-w-full`}>
             {nameText}
         </p>
     )
@@ -94,7 +93,7 @@ export const StyledBreadcrumb = ({
 
     return (
         <div
-            className={'crumb-box'}
+            className={crumbStyle['crumb-box']}
             data-navigable={crumbInfo.navigable}
             data-compact={compact}
             data-dragging={dragging === DraggingStateT.InternalDrag}
@@ -167,12 +166,12 @@ function LoafOverflowMenu({
 }) {
     useClick(() => setOpen(false), reff, !open)
     return (
-        <div className="overflow-menu" data-open={open}>
+        <div className={crumbStyle['overflow-menu']} data-open={open}>
             {crumbs.map((item, i: number) => {
                 return (
                     <div
                         key={`crumb-overflow-${i}`}
-                        className="flex flex-row items-center "
+                        className="flex flex-row items-center min-w-0"
                         style={{
                             paddingLeft: 12 + (i - 1) * 28,
                         }}
@@ -226,9 +225,12 @@ export const StyledLoaf = ({
     }
 
     return (
-        <div ref={setCrumbRef} className="loaf">
+        <div ref={setCrumbRef} className={crumbStyle['loaf']}>
             {crumbs.map((c, i) => (
-                <div key={c.path} className="flex flex-row items-center">
+                <div
+                    key={c.path}
+                    className="flex flex-row items-center min-w-[50px]"
+                >
                     <StyledBreadcrumb
                         crumbInfo={c}
                         moveSelectedTo={moveSelectedTo}
@@ -257,7 +259,7 @@ export const StyledLoaf = ({
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <p className={headerStyle['crumb-text']}>...</p>
+                        <p className={crumbStyle['crumb-text'] + "trun"}>...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}

@@ -16,9 +16,16 @@ import (
 
 type Id = string
 type TaskExitStatus = string
-type TaskResult = map[string]any
+type TaskResultKey string
+type TaskResult map[TaskResultKey]any
 
-// var _ TaskInterface = (*Task)(nil)
+func (tr TaskResult) ToMap() map[string]any {
+	m := map[string]any{}
+	for k, v := range tr {
+		m[string(k)] = v
+	}
+	return m
+}
 
 type Task struct {
 	taskId        Id
@@ -217,7 +224,7 @@ func (t *Task) ClearAndRecompute() {
 	t.taskPool.workerPool.taskMap[t.taskId] = t
 }
 
-func (t *Task) GetResult(resultKey string) any {
+func (t *Task) GetResult(resultKey TaskResultKey) any {
 	t.updateMu.RLock()
 	defer t.updateMu.RUnlock()
 	if t.result == nil {

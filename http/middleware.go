@@ -55,13 +55,13 @@ func ParseApiKeyLogin(authHeader string, pack *models.ServicePack) (
 		return nil, nil, err
 	}
 
+	var i *models.Instance
 	if key.RemoteUsing != "" {
-		i := pack.InstanceService.GetByInstanceId(key.RemoteUsing)
-		return nil, i, nil
+		i = pack.InstanceService.GetByInstanceId(key.RemoteUsing)
 	}
 
 	usr := pack.UserService.Get(key.Owner)
-	return usr, nil, nil
+	return usr, i, nil
 }
 func WithServices(pack *models.ServicePack) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -198,10 +198,8 @@ func WeblensAuth(next http.Handler) http.Handler {
 
 			if server != nil {
 				r = r.WithContext(context.WithValue(r.Context(), ServerKey, server))
-
-			} else {
-				r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			}
+			r = r.WithContext(context.WithValue(r.Context(), UserKey, usr))
 			next.ServeHTTP(w, r)
 			return
 		}

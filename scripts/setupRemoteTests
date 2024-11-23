@@ -30,6 +30,11 @@ printf "Dropping old databases... "
 mongosh --eval "use weblens-mock-core" --eval "db.dropDatabase()" >/dev/null
 printf "Done\n"
 
+dataRoot=$(jq -r '."MOCK-CORE".dataRoot' <./config/config.json)
+cachesRoot=$(jq -r '."MOCK-CORE".cachesRoot' <./config/config.json)
+rm -r dataRoot
+rm -r cachesRoot
+
 printf "\n### Starting Weblens Core ###\n"
 if ! ./scripts/startWeblens --trace --config MOCK-CORE -d --log ./build/logs/core-test-target.log; then
     printf "\n### FAILED ###\n"
@@ -57,15 +62,17 @@ function wait_for_startup() {
 
 wait_for_startup
 
+testUserName="test-user"
+
 printf "Initializing core server... "
 serverResponse=$(curl --location 'http://localhost:8089/api/servers/init' \
     --header 'Content-Type: application/json' \
-    --data '{
-    "name": "MOCK-CORE",
-    "role": "core",
-    "username": "ethan",
-    "password": "password"
-}' 2>/dev/null)
+    --data "{
+    \"name\": \"MOCK-CORE\",
+    \"role\": \"core\",
+    \"username\": \"$testUserName\",
+    \"password\": \"password\"
+}" 2>/dev/null)
 
 serverId=$(echo "$serverResponse" | jq -r '.id')
 
@@ -82,10 +89,10 @@ wait_for_startup
 printf "Logging in new user... "
 loginResponse=$(curl --location 'http://localhost:8089/api/users/auth' \
     --header 'Content-Type: application/json' \
-    --data '{
-            "username": "ethan",
-            "password": "password"
-        }' 2>/dev/null)
+    --data "{
+            \"username\": \"$testUserName\",
+            \"password\": \"password\"
+        }" 2>/dev/null)
 
 token=$(jq -r '.token' <<<"$loginResponse")
 

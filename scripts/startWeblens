@@ -114,6 +114,8 @@ while true; do
 	fi
 	printf " DONE\n"
 
+	pkill -f exiftool
+
 	if [[ $detach == true ]]; then
 		printf "Starting Weblens and detaching..."
 		APP_ROOT="$(pwd)" CONFIG_NAME="$config_name" nohup ./build/bin/weblens &>"$log_file" &

@@ -8,7 +8,7 @@ export default function WeblensLoader({ loading }: { loading?: string[] }) {
     }
     return (
         <div
-            className="flex cursor-pointer justify-center"
+            className="flex justify-center"
             onClick={() => {
                 console.log('Waiting on:', loading)
             }}

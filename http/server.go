@@ -28,7 +28,7 @@ type Server struct {
 	// router     *gin.Engine
 	router     *chi.Mux
 	stdServer  *http.Server
-	routerLock sync.Mutex
+	RouterLock sync.Mutex
 	services   *models.ServicePack
 	hostStr    string
 }
@@ -84,28 +84,29 @@ func (s *Server) Start() {
 			s.router.Mount("/", s.UseUi())
 		}
 
+		s.RouterLock.Lock()
 		go s.StartupFunc()
 		<-s.services.StartupChan
+		log.Trace.Println("Router got startup signal")
 
-		s.routerLock.Lock()
 		s.stdServer = &http.Server{Addr: s.hostStr, Handler: s.router}
 		s.Running = true
 
 		log.Info.Printf("Starting router at %s", s.hostStr)
-		s.routerLock.Unlock()
+		s.RouterLock.Unlock()
 
 		err := s.stdServer.ListenAndServe()
 
 		if !errors.Is(err, http.ErrServerClosed) {
 			log.Error.Fatalln(err)
 		}
-		s.routerLock.Lock()
+		s.RouterLock.Lock()
 		s.Running = false
 		s.stdServer = nil
 
 		// s.router = gin.New()
 		s.router = chi.NewRouter()
-		s.routerLock.Unlock()
+		s.RouterLock.Unlock()
 	}
 }
 
@@ -148,6 +149,7 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Get("/{fileId}/download", downloadFile)
 		r.Get("/{fileId}/history", getFolderHistory)
 		r.Get("/search", searchByFilename)
+		r.Get("/autocomplete", autocompletePath)
 		r.Get("/shared", getSharedFiles)
 
 		r.Post("/restore", restoreFiles)
@@ -349,15 +351,21 @@ func serveStaticContent(w http.ResponseWriter, r *http.Request) {
 	SafeErrorAndExit(err, w)
 }
 
-func (s *Server) Restart() {
+func (s *Server) Restart(wait bool) {
 	s.services.Loaded.Store(false)
 	s.services.StartupChan = make(chan bool)
-	go s.StartupFunc()
-	<-s.services.StartupChan
+	err := s.stdServer.Shutdown(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	if wait {
+		<-s.services.StartupChan
+	}
 }
 
 func (s *Server) Stop() {
-	log.Warning.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
+	log.Debug.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
 	s.services.Caster.PushWeblensEvent(models.ServerGoingDownEvent)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

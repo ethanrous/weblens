@@ -72,7 +72,7 @@ func (accSrv *AccessServiceImpl) CanUserAccessFile(
 		return true
 	}
 
-	if user.GetUsername() == "WEBLENS" {
+	if user.IsSystemUser() && user.Username == "WEBLENS" {
 		return true
 	}
 

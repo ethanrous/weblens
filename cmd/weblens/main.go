@@ -11,7 +11,7 @@ import (
 
 	"github.com/ethanrous/weblens/database"
 	"github.com/ethanrous/weblens/fileTree"
-	. "github.com/ethanrous/weblens/http"
+	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	var server *Server
+	var server *http.Server
 	var services = &models.ServicePack{}
 
 	config, err := env.ReadConfig(env.GetConfigName())
@@ -47,7 +47,7 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	server = NewServer(config["routerHost"].(string), env.GetRouterPort(configName), services)
+	server = http.NewServer(config["routerHost"].(string), env.GetRouterPort(configName), services)
 	server.StartupFunc = func() {
 		startup(env.GetConfigName(), services)
 	}
@@ -124,7 +124,7 @@ func startup(configName string, pack *models.ServicePack) {
 			for _, core := range cores {
 				if core != nil {
 					log.Trace.Func(func(l log.Logger) { l.Printf("Connecting to core server [%s]", core.Address) })
-					if err = WebsocketToCore(core, pack); err != nil {
+					if err = http.WebsocketToCore(core, pack); err != nil {
 						panic(err)
 					}
 
@@ -161,9 +161,13 @@ func startup(configName string, pack *models.ServicePack) {
 	sw.Stop()
 	sw.PrintResults(false)
 
+	server := pack.Server.(*http.Server)
+	server.RouterLock.Lock()
 	pack.Loaded.Store(true)
+	log.Debug.Println("Closing startup channel")
 	close(pack.StartupChan)
 	pack.StartupChan = nil
+	server.RouterLock.Unlock()
 
 	log.Debug.Println("Service setup complete")
 	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})

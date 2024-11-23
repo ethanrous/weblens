@@ -281,7 +281,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		cookie := fmt.Sprintf("%s=%s; expires=%s;", SessionTokenCookie, token, expires.Format(time.RFC1123))
 		w.Header().Set("Set-Cookie", cookie)
 
-		pack.Server.Restart()
+		go pack.Server.Restart(false)
 	} else if initBody.Role == models.BackupServerRole {
 		if initBody.Name == "" {
 			w.WriteHeader(http.StatusBadRequest)

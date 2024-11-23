@@ -102,7 +102,8 @@ func getFilesMeta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var files []*fileTree.WeblensFileImpl
-	err = pack.FileService.GetUsersRoot().RecursiveMap(
+	usersTree := pack.FileService.GetFileTreeByName("USERS")
+	err = usersTree.GetRoot().RecursiveMap(
 		func(file *fileTree.WeblensFileImpl) error {
 			files = append(files, file)
 			return nil
@@ -191,7 +192,7 @@ func uploadRestoreFile(w http.ResponseWriter, r *http.Request) {
 
 	fileId := r.URL.Query().Get("fileId")
 	if fileId == "" {
-		log.Trace.Func(func(l log.Logger) {l.Printf("No fileId given")})
+		log.Trace.Func(func(l log.Logger) { l.Printf("No fileId given") })
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -199,14 +200,14 @@ func uploadRestoreFile(w http.ResponseWriter, r *http.Request) {
 	journal := pack.FileService.GetJournalByTree("USERS")
 	lt := journal.Get(fileId)
 	if lt == nil {
-		log.Trace.Func(func(l log.Logger) {l.Printf("Could not find lifetime with id %s", fileId)})
+		log.Trace.Func(func(l log.Logger) { l.Printf("Could not find lifetime with id %s", fileId) })
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	parentId := lt.GetLatestAction().GetParentId()
 	if parentId == "" {
-		log.Trace.Func(func(l log.Logger) {l.Printf("Did not find parentId on latest action")})
+		log.Trace.Func(func(l log.Logger) { l.Printf("Did not find parentId on latest action") })
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -216,7 +217,7 @@ func uploadRestoreFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := pack.FileService.CreateFile(parent, filepath.Base(lt.GetLatestAction().GetDestinationPath()), nil)
+	f, err := pack.FileService.CreateFile(parent, filepath.Base(lt.GetLatestAction().GetDestinationPath()), nil, pack.Caster)
 	if SafeErrorAndExit(err, w) {
 		return
 	}
@@ -281,7 +282,7 @@ func finalizeRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go pack.Server.Restart()
+	pack.Server.Restart(true)
 
 	w.WriteHeader(http.StatusOK)
 }

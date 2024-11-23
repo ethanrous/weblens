@@ -364,7 +364,7 @@ function GlobalActions() {
                             onMouseOver={trashMouseOver}
                             onMouseLeave={mouseLeave}
                             onMouseUp={trashMouseUp}
-                            Right={TrashSize}
+                            Right={resizeOffset > 200 ? TrashSize : null}
                         />
 
                         <div className="p-1" />
@@ -652,10 +652,12 @@ const SingleFile = memo(
 function DirViewHeader() {
     const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const viewingPast = useFileBrowserStore((state) => state.pastTime)
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
     const selected = useFileBrowserStore((state) => state.selected)
 
-    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
+    const setLocationState = useFileBrowserStore(
+        (state) => state.setLocationState
+    )
     const setDragging = useFileBrowserStore((state) => state.setDragging)
     const setSelectedMoved = useFileBrowserStore(
         (state) => state.setSelectedMoved
@@ -694,13 +696,16 @@ function DirViewHeader() {
                 )}
                 {(mode === FbModeT.share || viewingFolder) && <FileSortBox />}
             </div>
-            {viewingPast && (
+            {pastTime && pastTime.getTime() !== 0 && (
                 <div
                     className={fbStyle['past-time-box']}
                     onClick={(e) => {
                         e.stopPropagation()
                         setHoverTime(false)
-                        setPastTime(null)
+                        setLocationState({
+                            contentId: folderInfo.Id(),
+                            pastTime: new Date(0),
+                        })
                     }}
                     onMouseOver={(e) => {
                         e.stopPropagation()
@@ -712,7 +717,7 @@ function DirViewHeader() {
                     }}
                 >
                     <p
-                        className="crumb-text absolute pointer-events-none ml-2 text-[#c4c4c4] text-xl"
+                        className="crumb-text absolute pointer-events-none ml-2 text-xl"
                         style={{ opacity: hoverTime ? 1 : 0 }}
                     >
                         Back to present?
@@ -720,10 +725,10 @@ function DirViewHeader() {
                     {hoverTime && <IconArrowLeft />}
                     {!hoverTime && <IconClock />}
                     <p
-                        className="crumb-text ml-2 text-[#c4c4c4] text-xl"
+                        className="crumb-text ml-2 text-xl"
                         style={{ opacity: hoverTime ? 0 : 1 }}
                     >
-                        {historyDate(viewingPast.getTime())}
+                        {historyDate(pastTime.getTime())}
                     </p>
                 </div>
             )}
@@ -884,6 +889,8 @@ function FileBrowser() {
         localStorage.setItem('fbViewOpts', JSON.stringify(viewOpts))
     }, [viewOpts])
 
+    const past = query('past')
+
     useEffect(() => {
         if (!user) {
             return
@@ -922,11 +929,7 @@ function FileBrowser() {
             contentId = splitPath[0]
         }
 
-        const timestamp = query('at')
-        let pastTime: Date
-        if (timestamp) {
-            pastTime = new Date(Number(timestamp))
-        }
+        const pastTime: Date = past ? new Date(past) : null
 
         if (mode === FbModeT.share && shareId && !contentId) {
             SharesApi.getFileShare(shareId)
@@ -937,9 +940,9 @@ function FileBrowser() {
         } else {
             contentId = getRealId(contentId, mode, user)
             setLocationState({ contentId, mode, shareId, pastTime, jumpTo })
-            removeLoading('files')
+            // removeLoading('files')
         }
-    }, [urlPath, user, query('at'), jumpTo])
+    }, [urlPath, user, past, jumpTo])
 
     const { readyState } = useFolderSubscribe()
 
@@ -989,6 +992,7 @@ function FileBrowser() {
             const folder = filesMap.get(contentId)
             if (
                 folder &&
+                (!pastTime || folder.modifyDate === pastTime) &&
                 (folder.GetFetching() ||
                     (folder.modifiable !== undefined &&
                         folder.childrenIds &&

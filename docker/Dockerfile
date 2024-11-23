@@ -3,7 +3,7 @@
 FROM debian:12-slim
 
 RUN apt update
-RUN apt-get install -y libvips exiftool ffmpeg
+RUN apt-get install -y libvips exiftool ffmpeg libmagickwand-dev
 
 WORKDIR /app
 COPY ui/dist /app/ui/dist

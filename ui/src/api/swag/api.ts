@@ -307,6 +307,12 @@ export interface FileInfo {
     'parentId'?: string;
     /**
      * 
+     * @type {boolean}
+     * @memberof FileInfo
+     */
+    'pastFile'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof FileInfo
      */

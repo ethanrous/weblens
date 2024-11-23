@@ -57,7 +57,7 @@ var sampleMediaInvalid = []testMedia{
 		err:  werror.ErrMediaNoId,
 	},
 	{
-		name: "media missing Id",
+		name: "media missing id",
 		media: models.Media{
 			ContentId:  "",
 			FileIds:    []fileTree.FileId{"deadbeefdeadbeefdeadbeef"},
@@ -72,7 +72,7 @@ var sampleMediaInvalid = []testMedia{
 		err: werror.ErrMediaNoId,
 	},
 	{
-		name: "media missing fileIds",
+		name: "media missing file ids",
 		media: models.Media{
 			ContentId:  "yBjwGUnv5-flkMAmSH-3",
 			FileIds:    nil,
