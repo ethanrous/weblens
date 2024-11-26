@@ -13,13 +13,12 @@ import {
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
-import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import User from '@weblens/types/user/User'
 import { toggleLightTheme } from '@weblens/util'
-import { DragEvent, FC, useCallback, useEffect } from 'react'
+import { FC, useCallback, useEffect } from 'react'
 
 import { DirViewModeT } from './FileBrowserTypes'
 
@@ -36,24 +35,6 @@ export function getRealId(contentId: string, mode: FbModeT, usr: User) {
         return ''
     } else {
         return contentId
-    }
-}
-
-export const handleDragOver = (
-    event: DragEvent,
-    setDragging: (dragging: DraggingStateT) => void,
-    dragging: number
-) => {
-    return
-    event.preventDefault()
-    event.stopPropagation()
-
-    if (event.type === 'dragenter' || event.type === 'dragover') {
-        if (!dragging) {
-            setDragging(DraggingStateT.ExternalDrag)
-        }
-    } else {
-        setDragging(DraggingStateT.NoDrag)
     }
 }
 

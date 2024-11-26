@@ -29,11 +29,7 @@ import { friendlyFolderName, humanFileSize } from '@weblens/util'
 import { FC, ReactElement, memo, useState } from 'react'
 
 import { FbModeT, useFileBrowserStore } from './FBStateControl'
-import {
-    HandleUploadButton,
-    filenameFromPath,
-    handleDragOver,
-} from './FileBrowserLogic'
+import { HandleUploadButton, filenameFromPath } from './FileBrowserLogic'
 import fbStyle from './style/fileBrowserStyle.module.scss'
 
 export const DirViewWrapper = memo(
@@ -77,28 +73,7 @@ export const DirViewWrapper = memo(
                     })
                 }}
             >
-                <div
-                    className="w-full h-full p-2"
-                    onDragOver={(e) => {
-                        if (!draggingState) {
-                            handleDragOver(e, setDragging, draggingState)
-                        }
-                    }}
-                    onDragLeave={() => {
-                        return
-                        // if (dropRef.contains(e.target as Node)) {
-                        //     console.log(e.target)
-                        //     return
-                        // }
-                        //
-                        // console.log(e.target)
-                        // if (draggingState) {
-                        //     setDragging(DraggingStateT.NoDrag)
-                        // }
-                    }}
-                >
-                    {children}
-                </div>
+                <div className="w-full h-full p-2">{children}</div>
             </div>
         )
     },

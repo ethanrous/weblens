@@ -50,6 +50,7 @@ func TestJournalImplSimple(t *testing.T) {
 	require.NoError(t, err)
 
 	journal.LogEvent(event)
+	event.Wait()
 
 	newDirLifetime := journal.Get(newDir.ID())
 	var retries int
@@ -136,6 +137,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	require.NoError(t, err)
 
 	journal.LogEvent(deleteEvent)
+	deleteEvent.Wait()
 
 	assert.Empty(t, tree.GetRoot().GetChildren())
 
