@@ -49,7 +49,7 @@ jobs:
                   --disable-openmp \
                   --with-gvc=no \
                   --disable-docs && \
-              make -j$(nproc) && make install && ldconfig /usr/local/lib/
+              make -j$(nproc) && sudo make install && ldconfig /usr/local/lib/
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0
