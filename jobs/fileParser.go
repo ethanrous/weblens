@@ -9,7 +9,6 @@ import (
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
-	"github.com/ethanrous/weblens/internal/metrics"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/task"
@@ -51,8 +50,9 @@ func ScanDirectory(t *task.Task) {
 
 	meta.TaskSubber.FolderSubToTask(meta.File.ID(), t.TaskId())
 	meta.TaskSubber.FolderSubToTask(meta.File.GetParentId(), t.TaskId())
+	defer meta.TaskSubber.UnsubTask(t.TaskId())
 
-	log.Debug.Printf("Beginning directory scan for %s (%s)\n", meta.File.GetPortablePath(), meta.File.ID())
+	log.Debug.Printf("Beginning directory scan for %s (%s)", meta.File.GetPortablePath(), meta.File.ID())
 
 	var alreadyFiles []*fileTree.WeblensFileImpl
 	var alreadyMedia []*models.Media
@@ -62,13 +62,10 @@ func ScanDirectory(t *task.Task) {
 			if wf.IsDir() {
 				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not regular file", wf.AbsPath()) })
 				return nil
-				// TODO: Lock directory files while scanning to be able to check what task is using each file
-				// wf.AddTask(t)
 			}
 
 			if !meta.MediaService.IsFileDisplayable(wf) {
 				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not displayable", wf.AbsPath()) })
-
 				return nil
 			}
 
@@ -92,6 +89,7 @@ func ScanDirectory(t *task.Task) {
 				MediaService: meta.MediaService,
 				Caster:       meta.Caster,
 			}
+			log.Trace.Printf("Dispatching scanFile job for [%s]", wf.AbsPath())
 			newT, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
@@ -104,9 +102,12 @@ func ScanDirectory(t *task.Task) {
 	)
 
 	log.Debug.Func(func(l log.Logger) {
-		l.Printf("Directory scan found files for %s in %s\n", meta.File.GetPortablePath(), time.Since(start))
+		l.Printf("Directory scan found files for %s in %s", meta.File.GetPortablePath(), time.Since(start))
 	})
 
+	// If the files are already in the media service, we need to update the clients
+	// that may be waiting for these files to be processed, but since we won't be
+	// adding those to the media service, we need to update the clients now
 	meta.Caster.PushFilesUpdate(alreadyFiles, alreadyMedia)
 
 	if err != nil {
@@ -120,7 +121,7 @@ func ScanDirectory(t *task.Task) {
 		log.ShowErr(err)
 	}
 
-	pool.Wait(true)
+	pool.Wait(true, t)
 
 	errs := pool.Errors()
 	if len(errs) != 0 {
@@ -142,23 +143,26 @@ func ScanDirectory(t *task.Task) {
 	result := getScanResult(t)
 	meta.Caster.PushPoolUpdate(pool.GetRootPool(), models.FolderScanCompleteEvent, result)
 
+	log.Debug.Printf("Finished directory scan for %s", meta.File.GetPortablePath())
+
 	t.Success()
 }
 
 func ScanFile(t *task.Task) {
 	meta := t.GetMeta().(models.ScanMeta)
-	start := time.Now()
-	err := ScanFile_(meta)
-	stop := time.Now()
+	// start := time.Now()
+	err := ScanFile_(meta, t.ExitIfSignaled)
+	// stop := time.Now()
 	if err != nil {
-		t.ReqNoErr(err)
+		log.Error.Printf("Failed to scan file %s: %s", meta.File.AbsPath(), err)
+		t.Fail(err)
 	}
-	metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
+	// metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
 
 	t.Success()
 }
 
-func ScanFile_(meta models.ScanMeta) error {
+func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 	sw := internal.NewStopwatch("Scan " + meta.File.Filename())
 	ext := filepath.Ext(meta.File.Filename())
 	if !meta.MediaService.GetMediaTypes().ParseExtension(ext).Displayable {
@@ -179,6 +183,7 @@ func ScanFile_(meta models.ScanMeta) error {
 			return fId == meta.File.ID()
 		},
 	) {
+		log.Trace.Printf("Media already exists for %s\n", meta.File.Filename())
 		return nil
 	}
 	sw.Lap("New media")
@@ -191,12 +196,16 @@ func ScanFile_(meta models.ScanMeta) error {
 	meta.PartialMedia.FileIds = []fileTree.FileId{meta.File.ID()}
 	meta.PartialMedia.Owner = meta.FileService.GetFileOwner(meta.File).GetUsername()
 
+	exitCheck()
+
 	sw.Lap("Checked metadata")
 	err := meta.MediaService.LoadMediaFromFile(meta.PartialMedia, meta.File)
 	if err != nil {
 		return err
 	}
 	sw.Lap("Loaded media from file")
+
+	exitCheck()
 
 	existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
 	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
@@ -205,6 +214,7 @@ func ScanFile_(meta models.ScanMeta) error {
 		if err != nil && !errors.Is(err, werror.ErrMediaAlreadyExists) {
 			return err
 		}
+		log.Trace.Printf("Added %s to media service", meta.File.Filename())
 		sw.Lap("Added media to service")
 	} else {
 		log.Debug.Printf("Media already exists for %s\n", meta.File.Filename())
@@ -213,7 +223,8 @@ func ScanFile_(meta models.ScanMeta) error {
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)
 	sw.Lap("Pushed updated file")
 	sw.Stop()
-	sw.PrintResults(false)
+	// sw.PrintResults(false)
+	log.Trace.Printf("Finished processing %s", meta.File.Filename())
 
 	return nil
 }

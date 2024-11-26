@@ -181,6 +181,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 	t := wp.GetTask(taskId)
 	if t != nil {
+		log.Trace.Printf("Task [%s] already exists, not launching again", taskId)
 		return t, nil
 	} else {
 		wp.jobsMu.RLock()
@@ -291,7 +292,12 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 // during the task, we can catch them, display them, and safely remove the task.
 func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 	defer wp.workerRecover(task, workerId)
-	task.work(task)
+
+	if task.exitStatus != TaskNoStatus {
+		log.Trace.Printf("Task [%s] already has exit status [%s], not running", task.taskId, task.exitStatus)
+	} else {
+		task.work(task)
+	}
 
 	task.updateMu.Lock()
 	if task.postAction != nil && task.exitStatus == TaskSuccess {
@@ -414,7 +420,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 				}
 			case t := <-wp.taskStream:
 				{
-					// Even if we get a new task, if the wp is marked for exit, we just exit
+					// Even if we get a new task, but the wp is marked for exit, we just exit
 					if wp.exitFlag.Load() == 1 {
 						// We don't care about the exitLock here, since the whole wp
 						// is going down anyway.
@@ -424,7 +430,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Replacement workers are not allowed to do "scan_directory" tasks
 					// TODO - generalize
-					if replacement && t.jobName == "scan_directory" {
+					if replacement && t.jobName == "scan_directory" && t.exitStatus == TaskNoStatus {
 
 						// If there are twice the number of free spaces in the chan, don't bother pulling
 						// everything into the waiting buffer, just put it at the end right now.
@@ -448,11 +454,13 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					wp.busyCount.Add(1)
 					metrics.BusyWorkerGuage.Inc()
 					t.SwLap("Task start")
-					log.Debug.Func(func(l log.Logger) { l.Printf("Starting %s task T[%s]", t.jobName, t.taskId) })
+					log.Trace.Func(func(l log.Logger) { l.Printf("Starting %s task T[%s]", t.jobName, t.taskId) })
 					wp.safetyWork(t, workerId)
 					t.SwLap("Task finish")
 					t.sw.Stop()
-					log.Debug.Func(func(l log.Logger) { l.Printf("Finished %s task T[%s] in %s", t.jobName, t.taskId, t.ExeTime()) })
+					log.Trace.Func(func(l log.Logger) {
+						l.Printf("Finished %s task T[%s] in %s with status [%s]", t.jobName, t.taskId, t.ExeTime(), t.exitStatus)
+					})
 
 					// Dec tasks being processed
 					wp.busyCount.Add(-1)
@@ -585,11 +593,8 @@ func (wp *WorkerPool) newTaskPoolInternal() *TaskPool {
 		workerPool:   wp,
 		createdAt:    time.Now(),
 		erroredTasks: make([]*Task, 0),
+		waiterGate:   make(chan struct{}),
 	}
-
-	// The waiterGate begins locked, and will only unlock when all
-	// tasks have been queued and finish, then the waiters are released
-	newQueue.waiterGate.Lock()
 
 	return newQueue
 }

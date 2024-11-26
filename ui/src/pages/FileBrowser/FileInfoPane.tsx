@@ -5,6 +5,7 @@ import {
     IconCaretRight,
     IconChevronLeft,
     IconChevronRight,
+    IconExclamationCircle,
     IconFile,
     IconFolder,
 } from '@tabler/icons-react'
@@ -570,8 +571,8 @@ function RollbackBar({
                 offset += Math.min(516, 88 + events[i].length * 32)
             }
         }
-        return offset
-    }, [openEvents, steps])
+        return offset - historyScroll
+    }, [openEvents, steps, historyScroll])
 
     return (
         <div
@@ -684,7 +685,17 @@ function FileHistory() {
         )
     }
     if (error) {
-        return <p>Failed {error.message}</p>
+        return (
+            <div className="flex items-center w-full h-full">
+                <div className="inline-flex flex-row w-max p-2 m-auto">
+                    <IconExclamationCircle
+                        size={24}
+                        className="ml-2 text-red-500"
+                    />
+                    <p>Failed to get file history</p>
+                </div>
+            </div>
+        )
     }
 
     let createTimeString = '---'
@@ -695,8 +706,8 @@ function FileHistory() {
     return (
         <div
             ref={setBoxRef}
-            className="flex flex-col items-center p-2  h-[2px] grow relative pt-3"
-            onScroll={(e) => setHistoryScroll(e.currentTarget.scrollTop)}
+            className="flex flex-col items-center p-2 h-[2px] grow relative pt-3"
+            // onScroll={(e) => setHistoryScroll(e.currentTarget.scrollTop)}
         >
             {!epoch && (
                 <div className="flex items-center justify-center w-full h-full">
@@ -723,12 +734,13 @@ function FileHistory() {
                         itemCount={events.length}
                         itemData={{ events, openEvents, setOpenEvents }}
                         overscanCount={25}
+                        onScroll={(e) => setHistoryScroll(e.scrollOffset)}
                     >
                         {HistoryRowWrapper}
                     </WindowList>
                 </div>
             )}
-            <div className="flex flex-col items-center p-2 pt-4">
+            <div className="flex flex-col items-center pt-2">
                 <div className="flex flex-row gap-2 items-center">
                     <FileFmt pathName={epoch?.destinationPath} />
                     <p className="h-max text-xl select-none">History</p>

@@ -305,6 +305,7 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	}
 	log.Trace.Func(func(l log.Logger) { l.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key) })
 
+	c.RemoveSubscription(key)
 	return cm.removeSubscription(sub, c, false)
 }
 
@@ -353,6 +354,21 @@ func (cm *ClientManager) FolderSubToTask(folderId fileTree.FileId, taskId task.I
 	}
 }
 
+func (cm *ClientManager) UnsubTask(taskId task.Id) {
+	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
+
+	for _, s := range subs {
+		log.Debug.Func(func(l log.Logger) {
+			l.Printf(
+				"Unsubscribing U[%s] from T[%s]", s.GetUser().GetUsername(), taskId)
+		})
+		err := cm.Unsubscribe(s, taskId, time.Now())
+		if err != nil {
+			log.ShowErr(err)
+		}
+	}
+}
+
 func (cm *ClientManager) removeSubscription(
 	subInfo models.Subscription, client *models.WsClient, removeAll bool,
 ) error {
@@ -395,7 +411,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 
 	var clients []*models.WsClient
 
-	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
+	if msg.BroadcastType == "serverEvent" || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)

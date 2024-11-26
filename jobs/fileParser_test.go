@@ -73,7 +73,7 @@ func TestScanFile(t *testing.T) {
 			MediaService: mediaService,
 			Caster:       &mock.MockCaster{},
 		}
-		err = ScanFile_(scanMeta)
+		err = ScanFile_(scanMeta, func() {})
 		assert.NoError(t, err)
 	}
 

@@ -12,7 +12,6 @@ import {
 } from 'react-router-dom'
 
 import MediaApi from './api/MediaApi'
-import { MediaTypeInfo } from './api/swag'
 import ErrorBoundary from './components/Error'
 import Logo from './components/Logo'
 import useR, { useSessionStore } from './components/UserInfo'
@@ -23,18 +22,10 @@ import { useMediaStore } from './types/media/MediaStateControl'
 
 const Gallery = React.lazy(() => import('./pages/Gallery/Gallery'))
 const FileBrowser = React.lazy(() => import('./pages/FileBrowser/FileBrowser'))
-// const Wormhole = React.lazy(() => import('./pages/FileBrowser/Wormhole'))
 const Login = React.lazy(() => import('./pages/Login/Login'))
 const Setup = React.lazy(() => import('./pages/Setup/Setup'))
 
 axios.defaults.withCredentials = true
-
-async function saveMediaTypeMap(setState: (typeMap: MediaTypeInfo) => void) {
-    return MediaApi.getMediaTypes().then((r) => {
-        setState(r.data)
-        localStorage.setItem('mediaTypeMap', JSON.stringify(r.data))
-    })
-}
 
 const WeblensRoutes = () => {
     useR()
@@ -98,23 +89,11 @@ const WeblensRoutes = () => {
         if (!server || !server.started || server.role === 'init') {
             return
         }
-
-        const typeMapStr = localStorage.getItem('mediaTypeMap')
-        if (!typeMapStr) {
-            saveMediaTypeMap(setTypeMap).catch(ErrorHandler)
-        }
-
-        try {
-            const typeMap = JSON.parse(typeMapStr) as MediaTypeInfo
-            if (!typeMap.extMap || !typeMap.mimeMap) {
-                throw new Error('Failed to parse type map')
-            }
-
-            setTypeMap(typeMap)
-        } catch {
-            console.debug('Failed to get type map, downloading fresh...')
-            saveMediaTypeMap(setTypeMap).catch(ErrorHandler)
-        }
+        MediaApi.getMediaTypes()
+            .then((r) => {
+                setTypeMap(r.data)
+            })
+            .catch(ErrorHandler)
     }, [server])
 
     useEffect(() => {

@@ -1,6 +1,9 @@
 import { FileApi } from '@weblens/api/FileBrowserApi'
 import {
+    FbModeT,
     MenuOptionsT,
+    SetFilesDataOpts,
+    ShareRoot,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
@@ -193,10 +196,6 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
 
     const state = useFileBrowserStore.getState()
 
-    // if (state.holdingShift) {
-    //     return
-    // }
-
     if (!state.folderInfo && allowBlindHop) {
         state.clearFiles()
         console.debug('GO TO FILE (blind):', next.Id())
@@ -239,19 +238,31 @@ export function goToFile(next: WeblensFile, allowBlindHop: boolean = false) {
             state.nav('/files/' + next.Id())
             state.clearFiles()
 
-            console.debug('GO TO FILE (blind):', next)
+            console.debug('Go to file (blind):', next)
             return
         } else {
             console.error(
-                'BAD! goToFile did not find a valid state update rule'
+                'ERR | goToFile did not find a valid state update rule'
             )
             return
         }
         next.modifiable = true
-        next.parents = next.parents.map((p) => state.filesMap.get(p.Id()))
+        next.parents = next.parents
+            .map((p) => state.filesMap.get(p.Id()))
+            .filter((p) => p)
 
-        console.debug('GO TO FILE:', next)
-        state.setFilesData({ selfInfo: next, overwriteContentId: true })
+        console.debug('Go to file:', next)
+        const locProps: SetFilesDataOpts = {
+            selfInfo: next,
+            overwriteContentId: true,
+        }
+        if (
+            state.fbMode === FbModeT.share &&
+            state.folderInfo.Id() === ShareRoot.Id()
+        ) {
+            locProps.shareId = next.shareId ? next.shareId : ''
+        }
+        state.setFilesData(locProps)
     } else {
         // If the next is not a folder, we can set the location to the parent of the next file,
         // with the child as the "jumpTo" parameter. If the parent is the same as the current folder,

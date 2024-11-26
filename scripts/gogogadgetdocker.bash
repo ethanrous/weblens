@@ -73,10 +73,10 @@ echo "Using tag: $docker_tag-$arch"
 
 if [ ! $skip == true ]; then
   printf "Running tests..."
-  if ! ./scripts/testWeblens --ui --backend --show-logs &>./build/logs/container-build-pretest.log; then
+  if ! ./scripts/testWeblens --ui --backend &>./build/logs/container-build-pretest.log; then
     printf " FAILED\n"
+    cat ./build/logs/container-build-pretest.log
     echo "Aborting container build. Ensure ./scripts/testWeblens passes before building container"
-    echo "See ./build/logs/container-build-pretest.log for test output"
     exit 1
   else
     printf " PASS\n"
@@ -85,7 +85,10 @@ fi
 
 if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2>/dev/null)" ]; then
   echo "No weblens-go-build image found, attempting to build now..."
-  sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .
+  if ! sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .; then
+    echo "Failed to build weblens-go-build image"
+    exit 1
+  fi
 fi
 
 cd ./ui || exit
@@ -103,13 +106,27 @@ fi
 
 cd ..
 
+rm -f ./build/bin/weblensbin
+
 printf "Building Weblens binary..."
 if [ $local == true ]; then
-  GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &>./build/logs/weblens-build.log
+  GIN_MODE=release CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &>./build/logs/weblens-build.log
 else
   #shellcheck disable=SC2024
-  sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
-    "cd /source && GIN_MODE=release CGO_ENABLED=1 GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" &>./build/logs/weblens-build.log
+  if ! sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
+    "cd /source && CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" &>./build/logs/weblens-build.log; then
+    printf " FAILED\n"
+    cat ./build/logs/weblens-build.log
+    echo "Aborting container build. Ensure go build completes successfully before building container"
+    exit 1
+  fi
+fi
+
+if [[ ! -e ./build/bin/weblensbin ]]; then
+  printf " FAILED\n"
+  cat ./build/logs/weblens-build.log
+  echo "Aborting container build. Could not find ./build/bin/weblensbin"
+  exit 1
 fi
 printf " DONE\n"
 

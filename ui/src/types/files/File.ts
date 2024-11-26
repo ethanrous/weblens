@@ -59,9 +59,7 @@ export class WeblensFile {
         if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
-        if (init.isDir) {
-            console.debug('Creating folder', init)
-        }
+        console.debug('Creating file', init)
 
         Object.assign(this, init)
         this.hovering = false
@@ -190,7 +188,7 @@ export class WeblensFile {
         if (this.id === trashId) {
             return true
         }
-        return this.parents.map((parent) => parent.Id()).includes(trashId)
+        return this.parents.map((parent) => parent?.Id()).includes(trashId)
     }
 
     GetOwner(): string {

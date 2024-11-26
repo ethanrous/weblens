@@ -28,39 +28,32 @@ function SquareWrapper({
     columnIndex: number
     style: CSSProperties
 }) {
+    const filesMap = useFileBrowserStore((state) => state.filesMap)
+    const hoveringId = useFileBrowserStore((state) => state.hoveringId)
+    const holdingShift = useFileBrowserStore((state) => state.holdingShift)
+    const selected = useFileBrowserStore((state) => state.selected)
+
+    const absIndex = rowIndex * data.numCols + columnIndex
+    const file = data.files[absIndex]
+
+    const selState = useMemo(() => {
+        if (!file) {
+            return 0
+        }
+        return filesMap.get(file?.Id())?.GetSelectedState()
+    }, [file, hoveringId, holdingShift, filesMap, selected])
+
+    if (!file) {
+        return null
+    }
+
     if (!data || rowIndex === undefined) {
         return null
     }
 
-    const absIndex = rowIndex * data.numCols + columnIndex
-    if (absIndex > data.files.length - 1) {
-        return null
-    }
-    const file = data.files[absIndex]
-    if (!file) {
-        console.error('Cant find grid file at', rowIndex, columnIndex)
-        return null
-    }
-    if (
-        file.GetSelectedState() !==
-        useFileBrowserStore
-            .getState()
-            .filesMap.get(file.Id())
-            ?.GetSelectedState()
-    ) {
-        console.error(
-            'Selected state mismatch',
-            file.GetSelectedState(),
-            useFileBrowserStore
-                .getState()
-                .filesMap.get(file.Id())
-                ?.GetSelectedState()
-        )
-    }
-
     return (
         <div style={style}>
-            <FileSquare file={file} />
+            <FileSquare file={file} selState={selState} />
         </div>
     )
 }
@@ -127,6 +120,12 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             className={filesStyle['files-grid']}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
+                    folderInfo.modifiable &&
+                    dragState === DraggingStateT.ExternalDrag
+            )}
+            data-bad-drop={Boolean(
+                moveDest === folderInfo?.Id() &&
+                    !folderInfo.modifiable &&
                     dragState === DraggingStateT.ExternalDrag
             )}
             onDragOver={(e) => {
@@ -135,13 +134,15 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             }}
             onDrop={(e) => {
                 e.preventDefault()
-                HandleDrop(
-                    e.dataTransfer.items,
-                    folderInfo.Id(),
-                    [],
-                    false,
-                    shareId
-                ).catch(ErrorHandler)
+                if (folderInfo.modifiable) {
+                    HandleDrop(
+                        e.dataTransfer.items,
+                        folderInfo.Id(),
+                        [],
+                        false,
+                        shareId
+                    ).catch(ErrorHandler)
+                }
 
                 setDragging(DraggingStateT.NoDrag)
             }}
@@ -149,7 +150,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             {size.width !== -1 && (
                 <div className="flex relative w-full h-full items-center">
                     {isLoading && (
-                        <div className='m-auto p-2'>
+                        <div className="m-auto p-2">
                             <WeblensLoader />
                         </div>
                     )}

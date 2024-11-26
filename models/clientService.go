@@ -24,6 +24,7 @@ type ClientManager interface {
 	// FolderSubToPool(folderId fileTree.FileId, poolId task.Id)
 	// TaskSubToPool(taskId task.Id, poolId task.Id)
 	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
+	UnsubTask(taskId task.Id)
 
 	Subscribe(c *WsClient, key SubId, action WsAction, subTime time.Time, share Share) (
 		complete bool, results map[task.TaskResultKey]any, err error,

@@ -8,7 +8,7 @@ import {
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useClick, useResize } from '@weblens/components/hooks'
 import {
-    FbModeT,
+    ShareRoot,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
@@ -46,7 +46,7 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
             </div>
         )
     }
-    if (crumb.path === 'Shared') {
+    if (crumb.id === 'shared') {
         return (
             <div className={crumbStyle['crumb-icon']}>
                 <IconUsers className="w-full h-full" />
@@ -116,7 +116,9 @@ export const StyledBreadcrumb = ({
             onClick={(e) => {
                 e.stopPropagation()
                 if (dragging === DraggingStateT.NoDrag) {
-                    if (crumbInfo.file) {
+                    if (crumbInfo.id === 'shared') {
+                        goToFile(ShareRoot, true)
+                    } else if (crumbInfo.file) {
                         clearSelected()
                         goToFile(crumbInfo.file)
                     } else if (crumbInfo.visitRoute) {
@@ -228,7 +230,7 @@ export const StyledLoaf = ({
         <div ref={setCrumbRef} className={crumbStyle['loaf']}>
             {crumbs.map((c, i) => (
                 <div
-                    key={c.path}
+                    key={c.id}
                     className="flex flex-row items-center min-w-[50px]"
                 >
                     <StyledBreadcrumb
@@ -259,7 +261,7 @@ export const StyledLoaf = ({
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <p className={crumbStyle['crumb-text'] + "trun"}>...</p>
+                        <p className={crumbStyle['crumb-text'] + 'trun'}>...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}
@@ -281,23 +283,8 @@ function Crumbs({
     moveSelectedTo?: (folderId: string) => void
 }) {
     const user = useSessionStore((state) => state.user)
-
-    const mode = useFileBrowserStore((state) => state.fbMode)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-
     const crumbs: Crumb[] = []
-
-    // Add the share crumb before checking if we have folder info
-    // because the base share page does not have a folderInfo, and
-    // so we won't render anything past the check after this
-    if (mode == FbModeT.share) {
-        crumbs.push({
-            path: 'Shared',
-            id: 'shared',
-            visitRoute: '/files/shared',
-            navigable: folderInfo !== null,
-        })
-    }
 
     if (!user || !folderInfo?.Id()) {
         return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />

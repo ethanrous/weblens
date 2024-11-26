@@ -32,6 +32,7 @@ import {
 import { humanFileSize } from '../util'
 import { useSessionStore } from './UserInfo'
 import { useKeyDown, useResize, useResizeDrag } from './hooks'
+import presentationStyle from './presentationStyle.module.scss'
 
 export const PresentationContainer = ({
     onMouseMove,
@@ -45,7 +46,7 @@ export const PresentationContainer = ({
     return (
         <div
             className="flex justify-center items-center top-0 left-0 p-6 h-full 
-                        w-full z-50 bg-bottom-grey bg-opacity-90 backdrop-blur absolute"
+                        w-full z-50 bg-bottom-grey bg-opacity-90 backdrop-blur absolute gap-6"
             onMouseMove={onMouseMove}
             onClick={onClick}
             children={children}
@@ -198,28 +199,30 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const [size, units] = humanFileSize(file.GetSize())
     return (
         <div
-            className="flex grow w-[10%] justify-center"
+            className={presentationStyle["file-info-box"]}
             onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-col justify-center h-max max-w-full gap-2">
-                <p className="flex flex-row items-center gap-2 text-white font-semibold text-3xl truncate">
+                {file.IsFolder() && <IconFolder size={'1em'} />}
+                <h3 className="truncate font-bold">
                     {file.GetFilename()}
-                    {file.IsFolder() && <IconFolder size={'1em'} />}
-                </p>
-                <div className="flex flex-row text-white items-center gap-3">
-                    <p className="text-2xl text-white">
+                </h3>
+                <div className="flex flex-row text-white items-center">
+                    <h4>
                         {size}
+                    </h4>
+                    <h4>
                         {units}
-                    </p>
+                    </h4>
                 </div>
                 <div className="flex gap-1">
-                    <p className="text-xl text-white">
+                    <h4>
                         {file.GetModified().toLocaleDateString('en-us', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
                         })}
-                    </p>
+                    </h4>
                 </div>
                 <WeblensButton
                     label={'Download'}
@@ -445,7 +448,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
 
             <div
                 ref={setContainerRef}
-                className="flex justify-center items-center w-[50%] h-full"
+                className="flex grow justify-center items-center h-full max-w-[48%]"
             >
                 {Visual}
             </div>

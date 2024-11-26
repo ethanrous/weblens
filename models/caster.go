@@ -96,7 +96,7 @@ func (c *SimpleCaster) PushWeblensEvent(eventTag string, content ...WsC) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
-		BroadcastType: ServerEvent,
+		BroadcastType: "serverEvent",
 		SentTime:      time.Now().Unix(),
 	}
 
@@ -391,6 +391,8 @@ type Broadcaster interface {
 // WsC is the generic WebSocket Content container
 type WsC map[string]any
 type SubId = string
+
+// WsAction is an action sent by the client to the server
 type WsAction string
 type ClientType string
 
@@ -399,10 +401,8 @@ const (
 	// connection made, and only sends updates to that specific user when needed
 	UserSubscribe WsAction = "userSubscribe"
 
-	FolderSubscribe WsAction = "folderSubscribe"
-	ServerEvent     WsAction = "serverEvent"
-	TaskSubscribe   WsAction = "taskSubscribe"
-	// PoolSubscribe     WsAction = "poolSubscribe"
+	FolderSubscribe   WsAction = "folderSubscribe"
+	TaskSubscribe     WsAction = "taskSubscribe"
 	TaskTypeSubscribe WsAction = "taskTypeSubscribe"
 	Unsubscribe       WsAction = "unsubscribe"
 	ScanDirectory     WsAction = "scanDirectory"

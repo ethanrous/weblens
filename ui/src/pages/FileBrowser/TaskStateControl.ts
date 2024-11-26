@@ -159,6 +159,7 @@ type TaskUpdateProps = {
     progress: number
     tasksTotal?: number | string
     tasksComplete?: number | string
+    tasksFailed?: number | string
     workingOn?: string
     taskId?: string
     note?: string
@@ -216,7 +217,7 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
 
             task.timeNs = time
             task.note = note
-            task.stage = TaskStage.Complete
+            task.setTaskStage(TaskStage.Complete)
 
             state.tasks.set(taskId, task)
             return { tasks: new Map<string, TaskProgress>(state.tasks) }
@@ -231,7 +232,7 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
                 return state
             }
 
-            task.stage = TaskStage.Failure
+            task.setTaskStage(TaskStage.Failure)
             task.error = error
 
             state.tasks.set(taskId, task)
@@ -240,7 +241,19 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
     },
 
     handleTaskCancel: (taskId: string) => {
-        console.error('handleTaskCancel not impl', taskId)
+        set((state) => {
+            const task = state.tasks.get(taskId)
+            if (!task) {
+                console.error('Could not find task to cancel', taskId)
+                return state
+            }
+
+            task.setTaskStage(TaskStage.Cancelled)
+
+            state.tasks.set(taskId, task)
+            console.log('Task cancelled:', taskId)
+            return { tasks: new Map<string, TaskProgress>(state.tasks) }
+        })
     },
 
     updateTaskProgress: (taskId: string, opts) => {
@@ -266,6 +279,7 @@ const TaskStateControl: StateCreator<TaskStateT, [], []> = (set) => ({
                     task.workingOn = opts.workingOn
                     task.tasksComplete = opts.tasksComplete
                     task.tasksTotal = opts.tasksTotal
+                    task.tasksFailed = opts.tasksFailed
             }
 
             task.progMeta = { ...task.progMeta, ...opts }

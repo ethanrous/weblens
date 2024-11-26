@@ -58,7 +58,7 @@ import {
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { DraggingCounter, TransferCard } from './DropSpot'
-import { FbModeT, useFileBrowserStore } from './FBStateControl'
+import { FbModeT, ShareRoot, useFileBrowserStore } from './FBStateControl'
 import {
     HandleUploadButton,
     getRealId,
@@ -277,10 +277,7 @@ function GlobalActions() {
     const [namingFolder, setNamingFolder] = useState(false)
 
     const navToShared = useCallback(() => {
-        goToFile(
-            new WeblensFile({ id: 'shared', filename: 'SHARED', isDir: true }),
-            true
-        )
+        goToFile(ShareRoot, true)
     }, [])
 
     const navToExternal: ButtonActionHandler = useCallback((e) => {
@@ -813,9 +810,11 @@ function DirView({
                 ref={setDragBoxRef}
                 onDragEnter={(e) => {
                     e.stopPropagation()
+                    e.preventDefault()
                     setDragging(DraggingStateT.ExternalDrag)
                     setMoveDest(folderInfo?.Id())
                 }}
+                onDragOver={(e) => e.preventDefault()}
                 onDragLeave={(e) => {
                     e.stopPropagation()
                     if (dragBoxRef.contains(e.relatedTarget as Node)) {
@@ -826,7 +825,9 @@ function DirView({
             >
                 <div className="flex flex-col w-full h-full min-w-[20vw]">
                     <div className="flex flex-row h-[200px] grow max-w-full">
-                        <div className="grow shrink w-0">{fileDisplay}</div>
+                        <div className="grow shrink w-0 p-1 ml-1">
+                            {fileDisplay}
+                        </div>
                     </div>
                 </div>
                 {user.isLoggedIn && <FileInfoPane />}

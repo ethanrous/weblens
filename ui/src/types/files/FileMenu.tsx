@@ -28,7 +28,10 @@ import { useWebsocketStore } from '@weblens/api/Websocket'
 import { AlbumInfo, MediaInfo, UserInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    FbModeT,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
@@ -318,6 +321,7 @@ function StandardFileMenu({
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const shareId = useFileBrowserStore((state) => state.shareId)
+    const mode = useFileBrowserStore((state) => state.fbMode)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
@@ -326,11 +330,11 @@ function StandardFileMenu({
     const targetFile = filesMap.get(menuTarget)
 
     if (user.trashId === folderInfo.Id()) {
-        return <></>
+        return null
     }
 
     if (menuMode === FbMenuModeT.Closed) {
-        return <></>
+        return null
     }
 
     return (
@@ -527,7 +531,9 @@ function StandardFileMenu({
                     danger
                     squareSize={100}
                     centerContent
-                    disabled={!folderInfo.IsModifiable()}
+                    disabled={
+                        !folderInfo.IsModifiable() || mode === FbModeT.share
+                    }
                     onMouseOver={() =>
                         setFooterNote({ hint: 'Delete', danger: true })
                     }
@@ -654,7 +660,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
             const share = await targetFile.GetShare()
-            if (share) {
+            if (share.Id()) {
                 return await share
                     .UpdateShare(isPublic, accessors)
                     .then(() => true)

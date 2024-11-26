@@ -30,6 +30,7 @@ const (
 
 type TaskSubscriber interface {
 	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
+	UnsubTask(taskId task.Id)
 	// TaskSubToPool(taskId task.Id, poolId task.Id)
 }
 

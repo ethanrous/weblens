@@ -90,7 +90,7 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
-		BroadcastType: ServerEvent,
+		BroadcastType: "serverEvent",
 		SentTime:      time.Now().UnixMilli(),
 	}
 
@@ -155,6 +155,20 @@ func (wsc *WsClient) AddSubscription(sub Subscription) {
 	wsc.subscriptions = append(wsc.subscriptions, sub)
 }
 
+func (wsc *WsClient) RemoveSubscription(key SubId) {
+	wsc.updateMu.Lock()
+	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
+	if subIndex == -1 {
+		wsc.updateMu.Unlock()
+		return
+	}
+	var subToRemove Subscription
+	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
+	wsc.updateMu.Unlock()
+
+	log.Trace.Func(func(l log.Logger) { l.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove) })
+}
+
 func (wsc *WsClient) Raw(msg any) error {
 	return wsc.conn.WriteJSON(msg)
 }
@@ -172,7 +186,7 @@ func (wsc *WsClient) Send(msg WsResponseInfo) error {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
 
-		log.Trace.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
+		log.Debug.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
 
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
@@ -197,20 +211,6 @@ func (wsc *WsClient) Disconnect() {
 	wsc.updateMu.Unlock()
 
 	log.Trace.Func(func(l log.Logger) { l.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName()) })
-}
-
-func (wsc *WsClient) unsubscribe(key SubId) {
-	wsc.updateMu.Lock()
-	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
-	if subIndex == -1 {
-		wsc.updateMu.Unlock()
-		return
-	}
-	var subToRemove Subscription
-	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
-	wsc.updateMu.Unlock()
-
-	log.Trace.Func(func(l log.Logger) { l.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove) })
 }
 
 func (wsc *WsClient) getClientName() string {

@@ -37,22 +37,13 @@ export interface ViewOptionsT {
     dirViewMode?: DirViewModeT
 }
 
-// export interface SetViewOptionsT ({
-//     sortKey,
-//     sortDirection,
-//     dirViewMode,
-// }: {
-//     sortKey?: string
-//     sortDirection?: number
-//     dirViewMode?: DirViewModeT
-// }) => void
-
-interface setFilesDataOptsT {
+export interface SetFilesDataOpts {
     selfInfo?: FileInfo | WeblensFile
     childrenInfo?: FileInfo[]
     parentsInfo?: FileInfo[]
     mediaData?: MediaInfo[]
     overwriteContentId?: boolean
+    shareId?: string
 }
 
 interface setLocationStateOptsT {
@@ -132,7 +123,7 @@ export interface FileBrowserStateT {
         parentsInfo,
         mediaData,
         overwriteContentId,
-    }: setFilesDataOptsT) => void
+    }: SetFilesDataOpts) => void
     setSelected: (selected: string[], exclusive?: boolean) => void
     selectAll: () => void
     clearSelected: () => void
@@ -485,9 +476,9 @@ function setLocation(
             shouldBe += `?past=${state.pastTime.toISOString()}`
         }
 
-        console.log('Should be:', shouldBe, 'Current:', path)
+        console.debug('Should be:', shouldBe, 'Current:', path)
         if (path !== shouldBe && path !== '/login') {
-            console.log('Navigating to:', shouldBe)
+            console.debug('Navigating to:', shouldBe)
             state.nav(shouldBe)
         }
     }, 200)
@@ -495,7 +486,7 @@ function setLocation(
     if (updatePastTime) {
         // If we are updating the pastTime, do a hard reset, force
         // the filebrowser to re-build the list from the past files
-        console.log('Updating past time, clearing files')
+        console.debug('Updating past time, clearing files')
         state = clearFiles(state)
     } else if (
         // If we are moving out of a folder, and no longer need the children,
@@ -608,11 +599,12 @@ function deleteFile(
 }
 
 function clearFiles(state: FileBrowserStateT): FileBrowserStateT {
-    console.log('Clearing files')
+    console.debug('Clearing files')
     return {
         ...state,
         contentId: null,
         lastSelectedId: '',
+        shareId: '',
         folderInfo: null,
         filesMap: new Map<string, WeblensFile>(),
         selected: new Map<string, boolean>(),
@@ -620,6 +612,12 @@ function clearFiles(state: FileBrowserStateT): FileBrowserStateT {
         holdingShift: false,
     }
 }
+
+export const ShareRoot = new WeblensFile({
+    id: 'shared',
+    filename: 'SHARED',
+    isDir: true,
+})
 
 const FBStateControl: StateCreator<
     FileBrowserStateT,
@@ -789,10 +787,11 @@ const FBStateControl: StateCreator<
         parentsInfo,
         mediaData,
         overwriteContentId,
-    }: setFilesDataOptsT) => {
+        shareId,
+    }: SetFilesDataOpts) => {
         const user = useSessionStore.getState().user
 
-        const parents = parentsInfo?.map((f) => new WeblensFile(f))
+        let parents = parentsInfo?.map((f) => new WeblensFile(f))
         if (parents?.length > 1) {
             parents.reverse()
         }
@@ -809,23 +808,41 @@ const FBStateControl: StateCreator<
             selfFile = selfInfo
         }
 
-        if (selfFile) {
-            if (parents) {
-                selfFile.SetParents(parents)
-            }
-            if (
-                selfFile.parents.length !==
-                selfFile.portablePath.split('/').length - 2
-            ) {
-                console.error(
-                    "Parent count doesn't match path length",
-                    selfFile.parents.length,
-                    selfFile.portablePath.split('/').length - 2
-                )
-            }
-        }
-
         set((state) => {
+            if (selfFile) {
+                if (
+                    state.fbMode === FbModeT.share &&
+                    selfFile.Id() !== ShareRoot.Id()
+                ) {
+                    parents = parents ?? selfFile.parents
+                    if (
+                        parents.length === 0 ||
+                        parents[0].Id() !== ShareRoot.Id()
+                    ) {
+                        parents.unshift(ShareRoot)
+                    }
+                }
+                if (parents) {
+                    selfFile.SetParents(parents)
+                }
+                if (
+                    selfFile.parents.length !==
+                    selfFile.portablePath.split('/').length - 2
+                ) {
+                    console.error(
+                        "Parent count doesn't match path length. Parents:",
+                        selfFile.parents,
+                        selfFile.parents.length,
+                        'Path length:',
+                        selfFile.portablePath.split('/'),
+                        selfFile.portablePath.split('/').length - 2
+                    )
+                }
+            }
+            if (shareId !== undefined) {
+                state.shareId = shareId
+            }
+
             let changedFiles = false
             const prevParentId = state.folderInfo?.Id()
             if (selfFile) {
@@ -848,18 +865,16 @@ const FBStateControl: StateCreator<
                     }
                 }
 
-                if (selfFile.Id() == 'shared') {
-                    return state
+                if (selfFile.Id() != 'shared') {
+                    if (selfFile.Id() !== state.contentId) {
+                        console.error(
+                            `Content Id doesn't match new selfInfo, not updating state. Previous: ${state.folderInfo?.GetFilename()} (${state.contentId}) -- New: ${selfFile.GetFilename()} (${selfFile.Id()})`
+                        )
+                        return state
+                    }
+                    // changedFiles = true
+                    state.filesMap.set(selfFile.Id(), selfFile)
                 }
-
-                if (selfFile.Id() !== state.contentId) {
-                    console.error(
-                        `Content Id doesn't match new selfInfo, not updating state. Previous: ${state.folderInfo?.GetFilename()} (${state.contentId}) -- New: ${selfFile.GetFilename()} (${selfFile.Id()})`
-                    )
-                    return state
-                }
-                // changedFiles = true
-                state.filesMap.set(selfFile.Id(), selfFile)
             }
 
             for (const newFileInfo of childrenInfo ?? []) {
@@ -882,6 +897,9 @@ const FBStateControl: StateCreator<
                 }
 
                 const file = new WeblensFile(newFileInfo)
+                if (selfFile.Id() == 'shared') {
+                    file.parentId = selfFile.Id()
+                }
                 changedFiles = true
                 state.filesMap.set(file.Id(), file)
             }
@@ -941,6 +959,7 @@ const FBStateControl: StateCreator<
 
                 contentId: state.contentId,
                 jumpTo: state.jumpTo,
+                shareId: state.shareId,
             }
         })
     },

@@ -19,7 +19,7 @@ class WeblensMedia {
     owner?: string
     width?: number
     height?: number
-    videoLength?: number
+    duration?: number
     createDate?: number
     recognitionTags?: string[]
     pageCount?: number
@@ -135,7 +135,11 @@ class WeblensMedia {
     }
 
     GetVideoLength(): number {
-        return this.videoLength
+        if (!this.duration) {
+            console.error('No video length for', this.contentId)
+            return 0
+        }
+        return this.duration
     }
 
     HasLoadError(): PhotoQuality {

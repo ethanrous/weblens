@@ -203,7 +203,7 @@ func (j *JournalImpl) GetPastFile(id FileId, time time.Time) (*WeblensFileImpl, 
 		return nil, werror.WithStack(werror.ErrNoFileAction)
 	}
 
-	actions := lt.Actions
+	actions := lt.GetActions()
 
 	slices.SortFunc(
 		actions, func(a, b *FileAction) int {

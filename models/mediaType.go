@@ -95,7 +95,7 @@ func (mt MediaType) FriendlyName() string {
 }
 
 func (mt MediaType) IsSupported() bool {
-	return mt.Mime != "generic"
+	return mt.Mime != "generic" && mt.Mime != ""
 }
 
 func (mt MediaType) IsMultiPage() bool {

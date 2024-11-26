@@ -12,6 +12,14 @@
         --wl-file-text-color: white;
     }
 
+    &[data-bad-drop='true'] {
+        background-color: var(--wl-error-background);
+        outline: 2px solid #ff0000;
+        --wl-file-text-color: white;
+        z-index: 100;
+        cursor: not-allowed;
+    }
+
 }
 
 .files-column {
@@ -107,8 +115,9 @@
     }
 
     &[data-in-range='1'] {
-        background-color: var(--dark-paper);
-        --wl-file-text-color: white;
+        background-color: $item-focus;
+        // background-color: var(--dark-paper);
+        // --wl-file-text-color: white;
 
         &[data-last-selected='1'] {
             outline: 1px solid #999999;
@@ -234,7 +243,6 @@
     position: relative;
     justify-content: center;
     font-size: 40cqh;
-    // transition: color 100ms ease-in-out;
     text-wrap: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
@@ -254,10 +262,6 @@
     [data-moved='1'] & {
         color: $disabled-grey-text;
     }
-
-    // [data-in-range='1'] & {
-    //     color: white;
-    // }
 }
 
 .selectable-text {

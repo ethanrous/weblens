@@ -153,6 +153,7 @@ func getMediaTypes(w http.ResponseWriter, r *http.Request) {
 		MimeMap: mimeMap,
 		ExtMap:  extMap,
 	}
+	w.Header().Add("Cache-Control", "max-age=3600")
 	writeJson(w, http.StatusOK, typeInfo)
 }
 

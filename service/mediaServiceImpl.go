@@ -56,7 +56,6 @@ type MediaServiceImpl struct {
 }
 
 var exif *exiftool.Exiftool
-var binExif *exiftool.Exiftool
 
 type cacheKey string
 
@@ -72,14 +71,6 @@ func init() {
 	exif, err = exiftool.NewExiftool(
 		exiftool.Api("largefilesupport"),
 		exiftool.Buffer([]byte{}, 1000*100),
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	binExif, err = exiftool.NewExiftool(
-		exiftool.Api("largefilesupport"),
-		exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer([]byte{}, 1000*1000*100),
 	)
 	if err != nil {
 		panic(err)
@@ -540,6 +531,11 @@ func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
 	return nil
 }
 
+const (
+	HighresSize = 2500
+	ThumbSize   = 500
+)
+
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
 	sw := internal.NewStopwatch("LoadMediaFromFile: " + file.Filename())
 	fileMetas := exif.ExtractMetadata(file.AbsPath())
@@ -580,6 +576,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 
 	if m.MimeType == "" {
 		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
+		log.Debug.Printf("MIME type: %s", mimeType)
 		if !ok {
 			mimeType = "generic"
 		}
@@ -609,7 +606,13 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	}
 	sw.Lap("Read mime and duration")
 
-	if ms.typeService.ParseMime(m.MimeType).IsMultiPage() {
+	mType := ms.GetMediaType(m)
+	if !mType.IsSupported() {
+		return werror.ErrMediaBadMime
+	}
+	sw.Lap("Get MediaType")
+
+	if mType.IsMultiPage() {
 		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
 	} else {
 		m.PageCount = 1
@@ -632,18 +635,25 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 	})
 	sw.Lap("Get Buffer")
 
-	mType := ms.GetMediaType(m)
-	sw.Lap("Get MediaType")
-
-	if mType.IsRaw() {
-		log.Debug.Println("ITS RAW!!!!!")
+	if !mType.IsVideo() && !mType.IsMultiPage() {
 		mw := imagick.NewMagickWand()
 		defer mw.Destroy()
 		sw.Lap("New MagickWand")
 
-		mw.ReadImage(file.AbsPath())
+		err = mw.SetCompressionQuality(99)
+		if err != nil {
+			return werror.WithStack(err)
+		}
+
+		err = mw.ReadImage(file.AbsPath())
+		if err != nil {
+			return werror.WithStack(err)
+		}
 		sw.Lap("Read image")
-		mw.AutoOrientImage()
+		err = mw.AutoOrientImage()
+		if err != nil {
+			return werror.WithStack(err)
+		}
 		sw.Lap("Image orientation")
 
 		width := mw.GetImageWidth()
@@ -652,37 +662,83 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		m.Height = int(height)
 		m.Width = int(width)
 		sw.Lap("Image size")
+		log.Trace.Printf("%s Image size: %dx%d", file.Filename(), width, height)
 
-		log.Debug.Printf("Image size: %dx%d", height, width)
-		mw.SetImageFormat("webp")
+		err = mw.SetImageFormat("webp")
+		if err != nil {
+			return werror.WithStack(err)
+		}
 		sw.Lap("Image convert to webp")
 
-		fullres, err := ms.fileService.NewCacheFile(m, models.HighRes, 0)
-		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
-			return err
-		} else if err == nil {
-			mw.WriteImage(fullres.AbsPath())
-			m.SetHighresCacheFiles(fullres, 0)
-		}
-		sw.Lap("Write fullres cache file")
+		if width > HighresSize || height > HighresSize {
+			var fullWidth, fullHeight uint
+			if width > height {
+				fullWidth = HighresSize
+				fullHeight = HighresSize * uint(height) / uint(width)
+			} else {
+				fullHeight = HighresSize
+				fullWidth = HighresSize * uint(width) / uint(height)
+			}
+			log.Trace.Printf("Resizing %s highres image to %dx%d", file.Filename(), fullWidth, fullHeight)
 
-		mw.ResizeImage(width/4, height/4, imagick.FILTER_LANCZOS_SHARP)
-		sw.Lap("Image resize for thumb")
+			err = mw.ScaleImage(fullWidth, fullHeight)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			sw.Lap("Image resize for fullres")
+		}
+
+		highres, err := ms.fileService.NewCacheFile(m, models.HighRes, 0)
+		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
+			return werror.WithStack(err)
+		} else if err == nil {
+			blob, err := mw.GetImageBlob()
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			_, err = highres.Write(blob)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			m.SetHighresCacheFiles(highres, 0)
+			sw.Lap("Write highres cache file")
+		}
+
+		if width > ThumbSize || height > ThumbSize {
+			var thumbWidth, thumbHeight uint
+			if width > height {
+				thumbWidth = ThumbSize
+				thumbHeight = uint(float64(ThumbSize) / float64(width) * float64(height))
+			} else {
+				thumbHeight = ThumbSize
+				thumbWidth = uint(float64(ThumbSize) / float64(height) * float64(width))
+			}
+			log.Trace.Printf("Resizing %s thumb image to %dx%d", file.Filename(), thumbWidth, thumbHeight)
+			err = mw.ScaleImage(thumbWidth, thumbHeight)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			sw.Lap("Image resize for thumb")
+		}
 
 		thumb, err := ms.fileService.NewCacheFile(m, models.LowRes, 0)
 		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
-			return err
-		} else if err != nil {
-
-		} else {
-			mw.WriteImage(thumb.AbsPath())
+			return werror.WithStack(err)
+		} else if err == nil {
+			blob, err := mw.GetImageBlob()
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			_, err = thumb.Write(blob)
+			if err != nil {
+				return werror.WithStack(err)
+			}
 			m.SetLowresCacheFile(thumb)
 		}
-		sw.Lap("Write thumb cache file")
 
 		sw.Lap("Read raw image")
 		sw.Stop()
-		sw.PrintResults(false)
+		// sw.PrintResults(false)
 		return nil
 	} else if mType.IsVideo() {
 		errOut := bytes.NewBuffer(nil)
@@ -698,7 +754,6 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
 		).WithOutput(bufbuf).WithErrorOutput(errOut).Run()
 		if err != nil {
-			log.Error.Println(errOut.String())
 			return werror.WithStack(err)
 		}
 		buf = bufbuf.Bytes()
@@ -729,7 +784,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 
 	sw.Lap("Put Buffer")
 	sw.Stop()
-	sw.PrintResults(false)
+	// sw.PrintResults(false)
 
 	return nil
 }
@@ -833,6 +888,10 @@ func (ms *MediaServiceImpl) getCacheFile(
 }
 
 func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error {
+	if len(bs) == 0 {
+		return werror.Errorf("empty media buffer")
+	}
+
 	var err error
 	var rotate int
 	if ms.GetMediaType(m).IsRaw() {

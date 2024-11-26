@@ -1,5 +1,8 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
+import {
+    ShareRoot,
+    useFileBrowserStore,
+} from '@weblens/pages/FileBrowser/FBStateControl'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import {
     TaskStageT,
@@ -84,69 +87,39 @@ export const useSubscribe = () => {
         if (!folderInfo) {
             return
         }
-        const folders: string[] = []
+        const folderIds: string[] = []
         if (user) {
-            folders.push(user.homeId)
-            folders.push(user.trashId)
+            folderIds.push(user.homeId)
+            folderIds.push(user.trashId)
         }
         if (
             folderInfo.Id() !== user?.homeId &&
-            folderInfo.Id() !== user?.trashId
+            folderInfo.Id() !== user?.trashId &&
+            folderInfo.Id() !== ShareRoot.Id()
         ) {
-            folders.push(folderInfo.Id())
+            folderIds.push(folderInfo.Id())
         }
 
         if (viewMode === DirViewModeT.Columns) {
             for (const parent of folderInfo.parents) {
-                if (!folders.includes(parent.Id())) {
-                    folders.push(parent.Id())
+                if (!folderIds.includes(parent.Id())) {
+                    folderIds.push(parent.Id())
                 }
             }
         }
 
-        for (const folder of folders) {
-            SubToFolder(folder, shareId, wsSend)
+        for (const folderId of folderIds) {
+            console.debug('Subscribing to', folderId)
+            SubToFolder(folderId, shareId, wsSend)
         }
 
         return () => {
-            for (const folder of folders) {
+            for (const folder of folderIds) {
                 UnsubFromFolder(folder, wsSend)
             }
         }
     }, [folderInfo, shareId, viewMode])
 
-    // useEffect(() => {
-    //     if (useFileBrowserStore.getState().pastTime) {
-    //         return
-    //     }
-    //     if (
-    //         readyState === 1 &&
-    //         cId !== null &&
-    //         cId !== 'shared' &&
-    //         usr !== null
-    //     ) {
-    //         if (cId === usr.homeId) {
-    //             SubToFolder(usr.trashId, sId, wsSend)
-    //             return () => UnsubFromFolder(usr.trashId, wsSend)
-    //         }
-    //         SubToFolder(cId, sId, wsSend)
-    //         return () => UnsubFromFolder(cId, wsSend)
-    //     }
-    // }, [readyState, sId, cId, usr, wsSend])
-    //
-    // // Subscribe to the home folder if we aren't in it, to be able to update the total disk usage
-    // useEffect(() => {
-    //     if (useFileBrowserStore.getState().pastTime) {
-    //         return
-    //     }
-    //     if (usr === null || readyState !== 1) {
-    //         return
-    //     }
-    //
-    //     SubToFolder(usr.homeId, sId, wsSend)
-    //     return () => UnsubFromFolder(usr.homeId, wsSend)
-    // }, [usr, sId, readyState])
-    //
     // Listen for incoming websocket messages
     useEffect(() => {
         HandleWebsocketMessage(
@@ -266,6 +239,10 @@ export enum WsMsgEvent {
     WeblensLoadedEvent = 'weblensLoaded',
     ZipCompleteEvent = 'zipComplete',
     ZipProgressEvent = 'createZipProgress',
+}
+
+export enum WsMsgAction {
+    CancelTaskAction = 'cancelTask',
 }
 
 function filebrowserWebsocketHandler(
@@ -428,6 +405,7 @@ function filebrowserWebsocketHandler(
                         progress: msgData.content.percentProgress,
                         tasksComplete: msgData.content.tasksComplete,
                         tasksTotal: msgData.content.tasksTotal,
+                        tasksFailed: msgData.content.tasksFailed,
                         workingOn: msgData.content.filename,
                     })
                 break

@@ -112,7 +112,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		return
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
+	log.Debug.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)
@@ -258,15 +258,15 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 	case models.CancelTask:
 		{
-			tpId := subInfo.GetKey()
-			taskPool := pack.TaskService.GetTaskPool(tpId)
-			if taskPool == nil {
-				c.Error(errors.New("could not find task pool to cancel"))
+			taskId := subInfo.GetKey()
+			task := pack.TaskService.GetTask(taskId)
+			if task == nil {
+				c.Error(werror.Errorf("could not find task T[%s] to cancel", taskId))
 				return
 			}
 
-			taskPool.Cancel()
-			c.PushTaskUpdate(taskPool.CreatedInTask(), models.TaskCanceledEvent, nil)
+			task.Cancel()
+			c.PushTaskUpdate(task, models.TaskCanceledEvent, nil)
 		}
 
 	default:

@@ -287,6 +287,11 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.Width = int(raw.Lookup("width").Int32())
 	m.Height = int(raw.Lookup("height").Int32())
 
+	duration, ok := raw.Lookup("duration").Int32OK()
+	if ok {
+		m.Duration = int(duration)
+	}
+
 	create := raw.Lookup("createDate")
 	createTime, ok := create.TimeOK()
 	if !ok {
@@ -432,6 +437,7 @@ type VideoStreamer struct {
 	encodingBegun bool
 	streamDirPath string
 	err           error
+	updateMu      sync.RWMutex
 }
 
 func NewVideoStreamer(media *Media, destPath string) *VideoStreamer {
@@ -442,11 +448,21 @@ func NewVideoStreamer(media *Media, destPath string) *VideoStreamer {
 }
 
 func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed string) {
-	defer func() { vs.encodingBegun = false }()
+	defer func() {
+		vs.updateMu.Lock()
+		vs.encodingBegun = false
+		vs.updateMu.Unlock()
+	}()
+
+	log.Trace.Printf("Transcoding video %s => ", f.AbsPath(), vs.streamDirPath)
 
 	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
+		vs.updateMu.Lock()
 		vs.err = err
+		vs.updateMu.Unlock()
+		return
+	} else if errors.Is(err, os.ErrExist) {
 		return
 	}
 
@@ -471,11 +487,15 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 
 	if err != nil {
 		log.Error.Println(outErr.String())
+		vs.updateMu.Lock()
 		vs.err = err
+		vs.updateMu.Unlock()
 	}
 }
 
 func (vs *VideoStreamer) Encode(f *fileTree.WeblensFileImpl) *VideoStreamer {
+	vs.updateMu.RLock()
+	defer vs.updateMu.RUnlock()
 	if !vs.encodingBegun {
 		vs.encodingBegun = true
 		go vs.transcodeChunks(f, "ultrafast")

@@ -37,7 +37,8 @@ export const TransferCard = ({
     if (
         !destFile ||
         dragState === DraggingStateT.NoDrag ||
-        dragState === DraggingStateT.InterfaceDrag
+        dragState === DraggingStateT.InterfaceDrag ||
+        !destFile.modifiable
     ) {
         return null
     }

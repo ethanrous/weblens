@@ -165,9 +165,10 @@ func (t *Task) Wait() *Task {
 // If a task finds itself not required to continue, success should
 // be returned
 func (t *Task) Cancel() {
-	if t == nil {
-		return
-	}
+	log.Trace.Printf("Cancelling task T[%s]", t.taskId)
+
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
 
 	if t.queueState == Exited || t.signal.Load() != 0 {
 		return
@@ -175,7 +176,11 @@ func (t *Task) Cancel() {
 	t.signal.Store(1)
 	t.signalChan <- 1
 	if t.exitStatus == TaskNoStatus {
+		t.queueState = Exited
 		t.exitStatus = TaskCanceled
+	}
+	if t.childTaskPool != nil {
+		t.childTaskPool.Cancel()
 	}
 
 	// Do not exit task here, so that .Wait() -ing on a task will wait until the task actually exits,

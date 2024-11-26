@@ -373,7 +373,11 @@ export const useKeyDownFileBrowser = () => {
                     } else if (presentingId) {
                         setPresentation('')
                     }
-                } else if (event.key === 't') {
+                } else if (
+                    event.key === 't' &&
+                    !event.metaKey &&
+                    !event.ctrlKey
+                ) {
                     toggleLightTheme()
                 }
             }

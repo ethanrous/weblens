@@ -1,6 +1,7 @@
 import { CSSProperties, Loader } from '@mantine/core'
 import {
     IconExclamationCircle,
+    IconMaximize,
     IconPhoto,
     IconPlayerPauseFilled,
     IconPlayerPlayFilled,
@@ -188,6 +189,14 @@ export const MediaImage = memo(
     }
 )
 
+function toggleFullScreen(div: HTMLDivElement) {
+    if (!document.fullscreenElement) {
+        div.requestFullscreen?.call(div)
+    } else {
+        document.exitFullscreen?.call(document)
+    }
+}
+
 function VideoWrapper({
     url,
     shouldShowVideo,
@@ -226,13 +235,18 @@ function VideoWrapper({
         }
 
         if (videoRef.canPlayType('application/vnd.apple.mpegurl')) {
+            console.debug('Not Using HLS')
             videoRef.src = media.StreamVideoUrl()
         } else if (Hls.isSupported()) {
+            console.debug('Using HLS')
             const hls = new Hls()
             hls.loadSource(media.StreamVideoUrl())
             hls.attachMedia(videoRef)
+            return () => {
+                hls.destroy()
+            }
         }
-    }, [videoRef])
+    }, [videoRef, media.StreamVideoUrl()])
 
     const togglePlayState = useCallback(() => {
         if (!videoRef) {
@@ -257,6 +271,10 @@ function VideoWrapper({
         videoRef.volume = volume / 100
     }
 
+    if (!shouldShowVideo) {
+        return null
+    }
+
     return (
         <div
             ref={setContainerRef}
@@ -276,11 +294,19 @@ function VideoWrapper({
                 style={{ opacity: showUi || !isPlaying ? 1 : 0 }}
             >
                 {isPlaying && (
-                    <IconPlayerPauseFilled onClick={() => videoRef.pause()} />
+                    <IconPlayerPauseFilled
+                        className="text-white"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            videoRef.pause()
+                        }}
+                    />
                 )}
                 {!isPlaying && (
                     <IconPlayerPlayFilled
-                        onClick={() => {
+                        className="text-white"
+                        onClick={(e) => {
+                            e.stopPropagation()
                             videoRef
                                 .play()
                                 .catch((e) =>
@@ -289,26 +315,6 @@ function VideoWrapper({
                         }}
                     />
                 )}
-            </div>
-            <div
-                className="flex justify-end shrink-0 w-[98%] h-[98%] absolute z-50
-                            transition-opacity duration-300 pointer-events-none"
-                style={{
-                    opacity: (showUi || !isPlaying) && volume === 0 ? 1 : 0,
-                }}
-            >
-                <IconVolume3
-                    className="w-5 h-5 pointer-events-auto cursor-pointer"
-                    onClick={() => {
-                        setVolume(20)
-                    }}
-                    style={{
-                        pointerEvents:
-                            (showUi || !isPlaying) && volume === 0
-                                ? 'all'
-                                : 'none',
-                    }}
-                />
             </div>
             <video
                 ref={setVideoRef}
@@ -320,7 +326,7 @@ function VideoWrapper({
                 data-hide={
                     url === '' || media.HasLoadError() || !shouldShowVideo
                 }
-                style={imgStyle}
+                style={{ ...imgStyle, borderRadius: '0' }}
                 onClick={togglePlayState}
             />
             <div
@@ -332,7 +338,21 @@ function VideoWrapper({
                     opacity: showUi || !isPlaying ? 1 : 0,
                 }}
             >
-                <div className="flex flex-row h-2 w-[98%] justify-around absolute">
+                <IconVolume3
+                    className="w-5 h-5 absolute pointer-events-auto cursor-pointer text-white top-0 right-0 m-4"
+                    onClick={() => {
+                        setVolume(20)
+                    }}
+                    style={{
+                        opacity: (showUi || !isPlaying) && volume === 0 ? 1 : 0,
+                        pointerEvents:
+                            (showUi || !isPlaying) && volume === 0
+                                ? 'all'
+                                : 'none',
+                    }}
+                />
+
+                <div className="flex flex-row h-2 w-[98%] justify-around items-center absolute">
                     <div className="relative w-[80%]">
                         <WeblensProgress
                             height={12}
@@ -366,6 +386,16 @@ function VideoWrapper({
                             }}
                         />
                     </div>
+                    <IconMaximize
+                        className="relative w-5 h-5 cursor-pointer text-white z-100 pointer-events-auto"
+                        style={{
+                            opacity: showUi || !isPlaying ? 100 : 0,
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFullScreen(containerRef)
+                        }}
+                    />
                 </div>
             </div>
         </div>

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 
 	"github.com/ethanrous/weblens/internal/log"
@@ -59,6 +60,15 @@ func GetConfigName() string {
 }
 
 func GetWorkerCount() int {
+	poolWorkerCount := os.Getenv("POOL_WORKER_COUNT")
+	if poolWorkerCount != "" {
+		count, err := strconv.Atoi(poolWorkerCount)
+		if err == nil {
+			return count
+		}
+		log.Error.Println(err)
+	}
+
 	config, err := ReadConfig(GetConfigName())
 	if err == nil {
 		countFloatI := config["poolWorkerCount"]

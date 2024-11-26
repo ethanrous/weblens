@@ -48,6 +48,10 @@ export class WeblensShare {
     }
 
     async UpdateShare(isPublic: boolean, accessors: string[]) {
+        if (!this.Id()) {
+            throw new Error('Attempt to update share with no id')
+        }
+
         if (isPublic !== this.public) {
             await SharesApi.setSharePublic(this.Id(), isPublic)
                 .then(() => {

@@ -14,6 +14,7 @@ type progressProps = {
     failure?: boolean
     seekCallback?: (v: number) => void
     style?: CSSProperties
+    primaryColor?: string
     secondaryColor?: string
 }
 
@@ -29,6 +30,7 @@ const WeblensProgress = memo(
         failure = false,
         seekCallback,
         style,
+        primaryColor,
         secondaryColor,
     }: progressProps) => {
         const [dragging, setDragging] = useState(false)
@@ -128,6 +130,7 @@ const WeblensProgress = memo(
                                 orientation === 'horizontal' ? '' : `${value}%`,
                             width:
                                 orientation === 'horizontal' ? `${value}%` : '',
+                            backgroundColor: primaryColor ? primaryColor : '',
                         }}
                     />
                     <div
@@ -153,6 +156,9 @@ const WeblensProgress = memo(
     },
     (prev, next) => {
         if (prev.value !== next.value) {
+            return false
+        }
+        if (prev.primaryColor !== next.primaryColor) {
             return false
         }
         if (prev.secondaryValue !== next.secondaryValue) {
