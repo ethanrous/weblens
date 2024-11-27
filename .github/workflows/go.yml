@@ -31,6 +31,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
 
+      - run: cd ui && npm ci
+
       - name: Install Deps
         run: |
           wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc

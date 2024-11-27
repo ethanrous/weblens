@@ -27,6 +27,7 @@
     height: 100%;
     justify-content: center;
     margin-top: 16px;
+    transition: padding 200ms ease-in-out;
 
     &[data-page="core"] {
         padding-right: 100px;
@@ -37,8 +38,6 @@
         padding-right: 140px;
         padding-top: 20px;
     }
-
-    transition: padding 200ms ease-in-out;
 }
 
 .setup-content-pane {

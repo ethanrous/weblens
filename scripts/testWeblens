@@ -143,7 +143,7 @@ while true; do
     cd ui || exit
     export VITE_APP_BUILD_TAG=test
     export VITE_BUILD=true
-    npm install
+    # npm install
     npm run build
     cd .. || exit
   fi
@@ -186,6 +186,8 @@ while true; do
     fi
     printf "Running backend tests ..."
     do_tail ./build/logs/backend-test.log
+
+    export CGO_CFLAGS_ALLOW='-Xpreprocessor'
     if ! (
       set -o pipefail
       APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log

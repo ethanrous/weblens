@@ -104,6 +104,7 @@ while true; do
 	rm -f ./build/bin/weblens
 
 	export GORACE="halt_on_error=1"
+	export CGO_CFLAGS_ALLOW='-Xpreprocessor'
 	go build -gcflags="all=-N -l" -race -o ./build/bin/weblens ./cmd/weblens/main.go &>./build/logs/weblens-build.log
 
 	if [[ ! -e ./build/bin/weblens ]]; then
