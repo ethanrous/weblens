@@ -30,10 +30,10 @@ printf "Dropping old databases... "
 mongosh --eval "use weblens-mock-core" --eval "db.dropDatabase()" >/dev/null
 printf "Done\n"
 
-dataRoot=$(jq -r '."MOCK-CORE".dataRoot' <./config/config.json)
-cachesRoot=$(jq -r '."MOCK-CORE".cachesRoot' <./config/config.json)
-rm -r dataRoot
-rm -r cachesRoot
+dataRoot=$(jq -r '.["MOCK-CORE"].["dataRoot"]' <./config/config.json)
+cachesRoot=$(jq -r '.["MOCK-CORE"].["cachesRoot"]' <./config/config.json)
+rm -rf "$dataRoot"
+rm -rf "$cachesRoot"
 
 printf "\n### Starting Weblens Core ###\n"
 if ! ./scripts/startWeblens --trace --config MOCK-CORE -d --log ./build/logs/core-test-target.log; then

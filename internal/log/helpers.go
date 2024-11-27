@@ -20,7 +20,7 @@ type StackError interface {
 
 func ErrTrace(err error, extras ...string) {
 	if err != nil {
-		if logLevel != TRACE {
+		if logLevel < DEBUG {
 			ShowErr(err, extras...)
 			return
 		}

@@ -417,7 +417,7 @@ func (ft *FileTreeImpl) MkDir(
 	parentFolder *WeblensFileImpl, newDirName string, event *FileEvent,
 ) (*WeblensFileImpl, error) {
 	if existingFile, _ := parentFolder.GetChild(newDirName); existingFile != nil {
-		return existingFile, werror.WithStack(werror.ErrDirAlreadyExists)
+		return existingFile, werror.WithStack(werror.ErrDirAlreadyExists.WithArg(parentFolder.AbsPath() + newDirName))
 	}
 
 	absPath := filepath.Join(parentFolder.AbsPath(), newDirName) + "/"

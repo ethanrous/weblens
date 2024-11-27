@@ -82,6 +82,7 @@ remote_tests=false
 show_logs=false
 ui_tests=false
 coverage=false
+loop=false
 
 while [ "${1:-}" != "" ]; do
   case "$1" in
@@ -110,6 +111,9 @@ while [ "${1:-}" != "" ]; do
   "--ui")
     ui_tests=true
     ;;
+  "--loop")
+    loop=true
+    ;;
   "-h" | "--help")
     echo "$usage"
     exit 0
@@ -123,84 +127,97 @@ while [ "${1:-}" != "" ]; do
   shift
 done
 
-if [[ $REMOTE_TESTS == true ]]; then
-  remote_tests=true
-  backend_tests=true
-fi
-
-if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
-  echo "No tests selected..."
-  echo "$usage"
-  exit 1
-fi
-
-if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
-  cd ui || exit
-  export VITE_APP_BUILD_TAG=test
-  export VITE_BUILD=true
-  npm install
-  npm run build
-  cd .. || exit
-fi
-
-if [[ $ui_tests == true ]]; then
-  printf "Running UI linter ..."
-  cd ui || exit
-  do_tail ../build/logs/ui-lint.log
-  if ! npx eslint . &>../build/logs/ui-lint.log; then
-    show_fail
-  else
-    show_pass
+while true; do
+  if [[ $REMOTE_TESTS == true ]]; then
+    remote_tests=true
+    backend_tests=true
   fi
-  cd .. || exit
-fi
 
-if [[ $remote_tests == true ]]; then
-  export REMOTE_TESTS=true
-  printf "Setting up remote tests ..."
-  do_tail ./build/logs/remote-setup.log
-  if ! source ./scripts/setupRemoteTests &>./build/logs/remote-setup.log; then
-    show_fail
-    printf "%bERR Failed to setup remote target, not running tests%b\n" "${RED}" "${NC}"
+  if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
+    echo "No tests selected..."
+    echo "$usage"
     exit 1
   fi
-  stop_tail
-  echo "Done"
-fi
 
-if [[ $backend_tests == true ]]; then
-  if [[ -z "$target" ]]; then
-    target="./..."
-  else
-    echo "Using target: $target"
+  if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
+    cd ui || exit
+    export VITE_APP_BUILD_TAG=test
+    export VITE_BUILD=true
+    npm install
+    npm run build
+    cd .. || exit
   fi
-  printf "Running backend tests ..."
-  do_tail ./build/logs/backend-test.log
-  if ! (
-    set -o pipefail
-    APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
-  ); then
-    show_fail
-  else
-    if [[ $coverage == true ]]; then
-      grep -v -e internal -e models -e http -e mock ./build/logs/cover_raw.out >./build/logs/cover.out
-      rm ./build/logs/cover_raw.out
+
+  if [[ $ui_tests == true ]]; then
+    printf "Running UI linter ..."
+    cd ui || exit
+    do_tail ../build/logs/ui-lint.log
+    if ! npx eslint . &>../build/logs/ui-lint.log; then
+      show_fail
+    else
+      show_pass
     fi
-    show_pass
+    cd .. || exit
   fi
-fi
 
-weblens_pid=$(cat ./build/logs/weblens.pid 2>/dev/null)
+  if [[ $remote_tests == true ]]; then
+    export REMOTE_TESTS=true
 
-if [[ $remote_tests == true ]] && [[ -n $weblens_pid ]]; then
-  echo "Killing test weblens instance (PID: $weblens_pid)"
-  kill "$weblens_pid"
-fi
+    printf "Setting up remote tests ..."
+    do_tail ./build/logs/remote-setup.log
+    if ! source ./scripts/setupRemoteTests &>./build/logs/remote-setup.log; then
+      show_fail
+      printf "%bERR Failed to setup remote target, not running tests%b\n" "${RED}" "${NC}"
+      exit 1
+    fi
+    stop_tail
+    echo "Done"
+  fi
 
-if [[ $failed == true ]]; then
-  exit 1
-fi
+  if [[ $backend_tests == true ]]; then
+    mongosh --eval "use weblens-test" --eval "db.dropDatabase()" >/dev/null
+    mongosh --eval "use weblens-core-test" --eval "db.dropDatabase()" >/dev/null
+    mongosh --eval "use weblens-backup-test" --eval "db.dropDatabase()" >/dev/null
 
-if [[ $coverage == true ]]; then
-  go tool cover -html=./build/logs/cover.out
-fi
+    if [[ -z "$target" ]]; then
+      target="./..."
+    else
+      echo "Using target: $target"
+    fi
+    printf "Running backend tests ..."
+    do_tail ./build/logs/backend-test.log
+    if ! (
+      set -o pipefail
+      APP_ROOT=$PWD CONFIG_PATH=$PWD/config CONFIG_NAME=TEST go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
+    ); then
+      show_fail
+    else
+      if [[ $coverage == true ]]; then
+        grep -v -e internal -e models -e http -e mock ./build/logs/cover_raw.out >./build/logs/cover.out
+        rm ./build/logs/cover_raw.out
+      fi
+      show_pass
+    fi
+  fi
+
+  weblens_pid=$(cat ./build/logs/weblens.pid 2>/dev/null)
+
+  if [[ $remote_tests == true ]] && [[ -n $weblens_pid ]]; then
+    echo "Killing test weblens instance (PID: $weblens_pid)"
+    kill "$weblens_pid"
+  fi
+
+  if [[ $failed == true ]]; then
+    exit 1
+  fi
+
+  if [[ $coverage == true ]]; then
+    go tool cover -html=./build/logs/cover.out
+  fi
+
+  if [[ $loop != true ]]; then
+    break
+  else
+    go clean -testcache
+  fi
+done
