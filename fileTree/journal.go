@@ -255,36 +255,14 @@ func (j *JournalImpl) GetPastFolderChildren(folder *WeblensFileImpl, time time.T
 	}
 
 	log.Trace.Printf("Got %d actions", len(actions))
-	// actions, err := j.getActionsByPath(folder.GetPortablePath(), false)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// actionsMap := map[string]*FileAction{}
-	// for _, action := range actions {
-	// 	if action.GetTimestamp().After(time) || action.GetLifetimeId() == folder.ID() {
-	// 		continue
-	// 	}
-	//
-	// 	log.Trace.Func(func(l log.Logger) {
-	// 		l.Printf("Action %s %s (%s == %s)", action.LifeId, action.DestinationPath, action.ActionType, action.ParentId, folder.ID())
-	// 	})
-	//
-	// 	if _, ok := actionsMap[action.LifeId]; !ok {
-	// 		if action.ParentId == folder.ID() {
-	// 			actionsMap[action.LifeId] = action
-	// 		} else {
-	// 			actionsMap[action.LifeId] = nil
-	// 		}
-	// 	}
-	// }
 
 	lifeIdMap := map[FileId]any{}
-	children := make([]*WeblensFileImpl, 0, len(actions))
+	children := []*WeblensFileImpl{}
 	for _, action := range actions {
 		if action == nil {
 			continue
 		}
+		log.Debug.Printf("Action: %s", action.ActionType)
 		if _, ok := lifeIdMap[action.LifeId]; ok {
 			continue
 		}
@@ -513,12 +491,27 @@ func upsertLifetimes(lts []*Lifetime, col *mongo.Collection) error {
 
 func (j *JournalImpl) getChildrenAtTime(parentId FileId, time time.Time) ([]*FileAction, error) {
 	pipe := bson.A{
-		bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "actions.parentId", Value: parentId}}}},
 		bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
-		bson.D{{Key: "$match", Value: bson.D{{Key: "$and", Value: bson.A{bson.D{{Key: "actions.parentId", Value: parentId}}, bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$lt", Value: time}}}}}}}}},
 		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "timestamp", Value: bson.D{{Key: "$lt", Value: time}}}}}},
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+		bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$lifeId"},
+			{Key: "latest", Value: bson.D{{Key: "$first", Value: "$$ROOT"}}},
+		},
+		},
+		},
+		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$latest"}}}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "parentId", Value: parentId}}}},
 	}
+
+	// pipe := bson.A{
+	// 	bson.D{{Key: "$match", Value: bson.D{{Key: "serverId", Value: j.serverId}}}},
+	// 	bson.D{{Key: "$unwind", Value: bson.D{{Key: "path", Value: "$actions"}}}},
+	// 	bson.D{{Key: "$match", Value: bson.D{{Key: "$and", Value: bson.A{bson.D{{Key: "actions.parentId", Value: parentId}}, bson.D{{Key: "actions.timestamp", Value: bson.D{{Key: "$lt", Value: time}}}}}}}}},
+	// 	bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$actions"}}}},
+	// 	bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: -1}}}},
+	// }
 
 	ret, err := j.col.Aggregate(context.Background(), pipe)
 	if err != nil {

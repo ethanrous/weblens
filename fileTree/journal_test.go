@@ -3,6 +3,7 @@ package fileTree_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/ethanrous/weblens/database"
 	. "github.com/ethanrous/weblens/fileTree"
@@ -74,7 +75,7 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 		return hasher
 	}
 
-	col := mondb.Collection(t.Name())
+	col := mondb.Collection(t.Name() + "-journal")
 	journal, err := NewJournal(
 		col,
 		"weblens_test_server",
@@ -151,18 +152,25 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	require.NoError(t, err)
 
 	if !assert.Equal(t, 2, len(pastRootChildren)) {
-		childNames := internal.Map(
-			journal.GetAllLifetimes(), func(lt *Lifetime) string {
-				return lt.Actions[0].DestinationPath
-			},
-		)
-		log.Error.Println("Lifetimes:", childNames)
+		for _, lt := range journal.GetAllLifetimes() {
+			log.Error.Printf("Lifetime [%s]: [%s]", lt.Actions[0].DestinationPath, lt.Actions[0].Timestamp)
+		}
+
 		log.Error.Println("Delete Start:", deleteEvent.EventBegin)
 		log.Error.Println("Second Dir Start:", secondDirEvent.EventBegin)
 		t.FailNow()
 	}
 	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[0].ID())
 	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[1].ID())
+
+	// Get the root children at the current time
+	currentChildren, err := journal.GetPastFolderChildren(
+		tree.GetRoot(), time.Now(),
+	)
+	require.NoError(t, err)
+
+	// Make sure the journal thinks the current root has no children
+	assert.Empty(t, currentChildren)
 
 	// Get the old folder just before the delete event
 	pastDir, err := journal.GetPastFile(newDir.ID(), deleteEvent.EventBegin)
