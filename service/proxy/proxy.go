@@ -10,6 +10,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/rest"
 )
 
 type Request struct {
@@ -17,13 +18,13 @@ type Request struct {
 	remote  *models.Instance
 	req     *http.Request
 	url     string
-	body []byte
+	body    []byte
 	queries [][]string
-	err  error
+	err     error
 }
 
 func NewCoreRequest(remote *models.Instance, method, endpoint string) Request {
-	reqUrl, err := url.JoinPath(remote.Address, "/api/core", endpoint)
+	reqUrl, err := url.JoinPath(remote.Address, "/api", endpoint)
 	if err != nil {
 		log.ErrTrace(err)
 		return Request{}
@@ -95,8 +96,21 @@ func (r Request) Call() (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
+		log.TraceCaller(2, "Call home failed from here")
+
 		defer resp.Body.Close()
-		return nil, werror.Errorf("Failed to call home to [%s]: %s", req.URL.String(), resp.Status)
+		target := rest.WeblensErrorInfo{}
+		bs, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
+		}
+
+		err = json.Unmarshal(bs, &target)
+		if err != nil {
+			return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), resp.Status)
+		}
+
+		return nil, werror.Errorf("Failed to call home to [%s %s]: %s", r.method, req.URL.String(), target.Error)
 	}
 
 	return resp, err

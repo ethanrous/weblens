@@ -1,28 +1,36 @@
-import { useSessionStore } from '@weblens/components/UserInfo'
-import { UserInfoT } from '@weblens/types/Types'
+import User from '@weblens/types/user/User'
 
-export function setupWebsocketHandler(setRestoreInProgress, nav) {
-    return (msgData) => {
+import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
+import { useSessionStore } from '../../components/UserInfo'
+
+export function setupWebsocketHandler(
+    setRestoreInProgress: (prog: boolean) => void,
+    nav: (loc: string) => void
+) {
+    return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
-            case 'weblens_loaded': {
+            case WsMsgEvent.WeblensLoadedEvent: {
                 if (msgData.content['role'] === 'core') {
-                    useSessionStore.getState().setUserInfo({} as UserInfoT)
+                    useSessionStore.getState().setUser(new User({}, false))
                     useSessionStore
                         .getState()
                         .fetchServerInfo()
                         .then(() => {
                             nav('/files/home')
                         })
+                        .catch((err) => {
+                            console.error('Failed to fetch server info', err)
+                        })
                 } else if (msgData.content['role'] === 'restore') {
                     setRestoreInProgress(true)
                 }
                 break
             }
-            case 'restore_started': {
+            case WsMsgEvent.RestoreStartedEvent: {
                 setRestoreInProgress(true)
                 break
             }
-            case 'going_down': {
+            case WsMsgEvent.ServerGoingDownEvent: {
                 break
             }
             default: {

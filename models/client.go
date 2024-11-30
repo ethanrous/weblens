@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
@@ -15,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type ClientId string
+type ClientId = string
 
 var _ Client = (*WsClient)(nil)
 
@@ -82,13 +83,15 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 func (wsc *WsClient) Error(err error) {
 	safe, _ := werror.TrySafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
+	log.ErrTrace(err)
 }
 
 func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
 	msg := WsResponseInfo{
 		EventTag:      eventTag,
 		SubscribeKey:  "WEBLENS",
-		BroadcastType: ServerEvent,
+		BroadcastType: "serverEvent",
+		SentTime:      time.Now().UnixMilli(),
 	}
 
 	if len(content) != 0 {
@@ -100,10 +103,11 @@ func (wsc *WsClient) PushWeblensEvent(eventTag string, content ...WsC) {
 
 func (wsc *WsClient) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media) {
 	msg := WsResponseInfo{
-		EventTag:      "file_updated",
+		EventTag:      FileUpdatedEvent,
 		SubscribeKey:  updatedFile.ID(),
 		Content:       WsC{"fileInfo": updatedFile, "mediaData": media},
 		BroadcastType: FolderSubscribe,
+		SentTime:      time.Now().UnixMilli(),
 	}
 
 	log.ErrTrace(wsc.Send(msg))
@@ -113,9 +117,10 @@ func (wsc *WsClient) PushTaskUpdate(task *task.Task, event string, result task.T
 	msg := WsResponseInfo{
 		EventTag:      event,
 		SubscribeKey:  task.TaskId(),
-		Content:       WsC(result),
+		Content:       result.ToMap(),
 		TaskType:      task.JobName(),
 		BroadcastType: TaskSubscribe,
+		SentTime:      time.Now().UnixMilli(),
 	}
 
 	log.ErrTrace(wsc.Send(msg))
@@ -130,7 +135,7 @@ func (wsc *WsClient) PushPoolUpdate(pool task.Pool, event string, result task.Ta
 	msg := WsResponseInfo{
 		EventTag:      event,
 		SubscribeKey:  pool.ID(),
-		Content:       WsC(result),
+		Content:       result.ToMap(),
 		TaskType:      pool.CreatedInTask().JobName(),
 		BroadcastType: TaskSubscribe,
 	}
@@ -150,6 +155,20 @@ func (wsc *WsClient) AddSubscription(sub Subscription) {
 	wsc.subscriptions = append(wsc.subscriptions, sub)
 }
 
+func (wsc *WsClient) RemoveSubscription(key SubId) {
+	wsc.updateMu.Lock()
+	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
+	if subIndex == -1 {
+		wsc.updateMu.Unlock()
+		return
+	}
+	var subToRemove Subscription
+	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
+	wsc.updateMu.Unlock()
+
+	log.Trace.Func(func(l log.Logger) { l.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove) })
+}
+
 func (wsc *WsClient) Raw(msg any) error {
 	return wsc.conn.WriteJSON(msg)
 }
@@ -164,11 +183,11 @@ func (wsc *WsClient) SubUnlock() {
 
 func (wsc *WsClient) Send(msg WsResponseInfo) error {
 	if wsc != nil && wsc.Active.Load() {
-
-		log.Trace.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName())
-
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()
+
+		log.Debug.Func(func(l log.Logger) { l.Printf("Sending [%s] event to client [%s]", msg.EventTag, wsc.getClientName()) })
+
 		err := wsc.conn.WriteJSON(msg)
 		if err != nil {
 			return werror.WithStack(err)
@@ -191,21 +210,7 @@ func (wsc *WsClient) Disconnect() {
 	}
 	wsc.updateMu.Unlock()
 
-	log.Trace.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName())
-}
-
-func (wsc *WsClient) unsubscribe(key SubId) {
-	wsc.updateMu.Lock()
-	subIndex := slices.IndexFunc(wsc.subscriptions, func(s Subscription) bool { return s.Key == key })
-	if subIndex == -1 {
-		wsc.updateMu.Unlock()
-		return
-	}
-	var subToRemove Subscription
-	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
-	wsc.updateMu.Unlock()
-
-	log.Trace.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Disconnected %s client [%s]", wsc.getClientType(), wsc.getClientName()) })
 }
 
 func (wsc *WsClient) getClientName() string {

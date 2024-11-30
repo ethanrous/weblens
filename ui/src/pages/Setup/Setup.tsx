@@ -8,22 +8,24 @@ import {
     IconRocket,
 } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { getUsers, initServer } from '@weblens/api/ApiFetch'
-import { GetUserInfo } from '@weblens/api/UserApi'
-import { useKeyDown } from '@weblens/components/hooks'
-import { useSessionStore } from '@weblens/components/UserInfo'
-import WeblensButton from '@weblens/lib/WeblensButton'
-import '@weblens/components/setup.scss'
-import WeblensInput from '@weblens/lib/WeblensInput'
-import { UserInfoT } from '@weblens/types/Types'
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import Logo from '@weblens/components/Logo'
-import { ThemeToggleButton } from '@weblens/components/HeaderBar'
+import { ServersApi } from '@weblens/api/ServersApi'
+import UsersApi from '@weblens/api/UserApi'
 import {
     HandleWebsocketMessage,
-    useWeblensSocket,
+    useWebsocketStore,
 } from '@weblens/api/Websocket'
+import { ThemeToggleButton } from '@weblens/components/HeaderBar'
+import Logo from '@weblens/components/Logo'
+import { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown } from '@weblens/components/hooks'
+import setupStyle from '@weblens/components/setupStyle.module.scss'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
+import User from '@weblens/types/user/User'
+import { require_css } from '@weblens/util'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
 import { setupWebsocketHandler } from './SetupLogic'
 
 const UserSelect = ({
@@ -33,11 +35,11 @@ const UserSelect = ({
     setPassword,
     owner,
 }: {
-    users: UserInfoT[]
+    users: User[]
     username: string
     setUsername: (username: string) => void
     setPassword: (password: string) => void
-    owner: UserInfoT
+    owner: User
 }) => {
     if (users.length === 0) {
         return null
@@ -45,10 +47,10 @@ const UserSelect = ({
 
     if (owner) {
         return (
-            <div className="caution-box">
-                <div className="caution-header">
+            <div className={setupStyle['caution-box']}>
+                <div className={setupStyle['caution-header']}>
                     <Text
-                        className="subheader-text"
+                        className={setupStyle['subheader-text']}
                         c="white"
                         style={{ paddingTop: 0 }}
                     >
@@ -56,12 +58,12 @@ const UserSelect = ({
                     </Text>
                     <IconExclamationCircle color="white" />
                 </div>
-                <Text className="" style={{ fontSize: '12px' }} c="white">
+                <p className="text-sm text-white">
                     Log in as {owner.username} to continue
-                </Text>
+                </p>
                 <Input
                     variant="unstyled"
-                    className="weblens-input-wrapper"
+                    className={setupStyle['weblens-input-wrapper']}
                     type="password"
                     placeholder="Password"
                     style={{ width: '100%' }}
@@ -72,10 +74,10 @@ const UserSelect = ({
     }
 
     return (
-        <div className="caution-box">
-            <div className="caution-header">
+        <div className={setupStyle['caution-box']}>
+            <div className={setupStyle['caution-header']}>
                 <Text
-                    className="subheader-text"
+                    className={setupStyle['subheader-text']}
                     c="#ffffff"
                     style={{ paddingTop: 0 }}
                 >
@@ -83,9 +85,7 @@ const UserSelect = ({
                 </Text>
                 <IconExclamationCircle color="white" />
             </div>
-            <Text className="" c="#ffffff" style={{ padding: 0 }}>
-                Select a user to make owner
-            </Text>
+            <p className="text-white">Select a user to make owner</p>
             <div className="w-full h-max max-h-[100px] shrink-0 overflow-scroll">
                 {users.map((u) => {
                     return (
@@ -103,17 +103,17 @@ const UserSelect = ({
             </div>
             {username && (
                 <div className="w-full">
-                    <Text className="" c="#ffffff">
+                    <p className="text-white">
                         Log in as {username} to continue
-                    </Text>
-                    <Input
-                        variant="unstyled"
-                        className="weblens-input-wrapper"
-                        type="password"
-                        placeholder="Password"
-                        style={{ width: '100%' }}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
+                    </p>
+                    {/* <Input */}
+                    {/*     variant="unstyled" */}
+                    {/*     className={css(["weblens-input-wrapper"])} */}
+                    {/*     type="password" */}
+                    {/*     placeholder="Password" */}
+                    {/*     style={{ width: '100%' }} */}
+                    {/*     onChange={(e) => setPassword(e.target.value)} */}
+                    {/* /> */}
                 </div>
             )}
         </div>
@@ -138,23 +138,23 @@ const Core = ({
     )
 
     const fetchServerInfo = useSessionStore((state) => state.fetchServerInfo)
-    const serverInfo = useSessionStore((state) => state.server)
-    const setUserInfo = useSessionStore((state) => state.setUserInfo)
+    const setUser = useSessionStore((state) => state.setUser)
     useKeyDown('Enter', () => buttonRef.click())
 
-    const { data: users } = useQuery({
+    const { data: users } = useQuery<User[]>({
         queryKey: ['setupUsers'],
         queryFn: () => {
-            if (serverInfo.info.role !== 'init') {
-                return getUsers()
-            }
+            // if (serverInfo.info.role !== 'init') {
+            //     UsersApi.
+            //     return getUsers()
+            // }
             return []
         },
         initialData: [],
     })
 
     const owner = useMemo(() => {
-        const owner: UserInfoT = users.filter((u) => u.owner)[0]
+        const owner: User = users.filter((u) => u.owner)[0]
         if (owner) {
             setUsername(owner.username)
         }
@@ -169,7 +169,10 @@ const Core = ({
     }
 
     return (
-        <div className="setup-content-box" data-on-deck={onDeck}>
+        <div
+            className={setupStyle['setup-content-box']}
+            data-on-deck={onDeck}
+        >
             <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
@@ -177,14 +180,13 @@ const Core = ({
                     onClick={() => setPage('landing')}
                 />
             </div>
-            <div className="flex items-center gap-[20]">
-                <IconPackage className="text-theme-text" size={'60px'} />
-                <h1 className="pl-4">Core</h1>
+            <div className="flex items-center pl-12">
+                <h1 className="text-4xl font-bold">Core</h1>
             </div>
             {users.length === 0 && (
                 <div className="flex flex-col w-full">
-                    <p className=" m-2">Create an Owner Account</p>
-                    <div className="flex flex-col p-4 outline-gray-700 outline rounded">
+                    <p className=" m-2">Create an Owner Account *</p>
+                    <div className="flex flex-col p-4 outline-gray-700 outline rounded gap-2">
                         <WeblensInput
                             placeholder={'Username'}
                             squareSize={50}
@@ -221,9 +223,14 @@ const Core = ({
             <Divider />
 
             {existingName && (
-                <div className="caution-box">
-                    <div className="caution-header">
-                        <p className="subheader-text text-white">
+                <div className={setupStyle['caution-box']}>
+                    <div className={setupStyle['caution-header']}>
+                        <p
+                            className={require_css(
+                                setupStyle['subheader-text'],
+                                'text-white'
+                            )}
+                        >
                             This server already has a name
                         </p>
                         <IconExclamationCircle color="white" />
@@ -237,9 +244,8 @@ const Core = ({
             )}
             {!existingName && (
                 <div className="flex flex-col w-full">
-                    <p className="m-2">Name This Weblens Server</p>
+                    <p className="m-2">Server Name *</p>
                     <WeblensInput
-                        // disabled={Boolean(existingName)}
                         value={serverName}
                         squareSize={50}
                         placeholder="My Radical Weblens Server"
@@ -247,6 +253,14 @@ const Core = ({
                     />
                 </div>
             )}
+            <div className="flex flex-col w-full">
+                <p className="m-2">Server Address</p>
+                <WeblensInput
+                    squareSize={50}
+                    placeholder={location.origin}
+                    // valueCallback={}
+                />
+            </div>
 
             <WeblensButton
                 label="Start Weblens"
@@ -261,30 +275,32 @@ const Core = ({
                 }
                 doSuper
                 onClick={async () => {
-                    const ret = await initServer(
-                        serverName,
-                        'core',
-                        username,
-                        password,
-                        '',
-                        ''
-                    )
-                    if (ret.status !== 201) {
-                        console.error(ret.statusText)
+                    const res = await ServersApi.initializeServer({
+                        name: serverName,
+                        role: 'core',
+                        username: username,
+                        password: password,
+                    })
+
+                    if (res.status !== 201) {
+                        console.error(res.statusText)
                         return false
                     }
 
                     await new Promise((r) => setTimeout(r, 200))
 
-                    const gotInfo = await GetUserInfo()
-                        .then((info) => {
-                            console.log(info)
-                            setUserInfo({ ...info, isLoggedIn: true })
+                    const gotInfo = await UsersApi.getUser()
+                        .then((res) => {
+                            const user = new User(res.data)
+                            user.isLoggedIn = true
+                            setUser(user)
                             return true
                         })
                         .catch((r) => {
                             console.error(r)
-                            setUserInfo({ isLoggedIn: false } as UserInfoT)
+                            const user = new User()
+                            user.isLoggedIn = false
+                            setUser(user)
                             return false
                         })
 
@@ -292,9 +308,7 @@ const Core = ({
                         return false
                     }
 
-                    fetchServerInfo()
-
-                    return true
+                    return fetchServerInfo()
                 }}
             />
         </div>
@@ -323,7 +337,10 @@ const Backup = ({
         onDeck = 'next'
     }
     return (
-        <div className="setup-content-box" data-on-deck={onDeck}>
+        <div
+            className={setupStyle['setup-content-box']}
+            data-on-deck={onDeck}
+        >
             <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
@@ -331,13 +348,12 @@ const Backup = ({
                     onClick={() => setPage('landing')}
                 />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <IconDatabaseImport className="text-theme-text" size={'60px'} />
-                <h1>Backup</h1>
+            <div className="flex pl-16 items-center max-w-max">
+                <h1 className="text-4xl font-bold">Backup</h1>
             </div>
 
             <div className="w-full h-14">
-                <p className="m-2">Name This Server</p>
+                <p className="m-2">Server Name *</p>
                 <WeblensInput
                     placeholder={'My Rad Backup Server'}
                     valueCallback={setServerName}
@@ -345,7 +361,7 @@ const Backup = ({
             </div>
 
             <div className="w-full h-14">
-                <p className="m-2">Remote (Core) Weblens Address</p>
+                <p className="m-2">Core Server Address *</p>
                 <WeblensInput
                     placeholder={'https://myremoteweblens.net/'}
                     valueCallback={setCoreAddress}
@@ -359,7 +375,7 @@ const Backup = ({
             </div>
 
             <div className="w-full h-14">
-                <p className="m-2">API Key</p>
+                <p className="m-2">Core API Key *</p>
                 <WeblensInput
                     placeholder={'RUH8gHMH4EgQvw_n2...'}
                     valueCallback={setApiKey}
@@ -378,16 +394,14 @@ const Backup = ({
                 }
                 doSuper
                 onClick={async () => {
-                    const ret = await initServer(
-                        serverName,
-                        'backup',
-                        '',
-                        '',
-                        coreAddress,
-                        apiKey
-                    )
-                    if (ret.status !== 201) {
-                        console.error(ret.statusText)
+                    const res = await ServersApi.initializeServer({
+                        name: serverName,
+                        role: 'backup',
+                        coreAddress: coreAddress,
+                        coreKey: apiKey,
+                    })
+                    if (res.status !== 201) {
+                        console.error(res.statusText)
                         return false
                     }
 
@@ -419,15 +433,20 @@ const Restore = ({
 
     const nav = useNavigate()
     const [restoreInProgress, setRestoreInProgress] = useState(false)
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
 
-    const { lastMessage } = useWeblensSocket()
     useEffect(() => {
-        HandleWebsocketMessage(lastMessage, setupWebsocketHandler(setRestoreInProgress, nav))
+        HandleWebsocketMessage(
+            lastMessage,
+            setupWebsocketHandler(setRestoreInProgress, nav)
+        )
     }, [lastMessage])
 
-
     return (
-        <div className="setup-content-box" data-on-deck={onDeck}>
+        <div
+            className={setupStyle['setup-content-box']}
+            data-on-deck={onDeck}
+        >
             <div className="w-[90%] absolute">
                 <WeblensButton
                     Left={IconArrowLeft}
@@ -465,10 +484,13 @@ const Landing = ({
     }
 
     return (
-        <div className="setup-content-box" data-on-deck={onDeck}>
-            <div className="p-6">
-                <Logo size={140} />
-            </div>
+        <div
+            className={require_css(
+                setupStyle['setup-content-box'],
+                'max-h-[60%] mt-40'
+            )}
+            data-on-deck={onDeck}
+        >
             <WeblensButton
                 label="Set Up Weblens Core"
                 Left={IconPackage}
@@ -509,26 +531,40 @@ const Setup = () => {
         if (!server) {
             return
         }
-        if (server.info.role !== 'init') {
+        if (server.role !== 'init') {
             nav('/')
         }
-    }, [server.info.role])
+    }, [server.role])
 
     if (!server) {
         return null
     }
 
+    let logoSize = 100
+    if (page !== 'landing') {
+        logoSize = 48
+    }
+
     return (
-        <div className="setup-container">
+        <div className={setupStyle['setup-container']}>
             <div className="absolute bottom-4 right-4">
                 <ThemeToggleButton />
             </div>
-            <div className="setup-content-pane" data-active={true}>
+            <div
+                className={setupStyle['setup-content-pane']}
+                data-active={true}
+            >
+                <div
+                    className={setupStyle['setup-logo']}
+                    data-page={page}
+                >
+                    <Logo size={logoSize} />
+                </div>
                 <Landing page={page} setPage={setPage} />
                 <Core
                     page={page}
                     setPage={setPage}
-                    existingName={server.info.name}
+                    existingName={server.name}
                 />
                 <Backup page={page} setPage={setPage} />
                 <Restore page={page} setPage={setPage} />

@@ -8,8 +8,8 @@
         "dataRoot": "/data",
         "cachesRoot": "/cache"
     },
-    "TRACE": {
-        "logLevel": "trace"
+    "debug": {
+        "logLevel": "debug"
     },
     "MOCK-CORE": {
         "mongodbName": "weblens-mock-core",
@@ -24,7 +24,7 @@
     "TEST": {
         "mongodbName": "weblens-test",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8090",
@@ -35,7 +35,7 @@
     "TEST-CORE": {
         "mongodbName": "weblens-core-test",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8091",
@@ -45,7 +45,7 @@
     "TEST-BACKUP": {
         "mongodbName": "weblens-backup-test",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "debug",
+        "logLevel": "info",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8092",
@@ -55,17 +55,18 @@
     "DEBUG-CORE": {
         "mongodbName": "weblens-core",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
-        "detachUi": true,
+        "logLevel": "debug",
+        "detachUi": false,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
+        "proxyAddress": "http://local.weblens.io:8080",
         "dataRoot": "./build/fs/core/data",
         "cachesRoot": "./build/fs/core/caches"
     },
     "DEBUG-CORE-RESTORE": {
         "mongodbName": "weblens-core-restore",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
+        "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8080",
@@ -75,7 +76,7 @@
     "DEBUG-BACKUP": {
         "mongodbName": "weblens-backup",
         "mongodbUri": "mongodb://localhost:27017",
-        "logLevel": "trace",
+        "logLevel": "debug",
         "detachUi": true,
         "routerHost": "127.0.0.1",
         "routerPort": "8081",

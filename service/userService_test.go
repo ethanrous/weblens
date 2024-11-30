@@ -49,7 +49,7 @@ func TestUserService(t *testing.T) {
 	assert.NotNil(t, serviceUser1)
 
 	assert.False(t, serviceUser1.IsActive())
-	err = userService.ActivateUser(testUser1)
+	err = userService.ActivateUser(testUser1, true)
 	require.NoError(t, err)
 
 	assert.True(t, serviceUser1.IsActive())
@@ -246,7 +246,7 @@ func TestUserServiceImpl_SetUserAdmin(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, newUser.IsAdmin())
 
-	err = userService.ActivateUser(newUser)
+	err = userService.ActivateUser(newUser, true)
 	require.NoError(t, err)
 
 	err = userService.SetUserAdmin(newUser, true)

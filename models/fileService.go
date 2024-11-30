@@ -12,18 +12,18 @@ type FileService interface {
 	Size(treeAlias string) int64
 
 	AddTree(tree fileTree.FileTree)
+	GetFileTreeByName(treeName string) fileTree.FileTree
 
 	GetFileByTree(id fileTree.FileId, treeAlias string) (*fileTree.WeblensFileImpl, error)
 	GetFileByContentId(contentId ContentId) (*fileTree.WeblensFileImpl, error)
 	GetFiles(ids []fileTree.FileId) ([]*fileTree.WeblensFileImpl, []fileTree.FileId, error)
 	GetFileSafe(id fileTree.FileId, accessor *User, share *FileShare) (*fileTree.WeblensFileImpl, error)
 
-	GetUsersRoot() *fileTree.WeblensFileImpl
 	PathToFile(searchPath string) (*fileTree.WeblensFileImpl, error)
 	UserPathToFile(searchPath string, user *User) (*fileTree.WeblensFileImpl, error)
 
-	CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent) (*fileTree.WeblensFileImpl, error)
-	CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, caster FileCaster) (*fileTree.WeblensFileImpl, error)
+	CreateFile(parent *fileTree.WeblensFileImpl, filename string, event *fileTree.FileEvent, caster FileCaster) (*fileTree.WeblensFileImpl, error)
+	CreateFolder(parent *fileTree.WeblensFileImpl, folderName string, event *fileTree.FileEvent, caster FileCaster) (*fileTree.WeblensFileImpl, error)
 	CreateUserHome(user *User) error
 
 	// CreateRestoreFile creates a new file on the restore tree based on the existing user file,
@@ -66,11 +66,17 @@ type FileService interface {
 
 type FileCaster interface {
 	PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *Media)
+	PushFilesUpdate(updatedFiles []*fileTree.WeblensFileImpl, medias []*Media)
+
 	PushTaskUpdate(task *task.Task, event string, result task.TaskResult)
 	PushPoolUpdate(pool task.Pool, event string, result task.TaskResult)
 	PushFileCreate(newFile *fileTree.WeblensFileImpl)
+
 	PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl)
+	PushFilesMove(preMoveParentId, postMoveParentId fileTree.FileId, files []*fileTree.WeblensFileImpl)
 
 	PushFileDelete(deletedFile *fileTree.WeblensFileImpl)
+	PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl)
 	Close()
+	Flush()
 }

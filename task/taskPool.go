@@ -25,7 +25,7 @@ type TaskPool struct {
 	totalTasks     atomic.Int64
 	completedTasks atomic.Int64
 	waiterCount    atomic.Int32
-	waiterGate     sync.Mutex
+	waiterGate     chan struct{}
 	exitLock       sync.Mutex
 
 	workerPool     *WorkerPool
@@ -84,7 +84,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 				// if tp.createdBy != nil && tp.createdBy.caster != nil {
 				// 	tp.createdBy.caster.PushPoolUpdate(tp, websocket.PoolCompleteEvent, nil)
 				// }
-				tp.waiterGate.Unlock()
+				close(tp.waiterGate)
 
 				// Check if all waiters have awoken before closing the queue, spin and sleep for 10ms if not
 				// Should only loop a handful of times, if at all, we just need to wait for the waiters to
@@ -167,8 +167,10 @@ func (tp *TaskPool) Status() PoolStatus {
 // Wait Parks the thread on the work queue until all the tasks have been queued and finish.
 // **If you never call tp.SignalAllQueued(), the waiters will never wake up**
 // Make sure that you SignalAllQueued before parking here if it is the only thread
-// loading tasks
-func (tp *TaskPool) Wait(supplementWorker bool) {
+// loading tasks.
+// If you are parking a thread that is currently executing a task, you can
+// pass that task in as well, and that task will also listen for exit events.
+func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 	// Waiting on global queues does not make sense, they are not meant to end
 	// or
 	// All the tasks were queued, and they have all finished,
@@ -186,19 +188,24 @@ func (tp *TaskPool) Wait(supplementWorker bool) {
 	}
 
 	_, file, line, _ := runtime.Caller(1)
-	log.Trace.Printf("Parking on worker pool from %s:%d\n", file, line)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Parking on worker pool from %s:%d\n", file, line) })
 
 	if !tp.allQueuedFlag.Load() {
 		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
 	}
 
 	tp.waiterCount.Add(1)
-	tp.waiterGate.Lock()
-	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
-	tp.waiterGate.Unlock()
+	if len(task) != 0 {
+		select {
+		case <-task[0].signalChan:
+		case <-tp.waiterGate:
+		}
+	} else {
+		<-tp.waiterGate
+	}
 	tp.waiterCount.Add(-1)
 
-	log.Trace.Printf("Woke up, returning to %s:%d\n", file, line)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Woke up, returning to %s:%d\n", file, line) })
 
 	if supplementWorker {
 		tp.workerPool.busyCount.Add(1)
@@ -238,14 +245,13 @@ func (tp *TaskPool) Errors() []*Task {
 }
 
 func (tp *TaskPool) Cancel() {
-	tp.allQueuedFlag.Store(true)
-
 	// Dont allow more tasks to join the queue while we are cancelling them
 	tp.taskLock.Lock()
 
+	tp.allQueuedFlag.Store(true)
+
 	for _, t := range tp.tasks {
 		t.Cancel()
-		t.Wait()
 	}
 	tp.taskLock.Unlock()
 
@@ -344,7 +350,7 @@ func (tp *TaskPool) SignalAllQueued() {
 	// the final exiting task will not let the waiters out, so we must do it here. We must also
 	// remove the task pool from the worker pool for the same reason
 	if tp.completedTasks.Load() == tp.totalTasks.Load() {
-		tp.waiterGate.Unlock()
+		close(tp.waiterGate)
 		tp.workerPool.removeTaskPool(tp.ID())
 	}
 	tp.allQueuedFlag.Store(true)
@@ -385,7 +391,7 @@ type Pool interface {
 
 	CreatedInTask() *Task
 
-	Wait(bool)
+	Wait(bool, ...*Task)
 	Cancel()
 
 	IsRoot() bool

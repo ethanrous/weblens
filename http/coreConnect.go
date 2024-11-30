@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const RetryInterval = time.Second * 10
+const retryInterval = time.Second * 10
 
 func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	addrStr, err := core.GetAddress()
@@ -37,6 +37,9 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 	}
 
 	coreUrl.Path = "/api/ws"
+	q := coreUrl.Query()
+	q.Add("server", "true")
+	coreUrl.RawQuery = q.Encode()
 
 	dialer := &websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
 
@@ -49,24 +52,24 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 			if err != nil {
 				log.Error.Printf(
 					"Failed to connect to core server at %s: %s Trying again in %s",
-					coreUrl.String(), err, RetryInterval,
+					coreUrl.String(), err, retryInterval,
 				)
-				time.Sleep(RetryInterval)
+				time.Sleep(retryInterval)
 				continue
 			}
 
 			pack.Caster.PushWeblensEvent(
-				"core_connection_changed", models.WsC{
-					"coreId": core.ServerId(),
-					"online": true,
+				models.RemoteConnectionChangedEvent, models.WsC{
+					"serverId": core.ServerId(),
+					"online":   true,
 				},
 			)
 
 			coreWsHandler(conn, pack)
 			pack.Caster.PushWeblensEvent(
-				"core_connection_changed", models.WsC{
-					"coreId": core.ServerId(),
-					"online": false,
+				models.RemoteConnectionChangedEvent, models.WsC{
+					"serverId": core.ServerId(),
+					"online":   false,
 				},
 			)
 			log.Warning.Printf("Websocket connection to core [%s] closed, reconnecting...", core.GetName())
@@ -118,6 +121,8 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		return
 	}
 
+	log.Trace.Func(func(l log.Logger) { l.Printf("Got wsmsg from R[%s]: %v", c.GetRemote().GetName(), msg) })
+
 	switch msg.EventTag {
 	case "do_backup":
 		coreIdI, ok := msg.Content["coreId"]
@@ -135,11 +140,14 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			c.Error(werror.Errorf("Core server not found: %s", msg.Content["coreId"]))
 			return
 		}
+
+		log.Trace.Func(func(l log.Logger) { l.Printf("Backup requested by %s", core.GetName()) })
 		_, err = jobs.BackupOne(core, pack)
 		if err != nil {
 			c.Error(err)
 		}
-	case "weblens_loaded":
+
+	case models.WeblensLoadedEvent:
 		roleI, ok := msg.Content["role"]
 		if !ok {
 			c.Error(werror.Errorf("Missing role in weblens_loaded message"))
@@ -147,13 +155,13 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 		}
 
 		c.GetRemote().SetReportedRole(roleI.(string))
-		
+
 		// Launch backup task whenever we reconnect to the core server
 		_, err = jobs.BackupOne(c.GetRemote(), pack)
 		if err != nil {
 			log.ErrTrace(err)
 		}
-	case "startup_progress", "core_connection_changed":
+	case models.StartupProgressEvent, models.RemoteConnectionChangedEvent: // Do nothing
 	case "error":
 		log.Trace.Println(msg)
 	default:

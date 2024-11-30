@@ -1,8 +1,9 @@
 import { Space } from '@mantine/core'
+import { IconExclamationCircle } from '@tabler/icons-react'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useNavigate } from 'react-router-dom'
+
 import { useSessionStore } from './UserInfo'
-import { IconExclamationCircle } from '@tabler/icons-react'
 
 function FilesErrorDisplay({
     error,
@@ -22,6 +23,7 @@ function FilesErrorDisplay({
     if (error === 404) {
         preText = `Could not find ${resourceType}`
     } else {
+        console.error(error)
         preText = `Failed to fetch files`
     }
 
@@ -41,7 +43,13 @@ function FilesErrorDisplay({
                     label={user.isLoggedIn ? 'Go Back' : 'Login'}
                     onClick={() => {
                         setNotFound(0)
-                        nav(user.isLoggedIn ? link : '/login')
+                        if (user.isLoggedIn) {
+                            nav(link)
+                        } else {
+                            nav('/login', {
+                                state: { returnTo: window.location.pathname },
+                            })
+                        }
                     }}
                 />
             </div>

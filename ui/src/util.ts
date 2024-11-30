@@ -1,4 +1,4 @@
-import { UserInfoT } from './types/Types'
+import User from './types/user/User'
 
 export function humanFileSize(
     bytes: number,
@@ -74,6 +74,26 @@ export function nsToHumanTime(ns: number) {
     return timeStr
 }
 
+export function secondsToVideoTime(seconds: number, padForHours = false) {
+    const hours = Math.floor(seconds / 3600)
+    const hoursStr = hours.toString().padStart(2, '0')
+
+    seconds = seconds % 3600
+
+    const minutes = Math.floor(seconds / 60)
+    const minStr = minutes.toString().padStart(2, '0')
+
+    const secondsStr = Math.floor(seconds % 60)
+        .toString()
+        .padStart(2, '0')
+
+    if (padForHours || hours > 0) {
+        return hoursStr + ':' + minStr + ':' + secondsStr
+    } else {
+        return minStr + ':' + secondsStr
+    }
+}
+
 export const clamp = (value: number, min: number, max: number) =>
     Math.min(Math.max(value, min), max)
 
@@ -84,7 +104,7 @@ export function getRandomInt(min: number, max: number): number {
 export function friendlyFolderName(
     folderName: string,
     folderId: string,
-    usr: UserInfoT
+    usr: User
 ): string {
     if (folderId === usr.homeId) {
         return 'Home'
@@ -120,4 +140,22 @@ export function binarySearch<T>(
     }
 
     return -1
+}
+
+export function require_css(...classNames: string[]) {
+    for (const className of classNames) {
+        if (className === undefined) {
+            throw new Error('undefined className')
+        }
+    }
+    return classNames.join(' ')
+}
+
+export function toggleLightTheme() {
+    const isDarkTheme = document.documentElement.classList.contains('dark')
+
+    localStorage.setItem('theme', isDarkTheme ? 'light' : 'dark')
+    document.documentElement.classList.toggle('dark')
+
+    return !isDarkTheme
 }

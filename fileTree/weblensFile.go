@@ -50,9 +50,6 @@ type WeblensFileImpl struct {
 	// systems with trees using the same root alias
 	portablePath WeblensFilepath
 
-	// Path of the content file on a backup server
-	backupPath string
-
 	// Base of the filepath, the actual name of the file.
 	filename string
 
@@ -89,18 +86,14 @@ type WeblensFileImpl struct {
 	fileLock sync.Mutex
 
 	// Mark file as read-only internally.
-	// This should be checked before any write action is to be taken
-	// this should not be changed during run-time, only set in InitMediaRoot.
+	// This should be checked before any write action is to be performed.
+	// This should not be changed during run-time, only set in InitMediaRoot.
 	// If a directory is `readOnly`, all children are as well
 	readOnly bool
 
 	// this file represents a file possibly not on the filesystem
 	// anymore, but was at some point in the past
 	pastFile bool
-
-	// If the file is in the trash, or a past file, this current fileId
-	// is the location of the content right now, not in the past.
-	currentId FileId
 
 	// memOnly if the file is meant to only be stored in memory,
 	// writing to it will only write to the buffer
@@ -216,6 +209,8 @@ func (f *WeblensFileImpl) IsDir() bool {
 }
 
 func (f *WeblensFileImpl) ModTime() (t time.Time) {
+	f.updateLock.RLock()
+	defer f.updateLock.RUnlock()
 	if f.modifyDate.Unix() <= 0 {
 		_, err := f.LoadStat()
 		if err != nil {
@@ -336,15 +331,15 @@ func (f *WeblensFileImpl) ReadAll() ([]byte, error) {
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
-	fileSize := f.Size()
+	// fileSize := f.Size()
 
-	data, err := internal.OracleReader(osFile, fileSize)
+	data, err := io.ReadAll(osFile)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
-	if len(data) != int(fileSize) {
-		return nil, werror.WithStack(werror.ErrBadReadCount)
-	}
+	// if len(data) != int(fileSize) {
+	// 	return nil, werror.WithStack(werror.ErrBadReadCount)
+	// }
 
 	return data, nil
 }
@@ -384,7 +379,7 @@ func (f *WeblensFileImpl) WriteAt(data []byte, seekLoc int64) error {
 	defer func(realFile *os.File) {
 		err := realFile.Close()
 		if err != nil {
-
+			log.ErrTrace(err)
 		}
 	}(realFile)
 
@@ -427,7 +422,7 @@ func (f *WeblensFileImpl) GetChild(childName string) (*WeblensFileImpl, error) {
 		return nil, werror.WithStack(werror.NewErrNoFileName(childName))
 	}
 
-	child := f.childrenMap[childName]
+	child := f.childrenMap[strings.ToLower(childName)]
 	if child == nil {
 		return nil, werror.WithStack(werror.NewErrNoFileName(childName))
 	}
@@ -456,7 +451,7 @@ func (f *WeblensFileImpl) AddChild(child *WeblensFileImpl) error {
 	if f.childrenMap == nil {
 		f.childrenMap = make(map[string]*WeblensFileImpl)
 	}
-	f.childrenMap[child.Filename()] = child
+	f.childrenMap[strings.ToLower(child.Filename())] = child
 
 	return nil
 }
@@ -553,7 +548,7 @@ func (f *WeblensFileImpl) MarshalJSON() ([]byte, error) {
 		"modifyTimestamp": f.ModTime().UnixMilli(),
 		"parentId":        parentId,
 		"childrenIds":     internal.Map(f.GetChildren(), func(c *WeblensFileImpl) FileId { return c.ID() }),
-		"contentId":       f.contentId,
+		"contentId":       f.GetContentId(),
 		"pastFile":        f.pastFile,
 	}
 
@@ -577,6 +572,9 @@ func (f *WeblensFileImpl) RecursiveMap(fn func(*WeblensFileImpl) error) error {
 	children := f.GetChildren()
 
 	for _, c := range children {
+		if f == c {
+			panic("RecursiveMap called on self")
+		}
 		err := c.RecursiveMap(fn)
 		if err != nil {
 			return err
@@ -698,6 +696,12 @@ func (f *WeblensFileImpl) LoadStat() (newSize int64, err error) {
 	return -1, nil
 }
 
+func (f *WeblensFileImpl) ReplaceRoot(newRoot string) {
+	f.updateLock.Lock()
+	defer f.updateLock.Unlock()
+	f.portablePath = f.portablePath.OverwriteRoot(newRoot)
+}
+
 func (f *WeblensFileImpl) getIdInternal() FileId {
 	f.updateLock.RLock()
 	defer f.updateLock.RUnlock()
@@ -722,12 +726,6 @@ func (f *WeblensFileImpl) setPortable(portable WeblensFilepath) {
 	f.portablePath = portable
 }
 
-func (f *WeblensFileImpl) setBackupPath(backupPath string) {
-	f.updateLock.Lock()
-	defer f.updateLock.Unlock()
-	f.backupPath = backupPath
-}
-
 func (f *WeblensFileImpl) getAbsPathInternal() string {
 	f.updateLock.RLock()
 	defer f.updateLock.RUnlock()
@@ -741,20 +739,6 @@ func (f *WeblensFileImpl) setParentInternal(parent *WeblensFileImpl) {
 	f.parent = parent
 }
 
-func (f *WeblensFileImpl) getBackupPathInternal() string {
-	f.updateLock.RLock()
-	defer f.updateLock.RUnlock()
-	return f.backupPath
-}
-
-func (f *WeblensFileImpl) hasChildren() bool {
-	if !f.IsDir() {
-		return false
-	} else {
-		return len(f.childrenMap) != 0
-	}
-}
-
 func (f *WeblensFileImpl) removeChild(child *WeblensFileImpl) error {
 	if len(f.childrenMap) == 0 {
 		return werror.WithStack(werror.ErrNoChildren)
@@ -763,11 +747,11 @@ func (f *WeblensFileImpl) removeChild(child *WeblensFileImpl) error {
 	f.childLock.Lock()
 	defer f.childLock.Unlock()
 
-	if _, ok := f.childrenMap[child.Filename()]; !ok {
+	if _, ok := f.childrenMap[strings.ToLower(child.Filename())]; !ok {
 		return werror.WithStack(werror.ErrNoFile)
 	}
 
-	delete(f.childrenMap, child.Filename())
+	delete(f.childrenMap, strings.ToLower(child.Filename()))
 
 	f.modifiedNow()
 

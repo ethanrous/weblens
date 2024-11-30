@@ -25,7 +25,7 @@ func NewTestFileTree() (FileTree, error) {
 	// MkdirTemp does not add a trailing slash to directories, which the fileTree expects
 	rootPath += "/"
 
-	log.Trace.Printf("Creating tmp root for FileTree test [%s]", rootPath)
+	log.Trace.Func(func(l log.Logger) {l.Printf("Creating tmp root for FileTree test [%s]", rootPath)})
 
 	tree, err := NewFileTree(rootPath, "USERS", journal, false)
 	if err != nil {

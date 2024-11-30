@@ -1,21 +1,19 @@
-import { Loader } from '@mantine/core'
+import { style } from '@weblens/components/style'
 
-export default function WeblensLoader({
-    loading = [],
-}: {
-    loading?: string[]
-}) {
-    if (loading.length === 0) {
+import Logo from './Logo'
+
+export default function WeblensLoader({ loading }: { loading?: string[] }) {
+    if (loading && loading.length === 0) {
         return null
     }
     return (
         <div
-            className="flex cursor-pointer justify-center"
+            className="flex justify-center"
             onClick={() => {
                 console.log('Waiting on:', loading)
             }}
         >
-            <Loader color="#4444ff" type="bars" />
+            <Logo className={style['fade-blink']} />
         </div>
     )
 }

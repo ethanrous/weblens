@@ -12,6 +12,8 @@ type MemFileTree struct {
 	rootAlias string
 	fMap      map[fileTree.FileId]*fileTree.WeblensFileImpl
 	root      *fileTree.WeblensFileImpl
+
+	journal fileTree.Journal
 }
 
 func (ft *MemFileTree) ReplaceId(oldId, newId fileTree.FileId) error {
@@ -29,8 +31,8 @@ func NewMemFileTree(rootAlias string) *MemFileTree {
 		rootAlias: rootAlias,
 		fMap:      map[fileTree.FileId]*fileTree.WeblensFileImpl{},
 	}
-
 	root := fileTree.NewWeblensFile("ROOT", "media", nil, true)
+	root.ReplaceRoot(rootAlias)
 	root.SetMemOnly(true)
 
 	fs.root = root
@@ -56,10 +58,11 @@ func (ft *MemFileTree) Size() int {
 }
 
 func (ft *MemFileTree) GetJournal() fileTree.Journal {
-	return nil
+	return ft.journal
 }
 
-func (ft *MemFileTree) SetJournal(service fileTree.Journal) {
+func (ft *MemFileTree) SetJournal(journal fileTree.Journal) {
+	ft.journal = journal
 }
 
 func (ft *MemFileTree) Add(file *fileTree.WeblensFileImpl) error {

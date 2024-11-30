@@ -1,10 +1,22 @@
-import { BackupProgressT } from '../Backup/BackupLogic'
-import { TaskStageT } from '../FileBrowser/TaskProgress'
+import { WsMsgEvent, wsMsgInfo } from '@weblens/api/Websocket'
 
-export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
-    return (msgData) => {
+import { BackupProgressT } from '../Backup/BackupLogic'
+import { TaskStageT } from '../FileBrowser/TaskStateControl'
+
+export function AdminWebsocketHandler(
+    setBackupProgress: React.Dispatch<
+        React.SetStateAction<Map<string, BackupProgressT>>
+    >,
+    refetchRemotes: () => void
+) {
+    return (msgData: wsMsgInfo) => {
+        if (!msgData.eventTag) {
+            console.error('Empty websocket message', msgData)
+            return
+        }
+
         switch (msgData.eventTag) {
-            case 'backup_progress': {
+            case WsMsgEvent.BackupProgressEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p: Map<string, BackupProgressT>) => {
                     let prog = p.get(msgData.relaySource)
@@ -18,7 +30,7 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                 break
             }
 
-            case 'backup_failed': {
+            case WsMsgEvent.BackupFailedEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p: Map<string, BackupProgressT>) => {
                     let prog = p.get(msgData.relaySource)
@@ -32,7 +44,7 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                 break
             }
 
-            case 'backup_complete': {
+            case WsMsgEvent.BackupCompleteEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p: Map<string, BackupProgressT>) => {
                     let prog = p.get(msgData.relaySource)
@@ -44,6 +56,43 @@ export function AdminWebsocketHandler(setBackupProgress, refetchRemotes) {
                     p.set(msgData.relaySource, prog)
                     return new Map(p)
                 })
+                refetchRemotes()
+                break
+            }
+
+            case WsMsgEvent.CopyFileStartedEvent: {
+                setBackupProgress((p) => {
+                    let prog = p.get(msgData.relaySource)
+                    if (!prog) {
+                        prog = { files: new Map() } as BackupProgressT
+                    }
+                    prog.files.set(msgData.content.filename, {
+                        name: msgData.content.filename,
+                        start: new Date(msgData.content.timestamp),
+                    })
+                    p.set(msgData.relaySource, prog)
+                    return new Map(p)
+                })
+                break
+            }
+
+            case WsMsgEvent.CopyFileCompleteEvent: {
+                setBackupProgress((p) => {
+                    let prog = p.get(msgData.relaySource)
+                    if (!prog) {
+                        prog = { files: new Map() } as BackupProgressT
+                    }
+                    prog.progressCurrent = msgData.content.tasksComplete
+                    prog.progressTotal = msgData.content.tasksTotal
+                    prog.files.delete(msgData.content.filename)
+                    p.set(msgData.relaySource, prog)
+                    return new Map(p)
+                })
+                break
+            }
+
+            case WsMsgEvent.RemoteConnectionChangedEvent: {
+                refetchRemotes()
                 break
             }
         }

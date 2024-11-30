@@ -1,21 +1,18 @@
 import {
+    Icon,
     IconFile,
     IconFolder,
     IconHome,
     IconTrash,
     IconUser,
 } from '@tabler/icons-react'
-import API_ENDPOINT from '@weblens/api/ApiEndpoint'
-import { fetchJson } from '@weblens/api/ApiFetch'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
-import { MediaDataT } from '@weblens/types/media/Media'
+import SharesApi from '@weblens/api/SharesApi'
+import { FileInfo } from '@weblens/api/swag'
+import { useSessionStore } from '@weblens/components/UserInfo'
 import { WeblensShare } from '@weblens/types/share/share'
 import { humanFileSize } from '@weblens/util'
 
-function getIcon(folderName: string): (p) => JSX.Element {
+function getIcon(folderName: string): Icon {
     if (folderName === 'HOME') {
         return IconHome
     } else if (folderName === 'TRASH') {
@@ -27,50 +24,16 @@ function getIcon(folderName: string): (p) => JSX.Element {
     }
 }
 
-export interface WeblensFileInfo {
-    filename: string
-    id: string
-    isDir: boolean
-    modifyTimestamp: number
-    ownerName: string
-    parentId: string
-    portablePath: string
-    shareId: string
-    size: number
-}
-
-export interface WeblensFileParams {
-    id?: string
-    owner?: string
-    modifyTimestamp?: string
-    filename?: string
-    portablePath?: string
-    parentId?: string
-    contentId?: string
-
-    children?: string[]
-
-    isDir?: boolean
-    pastFile?: boolean
-    imported?: boolean
-    modifiable?: boolean
-    displayable?: boolean
-
-    size?: number
-    mediaData?: MediaDataT
-    shareId?: string
-}
-
 export class WeblensFile {
     id?: string
     owner?: string
-    filename?: string
+    private filename?: string
     portablePath?: string
     parentId?: string
 
     modifyDate?: Date
 
-    children?: string[]
+    childrenIds?: string[]
 
     isDir?: boolean
     pastFile?: boolean
@@ -86,19 +49,25 @@ export class WeblensFile {
     index?: number
     visible?: boolean
 
+    private fetching: boolean
+
     private selected: SelectedState
     private contentId: string
     private share: WeblensShare
 
-    constructor(init: WeblensFileParams) {
+    constructor(init: FileInfo) {
         if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
+        console.debug('Creating file', init)
+
         Object.assign(this, init)
         this.hovering = false
         this.modifyDate = new Date(init.modifyTimestamp)
-        this.shareId = init.shareId
         this.selected = SelectedState.NotSelected
+        if (!this.parents) {
+            this.parents = []
+        }
     }
 
     Id(): string {
@@ -113,16 +82,8 @@ export class WeblensFile {
         return this.index
     }
 
-    Update(newInfo: WeblensFileParams) {
+    Update(newInfo: FileInfo) {
         Object.assign(this, newInfo)
-        // this.share = undefined;
-
-        if (
-            newInfo.mediaData &&
-            newInfo.mediaData.contentId !== this.contentId
-        ) {
-            this.contentId = newInfo.mediaData.contentId
-        }
     }
 
     ParentId(): string {
@@ -144,12 +105,14 @@ export class WeblensFile {
         if (!this.parents) {
             return []
         }
-        return this.parents
+        if (this.filename === '.user_trash') {
+            return []
+        }
+        return this.parents.filter((parent) => Boolean(parent))
     }
 
-    GetPathParts(replaceIcons?: boolean): (string | ((p) => JSX.Element))[] {
-        const parts: (string | ((p) => JSX.Element))[] =
-            this.portablePath.split('/')
+    GetPathParts(replaceIcons?: boolean): (string | Icon)[] {
+        const parts: (string | Icon)[] = this.portablePath.split('/')
         if (replaceIcons) {
             const icon = getIcon(String(parts[0]))
             if (icon !== null) {
@@ -164,12 +127,27 @@ export class WeblensFile {
     }
 
     GetFilename(): string {
-        if (this.portablePath === 'HOME') {
-            return 'Home'
+        if (!this.filename) {
+            const filename = this.portablePath.slice(
+                this.portablePath.indexOf(':') + 1
+            )
+            const parts = filename.split('/')
+            let name = parts.pop()
+
+            // If the path is a directory, the portable path will end with a slash, so we need to pop again
+            if (this.isDir) {
+                name = parts.pop()
+            }
+
+            if (this.parentId === 'ROOT') {
+                name = 'Home'
+            } else if (name === '.user_trash') {
+                name = 'Trash'
+            }
+
+            this.filename = name
         }
-        if (this.filename === '.user_trash') {
-            return 'Trash'
-        }
+
         return this.filename
     }
 
@@ -202,21 +180,32 @@ export class WeblensFile {
     }
 
     IsTrash(): boolean {
-        return this.filename === '.user_trash'
+        return this.id && this.id === useSessionStore.getState()?.user?.trashId
+    }
+
+    IsInTrash(): boolean {
+        const trashId = useSessionStore.getState()?.user?.trashId
+        if (this.id === trashId) {
+            return true
+        }
+        return this.parents.map((parent) => parent?.Id()).includes(trashId)
     }
 
     GetOwner(): string {
         return this.owner
     }
 
-    SetSelected(selected: SelectedState): void {
+    SetSelected(selected: SelectedState, override: boolean = false): void {
+        if (override) {
+            this.selected = selected
+            return
+        }
         this.selected = this.selected | selected
     }
 
     UnsetSelected(selected: SelectedState): void {
-        // console.trace('Unset selected', selected)
         let mask = SelectedState.ALL - 1
-        while (selected !== 0) {
+        while (selected !== SelectedState.NotSelected) {
             selected = selected >> 1
             mask = (mask << 1) + 1
         }
@@ -232,15 +221,29 @@ export class WeblensFile {
         return this.pastFile
     }
 
+    SetFetching(fetching: boolean): void {
+        this.fetching = fetching
+    }
+
+    GetFetching(): boolean {
+        return this.fetching
+    }
+
     GetChildren(): string[] {
-        return this.children
+        if (!this.childrenIds) {
+            return []
+        }
+        const trashId = useSessionStore.getState()?.user?.trashId
+        return this.childrenIds.filter((child) => {
+            return child !== trashId
+        })
     }
 
     IsHovering(): boolean {
         return (this.selected & SelectedState.Hovering) !== 0
     }
 
-    GetBaseIcon(mustBeRoot?: boolean): (p) => JSX.Element {
+    GetBaseIcon(mustBeRoot?: boolean): Icon {
         if (!this.portablePath) {
             return null
         }
@@ -300,37 +303,13 @@ export class WeblensFile {
         } else if (!this.shareId) {
             return null
         }
-
-        const url = `${API_ENDPOINT}/file/share/${this.shareId}`
-        return fetchJson(url)
-    }
-
-    GetVisitRoute(
-        mode: FbModeT,
-        shareId: string,
-        setPresentation: (presentationId: string) => void
-    ) {
-        let timestampQuery = ''
-        const pastTime = useFileBrowserStore.getState().pastTime
-        if (pastTime) {
-            timestampQuery = `?at=${pastTime.getTime().toString()}`
+        const res = await SharesApi.getFileShare(this.shareId)
+        if (res.status !== 200) {
+            return Promise.reject(new Error('Failed to get share info'))
         }
 
-        if (this.isDir) {
-            if (mode === FbModeT.share && shareId === '') {
-                return `/files/share/${this.shareId}/${this.id}`
-            } else if (mode === FbModeT.share) {
-                return `/files/share/${shareId}/${this.id}`
-            } else if (mode === FbModeT.external) {
-                return `/files/external/${this.id}`
-            } else if (mode === FbModeT.default) {
-                return `/files/${this.id}${timestampQuery}`
-            }
-        } else if (this.displayable || !this.displayable) {
-            setPresentation(this.id)
-            return
-        }
-        console.error('Did not find location to visit for', this.filename)
+        this.share = new WeblensShare(res.data)
+        return this.share
     }
 }
 

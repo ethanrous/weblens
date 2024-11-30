@@ -1,28 +1,23 @@
 import { Space } from '@mantine/core'
-import { login } from '@weblens/api/ApiFetch'
-import { useKeyDown } from '@weblens/components/hooks'
+import { IconBrandGithub } from '@tabler/icons-react'
+import UsersApi from '@weblens/api/UserApi'
 import WeblensLogo from '@weblens/components/Logo'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import {
-    LOGIN_TOKEN_COOKIE_KEY,
-    USERNAME_COOKIE_KEY,
-} from '@weblens/types/Types'
+import User from '@weblens/types/user/User'
 import { useCallback, useState } from 'react'
-import { useCookies } from 'react-cookie'
+
+import loginStyle from './loginStyle.module.scss'
 
 const Login = () => {
     const [userInput, setUserInput] = useState('')
     const [passInput, setPassInput] = useState('')
 
-    const setUser = useSessionStore((state) => state.setUserInfo)
-    const [, setCookie] = useCookies([
-        USERNAME_COOKIE_KEY,
-        LOGIN_TOKEN_COOKIE_KEY,
-    ])
+    const setUser = useSessionStore((state) => state.setUser)
 
-    const [buttonRef, setButtonRef] = useState(null)
+    const [buttonRef, setButtonRef] = useState<HTMLDivElement>(null)
     useKeyDown('Enter', () => {
         if (buttonRef) {
             buttonRef.click()
@@ -32,50 +27,65 @@ const Login = () => {
 
     const doLogin = useCallback(async (username: string, password: string) => {
         if (username === '' || password === '') {
-            return Promise.reject('username and password must not be empty')
+            return Promise.reject(
+                new Error('username and password must not be empty')
+            )
         }
-        return login(username, password).then((data) => {
-            setCookie(USERNAME_COOKIE_KEY, data.user.username)
-            setCookie(LOGIN_TOKEN_COOKIE_KEY, data.token)
-            setUser({ ...data.user, isLoggedIn: true })
+        return UsersApi.loginUser({ username, password }).then((res) => {
+            const user = new User(res.data)
+            user.isLoggedIn = true
+            setUser(user)
         })
     }, [])
 
     return (
-        <div className="flex flex-col h-screen max-h-screen w-screen items-center bg-wl-background pt-[8vh]">
-            <WeblensLogo size={100} />
-            <div className="bg-wl-barely-visible flex flex-col justify-center items-center wl-outline p-6 w-[400px] max-w-[600px] max-h-[50vh] mt-[8vh]">
-                <h1 className="font-bold  m-[2vh]">Sign In</h1>
-                <p className="w-full font-semibold">Username</p>
-                <WeblensInput
-                    value={userInput}
-                    autoFocus
-                    valueCallback={setUserInput}
-                    squareSize={40}
-                />
-                <p className="w-full font-semibold">Password</p>
-                <WeblensInput
-                    value={passInput}
-                    valueCallback={setPassInput}
-                    squareSize={40}
-                    password
-                />
-                <Space h={'md'} />
-                <WeblensButton
-                    label="Sign in"
-                    fillWidth
-                    squareSize={50}
-                    disabled={userInput === '' || passInput === ''}
-                    centerContent
-                    onClick={async () => doLogin(userInput, passInput)}
-                    setButtonRef={setButtonRef}
-                />
-
+        <div className="h-screen max-h-screen items-center bg-wl-background gap-2 my-0 m-[0 auto]">
+            <div className="flex justify-center w-full text-center">
+                <WeblensLogo className="mt-10" size={100} />
             </div>
-            <div className='flex flex-row items-center m-8 p-4 wl-outline-subtle gap-2'>
-                <h3>New Here?</h3>
-                <WeblensButton label="Sign up" />
+            <div className={loginStyle['login-form']}>
+                <div className="w-full text-center mb-4">
+                    <h1>Sign in to Weblens</h1>
+                </div>
+                <div className={loginStyle['login-box']}>
+                    <p className="w-full font-semibold">Username</p>
+                    <WeblensInput
+                        value={userInput}
+                        autoFocus
+                        valueCallback={setUserInput}
+                        squareSize={40}
+                    />
+                    <p className="w-full font-semibold">Password</p>
+                    <WeblensInput
+                        value={passInput}
+                        valueCallback={setPassInput}
+                        squareSize={40}
+                        password
+                    />
+                    <Space h={'md'} />
+                    <WeblensButton
+                        label="Sign in"
+                        fillWidth
+                        squareSize={50}
+                        disabled={userInput === '' || passInput === ''}
+                        centerContent
+                        onClick={async () => doLogin(userInput, passInput)}
+                        setButtonRef={setButtonRef}
+                    />
+                </div>
+                <div className="flex justify-center items-center p-4 wl-outline-subtle gap-2 mt-3">
+                    <h3>New Here?</h3>
+                    <a href="/signup">Request an Account</a>
+                </div>
             </div>
+            <a
+                href="https://github.com/ethanrous/weblens"
+                className="flex flex-row absolute bottom-0 right-0 m-4 bg-transparent"
+                target="_blank"
+            >
+                <IconBrandGithub />
+                GitHub
+            </a>
         </div>
     )
 }

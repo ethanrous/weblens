@@ -1,13 +1,13 @@
 import { IconFile, IconFolder } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
-import { autocompletePath, searchFilenames } from '@weblens/api/ApiFetch'
-import { useResize } from '@weblens/components/hooks'
+import { FileApi } from '@weblens/api/FileBrowserApi'
+import { FileInfo } from '@weblens/api/swag'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { useResize } from '@weblens/components/hooks'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
-import { WeblensFileInfo } from '@weblens/types/files/File'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { FixedSizeList as WindowList, List } from 'react-window'
+import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
+import { FixedSizeList as WindowList } from 'react-window'
 
 enum SearchModeT {
     global,
@@ -15,7 +15,23 @@ enum SearchModeT {
     local,
 }
 
-function SearchResult({ data, index, style }) {
+type searchResultProps = {
+    searchType: SearchModeT
+    files: FileInfo[]
+    highlightIndex: number
+    setHighlightIndex: (idx: number) => void
+    visitHighlighted: (f: FileInfo) => void
+}
+
+function SearchResult({
+    data,
+    index,
+    style,
+}: {
+    data: searchResultProps
+    index: number
+    style: CSSProperties
+}) {
     // const alreadyHere =
     //     data.files[index].isDir && data.files[index].id === data.folderInfo.id
     const alreadyHere = false
@@ -41,7 +57,6 @@ function SearchResult({ data, index, style }) {
             className="flex rounded p-2 gap-1 items-center justify-between cursor-pointer h-10 max-w-full"
             onMouseOver={() => data.setHighlightIndex(index)}
             onClick={(e) => {
-                console.log('clicked')
                 e.stopPropagation()
                 const f = data.files[index]
                 data.visitHighlighted(f)
@@ -53,7 +68,7 @@ function SearchResult({ data, index, style }) {
                 color: alreadyHere ? '#888888' : 'white',
             }}
         >
-            {data.searchType !== 0 && (
+            {data.searchType !== SearchModeT.global && (
                 <div className="flex flex-row items-center gap-1 select-none">
                     <p className="text-transparent shrink-0 text-nowrap">
                         {preText}
@@ -99,28 +114,32 @@ export default function SearchDialogue({
     const [highlightIndex, setHighlightIndex] = useState(-1)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
     const containerSize = useResize(containerRef)
-    const resultsRef = useRef<List>()
+    const resultsRef = useRef<WindowList>()
 
-    const [files, setFiles] = useState<WeblensFileInfo[]>([])
+    const [files, setFiles] = useState<FileInfo[]>([])
     const { data: searchResult } = useQuery({
         queryKey: ['albums', search],
         queryFn: async () => {
             if (search.startsWith('~/')) {
-                return (await autocompletePath(search)).children
+                return FileApi.autocompletePath(search).then(
+                    (res) => res.data.children
+                )
             } else if (search.startsWith('./')) {
                 const path =
                     folderInfo.portablePath.replace('HOME', '~/') +
                     '/' +
                     search.slice(2)
-                return (await autocompletePath(path)).children
+                return FileApi.autocompletePath(path).then(
+                    (res) => res.data.children
+                )
             } else {
-                return await searchFilenames(search)
+                return FileApi.searchByFilename(search).then((res) => res.data)
             }
         },
     })
 
     const visitHighlighted = useCallback(
-        (f: WeblensFileInfo) => {
+        (f: FileInfo) => {
             if (search === '~') {
                 visitFunc(user.homeId)
             } else if (search === '..') {
@@ -138,17 +157,8 @@ export default function SearchDialogue({
     )
 
     const selectNext = useCallback(
-        (i) => {
-            let newI = Math.min(i + 1, files.length - 1)
-            // let newF = files[newI]
-            // while (newF.isDir && newF.id === folderInfo.id) {
-            //     if (newI === files.length - 1) {
-            //         return i
-            //     }
-            //     newI++
-            //     newF = files[newI]
-            // }
-            return newI
+        (i: number) => {
+            return Math.min(i + 1, files.length - 1)
         },
         [files]
     )
@@ -188,7 +198,6 @@ export default function SearchDialogue({
             ref={setContainerRef}
             className="flex w-full h-full"
             onKeyDown={(e) => {
-                console.log(e.ctrlKey)
                 if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'k')) {
                     e.preventDefault()
                     e.stopPropagation()

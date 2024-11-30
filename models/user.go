@@ -11,17 +11,17 @@ import (
 )
 
 type User struct {
-	Id            primitive.ObjectID `bson:"_id" json:"-"`
-	Username      Username           `bson:"username" json:"username"`
-	Password      string             `bson:"password" json:"-"`
-	Admin         bool               `bson:"admin" json:"admin"`
-	Activated     bool               `bson:"activated" json:"activated"`
-	IsServerOwner bool               `bson:"owner" json:"owner"`
-	HomeId        fileTree.FileId    `bson:"homeId" json:"homeId"`
-	TrashId       fileTree.FileId    `bson:"trashId" json:"trashId"`
+	Id            primitive.ObjectID `bson:"_id"`
+	Username      Username           `bson:"username"`
+	Password      string             `bson:"password"`
+	Admin         bool               `bson:"admin"`
+	Activated     bool               `bson:"activated"`
+	IsServerOwner bool               `bson:"owner"`
+	HomeId        fileTree.FileId    `bson:"homeId"`
+	TrashId       fileTree.FileId    `bson:"trashId"`
 
 	// The id of the server instance that created this user
-	CreatedBy InstanceId `bson:"createdBy" json:"createdBy"`
+	CreatedBy InstanceId `bson:"createdBy"`
 
 	// non-database types
 	homeFolder  *fileTree.WeblensFileImpl
@@ -35,6 +35,9 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 	}
 	if password == "" {
 		return nil, werror.Errorf("password is empty")
+	}
+	if username == "PUBLIC" || username == "WEBLENS" {
+		return nil, werror.Errorf("username not allowed")
 	}
 
 	passHashBytes, err := bcrypt.GenerateFromPassword([]byte(password), 11)
@@ -93,6 +96,10 @@ func (u *User) IsOwner() bool {
 	return u.IsServerOwner
 }
 
+func (u *User) IsPublic() bool {
+	return u == nil || u.Username == "PUBLIC"
+}
+
 func (u *User) IsActive() bool {
 	return u.Activated
 }
@@ -115,21 +122,6 @@ func (u *User) SocketType() string {
 
 func MakeOwner(u *User) {
 	u.IsServerOwner = true
-}
-
-func (u *User) FormatArchive() (map[string]any, error) {
-	data := map[string]any{
-		"username":     u.Username,
-		"password":     u.Password,
-		"admin":        u.Admin,
-		"activated":    u.Activated,
-		"owner":        u.IsServerOwner,
-		"isSystemUser": u.SystemUser,
-		"homeId":       u.HomeId,
-		"trashId":      u.TrashId,
-	}
-
-	return data, nil
 }
 
 func (u *User) UnmarshalJSON(data []byte) error {
@@ -163,7 +155,7 @@ type UserService interface {
 	GetPublicUser() *User
 	SearchByUsername(searchString string) (iter.Seq[*User], error)
 	SetUserAdmin(*User, bool) error
-	ActivateUser(*User) error
+	ActivateUser(*User, bool) error
 	GetRootUser() *User
 	UpdateUserHome(u *User) error
 

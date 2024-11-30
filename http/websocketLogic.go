@@ -12,8 +12,6 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
-	"github.com/ethanrous/weblens/task"
-	"github.com/gin-gonic/gin"
 	gorilla "github.com/gorilla/websocket"
 )
 
@@ -29,28 +27,41 @@ var upgrader = gorilla.Upgrader{
 	},
 }
 
-func wsConnect(ctx *gin.Context) {
-	pack := getServices(ctx)
+func wsConnect(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 	if pack.ClientService == nil || pack.AccessService == nil {
-		ctx.Status(http.StatusServiceUnavailable)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}
 
-	ctx.Status(http.StatusSwitchingProtocols)
-	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	if err != nil {
-		log.ErrTrace(err)
-		return
+	var u *models.User
+	var err error
+	var server *models.Instance
+	getServer := r.URL.Query().Get("server") == "true"
+	if getServer {
+		server = getInstanceFromCtx(r)
+		if server == nil {
+			log.Error.Println("Got server websocket query but no server in context")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+	} else {
+		u, err = getUserFromCtx(r)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
 	}
 
-	usr := getUserFromCtx(ctx)
-	server := getInstanceFromCtx(ctx)
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
 
 	var client *models.WsClient
-	if usr != nil {
-		client = pack.ClientService.ClientConnect(conn, usr)
-	} else if server != nil {
+	if server != nil {
 		client = pack.ClientService.RemoteConnect(conn, server)
+	} else if u != nil {
+		client = pack.ClientService.ClientConnect(conn, u)
 	} else {
 		// this should not happen
 		log.Error.Println("Did not get valid websocket client")
@@ -71,7 +82,7 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 	} else {
 		switchboard = wsServerClientSwitchboard
 		if pack.Loaded.Load() {
-			c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+			c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 		}
 	}
 
@@ -87,7 +98,7 @@ func wsMain(c *models.WsClient, pack *models.ServicePack) {
 func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.ServicePack) {
 	defer wsRecover(c)
 
-	if pack.InstanceService.GetLocal().GetRole() == models.InitServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.InitServerRole {
 		c.Error(werror.ErrServerNotInitialized)
 		return
 	}
@@ -95,11 +106,12 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 	var msg models.WsRequestInfo
 	err := json.Unmarshal(msgBuf, &msg)
 	if err != nil {
+		log.Debug.Println(string(msgBuf))
 		c.Error(werror.WithStack(err))
 		return
 	}
 
-	log.Trace.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg)
+	log.Debug.Func(func(l log.Logger) { l.Printf("Got wsmsg from [%s]: %v", c.GetUser().GetUsername(), msg) })
 
 	if msg.Action == models.ReportError {
 		log.ErrorCatcher.Printf("Web client caught unexpected error\n%s\n\n", msg.Content)
@@ -146,9 +158,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 			if complete {
 				pack.Caster.PushTaskUpdate(
-					pack.TaskService.GetTask(subInfo.GetKey()), models.TaskCompleteEvent,
-					result,
-				)
+					pack.TaskService.GetTask(subInfo.GetKey()), models.TaskCompleteEvent, result)
 			}
 		}
 	case models.TaskSubscribe:
@@ -200,7 +210,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 	case models.ScanDirectory:
 		{
-			if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+			if pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 				return
 			}
 
@@ -210,13 +220,11 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				return
 			}
 
-			newCaster := models.NewSimpleCaster(pack.ClientService)
 			meta := models.ScanMeta{
 				File:         folder,
 				FileService:  pack.FileService,
 				MediaService: pack.MediaService,
 				TaskService:  pack.TaskService,
-				Caster:       newCaster,
 				TaskSubber:   pack.ClientService,
 			}
 
@@ -225,6 +233,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				taskName = models.ScanDirectoryTask
 			} else {
 				taskName = models.ScanFileTask
+				meta.Caster = pack.Caster
 			}
 
 			t, err := pack.TaskService.DispatchJob(taskName, meta, nil)
@@ -232,11 +241,6 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				c.Error(err)
 				return
 			}
-			t.SetCleanup(
-				func(t *task.Task) {
-					newCaster.Close()
-				},
-			)
 
 			_, _, err = pack.ClientService.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
 			if err != nil {
@@ -247,15 +251,15 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 
 	case models.CancelTask:
 		{
-			tpId := subInfo.GetKey()
-			taskPool := pack.TaskService.GetTaskPool(tpId)
-			if taskPool == nil {
-				c.Error(errors.New("could not find task pool to cancel"))
+			taskId := subInfo.GetKey()
+			task := pack.TaskService.GetTask(taskId)
+			if task == nil {
+				c.Error(werror.Errorf("could not find task T[%s] to cancel", taskId))
 				return
 			}
 
-			taskPool.Cancel()
-			c.PushTaskUpdate(taskPool.CreatedInTask(), models.TaskCanceledEvent, nil)
+			task.Cancel()
+			c.PushTaskUpdate(task, models.TaskCanceledEvent, nil)
 		}
 
 	default:
@@ -276,10 +280,11 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	}
 
 	if msg.SentTime == 0 {
-		err := werror.Errorf("invalid sent time on relay message")
+		err := werror.Errorf("invalid sent time on relay message %s", msg.EventTag)
 		c.Error(err)
 		return
 	}
+
 	sentTime := time.UnixMilli(msg.SentTime)
 	relaySourceId := c.GetRemote().ServerId()
 
@@ -304,6 +309,8 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 				return
 			}
 		}
+	case models.RemoteConnectionChangedEvent:
+		return
 	}
 
 	msg.RelaySource = relaySourceId
@@ -315,17 +322,17 @@ func onWebConnect(c models.Client, pack *models.ServicePack) {
 		c.PushWeblensEvent(models.StartupProgressEvent, models.WsC{"waitingOn": pack.GetStartupTasks()})
 		return
 	} else {
-		c.PushWeblensEvent("weblens_loaded", models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+		c.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 	}
 
-	if pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
+	if pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 		for _, backupTask := range pack.TaskService.GetTasksByJobName(models.BackupTask) {
 			r := backupTask.GetResults()
 			if len(r) == 0 {
 				continue
 			}
 
-			c.PushTaskUpdate(backupTask, "backup_progress", r)
+			c.PushTaskUpdate(backupTask, models.BackupProgressEvent, r)
 		}
 	}
 }

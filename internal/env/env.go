@@ -19,8 +19,8 @@ var envLock sync.RWMutex
 func ReadConfig(configName string) (map[string]any, error) {
 	log.Trace.Println("Reading config", configName)
 	envLock.Lock()
-	defer envLock.Unlock()
 	if configData != nil {
+		envLock.Unlock()
 		return configData[configName], nil
 	}
 
@@ -29,6 +29,7 @@ func ReadConfig(configName string) (map[string]any, error) {
 
 	bs, err := os.ReadFile(configPath)
 	if err != nil {
+		envLock.Unlock()
 		return nil, err
 	}
 
@@ -40,10 +41,17 @@ func ReadConfig(configName string) (map[string]any, error) {
 
 	configData = config
 	envLock.Unlock()
-	log.SetLogLevel(GetLogLevel(configName))
+	log.SetLogLevel(GetLogLevel(configName), GetLogFile(configName))
 	envLock.Lock()
 
-	return configData[configName], nil
+	cnf, ok := configData[configName]
+	if !ok {
+		envLock.Unlock()
+		panic(werror.Errorf("Config %s not found", configName))
+	}
+
+	envLock.Unlock()
+	return cnf, nil
 }
 
 func GetConfigName() string {
@@ -55,13 +63,22 @@ func GetConfigName() string {
 }
 
 func GetWorkerCount() int {
+	poolWorkerCount := os.Getenv("POOL_WORKER_COUNT")
+	if poolWorkerCount != "" {
+		count, err := strconv.Atoi(poolWorkerCount)
+		if err == nil {
+			return count
+		}
+		log.Error.Println(err)
+	}
+
 	config, err := ReadConfig(GetConfigName())
 	if err == nil {
-		countStr := config["poolWorkerCount"]
-		if countStr != nil {
-			count, err := strconv.ParseInt(countStr.(string), 10, 64)
-			if err == nil {
-				return int(count)
+		countFloatI := config["poolWorkerCount"]
+		if countFloatI != nil {
+			countFloat, ok := countFloatI.(float64)
+			if ok {
+				return int(countFloat)
 			}
 		}
 	}
@@ -172,9 +189,31 @@ func GetLogLevel(configName string) int {
 	return log.DEFAULT
 }
 
+func GetLogFile(configName string) string {
+	logPath := os.Getenv("WEBLENS_LOG_FILE")
+	if logPath != "" {
+		return filepath.Join(GetAppRootDir(), logPath)
+	}
+
+	config, err := ReadConfig(configName)
+	if err != nil {
+		panic(err)
+	}
+
+	logPath, _ = config["logFile"].(string)
+
+	return logPath
+}
+
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and
 // must proxy any /api/* requests back to this server
 func DetachUi() bool {
+
+	detachUi := os.Getenv("DETACH_UI")
+	if detachUi != "" {
+		return detachUi == "true"
+	}
+
 	config, err := ReadConfig(GetConfigName())
 	if err != nil {
 		panic(err)
@@ -278,14 +317,23 @@ func GetMongoDBName(configName ...string) string {
 	return "weblens"
 }
 
-func GetHostURL() string {
+func GetProxyAddress() string {
+	proxyAddress := os.Getenv("PROXY_ADDRESS")
+	if proxyAddress != "" {
+		return proxyAddress
+	}
+
 	config, err := ReadConfig(GetConfigName())
 	if err != nil {
 		panic(err)
 	}
 
-	hostUrl, _ := config["hostUrl"].(string)
-	return hostUrl
+	proxyAddress, _ = config["proxyAddress"].(string)
+
+	if proxyAddress == "" {
+		proxyAddress = "http://" + GetRouterHost() + ":" + GetRouterPort()
+	}
+	return proxyAddress
 }
 
 func GetTestMediaPath() string {
@@ -335,10 +383,6 @@ func ReadTypesConfig(target any) error {
 	}
 
 	return nil
-}
-
-func GetCoreApiKey() string {
-	return os.Getenv("CORE_API_KEY")
 }
 
 func GetDataRoot(configName ...string) string {

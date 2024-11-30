@@ -64,13 +64,11 @@ func (l *Lifetime) GetLatestAction() *FileAction {
 }
 
 func (l *Lifetime) GetLatestSize() int64 {
-	for _, a := range l.Actions {
-		if a.Size != 0 {
-			return a.Size
-		}
+	if len(l.Actions) == 0 {
+		return 0
 	}
 
-	return 0
+	return l.Actions[len(l.Actions)-1].Size
 }
 
 func (l *Lifetime) GetLatestPath() WeblensFilepath {
@@ -91,10 +89,13 @@ func (l *Lifetime) GetLatestPath() WeblensFilepath {
 // GetLatestMove returns the most recent move or create action in the lifetime. Ideally,
 // this will show the current path of the file
 func (l *Lifetime) GetLatestMove() *FileAction {
+	if len(l.Actions) == 0 {
+		return nil
+	}
+
 	i := len(l.Actions) - 1
 	for i >= 0 {
-		if l.Actions[i].ActionType == FileMove || l.Actions[i].ActionType == FileCreate || l.Actions[i].
-			ActionType == FileDelete {
+		if l.Actions[i].ActionType != FileSizeChange {
 			return l.Actions[i]
 		}
 		i--
@@ -134,11 +135,25 @@ func (l *Lifetime) GetActions() []*FileAction {
 
 func LifetimeSorter(a, b *Lifetime) int {
 	// Sort lifetimes by their most recent move time
-	timeDiff := a.GetLatestMove().GetTimestamp().Sub(b.GetLatestMove().GetTimestamp())
+	aLatestMove := a.GetLatestMove()
+	if aLatestMove == nil {
+		log.Error.Printf("LifetimeSorter: a is nil for %s", a.Id)
+		log.Debug.Println(a.GetActions()[0].ActionType)
+		return 1
+	}
+
+	bLatestMove := b.GetLatestMove()
+	if bLatestMove == nil {
+		log.Error.Printf("LifetimeSorter: b is nil for %s", b.Id)
+		log.Debug.Println(b.GetActions()[0].ActionType)
+		return -1
+	}
+
+	timeDiff := aLatestMove.GetTimestamp().Sub(bLatestMove.GetTimestamp())
 	if timeDiff != 0 {
 		return int(timeDiff)
 	}
 
 	// If the creation time is the same, sort by the path length. This is to ensure parent directories are created before their children.
-	return len(a.GetLatestMove().DestinationPath) - len(b.GetLatestMove().DestinationPath)
+	return len(aLatestMove.DestinationPath) - len(bLatestMove.DestinationPath)
 }

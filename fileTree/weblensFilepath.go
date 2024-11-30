@@ -12,7 +12,7 @@ type WeblensFilepath struct {
 
 func NewFilePath(root, rootAlias, absolutePath string) WeblensFilepath {
 	path := strings.TrimPrefix(absolutePath, root)
-	if path[0] == '/' {
+	if len(path) != 0 && path[0] == '/' {
 		path = path[1:]
 	}
 

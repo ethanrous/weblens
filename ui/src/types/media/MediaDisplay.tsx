@@ -1,92 +1,69 @@
 import {
+    IconExclamationCircle,
     IconFolder,
     IconHeart,
+    IconMovie,
     IconPhoto,
     IconPhotoScan,
-    IconTheater,
+    TablerIconsProps,
 } from '@tabler/icons-react'
-import { GetFileInfo } from '@weblens/api/FileBrowserApi'
-
-import { GalleryContext } from '@weblens/pages/Gallery/GalleryLogic'
+import MediaApi from '@weblens/api/MediaApi'
+import WeblensLoader from '@weblens/components/Loading'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import { useGalleryStore } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
-import { AlbumNoContent } from '@weblens/types/albums/Albums'
-import { WeblensFile, WeblensFileParams } from '@weblens/types/files/File'
+import '@weblens/pages/Gallery/galleryStyle.scss'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
-import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { useResize } from 'components/hooks'
 import { useSessionStore } from 'components/UserInfo'
+import { useResize } from 'components/hooks'
 import React, {
+    CSSProperties,
+    MouseEvent,
     ReactElement,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useRef,
     useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { VariableSizeList as WindowList } from 'react-window'
+import { ErrorHandler, MediaWrapperProps, PresentType } from 'types/Types'
 
-import '@weblens/pages/Gallery/galleryStyle.scss'
-
-import { AlbumData, MediaWrapperProps, PresentType } from 'types/Types'
-
-const goToFolder = async (
-    e,
-    fileIds: string[],
-    filesInfo,
-    setLoading,
-    setMenuOpen,
-    setFileInfo
-) => {
-    e.stopPropagation()
-    if (fileIds.length === 1) {
-        const fileInfo: WeblensFileParams = await GetFileInfo(fileIds[0], '')
-
-        const newFile = new WeblensFile(fileInfo)
-
-        const newUrl = `/files/${newFile.ParentId()}?jumpTo=${fileIds[0]}`
-
+const goToMediaFile = async (mediaId: string) => {
+    return MediaApi.getMediaFile(mediaId).then((r) => {
+        const fileInfo = r.data
+        const newUrl = `/files/${fileInfo.parentId}#${fileInfo.id}`
         window.open(newUrl, '_blank')
-        return
-    }
-
-    setMenuOpen(true)
-    if (filesInfo.length === 0) {
-        setLoading(true)
-        const fileInfos = await Promise.all(
-            fileIds.map(async (v) => await GetFileInfo(v, ''))
-        )
-        setFileInfo(fileInfos)
-        setLoading(false)
-    }
+    })
 }
 
 const TypeIcon = (mediaData: WeblensMedia) => {
-    let icon
+    let icon: (p: TablerIconsProps) => ReactElement
 
     if (mediaData.GetMediaType()?.IsRaw) {
         icon = IconPhotoScan
     } else if (mediaData.GetMediaType()?.IsVideo) {
-        icon = IconTheater
+        icon = IconMovie
     } else {
         icon = IconPhoto
     }
-    return [icon, mediaData.GetMediaType()?.FriendlyName]
+    return { icon, name: mediaData.GetMediaType()?.FriendlyName }
 }
 
 type mediaTypeProps = {
-    Icon: (p) => ReactElement
+    Icon: (p: TablerIconsProps) => ReactElement
     label: string
     visible: boolean
 
-    onClick?: React.MouseEventHandler<HTMLDivElement>
+    onClick?: React.MouseEventHandler<Element>
 }
 
 function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
     const [hover, setHover] = useState(false)
-    const [textRef, setTextRef] = useState(null)
+    const [textRef, setTextRef] = useState<HTMLParagraphElement>(null)
     const textSize = useResize(textRef)
 
     const style = useMemo(() => {
@@ -96,7 +73,7 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
         }
     }, [hover, visible])
 
-    const stopProp = useCallback((e) => {
+    const stopProp = useCallback((e: MouseEvent) => {
         e.stopPropagation()
         if (onClick) {
             onClick(e)
@@ -123,37 +100,29 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
 }
 
 const MediaInfoDisplay = ({
-    mediaId,
+    mediaData,
     mediaMenuOpen,
     tooSmall,
 }: {
-    mediaId: string
+    mediaData: WeblensMedia
     mediaMenuOpen: boolean
     tooSmall: boolean
 }) => {
     const { user } = useSessionStore()
-    const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
-    const [icon, name] = useMemo(() => {
+    // const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
+    const { icon, name } = useMemo(() => {
         return TypeIcon(mediaData)
     }, [])
 
     const setLiked = useMediaStore((state) => state.setLiked)
-    const likedArray = useMediaStore((state) =>
-        state.mediaMap.get(mediaData.Id())?.GetLikedBy()
-    )
-
-    const [menuOpen, setMenuOpen] = useState(false)
-    const [filesInfo, setFilesInfo] = useState([])
+    const likedArray = mediaData.GetLikedBy()
 
     const visible = Boolean(icon) && !mediaMenuOpen && !tooSmall
 
-    const liked = useMediaStore((state) => {
-        const m = state.mediaMap.get(mediaId)
-        return m ? m.GetLikedBy().includes(user.username) : false
-    })
+    const liked = mediaData ? likedArray.includes(user.username) : false
 
     const othersLiked = likedArray.length - Number(liked) > 0
-    let heartFill
+    let heartFill: string
     if (liked) {
         heartFill = 'red'
     } else if (othersLiked) {
@@ -162,18 +131,12 @@ const MediaInfoDisplay = ({
         heartFill = 'transparent'
     }
 
-    const goto = useCallback(
-        (e) =>
-            goToFolder(
-                e,
-                mediaData.GetFileIds(),
-                filesInfo,
-                () => {},
-                setMenuOpen,
-                setFilesInfo
-            ),
-        []
-    )
+    const goto = useCallback((e: MouseEvent) => {
+        e.stopPropagation()
+        goToMediaFile(mediaData.Id()).catch((e) => {
+            console.error('Failed to go to media file', e)
+        })
+    }, [])
 
     return (
         <div className="media-meta-preview">
@@ -197,9 +160,11 @@ const MediaInfoDisplay = ({
                 data-show-anyway={liked || othersLiked}
                 onClick={(e) => {
                     e.stopPropagation()
-                    likeMedia(mediaId, !liked).then(() => {
-                        setLiked(mediaId, user.username)
-                    })
+                    MediaApi.setMediaLiked(mediaData.Id(), !liked)
+                        .then(() => {
+                            setLiked(mediaData.Id(), user.username)
+                        })
+                        .catch(ErrorHandler)
                 }}
             >
                 <IconHeart
@@ -214,16 +179,24 @@ const MediaInfoDisplay = ({
 
 const MARGIN_SIZE = 4
 
-const MediaWrapper = ({
+function MediaWrapper({
     mediaData,
     scale,
     width,
     showMedia,
-    fetchAlbum,
-}: MediaWrapperProps) => {
+}: MediaWrapperProps) {
     const ref = useRef()
 
-    const { galleryState, galleryDispatch } = useContext(GalleryContext)
+    const presentingId = useGalleryStore((state) => state.presentingMediaId)
+    const presentingMode = useGalleryStore((state) => state.presentingMode)
+    const menuTargetId = useGalleryStore((state) => state.menuTargetId)
+    const imageSize = useGalleryStore((state) => state.imageSize)
+    const selecting = useGalleryStore((state) => state.selecting)
+    const holdingShift = useGalleryStore((state) => state.holdingShift)
+    const setMenuTarget = useGalleryStore((state) => state.setMenuTarget)
+    const setPresentationTarget = useGalleryStore(
+        (state) => state.setPresentationTarget
+    )
 
     const hover = useMediaStore((state) => state.mediaMap.get(state.hoverId))
     const lastSelected = useMediaStore((state) =>
@@ -234,32 +207,12 @@ const MediaWrapper = ({
     const setHovering = useMediaStore((state) => state.setHovering)
     const setSelected = useMediaStore((state) => state.setSelected)
 
-    const menuSwitch = useCallback(
-        (o: boolean) => {
-            if (o) {
-                galleryDispatch({
-                    type: 'set_menu_target',
-                    targetId: mediaData.Id(),
-                })
-            } else {
-                galleryDispatch({ type: 'set_menu_target', targetId: '' })
-            }
-        },
-        [mediaData, galleryDispatch]
-    )
-
     const style = useMemo(() => {
-        // mediaData.SetImgRef(ref);
         return {
             height: scale,
             width: width - MARGIN_SIZE,
         }
-    }, [
-        scale,
-        mediaData,
-        galleryState.presentingMediaId,
-        galleryState.presentingMode,
-    ])
+    }, [scale, mediaData, presentingId, presentingMode])
 
     const click = useCallback(
         (selecting: boolean, holdingShift: boolean) => {
@@ -270,78 +223,63 @@ const MediaWrapper = ({
                 setSelected(mediaData.Id(), !mediaData.IsSelected())
                 return
             }
-            galleryDispatch({
-                type: 'set_presentation',
-                mediaId: mediaData.Id(),
-                presentMode: PresentType.Fullscreen,
-            })
+            setPresentationTarget(mediaData.Id(), PresentType.Fullscreen)
         },
-        [mediaData.Id(), galleryState.presentingMediaId === mediaData.Id()]
+        [mediaData.Id(), presentingId === mediaData.Id()]
     )
 
-    const mouseOver = useCallback(() => {
-        if (galleryState.selecting) {
-            setHovering(mediaData.Id())
-        }
-    }, [galleryState.selecting])
-
-    const mouseLeave = useCallback(() => {
-        if (galleryState.selecting) {
-            setHovering('')
-        }
-    }, [galleryState.selecting])
-
     const contextMenu = useCallback(
-        (e) => {
+        (e: MouseEvent) => {
             e.stopPropagation()
             e.preventDefault()
             if (
-                galleryState.menuTargetId === mediaData.Id() ||
+                menuTargetId === mediaData.Id() ||
                 mediaData.GetOwner() !== user.username
             ) {
                 return
             }
-            galleryDispatch({
-                type: 'set_menu_target',
-                targetId: mediaData.Id(),
-            })
-            menuSwitch(true)
+            setMenuTarget(mediaData.Id())
         },
-        [galleryState.menuTargetId, style.width]
+        [menuTargetId, style.width]
     )
 
     const choosing = useMemo(() => {
         return (
-            galleryState.selecting &&
+            selecting &&
             hover !== undefined &&
             lastSelected !== undefined &&
-            galleryState.holdingShift &&
+            holdingShift &&
             mediaData.GetAbsIndex() >= 0 &&
             (mediaData.GetAbsIndex() - lastSelected.GetAbsIndex()) *
                 (mediaData.GetAbsIndex() - hover.GetAbsIndex()) <=
                 0
         )
-    }, [galleryState, hover, lastSelected])
+    }, [hover, lastSelected])
 
     const presenting =
-        galleryState.presentingMediaId === mediaData.Id() &&
-        galleryState.presentingMode === PresentType.InLine
+        presentingId === mediaData.Id() && presentingMode === PresentType.InLine
 
     return (
         <div
             key={mediaData.Id()}
             className="preview-card-container animate-fade"
-            data-selecting={galleryState.selecting}
+            data-selecting={selecting}
             data-selected={mediaData.IsSelected()}
             data-choosing={choosing}
             data-presenting={presenting}
-            data-menu-open={galleryState.menuTargetId === mediaData.Id()}
+            data-menu-open={menuTargetId === mediaData.Id()}
             ref={ref}
-            onClick={() =>
-                click(galleryState.selecting, galleryState.holdingShift)
-            }
-            onMouseOver={mouseOver}
-            onMouseLeave={mouseLeave}
+            onClick={() => click(selecting, holdingShift)}
+            onMouseOver={() => {
+                if (selecting) {
+                    setHovering(mediaData.Id())
+                }
+            }}
+            onMouseLeave={() => {
+                if (selecting) {
+                    setHovering('')
+                }
+            }}
             onContextMenu={contextMenu}
             style={style}
         >
@@ -354,44 +292,52 @@ const MediaWrapper = ({
                 containerStyle={style}
             />
 
-            {showMedia && (
+            {showMedia && mediaData && (
                 <MediaInfoDisplay
-                    mediaId={mediaData.Id()}
-                    mediaMenuOpen={galleryState.menuTargetId === mediaData.Id()}
-                    tooSmall={galleryState.imageSize < 200}
+                    mediaData={mediaData}
+                    mediaMenuOpen={menuTargetId === mediaData.Id()}
+                    tooSmall={imageSize < 200}
                 />
             )}
 
-            {galleryState.menuTargetId === mediaData.Id() && (
+            {menuTargetId === mediaData.Id() && (
                 <GalleryMenu
                     media={mediaData}
-                    open={galleryState.menuTargetId === mediaData.Id()}
-                    setOpen={menuSwitch}
-                    updateAlbum={fetchAlbum}
+                    open={menuTargetId === mediaData.Id()}
+                    setOpen={(o: boolean) => {
+                        if (o) {
+                            setMenuTarget(mediaData.Id())
+                        } else {
+                            setMenuTarget('')
+                        }
+                    }}
                 />
             )}
         </div>
     )
 }
-export const BucketCards = ({
-    medias,
-    widths,
-    index,
-    scale,
-    showMedia,
-}: {
+
+type bucketCardsProps = {
     medias: WeblensMedia[]
     widths: number[]
     index: number
     scale: number
     showMedia: boolean
-}) => {
+}
+
+export function BucketCards({
+    medias,
+    widths,
+    index,
+    scale,
+    showMedia,
+}: bucketCardsProps) {
     if (!medias) {
         medias = []
     }
 
     const placeholders = useMemo(() => {
-        return medias.map((m, i) => {
+        return medias.map((_, i) => {
             return (
                 <div
                     key={`media-placeholder-${index}-${i}`}
@@ -443,7 +389,15 @@ type GalleryRow = {
     element?: JSX.Element
 }
 
-function GalleryRow({ data, index, style }) {
+function GalleryRow({
+    data,
+    index,
+    style,
+}: {
+    data: GalleryRow[]
+    index: number
+    style: CSSProperties
+}) {
     const { medias, widths } = useMemo(() => {
         const medias = []
         const widths = []
@@ -472,17 +426,46 @@ function GalleryRow({ data, index, style }) {
     )
 }
 
+const NoMediaDisplay = () => {
+    const nav = useNavigate()
+    return (
+        <div className="flex flex-col items-center w-full">
+            <div className="flex flex-col items-center mt-20 gap-2 w-[300px]">
+                <h2 className="font-bold text-3xl select-none">
+                    No media to display
+                </h2>
+                <p className="select-none">
+                    Upload files or adjust the filters
+                </p>
+                <div className="h-max w-full gap-2">
+                    <WeblensButton
+                        squareSize={48}
+                        fillWidth
+                        label="FileBrowser"
+                        Left={IconFolder}
+                        onClick={() => nav('/files')}
+                    />
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export function PhotoGallery({
     medias,
-    album,
+    loading,
+    error,
 }: {
     medias: WeblensMedia[]
-    album?: AlbumData
+    loading: boolean
+    error: Error
 }) {
-    const [viewRef, setViewRef] = useState(null)
-    const [windowRef, setWindowRef] = useState(null)
+    const [viewRef, setViewRef] = useState<HTMLDivElement>(null)
+    const [windowRef, setWindowRef] = useState<WindowList>(null)
     const viewSize = useResize(viewRef)
-    const { galleryState } = useContext(GalleryContext)
+
+    const albumId = useGalleryStore((state) => state.albumId)
+    const imageSize = useGalleryStore((state) => state.imageSize)
 
     const showHidden = useMediaStore((state) => state.showHidden)
 
@@ -496,7 +479,7 @@ export function PhotoGallery({
         let innerMedias = [...medias]
 
         let sortDirection = 1
-        if (galleryState.albumId) {
+        if (albumId) {
             sortDirection = -1
         }
         if (!showHidden) {
@@ -531,7 +514,7 @@ export function PhotoGallery({
             if (innerMedias.length === 0) {
                 if (currentRow.length !== 0) {
                     rows.push({
-                        rowScale: galleryState.imageSize,
+                        rowScale: imageSize,
                         rowWidth: ROW_WIDTH,
                         items: currentRow,
                     })
@@ -550,9 +533,8 @@ export function PhotoGallery({
 
             // Calculate width given height "imageBaseScale", keeping aspect ratio
             const newWidth =
-                Math.floor(
-                    (galleryState.imageSize / m.GetHeight()) * m.GetWidth()
-                ) + MARGIN_SIZE
+                Math.floor((imageSize / m.GetHeight()) * m.GetWidth()) +
+                MARGIN_SIZE
 
             // If we are out of media, and the image does not overflow this row, add it and break
             if (
@@ -562,7 +544,7 @@ export function PhotoGallery({
                 currentRow.push({ m: m, w: newWidth })
 
                 rows.push({
-                    rowScale: galleryState.imageSize,
+                    rowScale: imageSize,
                     rowWidth: ROW_WIDTH,
                     items: currentRow,
                 })
@@ -582,10 +564,10 @@ export function PhotoGallery({
                 const rowScale =
                     ((ROW_WIDTH - marginTotal) /
                         (currentRowWidth - marginTotal)) *
-                    galleryState.imageSize
+                    imageSize
 
                 currentRow = currentRow.map((v) => {
-                    v.w = v.w * (rowScale / galleryState.imageSize)
+                    v.w = v.w * (rowScale / imageSize)
                     return v
                 })
 
@@ -607,7 +589,7 @@ export function PhotoGallery({
         rows.unshift({ rowScale: 20, rowWidth: ROW_WIDTH, items: [] })
         rows.push({ rowScale: 20, rowWidth: ROW_WIDTH, items: [] })
         return rows
-    }, [medias, galleryState.imageSize, viewSize, album, showHidden])
+    }, [medias, imageSize, viewSize, showHidden])
 
     useEffect(() => {
         if (windowRef) {
@@ -617,9 +599,13 @@ export function PhotoGallery({
 
     return (
         <div className="gallery-wrapper no-scrollbar" ref={setViewRef}>
-            <div className="gallery-scroll-fade" />
-            {rows.length === 0 && (
-                <AlbumNoContent hasContent={medias.length === 0} />
+            {rows.length === 0 && !loading && !error && <NoMediaDisplay />}
+            {loading && <WeblensLoader />}
+            {error && (
+                <div className="flex flex-row m-auto items-center p-2 gap-1 pb-40">
+                    <IconExclamationCircle />
+                    <h3>Failed to fetch media</h3>
+                </div>
             )}
             {rows.length !== 0 && viewSize.width !== -1 && (
                 <WindowList
@@ -629,7 +615,6 @@ export function PhotoGallery({
                     itemSize={(i) => rows[i].rowScale + MARGIN_SIZE}
                     itemCount={rows.length}
                     itemData={rows}
-                    overscan={20}
                 >
                     {GalleryRow}
                 </WindowList>

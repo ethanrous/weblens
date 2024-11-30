@@ -1,29 +1,31 @@
-import { useQuery } from '@tanstack/react-query'
-import { attachNewCore, getRemotes } from '@weblens/api/ApiFetch'
-import RemoteStatus from '@weblens/components/RemoteStatus'
-import { ServerInfoT } from '@weblens/types/Types'
-import { useEffect, useState } from 'react'
-import {
-    HandleWebsocketMessage,
-    useWeblensSocket,
-} from '@weblens/api/Websocket'
-import {
-    backupPageWebsocketHandler,
-    BackupProgressT,
-    RestoreProgress,
-} from './BackupLogic'
-import WeblensButton from '@weblens/lib/WeblensButton'
 import {
     IconDatabaseImport,
     IconPlus,
     IconRocket,
     IconX,
 } from '@tabler/icons-react'
+import { useQuery } from '@tanstack/react-query'
+import { ServersApi } from '@weblens/api/ServersApi'
+import {
+    HandleWebsocketMessage,
+    useWebsocketStore,
+} from '@weblens/api/Websocket'
+import { ServerInfo } from '@weblens/api/swag'
 import { ThemeToggleButton } from '@weblens/components/HeaderBar'
-import WeblensInput from '@weblens/lib/WeblensInput'
 import Logo from '@weblens/components/Logo'
+import RemoteStatus from '@weblens/components/RemoteStatus'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
+import { ErrorHandler } from '@weblens/types/Types'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+import {
+    BackupProgressT,
+    RestoreProgress,
+    backupPageWebsocketHandler,
+} from './BackupLogic'
 
 function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
     const [coreAddress, setCoreAddress] = useState('')
@@ -68,10 +70,11 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
                     Left={IconRocket}
                     disabled={coreAddress === '' || apiKey === ''}
                     doSuper
-                    onClick={async () => {
-                        return attachNewCore(coreAddress, apiKey).then(() =>
-                            closeNewCore()
-                        )
+                    onClick={() => {
+                        ServersApi.createRemote({
+                            coreAddress: coreAddress,
+                            usingKey: apiKey,
+                        }).catch(ErrorHandler)
                     }}
                 />
             </div>
@@ -80,14 +83,14 @@ function NewCoreMenu({ closeNewCore }: { closeNewCore: () => void }) {
 }
 
 export default function Backup() {
-    const { data: remotes, refetch } = useQuery<ServerInfoT[]>({
+    const { data: remotes, refetch } = useQuery<ServerInfo[]>({
         queryKey: ['remotes'],
         initialData: [],
         queryFn: async () => {
-            return await getRemotes()
+            return ServersApi.getRemotes().then((res) => res.data)
         },
     })
-    const { lastMessage } = useWeblensSocket()
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
     const [restoreStage, setRestoreStage] = useState<RestoreProgress>(
         {} as RestoreProgress
     )
@@ -102,7 +105,9 @@ export default function Backup() {
             backupPageWebsocketHandler(
                 setRestoreStage,
                 setBackupProgress,
-                refetch
+                () => {
+                    refetch().catch(ErrorHandler)
+                }
             )
         )
     }, [lastMessage])
@@ -110,14 +115,14 @@ export default function Backup() {
     const server = useSessionStore((state) => state.server)
     const nav = useNavigate()
     useEffect(() => {
-        if (server.info.role !== '' && server.info.role !== 'backup') {
+        if (server.role && server.role !== 'backup') {
             nav('/')
         }
     }, [])
 
     const [newCoreMenu, setNewCoreMenu] = useState(false)
     //const local = useSessionStore((state) => state.server)
-    if (server.info.role !== 'backup') {
+    if (server.role !== 'backup') {
         return <></>
     }
 
@@ -139,7 +144,9 @@ export default function Backup() {
                         <RemoteStatus
                             key={remote.id}
                             remoteInfo={remote}
-                            refetchRemotes={refetch}
+                            refetchRemotes={() => {
+                                refetch().catch(ErrorHandler)
+                            }}
                             restoreProgress={restoreStage}
                             backupProgress={backupProgress.get(remote.id)}
                             setBackupProgress={(progress) => {

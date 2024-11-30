@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -19,13 +18,21 @@ import (
 type ShareServiceImpl struct {
 	repo   map[models.ShareId]models.Share
 	repoMu sync.RWMutex
-	col    *mongo.Collection
+
+	fileIdMap map[fileTree.FileId]models.ShareId
+	fileMu    sync.RWMutex
+
+	albumIdMap map[models.AlbumId]models.ShareId
+	albumMu    sync.RWMutex
+
+	col *mongo.Collection
 }
 
 func NewShareService(collection *mongo.Collection) (models.ShareService, error) {
 	ss := &ShareServiceImpl{
-		repo: make(map[models.ShareId]models.Share),
-		col:  collection,
+		repo:      make(map[models.ShareId]models.Share),
+		fileIdMap: make(map[fileTree.FileId]models.ShareId),
+		col:       collection,
 	}
 
 	ret, err := ss.col.Find(context.Background(), bson.M{})
@@ -58,6 +65,10 @@ func NewShareService(collection *mongo.Collection) (models.ShareService, error) 
 			}
 		}
 		ss.repo[sh.ID()] = sh
+
+		if sh.GetShareType() == models.SharedFile {
+			ss.fileIdMap[sh.FileId] = sh.ID()
+		}
 	}
 
 	return ss, nil
@@ -76,6 +87,16 @@ func (ss *ShareServiceImpl) Add(sh models.Share) error {
 	ss.repoMu.Lock()
 	defer ss.repoMu.Unlock()
 	ss.repo[sh.ID()] = sh
+
+	if sh.GetShareType() == models.SharedFile {
+		fileSh, ok := sh.(*models.FileShare)
+		if !ok {
+			return werror.ErrBadShareType
+		}
+		ss.fileMu.Lock()
+		defer ss.fileMu.Unlock()
+		ss.fileIdMap[fileSh.FileId] = sh.ID()
+	}
 
 	return nil
 }
@@ -148,7 +169,7 @@ func (ss *ShareServiceImpl) RemoveUsers(share models.Share, removeUsers []*model
 	for _, rm := range removeNames {
 		i := slices.Index(accs, rm)
 		if i == -1 {
-			return werror.ErrUserNotFound
+			return werror.ErrNoUser
 		}
 
 		accs = internal.Banish(accs, i)
@@ -224,27 +245,46 @@ func (ss *ShareServiceImpl) SetSharePublic(share models.Share, public bool) erro
 	return nil
 }
 
-func (ss *ShareServiceImpl) GetFileShare(f *fileTree.WeblensFileImpl) (*models.FileShare, error) {
-	ret := ss.col.FindOne(context.Background(), bson.M{"fileId": f.ID()})
-	if ret.Err() != nil {
-		if errors.Is(ret.Err(), mongo.ErrNoDocuments) {
-			return nil, werror.WithStack(werror.ErrNoShare)
-		}
-		return nil, werror.WithStack(ret.Err())
-	}
-
-	var dbShare models.FileShare
-	err := ret.Decode(&dbShare)
-	if err != nil {
-		return nil, werror.WithStack(err)
-	}
-
-	sh := ss.Get(dbShare.ShareId)
-	if sh == nil {
+func (ss *ShareServiceImpl) GetFileShare(fId fileTree.FileId) (*models.FileShare, error) {
+	ss.fileMu.RLock()
+	shareId, ok := ss.fileIdMap[fId]
+	ss.fileMu.RUnlock()
+	if !ok {
 		return nil, werror.WithStack(werror.ErrNoShare)
 	}
 
-	return sh.(*models.FileShare), nil
+	sh := ss.Get(shareId)
+	if sh == nil {
+		return nil, werror.WithStack(werror.ErrExpectedShareMissing)
+	}
+
+	fileSh, ok := sh.(*models.FileShare)
+	if !ok {
+		return nil, werror.WithStack(werror.ErrBadShareType)
+	}
+
+	return fileSh, nil
+}
+
+func (ss *ShareServiceImpl) GetAlbumShare(aId models.AlbumId) (*models.AlbumShare, error) {
+	ss.albumMu.RLock()
+	shareId, ok := ss.albumIdMap[aId]
+	ss.albumMu.RUnlock()
+	if !ok {
+		return nil, werror.WithStack(werror.ErrNoShare)
+	}
+
+	sh := ss.Get(shareId)
+	if sh == nil {
+		return nil, werror.WithStack(werror.ErrExpectedShareMissing)
+	}
+
+	albumSh, ok := sh.(*models.AlbumShare)
+	if !ok {
+		return nil, werror.WithStack(werror.ErrBadShareType)
+	}
+
+	return albumSh, nil
 }
 
 func (ss *ShareServiceImpl) writeUpdateTime(sh models.Share) error {

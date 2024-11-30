@@ -9,6 +9,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
+	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -48,13 +49,15 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 	pack.waitingOnLock.Unlock()
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
-	log.Trace.Printf("Added startup task: %s", taskName)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Added startup task: %s", taskName) })
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
+	newTasks := make([]StartupTask, len(pack.startupTasks))
 	pack.waitingOnLock.RLock()
 	defer pack.waitingOnLock.RUnlock()
-	return pack.startupTasks
+	copy(newTasks, pack.startupTasks)
+	return newTasks
 }
 
 func (pack *ServicePack) RemoveStartupTask(taskName string) {
@@ -75,15 +78,12 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
 
-	log.Trace.Printf("Removed startup task: %s", taskName)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Removed startup task: %s", taskName) })
 }
 
 type Server interface {
 	Start()
-	UseInit()
-	UseInterserverRoutes()
-	UseRestore()
-	UseApi()
-	Restart()
+	UseApi() *chi.Mux
+	Restart(wait bool)
 	Stop()
 }

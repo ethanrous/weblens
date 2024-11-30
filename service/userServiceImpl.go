@@ -89,7 +89,7 @@ func (us *UserServiceImpl) Add(user *models.User) error {
 	}
 
 	if user.HomeId == "" || user.TrashId == "" {
-		return werror.Errorf("Cannot add user with no home or trash folder")
+		return werror.Errorf("Cannot add user [%s] with no home [%s] or trash folder [%s]", user.Username, user.HomeId, user.TrashId)
 	}
 
 	_, err := us.col.InsertOne(context.Background(), user)
@@ -133,15 +133,15 @@ func (us *UserServiceImpl) Del(un models.Username) error {
 	return nil
 }
 
-func (us *UserServiceImpl) ActivateUser(u *models.User) error {
+func (us *UserServiceImpl) ActivateUser(u *models.User, active bool) error {
 	filter := bson.M{"username": u.GetUsername()}
-	update := bson.M{"$set": bson.M{"activated": true}}
+	update := bson.M{"$set": bson.M{"activated": active}}
 	_, err := us.col.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
 
-	u.Activated = true
+	u.Activated = active
 
 	return nil
 }

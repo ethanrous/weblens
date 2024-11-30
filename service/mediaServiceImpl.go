@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +20,6 @@ import (
 	"github.com/ethanrous/bimg"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
@@ -33,6 +31,7 @@ import (
 	"github.com/modern-go/reflect2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 var _ models.MediaService = (*MediaServiceImpl)(nil)
@@ -56,7 +55,15 @@ type MediaServiceImpl struct {
 }
 
 var exif *exiftool.Exiftool
-var binExif *exiftool.Exiftool
+
+type cacheKey string
+
+const (
+	CacheIdKey      cacheKey = "cacheId"
+	CacheQualityKey cacheKey = "cacheQuality"
+	CachePageKey    cacheKey = "cachePageNum"
+	CacheMediaKey   cacheKey = "cacheMedia"
+)
 
 func init() {
 	var err error
@@ -68,13 +75,7 @@ func init() {
 		panic(err)
 	}
 
-	binExif, err = exiftool.NewExiftool(
-		exiftool.Api("largefilesupport"),
-		exiftool.ExtractAllBinaryMetadata(), exiftool.Buffer([]byte{}, 1000*1000*100),
-	)
-	if err != nil {
-		panic(err)
-	}
+	imagick.Initialize()
 }
 
 func NewMediaService(
@@ -89,11 +90,11 @@ func NewMediaService(
 		fileService:  fileService,
 		collection:   col,
 		AlbumService: albumService,
-		filesBuffer:  sync.Pool{New: func() any { return make([]byte, 0, 0) }},
+		filesBuffer:  sync.Pool{New: func() any { return &[]byte{} }},
 	}
 
 	indexModel := mongo.IndexModel{
-		Keys:    bson.D{{"contentId", 1}},
+		Keys:    bson.D{{Key: "contentId", Value: 1}},
 		Options: (&options.IndexOptions{}).SetUnique(true),
 	}
 	_, err := col.Indexes().CreateOne(context.Background(), indexModel)
@@ -140,6 +141,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 	}
 
 	if m.Width == 0 || m.Height == 0 {
+		log.Debug.Printf("Media %s has height %d and width %d", m.ID(), m.Height, m.Width)
 		return werror.ErrMediaNoDimensions
 	}
 
@@ -212,6 +214,9 @@ func (ms *MediaServiceImpl) GetAll() []*models.Media {
 func (ms *MediaServiceImpl) Del(cId models.ContentId) error {
 	m := ms.Get(cId)
 	err := ms.removeCacheFiles(m)
+	if err != nil && !errors.Is(err, werror.ErrNoCache) {
+		return err
+	}
 
 	err = ms.AlbumService.RemoveMediaFromAny(m.ID())
 	if err != nil {
@@ -244,15 +249,15 @@ func (ms *MediaServiceImpl) HideMedia(m *models.Media, hidden bool) error {
 }
 
 func (ms *MediaServiceImpl) FetchCacheImg(m *models.Media, q models.MediaQuality, pageNum int) ([]byte, error) {
-	cacheKey := m.ID() + string(q) + strconv.Itoa(pageNum)
+	cacheId := m.ID() + string(q) + strconv.Itoa(pageNum)
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "cacheKey", cacheKey)
-	ctx = context.WithValue(ctx, "quality", q)
-	ctx = context.WithValue(ctx, "pageNum", pageNum)
-	ctx = context.WithValue(ctx, "media", m)
+	ctx = context.WithValue(ctx, CacheIdKey, cacheId)
+	ctx = context.WithValue(ctx, CacheQualityKey, q)
+	ctx = context.WithValue(ctx, CachePageKey, pageNum)
+	ctx = context.WithValue(ctx, CacheMediaKey, m)
 
-	cache, err := ms.mediaCache.GetFetch(ctx, cacheKey, ms.getFetchMediaCacheImage)
+	cache, err := ms.mediaCache.GetFetch(ctx, cacheId, ms.getFetchMediaCacheImage)
 	if err != nil {
 		return nil, werror.WithStack(err)
 	}
@@ -280,33 +285,86 @@ func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte
 	// return cache, nil
 }
 
+type justContentId struct {
+	Cid string `bson:"contentId"`
+}
+
 func (ms *MediaServiceImpl) GetFilteredMedia(
 	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId,
 	allowRaw bool, allowHidden bool,
 ) ([]*models.Media, error) {
 	slices.Sort(excludeIds)
 
-	ms.mediaLock.RLock()
-	allMs := internal.MapToValues(ms.mediaMap)
-	ms.mediaLock.RUnlock()
-	allMs = internal.Filter(
-		allMs, func(m *models.Media) bool {
-			mt := ms.GetMediaType(m)
-			if mt.Mime == "" || (mt.IsRaw() && !allowRaw) || (m.IsHidden() && !allowHidden) || m.GetOwner() != requester.GetUsername() || len(m.GetFiles()) == 0 || mt.IsMime("application/pdf") {
-				return false
-			}
-
-			// Exclude Media if it is present in the filter
-			_, e := slices.BinarySearch(excludeIds, m.ID())
-			return !e
+	pipe := bson.A{
+		bson.D{
+			{Key: "$match", Value: bson.D{
+				{Key: "owner", Value: requester.GetUsername()},
+				{Key: "fileIds", Value: bson.D{
+					{Key: "$exists", Value: true}, {Key: "$ne", Value: bson.A{}},
+				}}},
+			},
 		},
-	)
+	}
 
-	slices.SortFunc(
-		allMs, func(a, b *models.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
-	)
+	if !allowHidden {
+		pipe = append(pipe, bson.D{{Key: "$match", Value: bson.D{{Key: "hidden", Value: false}}}})
+	}
 
-	return allMs, nil
+	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
+	pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentId", Value: true}}}})
+	log.Debug.Printf("Filtering media with pipe: %v", pipe)
+
+	cur, err := ms.collection.Aggregate(context.Background(), pipe)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	allIds := []justContentId{}
+	err = cur.All(context.Background(), &allIds)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+	log.Debug.Printf("Found %d media", len(allIds))
+
+	medias := make([]*models.Media, 0, len(allIds))
+	for _, id := range allIds {
+		log.Debug.Println("Getting media with id", id.Cid)
+		m := ms.Get(id.Cid)
+		if m != nil {
+			if m.MimeType == "application/pdf" {
+				continue
+			}
+			if !allowRaw {
+				mt := ms.GetMediaType(m)
+				if mt.IsRaw() {
+					continue
+				}
+			}
+			medias = append(medias, m)
+		}
+	}
+
+	// ms.mediaLock.RLock()
+	// allMs := internal.MapToValues(ms.mediaMap)
+	// ms.mediaLock.RUnlock()
+	// allMs = internal.Filter(
+	// 	allMs, func(m *models.Media) bool {
+	// 		mt := ms.GetMediaType(m)
+	// 		if mt.Mime == "" || (mt.IsRaw() && !allowRaw) || (m.IsHidden() && !allowHidden) || m.GetOwner() != requester.GetUsername() || len(m.GetFiles()) == 0 || mt.IsMime("application/pdf") {
+	// 			return false
+	// 		}
+	//
+	// 		// Exclude Media if it is present in the filter
+	// 		_, e := slices.BinarySearch(excludeIds, m.ID())
+	// 		return !e
+	// 	},
+	// )
+	//
+	// slices.SortFunc(
+	// 	allMs, func(a, b *models.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
+	// )
+
+	return medias, nil
 }
 
 func (ms *MediaServiceImpl) AdjustMediaDates(
@@ -333,6 +391,71 @@ func (ms *MediaServiceImpl) IsCached(m *models.Media) bool {
 func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFileImpl) bool {
 	ext := filepath.Ext(f.Filename())
 	return ms.typeService.ParseExtension(ext).Displayable
+}
+
+func (ms *MediaServiceImpl) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
+	if slices.ContainsFunc(
+		m.FileIds, func(fId fileTree.FileId) bool {
+			return fId == f.ID()
+		},
+	) {
+		return nil
+	}
+
+	filter := bson.M{"contentId": m.ID()}
+	update := bson.M{"$addToSet": bson.M{"fileIds": f.ID()}}
+	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	m.AddFile(f)
+
+	return nil
+}
+
+func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
+	filter := bson.M{"contentId": media.ID()}
+	update := bson.M{"$pull": bson.M{"fileIds": fileId}}
+	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
+	}
+
+	media.FileIds = internal.Filter(
+		media.FileIds, func(fId fileTree.FileId) bool {
+			return fId != fileId
+		},
+	)
+
+	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
+		return ms.Del(media.ID())
+	}
+
+	return nil
+}
+
+func (ms *MediaServiceImpl) Cleanup() error {
+	for _, m := range ms.mediaMap {
+		fs, missing, err := ms.fileService.GetFiles(m.FileIds)
+		if err != nil {
+			return err
+		}
+		for _, f := range fs {
+			if f.GetPortablePath().RootName() != "USERS" {
+				missing = append(missing, f.ID())
+			}
+		}
+
+		for _, fId := range missing {
+			err = ms.RemoveFileFromMedia(m, fId)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (ms *MediaServiceImpl) GetProminentColors(media *models.Media) (prom []string, err error) {
@@ -374,30 +497,30 @@ func (ms *MediaServiceImpl) NukeCache() error {
 	// ms.mapLock.Unlock()
 	return werror.NotImplemented("NukeCache")
 
-	return nil
+	// return nil
 }
 
 func (ms *MediaServiceImpl) StreamVideo(
 	m *models.Media, u *models.User, share *models.FileShare,
 ) (*models.VideoStreamer, error) {
-	var streamer *models.VideoStreamer
-	var ok bool
+	if !ms.GetMediaType(m).IsVideo() {
+		return nil, werror.WithStack(werror.ErrMediaNotVideo)
+	}
 
 	ms.streamerLock.Lock()
 	defer ms.streamerLock.Unlock()
 
+	var streamer *models.VideoStreamer
+	var ok bool
 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-		streamPath := fmt.Sprintf("%s/%s-stream/", env.GetThumbsDir(), m.ID())
-		streamer = models.NewVideoStreamer(m, streamPath)
+		f, err := ms.fileService.GetFileByContentId(m.ContentId)
+		if err != nil {
+			return nil, err
+		}
+
+		streamer = models.NewVideoStreamer(f)
 		ms.streamerMap[m.ID()] = streamer
 	}
-
-	f, err := ms.fileService.GetFileSafe(m.FileIds[0], u, share)
-	if err != nil {
-		return nil, err
-	}
-
-	streamer.Encode(f)
 
 	return streamer, nil
 }
@@ -466,35 +589,22 @@ func (ms *MediaServiceImpl) removeCacheFiles(media *models.Media) error {
 	return nil
 }
 
-func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
-	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
-		return ms.Del(media.ID())
-	}
-
-	filter := bson.M{"contentId": media.ID()}
-	update := bson.M{"$pull": bson.M{"fileIds": fileId}}
-	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		return err
-	}
-
-	media.FileIds = internal.Filter(
-		media.FileIds, func(fId fileTree.FileId) bool {
-			return fId != fileId
-		},
-	)
-
-	return nil
-}
+const (
+	HighresSize = 2500
+	ThumbSize   = 500
+)
 
 func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.WeblensFileImpl) error {
+	sw := internal.NewStopwatch("LoadMediaFromFile: " + file.Filename())
 	fileMetas := exif.ExtractMetadata(file.AbsPath())
+	sw.Lap("ExtractMetadata")
 
 	for _, fileMeta := range fileMetas {
 		if fileMeta.Err != nil {
 			return fileMeta.Err
 		}
 	}
+	sw.Lap("Read errors")
 
 	var err error
 	if m.CreateDate.Unix() <= 0 {
@@ -520,9 +630,11 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			m.CreateDate = file.ModTime()
 		}
 	}
+	sw.Lap("Read time")
 
 	if m.MimeType == "" {
 		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
+		log.Debug.Printf("MIME type: %s", mimeType)
 		if !ok {
 			mimeType = "generic"
 		}
@@ -543,19 +655,27 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			if !ok {
 				return errors.New("invalid movie format")
 			}
-			duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 10)
+			duration, err := strconv.ParseFloat(formatChunk["duration"].(string), 32)
 			if err != nil {
 				return err
 			}
 			m.Duration = int(duration * 1000)
 		}
 	}
+	sw.Lap("Read mime and duration")
 
-	if ms.typeService.ParseMime(m.MimeType).IsMultiPage() {
+	mType := ms.GetMediaType(m)
+	if !mType.IsSupported() {
+		return werror.ErrMediaBadMime
+	}
+	sw.Lap("Get MediaType")
+
+	if mType.IsMultiPage() {
 		m.PageCount = int(fileMetas[0].Fields["PageCount"].(float64))
 	} else {
 		m.PageCount = 1
 	}
+	sw.Lap("Count pages")
 
 	if m.Rotate == "" {
 		rotate := fileMetas[0].Fields["Orientation"]
@@ -563,39 +683,121 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			m.Rotate = rotate.(string)
 		}
 	}
+	sw.Lap("Rotate")
 
-	buf := ms.filesBuffer.Get().([]byte)
-	if len(buf) > 0 {
-		log.Trace.Printf("Re-using buffer of %d bytes", len(buf))
-	}
-
-	mType := ms.GetMediaType(m)
-
-	if mType.IsRaw() {
-		binMeta := binExif.ExtractMetadata(file.AbsPath())
-		if binMeta[0].Err != nil {
-			return werror.WithStack(binMeta[0].Err)
+	buf := *ms.filesBuffer.Get().(*[]byte)
+	log.Trace.Func(func(l log.Logger) {
+		if len(buf) > 0 {
+			l.Printf("Re-using buffer of %d bytes", len(buf))
 		}
-		raw64 := []byte(binMeta[0].Fields[mType.GetThumbExifKey()].(string))
+	})
+	sw.Lap("Get Buffer")
 
-		// remove "base64:" from beginning of data
-		raw64 = raw64[7:]
+	if !mType.IsVideo() && !mType.IsMultiPage() {
+		mw := imagick.NewMagickWand()
+		defer mw.Destroy()
+		sw.Lap("New MagickWand")
 
-		padCount := 4 - len(raw64)%4
-		if padCount != 4 {
-			raw64 = raw64[:len(raw64)+padCount]
-			for i := range padCount {
-				raw64[len(raw64)-(i+1)] = '='
-			}
-		}
-
-		buf = slices.Grow(buf, base64.StdEncoding.DecodedLen(len(raw64)))
-		buf = buf[:base64.StdEncoding.DecodedLen(len(raw64))]
-		_, err = base64.StdEncoding.Decode(buf, raw64)
+		err = mw.SetCompressionQuality(99)
 		if err != nil {
-			return err
+			return werror.WithStack(err)
 		}
 
+		err = mw.ReadImage(file.AbsPath())
+		if err != nil {
+			return werror.WithStack(err)
+		}
+		sw.Lap("Read image")
+		err = mw.AutoOrientImage()
+		if err != nil {
+			return werror.WithStack(err)
+		}
+		sw.Lap("Image orientation")
+
+		width := mw.GetImageWidth()
+		height := mw.GetImageHeight()
+
+		m.Height = int(height)
+		m.Width = int(width)
+		sw.Lap("Image size")
+		log.Trace.Printf("%s Image size: %dx%d", file.Filename(), width, height)
+
+		err = mw.SetImageFormat("webp")
+		if err != nil {
+			return werror.WithStack(err)
+		}
+		sw.Lap("Image convert to webp")
+
+		if width > HighresSize || height > HighresSize {
+			var fullWidth, fullHeight uint
+			if width > height {
+				fullWidth = HighresSize
+				fullHeight = HighresSize * uint(height) / uint(width)
+			} else {
+				fullHeight = HighresSize
+				fullWidth = HighresSize * uint(width) / uint(height)
+			}
+			log.Trace.Printf("Resizing %s highres image to %dx%d", file.Filename(), fullWidth, fullHeight)
+
+			err = mw.ScaleImage(fullWidth, fullHeight)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			sw.Lap("Image resize for fullres")
+		}
+
+		highres, err := ms.fileService.NewCacheFile(m, models.HighRes, 0)
+		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
+			return werror.WithStack(err)
+		} else if err == nil {
+			blob, err := mw.GetImageBlob()
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			_, err = highres.Write(blob)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			m.SetHighresCacheFiles(highres, 0)
+			sw.Lap("Write highres cache file")
+		}
+
+		if width > ThumbSize || height > ThumbSize {
+			var thumbWidth, thumbHeight uint
+			if width > height {
+				thumbWidth = ThumbSize
+				thumbHeight = uint(float64(ThumbSize) / float64(width) * float64(height))
+			} else {
+				thumbHeight = ThumbSize
+				thumbWidth = uint(float64(ThumbSize) / float64(height) * float64(width))
+			}
+			log.Trace.Printf("Resizing %s thumb image to %dx%d", file.Filename(), thumbWidth, thumbHeight)
+			err = mw.ScaleImage(thumbWidth, thumbHeight)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			sw.Lap("Image resize for thumb")
+		}
+
+		thumb, err := ms.fileService.NewCacheFile(m, models.LowRes, 0)
+		if err != nil && !errors.Is(err, werror.ErrFileAlreadyExists) {
+			return werror.WithStack(err)
+		} else if err == nil {
+			blob, err := mw.GetImageBlob()
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			_, err = thumb.Write(blob)
+			if err != nil {
+				return werror.WithStack(err)
+			}
+			m.SetLowresCacheFile(thumb)
+		}
+
+		sw.Lap("Read raw image")
+		sw.Stop()
+		// sw.PrintResults(false)
+		return nil
 	} else if mType.IsVideo() {
 		errOut := bytes.NewBuffer(nil)
 
@@ -610,11 +812,11 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			"pipe:", ffmpeg.KwArgs{"frames:v": 1, "format": "image2", "vcodec": "mjpeg"},
 		).WithOutput(bufbuf).WithErrorOutput(errOut).Run()
 		if err != nil {
-			log.Error.Println(errOut.String())
 			return werror.WithStack(err)
 		}
 		buf = bufbuf.Bytes()
 
+		sw.Lap("Read video")
 	} else {
 		fileReader, err := file.Readable()
 		if err != nil {
@@ -627,14 +829,20 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 			return err
 		}
 		buf = bufbuf.Bytes()
+		sw.Lap("Read regular image")
 	}
 
 	err = ms.generateCacheFiles(m, buf)
 	if err != nil {
 		return err
 	}
+	sw.Lap("Generate Cache Files")
 
-	ms.filesBuffer.Put(buf)
+	ms.filesBuffer.Put(&buf)
+
+	sw.Lap("Put Buffer")
+	sw.Stop()
+	// sw.PrintResults(false)
 
 	return nil
 }
@@ -647,8 +855,8 @@ func (ms *MediaServiceImpl) GetMediaTypes() models.MediaTypeService {
 	return ms.typeService
 }
 
-func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []models.ContentId {
-	var medias []models.ContentId
+func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*models.Media {
+	var medias []*models.Media
 
 	for _, f := range folders {
 		if f == nil {
@@ -659,7 +867,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 			if ms.IsFileDisplayable(f) {
 				m := ms.Get(f.GetContentId())
 				if m != nil {
-					medias = append(medias, m.ID())
+					medias = append(medias, m)
 				}
 			}
 			continue
@@ -669,7 +877,7 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 				if !f.IsDir() && ms.IsFileDisplayable(f) {
 					m := ms.Get(f.GetContentId())
 					if m != nil {
-						medias = append(medias, m.ID())
+						medias = append(medias, m)
 					}
 				}
 				return nil
@@ -686,9 +894,9 @@ func (ms *MediaServiceImpl) RecursiveGetMedia(folders ...*fileTree.WeblensFileIm
 func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) (data []byte, err error) {
 	defer internal.RecoverPanic("Fetching media image had panic")
 
-	m := ctx.Value("media").(*models.Media)
-	q := ctx.Value("quality").(models.MediaQuality)
-	pageNum, _ := ctx.Value("pageNum").(int)
+	m := ctx.Value(CacheMediaKey).(*models.Media)
+	q := ctx.Value(CacheQualityKey).(models.MediaQuality)
+	pageNum, _ := ctx.Value(CachePageKey).(int)
 
 	f, err := ms.getCacheFile(m, q, pageNum)
 	if err != nil {
@@ -738,6 +946,10 @@ func (ms *MediaServiceImpl) getCacheFile(
 }
 
 func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error {
+	if len(bs) == 0 {
+		return werror.Errorf("empty media buffer")
+	}
+
 	var err error
 	var rotate int
 	if ms.GetMediaType(m).IsRaw() {
@@ -783,8 +995,6 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error
 
 	thumbW := int((models.ThumbnailHeight / float32(m.Height)) * float32(m.Width))
 
-	var cacheFiles []*fileTree.WeblensFileImpl
-
 	thumbOpts := bimg.Options{
 		Width:  thumbW,
 		Height: int(models.ThumbnailHeight),
@@ -805,8 +1015,6 @@ func (ms *MediaServiceImpl) generateCacheFiles(m *models.Media, bs []byte) error
 		if err != nil {
 			return err
 		}
-
-		cacheFiles = append(cacheFiles, thumbFile)
 	}
 	m.SetLowresCacheFile(thumbFile)
 

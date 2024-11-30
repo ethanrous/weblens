@@ -2,60 +2,35 @@ package http
 
 import (
 	"net/http"
-	"path/filepath"
 	"time"
 
-	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
-	"github.com/ethanrous/weblens/service/mock"
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 )
 
-func attachNewCoreRemote(ctx *gin.Context) {
-	pack := getServices(ctx)
+// LaunchBackup godoc
+//
+//	@ID			LaunchBackup
+//
+//	@Summary	Launch backup on a server
+//	@Tags		Servers
+//
+//	@Security	SessionAuth[admin]
+//	@Security	ApiKeyAuth[admin]
+//
+//	@Param		serverId	path	string	true	"Server ID"
+//
+//	@Success	200
+//	@Router		/servers/{serverId}/backup [post]
+func launchBackup(w http.ResponseWriter, r *http.Request) {
+	pack := getServices(r)
 
-	body, err := readCtxBody[newCoreBody](ctx)
-	if err != nil {
-		return
-	}
-
-	newCore, err := pack.InstanceService.AttachRemoteCore(body.CoreAddress, body.UsingKey)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
-		return
-	}
-
-	mockJournal := mock.NewHollowJournalService()
-	newTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), newCore.ServerId()), newCore.ServerId(), mockJournal, false)
-	if err != nil {
-		log.ErrTrace(err)
-		ctx.Status(http.StatusInternalServerError)
-		return
-	}
-
-	pack.FileService.AddTree(newTree)
-
-	err = WebsocketToCore(newCore, pack)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
-		return
-	}
-
-	ctx.Status(http.StatusOK)
-}
-
-func launchBackup(ctx *gin.Context) {
-	pack := getServices(ctx)
-
-	serverId := ctx.Query("serverId")
+	serverId := chi.URLParam(r, "serverId")
 	if serverId == "" {
-		ctx.Status(http.StatusBadRequest)
+		SafeErrorAndExit(werror.ErrNoServerId, w)
 		return
 	}
 
@@ -71,85 +46,39 @@ func launchBackup(ctx *gin.Context) {
 		err := client.Send(msg)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	} else {
 		core := pack.InstanceService.GetByInstanceId(serverId)
 		if core == nil {
-			ctx.Status(http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		t, err := jobs.BackupOne(core, pack)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		user := getUserFromCtx(ctx)
-		wsClient := pack.ClientService.GetClientByUsername(user.GetUsername())
+		u, err := getUserFromCtx(r)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+		log.Debug.Printf("User: %s", u.GetUsername())
+		wsClient := pack.ClientService.GetClientByUsername(u.GetUsername())
 
 		_, _, err = pack.ClientService.Subscribe(
 			wsClient, t.TaskId(), models.TaskSubscribe, time.Now(), nil,
 		)
 		if err != nil {
 			log.ErrTrace(err)
-			ctx.Status(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	ctx.Status(http.StatusOK)
-}
-
-func getSnapshots(ctx *gin.Context) {
-	// jes, err := dataStore.GetSnapshots()
-	// if err != nil {
-	// 	util.ShowErr(err)
-	// 	ctx.Status(comm.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// ctx.JSON(comm.StatusOK, gin.H{"snapshots": jes})
-	ctx.Status(http.StatusNotImplemented)
-}
-
-func restoreToCore(ctx *gin.Context) {
-	restoreInfo, err := readCtxBody[restoreCoreBody](ctx)
-
-	if err != nil {
-		return
-	}
-
-	pack := getServices(ctx)
-
-	core := pack.InstanceService.GetByInstanceId(restoreInfo.ServerId)
-	if core == nil {
-		ctx.Status(http.StatusNotFound)
-		return
-	}
-
-	err = core.SetAddress(restoreInfo.HostUrl)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
-		return
-	}
-
-	meta := models.RestoreCoreMeta{
-		Local: pack.InstanceService.GetLocal(),
-		Core:  core,
-		Pack:  pack,
-	}
-
-	_, err = pack.TaskService.DispatchJob(models.RestoreCoreTask, meta, nil)
-	if err != nil {
-		safe, code := werror.TrySafeErr(err)
-		ctx.JSON(code, safe)
-		return
-	}
-
-	ctx.Status(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 }

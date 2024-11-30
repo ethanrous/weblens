@@ -133,7 +133,30 @@
         "FriendlyName": "MP4",
         "FileExtension": [
             "MP4",
+            "mp4",
+            "MOV"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": true,
+        "SupportsImgRecog": false
+    },
+    "video/quicktime": {
+        "FriendlyName": "MP4",
+        "FileExtension": [
+            "MP4",
             "mp4"
+        ],
+        "IsDisplayable": true,
+        "IsRaw": false,
+        "IsVideo": true,
+        "SupportsImgRecog": false
+    },
+    "video/x-matroska": {
+        "FriendlyName": "MKV",
+        "FileExtension": [
+            "MKV",
+            "mkv"
         ],
         "IsDisplayable": true,
         "IsRaw": false,

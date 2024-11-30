@@ -42,9 +42,9 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	if !assert.NotNil(t, is.GetLocal()) {
 		t.FailNow()
 	}
-	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
+	assert.Equal(t, models.InitServerRole, is.GetLocal().GetRole())
 
-	localInstance := models.NewInstance("", "My server", "", models.CoreServer, true, "", t.Name())
+	localInstance := models.NewInstance("", "My server", "", models.CoreServerRole, true, "", t.Name())
 	assert.NotEmpty(t, localInstance.ServerId())
 
 	err = is.Add(localInstance)
@@ -53,7 +53,7 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 
 	remoteId := models.InstanceId(primitive.NewObjectID().Hex())
 	remoteBackup := models.NewInstance(
-		remoteId, "My remote server", "deadbeefdeadbeef", models.BackupServer, false,
+		remoteId, "My remote server", "deadbeefdeadbeef", models.BackupServerRole, false,
 		"http://notrighthere.com", t.Name(),
 	)
 
@@ -69,7 +69,7 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	assert.Equal(t, remoteId, remoteFetch.ServerId())
 
 	badServer := models.NewInstance(
-		"", "", "deadbeefdeadbeef", models.BackupServer, false, "", is.GetLocal().ServerId(),
+		"", "", "deadbeefdeadbeef", models.BackupServerRole, false, "", is.GetLocal().ServerId(),
 	)
 	err = is.Add(badServer)
 	assert.ErrorIs(t, err, werror.ErrNoServerName)
@@ -85,7 +85,7 @@ func TestInstanceServiceImpl_Add(t *testing.T) {
 	assert.ErrorIs(t, err, werror.ErrNoServerId)
 
 	anotherCore := models.NewInstance(
-		"", "Another Core", "deadbeefdeadbeef", models.CoreServer, false, "", is.GetLocal().ServerId(),
+		"", "Another Core", "deadbeefdeadbeef", models.CoreServerRole, false, "", is.GetLocal().ServerId(),
 	)
 	err = is.Add(anotherCore)
 	assert.ErrorIs(t, err, werror.ErrNoCoreAddress)
@@ -107,12 +107,12 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	if !assert.NotNil(t, is.GetLocal()) {
 		t.FailNow()
 	}
-	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
+	assert.Equal(t, models.InitServerRole, is.GetLocal().GetRole())
 
 	err = is.InitCore("My Core Server")
 	require.NoError(t, err)
 
-	assert.Equal(t, models.CoreServer, is.GetLocal().GetRole())
+	assert.Equal(t, models.CoreServerRole, is.GetLocal().GetRole())
 
 	if err = col.Drop(context.Background()); err != nil {
 		t.Fatalf(err.Error())
@@ -132,7 +132,7 @@ func TestInstanceServiceImpl_InitCore(t *testing.T) {
 	err = badIs.InitCore("My Core Server")
 	assert.Error(t, err)
 
-	assert.Equal(t, models.InitServer, badIs.GetLocal().GetRole())
+	assert.Equal(t, models.InitServerRole, badIs.GetLocal().GetRole())
 }
 
 func TestInstanceServiceImpl_InitBackup(t *testing.T) {
@@ -165,11 +165,11 @@ func TestInstanceServiceImpl_InitBackup(t *testing.T) {
 	if !assert.NotNil(t, is.GetLocal()) {
 		t.FailNow()
 	}
-	assert.Equal(t, models.InitServer, is.GetLocal().GetRole())
+	assert.Equal(t, models.InitServerRole, is.GetLocal().GetRole())
 
 	err = is.InitBackup("My backup server", coreAddress, models.WeblensApiKey(coreKey))
 	require.NoError(t, err)
 
-	assert.Equal(t, models.BackupServer, is.GetLocal().GetRole())
+	assert.Equal(t, models.BackupServerRole, is.GetLocal().GetRole())
 
 }

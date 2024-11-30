@@ -10,7 +10,7 @@ services:
       MONGODB_URI: "mongodb://{ MONGO_ROOT_USERNAME }:{ MONGO_ROOT_PASSWORD }@mongo:27017"
       DATA_ROOT_PATH: [ "/media" ]
       CACHES_PATH: [ "/cache" ]
-      HOST_URL: [ "https://{ WWW.MY_WEBLENS_SERVER.COM }" ]
+      PROXY_ADDRESS: [ "https://{ WWW.MY_WEBLENS_SERVER.COM }" ]
       DEV_MODE: true/[false]
     volumes:
       -{ /MEDIA/PATH/ON/HOST }:/media

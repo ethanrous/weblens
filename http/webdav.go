@@ -1,13 +1,13 @@
 package http
 
-import "github.com/gin-gonic/gin"
+import "net/http"
 
-func webdavOptions(ctx *gin.Context) {
-	ctx.Header(
+func webdavOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(
 		"Allow",
 		"OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE, COPY, MOVE, MKCOL, PROPFIND, PROPPATCH, LOCK, UNLOCK, ORDERPATCH",
 	)
-	ctx.Header(
+	w.Header().Set(
 		"DAV",
 		"1, 2, ordered-collections",
 	)

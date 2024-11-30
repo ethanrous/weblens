@@ -12,7 +12,7 @@ import (
 const maxRetries = 5
 
 func ConnectToMongo(mongoUri, mongoDbName string) (*mongo.Database, error) {
-	log.Trace.Printf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)
+	log.Trace.Func(func(l log.Logger) {l.Printf("Connecting to Mongo at %s with name %s ...", mongoUri, mongoDbName)})
 	clientOptions := options.Client().ApplyURI(mongoUri).SetTimeout(time.Second * 5)
 	var err error
 	mongoc, err := mongo.Connect(context.Background(), clientOptions)

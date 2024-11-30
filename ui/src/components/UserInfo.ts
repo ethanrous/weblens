@@ -1,96 +1,95 @@
-import { getServerInfo } from '@weblens/api/ApiFetch'
-import { GetUserInfo } from '@weblens/api/UserApi'
-import {
-    LOGIN_TOKEN_COOKIE_KEY,
-    ServerInfoT,
-    UserInfoT,
-    USERNAME_COOKIE_KEY,
-} from '@weblens/types/Types'
+import { ServersApi } from '@weblens/api/ServersApi'
+import UsersApi from '@weblens/api/UserApi'
+import { ServerInfo } from '@weblens/api/swag'
+import User from '@weblens/types/user/User'
+import { AxiosError } from 'axios'
 import { useEffect } from 'react'
-import { useCookies } from 'react-cookie'
-import { useNavigate } from 'react-router-dom'
-import { create, StateCreator } from 'zustand'
+import { NavigateFunction, useNavigate } from 'react-router-dom'
+import { StateCreator, create } from 'zustand'
 
 const useR = () => {
     const nav = useNavigate()
-    const [cookies] = useCookies([USERNAME_COOKIE_KEY, LOGIN_TOKEN_COOKIE_KEY])
-
-    const { server, user, setUserInfo } = useSessionStore()
-
-    useEffect(() => {
-        if (!cookies[LOGIN_TOKEN_COOKIE_KEY]) {
-            setUserInfo({ isLoggedIn: false } as UserInfoT)
-        }
-    }, [cookies])
+    const { server, user, setUser } = useSessionStore()
 
     useEffect(() => {
         if (!server) {
             return
         }
 
-        if (server.info.role === 'init') {
-            setUserInfo({ isLoggedIn: false } as UserInfoT)
+        if (server.role === 'init' || !server.started) {
+            const user = new User({})
+            user.isLoggedIn = false
+            setUser(user)
             return
         }
 
         if (!user || user.homeId === '') {
-            GetUserInfo()
-                .then((info) => setUserInfo({ ...info, isLoggedIn: true }))
-                .catch((r) => {
-                    setUserInfo({ isLoggedIn: false } as UserInfoT)
-                    if (r === 401) {
-                        nav('/login')
+            UsersApi.getUser()
+                .then((res) => {
+                    setUser(new User(res.data, true))
+                })
+                .catch((err: AxiosError) => {
+                    console.error(err.response.statusText)
+
+                    setUser(new User({}, false))
+                    if (
+                        err.response.status === 401 &&
+                        !window.location.pathname.includes('share/')
+                    ) {
+                        console.debug('Going to login')
+                        nav('/login', {
+                            state: { returnTo: window.location.pathname },
+                        })
                     }
-                    console.error(r)
                 })
         }
     }, [server])
 }
 
 export interface WeblensSessionT {
-    user: UserInfoT
-    server: { info: ServerInfoT; userCount: number; started: boolean }
-    nav: (loc: string) => void
-
-    setUserInfo: (user: UserInfoT) => void
+    user: User
+    server: ServerInfo
+    serverFetchError: boolean
+    nav: NavigateFunction
+    setUser: (user: User) => void
 
     fetchServerInfo: () => Promise<void>
-    logout: (removeCookie: (cookieKey: string) => void) => void
 
-    setNav: (navFunc: (loc: string) => void) => void
+    setNav: (navFunc: NavigateFunction) => void
 }
 
 const WLStateControl: StateCreator<WeblensSessionT, [], []> = (set) => ({
     user: null,
     server: null,
     nav: null,
+    serverFetchError: false,
 
-    setUserInfo: (user) => {
+    setUser: (user: User) => {
         if (user.isLoggedIn === undefined) {
-            user.isLoggedIn = user.username !== ''
+            throw new Error('User must have isLoggedIn set')
         }
+
         set({
             user: user,
         })
     },
 
     fetchServerInfo: async () => {
-        return getServerInfo().then((r) => {
-            set({
-                server: r,
+        return ServersApi.getServerInfo()
+            .then((res) => {
+                set({
+                    server: res.data,
+                })
             })
-        })
+            .catch((e) => {
+                console.error('Failed to fetch server info', e)
+                set({
+                    serverFetchError: true,
+                })
+            })
     },
 
-    logout: (removeCoookie) => {
-        set({
-            user: null,
-        })
-        removeCoookie(USERNAME_COOKIE_KEY)
-        removeCoookie(LOGIN_TOKEN_COOKIE_KEY)
-    },
-
-    setNav: (navFunc: (loc: string) => void) => {
+    setNav: (navFunc: NavigateFunction) => {
         set({
             nav: navFunc,
         })

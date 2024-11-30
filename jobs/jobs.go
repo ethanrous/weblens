@@ -229,14 +229,20 @@ func HandleFileUploads(t *task.Task) {
 		}
 	}()
 
+	timeout := false
+
 WriterLoop:
 	for {
 		t.SetTimeout(time.Now().Add(time.Second * 10))
 		select {
 		case signal := <-t.GetSignalChan(): // Listen for cancellation
 			if signal == 1 {
-				return
+				timeout = true
+				break WriterLoop
 			}
+		// case <-time.After(time.Second * 10):
+		// 	timeout = true
+		// 	break WriterLoop
 		case chunk := <-meta.ChunkStream:
 			t.ClearTimeout()
 
@@ -342,31 +348,27 @@ WriterLoop:
 				t.ReqNoErr(err)
 			}
 
-			if err != nil {
-				t.ReqNoErr(err)
+			if !timeout {
+				scanMeta := models.ScanMeta{
+					File:         tl,
+					FileService:  meta.FileService,
+					TaskService:  meta.TaskService,
+					MediaService: meta.MediaService,
+					TaskSubber:   meta.TaskSubber,
+				}
+				_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
+				if err != nil {
+					log.ErrTrace(err)
+					continue
+				}
 			}
-
-			scanMeta := models.ScanMeta{
-				File:         tl,
-				FileService:  meta.FileService,
-				TaskService:  meta.TaskService,
-				MediaService: meta.MediaService,
-				TaskSubber:   meta.TaskSubber,
-				Caster:       meta.Caster,
-			}
-			_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
-			if err != nil {
-				log.ErrTrace(err)
-				continue
-			}
-		} else if !doingRootScan {
+		} else if !doingRootScan && !timeout {
 			scanMeta := models.ScanMeta{
 				File:         rootFile,
 				FileService:  meta.FileService,
 				TaskService:  meta.TaskService,
 				MediaService: meta.MediaService,
 				TaskSubber:   meta.TaskSubber,
-				Caster:       meta.Caster,
 			}
 			_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
 			if err != nil {
@@ -397,6 +399,7 @@ WriterLoop:
 		meta.Caster.Close()
 	}
 
+	log.Debug.Printf("Finished writing upload files for %s", rootFile.GetPortablePath())
 	t.Success()
 }
 
@@ -453,7 +456,7 @@ func HashFile(t *task.Task) {
 	contentId, err := service.GenerateContentId(meta.File)
 	t.ReqNoErr(err)
 
-	log.Trace.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId) })
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)
@@ -466,7 +469,7 @@ func HashFile(t *task.Task) {
 	poolStatus := t.GetTaskPool().Status()
 	meta.Caster.PushTaskUpdate(
 		t, models.TaskCompleteEvent, task.TaskResult{
-			"fileName":      meta.File.Filename(),
+			"filename":      meta.File.Filename(),
 			"tasksTotal":    poolStatus.Total,
 			"tasksComplete": poolStatus.Complete,
 		},

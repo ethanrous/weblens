@@ -5,27 +5,33 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react'
-import { useClick, useResize } from '@weblens/components/hooks'
-
-import '@weblens/lib/crumbs.scss'
 import { useSessionStore } from '@weblens/components/UserInfo'
+import { useClick, useResize } from '@weblens/components/hooks'
 import {
-    FbModeT,
+    ShareRoot,
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
-import { memo, useEffect, useState } from 'react'
+import { filenameFromPath } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { DraggingStateT } from '@weblens/types/files/FBTypes'
+import { WeblensFile } from '@weblens/types/files/File'
+import { goToFile } from '@weblens/types/files/FileDragLogic'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import WeblensButton from './WeblensButton'
+import crumbStyle from './crumbStyle.module.scss'
+
 type Crumb = {
-    name: string
+    path: string
     id: string
-    visitRoute: string
+    file?: WeblensFile
+    visitRoute?: string
     navigable: boolean
 }
 
 type breadcrumbProps = {
     crumbInfo: Crumb
-    moveSelectedTo
+    moveSelectedTo: (folderId: string) => void
     isCurrent: boolean
     compact?: boolean
 }
@@ -35,27 +41,33 @@ const CrumbText = ({ crumb }: { crumb: Crumb }) => {
 
     if (crumb.id === usr.homeId) {
         return (
-            <div className="h-[30px] w-[30px]">
+            <div className={crumbStyle['crumb-icon']}>
                 <IconHome className="w-full h-full" />
             </div>
         )
     }
-    if (crumb.name === 'Shared') {
+    if (crumb.id === 'shared') {
         return (
-            <div className="h-[30px] w-[30px]">
+            <div className={crumbStyle['crumb-icon']}>
                 <IconUsers className="w-full h-full" />
             </div>
         )
     }
     if (crumb.id === usr.trashId) {
         return (
-            <div className="h-[30px] w-[30px]">
+            <div className={crumbStyle['crumb-icon']}>
                 <IconTrash className="w-full h-full" />
             </div>
         )
     }
 
-    return <p className="crumb-text w-max max-w-full">{crumb.name}</p>
+    const { nameText } = filenameFromPath(crumb.path)
+
+    return (
+        <p className={`${crumbStyle['crumb-text']} w-max max-w-full`}>
+            {nameText}
+        </p>
+    )
 }
 
 export const StyledBreadcrumb = ({
@@ -64,30 +76,56 @@ export const StyledBreadcrumb = ({
     moveSelectedTo,
     isCurrent,
 }: breadcrumbProps) => {
+    const dragging = useFileBrowserStore((state) => state.draggingState)
+
+    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
+    const clearSelected = useFileBrowserStore((state) => state.clearSelected)
+    const nav = useNavigate()
+
+    const [copyOpen, setCopyOpen] = useState(false)
+    const [buttonRef, setButtonRef] = useState<HTMLDivElement>()
+    useClick(() => setCopyOpen(false), buttonRef, !copyOpen)
+
     if (!crumbInfo) {
         console.error('NO CRUMB')
         return null
     }
 
-    const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
-    const dragging = useFileBrowserStore((state) => state.draggingState)
-    const nav = useNavigate()
-
     return (
         <div
-            className={'crumb-box'}
+            className={crumbStyle['crumb-box']}
             data-navigable={crumbInfo.navigable}
             data-compact={compact}
-            data-dragging={dragging === 1}
+            data-dragging={dragging === DraggingStateT.InternalDrag}
             data-current={isCurrent}
+            onContextMenu={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+                setCopyOpen((c) => !c)
+            }}
             onMouseOver={() => {
                 if (dragging && !isCurrent && setMoveDest) {
-                    setMoveDest(crumbInfo.name)
+                    setMoveDest(crumbInfo.path)
                 }
             }}
             onMouseLeave={() => {
                 if (dragging && setMoveDest) {
                     setMoveDest('')
+                }
+            }}
+            onClick={(e) => {
+                e.stopPropagation()
+                if (dragging === DraggingStateT.NoDrag) {
+                    if (crumbInfo.id === 'shared') {
+                        goToFile(ShareRoot, true)
+                    } else if (crumbInfo.file) {
+                        clearSelected()
+                        goToFile(crumbInfo.file)
+                    } else if (crumbInfo.visitRoute) {
+                        nav(crumbInfo.visitRoute)
+                    } else {
+                        console.error('No file or visit route in crumb')
+                    }
                 }
             }}
             onMouseUp={(e) => {
@@ -96,34 +134,56 @@ export const StyledBreadcrumb = ({
                     return
                 }
 
-                if (dragging !== 0) {
+                if (dragging !== DraggingStateT.NoDrag) {
                     moveSelectedTo(crumbInfo.id)
-                } else {
-                    nav(crumbInfo.visitRoute)
                 }
                 setMoveDest('')
             }}
         >
             <CrumbText crumb={crumbInfo} />
+            {copyOpen && (
+                <div ref={setButtonRef} className="absolute z-20">
+                    <WeblensButton
+                        label="Copy"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                        }}
+                    />
+                </div>
+            )}
         </div>
     )
 }
 
-function LoafOverflowMenu({ open, reff, setOpen, crumbs }) {
+function LoafOverflowMenu({
+    open,
+    reff,
+    setOpen,
+    crumbs,
+}: {
+    open: boolean
+    reff: HTMLDivElement
+    setOpen: (b: boolean) => void
+    crumbs: Crumb[]
+}) {
     useClick(() => setOpen(false), reff, !open)
     return (
-        <div className="overflow-menu" data-open={open}>
-            {crumbs.map((item, i) => {
+        <div className={crumbStyle['overflow-menu']} data-open={open}>
+            {crumbs.map((item, i: number) => {
                 return (
                     <div
                         key={`crumb-overflow-${i}`}
-                        className="flex flex-row items-center "
+                        className="flex flex-row items-center min-w-0"
                         style={{
                             paddingLeft: 12 + (i - 1) * 28,
                         }}
                     >
                         {i !== 0 && <IconCornerDownRight />}
-                        {item}
+                        <StyledBreadcrumb
+                            crumbInfo={item}
+                            moveSelectedTo={() => {}}
+                            isCurrent={i === crumbs.length - 1}
+                        />
                     </div>
                 )
             })}
@@ -136,11 +196,11 @@ export const StyledLoaf = ({
     moveSelectedTo,
 }: {
     crumbs: Crumb[]
-    moveSelectedTo
+    moveSelectedTo: (folderId: string) => void
 }) => {
-    const [widths, setWidths] = useState(new Array(crumbs.length))
+    const [widths, setWidths] = useState<number[]>(new Array(crumbs.length))
     // const [squished, setSquished] = useState(0)
-    const [crumbsRef, setCrumbRef] = useState(null)
+    const [crumbsRef, setCrumbRef] = useState<HTMLDivElement>(null)
     const size = useResize(crumbsRef)
     const [overflowMenu, setOverflowMenu] = useState(false)
     const [overflowRef, setOverflowRef] = useState<HTMLDivElement>()
@@ -167,12 +227,12 @@ export const StyledLoaf = ({
     }
 
     return (
-        <div ref={setCrumbRef} className="loaf">
-            {/*<div className="flex items-center w-max">*/}
-            {/*    <StyledBreadcrumb crumbInfo={crumbs[0]} />*/}
-            {/*</div>*/}
+        <div ref={setCrumbRef} className={crumbStyle['loaf']}>
             {crumbs.map((c, i) => (
-                <div key={c.name} className="flex flex-row items-center">
+                <div
+                    key={c.id}
+                    className="flex flex-row items-center min-w-[50px]"
+                >
                     <StyledBreadcrumb
                         crumbInfo={c}
                         moveSelectedTo={moveSelectedTo}
@@ -201,7 +261,7 @@ export const StyledLoaf = ({
                         style={{ width: '20px', minWidth: '20px' }}
                     />
                     <div>
-                        <p className="crumb-text">...</p>
+                        <p className={crumbStyle['crumb-text'] + 'trun'}>...</p>
                         <LoafOverflowMenu
                             open={overflowMenu}
                             reff={overflowRef}
@@ -215,74 +275,45 @@ export const StyledLoaf = ({
     )
 }
 
-const Crumbs = memo(
-    ({
-        moveSelectedTo,
-        navOnLast,
-    }: {
-        navOnLast: boolean
-        moveSelectedTo?: (folderId: string) => void
-    }) => {
-        const user = useSessionStore((state) => state.user)
+function Crumbs({
+    moveSelectedTo,
+    navOnLast,
+}: {
+    navOnLast: boolean
+    moveSelectedTo?: (folderId: string) => void
+}) {
+    const user = useSessionStore((state) => state.user)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const crumbs: Crumb[] = []
 
-        const mode = useFileBrowserStore((state) => state.fbMode)
-        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-        const shareId = useFileBrowserStore((state) => state.shareId)
-
-        const setPresentationTarget = useFileBrowserStore(
-            (state) => state.setPresentationTarget
-        )
-
-        const crumbs: Crumb[] = []
-
-        if (mode == FbModeT.share) {
-            crumbs.push({
-                name: 'Shared',
-                id: 'shared',
-                visitRoute: '/files/shared',
-                navigable: folderInfo !== null,
-            } as Crumb)
-        }
-
-        if (!user || !folderInfo?.Id()) {
-            return (
-                <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
-            )
-        }
-
-        if (!folderInfo.IsTrash()) {
-            crumbs.push(
-                ...folderInfo.FormatParents().map((parent) => {
-                    return {
-                        name: parent.filename,
-                        id: parent.id,
-                        visitRoute: parent.GetVisitRoute(
-                            mode,
-                            shareId,
-                            setPresentationTarget
-                        ),
-                        navigable: true,
-                    } as Crumb
-                })
-            )
-        }
-
-        crumbs.push({
-            name: folderInfo.GetFilename(),
-            id: folderInfo.Id(),
-            visitRoute: folderInfo.GetVisitRoute(
-                mode,
-                shareId,
-                setPresentationTarget
-            ),
-            navigable: navOnLast,
-        } as Crumb)
-
+    if (!user || !folderInfo?.Id()) {
         return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
-    },
-    (prev, next) => {
-        return prev.navOnLast === next.navOnLast
     }
-)
+
+    crumbs.push(
+        ...folderInfo.FormatParents().map((parent) => {
+            return {
+                path: parent.portablePath,
+                id: parent.id,
+                file: parent,
+                navigable: true,
+            }
+        })
+    )
+
+    if (folderInfo.IsInTrash()) {
+        crumbs.shift()
+    }
+
+    // Add the current folder, which is not always navigable
+    crumbs.push({
+        path: folderInfo.GetFilename(),
+        id: folderInfo.Id(),
+        file: folderInfo,
+        navigable: navOnLast,
+    })
+
+    return <StyledLoaf crumbs={crumbs} moveSelectedTo={moveSelectedTo} />
+}
 
 export default Crumbs

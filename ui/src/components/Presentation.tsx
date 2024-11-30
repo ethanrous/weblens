@@ -7,44 +7,46 @@ import {
     IconX,
 } from '@tabler/icons-react'
 import ReactCodeMirror from '@uiw/react-codemirror'
-import { GetFileText } from '@weblens/api/FileBrowserApi'
+import { FileApi } from '@weblens/api/FileBrowserApi'
+import MediaApi from '@weblens/api/MediaApi'
+import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { TaskProgContext } from '@weblens/types/files/FBTypes'
+import { ErrorHandler } from '@weblens/types/Types'
 import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
-import { likeMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import React, {
-    memo,
+import {
+    Dispatch,
+    MouseEventHandler,
     ReactNode,
+    memo,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useState,
 } from 'react'
-import { WebsocketContext } from '../Context'
+
 import { humanFileSize } from '../util'
-import { useKeyDown, useResize, useResizeDrag } from './hooks'
 import { useSessionStore } from './UserInfo'
+import { useKeyDown, useResize, useResizeDrag } from './hooks'
+import presentationStyle from './presentationStyle.module.scss'
 
 export const PresentationContainer = ({
     onMouseMove,
     onClick,
     children,
 }: {
-    onMouseMove?
-    onClick?
-    children
+    onMouseMove?: MouseEventHandler<HTMLDivElement>
+    onClick?: MouseEventHandler<HTMLDivElement>
+    children?: ReactNode
 }) => {
     return (
         <div
             className="flex justify-center items-center top-0 left-0 p-6 h-full 
-                        w-full z-50 bg-bottom-grey bg-opacity-90 backdrop-blur absolute"
+                        w-full z-50 bg-bottom-grey bg-opacity-90 backdrop-blur absolute gap-6"
             onMouseMove={onMouseMove}
             onClick={onClick}
             children={children}
@@ -57,7 +59,7 @@ export const ContainerMedia = ({
     containerRef,
 }: {
     mediaData: WeblensMedia
-    containerRef
+    containerRef: HTMLDivElement
 }) => {
     const [boxSize, setBoxSize] = useState({
         height: 0,
@@ -153,11 +155,11 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 
     useEffect(() => {
         setBlockFocus(true)
-        GetFileText(file.Id())
+        FileApi.getFileText(file.Id())
             .then((r) => {
-                setContent(r)
+                setContent(r.data)
             })
-            .catch((err) => console.error(err))
+            .catch(ErrorHandler)
 
         return () => setBlockFocus(false)
     }, [])
@@ -184,13 +186,12 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 }
 
 export const FileInfo = ({ file }: { file: WeblensFile }) => {
-    const { progDispatch } = useContext(TaskProgContext)
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
     )
-
-    const wsSend = useContext(WebsocketContext)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
+    const shareId = useFileBrowserStore((state) => state.shareId)
 
     if (!file) {
         return null
@@ -198,30 +199,24 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const [size, units] = humanFileSize(file.GetSize())
     return (
         <div
-            className="flex grow w-[10%] justify-center"
+            className={presentationStyle['file-info-box']}
             onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-col justify-center h-max max-w-full gap-2">
-                <p className="text-white font-semibold text-3xl truncate">
-                    {file.GetFilename()}
-                </p>
-                <div className="flex flex-row text-white items-center gap-3">
-                    <p className="text-2xl text-white">
-                        {size}
-                        {units}
-                    </p>
-                    {file.IsFolder() && (
-                        <p>{file.GetChildren().length} Item(s)</p>
-                    )}
+                {file.IsFolder() && <IconFolder size={'1em'} />}
+                <h3 className="truncate font-bold">{file.GetFilename()}</h3>
+                <div className="flex flex-row text-white items-center">
+                    <h4>{size}</h4>
+                    <h4>{units}</h4>
                 </div>
                 <div className="flex gap-1">
-                    <p className="text-xl text-white">
+                    <h4>
                         {file.GetModified().toLocaleDateString('en-us', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
                         })}
-                    </p>
+                    </h4>
                 </div>
                 <WeblensButton
                     label={'Download'}
@@ -230,9 +225,9 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                         downloadSelected(
                             [file],
                             removeLoading,
-                            progDispatch,
-                            wsSend
-                        )
+                            wsSend,
+                            shareId
+                        ).catch(ErrorHandler)
                     }}
                 />
                 {mediaData && (
@@ -264,13 +259,13 @@ export const PresentationVisual = ({
     mediaData: WeblensMedia
     Element: () => ReactNode
 }) => {
-    const [screenRef, setScreenRef] = useState(null)
-    const [containerRef, setContainerRef] = useState(null)
+    const [screenRef, setScreenRef] = useState<HTMLDivElement>(null)
+    const [containerRef, setContainerRef] = useState<HTMLDivElement>(null)
     const [splitSize, setSplitSize] = useState(-1)
     const [dragging, setDragging] = useState(false)
     const screenSize = useResize(screenRef)
     const splitCalc = useCallback(
-        (o) => {
+        (o: number) => {
             if (screenSize.width === -1) {
                 return
             }
@@ -322,35 +317,35 @@ export const PresentationVisual = ({
 
 function useKeyDownPresentation(
     contentId: string,
-    dispatch: PresentationDispatchT
+    setTarget: (targetId: string) => void
 ) {
     const mediaData = useMediaStore((state) => state.mediaMap.get(contentId))
 
     const keyDownHandler = useCallback(
-        (event) => {
+        (event: KeyboardEvent) => {
             if (!contentId) {
                 return
             } else if (event.key === 'Escape') {
                 event.preventDefault()
                 event.stopPropagation()
-                dispatch.setPresentationTarget('')
+                setTarget('')
             } else if (event.key === 'ArrowLeft') {
                 event.preventDefault()
                 if (!mediaData.Prev()) {
                     return
                 }
-                dispatch.setPresentationTarget(mediaData.Prev()?.Id())
+                setTarget(mediaData.Prev()?.Id())
             } else if (event.key === 'ArrowRight') {
                 event.preventDefault()
                 if (!mediaData.Next()) {
                     return
                 }
-                dispatch.setPresentationTarget(mediaData.Next()?.Id())
+                setTarget(mediaData.Next()?.Id())
             } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
                 event.preventDefault()
             }
         },
-        [contentId, dispatch, mediaData]
+        [contentId, mediaData]
     )
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
@@ -360,19 +355,19 @@ function useKeyDownPresentation(
     }, [keyDownHandler])
 }
 
-function handleTimeout(to, setTo, setGuiShown: (b: boolean) => void) {
+function handleTimeout(
+    to: NodeJS.Timeout,
+    setTo: Dispatch<NodeJS.Timeout>,
+    setGuiShown: (b: boolean) => void
+) {
     if (to) {
         clearTimeout(to)
     }
     setTo(setTimeout(() => setGuiShown(false), 1000))
 }
 
-interface PresentationDispatchT {
-    setPresentationTarget(targetId: string): void
-}
-
 export function PresentationFile({ file }: { file: WeblensFile }) {
-    const [to, setTo] = useState(null)
+    const [to, setTo] = useState<NodeJS.Timeout>()
     const [guiShown, setGuiShown] = useState(false)
     const [likedHover, setLikedHover] = useState(false)
     const [containerRef, setContainerRef] = useState<HTMLDivElement>()
@@ -443,7 +438,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
 
             <div
                 ref={setContainerRef}
-                className="flex justify-center items-center w-[50%] h-full"
+                className="flex grow justify-center items-center h-full max-w-[48%]"
             >
                 {Visual}
             </div>
@@ -455,9 +450,11 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
                     data-shown={guiShown || isLiked}
                     onClick={(e) => {
                         e.stopPropagation()
-                        likeMedia(mediaData.Id(), !isLiked).then(() => {
-                            setMediaLiked(mediaData.Id(), user.username)
-                        })
+                        MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
+                            .then(() => {
+                                setMediaLiked(mediaData.Id(), user.username)
+                            })
+                            .catch(ErrorHandler)
                     }}
                     onMouseOver={() => {
                         setLikedHover(true)
@@ -497,19 +494,17 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     )
 }
 
-const Presentation = memo(
-    ({
-        mediaId,
-        element,
-        dispatch,
-    }: {
-        mediaId: string
-        dispatch: PresentationDispatchT
-        element?
-    }) => {
-        useKeyDownPresentation(mediaId, dispatch)
+interface PresentationProps {
+    mediaId: string
+    setTarget: (targetId: string) => void
+    element?: () => ReactNode
+}
 
-        const [to, setTo] = useState(null)
+const Presentation = memo(
+    ({ mediaId, element, setTarget }: PresentationProps) => {
+        useKeyDownPresentation(mediaId, setTarget)
+
+        const [to, setTo] = useState<NodeJS.Timeout>(null)
         const [guiShown, setGuiShown] = useState(false)
         const [likedHover, setLikedHover] = useState(false)
         const { user } = useSessionStore()
@@ -535,7 +530,7 @@ const Presentation = memo(
                     setGuiShown(true)
                     handleTimeout(to, setTo, setGuiShown)
                 }}
-                onClick={() => dispatch.setPresentationTarget('')}
+                onClick={() => setTarget('')}
             >
                 <PresentationVisual
                     key={mediaId}
@@ -550,7 +545,7 @@ const Presentation = memo(
                     <WeblensButton
                         subtle
                         Left={IconX}
-                        onClick={() => dispatch.setPresentationTarget('')}
+                        onClick={() => setTarget('')}
                     />
                 </div>
                 <div
@@ -558,9 +553,11 @@ const Presentation = memo(
                     data-shown={guiShown || isLiked}
                     onClick={(e) => {
                         e.stopPropagation()
-                        likeMedia(mediaId, !isLiked).then(() => {
-                            setMediaLiked(mediaId, user.username)
-                        })
+                        MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
+                            .then(() => {
+                                setMediaLiked(mediaData.Id(), user.username)
+                            })
+                            .catch(ErrorHandler)
                     }}
                     onMouseOver={() => {
                         setLikedHover(true)
@@ -603,7 +600,7 @@ const Presentation = memo(
             return false
         } else if (prev.element !== next.element) {
             return false
-        } else if (prev.dispatch !== next.dispatch) {
+        } else if (prev.setTarget !== next.setTarget) {
             return false
         }
 

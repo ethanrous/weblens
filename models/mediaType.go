@@ -1,9 +1,5 @@
 package models
 
-import (
-	"encoding/json"
-)
-
 type MediaType struct {
 	Mime            string   `json:"mime"`
 	Name            string   `json:"FriendlyName"`
@@ -14,7 +10,7 @@ type MediaType struct {
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
 	RawThumbExifKey string   `json:"RawThumbExifKey"`
-}
+} // @name MediaType
 
 type typeService struct {
 	mimeMap map[string]MediaType
@@ -62,16 +58,16 @@ func (ts *typeService) ParseMime(mime string) MediaType {
 	return ts.mimeMap[mime]
 }
 
+func (ts *typeService) GetMaps() (map[string]MediaType, map[string]MediaType) {
+	return ts.mimeMap, ts.extMap
+}
+
 func (ts *typeService) Generic() MediaType {
 	return ts.mimeMap["generic"]
 }
 
 func (ts *typeService) Size() int {
 	return len(ts.mimeMap)
-}
-
-func (ts *typeService) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ts.mimeMap)
 }
 
 func (mt MediaType) IsRaw() bool {
@@ -99,7 +95,7 @@ func (mt MediaType) FriendlyName() string {
 }
 
 func (mt MediaType) IsSupported() bool {
-	return mt.Mime != "generic"
+	return mt.Mime != "generic" && mt.Mime != ""
 }
 
 func (mt MediaType) IsMultiPage() bool {
@@ -114,39 +110,8 @@ func (mt MediaType) SupportsImgRecog() bool {
 	return mt.ImgRecog
 }
 
-// func (m *mediaType) toMarshalable() dataStore.marshalableMediaType {
-// 	return dataStore.marshalableMediaType{
-// 		MimeType:         m.mimeType,
-// 		FriendlyName:     m.friendlyName,
-// 		Extensions:    m.fileExtension,
-// 		IsDisplayable:    m.isDisplayable,
-// 		IsRaw:            m.isRaw,
-// 		IsVideo:          m.isVideo,
-// 		SupportsImgRecog: m.supportsImgRecog,
-// 		MultiPage:        m.multiPage,
-// 		RawThumbExifKey:  m.rawThumbExifKey,
-// 	}
-// }
-//
-// func (m mediaType) MarshalJSON() ([]byte, error) {
-// 	return json.Marshal(m.toMarshalable())
-// }
-//
-// func marshalableToMediaType(m dataStore.marshalableMediaType) mediaType {
-// 	return mediaType{
-// 		mimeType:         m.MimeType,
-// 		friendlyName:     m.FriendlyName,
-// 		fileExtension:    m.Extensions,
-// 		isDisplayable:    m.IsDisplayable,
-// 		isRaw:            m.IsRaw,
-// 		isVideo:          m.IsVideo,
-// 		supportsImgRecog: m.SupportsImgRecog,
-// 		multiPage:        m.MultiPage,
-// 		rawThumbExifKey:  m.RawThumbExifKey,
-// 	}
-// }
-
 type MediaTypeService interface {
+	GetMaps() (map[string]MediaType, map[string]MediaType)
 	ParseExtension(ext string) MediaType
 	ParseMime(mime string) MediaType
 	Generic() MediaType

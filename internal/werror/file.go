@@ -6,18 +6,6 @@ import (
 	"net/http"
 )
 
-var ErrNoFile = &clientSafeErr{
-	realError:  errors.New("file does not exist"),
-	safeErr:    errors.New("file does not exist or user does not have access to it"),
-	statusCode: http.StatusNotFound,
-}
-
-var ErrNoFileId = func(id string) error {
-	err := *ErrNoFile
-	err.realError = Errorf("cannot find file with id [%s]", id)
-	return &err
-}
-
 type ErrNoFileName struct {
 	Name string
 	Err  error
@@ -38,26 +26,38 @@ var NewErrNoFileName = func(name string) error {
 	}
 }
 
+var fileNotFound = errors.New("file not found or user does not have access to it")
+
+var ErrNoFile = clientSafeErr{
+	realError:  errors.New("file does not exist"),
+	safeErr:    fileNotFound,
+	statusCode: http.StatusNotFound,
+}
+
+var ErrNoFileAccess = clientSafeErr{
+	realError:  errors.New("user does not have access to file"),
+	safeErr:    fileNotFound,
+	statusCode: http.StatusNotFound,
+}
+
 var ErrDirectoryRequired = errors.New(
 	"attempted to perform an action that requires a directory, " +
 		"but found regular file",
 )
 
-var ErrDirAlreadyExists = &clientSafeErr{
+var ErrDirAlreadyExists = clientSafeErr{
 	safeErr:    errors.New("directory already exists in destination location"),
 	statusCode: http.StatusConflict,
 }
 
-var ErrFileAlreadyExists = &clientSafeErr{
+var ErrFileAlreadyExists = clientSafeErr{
 	safeErr:    errors.New("file already exists in destination location"),
 	statusCode: http.StatusConflict,
 }
 
 var ErrNilFile = errors.New("file is required but is nil")
 var ErrFilenameRequired = errors.New("filename is required but is empty")
-
 var ErrEmptyMove = errors.New("refusing to perform move with same filename and same parent")
-
 var ErrNoChildren = errors.New("file does not have any children")
 var ErrDirNotAllowed = errors.New("attempted to perform action using a directory, where the action does not support directories")
 var ErrBadReadCount = errors.New("did not read expected number of bytes from file")
@@ -65,5 +65,11 @@ var ErrAlreadyWatching = errors.New("trying to watch directory that is already b
 var ErrFileAlreadyHasTask = errors.New("file already has a task")
 var ErrFileNoTask = errors.New("file does not have task")
 var ErrNoContentId = errors.New("file does not have a content id")
-var ErrNoFileTree = errors.New("trying to get a filetree that does not exist")
+
+var ErrNoFileTree = clientSafeErr{
+	realError:  errors.New("filetree does not exist"),
+	safeErr:    errors.New("trying to get a filetree that does not exist"),
+	statusCode: http.StatusNotFound,
+}
+
 var ErrJournalServerMismatch = errors.New("journal serverId does not match the lifetime serverId")

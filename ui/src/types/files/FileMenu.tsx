@@ -1,15 +1,13 @@
 import {
     IconArrowLeft,
     IconDownload,
-    IconFileAnalytics,
     IconFileExport,
-    IconFolderMinus,
     IconFolderPlus,
-    IconLibraryPlus,
     IconLink,
     IconMinus,
     IconPencil,
-    IconPhotoShare,
+    IconPhotoMinus,
+    IconPhotoUp,
     IconPlus,
     IconRestore,
     IconScan,
@@ -18,20 +16,11 @@ import {
     IconUsers,
     IconUsersPlus,
 } from '@tabler/icons-react'
-import { useQuery, UseQueryResult } from '@tanstack/react-query'
-import { AutocompleteUsers } from '@weblens/api/ApiFetch'
-
-import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
-
-import {
-    CreateFolder,
-    DeleteFiles,
-    RenameFile,
-    searchFolder,
-    SetFolderImage,
-    TrashFiles,
-    UnTrashFiles,
-} from '@weblens/api/FileBrowserApi'
+import { FileApi, FolderApi } from '@weblens/api/FileBrowserApi'
+import SharesApi from '@weblens/api/SharesApi'
+import UsersApi from '@weblens/api/UserApi'
+import { useWebsocketStore } from '@weblens/api/Websocket'
+import { UserInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
 import {
@@ -39,84 +28,41 @@ import {
     useFileBrowserStore,
 } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
-import { MiniAlbumCover } from '@weblens/types/albums/AlbumDisplay'
-import {
-    addMediaToAlbum,
-    createAlbum,
-    getAlbums,
-} from '@weblens/types/albums/AlbumQuery'
-import { TaskProgContext } from '@weblens/types/files/FBTypes'
+import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
+import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
 import {
     FbMenuModeT,
     SelectedState,
     WeblensFile,
 } from '@weblens/types/files/File'
-import { getFoldersMedia, restoreFiles } from '@weblens/types/files/FilesQuery'
-import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
-import { getMedias } from '@weblens/types/media/MediaQuery'
+import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { WeblensShare } from '@weblens/types/share/share'
-import { shareFile } from '@weblens/types/share/shareQuery'
+import { clamp } from '@weblens/util'
+import { useSessionStore } from 'components/UserInfo'
 import {
     useClick,
     useKeyDown,
     useResize,
     useWindowSize,
 } from 'components/hooks'
-import { useSessionStore } from 'components/UserInfo'
-import { WebsocketContext } from 'Context'
 import React, {
     ReactElement,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlbumData, UserInfoT } from 'types/Types'
-import { clamp } from '@weblens/util'
-import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import IconImageFolder from '@weblens/components/IconImageFolder'
-import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
+import { ErrorHandler } from 'types/Types'
+
 import { MediaImage } from '../media/PhotoContainer'
+import { activeItemsFromState } from './FileDragLogic'
 
 type footerNote = {
     hint: string
     danger: boolean
-}
-
-const activeItemsFromState = (
-    filesMap: Map<string, WeblensFile>,
-    selected: Map<string, boolean>,
-    menuTargetId: string
-): {
-    items: WeblensFile[]
-    anyDisplayable: boolean
-    mediaCount: number
-} => {
-    if (filesMap.size === 0) {
-        return { items: [], anyDisplayable: false, mediaCount: 0 }
-    }
-    const isSelected = Boolean(selected.get(menuTargetId))
-    const itemIds = isSelected ? Array.from(selected.keys()) : [menuTargetId]
-    let mediaCount = 0
-    const items = itemIds.map((i) => {
-        const item = filesMap.get(i)
-        if (!item) {
-            return null
-        }
-        if (item.GetContentId() || item.IsFolder()) {
-            mediaCount++
-        }
-        return item
-    })
-
-    return {
-        items: items.filter((i) => Boolean(i)),
-        anyDisplayable: undefined,
-        mediaCount,
-    }
 }
 
 const MenuTitle = () => {
@@ -200,14 +146,13 @@ const MenuFooter = ({
 export function FileContextMenu() {
     const user = useSessionStore((state) => state.user)
     const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
-    const [searchRef, setSearchRef] = useState<HTMLDivElement>(null)
     const [footerNote, setFooterNote] = useState<footerNote>({} as footerNote)
 
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const menuPos = useFileBrowserStore((state) => state.menuPos)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const viewingPast = useFileBrowserStore((state) => state.pastTime)
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
     const activeItems = useFileBrowserStore((state) =>
         activeItemsFromState(state.filesMap, state.selected, state.menuTargetId)
     )
@@ -226,7 +171,7 @@ export function FileContextMenu() {
         menuMode === FbMenuModeT.Closed
     )
 
-    useClick((e) => {
+    useClick((e: MouseEvent) => {
         if (menuMode !== FbMenuModeT.Closed && e.button === 0) {
             e.stopPropagation()
             setMenu({ menuState: FbMenuModeT.Closed })
@@ -275,7 +220,7 @@ export function FileContextMenu() {
             />
         )
     } else if (menuMode === FbMenuModeT.Default) {
-        if (viewingPast) {
+        if (pastTime.getTime() !== 0) {
             menuBody = (
                 <PastFileMenu
                     setFooterNote={setFooterNote}
@@ -295,9 +240,9 @@ export function FileContextMenu() {
     } else if (menuMode === FbMenuModeT.NameFolder) {
         menuBody = <NewFolderName items={activeItems.items} />
     } else if (menuMode === FbMenuModeT.Sharing) {
-        menuBody = <FileShareMenu activeItems={activeItems.items} />
+        menuBody = <FileShareMenu targetFile={targetFile} />
     } else if (menuMode === FbMenuModeT.AddToAlbum) {
-        menuBody = <AddToAlbum activeItems={activeItems.items} />
+        // menuBody = <AddToAlbum activeItems={activeItems.items} />
     } else if (menuMode === FbMenuModeT.RenameFile) {
         menuBody = <FileRenameInput />
     } else if (menuMode === FbMenuModeT.SearchForFile) {
@@ -319,9 +264,13 @@ export function FileContextMenu() {
                     <SearchDialogue
                         text={text}
                         visitFunc={(folderId: string) => {
-                            SetFolderImage(folderId, targetMedia.Id()).then(
-                                () => setMenu({ menuState: FbMenuModeT.Closed })
-                            )
+                            FolderApi.setFolderCover(folderId, targetMedia.Id())
+                                .then(() =>
+                                    setMenu({ menuState: FbMenuModeT.Closed })
+                                )
+                                .catch((err) => {
+                                    console.error(err)
+                                })
                         }}
                     />
                 </div>
@@ -361,12 +310,12 @@ function StandardFileMenu({
     activeItems: { items: WeblensFile[] }
 }) {
     const user = useSessionStore((state) => state.user)
-    const { progDispatch } = useContext(TaskProgContext)
-    const wsSend = useContext(WebsocketContext)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const shareId = useFileBrowserStore((state) => state.shareId)
+    const mode = useFileBrowserStore((state) => state.fbMode)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
@@ -375,16 +324,16 @@ function StandardFileMenu({
     const targetFile = filesMap.get(menuTarget)
 
     if (user.trashId === folderInfo.Id()) {
-        return <></>
+        return null
     }
 
     if (menuMode === FbMenuModeT.Closed) {
-        return <></>
+        return null
     }
 
     return (
         <div
-            className={'default-grid no-scrollbar'}
+            className={'default-grid'}
             data-visible={menuMode === FbMenuModeT.Default && menuTarget !== ''}
         >
             <div className="default-menu-icon">
@@ -427,29 +376,78 @@ function StandardFileMenu({
             </div>
             <div className="default-menu-icon">
                 <WeblensButton
-                    Left={IconPhotoShare}
+                    Left={IconDownload}
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
-                        setFooterNote({ hint: 'Add to Album', danger: false })
+                        setFooterNote({ hint: 'Download', danger: false })
                     }
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
                     }
-                    onClick={(e) => {
+                    onClick={async (e) => {
                         e.stopPropagation()
-                        setFooterNote({ hint: '', danger: false })
-                        setMenu({ menuState: FbMenuModeT.AddToAlbum })
+                        return await downloadSelected(
+                            activeItems.items,
+                            removeLoading,
+                            wsSend,
+                            shareId
+                        )
+                            .then(() => true)
+                            .catch(() => false)
                     }}
                 />
             </div>
+            {/* <div className="default-menu-icon"> */}
+            {/*     <WeblensButton */}
+            {/*         Left={IconPhotoShare} */}
+            {/*         squareSize={100} */}
+            {/*         centerContent */}
+            {/*         onMouseOver={() => */}
+            {/*             setFooterNote({ */}
+            {/*                 hint: 'Add Medias to Album', */}
+            {/*                 danger: false, */}
+            {/*             }) */}
+            {/*         } */}
+            {/*         onMouseLeave={() => */}
+            {/*             setFooterNote({ hint: '', danger: false }) */}
+            {/*         } */}
+            {/*         onClick={(e) => { */}
+            {/*             e.stopPropagation() */}
+            {/*             setFooterNote({ hint: '', danger: false }) */}
+            {/*             setMenu({ menuState: FbMenuModeT.AddToAlbum }) */}
+            {/*         }} */}
+            {/*     /> */}
+            {/* </div> */}
+            {folderInfo.IsModifiable() && (
+                <div className="default-menu-icon">
+                    <WeblensButton
+                        Left={IconFolderPlus}
+                        squareSize={100}
+                        centerContent
+                        onMouseOver={() =>
+                            setFooterNote({
+                                hint: 'New Folder From Selection',
+                                danger: false,
+                            })
+                        }
+                        onMouseLeave={() =>
+                            setFooterNote({ hint: '', danger: false })
+                        }
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setMenu({ menuState: FbMenuModeT.NameFolder })
+                        }}
+                    />
+                </div>
+            )}
             {targetFile &&
                 (!targetFile.IsFolder() || targetFile.GetContentId()) && (
                     <div className="default-menu-icon">
                         {targetFile.IsFolder() &&
                             targetFile.GetContentId() !== '' && (
                                 <WeblensButton
-                                    Left={IconFolderMinus}
+                                    Left={IconPhotoMinus}
                                     squareSize={100}
                                     centerContent
                                     onMouseOver={() =>
@@ -466,7 +464,7 @@ function StandardFileMenu({
                                     }
                                     onClick={async (e) => {
                                         e.stopPropagation()
-                                        SetFolderImage(
+                                        return FolderApi.setFolderCover(
                                             targetFile.Id(),
                                             ''
                                         ).then(() => {
@@ -480,7 +478,7 @@ function StandardFileMenu({
                             )}
                         {!targetFile.IsFolder() && (
                             <WeblensButton
-                                Left={IconImageFolder}
+                                Left={IconPhotoUp}
                                 squareSize={100}
                                 centerContent
                                 onMouseOver={() =>
@@ -492,7 +490,7 @@ function StandardFileMenu({
                                 onMouseLeave={() =>
                                     setFooterNote({ hint: '', danger: false })
                                 }
-                                onClick={async (e) => {
+                                onClick={(e) => {
                                     e.stopPropagation()
                                     setMenu({
                                         menuState: FbMenuModeT.SearchForFile,
@@ -502,52 +500,6 @@ function StandardFileMenu({
                         )}
                     </div>
                 )}
-            <div className="default-menu-icon">
-                <WeblensButton
-                    Left={IconFolderPlus}
-                    squareSize={100}
-                    centerContent
-                    disabled={!folderInfo.IsModifiable()}
-                    onMouseOver={() =>
-                        setFooterNote({
-                            hint: 'New Folder With Selected',
-                            danger: false,
-                        })
-                    }
-                    onMouseLeave={() =>
-                        setFooterNote({ hint: '', danger: false })
-                    }
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setMenu({ menuState: FbMenuModeT.NameFolder })
-                    }}
-                />
-            </div>
-            <div className="default-menu-icon">
-                <WeblensButton
-                    Left={IconDownload}
-                    squareSize={100}
-                    centerContent
-                    onMouseOver={() =>
-                        setFooterNote({ hint: 'Download', danger: false })
-                    }
-                    onMouseLeave={() =>
-                        setFooterNote({ hint: '', danger: false })
-                    }
-                    onClick={async (e) => {
-                        e.stopPropagation()
-                        return await downloadSelected(
-                            activeItems.items,
-                            removeLoading,
-                            progDispatch,
-                            wsSend,
-                            shareId
-                        )
-                            .then(() => true)
-                            .catch(() => false)
-                    }}
-                />
-            </div>
             <div className="default-menu-icon">
                 <WeblensButton
                     Left={IconScan}
@@ -562,8 +514,9 @@ function StandardFileMenu({
                     onClick={(e) => {
                         e.stopPropagation()
                         activeItems.items.forEach((i) =>
-                            wsSend('scan_directory', { folderId: i.Id() })
+                            wsSend('scanDirectory', { folderId: i.Id() })
                         )
+                        setMenu({ menuState: FbMenuModeT.Closed })
                     }}
                 />
             </div>
@@ -573,7 +526,9 @@ function StandardFileMenu({
                     danger
                     squareSize={100}
                     centerContent
-                    disabled={!folderInfo.IsModifiable()}
+                    disabled={
+                        !folderInfo.IsModifiable() || mode === FbModeT.share
+                    }
                     onMouseOver={() =>
                         setFooterNote({ hint: 'Delete', danger: true })
                     }
@@ -585,11 +540,10 @@ function StandardFileMenu({
                         activeItems.items.forEach((f) =>
                             f.SetSelected(SelectedState.Moved)
                         )
-                        return TrashFiles(
-                            activeItems.items.map((f) => f.Id()),
-                            shareId
-                        ).then(() => {
-                            setMenu({ menuState: FbMenuModeT.Closed })
+                        setMenu({ menuState: FbMenuModeT.Closed })
+                        return FileApi.moveFiles({
+                            fileIds: activeItems.items.map((f) => f.Id()),
+                            newParentId: user.trashId,
                         })
                     }}
                 />
@@ -607,9 +561,10 @@ function PastFileMenu({
 }) {
     const nav = useNavigate()
     const menuMode = useFileBrowserStore((state) => state.menuMode)
-    const setMenu = useFileBrowserStore((state) => state.setMenu)
     const folderId = useFileBrowserStore((state) => state.folderInfo.Id())
     const restoreTime = useFileBrowserStore((state) => state.pastTime)
+    const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const setPastTime = useFileBrowserStore((state) => state.setPastTime)
 
     return (
         <div
@@ -629,15 +584,15 @@ function PastFileMenu({
                     }
                     onClick={async (e) => {
                         e.stopPropagation()
-                        restoreFiles(
-                            activeItems.map((f) => f.Id()),
-                            folderId,
-                            restoreTime
-                        ).then((res) => {
+                        return FileApi.restoreFiles({
+                            fileIds: activeItems.map((f) => f.Id()),
+                            newParentId: folderId,
+                            timestamp: restoreTime.getTime(),
+                        }).then((res) => {
                             setFooterNote({ hint: '', danger: false })
                             setMenu({ menuState: FbMenuModeT.Closed })
-                            console.log('going to', res.newParentId)
-                            nav(`/files/${res.newParentId}`)
+                            setPastTime(new Date(0))
+                            nav(`/files/${res.data.newParentId}`)
                         })
                     }}
                 />
@@ -646,31 +601,22 @@ function PastFileMenu({
     )
 }
 
-function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
-    const [isPublic, setIsPublic] = useState(false)
-
-    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
-    const item: WeblensFile = useMemo(() => {
-        if (activeItems.length > 1) {
-            return null
-        } else if (activeItems.length === 1) {
-            return activeItems[0]
-        } else {
-            return folderInfo
-        }
-    }, [activeItems, folderInfo])
-
     const [accessors, setAccessors] = useState<string[]>([])
+    const [isPublic, setIsPublic] = useState(false)
+    const [share, setShare] = useState<WeblensShare>(null)
+
     useEffect(() => {
-        if (!item) {
+        if (!targetFile) {
             return
         }
         const setShareData = async () => {
-            const share = await item.GetShare()
+            const share = await targetFile.GetShare()
             if (share) {
+                setShare(share)
                 if (share.IsPublic() !== undefined) {
                     setIsPublic(share.IsPublic())
                 }
@@ -679,16 +625,25 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                 setIsPublic(false)
             }
         }
-        setShareData()
-    }, [item])
+        setShareData().catch((err) => {
+            console.error('Failed to set share data', err)
+        })
+    }, [targetFile])
 
     const [userSearch, setUserSearch] = useState('')
-    const [userSearchResults, setUserSearchResults] = useState<UserInfoT[]>([])
+    const [userSearchResults, setUserSearchResults] = useState<UserInfo[]>([])
     useEffect(() => {
-        AutocompleteUsers(userSearch).then((us) => {
-            us = us.filter((u) => !accessors.includes(u.username))
-            setUserSearchResults(us)
-        })
+        if (userSearch.length < 2) {
+            setUserSearchResults([])
+            return
+        }
+        UsersApi.searchUsers(userSearch)
+            .then((res) => {
+                setUserSearchResults(res.data)
+            })
+            .catch((err) => {
+                console.error('Failed to search users', err)
+            })
     }, [userSearch])
 
     useEffect(() => {
@@ -701,26 +656,29 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
     const updateShare = useCallback(
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
-            const share = await item.GetShare()
-            if (share) {
+            const share = await targetFile.GetShare()
+            if (share.Id()) {
                 return await share
                     .UpdateShare(isPublic, accessors)
                     .then(() => true)
                     .catch(() => false)
             } else {
-                return await shareFile(
-                    item,
-                    isPublic,
-                    accessors.map((u) => u)
-                )
-                    .then((si) => {
-                        item.SetShare(new WeblensShare(si))
+                SharesApi.createFileShare({
+                    fileId: targetFile.Id(),
+                    public: isPublic,
+                    users: accessors,
+                })
+                    .then((res) => {
+                        targetFile.SetShare(new WeblensShare(res.data))
                         return true
                     })
-                    .catch(() => false)
+                    .catch((err: Error) => {
+                        ErrorHandler(err)
+                        return false
+                    })
             }
         },
-        [item, isPublic, accessors]
+        [targetFile, isPublic, accessors]
     )
 
     if (menuMode === FbMenuModeT.Closed) {
@@ -760,7 +718,7 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                             e.stopPropagation()
                             return await updateShare(e)
                                 .then(async () => {
-                                    const share = await item.GetShare()
+                                    const share = await targetFile.GetShare()
                                     if (!share) {
                                         console.error('No Shares!')
                                         return false
@@ -872,6 +830,11 @@ function FileShareMenu({ activeItems }: { activeItems: WeblensFile[] }) {
                         centerContent
                         fillWidth
                         label="Save"
+                        disabled={
+                            share &&
+                            share.IsPublic() === isPublic &&
+                            accessors === share.GetAccessors()
+                        }
                         onClick={updateShare}
                     />
                 </div>
@@ -907,25 +870,24 @@ function NewFolderName({ items }: { items: WeblensFile[] }) {
                 placeholder="New Folder Name"
                 autoFocus
                 fillWidth
-                squareSize={50}
+                squareSize={60}
                 buttonIcon={IconPlus}
                 failed={badName}
                 valueCallback={setNewName}
                 onComplete={async (newName) => {
                     const itemIds = items.map((f) => f.Id())
                     setMoved(itemIds)
-                    return await CreateFolder(
-                        folderInfo.Id(),
-                        newName,
-                        itemIds,
-                        false,
+                    await FolderApi.createFolder(
+                        {
+                            parentFolderId: folderInfo.Id(),
+                            newFolderName: newName,
+                            children: itemIds,
+                        },
                         shareId
                     )
-                        .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
-                        .catch((r) => console.error(r))
+                    setMenu({ menuState: FbMenuModeT.Closed })
                 }}
             />
-            <div className="w-[220px]"></div>
         </div>
     )
 }
@@ -947,9 +909,12 @@ function FileRenameInput() {
                 squareSize={50}
                 buttonIcon={IconPlus}
                 onComplete={async (newName) => {
-                    await RenameFile(menuTarget.Id(), newName)
-                        .then(() => setMenu({ menuState: FbMenuModeT.Closed }))
-                        .catch((r) => console.error(r))
+                    return FileApi.updateFile(menuTarget.Id(), {
+                        newName: newName,
+                    }).then(() => {
+                        setMenu({ menuState: FbMenuModeT.Closed })
+                        return true
+                    })
                 }}
             />
             <div className="w-[220px]"></div>
@@ -957,159 +922,179 @@ function FileRenameInput() {
     )
 }
 
-function AlbumCover({
-    a,
-    medias,
-    albums,
-}: {
-    a: AlbumData
-    medias: string[]
-    albums: UseQueryResult<AlbumData[], Error>
-}) {
-    const hasAll = medias?.filter((v) => !a.medias?.includes(v)).length === 0
+// function AlbumCover({
+//     a,
+//     medias,
+//     refetch,
+// }: {
+//     a: AlbumInfo
+//     medias: string[]
+//     refetch: () => Promise<QueryObserverResult<MediaInfo[], Error>>
+// }) {
+//     const hasAll = medias?.filter((v) => !a.medias?.includes(v)).length === 0
+//
+//     return (
+//         <div
+//             className="h-max w-max"
+//             key={a.id}
+//             onClick={(e) => {
+//                 e.stopPropagation()
+//                 if (hasAll) {
+//                     return
+//                 }
+//                 AlbumsApi.updateAlbum(a.id, undefined, undefined, medias)
+//                     .then(() => refetch())
+//                     .catch(ErrorHandler)
+//             }}
+//         >
+//             <MiniAlbumCover
+//                 album={a}
+//                 disabled={!medias || medias.length === 0 || hasAll}
+//             />
+//         </div>
+//     )
+// }
 
-    return (
-        <div
-            className="h-max w-max"
-            key={a.id}
-            onClick={(e) => {
-                e.stopPropagation()
-                if (hasAll) {
-                    return
-                }
-                addMediaToAlbum(a.id, medias, []).then(() => albums.refetch())
-            }}
-        >
-            <MiniAlbumCover
-                album={a}
-                disabled={!medias || medias.length === 0 || hasAll}
-            />
-        </div>
-    )
-}
-
-function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
-    const [newAlbum, setNewAlbum] = useState(false)
-
-    const albums = useQuery<AlbumData[]>({
-        queryKey: ['albums'],
-        queryFn: () =>
-            getAlbums(false).then((as) =>
-                as.sort((a, b) => {
-                    return a.name.localeCompare(b.name)
-                })
-            ),
-        initialData: [],
-    })
-
-    const menuMode = useFileBrowserStore((state) => state.menuMode)
-    const setMenu = useFileBrowserStore((state) => state.setMenu)
-    const addMedias = useMediaStore((state) => state.addMedias)
-    const getMedia = useMediaStore((state) => state.getMedia)
-
-    useEffect(() => {
-        setNewAlbum(false)
-    }, [menuMode])
-
-    useEffect(() => {
-        const newMediaIds: string[] = []
-        for (const album of albums.data) {
-            if (album.cover && !getMedia(album.cover)) {
-                newMediaIds.push(album.cover)
-            }
-        }
-        if (newMediaIds) {
-            getMedias(newMediaIds).then((mediaParams) => {
-                const medias = mediaParams.map(
-                    (mediaParam) => new WeblensMedia(mediaParam)
-                )
-                addMedias(medias)
-            })
-        }
-    }, [albums?.data.length])
-
-    const getMediasInFolders = useCallback(
-        ({ queryKey }: { queryKey: [string, string[], FbMenuModeT] }) => {
-            if (queryKey[2] !== FbMenuModeT.AddToAlbum) {
-                return []
-            }
-            return getFoldersMedia(queryKey[1])
-        },
-        []
-    )
-
-    const medias = useQuery({
-        queryKey: ['selected-medias', activeItems.map((i) => i.Id()), menuMode],
-        queryFn: getMediasInFolders,
-    })
-
-    if (menuMode !== FbMenuModeT.AddToAlbum) {
-        return <></>
-    }
-
-    return (
-        <div className="add-to-album-menu">
-            {medias.data && medias.data.length !== 0 && (
-                <p className="animate-fade">
-                    Add {medias.data.length} media to Albums
-                </p>
-            )}
-            {medias.data && medias.data.length === 0 && (
-                <p className="animate-fade">No valid media selected</p>
-            )}
-            {medias.isLoading && (
-                <p className="animate-fade">Loading media...</p>
-            )}
-            <div className="no-scrollbar grid grid-cols-2 gap-3 h-max max-h-[350px] overflow-y-scroll pt-1">
-                {albums.data?.map((a) => {
-                    return (
-                        <AlbumCover
-                            key={a.name}
-                            a={a}
-                            medias={medias.data}
-                            albums={albums}
-                        />
-                    )
-                })}
-            </div>
-            {newAlbum && (
-                <WeblensInput
-                    squareSize={40}
-                    autoFocus
-                    closeInput={() => setNewAlbum(false)}
-                    onComplete={async (v: string) => {
-                        await createAlbum(v).then(() => {
-                            setNewAlbum(false)
-                            albums.refetch()
-                        })
-                    }}
-                />
-            )}
-            {!newAlbum && (
-                <WeblensButton
-                    fillWidth
-                    label={'New Album'}
-                    Left={IconLibraryPlus}
-                    centerContent
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        setNewAlbum(true)
-                    }}
-                />
-            )}
-            <WeblensButton
-                fillWidth
-                label={'Back'}
-                Left={IconArrowLeft}
-                centerContent
-                onClick={(e) => {
-                    e.stopPropagation()
-                    setMenu({ menuState: FbMenuModeT.Default })
-                }}
-            />
-        </div>
-    )
-}
+// function AddToAlbum({ activeItems }: { activeItems: WeblensFile[] }) {
+//     const [newAlbum, setNewAlbum] = useState(false)
+//
+//     const { data: albums } = useQuery<AlbumInfo[]>({
+//         queryKey: ['albums'],
+//         initialData: [],
+//         queryFn: () =>
+//             AlbumsApi.getAlbums().then((res) =>
+//                 res.data.sort((a, b) => {
+//                     return a.name.localeCompare(b.name)
+//                 })
+//             ),
+//     })
+//
+//     const menuMode = useFileBrowserStore((state) => state.menuMode)
+//     const setMenu = useFileBrowserStore((state) => state.setMenu)
+//     const addMedias = useMediaStore((state) => state.addMedias)
+//     const getMedia = useMediaStore((state) => state.getMedia)
+//
+//     useEffect(() => {
+//         setNewAlbum(false)
+//     }, [menuMode])
+//
+//     useEffect(() => {
+//         const newMediaIds: string[] = []
+//         for (const album of albums) {
+//             if (album.cover && !getMedia(album.cover)) {
+//                 newMediaIds.push(album.cover)
+//             }
+//         }
+//         if (newMediaIds) {
+//             MediaApi.getMedia(
+//                 true,
+//                 true,
+//                 undefined,
+//                 undefined,
+//                 undefined,
+//                 undefined,
+//                 JSON.stringify(newMediaIds)
+//             )
+//                 .then((res) => {
+//                     const medias = res.data.Media.map(
+//                         (mediaParam) => new WeblensMedia(mediaParam)
+//                     )
+//                     addMedias(medias)
+//                 })
+//                 .catch((err) => {
+//                     console.error(err)
+//                 })
+//         }
+//     }, [albums.length])
+//
+//     const {
+//         data: medias,
+//         isLoading,
+//         refetch,
+//     } = useQuery<MediaInfo[]>({
+//         queryKey: ['selected-medias', activeItems.map((i) => i.Id()), menuMode],
+//         initialData: [],
+//         queryFn: () => {
+//             if (menuMode !== FbMenuModeT.AddToAlbum) {
+//                 return [] as MediaInfo[]
+//             }
+//             return MediaApi.getMedia(
+//                 true,
+//                 true,
+//                 undefined,
+//                 undefined,
+//                 undefined,
+//                 JSON.stringify(activeItems.map((i) => i.Id()))
+//             ).then((res) => res.data.Media)
+//         },
+//     })
+//
+//     if (menuMode !== FbMenuModeT.AddToAlbum) {
+//         return <></>
+//     }
+//
+//     return (
+//         <div className="add-to-album-menu">
+//             {medias && medias.length !== 0 && (
+//                 <p className="animate-fade">
+//                     Add {medias.length} media to Albums
+//                 </p>
+//             )}
+//             {medias && medias.length === 0 && (
+//                 <p className="animate-fade">No valid media selected</p>
+//             )}
+//             {isLoading && <p className="animate-fade">Loading media...</p>}
+//             <div className="no-scrollbar grid grid-cols-2 gap-3 h-max max-h-[350px] overflow-y-scroll pt-1">
+//                 {albums.map((a) => {
+//                     return (
+//                         <AlbumCover
+//                             key={a.name}
+//                             a={a}
+//                             medias={medias.map((m) => m.contentId)}
+//                             refetch={refetch}
+//                         />
+//                     )
+//                 })}
+//             </div>
+//             {newAlbum && (
+//                 <WeblensInput
+//                     squareSize={40}
+//                     autoFocus
+//                     closeInput={() => setNewAlbum(false)}
+//                     onComplete={async (v: string) =>
+//                         AlbumsApi.createAlbum(v)
+//                             .then(() => refetch())
+//                             .then(() => {
+//                                 setNewAlbum(false)
+//                             })
+//                     }
+//                 />
+//             )}
+//             {!newAlbum && (
+//                 <WeblensButton
+//                     fillWidth
+//                     label={'New Album'}
+//                     Left={IconLibraryPlus}
+//                     centerContent
+//                     onClick={(e) => {
+//                         e.stopPropagation()
+//                         setNewAlbum(true)
+//                     }}
+//                 />
+//             )}
+//             <WeblensButton
+//                 fillWidth
+//                 label={'Back'}
+//                 Left={IconArrowLeft}
+//                 centerContent
+//                 onClick={(e) => {
+//                     e.stopPropagation()
+//                     setMenu({ menuState: FbMenuModeT.Default })
+//                 }}
+//             />
+//         </div>
+//     )
+// }
 
 function InTrashMenu({
     activeItems,
@@ -1122,7 +1107,7 @@ function InTrashMenu({
 
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
-    const filesList = useFileBrowserStore((state) => state.filesList)
+    const filesList = useFileBrowserStore((state) => state.filesLists)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
     const setSelectedMoved = useFileBrowserStore(
@@ -1146,15 +1131,12 @@ function InTrashMenu({
                 onMouseLeave={() => setFooterNote({ hint: '', danger: false })}
                 onClick={async (e) => {
                     e.stopPropagation()
-                    const res = await UnTrashFiles(
-                        activeItems.map((f) => f.Id())
-                    )
-
-                    if (!res.ok) {
-                        return false
-                    }
-
+                    const ids = activeItems.map((f) => f.Id())
+                    setSelectedMoved(ids)
                     setMenu({ menuState: FbMenuModeT.Closed })
+                    return FileApi.unTrashFiles({
+                        fileIds: ids,
+                    })
                 }}
             />
             <WeblensButton
@@ -1162,7 +1144,7 @@ function InTrashMenu({
                 Left={IconTrash}
                 centerContent
                 danger
-                disabled={menuTarget === '' && filesList.length === 0}
+                disabled={menuTarget === '' && filesList.size === 0}
                 onMouseOver={() =>
                     setFooterNote({
                         hint:
@@ -1177,17 +1159,17 @@ function InTrashMenu({
                     e.stopPropagation()
                     let toDeleteIds: string[]
                     if (menuTarget === '') {
-                        toDeleteIds = filesList.map((f) => f.Id())
+                        toDeleteIds = filesList
+                            .get(user.trashId)
+                            .map((f) => f.Id())
                     } else {
                         toDeleteIds = activeItems.map((f) => f.Id())
                     }
                     setSelectedMoved(toDeleteIds)
-                    const res = await DeleteFiles(toDeleteIds)
-
-                    if (!res.ok) {
-                        return false
-                    }
                     setMenu({ menuState: FbMenuModeT.Closed })
+                    return FileApi.deleteFiles({
+                        fileIds: toDeleteIds,
+                    })
                 }}
             />
         </div>
@@ -1199,13 +1181,12 @@ function BackdropDefaultItems({
 }: {
     setFooterNote: (n: footerNote) => void
 }) {
-    const nav = useNavigate()
     const user = useSessionStore((state) => state.user)
 
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const menuTarget = useFileBrowserStore((state) => state.menuTargetId)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
-    const mode = useFileBrowserStore((state) => state.fbMode)
+    const wsSend = useWebsocketStore((state) => state.wsSend)
 
     const setMenu = useFileBrowserStore((state) => state.setMenu)
 
@@ -1215,7 +1196,7 @@ function BackdropDefaultItems({
 
     return (
         <div
-            className="default-grid no-scrollbar"
+            className="default-grid"
             data-visible={menuMode === FbMenuModeT.Default && menuTarget === ''}
         >
             <div className="default-menu-icon">
@@ -1239,24 +1220,19 @@ function BackdropDefaultItems({
             </div>
             <div className="default-menu-icon">
                 <WeblensButton
-                    Left={IconFileAnalytics}
+                    Left={IconScan}
                     squareSize={100}
                     centerContent
                     onMouseOver={() =>
-                        setFooterNote({ hint: 'Folder Stats', danger: false })
+                        setFooterNote({ hint: 'Scan Folder', danger: false })
                     }
                     onMouseLeave={() =>
                         setFooterNote({ hint: '', danger: false })
                     }
-                    onClick={() =>
-                        nav(
-                            `/files/stats/${
-                                mode === FbModeT.external
-                                    ? mode
-                                    : folderInfo.Id()
-                            }`
-                        )
-                    }
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        wsSend('scanDirectory', { folderId: folderInfo.Id() })
+                    }}
                 />
             </div>
 

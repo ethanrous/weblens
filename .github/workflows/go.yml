@@ -3,13 +3,8 @@ name: Weblens Fulltest
 on:
   workflow_dispatch:
     inputs:
-      debug:
-        description: 'Debug'
-        required: true
-        default: false
-        type: boolean
-      skip_remote_tests:
-        description: "Don't run tests with remote servers"
+      trace:
+        description: 'Trace'
         required: true
         default: false
         type: boolean
@@ -29,23 +24,41 @@ jobs:
         with:
           go-version: '1.23'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - run: cd ui && npm ci
+
       - name: Install Deps
         run: |
-          echo "remote tests: $REMOTE_TESTS"
-          if [[ "$REMOTE_TESTS" == "true" ]]; then
-            wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
-            echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-            sudo apt-get update
-            sudo apt-get install -y mongodb-mongosh
-          fi
-          sudo apt update
+          wget -qO- https://www.mongodb.org/static/pgp/server-7.0.asc | sudo tee /etc/apt/trusted.gpg.d/server-7.0.asc
+          echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+          sudo apt-get update
           sudo apt-get install -y \
+          mongodb-mongosh \
           libvips-dev \
           exiftool \
           nodejs \
-          npm
-        env:
-          REMOTE_TESTS: ${{ inputs.skip_remote_tests == false }}
+          npm \
+          autoconf pkg-config build-essential curl libpng-dev libjpeg-dev libwebp-dev libraw-dev libheif-dev libvips ffmpeg darktable ghostscript
+
+          export IMAGEMAGICK_VERSION=7.1.1-41
+
+          wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz && \
+              tar xzf ${IMAGEMAGICK_VERSION}.tar.gz && \
+              rm ${IMAGEMAGICK_VERSION}.tar.gz
+
+          sh ./ImageMagick-${IMAGEMAGICK_VERSION}/configure \
+                  --without-magick-plus-plus \
+                  --without-perl \
+                  --disable-openmp \
+                  --with-gvc=no \
+                  --disable-docs && \
+              make -j$(nproc) && sudo make install && sudo ldconfig /usr/local/lib/
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.11.0
@@ -54,12 +67,14 @@ jobs:
 
       - name: Run Tests
         run: |
-          echo "Including remote tests: $REMOTE_TESTS"
-          ./scripts/testWeblens
+
+          if [[ $DO_TRACE == true ]]; then
+            export LOG_LEVEL=trace
+          fi
+          ./scripts/testWeblens --all --show-logs
           exit $?
         env:
-          DEV_MODE: ${{ inputs.debug }}
-          REMOTE_TESTS: ${{ inputs.skip_remote_tests == false }}
+          DO_TRACE: ${{ inputs.trace }}
 
   test-macos:
     runs-on: macos-latest
@@ -70,10 +85,24 @@ jobs:
         id: set-up-homebrew
         uses: homebrew/actions/setup-homebrew@master
 
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - run: cd ui && npm ci
+
       - name: Install Deps
         run: |
           brew update
-          brew install go@1.23 vips exiftool node npm
+          brew install vips exiftool node npm
       
           brew tap mongodb/brew
           brew install mongodb-community
@@ -81,9 +110,10 @@ jobs:
 
       - name: Run Tests
         run: |
-          echo "Including remote tests: $REMOTE_TESTS"
-          ./scripts/testWeblens
+          if [[ $DO_TRACE == true ]]; then
+            export LOG_LEVEL=trace
+          fi
+          ./scripts/testWeblens --all --show-logs
           exit $?
         env:
-          DEV_MODE: ${{ inputs.debug }}
-          REMOTE_TESTS: ${{ inputs.skip_remote_tests == false }}
+          DO_TRACE: ${{ inputs.trace }}

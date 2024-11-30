@@ -30,6 +30,7 @@ const (
 
 type TaskSubscriber interface {
 	FolderSubToTask(folderId fileTree.FileId, taskId task.Id)
+	UnsubTask(taskId task.Id)
 	// TaskSubToPool(taskId task.Id, poolId task.Id)
 }
 
@@ -78,6 +79,16 @@ func (m ScanMeta) JobName() string {
 }
 
 func (m ScanMeta) Verify() error {
+	if m.File == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "File")
+	}
+	if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
+	}
+	if m.MediaService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "MediaService")
+	}
+
 	return nil
 }
 
@@ -276,18 +287,14 @@ type FileUploadProgress struct {
 }
 
 type BackupMeta struct {
-	Core                *Instance
-	FileService         FileService
-	ProxyFileService    FileService
-	ProxyJournalService fileTree.Journal
-	UserService         UserService
-	ProxyUserService    UserService
-	ProxyMediaService   MediaService
-	WebsocketService    ClientManager
-	InstanceService     InstanceService
-	TaskService         task.TaskService
-	AccessService       AccessService
-	Caster              Broadcaster
+	Core             *Instance
+	FileService      FileService
+	UserService      UserService
+	WebsocketService ClientManager
+	InstanceService  InstanceService
+	TaskService      task.TaskService
+	AccessService    AccessService
+	Caster           Broadcaster
 }
 
 func (m BackupMeta) MetaString() string {
@@ -314,16 +321,8 @@ func (m BackupMeta) Verify() error {
 		return werror.ErrBadJobMetadata(m.JobName(), "RemoteId")
 	} else if m.FileService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
-	} else if m.ProxyFileService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyFileService")
-	} else if m.ProxyJournalService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyJournalService")
 	} else if m.UserService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "UserService")
-	} else if m.ProxyUserService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyUserService")
-	} else if m.ProxyMediaService == nil {
-		return werror.ErrBadJobMetadata(m.JobName(), "ProxyMediaService")
 	} else if m.WebsocketService == nil {
 		return werror.ErrBadJobMetadata(m.JobName(), "WebsocketService")
 	} else if m.InstanceService == nil {
@@ -462,17 +461,24 @@ type TaskStage struct {
 }
 
 type TaskStages struct {
-	data map[string]TaskStage
-	mu   sync.Mutex
+	data       map[string]TaskStage
+	inProgress string
+	mu         sync.Mutex
 }
 
 func (ts *TaskStages) StartStage(key string) {
+	if ts.inProgress != "" {
+		ts.FinishStage(ts.inProgress)
+	}
+
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
 	stage := ts.data[key]
 	stage.Started = time.Now().UnixMilli()
 	ts.data[key] = stage
+
+	ts.inProgress = key
 }
 
 func (ts *TaskStages) FinishStage(key string) {
@@ -501,15 +507,13 @@ func (ts *TaskStages) MarshalJSON() ([]byte, error) {
 func NewBackupTaskStages() *TaskStages {
 	return &TaskStages{
 		data: map[string]TaskStage{
-			"connecting":         {Key: "connecting", Name: "Connecting to Remote", index: 0},
-			"fetching_users":     {Key: "fetching_users", Name: "Fetching Users", index: 1},
-			"writing_users":      {Key: "writing_users", Name: "Writing Users", index: 2},
-			"fetching_keys":      {Key: "fetching_keys", Name: "Fetching Api Keys", index: 3},
-			"writing_keys":       {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
-			"fetching_instances": {Key: "fetching_instances", Name: "Fetching Instances", index: 5},
-			"writing_instances":  {Key: "writing_instances", Name: "Writing Instances", index: 6},
-			"sync_journal":       {Key: "sync_journal", Name: "Calculating New File History", index: 7},
-			"sync_fs":            {Key: "sync_fs", Name: "Sync Filesystem", index: 8},
+			"connecting":           {Key: "connecting", Name: "Connecting to Remote", index: 0},
+			"fetching_backup_data": {Key: "fetching_backup_data", Name: "Fetching Backup Data", index: 1},
+			"writing_users":        {Key: "writing_users", Name: "Writing Users", index: 2},
+			"writing_keys":         {Key: "writing_keys", Name: "Writing Api Keys", index: 4},
+			"writing_instances":    {Key: "writing_instances", Name: "Writing Instances", index: 6},
+			"sync_journal":         {Key: "sync_journal", Name: "Calculating New File History", index: 7},
+			"sync_fs":              {Key: "sync_fs", Name: "Sync Filesystem", index: 8},
 		},
 	}
 }

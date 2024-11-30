@@ -1,8 +1,10 @@
-import { useIsFocused, useResize } from '@weblens/components/hooks'
+import { Icon } from '@tabler/icons-react'
+import { useIsFocused } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { memo, ReactNode, useEffect, useState } from 'react'
-
 import '@weblens/lib/weblensInput.scss'
+import { memo, useEffect, useState } from 'react'
+
+import { ButtonActionPromiseReturn } from './buttonTypes'
 
 const WeblensInput = memo(
     ({
@@ -24,11 +26,11 @@ const WeblensInput = memo(
         fillWidth = true,
         failed = false,
     }: {
-        onComplete?: (v: string) => Promise<void | Response>
+        onComplete?: (val: string) => ButtonActionPromiseReturn
         value?: string
         valueCallback?: (v: string) => void
-        Icon?: (p) => ReactNode
-        buttonIcon?: (p) => ReactNode
+        Icon?: Icon
+        buttonIcon?: Icon
         squareSize?: number
         placeholder?: string
         openInput?: () => void
@@ -42,11 +44,10 @@ const WeblensInput = memo(
         fillWidth?: boolean
         failed?: boolean
     }) => {
-        const [searchRef, setSearchRef] = useState(null)
-        const [textRef, setTextRef] = useState(null)
+        const [searchRef, setSearchRef] = useState<HTMLInputElement>(null)
         const isFocused = useIsFocused(searchRef)
-        const textSize = useResize(textRef)
         const [error, setError] = useState(false)
+        const [wrapperRef, setWrapperRef] = useState<HTMLDivElement>(null)
 
         const [internalValue, setInternalValue] = useState(
             value !== undefined ? value : ''
@@ -58,14 +59,13 @@ const WeblensInput = memo(
         useEffect(() => {
             if (isFocused === true && openInput) {
                 openInput()
-            } else if (isFocused === false && closeInput) {
-                closeInput()
             }
         }, [isFocused, value])
 
         return (
             <div
                 className="weblens-input-wrapper"
+                ref={setWrapperRef}
                 style={{ maxHeight: squareSize, minWidth: squareSize }}
                 data-value={internalValue}
                 data-minimize={minimize}
@@ -86,22 +86,17 @@ const WeblensInput = memo(
                     e.stopPropagation()
                 }}
                 onBlur={(e) => {
-                    if (
-                        closeInput &&
-                        !e.currentTarget.contains(e.relatedTarget)
-                    ) {
+                    if (closeInput && !wrapperRef.contains(e.relatedTarget)) {
+                        e.stopPropagation()
                         closeInput()
                     }
                 }}
             >
                 {Icon && <Icon className="w-max h-max shrink-0" />}
-                <p ref={setTextRef} className="weblens-input-text">
-                    {internalValue}
-                </p>
                 <input
-                    className="weblens-input select-none"
+                    className="weblens-input"
                     name={'input'}
-                    style={{ width: !fillWidth ? textSize.width : '' }}
+                    style={{ width: fillWidth ? '' : 'max-content' }}
                     ref={setSearchRef}
                     autoFocus={autoFocus}
                     value={internalValue}
@@ -174,7 +169,7 @@ const WeblensInput = memo(
                             onClick={(e) => {
                                 e.stopPropagation()
                                 if (onComplete) {
-                                    onComplete(internalValue)
+                                    return onComplete(internalValue)
                                 }
                                 if (closeInput) {
                                     closeInput()

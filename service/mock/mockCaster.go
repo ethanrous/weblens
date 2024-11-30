@@ -14,6 +14,8 @@ func (m *MockCaster) PushWeblensEvent(eventTag string, content ...models.WsC) {}
 
 func (m *MockCaster) PushFileUpdate(updatedFile *fileTree.WeblensFileImpl, media *models.Media) {}
 
+func (m *MockCaster) PushFilesUpdate(updatedFiles []*fileTree.WeblensFileImpl, medias []*models.Media) {}
+
 func (m *MockCaster) PushTaskUpdate(task *task.Task, event string, result task.TaskResult) {}
 
 func (m *MockCaster) PushPoolUpdate(pool task.Pool, event string, result task.TaskResult) {}
@@ -23,7 +25,12 @@ func (m *MockCaster) PushFileCreate(newFile *fileTree.WeblensFileImpl) {}
 func (m *MockCaster) PushFileMove(preMoveFile *fileTree.WeblensFileImpl, postMoveFile *fileTree.WeblensFileImpl) {
 }
 
+func (m *MockCaster) PushFilesMove(preMoveParentId, postMoveParentId fileTree.FileId, files []*fileTree.WeblensFileImpl) {
+}
+
 func (m *MockCaster) PushFileDelete(deletedFile *fileTree.WeblensFileImpl) {}
+
+func (m *MockCaster) PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl) {}
 
 func (m *MockCaster) PushShareUpdate(username models.Username, newShareInfo models.Share) {}
 

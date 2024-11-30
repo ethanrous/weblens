@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import viteTsconfigPaths from 'vite-tsconfig-paths'
 
-export default ({ mode }) => {
+export default ({ mode }: { mode: string }) => {
     process.env = { ...process.env, ...loadEnv(mode, process.cwd()) }
 
     if (!process.env.VITE_PROXY_PORT && process.env.VITE_BUILD !== 'true') {

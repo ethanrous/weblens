@@ -34,9 +34,11 @@ func TestJournalImplSimple(t *testing.T) {
 		false,
 		hasherFactory,
 	)
+	require.NoError(t, err)
 	defer journal.Close()
+	err = col.Drop(context.Background())
+	require.NoError(t, err)
 	defer col.Drop(context.Background())
-	col.Drop(context.Background())
 
 	tree, err := NewTestFileTree()
 	require.NoError(t, err)
@@ -48,14 +50,15 @@ func TestJournalImplSimple(t *testing.T) {
 	require.NoError(t, err)
 
 	journal.LogEvent(event)
+	event.Wait()
 
 	newDirLifetime := journal.Get(newDir.ID())
-	var retries int
-	for newDirLifetime == nil && retries < 5 {
-		time.Sleep(time.Millisecond * 100)
-		newDirLifetime = journal.Get(newDir.ID())
-		retries++
-	}
+	// var retries int
+	// for newDirLifetime == nil && retries < 5 {
+	// 	time.Sleep(time.Millisecond * 20)
+	// 	newDirLifetime = journal.Get(newDir.ID())
+	// 	retries++
+	// }
 	require.NotNil(t, newDirLifetime)
 	require.Equal(t, 1, len(newDirLifetime.Actions))
 }
@@ -72,16 +75,19 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 		return hasher
 	}
 
-	col := mondb.Collection(t.Name())
+	col := mondb.Collection(t.Name() + "-journal")
 	journal, err := NewJournal(
 		col,
 		"weblens_test_server",
 		false,
 		hasherFactory,
 	)
+	require.NoError(t, err)
+
 	defer journal.Close()
+	err = col.Drop(context.Background())
+	require.NoError(t, err)
 	defer col.Drop(context.Background())
-	col.Drop(context.Background())
 
 	tree, err := NewTestFileTree()
 	require.NoError(t, err)
@@ -97,25 +103,18 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	testFile, err := tree.Touch(newDir, "test_file", event)
 	require.NoError(t, err)
 
-	log.Trace.Println("Logging event")
 	journal.LogEvent(event)
 	event.Wait()
 
-	deleteEvent := journal.NewEvent()
-	tree.Delete(testFile.ID(), deleteEvent)
-	tree.Delete(newDir.ID(), deleteEvent)
-
-	journal.LogEvent(deleteEvent)
-
-	assert.Empty(t, tree.GetRoot().GetChildren())
-
-	// Get the root directory just before the delete event
-	pastRoot, err := journal.GetPastFile(tree.GetRoot().ID(), deleteEvent.EventBegin.Add(-time.Microsecond))
+	secondDirEvent := journal.NewEvent()
+	newDir2, err := tree.MkDir(tree.GetRoot(), "newDir2", secondDirEvent)
 	require.NoError(t, err)
-	assert.Equal(t, tree.GetRoot().ID(), pastRoot.ID())
+
+	journal.LogEvent(secondDirEvent)
+	secondDirEvent.Wait()
 
 	pastRootChildren, err := journal.GetPastFolderChildren(
-		tree.GetRoot(), deleteEvent.EventBegin.Add(-time.Microsecond),
+		tree.GetRoot(), secondDirEvent.EventBegin,
 	)
 	require.NoError(t, err)
 
@@ -125,18 +124,61 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 				return f.Name()
 			},
 		)
-		log.Debug.Println("Wrong children:", childNames)
+		log.Error.Println("Wrong children:", childNames)
 		t.FailNow()
 	}
-	assert.Equal(t, newDir.ID(), pastRootChildren[0].ID())
+
+	deleteEvent := journal.NewEvent()
+	err = tree.Delete(testFile.ID(), deleteEvent)
+	require.NoError(t, err)
+	err = tree.Delete(newDir.ID(), deleteEvent)
+	require.NoError(t, err)
+	err = tree.Delete(newDir2.ID(), deleteEvent)
+	require.NoError(t, err)
+
+	journal.LogEvent(deleteEvent)
+	deleteEvent.Wait()
+
+	assert.Empty(t, tree.GetRoot().GetChildren())
+
+	// Get the root directory just before the delete event
+	pastRoot, err := journal.GetPastFile(tree.GetRoot().ID(), deleteEvent.EventBegin)
+	require.NoError(t, err)
+	assert.Equal(t, tree.GetRoot().ID(), pastRoot.ID())
+
+	pastRootChildren, err = journal.GetPastFolderChildren(
+		tree.GetRoot(), deleteEvent.EventBegin,
+	)
+	require.NoError(t, err)
+
+	if !assert.Equal(t, 2, len(pastRootChildren)) {
+		for _, lt := range journal.GetAllLifetimes() {
+			log.Error.Printf("Lifetime [%s]: [%s]", lt.Actions[0].DestinationPath, lt.Actions[0].Timestamp)
+		}
+
+		log.Error.Println("Delete Start:", deleteEvent.EventBegin)
+		log.Error.Println("Second Dir Start:", secondDirEvent.EventBegin)
+		t.FailNow()
+	}
+	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[0].ID())
+	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[1].ID())
+
+	// Get the root children at the current time
+	currentChildren, err := journal.GetPastFolderChildren(
+		tree.GetRoot(), time.Now(),
+	)
+	require.NoError(t, err)
+
+	// Make sure the journal thinks the current root has no children
+	assert.Empty(t, currentChildren)
 
 	// Get the old folder just before the delete event
-	pastDir, err := journal.GetPastFile(newDir.ID(), deleteEvent.EventBegin.Add(-time.Microsecond))
+	pastDir, err := journal.GetPastFile(newDir.ID(), deleteEvent.EventBegin)
 	require.NoError(t, err)
 
 	require.Equal(t, newDir.ID(), pastDir.ID())
 
-	pastDirChildren, err := journal.GetPastFolderChildren(newDir, deleteEvent.EventBegin.Add(-time.Microsecond))
+	pastDirChildren, err := journal.GetPastFolderChildren(newDir, deleteEvent.EventBegin)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(pastDirChildren))

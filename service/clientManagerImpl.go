@@ -20,7 +20,7 @@ var _ models.ClientManager = (*ClientManager)(nil)
 type ClientManager struct {
 	webClientMap    map[models.Username]*models.WsClient
 	remoteClientMap map[models.InstanceId]*models.WsClient
-	clientMu        *sync.RWMutex
+	clientMu        sync.RWMutex
 
 	core *models.WsClient
 
@@ -33,11 +33,13 @@ type ClientManager struct {
 	// 		*client2,
 	//     ]
 	// }
-	folderSubs   map[models.SubId][]*models.WsClient
-	taskSubs     map[models.SubId][]*models.WsClient
+	folderSubs map[models.SubId][]*models.WsClient
+	folderMu   sync.Mutex
+
+	taskSubs map[models.SubId][]*models.WsClient
+	taskMu   sync.Mutex
+
 	taskTypeSubs map[models.SubId][]*models.WsClient
-	folderMu     sync.Mutex
-	taskMu       sync.Mutex
 	taskTypeMu   sync.Mutex
 
 	pack *models.ServicePack
@@ -49,7 +51,6 @@ func NewClientManager(
 	cm := &ClientManager{
 		webClientMap:    map[models.Username]*models.WsClient{},
 		remoteClientMap: map[models.InstanceId]*models.WsClient{},
-		clientMu:        &sync.RWMutex{},
 
 		folderSubs:   map[models.SubId][]*models.WsClient{},
 		taskSubs:     map[models.SubId][]*models.WsClient{},
@@ -65,10 +66,10 @@ func (cm *ClientManager) ClientConnect(conn *websocket.Conn, user *models.User) 
 	newClient := models.NewClient(conn, user)
 
 	cm.clientMu.Lock()
-	cm.webClientMap[user.GetUsername()] = newClient
+	cm.webClientMap[newClient.GetClientId()] = newClient
 	cm.clientMu.Unlock()
 
-	log.Trace.Printf("Web client [%s] connected", user.GetUsername())
+	log.Trace.Func(func(l log.Logger) { l.Printf("Web client [%s] connected", user.GetUsername()) })
 	return newClient
 }
 
@@ -83,7 +84,8 @@ func (cm *ClientManager) RemoteConnect(conn *websocket.Conn, remote *models.Inst
 		cm.core = newClient
 	}
 
-	log.Trace.Printf("Server [%s] connected", remote.Name)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Server [%s] connected", remote.Name) })
+	cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": true})
 	return newClient
 }
 
@@ -101,9 +103,10 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 	cm.clientMu.Lock()
 	defer cm.clientMu.Unlock()
 	if c.GetUser() != nil {
-		delete(cm.webClientMap, c.GetUser().GetUsername())
-	} else if c.GetRemote() != nil {
+		delete(cm.webClientMap, c.GetClientId())
+	} else if remote := c.GetRemote(); remote != nil {
 		delete(cm.remoteClientMap, c.GetRemote().ServerId())
+		cm.pack.Caster.PushWeblensEvent(models.RemoteConnectionChangedEvent, models.WsC{"remoteId": remote.ServerId(), "online": false})
 	}
 
 	c.Disconnect()
@@ -112,7 +115,14 @@ func (cm *ClientManager) ClientDisconnect(c *models.WsClient) {
 func (cm *ClientManager) GetClientByUsername(username models.Username) *models.WsClient {
 	cm.clientMu.RLock()
 	defer cm.clientMu.RUnlock()
-	return cm.webClientMap[username]
+
+	for _, c := range cm.webClientMap {
+		if c.GetUser().GetUsername() == username {
+			return c
+		}
+	}
+
+	return nil
 }
 
 func (cm *ClientManager) GetClientByServerId(instanceId models.InstanceId) *models.WsClient {
@@ -172,7 +182,7 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 		log.Error.Printf("Unknown subscriber type: [%s]", st)
 	}
 
-	// Copy slice to not modify reference to mapped slice
+	// Copy clients to not modify reference in the map
 	return clients[:]
 }
 
@@ -183,13 +193,12 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 // Subscriptions to types that represent ongoing events like FolderSubscribe never return a truthy completed
 func (cm *ClientManager) Subscribe(
 	c *models.WsClient, key models.SubId, action models.WsAction, subTime time.Time, share models.Share,
-) (complete bool, results map[string]any, err error) {
+) (complete bool, results map[task.TaskResultKey]any, err error) {
 	var sub models.Subscription
 
-	// *HACK* Ensure that subscribe requests are processed after unsubscribe requests
-	// that are sent at the same time from the client. A lower sleep value may be able
-	// to achieve the same effect, but this works for now...
-	// time.Sleep(time.Millisecond * 100)
+	if c == nil {
+		return false, nil, werror.Errorf("Trying to subscribe nil client")
+	}
 
 	switch action {
 	case models.FolderSubscribe:
@@ -254,26 +263,6 @@ func (cm *ClientManager) Subscribe(
 
 			c.PushTaskUpdate(t, models.TaskCreatedEvent, t.GetMeta().FormatToResult())
 		}
-	// case models.PoolSubscribe:
-	// 	{
-	// 		pool := cm.pack.TaskService.GetTaskPool(key)
-	// 		if pool == nil {
-	// 			c.Error(errors.New(fmt.Sprintf("Could not find pool with id %s", key)))
-	// 			return
-	// 		} else if pool.IsGlobal() {
-	// 			c.Error(errors.New("Trying to subscribe to global pool"))
-	// 			return
-	// 		}
-	//
-	// 		sub = models.Subscription{Type: models.TaskSubscribe, Key: key, When: subTime}
-	//
-	// 		c.PushPoolUpdate(
-	// 			pool, models.PoolCreatedEvent, task.TaskResult{
-	// 				"createdBy": pool.CreatedInTask().
-	// 					TaskId(),
-	// 			},
-	// 		)
-	// 	}
 	case models.TaskTypeSubscribe:
 		{
 			sub = models.Subscription{Type: models.TaskTypeSubscribe, Key: key, When: subTime}
@@ -287,7 +276,7 @@ func (cm *ClientManager) Subscribe(
 		}
 	}
 
-	log.Trace.Printf("U[%s] subscribed to [%s]", c.GetUser().GetUsername(), key)
+	log.Trace.Func(func(l log.Logger) { l.Printf("U[%s] subscribed to [%s]", c.GetUser().GetUsername(), key) })
 
 	c.AddSubscription(sub)
 	cm.addSubscription(sub, c)
@@ -315,9 +304,84 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	if sub == (models.Subscription{}) {
 		return werror.Errorf("Could not find subscription with key [%s]", key)
 	}
-	log.Trace.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key)
+	log.Trace.Func(func(l log.Logger) { l.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key) })
 
+	c.RemoveSubscription(key)
 	return cm.removeSubscription(sub, c, false)
+}
+
+func (cm *ClientManager) FolderSubToTask(folderId fileTree.FileId, taskId task.Id) {
+	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
+
+	for _, s := range subs {
+		log.Trace.Func(func(l log.Logger) {
+			l.Printf(
+				"Subscribing U[%s] to T[%s] due to F[%s]", s.GetUser().GetUsername(),
+				taskId, folderId,
+			)
+		})
+		_, _, err := cm.Subscribe(s, taskId, models.TaskSubscribe, time.Now(), nil)
+		if err != nil {
+			log.ShowErr(err)
+		}
+	}
+}
+
+func (cm *ClientManager) UnsubTask(taskId task.Id) {
+	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
+
+	for _, s := range subs {
+		log.Debug.Func(func(l log.Logger) {
+			l.Printf(
+				"Unsubscribing U[%s] from T[%s]", s.GetUser().GetUsername(), taskId)
+		})
+		err := cm.Unsubscribe(s, taskId, time.Now())
+		if err != nil {
+			log.ShowErr(err)
+		}
+	}
+}
+
+func (cm *ClientManager) Send(msg models.WsResponseInfo) {
+	defer internal.RecoverPanic("Panic caught while broadcasting")
+
+	if msg.SubscribeKey == "" {
+		log.Error.Println("Trying to broadcast on empty key")
+		return
+	}
+
+	var clients []*models.WsClient
+
+	if msg.BroadcastType == "serverEvent" || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
+		clients = cm.GetAllClients()
+	} else {
+		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)
+		clients = internal.OnlyUnique(clients)
+
+		if msg.BroadcastType == models.TaskSubscribe {
+			clients = append(
+				clients, cm.GetSubscribers(
+					models.TaskTypeSubscribe,
+					msg.TaskType,
+				)...,
+			)
+		}
+	}
+
+	if len(clients) != 0 {
+		for _, c := range clients {
+			err := c.Send(msg)
+			if err != nil {
+				log.ErrTrace(err)
+			}
+		}
+	} else {
+		// log.TraceCaller(2, "No subscribers to [%s]", msg.SubscribeKey)
+		log.Trace.Func(func(l log.Logger) {
+			l.Printf("No subscribers to [%s]. Trying to send [%s]", msg.SubscribeKey, msg.EventTag)
+		})
+		return
+	}
 }
 
 func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *models.WsClient) {
@@ -347,34 +411,6 @@ func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *mo
 		}
 	}
 }
-
-func (cm *ClientManager) FolderSubToTask(folderId fileTree.FileId, taskId task.Id) {
-	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
-
-	for _, s := range subs {
-		log.Trace.Printf(
-			"Subscribing U[%s] to T[%s] due to F[%s]", s.GetUser().GetUsername(),
-			taskId, folderId,
-		)
-		_, _, err := cm.Subscribe(s, taskId, models.TaskSubscribe, time.Now(), nil)
-		if err != nil {
-			log.ShowErr(err)
-		}
-	}
-}
-
-//
-// func (cm *ClientManager) TaskSubToTask(taskId task.Id, poolId task.Id) {
-// 	subs := cm.GetSubscribers(models.TaskSubscribe, taskId)
-//
-// 	for _, s := range subs {
-// 		log.Trace.Printf("Subscribing U[%s] to P[%s] due to F[%s] ", s.GetUser().GetUsername(), taskId, poolId)
-// 		_, _, err := cm.Subscribe(s, poolId, models.PoolSubscribe, time.Now(), nil)
-// 		if err != nil {
-// 			log.ShowErr(err)
-// 		}
-// 	}
-// }
 
 func (cm *ClientManager) removeSubscription(
 	subInfo models.Subscription, client *models.WsClient, removeAll bool,
@@ -406,46 +442,6 @@ func (cm *ClientManager) removeSubscription(
 	}
 
 	return err
-}
-
-func (cm *ClientManager) Send(msg models.WsResponseInfo) {
-	defer internal.RecoverPanic("Panic caught while broadcasting")
-
-	if msg.SubscribeKey == "" {
-		log.Error.Println("Trying to broadcast on empty key")
-		return
-	}
-
-	var clients []*models.WsClient
-
-	if msg.BroadcastType == models.ServerEvent || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServer {
-		clients = cm.GetAllClients()
-	} else {
-		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)
-		clients = internal.OnlyUnique(clients)
-
-		if msg.BroadcastType == models.TaskSubscribe {
-			clients = append(
-				clients, cm.GetSubscribers(
-					models.TaskTypeSubscribe,
-					msg.TaskType,
-				)...,
-			)
-		}
-	}
-
-	if len(clients) != 0 {
-		for _, c := range clients {
-			err := c.Send(msg)
-			if err != nil {
-				log.ErrTrace(err)
-			}
-		}
-	} else {
-		// log.TraceCaller(2, "No subscribers to [%s]", msg.SubscribeKey)
-		log.Trace.Printf("No subscribers to [%s]. Trying to send [%s]", msg.SubscribeKey, msg.EventTag)
-		return
-	}
 }
 
 func addSub(subMap map[models.SubId][]*models.WsClient, subInfo models.Subscription, client *models.WsClient) {

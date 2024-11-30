@@ -68,6 +68,17 @@ func TestAccessServiceImpl_CanUserAccessFile(t *testing.T) {
 	// Check public share grants access, even if user is not in share
 	dipperHomeShare := models.NewFileShare(dipperHome, dipperUser, []*models.User{}, true, false)
 	assert.True(t, acc.CanUserAccessFile(billUser, dipperHome, dipperHomeShare))
+
+	// Make sure public user can't access private share
+	public := userService.GetPublicUser()
+	assert.False(t, acc.CanUserAccessFile(public, billHome, billHomeShare))
+
+	// Make sure public user can access public share
+	assert.True(t, acc.CanUserAccessFile(public, dipperHome, dipperHomeShare))
+
+	// Make sure root user can access file
+	weblensRootUser := userService.GetRootUser()
+	assert.True(t, acc.CanUserAccessFile(weblensRootUser, billHome, nil))
 }
 
 func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
@@ -99,7 +110,7 @@ func TestAccessServiceImpl_GenerateApiKey(t *testing.T) {
 		t.FailNow()
 	}
 
-	local := models.NewInstance("", "test-instance", "", models.CoreServer, true, "", "")
+	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
 	_, err = acc.GenerateApiKey(billUser, local)
 	assert.Error(t, err)
@@ -153,12 +164,12 @@ func TestAccessServiceImpl_SetKeyUsedBy(t *testing.T) {
 		t.FailNow()
 	}
 
-	local := models.NewInstance("", "test-instance", "", models.CoreServer, true, "", "")
+	local := models.NewInstance("", "test-instance", "", models.CoreServerRole, true, "", "")
 
 	key, err := acc.GenerateApiKey(billUser, local)
 	require.NoError(t, err)
 
-	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServer, false, "", t.Name())
+	backupServer := models.NewInstance("", "test-instance", key.Key, models.BackupServerRole, false, "", t.Name())
 
 	err = acc.SetKeyUsedBy(key.Key, backupServer)
 	require.NoError(t, err)

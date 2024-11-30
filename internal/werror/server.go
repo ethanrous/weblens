@@ -2,7 +2,7 @@ package werror
 
 import "errors"
 
-var ErrServerNotInitialized = &clientSafeErr{
+var ErrServerNotInitialized = clientSafeErr{
 	realError:  errors.New("server not initialized"),
 	statusCode: 503,
 }

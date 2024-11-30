@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
+	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
@@ -21,47 +23,44 @@ import (
 )
 
 type Media struct {
-	MediaId primitive.ObjectID `json:"-" bson:"_id"`
+	MediaId primitive.ObjectID `bson:"_id" example:"5f9b3b3b7b4f3b0001b3b3b7"`
 
 	// Hash of the file content, to ensure that the same files don't get duplicated
-	ContentId ContentId `json:"contentId" bson:"contentId"`
+	ContentId ContentId `bson:"contentId"`
 
 	// Slices of files whos content hash to the contentId
-	FileIds []fileTree.FileId `json:"fileIds" bson:"fileIds"`
+	FileIds []fileTree.FileId `bson:"fileIds"`
 
-	CreateDate time.Time `json:"createDate" bson:"createDate"`
+	CreateDate time.Time `bson:"createDate"`
 
 	// User who owns the file that resulted in this media being created
-	Owner Username `json:"owner" bson:"owner"`
+	Owner Username `bson:"owner"`
 
 	// Full-res image dimensions
-	Width  int `json:"width" bson:"width"`
-	Height int `json:"height" bson:"height"`
+	Width  int `bson:"width"`
+	Height int `bson:"height"`
 
 	// Number of pages (typically 1, 0 in not a valid page count)
-	PageCount int `json:"pageCount" bson:"pageCount"`
+	PageCount int `bson:"pageCount"`
 
 	// Total time, in milliseconds, of a video
-	Duration int `json:"duration" bson:"duration"`
-
-	// Unused
-	// BlurHash string `json:"blurHash,omitempty" bson:"blurHash,omitempty"`
+	Duration int `bson:"duration"`
 
 	// Mime-type key of the media
-	MimeType string `json:"mimeType" bson:"mimeType"`
+	MimeType string `bson:"mimeType"`
 
 	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags" bson:"recognitionTags"`
+	RecognitionTags []string `bson:"recognitionTags"`
 
 	// If the media is hidden from the timeline
 	// TODO - make this per user
-	Hidden bool `json:"hidden" bson:"hidden"`
+	Hidden bool `bson:"hidden"`
 
 	// If the media disabled. This can happen when the backing file(s) are deleted,
 	// but the media stays behind because it can be re-used if needed.
-	Enabled bool `json:"enabled" bson:"enabled"`
+	Enabled bool `bson:"enabled"`
 
-	LikedBy []Username `json:"likedBy" bson:"likedBy"`
+	LikedBy []Username `bson:"likedBy"`
 
 	/* NON-DATABASE FIELDS */
 
@@ -140,7 +139,7 @@ func (m *Media) GetFiles() []fileTree.FileId {
 	return m.FileIds
 }
 
-func (m *Media) addFile(f *fileTree.WeblensFileImpl) {
+func (m *Media) AddFile(f *fileTree.WeblensFileImpl) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.FileIds = internal.AddToSet(m.FileIds, f.ID())
@@ -290,6 +289,11 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 	m.Width = int(raw.Lookup("width").Int32())
 	m.Height = int(raw.Lookup("height").Int32())
 
+	duration, ok := raw.Lookup("duration").Int32OK()
+	if ok {
+		m.Duration = int(duration)
+	}
+
 	create := raw.Lookup("createDate")
 	createTime, ok := create.TimeOK()
 	if !ok {
@@ -399,6 +403,8 @@ type MediaService interface {
 
 	LoadMediaFromFile(m *Media, file *fileTree.WeblensFileImpl) error
 	RemoveFileFromMedia(media *Media, fileId fileTree.FileId) error
+	Cleanup() error
+	AddFileToMedia(media *Media, file *fileTree.WeblensFileImpl) error
 
 	GetMediaType(m *Media) MediaType
 	GetMediaTypes() MediaTypeService
@@ -414,7 +420,7 @@ type MediaService interface {
 	GetFilteredMedia(
 		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool,
 	) ([]*Media, error)
-	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []ContentId
+	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*Media
 
 	SetMediaLiked(mediaId ContentId, liked bool, username Username) error
 }
@@ -429,35 +435,57 @@ const (
 )
 
 type VideoStreamer struct {
-	media         *Media
-	encodingBegun bool
+	file          *fileTree.WeblensFileImpl
+	encodingBegun atomic.Bool
 	streamDirPath string
 	err           error
+	updateMu      sync.RWMutex
+	listFileCache []byte
 }
 
-func NewVideoStreamer(media *Media, destPath string) *VideoStreamer {
+func NewVideoStreamer(file *fileTree.WeblensFileImpl) *VideoStreamer {
+	destPath := fmt.Sprintf("%s/%s-stream/", env.GetThumbsDir(), file.GetContentId())
+
 	return &VideoStreamer{
-		media:         media,
+		file:          file,
 		streamDirPath: destPath,
 	}
 }
 
 func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed string) {
-	defer func() { vs.encodingBegun = false }()
+	defer func() {
+		vs.encodingBegun.Store(false)
+	}()
+
+	log.Trace.Printf("Transcoding video %s => %s", f.AbsPath(), vs.streamDirPath)
 
 	err := os.Mkdir(vs.streamDirPath, os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
+		vs.updateMu.Lock()
 		vs.err = err
+		vs.updateMu.Unlock()
+		return
+	} else if errors.Is(err, os.ErrExist) {
 		return
 	}
 
-	autioRate := 128000
+	videoBitrate, audioBitrate, err := vs.probeSourceBitrate(f)
+	if err != nil {
+		vs.updateMu.Lock()
+		vs.err = err
+		vs.updateMu.Unlock()
+		return
+	}
+
+	log.Trace.Printf("Bitrate: %d %d", videoBitrate, audioBitrate)
+
 	outErr := bytes.NewBuffer(nil)
 	err = ffmpeg.Input(f.AbsPath(), ffmpeg.KwArgs{"ss": 0}).Output(
 		vs.streamDirPath+"%03d.ts", ffmpeg.KwArgs{
-			"c:v":                "libx264",
-			"b:v":                400000 * 2,
-			"b:a":                autioRate,
+			"c:v": "libx264",
+			"b:v": int(videoBitrate),
+			// "b:a":                int(audioBitrate),
+			"b:a":                320_000,
 			"crf":                18,
 			"preset":             speed,
 			"segment_list_flags": "+live",
@@ -472,13 +500,15 @@ func (vs *VideoStreamer) transcodeChunks(f *fileTree.WeblensFileImpl, speed stri
 
 	if err != nil {
 		log.Error.Println(outErr.String())
+		vs.updateMu.Lock()
 		vs.err = err
+		vs.updateMu.Unlock()
 	}
 }
 
 func (vs *VideoStreamer) Encode(f *fileTree.WeblensFileImpl) *VideoStreamer {
-	if !vs.encodingBegun {
-		vs.encodingBegun = true
+	if !vs.encodingBegun.Load() {
+		vs.encodingBegun.Store(true)
 		go vs.transcodeChunks(f, "ultrafast")
 	}
 
@@ -489,32 +519,108 @@ func (vs *VideoStreamer) GetEncodeDir() string {
 	return vs.streamDirPath
 }
 
+func (vs *VideoStreamer) GetChunk(chunkName string) (*os.File, error) {
+	chunkPath := filepath.Join(vs.GetEncodeDir(), chunkName)
+	if _, err := os.Stat(chunkPath); err != nil {
+		vs.Encode(vs.file)
+
+		for vs.IsTranscoding() {
+			if _, err := os.Stat(chunkPath); err == nil {
+				break
+			}
+			if vs.Err() != nil {
+				return nil, vs.Err()
+			}
+			time.Sleep(time.Second)
+		}
+	}
+
+	return os.Open(chunkPath)
+}
+
+func (vs *VideoStreamer) GetListFile() ([]byte, error) {
+	if vs.listFileCache != nil {
+		return vs.listFileCache, nil
+	}
+
+	listPath := filepath.Join(vs.GetEncodeDir(), "list.m3u8")
+	if _, err := os.Stat(listPath); err != nil {
+		vs.Encode(vs.file)
+
+		for vs.IsTranscoding() {
+			if _, err := os.Stat(listPath); err == nil {
+				break
+			}
+			if vs.Err() != nil {
+				return nil, vs.Err()
+			}
+			time.Sleep(time.Second)
+		}
+	}
+
+	listFile, err := os.ReadFile(listPath)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	// Cache the list file only if transcoding is done
+	// if bytes.HasSuffix(listFile, []byte("ENDLIST")) {
+	// 	vs.listFileCache = listFile
+	// }
+
+	// Cache the list file only if transcoding is finished and no errors
+	if !vs.IsTranscoding() && vs.Err() == nil {
+		vs.listFileCache = listFile
+	}
+
+	return listFile, nil
+}
+
 func (vs *VideoStreamer) Err() error {
 	return vs.err
 }
 
 func (vs *VideoStreamer) IsTranscoding() bool {
-	return vs.encodingBegun
+	return vs.encodingBegun.Load()
 }
 
-func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (int, error) {
+func (vs *VideoStreamer) probeSourceBitrate(f *fileTree.WeblensFileImpl) (videoBitrate int64, audioBitrate int64, err error) {
 	probeJson, err := ffmpeg.Probe(f.AbsPath())
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	probeResult := map[string]any{}
 	err = json.Unmarshal([]byte(probeJson), &probeResult)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	formatChunk, ok := probeResult["format"].(map[string]any)
 	if !ok {
-		return 0, errors.New("invalid movie format")
+		return 0, 0, errors.New("invalid movie format")
 	}
-	bitRate, err := strconv.ParseInt(formatChunk["bit_rate"].(string), 10, 64)
+
+	streamsChunk, ok := probeResult["streams"].([]any)
+	if !ok {
+		return 0, 0, errors.New("invalid movie format")
+	}
+
+	videoBitrate, err = strconv.ParseInt(formatChunk["bit_rate"].(string), 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return int(bitRate), nil
+
+	audioBitrate = 320_000
+	for _, stream := range streamsChunk {
+		streamMap := stream.(map[string]any)
+		if streamMap["codec_type"].(string) == "audio" {
+			audioBitrate, err = strconv.ParseInt(streamMap["bit_rate"].(string), 10, 64)
+			if err != nil {
+				return 0, 0, err
+			}
+			break
+		}
+	}
+
+	return videoBitrate, audioBitrate, nil
 }

@@ -1,3 +1,5 @@
+import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
+
 export type StartupTask = {
     Name: string
     Description: string
@@ -5,29 +7,29 @@ export type StartupTask = {
 }
 
 export function startupWebsocketHandler(
-    setSetupProgress,
+    setSetupProgress: (progress: number) => void,
     setSetupMostRecent: (waitingOn: StartupTask[]) => void,
     setLastTask: (lastTask: string) => void
 ) {
-    return (msgData) => {
+    return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
-            case 'startup_progress': {
-                setSetupMostRecent(msgData.content.waitingOn)
+            case WsMsgEvent.StartupProgressEvent: {
+                setSetupMostRecent(msgData.content?.waitingOn)
                 break
             }
-            case 'weblens_loaded': {
+            case WsMsgEvent.WeblensLoadedEvent: {
                 setTimeout(() => location.reload(), 500)
                 break
             }
-            case 'task_complete': {
+            case WsMsgEvent.TaskCompleteEvent: {
                 setSetupProgress(
                     (msgData.content.tasksComplete /
                         msgData.content.tasksTotal) *
                         100
                 )
-                setLastTask(msgData.content.fileName)
+                setLastTask(msgData.content.filename)
                 // setSetupMostRecent(
-                //     `${msgData.taskType}: ${msgData.content.fileName}`
+                //     `${msgData.taskType}: ${msgData.content.filename}`
                 // )
                 break
             }

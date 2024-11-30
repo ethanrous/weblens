@@ -19,7 +19,7 @@ Weblens is a self-hosted file and photo management system that boasts a simple a
 * Clean, productive web interface
 * Users, permissions & sharing of both files and media
 * Photo gallery and albums
-* API (not yet stable, documentation coming soon)
+* API (not yet stable, documentation at /docs/index.html when running)
 
 ### Experimental Features
 * WebDav
@@ -28,7 +28,7 @@ Weblens is a self-hosted file and photo management system that boasts a simple a
 
 # Ready to get started?
 ## Installation
-Weblens is distributed as a Docker container, which can be configured minimally as such:
+Weblens is distributed as a Docker image. Here is a minimal docker setup to get started:
 ```bash
 docker run --name weblens \
 -p 8080:8080 \ 
@@ -37,7 +37,7 @@ docker run --name weblens \
 -e MONGODB_URI="mongodb://{{ MONGO_USER }}:{{ MONGO_PASS }}@weblens-mongo:27017"
 docker.io/ethrous/weblens:latest
 ```
-Weblens uses MongoDB. This can easily be setup using another container
+Also, Weblens uses MongoDB. This can easily be setup using another container
 ```bash
 docker run --name weblens-mongo \
 -v /db/on/host:/data/db \
@@ -45,41 +45,31 @@ docker run --name weblens-mongo \
 -e MONGO_INITDB_ROOT_PASSWORD: {{ MONGO_PASS }} \
 mongo
 ```
-Replace `{{ MONGO_USER }}` and `{{ MONGO_PASS }}` with a (database) username and password of your choosing.
+Replace `{{ MONGO_USER }}` and `{{ MONGO_PASS }}` and host paths with values of your choosing.
 
-Replace all of the `/(files | cache | db)/on/host` with paths on your host where you want your data stored.
-
-⚠️ **Note** If you have both fast and slow storage, the "files" path should go on the large slow media, and the "cache" and "db" should be on the fast cache.
-
-⚠️ **Note** Having the containers on the same Docker network is extremely helpful, as it allows Docker to do DNS for you, and does not require you to open the port on your Mongo container. [Read how to set up a Docker network](https://docs.docker.com/reference/cli/docker/network/create/). If the containers cannot be on the same network, you will need to add `-p 27017:27017` to the Mongo container, and change the "weblens-mongo" in the `MONGODB_URI` to a route the container will understand without Docker DNS.
+⚠️ **Note** Having the containers on the same Docker network is extremely helpful. [Read how to set up a Docker network](https://docs.docker.com/reference/cli/docker/network/create/). If you wish not to do this, you will have to modify the MONGODB_URI to something routable, and export port 27017 on the mongo container.
 
 ## Setup
 Once you have the containers configured and running, you can begin setting up your Weblens server. 
 
-In your browser, head to the url for your server. If you are running this container locally, it would be `http://localhost:8080`, but if you are running this on another machine, have changed the port, or are using TLS it will be different.
+By default, Weblens uses port 8080, so I will be using `http://localhost:8080` as the example url here
 
-Once connected, you will see a screen like this, where you have 2 options, [Weblens Core](#weblens-core) and [Weblens Backup](#weblens-backup)
+A Weblens server can be configured as a ["core"](#weblens-core) server, or as a ["backup"](#weblens-backup) server. A core server is the main server that is used day to day, and an optional backup server is a one that mirrors the contents of 1 or more core servers. Ideally a backup server is physically distant from any core it backs up.
 
 ![WeblensSetup.png](images/screenshots/WeblensSetup.png)
 
 ### Weblens Core
-If this is your main Weblens server, you will want to set up a *core* server. Alternatively, if you already have a core server and want to create an offsite backup, see [Weblens Backup](#weblens-backup)
+If you are new to Weblens, you will want to set up a *core* server. Alternatively, if you already have a core server, and want to create an offsite backup, see [Weblens Backup](#weblens-backup)
 
 Configuring a core server is very simple
 
-![WeblensCoreConfiguration.png](images/screenshots/WeblensCoreConfiguration.png)
+![CoreSetup.png](images/screenshots/CoreSetup.png)
 
-1. Create a user. This will be the "owner" of the server
-   - This user is automatically an admin, as well. There can be many admin users, but only ever one owner
-   - The owner is still a regular user, however, so there is no need for both an "owner" and "personal" account
-2. Give this server a name, use whatever you like!
-   - This will be the name shown to identify this server if connected to other instances
-3. Hit "Start Weblens", and you're good to go! 🥳
-   - If prompted, login with the account you just created
+You will need to create a user, give the server a name, and optionally set the server address (i.e. it is behind a reverse proxy). Finally, hit "Start Weblens"
 
 ### Weblens Backup
 
-⚠️ **Note** that a Backup server requires an existing [core server](#weblens-core), and to be set up by an admin of that server
+⚠️ **Note** that a Backup server requires an existing [core server](#weblens-core), and for you to be an admin of that server
 
 ![WeblensBackupConfiguration.png](images/screenshots/WeblensBackupConfiguration.png)
 
@@ -94,7 +84,7 @@ Configuring a core server is very simple
    4. Return to the weblens backup setup, paste your new API key in the "API Key" box
 4. Hit "Attach To Core", then login as an existing user on the core server
 
-Bonus: In admin settings on the core server, you can now view the status of your backup server
+In the "remotes" section of the server settings on the core, you can now view the status of your backup server
 
 <br/>
 
@@ -129,11 +119,11 @@ sudo apt-get install -y pkg-config libvips-dev exiftool nodejs npm
 ```
 
 ### Building / Testing
-Once you have successfully installed the dependencies for your platform, the easiest way to ensure your environment is correctly set up is by running 
+Verify the environment is set up correctly by running tests:
 ```bash
-./scripts/testWeblens
+./scripts/testWeblens -a -l
 ```
-This will build the frontend and backend, and run the backend tests. If you are pulling from the main branch, these tests should pass. If this is the case: Congrats! You are ready to start writing! 
+If they pass: Congrats! You are ready to start contributing!
 
 If they don't, there is likely a configuration issue. Please re-read the instructions and ensure the environment is set up as described, and if there is still an issue, please be descriptive in asking for help on the [issues page](https://github.com/ethanrous/weblens/issues)
 

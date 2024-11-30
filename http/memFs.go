@@ -35,6 +35,8 @@ func (fs *InMemoryFS) loadIndex() string {
 
 // Open Implements FileSystem interface
 func (fs *InMemoryFS) Open(name string) (http.File, error) {
+	log.Trace.Println("MemFs Opening file", name)
+
 	if name == "/index" {
 		return fs.Index("/index"), nil
 	}
@@ -120,7 +122,7 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[locIndex+len("ui/dist/"):]
 	}
 
-	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetHostURL(), loc), string(index.realFile.data))
+	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetProxyAddress(), loc), string(index.realFile.data))
 
 	fields := getIndexFields(loc, fs.Pack)
 	for _, field := range fields {
@@ -163,14 +165,23 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 			m := pack.MediaService.Get(models.ContentId(f.GetContentId()))
 			if f != nil {
 				if f.IsDir() {
-					imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetHostURL())
-					hasImage = true
-					fields = append(
-						fields, indexField{
-							tag:     "image",
-							content: imgUrl,
-						},
-					)
+					cover, err := pack.FileService.GetFolderCover(f)
+					if err != nil {
+						log.ErrTrace(err)
+						return fields
+					}
+					if cover != "" {
+						m = pack.MediaService.Get(cover)
+					} else {
+						imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetProxyAddress())
+						hasImage = true
+						fields = append(
+							fields, indexField{
+								tag:     "image",
+								content: imgUrl,
+							},
+						)
+					}
 				}
 
 				fields = append(
@@ -189,7 +200,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 				if m != nil {
 					if !pack.MediaService.GetMediaType(m).IsVideo() {
 						imgUrl := fmt.Sprintf(
-							"%s/api/media/%s/thumbnail.png?shareId=%s", env.GetHostURL(),
+							"%s/api/media/%s/thumbnail.png?shareId=%s", env.GetProxyAddress(),
 							f.GetContentId(), share.ID(),
 						)
 						hasImage = true
@@ -234,7 +245,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 		if album != nil {
 			media := pack.MediaService.Get(album.GetCover())
 			if media != nil {
-				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetHostURL(), media.ID())
+				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetProxyAddress(), media.ID())
 				hasImage = true
 				fields = append(
 					fields, indexField{

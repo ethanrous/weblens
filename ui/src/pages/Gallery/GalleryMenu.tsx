@@ -5,19 +5,16 @@ import {
     IconEyeOff,
     IconPolaroid,
 } from '@tabler/icons-react'
+import AlbumsApi from '@weblens/api/AlbumsApi'
+import MediaApi from '@weblens/api/MediaApi'
 import { useClick, useKeyDown } from '@weblens/components/hooks'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { SetAlbumCover } from '@weblens/types/albums/AlbumQuery'
+import { TimeOffset, newTimeOffset } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'
-import { hideMedia } from '@weblens/types/media/MediaQuery'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
-import {
-    GalleryDispatchT,
-    newTimeOffset,
-    TimeOffset,
-} from '@weblens/types/Types'
-import { memo, useCallback, useContext, useMemo, useState } from 'react'
-import { GalleryContext } from './GalleryLogic'
+import { MouseEvent, memo, useCallback, useMemo, useState } from 'react'
+
+import { useGalleryStore } from './GalleryLogic'
 
 function TimeSlice({
     value,
@@ -61,60 +58,59 @@ function TimeDialogue({
     close,
     offset,
     adjustTime,
-    galleryDispatch,
 }: {
     media: WeblensMedia
     isAnchor: boolean
     close: () => void
     offset: TimeOffset
     adjustTime: (d: Date) => Promise<boolean>
-    galleryDispatch: GalleryDispatchT
 }) {
     const [date, setDate] = useState<Date>(null)
+    const setTimeOffset = useGalleryStore((state) => state.setTimeOffset)
 
     const monthTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.month += n
-            galleryDispatch({ type: 'set_time_offset', offset: offset })
+            setTimeOffset(offset)
         },
-        [offset, galleryDispatch]
+        [offset]
     )
 
     const dayTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.day += n
-            galleryDispatch({ type: 'set_time_offset', offset: offset })
+            setTimeOffset(offset)
         },
-        [offset, galleryDispatch]
+        [offset]
     )
 
     const yearTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.year += n
-            galleryDispatch({ type: 'set_time_offset', offset: offset })
+            setTimeOffset(offset)
         },
-        [offset, galleryDispatch]
+        [offset]
     )
     const hourTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.hour += n
-            galleryDispatch({ type: 'set_time_offset', offset: offset })
+            setTimeOffset(offset)
         },
-        [offset, galleryDispatch]
+        [offset]
     )
     const minuteTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.minute += n
-            galleryDispatch({ type: 'set_time_offset', offset: offset })
+            setTimeOffset(offset)
         },
-        [offset, galleryDispatch]
+        [offset]
     )
     const secondTicker = useCallback(
-        (n) => {
+        (n: number) => {
             offset.second += n
-            galleryDispatch({ type: 'set_time_offset', offset: offset })
+            setTimeOffset(offset)
         },
-        [offset, galleryDispatch]
+        [offset]
     )
 
     const offsetDate = useMemo(() => {
@@ -239,91 +235,82 @@ export const GalleryMenu = memo(
         media,
         open,
         setOpen,
-        updateAlbum,
     }: {
         media: WeblensMedia
         open: boolean
         setOpen: (o: boolean) => void
-        updateAlbum?: () => void
     }) => {
-        
+        const selecting = useGalleryStore((state) => state.selecting)
+        const menuTargetId = useGalleryStore((state) => state.menuTargetId)
+        const albumId = useGalleryStore((state) => state.albumId)
+        const timeAdjustOffset = useGalleryStore(
+            (state) => state.timeAdjustOffset
+        )
+        const setSelecting = useGalleryStore((state) => state.setSelecting)
+        const setTimeOffset = useGalleryStore((state) => state.setTimeOffset)
+        const setMenuTarget = useGalleryStore((state) => state.setMenuTarget)
 
-        const { galleryState, galleryDispatch } = useContext(GalleryContext)
-        const [menuRef, setMenuRef] = useState(null)
+        const [menuRef, setMenuRef] = useState<HTMLDivElement>(null)
 
         useClick(
             () => {
                 setOpen(false)
-                galleryDispatch({
-                    type: 'set_time_offset',
-                    offset: null,
-                })
+                setTimeOffset(null)
             },
             menuRef,
-            !open || galleryState.timeAdjustOffset !== null
+            !open || timeAdjustOffset !== null
         )
 
         useKeyDown('Escape', () => {
             if (open) {
                 setOpen(false)
-                galleryDispatch({
-                    type: 'set_time_offset',
-                    offset: null,
-                })
+                setTimeOffset(null)
             }
         })
 
         const hide = useCallback(
-            async (e, hidden: boolean) => {
+            async (e: MouseEvent, hidden: boolean) => {
                 e.stopPropagation()
 
                 let medias: string[] = []
-                if (galleryState.selecting) {
+                if (selecting) {
                     medias = [...useMediaStore.getState().selectedMap.keys()]
                 }
                 medias.push(media.Id())
-                const r = await hideMedia(medias, hidden)
+                const res = await MediaApi.setMediaVisibility(hidden, {
+                    mediaIds: medias,
+                })
 
-                if (r.status !== 200) {
+                if (res.status !== 200) {
                     return false
                 }
 
                 useMediaStore.getState().hideMedias(medias, hidden)
 
-                galleryDispatch({
-                    type: 'set_selecting',
-                    selecting: false,
-                })
-
-                galleryDispatch({
-                    type: 'set_menu_target',
-                    targetId: '',
-                })
+                setSelecting(false)
+                setMenuTarget('')
 
                 return true
             },
-            [galleryState.selecting]
+            [selecting]
         )
 
-        const adjustTime = useCallback(
-            async (newDate: Date) => {
-                console.error('adjust time not impl')
-                // const r = await adjustMediaTime(
-                //     media.Id(),
-                //     newDate,
-                //     mediaState.getAllSelectedIds(),
-                //     auth
-                // )
-                // galleryDispatch({
-                //     type: 'set_time_offset',
-                //     offset: null,
-                // })
-                //
-                // return r
-                return false
-            },
-            [media]
-        )
+        // const adjustTime = useCallback(async () => {
+        //     console.error('adjust time not impl')
+        //     // const r = await adjustMediaTime(
+        //     //     media.Id(),
+        //     //     newDate,
+        //     //     mediaState.getAllSelectedIds(),
+        //     //     auth
+        //     // )
+        //     // galleryDispatch({
+        //     //     type: 'set_time_offset',
+        //     //     offset: null,
+        //     // })
+        //     //
+        //     // return r
+        //     return false
+        // }, [media])
 
         const hideStyle = useMemo(() => {
             return { opacity: open ? '100%' : '0%' }
@@ -334,9 +321,7 @@ export const GalleryMenu = memo(
                 ref={setMenuRef}
                 className="media-menu-container"
                 data-open={
-                    open ||
-                    (media.IsSelected() &&
-                        galleryState.timeAdjustOffset !== null)
+                    open || (media.IsSelected() && timeAdjustOffset !== null)
                 }
                 onClick={(e) => {
                     e.stopPropagation()
@@ -348,23 +333,21 @@ export const GalleryMenu = memo(
                     setOpen(false)
                 }}
             >
-                {(media.IsSelected() || open) &&
-                    galleryState.timeAdjustOffset !== null && (
-                        <TimeDialogue
-                            media={media}
-                            isAnchor={media.Id() === galleryState.menuTargetId}
-                            close={() =>
-                                galleryDispatch({
-                                    type: 'set_time_offset',
-                                    offset: null,
-                                })
-                            }
-                            adjustTime={adjustTime}
-                            offset={galleryState.timeAdjustOffset}
-                            galleryDispatch={galleryDispatch}
-                        />
-                    )}
-                {open && galleryState.timeAdjustOffset === null && (
+                {(media.IsSelected() || open) && timeAdjustOffset !== null && (
+                    <TimeDialogue
+                        media={media}
+                        isAnchor={media.Id() === menuTargetId}
+                        close={() => setTimeOffset(null)}
+                        adjustTime={(d: Date) =>
+                            new Promise(() => {
+                                console.error('Adjust time not impl', d)
+                                return false
+                            })
+                        }
+                        offset={timeAdjustOffset}
+                    />
+                )}
+                {open && timeAdjustOffset === null && (
                     <div className="flex flex-col items-center w-full max-w-[300px] p-2">
                         <WeblensButton
                             squareSize={40}
@@ -374,10 +357,7 @@ export const GalleryMenu = memo(
                             centerContent
                             onClick={(e) => {
                                 e.stopPropagation()
-                                galleryDispatch({
-                                    type: 'set_time_offset',
-                                    offset: newTimeOffset(),
-                                })
+                                setTimeOffset(newTimeOffset())
                             }}
                         />
                         <WeblensButton
@@ -387,15 +367,14 @@ export const GalleryMenu = memo(
                             Left={IconPolaroid}
                             squareSize={40}
                             textMin={100}
-                            disabled={!galleryState.albumId}
+                            disabled={!albumId}
                             style={{ opacity: open ? '100%' : '0%' }}
                             onClick={async (e) => {
                                 e.stopPropagation()
-                                const r = await SetAlbumCover(
-                                    galleryState.albumId,
+                                return AlbumsApi.updateAlbum(
+                                    albumId,
                                     media.Id()
                                 )
-                                return r.status === 200
                             }}
                         />
                         <WeblensButton
@@ -422,9 +401,6 @@ export const GalleryMenu = memo(
             return false
         }
         if (prev.setOpen !== next.setOpen) {
-            return false
-        }
-        if (prev.updateAlbum !== next.updateAlbum) {
             return false
         }
 

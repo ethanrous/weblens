@@ -1,204 +1,66 @@
-import { fetchJson, wrapRequest } from '@weblens/api/ApiFetch'
 import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
-import { FolderInfo } from '@weblens/pages/FileBrowser/FileBrowser'
-import { FileAction } from '@weblens/pages/FileBrowser/FileInfoPane'
-import { WeblensFileParams } from '@weblens/types/files/File'
-import { AlbumData } from '@weblens/types/Types'
+import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
 import { humanFileSize } from '@weblens/util'
-import axios from 'axios'
+
 import API_ENDPOINT from './ApiEndpoint'
-import { useWebsocketStore, WsSendT } from './Websocket'
-import { useTaskState } from '@weblens/pages/FileBrowser/TaskProgress'
-import { MediaDataT } from '@weblens/types/media/Media'
+import { WsSendT, useWebsocketStore } from './Websocket'
+import { FilesApiFactory, FolderApiFactory, FolderInfo } from './swag'
+
+export const FileApi = FilesApiFactory(null, API_ENDPOINT)
+export const FolderApi = FolderApiFactory(null, API_ENDPOINT)
 
 export function SubToFolder(subId: string, shareId: string, wsSend: WsSendT) {
     if (!subId || subId === 'shared') {
         return
     }
-    wsSend('folder_subscribe', {
+    wsSend('folderSubscribe', {
         subscribeKey: subId,
         shareId: shareId,
     })
 }
 
-export function SubToTask(taskId: string, lookingFor: string[], wsSend) {
-    wsSend('task_subscribe', {
+export function SubToTask(
+    taskId: string,
+    lookingFor: string[],
+    wsSend: WsSendT
+) {
+    wsSend('taskSubscribe', {
         subscribeKey: taskId,
         lookingFor: lookingFor,
     })
 }
 
-export function UnsubFromFolder(subId: string, wsSend) {
+export function UnsubFromFolder(subId: string, wsSend: WsSendT) {
     if (!subId || useWebsocketStore.getState().readyState < 1) {
         return
     }
     wsSend('unsubscribe', { subscribeKey: subId })
 }
 
-export function TrashFiles(fileIds: string[], shareId: string) {
-    const url = new URL(`${API_ENDPOINT}/files/trash`)
-    if (shareId) {
-        url.searchParams.append('shareId', shareId)
-    }
-
-    return wrapRequest(
-        fetch(url.toString(), {
-            method: 'PATCH',
-            body: JSON.stringify(fileIds),
-        })
-    )
-}
-
-export function DeleteFiles(fileIds: string[]) {
-    const url = new URL(`${API_ENDPOINT}/files`)
-
-    return fetch(url.toString(), {
-        method: 'DELETE',
-        body: JSON.stringify(fileIds),
-    }).catch((r) => {
-        console.error(r)
-        return { ok: false }
-    })
-}
-
-export function UnTrashFiles(fileIds: string[]) {
-    const url = new URL(`${API_ENDPOINT}/files/untrash`)
-
-    return fetch(url.toString(), {
-        method: 'PATCH',
-        body: JSON.stringify(fileIds),
-    })
-}
-
-export function SetFolderImage(folderId: string, contentId: string) {
-    const url = new URL(`${API_ENDPOINT}/folder/${folderId}/cover`)
-    url.searchParams.append('mediaId', contentId)
-    return fetch(url.toString(), {
-        method: 'PATCH',
-    })
-}
-
-async function getSharedWithMe(): Promise<FolderInfo> {
-    const url = new URL(`${API_ENDPOINT}/files/shared`)
-    const res = await fetchJson<FolderInfo>(url.toString())
-
-    const sharesMap = new Map<string, string>()
-    for (const share of res.shares) {
-        sharesMap.set(share.fileId, share.shareId)
-    }
-
-    for (const file of res.children) {
-        file.shareId = sharesMap.get(file.id)
-    }
-
-    return res
-}
-
-async function getExternalFiles(contentId: string) {
-    return null
-    const url = new URL(`${API_ENDPOINT}/files/external/${contentId}`)
-    return fetchJson(url.toString())
-}
-
-export async function GetFileInfo(
-    fileId: string,
-    shareId: string
-): Promise<WeblensFileParams> {
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}`)
-    if (shareId !== '') {
-        url.searchParams.append('shareId', shareId)
-    }
-    return fetchJson(url.toString())
-}
-
 export async function GetFolderData(
-    contentId: string,
+    folderId: string,
     fbMode: FbModeT,
-    shareId: string,
+    shareId?: string,
     viewingTime?: Date
 ): Promise<FolderInfo> {
     if (fbMode === FbModeT.share && !shareId) {
-        return await getSharedWithMe()
+        const res = await FileApi.getSharedFiles()
+        return res.data
     }
     if (fbMode === FbModeT.external) {
-        return getExternalFiles(contentId)
+        console.error('External files not implemented')
     }
 
-    if (!contentId) {
-        console.error('Tried to get folder with no id')
-        return
-    }
-
-    const url = new URL(`${API_ENDPOINT}/folder/${contentId}`)
-    if (viewingTime !== undefined && viewingTime !== null) {
-        url.searchParams.append('timestamp', viewingTime.getTime().toString())
-    }
-
-    if (fbMode === FbModeT.share) {
-        url.searchParams.append('shareId', shareId)
-    }
-
-    return fetchJson(url.toString())
+    const res = await FolderApi.getFolder(
+        folderId,
+        shareId ? shareId : undefined,
+        viewingTime?.getTime(),
+        { withCredentials: true }
+    )
+    return res.data
 }
 
-export async function CreateFolder(
-    parentFolderId: string,
-    name: string,
-    children: string[],
-    isPublic: boolean,
-    shareId: string
-): Promise<string> {
-    if (isPublic && !shareId) {
-        throw new Error('Attempting to do public upload with no shareId')
-    }
-
-    let url
-    if (isPublic) {
-        url = new URL(`${API_ENDPOINT}/public/folder`)
-        url.searchParams.append('shareId', shareId)
-    } else {
-        url = new URL(`${API_ENDPOINT}/folder`)
-    }
-
-    const dirInfo = await fetch(url.toString(), {
-        method: 'POST',
-
-        body: JSON.stringify({
-            parentFolderId: parentFolderId,
-            newFolderName: name,
-            children: children,
-        }),
-    })
-        .then((res) => res.json())
-        .catch((r) => {
-            console.error(`Could not create folder: ${r}`)
-        })
-    return dirInfo?.folderId
-}
-
-export function moveFiles(fileIds: string[], newParentId: string) {
-    const url = new URL(`${API_ENDPOINT}/files`)
-    const body = {
-        fileIds: fileIds,
-        newParentId: newParentId,
-    }
-
-    return fetch(url.toString(), {
-        method: 'PATCH',
-
-        body: JSON.stringify(body),
-    })
-}
-
-export async function RenameFile(fileId: string, newName: string) {
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}`)
-    fetch(url.toString(), {
-        method: 'PATCH',
-        body: JSON.stringify({ newName: newName }),
-    })
-}
-
-function downloadBlob(blob, filename) {
+function downloadBlob(blob: Blob, filename: string) {
     const aElement = document.createElement('a')
     aElement.setAttribute('download', filename)
     const href = URL.createObjectURL(blob)
@@ -215,171 +77,34 @@ export async function downloadSingleFile(
     isZip: boolean,
     shareId: string
 ) {
-    if (!fileId) {
-        console.error('Trying to download without file id!')
-        return
-    }
-
-    let url: URL
-    if (isZip) {
-        url = new URL(`${API_ENDPOINT}/takeout/${fileId}`)
-    } else {
-        url = new URL(`${API_ENDPOINT}/file/${fileId}/download`)
-    }
-    if (shareId) {
-        url.searchParams.append('shareId', shareId)
-    }
-
     const taskId = `DOWNLOAD_${fileId}`
     useTaskState
         .getState()
         .addTask(taskId, 'download_file', { target: filename })
 
-    return axios
-        .get(url.toString(), {
-            responseType: 'blob',
-
-            onDownloadProgress: (p) => {
-                const [rateSize, rateUnits] = humanFileSize(p.rate)
-                const [bytesSize, bytesUnits] = humanFileSize(p.loaded)
-                const [totalSize, totalUnits] = humanFileSize(p.total)
-                useTaskState.getState().updateTaskProgress(taskId, {
-                    progress: p.progress * 100,
-                    workingOn: `${rateSize}${rateUnits}/s`,
-                    tasksComplete: `${bytesSize}${bytesUnits}`,
-                    tasksTotal: `${totalSize}${totalUnits}`,
-                })
-            },
-        })
+    return FileApi.downloadFile(fileId, shareId, isZip, {
+        responseType: 'blob',
+        onDownloadProgress: (p) => {
+            const [rateSize, rateUnits] = humanFileSize(p.rate)
+            const [bytesSize, bytesUnits] = humanFileSize(p.loaded)
+            const [totalSize, totalUnits] = humanFileSize(p.total)
+            useTaskState.getState().updateTaskProgress(taskId, {
+                progress: p.progress * 100,
+                workingOn: `${rateSize}${rateUnits}/s`,
+                tasksComplete: `${bytesSize}${bytesUnits}`,
+                tasksTotal: `${totalSize}${totalUnits}`,
+            })
+        },
+    })
         .then((res) => {
             if (res.status === 200) {
                 useTaskState.getState().handleTaskCompete(taskId, 0, '')
                 return new Blob([res.data])
             } else {
-                return Promise.reject(res.statusText)
+                return Promise.reject(new Error(res.statusText))
             }
         })
         .then((blob) => {
             downloadBlob(blob, filename)
         })
-}
-
-export async function requestZipCreate(fileIds: string[], shareId: string) {
-    const url = new URL(`${API_ENDPOINT}/takeout`)
-    if (shareId) {
-        url.searchParams.append('shareId', shareId)
-    }
-
-    return fetch(url.toString(), {
-        method: 'POST',
-        body: JSON.stringify({ fileIds: fileIds }),
-    }).then(async (res) => {
-        const json = await res.json()
-        return { json: json, status: res.status }
-    })
-}
-
-export async function AutocompleteAlbums(searchValue): Promise<AlbumData[]> {
-    if (searchValue.length < 2) {
-        return []
-    }
-    const url = new URL(`${API_ENDPOINT}/albums`)
-    url.searchParams.append('filter', searchValue)
-    return fetchJson(url.toString())
-}
-
-export async function NewWormhole(folderId: string) {
-    const url = new URL(`${API_ENDPOINT}/share/files`)
-
-    const body = {
-        fileIds: [folderId],
-        wormhole: true,
-    }
-    const res = await fetch(url.toString(), {
-        method: 'POST',
-        body: JSON.stringify(body),
-    })
-    return res
-}
-
-export async function GetWormholeInfo(shareId: string) {
-    const url = new URL(`${API_ENDPOINT}/share/${shareId}`)
-    return wrapRequest(fetch(url.toString()))
-}
-
-export async function searchFolder(
-    folderId: string,
-    searchString: string,
-    filter: string
-): Promise<WeblensFileParams[]> {
-    const url = new URL(`${API_ENDPOINT}/folder/${folderId}/search`)
-    url.searchParams.append('search', searchString)
-    url.searchParams.append('filter', filter)
-
-    const files: { files: WeblensFileParams[] } = await fetch(
-        url.toString(),
-        {}
-    )
-        .then((v) => v.json())
-        .then((v) => {
-            if (v.error) {
-                return Promise.reject(v.error)
-            }
-            return v
-        })
-        .catch((r) => {
-            console.error(`Failed to search files: ${r}`)
-            return { files: [] }
-        })
-    return files.files
-}
-
-export async function getFilesystemStats(folderId: string): Promise<{
-    sizesByExtension: { name: string; size: number }[]
-}> {
-    return fetchJson(`${API_ENDPOINT}/files/${folderId}/stats`)
-}
-
-export async function getFileHistory(
-    fileId: string,
-    timestamp: Date
-): Promise<FileAction[]> {
-    if (!fileId) {
-        console.error('No fileId trying to get file history')
-        return null
-    }
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}/history`)
-    if (timestamp) {
-        url.searchParams.append('timestamp', timestamp.getTime().toString())
-    }
-    return fetchJson(url.toString())
-}
-
-export async function getPastFolderInfo(folderId: string, timestamp: Date) {
-    const millis = timestamp.getTime()
-    const url = new URL(`${API_ENDPOINT}/file/rewind/${folderId}/${millis}`)
-
-    return fetchJson(url.toString())
-}
-
-// export async function restoreFiles(fileIds: string[], timestamp: Date) {
-//     const url = new URL(`${API_ENDPOINT}/history/restore`)
-//     return await fetch(url, {
-//         method: 'POST',
-//         body: JSON.stringify({
-//             fileIds: fileIds,
-//             timestamp: timestamp.getTime(),
-//         }),
-//     }).then((r) => {
-//         if (r.status !== 200) {
-//             return Promise.reject(r.statusText)
-//         } else {
-//             return
-//         }
-//     })
-// }
-
-export async function GetFileText(fileId: string) {
-    const url = new URL(`${API_ENDPOINT}/file/${fileId}/text`)
-    return await fetch(url, {}).then((r) => r.text())
 }

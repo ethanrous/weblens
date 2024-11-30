@@ -1,11 +1,12 @@
-import { TaskStageT } from '../FileBrowser/TaskProgress'
+import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
+import { TaskStageT } from '../FileBrowser/TaskStateControl'
 
 export type RestoreProgress = {
     stage: string
     error: string
     timestamp: Date
-    progress_total: number
-    progress_current: number
+    progressTotal: number
+    progressCurrent: number
 }
 
 type FileBackupProgress = {
@@ -17,8 +18,8 @@ export type BackupProgressT = {
     stages: TaskStageT[]
     error: string
     timestamp: Date
-    progress_total: number
-    progress_current: number
+    progressTotal: number
+    progressCurrent: number
     files: Map<string, FileBackupProgress>
     totalTime: number
 }
@@ -30,16 +31,16 @@ export function backupPageWebsocketHandler(
     >,
     refetchRemotes: () => void
 ) {
-    return (msgData) => {
+    return (msgData: wsMsgInfo) => {
         switch (msgData.eventTag) {
-            case 'restore_progress': {
+            case WsMsgEvent.RestoreStartedEvent: {
                 setRestoreStage((p) => {
                     if (msgData.content.stage) {
                         p.stage = msgData.content.stage
                     }
-                    if (msgData.content.files_total) {
-                        p.progress_total = msgData.content.files_total
-                        p.progress_current = msgData.content.files_restored
+                    if (msgData.content.filesTotal) {
+                        p.progressTotal = msgData.content.filesTotal
+                        p.progressCurrent = msgData.content.filesRestored
                     }
                     if (msgData.content.timestamp) {
                         p.timestamp = new Date(msgData.content.timestamp)
@@ -50,11 +51,10 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'restore_complete': {
-                setRestoreStage((p) => {
-                    p.stage = 'Restore Complete'
-                    p.progress_current = 1
-                    p.progress_total = 1
+            case WsMsgEvent.RestoreCompleteEvent: {
+                setRestoreStage((p: RestoreProgress) => {
+                    p.progressCurrent = 1
+                    p.progressTotal = 1
                     p.timestamp = null
                     return { ...p }
                 })
@@ -62,7 +62,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'restore_failed': {
+            case WsMsgEvent.RestoreFailedEvent: {
                 setRestoreStage((p) => {
                     p.error = msgData.content.error
                     return { ...p }
@@ -70,11 +70,11 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'backup_progress': {
+            case WsMsgEvent.BackupProgressEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
-                    if (!prog) {
+                    if (!prog || !stages[0].finished) {
                         prog = { files: new Map() } as BackupProgressT
                     }
                     prog.stages = [...stages]
@@ -84,7 +84,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'backup_complete': {
+            case WsMsgEvent.BackupCompleteEvent: {
                 const stages: TaskStageT[] = msgData.content.stages
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
@@ -93,6 +93,8 @@ export function backupPageWebsocketHandler(
                     }
                     prog.stages = [...stages]
                     prog.totalTime = msgData.content.totalTime
+                    prog.files.clear()
+                    prog.progressCurrent = prog.progressTotal
                     p.set(msgData.content.coreId, prog)
                     return new Map(p)
                 })
@@ -100,7 +102,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'copy_file_started': {
+            case WsMsgEvent.CopyFileStartedEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
@@ -116,7 +118,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'backup_failed': {
+            case WsMsgEvent.BackupFailedEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
@@ -129,14 +131,14 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'sub_task_complete': {
+            case WsMsgEvent.CopyFileCompleteEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
                         prog = { files: new Map() } as BackupProgressT
                     }
-                    prog.progress_current = msgData.content.tasks_complete
-                    prog.progress_total = msgData.content.tasks_total
+                    prog.progressCurrent = msgData.content.tasksComplete
+                    prog.progressTotal = msgData.content.tasksTotal
                     prog.files.delete(msgData.content.filename)
                     p.set(msgData.content.coreId, prog)
                     return new Map(p)
@@ -144,7 +146,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'copy_file_failed': {
+            case WsMsgEvent.CopyFileFailedEvent: {
                 setBackupProgress((p) => {
                     let prog = p.get(msgData.content.coreId)
                     if (!prog) {
@@ -158,7 +160,7 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'task_created': {
+            case WsMsgEvent.TaskCreatedEvent: {
                 if (msgData.content.taskType === 'do_backup') {
                     // Reset backup progress when a new backup task is created
                     setBackupProgress((p) => {
@@ -170,13 +172,13 @@ export function backupPageWebsocketHandler(
                 break
             }
 
-            case 'core_connection_changed': {
+            case WsMsgEvent.RemoteConnectionChangedEvent: {
                 refetchRemotes()
                 break
             }
 
-            case 'pool_created':
-            case 'weblens_loaded': {
+            case WsMsgEvent.PoolCreatedEvent:
+            case WsMsgEvent.WeblensLoadedEvent: {
                 break
             }
 

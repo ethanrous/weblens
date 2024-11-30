@@ -1,18 +1,24 @@
-import './startup.scss'
-import 'components/theme.scss'
 import {
     HandleWebsocketMessage,
     useWeblensSocket,
+    useWebsocketStore,
 } from '@weblens/api/Websocket'
+import Logo from '@weblens/components/Logo'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { useEffect, useState } from 'react'
+
+import { WebsocketStatus } from '../FileBrowser/FileBrowserMiscComponents'
 import { StartupTask, startupWebsocketHandler } from './StartupLogic'
+import './startup.scss'
 
 export default function StartUp() {
     const [setupProgress, setSetupProgress] = useState(0)
     const [waitingOn, setWaitingOn] = useState<StartupTask[]>([])
     const [lastTask, setLastTask] = useState<string>('')
-    const { lastMessage } = useWeblensSocket()
+    const lastMessage = useWebsocketStore((state) => state.lastMessage)
+    const readyState = useWebsocketStore((state) => state.readyState)
+
+    useWeblensSocket()
 
     useEffect(() => {
         HandleWebsocketMessage(
@@ -23,9 +29,10 @@ export default function StartUp() {
 
     return (
         <div className="flex flex-col justify-center items-center w-screen h-screen theme-background">
-            <p className="startup-header-text text-wrap">
-                Weblens is Starting...
-            </p>
+            <Logo size={150} />
+            <div className="absolute bottom-1 left-1">
+                <WebsocketStatus ready={readyState} />
+            </div>
             {setupProgress !== 0 && (
                 <div className="flex flex-col relative w-[670px] max-w-full h-14 p-2 mt-16 gap-2">
                     <WeblensProgress value={setupProgress} />
@@ -33,7 +40,7 @@ export default function StartUp() {
                 </div>
             )}
             {waitingOn && (
-                <div className="flex flex-col">
+                <div className="absolute bottom-5 flex flex-col">
                     {waitingOn.map((startupTask: StartupTask) => {
                         return (
                             <p

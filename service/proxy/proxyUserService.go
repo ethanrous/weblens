@@ -66,7 +66,7 @@ func (pus *ProxyUserService) Add(user *models.User) error {
 		pus.userMap[user.Username] = user
 	}
 
-	log.Trace.Printf("Added user [%s] to proxy user service", user.Username)
+	log.Trace.Func(func(l log.Logger) {l.Printf("Added user [%s] to proxy user service", user.Username)})
 
 	return nil
 }
@@ -104,7 +104,7 @@ func (pus *ProxyUserService) SetUserAdmin(user *models.User, b bool) error {
 	panic("implement me")
 }
 
-func (pus *ProxyUserService) ActivateUser(user *models.User) error {
+func (pus *ProxyUserService) ActivateUser(user *models.User, active bool) error {
 
 	panic("implement me")
 }

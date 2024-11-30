@@ -52,9 +52,12 @@ func (m *MockClientService) GetConnectedAdmins() []*models.WsClient {
 func (m *MockClientService) FolderSubToTask(folderId fileTree.FileId, taskId task.Id) {
 }
 
+func (m *MockClientService) UnsubTask(taskId task.Id) {
+}
+
 func (m *MockClientService) Subscribe(
 	c *models.WsClient, key models.SubId, action models.WsAction, subTime time.Time, share models.Share,
-) (complete bool, results map[string]any, err error) {
+) (complete bool, results map[task.TaskResultKey]any, err error) {
 
 	panic("implement me")
 }
@@ -64,10 +67,7 @@ func (m *MockClientService) Unsubscribe(c *models.WsClient, key models.SubId, un
 	panic("implement me")
 }
 
-func (m *MockClientService) Send(msg models.WsResponseInfo) {
-
-	panic("implement me")
-}
+func (m *MockClientService) Send(msg models.WsResponseInfo) {}
 
 func (m *MockClientService) ClientDisconnect(c *models.WsClient) {
 

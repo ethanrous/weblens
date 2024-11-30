@@ -1,17 +1,7 @@
-import {
-    setFileSharePublic,
-    setShareAccessors,
-} from '@weblens/types/share/shareQuery'
+import SharesApi from '@weblens/api/SharesApi'
+import { ShareInfo } from '@weblens/api/swag'
 
-export interface ShareInfo {
-    id: string
-    accessors?: string[]
-    expires?: string
-    public?: boolean
-    fileId?: string
-    shareName?: string
-    wormhole?: boolean
-}
+import { ErrorHandler } from '../Types'
 
 export class WeblensShare {
     shareId: string
@@ -58,8 +48,16 @@ export class WeblensShare {
     }
 
     async UpdateShare(isPublic: boolean, accessors: string[]) {
+        if (!this.Id()) {
+            throw new Error('Attempt to update share with no id')
+        }
+
         if (isPublic !== this.public) {
-            await setFileSharePublic(this.Id(), isPublic)
+            await SharesApi.setSharePublic(this.Id(), isPublic)
+                .then(() => {
+                    this.public = isPublic
+                })
+                .catch(ErrorHandler)
             this.public = isPublic
         }
 
@@ -67,8 +65,14 @@ export class WeblensShare {
         const remove = this.accessors.filter((x) => !accessors.includes(x))
 
         if (remove.length !== 0 || add.length !== 0) {
-            await setShareAccessors(this.Id(), add, remove)
-            this.accessors = accessors
+            await SharesApi.setShareAccessors(this.Id(), {
+                addUsers: add,
+                removeUsers: remove,
+            })
+                .then(() => {
+                    this.accessors = accessors
+                })
+                .catch(ErrorHandler)
         }
     }
 }

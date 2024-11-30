@@ -1,5 +1,4 @@
-import { fetchMediaTypes } from '@weblens/types/media/MediaQuery'
-import { mediaType } from '@weblens/types/Types'
+import { Dimensions } from '@weblens/types/Types'
 import {
     RefObject,
     useCallback,
@@ -11,7 +10,7 @@ import {
 
 export const useResize = (
     elem: HTMLDivElement,
-    resizeCallback?: (oldSize, newSize) => void
+    resizeCallback?: (oldSize: Dimensions, newSize: Dimensions) => void
 ) => {
     const [size, setSize] = useState({ height: -1, width: -1 })
 
@@ -21,7 +20,7 @@ export const useResize = (
             width: elem.clientWidth,
         }
         // only 1 entry
-        setSize((prev) => {
+        setSize((prev: Dimensions) => {
             if (resizeCallback) {
                 resizeCallback(prev, newSize)
             }
@@ -51,14 +50,28 @@ export const useVideo = (elem: HTMLVideoElement) => {
     }, [setPlaytime, elem])
 
     const updatePlayState = useCallback(
-        (e) => {
-            setIsPlaying(e.type === 'play')
+        (e: Event) => {
+            console.log('play event', e)
+
+            if (e.type === 'canplaythrough') {
+                if (isWaiting) {
+                    setIsWaiting(false)
+                }
+                return
+            } else if (e.type === 'play') {
+                setIsPlaying(true)
+            } else if (e.type === 'pause') {
+                setIsPlaying(false)
+            } else {
+                console.error('unknown play event', e.type)
+            }
         },
         [setIsPlaying]
     )
 
     const updateBufferState = useCallback(
-        (e) => {
+        (e: Event) => {
+            console.log('video event', e)
             if (e.type === 'waiting') {
                 setIsWaiting(true)
             } else if (e.type === 'playing') {
@@ -68,6 +81,10 @@ export const useVideo = (elem: HTMLVideoElement) => {
         [setIsWaiting]
     )
 
+    const error = useCallback((e: Event) => {
+        console.log('video error', e)
+    }, [])
+
     useEffect(() => {
         if (!elem) {
             return
@@ -75,14 +92,20 @@ export const useVideo = (elem: HTMLVideoElement) => {
         elem.addEventListener('timeupdate', updatePlaytime)
         elem.addEventListener('play', updatePlayState)
         elem.addEventListener('pause', updatePlayState)
+        // elem.addEventListener('canplay', updatePlayState)
+        elem.addEventListener('canplaythrough', updatePlayState)
         elem.addEventListener('waiting', updateBufferState)
         elem.addEventListener('playing', updateBufferState)
+        elem.addEventListener('error', error)
         return () => {
             elem.removeEventListener('timeupdate', updatePlaytime)
             elem.removeEventListener('play', updatePlayState)
             elem.removeEventListener('pause', updatePlayState)
+            // elem.removeEventListener('canplay', updatePlayState)
+            elem.removeEventListener('canplaythrough', updatePlayState)
             elem.removeEventListener('waiting', updateBufferState)
             elem.removeEventListener('playing', updateBufferState)
+            elem.removeEventListener('error', error)
         }
     }, [updatePlaytime, updatePlayState, elem])
 
@@ -95,7 +118,7 @@ export const useKeyDown = (
     disable?: boolean
 ) => {
     const onKeyDown = useCallback(
-        (event) => {
+        (event: KeyboardEvent) => {
             if (
                 (typeof key === 'string' && event.key === key) ||
                 (typeof key === 'function' && key(event))
@@ -137,38 +160,6 @@ export const useWindowSize = () => {
     return windowSize
 }
 
-export const useWindowSizeAgain = (
-    updateCallback?: (oldSize, newSize) => void
-) => {
-    const [windowSize, setWindowSize] = useState({
-        width: window.innerWidth,
-        height: window.innerHeight,
-    })
-
-    const onResize = useCallback(
-        (e) => {
-            if (updateCallback) {
-                updateCallback(windowSize, {
-                    width: e.target.innerWidth,
-                    height: e.target.innerHeight,
-                })
-            }
-            setWindowSize({
-                width: e.target.innerWidth,
-                height: e.target.innerHeight,
-            })
-        },
-        [setWindowSize, updateCallback]
-    )
-
-    useEffect(() => {
-        window.addEventListener('resize', onResize)
-        return () => window.removeEventListener('resize', onResize)
-    }, [onResize])
-
-    return windowSize
-}
-
 export const useResizeDrag = (
     resizing: boolean,
     setResizing: (r: boolean) => void,
@@ -176,67 +167,53 @@ export const useResizeDrag = (
     flip?: boolean,
     vertical?: boolean
 ) => {
-    const unDrag = useCallback(() => {
+    const unDrag = (e: MouseEvent) => {
+        e.stopPropagation()
         setResizing(false)
-    }, [setResizing])
+    }
 
-    const moved = useCallback(
-        (e) => {
-            let val: number
-            let windowSize: number
-            if (vertical) {
-                val = e.clientY
-                windowSize = window.innerHeight
-            } else {
-                val = e.clientX
-                windowSize = window.innerWidth
-            }
+    const moved = (e: MouseEvent) => {
+        let val: number
+        let windowSize: number
+        if (vertical) {
+            val = e.clientY
+            windowSize = window.innerHeight
+        } else {
+            val = e.clientX
+            windowSize = window.innerWidth
+        }
 
-            if (flip) {
-                setResizeOffset(windowSize - val)
-            } else {
-                setResizeOffset(val)
-            }
-        },
-        [setResizeOffset]
-    )
+        if (flip) {
+            setResizeOffset(windowSize - val)
+        } else {
+            setResizeOffset(val)
+        }
+    }
 
     useEffect(() => {
         if (resizing) {
-            addEventListener('mousemove', moved)
+            window.addEventListener('mousemove', moved)
             window.addEventListener('mouseup', unDrag)
         }
         return () => {
-            removeEventListener('mousemove', moved)
-            window.removeEventListener('mouseUp', unDrag)
+            window.removeEventListener('mousemove', moved)
+            window.removeEventListener('mouseup', unDrag)
         }
     }, [resizing, moved, unDrag])
 }
 
-export const useMediaType = (): Map<string, mediaType> => {
-    const [typeMap, setTypeMap] = useState(null)
-
-    useEffect(() => {
-        const mediaTypes = new Map<string, mediaType>()
-        fetchMediaTypes().then((mt) => {
-            const mimes: string[] = Array.from(Object.keys(mt))
-            for (const mime of mimes) {
-                mediaTypes.set(mime, mt[mime])
-            }
-            setTypeMap(mediaTypes)
-        })
-    }, [])
-    return typeMap
-}
-
-export const useClick = (handler: (e) => void, ignore?, disable?: boolean) => {
+export const useClick = (
+    handler: (e: MouseEvent) => void,
+    ignore?: HTMLDivElement,
+    disable?: boolean
+) => {
     const callback = useCallback(
-        (e) => {
+        (e: MouseEvent) => {
             if (disable) {
                 return
             }
 
-            if (ignore && ignore.contains(e.target)) {
+            if (ignore && ignore.contains(e.target as Node)) {
                 return
             }
 
@@ -312,7 +289,7 @@ export const useTimer = (startTime: Date, startPaused?: boolean) => {
         startTime ? Date.now() - startTime.getTime() : 0
     )
     const [isRunning, setIsRunning] = useState(false)
-    const countRef = useRef(null)
+    const countRef = useRef<NodeJS.Timeout>(null)
 
     const handleStart = () => {
         if (isRunning) {

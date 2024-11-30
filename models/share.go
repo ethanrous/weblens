@@ -13,20 +13,20 @@ import (
 var _ Share = (*FileShare)(nil)
 var _ Share = (*AlbumShare)(nil)
 
-type ShareId string
+type ShareId = string
 
 type FileShare struct {
-	ShareId   ShareId         `bson:"_id" json:"shareId"`
-	FileId    fileTree.FileId `bson:"fileId" json:"fileId"`
-	ShareName string          `bson:"shareName" json:"shareName"`
-	Owner     Username        `bson:"owner" json:"owner"`
-	Accessors []Username      `bson:"accessors" json:"accessors"`
-	Public    bool            `bson:"public" json:"public"`
-	Wormhole  bool            `bson:"wormhole" json:"wormhole"`
-	Enabled   bool            `bson:"enabled" json:"enabled"`
-	Expires   time.Time       `bson:"expires" json:"expires"`
-	Updated   time.Time       `bson:"updated" json:"updated"`
-	ShareType ShareType       `bson:"shareType" json:"shareType"`
+	ShareId   ShareId         `bson:"_id"`
+	FileId    fileTree.FileId `bson:"fileId"`
+	ShareName string          `bson:"shareName"`
+	Owner     Username        `bson:"owner"`
+	Accessors []Username      `bson:"accessors"`
+	Public    bool            `bson:"public"`
+	Wormhole  bool            `bson:"wormhole"`
+	Enabled   bool            `bson:"enabled"`
+	Expires   time.Time       `bson:"expires"`
+	Updated   time.Time       `bson:"updated"`
+	ShareType ShareType       `bson:"shareType"`
 }
 
 type AlbumShare struct {
@@ -39,15 +39,15 @@ type AlbumShare struct {
 	Expires   time.Time  `bson:"expires"`
 	Updated   time.Time  `bson:"updated"`
 	ShareType ShareType  `bson:"shareType"`
-}
+} // @name AlbumShare
 
 func NewFileShare(
-	f *fileTree.WeblensFileImpl, u *User, accessors []*User, public bool, wormhole bool,
+	f *fileTree.WeblensFileImpl, owner *User, accessors []*User, public bool, wormhole bool,
 ) *FileShare {
 	return &FileShare{
 		ShareId: ShareId(primitive.NewObjectID().Hex()),
 		FileId:  f.ID(),
-		Owner:   u.GetUsername(),
+		Owner:   owner.GetUsername(),
 		Accessors: internal.Map(
 			accessors, func(u *User) Username {
 				return u.GetUsername()
@@ -62,12 +62,12 @@ func NewFileShare(
 }
 
 func NewAlbumShare(
-	a *Album, u *User, accessors []*User, public bool,
-) Share {
+	a *Album, owner *User, accessors []*User, public bool,
+) *AlbumShare {
 	return &AlbumShare{
 		ShareId: ShareId(primitive.NewObjectID().Hex()),
 		AlbumId: a.ID(),
-		Owner:   u.GetUsername(),
+		Owner:   owner.GetUsername(),
 		Accessors: internal.Map(
 			accessors, func(u *User) Username {
 				return u.GetUsername()
@@ -269,16 +269,19 @@ type ShareService interface {
 	AddUsers(share Share, newUsers []*User) error
 	RemoveUsers(share Share, newUsers []*User) error
 
-	GetAllShares() []Share
+	GetFileShare(fId fileTree.FileId) (*FileShare, error)
+	GetAlbumShare(aId AlbumId) (*AlbumShare, error)
+
 	GetFileSharesWithUser(u *User) ([]*FileShare, error)
 	GetAlbumSharesWithUser(u *User) ([]*AlbumShare, error)
-	GetFileShare(f *fileTree.WeblensFileImpl) (*FileShare, error)
+
+	GetAllShares() []Share
 
 	EnableShare(share Share, enabled bool) error
 	SetSharePublic(share Share, public bool) error
 }
 
-type ShareType string
+type ShareType = string
 
 const (
 	SharedFile  ShareType = "file"

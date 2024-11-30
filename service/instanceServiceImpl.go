@@ -19,7 +19,7 @@ import (
 var _ models.InstanceService = (*InstanceServiceImpl)(nil)
 
 type InstanceServiceImpl struct {
-	instanceMap map[string]*models.Instance
+	instanceMap     map[string]*models.Instance
 	instanceMapLock sync.RWMutex
 	local           *models.Instance
 
@@ -55,7 +55,7 @@ func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, err
 	is.instanceMapLock.Lock()
 	defer is.instanceMapLock.Unlock()
 	if is.local == nil {
-		is.local = models.NewInstance("", "", "", models.InitServer, true, "", "")
+		is.local = models.NewInstance("", "", "", models.InitServerRole, true, "", "")
 		is.local.CreatedBy = is.local.Id
 	} else {
 		for _, server := range servers {
@@ -67,7 +67,9 @@ func NewInstanceService(col database.MongoCollection) (*InstanceServiceImpl, err
 				continue
 			}
 
-			log.Trace.Printf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)
+			log.Trace.Func(func(l log.Logger) {
+				l.Printf("Adding server [%s] (created by [%s]) to instance map", server.Id, server.CreatedBy)
+			})
 			is.instanceMap[server.DbId.Hex()] = server
 		}
 	}
@@ -223,14 +225,14 @@ func (is *InstanceServiceImpl) InitCore(serverName string) error {
 	}
 
 	local.Name = serverName
-	local.SetRole(models.CoreServer)
+	local.SetRole(models.CoreServerRole)
 	local.DbId = primitive.NewObjectID()
 
 	_, err := is.col.InsertOne(context.Background(), local)
 	if err != nil {
 		// Revert name and role if db write fails
 		local.Name = ""
-		local.Role = models.InitServer
+		local.Role = models.InitServerRole
 		return werror.WithStack(err)
 	}
 
@@ -246,13 +248,13 @@ func (is *InstanceServiceImpl) InitBackup(
 	}
 
 	local.Name = name
-	local.SetRole(models.BackupServer)
+	local.SetRole(models.BackupServerRole)
 
 	_, err := is.AttachRemoteCore(coreAddr, key)
 	if err != nil {
 		// Revert name and role if db write fails
 		local.Name = ""
-		local.Role = models.InitServer
+		local.Role = models.InitServerRole
 		return err
 	}
 
@@ -263,7 +265,7 @@ func (is *InstanceServiceImpl) InitBackup(
 
 func (is *InstanceServiceImpl) AttachRemoteCore(coreAddr string, key string) (*models.Instance, error) {
 	local := is.GetLocal()
-	core := models.NewInstance("", "", key, models.CoreServer, false, coreAddr, local.ServerId())
+	core := models.NewInstance("", "", key, models.CoreServerRole, false, coreAddr, local.ServerId())
 	// NewInstance will generate an Id if one is not given. We want to fill the id from what the core
 	// server reports it is, not make a new one
 	core.Id = ""
@@ -275,8 +277,8 @@ func (is *InstanceServiceImpl) AttachRemoteCore(coreAddr string, key string) (*m
 		UsingKey models.WeblensApiKey `json:"usingKey"`
 	}
 
-	body := newServerBody{Id: local.ServerId(), Role: models.BackupServer, Name: local.GetName(), UsingKey: key}
-	r := proxy.NewCoreRequest(core, http.MethodPost, "").OverwriteEndpoint("/api/remote").WithBody(body)
+	body := newServerBody{Id: local.ServerId(), Role: models.BackupServerRole, Name: local.GetName(), UsingKey: key}
+	r := proxy.NewCoreRequest(core, http.MethodPost, "/servers").WithBody(body)
 	newCore, err := proxy.CallHomeStruct[*models.Instance](r)
 	if err != nil {
 		return nil, err
@@ -311,7 +313,7 @@ func (is *InstanceServiceImpl) ResetAll() error {
 	is.instanceMap = make(map[models.InstanceId]*models.Instance)
 	is.instanceMapLock.Unlock()
 
-	newLocal := models.NewInstance(localId, "", "", models.InitServer, true, "", localId)
+	newLocal := models.NewInstance(localId, "", "", models.InitServerRole, true, "", localId)
 
 	_, err = is.col.InsertOne(context.Background(), newLocal)
 	if err != nil {
