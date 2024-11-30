@@ -16,9 +16,11 @@ var subpoolJobName = "Test Subpool Job"
 func TestWorkerPoolBasic(t *testing.T) {
 	t.Parallel()
 
-	wp := NewWorkerPool(4, -1)
+	wp := NewWorkerPool(2, -1)
 	wp.RegisterJob(jobName, testJob)
+
 	wp.Run()
+	defer wp.Stop()
 
 	tsk, err := wp.DispatchJob(jobName, fakeJobMeta{}, nil)
 	require.NoError(t, err)
@@ -27,8 +29,6 @@ func TestWorkerPoolBasic(t *testing.T) {
 	tskResult := tsk.GetResult("test")
 	assert.NotNil(t, tskResult)
 	assert.Equal(t, "passed", tskResult.(string))
-
-	wp.Stop()
 }
 
 func TestSubPool(t *testing.T) {
@@ -38,7 +38,7 @@ func TestSubPool(t *testing.T) {
 
 	t.Parallel()
 
-	wp := NewWorkerPool(4, -1)
+	wp := NewWorkerPool(2, -1)
 	wp.RegisterJob(jobName, testJob)
 	wp.RegisterJob(subpoolJobName, testSubpoolJob)
 	wp.Run()
@@ -68,10 +68,11 @@ func TestSubPool(t *testing.T) {
 func TestFailedJob(t *testing.T) {
 	t.Parallel()
 
-	wp := NewWorkerPool(4, -1)
+	wp := NewWorkerPool(2, -1)
 	wp.RegisterJob(jobName, testJob)
 	wp.RegisterJob(subpoolJobName, testSubpoolJob)
 	wp.Run()
+	defer wp.Stop()
 
 	tsk, err := wp.DispatchJob(jobName, fakeJobMeta{shouldFail: true}, nil)
 	require.NoError(t, err)

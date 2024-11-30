@@ -363,7 +363,8 @@ func (wp *WorkerPool) Run() {
 func (wp *WorkerPool) Stop() {
 	wp.exitFlag.Store(1)
 	close(wp.exitSignal)
-	for wp.currentWorkers.Load() != 0 {
+	for wp.currentWorkers.Load() > 0 {
+		log.Debug.Printf("Waiting for %d workers to exit", wp.currentWorkers.Load())
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -403,8 +404,8 @@ func (wp *WorkerPool) removeTask(taskId Id) {
 // different to minimize parked time of the other task.
 func (wp *WorkerPool) execWorker(replacement bool) {
 	go func(workerId int64) {
-		// Inc alive workers
-		defer wp.currentWorkers.Add(-1)
+		// Dec alive workers
+		defer func() { log.Debug.Printf("worker %d exiting, %d workers remain", workerId, wp.currentWorkers.Add(-1)) }()
 		log.Trace.Func(func(l log.Logger) { l.Printf("Worker %d reporting for duty o7", workerId) })
 
 		// WorkLoop:
@@ -412,7 +413,6 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 			select {
 			case _, ok := <-wp.exitSignal:
 				if !ok {
-					log.Debug.Printf("worker %d exiting", workerId)
 					return
 				}
 			case t := <-wp.taskStream:
@@ -634,7 +634,7 @@ func (wp *WorkerPool) Status() (int, int, int, int, int) {
 func (wp *WorkerPool) statusReporter() {
 	var lastCount int
 	var waitTime time.Duration = 1
-	for {
+	for wp.exitFlag.Load() == 0 {
 		time.Sleep(time.Second * waitTime)
 		remaining, total, busy, alive, retrySize := wp.Status()
 		if lastCount != remaining {
@@ -648,6 +648,7 @@ func (wp *WorkerPool) statusReporter() {
 			waitTime += 1
 		}
 	}
+	log.Debug.Println("status reporter exited")
 }
 
 func (wp *WorkerPool) bufferDrainer() {

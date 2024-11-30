@@ -137,11 +137,13 @@ export class SingleUpload {
             return 0
         }
 
+        const sampleCount = Math.min(this.speed.length, 20)
+
         return (
             this.speed
-                .slice(-20)
+                .slice(-sampleCount)
                 .map((s) => s.speed)
-                .reduce((a, b) => a + b, 0) / 20
+                .reduce((a, b) => a + b, 0) / sampleCount
         )
     }
 

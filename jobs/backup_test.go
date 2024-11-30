@@ -58,7 +58,10 @@ func TestBackupCore(t *testing.T) {
 	}
 
 	local := models.NewInstance("test-backup-id", "test-backup-name", "", models.BackupServerRole, true, "", "test-backup-id")
-	instanceService.Add(local)
+	err = instanceService.Add(local)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	core, err := instanceService.AttachRemoteCore(coreAddress, coreApiKey)
 	if err != nil {
@@ -94,6 +97,7 @@ func TestBackupCore(t *testing.T) {
 	}
 
 	wp.Run()
+	defer wp.Stop()
 
 	backupTask, err := wp.DispatchJob(models.BackupTask, meta, nil)
 	if err != nil {

@@ -30,7 +30,11 @@ func init() {
 	}
 
 	marshMap := map[string]models.MediaType{}
-	env.ReadTypesConfig(&marshMap)
+	err = env.ReadTypesConfig(&marshMap)
+	if err != nil {
+		panic(err)
+	}
+
 	typeService = models.NewTypeService(marshMap)
 }
 
@@ -45,7 +49,7 @@ func TestScanFile(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer col.Drop(context.Background())
+	defer func() { _ = col.Drop(context.Background()) }()
 
 	testMediaTree, err := fileTree.NewFileTree(env.GetTestMediaPath(), "TEST_MEDIA", mock.NewHollowJournalService(), false)
 	if err != nil {
@@ -91,7 +95,7 @@ func TestScanDirectory(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer col.Drop(context.Background())
+	defer func() { _ = col.Drop(context.Background()) }()
 
 	wp := task.NewWorkerPool(4, -1)
 	wp.RegisterJob(models.ScanFileTask, ScanFile)
@@ -115,6 +119,7 @@ func TestScanDirectory(t *testing.T) {
 	require.NoError(t, err)
 
 	wp.Run()
+	defer wp.Stop()
 	scanMeta := models.ScanMeta{
 		File:         testMediaTree.GetRoot(),
 		FileService:  &mock.MockFileService{},
