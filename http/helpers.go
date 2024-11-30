@@ -148,7 +148,7 @@ func getShareFromCtx[T models.Share](w http.ResponseWriter, r *http.Request) (T,
 	}
 
 	err := werror.ErrNoShare
-	writeJson(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+	writeError(w, http.StatusNotFound, err)
 	return empty, err
 }
 

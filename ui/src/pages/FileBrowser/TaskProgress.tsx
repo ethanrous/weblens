@@ -131,6 +131,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                 <WeblensProgress
                     value={prog.getProgress()}
                     secondaryValue={prog.getErrorProgress()}
+                    failure={prog.stage === TaskStage.Failure}
                     loading={prog.stage === TaskStage.Queued}
                     primaryColor={
                         prog.stage === TaskStage.Cancelled ? '#313171' : ''
@@ -166,7 +167,7 @@ const TaskProgCard = ({ prog }: { prog: TaskProgress }) => {
                     )}
                     {prog.stage === TaskStage.Failure && (
                         <p className="text-sm w-max select-none truncate">
-                            {prog.tasksFailed} failed
+                            {prog.tasksFailed || prog.FormatTaskType()} failed
                         </p>
                     )}
                     {prog.stage === TaskStage.Cancelled && (

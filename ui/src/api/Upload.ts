@@ -25,6 +25,7 @@ class PromiseQueue<T> {
     running: Promise<void>[]
     results: T[]
     count: number
+    exit: boolean
 
     constructor(tasks: PromiseFunc<T>[], concurrentCount = 1) {
         this.total = tasks.length
@@ -32,10 +33,17 @@ class PromiseQueue<T> {
         this.running = []
         this.results = []
         this.count = concurrentCount
+        this.exit = false
     }
 
     runNext() {
-        return this.running.length < this.count && this.todo.length
+        return (
+            !this.exit && this.running.length < this.count && this.todo.length
+        )
+    }
+
+    cancelQueue() {
+        this.exit = true
     }
 
     async workerMain(): Promise<void> {
@@ -112,12 +120,15 @@ function queueChunks(
                             .updateProgress(
                                 key,
                                 thisChunkIndex,
-                                e.loaded,
-                                e.rate ? Math.trunc(e.rate) : 0
+                                e.loaded
                             )
                     },
                 }
-            )
+            ).catch((err) => {
+                taskQueue.cancelQueue()
+                useUploadStatus.getState().setError(key, String(err))
+                console.error('Failed to upload chunk', err)
+            })
             useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
 
             // await uploadChunk(
@@ -213,7 +224,10 @@ async function Upload(
         rootFolderId: rootFolder,
         totalUploadSize: totalUploadSize,
         chunkSize: UPLOAD_CHUNK_SIZE,
-    }).catch(ErrorHandler)
+    }).catch((err) => {
+        // useUploadStatus.getState().setError(key, String(err))
+        ErrorHandler(Error(String(err)))
+    })
 
     if (!res) {
         return
@@ -226,7 +240,17 @@ async function Upload(
 
     const newFilesRes = await FileApi.addFilesToUpload(res.data.uploadId, {
         newFiles: newFiles,
+    }).catch((err) => {
+        console.error('Failed to add files to upload', err)
+        for (const dir of topDirs) {
+            console.log('Setting error for', dir)
+            useUploadStatus.getState().setError(dir, String(err))
+        }
     })
+
+    if (!newFilesRes) {
+        return
+    }
 
     if (!newFilesRes || newFilesRes.status !== 201) {
         console.error('Failed to add files to upload', newFilesRes.data)

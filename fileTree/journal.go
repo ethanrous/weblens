@@ -156,9 +156,8 @@ func (j *JournalImpl) LogEvent(fe *FileEvent) {
 		return
 	}
 
-	log.Debug.Func(func(l log.Logger) { l.Printf("Dropping off event with %d actions", len(fe.Actions)) })
-
 	if len(fe.Actions) != 0 {
+		log.Debug.Func(func(l log.Logger) { l.Printf("Dropping off event [%s] with %d actions", fe.EventId, len(fe.Actions)) })
 		j.eventStream <- fe
 	} else {
 		log.Debug.Func(func(l log.Logger) { l.Printf("File Event [%s] has no actions, skipping logging", fe.EventId) })

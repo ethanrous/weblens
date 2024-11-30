@@ -79,6 +79,16 @@ func (m ScanMeta) JobName() string {
 }
 
 func (m ScanMeta) Verify() error {
+	if m.File == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "File")
+	}
+	if m.FileService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "FileService")
+	}
+	if m.MediaService == nil {
+		return werror.ErrBadJobMetadata(m.JobName(), "MediaService")
+	}
+
 	return nil
 }
 

@@ -20,7 +20,7 @@ var _ models.ClientManager = (*ClientManager)(nil)
 type ClientManager struct {
 	webClientMap    map[models.Username]*models.WsClient
 	remoteClientMap map[models.InstanceId]*models.WsClient
-	clientMu        *sync.RWMutex
+	clientMu        sync.RWMutex
 
 	core *models.WsClient
 
@@ -33,11 +33,13 @@ type ClientManager struct {
 	// 		*client2,
 	//     ]
 	// }
-	folderSubs   map[models.SubId][]*models.WsClient
-	taskSubs     map[models.SubId][]*models.WsClient
+	folderSubs map[models.SubId][]*models.WsClient
+	folderMu   sync.Mutex
+
+	taskSubs map[models.SubId][]*models.WsClient
+	taskMu   sync.Mutex
+
 	taskTypeSubs map[models.SubId][]*models.WsClient
-	folderMu     sync.Mutex
-	taskMu       sync.Mutex
 	taskTypeMu   sync.Mutex
 
 	pack *models.ServicePack
@@ -49,7 +51,6 @@ func NewClientManager(
 	cm := &ClientManager{
 		webClientMap:    map[models.Username]*models.WsClient{},
 		remoteClientMap: map[models.InstanceId]*models.WsClient{},
-		clientMu:        &sync.RWMutex{},
 
 		folderSubs:   map[models.SubId][]*models.WsClient{},
 		taskSubs:     map[models.SubId][]*models.WsClient{},
@@ -181,7 +182,7 @@ func (cm *ClientManager) GetSubscribers(st models.WsAction, key models.SubId) (c
 		log.Error.Printf("Unknown subscriber type: [%s]", st)
 	}
 
-	// Copy slice to not modify reference to mapped slice
+	// Copy clients to not modify reference in the map
 	return clients[:]
 }
 
@@ -309,34 +310,6 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	return cm.removeSubscription(sub, c, false)
 }
 
-func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *models.WsClient) {
-	switch subInfo.Type {
-	case models.FolderSubscribe:
-		{
-			cm.folderMu.Lock()
-			addSub(cm.folderSubs, subInfo, client)
-			cm.folderMu.Unlock()
-		}
-	case models.TaskSubscribe:
-		{
-			cm.taskMu.Lock()
-			addSub(cm.taskSubs, subInfo, client)
-			cm.taskMu.Unlock()
-		}
-	case models.TaskTypeSubscribe:
-		{
-			cm.taskTypeMu.Lock()
-			addSub(cm.taskTypeSubs, subInfo, client)
-			cm.taskTypeMu.Unlock()
-		}
-	default:
-		{
-			log.Error.Println("Unknown subType", subInfo.Type)
-			return
-		}
-	}
-}
-
 func (cm *ClientManager) FolderSubToTask(folderId fileTree.FileId, taskId task.Id) {
 	subs := cm.GetSubscribers(models.FolderSubscribe, folderId)
 
@@ -367,38 +340,6 @@ func (cm *ClientManager) UnsubTask(taskId task.Id) {
 			log.ShowErr(err)
 		}
 	}
-}
-
-func (cm *ClientManager) removeSubscription(
-	subInfo models.Subscription, client *models.WsClient, removeAll bool,
-) error {
-	var err error
-	switch subInfo.Type {
-	case models.FolderSubscribe:
-		{
-			cm.folderMu.Lock()
-			err = removeSubs(cm.folderSubs, subInfo, client, removeAll)
-			cm.folderMu.Unlock()
-		}
-	case models.TaskSubscribe:
-		{
-			cm.taskMu.Lock()
-			err = removeSubs(cm.taskSubs, subInfo, client, removeAll)
-			cm.taskMu.Unlock()
-		}
-	case models.TaskTypeSubscribe:
-		{
-			cm.taskTypeMu.Lock()
-			err = removeSubs(cm.taskTypeSubs, subInfo, client, removeAll)
-			cm.taskTypeMu.Unlock()
-		}
-	default:
-		{
-			return werror.Errorf("Trying to remove unknown subscription type [%s]", subInfo.Type)
-		}
-	}
-
-	return err
 }
 
 func (cm *ClientManager) Send(msg models.WsResponseInfo) {
@@ -441,6 +382,66 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 		})
 		return
 	}
+}
+
+func (cm *ClientManager) addSubscription(subInfo models.Subscription, client *models.WsClient) {
+	switch subInfo.Type {
+	case models.FolderSubscribe:
+		{
+			cm.folderMu.Lock()
+			addSub(cm.folderSubs, subInfo, client)
+			cm.folderMu.Unlock()
+		}
+	case models.TaskSubscribe:
+		{
+			cm.taskMu.Lock()
+			addSub(cm.taskSubs, subInfo, client)
+			cm.taskMu.Unlock()
+		}
+	case models.TaskTypeSubscribe:
+		{
+			cm.taskTypeMu.Lock()
+			addSub(cm.taskTypeSubs, subInfo, client)
+			cm.taskTypeMu.Unlock()
+		}
+	default:
+		{
+			log.Error.Println("Unknown subType", subInfo.Type)
+			return
+		}
+	}
+}
+
+func (cm *ClientManager) removeSubscription(
+	subInfo models.Subscription, client *models.WsClient, removeAll bool,
+) error {
+	var err error
+	switch subInfo.Type {
+	case models.FolderSubscribe:
+		{
+			cm.folderMu.Lock()
+			err = removeSubs(cm.folderSubs, subInfo, client, removeAll)
+			cm.folderMu.Unlock()
+		}
+	case models.TaskSubscribe:
+		{
+			cm.taskMu.Lock()
+			err = removeSubs(cm.taskSubs, subInfo, client, removeAll)
+			cm.taskMu.Unlock()
+		}
+	case models.TaskTypeSubscribe:
+		{
+			cm.taskTypeMu.Lock()
+			err = removeSubs(cm.taskTypeSubs, subInfo, client, removeAll)
+			cm.taskTypeMu.Unlock()
+		}
+	default:
+		{
+			return werror.Errorf("Trying to remove unknown subscription type [%s]", subInfo.Type)
+		}
+	}
+
+	return err
 }
 
 func addSub(subMap map[models.SubId][]*models.WsClient, subInfo models.Subscription, client *models.WsClient) {

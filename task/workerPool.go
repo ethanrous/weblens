@@ -112,6 +112,10 @@ func (wp *WorkerPool) NewTaskPool(replace bool, createdBy *Task) *TaskPool {
 	defer wp.poolMu.Unlock()
 	wp.poolMap[tp.ID()] = tp
 
+	if createdBy != nil {
+		createdBy.SetChildTaskPool(tp)
+	}
+
 	return tp
 }
 
@@ -299,13 +303,6 @@ func (wp *WorkerPool) safetyWork(task *Task, workerId int64) {
 		task.work(task)
 	}
 
-	task.updateMu.Lock()
-	if task.postAction != nil && task.exitStatus == TaskSuccess {
-		task.updateMu.Unlock()
-		task.postAction(task.result)
-		return
-	}
-	task.updateMu.Unlock()
 }
 
 func (wp *WorkerPool) AddHit(time time.Time, target *Task) {
@@ -508,12 +505,31 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					directParent.completedTasks.Add(1)
 
-					// We want the pool completed and error count to reflec the task has completed
+					// Run the cleanup routine for errors, if any
+					if t.exitStatus == TaskError {
+						log.Trace.Printf("Running error cleanup for task [%s]", t.taskId)
+						for _, ecf := range t.errorCleanup {
+							ecf(t)
+						}
+						log.Trace.Printf("Finished error cleanup for task [%s]", t.taskId)
+					}
+
+					// We want the pool completed and error count to reflect the task has completed
 					// when we are doing cleanup. Cleanup is intended to execute "after" the task
 					// has finished, so we must inc the completed tasks counter (above) before cleanup
-					if t.cleanup != nil {
-						t.cleanup(t)
-						t.cleanup = nil
+					log.Trace.Printf("Running cleanup for task [%s]", t.taskId)
+					for _, cf := range t.cleanup {
+						cf(t)
+					}
+					log.Trace.Printf("Finished cleanup for task [%s]", t.taskId)
+
+					// The post action is intended to run after the task has completed, and after
+					// the cleanup has run. This is useful for tasks that need to use the result of
+					// the task to do something else, but don't want to block until the task is done
+					if t.postAction != nil && t.exitStatus == TaskSuccess {
+						log.Trace.Printf("Running post-action for task [%s]", t.taskId)
+						t.postAction(t.result)
+						log.Trace.Printf("Finished post-action for task [%s]", t.taskId)
 					}
 
 					if directParent.IsRoot() {

@@ -51,13 +51,27 @@ export const useVideo = (elem: HTMLVideoElement) => {
 
     const updatePlayState = useCallback(
         (e: Event) => {
-            setIsPlaying(e.type === 'play')
+            console.log('play event', e)
+
+            if (e.type === 'canplaythrough') {
+                if (isWaiting) {
+                    setIsWaiting(false)
+                }
+                return
+            } else if (e.type === 'play') {
+                setIsPlaying(true)
+            } else if (e.type === 'pause') {
+                setIsPlaying(false)
+            } else {
+                console.error('unknown play event', e.type)
+            }
         },
         [setIsPlaying]
     )
 
     const updateBufferState = useCallback(
         (e: Event) => {
+            console.log('video event', e)
             if (e.type === 'waiting') {
                 setIsWaiting(true)
             } else if (e.type === 'playing') {
@@ -67,6 +81,10 @@ export const useVideo = (elem: HTMLVideoElement) => {
         [setIsWaiting]
     )
 
+    const error = useCallback((e: Event) => {
+        console.log('video error', e)
+    }, [])
+
     useEffect(() => {
         if (!elem) {
             return
@@ -74,14 +92,20 @@ export const useVideo = (elem: HTMLVideoElement) => {
         elem.addEventListener('timeupdate', updatePlaytime)
         elem.addEventListener('play', updatePlayState)
         elem.addEventListener('pause', updatePlayState)
+        // elem.addEventListener('canplay', updatePlayState)
+        elem.addEventListener('canplaythrough', updatePlayState)
         elem.addEventListener('waiting', updateBufferState)
         elem.addEventListener('playing', updateBufferState)
+        elem.addEventListener('error', error)
         return () => {
             elem.removeEventListener('timeupdate', updatePlaytime)
             elem.removeEventListener('play', updatePlayState)
             elem.removeEventListener('pause', updatePlayState)
+            // elem.removeEventListener('canplay', updatePlayState)
+            elem.removeEventListener('canplaythrough', updatePlayState)
             elem.removeEventListener('waiting', updateBufferState)
             elem.removeEventListener('playing', updateBufferState)
+            elem.removeEventListener('error', error)
         }
     }, [updatePlaytime, updatePlayState, elem])
 

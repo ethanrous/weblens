@@ -11,6 +11,7 @@ var ErrNoCache = errors.New("could not find or generate requested media cache fi
 
 var ErrMediaNil = errors.New("media is nil")
 var ErrMediaBadMime = errors.New("media has missing or unrecognized mime type")
+var ErrMediaNotVideo = errors.New("media is not a video type")
 var ErrMediaNoId = errors.New("media has no contentId")
 var ErrMediaNoDimensions = errors.New("media has a missing width or height dimension")
 var ErrMediaNoPages = errors.New("media must have a page count of at least 1")

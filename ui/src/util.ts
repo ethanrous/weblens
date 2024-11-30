@@ -74,6 +74,26 @@ export function nsToHumanTime(ns: number) {
     return timeStr
 }
 
+export function secondsToVideoTime(seconds: number, padForHours = false) {
+    const hours = Math.floor(seconds / 3600)
+    const hoursStr = hours.toString().padStart(2, '0')
+
+    seconds = seconds % 3600
+
+    const minutes = Math.floor(seconds / 60)
+    const minStr = minutes.toString().padStart(2, '0')
+
+    const secondsStr = Math.floor(seconds % 60)
+        .toString()
+        .padStart(2, '0')
+
+    if (padForHours || hours > 0) {
+        return hoursStr + ':' + minStr + ':' + secondsStr
+    } else {
+        return minStr + ':' + secondsStr
+    }
+}
+
 export const clamp = (value: number, min: number, max: number) =>
     Math.min(Math.max(value, min), max)
 

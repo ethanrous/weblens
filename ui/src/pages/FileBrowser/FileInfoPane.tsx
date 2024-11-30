@@ -684,19 +684,6 @@ function FileHistory() {
             </div>
         )
     }
-    if (error) {
-        return (
-            <div className="flex items-center w-full h-full">
-                <div className="inline-flex flex-row w-max p-2 m-auto">
-                    <IconExclamationCircle
-                        size={24}
-                        className="ml-2 text-red-500"
-                    />
-                    <p>Failed to get file history</p>
-                </div>
-            </div>
-        )
-    }
 
     let createTimeString = '---'
     if (epoch) {
@@ -709,9 +696,20 @@ function FileHistory() {
             className="flex flex-col items-center p-2 h-[2px] grow relative pt-3"
             // onScroll={(e) => setHistoryScroll(e.currentTarget.scrollTop)}
         >
-            {!epoch && (
-                <div className="flex items-center justify-center w-full h-full">
+            {!epoch && !error && (
+                <div className="flex items-center justify-center w-full h-1 grow">
                     <WeblensLoader />
+                </div>
+            )}
+            {error && (
+                <div className="flex items-center w-full h-1 grow">
+                    <div className="inline-flex flex-row w-max p-2 m-auto gap-1">
+                        <IconExclamationCircle
+                            size={24}
+                            className="ml-2 text-red-500"
+                        />
+                        <p>Failed to get file history</p>
+                    </div>
                 </div>
             )}
             {epoch && (

@@ -12,17 +12,15 @@ export class SingleUpload {
     isDir: boolean
     friendlyName: string
     subProgress: number // bytes written in current chunk, files only
-    bytes: number
-    files: number
-    total: number // total size in bytes of the file, or number of files in the dir
-    // speed: { time: number; bytes: number }[]
-    speed: number[]
-    prevTime: number // milliseconds timestamp
+    bytes: number // number of bytes uploaded so far
+    files: number // number of files uploaded so far
+    bytesTotal: number // total size in bytes of the upload
+    filesTotal: number // total number of files in the upload
+    speed: { time: number; bytes: number; speed: number }[]
     parent: string // For files if they have a directory parent at the top level
     complete: boolean
 
     chunks: chunkT[]
-    prevBytes: number
 
     error: string
 
@@ -30,26 +28,26 @@ export class SingleUpload {
         key: string,
         name: string,
         isDir: boolean,
-        total: number,
+        totalBytes: number,
         parent?: string
     ) {
         this.key = key
         this.friendlyName = name
         this.isDir = isDir
-        this.total = total
+        this.bytesTotal = totalBytes
+        this.filesTotal = 0
         this.parent = parent
 
         this.bytes = 0
         this.files = 0
         this.chunks = []
 
-        this.prevBytes = 0
         this.speed = []
     }
 
     incFiles() {
         this.files += 1
-        if (this.files == this.total) {
+        if (this.files == this.filesTotal) {
             this.complete = true
         }
     }
@@ -67,22 +65,26 @@ export class SingleUpload {
     }
 
     // Bytes is the new number of bytes uploaded so far
-    updateChunk(chunkIndex: number, bytes: number, speed: number): number {
-        if (this.isDir && !this.prevTime) {
-            this.prevTime = Date.now()
-            this.bytes = bytes
-            this.prevBytes = 0
-        } else if (this.isDir) {
-            this.bytes += bytes
-            const now = Date.now()
-            const msSinceLastSample = now - this.prevTime
-            if (msSinceLastSample > 250) {
-                this.addSpeed(
-                    ((this.bytes - this.prevBytes) / msSinceLastSample) * 1000
-                )
-                this.prevBytes = this.bytes
-                this.prevTime = now
+    updateChunk(chunkIndex: number, bytes: number): number {
+        let speed = 0
+        if (this.speed.length > 0) {
+            const tail = this.speed[Math.max(this.speed.length - 6, 0)]
+            const head = this.speed[this.speed.length - 1]
+            const timeDiff = head.time - tail.time
+            if (timeDiff !== 0) {
+                speed = ((head.bytes - tail.bytes) / timeDiff) * 1000
             }
+        }
+
+        let difference = 0
+        if (this.isDir) {
+            this.bytes += bytes
+
+            this.speed.push({
+                time: Date.now(),
+                bytes: this.bytes,
+                speed: speed,
+            })
         } else {
             if (!this.chunks[chunkIndex]) {
                 console.error(
@@ -92,16 +94,28 @@ export class SingleUpload {
                 )
                 return 0
             }
-            const newTime = Date.now()
-            const difference = bytes - this.chunks[chunkIndex].bytesSoFar
+            difference = bytes - this.chunks[chunkIndex].bytesSoFar
             this.chunks[chunkIndex].bytesSoFar = bytes
             this.chunks[chunkIndex].speed = speed
-            this.prevTime = newTime
 
-            return difference
+            this.bytes += difference
         }
 
-        return 0
+        this.speed.push({
+            time: Date.now(),
+            bytes: this.bytes,
+            speed: speed,
+        })
+
+        return difference
+    }
+
+    getPercetageComplete(): number {
+        if (this.bytesTotal === 0) {
+            return 0
+        }
+
+        return (this.bytes / this.bytesTotal) * 100
     }
 
     chunkComplete(chunkIndex: number) {
@@ -123,22 +137,12 @@ export class SingleUpload {
             return 0
         }
 
-        if (this.isDir) {
-            return this.speed.reduce((acc, v) => acc + v, 0) / this.speed.length
-        } else {
-            const speed = this.chunks.reduce(
-                (acc, c) => (!c || c.complete ? acc : c.speed + acc),
-                0
-            )
-            return speed
-        }
-    }
-
-    addSpeed(speed: number): void {
-        if (this.speed.length > 5) {
-            this.speed.shift()
-        }
-        this.speed.push(speed)
+        return (
+            this.speed
+                .slice(-20)
+                .map((s) => s.speed)
+                .reduce((a, b) => a + b, 0) / 20
+        )
     }
 
     setError(error: string) {
@@ -152,6 +156,7 @@ export class SingleUpload {
         this.error = error
     }
 }
+
 export interface UploadStatusStateT {
     uploads: Map<string, SingleUpload>
 
@@ -159,23 +164,17 @@ export interface UploadStatusStateT {
         key: string,
         name: string,
         isDir: boolean,
-        total: number,
+        totalBytes: number,
         parent?: string
     ) => void
     createChunk: (key: string, chunkIndex: number, chunkSize: number) => void
-    updateProgress: (
-        key: string,
-        chunk: number,
-        progress: number,
-        speed: number
-    ) => void
+    updateProgress: (key: string, chunk: number, progress: number) => void
     chunkComplete: (key: string, chunkIndex: number) => void
     setError: (key: string, error: string) => void
     clearUploads: () => void
 }
 const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
-    set,
-    get
+    set
 ) => ({
     uploads: new Map<string, SingleUpload>(),
 
@@ -183,11 +182,17 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
         key: string,
         name: string,
         isDir: boolean,
-        total: number,
+        totalBytes: number,
         parentId?: string
     ) => {
         set((state) => {
-            const upload = new SingleUpload(key, name, isDir, total, parentId)
+            const upload = new SingleUpload(
+                key,
+                name,
+                isDir,
+                totalBytes,
+                parentId
+            )
 
             state.uploads.set(key, upload)
 
@@ -199,7 +204,8 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
                         parentId
                     )
                 }
-                parent.total += 1
+                parent.filesTotal += 1
+                parent.bytesTotal += totalBytes
             }
 
             return {
@@ -223,12 +229,7 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
         })
     },
 
-    updateProgress: (
-        key: string,
-        chunk: number,
-        progress: number,
-        speed: number
-    ) => {
+    updateProgress: (key: string, chunk: number, progress: number) => {
         set((state) => {
             const uploadToUpdate = state.uploads.get(key)
 
@@ -237,12 +238,9 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
                 return
             }
 
-            const diff = uploadToUpdate.updateChunk(chunk, progress, speed)
-            uploadToUpdate.addSpeed(speed)
+            const diff = uploadToUpdate.updateChunk(chunk, progress)
             if (uploadToUpdate.parent) {
-                state.uploads
-                    .get(uploadToUpdate.parent)
-                    .updateChunk(-1, diff, speed)
+                state.uploads.get(uploadToUpdate.parent).updateChunk(-1, diff)
             }
 
             return { uploads: new Map(state.uploads) }
@@ -268,13 +266,22 @@ const UploadStatusControl: StateCreator<UploadStatusStateT, [], []> = (
     },
 
     setError: (key: string, error: string) => {
-        const upload = get().uploads.get(key)
-        if (!upload) {
-            console.error('Could not find upload with key', key)
-            return
-        }
-        upload.setError(error)
-        return { uploads: new Map(get().uploads) }
+        set((state) => {
+            let upload = state.uploads.get(key)
+            if (upload?.parent) {
+                upload = state.uploads.get(upload.parent)
+            }
+            if (!upload) {
+                console.error('Could not find upload with key', key)
+                return
+            }
+
+            if (!upload.error) {
+                upload.setError(error)
+            }
+            state.uploads.set(upload.key, upload)
+            return { uploads: new Map(state.uploads) }
+        })
     },
 
     clearUploads: () => {

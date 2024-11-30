@@ -199,21 +199,15 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const [size, units] = humanFileSize(file.GetSize())
     return (
         <div
-            className={presentationStyle["file-info-box"]}
+            className={presentationStyle['file-info-box']}
             onClick={(e) => e.stopPropagation()}
         >
             <div className="flex flex-col justify-center h-max max-w-full gap-2">
                 {file.IsFolder() && <IconFolder size={'1em'} />}
-                <h3 className="truncate font-bold">
-                    {file.GetFilename()}
-                </h3>
+                <h3 className="truncate font-bold">{file.GetFilename()}</h3>
                 <div className="flex flex-row text-white items-center">
-                    <h4>
-                        {size}
-                    </h4>
-                    <h4>
-                        {units}
-                    </h4>
+                    <h4>{size}</h4>
+                    <h4>{units}</h4>
                 </div>
                 <div className="flex gap-1">
                     <h4>
@@ -323,7 +317,7 @@ export const PresentationVisual = ({
 
 function useKeyDownPresentation(
     contentId: string,
-    dispatch: PresentationDispatchT
+    setTarget: (targetId: string) => void
 ) {
     const mediaData = useMediaStore((state) => state.mediaMap.get(contentId))
 
@@ -334,24 +328,24 @@ function useKeyDownPresentation(
             } else if (event.key === 'Escape') {
                 event.preventDefault()
                 event.stopPropagation()
-                dispatch.setPresentationTarget('')
+                setTarget('')
             } else if (event.key === 'ArrowLeft') {
                 event.preventDefault()
                 if (!mediaData.Prev()) {
                     return
                 }
-                dispatch.setPresentationTarget(mediaData.Prev()?.Id())
+                setTarget(mediaData.Prev()?.Id())
             } else if (event.key === 'ArrowRight') {
                 event.preventDefault()
                 if (!mediaData.Next()) {
                     return
                 }
-                dispatch.setPresentationTarget(mediaData.Next()?.Id())
+                setTarget(mediaData.Next()?.Id())
             } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
                 event.preventDefault()
             }
         },
-        [contentId, dispatch, mediaData]
+        [contentId, mediaData]
     )
     useEffect(() => {
         window.addEventListener('keydown', keyDownHandler)
@@ -370,10 +364,6 @@ function handleTimeout(
         clearTimeout(to)
     }
     setTo(setTimeout(() => setGuiShown(false), 1000))
-}
-
-interface PresentationDispatchT {
-    setPresentationTarget(targetId: string): void
 }
 
 export function PresentationFile({ file }: { file: WeblensFile }) {
@@ -504,17 +494,15 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     )
 }
 
+interface PresentationProps {
+    mediaId: string
+    setTarget: (targetId: string) => void
+    element?: () => ReactNode
+}
+
 const Presentation = memo(
-    ({
-        mediaId,
-        element,
-        dispatch,
-    }: {
-        mediaId: string
-        dispatch: PresentationDispatchT
-        element?: () => ReactNode
-    }) => {
-        useKeyDownPresentation(mediaId, dispatch)
+    ({ mediaId, element, setTarget }: PresentationProps) => {
+        useKeyDownPresentation(mediaId, setTarget)
 
         const [to, setTo] = useState<NodeJS.Timeout>(null)
         const [guiShown, setGuiShown] = useState(false)
@@ -542,7 +530,7 @@ const Presentation = memo(
                     setGuiShown(true)
                     handleTimeout(to, setTo, setGuiShown)
                 }}
-                onClick={() => dispatch.setPresentationTarget('')}
+                onClick={() => setTarget('')}
             >
                 <PresentationVisual
                     key={mediaId}
@@ -557,7 +545,7 @@ const Presentation = memo(
                     <WeblensButton
                         subtle
                         Left={IconX}
-                        onClick={() => dispatch.setPresentationTarget('')}
+                        onClick={() => setTarget('')}
                     />
                 </div>
                 <div
@@ -612,7 +600,7 @@ const Presentation = memo(
             return false
         } else if (prev.element !== next.element) {
             return false
-        } else if (prev.dispatch !== next.dispatch) {
+        } else if (prev.setTarget !== next.setTarget) {
             return false
         }
 

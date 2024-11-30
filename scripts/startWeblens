@@ -13,8 +13,8 @@ trace=false
 docs=false
 detach=false
 build_ui=false
-log_file=""
-config_name=$CONFIG_NAME
+log_file="$WEBLENS_LOG_FILE"
+config_name="$CONFIG_NAME"
 
 while [ "${1:-}" != "" ]; do
 	case "$1" in

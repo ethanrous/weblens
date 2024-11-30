@@ -351,9 +351,7 @@ func (fs *FileServiceImpl) GetFileOwner(file *fileTree.WeblensFileImpl) *models.
 		username = portable.RelativePath()[:slashIndex]
 	}
 	u := fs.userService.Get(username)
-	if u == nil {
-		return fs.userService.GetRootUser()
-	}
+
 	return u
 }
 
@@ -627,7 +625,12 @@ func (fs *FileServiceImpl) DeleteFiles(
 func (fs *FileServiceImpl) RestoreFiles(
 	ids []fileTree.FileId, newParent *fileTree.WeblensFileImpl, restoreTime time.Time, caster models.FileCaster,
 ) error {
-	journal := fs.trees["USERS"].GetJournal()
+	usersTree := fs.trees["USERS"]
+	if usersTree == nil {
+		return werror.WithStack(werror.ErrNoFileTree.WithArg("USERS"))
+	}
+
+	journal := usersTree.GetJournal()
 	event := journal.NewEvent()
 
 	var topFiles []*fileTree.WeblensFileImpl
@@ -678,13 +681,14 @@ func (fs *FileServiceImpl) RestoreFiles(
 		}
 
 		oldName := filepath.Base(path)
+		newName := MakeUniqueChildName(toRestore.newParent, oldName)
 
 		var restoredF *fileTree.WeblensFileImpl
 		if !pastFile.IsDir() {
 			var existingPath string
 
 			// File has been deleted, get the file from the restore tree
-			if liveF := fs.trees["USERS"].Get(toRestore.fileId); liveF == nil {
+			if liveF := usersTree.Get(toRestore.fileId); liveF == nil {
 				_, err = fs.trees["RESTORE"].GetRoot().GetChild(toRestore.contentId)
 				if err != nil {
 					return err
@@ -695,11 +699,11 @@ func (fs *FileServiceImpl) RestoreFiles(
 			}
 
 			restoredF = fileTree.NewWeblensFile(
-				fs.trees["USERS"].GenerateFileId(), oldName, toRestore.newParent, pastFile.IsDir(),
+				usersTree.GenerateFileId(), newName, toRestore.newParent, pastFile.IsDir(),
 			)
 			restoredF.SetContentId(pastFile.GetContentId())
 			restoredF.SetSize(pastFile.Size())
-			err = fs.trees["USERS"].Add(restoredF)
+			err = usersTree.Add(restoredF)
 			if err != nil {
 				return err
 			}
@@ -716,9 +720,9 @@ func (fs *FileServiceImpl) RestoreFiles(
 
 		} else {
 			restoredF = fileTree.NewWeblensFile(
-				fs.trees["USERS"].GenerateFileId(), oldName, toRestore.newParent, true,
+				usersTree.GenerateFileId(), newName, toRestore.newParent, true,
 			)
-			err = fs.trees["USERS"].Add(restoredF)
+			err = usersTree.Add(restoredF)
 			if err != nil {
 				return err
 			}
@@ -748,11 +752,14 @@ func (fs *FileServiceImpl) RestoreFiles(
 	}
 
 	journal.LogEvent(event)
-
 	event.Wait()
 
 	for _, f := range topFiles {
 		err := fs.ResizeDown(f, caster)
+		if err != nil {
+			return err
+		}
+		err = fs.ResizeUp(f, caster)
 		if err != nil {
 			return err
 		}
@@ -1332,13 +1339,14 @@ func handleFileResize(
 
 		lt := journal.Get(file.ID())
 
-		if lt == nil {
-			return werror.Errorf("journal does not have lifetime [%s] to resize", file.ID())
-		}
-		latestSize := lt.GetLatestSize()
-		if latestSize != newSize {
+		// if lt == nil {
+		// 	return werror.Errorf("journal does not have lifetime [%s] to of file [%s] to resize", file.ID(), file.GetPortablePath())
+		// }
+		if lt == nil || lt.GetLatestSize() != newSize {
 			log.Trace.Func(func(l log.Logger) {
-				l.Printf("Size change for [%s] detected %d -> %d", file.GetPortablePath(), latestSize, newSize)
+				if lt != nil {
+					l.Printf("Size change for [%s] detected %d -> %d", file.GetPortablePath(), lt.GetLatestSize(), newSize)
+				}
 			})
 			event.NewSizeChangeAction(file)
 		}

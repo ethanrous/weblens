@@ -3,11 +3,9 @@ package http
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/ethanrous/bimg"
 	"github.com/ethanrous/weblens/fileTree"
@@ -222,55 +220,57 @@ func getMediaImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func streamVideo(w http.ResponseWriter, r *http.Request) {
+	log.Debug.Func(func(l log.Logger) { l.Println("Streaming video", chi.URLParam(r, "chunkName")) })
 	pack := getServices(r)
-	// u, err := getUserFromCtx(r)
-	// if SafeErrorAndExit(err, w) {
-	// 	return
-	// }
 
 	sh, err := getShareFromCtx[*models.FileShare](w, r)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	mediaId := chi.URLParam(r, "mediaId")
 	m := pack.MediaService.Get(mediaId)
 	if m == nil {
-		w.WriteHeader(http.StatusNotFound)
+		writeError(w, http.StatusNotFound, werror.ErrNoMedia)
 		return
 	} else if !pack.MediaService.GetMediaType(m).IsVideo() {
-		writeJson(w, http.StatusBadRequest, rest.WeblensErrorInfo{Error: "media is not of type video"})
+		writeError(w, http.StatusBadRequest, werror.Errorf("media is not of type video"))
 		return
 	}
 
 	streamer, err := pack.MediaService.StreamVideo(m, pack.UserService.GetRootUser(), sh)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
 
 	chunkName := chi.URLParam(r, "chunkName")
 	if chunkName != "" {
-		http.ServeFile(w, r, streamer.GetEncodeDir()+chunkName)
+		chunkFile, err := streamer.GetChunk(chunkName)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		log.Trace.Println("Serving chunk", chunkName)
+		wrote, err := io.Copy(w, chunkFile)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		err = chunkFile.Close()
+		log.Trace.Println("Chunk [%s] wrote [%d] bytes", chunkName, wrote)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
 		return
 	}
 
-	playlistFilePath := filepath.Join(streamer.GetEncodeDir(), "list.m3u8")
-	for {
-		_, err := os.Stat(playlistFilePath)
-		if streamer.Err() != nil {
-			log.ShowErr(streamer.Err())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		if err != nil {
-			time.Sleep(time.Millisecond * 100)
-		} else {
-			break
-		}
+	listFile, err := streamer.GetListFile()
+	if SafeErrorAndExit(err, w) {
+		return
 	}
-	http.ServeFile(w, r, playlistFilePath)
+
+	_, err = w.Write(listFile)
+	SafeErrorAndExit(err, w)
 }
 
 // SetMediaVisibility godoc
@@ -394,6 +394,10 @@ func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 //	@Router		/media/{mediaId}/file [get]
 func getMediaFile(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
+	u, err := getUserFromCtx(r)
+	if err != nil {
+		return
+	}
 
 	mediaId := chi.URLParam(r, "mediaId")
 
@@ -403,10 +407,18 @@ func getMediaFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := pack.FileService.GetFileByContentId(m.ContentId)
-	if SafeErrorAndExit(err, w) {
-		return
+	var f *fileTree.WeblensFileImpl
+	for _, fId := range m.GetFiles() {
+		f, err = pack.FileService.GetFileSafe(fId, u, nil)
+		if err == nil && f.GetPortablePath().RootName() == "USERS" {
+			break
+		}
 	}
+
+	// f, err := pack.FileService.GetFileByContentId(m.ContentId)
+	// if SafeErrorAndExit(err, w) {
+	// 	return
+	// }
 
 	fInfo, err := rest.WeblensFileToFileInfo(f, pack, false)
 	if SafeErrorAndExit(err, w) {
@@ -477,7 +489,6 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 				MediaService: pack.MediaService,
 				TaskService:  pack.TaskService,
 				TaskSubber:   pack.ClientService,
-				Caster:       pack.Caster,
 			}
 			_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
 			if err != nil {

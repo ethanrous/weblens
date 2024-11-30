@@ -1,5 +1,6 @@
 import { CSSProperties } from '@mantine/core'
-import '@weblens/lib/weblensProgress.scss'
+import { useResize } from '@weblens/components/hooks'
+import progressStyle from '@weblens/lib/weblensProgress.module.scss'
 import { clamp } from '@weblens/util'
 import { memo, useEffect, useState } from 'react'
 
@@ -12,7 +13,7 @@ type progressProps = {
     loading?: boolean
     disabled?: boolean
     failure?: boolean
-    seekCallback?: (v: number) => void
+    seekCallback?: (v: number, seeking?: boolean) => void
     style?: CSSProperties
     primaryColor?: string
     secondaryColor?: string
@@ -35,16 +36,18 @@ const WeblensProgress = memo(
     }: progressProps) => {
         const [dragging, setDragging] = useState(false)
         const [percentage, setPercentage] = useState(clamp(value, 0, 100))
+        const [hoverPercent, setHoverPercent] = useState(clamp(value, 0, 100))
         // const [secondaryPercentage, setSecondaryPercentage] = useState(
         //     clamp(secondaryValue, 0, 100)
         // )
         const [boxRef, setBoxRef] = useState<HTMLDivElement>(null)
+        const size = useResize(boxRef)
 
         useEffect(() => {
             if (seekCallback) {
-                seekCallback(percentage)
+                seekCallback(percentage, dragging)
             }
-        }, [percentage])
+        }, [percentage, dragging])
 
         useEffect(() => {
             if (dragging) {
@@ -72,19 +75,18 @@ const WeblensProgress = memo(
 
         return (
             <div
-                className="weblens-progress-container"
+                className={progressStyle['weblens-progress-container']}
                 data-scrubbing={dragging}
-                data-seekable={seekCallback !== undefined}
                 style={{
                     height: orientation === 'vertical' ? '100%' : height,
-                    cursor: seekCallback ? 'pointer' : 'default',
                 }}
+                data-seekable={seekCallback !== undefined}
             >
                 {seekCallback !== undefined && (
                     <div
-                        className="slider-handle"
+                        className={progressStyle['slider-handle']}
                         style={{
-                            left: `${value}%`,
+                            left: `${clamp(value/100 * size.width, 6, size.width - 6)}px`,
                             height: height,
                             width: height,
                         }}
@@ -94,14 +96,14 @@ const WeblensProgress = memo(
                     />
                 )}
                 <div
-                    className="weblens-progress"
+                    className={progressStyle['weblens-progress']}
                     ref={setBoxRef}
                     data-loading={loading}
                     data-disabled={disabled}
                     data-complete={complete}
                     data-failure={failure}
                     onMouseUp={() => setDragging(false)}
-                    onMouseDown={(e) => {
+                    onMouseMove={(e) => {
                         if (e.target instanceof HTMLDivElement) {
                             const rect = e.target.getBoundingClientRect()
                             let v =
@@ -110,9 +112,23 @@ const WeblensProgress = memo(
                             if (v < 0) {
                                 v = 0
                             }
-                            setPercentage(v * 100)
-                            setDragging(true)
+                            setHoverPercent(v * 100)
                         }
+                    }}
+                    onMouseLeave={() => setHoverPercent(0)}
+                    onMouseDown={(e) => {
+                        e.stopPropagation()
+                        // if (e.target instanceof HTMLDivElement) {
+                        //     const rect = e.target.getBoundingClientRect()
+                        //     let v =
+                        //         (e.clientX - rect.left) /
+                        //         (rect.right - rect.left)
+                        //     if (v < 0) {
+                        //         v = 0
+                        //     }
+                        // }
+                        setPercentage(hoverPercent)
+                        setDragging(true)
                     }}
                     style={{
                         justifyContent:
@@ -123,7 +139,7 @@ const WeblensProgress = memo(
                     }}
                 >
                     <div
-                        className="weblens-progress-bar"
+                        className={progressStyle['weblens-progress-bar']}
                         data-complete={complete}
                         style={{
                             height:
@@ -133,8 +149,27 @@ const WeblensProgress = memo(
                             backgroundColor: primaryColor ? primaryColor : '',
                         }}
                     />
+                    {seekCallback !== undefined && (
+                        <div
+                            className={progressStyle['weblens-progress-bar']}
+                            data-seek-hint={true}
+                            style={{
+                                height:
+                                    orientation === 'horizontal'
+                                        ? ''
+                                        : `${hoverPercent}%`,
+                                width:
+                                    orientation === 'horizontal'
+                                        ? `${hoverPercent}%`
+                                        : '',
+                                // backgroundColor: primaryColor
+                                //     ? primaryColor
+                                //     : '',
+                            }}
+                        />
+                    )}
                     <div
-                        className="weblens-progress-bar"
+                        className={progressStyle['weblens-progress-bar']}
                         data-secondary={true}
                         style={{
                             height:

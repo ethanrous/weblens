@@ -195,7 +195,7 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 	}
 
 	tp.waiterCount.Add(1)
-	if task[0] != nil {
+	if len(task) != 0 {
 		select {
 		case <-task[0].signalChan:
 		case <-tp.waiterGate:

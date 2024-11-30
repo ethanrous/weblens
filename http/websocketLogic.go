@@ -12,7 +12,6 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
-	"github.com/ethanrous/weblens/task"
 	gorilla "github.com/gorilla/websocket"
 )
 
@@ -221,13 +220,11 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				return
 			}
 
-			newCaster := models.NewSimpleCaster(pack.ClientService)
 			meta := models.ScanMeta{
 				File:         folder,
 				FileService:  pack.FileService,
 				MediaService: pack.MediaService,
 				TaskService:  pack.TaskService,
-				Caster:       newCaster,
 				TaskSubber:   pack.ClientService,
 			}
 
@@ -236,6 +233,7 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				taskName = models.ScanDirectoryTask
 			} else {
 				taskName = models.ScanFileTask
+				meta.Caster = pack.Caster
 			}
 
 			t, err := pack.TaskService.DispatchJob(taskName, meta, nil)
@@ -243,11 +241,6 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 				c.Error(err)
 				return
 			}
-			t.SetCleanup(
-				func(t *task.Task) {
-					newCaster.Close()
-				},
-			)
 
 			_, _, err = pack.ClientService.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
 			if err != nil {

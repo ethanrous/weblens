@@ -593,7 +593,7 @@ function deleteFile(
         state.jumpTo = ''
     }
 
-    console.debug('Deleted file', existing.GetFilename())
+    console.debug('Deleted file', existing?.GetFilename())
 
     return state
 }
@@ -641,7 +641,7 @@ const FBStateControl: StateCreator<
     blockFocus: false,
     isSearching: false,
     holdingShift: false,
-    pastTime: null,
+    pastTime: new Date(0),
     menuMode: 0,
     homeDirSize: -1,
     trashDirSize: -1,

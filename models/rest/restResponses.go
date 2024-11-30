@@ -57,9 +57,14 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 	// Some fields are only needed if the file is the parent file of the request,
 	// when the file is a child, these fields are not needed, and can be expensive to fetch,
 	// so we conditionally ignore them.
-	var owner models.Username
+	var ownerName models.Username
 	var children []fileTree.FileId
-	owner = pack.FileService.GetFileOwner(f).GetUsername()
+	owner := pack.FileService.GetFileOwner(f)
+	if owner == nil {
+		return FileInfo{}, werror.WithStack(werror.ErrNoUser)
+	}
+	ownerName = owner.GetUsername()
+
 	for _, c := range f.GetChildren() {
 		children = append(children, c.ID())
 	}
@@ -94,7 +99,7 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 		Modifiable:   modifiable,
 		PastFile:     isPastFile,
 
-		Owner:    owner,
+		Owner:    ownerName,
 		Children: children,
 	}, nil
 }
@@ -112,6 +117,12 @@ type MediaBatchInfo struct {
 } // @name MediaBatchInfo
 
 func NewMediaBatchInfo(m []*models.Media) MediaBatchInfo {
+	if len(m) == 0 {
+		return MediaBatchInfo{
+			Media:      []MediaInfo{},
+			MediaCount: 0,
+		}
+	}
 	var mediaInfos []MediaInfo
 	for _, media := range m {
 		mediaInfos = append(mediaInfos, MediaToMediaInfo(media))

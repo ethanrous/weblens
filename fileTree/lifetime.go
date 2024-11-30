@@ -64,13 +64,11 @@ func (l *Lifetime) GetLatestAction() *FileAction {
 }
 
 func (l *Lifetime) GetLatestSize() int64 {
-	for _, a := range l.Actions {
-		if a.Size != 0 {
-			return a.Size
-		}
+	if len(l.Actions) == 0 {
+		return 0
 	}
 
-	return 0
+	return l.Actions[len(l.Actions)-1].Size
 }
 
 func (l *Lifetime) GetLatestPath() WeblensFilepath {

@@ -15,6 +15,7 @@ var Info *log.Logger
 var Warning *log.Logger
 var Error *log.Logger
 var ErrorCatcher Logger
+var Output *os.File
 
 func init() {
 	Info = log.New(os.Stdout, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
@@ -65,11 +66,11 @@ func (l *logger) Println(v ...any) {
 }
 
 func (l *logger) Printfn(skip int, format string, v ...any) {
-	fmt.Println(l.prefix + formatTime() + fmtCaller(skip) + ": " + fmt.Sprintf(format, v...))
+	fmt.Fprintln(Output, l.prefix+formatTime()+fmtCaller(skip)+": "+fmt.Sprintf(format, v...))
 }
 
 func (l *logger) Printlnn(skip int, v ...any) {
-	fmt.Print(l.prefix + formatTime() + fmtCaller(skip) + ": " + fmt.Sprintln(v...))
+	fmt.Fprint(Output, l.prefix+formatTime()+fmtCaller(skip)+": "+fmt.Sprintln(v...))
 }
 
 func NewLogger(prefix string, skip int) Logger {
@@ -116,7 +117,21 @@ func GetLogLevel() int {
 	return logLevel
 }
 
-func SetLogLevel(newLevel int) {
+func SetLogLevel(newLevel int, outputPath string) {
+	if outputPath != "" {
+		f, err := os.Create(outputPath)
+		if err != nil {
+			panic(err)
+		}
+		Output = f
+
+		Info = log.New(Output, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
+		Warning = log.New(Output, "\u001b[33m[WARN] \u001B[0m", log.LstdFlags|log.Lshortfile)
+		Error = log.New(Output, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
+	} else {
+		Output = os.Stdout
+	}
+
 	if logLevel == newLevel {
 		return
 	}

@@ -78,4 +78,5 @@ type FileCaster interface {
 	PushFileDelete(deletedFile *fileTree.WeblensFileImpl)
 	PushFilesDelete(deletedFiles []*fileTree.WeblensFileImpl)
 	Close()
+	Flush()
 }

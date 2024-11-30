@@ -229,14 +229,20 @@ func HandleFileUploads(t *task.Task) {
 		}
 	}()
 
+	timeout := false
+
 WriterLoop:
 	for {
 		t.SetTimeout(time.Now().Add(time.Second * 10))
 		select {
 		case signal := <-t.GetSignalChan(): // Listen for cancellation
 			if signal == 1 {
-				return
+				timeout = true
+				break WriterLoop
 			}
+		// case <-time.After(time.Second * 10):
+		// 	timeout = true
+		// 	break WriterLoop
 		case chunk := <-meta.ChunkStream:
 			t.ClearTimeout()
 
@@ -342,31 +348,27 @@ WriterLoop:
 				t.ReqNoErr(err)
 			}
 
-			if err != nil {
-				t.ReqNoErr(err)
+			if !timeout {
+				scanMeta := models.ScanMeta{
+					File:         tl,
+					FileService:  meta.FileService,
+					TaskService:  meta.TaskService,
+					MediaService: meta.MediaService,
+					TaskSubber:   meta.TaskSubber,
+				}
+				_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
+				if err != nil {
+					log.ErrTrace(err)
+					continue
+				}
 			}
-
-			scanMeta := models.ScanMeta{
-				File:         tl,
-				FileService:  meta.FileService,
-				TaskService:  meta.TaskService,
-				MediaService: meta.MediaService,
-				TaskSubber:   meta.TaskSubber,
-				Caster:       meta.Caster,
-			}
-			_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
-			if err != nil {
-				log.ErrTrace(err)
-				continue
-			}
-		} else if !doingRootScan {
+		} else if !doingRootScan && !timeout {
 			scanMeta := models.ScanMeta{
 				File:         rootFile,
 				FileService:  meta.FileService,
 				TaskService:  meta.TaskService,
 				MediaService: meta.MediaService,
 				TaskSubber:   meta.TaskSubber,
-				Caster:       meta.Caster,
 			}
 			_, err = t.GetTaskPool().GetWorkerPool().DispatchJob(models.ScanDirectoryTask, scanMeta, newTp)
 			if err != nil {

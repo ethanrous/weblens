@@ -534,7 +534,7 @@ export function Admin({ closeAdminMenu }: { closeAdminMenu: () => void }) {
     useKeyDown('Escape', closeAdminMenu)
 
     useEffect(() => {
-        wsSend('task_subscribe', { taskType: 'do_backup' })
+        wsSend('taskSubscribe', { taskType: 'do_backup' })
         return () => wsSend('unsubscribe', { taskType: 'do_backup' })
     }, [])
 

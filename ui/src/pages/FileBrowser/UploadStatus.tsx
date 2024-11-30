@@ -9,76 +9,49 @@ import { VariableSizeList } from 'react-window'
 import { SingleUpload, useUploadStatus } from './UploadStateControl'
 import './style/uploadStatusStyle.scss'
 
-type UploadCardData = {
-    uploads: SingleUpload[]
-    childrenMap: Map<string, SingleUpload[]>
-}
-
 function UploadCardWrapper({
     data,
     index,
     style,
 }: {
-    data: UploadCardData
+    data: SingleUpload[]
     index: number
     style: CSSProperties
 }) {
-    const { uploads, childrenMap } = data
-    const uploadMeta = uploads[index]
+    const uploadMeta = data[index]
     return (
         <div style={style}>
-            <UploadCard
-                uploadMetadata={uploadMeta}
-                subUploads={childrenMap.get(uploadMeta.key) ?? []}
-            />
+            <UploadCard uploadMetadata={uploadMeta} />
         </div>
     )
 }
 
-function UploadCard({
-    uploadMetadata,
-    subUploads,
-}: {
-    uploadMetadata: SingleUpload
-    subUploads: SingleUpload[]
-}) {
+function UploadCard({ uploadMetadata }: { uploadMetadata: SingleUpload }) {
     const { prog, statusText, speedStr, speedUnits } = useMemo(() => {
-        let prog = 0
-        let statusText = ''
-        let speed = 0
-        if (uploadMetadata.isDir) {
-            if (uploadMetadata.files === -1) {
-                prog = -1
-            } else {
-                prog = (uploadMetadata.files / uploadMetadata.total) * 100
-            }
+        const prog = uploadMetadata.getPercetageComplete()
+        const [soFarString, soFarUnits] = humanFileSize(uploadMetadata.bytes)
+        const [totalString, totalUnits] = humanFileSize(
+            uploadMetadata.bytesTotal
+        )
 
-            if (uploadMetadata.total === 0) {
-                statusText = 'Starting upload ...'
-            } else if (uploadMetadata.complete) {
-                statusText = `${uploadMetadata.total} files`
-            } else {
-                statusText = `${uploadMetadata.files} of ${uploadMetadata.total} files`
-            }
-            speed = subUploads.reduce((acc, f) => f.getSpeed() + acc, 0)
+        let statusText = `${soFarString}${soFarUnits} of ${totalString}${totalUnits}`
+        if (uploadMetadata.bytesTotal === 0) {
+            statusText = 'Starting ...'
         } else if (uploadMetadata.complete) {
             const [totalString, totalUnits] = humanFileSize(
-                uploadMetadata.total
+                uploadMetadata.bytesTotal
             )
             statusText = `${totalString}${totalUnits}`
-        } else if (uploadMetadata.chunks.length !== 0) {
-            const soFar = uploadMetadata.chunks.reduce(
-                (acc, chunk) => acc + (chunk ? chunk.bytesSoFar : 0),
-                0
-            )
+        } else if (uploadMetadata.error) {
+            statusText = 'Failed'
+        }
 
-            prog = Math.min((soFar / uploadMetadata.total) * 100, 100)
-            const [soFarString, soFarUnits] = humanFileSize(soFar)
-            const [totalString, totalUnits] = humanFileSize(
-                uploadMetadata.total
-            )
-            statusText = `${soFarString}${soFarUnits} of ${totalString}${totalUnits}`
-            speed = uploadMetadata.getSpeed()
+        const speed = uploadMetadata.getSpeed()
+
+        if (uploadMetadata.isDir) {
+            if (uploadMetadata.complete) {
+                statusText += ` (${uploadMetadata.filesTotal} files)`
+            }
         }
 
         const [speedStr, speedUnits] = humanFileSize(speed)
@@ -87,8 +60,10 @@ function UploadCard({
     }, [
         uploadMetadata.chunks,
         uploadMetadata.complete,
-        uploadMetadata.total,
+        uploadMetadata.bytes,
+        uploadMetadata.bytesTotal,
         uploadMetadata.files,
+        uploadMetadata.error,
     ])
 
     return (
@@ -103,13 +78,12 @@ function UploadCard({
                         <p className="text-[--wl-text-color] text-nowrap pr-[4px] text-sm my-1">
                             {statusText}
                         </p>
-                        {!uploadMetadata.isDir && !uploadMetadata.complete && (
+                        {!uploadMetadata.complete && (
                             <p className="text-[--wl-text-color] text-nowrap pr-[4px] text-sm mt-1">
                                 {speedStr} {speedUnits}/s
                             </p>
                         )}
                     </div>
-                    {/* )} */}
                 </div>
                 {uploadMetadata.isDir && (
                     <IconFolder
@@ -129,7 +103,7 @@ function UploadCard({
                 <WeblensProgress
                     value={prog}
                     failure={Boolean(uploadMetadata.error)}
-                    loading={uploadMetadata.total === 0}
+                    loading={uploadMetadata.bytesTotal === 0}
                 />
             )}
         </div>
@@ -141,7 +115,7 @@ const UploadStatus = () => {
     const clearUploads = useUploadStatus((state) => state.clearUploads)
     const listRef = useRef<VariableSizeList>()
 
-    const { uploads, childrenMap } = useMemo(() => {
+    const uploads = useMemo<SingleUpload[]>(() => {
         const uploads: SingleUpload[] = []
         const childrenMap = new Map<string, SingleUpload[]>()
         for (const upload of Array.from(uploadsMap.values())) {
@@ -162,8 +136,8 @@ const UploadStatus = () => {
                 return -1
             }
 
-            const aVal = a.bytes / a.total
-            const bVal = b.bytes / b.total
+            const aVal = a.bytes / a.bytesTotal
+            const bVal = b.bytes / b.bytesTotal
             if (aVal === bVal) {
                 return 0
             } else if (aVal !== 1 && bVal === 1) {
@@ -177,7 +151,7 @@ const UploadStatus = () => {
             return 0
         })
 
-        return { uploads, childrenMap }
+        return uploads
     }, [uploadsMap])
 
     useEffect(() => {
@@ -196,8 +170,6 @@ const UploadStatus = () => {
     for (const upload of uploads) {
         if (upload.complete) {
             height += 70
-        } else if (upload.isDir) {
-            height += 105
         } else {
             height += 120
         }
@@ -221,12 +193,10 @@ const UploadStatus = () => {
                                 const upload = uploads[index]
                                 if (upload.complete) {
                                     return 70
-                                } else if (upload.isDir) {
-                                    return 105
                                 }
                                 return 120
                             }}
-                            itemData={{ uploads, childrenMap }}
+                            itemData={uploads}
                             overscanCount={5}
                         >
                             {UploadCardWrapper}

@@ -18,10 +18,10 @@ import (
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/caster"
 	"github.com/ethanrous/weblens/service"
 	"github.com/ethanrous/weblens/service/mock"
 	"github.com/ethanrous/weblens/task"
-	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -40,12 +40,8 @@ func main() {
 	configName := env.GetConfigName()
 	log.Info.Printf("Using config: %s", configName)
 
-	logLevel := env.GetLogLevel(configName)
-	log.SetLogLevel(logLevel)
-
-	if logLevel != log.TRACE {
-		gin.SetMode(gin.ReleaseMode)
-	}
+	// logLevel := env.GetLogLevel(configName)
+	// log.SetLogLevel(logLevel, configName)
 
 	server = http.NewServer(config["routerHost"].(string), env.GetRouterPort(configName), services)
 	server.StartupFunc = func() {
@@ -86,7 +82,7 @@ func startup(configName string, pack *models.ServicePack) {
 	sw.Lap("Init client service")
 
 	/* Basic global pack.Caster */
-	caster := models.NewSimpleCaster(pack.ClientService)
+	caster := caster.NewSimpleCaster(pack.ClientService)
 	caster.Global()
 	pack.Caster = caster
 
@@ -164,7 +160,9 @@ func startup(configName string, pack *models.ServicePack) {
 	server := pack.Server.(*http.Server)
 	server.RouterLock.Lock()
 	pack.Loaded.Store(true)
-	log.Debug.Println("Closing startup channel")
+
+	log.Trace.Println("Closing startup channel")
+
 	close(pack.StartupChan)
 	pack.StartupChan = nil
 	server.RouterLock.Unlock()

@@ -5,13 +5,24 @@ import {
     IconPhoto,
     IconPlayerPauseFilled,
     IconPlayerPlayFilled,
+    IconVolume,
     IconVolume3,
 } from '@tabler/icons-react'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
+import { secondsToVideoTime } from '@weblens/util'
 import { useKeyDown, useResize, useVideo } from 'components/hooks'
 import Hls from 'hls.js'
-import { MouseEvent, memo, useCallback, useEffect, useState } from 'react'
+import {
+    MouseEvent,
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react'
+
+import { ErrorHandler } from '../Types'
 
 export const MediaImage = memo(
     ({
@@ -222,8 +233,9 @@ function VideoWrapper({
     const size = useResize(containerRef)
 
     const [showUi, setShowUi] = useState<NodeJS.Timeout>()
-    const [volume, setVolume] = useState(0)
+    const [volume, setVolume] = useState<number>()
     const [playtimeInternal, setPlaytime] = useState(0)
+    const [wasPlaying, setWasPlaying] = useState(false)
 
     useEffect(() => {
         setPlaytime(playtime)
@@ -238,6 +250,7 @@ function VideoWrapper({
             console.debug('Not Using HLS')
             videoRef.src = media.StreamVideoUrl()
         } else if (Hls.isSupported()) {
+            Hls.DefaultConfig.debug = true
             console.debug('Using HLS')
             const hls = new Hls()
             hls.loadSource(media.StreamVideoUrl())
@@ -249,9 +262,11 @@ function VideoWrapper({
     }, [videoRef, media.StreamVideoUrl()])
 
     const togglePlayState = useCallback(() => {
+        console.log('togglePlayState')
         if (!videoRef) {
             return
         }
+        console.log('is playing', isPlaying)
         if (isPlaying) {
             videoRef.pause()
         } else {
@@ -263,17 +278,53 @@ function VideoWrapper({
 
     useKeyDown(' ', togglePlayState, !shouldShowVideo)
 
+    useEffect(() => {
+        const muted = localStorage.getItem('volume-muted') === 'true'
+        if (muted) {
+            setVolume(0)
+            return
+        }
+        setVolume(Number(localStorage.getItem('volume')) || 50)
+    }, [])
+
+    useEffect(() => {
+        if (volume === undefined) {
+            return
+        }
+        if (videoRef) {
+            videoRef.volume = volume / 100
+        }
+        if (volume === 0) {
+            localStorage.setItem('volume-muted', 'true')
+        } else {
+            localStorage.setItem('volume-muted', 'false')
+            localStorage.setItem('volume', volume.toString())
+        }
+    }, [volume])
+
+    const VolumeIcon = useMemo(() => {
+        if (volume === 0) {
+            return IconVolume3
+        } else {
+            return IconVolume
+        }
+    }, [volume])
+
+    const buffered = useMemo(() => {
+        const buffered = videoRef?.buffered.length
+            ? (videoRef.buffered.end(videoRef.buffered.length - 1) /
+                  videoRef.duration) *
+              100
+            : 0
+
+        return buffered
+    }, [videoRef?.buffered])
+
     if (!shouldShowVideo) {
         return null
     }
 
-    if (videoRef) {
-        videoRef.volume = volume / 100
-    }
-
-    if (!shouldShowVideo) {
-        return null
-    }
+    const lenInSec = media.GetVideoLength() / 1000
 
     return (
         <div
@@ -320,64 +371,91 @@ function VideoWrapper({
                 ref={setVideoRef}
                 autoPlay
                 muted={volume === 0}
+                preload="none"
                 className="media-image animate-fade"
                 poster={media.GetObjectUrl(PhotoQuality.LowRes)}
                 data-fit-logic={fitLogic}
                 data-hide={
                     url === '' || media.HasLoadError() || !shouldShowVideo
                 }
-                style={{ ...imgStyle, borderRadius: '0' }}
+                style={{ ...imgStyle, borderRadius: '0', zIndex: 1 }}
                 onClick={togglePlayState}
             />
             <div
-                className="flex absolute justify-center items-end p-3 pointer-events-none
-                            transition-opacity duration-300"
+                className="flex absolute justify-center items-end p-2"
                 style={{
                     width: size.width,
                     height: size.height,
                     opacity: showUi || !isPlaying ? 1 : 0,
                 }}
             >
-                <IconVolume3
-                    className="w-5 h-5 absolute pointer-events-auto cursor-pointer text-white top-0 right-0 m-4"
-                    onClick={() => {
-                        setVolume(20)
+                <div
+                    className="flex flex-row h-max w-full justify-around items-center absolute p-2 z-10 gap-2"
+                    onClick={(e) => {
+                        e.stopPropagation()
                     }}
-                    style={{
-                        opacity: (showUi || !isPlaying) && volume === 0 ? 1 : 0,
-                        pointerEvents:
-                            (showUi || !isPlaying) && volume === 0
-                                ? 'all'
-                                : 'none',
-                    }}
-                />
-
-                <div className="flex flex-row h-2 w-[98%] justify-around items-center absolute">
-                    <div className="relative w-[80%]">
+                >
+                    <div
+                        className="flex w-max justify-center h-max text-nowrap gap-1 font-mono select-none"
+                        style={{
+                            minWidth: `${lenInSec < 3600 ? 6.5 : 10}rem`,
+                        }}
+                    >
+                        <p className="text-sm">
+                            {secondsToVideoTime(
+                                playtimeInternal,
+                                lenInSec > 3600
+                            )}
+                        </p>
+                        <p className="text-sm">/</p>
+                        <p className="text-sm">
+                            {secondsToVideoTime(lenInSec)}
+                        </p>
+                    </div>
+                    <div className="relative grow">
                         <WeblensProgress
                             height={12}
-                            value={Math.round(
-                                (playtimeInternal * 100000) /
-                                    media.GetVideoLength()
-                            )}
-                            secondaryValue={
-                                videoRef && videoRef.buffered.length
-                                    ? videoRef.buffered.end(
-                                          videoRef.buffered.length - 1
-                                      )
-                                    : 0
-                            }
-                            seekCallback={(v) => {
+                            value={(playtimeInternal * 100) / lenInSec}
+                            secondaryValue={buffered}
+                            seekCallback={(v, seeking) => {
                                 if (videoRef) {
-                                    const newTime =
-                                        media.GetVideoLength() * (v / 100000)
+                                    const newTime = lenInSec * (v / 100)
+
+                                    if (!videoRef.paused && !wasPlaying) {
+                                        videoRef.pause()
+                                        if (seeking) {
+                                            setWasPlaying(true)
+                                        }
+                                    }
+
                                     videoRef.currentTime = newTime
                                     setPlaytime(newTime)
+
+                                    if (!seeking && (wasPlaying || isPlaying)) {
+                                        videoRef.play().catch(ErrorHandler)
+                                        setWasPlaying(false)
+                                    }
                                 }
                             }}
                         />
                     </div>
-                    <div className="relative w-[10%]">
+                    <div className="flex justify-center items-center relative w-[12%] gap-2 mx-4">
+                        <VolumeIcon
+                            className="w-4 h-4 cursor-pointer text-white z-10 shrink-0"
+                            onClick={() => {
+                                if (volume === 0) {
+                                    const volume =
+                                        localStorage.getItem('volume')
+                                    if (volume) {
+                                        setVolume(Number(volume))
+                                    } else {
+                                        setVolume(100)
+                                    }
+                                } else {
+                                    setVolume(0)
+                                }
+                            }}
+                        />
                         <WeblensProgress
                             height={12}
                             value={volume}
@@ -388,9 +466,6 @@ function VideoWrapper({
                     </div>
                     <IconMaximize
                         className="relative w-5 h-5 cursor-pointer text-white z-100 pointer-events-auto"
-                        style={{
-                            opacity: showUi || !isPlaying ? 100 : 0,
-                        }}
                         onClick={(e) => {
                             e.stopPropagation()
                             toggleFullScreen(containerRef)

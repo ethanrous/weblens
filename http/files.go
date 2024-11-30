@@ -16,6 +16,7 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/caster"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/ethanrous/weblens/task"
 	"github.com/go-chi/chi/v5"
@@ -596,28 +597,17 @@ func scanDir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	caster := models.NewSimpleCaster(pack.ClientService)
 	meta := models.ScanMeta{
 		File:         dir,
 		FileService:  pack.FileService,
 		MediaService: pack.MediaService,
 		TaskSubber:   pack.ClientService,
 		TaskService:  pack.TaskService,
-		Caster:       caster,
 	}
-	t, err := pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
-	if err != nil {
-		log.ErrTrace(err)
-		w.WriteHeader(http.StatusInternalServerError)
+	_, err = pack.TaskService.DispatchJob(models.ScanDirectoryTask, meta, nil)
+	if SafeErrorAndExit(err, w) {
 		return
 	}
-	t.SetCleanup(
-		func(t *task.Task) {
-			if caster.IsEnabled() {
-				caster.Close()
-			}
-		},
-	)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -751,12 +741,12 @@ func createTakeout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	caster := models.NewSimpleCaster(pack.ClientService)
+	cstr := caster.NewSimpleCaster(pack.ClientService)
 	meta := models.ZipMeta{
 		Files:       files,
 		Requester:   u,
 		Share:       share,
-		Caster:      caster,
+		Caster:      cstr,
 		FileService: pack.FileService,
 	}
 	t, err := pack.TaskService.DispatchJob(models.CreateZipTask, meta, nil)
@@ -1147,8 +1137,8 @@ func unTrashFiles(w http.ResponseWriter, r *http.Request) {
 	}
 	fileIds := params.FileIds
 
-	caster := models.NewSimpleCaster(pack.ClientService)
-	defer caster.Close()
+	cstr := caster.NewSimpleCaster(pack.ClientService)
+	defer cstr.Close()
 
 	var files []*fileTree.WeblensFileImpl
 	for _, fileId := range fileIds {
@@ -1160,7 +1150,7 @@ func unTrashFiles(w http.ResponseWriter, r *http.Request) {
 		files = append(files, file)
 	}
 
-	err = pack.FileService.ReturnFilesFromTrash(files, caster)
+	err = pack.FileService.ReturnFilesFromTrash(files, cstr)
 	if err != nil {
 		log.ShowErr(err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -11,11 +11,18 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
+	"github.com/ethanrous/weblens/models/caster"
 	"github.com/ethanrous/weblens/task"
 )
 
 func ScanDirectory(t *task.Task) {
 	meta := t.GetMeta().(models.ScanMeta)
+	meta.Caster = caster.NewSimpleCaster(meta.TaskSubber.(models.ClientManager))
+
+	t.SetErrorCleanup(func(tsk *task.Task) {
+		err := t.ReadError()
+		meta.Caster.PushTaskUpdate(tsk, models.TaskFailedEvent, task.TaskResult{"error": err.Error()})
+	})
 
 	if meta.FileService.IsFileInTrash(meta.File) {
 		// Let any client subscribers know we are done
@@ -39,8 +46,8 @@ func ScanDirectory(t *task.Task) {
 	// 	}
 	// }(meta.File, t.TaskId())
 
+	// Create a new task pool for the file scans this directory scan will spawn
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
-	t.SetChildTaskPool(pool)
 
 	err := meta.FileService.AddTask(meta.File, t)
 	if err != nil {
@@ -50,7 +57,13 @@ func ScanDirectory(t *task.Task) {
 
 	meta.TaskSubber.FolderSubToTask(meta.File.ID(), t.TaskId())
 	meta.TaskSubber.FolderSubToTask(meta.File.GetParentId(), t.TaskId())
-	defer meta.TaskSubber.UnsubTask(t.TaskId())
+	t.SetCleanup(func(tsk *task.Task) {
+		// Make sure we finish sending any messages to the client
+		// before we close unsubscribe from the task
+		meta.Caster.Flush()
+		meta.TaskSubber.UnsubTask(tsk.TaskId())
+		meta.Caster.Close()
+	})
 
 	log.Debug.Printf("Beginning directory scan for %s (%s)", meta.File.GetPortablePath(), meta.File.ID())
 

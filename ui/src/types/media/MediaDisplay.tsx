@@ -1,17 +1,16 @@
 import {
+    IconExclamationCircle,
     IconFolder,
     IconHeart,
+    IconMovie,
     IconPhoto,
     IconPhotoScan,
-    IconTheater,
     TablerIconsProps,
 } from '@tabler/icons-react'
 import MediaApi from '@weblens/api/MediaApi'
+import WeblensLoader from '@weblens/components/Loading'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import {
-    GalleryContext,
-    GalleryContextT,
-} from '@weblens/pages/Gallery/GalleryLogic'
+import { useGalleryStore } from '@weblens/pages/Gallery/GalleryLogic'
 import { GalleryMenu } from '@weblens/pages/Gallery/GalleryMenu'
 import '@weblens/pages/Gallery/galleryStyle.scss'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
@@ -24,7 +23,6 @@ import React, {
     MouseEvent,
     ReactElement,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useRef,
@@ -32,12 +30,7 @@ import React, {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VariableSizeList as WindowList } from 'react-window'
-import {
-    AlbumData,
-    ErrorHandler,
-    MediaWrapperProps,
-    PresentType,
-} from 'types/Types'
+import { ErrorHandler, MediaWrapperProps, PresentType } from 'types/Types'
 
 const goToMediaFile = async (mediaId: string) => {
     return MediaApi.getMediaFile(mediaId).then((r) => {
@@ -53,7 +46,7 @@ const TypeIcon = (mediaData: WeblensMedia) => {
     if (mediaData.GetMediaType()?.IsRaw) {
         icon = IconPhotoScan
     } else if (mediaData.GetMediaType()?.IsVideo) {
-        icon = IconTheater
+        icon = IconMovie
     } else {
         icon = IconPhoto
     }
@@ -107,31 +100,26 @@ function StyledIcon({ Icon, visible, onClick, label }: mediaTypeProps) {
 }
 
 const MediaInfoDisplay = ({
-    mediaId,
+    mediaData,
     mediaMenuOpen,
     tooSmall,
 }: {
-    mediaId: string
+    mediaData: WeblensMedia
     mediaMenuOpen: boolean
     tooSmall: boolean
 }) => {
     const { user } = useSessionStore()
-    const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
+    // const mediaData = useMediaStore((state) => state.mediaMap.get(mediaId))
     const { icon, name } = useMemo(() => {
         return TypeIcon(mediaData)
     }, [])
 
     const setLiked = useMediaStore((state) => state.setLiked)
-    const likedArray = useMediaStore((state) =>
-        state.mediaMap.get(mediaData.Id())?.GetLikedBy()
-    )
+    const likedArray = mediaData.GetLikedBy()
 
     const visible = Boolean(icon) && !mediaMenuOpen && !tooSmall
 
-    const liked = useMediaStore((state) => {
-        const m = state.mediaMap.get(mediaId)
-        return m ? m.GetLikedBy().includes(user.username) : false
-    })
+    const liked = mediaData ? likedArray.includes(user.username) : false
 
     const othersLiked = likedArray.length - Number(liked) > 0
     let heartFill: string
@@ -145,13 +133,9 @@ const MediaInfoDisplay = ({
 
     const goto = useCallback((e: MouseEvent) => {
         e.stopPropagation()
-        goToMediaFile(mediaId)
-            // .then(() => {
-            //
-            // })
-            .catch((e) => {
-                console.error('Failed to go to media file', e)
-            })
+        goToMediaFile(mediaData.Id()).catch((e) => {
+            console.error('Failed to go to media file', e)
+        })
     }, [])
 
     return (
@@ -203,8 +187,16 @@ function MediaWrapper({
 }: MediaWrapperProps) {
     const ref = useRef()
 
-    const { galleryState, galleryDispatch } =
-        useContext<GalleryContextT>(GalleryContext)
+    const presentingId = useGalleryStore((state) => state.presentingMediaId)
+    const presentingMode = useGalleryStore((state) => state.presentingMode)
+    const menuTargetId = useGalleryStore((state) => state.menuTargetId)
+    const imageSize = useGalleryStore((state) => state.imageSize)
+    const selecting = useGalleryStore((state) => state.selecting)
+    const holdingShift = useGalleryStore((state) => state.holdingShift)
+    const setMenuTarget = useGalleryStore((state) => state.setMenuTarget)
+    const setPresentationTarget = useGalleryStore(
+        (state) => state.setPresentationTarget
+    )
 
     const hover = useMediaStore((state) => state.mediaMap.get(state.hoverId))
     const lastSelected = useMediaStore((state) =>
@@ -215,32 +207,12 @@ function MediaWrapper({
     const setHovering = useMediaStore((state) => state.setHovering)
     const setSelected = useMediaStore((state) => state.setSelected)
 
-    const menuSwitch = useCallback(
-        (o: boolean) => {
-            if (o) {
-                galleryDispatch({
-                    type: 'set_menu_target',
-                    targetId: mediaData.Id(),
-                })
-            } else {
-                galleryDispatch({ type: 'set_menu_target', targetId: '' })
-            }
-        },
-        [mediaData, galleryDispatch]
-    )
-
     const style = useMemo(() => {
-        // mediaData.SetImgRef(ref);
         return {
             height: scale,
             width: width - MARGIN_SIZE,
         }
-    }, [
-        scale,
-        mediaData,
-        galleryState.presentingMediaId,
-        galleryState.presentingMode,
-    ])
+    }, [scale, mediaData, presentingId, presentingMode])
 
     const click = useCallback(
         (selecting: boolean, holdingShift: boolean) => {
@@ -251,78 +223,63 @@ function MediaWrapper({
                 setSelected(mediaData.Id(), !mediaData.IsSelected())
                 return
             }
-            galleryDispatch({
-                type: 'set_presentation',
-                mediaId: mediaData.Id(),
-                presentMode: PresentType.Fullscreen,
-            })
+            setPresentationTarget(mediaData.Id(), PresentType.Fullscreen)
         },
-        [mediaData.Id(), galleryState.presentingMediaId === mediaData.Id()]
+        [mediaData.Id(), presentingId === mediaData.Id()]
     )
-
-    const mouseOver = useCallback(() => {
-        if (galleryState.selecting) {
-            setHovering(mediaData.Id())
-        }
-    }, [galleryState.selecting])
-
-    const mouseLeave = useCallback(() => {
-        if (galleryState.selecting) {
-            setHovering('')
-        }
-    }, [galleryState.selecting])
 
     const contextMenu = useCallback(
         (e: MouseEvent) => {
             e.stopPropagation()
             e.preventDefault()
             if (
-                galleryState.menuTargetId === mediaData.Id() ||
+                menuTargetId === mediaData.Id() ||
                 mediaData.GetOwner() !== user.username
             ) {
                 return
             }
-            galleryDispatch({
-                type: 'set_menu_target',
-                targetId: mediaData.Id(),
-            })
-            menuSwitch(true)
+            setMenuTarget(mediaData.Id())
         },
-        [galleryState.menuTargetId, style.width]
+        [menuTargetId, style.width]
     )
 
     const choosing = useMemo(() => {
         return (
-            galleryState.selecting &&
+            selecting &&
             hover !== undefined &&
             lastSelected !== undefined &&
-            galleryState.holdingShift &&
+            holdingShift &&
             mediaData.GetAbsIndex() >= 0 &&
             (mediaData.GetAbsIndex() - lastSelected.GetAbsIndex()) *
                 (mediaData.GetAbsIndex() - hover.GetAbsIndex()) <=
                 0
         )
-    }, [galleryState, hover, lastSelected])
+    }, [hover, lastSelected])
 
     const presenting =
-        galleryState.presentingMediaId === mediaData.Id() &&
-        galleryState.presentingMode === PresentType.InLine
+        presentingId === mediaData.Id() && presentingMode === PresentType.InLine
 
     return (
         <div
             key={mediaData.Id()}
             className="preview-card-container animate-fade"
-            data-selecting={galleryState.selecting}
+            data-selecting={selecting}
             data-selected={mediaData.IsSelected()}
             data-choosing={choosing}
             data-presenting={presenting}
-            data-menu-open={galleryState.menuTargetId === mediaData.Id()}
+            data-menu-open={menuTargetId === mediaData.Id()}
             ref={ref}
-            onClick={() =>
-                click(galleryState.selecting, galleryState.holdingShift)
-            }
-            onMouseOver={mouseOver}
-            onMouseLeave={mouseLeave}
+            onClick={() => click(selecting, holdingShift)}
+            onMouseOver={() => {
+                if (selecting) {
+                    setHovering(mediaData.Id())
+                }
+            }}
+            onMouseLeave={() => {
+                if (selecting) {
+                    setHovering('')
+                }
+            }}
             onContextMenu={contextMenu}
             style={style}
         >
@@ -335,19 +292,25 @@ function MediaWrapper({
                 containerStyle={style}
             />
 
-            {showMedia && (
+            {showMedia && mediaData && (
                 <MediaInfoDisplay
-                    mediaId={mediaData.Id()}
-                    mediaMenuOpen={galleryState.menuTargetId === mediaData.Id()}
-                    tooSmall={galleryState.imageSize < 200}
+                    mediaData={mediaData}
+                    mediaMenuOpen={menuTargetId === mediaData.Id()}
+                    tooSmall={imageSize < 200}
                 />
             )}
 
-            {galleryState.menuTargetId === mediaData.Id() && (
+            {menuTargetId === mediaData.Id() && (
                 <GalleryMenu
                     media={mediaData}
-                    open={galleryState.menuTargetId === mediaData.Id()}
-                    setOpen={menuSwitch}
+                    open={menuTargetId === mediaData.Id()}
+                    setOpen={(o: boolean) => {
+                        if (o) {
+                            setMenuTarget(mediaData.Id())
+                        } else {
+                            setMenuTarget('')
+                        }
+                    }}
                 />
             )}
         </div>
@@ -490,15 +453,19 @@ const NoMediaDisplay = () => {
 
 export function PhotoGallery({
     medias,
-    album,
+    loading,
+    error,
 }: {
     medias: WeblensMedia[]
-    album?: AlbumData
+    loading: boolean
+    error: Error
 }) {
     const [viewRef, setViewRef] = useState<HTMLDivElement>(null)
     const [windowRef, setWindowRef] = useState<WindowList>(null)
     const viewSize = useResize(viewRef)
-    const { galleryState } = useContext(GalleryContext)
+
+    const albumId = useGalleryStore((state) => state.albumId)
+    const imageSize = useGalleryStore((state) => state.imageSize)
 
     const showHidden = useMediaStore((state) => state.showHidden)
 
@@ -512,7 +479,7 @@ export function PhotoGallery({
         let innerMedias = [...medias]
 
         let sortDirection = 1
-        if (galleryState.albumId) {
+        if (albumId) {
             sortDirection = -1
         }
         if (!showHidden) {
@@ -547,7 +514,7 @@ export function PhotoGallery({
             if (innerMedias.length === 0) {
                 if (currentRow.length !== 0) {
                     rows.push({
-                        rowScale: galleryState.imageSize,
+                        rowScale: imageSize,
                         rowWidth: ROW_WIDTH,
                         items: currentRow,
                     })
@@ -566,9 +533,8 @@ export function PhotoGallery({
 
             // Calculate width given height "imageBaseScale", keeping aspect ratio
             const newWidth =
-                Math.floor(
-                    (galleryState.imageSize / m.GetHeight()) * m.GetWidth()
-                ) + MARGIN_SIZE
+                Math.floor((imageSize / m.GetHeight()) * m.GetWidth()) +
+                MARGIN_SIZE
 
             // If we are out of media, and the image does not overflow this row, add it and break
             if (
@@ -578,7 +544,7 @@ export function PhotoGallery({
                 currentRow.push({ m: m, w: newWidth })
 
                 rows.push({
-                    rowScale: galleryState.imageSize,
+                    rowScale: imageSize,
                     rowWidth: ROW_WIDTH,
                     items: currentRow,
                 })
@@ -598,10 +564,10 @@ export function PhotoGallery({
                 const rowScale =
                     ((ROW_WIDTH - marginTotal) /
                         (currentRowWidth - marginTotal)) *
-                    galleryState.imageSize
+                    imageSize
 
                 currentRow = currentRow.map((v) => {
-                    v.w = v.w * (rowScale / galleryState.imageSize)
+                    v.w = v.w * (rowScale / imageSize)
                     return v
                 })
 
@@ -623,7 +589,7 @@ export function PhotoGallery({
         rows.unshift({ rowScale: 20, rowWidth: ROW_WIDTH, items: [] })
         rows.push({ rowScale: 20, rowWidth: ROW_WIDTH, items: [] })
         return rows
-    }, [medias, galleryState.imageSize, viewSize, album, showHidden])
+    }, [medias, imageSize, viewSize, showHidden])
 
     useEffect(() => {
         if (windowRef) {
@@ -633,9 +599,14 @@ export function PhotoGallery({
 
     return (
         <div className="gallery-wrapper no-scrollbar" ref={setViewRef}>
-            <div className="gallery-scroll-fade" />
-            {rows.length === 0 && <NoMediaDisplay />}
-            {/* <AlbumNoContent hasContent={medias.length === 0} /> */}
+            {rows.length === 0 && !loading && !error && <NoMediaDisplay />}
+            {loading && <WeblensLoader />}
+            {error && (
+                <div className="flex flex-row m-auto items-center p-2 gap-1 pb-40">
+                    <IconExclamationCircle />
+                    <h3>Failed to fetch media</h3>
+                </div>
+            )}
             {rows.length !== 0 && viewSize.width !== -1 && (
                 <WindowList
                     ref={setWindowRef}

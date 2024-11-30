@@ -78,13 +78,16 @@ export const useSubscribe = () => {
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const viewMode = useFileBrowserStore((state) => state.viewOpts.dirViewMode)
     const shareId = useFileBrowserStore((state) => state.shareId)
+    const pastTime = useFileBrowserStore((state) => state.pastTime)
     const { lastJsonMessage } = useWeblensSocket()
     const readyState = useWebsocketStore((state) => state.readyState)
     const wsSend = useWebsocketStore((state) => state.wsSend)
     const user = useSessionStore((state) => state.user)
 
     useEffect(() => {
-        if (!folderInfo) {
+        // If we don't have a folderInfo, or we are viewing the past,
+        // we can't subscribe to anything
+        if (!folderInfo || pastTime.getTime() !== 0) {
             return
         }
         const folderIds: string[] = []
@@ -118,7 +121,7 @@ export const useSubscribe = () => {
                 UnsubFromFolder(folder, wsSend)
             }
         }
-    }, [folderInfo, shareId, viewMode])
+    }, [folderInfo, shareId, viewMode, pastTime])
 
     // Listen for incoming websocket messages
     useEffect(() => {

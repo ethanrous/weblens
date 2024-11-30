@@ -20,7 +20,6 @@ import (
 	"github.com/ethanrous/bimg"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
@@ -286,33 +285,86 @@ func (ms *MediaServiceImpl) StreamCacheVideo(m *models.Media, startByte, endByte
 	// return cache, nil
 }
 
+type justContentId struct {
+	Cid string `bson:"contentId"`
+}
+
 func (ms *MediaServiceImpl) GetFilteredMedia(
 	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId,
 	allowRaw bool, allowHidden bool,
 ) ([]*models.Media, error) {
 	slices.Sort(excludeIds)
 
-	ms.mediaLock.RLock()
-	allMs := internal.MapToValues(ms.mediaMap)
-	ms.mediaLock.RUnlock()
-	allMs = internal.Filter(
-		allMs, func(m *models.Media) bool {
-			mt := ms.GetMediaType(m)
-			if mt.Mime == "" || (mt.IsRaw() && !allowRaw) || (m.IsHidden() && !allowHidden) || m.GetOwner() != requester.GetUsername() || len(m.GetFiles()) == 0 || mt.IsMime("application/pdf") {
-				return false
-			}
-
-			// Exclude Media if it is present in the filter
-			_, e := slices.BinarySearch(excludeIds, m.ID())
-			return !e
+	pipe := bson.A{
+		bson.D{
+			{Key: "$match", Value: bson.D{
+				{Key: "owner", Value: requester.GetUsername()},
+				{Key: "fileIds", Value: bson.D{
+					{Key: "$exists", Value: true}, {Key: "$ne", Value: bson.A{}},
+				}}},
+			},
 		},
-	)
+	}
 
-	slices.SortFunc(
-		allMs, func(a, b *models.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
-	)
+	if !allowHidden {
+		pipe = append(pipe, bson.D{{Key: "$match", Value: bson.D{{Key: "hidden", Value: false}}}})
+	}
 
-	return allMs, nil
+	pipe = append(pipe, bson.D{{Key: "$sort", Value: bson.D{{Key: sort, Value: sortDirection}}}})
+	pipe = append(pipe, bson.D{{Key: "$project", Value: bson.D{{Key: "_id", Value: false}, {Key: "contentId", Value: true}}}})
+	log.Debug.Printf("Filtering media with pipe: %v", pipe)
+
+	cur, err := ms.collection.Aggregate(context.Background(), pipe)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+
+	allIds := []justContentId{}
+	err = cur.All(context.Background(), &allIds)
+	if err != nil {
+		return nil, werror.WithStack(err)
+	}
+	log.Debug.Printf("Found %d media", len(allIds))
+
+	medias := make([]*models.Media, 0, len(allIds))
+	for _, id := range allIds {
+		log.Debug.Println("Getting media with id", id.Cid)
+		m := ms.Get(id.Cid)
+		if m != nil {
+			if m.MimeType == "application/pdf" {
+				continue
+			}
+			if !allowRaw {
+				mt := ms.GetMediaType(m)
+				if mt.IsRaw() {
+					continue
+				}
+			}
+			medias = append(medias, m)
+		}
+	}
+
+	// ms.mediaLock.RLock()
+	// allMs := internal.MapToValues(ms.mediaMap)
+	// ms.mediaLock.RUnlock()
+	// allMs = internal.Filter(
+	// 	allMs, func(m *models.Media) bool {
+	// 		mt := ms.GetMediaType(m)
+	// 		if mt.Mime == "" || (mt.IsRaw() && !allowRaw) || (m.IsHidden() && !allowHidden) || m.GetOwner() != requester.GetUsername() || len(m.GetFiles()) == 0 || mt.IsMime("application/pdf") {
+	// 			return false
+	// 		}
+	//
+	// 		// Exclude Media if it is present in the filter
+	// 		_, e := slices.BinarySearch(excludeIds, m.ID())
+	// 		return !e
+	// 	},
+	// )
+	//
+	// slices.SortFunc(
+	// 	allMs, func(a, b *models.Media) int { return b.GetCreateDate().Compare(a.GetCreateDate()) * sortDirection },
+	// )
+
+	return medias, nil
 }
 
 func (ms *MediaServiceImpl) AdjustMediaDates(
@@ -363,10 +415,6 @@ func (ms *MediaServiceImpl) AddFileToMedia(m *models.Media, f *fileTree.WeblensF
 }
 
 func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId fileTree.FileId) error {
-	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
-		return ms.Del(media.ID())
-	}
-
 	filter := bson.M{"contentId": media.ID()}
 	update := bson.M{"$pull": bson.M{"fileIds": fileId}}
 	_, err := ms.collection.UpdateOne(context.Background(), filter, update)
@@ -380,15 +428,25 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 		},
 	)
 
+	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
+		return ms.Del(media.ID())
+	}
+
 	return nil
 }
 
 func (ms *MediaServiceImpl) Cleanup() error {
 	for _, m := range ms.mediaMap {
-		_, missing, err := ms.fileService.GetFiles(m.FileIds)
+		fs, missing, err := ms.fileService.GetFiles(m.FileIds)
 		if err != nil {
 			return err
 		}
+		for _, f := range fs {
+			if f.GetPortablePath().RootName() != "USERS" {
+				missing = append(missing, f.ID())
+			}
+		}
+
 		for _, fId := range missing {
 			err = ms.RemoveFileFromMedia(m, fId)
 			if err != nil {
@@ -445,24 +503,24 @@ func (ms *MediaServiceImpl) NukeCache() error {
 func (ms *MediaServiceImpl) StreamVideo(
 	m *models.Media, u *models.User, share *models.FileShare,
 ) (*models.VideoStreamer, error) {
-	var streamer *models.VideoStreamer
-	var ok bool
+	if !ms.GetMediaType(m).IsVideo() {
+		return nil, werror.WithStack(werror.ErrMediaNotVideo)
+	}
 
 	ms.streamerLock.Lock()
 	defer ms.streamerLock.Unlock()
 
+	var streamer *models.VideoStreamer
+	var ok bool
 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-		streamPath := fmt.Sprintf("%s/%s-stream/", env.GetThumbsDir(), m.ID())
-		streamer = models.NewVideoStreamer(m, streamPath)
+		f, err := ms.fileService.GetFileByContentId(m.ContentId)
+		if err != nil {
+			return nil, err
+		}
+
+		streamer = models.NewVideoStreamer(f)
 		ms.streamerMap[m.ID()] = streamer
 	}
-
-	f, err := ms.fileService.GetFileSafe(m.FileIds[0], u, share)
-	if err != nil {
-		return nil, err
-	}
-
-	streamer.Encode(f)
 
 	return streamer, nil
 }

@@ -94,7 +94,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if u.CheckLogin(userCredentials.Password) {
-		log.Debug.Printf("Valid login for [%s]\n", userCredentials.Username)
+		log.Debug.Printf("Valid login for [%s]", userCredentials.Username)
 
 		var token string
 		var expires time.Time

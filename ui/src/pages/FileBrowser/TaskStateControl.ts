@@ -58,15 +58,25 @@ export class TaskProgress {
         return this.taskId
     }
 
-    FormatTaskName(): string {
+    FormatTaskType(): string {
         switch (this.taskType) {
             case TaskType.ScanDirectory:
-                return `Scan ${this.target ? this.target : 'folder'}`
+                return 'Scan'
             case TaskType.CreateZip:
-                return `Zip ${this.target ? this.target : ''}`
+                return 'Zip'
             case TaskType.DownloadFile:
-                return `Download ${this.target ? this.target : ''}`
+                return 'Download'
         }
+    }
+
+    FormatTaskName(): string {
+        const name = this.FormatTaskType()
+        if (this.target) {
+            return `${name} ${this.target}`
+        } else if (this.taskType === TaskType.ScanDirectory) {
+            return `${name} folder`
+        }
+        return name
     }
 
     getTaskStage(): TaskStage {

@@ -1,4 +1,3 @@
-import { AlbumInfo } from '@weblens/api/swag'
 import WeblensMedia from '@weblens/types/media/Media'
 
 // Gallery Types
@@ -45,24 +44,24 @@ export const newTimeOffset = (): TimeOffset => {
     }
 }
 
-export type GalleryStateT = {
-    albumsMap: Map<string, AlbumInfo>
-    albumsFilter: string[]
-    loading: string[]
-    newAlbumDialogue: boolean
-    blockSearchFocus: boolean
-    selecting: boolean
-    menuTargetId: string
-    imageSize: number
-    searchContent: string
-    presentingMediaId: string
-    presentingMode: PresentType
-    timeAdjustOffset: TimeOffset
-    hoverIndex: number
-    lastSelId: string
-    holdingShift: boolean
-    albumId: string
-}
+// export type GalleryStateT = {
+//     albumsMap: Map<string, AlbumInfo>
+//     albumsFilter: string[]
+//     loading: string[]
+//     newAlbumDialogue: boolean
+//     blockSearchFocus: boolean
+//     selecting: boolean
+//     menuTargetId: string
+//     imageSize: number
+//     searchContent: string
+//     presentingMediaId: string
+//     presentingMode: PresentType
+//     timeAdjustOffset: TimeOffset
+//     hoverIndex: number
+//     lastSelId: string
+//     holdingShift: boolean
+//     albumId: string
+// }
 
 export type Coordinates = {
     x: number

@@ -19,8 +19,8 @@ var envLock sync.RWMutex
 func ReadConfig(configName string) (map[string]any, error) {
 	log.Trace.Println("Reading config", configName)
 	envLock.Lock()
-	defer envLock.Unlock()
 	if configData != nil {
+		envLock.Unlock()
 		return configData[configName], nil
 	}
 
@@ -29,6 +29,7 @@ func ReadConfig(configName string) (map[string]any, error) {
 
 	bs, err := os.ReadFile(configPath)
 	if err != nil {
+		envLock.Unlock()
 		return nil, err
 	}
 
@@ -40,14 +41,16 @@ func ReadConfig(configName string) (map[string]any, error) {
 
 	configData = config
 	envLock.Unlock()
-	log.SetLogLevel(GetLogLevel(configName))
+	log.SetLogLevel(GetLogLevel(configName), GetLogFile(configName))
 	envLock.Lock()
 
 	cnf, ok := configData[configName]
 	if !ok {
+		envLock.Unlock()
 		panic(werror.Errorf("Config %s not found", configName))
 	}
 
+	envLock.Unlock()
 	return cnf, nil
 }
 
@@ -184,6 +187,22 @@ func GetLogLevel(configName string) int {
 	}
 
 	return log.DEFAULT
+}
+
+func GetLogFile(configName string) string {
+	logPath := os.Getenv("WEBLENS_LOG_FILE")
+	if logPath != "" {
+		return filepath.Join(GetAppRootDir(), logPath)
+	}
+
+	config, err := ReadConfig(configName)
+	if err != nil {
+		panic(err)
+	}
+
+	logPath, _ = config["logFile"].(string)
+
+	return logPath
 }
 
 // DetachUi Controls if we host UI comm on this server. UI can be hosted elsewhere and

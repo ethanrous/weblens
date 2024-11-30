@@ -15,7 +15,7 @@ import (
 )
 
 type Id = string
-type TaskExitStatus = string
+type TaskExitStatus string
 type TaskResultKey string
 type TaskResult map[TaskResultKey]any
 
@@ -54,10 +54,10 @@ type Task struct {
 	resultsCallback func(result TaskResult)
 
 	// Function to be run to clean up when the task completes, no matter the exit status
-	cleanup TaskHandler
+	cleanup []TaskHandler
 
 	// Function to be run to clean up if the task errors
-	errorCleanup TaskHandler
+	errorCleanup []TaskHandler
 
 	sw internal.Stopwatch
 
@@ -279,14 +279,6 @@ func (t *Task) error(err error) {
 		t.exitStatus = TaskError
 	}
 
-	// Run the cleanup routine for errors, if any
-	if t.errorCleanup != nil {
-		t.updateMu.Unlock()
-		t.errorCleanup(t)
-		t.updateMu.Lock()
-		t.errorCleanup = nil
-	}
-
 	// If we have already called cancel, do not set any error
 	// E.g. A file is being moved, so we cancel all tasks on it,
 	// and move it in the filesystem. The task goes to find the file, it can't (because it was moved)
@@ -331,24 +323,31 @@ func (t *Task) SetPostAction(action func(TaskResult)) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
 
-	t.postAction = action
-
 	// If the task has already completed, run the post task in this thread instead
 	if t.exitStatus == TaskSuccess {
 		t.postAction(t.result)
+	} else if t.exitStatus == TaskNoStatus {
+		t.postAction = action
 	}
 }
 
-// Pass a function to run if the task throws an error, in theory
-// to cleanup any half-processed state that could litter if not finished
+// SetErrorCleanup works the same as t.SetCleanup(), but only runs if the task errors
 func (t *Task) SetErrorCleanup(cleanup TaskHandler) {
-	t.errorCleanup = cleanup
+	t.updateMu.Lock()
+	defer t.updateMu.Unlock()
+	t.errorCleanup = append(t.errorCleanup, cleanup)
 }
 
+// SetCleanup takes a function to be run after the task has completed, no matter the exit status.
+// Many cleanup functions can be registered to run in sequence after the task completes. The cleanup
+// functions are run in the order they are registered.
+// Modifications to the task state should not be made in the cleanup functions (i.e. read-only), as the task has already completed, and may result in a deadlock.
+// If the task has already completed, this function will NOT be called. Therefore, it is only safe to call SetCleanup() from inside of a task handler.
+// If you want to register a function from outside the task handler, or to run after the task has completed successfully, use t.SetPostAction() instead.
 func (t *Task) SetCleanup(cleanup TaskHandler) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.cleanup = cleanup
+	t.cleanup = append(t.cleanup, cleanup)
 }
 
 func (t *Task) ReadError() error {
