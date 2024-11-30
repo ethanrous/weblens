@@ -114,8 +114,8 @@ func (t *Task) SetChildTaskPool(pool *TaskPool) {
 
 // Status returns a boolean representing if a task has completed, and a string describing its exit type, if completed.
 func (t *Task) Status() (bool, TaskExitStatus) {
-	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
 	return t.queueState == Exited, t.exitStatus
 }
 

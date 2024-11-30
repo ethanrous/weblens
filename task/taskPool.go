@@ -113,7 +113,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 	if replacementThread && tp.workerPool.currentWorkers.Load() > tp.workerPool.maxWorkers.Load() {
 		// Important to decrement alive workers inside the exitLock, so
 		// we don't have multiple workers exiting when we only need the 1
-		tp.workerPool.currentWorkers.Add(-1)
+		// tp.workerPool.currentWorkers.Add(-1)
 
 		return false
 	}
@@ -124,7 +124,7 @@ func (tp *TaskPool) handleTaskExit(replacementThread bool) (canContinue bool) {
 	// is not our job.
 	if tp.workerPool.exitFlag.Load() == 1 {
 		// Dec alive workers
-		tp.workerPool.currentWorkers.Add(-1)
+		// tp.workerPool.currentWorkers.Add(-1)
 		return false
 	}
 
@@ -188,7 +188,7 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 	}
 
 	_, file, line, _ := runtime.Caller(1)
-	log.Trace.Func(func(l log.Logger) { l.Printf("Parking on worker pool from %s:%d\n", file, line) })
+	log.Trace.Func(func(l log.Logger) { l.Printf("Parking on worker pool from %s:%d", file, line) })
 
 	if !tp.allQueuedFlag.Load() {
 		log.Warning.Println("Going to sleep on pool without allQueuedFlag set! This thread may never wake up!")
@@ -205,7 +205,7 @@ func (tp *TaskPool) Wait(supplementWorker bool, task ...*Task) {
 	}
 	tp.waiterCount.Add(-1)
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Woke up, returning to %s:%d\n", file, line) })
+	log.Trace.Func(func(l log.Logger) { l.Printf("Woke up, returning to %s:%d", file, line) })
 
 	if supplementWorker {
 		tp.workerPool.busyCount.Add(1)
