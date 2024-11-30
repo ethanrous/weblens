@@ -163,14 +163,21 @@ func TestJournalImpl_GetPastFile(t *testing.T) {
 	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[0].ID())
 	assert.Contains(t, []string{newDir.ID(), newDir2.ID()}, pastRootChildren[1].ID())
 
+	getChildrenAfterDeleteTime := time.Now()
 	// Get the root children at the current time
 	currentChildren, err := journal.GetPastFolderChildren(
-		tree.GetRoot(), time.Now(),
+		tree.GetRoot(), getChildrenAfterDeleteTime,
 	)
 	require.NoError(t, err)
 
 	// Make sure the journal thinks the current root has no children
-	assert.Empty(t, currentChildren)
+	if !assert.Empty(t, currentChildren) {
+		log.Error.Printf("Current Children at Delete Time: %s", getChildrenAfterDeleteTime)
+		for _, child := range currentChildren {
+			log.Error.Printf("Current Child: %s", child.Name())
+		}
+		t.FailNow()
+	}
 
 	// Get the old folder just before the delete event
 	pastDir, err := journal.GetPastFile(newDir.ID(), deleteEvent.EventBegin)
