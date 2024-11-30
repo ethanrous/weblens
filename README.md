@@ -49,6 +49,8 @@ Replace `{{ MONGO_USER }}` and `{{ MONGO_PASS }}` and host paths with values of 
 
 ⚠️ **Note** Having the containers on the same Docker network is extremely helpful. [Read how to set up a Docker network](https://docs.docker.com/reference/cli/docker/network/create/). If you wish not to do this, you will have to modify the MONGODB_URI to something routable, and export port 27017 on the mongo container.
 
+If you prefer to use docker-compose, a sample [docker-compose.yml](scripts/docker-compose.yml) is provided in the scripts directory 
+
 ## Setup
 Once you have the containers configured and running, you can begin setting up your Weblens server. 
 

@@ -31,8 +31,7 @@ yarn-error.log*
 /media
 /caches
 
-api/vendor/
-api/.env
+.env
 
 __debug*
 __pycache__

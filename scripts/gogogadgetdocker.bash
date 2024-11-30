@@ -17,7 +17,10 @@ push=false
 # Skip testing
 skip=false
 
-while getopts ":t:a:lps" opt; do
+# Rebuild the build container
+rebuildBuildContainer=false
+
+while getopts ":t:a:lpsr" opt; do
   case $opt in
   t)
     docker_tag="$OPTARG"
@@ -33,6 +36,9 @@ while getopts ":t:a:lps" opt; do
     ;;
   s)
     skip=true
+    ;;
+  r)
+    rebuildBuildContainer=true
     ;;
   \?)
     echo "Invalid option -$OPTARG" >&2
@@ -85,6 +91,12 @@ fi
 
 if [ $local == false ] && [ -z "$(sudo docker images -q weblens-go-build-"${arch}" 2>/dev/null)" ]; then
   echo "No weblens-go-build image found, attempting to build now..."
+  rebuildBuildContainer=true
+fi
+
+if [ $rebuildBuildContainer == true ]; then
+  echo "Rebuilding weblens-go-build image..."
+  sudo docker rmi weblens-go-build-"${arch}"
   if ! sudo docker build -t weblens-go-build-"${arch}" --build-arg ARCHITECTURE="$arch" -f ./docker/GoBuild.Dockerfile .; then
     echo "Failed to build weblens-go-build image"
     exit 1
@@ -130,6 +142,7 @@ if [[ ! -e ./build/bin/weblensbin ]]; then
 fi
 printf " DONE\n"
 
+sudo docker rmi ethrous/weblens:"${docker_tag}-${arch}" &>/dev/null
 sudo docker build --platform "linux/$arch" -t ethrous/weblens:"${docker_tag}-${arch}" --build-arg build_tag="$docker_tag" -f ./docker/Dockerfile .
 
 if [ $push == true ]; then
