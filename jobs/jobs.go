@@ -217,17 +217,12 @@ func HandleFileUploads(t *task.Task) {
 	var usingFiles []fileTree.FileId
 	var topLevels []*fileTree.WeblensFileImpl
 
-	// TODO
-	// Release all the files once we are finished here, if they haven't been already.
-	// This should only be required in error cases, as if all files are successfully
-	// written, they are then unlocked in the main body.
-
 	fileEvent := meta.FileService.GetJournalByTree("USERS").NewEvent()
-	defer func() {
-		if !t.CheckExit() {
-			meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
-		}
-	}()
+	// defer func() {
+	// 	if !t.CheckExit() {
+	// 		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
+	// 	}
+	// }()
 
 	timeout := false
 
@@ -343,7 +338,7 @@ WriterLoop:
 	newTp := t.GetTaskPool().GetWorkerPool().NewTaskPool(false, nil)
 	for _, tl := range topLevels {
 		if tl.IsDir() {
-			err = meta.FileService.ResizeDown(tl, meta.Caster)
+			err = meta.FileService.ResizeDown(tl, fileEvent, meta.Caster)
 			if err != nil {
 				t.ReqNoErr(err)
 			}
@@ -384,10 +379,13 @@ WriterLoop:
 	}
 	newTp.SignalAllQueued()
 
-	err = meta.FileService.ResizeUp(rootFile, meta.Caster)
+	err = meta.FileService.ResizeUp(rootFile, fileEvent, meta.Caster)
 	if err != nil {
 		t.ReqNoErr(err)
 	}
+
+	meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
+	fileEvent.Wait()
 
 	if newTp.Status().Total != 0 {
 		newTp.AddCleanup(

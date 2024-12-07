@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
@@ -21,10 +20,12 @@ type InMemoryFS struct {
 	index    *memFileReal
 	routesMu *sync.RWMutex
 	Pack     *models.ServicePack
+
+	proxyAddress string
 }
 
-func (fs *InMemoryFS) loadIndex() string {
-	indexPath := filepath.Join(env.GetUIPath(), "index.html")
+func (fs *InMemoryFS) loadIndex(uiDir string) string {
+	indexPath := filepath.Join(uiDir, "index.html")
 	fs.index = readFile(indexPath, fs)
 	if !fs.index.exists {
 		panic(werror.Errorf("Could not find index file at %s", indexPath))
@@ -84,15 +85,15 @@ func (fs *InMemoryFS) Exists(prefix string, path string) bool {
 }
 
 type MemFileWrap struct {
-	at       int64
 	realFile *memFileReal
+	at       int64
 }
 
 type memFileReal struct {
+	fs     *InMemoryFS
 	Name   string
 	data   []byte
 	exists bool
-	fs     *InMemoryFS
 }
 
 func (mf *memFileReal) Copy() *memFileReal {
@@ -122,9 +123,9 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[locIndex+len("ui/dist/"):]
 	}
 
-	data := addIndexTag("url", fmt.Sprintf("%s/%s", env.GetProxyAddress(), loc), string(index.realFile.data))
+	data := addIndexTag("url", fmt.Sprintf("%s/%s", fs.proxyAddress, loc), string(index.realFile.data))
 
-	fields := getIndexFields(loc, fs.Pack)
+	fields := getIndexFields(loc, fs.proxyAddress, fs.Pack)
 	for _, field := range fields {
 		data = addIndexTag(field.tag, field.content, data)
 	}
@@ -139,7 +140,7 @@ type indexField struct {
 	content string
 }
 
-func getIndexFields(path string, pack *models.ServicePack) []indexField {
+func getIndexFields(path, proxyAddress string, pack *models.ServicePack) []indexField {
 
 	var fields []indexField
 	var hasImage bool
@@ -173,7 +174,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 					if cover != "" {
 						m = pack.MediaService.Get(cover)
 					} else {
-						imgUrl := fmt.Sprintf("%s/api/static/folder.png", env.GetProxyAddress())
+						imgUrl := fmt.Sprintf("%s/api/static/folder.png", proxyAddress)
 						hasImage = true
 						fields = append(
 							fields, indexField{
@@ -200,7 +201,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 				if m != nil {
 					if !pack.MediaService.GetMediaType(m).IsVideo() {
 						imgUrl := fmt.Sprintf(
-							"%s/api/media/%s/thumbnail.png?shareId=%s", env.GetProxyAddress(),
+							"%s/api/media/%s/thumbnail.png?shareId=%s", proxyAddress,
 							f.GetContentId(), share.ID(),
 						)
 						hasImage = true
@@ -245,7 +246,7 @@ func getIndexFields(path string, pack *models.ServicePack) []indexField {
 		if album != nil {
 			media := pack.MediaService.Get(album.GetCover())
 			if media != nil {
-				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", env.GetProxyAddress(), media.ID())
+				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", proxyAddress, media.ID())
 				hasImage = true
 				fields = append(
 					fields, indexField{

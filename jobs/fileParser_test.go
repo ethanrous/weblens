@@ -90,6 +90,8 @@ func TestScanDirectory(t *testing.T) {
 	}
 	t.Parallel()
 
+	logger := log.NewLogPackage("", log.DEBUG)
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -97,7 +99,7 @@ func TestScanDirectory(t *testing.T) {
 	}
 	defer func() { _ = col.Drop(context.Background()) }()
 
-	wp := task.NewWorkerPool(4, -1)
+	wp := task.NewWorkerPool(4, logger)
 	wp.RegisterJob(models.ScanFileTask, ScanFile)
 	wp.RegisterJob(models.ScanDirectoryTask, ScanDirectory)
 

@@ -15,6 +15,7 @@ import { FileActionInfo } from '@weblens/api/swag'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import {
+    useClick,
     useResize,
     useResizeDrag,
     useWindowSize,
@@ -36,7 +37,7 @@ import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import { PhotoQuality } from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
 import { MediaImage } from '@weblens/types/media/PhotoContainer'
-import { clamp } from '@weblens/util'
+import { clamp, humanFileSize } from '@weblens/util'
 import {
     CSSProperties,
     Dispatch,
@@ -86,7 +87,7 @@ export default function FileInfoPane() {
             }
         },
         (v) => {
-            setResizeOffset(clamp(v, 300, 800))
+            setResizeOffset(clamp(v, 300, windowSize.width / 2))
         },
         true
     )
@@ -306,12 +307,50 @@ function HistoryRowWrapper({
     index: number
     style: CSSProperties
 }) {
+    const previousSize = useMemo(() => {
+        let backCounter = 0
+        let previousSize = 0
+        if (
+            data.events[index].length === 1 &&
+            data.events[index][0].actionType === 'fileSizeChange'
+        ) {
+            let i = -1
+            while (index + backCounter < data.events.length) {
+                backCounter++
+                if (
+                    data.events[index + backCounter][0].timestamp >
+                    data.events[index][0].timestamp
+                ) {
+                    // console.error('backCounter', backCounter)
+                }
+                i = data.events[index + backCounter].findIndex((v) => {
+                    if (v.lifeId === data.events[index][0].lifeId) {
+                        return true
+                    }
+                })
+                if (i !== -1) {
+                    previousSize = data.events[index + backCounter][i].size
+                    break
+                }
+            }
+        }
+        return previousSize
+    }, [data])
+
     return (
-        <div style={{ ...style, paddingRight: '10px' }}>
+        <div
+            style={{
+                ...style,
+                display: 'flex',
+                paddingRight: '10px',
+                alignItems: 'center',
+            }}
+        >
             <HistoryEventRow
                 key={data.events[index][0].eventId}
                 event={data.events[index]}
                 folderPath={data.events[index][0].destinationPath}
+                previousSize={previousSize}
                 open={data.openEvents[index]}
                 setOpen={(o: boolean) =>
                     data.setOpenEvents((p) => {
@@ -337,7 +376,7 @@ function ActionRowWrapper({
     style: CSSProperties
 }) {
     return (
-        <div style={{ ...style, paddingRight: '10px' }}>
+        <div style={{ ...style, paddingRight: '10px', alignItems: 'center' }}>
             <ActionRow
                 action={data.actions[index]}
                 folderName={data.folderName}
@@ -412,34 +451,118 @@ const HistoryEventRow = memo(
     ({
         event,
         folderPath,
+        previousSize,
         open,
         setOpen,
     }: {
         event: FileActionInfo[]
         folderPath: string
+        previousSize: number
         open: boolean
         setOpen: Dispatch<SetStateAction<boolean>>
     }) => {
+        const pastTime = useFileBrowserStore((state) => state.pastTime)
+        const contentId = useFileBrowserStore((state) => state.contentId)
+        const setLocation = useFileBrowserStore(
+            (state) => state.setLocationState
+        )
+
         const folderName = portableToFileName(folderPath)
 
-        return (
-            <div className="flex flex-col w-full h-max justify-center p-2 rounded-lg">
-                {event.length == 1 && (
-                    <div className="flex flex-row items-center outline-gray-700 outline p-2 rounded w-full justify-between gap-2">
-                        <ActionRow action={event[0]} folderName={folderName} />
+        const date = historyDate(event[0].timestamp, true)
+        const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+        const [menuOpen, setMenuOpen] = useState(false)
+        const [menuRef, setMenuRef] = useState<HTMLDivElement>()
+        useClick(
+            () => {
+                setMenuOpen(false)
+            },
+            menuRef,
+            !menuOpen
+        )
+
+        let content: JSX.Element
+        if (event.length === 1 && event[0].actionType === 'fileSizeChange') {
+            content = (
+                <div className="flex flex-row items-center rounded w-full justify-between gap-2 max-h-[48px]">
+                    <div className={historyStyle['size-change-divider']}>
+                        <FileFmt pathName={event[0].destinationPath} />
+                        {humanFileSize(previousSize)}
+                        {' -> '}
+                        {humanFileSize(event[0].size)}
+                    </div>
+                </div>
+            )
+        } else if (
+            event.length === 1 &&
+            event[0].destinationPath === folderInfo?.portablePath
+        ) {
+            content = (
+                <div className="flex flex-col items-center outline-gray-700 outline-dashed p-2 rounded w-full justify-between gap-2 max-h-[100px]">
+                    <FileFmt pathName={event[0].destinationPath} />
+                    <p className={historyStyle['file-action-text']}>
+                        Folder {event[0].actionType.slice(4)}d
+                    </p>
+                </div>
+            )
+        } else if (event.length === 1) {
+            content = (
+                <div className="flex flex-row items-center outline-gray-700 outline p-2 rounded w-full justify-between gap-2 max-h-[48px]">
+                    <ActionRow action={event[0]} folderName={folderName} />
+                    <div className="flex flex-col items-end">
                         <p className={historyStyle['file-action-text']}>
                             File {event[0].actionType.slice(4)}d
                         </p>
+                        <p className={historyStyle['file-action-text']}>
+                            {date}
+                        </p>
                     </div>
-                )}
-                {event.length > 1 && (
-                    <ExpandableHistoryRow
-                        event={event}
-                        folderName={folderName}
-                        open={open}
-                        setOpen={setOpen}
-                    />
-                )}
+                </div>
+            )
+        } else {
+            content = (
+                <ExpandableHistoryRow
+                    event={event}
+                    folderName={folderName}
+                    open={open}
+                    setOpen={setOpen}
+                />
+            )
+        }
+
+        return (
+            <div
+                className={historyStyle['history-event-row']}
+                onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setMenuOpen(true)
+                }}
+            >
+                {content}
+                <div
+                    className={historyStyle['jump-here-menu']}
+                    data-open={menuOpen}
+                    ref={setMenuRef}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        let newDate = new Date(0)
+                        const timestamp = Math.max(
+                            ...event.map((a) => a.timestamp)
+                        )
+                        newDate = new Date(timestamp)
+
+                        if (newDate !== pastTime) {
+                            setLocation({
+                                contentId: contentId,
+                                pastTime: newDate,
+                            })
+                            setMenuOpen(false)
+                        }
+                    }}
+                >
+                    <span className="select-none">Jump Here</span>
+                </div>
             </div>
         )
     },
@@ -451,6 +574,8 @@ const HistoryEventRow = memo(
         } else if (prev.setOpen !== next.setOpen) {
             return false
         } else if (prev.folderPath !== next.folderPath) {
+            return false
+        } else if (prev.previousSize !== next.previousSize) {
             return false
         }
 
@@ -471,6 +596,7 @@ function RollbackBar({
     const pastTime = useFileBrowserStore((state) => state.pastTime)
     const contentId = useFileBrowserStore((state) => state.contentId)
     const setLocation = useFileBrowserStore((state) => state.setLocationState)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
     const [steps, setSteps] = useState(0)
 
@@ -483,7 +609,7 @@ function RollbackBar({
                 }
                 counter++
             }
-            setSteps(counter)
+            setSteps(counter - 1)
         } else {
             setSteps(0)
         }
@@ -508,12 +634,13 @@ function RollbackBar({
                 if (counter >= openEvents.length) {
                     break
                 }
-                let nextOffset: number
-                if (!openEvents[counter]) {
-                    nextOffset = 64
-                } else {
-                    nextOffset = Math.min(512, 88 + events[counter].length * 32)
-                }
+
+                const nextOffset = getEventHeight(
+                    events,
+                    openEvents,
+                    folderInfo.portablePath,
+                    counter
+                )
 
                 if (offset + nextOffset / 2 > v) {
                     break
@@ -536,13 +663,17 @@ function RollbackBar({
         if (dragging2 && !dragging) {
             let newDate: Date = new Date(0)
             if (steps !== 0) {
-                const timestamp = Math.min(
-                    ...events[steps - 1].map((a) => a.timestamp)
+                const timestamp = Math.max(
+                    ...events[steps].map((a) => a.timestamp)
                 )
                 newDate = new Date(timestamp)
             }
+
             if (newDate !== pastTime) {
-                setLocation({ contentId: contentId, pastTime: newDate })
+                setLocation({
+                    contentId: contentId,
+                    pastTime: newDate,
+                })
             }
         }
         setDragging2(dragging)
@@ -556,23 +687,28 @@ function RollbackBar({
             return 'Now'
         }
 
-        return historyDate(events[steps - 1][0].timestamp)
+        return historyDate(events[steps][0].timestamp)
     }, [dragging, steps])
 
     const offset = useMemo(() => {
         if (steps === 0) {
             return 0
         }
-        let offset = 5
+        let offset = 7
         for (let i = 0; i < steps; i++) {
-            if (!openEvents[i]) {
-                offset += 64
-            } else {
-                offset += Math.min(516, 88 + events[i].length * 32)
-            }
+            offset += getEventHeight(
+                events,
+                openEvents,
+                folderInfo?.portablePath,
+                i
+            )
         }
         return offset - historyScroll
     }, [openEvents, steps, historyScroll])
+
+    if (offset < 0) {
+        return null
+    }
 
     return (
         <div
@@ -593,6 +729,27 @@ function RollbackBar({
             )}
         </div>
     )
+}
+
+function getEventHeight(
+    events: FileActionInfo[][],
+    openEvents: boolean[],
+    epochPath: string,
+    i: number
+) {
+    if (openEvents[i]) {
+        return Math.min(516, 88 + events[i].length * 32)
+    }
+    if (
+        events[i].length === 1 &&
+        events[i][0].actionType === 'fileSizeChange'
+    ) {
+        return 48
+    }
+    if (events[i].length === 1 && events[i][0].destinationPath === epochPath) {
+        return 90
+    }
+    return 64
 }
 
 function FileHistory() {
@@ -650,13 +807,16 @@ function FileHistory() {
                 return
             }
             if (
-                a.lifeId === user.trashId ||
-                a.actionType === 'fileSizeChange'
+                a.lifeId === user.trashId
+                // a.actionType === 'fileSizeChange'
             ) {
                 return
             }
 
-            const i = events.findLastIndex((e) => e[0].eventId === a.eventId)
+            const i = events.findLastIndex(
+                (e) =>
+                    e[0].eventId === a.eventId || e[0].timestamp === a.timestamp
+            )
             if (i != -1) {
                 events[i].push(a)
             } else {
@@ -723,15 +883,18 @@ function FileHistory() {
                         ref={setWindowRef}
                         height={boxSize.height}
                         width={boxSize.width}
-                        itemSize={(i: number) => {
-                            if (openEvents[i]) {
-                                return Math.min(516, 88 + events[i].length * 32)
-                            }
-                            return 64
-                        }}
+                        style={{ position: 'relative' }}
+                        itemSize={(i: number) =>
+                            getEventHeight(
+                                events,
+                                openEvents,
+                                epoch.destinationPath,
+                                i
+                            )
+                        }
                         itemCount={events.length}
                         itemData={{ events, openEvents, setOpenEvents }}
-                        overscanCount={25}
+                        overscanCount={5}
                         onScroll={(e) => setHistoryScroll(e.scrollOffset)}
                     >
                         {HistoryRowWrapper}

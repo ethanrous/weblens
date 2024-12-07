@@ -21,14 +21,14 @@ type ClientId = string
 var _ Client = (*WsClient)(nil)
 
 type WsClient struct {
-	Active        atomic.Bool
-	connId        ClientId
 	conn          *websocket.Conn
-	updateMu      sync.Mutex
-	subsMu        sync.Mutex
-	subscriptions []Subscription
 	user          *User
 	remote        *Instance
+	connId        ClientId
+	subscriptions []Subscription
+	updateMu      sync.Mutex
+	subsMu        sync.Mutex
+	Active        atomic.Bool
 }
 
 func NewClient(conn *websocket.Conn, socketUser SocketUser) *WsClient {
@@ -77,6 +77,9 @@ func (wsc *WsClient) GetRemote() *Instance {
 }
 
 func (wsc *WsClient) ReadOne() (int, []byte, error) {
+	if wsc.conn == nil || !wsc.Active.Load() {
+		return 0, nil, werror.Errorf("client is closed")
+	}
 	return wsc.conn.ReadMessage()
 }
 
@@ -182,6 +185,10 @@ func (wsc *WsClient) SubUnlock() {
 }
 
 func (wsc *WsClient) Send(msg WsResponseInfo) error {
+	if msg.SentTime == 0 {
+		msg.SentTime = time.Now().UnixMilli()
+	}
+
 	if wsc != nil && wsc.Active.Load() {
 		wsc.updateMu.Lock()
 		defer wsc.updateMu.Unlock()

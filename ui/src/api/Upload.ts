@@ -1,11 +1,10 @@
 import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStateControl'
-import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
 import { NewFileParams } from './swag'
 
-export type fileUploadMetadata = {
+export type FileUploadMetadata = {
     file?: File
     entry?: FileSystemEntry
     isDir: boolean
@@ -68,11 +67,11 @@ class PromiseQueue<T> {
     }
 }
 
-const UPLOAD_CHUNK_SIZE: number = 51200000
+export const UPLOAD_CHUNK_SIZE: number = 51200000
 const CONCURRENT_UPLOAD_COUNT = 4
 
 function queueChunks(
-    uploadMeta: fileUploadMetadata,
+    uploadMeta: FileUploadMetadata,
     // isPublic: boolean,
     uploadId: string,
     // shareId: string,
@@ -117,11 +116,7 @@ function queueChunks(
                     onUploadProgress: (e: AxiosProgressEvent) => {
                         useUploadStatus
                             .getState()
-                            .updateProgress(
-                                key,
-                                thisChunkIndex,
-                                e.loaded
-                            )
+                            .updateProgress(key, thisChunkIndex, e.loaded)
                     },
                 }
             ).catch((err) => {
@@ -161,9 +156,10 @@ function queueChunks(
 }
 
 async function Upload(
-    filesMeta: fileUploadMetadata[],
+    filesMeta: FileUploadMetadata[],
     isPublic: boolean,
     shareId: string,
+    uploadId: string,
     rootFolder: string
 ) {
     const newUpload = useUploadStatus.getState().newUpload
@@ -220,25 +216,23 @@ async function Upload(
         })
     })
 
-    const res = await FileApi.startUpload({
-        rootFolderId: rootFolder,
-        totalUploadSize: totalUploadSize,
-        chunkSize: UPLOAD_CHUNK_SIZE,
-    }).catch((err) => {
-        // useUploadStatus.getState().setError(key, String(err))
-        ErrorHandler(Error(String(err)))
-    })
+    // const res = await FileApi.startUpload({
+    //     rootFolderId: rootFolder,
+    //     chunkSize: UPLOAD_CHUNK_SIZE,
+    // }).catch((err) => {
+    //     ErrorHandler(Error(String(err)))
+    // })
 
-    if (!res) {
-        return
-    }
+    // if (!res) {
+    //     return
+    // }
+    //
+    // if (res.status !== 201 || !res.data.uploadId) {
+    //     console.error('Failed to start upload', res.data)
+    //     return
+    // }
 
-    if (res.status !== 201 || !res.data.uploadId) {
-        console.error('Failed to start upload', res.data)
-        return
-    }
-
-    const newFilesRes = await FileApi.addFilesToUpload(res.data.uploadId, {
+    const newFilesRes = await FileApi.addFilesToUpload(uploadId, {
         newFiles: newFiles,
     }).catch((err) => {
         console.error('Failed to add files to upload', err)
@@ -288,7 +282,7 @@ async function Upload(
         if (meta.isDir) {
             continue
         }
-        queueChunks(meta, res.data.uploadId, taskQueue)
+        queueChunks(meta, uploadId, taskQueue)
     }
     await taskQueue.run()
 }

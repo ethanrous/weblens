@@ -268,6 +268,12 @@ export interface FileInfo {
      * @type {string}
      * @memberof FileInfo
      */
+    'currentId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileInfo
+     */
     'filename'?: string;
     /**
      * 
@@ -719,6 +725,12 @@ export interface NewFileParams {
     'fileSize'?: number;
     /**
      * 
+     * @type {boolean}
+     * @memberof NewFileParams
+     */
+    'isDir'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof NewFileParams
      */
@@ -826,12 +838,6 @@ export interface NewUploadParams {
      * @memberof NewUploadParams
      */
     'rootFolderId'?: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof NewUploadParams
-     */
-    'totalUploadSize'?: number;
 }
 /**
  * 
@@ -2251,10 +2257,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Delete Files \"permanently\"
          * @param {FilesListParams} request Delete files request body
+         * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteFiles: async (request: FilesListParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteFiles: async (request: FilesListParams, ignoreTrash?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('deleteFiles', 'request', request)
             const localVarPath = `/files`;
@@ -2268,6 +2275,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (ignoreTrash !== undefined) {
+                localVarQueryParameter['ignoreTrash'] = ignoreTrash;
+            }
 
 
     
@@ -2442,6 +2453,40 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          */
         getSharedFiles: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/files/shared`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get the result of an upload task. This will block until the upload is complete
+         * @param {string} uploadId Upload Id
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getUploadResult: async (uploadId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'uploadId' is not null or undefined
+            assertParamExists('getUploadResult', 'uploadId', uploadId)
+            const localVarPath = `/upload/{uploadId}`
+                .replace(`{${"uploadId"}}`, encodeURIComponent(String(uploadId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -2799,11 +2844,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * 
          * @summary Delete Files \"permanently\"
          * @param {FilesListParams} request Delete files request body
+         * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async deleteFiles(request: FilesListParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteFiles(request, options);
+        async deleteFiles(request: FilesListParams, ignoreTrash?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteFiles(request, ignoreTrash, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.deleteFiles']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2873,6 +2919,19 @@ export const FilesApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getSharedFiles(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.getSharedFiles']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get the result of an upload task. This will block until the upload is complete
+         * @param {string} uploadId Upload Id
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getUploadResult(uploadId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getUploadResult(uploadId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['FilesApi.getUploadResult']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -3017,11 +3076,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Delete Files \"permanently\"
          * @param {FilesListParams} request Delete files request body
+         * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteFiles(request: FilesListParams, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.deleteFiles(request, options).then((request) => request(axios, basePath));
+        deleteFiles(request: FilesListParams, ignoreTrash?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteFiles(request, ignoreTrash, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3074,6 +3134,16 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          */
         getSharedFiles(options?: RawAxiosRequestConfig): AxiosPromise<FolderInfo> {
             return localVarFp.getSharedFiles(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get the result of an upload task. This will block until the upload is complete
+         * @param {string} uploadId Upload Id
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getUploadResult(uploadId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.getUploadResult(uploadId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3202,12 +3272,13 @@ export class FilesApi extends BaseAPI {
      * 
      * @summary Delete Files \"permanently\"
      * @param {FilesListParams} request Delete files request body
+     * @param {boolean} [ignoreTrash] Delete files even if they are not in the trash
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public deleteFiles(request: FilesListParams, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).deleteFiles(request, options).then((request) => request(this.axios, this.basePath));
+    public deleteFiles(request: FilesListParams, ignoreTrash?: boolean, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).deleteFiles(request, ignoreTrash, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3270,6 +3341,18 @@ export class FilesApi extends BaseAPI {
      */
     public getSharedFiles(options?: RawAxiosRequestConfig) {
         return FilesApiFp(this.configuration).getSharedFiles(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get the result of an upload task. This will block until the upload is complete
+     * @param {string} uploadId Upload Id
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof FilesApi
+     */
+    public getUploadResult(uploadId: string, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).getUploadResult(uploadId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

@@ -36,21 +36,22 @@ type WeblensErrorInfo struct {
 	Error string `json:"error"`
 } // @name ErrorInfo
 
-// FileInfo is a structure for safely sending file information to the client
+// FileInfo is a structure for safely sending file information to the client.
 type FileInfo struct {
 	Id           string           `json:"id"`
 	PortablePath string           `json:"portablePath"`
 	Filename     string           `json:"filename"`
-	Size         int64            `json:"size"`
-	IsDir        bool             `json:"isDir"`
-	ModTime      int64            `json:"modifyTimestamp"`
 	ParentId     string           `json:"parentId"`
-	Children     []string         `json:"childrenIds"`
 	ContentId    models.ContentId `json:"contentId"`
 	Owner        models.Username  `json:"owner"`
 	ShareId      models.ShareId   `json:"shareId,omitempty"`
+	Children     []string         `json:"childrenIds"`
+	Size         int64            `json:"size"`
+	ModTime      int64            `json:"modifyTimestamp"`
+	IsDir        bool             `json:"isDir"`
 	Modifiable   bool             `json:"modifiable"`
 	PastFile     bool             `json:"pastFile"`
+	PastId       string           `json:"currentId"`
 } // @name FileInfo
 
 func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack, isPastFile bool) (FileInfo, error) {
@@ -90,6 +91,7 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 	return FileInfo{
 		Id:           f.ID(),
 		PortablePath: f.GetPortablePath().ToPortable(),
+		Filename:     f.Filename(),
 		Size:         f.Size(),
 		IsDir:        f.IsDir(),
 		ModTime:      f.ModTime().UnixMilli(),
@@ -98,6 +100,7 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 		ShareId:      shareId,
 		Modifiable:   modifiable,
 		PastFile:     isPastFile,
+		PastId:       f.GetPastId(),
 
 		Owner:    ownerName,
 		Children: children,
@@ -135,9 +138,9 @@ func NewMediaBatchInfo(m []*models.Media) MediaBatchInfo {
 
 type TakeoutInfo struct {
 	TakeoutId string `json:"takeoutId"`
-	Single    bool   `json:"single"`
 	TaskId    string `json:"taskId"`
 	Filename  string `json:"filename"`
+	Single    bool   `json:"single"`
 } // @name TakeoutInfo
 
 type DispatchInfo struct {
@@ -155,9 +158,6 @@ type ServerInfo struct {
 	// Core or Backup
 	Role models.ServerRole `json:"role"`
 
-	// If this server info represents this local server
-	IsThisServer bool `json:"-"`
-
 	// Address of the remote server, only if the instance is a core.
 	// Not set for any remotes/backups on core server, as it IS the core
 	Address string `json:"coreAddress"`
@@ -165,15 +165,18 @@ type ServerInfo struct {
 	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
 	ReportedRole models.ServerRole `json:"reportedRole"`
 
-	Online bool `json:"online"`
-
 	LastBackup int64 `json:"lastBackup"`
 
 	BackupSize int64 `json:"backupSize"`
 
-	Started bool `json:"started"`
-
 	UserCount int `json:"userCount"`
+
+	// If this server info represents this local server
+	IsThisServer bool `json:"-"`
+
+	Online bool `json:"online"`
+
+	Started bool `json:"started"`
 } // @name ServerInfo
 
 func InstanceToServerInfo(i *models.Instance) ServerInfo {
@@ -200,19 +203,19 @@ func ServerInfoToInstance(si ServerInfo) *models.Instance {
 
 type UserInfo struct {
 	Username  models.Username `json:"username"`
-	Admin     bool            `json:"admin"`
-	Owner     bool            `json:"owner"`
 	HomeId    string          `json:"homeId"`
 	TrashId   string          `json:"trashId"`
+	Token     string          `json:"token" omitEmpty:"true"`
 	HomeSize  int64           `json:"homeSize"`
 	TrashSize int64           `json:"trashSize"`
-	Token     string          `json:"token" omitEmpty:"true"`
+	Admin     bool            `json:"admin"`
+	Owner     bool            `json:"owner"`
 } // @name UserInfo
 
 type UserInfoArchive struct {
+	Password string `json:"password" omitEmpty:"true"`
 	UserInfo
-	Password  string `json:"password" omitEmpty:"true"`
-	Activated bool   `json:"activated"`
+	Activated bool `json:"activated"`
 } // @name UserInfoArchive
 
 func UserToUserInfo(u *models.User) UserInfo {
@@ -265,9 +268,9 @@ type ApiKeyInfo struct {
 	Id          string               `json:"id"`
 	Key         models.WeblensApiKey `json:"key"`
 	Owner       models.Username      `json:"owner"`
-	CreatedTime int64                `json:"createdTime"`
 	RemoteUsing models.InstanceId    `json:"remoteUsing"`
 	CreatedBy   models.InstanceId    `json:"createdBy"`
+	CreatedTime int64                `json:"createdTime"`
 } // @name ApiKeyInfo
 
 func ApiKeyToApiKeyInfo(k models.ApiKey) ApiKeyInfo {
@@ -287,15 +290,15 @@ type MediaTypeInfo struct {
 } // @name MediaTypeInfo
 
 type FileActionInfo struct {
-	Timestamp       int64  `json:"timestamp"`
 	ActionType      string `json:"actionType"`
 	OriginPath      string `json:"originPath"`
 	DestinationPath string `json:"destinationPath"`
 	LifeId          string `json:"lifeId"`
 	EventId         string `json:"eventId"`
-	Size            int64  `json:"size"`
 	ParentId        string `json:"parentId"`
 	ServerId        string `json:"serverId"`
+	Timestamp       int64  `json:"timestamp"`
+	Size            int64  `json:"size"`
 } // @name FileActionInfo
 
 func FileActionToFileActionInfo(fa *fileTree.FileAction) FileActionInfo {
@@ -318,13 +321,21 @@ type MediaInfo struct {
 	// Hash of the file content, to ensure that the same files don't get duplicated
 	ContentId string `json:"contentId"`
 
+	// User who owns the file that resulted in this media being created
+	Owner string `json:"owner"`
+
+	// Mime-type key of the media
+	MimeType string `json:"mimeType"`
+
 	// Slices of files whos content hash to the contentId
 	FileIds []string `json:"fileIds"`
 
-	CreateDate int64 `json:"createDate"`
+	// Tags from the ML image scan so searching for particular objects in the images can be done
+	RecognitionTags []string `json:"recognitionTags"`
 
-	// User who owns the file that resulted in this media being created
-	Owner string `json:"owner"`
+	LikedBy []string `json:"likedBy,omitempty"`
+
+	CreateDate int64 `json:"createDate"`
 
 	// Full-res image dimensions
 	Width  int `json:"width"`
@@ -336,12 +347,6 @@ type MediaInfo struct {
 	// Total time, in milliseconds, of a video
 	Duration int `json:"duration"`
 
-	// Mime-type key of the media
-	MimeType string `json:"mimeType"`
-
-	// Tags from the ML image scan so searching for particular objects in the images can be done
-	RecognitionTags []string `json:"recognitionTags"`
-
 	// If the media is hidden from the timeline
 	// TODO - make this per user
 	Hidden bool `json:"hidden"`
@@ -350,16 +355,14 @@ type MediaInfo struct {
 	// but the media stays behind because it can be re-used if needed.
 	Enabled bool `json:"enabled"`
 
-	LikedBy []string `json:"likedBy,omitempty"`
-
 	Imported bool `json:"imported"`
 } // @Name MediaInfo
 
 func MediaToMediaInfo(m *models.Media) MediaInfo {
 	return MediaInfo{
-		MediaId:         m.MediaId.Hex(),
-		ContentId:       m.ContentId,
-		FileIds:         m.FileIds,
+		MediaId:         m.MediaID.Hex(),
+		ContentId:       m.ContentID,
+		FileIds:         m.FileIDs,
 		CreateDate:      m.CreateDate.UnixMilli(),
 		Owner:           m.Owner,
 		Width:           m.Width,
@@ -380,13 +383,13 @@ type ShareInfo struct {
 	FileId    string   `json:"fileId"`
 	ShareName string   `json:"shareName"`
 	Owner     string   `json:"owner"`
+	ShareType string   `json:"shareType"`
 	Accessors []string `json:"accessors"`
+	Expires   int64    `json:"expires"`
+	Updated   int64    `json:"updated"`
 	Public    bool     `json:"public"`
 	Wormhole  bool     `json:"wormhole"`
 	Enabled   bool     `json:"enabled"`
-	Expires   int64    `json:"expires"`
-	Updated   int64    `json:"updated"`
-	ShareType string   `json:"shareType"`
 } // @name ShareInfo
 
 func ShareToShareInfo(s *models.FileShare) ShareInfo {
@@ -421,10 +424,10 @@ type AlbumInfo struct {
 	Id             string   `json:"id"`
 	Name           string   `json:"name"`
 	Owner          string   `json:"owner"`
-	Medias         []string `json:"medias"`
 	Cover          string   `json:"cover"`
 	PrimaryColor   string   `json:"primaryColor"`
 	SecondaryColor string   `json:"secondaryColor"`
+	Medias         []string `json:"medias"`
 	ShowOnTimeline bool     `json:"showOnTimeline"`
 } // @name AlbumInfo
 

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/task"
@@ -14,6 +15,7 @@ import (
 )
 
 type ServicePack struct {
+	Log             log.LogPackage
 	FileService     FileService
 	MediaService    MediaService
 	AccessService   AccessService
@@ -26,19 +28,23 @@ type ServicePack struct {
 	Caster          Broadcaster
 
 	Server      Server
-	Loaded      atomic.Bool
 	StartupChan chan bool
 
 	Db *mongo.Database
 
-	startupTasks  []StartupTask
+	startupTasks []StartupTask
+
+	Cnf env.Config
+
 	waitingOnLock sync.RWMutex
+	Loaded        atomic.Bool
+	Closing       atomic.Bool
 }
 
 type StartupTask struct {
+	StartedAt   time.Time
 	Name        string
 	Description string
-	StartedAt   time.Time
 }
 
 func (pack *ServicePack) AddStartupTask(taskName, description string) {

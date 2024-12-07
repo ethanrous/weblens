@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
@@ -253,23 +252,23 @@ func KeyOnlyAuth(next http.Handler) http.HandlerFunc {
 	})
 }
 
-func CORSMiddleware(next http.Handler) http.Handler {
-	host := env.GetProxyAddress()
-	// host = "http://local.weblens.io:8080"
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", host)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set(
-			"Access-Control-Allow-Headers",
-			"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
-		)
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+func CORSMiddleware(proxyAddress string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", proxyAddress)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set(
+				"Access-Control-Allow-Headers",
+				"Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Content-Range, Cookie",
+			)
+			w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }

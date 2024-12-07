@@ -94,7 +94,7 @@ func colorTime(dur time.Duration) string {
 	}
 }
 
-func ApiLogger(logLevel int) func(http.Handler) http.Handler {
+func ApiLogger(logger LogPackage) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -105,7 +105,7 @@ func ApiLogger(logLevel int) func(http.Handler) http.Handler {
 
 			status := ww.Status()
 			if status >= 400 && status < 500 && ww.BytesWritten() == 0 {
-				Error.Println("4xx DID NOT SEND ERROR")
+				logger.Error.Println("4xx DID NOT SEND ERROR")
 			}
 
 			if status == 0 && r.Header.Get("Upgrade") == "websocket" {
@@ -118,7 +118,7 @@ func ApiLogger(logLevel int) func(http.Handler) http.Handler {
 
 			route := chi.RouteContext(r.Context()).RoutePattern()
 
-			Info.Printf("\u001B[0m[%s][%7s][%s %s][%s]\n", remote, colorTime(timeTotal), method, route, colorStatus(status))
+			logger.Info.Printf("\u001B[0m[%s][%7s][%s %s][%s]\n", remote, colorTime(timeTotal), method, route, colorStatus(status))
 
 		})
 	}

@@ -23,11 +23,10 @@ import (
 var _ models.AccessService = (*AccessServiceImpl)(nil)
 
 type AccessServiceImpl struct {
-	apiKeyMap map[models.WeblensApiKey]models.ApiKey
-	keyMapMu  sync.RWMutex
-
 	userService models.UserService
+	apiKeyMap   map[models.WeblensApiKey]models.ApiKey
 	collection  *mongo.Collection
+	keyMapMu    sync.RWMutex
 }
 
 type WlClaims struct {

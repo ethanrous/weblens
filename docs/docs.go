@@ -317,6 +317,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/FilesListParams"
                         }
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Delete files even if they are not in the trash",
+                        "name": "ignoreTrash",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2047,6 +2053,41 @@ const docTemplate = `{
             }
         },
         "/upload/{uploadId}": {
+            "get": {
+                "security": [
+                    {
+                        "SessionAuth": []
+                    }
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Get the result of an upload task. This will block until the upload is complete",
+                "operationId": "GetUploadResult",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Upload Id",
+                        "name": "uploadId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -2703,6 +2744,9 @@ const docTemplate = `{
                 "contentId": {
                     "type": "string"
                 },
+                "currentId": {
+                    "type": "string"
+                },
                 "filename": {
                     "type": "string"
                 },
@@ -2969,6 +3013,9 @@ const docTemplate = `{
                 "fileSize": {
                     "type": "integer"
                 },
+                "isDir": {
+                    "type": "boolean"
+                },
                 "newFileName": {
                     "type": "string"
                 },
@@ -3035,9 +3082,6 @@ const docTemplate = `{
                 },
                 "rootFolderId": {
                     "type": "string"
-                },
-                "totalUploadSize": {
-                    "type": "integer"
                 }
             }
         },

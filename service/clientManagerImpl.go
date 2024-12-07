@@ -20,7 +20,6 @@ var _ models.ClientManager = (*ClientManager)(nil)
 type ClientManager struct {
 	webClientMap    map[models.Username]*models.WsClient
 	remoteClientMap map[models.InstanceId]*models.WsClient
-	clientMu        sync.RWMutex
 
 	core *models.WsClient
 
@@ -34,15 +33,19 @@ type ClientManager struct {
 	//     ]
 	// }
 	folderSubs map[models.SubId][]*models.WsClient
-	folderMu   sync.Mutex
 
 	taskSubs map[models.SubId][]*models.WsClient
-	taskMu   sync.Mutex
 
 	taskTypeSubs map[models.SubId][]*models.WsClient
-	taskTypeMu   sync.Mutex
 
-	pack *models.ServicePack
+	pack     *models.ServicePack
+	clientMu sync.RWMutex
+
+	folderMu sync.Mutex
+
+	taskMu sync.Mutex
+
+	taskTypeMu sync.Mutex
 }
 
 func NewClientManager(

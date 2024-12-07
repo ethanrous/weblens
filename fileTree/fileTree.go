@@ -17,14 +17,16 @@ import (
 var _ FileTree = (*FileTreeImpl)(nil)
 
 type FileTreeImpl struct {
-	fMap       map[FileId]*WeblensFileImpl
-	fsTreeLock sync.RWMutex
-	journal    Journal
+	journal Journal
+
+	fMap map[FileId]*WeblensFileImpl
+
+	root *WeblensFileImpl
 
 	rootPath  string
 	rootAlias string
 
-	root *WeblensFileImpl
+	fsTreeLock sync.RWMutex
 }
 
 type MoveInfo struct {
@@ -48,6 +50,10 @@ func NewFileTree(rootPath, rootAlias string, journal Journal, doFileDiscovery bo
 
 	if rootPath[len(rootPath)-1] != '/' {
 		rootPath = rootPath + "/"
+	}
+
+	if !filepath.IsAbs(rootPath) {
+		return nil, werror.Errorf("rootPath must be an absolute path: %s", rootPath)
 	}
 
 	root := &WeblensFileImpl{
@@ -559,11 +565,13 @@ var IgnoreFilenames = []string{
 
 func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) error {
 	lifetimesByPath := map[string]*Lifetime{}
+	missing := map[string]struct{}{}
 	for _, lt := range ft.journal.GetActiveLifetimes() {
 		// If we are discovering new files, and therefore are not mimicking another
 		// tree, we just put the path into the map as-is.
 		if doFileDiscovery {
 			lifetimesByPath[lt.GetLatestAction().DestinationPath] = lt
+			missing[lt.Id] = struct{}{}
 			continue
 		}
 
@@ -594,6 +602,9 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 		if event != nil {
 			portablePath := fileToLoad.GetPortablePath().ToPortable()
 			if activeLt, ok := lifetimesByPath[portablePath]; ok {
+				// We found this lifetime, so it is not missing, remove it from the missing map
+				delete(missing, activeLt.Id)
+
 				if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
 					activeLt.IsDir = fileToLoad.IsDir()
 					err := event.journal.UpdateLifetime(activeLt)
@@ -633,6 +644,13 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 				return err
 			}
 			toLoad = append(toLoad, children...)
+		}
+	}
+
+	if doFileDiscovery {
+		// If we have missing files, create delete actions for them
+		for missingId := range missing {
+			event.NewDeleteAction(missingId)
 		}
 	}
 

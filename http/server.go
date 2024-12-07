@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -22,15 +23,15 @@ import (
 )
 
 type Server struct {
-	Running     bool
 	StartupFunc func()
 
 	// router     *gin.Engine
 	router     *chi.Mux
 	stdServer  *http.Server
-	RouterLock sync.Mutex
 	services   *models.ServicePack
 	hostStr    string
+	RouterLock sync.Mutex
+	Running    bool
 }
 
 // @title						Weblens API
@@ -51,9 +52,9 @@ type Server struct {
 // @name						Authorization
 //
 // @scope.admin				Grants read and write access to privileged data
-func NewServer(host, port string, services *models.ServicePack) *Server {
+func NewServer(host string, port int, services *models.ServicePack) *Server {
 
-	proxyHost := env.GetProxyAddress()
+	proxyHost := env.GetProxyAddress(services.Cnf)
 	if strings.HasPrefix(proxyHost, "http") {
 		i := strings.Index(proxyHost, "://")
 		proxyHost = proxyHost[i+3:]
@@ -63,7 +64,7 @@ func NewServer(host, port string, services *models.ServicePack) *Server {
 	srv := &Server{
 		router:   chi.NewRouter(),
 		services: services,
-		hostStr:  host + ":" + port,
+		hostStr:  fmt.Sprintf("%s:%d", host, port),
 	}
 
 	services.Server = srv
@@ -87,12 +88,12 @@ func (s *Server) Start() {
 		s.RouterLock.Lock()
 		go s.StartupFunc()
 		<-s.services.StartupChan
-		log.Trace.Println("Router got startup signal")
+		s.services.Log.Trace.Println("Router got startup signal")
 
-		s.stdServer = &http.Server{Addr: s.hostStr, Handler: s.router}
+		s.stdServer = &http.Server{Addr: s.hostStr, Handler: s.router, ReadHeaderTimeout: 5 * time.Second}
 		s.Running = true
 
-		log.Info.Printf("Starting router at %s", s.hostStr)
+		s.services.Log.Info.Printf("Starting router at %s", s.hostStr)
 		s.RouterLock.Unlock()
 
 		err := s.stdServer.ListenAndServe()
@@ -111,10 +112,9 @@ func (s *Server) Start() {
 }
 
 func (s *Server) UseApi() *chi.Mux {
-	log.Trace.Println("Using api routes")
 	r := chi.NewRouter()
 
-	r.Use(log.ApiLogger(log.GetLogLevel()), middleware.Recoverer, CORSMiddleware, WithServices(s.services), WeblensAuth)
+	r.Use(log.ApiLogger(s.services.Log), middleware.Recoverer, CORSMiddleware(env.GetProxyAddress(s.services.Cnf)), WithServices(s.services), WeblensAuth)
 
 	r.Group(func(r chi.Router) {
 		r.Use(AllowPublic)
@@ -179,6 +179,7 @@ func (s *Server) UseApi() *chi.Mux {
 
 	// Upload
 	r.Route("/upload", func(r chi.Router) {
+		r.Get("/{uploadId}", getUploadResult)
 		r.Post("/", newUploadTask)
 		r.Post("/{uploadId}", newFileUpload)
 		r.Put("/{uploadId}/file/{fileId}", handleUploadChunk)
@@ -285,29 +286,9 @@ func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCas
 	// go http.ListenAndServe(":8081", handler)
 }
 
-func (s *Server) UseInterserverRoutes() {
-	log.Trace.Println("Using interserver routes")
-
-	// core := s.router.Group("/api/core")
-	// core.Use(KeyOnlyAuth(s.services))
-
-	// core.POST("/remote", attachRemote)
-
-	// r.Post("/files", getFilesMeta)
-	// r.Get("/file/:fileId", getFileMeta)
-	// r.Get("/file/:fileId/stat", getFileStat)
-	// r.Get("/file/:fileId/directory", getDirectoryContent)
-	// r.Get("/file/content/:contentId", getFileBytes)
-	//
-	// r.Get("/history/since", getLifetimesSince)
-	// r.Get("/history/folder", getFolderHistory)
-	//
-	// r.Get("/backup", doFullBackup)
-}
-
 func (s *Server) UseUi() *chi.Mux {
-	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services}
-	memFs.loadIndex()
+	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services, proxyAddress: env.GetProxyAddress(s.services.Cnf)}
+	memFs.loadIndex(s.services.Cnf.UiPath)
 
 	r := chi.NewMux()
 	r.Route("/assets", func(r chi.Router) {
@@ -365,14 +346,15 @@ func (s *Server) Restart(wait bool) {
 }
 
 func (s *Server) Stop() {
-	log.Debug.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
+	s.services.Log.Debug.Println("Stopping server", s.services.InstanceService.GetLocal().GetName())
+	s.services.Closing.Store(true)
 	s.services.Caster.PushWeblensEvent(models.ServerGoingDownEvent)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	err := s.stdServer.Shutdown(ctx)
-	log.ErrTrace(err)
-	log.ErrTrace(ctx.Err())
+	s.services.Log.ErrTrace(err)
+	s.services.Log.ErrTrace(ctx.Err())
 
 	for _, c := range s.services.ClientService.GetAllClients() {
 		s.services.ClientService.ClientDisconnect(c)

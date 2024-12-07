@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -14,8 +15,10 @@ import (
 var Info *log.Logger
 var Warning *log.Logger
 var Error *log.Logger
-var ErrorCatcher Logger
-var Output *os.File
+var ErrorCatcher *log.Logger
+
+var Debug FuncLogger = emptyLogger{}
+var Trace FuncLogger = emptyLogger{}
 
 func init() {
 	Info = log.New(os.Stdout, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
@@ -29,7 +32,119 @@ func init() {
 	// ErrorCatcher Same as error, but don't print the file and line. It is expected that what is being printed will include a file and line
 	// Useful for a generic panic cather function, where the line of the catcher function is not useful
 	// ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001B[0m", log.LstdFlags)
-	ErrorCatcher = &logger{prefix: "\u001b[31m[ERROR] \u001B[0m", defaultSkip: 4}
+	ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags)
+
+	// ErrorCatcher = &logger{prefix: "\u001b[31m[ERROR] \u001B[0m", defaultSkip: 4}
+}
+
+// var ErrorCatcher Logger
+var Output *os.File
+
+type LogPackage struct {
+	Trace        FuncLogger
+	Debug        FuncLogger
+	Info         *log.Logger
+	Warning      *log.Logger
+	Error        *log.Logger
+	ErrorCatcher *log.Logger
+
+	Level Level
+}
+
+func (lp LogPackage) ErrTrace(err error, extras ...string) {
+	if err != nil {
+		if lp.Level < DEBUG {
+			lp.ShowErr(err, extras...)
+			return
+		}
+
+		fmter, ok := err.(StackError)
+		if ok {
+			lp.ErrorCatcher.Println(fmter.Stack())
+			return
+		}
+
+		_, file, no, _ := runtime.Caller(1)
+		lp.ErrorCatcher.Println(string(debug.Stack()))
+		lp.ErrorCatcher.Printf("%s:%d (no stack) %s", file, no, err.Error())
+	}
+}
+
+func (lp LogPackage) ShowErr(err error, extras ...string) {
+	if err != nil {
+		fmter, ok := err.(StackError)
+		if ok {
+			errStr := fmter.Errorln()
+			if errStr[len(errStr)-1] == '\n' {
+				errStr = errStr[:len(errStr)-1]
+			}
+			lp.ErrorCatcher.Println(errStr)
+			return
+		}
+
+		msg := ""
+		if len(extras) > 0 {
+			msg = " " + strings.Join(extras, " ")
+		}
+
+		_, file, line, _ := runtime.Caller(2)
+		file = file[strings.LastIndex(file, "/")+1:]
+
+		lp.ErrorCatcher.Printf("%s:%d%s: %s", file, line, msg, err)
+	}
+}
+
+func NewLogPackage(outputPath string, level Level) LogPackage {
+	var output *os.File
+	if outputPath != "" {
+		f, err := os.Create(outputPath)
+		if err != nil {
+			panic(err)
+		}
+		output = f
+
+	} else {
+		output = os.Stdout
+	}
+
+	info := log.New(output, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
+	warning := log.New(output, "\u001b[33m[WARN] \u001B[0m", log.LstdFlags|log.Lshortfile)
+	error := log.New(output, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
+	errorCatcher := log.New(output, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags)
+
+	var trace FuncLogger = emptyLogger{}
+	var debug FuncLogger = emptyLogger{}
+
+	if level == TRACE {
+		trace = &funcLogger{Logger: NewLogger("[TRACE] ", 3, output)}
+		trace.Println("Trace logger enabled")
+	}
+	if level >= DEBUG {
+		prefix := fmt.Sprintf("\u001b[36m[%s] \u001B[0m", "DEBUG")
+		debug = &funcLogger{Logger: NewLogger(prefix, 3, output)}
+		debug.Println("Debug logger enabled")
+	}
+	return LogPackage{
+		Trace:        trace,
+		Debug:        debug,
+		Info:         info,
+		Warning:      warning,
+		Error:        error,
+		ErrorCatcher: errorCatcher,
+
+		Level: level,
+	}
+}
+
+func NewEmptyLogPackage() LogPackage {
+	return LogPackage{
+		Trace:        emptyLogger{},
+		Debug:        emptyLogger{},
+		Info:         log.New(io.Discard, "", 0),
+		Warning:      log.New(io.Discard, "", 0),
+		Error:        log.New(io.Discard, "", 0),
+		ErrorCatcher: log.New(io.Discard, "", 0),
+	}
 }
 
 func formatTime() string {
@@ -53,6 +168,7 @@ type FuncLogger interface {
 }
 
 type logger struct {
+	output      *os.File
 	prefix      string
 	defaultSkip int
 }
@@ -73,8 +189,8 @@ func (l *logger) Printlnn(skip int, v ...any) {
 	fmt.Fprint(Output, l.prefix+formatTime()+fmtCaller(skip)+": "+fmt.Sprintln(v...))
 }
 
-func NewLogger(prefix string, skip int) Logger {
-	return &logger{prefix: prefix, defaultSkip: skip}
+func NewLogger(prefix string, skip int, output *os.File) Logger {
+	return &logger{prefix: prefix, defaultSkip: skip, output: output}
 }
 
 type funcLogger struct {
@@ -101,23 +217,21 @@ func (emptyLogger) Printfn(skip int, format string, v ...any) {}
 func (emptyLogger) Printlnn(skip int, v ...any)               {}
 func (emptyLogger) Func(fn func(l Logger))                    {}
 
-var Debug FuncLogger = emptyLogger{}
-var Trace FuncLogger = emptyLogger{}
+type Level string
 
 const (
-	QUIET   = -1
-	DEFAULT = 0
-	DEBUG   = 1
-	TRACE   = 2
+	DEFAULT Level = "default"
+	DEBUG   Level = "debug"
+	TRACE   Level = "trace"
 )
 
-var logLevel = 0
+var logLevel Level = DEFAULT
 
-func GetLogLevel() int {
+func GetLogLevel() Level {
 	return logLevel
 }
 
-func SetLogLevel(newLevel int, outputPath string) {
+func SetLogLevel(newLevel Level, outputPath string) {
 	if outputPath != "" {
 		f, err := os.Create(outputPath)
 		if err != nil {
@@ -135,28 +249,25 @@ func SetLogLevel(newLevel int, outputPath string) {
 	if logLevel == newLevel {
 		return
 	}
-	if logLevel != 0 {
+	if logLevel != DEFAULT {
 		Warning.Println("Overwriting Log level")
 	}
 	logLevel = newLevel
+	Info.Println("Setting log level to", newLevel)
 
 	switch logLevel {
-	// Disable all loggers except for error
-	case QUIET:
-		Info = log.New(io.Discard, "", 0)
-		Warning = log.New(io.Discard, "", 0)
 	// do nothing
 	case DEFAULT:
 	// enable trace and debug
 	case TRACE:
-		Trace = &funcLogger{Logger: NewLogger("[TRACE] ", 3)}
+		Trace = &funcLogger{Logger: NewLogger("[TRACE] ", 3, Output)}
 		Trace.Println("Trace logger enabled")
 		fallthrough
 	// enable debug
 	case DEBUG:
 		prefix := fmt.Sprintf("\u001b[36m[%s] \u001B[0m", "DEBUG")
 		// Debug = log.New(os.Stdout, prefix, log.LstdFlags|log.Lshortfile)
-		Debug = &funcLogger{Logger: NewLogger(prefix, 3)}
+		Debug = &funcLogger{Logger: NewLogger(prefix, 3, Output)}
 
 	}
 

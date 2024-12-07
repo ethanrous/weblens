@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"os"
+	"math/rand/v2"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,10 +11,11 @@ import (
 	"github.com/ethanrous/weblens/http"
 	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
+	"github.com/ethanrous/weblens/internal/setup"
+	"github.com/ethanrous/weblens/internal/tests"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/jobs"
 	"github.com/ethanrous/weblens/models"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,21 +42,36 @@ func TestStartupCore(t *testing.T) {
 		t.Skipf("skipping %s in short mode", t.Name())
 	}
 
+	t.Parallel()
+
 	var server *http.Server
-	var services = &models.ServicePack{}
 
-	gin.SetMode(gin.ReleaseMode)
+	cnf := env.Config{
+		RouterHost:  env.GetRouterHost(),
+		RouterPort:  rand.IntN(2000) + 8080,
+		MongodbUri:  env.GetMongoURI(),
+		MongodbName: "weblens-" + t.Name(),
+		WorkerCount: 2,
+		DataRoot:    filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "data"),
+		CachesRoot:  filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "cache"),
+		UiPath:      env.GetUIPath(),
+	}
 
-	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-CORE"), env.GetMongoDBName("TEST-CORE"))
+	var services = &models.ServicePack{
+		Cnf: cnf,
+		Log: log.NewLogPackage("", log.DEBUG),
+	}
+
+	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName)
 	require.NoError(t, err)
 
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
 
 	start := time.Now()
-	server = http.NewServer(env.GetRouterHost("TEST-CORE"), env.GetRouterPort("TEST-CORE"), services)
+	server = http.NewServer(cnf.RouterHost, cnf.RouterPort, services)
 	server.StartupFunc = func() {
-		startup("TEST-CORE", services)
+		setup.Startup(cnf, services)
 	}
 
 	services.StartupChan = make(chan bool)
@@ -108,31 +125,44 @@ func TestStartupBackup(t *testing.T) {
 		t.Skipf("skipping %s in short mode", t.Name())
 	}
 
-	if os.Getenv("REMOTE_TESTS") != "true" {
-		t.Skipf("skipping %s without REMOTE_TESTS set", t.Name())
+	t.Parallel()
+
+	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
+		Role: string(models.CoreServerRole),
+	})
+	require.NoError(t, err)
+
+	coreKeys, err := coreServices.AccessService.GetAllKeys(coreServices.UserService.GetRootUser())
+	require.NoError(t, err)
+	coreApiKey := coreKeys[0].Key
+	coreAddress := env.GetProxyAddress(coreServices.Cnf)
+
+	cnf := env.Config{
+		RouterHost:  env.GetRouterHost(),
+		RouterPort:  rand.IntN(2000) + 8080,
+		MongodbUri:  env.GetMongoURI(),
+		MongodbName: "weblens-" + t.Name(),
+		WorkerCount: 2,
+		DataRoot:    filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "data"),
+		CachesRoot:  filepath.Join(env.GetBuildDir(), "fs/test", t.Name(), "cache"),
+		UiPath:      env.GetUIPath(),
 	}
-	return
 
 	var server *http.Server
-	var services = &models.ServicePack{}
+	var services = &models.ServicePack{
+		Cnf: cnf,
+		Log: log.NewLogPackage("", log.DEBUG),
+	}
 
-	gin.SetMode(gin.ReleaseMode)
-
-	coreAddress := os.Getenv("CORE_ADDRESS")
-	require.NotEmpty(t, coreAddress)
-
-	coreApiKey := os.Getenv("CORE_API_KEY")
-	require.NotEmpty(t, coreApiKey)
-
-	mondb, err := database.ConnectToMongo(env.GetMongoURI("TEST-BACKUP"), env.GetMongoDBName("TEST-BACKUP"))
+	mondb, err := database.ConnectToMongo(cnf.MongodbUri, cnf.MongodbName)
 	require.NoError(t, err)
 	err = mondb.Drop(context.Background())
 	require.NoError(t, err)
 
 	start := time.Now()
-	server = http.NewServer(env.GetRouterHost("TEST-BACKUP"), env.GetRouterPort("TEST-BACKUP"), services)
+	server = http.NewServer(cnf.RouterHost, cnf.RouterPort, services)
 	server.StartupFunc = func() {
-		startup("TEST-BACKUP", services)
+		setup.Startup(cnf, services)
 	}
 	services.StartupChan = make(chan bool)
 	go server.Start()
@@ -192,4 +222,5 @@ func TestStartupBackup(t *testing.T) {
 	}
 
 	services.Server.Stop()
+	coreServices.Server.Stop()
 }

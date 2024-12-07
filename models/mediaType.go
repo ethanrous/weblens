@@ -3,13 +3,13 @@ package models
 type MediaType struct {
 	Mime            string   `json:"mime"`
 	Name            string   `json:"FriendlyName"`
+	RawThumbExifKey string   `json:"RawThumbExifKey"`
 	Extensions      []string `json:"FileExtension"`
 	Displayable     bool     `json:"IsDisplayable"`
 	Raw             bool     `json:"IsRaw"`
 	Video           bool     `json:"IsVideo"`
 	ImgRecog        bool     `json:"SupportsImgRecog"`
 	MultiPage       bool     `json:"MultiPage"`
-	RawThumbExifKey string   `json:"RawThumbExifKey"`
 } // @name MediaType
 
 type typeService struct {

@@ -9,8 +9,8 @@ import (
 )
 
 type lap struct {
-	tag  string
 	time time.Time
+	tag  string
 }
 
 type Stopwatch interface {
@@ -21,10 +21,10 @@ type Stopwatch interface {
 }
 
 type sw struct {
-	name  string
 	start time.Time
-	laps  []lap
 	stop  time.Time
+	name  string
+	laps  []lap
 }
 
 func NewStopwatch(name string) Stopwatch {
@@ -64,7 +64,7 @@ func (s *sw) GetTotalTime(firstLapIsStart bool) time.Duration {
 }
 
 func (s *sw) PrintResults(firstLapIsStart bool) {
-	if log.GetLogLevel() < 2 {
+	if log.GetLogLevel() != log.TRACE {
 		return
 	}
 

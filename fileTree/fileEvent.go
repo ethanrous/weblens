@@ -11,19 +11,20 @@ import (
 type FileEventId = string
 
 type FileEvent struct {
-	EventId    FileEventId   `bson:"_id"`
-	Actions    []*FileAction `bson:"actions"`
-	EventBegin time.Time     `bson:"eventBegin"`
-	ServerId   string        `bson:"serverId"`
+	EventBegin time.Time `bson:"eventBegin"`
 
-	journal     Journal      `bson:"-"`
-	hasher      Hasher       `bson:"-"`
-	actionsLock sync.RWMutex `bson:"-"`
+	journal Journal `bson:"-"`
+	hasher  Hasher  `bson:"-"`
 
 	// LoggedChan is used to signal that the event has been logged to the journal.
 	// This is used to prevent actions on the same lifetime to be logged out of order.
 	// LoggedChan does not get written to, it is only closed.
 	LoggedChan chan struct{} `bson:"-"`
+	EventId    FileEventId   `bson:"_id"`
+	ServerId   string        `bson:"serverId"`
+
+	Actions     []*FileAction `bson:"actions"`
+	actionsLock sync.RWMutex  `bson:"-"`
 }
 
 func (fe *FileEvent) addAction(a *FileAction) {
@@ -92,9 +93,11 @@ func (fe *FileEvent) NewMoveAction(lifeId FileId, file *WeblensFileImpl) *FileAc
 		return nil
 	}
 
+	fe.journal.Flush()
+
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		err := werror.Errorf("Cannot not find existing lifetime for %s", lifeId)
+		err := werror.Errorf("Cannot find existing lifetime for %s", lifeId)
 		log.ErrTrace(err)
 		return nil
 	}
@@ -123,9 +126,11 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 		return nil
 	}
 
+	fe.journal.Flush()
+
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
-		err := werror.Errorf("Cannot not find existing lifetime for %s", lifeId)
+		err := werror.Errorf("Cannot find existing lifetime for %s", lifeId)
 		log.ErrTrace(err)
 		return nil
 	}
@@ -186,10 +191,19 @@ func (fe *FileEvent) NewSizeChangeAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
+	fe.journal.Flush()
+
+	for _, action := range fe.GetActions() {
+		if action.LifeId == file.ID() {
+			action.Size = file.Size()
+			return nil
+		}
+	}
+
 	log.Trace.Func(func(l log.Logger) { l.Printf("Building size change action for [%s]", file.Filename()) })
 	lt := fe.journal.Get(file.ID())
 	if lt == nil {
-		err := werror.Errorf("Cannot not find existing lifetime for %s", file.ID())
+		err := werror.Errorf("Cannot find existing lifetime for %s", file.ID())
 		log.ErrTrace(err)
 		return nil
 	}

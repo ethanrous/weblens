@@ -14,30 +14,33 @@ import (
 )
 
 type TaskPool struct {
-	id Id
+	createdAt time.Time
 
-	treatAsGlobal  bool
-	hasQueueThread bool
-
-	tasks    map[Id]*Task
-	taskLock sync.RWMutex
-
-	totalTasks     atomic.Int64
-	completedTasks atomic.Int64
-	waiterCount    atomic.Int32
-	waiterGate     chan struct{}
-	exitLock       sync.Mutex
+	tasks      map[Id]*Task
+	waiterGate chan struct{}
 
 	workerPool     *WorkerPool
 	parentTaskPool *TaskPool
 	createdBy      *Task
-	createdAt      time.Time
 
 	cleanupFn func(pool Pool)
 
-	allQueuedFlag atomic.Bool
+	id Id
 
 	erroredTasks []*Task
+
+	totalTasks     atomic.Int64
+	completedTasks atomic.Int64
+	taskLock       sync.RWMutex
+
+	exitLock sync.Mutex
+
+	waiterCount atomic.Int32
+
+	allQueuedFlag atomic.Bool
+
+	treatAsGlobal  bool
+	hasQueueThread bool
 }
 
 func (tp *TaskPool) IsRoot() bool {

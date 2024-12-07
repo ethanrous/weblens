@@ -11,16 +11,16 @@ import (
 var _ database.MongoCollection = (*MockFailMongoCol)(nil)
 
 type MockFailMongoCol struct {
-	RealCol    *mongo.Collection
+	RealCol *mongo.Collection
+
+	Inserts    []any
+	Finds      []any
+	Updates    []any
+	Deletes    []any
 	InsertFail bool
 	FindFail   bool
 	UpdateFail bool
 	DeleteFail bool
-
-	Inserts []any
-	Finds   []any
-	Updates []any
-	Deletes []any
 }
 
 func (fc *MockFailMongoCol) InsertOne(

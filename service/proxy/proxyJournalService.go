@@ -65,6 +65,11 @@ func (pjs *ProxyJournalService) LogEvent(fe *fileTree.FileEvent) {
 	panic("implement me")
 }
 
+func (pjs *ProxyJournalService) Flush() {
+
+	panic("implement me")
+}
+
 func (pjs *ProxyJournalService) GetActionsByPath(filepath fileTree.WeblensFilepath) ([]*fileTree.FileAction, error) {
 
 	panic("implement me")

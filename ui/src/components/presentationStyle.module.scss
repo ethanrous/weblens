@@ -1,7 +1,7 @@
 .file-info-box {
     display: flex;
+    position: relative;
     flex-grow: 1;
-    margin: auto;
-    max-width: 48%;
+    max-width: 95%;
     --wl-text-color: white;
 }

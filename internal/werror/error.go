@@ -26,8 +26,8 @@ var NotImplemented = func(note string) error {
 type clientSafeErr struct {
 	realError  error
 	safeErr    error
-	statusCode int
 	arg        any
+	statusCode int
 }
 
 func (cse clientSafeErr) Error() string {

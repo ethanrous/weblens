@@ -120,12 +120,12 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             className={filesStyle['files-grid']}
             data-droppable={Boolean(
                 moveDest === folderInfo?.Id() &&
-                    folderInfo.modifiable &&
+                    folderInfo?.modifiable &&
                     dragState === DraggingStateT.ExternalDrag
             )}
             data-bad-drop={Boolean(
                 moveDest === folderInfo?.Id() &&
-                    !folderInfo.modifiable &&
+                    !folderInfo?.modifiable &&
                     dragState === DraggingStateT.ExternalDrag
             )}
             onDragOver={(e) => {
@@ -134,7 +134,7 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             }}
             onDrop={(e) => {
                 e.preventDefault()
-                if (folderInfo.modifiable) {
+                if (folderInfo?.modifiable) {
                     HandleDrop(
                         e.dataTransfer.items,
                         folderInfo.Id(),

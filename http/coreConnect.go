@@ -72,6 +72,10 @@ func WebsocketToCore(core *models.Instance, pack *models.ServicePack) error {
 					"online":   false,
 				},
 			)
+
+			if pack.Closing.Load() {
+				return
+			}
 			log.Warning.Printf("Websocket connection to core [%s] closed, reconnecting...", core.GetName())
 		}
 	}()
@@ -154,7 +158,21 @@ func wsCoreClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Ser
 			return
 		}
 
-		c.GetRemote().SetReportedRole(roleI.(string))
+		roleStr, ok := roleI.(string)
+		if !ok {
+			c.Error(werror.Errorf("Invalid role in weblens_loaded message: %v", roleI))
+			return
+		}
+
+		var role models.ServerRole
+		switch models.ServerRole(roleStr) {
+		case models.CoreServerRole, models.BackupServerRole, models.InitServerRole:
+			role = models.ServerRole(roleStr)
+		default:
+			c.Error(werror.Errorf("Invalid role in weblens_loaded message: %v", roleI))
+		}
+
+		c.GetRemote().SetReportedRole(role)
 
 		// Launch backup task whenever we reconnect to the core server
 		_, err = jobs.BackupOne(c.GetRemote(), pack)

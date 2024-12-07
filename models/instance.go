@@ -11,7 +11,7 @@ import (
 )
 
 type InstanceId = string
-type ServerRole = string
+type ServerRole string
 
 const (
 	InitServerRole    ServerRole = "init"
@@ -26,8 +26,6 @@ const (
 // are RELATIVE terms, meaning one core servers "remote" is the backup
 // servers "local".
 type Instance struct {
-	// The ID of the server in the local database
-	DbId primitive.ObjectID `json:"-" bson:"_id"`
 
 	// The ID of the server that is shared between all servers
 	Id   InstanceId `json:"id" bson:"instanceId"`
@@ -40,9 +38,6 @@ type Instance struct {
 	// Core or BackupServer
 	Role ServerRole `json:"role" bson:"serverRole"`
 
-	// If this server info represents this local server
-	IsThisServer bool `json:"-" bson:"isThisServer"`
-
 	// Address of the remote server, only if the instance is a core.
 	// Not set for any remotes/backups on core server, as it IS the core
 	Address string `json:"coreAddress" bson:"coreAddress"`
@@ -50,13 +45,18 @@ type Instance struct {
 	// The ID of the server in which this remote instance is in reference from
 	CreatedBy InstanceId `json:"createdBy" bson:"createdBy"`
 
-	// The time of the latest backup, in milliseconds since epoch
-	LastBackup int64 `json:"lastBackup" bson:"lastBackup"`
-
 	// Role the server is currently reporting. This is used to determine if the server is online (and functional) or not
 	reportedRole ServerRole
 
+	// The time of the latest backup, in milliseconds since epoch
+	LastBackup int64 `json:"lastBackup" bson:"lastBackup"`
+
 	updateMu sync.RWMutex
+	// The ID of the server in the local database
+	DbId primitive.ObjectID `json:"-" bson:"_id"`
+
+	// If this server info represents this local server
+	IsThisServer bool `json:"-" bson:"isThisServer"`
 }
 
 func NewInstance(
@@ -170,12 +170,12 @@ type InstanceService interface {
 type WeblensApiKey = string
 
 type ApiKey struct {
-	Id          primitive.ObjectID `bson:"_id"`
+	CreatedTime time.Time          `bson:"createdTime"`
 	Key         WeblensApiKey      `bson:"key"`
 	Owner       Username           `bson:"owner"`
-	CreatedTime time.Time          `bson:"createdTime"`
 	RemoteUsing InstanceId         `bson:"remoteUsing"`
 	CreatedBy   InstanceId         `bson:"createdBy"`
+	Id          primitive.ObjectID `bson:"_id"`
 }
 
 type AccessService interface {

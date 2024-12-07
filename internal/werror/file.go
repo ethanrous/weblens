@@ -7,8 +7,8 @@ import (
 )
 
 type ErrNoFileName struct {
-	Name string
 	Err  error
+	Name string
 }
 
 func (e *ErrNoFileName) Error() string {

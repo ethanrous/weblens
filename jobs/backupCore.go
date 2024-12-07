@@ -133,8 +133,6 @@ func DoBackup(t *task.Task) {
 	stages.StartStage("writing_users")
 	t.SetResult(task.TaskResult{"stages": stages})
 
-	log.Debug.Println(backupResponse.Users)
-
 	// Write the users to the users service
 	for _, userInfo := range backupResponse.Users {
 		user := rest.UserInfoArchiveToUser(userInfo)
@@ -229,7 +227,7 @@ func DoBackup(t *task.Task) {
 		latestMove := lt.GetLatestMove()
 
 		existingFile, err := meta.FileService.GetFileByTree(lt.ID(), meta.Core.ServerId())
-		log.Debug.Printf("File %s exists: %v", lt.GetLatestPath(), existingFile != nil)
+		log.Trace.Printf("File %s exists: %v", lt.GetLatestPath(), existingFile != nil)
 
 		// If the file already exists, but is the wrong size, an earlier copy most likely failed. Delete it and copy it again.
 		if existingFile != nil && !existingFile.IsDir() && existingFile.Size() != lt.Actions[0].Size {
@@ -292,6 +290,7 @@ func DoBackup(t *task.Task) {
 			File:        restoreFile,
 			Caster:      meta.Caster,
 			Core:        meta.Core,
+			CoreFileId:  lt.ID(),
 			Filename:    filename,
 		}
 
@@ -303,7 +302,7 @@ func DoBackup(t *task.Task) {
 	pool.Wait(true)
 
 	if len(pool.Errors()) != 0 {
-		t.ReqNoErr(werror.Errorf("%d backup file copies have failed", len(pool.Errors())))
+		t.ReqNoErr(werror.Errorf("%d of %d backup file copies have failed", len(pool.Errors()), pool.Status().Total))
 	}
 
 	stages.FinishStage("sync_fs")
@@ -312,7 +311,7 @@ func DoBackup(t *task.Task) {
 	root, err := meta.FileService.GetFileByTree("ROOT", meta.Core.ServerId())
 	t.ReqNoErr(err)
 
-	err = meta.FileService.ResizeDown(root, meta.Caster)
+	err = meta.FileService.ResizeDown(root, nil, meta.Caster)
 	t.ReqNoErr(err)
 
 	err = meta.InstanceService.SetLastBackup(meta.Core.ServerId(), time.Now())
@@ -330,6 +329,10 @@ func CopyFileFromCore(t *task.Task) {
 	meta := t.GetMeta().(models.BackupCoreFileMeta)
 	t.SetErrorCleanup(func(t *task.Task) {
 		meta.Caster.PushTaskUpdate(t, models.CopyFileFailedEvent, task.TaskResult{"filename": meta.Filename, "coreId": meta.Core.ServerId()})
+		rmErr := meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{meta.File}, meta.Core.ServerId(), meta.Caster)
+		if rmErr != nil {
+			log.ErrTrace(rmErr)
+		}
 	})
 
 	filename := meta.Filename
@@ -354,26 +357,13 @@ func CopyFileFromCore(t *task.Task) {
 	}
 	defer writeFile.Close()
 
-	fileReader, err := meta.ProxyFileService.ReadFile(meta.File)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
-	defer fileReader.Close()
+	res, err := proxy.NewCoreRequest(meta.Core, "GET", "/files/"+meta.CoreFileId+"/download").Call()
+	t.ReqNoErr(err)
 
-	_, err = io.Copy(writeFile, fileReader)
-	if err != nil {
-		rmErr := meta.FileService.DeleteFiles([]*fileTree.WeblensFileImpl{meta.File}, meta.Core.ServerId(), meta.Caster)
-		if rmErr != nil {
-			t.ReqNoErr(
-				werror.Errorf(
-					"Failed to write to file: %s\nThis Occoured while cleaning up from another error: %s",
-					rmErr, err,
-				),
-			)
-			t.ReqNoErr(rmErr)
-		}
-		t.ReqNoErr(err)
-	}
+	defer res.Body.Close()
+
+	_, err = io.Copy(writeFile, res.Body)
+	t.ReqNoErr(err)
 
 	poolProgress := getScanResult(t)
 	poolProgress["filename"] = filename
@@ -389,9 +379,9 @@ func RestoreCore(t *task.Task) {
 	type restoreInitParams struct {
 		Name     string            `json:"name"`
 		Role     models.ServerRole `json:"role"`
-		Key      models.ApiKey     `json:"usingKeyInfo"`
 		RemoteId string            `json:"remoteId"`
 		LocalId  string            `json:"localId"`
+		Key      models.ApiKey     `json:"usingKeyInfo"`
 	}
 
 	// Notify client of restore failure, if any

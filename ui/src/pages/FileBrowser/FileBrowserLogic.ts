@@ -1,11 +1,13 @@
 import { IconFile, IconFolder, IconHome, IconTrash } from '@tabler/icons-react'
 import {
     FileApi,
-    FolderApi,
     SubToTask,
     downloadSingleFile,
 } from '@weblens/api/FileBrowserApi'
-import Upload, { fileUploadMetadata } from '@weblens/api/Upload'
+import Upload, {
+    FileUploadMetadata,
+    UPLOAD_CHUNK_SIZE,
+} from '@weblens/api/Upload'
 import { WsSendT } from '@weblens/api/Websocket'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import {
@@ -75,27 +77,40 @@ function readAllFiles(
 
 async function addDir(
     fsEntry: FileSystemEntry,
+    uploadId: string,
     parentFolderId: string,
     topFolderKey: string,
     rootFolderId: string,
     isPublic: boolean,
     shareId: string
-): Promise<fileUploadMetadata[]> {
+): Promise<FileUploadMetadata[]> {
+    console.log('hola?')
     if (fsEntry.isDirectory) {
-        const res = await FolderApi.createFolder(
-            {
-                parentFolderId: parentFolderId,
-                newFolderName: fsEntry.name,
-            },
-            shareId
-        )
-        const folderId = res.data.id
+        const newDirRes = await FileApi.addFilesToUpload(uploadId, {
+            newFiles: [
+                {
+                    isDir: true,
+                    parentFolderId: parentFolderId,
+                    newFileName: fsEntry.name,
+                },
+            ],
+        }).catch((err) => {
+            console.error('Failed to add files to upload', err)
+        })
+
+        if (!newDirRes) {
+            throw new Error('Failed to add directory to upload')
+        }
+
+        console.log('newDirRes', newDirRes)
+
+        const folderId = newDirRes.data.fileIds[0]
         if (!folderId) {
             return Promise.reject(
                 new Error('Failed to create folder: no folderId')
             )
         }
-        let e: fileUploadMetadata = null
+        let e: FileUploadMetadata = null
         if (!topFolderKey) {
             topFolderKey = folderId
             e = {
@@ -112,7 +127,7 @@ async function addDir(
             (fsEntry as FileSystemDirectoryEntry).createReader()
         )
 
-        const allResults: fileUploadMetadata[] = []
+        const allResults: FileUploadMetadata[] = []
         if (e !== null) {
             allResults.push(e)
         }
@@ -120,6 +135,7 @@ async function addDir(
             allResults.push(
                 ...(await addDir(
                     entry,
+                    uploadId,
                     folderId,
                     topFolderKey,
                     rootFolderId,
@@ -133,7 +149,7 @@ async function addDir(
         if (fsEntry.name === '.DS_Store') {
             return []
         }
-        const e: fileUploadMetadata = {
+        const e: FileUploadMetadata = {
             entry: fsEntry,
             parentId: parentFolderId,
             isDir: false,
@@ -151,26 +167,46 @@ export async function HandleDrop(
     isPublic: boolean,
     shareId: string
 ) {
-    const files: fileUploadMetadata[] = []
+    const files: FileUploadMetadata[] = []
     const topLevels = []
-    if (items) {
+
+    const entries = Array.from(items).map((i) => i.webkitGetAsEntry())
+
+    console.log('files', items)
+    const res = await FileApi.startUpload({
+        rootFolderId: rootFolderId,
+        chunkSize: UPLOAD_CHUNK_SIZE,
+    }).catch((err) => {
+        ErrorHandler(Error(String(err)))
+    })
+
+    if (!res) {
+        return
+    }
+    console.log('entries', entries)
+
+    const uploadId = res.data.uploadId
+
+    if (entries) {
         // Handle Directory
-        for (const entry of items) {
-            if (!entry) {
-                console.error('Upload entry does not exist or is not a file')
-                continue
-            }
-            const file = entry.webkitGetAsEntry()
-            if (!file) {
-                console.error('Drop is not a file')
-                continue
-            }
-            if (conflictNames.includes(file.name)) {
-                continue
-            }
+        console.log('files', items)
+        for (const entry of entries) {
+            // if (!entry) {
+            //     console.error('Upload entry does not exist or is not a file')
+            //     continue
+            // }
+            // const file = entry.webkitGetAsEntry()
+            // if (!file) {
+            //     console.error('Drop is not a file')
+            //     continue
+            // }
+            // if (conflictNames.includes(file.name)) {
+            //     continue
+            // }
             topLevels.push(
                 addDir(
-                    file,
+                    entry,
+                    uploadId,
                     rootFolderId,
                     null,
                     rootFolderId,
@@ -188,19 +224,20 @@ export async function HandleDrop(
     }
 
     await Promise.all(topLevels)
+    console.log('HERE', files)
 
     if (files.length !== 0) {
-        return Upload(files, isPublic, shareId, rootFolderId)
+        return Upload(files, isPublic, shareId, uploadId, rootFolderId)
     }
 }
 
-export function HandleUploadButton(
+export async function HandleUploadButton(
     files: File[],
     parentFolderId: string,
     isPublic: boolean,
     shareId: string
 ) {
-    const uploads: fileUploadMetadata[] = []
+    const uploads: FileUploadMetadata[] = []
     for (const f of files) {
         uploads.push({
             file: f,
@@ -211,8 +248,25 @@ export function HandleUploadButton(
         })
     }
 
+    const res = await FileApi.startUpload({
+        rootFolderId: parentFolderId,
+        chunkSize: UPLOAD_CHUNK_SIZE,
+    }).catch((err) => {
+        ErrorHandler(Error(String(err)))
+    })
+
+    if (!res) {
+        return
+    }
+
     if (uploads.length !== 0) {
-        Upload(uploads, isPublic, shareId, parentFolderId).catch(ErrorHandler)
+        Upload(
+            uploads,
+            isPublic,
+            shareId,
+            res.data.uploadId,
+            parentFolderId
+        ).catch(ErrorHandler)
     }
 }
 
@@ -463,26 +517,48 @@ export async function uploadViaUrl(
         imgName = `image${imgNumber}.jpg`
     }
 
-    const meta: fileUploadMetadata = {
+    const meta: FileUploadMetadata = {
         file: new File([img], imgName),
         isDir: false,
         parentId: folderId,
         topLevelParentKey: '',
         isTopLevel: true,
     }
-    await Upload([meta], false, '', folderId)
+
+    const res = await FileApi.startUpload({
+        rootFolderId: folderId,
+        chunkSize: UPLOAD_CHUNK_SIZE,
+    }).catch((err) => {
+        ErrorHandler(Error(String(err)))
+    })
+
+    if (!res) {
+        return
+    }
+
+    await Upload([meta], false, '', res.data.uploadId, folderId)
 }
 
-export const historyDate = (timestamp: number) => {
+export const historyDate = (timestamp: number, short: boolean = false) => {
     if (timestamp < 10000000000) {
         timestamp = timestamp * 1000
     }
     const dateObj = new Date(timestamp)
-    const options: Intl.DateTimeFormatOptions = {
-        month: 'long',
-        day: 'numeric',
-        minute: 'numeric',
-        hour: 'numeric',
+    let options: Intl.DateTimeFormatOptions
+    if (short) {
+        options = {
+            month: 'numeric',
+            day: 'numeric',
+            minute: 'numeric',
+            hour: 'numeric',
+        }
+    } else {
+        options = {
+            month: 'long',
+            day: 'numeric',
+            minute: 'numeric',
+            hour: 'numeric',
+        }
     }
     if (dateObj.getFullYear() !== new Date().getFullYear()) {
         options.year = 'numeric'

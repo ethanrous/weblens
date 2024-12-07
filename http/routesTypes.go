@@ -10,8 +10,8 @@ import (
 
 type folderSubscribeMeta struct {
 	Key       models.SubId   `json:"subscribeKey"`
-	Recursive bool           `json:"recursive"`
 	ShareId   models.ShareId `json:"shareId"`
+	Recursive bool           `json:"recursive"`
 }
 
 func (fsm *folderSubscribeMeta) Action() models.WsAction {
@@ -23,11 +23,11 @@ func (fsm *folderSubscribeMeta) GetKey() models.SubId {
 }
 
 type taskSubscribeMeta struct {
-	Key        models.SubId `json:"subscribeKey"`
-	JobName    string       `json:"taskType"`
-	LookingFor []string     `json:"lookingFor"`
+	Key     models.SubId `json:"subscribeKey"`
+	JobName string       `json:"taskType"`
 
-	realKey models.SubId
+	realKey    models.SubId
+	LookingFor []string `json:"lookingFor"`
 }
 
 func (tsm *taskSubscribeMeta) Action() models.WsAction {

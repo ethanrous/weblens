@@ -280,7 +280,7 @@ func wsServerClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.S
 	}
 
 	if msg.SentTime == 0 {
-		err := werror.Errorf("invalid sent time on relay message %s", msg.EventTag)
+		err := werror.Errorf("invalid sent time on relay message: [%s]", msg.EventTag)
 		c.Error(err)
 		return
 	}

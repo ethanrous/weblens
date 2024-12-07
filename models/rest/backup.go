@@ -7,10 +7,10 @@ import (
 
 type BackupInfo struct {
 	FileHistory    []*fileTree.Lifetime
-	LifetimesCount int
 	Users          []UserInfoArchive
 	Instances      []ServerInfo
 	ApiKeys        []models.ApiKey
+	LifetimesCount int
 }
 
 func NewBackupInfo(fileHistory []*fileTree.Lifetime, lifetimesCount int, users []*models.User, instances []*models.Instance, apiKeys []models.ApiKey) BackupInfo {

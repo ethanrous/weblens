@@ -12,11 +12,11 @@ import (
 type Lifetime struct {
 	Id        FileId        `bson:"_id" json:"id"`
 	ContentId string        `bson:"contentId,omitempty" json:"contentId,omitempty"`
-	Actions   []*FileAction `bson:"actions" json:"actions"`
 	ServerId  string        `bson:"serverId" json:"serverId"`
-	IsDir     bool          `bson:"isDir" json:"isDir"`
+	Actions   []*FileAction `bson:"actions" json:"actions"`
 
 	actionsLock sync.RWMutex
+	IsDir       bool `bson:"isDir" json:"isDir"`
 }
 
 func NewLifetime(createAction *FileAction) (*Lifetime, error) {

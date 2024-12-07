@@ -28,24 +28,17 @@ func (tr TaskResult) ToMap() map[string]any {
 }
 
 type Task struct {
-	taskId        Id
-	taskPool      *TaskPool
-	childTaskPool *TaskPool
-	work          TaskHandler
-	jobName       string
-	metadata      TaskMetadata
-	result        TaskResult
-	persistent    bool
-	queueState    QueueState
-
-	updateMu sync.RWMutex
+	timeout  time.Time
+	metadata TaskMetadata
 
 	err error
 
-	timeout   time.Time
-	timerLock sync.Mutex
+	sw internal.Stopwatch
 
-	exitStatus TaskExitStatus // "success", "error" or "cancelled"
+	taskPool      *TaskPool
+	childTaskPool *TaskPool
+	work          TaskHandler
+	result        TaskResult
 
 	// Function to be run to clean up when the task completes, only if the task is successful
 	postAction func(result TaskResult)
@@ -53,22 +46,32 @@ type Task struct {
 	// Function to run whenever the task results update
 	resultsCallback func(result TaskResult)
 
+	signalChan chan int
+
+	taskId     Id
+	jobName    string
+	queueState QueueState
+
+	exitStatus TaskExitStatus // "success", "error" or "cancelled"
+
 	// Function to be run to clean up when the task completes, no matter the exit status
 	cleanup []TaskHandler
 
 	// Function to be run to clean up if the task errors
 	errorCleanup []TaskHandler
 
-	sw internal.Stopwatch
-
 	// signal is used for signaling a task to change behavior after it has been queued,
 	// to exit prematurely, for example. The signalChan serves the same purpose, but is
 	// used when a task might block waiting for another channel.
 	// Key: 1 is exit,
-	signal     atomic.Int64
-	signalChan chan int
+	signal atomic.Int64
 
-	waitMu sync.Mutex
+	updateMu sync.RWMutex
+
+	timerLock sync.Mutex
+
+	waitMu     sync.Mutex
+	persistent bool
 }
 
 type QueueState string

@@ -9,11 +9,11 @@ import (
 var _ fileTree.FileTree = (*MemFileTree)(nil)
 
 type MemFileTree struct {
-	rootAlias string
-	fMap      map[fileTree.FileId]*fileTree.WeblensFileImpl
-	root      *fileTree.WeblensFileImpl
-
 	journal fileTree.Journal
+	fMap    map[fileTree.FileId]*fileTree.WeblensFileImpl
+	root    *fileTree.WeblensFileImpl
+
+	rootAlias string
 }
 
 func (ft *MemFileTree) ReplaceId(oldId, newId fileTree.FileId) error {

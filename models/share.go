@@ -16,29 +16,29 @@ var _ Share = (*AlbumShare)(nil)
 type ShareId = string
 
 type FileShare struct {
+	Expires   time.Time       `bson:"expires"`
+	Updated   time.Time       `bson:"updated"`
 	ShareId   ShareId         `bson:"_id"`
 	FileId    fileTree.FileId `bson:"fileId"`
 	ShareName string          `bson:"shareName"`
 	Owner     Username        `bson:"owner"`
+	ShareType ShareType       `bson:"shareType"`
 	Accessors []Username      `bson:"accessors"`
 	Public    bool            `bson:"public"`
 	Wormhole  bool            `bson:"wormhole"`
 	Enabled   bool            `bson:"enabled"`
-	Expires   time.Time       `bson:"expires"`
-	Updated   time.Time       `bson:"updated"`
-	ShareType ShareType       `bson:"shareType"`
 }
 
 type AlbumShare struct {
+	Expires   time.Time  `bson:"expires"`
+	Updated   time.Time  `bson:"updated"`
 	ShareId   ShareId    `bson:"_id" json:"shareId"`
 	AlbumId   AlbumId    `bson:"albumId" json:"albumId"`
 	Owner     Username   `bson:"owner"`
+	ShareType ShareType  `bson:"shareType"`
 	Accessors []Username `bson:"accessors"`
 	Public    bool       `bson:"public"`
 	Enabled   bool       `bson:"enabled"`
-	Expires   time.Time  `bson:"expires"`
-	Updated   time.Time  `bson:"updated"`
-	ShareType ShareType  `bson:"shareType"`
 } // @name AlbumShare
 
 func NewFileShare(

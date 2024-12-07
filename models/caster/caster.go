@@ -16,11 +16,11 @@ import (
 var _ models.Broadcaster = (*SimpleCaster)(nil)
 
 type SimpleCaster struct {
-	enabled   atomic.Bool
-	global    atomic.Bool
 	cm        models.ClientManager
 	msgChan   chan models.WsResponseInfo
 	flushLock sync.RWMutex
+	enabled   atomic.Bool
+	global    atomic.Bool
 }
 
 func (c *SimpleCaster) DisableAutoFlush() {

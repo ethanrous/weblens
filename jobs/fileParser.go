@@ -84,7 +84,7 @@ func ScanDirectory(t *task.Task) {
 
 			m := meta.MediaService.Get(wf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
-				if !slices.ContainsFunc(m.FileIds, func(fId fileTree.FileId) bool { return fId == wf.ID() }) {
+				if !slices.ContainsFunc(m.FileIDs, func(fId fileTree.FileId) bool { return fId == wf.ID() }) {
 					err := meta.MediaService.AddFileToMedia(m, wf)
 					if err != nil {
 						return err
@@ -129,7 +129,7 @@ func ScanDirectory(t *task.Task) {
 
 	pool.SignalAllQueued()
 
-	err = meta.FileService.ResizeDown(meta.File, meta.Caster)
+	err = meta.FileService.ResizeDown(meta.File, nil, meta.Caster)
 	if err != nil {
 		log.ShowErr(err)
 	}
@@ -205,8 +205,8 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 		meta.PartialMedia = &models.Media{}
 	}
 
-	meta.PartialMedia.ContentId = meta.File.GetContentId()
-	meta.PartialMedia.FileIds = []fileTree.FileId{meta.File.ID()}
+	meta.PartialMedia.ContentID = meta.File.GetContentId()
+	meta.PartialMedia.FileIDs = []fileTree.FileId{meta.File.ID()}
 	meta.PartialMedia.Owner = meta.FileService.GetFileOwner(meta.File).GetUsername()
 
 	exitCheck()
@@ -222,7 +222,7 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 
 	existingMedia := meta.MediaService.Get(meta.PartialMedia.ID())
 	if existingMedia == nil || existingMedia.Height != meta.PartialMedia.Height || existingMedia.
-		Width != meta.PartialMedia.Width || len(existingMedia.FileIds) != len(meta.PartialMedia.FileIds) {
+		Width != meta.PartialMedia.Width || len(existingMedia.FileIDs) != len(meta.PartialMedia.FileIDs) {
 		err = meta.MediaService.Add(meta.PartialMedia)
 		if err != nil && !errors.Is(err, werror.ErrMediaAlreadyExists) {
 			return err

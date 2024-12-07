@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ethanrous/weblens/fileTree"
-	"github.com/ethanrous/weblens/internal/env"
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
@@ -122,7 +121,7 @@ func attachRemote(w http.ResponseWriter, r *http.Request) {
 		}
 
 		mockJournal := mock.NewHollowJournalService()
-		newTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), newCore.ServerId()), newCore.ServerId(), mockJournal, false)
+		newTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, newCore.ServerId()), newCore.ServerId(), mockJournal, false)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
@@ -324,11 +323,11 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 		hasherFactory := func() fileTree.Hasher {
 			return models.NewHasher(pack.TaskService, pack.Caster)
 		}
-		journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), initBody.LocalId, false, hasherFactory)
+		journal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), initBody.LocalId, false, hasherFactory, pack.Log)
 		if SafeErrorAndExit(err, w) {
 			return
 		}
-		usersTree, err := fileTree.NewFileTree(filepath.Join(env.GetDataRoot(), "users"), "USERS", journal, false)
+		usersTree, err := fileTree.NewFileTree(filepath.Join(pack.Cnf.DataRoot, "users"), "USERS", journal, false)
 		if SafeErrorAndExit(err, w) {
 			return
 		}

@@ -37,21 +37,23 @@ import (
 var _ models.MediaService = (*MediaServiceImpl)(nil)
 
 type MediaServiceImpl struct {
-	mediaMap  map[models.ContentId]*models.Media
-	mediaLock sync.RWMutex
-
-	streamerMap  map[models.ContentId]*models.VideoStreamer
-	streamerLock sync.RWMutex
-
-	mediaCache  *sturdyc.Client[[]byte]
 	filesBuffer sync.Pool
 
 	typeService models.MediaTypeService
 	fileService models.FileService
 
+	AlbumService models.AlbumService
+	mediaMap     map[models.ContentId]*models.Media
+
+	streamerMap map[models.ContentId]*models.VideoStreamer
+
+	mediaCache *sturdyc.Client[[]byte]
+
 	collection *mongo.Collection
 
-	AlbumService models.AlbumService
+	mediaLock sync.RWMutex
+
+	streamerLock sync.RWMutex
 }
 
 var exif *exiftool.Exiftool
@@ -145,7 +147,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 		return werror.ErrMediaNoDimensions
 	}
 
-	if len(m.FileIds) == 0 {
+	if len(m.FileIDs) == 0 {
 		return werror.ErrMediaNoFiles
 	}
 
@@ -172,7 +174,7 @@ func (ms *MediaServiceImpl) Add(m *models.Media) error {
 
 	if !m.IsImported() {
 		m.SetImported(true)
-		m.MediaId = primitive.NewObjectID()
+		m.MediaID = primitive.NewObjectID()
 		_, err := ms.collection.InsertOne(context.Background(), m)
 		if err != nil {
 			return werror.WithStack(err)
@@ -395,7 +397,7 @@ func (ms *MediaServiceImpl) IsFileDisplayable(f *fileTree.WeblensFileImpl) bool 
 
 func (ms *MediaServiceImpl) AddFileToMedia(m *models.Media, f *fileTree.WeblensFileImpl) error {
 	if slices.ContainsFunc(
-		m.FileIds, func(fId fileTree.FileId) bool {
+		m.FileIDs, func(fId fileTree.FileId) bool {
 			return fId == f.ID()
 		},
 	) {
@@ -422,13 +424,13 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 		return err
 	}
 
-	media.FileIds = internal.Filter(
-		media.FileIds, func(fId fileTree.FileId) bool {
+	media.FileIDs = internal.Filter(
+		media.FileIDs, func(fId fileTree.FileId) bool {
 			return fId != fileId
 		},
 	)
 
-	if len(media.FileIds) == 1 && media.FileIds[0] == fileId {
+	if len(media.FileIDs) == 1 && media.FileIDs[0] == fileId {
 		return ms.Del(media.ID())
 	}
 
@@ -437,7 +439,7 @@ func (ms *MediaServiceImpl) RemoveFileFromMedia(media *models.Media, fileId file
 
 func (ms *MediaServiceImpl) Cleanup() error {
 	for _, m := range ms.mediaMap {
-		fs, missing, err := ms.fileService.GetFiles(m.FileIds)
+		fs, missing, err := ms.fileService.GetFiles(m.FileIDs)
 		if err != nil {
 			return err
 		}
@@ -513,12 +515,16 @@ func (ms *MediaServiceImpl) StreamVideo(
 	var streamer *models.VideoStreamer
 	var ok bool
 	if streamer, ok = ms.streamerMap[m.ID()]; !ok {
-		f, err := ms.fileService.GetFileByContentId(m.ContentId)
+		f, err := ms.fileService.GetFileByContentId(m.ContentID)
 		if err != nil {
 			return nil, err
 		}
 
-		streamer = models.NewVideoStreamer(f)
+		thumbs, err := ms.fileService.GetThumbsDir()
+		if err != nil {
+			return nil, err
+		}
+		streamer = models.NewVideoStreamer(f, thumbs.AbsPath())
 		ms.streamerMap[m.ID()] = streamer
 	}
 
@@ -634,7 +640,6 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 
 	if m.MimeType == "" {
 		mimeType, ok := fileMetas[0].Fields["MIMEType"].(string)
-		log.Debug.Printf("MIME type: %s", mimeType)
 		if !ok {
 			mimeType = "generic"
 		}

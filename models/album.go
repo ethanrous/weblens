@@ -15,10 +15,10 @@ type Album struct {
 	Id             AlbumId     `bson:"_id"`
 	Name           string      `bson:"name"`
 	Owner          Username    `bson:"owner"`
-	Medias         []ContentId `bson:"medias"`
 	Cover          ContentId   `bson:"cover"`
 	PrimaryColor   string      `bson:"primaryColor"`
 	SecondaryColor string      `bson:"secondaryColor"`
+	Medias         []ContentId `bson:"medias"`
 	ShowOnTimeline bool        `bson:"showOnTimeline"`
 }
 

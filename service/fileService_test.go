@@ -42,7 +42,7 @@ func NewTestFileTree() (fileTree.FileTree, error) {
 	return tree, nil
 }
 
-func NewTestFileService(name string) (*models.ServicePack, error) {
+func NewTestFileService(name string, logger log.LogPackage) (*models.ServicePack, error) {
 	mondb, err := database.ConnectToMongo(env.GetMongoURI(), env.GetMongoDBName())
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func NewTestFileService(name string) (*models.ServicePack, error) {
 		return hasher
 
 	}
-	journal, err := fileTree.NewJournal(journalCol, "TEST-SERVER", false, hasherFactory)
+	journal, err := fileTree.NewJournal(journalCol, "TEST-SERVER", false, hasherFactory, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func NewTestFileService(name string) (*models.ServicePack, error) {
 	mediaService := &mock.MockMediaService{}
 
 	fileService, err := service.NewFileService(
-		instanceService, userService, accessService, mediaService, folderMediaCol, usersTree, cacheTree, restoreTree,
+		logger, instanceService, userService, accessService, mediaService, folderMediaCol, usersTree, cacheTree, restoreTree,
 	)
 
 	return &models.ServicePack{
@@ -159,7 +159,9 @@ func NewTestFileService(name string) (*models.ServicePack, error) {
 func TestFileService_Restore_SingleFile(t *testing.T) {
 	t.Parallel()
 
-	pack, err := NewTestFileService(t.Name())
+	logger := log.NewLogPackage("", log.DEBUG)
+
+	pack, err := NewTestFileService(t.Name(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +246,9 @@ func TestFileService_Restore_SingleFile(t *testing.T) {
 func TestFileService_Restore_Directory(t *testing.T) {
 	t.Parallel()
 
-	pack, err := NewTestFileService(t.Name())
+	logger := log.NewLogPackage("", log.DEBUG)
+
+	pack, err := NewTestFileService(t.Name(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +343,9 @@ func generateRandomString(n int) string {
 func TestFileService_RestoreHistory(t *testing.T) {
 	t.Parallel()
 
-	pack, err := NewTestFileService(t.Name())
+	logger := log.NewLogPackage("", log.DEBUG)
+
+	pack, err := NewTestFileService(t.Name(), logger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +390,7 @@ func TestFileService_RestoreHistory(t *testing.T) {
 	lifetimes := usersJournal.GetAllLifetimes()
 	assert.Equal(t, filesCount, len(lifetimes))
 
-	restorePack, err := NewTestFileService(t.Name() + "-restore")
+	restorePack, err := NewTestFileService(t.Name()+"-restore", logger)
 	if err != nil {
 		t.Fatal(err)
 	}

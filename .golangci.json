@@ -1,0 +1,32 @@
+{
+	"linters": {
+		"enable": [
+			"govet",
+			"gosec"
+		],
+		"disable": [
+			"exhaustruct",
+			"depguard",
+			"nonamedreturns"
+		]
+	},
+	"linters-settings": {
+		"govet": {
+			"enable": [
+				"fieldalignment"
+			],
+			"disable": [
+				"deadcode",
+				"exhaustivestruct",
+				"golint",
+				"ifshort",
+				"interfacer",
+				"maligned",
+				"nosnakecase",
+				"scopelint",
+				"structcheck",
+				"varcheck"
+			]
+		}
+	}
+}

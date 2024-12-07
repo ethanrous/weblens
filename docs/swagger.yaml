@@ -95,6 +95,8 @@ definitions:
         type: array
       contentId:
         type: string
+      currentId:
+        type: string
       filename:
         type: string
       id:
@@ -278,6 +280,8 @@ definitions:
     properties:
       fileSize:
         type: integer
+      isDir:
+        type: boolean
       newFileName:
         type: string
       parentFolderId:
@@ -321,8 +325,6 @@ definitions:
         type: integer
       rootFolderId:
         type: string
-      totalUploadSize:
-        type: integer
     type: object
   NewUserParams:
     properties:
@@ -752,6 +754,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/FilesListParams'
+      - description: Delete files even if they are not in the trash
+        in: query
+        name: ignoreTrash
+        type: boolean
       responses:
         "200":
           description: OK
@@ -1849,6 +1855,29 @@ paths:
       tags:
       - Files
   /upload/{uploadId}:
+    get:
+      operationId: GetUploadResult
+      parameters:
+      - description: Upload Id
+        in: path
+        name: uploadId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+      security:
+      - SessionAuth: []
+      summary: Get the result of an upload task. This will block until the upload
+        is complete
+      tags:
+      - Files
     post:
       operationId: AddFilesToUpload
       parameters:
