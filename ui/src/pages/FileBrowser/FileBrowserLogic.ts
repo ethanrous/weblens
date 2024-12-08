@@ -169,10 +169,13 @@ export async function HandleDrop(
 ) {
     const files: FileUploadMetadata[] = []
     const topLevels = []
+    if (!items || items.length === 0) {
+        console.error('No items to upload')
+        return
+    }
 
     const entries = Array.from(items).map((i) => i.webkitGetAsEntry())
 
-    console.log('files', items)
     const res = await FileApi.startUpload({
         rootFolderId: rootFolderId,
         chunkSize: UPLOAD_CHUNK_SIZE,
@@ -183,26 +186,12 @@ export async function HandleDrop(
     if (!res) {
         return
     }
-    console.log('entries', entries)
 
     const uploadId = res.data.uploadId
 
     if (entries) {
         // Handle Directory
-        console.log('files', items)
         for (const entry of entries) {
-            // if (!entry) {
-            //     console.error('Upload entry does not exist or is not a file')
-            //     continue
-            // }
-            // const file = entry.webkitGetAsEntry()
-            // if (!file) {
-            //     console.error('Drop is not a file')
-            //     continue
-            // }
-            // if (conflictNames.includes(file.name)) {
-            //     continue
-            // }
             topLevels.push(
                 addDir(
                     entry,
@@ -224,7 +213,6 @@ export async function HandleDrop(
     }
 
     await Promise.all(topLevels)
-    console.log('HERE', files)
 
     if (files.length !== 0) {
         return Upload(files, isPublic, shareId, uploadId, rootFolderId)

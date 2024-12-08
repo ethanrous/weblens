@@ -809,6 +809,7 @@ function DirView({
                 className="flex h-0 w-full grow"
                 ref={setDragBoxRef}
                 onDragEnter={(e) => {
+                    console.log(e)
                     e.stopPropagation()
                     e.preventDefault()
                     setDragging(DraggingStateT.ExternalDrag)

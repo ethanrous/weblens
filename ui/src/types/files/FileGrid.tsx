@@ -130,9 +130,16 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             )}
             onDragOver={(e) => {
                 // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
-                e.preventDefault()
+                console.log(dragState)
+                if (dragState === DraggingStateT.ExternalDrag) {
+                    e.preventDefault()
+                }
             }}
             onDrop={(e) => {
+                if (dragState !== DraggingStateT.ExternalDrag) {
+                    return
+                }
+
                 e.preventDefault()
                 if (folderInfo?.modifiable) {
                     HandleDrop(
