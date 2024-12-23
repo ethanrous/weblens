@@ -1,9 +1,9 @@
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
     GetStartedCard,
     IconDisplay,
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import {
     fileHandleContextMenu,

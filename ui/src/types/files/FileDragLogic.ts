@@ -1,12 +1,12 @@
 import { FileApi } from '@weblens/api/FileBrowserApi'
+import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import {
     FbModeT,
     MenuOptionsT,
     SetFilesDataOpts,
     ShareRoot,
     useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
-import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
+} from '@weblens/store/FBStateControl'
 import { DraggingStateT } from '@weblens/types/files/FBTypes'
 import {
     FbMenuModeT,

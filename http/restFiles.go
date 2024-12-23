@@ -650,7 +650,7 @@ func getSharedFiles(w http.ResponseWriter, r *http.Request) {
 				log.Error.Println("Could not find file acompanying a file share")
 				continue
 			}
-			safeErr, code := werror.TrySafeErr(err)
+			safeErr, code := log.TrySafeErr(err)
 			writeJson(w, code, safeErr)
 			return
 		}
@@ -1199,6 +1199,8 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uploadEvent := pack.FileService.GetJournalByTree("USERS").NewEvent()
+
 	meta := models.UploadFilesMeta{
 		ChunkStream:  make(chan models.FileChunk, 10),
 		RootFolderId: upInfo.RootFolderId,
@@ -1209,6 +1211,7 @@ func newUploadTask(w http.ResponseWriter, r *http.Request) {
 		TaskSubber:   pack.ClientService,
 		User:         u,
 		Caster:       pack.Caster,
+		UploadEvent:  uploadEvent,
 	}
 	t, err := pack.TaskService.DispatchJob(models.UploadFilesTask, meta, nil)
 	if SafeErrorAndExit(err, w) {

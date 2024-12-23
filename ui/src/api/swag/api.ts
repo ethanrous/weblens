@@ -195,55 +195,55 @@ export interface FileActionInfo {
      * @type {string}
      * @memberof FileActionInfo
      */
-    'actionType'?: string;
+    'actionType': string;
     /**
      * 
      * @type {string}
      * @memberof FileActionInfo
      */
-    'destinationPath'?: string;
+    'destinationPath': string;
     /**
      * 
      * @type {string}
      * @memberof FileActionInfo
      */
-    'eventId'?: string;
+    'eventId': string;
     /**
      * 
      * @type {string}
      * @memberof FileActionInfo
      */
-    'lifeId'?: string;
+    'lifeId': string;
     /**
      * 
      * @type {string}
      * @memberof FileActionInfo
      */
-    'originPath'?: string;
+    'originPath': string;
     /**
      * 
      * @type {string}
      * @memberof FileActionInfo
      */
-    'parentId'?: string;
+    'parentId': string;
     /**
      * 
      * @type {string}
      * @memberof FileActionInfo
      */
-    'serverId'?: string;
+    'serverId': string;
     /**
      * 
      * @type {number}
      * @memberof FileActionInfo
      */
-    'size'?: number;
+    'size': number;
     /**
      * 
      * @type {number}
      * @memberof FileActionInfo
      */
-    'timestamp'?: number;
+    'timestamp': number;
 }
 /**
  * 
@@ -3932,6 +3932,7 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
          * @param {GetMediaSortEnum} [sort] Sort by field
+         * @param {string} [search] Search string
          * @param {number} [page] Page of medias to get
          * @param {number} [limit] Number of medias to get
          * @param {string} [folderIds] Search only in given folders
@@ -3939,7 +3940,7 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMedia: async (raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getMedia: async (raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, search?: string, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/media`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3962,6 +3963,10 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
 
             if (sort !== undefined) {
                 localVarQueryParameter['sort'] = sort;
+            }
+
+            if (search !== undefined) {
+                localVarQueryParameter['search'] = search;
             }
 
             if (page !== undefined) {
@@ -4254,6 +4259,7 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
          * @param {GetMediaSortEnum} [sort] Sort by field
+         * @param {string} [search] Search string
          * @param {number} [page] Page of medias to get
          * @param {number} [limit] Number of medias to get
          * @param {string} [folderIds] Search only in given folders
@@ -4261,8 +4267,8 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getMedia(raw, hidden, sort, page, limit, folderIds, mediaIds, options);
+        async getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, search?: string, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<MediaBatchInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getMedia(raw, hidden, sort, search, page, limit, folderIds, mediaIds, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.getMedia']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4374,6 +4380,7 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * @param {boolean} [raw] Include raw files
          * @param {boolean} [hidden] Include hidden media
          * @param {GetMediaSortEnum} [sort] Sort by field
+         * @param {string} [search] Search string
          * @param {number} [page] Page of medias to get
          * @param {number} [limit] Number of medias to get
          * @param {string} [folderIds] Search only in given folders
@@ -4381,8 +4388,8 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo> {
-            return localVarFp.getMedia(raw, hidden, sort, page, limit, folderIds, mediaIds, options).then((request) => request(axios, basePath));
+        getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, search?: string, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig): AxiosPromise<MediaBatchInfo> {
+            return localVarFp.getMedia(raw, hidden, sort, search, page, limit, folderIds, mediaIds, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4475,6 +4482,7 @@ export class MediaApi extends BaseAPI {
      * @param {boolean} [raw] Include raw files
      * @param {boolean} [hidden] Include hidden media
      * @param {GetMediaSortEnum} [sort] Sort by field
+     * @param {string} [search] Search string
      * @param {number} [page] Page of medias to get
      * @param {number} [limit] Number of medias to get
      * @param {string} [folderIds] Search only in given folders
@@ -4483,8 +4491,8 @@ export class MediaApi extends BaseAPI {
      * @throws {RequiredError}
      * @memberof MediaApi
      */
-    public getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).getMedia(raw, hidden, sort, page, limit, folderIds, mediaIds, options).then((request) => request(this.axios, this.basePath));
+    public getMedia(raw?: boolean, hidden?: boolean, sort?: GetMediaSortEnum, search?: string, page?: number, limit?: number, folderIds?: string, mediaIds?: string, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).getMedia(raw, hidden, sort, search, page, limit, folderIds, mediaIds, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

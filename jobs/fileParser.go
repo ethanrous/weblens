@@ -50,9 +50,8 @@ func ScanDirectory(t *task.Task) {
 	pool := t.GetTaskPool().GetWorkerPool().NewTaskPool(true, t)
 
 	err := meta.FileService.AddTask(meta.File, t)
-	if err != nil {
-		t.ReqNoErr(err)
-	}
+	t.ReqNoErr(err)
+
 	defer func() { err = meta.FileService.RemoveTask(meta.File, t); log.ErrTrace(err) }()
 
 	meta.TaskSubber.FolderSubToTask(meta.File.ID(), t.TaskId())
@@ -71,38 +70,43 @@ func ScanDirectory(t *task.Task) {
 	var alreadyMedia []*models.Media
 	start := time.Now()
 	err = meta.File.LeafMap(
-		func(wf *fileTree.WeblensFileImpl) error {
-			if wf.IsDir() {
-				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not regular file", wf.AbsPath()) })
+		func(mf *fileTree.WeblensFileImpl) error {
+			if mf.IsDir() {
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not regular file", mf.GetPortablePath()) })
 				return nil
 			}
 
-			if !meta.MediaService.IsFileDisplayable(wf) {
-				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not displayable", wf.AbsPath()) })
+			if meta.FileService.IsFileInTrash(mf) {
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, file is in trash", mf.GetPortablePath()) })
 				return nil
 			}
 
-			m := meta.MediaService.Get(wf.GetContentId())
+			if !meta.MediaService.IsFileDisplayable(mf) {
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, not displayable", mf.GetPortablePath()) })
+				return nil
+			}
+
+			m := meta.MediaService.Get(mf.GetContentId())
 			if m != nil && m.IsImported() && meta.MediaService.IsCached(m) {
-				if !slices.ContainsFunc(m.FileIDs, func(fId fileTree.FileId) bool { return fId == wf.ID() }) {
-					err := meta.MediaService.AddFileToMedia(m, wf)
+				if !slices.ContainsFunc(m.FileIDs, func(fId fileTree.FileId) bool { return fId == mf.ID() }) {
+					err := meta.MediaService.AddFileToMedia(m, mf)
 					if err != nil {
 						return err
 					}
-					alreadyFiles = append(alreadyFiles, wf)
+					alreadyFiles = append(alreadyFiles, mf)
 					alreadyMedia = append(alreadyMedia, m)
 				}
-				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, already imported", wf.AbsPath()) })
+				log.Trace.Func(func(l log.Logger) { l.Printf("Skipping file %s, already imported", mf.GetPortablePath()) })
 				return nil
 			}
 
 			subMeta := models.ScanMeta{
-				File:         wf,
+				File:         mf,
 				FileService:  meta.FileService,
 				MediaService: meta.MediaService,
 				Caster:       meta.Caster,
 			}
-			log.Trace.Printf("Dispatching scanFile job for [%s]", wf.AbsPath())
+			log.Trace.Func(func(l log.Logger) { l.Printf("Dispatching scanFile job for [%s]", mf.GetPortablePath()) })
 			newT, err := meta.TaskService.DispatchJob(models.ScanFileTask, subMeta, pool)
 			if err != nil {
 				return err
@@ -149,7 +153,7 @@ func ScanDirectory(t *task.Task) {
 				"failedCount": len(errs),
 			},
 		)
-		t.ReqNoErr(werror.WithStack(werror.ErrChildTaskFailed))
+		t.Fail(werror.WithStack(werror.ErrChildTaskFailed))
 	}
 
 	// Let any client subscribers know we are done
@@ -163,14 +167,11 @@ func ScanDirectory(t *task.Task) {
 
 func ScanFile(t *task.Task) {
 	meta := t.GetMeta().(models.ScanMeta)
-	// start := time.Now()
 	err := ScanFile_(meta, t.ExitIfSignaled)
-	// stop := time.Now()
 	if err != nil {
-		log.Error.Printf("Failed to scan file %s: %s", meta.File.AbsPath(), err)
+		log.Error.Printf("Failed to scan file %s: %s", meta.File.GetPortablePath(), err)
 		t.Fail(err)
 	}
-	// metrics.MediaProcessTime.Observe(stop.Sub(start).Seconds())
 
 	t.Success()
 }
@@ -186,7 +187,7 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 
 	contentId := meta.File.GetContentId()
 	if contentId == "" {
-		return werror.Errorf("trying to scan file with no content id: %s", meta.File.AbsPath())
+		return werror.Errorf("trying to scan file with no content id: %s", meta.File.GetPortablePath())
 	}
 	sw.Lap("Check contentId")
 

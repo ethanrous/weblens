@@ -215,7 +215,7 @@ type UploadFilesMeta struct {
 }
 
 func (m UploadFilesMeta) MetaString() string {
-	return fmt.Sprintf("%s%s%d%d", UploadFilesTask, m.RootFolderId, m.ChunkSize)
+	return fmt.Sprintf("%s%s%d", UploadFilesTask, m.RootFolderId, m.ChunkSize)
 }
 
 func (m UploadFilesMeta) FormatToResult() task.TaskResult {

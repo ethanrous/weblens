@@ -1,7 +1,7 @@
 import WeblensLoader from '@weblens/components/Loading'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { GetStartedCard } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { WeblensFile } from '@weblens/types/files/File'
 import { FileSquare } from '@weblens/types/files/FileSquare'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
@@ -130,7 +130,6 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
             )}
             onDragOver={(e) => {
                 // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
-                console.log(dragState)
                 if (dragState === DraggingStateT.ExternalDrag) {
                     e.preventDefault()
                 }
@@ -145,7 +144,6 @@ function FileGrid({ files }: { files: WeblensFile[] }) {
                     HandleDrop(
                         e.dataTransfer.items,
                         folderInfo.Id(),
-                        [],
                         false,
                         shareId
                     ).catch(ErrorHandler)

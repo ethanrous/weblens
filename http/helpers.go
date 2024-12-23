@@ -39,12 +39,16 @@ func getServices(r *http.Request) *models.ServicePack {
 	return srv.(*models.ServicePack)
 }
 
+// SafeErrorAndExit reads the given error, and if not nil will write to the
+// response writer the correct http code and json error response. It returns
+// true if there is an error and the http request should be terminated, and
+// false if the error is nil
 func SafeErrorAndExit(err error, w http.ResponseWriter) (shouldExit bool) {
 	if err == nil {
 		return false
 	}
 
-	safe, code := werror.TrySafeErr(err)
+	safe, code := log.TrySafeErr(err)
 	writeError(w, code, safe)
 	return true
 }

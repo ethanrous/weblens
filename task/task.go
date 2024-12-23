@@ -55,7 +55,7 @@ type Task struct {
 	exitStatus TaskExitStatus // "success", "error" or "cancelled"
 
 	// Function to be run to clean up when the task completes, no matter the exit status
-	cleanup []TaskHandler
+	cleanups []TaskHandler
 
 	// Function to be run to clean up if the task errors
 	errorCleanup []TaskHandler
@@ -275,13 +275,6 @@ func (t *Task) Manipulate(fn func(meta TaskMetadata) error) error {
 func (t *Task) error(err error) {
 	t.updateMu.Lock()
 
-	if t.queueState != Exited {
-		log.Trace.Println("Setting task Error")
-		t.err = err
-		t.queueState = Exited
-		t.exitStatus = TaskError
-	}
-
 	// If we have already called cancel, do not set any error
 	// E.g. A file is being moved, so we cancel all tasks on it,
 	// and move it in the filesystem. The task goes to find the file, it can't (because it was moved)
@@ -290,6 +283,11 @@ func (t *Task) error(err error) {
 		t.updateMu.Unlock()
 		return
 	}
+
+	log.Trace.Println("Setting task Error")
+	t.err = err
+	t.queueState = Exited
+	t.exitStatus = TaskError
 
 	t.updateMu.Unlock()
 	t.sw.Lap("Task exited due to error")
@@ -328,7 +326,7 @@ func (t *Task) SetPostAction(action func(TaskResult)) {
 
 	// If the task has already completed, run the post task in this thread instead
 	if t.exitStatus == TaskSuccess {
-		t.postAction(t.result)
+		action(t.result)
 	} else if t.exitStatus == TaskNoStatus {
 		t.postAction = action
 	}
@@ -350,7 +348,7 @@ func (t *Task) SetErrorCleanup(cleanup TaskHandler) {
 func (t *Task) SetCleanup(cleanup TaskHandler) {
 	t.updateMu.Lock()
 	defer t.updateMu.Unlock()
-	t.cleanup = append(t.cleanup, cleanup)
+	t.cleanups = append(t.cleanups, cleanup)
 }
 
 func (t *Task) ReadError() error {

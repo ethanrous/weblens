@@ -203,9 +203,10 @@ func wsWebClientSwitchboard(msgBuf []byte, c *models.WsClient, pack *models.Serv
 		}
 
 		err = pack.ClientService.Unsubscribe(c, key, time.UnixMilli(msg.SentAt))
-		if err != nil {
+		if err != nil && !errors.Is(err, werror.ErrSubscriptionNotFound) {
 			c.Error(err)
-			return
+		} else if err != nil {
+			log.Warning.Printf("Subscription [%s] not found in unsub task", key)
 		}
 
 	case models.ScanDirectory:

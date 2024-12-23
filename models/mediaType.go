@@ -70,18 +70,6 @@ func (ts *typeService) Size() int {
 	return len(ts.mimeMap)
 }
 
-func (mt MediaType) IsRaw() bool {
-	return mt.Raw
-}
-
-func (mt MediaType) IsVideo() bool {
-	return mt.Video
-}
-
-func (mt MediaType) GetMime() string {
-	return mt.Mime
-}
-
 func (mt MediaType) IsMime(mime string) bool {
 	return mt.Mime == mime
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/barasher/go-exiftool"
 	"github.com/creativecreature/sturdyc"
 	"github.com/ethanrous/weblens/fileTree"
+	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/ethanrous/weblens/models"
 	. "github.com/ethanrous/weblens/service"
@@ -153,6 +154,8 @@ var typeService models.MediaTypeService
 func TestMediaServiceImpl_Add(t *testing.T) {
 	t.Parallel()
 
+	logger := log.NewLogPackage("", log.DEBUG)
+
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
 	if err != nil {
@@ -185,7 +188,7 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 
 	ms, err := NewMediaService(
 		nil, typeService, &mock.MockAlbumService{},
-		col,
+		col, logger,
 	)
 
 	require.NoError(t, err)
@@ -201,6 +204,8 @@ func TestMediaServiceImpl_Add(t *testing.T) {
 
 func TestMediaServiceImpl_Del(t *testing.T) {
 	t.Parallel()
+
+	logger := log.NewLogPackage("", log.DEBUG)
 
 	col := mondb.Collection(t.Name())
 	err := col.Drop(context.Background())
@@ -218,7 +223,7 @@ func TestMediaServiceImpl_Del(t *testing.T) {
 
 	ms, err := NewMediaService(
 		&mock.MockFileService{}, typeService, &mock.MockAlbumService{},
-		col,
+		col, logger,
 	)
 	require.NoError(t, err)
 

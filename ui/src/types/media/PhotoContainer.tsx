@@ -75,14 +75,14 @@ export const MediaImage = memo(
                         pageNumber,
                         () => {
                             setUrl({
-                                url: media.GetObjectUrl(quality),
+                                url: media.GetObjectUrl(quality, pageNumber),
                                 id: media.Id(),
                             })
                             setLoadErr(media.HasLoadError())
                         },
                         () => {
                             setUrl({
-                                url: media.GetObjectUrl(quality),
+                                url: media.GetObjectUrl(quality, pageNumber),
                                 id: media.Id(),
                             })
                             setLoadErr(media.HasLoadError())
@@ -99,7 +99,10 @@ export const MediaImage = memo(
                 (media.HasQualityLoaded(quality) && src.url === '') ||
                 src.id !== media.Id()
             ) {
-                setUrl({ url: media.GetObjectUrl(quality), id: media.Id() })
+                setUrl({
+                    url: media.GetObjectUrl(quality, pageNumber),
+                    id: media.Id(),
+                })
             } else if (media.HighestQualityLoaded() !== '' && src.url === '') {
                 setUrl({
                     url: media.GetObjectUrl(PhotoQuality.LowRes),
@@ -252,7 +255,9 @@ const VideoInterface = memo(
             return buffered
         }, [videoRef?.buffered])
 
-        const PlayIcon = isPlaying ? IconPlayerPauseFilled : IconPlayerPlayFilled
+        const PlayIcon = isPlaying
+            ? IconPlayerPauseFilled
+            : IconPlayerPlayFilled
 
         return (
             <div
@@ -263,8 +268,7 @@ const VideoInterface = memo(
                     opacity: showUi ? 1 : 0,
                 }}
             >
-                <div className='flex justify-center items-center relative h-full w-full'>
-
+                <div className="flex justify-center items-center relative h-full w-full">
                     <PlayIcon
                         className="absolute text-white w-6 h-6 z-50 cursor-pointer"
                         onClick={(e) => {
@@ -458,11 +462,9 @@ function VideoWrapper({
     }, [videoRef, media.StreamVideoUrl()])
 
     const togglePlayState = useCallback(() => {
-        console.log('togglePlayState')
         if (!videoRef) {
             return
         }
-        console.log('is playing', isPlaying)
         if (isPlaying) {
             videoRef.pause()
         } else {

@@ -28,7 +28,6 @@
         "globals": "^15.4.0",
         "hls.js": "^1.5.11",
         "react": "^18.2.0",
-        "react-cookie": "^6.1.1",
         "react-dom": "^18.2.0",
         "react-in-viewport": "^1.0.0-alpha.30",
         "react-infinite-scroll-component": "^6.1.0",

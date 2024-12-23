@@ -86,6 +86,16 @@ definitions:
         type: integer
       timestamp:
         type: integer
+    required:
+    - actionType
+    - destinationPath
+    - eventId
+    - lifeId
+    - originPath
+    - parentId
+    - serverId
+    - size
+    - timestamp
     type: object
   FileInfo:
     properties:
@@ -1310,6 +1320,10 @@ paths:
         - createDate
         in: query
         name: sort
+        type: string
+      - description: Search string
+        in: query
+        name: search
         type: string
       - description: Page of medias to get
         in: query

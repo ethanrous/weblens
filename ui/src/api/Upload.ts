@@ -1,4 +1,4 @@
-import { useUploadStatus } from '@weblens/pages/FileBrowser/UploadStateControl'
+import { useUploadStatus } from '@weblens/store/UploadStateControl'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
@@ -159,8 +159,7 @@ async function Upload(
     filesMeta: FileUploadMetadata[],
     isPublic: boolean,
     shareId: string,
-    uploadId: string,
-    rootFolder: string
+    uploadId: string
 ) {
     const newUpload = useUploadStatus.getState().newUpload
 
@@ -198,14 +197,7 @@ async function Upload(
     }
 
     const newFiles: NewFileParams[] = []
-    let totalUploadSize = 0
     filesMeta.forEach((v) => {
-        if (v.file?.size !== undefined) {
-            totalUploadSize += v.file.size
-        } else if (!v.isDir) {
-            console.error('Failed to get file size in upload')
-        }
-
         if (v.isDir) {
             return
         }
@@ -215,22 +207,6 @@ async function Upload(
             fileSize: v.file.size,
         })
     })
-
-    // const res = await FileApi.startUpload({
-    //     rootFolderId: rootFolder,
-    //     chunkSize: UPLOAD_CHUNK_SIZE,
-    // }).catch((err) => {
-    //     ErrorHandler(Error(String(err)))
-    // })
-
-    // if (!res) {
-    //     return
-    // }
-    //
-    // if (res.status !== 201 || !res.data.uploadId) {
-    //     console.error('Failed to start upload', res.data)
-    //     return
-    // }
 
     const newFilesRes = await FileApi.addFilesToUpload(uploadId, {
         newFiles: newFiles,

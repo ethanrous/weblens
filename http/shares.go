@@ -65,7 +65,9 @@ func createFileShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJson(w, http.StatusCreated, newShare)
+	newShareInfo := rest.ShareToShareInfo(newShare)
+
+	writeJson(w, http.StatusCreated, newShareInfo)
 }
 
 // CreateAlbumShare godoc

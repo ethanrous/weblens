@@ -10,10 +10,7 @@ import Upload, {
 } from '@weblens/api/Upload'
 import { WsSendT } from '@weblens/api/Websocket'
 import { useSessionStore } from '@weblens/components/UserInfo'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
+import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import { FbMenuModeT, WeblensFile } from '@weblens/types/files/File'
 import { PhotoQuality } from '@weblens/types/media/Media'
@@ -84,7 +81,6 @@ async function addDir(
     isPublic: boolean,
     shareId: string
 ): Promise<FileUploadMetadata[]> {
-    console.log('hola?')
     if (fsEntry.isDirectory) {
         const newDirRes = await FileApi.addFilesToUpload(uploadId, {
             newFiles: [
@@ -101,8 +97,6 @@ async function addDir(
         if (!newDirRes) {
             throw new Error('Failed to add directory to upload')
         }
-
-        console.log('newDirRes', newDirRes)
 
         const folderId = newDirRes.data.fileIds[0]
         if (!folderId) {
@@ -163,7 +157,6 @@ async function addDir(
 export async function HandleDrop(
     items: DataTransferItemList,
     rootFolderId: string,
-    conflictNames: string[],
     isPublic: boolean,
     shareId: string
 ) {
@@ -215,7 +208,7 @@ export async function HandleDrop(
     await Promise.all(topLevels)
 
     if (files.length !== 0) {
-        return Upload(files, isPublic, shareId, uploadId, rootFolderId)
+        return Upload(files, isPublic, shareId, uploadId)
     }
 }
 
@@ -248,13 +241,9 @@ export async function HandleUploadButton(
     }
 
     if (uploads.length !== 0) {
-        Upload(
-            uploads,
-            isPublic,
-            shareId,
-            res.data.uploadId,
-            parentFolderId
-        ).catch(ErrorHandler)
+        Upload(uploads, isPublic, shareId, res.data.uploadId).catch(
+            ErrorHandler
+        )
     }
 }
 
@@ -524,7 +513,7 @@ export async function uploadViaUrl(
         return
     }
 
-    await Upload([meta], false, '', res.data.uploadId, folderId)
+    await Upload([meta], false, '', res.data.uploadId)
 }
 
 export const historyDate = (timestamp: number, short: boolean = false) => {

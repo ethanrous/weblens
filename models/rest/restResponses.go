@@ -290,15 +290,15 @@ type MediaTypeInfo struct {
 } // @name MediaTypeInfo
 
 type FileActionInfo struct {
-	ActionType      string `json:"actionType"`
-	OriginPath      string `json:"originPath"`
-	DestinationPath string `json:"destinationPath"`
-	LifeId          string `json:"lifeId"`
-	EventId         string `json:"eventId"`
-	ParentId        string `json:"parentId"`
-	ServerId        string `json:"serverId"`
-	Timestamp       int64  `json:"timestamp"`
-	Size            int64  `json:"size"`
+	ActionType      string `json:"actionType" validate:"required"`
+	OriginPath      string `json:"originPath" validate:"required"`
+	DestinationPath string `json:"destinationPath" validate:"required"`
+	LifeId          string `json:"lifeId" validate:"required"`
+	EventId         string `json:"eventId" validate:"required"`
+	ParentId        string `json:"parentId" validate:"required"`
+	ServerId        string `json:"serverId" validate:"required"`
+	Timestamp       int64  `json:"timestamp" validate:"required"`
+	Size            int64  `json:"size" validate:"required"`
 } // @name FileActionInfo
 
 func FileActionToFileActionInfo(fa *fileTree.FileAction) FileActionInfo {
@@ -370,7 +370,7 @@ func MediaToMediaInfo(m *models.Media) MediaInfo {
 		PageCount:       m.PageCount,
 		Duration:        m.Duration,
 		MimeType:        m.MimeType,
-		RecognitionTags: m.RecognitionTags,
+		RecognitionTags: m.GetRecognitionTags(),
 		Hidden:          m.Hidden,
 		Enabled:         m.Enabled,
 		LikedBy:         m.LikedBy,

@@ -246,7 +246,7 @@ func restoreApiKeys(w http.ResponseWriter, r *http.Request) {
 	for _, key := range keys {
 		err = pack.AccessService.AddApiKey(key)
 		if err != nil && !errors.Is(err, werror.ErrKeyAlreadyExists) {
-			safe, code := werror.TrySafeErr(err)
+			safe, code := log.TrySafeErr(err)
 			writeJson(w, code, safe)
 			return
 		}

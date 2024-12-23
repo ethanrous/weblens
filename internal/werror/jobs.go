@@ -2,7 +2,6 @@ package werror
 
 import (
 	"errors"
-	"fmt"
 )
 
 var ErrNonDisplayable = errors.New("attempt to process non-displayable file")
@@ -16,7 +15,7 @@ var ErrChildTaskFailed = errors.New("a task spawned by this task has failed")
 
 func ErrBadJobMetadata(jobName string, field string) error {
 	return &withStack{
-		err:   errors.New(fmt.Sprintf("Bad %s metadata, missing %s", jobName, field)),
+		err:   Errorf("Bad %s metadata, missing %s", jobName, field),
 		stack: callers(3),
 	}
 }

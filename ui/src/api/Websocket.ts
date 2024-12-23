@@ -1,15 +1,12 @@
 import { useSessionStore } from '@weblens/components/UserInfo'
-import {
-    ShareRoot,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
+import { StartupTask } from '@weblens/pages/Startup/StartupLogic'
+import { ShareRoot, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import {
     TaskStageT,
     TaskType,
     useTaskState,
-} from '@weblens/pages/FileBrowser/TaskStateControl'
-import { StartupTask } from '@weblens/pages/Startup/StartupLogic'
+} from '@weblens/store/TaskStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import WeblensMedia from '@weblens/types/media/Media'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'

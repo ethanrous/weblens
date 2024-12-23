@@ -129,3 +129,11 @@ func (ft *MemFileTree) PortableToAbs(portable fileTree.WeblensFilepath) (string,
 func (ft *MemFileTree) GenerateFileId() fileTree.FileId {
 	return fileTree.FileId(primitive.NewObjectID().Hex())
 }
+
+func (ft *MemFileTree) ResizeDown(anchor *fileTree.WeblensFileImpl, event *fileTree.FileEvent, updateCallback func(newFile *fileTree.WeblensFileImpl)) error {
+	return nil
+}
+
+func (ft *MemFileTree) ResizeUp(anchor *fileTree.WeblensFileImpl, event *fileTree.FileEvent, updateCallback func(newFile *fileTree.WeblensFileImpl)) error {
+	return nil
+}

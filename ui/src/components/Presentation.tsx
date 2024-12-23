@@ -13,8 +13,8 @@ import { FileApi } from '@weblens/api/FileBrowserApi'
 import MediaApi from '@weblens/api/MediaApi'
 import { useWebsocketStore } from '@weblens/api/Websocket'
 import WeblensButton from '@weblens/lib/WeblensButton'
-import { useFileBrowserStore } from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import { useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import { WeblensFile } from '@weblens/types/files/File'
 import WeblensMedia, { PhotoQuality } from '@weblens/types/media/Media'
@@ -134,6 +134,7 @@ export const ContainerMedia = ({
     } else {
         return (
             <MediaImage
+                key={mediaData.Id()}
                 media={mediaData}
                 quality={PhotoQuality.HighRes}
                 containerStyle={{
@@ -303,7 +304,7 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                     <div>
                         <Divider className="p-1" />
                         <div className="flex gap-1 items-center">
-                            <IconPhoto className='shrink-0'/>
+                            <IconPhoto className="shrink-0" />
                             <p className="text-xl text-white text-nowrap">
                                 {mediaData
                                     .GetCreateDate()
@@ -461,8 +462,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
     }
 
     let Visual = null
-    if (mediaData.Id() !== "") {
-        console.log(mediaData)
+    if (mediaData && mediaData.Id() !== '') {
         Visual = (
             <ContainerMedia mediaData={mediaData} containerRef={containerRef} />
         )
@@ -508,7 +508,7 @@ export function PresentationFile({ file }: { file: WeblensFile }) {
                 }}
             />
             {fileInfoOpen && (
-                <div className="flex max-w-[48%] relative items-center">
+                <div className="flex max-w-[48%] relative items-center grow">
                     <FileInfo file={file} />
                 </div>
             )}

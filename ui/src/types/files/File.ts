@@ -298,6 +298,7 @@ export class WeblensFile {
     }
 
     public async GetShare(): Promise<WeblensShare> {
+        console.log('GetShare', this.shareId)
         if (this.share) {
             return this.share
         } else if (!this.shareId) {

@@ -100,6 +100,8 @@ func (m *Media) IsHidden() bool {
 }
 
 func (m *Media) GetCreateDate() time.Time {
+	m.updateMu.RLock()
+	defer m.updateMu.RUnlock()
 	return m.CreateDate
 }
 
@@ -144,16 +146,14 @@ func (m *Media) AddFile(f *fileTree.WeblensFileImpl) {
 	m.FileIDs = internal.AddToSet(m.FileIDs, f.ID())
 }
 
-func (m *Media) removeFile(f *fileTree.WeblensFileImpl) error {
+func (m *Media) RemoveFile(fileIdToRemove fileTree.FileId) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 	m.FileIDs = internal.Filter(
 		m.FileIDs, func(fId fileTree.FileId) bool {
-			return fId != f.ID()
+			return fId != fileIdToRemove
 		},
 	)
-
-	return nil
 }
 
 func (m *Media) SetImported(i bool) {
@@ -174,6 +174,18 @@ func (m *Media) SetEnabled(e bool) {
 
 func (m *Media) IsEnabled() bool {
 	return m.Enabled
+}
+
+func (m *Media) SetRecognitionTags(tags []string) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+	m.RecognitionTags = tags
+}
+
+func (m *Media) GetRecognitionTags() []string {
+	m.updateMu.RLock()
+	defer m.updateMu.RUnlock()
+	return m.RecognitionTags
 }
 
 func (m *Media) setHidden(hidden bool) {
@@ -324,11 +336,11 @@ func (m *Media) UnmarshalBSON(bs []byte) error {
 			return werror.WithStack(err)
 		}
 
-		m.RecognitionTags = internal.Map(
+		m.SetRecognitionTags(internal.Map(
 			rts, func(e bson.RawValue) string {
 				return e.StringValue()
 			},
-		)
+		))
 	}
 
 	hidden, ok := raw.Lookup("hidden").BooleanOK()
@@ -375,7 +387,7 @@ func (m *Media) UnmarshalJSON(bs []byte) error {
 	m.MimeType = data["mimeType"].(string)
 
 	if data["recognitionTags"] != nil {
-		m.RecognitionTags = internal.SliceConvert[string](data["recognitionTags"].([]any))
+		m.SetRecognitionTags(internal.SliceConvert[string](data["recognitionTags"].([]any)))
 	}
 
 	m.PageCount = int(data["pageCount"].(float64))
@@ -417,7 +429,7 @@ type MediaService interface {
 	NukeCache() error
 
 	GetFilteredMedia(
-		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool,
+		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool, search string,
 	) ([]*Media, error)
 	RecursiveGetMedia(folders ...*fileTree.WeblensFileImpl) []*Media
 

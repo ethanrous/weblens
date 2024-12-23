@@ -4,12 +4,12 @@ import "errors"
 
 var albumNotFound = errors.New("album not found")
 
-var ErrNoAlbum = clientSafeErr{
+var ErrNoAlbum = ClientSafeErr{
 	safeErr:    albumNotFound,
 	statusCode: 404,
 }
 
-var ErrNoAlbumAccess = clientSafeErr{
+var ErrNoAlbumAccess = ClientSafeErr{
 	realError:  errors.New("user does not have access to album"),
 	safeErr:    albumNotFound,
 	statusCode: 404,

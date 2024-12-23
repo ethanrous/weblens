@@ -21,7 +21,7 @@ import {
 } from '@weblens/pages/Backup/BackupLogic'
 import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { WebsocketStatus } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
-import { TaskStageT } from '@weblens/pages/FileBrowser/TaskStateControl'
+import { TaskStageT } from '@weblens/store/TaskStateControl'
 import { ErrorHandler } from '@weblens/types/Types'
 import { humanFileSize, nsToHumanTime } from '@weblens/util'
 import { useEffect, useMemo, useState } from 'react'

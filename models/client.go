@@ -84,7 +84,7 @@ func (wsc *WsClient) ReadOne() (int, []byte, error) {
 }
 
 func (wsc *WsClient) Error(err error) {
-	safe, _ := werror.TrySafeErr(err)
+	safe, _ := log.TrySafeErr(err)
 	err = wsc.Send(WsResponseInfo{EventTag: "error", Error: safe.Error()})
 	log.ErrTrace(err)
 }

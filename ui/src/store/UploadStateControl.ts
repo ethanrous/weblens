@@ -47,7 +47,7 @@ export class SingleUpload {
 
     incFiles() {
         this.files += 1
-        if (this.files == this.filesTotal) {
+        if (this.files === this.filesTotal) {
             this.complete = true
         }
     }

@@ -6,10 +6,11 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 var Info *log.Logger
@@ -27,12 +28,12 @@ func init() {
 	Warning = log.New(os.Stdout, "\u001b[33m[WARN] \u001B[0m", log.LstdFlags|log.Lshortfile)
 
 	// Error writes logs in the color red with "ERROR: " as prefix
-	Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
+	Error = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Lshortfile)
 
 	// ErrorCatcher Same as error, but don't print the file and line. It is expected that what is being printed will include a file and line
 	// Useful for a generic panic cather function, where the line of the catcher function is not useful
 	// ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001B[0m", log.LstdFlags)
-	ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags)
+	ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Lshortfile)
 
 	// ErrorCatcher = &logger{prefix: "\u001b[31m[ERROR] \u001B[0m", defaultSkip: 4}
 }
@@ -40,18 +41,18 @@ func init() {
 // var ErrorCatcher Logger
 var Output *os.File
 
-type LogPackage struct {
-	Trace        FuncLogger
-	Debug        FuncLogger
-	Info         *log.Logger
-	Warning      *log.Logger
-	Error        *log.Logger
-	ErrorCatcher *log.Logger
+type Bundle struct {
+	Trace   FuncLogger
+	Debug   FuncLogger
+	Info    *log.Logger
+	Warning *log.Logger
+	Error   *log.Logger
+	Raw     *log.Logger
 
 	Level Level
 }
 
-func (lp LogPackage) ErrTrace(err error, extras ...string) {
+func (lp Bundle) ErrTrace(err error, extras ...string) {
 	if err != nil {
 		if lp.Level < DEBUG {
 			lp.ShowErr(err, extras...)
@@ -60,17 +61,15 @@ func (lp LogPackage) ErrTrace(err error, extras ...string) {
 
 		fmter, ok := err.(StackError)
 		if ok {
-			lp.ErrorCatcher.Println(fmter.Stack())
+			lp.Raw.Println(fmter.Stack())
 			return
 		}
 
-		_, file, no, _ := runtime.Caller(1)
-		lp.ErrorCatcher.Println(string(debug.Stack()))
-		lp.ErrorCatcher.Printf("%s:%d (no stack) %s", file, no, err.Error())
+		middleware.PrintPrettyStack(err)
 	}
 }
 
-func (lp LogPackage) ShowErr(err error, extras ...string) {
+func (lp Bundle) ShowErr(err error, extras ...string) {
 	if err != nil {
 		fmter, ok := err.(StackError)
 		if ok {
@@ -78,7 +77,7 @@ func (lp LogPackage) ShowErr(err error, extras ...string) {
 			if errStr[len(errStr)-1] == '\n' {
 				errStr = errStr[:len(errStr)-1]
 			}
-			lp.ErrorCatcher.Println(errStr)
+			lp.Raw.Println(errStr)
 			return
 		}
 
@@ -90,11 +89,11 @@ func (lp LogPackage) ShowErr(err error, extras ...string) {
 		_, file, line, _ := runtime.Caller(2)
 		file = file[strings.LastIndex(file, "/")+1:]
 
-		lp.ErrorCatcher.Printf("%s:%d%s: %s", file, line, msg, err)
+		lp.Raw.Printf("%s:%d%s: %s", file, line, msg, err)
 	}
 }
 
-func NewLogPackage(outputPath string, level Level) LogPackage {
+func NewLogPackage(outputPath string, level Level) Bundle {
 	var output *os.File
 	if outputPath != "" {
 		f, err := os.Create(outputPath)
@@ -105,12 +104,15 @@ func NewLogPackage(outputPath string, level Level) LogPackage {
 
 	} else {
 		output = os.Stdout
+		outputPath = "STDOUT"
 	}
+
+	fmt.Printf("New logger to [%s] with level %s\n", outputPath, level)
 
 	info := log.New(output, "\u001b[34m[INFO] \u001B[0m", log.LstdFlags)
 	warning := log.New(output, "\u001b[33m[WARN] \u001B[0m", log.LstdFlags|log.Lshortfile)
 	error := log.New(output, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Llongfile)
-	errorCatcher := log.New(output, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags)
+	errorCatcher := log.New(output, "", 0)
 
 	var trace FuncLogger = emptyLogger{}
 	var debug FuncLogger = emptyLogger{}
@@ -122,28 +124,27 @@ func NewLogPackage(outputPath string, level Level) LogPackage {
 	if level >= DEBUG {
 		prefix := fmt.Sprintf("\u001b[36m[%s] \u001B[0m", "DEBUG")
 		debug = &funcLogger{Logger: NewLogger(prefix, 3, output)}
-		debug.Println("Debug logger enabled")
 	}
-	return LogPackage{
-		Trace:        trace,
-		Debug:        debug,
-		Info:         info,
-		Warning:      warning,
-		Error:        error,
-		ErrorCatcher: errorCatcher,
+	return Bundle{
+		Trace:   trace,
+		Debug:   debug,
+		Info:    info,
+		Warning: warning,
+		Error:   error,
+		Raw:     errorCatcher,
 
 		Level: level,
 	}
 }
 
-func NewEmptyLogPackage() LogPackage {
-	return LogPackage{
-		Trace:        emptyLogger{},
-		Debug:        emptyLogger{},
-		Info:         log.New(io.Discard, "", 0),
-		Warning:      log.New(io.Discard, "", 0),
-		Error:        log.New(io.Discard, "", 0),
-		ErrorCatcher: log.New(io.Discard, "", 0),
+func NewEmptyLogPackage() Bundle {
+	return Bundle{
+		Trace:   emptyLogger{},
+		Debug:   emptyLogger{},
+		Info:    log.New(io.Discard, "", 0),
+		Warning: log.New(io.Discard, "", 0),
+		Error:   log.New(io.Discard, "", 0),
+		Raw:     log.New(io.Discard, "", 0),
 	}
 }
 
@@ -270,8 +271,6 @@ func SetLogLevel(newLevel Level, outputPath string) {
 		Debug = &funcLogger{Logger: NewLogger(prefix, 3, Output)}
 
 	}
-
-	Debug.Printf("Using log level [%d]", newLevel)
 }
 
 func fmtCaller(skip int) string {

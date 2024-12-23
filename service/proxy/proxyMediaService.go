@@ -89,7 +89,7 @@ func (pms *ProxyMediaService) NukeCache() error {
 }
 
 func (pms *ProxyMediaService) GetFilteredMedia(
-	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId, raw bool, hidden bool,
+	requester *models.User, sort string, sortDirection int, excludeIds []models.ContentId, raw bool, hidden bool, search string,
 ) ([]*models.Media, error) {
 	panic("implement me")
 }

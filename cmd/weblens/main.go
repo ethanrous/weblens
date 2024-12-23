@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "net/http/pprof"
 	"os"
 
 	"github.com/ethanrous/weblens/http"
@@ -21,17 +20,18 @@ func main() {
 	}
 
 	var services = &models.ServicePack{
-		Cnf: cnf,
-		Log: log.NewLogPackage("", log.Level(cnf.LogLevel)),
+		Cnf:         cnf,
+		Log:         log.NewLogPackage(env.GetLogFile(), log.Level(cnf.LogLevel)),
+		StartupChan: make(chan bool),
 	}
 
-	defer setup.MainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR")
+	services.Log.Info.Println("Log level:", cnf.LogLevel)
+	defer setup.MainRecovery("WEBLENS ENCOUNTERED AN UNRECOVERABLE ERROR", services.Log)
 	log.Info.Println("Starting Weblens")
 
 	server = http.NewServer(cnf.RouterHost, cnf.RouterPort, services)
 	server.StartupFunc = func() {
 		setup.Startup(cnf, services)
 	}
-	services.StartupChan = make(chan bool)
 	server.Start()
 }

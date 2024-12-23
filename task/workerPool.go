@@ -46,7 +46,7 @@ type WorkerPool struct {
 
 	exitFlag atomic.Int64
 
-	log log.LogPackage
+	log log.Bundle
 
 	jobsMu sync.RWMutex
 
@@ -56,7 +56,7 @@ type WorkerPool struct {
 	taskBufferMu sync.Mutex
 }
 
-func NewWorkerPool(initWorkers int, logger log.LogPackage) *WorkerPool {
+func NewWorkerPool(initWorkers int, logger log.Bundle) *WorkerPool {
 	if initWorkers == 0 {
 		initWorkers = 1
 	}
@@ -275,20 +275,20 @@ func (wp *WorkerPool) workerRecover(task *Task, workerId int64) {
 		// Make sure what we got is an error
 		switch err := recovered.(type) {
 		case error:
-			if err.Error() == werror.ErrTaskError.Error() {
-				wp.log.Error.Printf("Task [%s] exited with an error", task.TaskId())
-				wp.log.ErrTrace(task.err)
+			if errors.Is(err, werror.ErrTaskError) {
+				// wp.log.Error.Printf("Task [%s] exited with an error", task.TaskId())
+				// wp.log.ErrTrace(task.err)
 				return
-			} else if err.Error() == werror.ErrTaskExit.Error() {
+			} else if errors.Is(err, werror.ErrTaskExit) {
 				return
 			}
 		default:
-			recovered = errors.New(fmt.Sprint(recovered))
+			recovered = werror.Errorf("%s", recovered)
 		}
-		wp.log.ErrorCatcher.Printf(
-			"Worker %d recovered the following panic\n%s\n%s\n", workerId, recovered,
-			werror.GetStack(2).String(),
-		)
+		// wp.log.Raw.Printf(
+		// 	"\n\tWorker %d recovered panic: \u001b[31m%s\u001B[0m\n\n%s\n", workerId, recovered,
+		// 	werror.GetStack(2).String(),
+		// )
 		task.error(recovered.(error))
 	}
 }
@@ -319,10 +319,10 @@ func (wp *WorkerPool) reaper() {
 		select {
 		case _, ok := <-wp.exitSignal:
 			if !ok {
-				wp.log.Debug.Println("reaper exiting")
+				wp.log.Debug.Println("Task reaper exiting")
 				return
 			}
-			wp.log.Debug.Println("reaper not exiting?")
+			wp.log.Warning.Println("Reaper not exiting?")
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
@@ -518,8 +518,11 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 					// We want the pool completed and error count to reflect the task has completed
 					// when we are doing cleanup. Cleanup is intended to execute "after" the task
 					// has finished, so we must inc the completed tasks counter (above) before cleanup
-					wp.log.Trace.Printf("Running cleanup for task [%s]", t.taskId)
-					for _, cf := range t.cleanup {
+					wp.log.Trace.Printf("Running cleanup(s) for task [%s]", t.taskId)
+					t.updateMu.RLock()
+					cleanups := t.cleanups
+					t.updateMu.RUnlock()
+					for _, cf := range cleanups {
 						cf(t)
 					}
 					wp.log.Trace.Printf("Finished cleanup for task [%s]", t.taskId)

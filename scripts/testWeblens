@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [[ ! -e ./ui ]]; then
-  echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
-  exit 1
+	echo "ERR Could not find ./ui directory, are you at the root of the repo? i.e. ~/repos/weblens and not ~/repos/weblens/scripts"
+	exit 1
 fi
 
 mkdir -p build/logs
@@ -10,24 +10,24 @@ mkdir -p build/logs
 tail_pid=-1
 tail_file=""
 do_tail() {
-  tail_file="$1"
-  if [[ $show_logs == true ]]; then
-    printf "\n"
-    : >"$1"
-    tail -f "$1" &
-    tail_pid=$!
-  else
-    printf " "
-  fi
+	tail_file="$1"
+	if [[ $show_logs == true ]]; then
+		printf "\n"
+		: >"$1"
+		tail -f "$1" &
+		tail_pid=$!
+	else
+		printf " "
+	fi
 }
 
 stop_tail() {
-  if [[ $tail_pid -ne -1 ]]; then
-    kill $tail_pid &>/dev/null
-    wait $tail_pid 2>/dev/null
-    tail_pid=-1
-    tail_file=""
-  fi
+	if [[ $tail_pid -ne -1 ]]; then
+		kill $tail_pid &>/dev/null
+		wait $tail_pid 2>/dev/null
+		tail_pid=-1
+		tail_file=""
+	fi
 }
 
 failed=false
@@ -35,17 +35,17 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 show_fail() {
-  failed=true
-  printf "%bFAIL%b\n" "${RED}" "${NC}"
-  if [[ $show_logs != true ]]; then
-    cat "$tail_file"
-    printf "%bFAIL%b\n" "${RED}" "${NC}"
-  fi
-  stop_tail
+	failed=true
+	printf "%bFAIL%b\n" "${RED}" "${NC}"
+	if [[ $show_logs != true ]]; then
+		cat "$tail_file"
+		printf "%bFAIL%b\n" "${RED}" "${NC}"
+	fi
+	stop_tail
 }
 show_pass() {
-  stop_tail
-  printf "%bPASS%b\n" "${GREEN}" "${NC}"
+	stop_tail
+	printf "%bPASS%b\n" "${GREEN}" "${NC}"
 }
 
 trap 'kill $tail_pid &>/dev/null' EXIT
@@ -80,134 +80,134 @@ coverage=false
 loop=false
 
 while [ "${1:-}" != "" ]; do
-  case "$1" in
-  "-a" | "--all")
-    backend_tests=true
-    ui_tests=true
-    ;;
-  "--backend")
-    backend_tests=true
-    ;;
-  "--target")
-    shift
-    target=$1
-    ;;
-  "-l" | "--show-logs")
-    show_logs=true
-    ;;
-  "--coverage")
-    coverage=true
-    ;;
-  "--ui")
-    ui_tests=true
-    ;;
-  "--loop")
-    loop=true
-    ;;
-  "-h" | "--help")
-    echo "$usage"
-    exit 0
-    ;;
-  *)
-    "Unknown argument: $1"
-    echo "$usage"
-    exit 1
-    ;;
-  esac
-  shift
+	case "$1" in
+	"-a" | "--all")
+		backend_tests=true
+		ui_tests=true
+		;;
+	"--backend")
+		backend_tests=true
+		;;
+	"--target")
+		shift
+		target=$1
+		;;
+	"-l" | "--show-logs")
+		show_logs=true
+		;;
+	"--coverage")
+		coverage=true
+		;;
+	"--ui")
+		ui_tests=true
+		;;
+	"--loop")
+		loop=true
+		;;
+	"-h" | "--help")
+		echo "$usage"
+		exit 0
+		;;
+	*)
+		"Unknown argument: $1"
+		echo "$usage"
+		exit 1
+		;;
+	esac
+	shift
 done
 
 if [[ $loop == true ]] && [[ $coverage == true ]]; then
-  echo "ERR Using incompatible options --loop and --coverage"
-  exit 1
+	echo "ERR Using incompatible options --loop and --coverage"
+	exit 1
 fi
 
 while true; do
-  if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
-    echo "No tests selected..."
-    echo "$usage"
-    exit 1
-  fi
+	if [[ $ui_tests != true ]] && [[ $backend_tests != true ]]; then
+		echo "No tests selected..."
+		echo "$usage"
+		exit 1
+	fi
 
-  if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
-    cd ui || exit
-    export VITE_APP_BUILD_TAG=test
-    export VITE_BUILD=true
-    # npm install
-    npm run build
-    cd .. || exit
-  fi
+	if [[ ! -e ./ui/dist/index.html ]] || [[ ! -d ./ui/node_modules ]]; then
+		cd ui || exit
+		export VITE_APP_BUILD_TAG=test
+		export VITE_BUILD=true
+		# npm install
+		npm run build
+		cd .. || exit
+	fi
 
-  if [[ $ui_tests == true ]]; then
-    printf "Running UI linter... "
-    cd ui || exit
-    do_tail ../build/logs/ui-lint.log
-    if ! npx eslint . &>../build/logs/ui-lint.log; then
-      show_fail
-    else
-      show_pass
-    fi
-    cd .. || exit
-  fi
+	if [[ $ui_tests == true ]]; then
+		printf "Running UI linter... "
+		cd ui || exit
+		do_tail ../build/logs/ui-lint.log
+		if ! npx eslint . &>../build/logs/ui-lint.log; then
+			show_fail
+		else
+			show_pass
+		fi
+		cd .. || exit
+	fi
 
-  if [[ $backend_tests == true ]]; then
-    dbstr=$(mongosh --eval "show dbs" | awk '{print $1;}' | grep weblens-Test)
-    dbs=($dbstr)
+	if [[ $backend_tests == true ]]; then
+		dbstr=$(mongosh --eval "show dbs" | awk '{print $1;}' | grep weblens-Test)
+		dbs=($dbstr)
 
-    for db in "${dbs[@]}"; do
-      echo "Dropping test database: $db"
-      mongosh --eval "use $db" --eval "db.dropDatabase()" >/dev/null
-    done
+		for db in "${dbs[@]}"; do
+			echo "Dropping test database: $db"
+			mongosh --eval "use $db" --eval "db.dropDatabase()" >/dev/null
+		done
 
-    rm -rf ./build/fs/test
+		rm -rf ./build/fs/test
 
-    if [[ -z "$target" ]]; then
-      target="./..."
-    else
-      echo "Using target: $target"
-    fi
-    printf "Running backend tests ... "
-    do_tail ./build/logs/backend-test.log
+		if [[ -z "$target" ]]; then
+			target="./..."
+		else
+			echo "Using target: $target"
+		fi
+		printf "Running backend tests ... "
+		do_tail ./build/logs/backend-test.log
 
-    export CGO_CFLAGS_ALLOW='-Xpreprocessor'
-    export CONFIG_PATH=$PWD/config
-    export CONFIG_NAME=TEST
-    export APP_ROOT=$PWD
-    if [[ $coverage == true ]]; then
-      if ! (
-        set -o pipefail
-        go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
-      ); then
-        show_fail
-      else
-        grep -v -e internal -e models -e mock -e main -e database ./build/logs/cover_raw.out >./build/logs/cover.out
-        rm ./build/logs/cover_raw.out
-        show_pass
-      fi
-    else
-      if ! (
-        set -o pipefail
-        go test -v "$target" &>./build/logs/backend-test.log
-      ); then
-        show_fail
-      else
-        show_pass
-      fi
-    fi
-  fi
+		export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+		export CONFIG_PATH=$PWD/config
+		export CONFIG_NAME=TEST
+		export APP_ROOT=$PWD
+		if [[ $coverage == true ]]; then
+			if ! (
+				set -o pipefail
+				go test -coverprofile ./build/logs/cover_raw.out -v "$target" &>./build/logs/backend-test.log
+			); then
+				show_fail
+			else
+				grep -v -e internal -e models -e mock -e main -e database ./build/logs/cover_raw.out >./build/logs/cover.out
+				rm ./build/logs/cover_raw.out
+				show_pass
+			fi
+		else
+			if ! (
+				set -o pipefail
+				go test -v "$target" &>./build/logs/backend-test.log
+			); then
+				show_fail
+			else
+				show_pass
+			fi
+		fi
+	fi
 
-  if [[ $failed == true ]]; then
-    exit 1
-  fi
+	if [[ $failed == true ]]; then
+		exit 1
+	fi
 
-  if [[ $coverage == true ]]; then
-    go tool cover -html=./build/logs/cover.out
-  fi
+	if [[ $coverage == true ]]; then
+		go tool cover -html=./build/logs/cover.out
+	fi
 
-  if [[ $loop != true ]]; then
-    exit 0
-  else
-    echo "Cleaning cache..."
-    go clean -testcache
-  fi
+	if [[ $loop != true ]]; then
+		exit 0
+	else
+		echo "Cleaning cache..."
+		go clean -testcache
+	fi
 done

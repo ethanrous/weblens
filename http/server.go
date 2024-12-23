@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,6 @@ import (
 	"github.com/ethanrous/weblens/internal/log"
 	"github.com/ethanrous/weblens/models"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	// gin-swagger middleware
 )
@@ -114,7 +114,7 @@ func (s *Server) Start() {
 func (s *Server) UseApi() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(log.ApiLogger(s.services.Log), middleware.Recoverer, CORSMiddleware(env.GetProxyAddress(s.services.Cnf)), WithServices(s.services), WeblensAuth)
+	r.Use(log.ApiLogger(s.services.Log), Recoverer, CORSMiddleware(env.GetProxyAddress(s.services.Cnf)), WithServices(s.services), WeblensAuth)
 
 	r.Group(func(r chi.Router) {
 		r.Use(AllowPublic)
@@ -225,8 +225,6 @@ func (s *Server) UseApi() *chi.Mux {
 		r.Post("/album", createAlbum)
 		r.Patch("/{albumId}", updateAlbum)
 		r.Delete("/{albumId}", deleteAlbum)
-		// r.Get("/{albumId}/preview", albumPreviewMedia)
-		// r.Post("/{albumId}/leave", unshareMeAlbum)
 	})
 
 	// ApiKeys
@@ -264,28 +262,6 @@ func (s *Server) UseApi() *chi.Mux {
 	return r
 }
 
-func (s *Server) UseWebdav(fileService models.FileService, caster models.FileCaster) {
-	// fs := service.WebdavFs{
-	// 	WeblensFs: fileService,
-	// 	Caster:    caster,
-	// }
-
-	// handler := &webdav.Handler{
-	// 	FileSystem: fs,
-	// 	// FileSystem: webdav.Dir(env.GetDataRoot(),
-	// 	LockSystem: webdav.NewMemLS(),
-	// 	Logger: func(r *http.Request, err error) {
-	// 		if err != nil {
-	// 			log.Error.Printf("WEBDAV [%s]: %s, ERROR: %s\n", r.Method, r.URL, err)
-	// 		} else {
-	// 			log.Info.Printf("WEBDAV [%s]: %s \n", r.Method, r.URL)
-	// 		}
-	// 	},
-	// }
-
-	// go http.ListenAndServe(":8081", handler)
-}
-
 func (s *Server) UseUi() *chi.Mux {
 	memFs := &InMemoryFS{routes: make(map[string]*memFileReal, 10), routesMu: &sync.RWMutex{}, Pack: s.services, proxyAddress: env.GetProxyAddress(s.services.Cnf)}
 	memFs.loadIndex(s.services.Cnf.UiPath)
@@ -306,9 +282,8 @@ func (s *Server) UseUi() *chi.Mux {
 		func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(r.RequestURI, "/api") {
 				log.Trace.Func(func(l log.Logger) { l.Printf("Serving index.html for %s", r.RequestURI) })
-				// using the real path here makes gin redirect to /, which creates an infinite loop
-				// ctx.Writer.Header().Set("Content-Encoding", "gzip")
-				_, err := w.Write(memFs.index.data)
+				index := memFs.Index(r.RequestURI)
+				_, err := w.Write(index.realFile.data)
 				SafeErrorAndExit(err, w)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
@@ -320,9 +295,25 @@ func (s *Server) UseUi() *chi.Mux {
 	return r
 }
 
+var staticDir = ""
+
 func serveStaticContent(w http.ResponseWriter, r *http.Request) {
 	filename := chi.URLParam(r, "filename")
-	fullPath := env.GetAppRootDir() + "/static/" + filename
+
+	if staticDir == "" {
+		testDir := filepath.Join(env.GetAppRootDir(), "/static")
+		_, err := os.Stat(testDir)
+		if err != nil {
+			testDir = filepath.Join(env.GetAppRootDir(), "/images/brand/")
+			_, err = os.Stat(testDir)
+			if err != nil {
+				panic(err)
+			}
+		}
+		staticDir = testDir
+	}
+
+	fullPath := filepath.Join(staticDir, filename)
 	f, err := os.Open(fullPath)
 	if SafeErrorAndExit(err, w) {
 		return

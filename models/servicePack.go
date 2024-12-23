@@ -15,7 +15,7 @@ import (
 )
 
 type ServicePack struct {
-	Log             log.LogPackage
+	Log             log.Bundle
 	FileService     FileService
 	MediaService    MediaService
 	AccessService   AccessService
@@ -39,6 +39,8 @@ type ServicePack struct {
 	waitingOnLock sync.RWMutex
 	Loaded        atomic.Bool
 	Closing       atomic.Bool
+
+	updateMu sync.RWMutex
 }
 
 type StartupTask struct {
@@ -55,7 +57,7 @@ func (pack *ServicePack) AddStartupTask(taskName, description string) {
 	pack.waitingOnLock.Unlock()
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
-	log.Trace.Func(func(l log.Logger) { l.Printf("Added startup task: %s", taskName) })
+	log.Debug.Func(func(l log.Logger) { l.Printf("Beginning startup task: %s", taskName) })
 }
 
 func (pack *ServicePack) GetStartupTasks() []StartupTask {
@@ -84,7 +86,31 @@ func (pack *ServicePack) RemoveStartupTask(taskName string) {
 
 	pack.Caster.PushWeblensEvent(StartupProgressEvent, WsC{"waitingOn": pack.GetStartupTasks()})
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Removed startup task: %s", taskName) })
+	log.Debug.Func(func(l log.Logger) { l.Printf("Finished startup task: %s", taskName) })
+}
+
+func (pack *ServicePack) SetFileService(fs FileService) {
+	pack.updateMu.Lock()
+	pack.FileService = fs
+	pack.updateMu.Unlock()
+}
+
+func (pack *ServicePack) GetFileService() FileService {
+	pack.updateMu.RLock()
+	defer pack.updateMu.RUnlock()
+	return pack.FileService
+}
+
+func (pack *ServicePack) SetCaster(c Broadcaster) {
+	pack.updateMu.Lock()
+	pack.Caster = c
+	pack.updateMu.Unlock()
+}
+
+func (pack *ServicePack) GetCaster() Broadcaster {
+	pack.updateMu.RLock()
+	defer pack.updateMu.RUnlock()
+	return pack.Caster
 }
 
 type Server interface {

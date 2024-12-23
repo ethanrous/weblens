@@ -31,7 +31,7 @@ class WeblensMedia {
 
     // Object URLs
     thumbnail?: string
-    fullres?: string
+    fullres?: string[]
 
     previous?: WeblensMedia
     next?: WeblensMedia
@@ -54,6 +54,7 @@ class WeblensMedia {
         if (this.hidden === undefined) {
             this.hidden = false
         }
+        this.fullres = new Array<string>(this.pageCount).fill(null)
     }
 
     Id(): string {
@@ -77,7 +78,7 @@ class WeblensMedia {
     }
 
     HighestQualityLoaded(): PhotoQuality.HighRes | PhotoQuality.LowRes | '' {
-        if (this.fullres) {
+        if (this.fullres[this.fullres.length - 1] !== null) {
             return PhotoQuality.HighRes
         } else if (this.thumbnail) {
             return PhotoQuality.LowRes
@@ -87,8 +88,8 @@ class WeblensMedia {
     }
 
     HasQualityLoaded(q: PhotoQuality.HighRes | PhotoQuality.LowRes): boolean {
-        if (q == PhotoQuality.HighRes) {
-            return Boolean(this.fullres)
+        if (q === PhotoQuality.HighRes) {
+            return this.fullres[this.fullres.length - 1] !== null
         } else {
             return Boolean(this.thumbnail)
         }
@@ -201,11 +202,14 @@ class WeblensMedia {
         this.index = index
     }
 
-    GetObjectUrl(quality: PhotoQuality.LowRes | PhotoQuality.HighRes): string {
-        if (quality == PhotoQuality.LowRes || !this.fullres) {
+    GetObjectUrl(
+        quality: PhotoQuality.LowRes | PhotoQuality.HighRes,
+        pageNumber?: number
+    ): string {
+        if (quality === PhotoQuality.LowRes || !this.fullres) {
             return this.thumbnail
-        } else if (quality == PhotoQuality.HighRes) {
-            return this.fullres
+        } else if (quality === PhotoQuality.HighRes) {
+            return this.fullres[pageNumber ?? 0]
         }
     }
 
@@ -247,7 +251,7 @@ class WeblensMedia {
             fullres = this.getImageData(
                 PhotoQuality.HighRes,
                 this.abort.signal,
-                pageNumber
+                pageNumber ?? 0
             )
         }
 
@@ -309,7 +313,16 @@ class WeblensMedia {
                 }
 
                 const blob = new Blob([res.data])
-                this[quality] = URL.createObjectURL(blob)
+                switch (quality) {
+                    case PhotoQuality.LowRes: {
+                        this.thumbnail = URL.createObjectURL(blob)
+                        break
+                    }
+                    case PhotoQuality.HighRes: {
+                        this.fullres[pageNumber] = URL.createObjectURL(blob)
+                        break
+                    }
+                }
                 return true
             })
             .catch((r) => {

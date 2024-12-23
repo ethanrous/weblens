@@ -1,16 +1,18 @@
-import { IconLayersIntersect } from '@tabler/icons-react'
+import { IconLayersIntersect, IconSearch } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import MediaApi from '@weblens/api/MediaApi'
 import WeblensButton from '@weblens/lib/WeblensButton'
+import WeblensInput from '@weblens/lib/WeblensInput'
 import WeblensProgress from '@weblens/lib/WeblensProgress'
 import { GalleryFilters } from '@weblens/pages/Gallery/Gallery'
 import WeblensMedia from '@weblens/types/media/Media'
 import { PhotoGallery } from '@weblens/types/media/MediaDisplay'
 import { useMediaStore } from '@weblens/types/media/MediaStateControl'
+import { useState } from 'react'
 
 import { useGalleryStore } from './GalleryLogic'
 
-function TimelineControls() {
+function TimelineControls({ setSearch }: { setSearch: (v: string) => void }) {
     const selecting = useGalleryStore((state) => state.selecting)
     const imageSize = useGalleryStore((state) => state.imageSize)
     const setSelecting = useGalleryStore((state) => state.setSelecting)
@@ -38,6 +40,11 @@ function TimelineControls() {
             <GalleryFilters />
 
             <div className="flex grow w-0 justify-end">
+                <WeblensInput
+                    Icon={IconSearch}
+                    fillWidth={false}
+                    valueCallback={setSearch}
+                />
                 <WeblensButton
                     label="Select"
                     allowRepeat
@@ -54,30 +61,24 @@ function TimelineControls() {
 }
 
 export function Timeline() {
-    // const loading = useGalleryStore((state) => state.loading)
-    // const albumsFilter = useGalleryStore((state) => state.albumsFilter)
-    // const albumsMap = useGalleryStore((state) => state.albumsMap)
-    // const addLoading = useGalleryStore((state) => state.addLoading)
-    // const removeLoading = useGalleryStore((state) => state.removeLoading)
-
     const showRaw = useMediaStore((state) => state.showRaw)
     const showHidden = useMediaStore((state) => state.showHidden)
-    // const medias = useMediaStore((state) => [...state.mediaMap.values()])
     const addMedias = useMediaStore((state) => state.addMedias)
+    const [search, setSearch] = useState<string>()
 
     const {
         data: medias,
         isLoading,
         error,
     } = useQuery<WeblensMedia[]>({
-        queryKey: ['media', showRaw, showHidden],
+        queryKey: ['media', showRaw, showHidden, search],
         initialData: [],
         queryFn: async () => {
-            console.log('Getting media')
             const res = await MediaApi.getMedia(
                 showRaw,
                 showHidden,
                 undefined,
+                search,
                 0,
                 10000
             ).then((res) => {
@@ -89,28 +90,9 @@ export function Timeline() {
         },
     })
 
-    // useEffect(() => {
-    //     if (loading.includes('media')) {
-    //         return
-    //     }
-    //     addLoading('media')
-    //     MediaApi.getMedia(showRaw, showHidden, undefined, 0, 10000)
-    //         .then((res) => {
-    //             const medias = res.data.Media.map((info) => {
-    //                 return new WeblensMedia(info)
-    //             })
-    //
-    //             addMedias(medias)
-    //             removeLoading('media')
-    //         })
-    //         .catch((err) => {
-    //             console.error('Failed to get media', err)
-    //         })
-    // }, [showRaw, showHidden, albumsFilter, albumsMap])
-
     return (
         <div className="flex flex-col items-center h-1/2 w-full relative grow">
-            <TimelineControls />
+            <TimelineControls setSearch={setSearch} />
             <PhotoGallery medias={medias} loading={isLoading} error={error} />
         </div>
     )

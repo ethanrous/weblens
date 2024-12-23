@@ -1,7 +1,9 @@
 package http
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -105,15 +107,15 @@ func (mf *memFileReal) Copy() *memFileReal {
 	}
 }
 
-func addIndexTag(tagName, toAdd, content string) string {
-	subStr := fmt.Sprintf("og:%s\" content=\"", tagName)
-	index := strings.Index(content, subStr)
-	if index == -1 {
-		log.Error.Println("Failed to find tag", tagName)
-		return content
-	}
-	index += len(subStr)
-	return content[:index] + toAdd + content[index:]
+type indexFields struct {
+	Title       string
+	Description string
+	Url         string
+	Image       string
+	Type        string
+	VideoUrl    string
+	SecureUrl   string
+	VideoType   string
 }
 
 func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
@@ -123,27 +125,34 @@ func (fs *InMemoryFS) Index(loc string) *MemFileWrap {
 		loc = loc[locIndex+len("ui/dist/"):]
 	}
 
-	data := addIndexTag("url", fmt.Sprintf("%s/%s", fs.proxyAddress, loc), string(index.realFile.data))
-
 	fields := getIndexFields(loc, fs.proxyAddress, fs.Pack)
-	for _, field := range fields {
-		data = addIndexTag(field.tag, field.content, data)
+
+	tmpl, err := template.New("index").Parse(string(index.realFile.data))
+	if err != nil {
+		log.ErrTrace(err)
+		return index
 	}
 
-	index.realFile.data = []byte(data)
+	buf := bytes.NewBuffer(nil)
+	err = tmpl.Execute(buf, fields)
+	if err != nil {
+		log.ErrTrace(err)
+		return index
+	}
+
+	index.realFile.data = buf.Bytes()
 
 	return index
 }
 
-type indexField struct {
-	tag     string
-	content string
-}
-
-func getIndexFields(path, proxyAddress string, pack *models.ServicePack) []indexField {
-
-	var fields []indexField
+func getIndexFields(path, proxyAddress string, pack *models.ServicePack) indexFields {
+	var fields indexFields
 	var hasImage bool
+
+	if path[0] == '/' {
+		path = path[1:]
+	}
+	fields.Url = fmt.Sprintf("%s/%s", proxyAddress, path)
 
 	if strings.HasPrefix(path, "files/share/") {
 		path = path[len("files/share/"):]
@@ -176,66 +185,21 @@ func getIndexFields(path, proxyAddress string, pack *models.ServicePack) []index
 					} else {
 						imgUrl := fmt.Sprintf("%s/api/static/folder.png", proxyAddress)
 						hasImage = true
-						fields = append(
-							fields, indexField{
-								tag:     "image",
-								content: imgUrl,
-							},
-						)
+						fields.Image = imgUrl
 					}
 				}
 
-				fields = append(
-					fields, indexField{
-						tag:     "title",
-						content: f.Filename(),
-					},
-				)
+				fields.Title = f.Filename()
+				fields.Description = "Weblens file share"
 
-				fields = append(
-					fields, indexField{
-						tag:     "description",
-						content: "Weblens file share",
-					},
-				)
 				if m != nil {
-					if !pack.MediaService.GetMediaType(m).IsVideo() {
+					if !pack.MediaService.GetMediaType(m).Video {
 						imgUrl := fmt.Sprintf(
-							"%s/api/media/%s/thumbnail.png?shareId=%s", proxyAddress,
+							"%s/api/media/%s.png?quality=thumbnail&shareId=%s", proxyAddress,
 							f.GetContentId(), share.ID(),
 						)
 						hasImage = true
-						fields = append(
-							fields, indexField{
-								tag:     "image",
-								content: imgUrl,
-							},
-						)
-						// videoUrl := fmt.Sprintf("%s/api/media/%s/stream", env.GetHostURL(), f.GetContentId())
-						// fields = append(
-						// 	fields, indexField{
-						// 		tag:     "type",
-						// 		content: "video.other",
-						// 	},
-						// )
-						// fields = append(
-						// 	fields, indexField{
-						// 		tag:     "video",
-						// 		content: videoUrl,
-						// 	},
-						// )
-						fields = append(
-							fields, indexField{
-								tag:     "description",
-								content: "Weblens file share",
-							},
-						)
-						// fields = append(
-						// 	fields, indexField{
-						// 		tag:     "video:type",
-						// 		content: "text/html",
-						// 	},
-						// )
+						fields.Image = imgUrl
 					}
 				}
 			}
@@ -246,47 +210,18 @@ func getIndexFields(path, proxyAddress string, pack *models.ServicePack) []index
 		if album != nil {
 			media := pack.MediaService.Get(album.GetCover())
 			if media != nil {
-				imgUrl := fmt.Sprintf("%s/api/media/%s/thumbnail.png", proxyAddress, media.ID())
+				imgUrl := fmt.Sprintf("%s/api/media/%s.png", proxyAddress, media.ID())
 				hasImage = true
-				fields = append(
-					fields, indexField{
-						tag:     "image",
-						content: imgUrl,
-					},
-				)
+				fields.Image = imgUrl
 			}
-
-			fields = append(
-				fields, indexField{
-					tag:     "title",
-					content: album.GetName(),
-				},
-			)
-
-			fields = append(
-				fields, indexField{
-					tag:     "description",
-					content: "Weblens album share",
-				},
-			)
+			fields.Title = album.GetName()
+			fields.Description = "Weblens album share"
 		}
 	}
 
 	if !hasImage {
-		// imgUrl := fmt.Sprintf("%s/logo.png", util.GetHostURL())
-		fields = append(
-			fields, indexField{
-				tag:     "image",
-				content: "/logo_1200.png",
-			},
-		)
+		fields.Image = "/logo_1200.png"
 	}
-	// fields = append(
-	// 	fields, indexField{
-	// 		tag:     "canonical",
-	// 		content: util.GetHostURL(),
-	// 	},
-	// )
 
 	return fields
 }

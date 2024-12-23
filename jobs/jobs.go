@@ -217,12 +217,7 @@ func HandleFileUploads(t *task.Task) {
 	var usingFiles []fileTree.FileId
 	var topLevels []*fileTree.WeblensFileImpl
 
-	fileEvent := meta.FileService.GetJournalByTree("USERS").NewEvent()
-	// defer func() {
-	// 	if !t.CheckExit() {
-	// 		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
-	// 	}
-	// }()
+	fileEvent := meta.UploadEvent
 
 	timeout := false
 

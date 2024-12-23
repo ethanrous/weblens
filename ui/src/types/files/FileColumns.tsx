@@ -4,10 +4,6 @@ import { GetFolderData } from '@weblens/api/FileBrowserApi'
 import WeblensLoader from '@weblens/components/Loading'
 import { useSessionStore } from '@weblens/components/UserInfo'
 import { useKeyDown, useResize, useResizeDrag } from '@weblens/components/hooks'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
 import { HandleDrop } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
     GetStartedCard,
@@ -15,6 +11,7 @@ import {
 } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import { DirViewModeT } from '@weblens/pages/FileBrowser/FileBrowserTypes'
 import fbStyle from '@weblens/pages/FileBrowser/style/fileBrowserStyle.module.scss'
+import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import { SelectedState, WeblensFile } from '@weblens/types/files/File'
 import filesStyle from '@weblens/types/files/filesStyle.module.scss'
 import { humanFileSize } from '@weblens/util'
@@ -440,7 +437,6 @@ function Column({
                             HandleDrop(
                                 e.dataTransfer.items,
                                 parentId,
-                                [],
                                 false,
                                 shareId
                             ).catch(ErrorHandler)

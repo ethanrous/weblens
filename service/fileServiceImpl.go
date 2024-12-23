@@ -44,7 +44,7 @@ type FileServiceImpl struct {
 
 	folderCoverCol *mongo.Collection
 
-	log log.LogPackage
+	log log.Bundle
 
 	treesLock sync.RWMutex
 
@@ -65,7 +65,7 @@ type FolderCoverPair struct {
 }
 
 func NewFileService(
-	logger log.LogPackage,
+	logger log.Bundle,
 	instanceService models.InstanceService,
 	userService models.UserService,
 	accessService models.AccessService,
@@ -92,15 +92,11 @@ func NewFileService(
 	sw := internal.NewStopwatch("File Service Init")
 
 	if usersTree, ok := fs.trees["USERS"]; ok {
-		event := usersTree.GetJournal().NewEvent()
-
-		err := fs.ResizeDown(usersTree.GetRoot(), event, nil)
+		err := fs.ResizeDown(usersTree.GetRoot(), nil, nil)
 		if err != nil {
 			return nil, err
 		}
 		sw.Lap("Resize tree")
-
-		usersTree.GetJournal().LogEvent(event)
 	}
 
 	ret, err := fs.folderCoverCol.Find(context.Background(), bson.M{})
@@ -1157,31 +1153,22 @@ func (fs *FileServiceImpl) GetTasks(f *fileTree.WeblensFileImpl) []*task.Task {
 }
 
 func (fs *FileServiceImpl) ResizeUp(f *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster models.FileCaster) error {
-	tree := fs.trees["USERS"]
+	tree := fs.trees[f.GetPortablePath().RootName()]
 	if tree == nil {
 		return nil
 	}
 
-	journal := tree.GetJournal()
-	externalEvent := event != nil
-	if !externalEvent {
-		event = journal.NewEvent()
-	}
+	tree.ResizeUp(f, event, func(f *fileTree.WeblensFileImpl) {
+		if caster != nil {
+			caster.PushFileUpdate(f, nil)
+		}
+	})
 
-	if err := f.BubbleMap(
-		func(w *fileTree.WeblensFileImpl) error {
-			return handleFileResize(w, journal, event, caster, fs.log)
-		},
-	); err != nil {
-		return err
-	}
-
-	fs.log.Trace.Func(func(l log.Logger) { l.Printf("Resizing up event: %d", len(event.Actions)) })
-
-	if !externalEvent {
-		journal.LogEvent(event)
-		event.Wait()
-	}
+	fs.log.Trace.Func(func(l log.Logger) {
+		if event != nil {
+			l.Printf("Resizing up event: %d", len(event.Actions))
+		}
+	})
 
 	return nil
 }
@@ -1189,31 +1176,21 @@ func (fs *FileServiceImpl) ResizeUp(f *fileTree.WeblensFileImpl, event *fileTree
 func (fs *FileServiceImpl) ResizeDown(f *fileTree.WeblensFileImpl, event *fileTree.FileEvent, caster models.FileCaster) error {
 	tree := fs.trees[f.GetPortablePath().RootName()]
 	if tree == nil {
-		return werror.WithStack(werror.ErrNoFileTree)
+		return nil
 	}
 
-	journal := tree.GetJournal()
-	externalEvent := event != nil
-	if !externalEvent {
-		event = journal.NewEvent()
-	}
+	tree.ResizeDown(f, event, func(f *fileTree.WeblensFileImpl) {
+		if caster != nil {
+			caster.PushFileUpdate(f, nil)
+		}
+	})
 
-	if err := f.LeafMap(
-		func(w *fileTree.WeblensFileImpl) error {
-			return handleFileResize(w, journal, event, caster, fs.log)
-		},
-	); err != nil {
-		return err
-	}
+	fs.log.Trace.Func(func(l log.Logger) {
+		if event != nil {
+			l.Printf("Resizing down event: %d", len(event.Actions))
+		}
+	})
 
-	fs.log.Trace.Func(func(l log.Logger) { l.Printf("Resizing down event: %d", len(event.Actions)) })
-
-	if !externalEvent {
-		journal.LogEvent(event)
-		event.Wait()
-	}
-
-	fs.log.Trace.Func(func(l log.Logger) { l.Printf("Logged resize event") })
 	return nil
 }
 
@@ -1300,7 +1277,7 @@ func (fs *FileServiceImpl) loadContentIdCache() error {
 }
 
 func handleFileResize(
-	file *fileTree.WeblensFileImpl, journal fileTree.Journal, event *fileTree.FileEvent, caster models.FileCaster, logger log.LogPackage,
+	file *fileTree.WeblensFileImpl, journal fileTree.Journal, event *fileTree.FileEvent, caster models.FileCaster, logger log.Bundle,
 ) error {
 	newSize, err := file.LoadStat()
 	if err != nil {

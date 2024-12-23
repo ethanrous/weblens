@@ -65,6 +65,7 @@ func GetConfig(configName string, withOverrides bool) (Config, error) {
 		cnf.WorkerCount = GetWorkerCount(cnf)
 		cnf.DataRoot = GetDataRoot(cnf)
 		cnf.CachesRoot = GetCachesRoot(cnf)
+		cnf.LogLevel = GetLogLevel(string(cnf.LogLevel))
 	}
 
 	return cnf, nil
@@ -162,7 +163,7 @@ func GetLogLevel(level string) log.Level {
 	return log.DEFAULT
 }
 
-func GetLogFile(configName string) string {
+func GetLogFile() string {
 	logPath := os.Getenv("WEBLENS_LOG_FILE")
 	if logPath != "" {
 		return filepath.Join(GetAppRootDir(), logPath)

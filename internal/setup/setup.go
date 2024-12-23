@@ -24,20 +24,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func MainRecovery(msg string) {
+func MainRecovery(msg string, logger log.Bundle) {
 	err := recover()
 	if err != nil {
 		if _, ok := err.(error); !ok {
 			err = werror.Errorf("%s", err)
 		}
-		log.ErrTrace(err.(error))
-		log.ErrorCatcher.Println(msg)
+		logger.ErrTrace(err.(error))
+		logger.Error.Println(msg)
 		os.Exit(1)
 	}
 }
 
 func Startup(cnf env.Config, pack *models.ServicePack) {
-	defer MainRecovery("WEBLENS STARTUP FAILED")
+	defer MainRecovery("WEBLENS STARTUP FAILED", pack.Log)
 
 	pack.Log.Trace.Println("Beginning service setup")
 
@@ -69,14 +69,14 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 	/* Basic global pack.Caster */
 	caster := caster.NewSimpleCaster(pack.ClientService)
 	caster.Global()
-	pack.Caster = caster
+	pack.SetCaster(caster)
 
 	setupAccessService(pack, db)
 	sw.Lap("Init access service")
 
 	/* Share Service */
 	pack.AddStartupTask("share_service", "Setting up Shares Service")
-	shareService, err := service.NewShareService(db.Collection("shares"))
+	shareService, err := service.NewShareService(db.Collection(string(database.SharesCollectionKey)))
 	if err != nil {
 		panic(err)
 	}
@@ -84,7 +84,7 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 	sw.Lap("Init share service")
 	pack.RemoveStartupTask("share_service")
 
-	setupFileService(cnf.DataRoot, cnf.CachesRoot, pack, pack.Log)
+	setupFileService(cnf.DataRoot, cnf.CachesRoot, pack)
 	sw.Lap("Init file service")
 
 	// Add basic routes to the router
@@ -153,7 +153,7 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 	server.RouterLock.Unlock()
 
 	pack.Log.Debug.Println("Service setup complete")
-	pack.Caster.PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
+	pack.GetCaster().PushWeblensEvent(models.WeblensLoadedEvent, models.WsC{"role": pack.InstanceService.GetLocal().GetRole()})
 
 	// If we're in debug mode, wait for a SIGQUIT to exit,
 	// this is to allow for easy restarting of the server
@@ -167,7 +167,7 @@ func Startup(cnf env.Config, pack *models.ServicePack) {
 }
 
 func setupInstanceService(pack *models.ServicePack) {
-	instanceService, err := service.NewInstanceService(pack.Db.Collection("servers"))
+	instanceService, err := service.NewInstanceService(pack.Db.Collection(string(database.InstanceCollectionKey)))
 	if err != nil {
 		panic(err)
 	}
@@ -181,17 +181,16 @@ func setupInstanceService(pack *models.ServicePack) {
 }
 
 func setupUserService(pack *models.ServicePack) {
-	userService, err := service.NewUserService(pack.Db.Collection("users"))
+	userService, err := service.NewUserService(pack.Db.Collection(string(database.UsersCollectionKey)))
 	if err != nil {
 		panic(err)
 	}
 	pack.UserService = userService
 }
 
-func setupTaskService(workerCount int, pack *models.ServicePack, logger log.LogPackage) {
-	/* Enable the worker pool held by the task tracker
-	loading the filesystem might dispatch tasks,
-	so we have to start the pool first */
+func setupTaskService(workerCount int, pack *models.ServicePack, logger log.Bundle) {
+	// Loading the filesystem might dispatch tasks,
+	// so we have to start the pool first
 	workerPool := task.NewWorkerPool(workerCount, logger)
 
 	workerPool.RegisterJob(models.ScanDirectoryTask, jobs.ScanDirectory)
@@ -211,13 +210,16 @@ func setupTaskService(workerCount int, pack *models.ServicePack, logger log.LogP
 	workerPool.Run()
 }
 
-func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServicePack, logger log.LogPackage) {
+func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServicePack) {
 	pack.AddStartupTask("file_services", "Setting up File Services")
+
+	sw := internal.NewStopwatch("Setup File Service")
 
 	/* Hasher */
 	hasherFactory := func() fileTree.Hasher {
-		return models.NewHasher(pack.TaskService, pack.Caster)
+		return models.NewHasher(pack.TaskService, pack.GetCaster())
 	}
+	sw.Lap("New Hasher")
 
 	localRole := pack.InstanceService.GetLocal().Role
 
@@ -226,10 +228,11 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 	if localRole == models.BackupServerRole || localRole == models.InitServerRole {
 		ignoreLocal = true
 	}
-	mediaJournal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), pack.InstanceService.GetLocal().ServerId(), ignoreLocal, hasherFactory, pack.Log)
+	mediaJournal, err := fileTree.NewJournal(pack.Db.Collection(string(database.FileHistoryCollectionKey)), pack.InstanceService.GetLocal().ServerId(), ignoreLocal, hasherFactory, pack.Log)
 	if err != nil {
 		panic(err)
 	}
+	sw.Lap("Init Media Journal")
 
 	var trees []fileTree.FileTree
 	hollowJournal := mock.NewHollowJournalService()
@@ -241,6 +244,7 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 	if err != nil {
 		panic(err)
 	}
+	sw.Lap("Init Restore Tree")
 
 	if localRole == models.CoreServerRole {
 		/* Users FileTree */
@@ -250,25 +254,29 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 		if err != nil {
 			panic(err)
 		}
+		sw.Lap("Init Users Tree")
 
 		cachesTree, err := fileTree.NewFileTree(cachesRootPath, "CACHES", hollowJournal, !ignoreLocal)
 		if err != nil {
 			panic(err)
 		}
+		sw.Lap("Init Caches Tree")
 		_, err = cachesTree.MkDir(cachesTree.GetRoot(), "takeout", &fileTree.FileEvent{})
 		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 			panic(err)
 		}
+		sw.Lap("Init Caches Takeout Dir")
 		_, err = cachesTree.MkDir(cachesTree.GetRoot(), "thumbs", &fileTree.FileEvent{})
 		if err != nil && !errors.Is(err, werror.ErrDirAlreadyExists) {
 			panic(err)
 		}
+		sw.Lap("Init Caches Thumbs Dir")
 
 		trees = []fileTree.FileTree{usersFileTree, cachesTree, restoreFileTree}
 
 	} else if localRole == models.BackupServerRole {
 		for _, core := range pack.InstanceService.GetCores() {
-			newJournal, err := fileTree.NewJournal(pack.Db.Collection("fileHistory"), core.ServerId(), true, hasherFactory, pack.Log)
+			newJournal, err := fileTree.NewJournal(pack.Db.Collection(string(database.FileHistoryCollectionKey)), core.ServerId(), true, hasherFactory, pack.Log)
 			if err != nil {
 				panic(err)
 			}
@@ -286,26 +294,28 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 	}
 
 	fileService, err := service.NewFileService(
-		logger,
+		pack.Log,
 		pack.InstanceService,
 		pack.UserService,
 		pack.AccessService,
 		nil,
-		pack.Db.Collection("folderMedia"),
+		pack.Db.Collection(string(database.FolderMediaCollectionKey)),
 		trees...,
 	)
 	if err != nil {
 		panic(err)
 	}
+	sw.Lap("Create File Service")
 
-	pack.FileService = fileService
+	pack.SetFileService(fileService)
 
 	for _, tree := range trees {
-		err = pack.FileService.ResizeDown(tree.GetRoot(), nil, pack.Caster)
+		err = pack.FileService.ResizeDown(tree.GetRoot(), nil, pack.GetCaster())
 		if err != nil {
 			panic(err)
 		}
 	}
+	sw.Lap("Resize Trees")
 
 	if localRole == models.CoreServerRole {
 		event := pack.FileService.GetJournalByTree("USERS").NewEvent()
@@ -338,7 +348,10 @@ func setupFileService(dataRootPath, cachesRootPath string, pack *models.ServiceP
 		}
 
 		pack.FileService.GetJournalByTree("USERS").LogEvent(event)
+		sw.Lap("Verify User Directories")
 	}
+	sw.Stop()
+	sw.PrintResults(false)
 
 	pack.RemoveStartupTask("file_services")
 }
@@ -355,7 +368,7 @@ func setupMediaService(pack *models.ServicePack, db *mongo.Database) {
 	mediaTypeServ := models.NewTypeService(marshMap)
 	mediaService, err := service.NewMediaService(
 		pack.FileService, mediaTypeServ, &mock.MockAlbumService{},
-		db.Collection("media"),
+		db.Collection(string(database.MediaCollectionKey)), pack.Log,
 	)
 	if err != nil {
 		panic(err)
@@ -370,7 +383,7 @@ func setupMediaService(pack *models.ServicePack, db *mongo.Database) {
 func setupAlbumService(pack *models.ServicePack, db *mongo.Database) {
 	pack.AddStartupTask("album_service", "Setting up Album Service")
 
-	albumService := service.NewAlbumService(db.Collection("albums"), pack.MediaService, pack.ShareService)
+	albumService := service.NewAlbumService(db.Collection(string(database.AlbumsCollectionKey)), pack.MediaService, pack.ShareService)
 	err := albumService.Init()
 	if err != nil {
 		panic(err)
@@ -384,7 +397,7 @@ func setupAlbumService(pack *models.ServicePack, db *mongo.Database) {
 func setupAccessService(pack *models.ServicePack, db *mongo.Database) {
 	pack.AddStartupTask("access_service", "Setting up Access Service")
 
-	accessService, err := service.NewAccessService(pack.UserService, db.Collection("apiKeys"))
+	accessService, err := service.NewAccessService(pack.UserService, db.Collection(string(database.ApiKeysCollectionKey)))
 	if err != nil {
 		panic(err)
 	}

@@ -1,5 +1,5 @@
-import { FbModeT } from '@weblens/pages/FileBrowser/FBStateControl'
-import { useTaskState } from '@weblens/pages/FileBrowser/TaskStateControl'
+import { FbModeT } from '@weblens/store/FBStateControl'
+import { useTaskState } from '@weblens/store/TaskStateControl'
 import { humanFileSize } from '@weblens/util'
 
 import API_ENDPOINT from './ApiEndpoint'

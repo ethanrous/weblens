@@ -312,7 +312,7 @@ func initializeServer(w http.ResponseWriter, r *http.Request) {
 
 		err = pack.AccessService.AddApiKey(initBody.UsingKeyInfo)
 		if err != nil && !errors.Is(err, werror.ErrKeyAlreadyExists) {
-			safe, code := werror.TrySafeErr(err)
+			safe, code := log.TrySafeErr(err)
 			writeJson(w, code, safe)
 			return
 		}

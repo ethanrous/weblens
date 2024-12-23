@@ -23,14 +23,11 @@ import { useWebsocketStore } from '@weblens/api/Websocket'
 import { UserInfo } from '@weblens/api/swag'
 import WeblensButton from '@weblens/lib/WeblensButton'
 import WeblensInput from '@weblens/lib/WeblensInput'
-import {
-    FbModeT,
-    useFileBrowserStore,
-} from '@weblens/pages/FileBrowser/FBStateControl'
 import { downloadSelected } from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import { FileFmt } from '@weblens/pages/FileBrowser/FileBrowserMiscComponents'
 import SearchDialogue from '@weblens/pages/FileBrowser/SearchDialogue'
 import '@weblens/pages/FileBrowser/style/fileBrowserMenuStyle.scss'
+import { FbModeT, useFileBrowserStore } from '@weblens/store/FBStateControl'
 import {
     FbMenuModeT,
     SelectedState,
@@ -604,10 +601,15 @@ function PastFileMenu({
 function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
     const menuMode = useFileBrowserStore((state) => state.menuMode)
     const setMenu = useFileBrowserStore((state) => state.setMenu)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
 
     const [accessors, setAccessors] = useState<string[]>([])
     const [isPublic, setIsPublic] = useState(false)
     const [share, setShare] = useState<WeblensShare>(null)
+
+    if (!targetFile) {
+        targetFile = folderInfo
+    }
 
     useEffect(() => {
         if (!targetFile) {
@@ -657,28 +659,27 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
         async (e: React.MouseEvent<HTMLElement>) => {
             e.stopPropagation()
             const share = await targetFile.GetShare()
-            if (share.Id()) {
+            if (share?.Id()) {
                 return await share
                     .UpdateShare(isPublic, accessors)
-                    .then(() => true)
-                    .catch(() => false)
+                    .then(() => share)
+                    .catch(ErrorHandler)
             } else {
-                SharesApi.createFileShare({
+                return await SharesApi.createFileShare({
                     fileId: targetFile.Id(),
                     public: isPublic,
                     users: accessors,
                 })
-                    .then((res) => {
+                    .then(async (res) => {
                         targetFile.SetShare(new WeblensShare(res.data))
-                        return true
+                        const sh = await targetFile.GetShare()
+                        console.log('JUST set share:', sh)
+                        return sh
                     })
-                    .catch((err: Error) => {
-                        ErrorHandler(err)
-                        return false
-                    })
+                    .catch(ErrorHandler)
             }
         },
-        [targetFile, isPublic, accessors]
+        [targetFile, isPublic, accessors, folderInfo]
     )
 
     if (menuMode === FbMenuModeT.Closed) {
@@ -717,8 +718,7 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                         onClick={async (e) => {
                             e.stopPropagation()
                             return await updateShare(e)
-                                .then(async () => {
-                                    const share = await targetFile.GetShare()
+                                .then(async (share) => {
                                     if (!share) {
                                         console.error('No Shares!')
                                         return false
@@ -835,7 +835,11 @@ function FileShareMenu({ targetFile }: { targetFile: WeblensFile }) {
                             share.IsPublic() === isPublic &&
                             accessors === share.GetAccessors()
                         }
-                        onClick={updateShare}
+                        onClick={(e) =>
+                            updateShare(e)
+                                .then(() => true)
+                                .catch(ErrorHandler)
+                        }
                     />
                 </div>
             </div>
@@ -1220,24 +1224,6 @@ function BackdropDefaultItems({
             </div>
             <div className="default-menu-icon">
                 <WeblensButton
-                    Left={IconScan}
-                    squareSize={100}
-                    centerContent
-                    onMouseOver={() =>
-                        setFooterNote({ hint: 'Scan Folder', danger: false })
-                    }
-                    onMouseLeave={() =>
-                        setFooterNote({ hint: '', danger: false })
-                    }
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        wsSend('scanDirectory', { folderId: folderInfo.Id() })
-                    }}
-                />
-            </div>
-
-            <div className="default-menu-icon">
-                <WeblensButton
                     Left={IconUsersPlus}
                     squareSize={100}
                     disabled={
@@ -1254,6 +1240,24 @@ function BackdropDefaultItems({
                     onClick={(e) => {
                         e.stopPropagation()
                         setMenu({ menuState: FbMenuModeT.Sharing })
+                        setFooterNote({ hint: '', danger: false })
+                    }}
+                />
+            </div>
+            <div className="default-menu-icon">
+                <WeblensButton
+                    Left={IconScan}
+                    squareSize={100}
+                    centerContent
+                    onMouseOver={() =>
+                        setFooterNote({ hint: 'Scan Folder', danger: false })
+                    }
+                    onMouseLeave={() =>
+                        setFooterNote({ hint: '', danger: false })
+                    }
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        wsSend('scanDirectory', { folderId: folderInfo.Id() })
                     }}
                 />
             </div>

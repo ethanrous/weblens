@@ -1200,6 +1200,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Search string",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "description": "Page of medias to get",
                         "name": "page",
@@ -2702,6 +2708,17 @@ const docTemplate = `{
         },
         "FileActionInfo": {
             "type": "object",
+            "required": [
+                "actionType",
+                "destinationPath",
+                "eventId",
+                "lifeId",
+                "originPath",
+                "parentId",
+                "serverId",
+                "size",
+                "timestamp"
+            ],
             "properties": {
                 "actionType": {
                     "type": "string"

@@ -3,7 +3,6 @@ import '@mantine/core/styles.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import axios from 'axios'
 import React, { Suspense, useEffect } from 'react'
-import { CookiesProvider } from 'react-cookie'
 import {
     BrowserRouter as Router,
     useLocation,
@@ -214,11 +213,9 @@ function App() {
 
     return (
         <MantineProvider defaultColorScheme="dark">
-            <CookiesProvider defaultSetOptions={{ path: '/' }}>
-                <Router>
-                    <WeblensRoutes />
-                </Router>
-            </CookiesProvider>
+            <Router>
+                <WeblensRoutes />
+            </Router>
         </MantineProvider>
     )
 }

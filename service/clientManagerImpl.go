@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -222,7 +223,7 @@ func (cm *ClientManager) Subscribe(
 				fileShare = fsh
 			}
 
-			folder, err = cm.pack.FileService.GetFileSafe(fileId, c.GetUser(), fileShare)
+			folder, err = cm.pack.GetFileService().GetFileSafe(fileId, c.GetUser(), fileShare)
 			if err != nil {
 				c.Error(err)
 				return
@@ -231,7 +232,7 @@ func (cm *ClientManager) Subscribe(
 			sub = models.Subscription{Type: models.FolderSubscribe, Key: key, When: subTime}
 			c.PushFileUpdate(folder, nil)
 
-			for _, t := range cm.pack.FileService.GetTasks(folder) {
+			for _, t := range cm.pack.GetFileService().GetTasks(folder) {
 				// c.SubUnlock()
 				_, _, err = cm.Subscribe(c, t.TaskId(), models.TaskSubscribe, time.Now(), nil)
 				// c.SubLock()
@@ -305,7 +306,7 @@ func (cm *ClientManager) Unsubscribe(c *models.WsClient, key models.SubId, unSub
 	}
 
 	if sub == (models.Subscription{}) {
-		return werror.Errorf("Could not find subscription with key [%s]", key)
+		return werror.WithStack(werror.ErrSubscriptionNotFound)
 	}
 	log.Trace.Func(func(l log.Logger) { l.Printf("Removing [%s]'s subscription to [%s]", c.GetUser().GetUsername(), key) })
 
@@ -339,8 +340,10 @@ func (cm *ClientManager) UnsubTask(taskId task.Id) {
 				"Unsubscribing U[%s] from T[%s]", s.GetUser().GetUsername(), taskId)
 		})
 		err := cm.Unsubscribe(s, taskId, time.Now())
-		if err != nil {
+		if err != nil && !errors.Is(err, werror.ErrSubscriptionNotFound) {
 			log.ShowErr(err)
+		} else if err != nil {
+			log.Warning.Printf("Subscription [%s] not found in unsub task", taskId)
 		}
 	}
 }
@@ -355,7 +358,7 @@ func (cm *ClientManager) Send(msg models.WsResponseInfo) {
 
 	var clients []*models.WsClient
 
-	if msg.BroadcastType == "serverEvent" || cm.pack.FileService == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
+	if msg.BroadcastType == "serverEvent" || cm.pack.GetFileService() == nil || cm.pack.InstanceService.GetLocal().GetRole() == models.BackupServerRole {
 		clients = cm.GetAllClients()
 	} else {
 		clients = cm.GetSubscribers(msg.BroadcastType, msg.SubscribeKey)

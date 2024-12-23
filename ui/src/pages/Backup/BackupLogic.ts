@@ -1,5 +1,5 @@
 import { WsMsgEvent, wsMsgInfo } from '../../api/Websocket'
-import { TaskStageT } from '../FileBrowser/TaskStateControl'
+import { TaskStageT } from '../../store/TaskStateControl'
 
 export type RestoreProgress = {
     stage: string

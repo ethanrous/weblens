@@ -101,7 +101,7 @@ func (c *SimpleCaster) msgWorker(cm models.ClientManager) {
 }
 
 func (c *SimpleCaster) addToQueue(msg models.WsResponseInfo) {
-	log.Trace.Println("Caster adding message with event [%s] to queue", msg.EventTag)
+	log.Trace.Printf("Caster adding message with event [%s] to queue", msg.EventTag)
 	c.flushLock.RLock()
 	defer c.flushLock.RUnlock()
 	c.msgChan <- (msg)

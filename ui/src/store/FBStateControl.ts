@@ -14,7 +14,10 @@ import { NavigateFunction, NavigateOptions, To } from 'react-router-dom'
 import { StateCreator, create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
-import { DirViewModeT, FbViewOptsT } from './FileBrowserTypes'
+import {
+    DirViewModeT,
+    FbViewOptsT,
+} from '../pages/FileBrowser/FileBrowserTypes'
 
 export enum FbModeT {
     unset,
@@ -897,7 +900,7 @@ const FBStateControl: StateCreator<
                 }
 
                 const file = new WeblensFile(newFileInfo)
-                if (selfFile.Id() == 'shared') {
+                if (selfFile.Id() === 'shared') {
                     file.parentId = selfFile.Id()
                 }
                 changedFiles = true
