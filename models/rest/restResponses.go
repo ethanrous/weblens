@@ -45,13 +45,13 @@ type FileInfo struct {
 	ContentId    models.ContentId `json:"contentId"`
 	Owner        models.Username  `json:"owner"`
 	ShareId      models.ShareId   `json:"shareId,omitempty"`
+	PastId       string           `json:"currentId"`
 	Children     []string         `json:"childrenIds"`
 	Size         int64            `json:"size"`
 	ModTime      int64            `json:"modifyTimestamp"`
 	IsDir        bool             `json:"isDir"`
 	Modifiable   bool             `json:"modifiable"`
 	PastFile     bool             `json:"pastFile"`
-	PastId       string           `json:"currentId"`
 } // @name FileInfo
 
 func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack, isPastFile bool) (FileInfo, error) {
@@ -108,10 +108,10 @@ func WeblensFileToFileInfo(f *fileTree.WeblensFileImpl, pack *models.ServicePack
 }
 
 type FolderInfoResponse struct {
-	Self     FileInfo    `json:"self"`
 	Children []FileInfo  `json:"children"`
 	Parents  []FileInfo  `json:"parents"`
 	Medias   []MediaInfo `json:"medias"`
+	Self     FileInfo    `json:"self"`
 } // @name FolderInfo
 
 type MediaBatchInfo struct {

@@ -426,7 +426,6 @@ type MediaService interface {
 	FetchCacheImg(m *Media, quality MediaQuality, pageNum int) ([]byte, error)
 	StreamVideo(m *Media, u *User, share *FileShare) (*VideoStreamer, error)
 	StreamCacheVideo(m *Media, startByte, endByte int) ([]byte, error)
-	NukeCache() error
 
 	GetFilteredMedia(
 		requester *User, sort string, sortDirection int, excludeIds []ContentId, raw bool, hidden bool, search string,

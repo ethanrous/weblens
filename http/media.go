@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ethanrous/bimg"
 	"github.com/ethanrous/weblens/fileTree"
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
+	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 // GetMedia godoc
@@ -510,8 +510,17 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 	}
 
 	if format == "png" {
-		image := bimg.NewImage(bs)
-		bs, err = image.Convert(bimg.PNG)
+		mw := imagick.NewMagickWand()
+		err = mw.ReadImageBlob(bs)
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+		err = mw.SetImageFormat("png")
+		if SafeErrorAndExit(err, w) {
+			return
+		}
+
+		bs, err = mw.GetImageBlob()
 		if SafeErrorAndExit(err, w) {
 			return
 		}

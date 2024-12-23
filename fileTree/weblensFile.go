@@ -68,6 +68,10 @@ type WeblensFileImpl struct {
 	contentId string
 
 	parentId FileId
+
+	// the id of the file in the past, if a new file is occupying the same path as this file
+	pastId string
+
 	childIds []FileId
 
 	buffer []byte
@@ -99,9 +103,6 @@ type WeblensFileImpl struct {
 	// this file represents a file possibly not on the filesystem
 	// anymore, but was at some point in the past
 	pastFile bool
-
-	// the id of the file in the past, if a new file is occupying the same path as this file
-	pastId string
 
 	// memOnly if the file is meant to only be stored in memory,
 	// writing to it will only write to the buffer

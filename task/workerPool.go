@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethanrous/weblens/internal"
 	"github.com/ethanrous/weblens/internal/log"
-	"github.com/ethanrous/weblens/internal/metrics"
 	"github.com/ethanrous/weblens/internal/werror"
 	"github.com/google/uuid"
 )
@@ -38,6 +37,8 @@ type WorkerPool struct {
 
 	exitSignal chan bool
 
+	log log.Bundle
+
 	retryBuffer    []*Task
 	maxWorkers     atomic.Int64 // Max allowed worker count
 	currentWorkers atomic.Int64 // Current total of workers on the pool
@@ -45,8 +46,6 @@ type WorkerPool struct {
 	lifetimeQueuedCount atomic.Int64
 
 	exitFlag atomic.Int64
-
-	log log.Bundle
 
 	jobsMu sync.RWMutex
 
@@ -450,7 +449,6 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Inc tasks being processed
 					wp.busyCount.Add(1)
-					metrics.BusyWorkerGuage.Inc()
 					t.SwLap("Task start")
 					wp.log.Trace.Func(func(l log.Logger) { l.Printf("Starting %s task T[%s]", t.jobName, t.taskId) })
 					wp.safetyWork(t, workerId)
@@ -462,7 +460,6 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Dec tasks being processed
 					wp.busyCount.Add(-1)
-					metrics.BusyWorkerGuage.Dec()
 
 					// Tasks must set their completed flag before exiting
 					// if it wasn't done in the work body, we do it for them

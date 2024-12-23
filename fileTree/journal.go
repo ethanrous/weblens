@@ -20,8 +20,6 @@ import (
 var _ Journal = (*JournalImpl)(nil)
 
 type JournalImpl struct {
-	log log.Bundle
-
 	lifetimes   map[FileId]*Lifetime
 	eventStream chan *FileEvent
 
@@ -30,11 +28,13 @@ type JournalImpl struct {
 
 	hasherFactory func() Hasher
 
+	flushCond *sync.Cond
+
+	log log.Bundle
+
 	serverId string
 
 	lifetimeMapLock sync.RWMutex
-
-	flushCond *sync.Cond
 
 	// Do not register actions that happen on the local server.
 	// This is used in backup servers.
