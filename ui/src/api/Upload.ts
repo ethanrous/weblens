@@ -1,4 +1,5 @@
 import { useUploadStatus } from '@weblens/store/UploadStateControl'
+import { ErrorHandler } from '@weblens/types/Types'
 import { AxiosProgressEvent } from 'axios'
 
 import { FileApi } from './FileBrowserApi'
@@ -119,10 +120,10 @@ function queueChunks(
                             .updateProgress(key, thisChunkIndex, e.loaded)
                     },
                 }
-            ).catch((err) => {
+            ).catch((err: Error) => {
                 taskQueue.cancelQueue()
                 useUploadStatus.getState().setError(key, String(err))
-                console.error('Failed to upload chunk', err)
+                ErrorHandler(err)
             })
             useUploadStatus.getState().chunkComplete(key, thisChunkIndex)
 
@@ -161,6 +162,7 @@ async function Upload(
     shareId: string,
     uploadId: string
 ) {
+    console.debug('Starting upload...')
     const newUpload = useUploadStatus.getState().newUpload
 
     if (isPublic && !shareId) {
@@ -178,12 +180,17 @@ async function Upload(
             ;(meta.entry as FileSystemFileEntry).file((f) => {
                 meta.file = f
             })
-            let count = 0
-            while (!meta.file && count < 1000) {
-                await new Promise((r) => setTimeout(r, 1))
-                count++
-            }
         }
+    }
+
+    let count = 0
+    while (!filesMeta[filesMeta.length - 1].file && count < 1000) {
+        console.debug('Upload waiting...')
+        await new Promise((r) => setTimeout(r, 1))
+        count++
+    }
+
+    for (const meta of filesMeta) {
         if (meta.isTopLevel) {
             const name = meta.file?.name ?? meta.entry.name
             const key: string = meta.folderId || meta.parentId + name
@@ -196,6 +203,7 @@ async function Upload(
         }
     }
 
+    console.log('Collecting files to upload')
     const newFiles: NewFileParams[] = []
     filesMeta.forEach((v) => {
         if (v.isDir) {
@@ -207,6 +215,7 @@ async function Upload(
             fileSize: v.file.size,
         })
     })
+    console.log('Adding all files to upload')
 
     const newFilesRes = await FileApi.addFilesToUpload(uploadId, {
         newFiles: newFiles,

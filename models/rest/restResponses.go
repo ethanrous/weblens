@@ -443,3 +443,7 @@ func AlbumToAlbumInfo(a *models.Album) AlbumInfo {
 		ShowOnTimeline: a.ShowOnTimeline,
 	}
 }
+
+type RestoreFilesInfo struct {
+	NewParentId string `json:"newParentId"`
+} //	@name	RestoreFilesInfo

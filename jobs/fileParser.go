@@ -197,7 +197,7 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 			return fId == meta.File.ID()
 		},
 	) {
-		log.Trace.Printf("Media already exists for %s\n", meta.File.Filename())
+		log.Trace.Printf("Media already exists for %s", meta.File.Filename())
 		return nil
 	}
 	sw.Lap("New media")
@@ -208,7 +208,12 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 
 	meta.PartialMedia.ContentID = meta.File.GetContentId()
 	meta.PartialMedia.FileIDs = []fileTree.FileId{meta.File.ID()}
-	meta.PartialMedia.Owner = meta.FileService.GetFileOwner(meta.File).GetUsername()
+
+	owner := meta.FileService.GetFileOwner(meta.File)
+	if owner == nil {
+		return werror.WithStack(werror.ErrNoUser)
+	}
+	meta.PartialMedia.Owner = owner.GetUsername()
 
 	exitCheck()
 
@@ -231,7 +236,7 @@ func ScanFile_(meta models.ScanMeta, exitCheck func()) error {
 		log.Trace.Printf("Added %s to media service", meta.File.Filename())
 		sw.Lap("Added media to service")
 	} else {
-		log.Debug.Printf("Media already exists for %s\n", meta.File.Filename())
+		log.Debug.Printf("Media already exists for %s", meta.File.Filename())
 	}
 
 	meta.Caster.PushFileUpdate(meta.File, meta.PartialMedia)

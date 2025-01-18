@@ -165,11 +165,8 @@ func (wsc *WsClient) RemoveSubscription(key SubId) {
 		wsc.updateMu.Unlock()
 		return
 	}
-	var subToRemove Subscription
-	wsc.subscriptions, subToRemove = internal.Yoink(wsc.subscriptions, subIndex)
+	wsc.subscriptions, _ = internal.Yoink(wsc.subscriptions, subIndex)
 	wsc.updateMu.Unlock()
-
-	log.Trace.Func(func(l log.Logger) { l.Printf("[%s] unsubscribing from %s", wsc.user.GetUsername(), subToRemove) })
 }
 
 func (wsc *WsClient) Raw(msg any) error {

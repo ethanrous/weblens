@@ -59,9 +59,6 @@ func NewUser(username Username, password string, isAdmin, autoActivate bool) (*U
 }
 
 func (u *User) GetUsername() Username {
-	if u == nil {
-		return ""
-	}
 	return u.Username
 }
 

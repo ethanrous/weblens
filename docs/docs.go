@@ -19,283 +19,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/albums": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Album"
-                ],
-                "summary": "Get albums for a user",
-                "operationId": "GetAlbums",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Albums filter",
-                        "name": "filter",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Album Infos",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/AlbumInfo"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Album"
-                ],
-                "summary": "Create a new album",
-                "operationId": "CreateAlbum",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "name": "name",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Album Info",
-                        "schema": {
-                            "$ref": "#/definitions/AlbumInfo"
-                        }
-                    }
-                }
-            }
-        },
-        "/albums/{albumId}": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Album"
-                ],
-                "summary": "Get album by album Id",
-                "operationId": "GetAlbum",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Album Id",
-                        "name": "albumId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Album Info",
-                        "schema": {
-                            "$ref": "#/definitions/AlbumInfo"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Album"
-                ],
-                "summary": "Delete an Album, or unshare it if the user is not the owner",
-                "operationId": "DeleteOrLeaveAlbum",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Album Id",
-                        "name": "albumId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Album"
-                ],
-                "summary": "Update an Album",
-                "operationId": "UpdateAlbum",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Album Id",
-                        "name": "albumId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "name": "cover",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "name": "newFolders",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "name": "newMedia",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "name": "newName",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "name": "removeMedia",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "name": "removeUsers",
-                        "in": "query"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "name": "users",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
-        },
-        "/albums/{albumId}/media": {
-            "get": {
-                "security": [
-                    {
-                        "SessionAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Album"
-                ],
-                "summary": "Get media in an album",
-                "operationId": "GetAlbumMedia",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Album Id",
-                        "name": "albumId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Share Id",
-                        "name": "shareId",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Media Info",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/MediaInfo"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found"
-                    }
-                }
-            }
-        },
         "/files": {
             "delete": {
                 "security": [
@@ -1473,7 +1196,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/media/{mediaId}/like": {
+        "/media/{mediaId}/liked": {
             "patch": {
                 "security": [
                     {
@@ -1495,6 +1218,12 @@ const docTemplate = `{
                         "name": "mediaId",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "ShareId",
+                        "name": "shareId",
+                        "in": "query"
                     },
                     {
                         "type": "boolean",
@@ -2037,6 +1766,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/NewUploadParams"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Share Id",
+                        "name": "shareId",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2605,38 +2340,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "AlbumInfo": {
-            "type": "object",
-            "properties": {
-                "cover": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "medias": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "owner": {
-                    "type": "string"
-                },
-                "primaryColor": {
-                    "type": "string"
-                },
-                "secondaryColor": {
-                    "type": "string"
-                },
-                "showOnTimeline": {
-                    "type": "boolean"
-                }
-            }
-        },
         "AlbumShareParams": {
             "type": "object",
             "properties": {

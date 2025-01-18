@@ -1012,7 +1012,7 @@ function FileBrowser() {
             const folder = filesMap.get(contentId)
             if (
                 folder &&
-                (!pastTime || folder.modifyDate === pastTime) &&
+                (pastTime.getTime() === 0 || folder.modifyDate === pastTime) &&
                 (folder.GetFetching() ||
                     (folder.modifiable !== undefined &&
                         folder.childrenIds &&

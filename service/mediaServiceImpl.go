@@ -53,6 +53,8 @@ type MediaServiceImpl struct {
 
 	ollama *ollama.Client
 
+	doImageRecog bool
+
 	log log.Bundle
 
 	mediaLock sync.RWMutex
@@ -101,6 +103,7 @@ func NewMediaService(
 		AlbumService: albumService,
 		filesBuffer:  sync.Pool{New: func() any { return &[]byte{} }},
 		log:          logger,
+		doImageRecog: os.Getenv("OLLAMA_HOST") != "",
 	}
 
 	client, err := ollama.ClientFromEnvironment()
@@ -211,8 +214,8 @@ func (ms *MediaServiceImpl) Get(mId models.ContentId) *models.Media {
 	}
 
 	ms.mediaLock.RLock()
+	defer ms.mediaLock.RUnlock()
 	m := ms.mediaMap[mId]
-	ms.mediaLock.RUnlock()
 
 	return m
 }
@@ -519,10 +522,8 @@ func (ms *MediaServiceImpl) StreamVideo(
 }
 
 func (ms *MediaServiceImpl) SetMediaLiked(mediaId models.ContentId, liked bool, username models.Username) error {
-	ms.mediaLock.Lock()
-	defer ms.mediaLock.Unlock()
-	m, ok := ms.mediaMap[mediaId]
-	if !ok {
+	m := ms.Get(mediaId)
+	if m == nil {
 		return werror.Errorf("Could not find media with id [%s] while trying to update liked array", mediaId)
 	}
 
@@ -676,7 +677,7 @@ func (ms *MediaServiceImpl) LoadMediaFromFile(m *models.Media, file *fileTree.We
 		return err
 	}
 
-	if !mType.Video {
+	if !mType.Video && ms.doImageRecog {
 		go func() {
 			err := ms.GetImageTags(m, thumb)
 			if err != nil {
@@ -918,6 +919,8 @@ func (ms *MediaServiceImpl) getFetchMediaCacheImage(ctx context.Context) (data [
 		return nil, werror.Errorf("This should never happen... file is nil in GetFetchMediaCacheImage")
 	}
 
+	log.Trace.Printf("Reading image cache for media [%s]", m.ID())
+
 	data, err = f.ReadAll()
 	if err != nil {
 		return nil, err
@@ -959,8 +962,8 @@ func (ms *MediaServiceImpl) getCacheFile(
 var recogLock sync.Mutex
 
 func (ms *MediaServiceImpl) GetImageTags(m *models.Media, imageBytes []byte) error {
-	if host := os.Getenv("OLLAMA_HOST"); host == "" {
-		return werror.Errorf("Invalid OLLAMA_HOST found, not running image recognition")
+	if !ms.doImageRecog {
+		return nil
 	}
 
 	recogLock.Lock()

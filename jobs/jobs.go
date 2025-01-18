@@ -221,9 +221,18 @@ func HandleFileUploads(t *task.Task) {
 
 	timeout := false
 
+	t.SetErrorCleanup(func(*task.Task) {
+		fileEvent.LogLock.Lock()
+		defer fileEvent.LogLock.Unlock()
+		if fileEvent.Logged {
+			return
+		}
+		meta.FileService.GetJournalByTree("USERS").LogEvent(fileEvent)
+	})
+
 WriterLoop:
 	for {
-		t.SetTimeout(time.Now().Add(time.Second * 10))
+		t.SetTimeout(time.Now().Add(time.Second * 60))
 		select {
 		case signal := <-t.GetSignalChan(): // Listen for cancellation
 			if signal == 1 {
@@ -268,6 +277,7 @@ WriterLoop:
 			// the specific file has had an error or been canceled, and should be removed.
 			if total == -1 {
 				delete(fileMap, chunk.FileId)
+				continue
 			}
 
 			chnk := fileMap[chunk.FileId]
@@ -374,6 +384,8 @@ WriterLoop:
 	}
 	newTp.SignalAllQueued()
 
+	log.Debug.Println("Upload finished, cleaning up...")
+
 	err = meta.FileService.ResizeUp(rootFile, fileEvent, meta.Caster)
 	if err != nil {
 		t.ReqNoErr(err)
@@ -449,7 +461,11 @@ func HashFile(t *task.Task) {
 	contentId, err := service.GenerateContentId(meta.File)
 	t.ReqNoErr(err)
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file %s to %s", meta.File.GetPortablePath(), contentId) })
+	if contentId == "" && meta.File.Size() != 0 {
+		t.Fail(werror.ErrNoContentId)
+	}
+
+	log.Trace.Func(func(l log.Logger) { l.Printf("Hashed file [%s] to [%s]", meta.File.GetPortablePath(), contentId) })
 
 	// TODO - sync database content id if this file is created before being added to db (i.e upload)
 	// err = dataStore.SetContentId(meta.file, contentId)

@@ -26,61 +26,6 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerM
 /**
  * 
  * @export
- * @interface AlbumInfo
- */
-export interface AlbumInfo {
-    /**
-     * 
-     * @type {string}
-     * @memberof AlbumInfo
-     */
-    'cover'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof AlbumInfo
-     */
-    'id'?: string;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof AlbumInfo
-     */
-    'medias'?: Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof AlbumInfo
-     */
-    'name'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof AlbumInfo
-     */
-    'owner'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof AlbumInfo
-     */
-    'primaryColor'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof AlbumInfo
-     */
-    'secondaryColor'?: string;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof AlbumInfo
-     */
-    'showOnTimeline'?: boolean;
-}
-/**
- * 
- * @export
  * @interface AlbumShareParams
  */
 export interface AlbumShareParams {
@@ -1363,541 +1308,6 @@ export interface UserInfoArchive {
 }
 
 /**
- * AlbumApi - axios parameter creator
- * @export
- */
-export const AlbumApiAxiosParamCreator = function (configuration?: Configuration) {
-    return {
-        /**
-         * 
-         * @summary Create a new album
-         * @param {string} [name] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        createAlbum: async (name?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/albums`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (name !== undefined) {
-                localVarQueryParameter['name'] = name;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Delete an Album, or unshare it if the user is not the owner
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        deleteOrLeaveAlbum: async (albumId: string, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'albumId' is not null or undefined
-            assertParamExists('deleteOrLeaveAlbum', 'albumId', albumId)
-            const localVarPath = `/albums/{albumId}`
-                .replace(`{${"albumId"}}`, encodeURIComponent(String(albumId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (shareId !== undefined) {
-                localVarQueryParameter['shareId'] = shareId;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Get album by album Id
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAlbum: async (albumId: string, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'albumId' is not null or undefined
-            assertParamExists('getAlbum', 'albumId', albumId)
-            const localVarPath = `/albums/{albumId}`
-                .replace(`{${"albumId"}}`, encodeURIComponent(String(albumId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (shareId !== undefined) {
-                localVarQueryParameter['shareId'] = shareId;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Get media in an album
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAlbumMedia: async (albumId: string, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'albumId' is not null or undefined
-            assertParamExists('getAlbumMedia', 'albumId', albumId)
-            const localVarPath = `/albums/{albumId}/media`
-                .replace(`{${"albumId"}}`, encodeURIComponent(String(albumId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (shareId !== undefined) {
-                localVarQueryParameter['shareId'] = shareId;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Get albums for a user
-         * @param {string} [filter] Albums filter
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAlbums: async (filter?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/albums`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (filter !== undefined) {
-                localVarQueryParameter['filter'] = filter;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Update an Album
-         * @param {string} albumId Album Id
-         * @param {string} [cover] 
-         * @param {Array<string>} [newFolders] 
-         * @param {Array<string>} [newMedia] 
-         * @param {string} [newName] 
-         * @param {Array<string>} [removeMedia] 
-         * @param {Array<string>} [removeUsers] 
-         * @param {Array<string>} [users] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateAlbum: async (albumId: string, cover?: string, newFolders?: Array<string>, newMedia?: Array<string>, newName?: string, removeMedia?: Array<string>, removeUsers?: Array<string>, users?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'albumId' is not null or undefined
-            assertParamExists('updateAlbum', 'albumId', albumId)
-            const localVarPath = `/albums/{albumId}`
-                .replace(`{${"albumId"}}`, encodeURIComponent(String(albumId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (cover !== undefined) {
-                localVarQueryParameter['cover'] = cover;
-            }
-
-            if (newFolders) {
-                localVarQueryParameter['newFolders'] = newFolders.join(COLLECTION_FORMATS.csv);
-            }
-
-            if (newMedia) {
-                localVarQueryParameter['newMedia'] = newMedia.join(COLLECTION_FORMATS.csv);
-            }
-
-            if (newName !== undefined) {
-                localVarQueryParameter['newName'] = newName;
-            }
-
-            if (removeMedia) {
-                localVarQueryParameter['removeMedia'] = removeMedia.join(COLLECTION_FORMATS.csv);
-            }
-
-            if (removeUsers) {
-                localVarQueryParameter['removeUsers'] = removeUsers.join(COLLECTION_FORMATS.csv);
-            }
-
-            if (users) {
-                localVarQueryParameter['users'] = users.join(COLLECTION_FORMATS.csv);
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-    }
-};
-
-/**
- * AlbumApi - functional programming interface
- * @export
- */
-export const AlbumApiFp = function(configuration?: Configuration) {
-    const localVarAxiosParamCreator = AlbumApiAxiosParamCreator(configuration)
-    return {
-        /**
-         * 
-         * @summary Create a new album
-         * @param {string} [name] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async createAlbum(name?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<AlbumInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.createAlbum(name, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AlbumApi.createAlbum']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Delete an Album, or unshare it if the user is not the owner
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async deleteOrLeaveAlbum(albumId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteOrLeaveAlbum(albumId, shareId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AlbumApi.deleteOrLeaveAlbum']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Get album by album Id
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getAlbum(albumId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<AlbumInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAlbum(albumId, shareId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AlbumApi.getAlbum']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Get media in an album
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getAlbumMedia(albumId: string, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<MediaInfo>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAlbumMedia(albumId, shareId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AlbumApi.getAlbumMedia']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Get albums for a user
-         * @param {string} [filter] Albums filter
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getAlbums(filter?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<AlbumInfo>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAlbums(filter, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AlbumApi.getAlbums']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Update an Album
-         * @param {string} albumId Album Id
-         * @param {string} [cover] 
-         * @param {Array<string>} [newFolders] 
-         * @param {Array<string>} [newMedia] 
-         * @param {string} [newName] 
-         * @param {Array<string>} [removeMedia] 
-         * @param {Array<string>} [removeUsers] 
-         * @param {Array<string>} [users] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async updateAlbum(albumId: string, cover?: string, newFolders?: Array<string>, newMedia?: Array<string>, newName?: string, removeMedia?: Array<string>, removeUsers?: Array<string>, users?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.updateAlbum(albumId, cover, newFolders, newMedia, newName, removeMedia, removeUsers, users, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['AlbumApi.updateAlbum']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-    }
-};
-
-/**
- * AlbumApi - factory interface
- * @export
- */
-export const AlbumApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
-    const localVarFp = AlbumApiFp(configuration)
-    return {
-        /**
-         * 
-         * @summary Create a new album
-         * @param {string} [name] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        createAlbum(name?: string, options?: RawAxiosRequestConfig): AxiosPromise<AlbumInfo> {
-            return localVarFp.createAlbum(name, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Delete an Album, or unshare it if the user is not the owner
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        deleteOrLeaveAlbum(albumId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.deleteOrLeaveAlbum(albumId, shareId, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Get album by album Id
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAlbum(albumId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<AlbumInfo> {
-            return localVarFp.getAlbum(albumId, shareId, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Get media in an album
-         * @param {string} albumId Album Id
-         * @param {string} [shareId] Share Id
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAlbumMedia(albumId: string, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<MediaInfo>> {
-            return localVarFp.getAlbumMedia(albumId, shareId, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Get albums for a user
-         * @param {string} [filter] Albums filter
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAlbums(filter?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<AlbumInfo>> {
-            return localVarFp.getAlbums(filter, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Update an Album
-         * @param {string} albumId Album Id
-         * @param {string} [cover] 
-         * @param {Array<string>} [newFolders] 
-         * @param {Array<string>} [newMedia] 
-         * @param {string} [newName] 
-         * @param {Array<string>} [removeMedia] 
-         * @param {Array<string>} [removeUsers] 
-         * @param {Array<string>} [users] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        updateAlbum(albumId: string, cover?: string, newFolders?: Array<string>, newMedia?: Array<string>, newName?: string, removeMedia?: Array<string>, removeUsers?: Array<string>, users?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.updateAlbum(albumId, cover, newFolders, newMedia, newName, removeMedia, removeUsers, users, options).then((request) => request(axios, basePath));
-        },
-    };
-};
-
-/**
- * AlbumApi - object-oriented interface
- * @export
- * @class AlbumApi
- * @extends {BaseAPI}
- */
-export class AlbumApi extends BaseAPI {
-    /**
-     * 
-     * @summary Create a new album
-     * @param {string} [name] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof AlbumApi
-     */
-    public createAlbum(name?: string, options?: RawAxiosRequestConfig) {
-        return AlbumApiFp(this.configuration).createAlbum(name, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Delete an Album, or unshare it if the user is not the owner
-     * @param {string} albumId Album Id
-     * @param {string} [shareId] Share Id
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof AlbumApi
-     */
-    public deleteOrLeaveAlbum(albumId: string, shareId?: string, options?: RawAxiosRequestConfig) {
-        return AlbumApiFp(this.configuration).deleteOrLeaveAlbum(albumId, shareId, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Get album by album Id
-     * @param {string} albumId Album Id
-     * @param {string} [shareId] Share Id
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof AlbumApi
-     */
-    public getAlbum(albumId: string, shareId?: string, options?: RawAxiosRequestConfig) {
-        return AlbumApiFp(this.configuration).getAlbum(albumId, shareId, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Get media in an album
-     * @param {string} albumId Album Id
-     * @param {string} [shareId] Share Id
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof AlbumApi
-     */
-    public getAlbumMedia(albumId: string, shareId?: string, options?: RawAxiosRequestConfig) {
-        return AlbumApiFp(this.configuration).getAlbumMedia(albumId, shareId, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Get albums for a user
-     * @param {string} [filter] Albums filter
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof AlbumApi
-     */
-    public getAlbums(filter?: string, options?: RawAxiosRequestConfig) {
-        return AlbumApiFp(this.configuration).getAlbums(filter, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Update an Album
-     * @param {string} albumId Album Id
-     * @param {string} [cover] 
-     * @param {Array<string>} [newFolders] 
-     * @param {Array<string>} [newMedia] 
-     * @param {string} [newName] 
-     * @param {Array<string>} [removeMedia] 
-     * @param {Array<string>} [removeUsers] 
-     * @param {Array<string>} [users] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof AlbumApi
-     */
-    public updateAlbum(albumId: string, cover?: string, newFolders?: Array<string>, newMedia?: Array<string>, newName?: string, removeMedia?: Array<string>, removeUsers?: Array<string>, users?: Array<string>, options?: RawAxiosRequestConfig) {
-        return AlbumApiFp(this.configuration).updateAlbum(albumId, cover, newFolders, newMedia, newName, removeMedia, removeUsers, users, options).then((request) => request(this.axios, this.basePath));
-    }
-}
-
-
-
-/**
  * ApiKeysApi - axios parameter creator
  * @export
  */
@@ -2632,10 +2042,11 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
          * 
          * @summary Begin a new upload task
          * @param {NewUploadParams} request New upload request body
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        startUpload: async (request: NewUploadParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        startUpload: async (request: NewUploadParams, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'request' is not null or undefined
             assertParamExists('startUpload', 'request', request)
             const localVarPath = `/upload`;
@@ -2649,6 +2060,10 @@ export const FilesApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (shareId !== undefined) {
+                localVarQueryParameter['shareId'] = shareId;
+            }
 
 
     
@@ -2979,11 +2394,12 @@ export const FilesApiFp = function(configuration?: Configuration) {
          * 
          * @summary Begin a new upload task
          * @param {NewUploadParams} request New upload request body
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async startUpload(request: NewUploadParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewUploadInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.startUpload(request, options);
+        async startUpload(request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NewUploadInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.startUpload(request, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['FilesApi.startUpload']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3181,11 +2597,12 @@ export const FilesApiFactory = function (configuration?: Configuration, basePath
          * 
          * @summary Begin a new upload task
          * @param {NewUploadParams} request New upload request body
+         * @param {string} [shareId] Share Id
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        startUpload(request: NewUploadParams, options?: RawAxiosRequestConfig): AxiosPromise<NewUploadInfo> {
-            return localVarFp.startUpload(request, options).then((request) => request(axios, basePath));
+        startUpload(request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<NewUploadInfo> {
+            return localVarFp.startUpload(request, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -3397,12 +2814,13 @@ export class FilesApi extends BaseAPI {
      * 
      * @summary Begin a new upload task
      * @param {NewUploadParams} request New upload request body
+     * @param {string} [shareId] Share Id
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof FilesApi
      */
-    public startUpload(request: NewUploadParams, options?: RawAxiosRequestConfig) {
-        return FilesApiFp(this.configuration).startUpload(request, options).then((request) => request(this.axios, this.basePath));
+    public startUpload(request: NewUploadParams, shareId?: string, options?: RawAxiosRequestConfig) {
+        return FilesApiFp(this.configuration).startUpload(request, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4152,15 +3570,16 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
          * @summary Like a media
          * @param {string} mediaId Id of media
          * @param {boolean} liked Liked status to set
+         * @param {string} [shareId] ShareId
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setMediaLiked: async (mediaId: string, liked: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        setMediaLiked: async (mediaId: string, liked: boolean, shareId?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'mediaId' is not null or undefined
             assertParamExists('setMediaLiked', 'mediaId', mediaId)
             // verify required parameter 'liked' is not null or undefined
             assertParamExists('setMediaLiked', 'liked', liked)
-            const localVarPath = `/media/{mediaId}/like`
+            const localVarPath = `/media/{mediaId}/liked`
                 .replace(`{${"mediaId"}}`, encodeURIComponent(String(mediaId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -4172,6 +3591,10 @@ export const MediaApiAxiosParamCreator = function (configuration?: Configuration
             const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (shareId !== undefined) {
+                localVarQueryParameter['shareId'] = shareId;
+            }
 
             if (liked !== undefined) {
                 localVarQueryParameter['liked'] = liked;
@@ -4332,11 +3755,12 @@ export const MediaApiFp = function(configuration?: Configuration) {
          * @summary Like a media
          * @param {string} mediaId Id of media
          * @param {boolean} liked Liked status to set
+         * @param {string} [shareId] ShareId
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async setMediaLiked(mediaId: string, liked: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.setMediaLiked(mediaId, liked, options);
+        async setMediaLiked(mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.setMediaLiked(mediaId, liked, shareId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['MediaApi.setMediaLiked']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4438,11 +3862,12 @@ export const MediaApiFactory = function (configuration?: Configuration, basePath
          * @summary Like a media
          * @param {string} mediaId Id of media
          * @param {boolean} liked Liked status to set
+         * @param {string} [shareId] ShareId
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        setMediaLiked(mediaId: string, liked: boolean, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.setMediaLiked(mediaId, liked, options).then((request) => request(axios, basePath));
+        setMediaLiked(mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.setMediaLiked(mediaId, liked, shareId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -4550,12 +3975,13 @@ export class MediaApi extends BaseAPI {
      * @summary Like a media
      * @param {string} mediaId Id of media
      * @param {boolean} liked Liked status to set
+     * @param {string} [shareId] ShareId
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof MediaApi
      */
-    public setMediaLiked(mediaId: string, liked: boolean, options?: RawAxiosRequestConfig) {
-        return MediaApiFp(this.configuration).setMediaLiked(mediaId, liked, options).then((request) => request(this.axios, this.basePath));
+    public setMediaLiked(mediaId: string, liked: boolean, shareId?: string, options?: RawAxiosRequestConfig) {
+        return MediaApiFp(this.configuration).setMediaLiked(mediaId, liked, shareId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

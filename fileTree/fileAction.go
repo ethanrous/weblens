@@ -53,6 +53,13 @@ func (fa *FileAction) GetDestinationPath() string {
 	return fa.DestinationPath
 }
 
+func (fa *FileAction) GetRelevantPath() string {
+	if fa.GetActionType() == FileDelete {
+		return fa.OriginPath
+	}
+	return fa.DestinationPath
+}
+
 func (fa *FileAction) GetActionType() FileActionType {
 	return fa.ActionType
 }

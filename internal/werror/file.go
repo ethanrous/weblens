@@ -55,6 +55,11 @@ var ErrFileAlreadyExists = ClientSafeErr{
 	statusCode: http.StatusConflict,
 }
 
+var ErrUploadAlreadyComplete = ClientSafeErr{
+	safeErr:    errors.New("upload does not exist or is already complete"),
+	statusCode: http.StatusNotFound,
+}
+
 var ErrNilFile = errors.New("file is required but is nil")
 var ErrFilenameRequired = errors.New("filename is required but is empty")
 var ErrEmptyMove = errors.New("refusing to perform move with same filename and same parent")
@@ -65,6 +70,11 @@ var ErrAlreadyWatching = errors.New("trying to watch directory that is already b
 var ErrFileAlreadyHasTask = errors.New("file already has a task")
 var ErrFileNoTask = errors.New("file does not have task")
 var ErrNoContentId = errors.New("file does not have a content id")
+
+var ErrEmptyFile = ClientSafeErr{
+	safeErr:    errors.New("file size is 0 and has no content"),
+	statusCode: http.StatusBadRequest,
+}
 
 var ErrNoFileTree = ClientSafeErr{
 	realError:  errors.New("filetree does not exist"),

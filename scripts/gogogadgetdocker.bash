@@ -122,11 +122,11 @@ rm -f ./build/bin/weblensbin
 
 printf "Building Weblens binary..."
 if [ $local == true ]; then
-	GIN_MODE=release CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &>./build/logs/weblens-build.log
+	CC=gcc CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags="-s -w" -o ./build/bin/weblensbin ./cmd/weblens/main.go &>./build/logs/weblens-build.log
 else
 	#shellcheck disable=SC2024
 	if ! sudo docker run -v ./:/source -v ./build/.cache/go-pkg:/go -v ./build/.cache/go-build:/root/.cache/go-build --platform "linux/$arch" --rm weblens-go-build-"${arch}" /bin/bash -c \
-		"cd /source && CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" &>./build/logs/weblens-build.log; then
+		"cd /source && CC=gcc CGO_ENABLED=1 CGO_CFLAGS_ALLOW='-Xpreprocessor' GOOS=linux GOARCH=$arch go build -v -ldflags=\"-s -w\" -o ./build/bin/weblensbin ./cmd/weblens/main.go" &>./build/logs/weblens-build.log; then
 		printf " FAILED\n"
 		cat ./build/logs/weblens-build.log
 		echo "Aborting container build. Ensure go build completes successfully before building container"

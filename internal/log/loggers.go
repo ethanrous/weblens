@@ -33,7 +33,7 @@ func init() {
 	// ErrorCatcher Same as error, but don't print the file and line. It is expected that what is being printed will include a file and line
 	// Useful for a generic panic cather function, where the line of the catcher function is not useful
 	// ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001B[0m", log.LstdFlags)
-	ErrorCatcher = log.New(os.Stdout, "\u001b[31m[ERROR] \u001b[0m", log.LstdFlags|log.Lshortfile)
+	ErrorCatcher = log.New(os.Stdout, "", 0)
 
 	// ErrorCatcher = &logger{prefix: "\u001b[31m[ERROR] \u001B[0m", defaultSkip: 4}
 }

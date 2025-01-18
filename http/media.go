@@ -14,7 +14,6 @@ import (
 	"github.com/ethanrous/weblens/models"
 	"github.com/ethanrous/weblens/models/rest"
 	"github.com/go-chi/chi/v5"
-	"gopkg.in/gographics/imagick.v3/imagick"
 )
 
 // GetMedia godoc
@@ -356,12 +355,13 @@ func adjustMediaDate(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Media
 //	@Produce	json
 //	@Param		mediaId	path	string	true	"Id of media"
+//	@Param		shareId	query	string	false	"ShareId"
 //	@Param		liked	query	bool	true	"Liked status to set"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404
 //	@Failure	500
-//	@Router		/media/{mediaId}/like [patch]
+//	@Router		/media/{mediaId}/liked [patch]
 func setMediaLiked(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	u, err := getUserFromCtx(r)
@@ -509,22 +509,23 @@ func getProcessedMedia(q models.MediaQuality, format string, w http.ResponseWrit
 		return
 	}
 
-	if format == "png" {
-		mw := imagick.NewMagickWand()
-		err = mw.ReadImageBlob(bs)
-		if SafeErrorAndExit(err, w) {
-			return
-		}
-		err = mw.SetImageFormat("png")
-		if SafeErrorAndExit(err, w) {
-			return
-		}
-
-		bs, err = mw.GetImageBlob()
-		if SafeErrorAndExit(err, w) {
-			return
-		}
-	}
+	// This segfaults in the cgo part of GetImageBlob() (which takes down the whole process) when on alpine right now, and I don't know why...
+	// if format == "png" {
+	// 	mw := imagick.NewMagickWand()
+	// 	err = mw.ReadImageBlob(bs)
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	// 	err = mw.SetImageFormat("png")
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	//
+	// 	bs, err = mw.GetImageBlob()
+	// 	if SafeErrorAndExit(err, w) {
+	// 		return
+	// 	}
+	// }
 
 	// Instruct the client to cache images that are returned
 	w.Header().Set("Cache-Control", "max-age=3600")

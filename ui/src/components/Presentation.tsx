@@ -6,6 +6,7 @@ import {
     IconFolder,
     IconHeart,
     IconPhoto,
+    IconUser,
     IconX,
 } from '@tabler/icons-react'
 import ReactCodeMirror from '@uiw/react-codemirror'
@@ -30,6 +31,7 @@ import {
     useMemo,
     useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { humanFileSize } from '../util'
 import { useSessionStore } from './UserInfo'
@@ -190,6 +192,7 @@ function TextDisplay({ file }: { file: WeblensFile }) {
 
 function MediaHeart({ mediaData }: { mediaData: WeblensMedia }) {
     const user = useSessionStore((state) => state.user)
+    const shareId = useFileBrowserStore((state) => state.shareId)
     const setMediaLiked = useMediaStore((state) => state.setLiked)
     const [likedHover, setLikedHover] = useState(false)
 
@@ -213,7 +216,7 @@ function MediaHeart({ mediaData }: { mediaData: WeblensMedia }) {
             data-shown={true}
             onClick={(e) => {
                 e.stopPropagation()
-                MediaApi.setMediaLiked(mediaData.Id(), !isLiked)
+                MediaApi.setMediaLiked(mediaData.Id(), !isLiked, shareId)
                     .then(() => {
                         setMediaLiked(mediaData.Id(), user.username)
                     })
@@ -226,17 +229,17 @@ function MediaHeart({ mediaData }: { mediaData: WeblensMedia }) {
                 setLikedHover(false)
             }}
         >
-            <div className="flex flex-col h-max items-center justify-center">
-                {mediaData.GetLikedBy()?.length !== 0 && (
-                    <p className="absolute text-xs right-0 -bottom-1">
-                        {mediaData.GetLikedBy()?.length}
-                    </p>
-                )}
+            <div className="flex flex-row h-max items-center justify-center relative">
                 <IconHeart
                     size={30}
                     fill={isLiked ? 'red' : ''}
                     color={isLiked ? 'red' : 'white'}
                 />
+                {mediaData.GetLikedBy()?.length !== 0 && (
+                    <p className="text-xs mt-auto">
+                        {mediaData.GetLikedBy()?.length}
+                    </p>
+                )}
             </div>
             {likedHover && otherLikes && (
                 <div className="flex flex-col bg-bottom-grey p-2 rounded items-center absolute bottom-7 right-0 w-max">
@@ -259,9 +262,12 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
     const mediaData = useMediaStore((state) =>
         state.mediaMap.get(file.GetContentId())
     )
+    const user = useSessionStore((state) => state.user)
+    const shareId = useFileBrowserStore((state) => state.shareId)
+
     const wsSend = useWebsocketStore((state) => state.wsSend)
     const removeLoading = useFileBrowserStore((state) => state.removeLoading)
-    const shareId = useFileBrowserStore((state) => state.shareId)
+    const nav = useNavigate()
 
     if (!file) {
         return null
@@ -303,19 +309,38 @@ export const FileInfo = ({ file }: { file: WeblensFile }) => {
                 {mediaData && (
                     <div>
                         <Divider className="p-1" />
-                        <div className="flex gap-1 items-center">
-                            <IconPhoto className="shrink-0" />
-                            <p className="text-xl text-white text-nowrap">
-                                {mediaData
-                                    .GetCreateDate()
-                                    .toLocaleDateString('en-us', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric',
-                                    })}
-                            </p>
-                            <MediaHeart mediaData={mediaData} />
-                        </div>
+                        {!user.isLoggedIn && (
+                            <div className="flex items-center">
+                                <WeblensButton
+                                    squareSize={40}
+                                    label="Login"
+                                    subtle
+                                    Left={IconUser}
+                                    onClick={() => {
+                                        const path = window.location.pathname
+                                        nav('/login', {
+                                            state: { returnTo: path },
+                                        })
+                                    }}
+                                />
+                                <p>To Like and Edit Media</p>
+                            </div>
+                        )}
+                        {user.isLoggedIn && (
+                            <div className="flex gap-1 items-center">
+                                <IconPhoto className="shrink-0" />
+                                <p className="text-xl text-white text-nowrap mr-4">
+                                    {mediaData
+                                        .GetCreateDate()
+                                        .toLocaleDateString('en-us', {
+                                            year: 'numeric',
+                                            month: 'short',
+                                            day: 'numeric',
+                                        })}
+                                </p>
+                                <MediaHeart mediaData={mediaData} />
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

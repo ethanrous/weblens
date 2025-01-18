@@ -59,7 +59,6 @@ export class WeblensFile {
         if (!init || !init.id) {
             throw new Error('trying to construct WeblensFile with no id')
         }
-        console.debug('Creating file', init)
 
         Object.assign(this, init)
         this.hovering = false

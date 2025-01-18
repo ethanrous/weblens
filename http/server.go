@@ -126,8 +126,8 @@ func (s *Server) UseApi() *chi.Mux {
 	r.Route("/media", func(r chi.Router) {
 		r.Get("/", getMediaBatch)
 		r.Get("/{mediaId}/file", getMediaFile)
-		r.Post("/{mediaId}/liked", setMediaLiked)
 		r.Post("/cleanup", cleanupMedia)
+		r.Patch("/{mediaId}/liked", setMediaLiked)
 		r.Patch("/visibility", hideMedia)
 		r.Patch("/date", adjustMediaDate)
 
@@ -218,14 +218,14 @@ func (s *Server) UseApi() *chi.Mux {
 	})
 
 	// Albums
-	r.Route("/albums", func(r chi.Router) {
-		r.Get("/", getAlbums)
-		r.Get("/{albumId}", getAlbum)
-		r.Get("/{albumId}/media", getAlbumMedia)
-		r.Post("/album", createAlbum)
-		r.Patch("/{albumId}", updateAlbum)
-		r.Delete("/{albumId}", deleteAlbum)
-	})
+	// r.Route("/albums", func(r chi.Router) {
+	// 	r.Get("/", getAlbums)
+	// 	r.Get("/{albumId}", getAlbum)
+	// 	r.Get("/{albumId}/media", getAlbumMedia)
+	// 	r.Post("/album", createAlbum)
+	// 	r.Patch("/{albumId}", updateAlbum)
+	// 	r.Delete("/{albumId}", deleteAlbum)
+	// })
 
 	// ApiKeys
 	r.Route("/keys", func(r chi.Router) {

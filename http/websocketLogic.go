@@ -339,5 +339,9 @@ func onWebConnect(c models.Client, pack *models.ServicePack) {
 }
 
 func wsRecover(c models.Client) {
-	internal.RecoverPanic(fmt.Sprintf("[%s] websocket panic", c.GetUser().GetUsername()))
+	name := ""
+	if u := c.GetUser(); u != nil {
+		name = u.GetUsername()
+	}
+	internal.RecoverPanic(fmt.Sprintf("[%s] websocket panic", name))
 }

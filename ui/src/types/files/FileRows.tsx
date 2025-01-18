@@ -1,4 +1,7 @@
-import { historyDate } from '@weblens/pages/FileBrowser/FileBrowserLogic'
+import {
+    HandleDrop,
+    historyDate,
+} from '@weblens/pages/FileBrowser/FileBrowserLogic'
 import {
     GetStartedCard,
     IconDisplay,
@@ -18,7 +21,8 @@ import { useResize } from 'components/hooks'
 import { CSSProperties, MouseEvent, useRef, useState } from 'react'
 import { FixedSizeList as WindowList } from 'react-window'
 
-import { Coordinates } from '../Types'
+import { Coordinates, ErrorHandler } from '../Types'
+import { DraggingStateT } from './FBTypes'
 
 function FileRow({
     data,
@@ -38,6 +42,7 @@ function FileRow({
     const viewOpts = useFileBrowserStore((state) => state.viewOpts)
     const folderInfo = useFileBrowserStore((state) => state.folderInfo)
     const selected = useFileBrowserStore((state) => state.selected)
+
     const setMoveDest = useFileBrowserStore((state) => state.setMoveDest)
     const setHovering = useFileBrowserStore((state) => state.setHovering)
     const setSelected = useFileBrowserStore((state) => state.setSelected)
@@ -164,9 +169,51 @@ function FileRow({
 export function FileRows({ files }: { files: WeblensFile[] }) {
     const [boxRef, setBoxRef] = useState<HTMLDivElement>()
     const size = useResize(boxRef)
+    const folderInfo = useFileBrowserStore((state) => state.folderInfo)
+    const moveDest = useFileBrowserStore((state) => state.moveDest)
+    const dragState = useFileBrowserStore((state) => state.draggingState)
+    const shareId = useFileBrowserStore((state) => state.shareId)
+
+    const setDragging = useFileBrowserStore((state) => state.setDragging)
 
     return (
-        <div ref={setBoxRef} className={filesStyle['file-rows']}>
+        <div
+            ref={setBoxRef}
+            className={filesStyle['file-rows']}
+            data-droppable={Boolean(
+                moveDest === folderInfo?.Id() &&
+                    folderInfo?.modifiable &&
+                    dragState === DraggingStateT.ExternalDrag
+            )}
+            data-bad-drop={Boolean(
+                moveDest === folderInfo?.Id() &&
+                    !folderInfo?.modifiable &&
+                    dragState === DraggingStateT.ExternalDrag
+            )}
+            onDragOver={(e) => {
+                // https://stackoverflow.com/questions/50230048/react-ondrop-is-not-firing
+                if (dragState === DraggingStateT.ExternalDrag) {
+                    e.preventDefault()
+                }
+            }}
+            onDrop={(e) => {
+                if (dragState !== DraggingStateT.ExternalDrag) {
+                    return
+                }
+
+                e.preventDefault()
+                if (folderInfo?.modifiable) {
+                    HandleDrop(
+                        e.dataTransfer.items,
+                        folderInfo.Id(),
+                        false,
+                        shareId
+                    ).catch(ErrorHandler)
+                }
+
+                setDragging(DraggingStateT.NoDrag)
+            }}
+        >
             {files.length === 0 && <GetStartedCard />}
             {files.length !== 0 && (
                 <WindowList

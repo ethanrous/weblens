@@ -195,7 +195,7 @@ func getIndexFields(path, proxyAddress string, pack *models.ServicePack) indexFi
 				if m != nil {
 					if !pack.MediaService.GetMediaType(m).Video {
 						imgUrl := fmt.Sprintf(
-							"%s/api/media/%s.png?quality=thumbnail&shareId=%s", proxyAddress,
+							"%s/api/media/%s.webp?quality=thumbnail&shareId=%s", proxyAddress,
 							f.GetContentId(), share.ID(),
 						)
 						hasImage = true

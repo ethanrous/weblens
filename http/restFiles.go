@@ -210,7 +210,7 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pack.Log.Debug.Println("Downloading file", file.AbsPath())
+	pack.Log.Debug.Println("Downloading file", file.GetPortablePath())
 	http.ServeFile(w, r, file.AbsPath())
 }
 
@@ -886,8 +886,8 @@ func autocompletePath(w http.ResponseWriter, r *http.Request) {
 //	@Tags		Files
 //	@Accept		json
 //	@Produce	json
-//	@Param		request	body		rest.RestoreFilesBody				true	"Restore files request body"
-//	@Success	200		{object}	http.restoreFiles.restoreFilesInfo	"Restore files info"
+//	@Param		request	body		rest.RestoreFilesBody	true	"Restore files request body"
+//	@Success	200		{object}	rest.RestoreFilesInfo	"Restore files info"
 //	@Failure	400
 //	@Failure	404
 //	@Failure	500
@@ -936,10 +936,7 @@ func restoreFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type restoreFilesInfo struct {
-		NewParentId string `json:"newParentId"`
-	} //	@name	RestoreFilesInfo
-	res := restoreFilesInfo{NewParentId: newParent.ID()}
+	res := rest.RestoreFilesInfo{NewParentId: newParent.ID()}
 
 	writeJson(w, http.StatusOK, res)
 }
@@ -1182,6 +1179,7 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Begin a new upload task
 //	@Tags		Files
 //	@Param		request	body		rest.NewUploadParams	true	"New upload request body"
+//	@Param		shareId	query		string					false	"Share Id"
 //	@Success	200		{object}	rest.NewUploadInfo		"Upload Info"
 //	@Failure	401
 //	@Failure	404
@@ -1190,12 +1188,30 @@ func deleteFiles(w http.ResponseWriter, r *http.Request) {
 func newUploadTask(w http.ResponseWriter, r *http.Request) {
 	pack := getServices(r)
 	u, err := getUserFromCtx(r)
-	if SafeErrorAndExit(err, w) {
+	if err != nil && !errors.Is(err, werror.ErrNoPublicUser) {
+		SafeErrorAndExit(err, w)
 		return
+	} else if err != nil {
+		u = pack.UserService.GetPublicUser()
 	}
 
 	upInfo, err := readCtxBody[rest.NewUploadParams](w, r)
 	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	rootFolder, err := pack.FileService.GetFileSafe(upInfo.RootFolderId, u, share)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
+	if !pack.AccessService.CanUserAccessFile(u, rootFolder, share) {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -1250,6 +1266,12 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 	if SafeErrorAndExit(err, w) {
 		return
 	}
+
+	share, err := getShareFromCtx[*models.FileShare](w, r)
+	if SafeErrorAndExit(err, w) {
+		return
+	}
+
 	uTask := pack.TaskService.GetTask(uploadTaskId)
 	if uTask == nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -1258,15 +1280,15 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	completed, _ := uTask.Status()
 	if completed {
-		w.WriteHeader(http.StatusNotFound)
+		writeError(w, http.StatusNotFound, werror.ErrUploadAlreadyComplete)
 		return
 	}
 
 	var ids []fileTree.FileId
 	for _, newFInfo := range params.NewFiles {
-		parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, nil)
+		parent, err := pack.FileService.GetFileSafe(newFInfo.ParentFolderId, u, share)
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
+			writeError(w, http.StatusNotFound, err)
 			return
 		}
 
@@ -1275,6 +1297,8 @@ func newFileUpload(w http.ResponseWriter, r *http.Request) {
 			writeJson(w, http.StatusConflict, rest.WeblensErrorInfo{Error: "File with the same name already exists in folder"})
 			return
 		}
+
+		uTask.ClearTimeout()
 
 		err = uTask.Manipulate(
 			func(meta task.TaskMetadata) error {
@@ -1390,14 +1414,14 @@ func handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 
 // GetUploadResult godoc
 //
-//	@ID GetUploadResult
+//	@ID	GetUploadResult
 //
 //	@Security
 //	@Security	SessionAuth
 //
 //	@Summary	Get the result of an upload task. This will block until the upload is complete
 //	@Tags		Files
-//	@Param		uploadId	path		string	true	"Upload Id"
+//	@Param		uploadId	path	string	true	"Upload Id"
 //	@Success	200
 //	@Failure	401
 //	@Failure	404

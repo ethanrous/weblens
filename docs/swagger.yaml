@@ -1,26 +1,5 @@
 basePath: /api/
 definitions:
-  AlbumInfo:
-    properties:
-      cover:
-        type: string
-      id:
-        type: string
-      medias:
-        items:
-          type: string
-        type: array
-      name:
-        type: string
-      owner:
-        type: string
-      primaryColor:
-        type: string
-      secondaryColor:
-        type: string
-      showOnTimeline:
-        type: boolean
-    type: object
   AlbumShareParams:
     properties:
       albumId:
@@ -580,180 +559,6 @@ info:
   title: Weblens API
   version: "1.0"
 paths:
-  /albums:
-    get:
-      operationId: GetAlbums
-      parameters:
-      - description: Albums filter
-        in: query
-        name: filter
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Album Infos
-          schema:
-            items:
-              $ref: '#/definitions/AlbumInfo'
-            type: array
-        "404":
-          description: Not Found
-      security:
-      - SessionAuth: []
-      summary: Get albums for a user
-      tags:
-      - Album
-    post:
-      operationId: CreateAlbum
-      parameters:
-      - in: query
-        name: name
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Album Info
-          schema:
-            $ref: '#/definitions/AlbumInfo'
-      security:
-      - SessionAuth: []
-      summary: Create a new album
-      tags:
-      - Album
-  /albums/{albumId}:
-    delete:
-      operationId: DeleteOrLeaveAlbum
-      parameters:
-      - description: Album Id
-        in: path
-        name: albumId
-        required: true
-        type: string
-      - description: Share Id
-        in: query
-        name: shareId
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - SessionAuth: []
-      summary: Delete an Album, or unshare it if the user is not the owner
-      tags:
-      - Album
-    get:
-      operationId: GetAlbum
-      parameters:
-      - description: Album Id
-        in: path
-        name: albumId
-        required: true
-        type: string
-      - description: Share Id
-        in: query
-        name: shareId
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Album Info
-          schema:
-            $ref: '#/definitions/AlbumInfo'
-        "404":
-          description: Not Found
-      security:
-      - SessionAuth: []
-      summary: Get album by album Id
-      tags:
-      - Album
-    patch:
-      operationId: UpdateAlbum
-      parameters:
-      - description: Album Id
-        in: path
-        name: albumId
-        required: true
-        type: string
-      - in: query
-        name: cover
-        type: string
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
-        name: newFolders
-        type: array
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
-        name: newMedia
-        type: array
-      - in: query
-        name: newName
-        type: string
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
-        name: removeMedia
-        type: array
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
-        name: removeUsers
-        type: array
-      - collectionFormat: csv
-        in: query
-        items:
-          type: string
-        name: users
-        type: array
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      security:
-      - SessionAuth: []
-      summary: Update an Album
-      tags:
-      - Album
-  /albums/{albumId}/media:
-    get:
-      operationId: GetAlbumMedia
-      parameters:
-      - description: Album Id
-        in: path
-        name: albumId
-        required: true
-        type: string
-      - description: Share Id
-        in: query
-        name: shareId
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Media Info
-          schema:
-            items:
-              $ref: '#/definitions/MediaInfo'
-            type: array
-        "404":
-          description: Not Found
-      security:
-      - SessionAuth: []
-      summary: Get media in an album
-      tags:
-      - Album
   /files:
     delete:
       operationId: DeleteFiles
@@ -1440,7 +1245,7 @@ paths:
       summary: Get media info
       tags:
       - Media
-  /media/{mediaId}/like:
+  /media/{mediaId}/liked:
     patch:
       operationId: SetMediaLiked
       parameters:
@@ -1448,6 +1253,10 @@ paths:
         in: path
         name: mediaId
         required: true
+        type: string
+      - description: ShareId
+        in: query
+        name: shareId
         type: string
       - description: Liked status to set
         in: query
@@ -1852,6 +1661,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/NewUploadParams'
+      - description: Share Id
+        in: query
+        name: shareId
+        type: string
       responses:
         "200":
           description: Upload Info

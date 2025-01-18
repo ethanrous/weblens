@@ -68,9 +68,9 @@ type Task struct {
 
 	updateMu sync.RWMutex
 
-	timerLock sync.Mutex
+	timerLock sync.RWMutex
 
-	waitMu     sync.Mutex
+	waitChan   chan struct{}
 	persistent bool
 }
 
@@ -88,6 +88,8 @@ func (t *Task) TaskId() Id {
 }
 
 func (t *Task) JobName() string {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
 	return t.jobName
 }
 
@@ -142,20 +144,17 @@ func (t *Task) Q(tp *TaskPool) *Task {
 }
 
 // Wait Block until a task is finished. "Finished" can define success, failure, or cancel
-func (t *Task) Wait() *Task {
+func (t *Task) Wait() {
 	if t == nil {
-		return t
+		return
 	}
 	t.updateMu.Lock()
 	if t.queueState == Exited {
-		return t
+		return
 	}
 	t.updateMu.Unlock()
-	t.waitMu.Lock()
-	//lint:ignore SA2001 We want to wake up when the task is finished, and then signal other waiters to do the same
-	t.waitMu.Unlock()
+	<-t.waitChan
 
-	return t
 }
 
 // Cancel Unknowable if this is the last operation of a task, so t.success()
@@ -213,7 +212,7 @@ func (t *Task) ClearAndRecompute() {
 	t.queueState = PreQueued
 	t.updateMu.Unlock()
 
-	t.waitMu.TryLock()
+	t.waitChan = make(chan struct{})
 
 	for k := range t.result {
 		delete(t.result, k)
@@ -224,12 +223,12 @@ func (t *Task) ClearAndRecompute() {
 		t.err = nil
 	}
 
-	err := t.taskPool.QueueTask(t)
+	err := t.GetTaskPool().QueueTask(t)
 	if err != nil {
 		return
 	}
 
-	t.taskPool.workerPool.taskMap[t.taskId] = t
+	t.GetTaskPool().GetWorkerPool().taskMap[t.taskId] = t
 }
 
 func (t *Task) GetResult(resultKey TaskResultKey) any {
@@ -273,6 +272,7 @@ func (t *Task) Manipulate(fn func(meta TaskMetadata) error) error {
 // the error, as errors occurring inside the task body, after a task is cancelled, are not valid.
 // If an error has caused the task to be cancelled, t.Cancel() must be called after t.error()
 func (t *Task) error(err error) {
+	wp := t.GetTaskPool().GetWorkerPool()
 	t.updateMu.Lock()
 
 	// If we have already called cancel, do not set any error
@@ -284,7 +284,8 @@ func (t *Task) error(err error) {
 		return
 	}
 
-	log.Trace.Println("Setting task Error")
+	wp.log.ErrTrace(err)
+
 	t.err = err
 	t.queueState = Exited
 	t.exitStatus = TaskError
@@ -375,17 +376,33 @@ func (t *Task) Success(msg ...any) {
 	t.sw.Stop()
 }
 
+func (t *Task) QueueState() QueueState {
+	t.updateMu.RLock()
+	defer t.updateMu.RUnlock()
+	return t.queueState
+}
+
 func (t *Task) SetTimeout(timeout time.Time) {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 	t.timeout = timeout
-	t.GetTaskPool().GetWorkerPool()
+	wp := t.GetTaskPool().GetWorkerPool()
+	wp.AddHit(timeout, t)
+	wp.log.Trace.Printf("Setting timeout for task [%s] to [%s]", t.TaskId(), timeout)
 }
 
 func (t *Task) ClearTimeout() {
 	t.timerLock.Lock()
 	defer t.timerLock.Unlock()
 	t.timeout = time.Unix(0, 0)
+	wp := t.GetTaskPool().GetWorkerPool()
+	wp.log.Trace.Printf("Clearing timeout for task [%s]", t.TaskId())
+}
+
+func (t *Task) GetTimeout() time.Time {
+	t.timerLock.RLock()
+	defer t.timerLock.RUnlock()
+	return t.timeout
 }
 
 // OnResult takes a function to be run when the task result changes
@@ -397,7 +414,6 @@ func (t *Task) OnResult(callback func(TaskResult)) {
 
 func (t *Task) SetResult(results TaskResult) {
 	t.updateMu.Lock()
-	defer t.updateMu.Unlock()
 	if t.result == nil {
 		t.result = results
 	} else {
@@ -407,8 +423,12 @@ func (t *Task) SetResult(results TaskResult) {
 	}
 
 	if t.resultsCallback != nil {
-		t.resultsCallback(maps.Clone(t.result))
+		resultClone := maps.Clone(t.result)
+		t.updateMu.Unlock()
+		t.resultsCallback(resultClone)
+		return
 	}
+	t.updateMu.Unlock()
 }
 
 // Add a lap in the tasks stopwatch

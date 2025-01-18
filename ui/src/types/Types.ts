@@ -1,4 +1,5 @@
 import WeblensMedia from '@weblens/types/media/Media'
+import { AxiosError } from 'axios'
 
 // Gallery Types
 export type MediaWrapperProps = {
@@ -73,6 +74,11 @@ export type Dimensions = {
     width: number
 }
 
-export function ErrorHandler(err: Error) {
+export function ErrorHandler(err: Error, note?: string) {
+    note = note ?? ''
+    if (err instanceof AxiosError) {
+        console.error(note, err.toJSON())
+        return
+    }
     console.error('Caught:', typeof err, err)
 }

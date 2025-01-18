@@ -99,7 +99,9 @@ func (mfs *MockFileService) GetFileTreeByName(treeName string) fileTree.FileTree
 }
 
 func (mfs *MockFileService) GetFileOwner(file *fileTree.WeblensFileImpl) *models.User {
-	return nil
+	return &models.User{
+		Username: "MOCK_USER",
+	}
 }
 
 func (mfs *MockFileService) IsFileInTrash(file *fileTree.WeblensFileImpl) bool {

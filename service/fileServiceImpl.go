@@ -1164,12 +1164,6 @@ func (fs *FileServiceImpl) ResizeUp(f *fileTree.WeblensFileImpl, event *fileTree
 		}
 	})
 
-	fs.log.Trace.Func(func(l log.Logger) {
-		if event != nil {
-			l.Printf("Resizing up event: %d", len(event.Actions))
-		}
-	})
-
 	return nil
 }
 
@@ -1316,12 +1310,7 @@ func GenerateContentId(f *fileTree.WeblensFileImpl) (models.ContentId, error) {
 	fileSize := f.Size()
 
 	if fileSize == 0 {
-		return "", nil
-		// t.Success("Skipping file with no content: ", meta.File.AbsPath())
-	}
-
-	if f.IsDir() {
-		return "", nil
+		return "", werror.WithStack(werror.ErrEmptyFile.WithArg(f.AbsPath()))
 	}
 
 	if f.GetContentId() != "" {

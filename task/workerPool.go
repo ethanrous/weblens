@@ -204,15 +204,12 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 			// signal chan must be buffered so caller doesn't block trying to close many tasks
 			signalChan: make(chan int, 1),
 
+			waitChan: make(chan struct{}),
+
 			sw: internal.NewStopwatch(fmt.Sprintf("%s Task [%s]", jobName, taskId)),
 		}
 		wp.jobsMu.RUnlock()
 	}
-
-	// Lock the waiter gate immediately. The task cleanup routine will clear
-	// this lock when the task exits, which will allow any thread waiting on
-	// the task to return
-	t.waitMu.Lock()
 
 	wp.addTask(t)
 
@@ -241,7 +238,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 
 	if pool.allQueuedFlag.Load() {
 		// We cannot add tasks to a queue that has been closed
-		return nil, werror.WithStack(errors.New("attempting to add task to closed task queue"))
+		return nil, werror.Errorf("attempting to add task [%s] to closed task queue [pool created by %s]", t.JobName(), pool.ID())
 	}
 
 	pool.totalTasks.Add(1)
@@ -251,7 +248,7 @@ func (wp *WorkerPool) DispatchJob(jobName string, meta TaskMetadata, pool *TaskP
 	}
 
 	// Set the tasks queue
-	t.taskPool = pool
+	t.setTaskPoolInternal(pool)
 
 	wp.lifetimeQueuedCount.Add(1)
 
@@ -325,11 +322,12 @@ func (wp *WorkerPool) reaper() {
 		case newHit := <-wp.hitStream:
 			go func(h hit) { time.Sleep(time.Until(h.time)); timerStream <- h.target }(newHit)
 		case task := <-timerStream:
-			// Possible that the task has kicked it's timeout down the road
+			// Possible that the task has kicked its timeout down the road
 			// since it first queued it, we must check that we are past the
 			// timeout before cancelling the task. Also check that it
 			// has not already finished
-			if task.queueState != Exited && time.Until(task.timeout) <= 0 && task.timeout.Unix() != 0 {
+			timeout := task.GetTimeout()
+			if task.QueueState() != Exited && time.Until(timeout) <= 0 && timeout.Unix() != 0 {
 				wp.log.Warning.Printf("Sending timeout signal to T[%s]\n", task.taskId)
 				task.Cancel()
 				task.error(werror.ErrTaskTimeout)
@@ -463,9 +461,11 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Tasks must set their completed flag before exiting
 					// if it wasn't done in the work body, we do it for them
+					t.updateMu.Lock()
 					if t.queueState != Exited {
 						t.Success("closed by worker pool")
 					}
+					t.updateMu.Unlock()
 
 					result := t.GetResults()
 					t.updateMu.Lock()
@@ -483,7 +483,7 @@ func (wp *WorkerPool) execWorker(replacement bool) {
 
 					// Wake any waiters on this task
 					t.updateMu.Unlock()
-					t.waitMu.Unlock()
+					close(t.waitChan)
 
 					// Potentially find the task pool that houses this task pool. All child
 					// task pools report their status to the root task pool as well.

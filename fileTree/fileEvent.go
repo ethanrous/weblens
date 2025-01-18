@@ -13,8 +13,8 @@ type FileEventId = string
 type FileEvent struct {
 	EventBegin time.Time `bson:"eventBegin"`
 
-	journal Journal `bson:"-"`
-	hasher  Hasher  `bson:"-"`
+	journal *JournalImpl `bson:"-"`
+	hasher  Hasher       `bson:"-"`
 
 	// LoggedChan is used to signal that the event has been logged to the journal.
 	// This is used to prevent actions on the same lifetime to be logged out of order.
@@ -25,11 +25,16 @@ type FileEvent struct {
 
 	Actions     []*FileAction `bson:"actions"`
 	actionsLock sync.RWMutex  `bson:"-"`
+
+	LogLock sync.Mutex `bson:"-"`
+	Logged  bool       `bson:"-"`
 }
 
 func (fe *FileEvent) addAction(a *FileAction) {
 	fe.actionsLock.Lock()
 	defer fe.actionsLock.Unlock()
+
+	log.Trace.Printf("New [%s] action on event for file [%s]", a.GetActionType(), a.GetRelevantPath())
 
 	fe.Actions = append(fe.Actions, a)
 }
@@ -46,7 +51,7 @@ func (fe *FileEvent) NewCreateAction(file *WeblensFileImpl) *FileAction {
 		return nil
 	}
 
-	log.Trace.Func(func(l log.Logger) { l.Printf("Building create action for [%s]", file.Filename()) })
+	log.Trace.Func(func(l log.Logger) { l.Printf("Building create action for [%s]", file.GetPortablePath()) })
 
 	if !file.IsDir() && file.GetContentId() == "" {
 		err := fe.hasher.Hash(file)
@@ -131,7 +136,7 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 	lt := fe.journal.Get(lifeId)
 	if lt == nil {
 		err := werror.Errorf("Cannot find existing lifetime for %s", lifeId)
-		log.ErrTrace(err)
+		fe.journal.log.ErrTrace(err)
 		return nil
 	}
 
@@ -142,10 +147,6 @@ func (fe *FileEvent) NewDeleteAction(lifeId FileId) *FileAction {
 	}
 
 	latest := lt.GetLatestAction()
-
-	// if latest.GetDestinationId() != lifeId {
-	// 	log.Error.Println("File previous destination does not match move origin")
-	// }
 
 	newAction := &FileAction{
 		LifeId:     lifeId,

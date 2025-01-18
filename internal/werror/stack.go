@@ -69,8 +69,7 @@ func formatFramePair(frameStr string) string {
 	fileIndex := strings.LastIndex(fileAndLine, "/")
 	lineIndex := strings.LastIndex(fileAndLine, ":")
 	if lineIndex == -1 {
-		fmt.Println("WHAT (lineIndex)", fileAndLine)
-		return ""
+		return "[MALFORMED STACK FRAME] " + frameStr
 	}
 
 	fileAndLine = fileAndLine[startIndex:fileIndex+1] + orange + fileAndLine[fileIndex+1:lineIndex] + blue + fileAndLine[lineIndex:] + reset + "\n"

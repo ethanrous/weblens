@@ -612,6 +612,7 @@ func (ft *FileTreeImpl) ResizeDown(anchor *WeblensFileImpl, event *FileEvent, up
 
 var IgnoreFilenames = []string{
 	".DS_Store",
+	".content",
 }
 
 func handleFileResize(file *WeblensFileImpl, journal Journal, event *FileEvent, updateCallback func(newFile *WeblensFileImpl)) error {
@@ -670,7 +671,7 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 
 		// Pop from slice of files to load
 		fileToLoad, toLoad = toLoad[0], toLoad[1:]
-		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) || (fileToLoad.Filename() == ".content") {
+		if slices.Contains(IgnoreFilenames, fileToLoad.Filename()) {
 			continue
 		}
 
@@ -678,6 +679,13 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 			portablePath := fileToLoad.GetPortablePath().ToPortable()
 			if activeLt, ok := lifetimesByPath[portablePath]; ok {
 				// We found this lifetime, so it is not missing, remove it from the missing map
+				log.Trace.Func(func(l log.Logger) {
+					if _, ok := missing[activeLt.Id]; !ok {
+						l.Printf("Could not find lifetime in missing map %s", activeLt.Id)
+					} else {
+						l.Printf("Removing Lifetime from missing map %s", activeLt.GetLatestPath())
+					}
+				})
 				delete(missing, activeLt.Id)
 
 				if event.journal != nil && activeLt.GetIsDir() != fileToLoad.IsDir() {
@@ -726,6 +734,7 @@ func (ft *FileTreeImpl) loadFromRoot(event *FileEvent, doFileDiscovery bool) err
 	if doFileDiscovery {
 		// If we have missing files, create delete actions for them
 		for missingId := range missing {
+			log.Trace.Printf("Removing file with missing id %s", missingId)
 			event.NewDeleteAction(missingId)
 		}
 		sw.Lap("Delete events")

@@ -70,11 +70,10 @@ func TestStartupCore(t *testing.T) {
 
 	start := time.Now()
 	server = http.NewServer(cnf.RouterHost, cnf.RouterPort, services)
+	services.StartupChan = make(chan bool)
 	server.StartupFunc = func() {
 		setup.Startup(cnf, services)
 	}
-
-	services.StartupChan = make(chan bool)
 	go server.Start()
 
 	if err := waitForStartup(services.StartupChan); err != nil {
@@ -127,6 +126,8 @@ func TestStartupBackup(t *testing.T) {
 
 	t.Parallel()
 
+	logger := log.NewLogPackage("", log.TRACE)
+
 	coreServices, err := tests.NewWeblensTestInstance(t.Name(), env.Config{
 		Role: string(models.CoreServerRole),
 	})
@@ -171,17 +172,18 @@ func TestStartupBackup(t *testing.T) {
 	err = waitForStartup(services.StartupChan)
 	require.NoError(t, err)
 
-	log.Debug.Println("Backup startup complete")
-
-	log.Debug.Println("Startup took", time.Since(start))
+	logger.Debug.Println("Startup took", time.Since(start))
 	require.True(t, services.Loaded.Load())
 
 	// Initialize the server as a backup server
 	err = services.InstanceService.InitBackup("TEST-BACKUP", coreAddress, coreApiKey)
-	log.ErrTrace(err)
+	logger.ErrTrace(err)
 	require.NoError(t, err)
 
+	logger.Debug.Println("Made backup server")
+
 	server.Restart(false)
+	logger.Debug.Println("Restarted...")
 
 	// Wait for backup server startup
 	err = waitForStartup(services.StartupChan)
@@ -195,7 +197,7 @@ func TestStartupBackup(t *testing.T) {
 	core := cores[0]
 
 	err = http.WebsocketToCore(core, services)
-	log.ErrTrace(err)
+	logger.ErrTrace(err)
 
 	coreClient := services.ClientService.GetClientByServerId(core.ServerId())
 	retries := 0
@@ -209,15 +211,16 @@ func TestStartupBackup(t *testing.T) {
 	assert.True(t, coreClient.Active.Load())
 
 	tsk, err := jobs.BackupOne(core, services)
-	log.ErrTrace(err)
+	logger.ErrTrace(err)
 
+	logger.Debug.Println("Started backup task")
 	tsk.Wait()
 	complete, _ := tsk.Status()
 	require.True(t, complete)
 
 	err = tsk.ReadError()
 	if err != nil {
-		log.ErrTrace(err)
+		logger.ErrTrace(err)
 		t.FailNow()
 	}
 

@@ -67,6 +67,10 @@ func NewAccessService(userService models.UserService, col *mongo.Collection) (*A
 func (accSrv *AccessServiceImpl) CanUserAccessFile(
 	user *models.User, file *fileTree.WeblensFileImpl, share *models.FileShare,
 ) bool {
+	if user == nil || user.IsPublic() {
+		return share != nil && share.IsPublic()
+	}
+
 	if getFileOwnerName(file) == user.GetUsername() {
 		return true
 	}
